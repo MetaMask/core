@@ -182,7 +182,7 @@ classDiagram
         +string disclaimersError
         +string geoCountry
         +string moonpaySessionToken [secret]
-        +string accessToken [secret]
+        +string moonpayAccessToken [secret]
         +string moonpayCustomerId
         +KycProduct activeProduct
         +Record kycRequiredByProduct [persisted]
@@ -216,7 +216,7 @@ State metadata highlights (`kycControllerMetadata`):
   vendor switch commits (`createVendorCustomer` succeeds, or the MoonPay
   path proceeds); a failed or reset switch leaves the previous vendor's
   acceptance in place.
-- **Secrets, never persisted / never logged**: `moonpaySessionToken`, `accessToken`,
+- **Secrets, never persisted / never logged**: `moonpaySessionToken`, `moonpayAccessToken`,
   `moonpayCustomerId`, `email`, `disclaimers`, and the whole `sumsub` sub-tree.
   Switching away from MoonPay (`initialize` / `createVendorCustomer`) drops
   these MoonPay Check/Auth artifacts immediately so `buildCheckFrameUrl` cannot
@@ -289,7 +289,7 @@ stateDiagram-v2
 > **no-op** — it will not create a new session, switch `activeVendor`, clear
 > tokens, or reset `activeProduct`. Call `reset()` first to start over.
 > When a switch away from MoonPay is allowed, leftover `moonpaySessionToken`,
-> `accessToken`, `moonpayCustomerId`, and `#authClientToken` are cleared so
+> `moonpayAccessToken`, `moonpayCustomerId`, and `#authClientToken` are cleared so
 > Check/Auth URLs cannot outlive the MoonPay session. Check/Auth `complete`
 > messages are also ignored unless `activeVendor` is `moonpay`, so a
 > still-mounted MoonPay frame cannot recapture `moonpayCustomerId` under
@@ -368,7 +368,7 @@ sequenceDiagram
         UI->>Ctrl: handleFrameMessage(complete)
     end
 
-    Ctrl-->>UI: phase = form (accessToken set)
+    Ctrl-->>UI: phase = form (moonpayAccessToken set)
 
     Note over Ctrl: activeProduct set at initialize →<br/>continue automatically (no user action)
     Ctrl->>Svc: checkKycRequired({ accessToken, country, capabilities })

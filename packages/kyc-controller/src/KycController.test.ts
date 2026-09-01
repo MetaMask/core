@@ -320,7 +320,7 @@ describe('KycController', () => {
 
     it('lets a later checkKycRequired reuse the overridden country without an override', async () => {
       await withController(
-        { options: { state: { accessToken: 'a' } } },
+        { options: { state: { moonpayAccessToken: 'a' } } },
         async ({ controller, handlers }) => {
           handlers.fetchVendorDisclaimers.mockResolvedValue([]);
           handlers.checkKycRequired.mockResolvedValue({ kycRequired: true });
@@ -474,7 +474,7 @@ describe('KycController', () => {
               phase: 'check',
               email: 'a@b.co',
               moonpaySessionToken: 'old-session',
-              accessToken: 'stale-access',
+              moonpayAccessToken: 'stale-access',
               disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
             },
           },
@@ -505,7 +505,7 @@ describe('KycController', () => {
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
-          expect(controller.state.accessToken).toBeNull();
+          expect(controller.state.moonpayAccessToken).toBeNull();
           expect(controller.buildAuthFrameUrl()).toBeNull();
           expect(controller.state.moonpaySessionToken).toBe('new-session');
         },
@@ -783,7 +783,7 @@ describe('KycController', () => {
           });
           expect(result).toStrictEqual({});
           expect(controller.state.phase).toBe('done');
-          expect(controller.state.accessToken).toBeNull();
+          expect(controller.state.moonpayAccessToken).toBeNull();
           expect(controller.state.moonpayCustomerId).toBeNull();
         },
       );
@@ -815,7 +815,7 @@ describe('KycController', () => {
 
           expect(result).toStrictEqual({});
           expect(controller.state.phase).toBe('check');
-          expect(controller.state.accessToken).toBeNull();
+          expect(controller.state.moonpayAccessToken).toBeNull();
           expect(controller.state.moonpayCustomerId).toBeNull();
           expect(controller.getCustomerIdentity()).toBeNull();
         },
@@ -855,7 +855,7 @@ describe('KycController', () => {
               },
             });
             expect(controller.state.phase).toBe('form');
-            expect(controller.state.accessToken).toBe('access-1');
+            expect(controller.state.moonpayAccessToken).toBe('access-1');
           },
         );
       });
@@ -943,7 +943,7 @@ describe('KycController', () => {
               },
             });
             expect(controller.state.phase).toBe('form');
-            expect(controller.state.accessToken).toBe('access-2');
+            expect(controller.state.moonpayAccessToken).toBe('access-2');
           },
         );
       });
@@ -1318,13 +1318,13 @@ describe('KycController', () => {
         expect(await controller.checkKycRequired({ product: 'ramps' })).toBe(
           false,
         );
-        expect(controller.state.error).toMatch(/Missing accessToken/u);
+        expect(controller.state.error).toMatch(/Missing moonpayAccessToken/u);
       });
     });
 
     it('fails without a country', async () => {
       await withController(
-        { options: { state: { accessToken: 'a' } } },
+        { options: { state: { moonpayAccessToken: 'a' } } },
         async ({ controller }) => {
           expect(await controller.checkKycRequired({ product: 'ramps' })).toBe(
             false,
@@ -1336,7 +1336,7 @@ describe('KycController', () => {
 
     it('caches the result on success (cached country)', async () => {
       await withController(
-        { options: { state: { accessToken: 'a', geoCountry: 'USA' } } },
+        { options: { state: { moonpayAccessToken: 'a', geoCountry: 'USA' } } },
         async ({ controller, handlers }) => {
           handlers.checkKycRequired.mockResolvedValue({ kycRequired: true });
 
@@ -1351,7 +1351,7 @@ describe('KycController', () => {
 
     it('accepts a country override', async () => {
       await withController(
-        { options: { state: { accessToken: 'a' } } },
+        { options: { state: { moonpayAccessToken: 'a' } } },
         async ({ controller, handlers }) => {
           handlers.checkKycRequired.mockResolvedValue({ kycRequired: false });
 
@@ -1371,7 +1371,7 @@ describe('KycController', () => {
 
     it('fails when the service throws', async () => {
       await withController(
-        { options: { state: { accessToken: 'a', geoCountry: 'USA' } } },
+        { options: { state: { moonpayAccessToken: 'a', geoCountry: 'USA' } } },
         async ({ controller, handlers }) => {
           handlers.checkKycRequired.mockRejectedValue(new Error('down'));
 
@@ -1385,7 +1385,7 @@ describe('KycController', () => {
 
     it('discards a successful result when reset() runs while the check is in flight', async () => {
       await withController(
-        { options: { state: { accessToken: 'a', geoCountry: 'USA' } } },
+        { options: { state: { moonpayAccessToken: 'a', geoCountry: 'USA' } } },
         async ({ controller, handlers }) => {
           handlers.checkKycRequired.mockImplementation(async () => {
             // Simulate a reset() landing while the HTTP call is in flight.
@@ -1407,7 +1407,7 @@ describe('KycController', () => {
 
     it('discards an error when reset() runs while the check is in flight', async () => {
       await withController(
-        { options: { state: { accessToken: 'a', geoCountry: 'USA' } } },
+        { options: { state: { moonpayAccessToken: 'a', geoCountry: 'USA' } } },
         async ({ controller, handlers }) => {
           handlers.checkKycRequired.mockImplementation(async () => {
             controller.reset();
@@ -1483,7 +1483,7 @@ describe('KycController', () => {
               moonpayCustomerId: 'cust-1',
               activeVendor: 'moonpay',
               moonpaySessionToken: 'tok',
-              accessToken: 'access-1',
+              moonpayAccessToken: 'access-1',
             },
           },
         },
@@ -1492,7 +1492,7 @@ describe('KycController', () => {
 
           expect(controller.state.moonpayCustomerId).toBeNull();
           expect(controller.state.moonpaySessionToken).toBeNull();
-          expect(controller.state.accessToken).toBeNull();
+          expect(controller.state.moonpayAccessToken).toBeNull();
           expect(controller.buildCheckFrameUrl()).toBeNull();
           expect(controller.getCustomerIdentity()).toBeNull();
         },
@@ -1507,7 +1507,7 @@ describe('KycController', () => {
               moonpayCustomerId: 'cust-1',
               activeVendor: 'moonpay',
               moonpaySessionToken: 'tok',
-              accessToken: 'access-1',
+              moonpayAccessToken: 'access-1',
             },
           },
         },
@@ -1516,7 +1516,7 @@ describe('KycController', () => {
 
           expect(controller.state.moonpayCustomerId).toBe('cust-1');
           expect(controller.state.moonpaySessionToken).toBe('tok');
-          expect(controller.state.accessToken).toBe('access-1');
+          expect(controller.state.moonpayAccessToken).toBe('access-1');
           expect(controller.buildCheckFrameUrl()).toContain('sessionToken=tok');
         },
       );
@@ -1530,7 +1530,7 @@ describe('KycController', () => {
               moonpayCustomerId: 'cust-1',
               activeVendor: 'moonpay',
               moonpaySessionToken: 'tok',
-              accessToken: 'access-1',
+              moonpayAccessToken: 'access-1',
             },
           },
         },
@@ -1542,7 +1542,7 @@ describe('KycController', () => {
 
           expect(controller.state.moonpayCustomerId).toBeNull();
           expect(controller.state.moonpaySessionToken).toBeNull();
-          expect(controller.state.accessToken).toBeNull();
+          expect(controller.state.moonpayAccessToken).toBeNull();
           expect(controller.buildCheckFrameUrl()).toBeNull();
           expect(controller.getCustomerIdentity()).toBeNull();
         },
@@ -1570,7 +1570,7 @@ describe('KycController', () => {
               moonpayCustomerId: 'cust-1',
               activeVendor: 'moonpay',
               moonpaySessionToken: 'tok',
-              accessToken: 'access-1',
+              moonpayAccessToken: 'access-1',
             },
           },
         },
@@ -1588,7 +1588,7 @@ describe('KycController', () => {
 
           expect(controller.state.moonpayCustomerId).toBe('cust-1');
           expect(controller.state.moonpaySessionToken).toBe('tok');
-          expect(controller.state.accessToken).toBe('access-1');
+          expect(controller.state.moonpayAccessToken).toBe('access-1');
         },
       );
     });
@@ -2373,7 +2373,7 @@ describe('KycController', () => {
             state: {
               phase: 'form',
               moonpaySessionToken: 'tok',
-              accessToken: 'a',
+              moonpayAccessToken: 'a',
               activeProduct: 'ramps',
               ...VENDOR_TERMS_MOONPAY,
               kycRequiredByProduct: { ramps: true },
@@ -2384,7 +2384,7 @@ describe('KycController', () => {
           controller.reset();
           expect(controller.state.phase).toBe('idle');
           expect(controller.state.moonpaySessionToken).toBeNull();
-          expect(controller.state.accessToken).toBeNull();
+          expect(controller.state.moonpayAccessToken).toBeNull();
           expect(controller.state.activeProduct).toBeNull();
           expect(
             controller.state.vendorDisclaimersAccepted.moonpay?.termsAcceptedAt,
@@ -2438,7 +2438,7 @@ describe('KycController', () => {
               disclaimersError: 'stale disclaimers error',
               geoCountry: 'USA',
               moonpaySessionToken: 'tok',
-              accessToken: 'a',
+              moonpayAccessToken: 'a',
               moonpayCustomerId: 'cus-1',
               activeVendor: 'iron',
               activeProduct: 'ramps',

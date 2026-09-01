@@ -196,8 +196,8 @@ export type KycControllerState = {
 
   /** MoonPay session token (not persisted, not logged). */
   moonpaySessionToken: string | null;
-  /** Vendor access token (not persisted, not logged). */
-  accessToken: string | null;
+  /** MoonPay access token (not persisted, not logged). */
+  moonpayAccessToken: string | null;
   /** Vendor customer id, used for the SumSub hand-off. */
   moonpayCustomerId: string | null;
 
@@ -326,7 +326,7 @@ const kycControllerMetadata = {
     persist: false,
     usedInUi: false,
   },
-  accessToken: {
+  moonpayAccessToken: {
     includeInDebugSnapshot: false,
     includeInStateLogs: false,
     persist: false,
@@ -421,7 +421,7 @@ export function getDefaultKycControllerState(): KycControllerState {
     sessionDisclaimers: null,
     geoCountry: null,
     moonpaySessionToken: null,
-    accessToken: null,
+    moonpayAccessToken: null,
     moonpayCustomerId: null,
     activeVendor: 'moonpay',
     activeProduct: null,
@@ -874,7 +874,7 @@ export class KycController extends BaseController<
       state.activeVendor = vendor;
       // MoonPay Check/Auth artifacts must not survive a switch to another
       // vendor: leftover `moonpaySessionToken` would keep `buildCheckFrameUrl` alive,
-      // leftover `accessToken` / `#authClientToken` would keep Auth / KYC
+      // leftover `moonpayAccessToken` / `#authClientToken` would keep Auth / KYC
       // calls bound to MoonPay, and leftover `moonpayCustomerId` would make
       // `getCustomerIdentity` report a MoonPay id under the wrong vendor.
       if (vendor !== 'moonpay') {
@@ -1456,7 +1456,7 @@ export class KycController extends BaseController<
       state.phase = 'session';
       state.statusMessage = 'Creating session...';
       state.moonpaySessionToken = null;
-      state.accessToken = null;
+      state.moonpayAccessToken = null;
     });
 
     try {
@@ -1546,7 +1546,7 @@ export class KycController extends BaseController<
   #clearMoonPaySession(state: KycControllerState): void {
     state.moonpayCustomerId = null;
     state.moonpaySessionToken = null;
-    state.accessToken = null;
+    state.moonpayAccessToken = null;
   }
 
   /**
@@ -1654,7 +1654,7 @@ export class KycController extends BaseController<
   ): Promise<void> {
     if (status === 'active' && accessToken) {
       this.#applyUpdate((state) => {
-        state.accessToken = accessToken;
+        state.moonpayAccessToken = accessToken;
         state.phase = 'form';
         state.statusMessage = 'Already authenticated. Review to submit.';
       });
@@ -1688,7 +1688,7 @@ export class KycController extends BaseController<
   ): Promise<void> {
     if (status === 'active' && accessToken) {
       this.#applyUpdate((state) => {
-        state.accessToken = accessToken;
+        state.moonpayAccessToken = accessToken;
         state.phase = 'form';
         state.statusMessage = 'Authenticated. Review to submit.';
       });
@@ -1811,9 +1811,9 @@ export class KycController extends BaseController<
     product: KycProduct;
     country?: string;
   }): Promise<boolean> {
-    const { accessToken } = this.state;
-    if (!accessToken) {
-      this.#fail('Missing accessToken — repeat the authentication step.');
+    const { moonpayAccessToken } = this.state;
+    if (!moonpayAccessToken) {
+      this.#fail('Missing moonpayAccessToken — repeat the authentication step.');
       return false;
     }
     const country = params.country ?? this.state.geoCountry;
@@ -1834,7 +1834,7 @@ export class KycController extends BaseController<
     try {
       const { kycRequired } = await this.messenger.call(
         'KycService:checkKycRequired',
-        { accessToken, country, capabilities: [{ product: params.product }] },
+        { accessToken: moonpayAccessToken, country, capabilities: [{ product: params.product }] },
       );
       // The flow was reset while the check was in flight; discard the result
       // rather than resurrecting a done/cached state on an idle controller.
@@ -1911,7 +1911,7 @@ export class KycController extends BaseController<
       return {
         vendor: 'moonpay',
         vendorMetadata: {
-          moonPayAccessToken: this.state.accessToken,
+          moonPayAccessToken: this.state.moonpayAccessToken,
           moonPayUserId: this.state.moonpayCustomerId,
         },
       };
@@ -2519,7 +2519,7 @@ export class KycController extends BaseController<
       state.sessionDisclaimers = null;
       state.credentialReusabilityConsentGiven = null;
       state.moonpaySessionToken = null;
-      state.accessToken = null;
+      state.moonpayAccessToken = null;
       state.moonpayCustomerId = null;
       state.activeVendor = 'moonpay';
       state.activeProduct = null;

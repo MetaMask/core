@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Rename `KycController` state field `accessToken` to `moonpayAccessToken` (MoonPay Auth-frame access token; `KycService.checkKycRequired` still accepts an `accessToken` parameter).
 - **BREAKING:** Rename `KycController` state field `sessionToken` to `moonpaySessionToken` (MoonPay Check-frame session token; the Check-frame URL query parameter remains `sessionToken`).
 - **BREAKING:** Replace persisted `termsAcceptedAt`, `acceptedDisclaimerIds`, and `termsAcceptedVendor` with `vendorDisclaimersAccepted`: a fixed map with `moonpay: { termsAcceptedAt } | null` and `iron: { disclaimerIds } | null` keys (default `{ moonpay: null, iron: null }`).
 - **BREAKING:** Rename persisted `idosTncAccepted` to `idosDisclaimersAccepted` and change its type from `boolean | null` to `KycConsentRecord[] | null` (`{ key, version }[]`). `acceptTermsAndStartSession` now takes `idosDisclaimersAccepted: KycConsentRecord[]` instead of `idosTncSigned: boolean`.
