@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Replace persisted `termsAcceptedAt`, `acceptedDisclaimerIds`, and `termsAcceptedVendor` with `vendorDisclaimersAccepted`: a fixed map with `moonpay: { termsAcceptedAt } | null` and `iron: { disclaimerIds } | null` keys (default `{ moonpay: null, iron: null }`).
 - **BREAKING:** Rename persisted `idosTncAccepted` to `idosDisclaimersAccepted` and change its type from `boolean | null` to `KycConsentRecord[] | null` (`{ key, version }[]`). `acceptTermsAndStartSession` now takes `idosDisclaimersAccepted: KycConsentRecord[]` instead of `idosTncSigned: boolean`.
 - **BREAKING:** Rename persisted `sumsubTncAccepted` to `sumsubDisclaimersAccepted` and change its type from `boolean | null` to `KycConsentRecord[] | null` (`{ key, version }[]`). `acceptTermsAndStartSession` now takes `sumsubDisclaimersAccepted: KycConsentRecord[]` instead of `sumsubTncSigned: boolean`.
 - Add `KycService.fetchDisclaimersCatalog` / `KycService:fetchDisclaimersCatalog` (`GET /disclaimers?country=`, ISO 3166-1 alpha-3) for the pre-session idOS + KYC-provider catalog, plus the `KycDisclaimersCatalog` type (no `credentialReusabilityConsentGiven`). `fetchSessionDisclaimers` remains session-scoped (`GET /sessions/{sessionId}/disclaimers` → `KycSessionDisclaimers`). ([#10011](https://github.com/MetaMask/core/pull/10011))

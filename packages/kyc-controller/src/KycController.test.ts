@@ -85,6 +85,39 @@ const MOCK_SUMSUB_DISCLAIMERS_ACCEPTED: KycConsentRecord[] =
     version,
   }));
 
+const DEFAULT_VENDOR_DISCLAIMERS_ACCEPTED = {
+  moonpay: null,
+  iron: null,
+};
+
+const VENDOR_TERMS_MOONPAY = {
+  vendorDisclaimersAccepted: {
+    moonpay: { termsAcceptedAt: 't' },
+    iron: null,
+  },
+};
+
+const VENDOR_TERMS_MOONPAY_D1 = {
+  vendorDisclaimersAccepted: {
+    moonpay: { termsAcceptedAt: 't' },
+    iron: null,
+  },
+};
+
+const VENDOR_TERMS_IRON = {
+  vendorDisclaimersAccepted: {
+    moonpay: null,
+    iron: { disclaimerIds: ['d1'] },
+  },
+};
+
+const VENDOR_TERMS_IRON_D1 = {
+  vendorDisclaimersAccepted: {
+    moonpay: null,
+    iron: { disclaimerIds: ['iron-d1'] },
+  },
+};
+
 /**
  * Builds an encrypted envelope for a recipient's X25519 public key.
  *
@@ -149,14 +182,15 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              termsAcceptedAt: 't',
-              acceptedDisclaimerIds: ['1'],
-              termsAcceptedVendor: 'moonpay',
+              ...VENDOR_TERMS_MOONPAY,
             },
           },
         },
         async ({ controller, handlers }) => {
           handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.fetchVendorDisclaimers.mockResolvedValue([
+            { id: '1', display_name: 'T', url: 'u' },
+          ]);
           handlers.createSession.mockResolvedValue({ sessionToken: 'sess' });
 
           await controller.initialize({ email: 'a@b.co' });
@@ -212,8 +246,7 @@ describe('KycController', () => {
               phase: 'check',
               email: 'a@b.co',
               sessionToken: 'live-session',
-              termsAcceptedAt: 't',
-              acceptedDisclaimerIds: ['1'],
+              ...VENDOR_TERMS_MOONPAY,
               activeProduct: 'ramps',
               activeVendor: 'moonpay',
               moonpayCustomerId: 'cust-1',
@@ -247,7 +280,7 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { termsAcceptedAt: 't', acceptedDisclaimerIds: ['1'] },
+            state: { ...VENDOR_TERMS_MOONPAY },
           },
         },
         async ({ controller, handlers }) => {
@@ -367,8 +400,10 @@ describe('KycController', () => {
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
-          expect(controller.state.acceptedDisclaimerIds).toStrictEqual(['1']);
-          expect(controller.state.termsAcceptedAt).not.toBeNull();
+          expect(
+            controller.state.vendorDisclaimersAccepted.moonpay?.termsAcceptedAt,
+          ).toBeDefined();
+          expect(controller.state.vendorDisclaimersAccepted.moonpay).toBeDefined();
           expect(controller.state.activeProduct).toBe('ramps');
           expect(controller.state.phase).toBe('check');
         },
@@ -391,7 +426,7 @@ describe('KycController', () => {
 
           expect(controller.state.phase).toBe('error');
           expect(controller.state.error).toMatch(/Missing T&C2 acceptance/u);
-          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(controller.state.vendorDisclaimersAccepted.moonpay).toBeNull();
           expect(handlers.createSession).not.toHaveBeenCalled();
         },
       );
@@ -415,8 +450,10 @@ describe('KycController', () => {
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
-          expect(controller.state.acceptedDisclaimerIds).toStrictEqual(['1']);
-          expect(controller.state.termsAcceptedVendor).toBe('moonpay');
+          expect(
+            controller.state.vendorDisclaimersAccepted.moonpay?.termsAcceptedAt,
+          ).toBeDefined();
+          expect(controller.state.vendorDisclaimersAccepted.moonpay).toBeDefined();
           expect(controller.state.sumsubDisclaimersAccepted).toStrictEqual(
             MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
           );
@@ -541,7 +578,7 @@ describe('KycController', () => {
           });
 
           expect(controller.state.phase).toBe('terms');
-          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(controller.state.vendorDisclaimersAccepted.moonpay).toBeNull();
           expect(controller.state.error).toMatch(/Session creation failed/u);
           // A failed creation must not leave the old session token behind, so
           // the Check frame cannot be built against an invalid session.
@@ -658,13 +695,15 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { termsAcceptedAt: 't', acceptedDisclaimerIds: ['1'] },
+            state: { ...VENDOR_TERMS_MOONPAY },
           },
         },
         ({ controller }) => {
           controller.clearSavedTerms();
-          expect(controller.state.termsAcceptedAt).toBeNull();
-          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([]);
+          expect(controller.state.vendorDisclaimersAccepted.moonpay).toBeNull();
+          expect(controller.state.vendorDisclaimersAccepted).toStrictEqual(
+            DEFAULT_VENDOR_DISCLAIMERS_ACCEPTED,
+          );
         },
       );
     });
@@ -853,8 +892,7 @@ describe('KycController', () => {
               state: {
                 phase: 'check',
                 sessionToken: 'tok',
-                termsAcceptedAt: 't',
-                acceptedDisclaimerIds: ['1'],
+                ...VENDOR_TERMS_MOONPAY,
               },
             },
           },
@@ -867,7 +905,7 @@ describe('KycController', () => {
               },
             });
             expect(controller.state.phase).toBe('terms');
-            expect(controller.state.termsAcceptedAt).toBeNull();
+            expect(controller.state.vendorDisclaimersAccepted.moonpay).toBeNull();
           },
         );
       });
@@ -1132,9 +1170,7 @@ describe('KycController', () => {
               geoCountry: 'USA',
               // Persisted terms so a post-reset `initialize` auto-recreates the
               // session (reaching phase `check`) for the second completion.
-              termsAcceptedAt: 't',
-              acceptedDisclaimerIds: ['1'],
-              termsAcceptedVendor: 'moonpay',
+              ...VENDOR_TERMS_MOONPAY,
             },
           },
         },
@@ -1185,6 +1221,10 @@ describe('KycController', () => {
           // Re-establish a product-scoped flow (auto-creates a session and
           // returns to phase `check`) and confirm the next completion continues
           // again rather than being blocked forever by a stuck guard.
+          handlers.fetchVendorDisclaimers.mockResolvedValue([
+            { id: '1', display_name: 'T', url: 'u' },
+          ]);
+          handlers.createSession.mockResolvedValue({ sessionToken: 'tok-2' });
           await controller.initialize({ product: 'ramps' });
           handlers.checkKycRequired.mockResolvedValue({ kycRequired: false });
           await controller.handleFrameMessage({
@@ -2335,8 +2375,7 @@ describe('KycController', () => {
               sessionToken: 'tok',
               accessToken: 'a',
               activeProduct: 'ramps',
-              termsAcceptedAt: 't',
-              acceptedDisclaimerIds: ['1'],
+              ...VENDOR_TERMS_MOONPAY,
               kycRequiredByProduct: { ramps: true },
             },
           },
@@ -2347,7 +2386,9 @@ describe('KycController', () => {
           expect(controller.state.sessionToken).toBeNull();
           expect(controller.state.accessToken).toBeNull();
           expect(controller.state.activeProduct).toBeNull();
-          expect(controller.state.termsAcceptedAt).toBe('t');
+          expect(
+            controller.state.vendorDisclaimersAccepted.moonpay?.termsAcceptedAt,
+          ).toBe('t');
           expect(controller.state.kycRequiredByProduct.ramps).toBe(true);
         },
       );
@@ -2385,9 +2426,10 @@ describe('KycController', () => {
               statusMessage: 'Review to submit.',
               error: 'stale error',
               email: 'a@b.co',
-              termsAcceptedAt: 't',
-              acceptedDisclaimerIds: ['1'],
-              termsAcceptedVendor: 'iron',
+              vendorDisclaimersAccepted: {
+                moonpay: null,
+                iron: { disclaimerIds: ['1'] },
+              },
               sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
               idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
               disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
@@ -2591,9 +2633,7 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              termsAcceptedAt: 't',
-              acceptedDisclaimerIds: ['moonpay-d1'],
-              termsAcceptedVendor: 'moonpay',
+              ...VENDOR_TERMS_MOONPAY_D1,
             },
           },
         },
@@ -2605,11 +2645,10 @@ describe('KycController', () => {
           await controller.initialize({ email: 'a@b.co', vendor: 'iron' });
 
           expect(controller.state.phase).toBe('error');
-          expect(controller.state.termsAcceptedAt).toBe('t');
-          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([
-            'moonpay-d1',
-          ]);
-          expect(controller.state.termsAcceptedVendor).toBe('moonpay');
+          expect(
+            controller.state.vendorDisclaimersAccepted.moonpay?.termsAcceptedAt,
+          ).toBe('t');
+          expect(controller.state.vendorDisclaimersAccepted.moonpay).toBeDefined();
         },
       );
     });
@@ -2619,9 +2658,7 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              termsAcceptedAt: 't',
-              acceptedDisclaimerIds: ['moonpay-d1'],
-              termsAcceptedVendor: 'moonpay',
+              ...VENDOR_TERMS_MOONPAY_D1,
             },
           },
         },
@@ -2637,11 +2674,10 @@ describe('KycController', () => {
           });
 
           expect(controller.state.phase).toBe('idle');
-          expect(controller.state.termsAcceptedAt).toBe('t');
-          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([
-            'moonpay-d1',
-          ]);
-          expect(controller.state.termsAcceptedVendor).toBe('moonpay');
+          expect(
+            controller.state.vendorDisclaimersAccepted.moonpay?.termsAcceptedAt,
+          ).toBe('t');
+          expect(controller.state.vendorDisclaimersAccepted.moonpay).toBeDefined();
         },
       );
     });
@@ -2680,9 +2716,7 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              termsAcceptedAt: 't',
-              acceptedDisclaimerIds: ['d1'],
-              termsAcceptedVendor: 'iron',
+              ...VENDOR_TERMS_IRON,
               sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
               idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
             },
@@ -2719,9 +2753,7 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              termsAcceptedAt: 't',
-              acceptedDisclaimerIds: ['moonpay-d1'],
-              termsAcceptedVendor: 'moonpay',
+              ...VENDOR_TERMS_MOONPAY_D1,
             },
           },
         },
@@ -2733,9 +2765,10 @@ describe('KycController', () => {
           await controller.initialize({ email: 'a@b.co', vendor: 'iron' });
 
           expect(handlers.submitSessionDisclaimers).not.toHaveBeenCalled();
-          expect(controller.state.termsAcceptedAt).toBeNull();
-          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([]);
-          expect(controller.state.termsAcceptedVendor).toBeNull();
+          expect(
+            controller.state.vendorDisclaimersAccepted.moonpay,
+          ).toStrictEqual(VENDOR_TERMS_MOONPAY_D1.vendorDisclaimersAccepted.moonpay);
+          expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
           expect(handlers.fetchVendorDisclaimers).toHaveBeenCalledWith({
             vendor: 'iron',
             country: 'USA',
@@ -2750,9 +2783,7 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              termsAcceptedAt: 't',
-              acceptedDisclaimerIds: ['d1'],
-              termsAcceptedVendor: 'iron',
+              ...VENDOR_TERMS_IRON,
               // T&C2 flags are null, simulating pre-migration state
               sumsubDisclaimersAccepted: null,
               idosDisclaimersAccepted: null,
@@ -2768,7 +2799,7 @@ describe('KycController', () => {
 
           // T&C2 flags were null; reacceptance required.
           expect(controller.state.phase).toBe('terms');
-          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
           expect(controller.state.sumsubDisclaimersAccepted).toBeNull();
           expect(controller.state.idosDisclaimersAccepted).toBeNull();
         },
@@ -2780,9 +2811,7 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              termsAcceptedAt: 't',
-              acceptedDisclaimerIds: ['iron-d1'],
-              termsAcceptedVendor: 'iron',
+              ...VENDOR_TERMS_IRON_D1,
             },
           },
         },
@@ -2790,20 +2819,21 @@ describe('KycController', () => {
           await controller.initialize({ email: 'a@b.co', vendor: 'moonpay' });
 
           expect(handlers.createSession).not.toHaveBeenCalled();
-          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([]);
+          expect(
+            controller.state.vendorDisclaimersAccepted.iron,
+          ).toStrictEqual(VENDOR_TERMS_IRON_D1.vendorDisclaimersAccepted.iron);
+          expect(controller.state.vendorDisclaimersAccepted.moonpay).toBeNull();
           expect(controller.state.phase).toBe('terms');
         },
       );
     });
 
-    it('drops another vendor terms acceptance when createVendorCustomer switches vendor', async () => {
+    it('preserves another vendor disclaimer acceptance when createVendorCustomer switches vendor', async () => {
       await withController(
         {
           options: {
             state: {
-              termsAcceptedAt: 't',
-              acceptedDisclaimerIds: ['moonpay-d1'],
-              termsAcceptedVendor: 'moonpay',
+              ...VENDOR_TERMS_MOONPAY_D1,
             },
           },
         },
@@ -2813,9 +2843,10 @@ describe('KycController', () => {
             email: 'a@b.co',
           });
 
-          expect(controller.state.termsAcceptedAt).toBeNull();
-          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([]);
-          expect(controller.state.termsAcceptedVendor).toBeNull();
+          expect(
+            controller.state.vendorDisclaimersAccepted.moonpay,
+          ).toStrictEqual(VENDOR_TERMS_MOONPAY_D1.vendorDisclaimersAccepted.moonpay);
+          expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
         },
       );
     });
@@ -2826,9 +2857,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              termsAcceptedAt: 't',
-              acceptedDisclaimerIds: ['iron-d1'],
-              termsAcceptedVendor: 'iron',
+              ...VENDOR_TERMS_IRON_D1,
             },
           },
         },
@@ -2838,10 +2867,12 @@ describe('KycController', () => {
             email: 'a@b.co',
           });
 
-          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([
+          expect(
+            controller.state.vendorDisclaimersAccepted.iron?.disclaimerIds,
+          ).toStrictEqual([
             'iron-d1',
           ]);
-          expect(controller.state.termsAcceptedVendor).toBe('iron');
+          expect(controller.state.vendorDisclaimersAccepted.iron).toBeDefined();
         },
       );
     });
@@ -2902,7 +2933,7 @@ describe('KycController', () => {
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
-          expect(controller.state.termsAcceptedVendor).toBe('iron');
+          expect(controller.state.vendorDisclaimersAccepted.iron).toBeDefined();
           expect(controller.state.sumsubDisclaimersAccepted).toStrictEqual(
             MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
           );
@@ -2934,9 +2965,7 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              termsAcceptedAt: 't',
-              acceptedDisclaimerIds: ['moonpay-d1'],
-              termsAcceptedVendor: 'moonpay',
+              ...VENDOR_TERMS_MOONPAY_D1,
             },
           },
         },
@@ -2949,11 +2978,10 @@ describe('KycController', () => {
           });
 
           expect(controller.state.phase).toBe('error');
-          expect(controller.state.termsAcceptedAt).toBe('t');
-          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([
-            'moonpay-d1',
-          ]);
-          expect(controller.state.termsAcceptedVendor).toBe('moonpay');
+          expect(
+            controller.state.vendorDisclaimersAccepted.moonpay?.termsAcceptedAt,
+          ).toBe('t');
+          expect(controller.state.vendorDisclaimersAccepted.moonpay).toBeDefined();
         },
       );
     });
@@ -2963,9 +2991,7 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              termsAcceptedAt: 't',
-              acceptedDisclaimerIds: ['moonpay-d1'],
-              termsAcceptedVendor: 'moonpay',
+              ...VENDOR_TERMS_MOONPAY_D1,
             },
           },
         },
@@ -2992,11 +3018,10 @@ describe('KycController', () => {
           await pending;
 
           expect(controller.state.phase).toBe('idle');
-          expect(controller.state.termsAcceptedAt).toBe('t');
-          expect(controller.state.acceptedDisclaimerIds).toStrictEqual([
-            'moonpay-d1',
-          ]);
-          expect(controller.state.termsAcceptedVendor).toBe('moonpay');
+          expect(
+            controller.state.vendorDisclaimersAccepted.moonpay?.termsAcceptedAt,
+          ).toBe('t');
+          expect(controller.state.vendorDisclaimersAccepted.moonpay).toBeDefined();
         },
       );
     });
@@ -3448,8 +3473,9 @@ describe('KycController', () => {
 
           expect(controller.state.phase).toBe('error');
           expect(controller.state.error).toMatch(/Missing T&C2 acceptance/u);
-          expect(controller.state.termsAcceptedAt).toBeNull();
-          expect(handlers.submitSessionDisclaimers).not.toHaveBeenCalled();
+          expect(controller.state.vendorDisclaimersAccepted).toStrictEqual(
+            DEFAULT_VENDOR_DISCLAIMERS_ACCEPTED,
+          );
         },
       );
     });
@@ -3586,7 +3612,7 @@ describe('KycController', () => {
           });
 
           expect(controller.state.phase).toBe('terms');
-          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
           expect(controller.state.error).toMatch(/Consents session failed/u);
         },
       );
@@ -3645,7 +3671,7 @@ describe('KycController', () => {
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.sumsub.status).toBe('idle');
           expect(controller.state.sumsub.sessionId).toBeNull();
-          expect(controller.state.termsAcceptedAt).toBeNull();
+          expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
           expect(controller.state.error).toMatch(/Consents session failed/u);
           expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
         },
@@ -3686,7 +3712,9 @@ describe('KycController', () => {
           expect(controller.state.sumsub.sessionStatus).toStrictEqual(
             sessionStatus('rejected'),
           );
-          expect(controller.state.termsAcceptedAt).not.toBeNull();
+          expect(
+            controller.state.vendorDisclaimersAccepted.iron?.disclaimerIds,
+          ).toStrictEqual(['d1']);
           expect(controller.state.error).toBeNull();
           expect(handlers.fetchKycStatus).toHaveBeenCalled();
           expect(controller.state.userStatus).toBe('terminal-failure');

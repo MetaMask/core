@@ -35,6 +35,7 @@ import type {
   KycSumSubStatus,
   KycUserStatus,
   KycVendor,
+  KycVendorDisclaimersAccepted,
 } from './types.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
 import { verifyJwtChain } from './ukyc/jwtChain.js';
@@ -149,16 +150,12 @@ export type KycControllerState = {
   /** Email associated with the session (sourced from the account). */
   email: string | null;
 
-  /** ISO-8601 timestamp of the customer's terms acceptance (persisted). */
-  termsAcceptedAt: string | null;
-  /** IDs of the disclaimers the customer accepted (persisted). */
-  acceptedDisclaimerIds: string[];
   /**
-   * The vendor whose disclaimers `acceptedDisclaimerIds` belong to (persisted).
-   * Each vendor serves its own disclaimer set, so acceptance recorded for one
-   * vendor must not be reused for another. `null` when nothing is accepted.
+   * Persisted vendor-disclaimer acceptance (T&C1) with fixed `moonpay` and
+   * `iron` keys. MoonPay stores only `termsAcceptedAt`; Iron stores
+   * `disclaimerIds`.
    */
-  termsAcceptedVendor: KycVendor | null;
+  vendorDisclaimersAccepted: KycVendorDisclaimersAccepted;
   /**
    * Sumsub disclaimer documents the customer accepted during the last terms
    * acceptance (persisted `{ key, version }` records). Consents-path vendors
@@ -273,19 +270,7 @@ const kycControllerMetadata = {
     persist: false,
     usedInUi: false,
   },
-  termsAcceptedAt: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: false,
-  },
-  acceptedDisclaimerIds: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: false,
-  },
-  termsAcceptedVendor: {
+  vendorDisclaimersAccepted: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     persist: true,
@@ -402,6 +387,15 @@ const kycControllerMetadata = {
 } satisfies StateMetadata<KycControllerState>;
 
 /**
+ * Constructs the default {@link KycVendorDisclaimersAccepted} value.
+ *
+ * @returns The default vendor-disclaimer acceptance map.
+ */
+export function getDefaultKycVendorDisclaimersAccepted(): KycVendorDisclaimersAccepted {
+  return { moonpay: null, iron: null };
+}
+
+/**
  * Constructs the default {@link KycController} state.
  *
  * @returns The default state.
@@ -412,9 +406,7 @@ export function getDefaultKycControllerState(): KycControllerState {
     statusMessage: '',
     error: null,
     email: null,
-    termsAcceptedAt: null,
-    acceptedDisclaimerIds: [],
-    termsAcceptedVendor: null,
+    vendorDisclaimersAccepted: getDefaultKycVendorDisclaimersAccepted(),
     sumsubDisclaimersAccepted: null,
     idosDisclaimersAccepted: null,
     credentialReusabilityConsentGiven: null,
@@ -471,8 +463,30 @@ function isConsentConflictError(error: unknown): boolean {
   );
 }
 
+function hasVendorDisclaimerAcceptance(
+  accepted: KycVendorDisclaimersAccepted,
+  vendor: KycVendor,
+): boolean {
+  if (vendor === 'moonpay') {
+    return Boolean(accepted.moonpay?.termsAcceptedAt);
+  }
+  if (vendor === 'iron') {
+    return Boolean(accepted.iron?.disclaimerIds.length);
+  }
+  return false;
+}
+
 /**
- * Whether a value is a list of consent records (`{ key, version }`).
+ * Returns persisted Iron disclaimer ids, if any.
+ *
+ * @param accepted - Vendor-disclaimer acceptance map.
+ * @returns The accepted disclaimer ids, or an empty array.
+ */
+function ironDisclaimerIds(accepted: KycVendorDisclaimersAccepted): string[] {
+  return accepted.iron?.disclaimerIds ?? [];
+}
+
+/**
  *
  * @param value - The value to validate.
  * @returns `true` when `value` is a valid consent record list.
@@ -910,11 +924,10 @@ export class KycController extends BaseController<
     if (this.#generation !== generation) {
       return;
     }
-    this.#dropTermsUnlessForVendor(vendor);
-
-    const hasTerms =
-      Boolean(this.state.termsAcceptedAt) &&
-      this.state.acceptedDisclaimerIds.length > 0;
+    const hasTerms = hasVendorDisclaimerAcceptance(
+      this.state.vendorDisclaimersAccepted,
+      vendor,
+    );
 
     if (hasTerms && this.state.email) {
       if (usesConsentsFlow(vendor)) {
@@ -937,6 +950,15 @@ export class KycController extends BaseController<
             this.state.credentialReusabilityConsentGiven ?? false,
         });
       } else {
+        if (
+          vendor === 'moonpay' &&
+          this.state.disclaimers.length === 0
+        ) {
+          await this.loadDisclaimers();
+          if (this.#generation !== generation) {
+            return;
+          }
+        }
         await this.#createSession();
       }
       return;
@@ -989,7 +1011,6 @@ export class KycController extends BaseController<
       if (this.#generation !== generation) {
         return;
       }
-      this.#dropTermsUnlessForVendor(params.vendor);
     } catch (error) {
       if (this.#generation !== generation) {
         return;
@@ -1086,9 +1107,17 @@ export class KycController extends BaseController<
       if (params?.product) {
         state.activeProduct = params.product;
       }
-      state.termsAcceptedAt = termsAcceptedAt;
-      state.acceptedDisclaimerIds = disclaimerIds;
-      state.termsAcceptedVendor = state.activeVendor;
+      if (state.activeVendor === 'moonpay') {
+        state.vendorDisclaimersAccepted = {
+          ...state.vendorDisclaimersAccepted,
+          moonpay: { termsAcceptedAt },
+        };
+      } else if (state.activeVendor === 'iron') {
+        state.vendorDisclaimersAccepted = {
+          ...state.vendorDisclaimersAccepted,
+          iron: { disclaimerIds },
+        };
+      }
       state.sumsubDisclaimersAccepted = sumsubDisclaimersAccepted;
       state.idosDisclaimersAccepted = idosDisclaimersAccepted;
       state.credentialReusabilityConsentGiven =
@@ -1121,7 +1150,10 @@ export class KycController extends BaseController<
     idosDisclaimersAccepted: KycConsentRecord[];
     credentialReusabilityConsentGiven: boolean;
   }): Promise<void> {
-    const { email, acceptedDisclaimerIds } = this.state;
+    const { email } = this.state;
+    const acceptedDisclaimerIds = ironDisclaimerIds(
+      this.state.vendorDisclaimersAccepted,
+    );
     if (!email) {
       this.#fail('Missing email for consents session.');
       return;
@@ -1377,7 +1409,12 @@ export class KycController extends BaseController<
    * Creates a vendor session from the currently stored terms + email.
    */
   async #createSession(): Promise<void> {
-    const { email, termsAcceptedAt, acceptedDisclaimerIds } = this.state;
+    const { email } = this.state;
+    const termsAcceptedAt =
+      this.state.vendorDisclaimersAccepted.moonpay?.termsAcceptedAt;
+    const acceptedDisclaimerIds = this.state.disclaimers.map(
+      (disclaimer) => disclaimer.id,
+    );
     if (!email) {
       this.#fail('Missing email for session creation.');
       return;
@@ -1448,7 +1485,10 @@ export class KycController extends BaseController<
    */
   clearSavedTerms(): void {
     this.#applyUpdate((state) => {
-      this.#clearAcceptedTerms(state);
+      state.vendorDisclaimersAccepted = getDefaultKycVendorDisclaimersAccepted();
+      state.sumsubDisclaimersAccepted = null;
+      state.idosDisclaimersAccepted = null;
+      state.credentialReusabilityConsentGiven = null;
     });
   }
 
@@ -1460,11 +1500,22 @@ export class KycController extends BaseController<
    * rest of the flow (geolocation, disclaimers, phase) untouched.
    *
    * @param state - The state to mutate.
+   * @param vendor - Vendor whose acceptance to clear. Defaults to
+   * `state.activeVendor`.
    */
-  #clearAcceptedTerms(state: KycControllerState): void {
-    state.termsAcceptedAt = null;
-    state.acceptedDisclaimerIds = [];
-    state.termsAcceptedVendor = null;
+  #clearAcceptedTerms(state: KycControllerState, vendor?: KycVendor): void {
+    const targetVendor = vendor ?? state.activeVendor;
+    if (targetVendor === 'moonpay') {
+      state.vendorDisclaimersAccepted = {
+        ...state.vendorDisclaimersAccepted,
+        moonpay: null,
+      };
+    } else if (targetVendor === 'iron') {
+      state.vendorDisclaimersAccepted = {
+        ...state.vendorDisclaimersAccepted,
+        iron: null,
+      };
+    }
     state.sumsubDisclaimersAccepted = null;
     state.idosDisclaimersAccepted = null;
     state.credentialReusabilityConsentGiven = null;
@@ -1482,39 +1533,6 @@ export class KycController extends BaseController<
     state.moonpayCustomerId = null;
     state.sessionToken = null;
     state.accessToken = null;
-  }
-
-  /**
-   * Drops persisted terms acceptance when it does not belong to `vendor`.
-   * Callers must invoke this only after the vendor switch has committed
-   * (e.g. `createVendorCustomer` succeeded) so a failed or reset switch
-   * cannot erase another vendor's stored acceptance.
-   *
-   * @param vendor - The vendor that now owns the flow.
-   */
-  #dropTermsUnlessForVendor(vendor: KycVendor): void {
-    if (this.#hasTermsForVendor(vendor)) {
-      return;
-    }
-    this.#applyUpdate((state) => {
-      this.#clearAcceptedTerms(state);
-    });
-  }
-
-  /**
-   * Determines whether the stored terms acceptance belongs to the given
-   * vendor. Acceptance persisted before `termsAcceptedVendor` existed
-   * (indicated by `null`) is invalidated to force reacceptance, ensuring users
-   * re-review vendor terms after the multi-vendor upgrade.
-   *
-   * @param vendor - The vendor about to drive the flow.
-   * @returns `true` when the stored acceptance can be reused for `vendor`.
-   */
-  #hasTermsForVendor(vendor: KycVendor): boolean {
-    if (this.state.termsAcceptedVendor === null) {
-      return false;
-    }
-    return this.state.termsAcceptedVendor === vendor;
   }
 
   /**

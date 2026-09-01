@@ -177,9 +177,7 @@ classDiagram
         +string statusMessage
         +string error
         +string email
-        +string termsAcceptedAt [persisted]
-        +string[] acceptedDisclaimerIds [persisted]
-        +KycVendor termsAcceptedVendor [persisted]
+        +KycVendorDisclaimersAccepted vendorDisclaimersAccepted [persisted]
         +KycDisclaimer[] disclaimers
         +string disclaimersError
         +string geoCountry
@@ -206,8 +204,8 @@ classDiagram
 
 State metadata highlights (`kycControllerMetadata`):
 
-- **Persisted** (`persist: true`): `termsAcceptedAt`, `acceptedDisclaimerIds`,
-  `termsAcceptedVendor`, `sumsubDisclaimersAccepted`, `idosDisclaimersAccepted`,
+- **Persisted** (`persist: true`): `vendorDisclaimersAccepted`,
+  `sumsubDisclaimersAccepted`, `idosDisclaimersAccepted`,
   `kycRequiredByProduct`, `lastCheckedAt`. These survive restarts so the flow
   can skip already-accepted terms and reuse cached results. Session-scoped
   `sessionDisclaimers` and `credentialReusabilityConsentGiven` are in-memory

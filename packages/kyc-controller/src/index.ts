@@ -1,6 +1,7 @@
 export {
   KycController,
   getDefaultKycControllerState,
+  getDefaultKycVendorDisclaimersAccepted,
   controllerName,
 } from './KycController.js';
 export type {
@@ -109,6 +110,9 @@ export type {
   KycUserStatus,
   KycUserStatusResponse,
   KycVendor,
+  KycIronVendorDisclaimersAccepted,
+  KycMoonpayVendorDisclaimersAccepted,
+  KycVendorDisclaimersAccepted,
   KycVendorSigning,
 } from './types.js';
 
