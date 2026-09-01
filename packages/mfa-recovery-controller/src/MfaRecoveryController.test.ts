@@ -204,6 +204,58 @@ describe('MfaRecoveryController', () => {
       });
     });
 
+    it('continues reading when an escrow availability check fails', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        await controller.register(SECRET, [PASSKEY]);
+        jest
+          .spyOn(escrowA, 'isAvailable')
+          .mockRejectedValue(new Error('health check failed'));
+
+        const recovered = await controller.getRecoverySecret(PASSKEY);
+
+        expect(bytesToHex(recovered)).toBe(bytesToHex(SECRET));
+      });
+    });
+
+    it('continues reading when key-bound authorization fails for one escrow', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        await controller.register(SECRET, [PASSKEY]);
+        jest
+          .spyOn(escrowA, 'generateChallenge')
+          .mockRejectedValue(new Error('challenge failed'));
+
+        const recovered = await controller.getRecoverySecret(PASSKEY);
+
+        expect(bytesToHex(recovered)).toBe(bytesToHex(SECRET));
+      });
+    });
+
+    it('continues reading when escrow-challenge authorization fails for one escrow', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        await controller.register(SECRET, [EMAIL]);
+        jest
+          .spyOn(escrowA, 'beginIdentifierAuthentication')
+          .mockRejectedValue(new Error('challenge failed'));
+
+        const recovered = await controller.getRecoverySecret(EMAIL);
+
+        expect(bytesToHex(recovered)).toBe(bytesToHex(SECRET));
+      });
+    });
+
+    it('continues reading when completing one escrow challenge fails', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        await controller.register(SECRET, [EMAIL]);
+        jest
+          .spyOn(escrowA, 'completeIdentifierAuthentication')
+          .mockRejectedValue(new Error('grant failed'));
+
+        const recovered = await controller.getRecoverySecret(EMAIL);
+
+        expect(bytesToHex(recovered)).toBe(bytesToHex(SECRET));
+      });
+    });
+
     it('throws when matching versions disagree', async () => {
       await withController(async ({ controller, escrowB }) => {
         await controller.register(SECRET, [PASSKEY]);
@@ -276,6 +328,25 @@ describe('MfaRecoveryController', () => {
         await expect(
           controller.updateRecoverySecret(PASSKEY, SECRET_2),
         ).rejects.toThrow('All configured escrows are required for mutation');
+      });
+    });
+
+    it('does not write when one escrow cannot be authorized', async () => {
+      await withController(async ({ controller, escrowA, escrowB }) => {
+        await controller.register(SECRET, [PASSKEY]);
+        jest
+          .spyOn(escrowA, 'generateChallenge')
+          .mockRejectedValue(new Error('challenge failed'));
+        const applyA = jest.spyOn(escrowA, 'applyMutation');
+        const applyB = jest.spyOn(escrowB, 'applyMutation');
+
+        await expect(
+          controller.updateRecoverySecret(PASSKEY, SECRET_2),
+        ).rejects.toThrow('Unable to authorize every escrow');
+
+        expect(applyA).not.toHaveBeenCalled();
+        expect(applyB).not.toHaveBeenCalled();
+        expect(await controller.getPhase()).toBe('writing');
       });
     });
 

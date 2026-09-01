@@ -71,6 +71,11 @@ const MESSENGER_EXPOSED_METHODS = [
   'getPhase',
 ] as const;
 
+type AuthorizedEscrow = {
+  escrow: RecoveryEscrowProvider;
+  authorization: IdentifierAuthorization;
+};
+
 export type MfaRecoveryControllerState = {
   /**
    * Encrypted pending mutation, or `null` when idle.
@@ -331,15 +336,15 @@ export class MfaRecoveryController extends BaseController<
           'no_available_escrow',
         );
       }
-      const authorizations = await this.#authorizeIdentifier({
+      const authorizedEscrows = await this.#authorizeIdentifier({
         escrows: available,
         identifier,
         requestHash,
       });
       const results = await Promise.allSettled(
-        available.map(async (escrow, index) => ({
+        authorizedEscrows.map(async ({ escrow, authorization }) => ({
           escrowId: escrow.id,
-          ...(await escrow.getSecret(authorizations[index], requestId)),
+          ...(await escrow.getSecret(authorization, requestId)),
         })),
       );
       return selectHighestConsistentVersion(results).recoverySecret;
@@ -550,18 +555,27 @@ export class MfaRecoveryController extends BaseController<
     }
     const authorizations =
       mutation.operation === 'register'
-        ? availableTargets.map(() => null)
+        ? undefined
         : await this.#authorizeIdentifier({
             escrows: availableTargets,
             identifier: identifier as Identifier,
             requestHash: mutation.requestHash,
           });
+    if (
+      authorizations !== undefined &&
+      authorizations.length !== availableTargets.length
+    ) {
+      throw new MfaRecoveryError(
+        'Unable to authorize every escrow',
+        'identifier_auth_failed',
+      );
+    }
     const results = await Promise.allSettled(
       availableTargets.map((escrow, index) =>
         escrow.applyMutation(
           mutation,
           effectivePending.authControllerToken,
-          authorizations[index],
+          authorizations?.[index]?.authorization ?? null,
           payload,
         ),
       ),
@@ -609,7 +623,7 @@ export class MfaRecoveryController extends BaseController<
     escrows: RecoveryEscrowProvider[];
     identifier: Identifier;
     requestHash: string;
-  }): Promise<IdentifierAuthorization[]> {
+  }): Promise<AuthorizedEscrow[]> {
     const mode = getIdentifierAuthMode(identifier.type);
     if (mode === 'key-bound') {
       const proofKey = await generateSigningKey();
@@ -619,44 +633,70 @@ export class MfaRecoveryController extends BaseController<
           proofPublicKey: proofKey.publicKey,
           requestHash,
         });
-      const challenges = await Promise.all(
+      const challengeResults = await Promise.allSettled(
         escrows.map((escrow) => escrow.generateChallenge(proofKey.publicKey)),
       );
-      return await Promise.all(
-        challenges.map(async (challenge) => {
+      const challenges = challengeResults.flatMap((result, index) =>
+        isFulfilledResult(result)
+          ? [{ escrow: escrows[index], challenge: result.value }]
+          : [],
+      );
+      const authorizationResults = await Promise.allSettled(
+        challenges.map(async ({ escrow, challenge }) => {
           const message = await hash([token, challenge.id, requestHash]);
           return {
-            kind: 'key-bound' as const,
-            token,
-            proof: {
-              challengeId: challenge.id,
-              requestHash,
-              signature: await sign(proofKey.privateKey, message),
+            escrow,
+            authorization: {
+              kind: 'key-bound' as const,
+              token,
+              proof: {
+                challengeId: challenge.id,
+                requestHash,
+                signature: await sign(proofKey.privateKey, message),
+              },
             },
           };
         }),
       );
+      return authorizationResults
+        .filter(isFulfilledResult)
+        .map((result) => result.value);
     }
 
-    const challenges = await Promise.all(
+    const challengeResults = await Promise.allSettled(
       escrows.map((escrow) =>
         escrow.beginIdentifierAuthentication({ identifier, requestHash }),
       ),
     );
-    const responses = await Promise.all(
-      challenges.map((challenge) => this.#collectChallengeResponse(challenge)),
+    const challenges = challengeResults.flatMap((result, index) =>
+      isFulfilledResult(result)
+        ? [{ escrow: escrows[index], challenge: result.value }]
+        : [],
     );
-    const grants = await Promise.all(
-      escrows.map((escrow, index) =>
-        escrow.completeIdentifierAuthentication(
-          challenges[index].id,
-          responses[index],
+    const responseResults = await Promise.allSettled(
+      challenges.map(async (entry) => ({
+        ...entry,
+        response: await this.#collectChallengeResponse(entry.challenge),
+      })),
+    );
+    const responses = responseResults
+      .filter(isFulfilledResult)
+      .map((result) => result.value);
+    const grantResults = await Promise.allSettled(
+      responses.map(async ({ escrow, challenge, response }) => ({
+        escrow,
+        grant: await escrow.completeIdentifierAuthentication(
+          challenge.id,
+          response,
         ),
-      ),
+      })),
     );
-    return grants.map((grant) => ({
-      kind: 'escrow-challenge' as const,
-      grant,
+    return grantResults.filter(isFulfilledResult).map(({ value }) => ({
+      escrow: value.escrow,
+      authorization: {
+        kind: 'escrow-challenge' as const,
+        grant: value.grant,
+      },
     }));
   }
 
@@ -707,13 +747,17 @@ export class MfaRecoveryController extends BaseController<
   }
 
   async #getAvailableEscrows(): Promise<RecoveryEscrowProvider[]> {
-    const flags = await Promise.all(
+    const flags = await Promise.allSettled(
       this.#escrows.map(async (escrow) => ({
         escrow,
         available: await escrow.isAvailable(),
       })),
     );
-    return flags.filter((item) => item.available).map((item) => item.escrow);
+    return flags.flatMap((result) =>
+      isFulfilledResult(result) && result.value.available
+        ? [result.value.escrow]
+        : [],
+    );
   }
 
   async #requireAllEscrows(
