@@ -313,4 +313,43 @@ describe('getSendRecipients', () => {
 
     expect(getSendRecipients(transactionMeta)).toStrictEqual([TOKEN_RECIPIENT]);
   });
+
+  it('ignores stale nested transactions on a cancelled batch', () => {
+    const nestedSendRecipient = '0x1234dddddddddddddddddddddddddddddddd9abc';
+    const transactionMeta = {
+      ...buildTransactionMeta(TransactionType.cancel, undefined, FROM_ADDRESS),
+      originalType: TransactionType.batch,
+      nestedTransactions: [
+        {
+          to: nestedSendRecipient,
+          type: TransactionType.simpleSend,
+        },
+        {
+          data: TRANSFER_DATA,
+          to: TOKEN_CONTRACT,
+          type: TransactionType.tokenMethodTransfer,
+        },
+      ],
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
+  });
+
+  it('still processes nested transactions on a sped-up batch', () => {
+    const nestedSendRecipient = '0x1234dddddddddddddddddddddddddddddddd9abc';
+    const transactionMeta = {
+      ...buildTransactionMeta(TransactionType.retry, undefined, TOKEN_CONTRACT),
+      originalType: TransactionType.batch,
+      nestedTransactions: [
+        {
+          to: nestedSendRecipient,
+          type: TransactionType.simpleSend,
+        },
+      ],
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([
+      nestedSendRecipient,
+    ]);
+  });
 });
