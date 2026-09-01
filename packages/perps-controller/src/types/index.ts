@@ -1853,7 +1853,13 @@ export type PerpsProvider = {
     params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities>;
 
-  /** Normalize a Scale ladder using the selected provider's venue rules. */
+  /**
+   * Normalize a Scale ladder using the selected provider's venue rules.
+   *
+   * @param params - Market, ladder bounds, count, and optional provider route.
+   * @returns Provider-normalized prices or a typed unavailable result.
+   * @throws When the provider cannot normalize the requested ladder.
+   */
   getScalePriceLadder?(
     params: GetScalePriceLadderParams,
   ): Promise<PerpsScalePriceLadder>;
