@@ -110,6 +110,7 @@ import type {
   InitializeResult,
   PerpsPlatformDependencies,
   PerpsProvider,
+  PerpsProviderType,
   PerpsScalePriceLadder,
   LiquidationPriceParams,
   LiveDataConfig,
@@ -125,6 +126,7 @@ import type {
   ScaleOrderChild,
   PerpsMarketData,
   DirectProviderOrderCapabilities,
+  DirectProviderOrderCapabilitiesUnavailableReason,
   Position,
   PositionTriggerOrder,
   ReadyToTradeResult,
@@ -1266,7 +1268,14 @@ const normalizeHyperLiquidScalePriceLadder = (params: {
 /** Capability lookup result that carries resolved market metadata when ready. */
 type HyperLiquidOrderCapabilityMarket =
   | Readonly<{ status: 'ready'; market: MarketInfo }>
-  | Extract<DirectProviderOrderCapabilities, { status: 'unavailable' }>;
+  | Readonly<{
+      status: 'unavailable';
+      providerId?: PerpsProviderType;
+      reason: Exclude<
+        DirectProviderOrderCapabilitiesUnavailableReason,
+        'strategy_market_unsupported'
+      >;
+    }>;
 
 /**
  * HyperLiquid provider implementation
