@@ -1660,6 +1660,122 @@ describe('MoneyAccountSubscriptionController', () => {
     expect(getBearerToken).toHaveBeenCalledTimes(1);
   });
 
+  it('refreshes JWT when a distinct subscription snapshot arrives while force refresh is throttled', async () => {
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    jest.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+
+    const { controller, getBearerToken, performSignOut, rootMessenger } =
+      createController();
+
+    getBearerToken.mockResolvedValueOnce(
+      createBearerToken({
+        [claimKey]: {
+          moneyAccountPlus: createMoneyAccountClaim({ plan: 'initial' }),
+        },
+      }),
+    );
+    publishAuthenticationState(rootMessenger, {
+      isSignedIn: true,
+      srpSessionData: { primary: {} },
+    });
+    await flushPromises();
+
+    getBearerToken.mockClear();
+    performSignOut.mockImplementation(() => undefined);
+    getBearerToken.mockResolvedValueOnce(
+      createBearerToken({
+        [claimKey]: {
+          moneyAccountPlus: createMoneyAccountClaim({ plan: 'forced' }),
+        },
+      }),
+    );
+
+    await controller.forceRefresh();
+    await flushPromises();
+
+    expect(performSignOut).toHaveBeenCalledTimes(1);
+    expect(controller.state.plan).toBe('forced');
+
+    getBearerToken.mockResolvedValueOnce(
+      createBearerToken({
+        [claimKey]: {
+          moneyAccountPlus: createMoneyAccountClaim({ plan: 'subscribed' }),
+        },
+      }),
+    );
+
+    publishSubscriptionState(rootMessenger);
+    await flushPromises();
+
+    expect(performSignOut).toHaveBeenCalledTimes(2);
+    expect(getBearerToken).toHaveBeenCalledTimes(2);
+    expect(controller.state.plan).toBe('subscribed');
+
+    publishSubscriptionState(rootMessenger);
+    await flushPromises();
+
+    expect(performSignOut).toHaveBeenCalledTimes(2);
+    expect(getBearerToken).toHaveBeenCalledTimes(2);
+  });
+
+  it('refreshes JWT again when a subscription change arrives during an in-flight force refresh', async () => {
+    const { controller, getBearerToken, performSignOut, rootMessenger } =
+      createController();
+
+    getBearerToken.mockResolvedValueOnce(
+      createBearerToken({
+        [claimKey]: {
+          moneyAccountPlus: createMoneyAccountClaim({ plan: 'initial' }),
+        },
+      }),
+    );
+    publishAuthenticationState(rootMessenger, {
+      isSignedIn: true,
+      srpSessionData: { primary: {} },
+    });
+    await flushPromises();
+
+    const deferredToken = createDeferred<string>();
+    getBearerToken.mockClear();
+    performSignOut.mockImplementation(() => undefined);
+    getBearerToken.mockReturnValueOnce(deferredToken.promise);
+    getBearerToken.mockResolvedValueOnce(
+      createBearerToken({
+        [claimKey]: {
+          moneyAccountPlus: createMoneyAccountClaim({ plan: 'canceled' }),
+        },
+      }),
+    );
+
+    const firstRefresh = controller.forceRefresh();
+    await Promise.resolve();
+
+    expect(performSignOut).toHaveBeenCalledTimes(1);
+
+    publishSubscriptionState(rootMessenger, 'canceled');
+
+    deferredToken.resolve(
+      createBearerToken({
+        [claimKey]: {
+          moneyAccountPlus: createMoneyAccountClaim({ plan: 'in-flight' }),
+        },
+      }),
+    );
+
+    await firstRefresh;
+    await flushPromises();
+
+    expect(performSignOut).toHaveBeenCalledTimes(2);
+    expect(getBearerToken).toHaveBeenCalledTimes(2);
+    expect(controller.state.plan).toBe('canceled');
+
+    publishSubscriptionState(rootMessenger, 'canceled');
+    await flushPromises();
+
+    expect(performSignOut).toHaveBeenCalledTimes(2);
+    expect(getBearerToken).toHaveBeenCalledTimes(2);
+  });
+
   it('does not throttle a new signed-in session after an external sign-out', async () => {
     jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
     jest.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));

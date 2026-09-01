@@ -319,7 +319,7 @@ export class MoneyAccountSubscriptionController extends StaticIntervalPollingCon
     }
 
     this.#moneyAccountSubscriptionSnapshot = nextSnapshot;
-    await this.forceRefresh();
+    await this.#enqueueRefresh('force', { queueFollowUpForce: true });
   }
 
   async #bootstrap(): Promise<void> {
@@ -328,8 +328,11 @@ export class MoneyAccountSubscriptionController extends StaticIntervalPollingCon
     await this.#handleAuthenticationStateChange(authState);
   }
 
-  async #enqueueRefresh(mode: RefreshMode): Promise<void> {
-    this.#markRefreshPending(mode);
+  async #enqueueRefresh(
+    mode: RefreshMode,
+    { queueFollowUpForce = false }: { queueFollowUpForce?: boolean } = {},
+  ): Promise<void> {
+    this.#markRefreshPending(mode, queueFollowUpForce);
 
     if (!this.#refreshPromise) {
       this.#refreshPromise = this.#drainRefreshQueue();
@@ -455,13 +458,13 @@ export class MoneyAccountSubscriptionController extends StaticIntervalPollingCon
     await this.#enqueueRefresh('normal');
   }
 
-  #markRefreshPending(mode: RefreshMode): void {
+  #markRefreshPending(mode: RefreshMode, queueFollowUpForce: boolean): void {
     if (mode === 'normal') {
       this.#pendingHydrationAuthStateRevision = this.#authStateRevision;
       return;
     }
 
-    if (this.#activeRefreshMode !== 'force') {
+    if (this.#activeRefreshMode !== 'force' || queueFollowUpForce) {
       this.#pendingForceRefreshAuthStateRevision = this.#authStateRevision;
     }
   }
