@@ -1,4 +1,4 @@
-import { SiweMessage } from 'siwe';
+import { SiweMessage } from '@signinwithethereum/siwe';
 
 import { ValidationError } from '../errors.js';
 import { validateLoginResponse } from '../utils/validate-login-response.js';
