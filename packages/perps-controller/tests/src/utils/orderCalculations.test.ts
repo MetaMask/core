@@ -4,6 +4,7 @@ import {
   floorToSizeDecimals,
   formatPartialTpslSize,
   getMaxAllowedAmount,
+  validateOrderPrecision,
 } from '../../../src/utils/orderCalculations.js';
 
 /**
@@ -685,5 +686,65 @@ describe('formatPartialTpslSize', () => {
     expect(() => formatPartialTpslSize({ size: 'abc', szDecimals: 2 })).toThrow(
       PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
     );
+  });
+});
+
+// This is the pre-side-effect gate for updatePositionTPSL: it runs before
+// trading setup prompts for signatures and before the pre-cancel sweep clears
+// the position's existing triggers. It must therefore agree with the size that
+// is actually submitted, which formatPartialTpslSize FLOORS. Checking with the
+// half-up formatter accepted sizes in [0.5, 1) increments here and refused them
+// only afterwards, once those side effects had already run.
+describe('validateOrderPrecision', () => {
+  it.each([
+    { size: '0.0004', label: 'below half an increment' },
+    { size: '0.0005', label: 'exactly half an increment' },
+    { size: '0.0007', label: 'between half and one increment' },
+    { size: '0.0009', label: 'just below one increment' },
+  ])(
+    'refuses a partial TP/SL size $label ($size at szDecimals 3)',
+    ({ size }) => {
+      expect(
+        validateOrderPrecision({ takeProfitSize: size, szDecimals: 3 }),
+      ).toStrictEqual({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+      });
+    },
+  );
+
+  it('accepts a size of exactly one increment, the smallest submittable size', () => {
+    expect(
+      validateOrderPrecision({ takeProfitSize: '0.001', szDecimals: 3 }),
+    ).toStrictEqual({ isValid: true });
+  });
+
+  it('applies the same floor to a stop loss size', () => {
+    expect(
+      validateOrderPrecision({ stopLossSize: '0.0007', szDecimals: 3 }),
+    ).toStrictEqual({
+      isValid: false,
+      error: PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+    });
+  });
+
+  it('agrees with the size formatPartialTpslSize would submit', () => {
+    // The two must not disagree: anything this gate accepts has to survive
+    // flooring, or the refusal lands after the side effects again.
+    for (const size of ['0.0004', '0.0005', '0.0007', '0.0009', '0.001']) {
+      const accepted = validateOrderPrecision({
+        takeProfitSize: size,
+        szDecimals: 3,
+      }).isValid;
+
+      let submits = true;
+      try {
+        formatPartialTpslSize({ size, szDecimals: 3 });
+      } catch {
+        submits = false;
+      }
+
+      expect(accepted).toBe(submits);
+    }
   });
 });

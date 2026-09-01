@@ -186,6 +186,9 @@ export class HyperLiquidClientService {
           // Ignore cleanup errors
         }
         this.#wsTransport = undefined;
+        // The transport is gone: retire its epoch so a replacement starts fresh
+        // and anything cached against the old connection stops matching.
+        this.#retireConnectionEpoch();
       }
       this.#httpTransport = undefined;
 
@@ -275,7 +278,23 @@ export class HyperLiquidClientService {
     // listeners survive reconnections, so attaching once here observes every
     // subsequent close. Data cached against the old epoch stops matching from
     // this moment, with no invalidation call to place correctly.
+    //
+    // The listener is bound to the transport it was attached to. A retired
+    // transport can still emit `close` after it has been replaced — teardown is
+    // asynchronous — and acting on that would retire the CURRENT connection's
+    // epoch, discarding live positions for no reason. Replacing a transport
+    // retires the outgoing epoch explicitly (see #retireConnectionEpoch), so
+    // ignoring these late events loses nothing.
+    const owningTransport = this.#wsTransport;
     this.#wsTransport.socket.addEventListener('close', () => {
+      if (this.#wsTransport !== owningTransport) {
+        this.#deps.debugLogger.log(
+          'HyperLiquid: ignoring close from a retired WebSocket transport',
+          { connectionEpoch: this.#connectionEpoch },
+        );
+        return;
+      }
+
       this.#connectionEpoch += 1;
       this.#deps.debugLogger.log(
         'HyperLiquid: WebSocket closed, epoch retired',
@@ -1108,6 +1127,9 @@ export class HyperLiquidClientService {
       this.#infoClient = undefined;
       this.#infoClientHttp = undefined;
       this.#wsTransport = undefined;
+      // The transport is gone: retire its epoch so a replacement starts fresh
+      // and anything cached against the old connection stops matching.
+      this.#retireConnectionEpoch();
       this.#httpTransport = undefined;
 
       this.#updateConnectionState(WebSocketConnectionState.Disconnected);
@@ -1158,6 +1180,25 @@ export class HyperLiquidClientService {
    */
   public getConnectionEpoch(): number {
     return this.#connectionEpoch;
+  }
+
+  /**
+   * Retire the current connection epoch.
+   *
+   * Called when the WebSocket transport is discarded, so a replacement starts on
+   * a fresh epoch and everything cached against the old connection stops
+   * matching. The socket's own `close` listener cannot be relied on here: it may
+   * fire after the transport has already been replaced, at which point it is
+   * ignored precisely so it cannot retire the new connection's epoch.
+   *
+   * Retiring twice for one connection is harmless — the epoch is an identity,
+   * not a count — so callers do not need to know whether `close` already fired.
+   */
+  #retireConnectionEpoch(): void {
+    this.#connectionEpoch += 1;
+    this.#deps.debugLogger.log('HyperLiquid: connection epoch retired', {
+      connectionEpoch: this.#connectionEpoch,
+    });
   }
 
   /**
@@ -1325,6 +1366,9 @@ export class HyperLiquidClientService {
         }
       }
       this.#wsTransport = undefined;
+      // The transport is gone: retire its epoch so a replacement starts fresh
+      // and anything cached against the old connection stops matching.
+      this.#retireConnectionEpoch();
       this.#httpTransport = undefined;
 
       // WebSocket clients are unavailable throughout the reconnect. HTTP
@@ -1382,6 +1426,9 @@ export class HyperLiquidClientService {
         }
       }
       this.#wsTransport = undefined;
+      // The transport is gone: retire its epoch so a replacement starts fresh
+      // and anything cached against the old connection stops matching.
+      this.#retireConnectionEpoch();
 
       // Reset flag before scheduling retry so the next attempt can proceed
       this.#isReconnecting = false;

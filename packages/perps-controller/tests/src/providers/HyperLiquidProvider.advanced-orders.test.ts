@@ -2000,6 +2000,33 @@ describe('HyperLiquidProvider', () => {
         expect(request.orders[1].s).toBe('0.04');
       });
 
+      it('re-reads the live position while the aggregate flag is still false', async () => {
+        // isPositionsCacheInitialized() only flips once EVERY expected DEX has
+        // published, so during a staggered start or reconnect it reads false
+        // while this symbol's own slice is already live. Gating revalidation on
+        // it suppressed the fresher answer and built the trigger from the stale
+        // snapshot — the reduce-only rejection this revalidation exists to stop.
+        mockSubscriptionService.isPositionsCacheInitialized.mockReturnValue(
+          false,
+        );
+        mockSubscriptionService.getCachedPositionsForDex = jest
+          .fn()
+          .mockReturnValue([{ ...position, size: '0.04' }]);
+
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.04',
+          stopLossPrice: '45000',
+          position,
+        });
+
+        const request = (
+          mockClientService.getExchangeClient().order as jest.Mock
+        ).mock.calls[0][0];
+        expect(request.orders[1].s).toBe('0.04');
+      });
+
       it('takes the trigger side from the live position when the snapshot flipped', async () => {
         // The snapshot is long but the position is now short. A trigger built
         // from the stale side would sit on the wrong side of the position and
@@ -2278,6 +2305,13 @@ describe('HyperLiquidProvider', () => {
     it.each([
       ['a size larger than the position', '0.5'],
       ['a size that rounds to zero', '0.0004'],
+      // The pre-side-effect check formatted half-up while the size that is
+      // actually submitted is floored, so a size in [0.5, 1) increments passed
+      // validation and was only refused after trading setup and the pre-cancel
+      // sweep had already run. 0.0007 at szDecimals 3 rounds up to '0.001' but
+      // floors to 0.
+      ['a size below one full increment', '0.0007'],
+      ['a size on exactly half an increment', '0.0005'],
       ['a non-positive size', '0'],
     ])(
       'rejects %s without running trading setup',
@@ -2301,6 +2335,15 @@ describe('HyperLiquidProvider', () => {
         expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);
         expect(
           mockClientService.getExchangeClient().setReferrer,
+        ).not.toHaveBeenCalled();
+        expect(
+          mockClientService.getExchangeClient().approveBuilderFee,
+        ).not.toHaveBeenCalled();
+        // The pre-cancel sweep is the costly one: it clears the position's
+        // existing triggers, so a refusal after it runs leaves the position
+        // unprotected with nothing put back.
+        expect(
+          mockClientService.getExchangeClient().cancel,
         ).not.toHaveBeenCalled();
       },
     );

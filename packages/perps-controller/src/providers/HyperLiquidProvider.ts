@@ -9417,12 +9417,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       // pre-cancel sweep below and the exchange itself are the authorities on
       // that, and failing here would refuse TP/SL updates this method
       // previously served.
-      if (
-        livePosition &&
-        this.#subscriptionService.isPositionsCacheInitialized()
-      ) {
+      // No aggregate-initialized guard: that flag is only set once EVERY
+      // expected DEX has published, so it stays false while this symbol's own
+      // slice is already live — exactly when revalidation matters most. The
+      // per-DEX getter owns freshness and returns null unless its slice was
+      // published on the current connection, which is a strictly better answer.
+      if (livePosition) {
         const cachedPosition = this.#subscriptionService
-          .getCachedPositionsForDex(parseAssetName(symbol).dex ?? '')
+          .getCachedPositionsForDex?.(parseAssetName(symbol).dex ?? '')
           ?.find((pos) => pos.symbol === symbol);
 
         if (cachedPosition) {
@@ -10162,7 +10164,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       // position and HyperLiquid rejects the reduce-only order with "Reduce
       // only order would increase position". Reading the cache never issues a
       // REST request, so this does not reintroduce 429 rate limiting.
-      if (position && this.#subscriptionService.isPositionsCacheInitialized()) {
+      //
+      // No aggregate-initialized guard: that flag is only set once EVERY
+      // expected DEX has published, so it stays false while this symbol's own
+      // slice is already live — precisely the staggered-startup and reconnect
+      // windows this revalidation exists for. The per-DEX getter owns freshness
+      // and answers null unless its slice was published on the current
+      // connection, so gating on the aggregate flag could only suppress a
+      // fresher answer.
+      if (position) {
         // Read the symbol's own DEX slice, not the aggregate. The aggregate is
         // only rebuilt once every expected DEX has published, so after a
         // WebSocket reconnect — which resets the initialized-DEX set without
@@ -10171,9 +10181,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         // from the per-DEX map and then reading the position from the aggregate
         // mixed a fresh answer with stale data: a close could reuse a stale size,
         // or throw for a position that is open.
-        const dexPositions = this.#subscriptionService.getCachedPositionsForDex(
-          parseAssetName(params.symbol).dex ?? '',
-        );
+        const dexPositions =
+          this.#subscriptionService.getCachedPositionsForDex?.(
+            parseAssetName(params.symbol).dex ?? '',
+          );
         const livePosition = dexPositions?.find(
           (pos) => pos.symbol === params.symbol,
         );
@@ -10199,11 +10210,18 @@ export class HyperLiquidProvider implements PerpsProvider {
           // lookup can only burn a request that risks 429s and, if it lags, hand
           // back a position that no longer exists.
           throw new Error(`No position found for ${params.symbol}`);
-        } else {
-          // The cache holds nothing for this symbol's DEX — a HIP-3 DEX whose
-          // subscription has not published this session — so the symbol's
-          // absence proves nothing. Spend one REST request to get live data
-          // rather than trusting a snapshot the exchange may have moved past.
+        } else if (this.#subscriptionService.isPositionsCacheInitialized()) {
+          // The cache is live but holds nothing for this symbol's DEX — a HIP-3
+          // DEX whose subscription has not published this session — so the
+          // symbol's absence proves nothing. Spend one REST request to get live
+          // data rather than trusting a snapshot the exchange may have moved
+          // past.
+          //
+          // This one REST fallback stays gated on the aggregate flag, unlike the
+          // revalidation above. A completely cold cache means the WebSocket has
+          // delivered nothing at all, and the snapshot shortcut exists precisely
+          // so a close in that state costs no request; firing REST here would
+          // reintroduce the 429 pressure it was added to avoid.
           this.#deps.debugLogger.log(
             'Position cache does not cover this DEX: fetching live positions',
             { coin: params.symbol },

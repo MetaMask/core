@@ -2431,6 +2431,33 @@ describe('HyperLiquidProvider', () => {
       expect(getSubmittedOrder()).toMatchObject({ s: '0.098', r: true });
     });
 
+    it('revalidates against a live slice while the aggregate flag is still false', async () => {
+      // isPositionsCacheInitialized() only flips once EVERY expected DEX has
+      // published, so during a staggered start or reconnect it reads false while
+      // this symbol's own slice is already live. Gating revalidation on it
+      // suppressed the fresher answer and submitted the stale snapshot size.
+      mockSubscriptionService.isPositionsCacheInitialized = jest
+        .fn()
+        .mockReturnValue(false);
+      mockSubscriptionService.getPublishedPositionDexs = jest
+        .fn()
+        .mockReturnValue(['']);
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockImplementation((dexName: string) =>
+          dexName === '' ? [createPositionSnapshot({ size: '0.03' })] : null,
+        );
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.03', r: true });
+    });
+
     it('uses the caller snapshot verbatim when the WebSocket cache is not initialized', async () => {
       // The 429-avoiding shortcut: no cache, no REST call, snapshot is authoritative
       const getPositionsSpy = jest.spyOn(provider, 'getPositions');
