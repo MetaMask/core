@@ -822,10 +822,11 @@ describe('PerpsController', () => {
     });
 
     it('falls back to hyperliquid when activeProvider is a removed provider persisted from an older version', async () => {
-      // `activeProvider` is persisted, so a user who had selected MYX before it
-      // was removed (TAT-3892) still has 'myx' in restored state. Init must
+      // `activeProvider` is persisted, so a user who selected a venue that has
+      // since been removed still has its id in restored state. Init must
       // self-heal that value rather than throwing, or perps stays broken on
-      // every launch until the client clears state.
+      // every launch until the client clears state. The literal below is a
+      // removed venue's id as it would appear in a real persisted blob.
       controller.testUpdate((state) => {
         (state as { activeProvider: string }).activeProvider = 'myx';
       });

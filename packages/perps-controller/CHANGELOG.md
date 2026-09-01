@@ -14,12 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **BREAKING:** Remove all MYX protocol support ([#10037](https://github.com/MetaMask/core/pull/10037))
-  - Deletes the `MYXProvider`, `MYXClientService`, `MYXWalletService`, the MYX adapter, and the MYX config and type modules, along with the optional `@myx-trade/sdk` dependency and the `!dist/*MYX*` packaging exclusions that kept those files out of published bundles.
-  - **BREAKING:** `PerpsProviderType` is now `'hyperliquid' | 'lighter'`. Consumers that set `activeProvider: 'myx'`, pass `providerId: 'myx'`, or switch exhaustively on the union must drop the `'myx'` case. At runtime `switchProvider('myx')` returns `{ success: false, error: 'Provider myx not available' }` rather than switching.
-  - A `'myx'` value restored from persisted state (`activeProvider` is persisted) does not fail initialization: it falls back to `'hyperliquid'` and rewrites the persisted value, so a user who had selected MYX before this release self-heals on next launch. Any unrecognised persisted provider is handled the same way.
-  - **BREAKING:** Removes the `MYXCredentials` type and the `providerCredentials.myx` option from `PerpsControllerOptions`. Consumers passing MYX credentials must delete that key.
-  - **BREAKING:** Removes the `MYX_*` constant, chain-id, endpoint, decimal, fee, and asset-config exports, the `getMYXChainId` / `getMYXHttpEndpoint` helpers, the `fromMYX*` / `toMYX*` converters, and the MYX-only `USDT_BNB_TESTNET` / `USDT_BNB_MAINNET` collateral addresses from the package entrypoint.
-  - **BREAKING:** Removes `PROVIDER_CONFIG.MYX_TESTNET_ONLY`. `buildProviderCacheKey` no longer special-cases `'myx'`.
+  - `PerpsProviderType` is now `'hyperliquid' | 'lighter'`. Drop any `'myx'` case from exhaustive switches, and stop passing `activeProvider: 'myx'` or `providerId: 'myx'`.
+  - Removes the `MYXCredentials` type and the `providerCredentials.myx` option from `PerpsControllerOptions`, all `MYX_*` exports (chain ids, endpoints, decimals, fees, asset configs), the `getMYXChainId` / `getMYXHttpEndpoint` helpers, the `fromMYX*` / `toMYX*` converters, the MYX-only `USDT_BNB_TESTNET` / `USDT_BNB_MAINNET` addresses, and `PROVIDER_CONFIG.MYX_TESTNET_ONLY`.
+  - No migration is required for stored client state: an `activeProvider` value naming a removed venue falls back to `'hyperliquid'` and is rewritten on next launch.
   - The `perpsMyxProviderEnabled` remote feature flag and the `MM_PERPS_MYX_PROVIDER_ENABLED` env override are no longer read; clients can retire both.
   - HyperLiquid and Lighter behavior is unchanged.
 
