@@ -9017,13 +9017,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       // The provider-owned market policy is resolved from the positions below.
       await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
-      // Get all current positions from cache (avoids 429 rate limiting), then
-      // refresh them against the per-DEX slices for the same reason
-      // closePosition does: getPositions() reads the aggregate, which can sit
-      // frozen at its pre-reconnect contents while the slices keep updating.
-      const positions = this.#refreshPositionsFromDexCaches(
-        await this.getPositions(),
-      );
+      // Prefer the aggregate plus current per-DEX slices to avoid REST. With no
+      // aggregate, keep the REST fallback intact rather than overwrite its
+      // result with a WebSocket slice of unknown relative recency.
+      const positions = await this.#getPositionsWithDexCacheRefresh();
 
       // Filter positions based on params
       positionsToClose =
@@ -10252,13 +10249,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       if (!position) {
-        // getPositions() reads the aggregate cache, which sits frozen at its
-        // pre-reconnect contents until every expected DEX republishes. Refresh
-        // against the per-DEX slices first, or a position opened since the
-        // reconnect is reported as "No position found" while it is open
-        // (TAT-3873). The refresh reads caches only, so it adds no REST request.
-        const positions = this.#refreshPositionsFromDexCaches(
-          await this.getPositions(),
+        // Prefer the symbol's current per-DEX slice over the aggregate, which
+        // can stay frozen until every expected DEX republishes. With no usable
+        // cache source, retain the existing REST fallback (TAT-3873).
+        const positions = await this.#getPositionsWithDexCacheRefresh(
           parseAssetName(params.symbol).dex ?? '',
         );
         position = positions.find((pos) => pos.symbol === params.symbol);
@@ -10432,13 +10426,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Ensure provider is ready
       await this.#ensureReady();
 
-      // getPositions() reads the aggregate cache, which can remain frozen at
-      // its pre-reconnect contents while the per-DEX slices keep updating.
-      // Refresh the target DEX from its connection-epoch-aware slice before
-      // deriving the position side. Cache reads only; no REST request or 429
-      // risk is added.
-      const positions = this.#refreshPositionsFromDexCaches(
-        await this.getPositions(),
+      // Prefer the target DEX's connection-epoch-aware slice before deriving
+      // the position side. If no usable cache exists, retain getPositions()'s
+      // existing REST fallback rather than add another request.
+      const positions = await this.#getPositionsWithDexCacheRefresh(
         parseAssetName(symbol).dex ?? '',
       );
       const position = positions.find((pos) => pos.symbol === symbol);
@@ -10737,15 +10728,49 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Read positions without mixing sources whose relative recency is unknown.
+   *
+   * A symbol-specific caller can use its current-connection DEX slice directly.
+   * A whole-list caller may merge published slices into the cached aggregate,
+   * because both are WebSocket data and the slice is the authoritative view for
+   * its DEX. When no aggregate exists, `getPositions()` falls back to REST; that
+   * result is returned unchanged rather than overwritten by a WebSocket slice
+   * that may have arrived earlier on the same connection.
+   *
+   * @param targetDex - DEX for a single-symbol lookup, or undefined for a full
+   * position list.
+   * @returns Positions from one provenance-safe cache/REST path.
+   */
+  async #getPositionsWithDexCacheRefresh(
+    targetDex?: string,
+  ): Promise<Position[]> {
+    if (targetDex !== undefined) {
+      const targetPositions =
+        this.#subscriptionService.getCachedPositionsForDex?.(targetDex) ?? null;
+      if (targetPositions !== null) {
+        return targetPositions;
+      }
+    }
+
+    const aggregatePositions =
+      this.#subscriptionService.getCachedPositions() ?? null;
+    if (aggregatePositions !== null) {
+      return this.#refreshPositionsFromDexCaches(aggregatePositions, targetDex);
+    }
+
+    return this.getPositions({ skipCache: true });
+  }
+
+  /**
    * Replace positions with what their own DEX's cache slice reports.
    *
-   * `getPositions()` reads the aggregate cache, which is only rebuilt once every
-   * expected DEX has published. A WebSocket reconnect resets the initialized-DEX
-   * set without clearing the caches, so the aggregate can sit frozen at its
-   * pre-reconnect contents while the per-DEX slices keep updating. A batch close
-   * built from the aggregate then submits a stale size or side, which
-   * HyperLiquid rejects with "Reduce only order would increase position", or
-   * misses a position opened since the reconnect.
+   * The aggregate cache is only rebuilt once every expected DEX has published.
+   * A WebSocket reconnect resets the initialized-DEX set without clearing the
+   * caches, so the aggregate can sit frozen at its pre-reconnect contents while
+   * the per-DEX slices keep updating. A batch close built from the aggregate then
+   * submits a stale size or side, which HyperLiquid rejects with "Reduce only
+   * order would increase position", or misses a position opened since the
+   * reconnect.
    *
    * Reading the caches issues no REST request, so this does not reintroduce the
    * 429 rate limiting the cache-first read exists to avoid.
@@ -10754,7 +10779,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    * symbols: those positions are left as the aggregate reported them. Only a
    * published slice can override, drop, or add an entry.
    *
-   * @param positions - Positions as the aggregate cache reported them.
+   * @param positions - Positions read directly from the aggregate WebSocket
+   * cache. Never pass a REST result here.
    * @param targetDex - DEX of the symbol being looked up ('' for the main DEX),
    * so a single-symbol caller sweeps its own slice even when the aggregate does
    * not mention that DEX. Omit when refreshing a whole list.

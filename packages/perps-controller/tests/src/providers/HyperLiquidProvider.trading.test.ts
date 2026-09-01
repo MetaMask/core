@@ -465,7 +465,7 @@ describe('HyperLiquidProvider', () => {
       subscribeToOrderFills: jest.fn().mockReturnValue(jest.fn()), // Returns function directly
       clearAll: jest.fn(),
       isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
-      getCachedPositions: jest.fn().mockReturnValue([]),
+      getCachedPositions: jest.fn().mockReturnValue(null),
       // Per-DEX position slices. Default to "nothing published", so a test that
       // does not opt in keeps the aggregate behaviour it was written against.
       getCachedPositionsForDex: jest.fn().mockReturnValue(null),
@@ -3238,7 +3238,7 @@ describe('HyperLiquidProvider', () => {
      * @param perDex - Positions the fresh main-DEX slice reports.
      */
     const primeFrozenAggregate = (
-      aggregate: Position[],
+      aggregate: Position[] | null,
       perDex: Position[],
     ) => {
       mockSubscriptionService.isPositionsCacheInitialized = jest
@@ -3490,6 +3490,23 @@ describe('HyperLiquidProvider', () => {
 
       expect(result.success).toBe(true);
       expect(getSubmittedOrders()).toMatchObject([{ s: '0.03', r: true }]);
+    });
+
+    it('does not replace a fresh REST result with an older WebSocket slice', async () => {
+      // On a cold staggered start there is no aggregate to merge. getPositions()
+      // therefore reads REST, which may already reflect a fill that the first
+      // same-epoch WebSocket slice has not delivered yet. The REST result wins.
+      primeFrozenAggregate(null, [createCachedPosition({ size: '0.03' })]);
+      mockSubscriptionService.isPositionsCacheInitialized = jest
+        .fn()
+        .mockReturnValue(false);
+      const infoClient = mockClientService.getInfoClient();
+
+      const result = await provider.closePositions({ symbols: ['BTC'] });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrders()).toMatchObject([{ s: '0.1', r: true }]);
+      expect(infoClient.clearinghouseState).toHaveBeenCalled();
     });
 
     it('keeps using the aggregate for a DEX the per-DEX cache does not cover', async () => {
