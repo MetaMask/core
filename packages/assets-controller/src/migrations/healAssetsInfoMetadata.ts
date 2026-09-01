@@ -11,7 +11,7 @@ import {
 import { cloneDeep } from 'lodash';
 
 import { divideIntoBatches } from '../data-sources/evm-rpc-services/utils/batch.js';
-import { DEFAULT_TRACKED_ASSETS_BY_CHAIN } from '../defaults.js';
+import { DEFAULT_TRACKED_ASSETS_BY_CHAIN, isMusdAssetId } from '../defaults.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
 import type {
   AccountId,
@@ -724,7 +724,15 @@ function collectSpamCleanupCandidates({
     const [chainId, asset] = lowerId.split('/');
 
     const isERC20 = Boolean(asset?.startsWith('erc20:'));
-    const isNotExcluded = !excludedAssets.includes(lowerId);
+    // `DEFAULT_TRACKED_ASSETS_BY_CHAIN` is a *seeding* registry that only
+    // lists mUSD on the chains it's been added as a default tracked asset —
+    // not every chain mUSD is actually deployed to. Exempting by that list
+    // alone left mUSD holdings on every other chain exposed to the
+    // occurrence-floor filter below, where mUSD's real (low) aggregator
+    // count falls under the floor and this sweep deletes the holding. Exempt
+    // mUSD chain-agnostically by address instead, matching how the sibling
+    // spam filters in `TokenDataSource.ts` already do it.
+    const isNotExcluded = !excludedAssets.includes(lowerId) && !isMusdAssetId(lowerId);
     const isNotCustomAsset = !customAssetIds.has(lowerId);
     const isOnAccountAPICoveredChain =
       ACCOUNT_API_SUPPORTED_CHAIN_IDS.has(chainId);
@@ -760,14 +768,33 @@ async function findBelowFloorAssetIds(
       FETCH_TIMEOUT_MS,
     );
 
+    // Assets absent from the response array altogether are ones the API has
+    // never indexed at all (e.g. a chain it doesn't serve) — distinct from
+    // an asset the API *did* respond about but scored with no occurrence
+    // count. Only the former is unjudgeable; matches the sibling
+    // `TokenDataSource.occurrenceFilterMiddleware`'s "only assets the API
+    // knows can be judged; missing ones are kept" contract, which likewise
+    // never iterates past what the response array actually contains. Unlike
+    // that sibling — whose worst case for "unjudgeable" is not adding a
+    // token — this function DELETES existing holdings, so defaulting an
+    // asset entirely missing from the response to a confirmed-zero
+    // occurrence count turned "the API has never indexed this asset" into
+    // "delete the user's holding of it".
+    const respondedLowerIds = new Set(
+      assets.map((asset) => asset.assetId.toLowerCase()),
+    );
     const occurrencesByLowerId = new Map(
       assets.map((asset) => [asset.assetId.toLowerCase(), asset.occurrences]),
     );
 
     return assetIds.filter((assetId) => {
+      const lowerId = assetId.toLowerCase();
+      if (!respondedLowerIds.has(lowerId)) {
+        return false;
+      }
       const chainReference = assetId.split(':')[1]?.split('/')[0] ?? '';
       const floor = floors[chainReference] ?? DEFAULT_OCCURRENCE_FLOOR;
-      return (occurrencesByLowerId.get(assetId.toLowerCase()) ?? 0) < floor;
+      return (occurrencesByLowerId.get(lowerId) ?? 0) < floor;
     });
   } catch (error) {
     cleanupLog('Failed to fetch assets', error);

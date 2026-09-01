@@ -60,6 +60,16 @@ export const FLARE_SFLR =
 export const MONAD_WMON =
   'eip155:143/erc20:0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A' as Caip19AssetId;
 
+/**
+ * mUSD on BNB Smart Chain (56) — a chain covered by the Accounts API but
+ * absent from `DEFAULT_TRACKED_ASSETS_BY_CHAIN`'s mUSD entries (which only
+ * seed Ethereum, Linea, and Monad). Real deployment, low real occurrence
+ * count (matching the live Token API) — exactly the shape that used to lose
+ * its spam-filter exemption on any chain outside that seeding list.
+ */
+export const BNB_MUSD =
+  'eip155:56/erc20:0xacA92E438df0B2401fF60dA7E4337B687a2435DA' as Caip19AssetId;
+
 export const MAINNET_SPAM =
   'eip155:1/erc20:0xB5f0e1b64a4a1a2A6cbf0E8f9d0c4e7A1b2C3D4E' as Caip19AssetId;
 export const OPTIMISM_SPAM =
@@ -185,6 +195,12 @@ const TOKEN_METADATA: Record<Caip19AssetId, AssetMetadata> = {
     symbol: 'WMON',
     name: 'Wrapped MON',
     decimals: 18,
+  },
+  [BNB_MUSD]: {
+    type: 'erc20',
+    symbol: 'MUSD',
+    name: 'MetaMask USD',
+    decimals: 6,
   },
   [ARBITRUM_GMX]: {
     type: 'erc20',
