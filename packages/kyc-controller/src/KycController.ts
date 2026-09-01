@@ -805,6 +805,9 @@ export class KycController extends BaseController<
     const vendor = params?.vendor ?? 'moonpay';
 
     if (IN_PROGRESS_PHASES.includes(this.state.phase)) {
+      if (vendor === 'moonpay' && !this.#moonpayFrameKeypair) {
+        this.#moonpayFrameKeypair = generateKeyPair();
+      }
       return;
     }
 
@@ -813,7 +816,6 @@ export class KycController extends BaseController<
     } else {
       this.#moonpayFrameKeypair = null;
     }
-
 
     // `initialize` starts a fresh flow, so `activeProduct` is always reset to
     // this call's product (or `null`). Otherwise a prior run's product could
