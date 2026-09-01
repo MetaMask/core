@@ -9342,7 +9342,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         success: false,
         successCount: 0,
         failureCount: positionsToClose.length,
-        error: safeError.message,
+        error:
+          error instanceof Error
+            ? safeError.message
+            : PERPS_ERROR_CODES.BATCH_CLOSE_FAILED,
         results: positionsToClose.map((position) => ({
           symbol: position.symbol,
           success: false,
@@ -10775,12 +10778,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         error,
         'HyperLiquidProvider.queryDexPositions',
       );
-      this.#deps.logger.error(
-        safeError,
-        this.#getErrorContext('queryDexPositions', {
-          dex: dexName ?? 'main',
-        }),
-      );
+      this.#deps.debugLogger.log('Target DEX position query failed', {
+        dex: dexName ?? 'main',
+        error: safeError.message,
+      });
 
       return { answered: false, positions: [] };
     }

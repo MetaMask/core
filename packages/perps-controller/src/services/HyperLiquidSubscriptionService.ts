@@ -3013,9 +3013,15 @@ export class HyperLiquidSubscriptionService {
       return null;
     }
 
-    return Array.from(this.#positionSnapshotDexs).flatMap(
-      (dexName) => this.#dexPositionsCache.get(dexName) ?? [],
-    );
+    const snapshot: Position[] = [];
+    for (const dexName of this.#positionSnapshotDexs) {
+      const positions = this.#dexPositionsCache.get(dexName);
+      if (!positions) {
+        return null;
+      }
+      snapshot.push(...positions);
+    }
+    return snapshot;
   }
 
   /**
