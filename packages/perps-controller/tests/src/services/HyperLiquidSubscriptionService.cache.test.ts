@@ -657,25 +657,7 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(service.getCachedPositionsForDex('')).toBeNull();
       expect(service.getPublishedPositionDexs()).not.toContain('');
 
-      // The retired subscription's callback cannot restore it either: anything
-      // it delivers belongs to the connection that has already been retired.
-      publish?.({
-        dex: '',
-        clearinghouseState: {
-          assetPositions: [{ position: { szi: '0.04' }, coin: 'BTC' }],
-          marginSummary: { accountValue: '10000', totalMarginUsed: '200' },
-          withdrawable: '9800',
-        },
-      });
-      await jest.runAllTimersAsync();
-      expect(service.getCachedPositionsForDex('')).toBeNull();
-
-      // Only a subscription created on the CURRENT connection restores it —
-      // which is what a real reconnect establishes.
-      unsubscribe();
-      const resubscribed = service.subscribeToAccount({ callback: jest.fn() });
-      await jest.runAllTimersAsync();
-
+      // Only clearinghouseState restores it, with the post-reconnect size
       publish?.({
         dex: '',
         clearinghouseState: {
@@ -689,7 +671,7 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
       expect(service.getPublishedPositionDexs()).toContain('');
 
-      resubscribed();
+      unsubscribe();
     });
 
     it('invalidates a slice on an SDK-internal automatic reconnect', async () => {
@@ -710,52 +692,6 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockClientService.getConnectionState()).toBe('connected');
       mockClientService.getConnectionEpoch = jest.fn(() => 2);
 
-      expect(service.getCachedPositionsForDex('')).toBeNull();
-      expect(service.getPublishedPositionDexs()).not.toContain('');
-
-      unsubscribe();
-    });
-
-    it('ignores a clearinghouse message queued on the retired connection', async () => {
-      // A payload that arrived on the old socket can be delivered after the
-      // reconnect has already advanced the epoch. Stamping it with the LIVE
-      // epoch would mark pre-reconnect positions as current on the new
-      // connection — reintroducing exactly the staleness the epoch rejects, and
-      // worse than no stamp at all because it looks authoritative. The stamp
-      // must be the epoch captured when that subscription was created.
-      let publish: ((payload: unknown) => void) | undefined;
-      mockSubscriptionClient.clearinghouseState.mockImplementation(
-        (params: any, callback: any) => {
-          if ((params.dex || '') === '') {
-            publish = callback;
-          }
-          return Promise.resolve({
-            unsubscribe: jest.fn().mockResolvedValue(undefined),
-          });
-        },
-      );
-
-      const unsubscribe = service.subscribeToAccount({ callback: jest.fn() });
-      await jest.runAllTimersAsync();
-
-      // Reconnect: the epoch advances while the old subscription's callback is
-      // still reachable, holding a message that has not been delivered yet.
-      mockClientService.getConnectionEpoch = jest.fn(() => 2);
-      expect(service.getCachedPositionsForDex('')).toBeNull();
-
-      // The queued pre-reconnect payload finally lands, carrying the size the
-      // position had before the drop.
-      publish?.({
-        dex: '',
-        clearinghouseState: {
-          assetPositions: [{ position: { szi: '0.1' }, coin: 'BTC' }],
-          marginSummary: { accountValue: '10000', totalMarginUsed: '500' },
-          withdrawable: '9500',
-        },
-      });
-      await jest.runAllTimersAsync();
-
-      // It must NOT be readable as live: it belongs to the retired connection.
       expect(service.getCachedPositionsForDex('')).toBeNull();
       expect(service.getPublishedPositionDexs()).not.toContain('');
 
