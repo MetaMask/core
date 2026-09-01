@@ -24,6 +24,7 @@ import type {
 } from './KycService.js';
 import type {
   KycConsentDocument,
+  KycConsentRecord,
   KycCustomerIdentity,
   KycDisclaimer,
   KycPhase,
@@ -166,12 +167,12 @@ export type KycControllerState = {
    */
   sumsubTncAccepted: boolean | null;
   /**
-   * Whether the customer accepted the idOS T&C (T&C2) during the last
-   * terms acceptance (persisted). Consents-path vendors require this flag
-   * when resuming a session. `null` for acceptance recorded before this
-   * field existed (treated as requiring reacceptance).
+   * idOS disclaimer documents the customer accepted during the last terms
+   * acceptance (persisted `{ key, version }` records). Consents-path vendors
+   * require this when resuming a session. `null` for acceptance recorded
+   * before this field existed (treated as requiring reacceptance).
    */
-  idosTncAccepted: boolean | null;
+  idosDisclaimersAccepted: KycConsentRecord[] | null;
   /**
    * Whether the customer consented to reuse existing idOS credentials
    * during this session. Applied when recording session-scoped disclaimers.
@@ -296,7 +297,7 @@ const kycControllerMetadata = {
     persist: true,
     usedInUi: false,
   },
-  idosTncAccepted: {
+  idosDisclaimersAccepted: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     persist: true,
@@ -415,7 +416,7 @@ export function getDefaultKycControllerState(): KycControllerState {
     acceptedDisclaimerIds: [],
     termsAcceptedVendor: null,
     sumsubTncAccepted: null,
-    idosTncAccepted: null,
+    idosDisclaimersAccepted: null,
     credentialReusabilityConsentGiven: null,
     disclaimers: [],
     disclaimersError: null,
@@ -482,13 +483,101 @@ function isConsentConflictError(error: unknown): boolean {
 function consentRecordsFromCatalog(
   documents: KycConsentDocument[],
   accepted: boolean,
-): { key: string; version: string }[] {
+): KycConsentRecord[] {
   if (!accepted) {
     return [];
   }
   return documents
     .filter((document) => !document.consented)
     .map(({ key, version }) => ({ key, version }));
+}
+
+/**
+ * Whether a value is a list of consent records (`{ key, version }`).
+ *
+ * @param value - The value to validate.
+ * @returns `true` when `value` is a valid consent record list.
+ */
+function isValidConsentRecordList(value: unknown): value is KycConsentRecord[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        typeof item === 'object' &&
+        item !== null &&
+        typeof (item as KycConsentRecord).key === 'string' &&
+        typeof (item as KycConsentRecord).version === 'string',
+    )
+  );
+}
+
+/**
+ * Maps accepted idOS disclaimer records onto unconsented catalog documents.
+ *
+ * @param documents - Catalog documents for the idOS category.
+ * @param accepted - Accepted `{ key, version }` records from the caller.
+ * @returns Consent records to POST, omitting already-consented documents.
+ */
+function consentRecordsFromAcceptedList(
+  documents: KycConsentDocument[],
+  accepted: KycConsentRecord[],
+): KycConsentRecord[] {
+  if (accepted.length === 0) {
+    return [];
+  }
+  const acceptedKeys = new Set(
+    accepted.map((record) => `${record.key}:${record.version}`),
+  );
+  return documents
+    .filter(
+      (document) =>
+        !document.consented &&
+        acceptedKeys.has(`${document.key}:${document.version}`),
+    )
+    .map(({ key, version }) => ({ key, version }));
+}
+
+/**
+ * Whether accepted idOS disclaimers reference a missing catalog category.
+ *
+ * @param documents - Catalog documents for the idOS category.
+ * @param accepted - Accepted `{ key, version }` records from the caller.
+ * @returns `true` when the caller accepted idOS docs but the catalog is empty.
+ */
+function isAcceptedIdosCategoryEmpty(
+  documents: KycConsentDocument[],
+  accepted: KycConsentRecord[],
+): boolean {
+  return accepted.length > 0 && documents.length === 0;
+}
+
+/**
+ * Whether accepted idOS disclaimers are still missing consent after a 409
+ * re-GET: empty catalog or any accepted document still unconsented.
+ *
+ * @param documents - Latest catalog documents for the idOS category.
+ * @param accepted - Accepted `{ key, version }` records from the caller.
+ * @returns `true` when accepted idOS documents are not fully consented.
+ */
+function acceptedIdosCategoryStillMissing(
+  documents: KycConsentDocument[],
+  accepted: KycConsentRecord[],
+): boolean {
+  if (accepted.length === 0) {
+    return false;
+  }
+  if (documents.length === 0) {
+    return true;
+  }
+  const acceptedKeys = new Set(
+    accepted.map((record) => `${record.key}:${record.version}`),
+  );
+  const relevant = documents.filter((document) =>
+    acceptedKeys.has(`${document.key}:${document.version}`),
+  );
+  return (
+    relevant.length === 0 || relevant.some((document) => !document.consented)
+  );
 }
 
 /**
@@ -886,9 +975,9 @@ export class KycController extends BaseController<
       if (usesConsentsFlow(vendor)) {
         // Consents-path vendors require T&C2 flags; if they weren't persisted
         // (i.e. null from pre-migration state), require reacceptance.
-        const sumsubTncSigned = this.state.sumsubTncAccepted;
-        const idosTncSigned = this.state.idosTncAccepted;
-        if (sumsubTncSigned === null || idosTncSigned === null) {
+        const { sumsubTncAccepted: sumsubTncSigned, idosDisclaimersAccepted } =
+          this.state;
+        if (sumsubTncSigned === null || idosDisclaimersAccepted === null) {
           this.#applyUpdate((state) => {
             this.#clearAcceptedTerms(state);
             state.phase = 'terms';
@@ -898,7 +987,7 @@ export class KycController extends BaseController<
         }
         await this.#startConsentsSession({
           sumsubTncSigned,
-          idosTncSigned,
+          idosDisclaimersAccepted,
           credentialReusabilityConsentGiven:
             this.state.credentialReusabilityConsentGiven ?? false,
         });
@@ -1014,8 +1103,9 @@ export class KycController extends BaseController<
    * authentication continuation.
    * @param params.sumsubTncSigned - Whether Sumsub T&C were accepted (T&C2).
    * Required for every vendor so callers explicitly declare acceptance.
-   * @param params.idosTncSigned - Whether idOS T&C were accepted (T&C2).
-   * Required for every vendor so callers explicitly declare acceptance.
+   * @param params.idosDisclaimersAccepted - idOS disclaimer documents the
+   * customer accepted (`{ key, version }` records). Required for every vendor
+   * so callers explicitly declare acceptance.
    * @param params.credentialReusabilityConsentGiven - Whether the customer
    * consented to reuse existing idOS credentials. Used when recording
    * session-scoped disclaimers on the consents path. Defaults to `false`.
@@ -1024,14 +1114,13 @@ export class KycController extends BaseController<
     email?: string;
     product?: KycProduct;
     sumsubTncSigned: boolean;
-    idosTncSigned: boolean;
+    idosDisclaimersAccepted: KycConsentRecord[];
     credentialReusabilityConsentGiven?: boolean;
   }): Promise<void> {
-    const sumsubTncSigned = params?.sumsubTncSigned;
-    const idosTncSigned = params?.idosTncSigned;
+    const { sumsubTncSigned, idosDisclaimersAccepted } = params;
     if (
       typeof sumsubTncSigned !== 'boolean' ||
-      typeof idosTncSigned !== 'boolean'
+      !isValidConsentRecordList(idosDisclaimersAccepted)
     ) {
       this.#fail('Missing T&C2 acceptance flags.');
       return;
@@ -1054,14 +1143,14 @@ export class KycController extends BaseController<
       state.acceptedDisclaimerIds = disclaimerIds;
       state.termsAcceptedVendor = state.activeVendor;
       state.sumsubTncAccepted = sumsubTncSigned;
-      state.idosTncAccepted = idosTncSigned;
+      state.idosDisclaimersAccepted = idosDisclaimersAccepted;
       state.credentialReusabilityConsentGiven =
         credentialReusabilityConsentGiven;
     });
     if (usesConsentsFlow(this.state.activeVendor)) {
       await this.#startConsentsSession({
         sumsubTncSigned,
-        idosTncSigned,
+        idosDisclaimersAccepted,
         credentialReusabilityConsentGiven,
       });
       return;
@@ -1076,13 +1165,13 @@ export class KycController extends BaseController<
    *
    * @param consents - T&C2 flags mapped onto the session disclaimer catalog.
    * @param consents.sumsubTncSigned - Whether Sumsub T&C were accepted.
-   * @param consents.idosTncSigned - Whether idOS T&C were accepted.
+   * @param consents.idosDisclaimersAccepted - Accepted idOS disclaimer records.
    * @param consents.credentialReusabilityConsentGiven - Whether credential
    * reuse was accepted.
    */
   async #startConsentsSession(consents: {
     sumsubTncSigned: boolean;
-    idosTncSigned: boolean;
+    idosDisclaimersAccepted: KycConsentRecord[];
     credentialReusabilityConsentGiven: boolean;
   }): Promise<void> {
     const { email, acceptedDisclaimerIds } = this.state;
@@ -1233,7 +1322,7 @@ export class KycController extends BaseController<
    * @param sessionId - The UKYC session id.
    * @param consents - T&C2 flags mapped onto catalog documents.
    * @param consents.sumsubTncSigned - Whether Sumsub T&C were accepted.
-   * @param consents.idosTncSigned - Whether idOS T&C were accepted.
+   * @param consents.idosDisclaimersAccepted - Accepted idOS disclaimer records.
    * @param consents.credentialReusabilityConsentGiven - Whether credential
    * reuse was accepted.
    * @param generation - Flow generation captured by the caller.
@@ -1242,7 +1331,7 @@ export class KycController extends BaseController<
     sessionId: string,
     consents: {
       sumsubTncSigned: boolean;
-      idosTncSigned: boolean;
+      idosDisclaimersAccepted: KycConsentRecord[];
       credentialReusabilityConsentGiven: boolean;
     },
     generation: number,
@@ -1260,7 +1349,10 @@ export class KycController extends BaseController<
     });
 
     if (
-      isAcceptedCategoryEmpty(catalog.idOS, consents.idosTncSigned) ||
+      isAcceptedIdosCategoryEmpty(
+        catalog.idOS,
+        consents.idosDisclaimersAccepted,
+      ) ||
       isAcceptedCategoryEmpty(catalog.kycProvider, consents.sumsubTncSigned)
     ) {
       throw new Error(
@@ -1268,9 +1360,9 @@ export class KycController extends BaseController<
       );
     }
 
-    const idOS = consentRecordsFromCatalog(
+    const idOS = consentRecordsFromAcceptedList(
       catalog.idOS,
-      consents.idosTncSigned,
+      consents.idosDisclaimersAccepted,
     );
     const kycProvider = consentRecordsFromCatalog(
       catalog.kycProvider,
@@ -1314,9 +1406,9 @@ export class KycController extends BaseController<
       this.#applyUpdate((state) => {
         state.sessionDisclaimers = latest;
       });
-      const stillMissingIdos = acceptedCategoryStillMissing(
+      const stillMissingIdos = acceptedIdosCategoryStillMissing(
         latest.idOS,
-        consents.idosTncSigned,
+        consents.idosDisclaimersAccepted,
       );
       const stillMissingProvider = acceptedCategoryStillMissing(
         latest.kycProvider,
@@ -1424,7 +1516,7 @@ export class KycController extends BaseController<
     state.acceptedDisclaimerIds = [];
     state.termsAcceptedVendor = null;
     state.sumsubTncAccepted = null;
-    state.idosTncAccepted = null;
+    state.idosDisclaimersAccepted = null;
     state.credentialReusabilityConsentGiven = null;
   }
 
