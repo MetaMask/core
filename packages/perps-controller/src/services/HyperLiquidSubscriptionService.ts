@@ -2165,6 +2165,17 @@ export class HyperLiquidSubscriptionService {
       throw new Error('Subscription client not available');
     }
 
+    // The epoch this subscription belongs to, captured before it is created.
+    //
+    // Reading the live epoch inside the callback instead would mis-stamp a
+    // queued message: a payload that arrived on the retired socket can be
+    // delivered after the reconnect has already advanced the epoch, and would
+    // then be stamped with the NEW epoch — marking pre-reconnect positions as
+    // live on the current connection, which is exactly the staleness the epoch
+    // exists to reject. Stamping with the captured value means such a message
+    // carries its own (now retired) epoch and is ignored on read.
+    const subscriptionEpoch = this.#clientService.getConnectionEpoch?.() ?? 0;
+
     try {
       const subscription = await subscriptionClient.clearinghouseState(
         {
@@ -2221,14 +2232,16 @@ export class HyperLiquidSubscriptionService {
             // Mark this DEX as initialized (has sent first data)
             this.#initializedDexs.add(cacheKey);
 
-            // Stamp the slice with the connection that produced it. Only a
-            // clearinghouseState payload carries authoritative positions, so
-            // only this path stamps; the openOrders handler deliberately does
+            // Stamp the slice with the connection that produced it — the epoch
+            // captured when THIS subscription was created, not the live one. A
+            // message queued on the retired socket can be delivered after the
+            // reconnect has advanced the epoch, and stamping it with the live
+            // value would mark pre-reconnect positions as current.
+            //
+            // Only a clearinghouseState payload carries authoritative positions,
+            // so only this path stamps; the openOrders handler deliberately does
             // not, because it never delivers a size or side.
-            this.#dexPositionsEpoch.set(
-              cacheKey,
-              this.#clientService.getConnectionEpoch?.() ?? 0,
-            );
+            this.#dexPositionsEpoch.set(cacheKey, subscriptionEpoch);
 
             // Trigger aggregation and notify subscribers
             this.#aggregateAndNotifySubscribers();
