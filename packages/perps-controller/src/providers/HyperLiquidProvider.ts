@@ -9528,12 +9528,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         dexName,
       });
 
-      // A TP/SL covering the whole position is still a reduce-only trigger, so
-      // its size may not exceed the position. formatHyperLiquidSize rounds
-      // half-up, so floor onto the asset's size grid first — otherwise a
-      // position sitting on a half-increment (0.115 at szDecimals 2) is
-      // submitted as '0.12' and HyperLiquid rejects it with "Reduce only order
-      // would increase position".
+      // Keep whole-position trigger formatting fail-safe too. Venue positions
+      // are normally grid-aligned, but flooring guarantees a reduce-only child
+      // never exceeds the position if an upstream value is not.
       const fullSize =
         TP_SL_CONFIG.UsePositionBoundTpsl && !isPartialTpsl
           ? '0'

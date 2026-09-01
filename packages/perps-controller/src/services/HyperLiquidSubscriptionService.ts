@@ -2997,7 +2997,7 @@ export class HyperLiquidSubscriptionService {
    * Get one complete position snapshot from current-connection DEX slices.
    *
    * Unlike the aggregate cache, this checks connection-epoch freshness for
-   * every expected DEX. The check and copy are synchronous, so a reconnect
+   * every configured position DEX. The check and copy are synchronous, so a reconnect
    * cannot interleave between proving completeness and reading the slices.
    *
    * @returns A shallow-copied complete snapshot, or null until every configured

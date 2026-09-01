@@ -216,7 +216,7 @@ describe('orderCalculations - advanced order types', () => {
 
       const child = orders[orders.length - 1];
       expect(child.s).toBe('0.115');
-      expect(parseFloat(child.s)).toBeLessThanOrEqual(0.1155);
+      expect(Number(child.s)).toBeLessThanOrEqual(0.1155);
     });
 
     it('passes the reduce-only flag through for trigger placements', () => {
