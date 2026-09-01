@@ -699,6 +699,12 @@ describe('HyperLiquidSubscriptionService', () => {
         { size: '1' },
       ]);
 
+      await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+      expect(hip3Service.getFreshPositionsForAllDexs()).toStrictEqual([]);
+
+      await hip3Service.updateFeatureFlags(false, ['xyz'], [], []);
+      expect(hip3Service.getFreshPositionsForAllDexs()).toStrictEqual([]);
+
       unsubscribe();
     });
 

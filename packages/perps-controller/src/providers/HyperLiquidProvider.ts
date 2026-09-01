@@ -10613,7 +10613,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   async #getPositionsForOperation(targetDex?: string): Promise<Position[]> {
     if (targetDex !== undefined) {
       const targetPositions =
-        this.#subscriptionService.getCachedPositionsForDex?.(targetDex) ?? null;
+        this.#subscriptionService.getCachedPositionsForDex(targetDex);
       if (targetPositions !== null) {
         return [...targetPositions];
       }
@@ -10626,8 +10626,6 @@ export class HyperLiquidProvider implements PerpsProvider {
         targetDex || null,
       );
       if (!answered) {
-        // A snapshot-supplied close handles the same failure by retaining its
-        // caller snapshot. These callers have no safe local fallback.
         throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
       }
       return positions;
@@ -10689,10 +10687,9 @@ export class HyperLiquidProvider implements PerpsProvider {
    * `getPositions()` fans out across every enabled DEX, flattens the subset that
    * answered and converts any thrown error into an empty array, so its result
    * cannot distinguish "this DEX answered and holds no positions" from "this
-   * DEX's request failed or it was never queried". `closePosition` needs that
-   * distinction: the first means the position is closed and the close must fail
-   * before submitting, the second means the absence proves nothing and the
-   * caller's snapshot should stand.
+   * DEX's request failed or it was never queried". Symbol operations need that
+   * distinction: the first means the position is closed, while the second must
+   * fail with `PROVIDER_NOT_AVAILABLE`.
    *
    * TP/SL enrichment is skipped, as in standalone mode: the close path only reads
    * size, side and margin.
