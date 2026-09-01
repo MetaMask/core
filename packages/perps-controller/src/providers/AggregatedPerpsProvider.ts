@@ -326,6 +326,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     }
   }
 
+  /**
+   * Normalize a Scale price ladder through the selected provider route.
+   *
+   * @param params - Market, ladder bounds, count, and optional explicit route.
+   * @returns Provider-normalized prices or a typed unavailable result.
+   * @throws When the selected provider cannot normalize the requested ladder.
+   */
   async getScalePriceLadder(
     params: GetScalePriceLadderParams,
   ): Promise<PerpsScalePriceLadder> {

@@ -1263,6 +1263,7 @@ const normalizeHyperLiquidScalePriceLadder = (params: {
   return prices;
 };
 
+/** Capability lookup result that carries resolved market metadata when ready. */
 type HyperLiquidOrderCapabilityMarket =
   | Readonly<{ status: 'ready'; market: MarketInfo }>
   | Extract<DirectProviderOrderCapabilities, { status: 'unavailable' }>;
@@ -1639,6 +1640,13 @@ export class HyperLiquidProvider implements PerpsProvider {
     return result.status === 'ready' ? HYPERLIQUID_ORDER_CAPABILITIES : result;
   }
 
+  /**
+   * Normalize a Scale price ladder with HyperLiquid market precision.
+   *
+   * @param params - Market, ladder bounds, count, and optional provider route.
+   * @returns HyperLiquid-normalized prices or a typed unavailable result.
+   * @throws When the ladder count or normalized range is invalid.
+   */
   async getScalePriceLadder(
     params: GetScalePriceLadderParams,
   ): Promise<PerpsScalePriceLadder> {
@@ -1668,6 +1676,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     return { status: 'ready', providerId: this.protocolId, prices };
   }
 
+  /**
+   * Resolve fresh market metadata shared by capability and ladder reads.
+   *
+   * @param symbol - Market symbol, including its DEX route when applicable.
+   * @returns The resolved market or a typed unavailable result.
+   */
   async #getOrderCapabilityMarket(
     symbol: string,
   ): Promise<HyperLiquidOrderCapabilityMarket> {
@@ -1705,11 +1719,13 @@ export class HyperLiquidProvider implements PerpsProvider {
           };
     } catch (error) {
       this.#deps.debugLogger.log(
-        'HyperLiquid: Order capabilities unavailable',
+        'HyperLiquid: Order capability market unavailable',
         {
           symbol,
-          error: ensureError(error, 'HyperLiquidProvider.getOrderCapabilities')
-            .message,
+          error: ensureError(
+            error,
+            'HyperLiquidProvider.getOrderCapabilityMarket',
+          ).message,
         },
       );
       return {
