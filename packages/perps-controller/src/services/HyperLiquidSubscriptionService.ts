@@ -3006,7 +3006,8 @@ export class HyperLiquidSubscriptionService {
     // Another subscriber is already opening this account's socket. Awaiting it
     // rather than starting a second one is what keeps two near-simultaneous
     // subscribes on one venue subscription.
-    const pending = this.#pendingTwapOrderSubscriptions.get(normalizedAccountId);
+    const pending =
+      this.#pendingTwapOrderSubscriptions.get(normalizedAccountId);
     if (pending) {
       await pending;
       return;
@@ -3066,8 +3067,7 @@ export class HyperLiquidSubscriptionService {
       (data: UserTwapHistoryWsEvent) => {
         const twapOrders = adapt(data.history);
 
-        const subscribers =
-          this.#twapOrderSubscribers.get(normalizedAccountId);
+        const subscribers = this.#twapOrderSubscribers.get(normalizedAccountId);
         if (subscribers) {
           subscribers.forEach((subscriberCallback) => {
             subscriberCallback(twapOrders, data.isSnapshot);

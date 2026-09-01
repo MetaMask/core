@@ -1671,8 +1671,8 @@ describe('HyperLiquidSubscriptionService', () => {
       });
       await jest.runAllTimersAsync();
 
-      const subscription = await mockSubscriptionClient.userTwapHistory.mock
-        .results[0].value;
+      const subscription =
+        await mockSubscriptionClient.userTwapHistory.mock.results[0].value;
       expect(mockSubscriptionClient.userTwapHistory).toHaveBeenCalledTimes(1);
 
       // Act
@@ -1692,8 +1692,8 @@ describe('HyperLiquidSubscriptionService', () => {
       });
       await jest.runAllTimersAsync();
 
-      const subscription = await mockSubscriptionClient.userTwapHistory.mock
-        .results[0].value;
+      const subscription =
+        await mockSubscriptionClient.userTwapHistory.mock.results[0].value;
 
       // Act
       unsubscribe();
