@@ -450,7 +450,10 @@ export function deriveStateFromMetadata<
   }, {} as never);
 }
 
-type ValidatableController<ControllerState extends StateConstraint> = {
+export type ValidatableController<
+  Controller,
+  ControllerState extends StateConstraint,
+> = (new (...args: any[]) => Controller) & {
   struct: Struct<ControllerState>;
 };
 
@@ -470,7 +473,7 @@ export function validateControllerState<
   ControllerState extends StateConstraint,
 >(
   name: string,
-  controller: ValidatableController<ControllerState>,
+  controller: ValidatableController<unknown, ControllerState>,
   state: unknown,
   mode: 'strict' | 'lenient',
   captureException?: (error: Error) => void,
