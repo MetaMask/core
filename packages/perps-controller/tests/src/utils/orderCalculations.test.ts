@@ -661,6 +661,26 @@ describe('formatPartialTpslSize', () => {
     );
   });
 
+  // Flooring widens the refused band from below half an increment to below a
+  // whole one: a size in [0.5, 1) increment used to round *up* to one increment
+  // and reach the exchange, and is now refused. That is the intended trade —
+  // rounding a reduce-only size up is the defect being fixed — but it is
+  // consumer-visible, so the boundary is pinned here rather than left to follow
+  // incidentally from the flooring.
+  it.each([
+    { size: 0.0004, label: 'below half an increment' },
+    { size: 0.0005, label: 'exactly half an increment' },
+    { size: 0.0009, label: 'just below a whole increment' },
+  ])('refuses a size $label ($size at szDecimals 3)', ({ size }) => {
+    expect(() => formatPartialTpslSize({ size, szDecimals: 3 })).toThrow(
+      PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+    );
+  });
+
+  it('accepts a size of exactly one increment, the first representable size', () => {
+    expect(formatPartialTpslSize({ size: 0.001, szDecimals: 3 })).toBe('0.001');
+  });
+
   it('rejects a non-numeric size', () => {
     expect(() => formatPartialTpslSize({ size: 'abc', szDecimals: 2 })).toThrow(
       PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
