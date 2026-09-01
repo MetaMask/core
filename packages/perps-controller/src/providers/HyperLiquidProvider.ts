@@ -9375,7 +9375,47 @@ export class HyperLiquidProvider implements PerpsProvider {
         fetchedPosition = positions.find((pos) => pos.symbol === symbol);
       }
 
-      const position = livePosition ?? fetchedPosition;
+      let position = livePosition ?? fetchedPosition;
+
+      // Re-validate a caller-supplied snapshot against the freshest WebSocket
+      // position cache, as closePosition does. Clients pass a throttled
+      // snapshot (~1s old on mobile), so a concurrent fill, a liquidation, or a
+      // partial close leaves its size larger than — or its side opposite to —
+      // the real position. Both feed this order: the size becomes a reduce-only
+      // trigger size, and the side is inverted into the trigger's direction, so
+      // a stale snapshot yields an order HyperLiquid rejects with "Reduce only
+      // order would increase position". Reading the cache issues no REST
+      // request, so this does not reintroduce 429 rate limiting.
+      //
+      // Only a size the cache actually holds is adopted. A symbol missing from
+      // a published DEX slice is left alone rather than treated as closed: the
+      // pre-cancel sweep below and the exchange itself are the authorities on
+      // that, and failing here would refuse TP/SL updates this method
+      // previously served.
+      if (
+        livePosition &&
+        this.#subscriptionService.isPositionsCacheInitialized()
+      ) {
+        const cachedPosition = this.#subscriptionService
+          .getCachedPositionsForDex(parseAssetName(symbol).dex ?? '')
+          ?.find((pos) => pos.symbol === symbol);
+
+        if (cachedPosition) {
+          if (cachedPosition.size !== livePosition.size) {
+            this.#deps.debugLogger.log(
+              'Stale TP/SL position snapshot: using live WebSocket position',
+              {
+                symbol,
+                snapshotSize: livePosition.size,
+                liveSize: cachedPosition.size,
+              },
+            );
+          }
+
+          position = cachedPosition;
+        }
+      }
+
       if (!position) {
         throw new Error(`No position found for ${symbol}`);
       }
@@ -9462,11 +9502,17 @@ export class HyperLiquidProvider implements PerpsProvider {
         dexName,
       });
 
+      // A TP/SL covering the whole position is still a reduce-only trigger, so
+      // its size may not exceed the position. formatHyperLiquidSize rounds
+      // half-up, so floor onto the asset's size grid first — otherwise a
+      // position sitting on a half-increment (0.115 at szDecimals 2) is
+      // submitted as '0.12' and HyperLiquid rejects it with "Reduce only order
+      // would increase position".
       const fullSize =
         TP_SL_CONFIG.UsePositionBoundTpsl && !isPartialTpsl
           ? '0'
           : formatHyperLiquidSize({
-              size: positionSize,
+              size: floorToSizeDecimals(positionSize, assetInfo.szDecimals),
               szDecimals: assetInfo.szDecimals,
             });
 

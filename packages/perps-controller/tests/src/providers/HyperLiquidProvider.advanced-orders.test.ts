@@ -1838,6 +1838,146 @@ describe('HyperLiquidProvider', () => {
       expect(request.orders[1].s).toBe('0.1');
     });
 
+    // TAT-3252: a partial TP/SL is a reduce-only trigger, so its size may never
+    // exceed the position it protects, and the position it is measured against
+    // must be the live one rather than the caller's throttled snapshot.
+    // Otherwise HyperLiquid rejects the order with "Order 0: Reduce only order
+    // would increase position".
+    describe('reduce-only safety', () => {
+      it('floors a partial size onto the size grid instead of rounding it up', async () => {
+        // BTC is szDecimals 3 here, so 0.1155 rounds half-up to '0.116' —
+        // more than the 0.1155 the caller asked to cover.
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.1155',
+          position: { ...position, size: '0.1155' },
+        });
+
+        const request = (
+          mockClientService.getExchangeClient().order as jest.Mock
+        ).mock.calls[0][0];
+        expect(request.orders[0].r).toBe(true);
+        expect(parseFloat(request.orders[0].s)).toBeLessThanOrEqual(0.1155);
+        expect(request.orders[0].s).toBe('0.115');
+      });
+
+      it('floors a whole-position TP/SL size onto the size grid', async () => {
+        // Position-bound TP/SL sends size '0', so the formatted whole-position
+        // size is only reachable alongside a partial trigger.
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.01',
+          stopLossPrice: '45000',
+          position: { ...position, size: '0.1155' },
+        });
+
+        const request = (
+          mockClientService.getExchangeClient().order as jest.Mock
+        ).mock.calls[0][0];
+        // The stop loss carries no size of its own, so it covers the position.
+        expect(parseFloat(request.orders[1].s)).toBeLessThanOrEqual(0.1155);
+        expect(request.orders[1].s).toBe('0.115');
+      });
+
+      it('re-reads the live position when the caller snapshot is stale', async () => {
+        // The snapshot says 0.1 but a concurrent fill left only 0.04 open. A
+        // whole-position stop loss must cover the live size, not the snapshot.
+        mockSubscriptionService.isPositionsCacheInitialized.mockReturnValue(
+          true,
+        );
+        mockSubscriptionService.getCachedPositionsForDex = jest
+          .fn()
+          .mockReturnValue([{ ...position, size: '0.04' }]);
+
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.04',
+          stopLossPrice: '45000',
+          position,
+        });
+
+        const request = (
+          mockClientService.getExchangeClient().order as jest.Mock
+        ).mock.calls[0][0];
+        // The stop loss carries no explicit size, so it covers the position —
+        // the live 0.04, not the snapshot's 0.1.
+        expect(request.orders[1].s).toBe('0.04');
+      });
+
+      it('takes the trigger side from the live position when the snapshot flipped', async () => {
+        // The snapshot is long but the position is now short. A trigger built
+        // from the stale side would sit on the wrong side of the position and
+        // increase it rather than reduce it.
+        mockSubscriptionService.isPositionsCacheInitialized.mockReturnValue(
+          true,
+        );
+        mockSubscriptionService.getCachedPositionsForDex = jest
+          .fn()
+          .mockReturnValue([{ ...position, size: '-0.1' }]);
+
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '40000',
+          takeProfitSize: '0.04',
+          position,
+        });
+
+        const request = (
+          mockClientService.getExchangeClient().order as jest.Mock
+        ).mock.calls[0][0];
+        // Closing a short buys, so the reduce-only trigger is a buy.
+        expect(request.orders[0].b).toBe(true);
+      });
+
+      it('keeps the caller snapshot when the position cache is not initialized', async () => {
+        mockSubscriptionService.isPositionsCacheInitialized.mockReturnValue(
+          false,
+        );
+
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.04',
+          stopLossPrice: '45000',
+          position,
+        });
+
+        const request = (
+          mockClientService.getExchangeClient().order as jest.Mock
+        ).mock.calls[0][0];
+        expect(request.orders[1].s).toBe('0.1');
+      });
+
+      it('keeps the caller snapshot when the cache does not hold the symbol', async () => {
+        // A DEX slice that has published without this symbol proves nothing
+        // here: the exchange and the pre-cancel sweep are the authorities, and
+        // refusing would break TP/SL updates this path previously served.
+        mockSubscriptionService.isPositionsCacheInitialized.mockReturnValue(
+          true,
+        );
+        mockSubscriptionService.getCachedPositionsForDex = jest
+          .fn()
+          .mockReturnValue([]);
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.04',
+          stopLossPrice: '45000',
+          position,
+        });
+
+        expect(result.success).toBe(true);
+        const request = (
+          mockClientService.getExchangeClient().order as jest.Mock
+        ).mock.calls[0][0];
+        expect(request.orders[1].s).toBe('0.1');
+      });
+    });
+
     it('cancels standalone partial triggers but never another order TP/SL child', async () => {
       const takeProfitChild = {
         coin: 'BTC',

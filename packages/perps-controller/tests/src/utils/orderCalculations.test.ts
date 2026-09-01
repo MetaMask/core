@@ -2,6 +2,7 @@ import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import {
   calculateFinalPositionSize,
   floorToSizeDecimals,
+  formatPartialTpslSize,
   getMaxAllowedAmount,
 } from '../../../src/utils/orderCalculations.js';
 
@@ -611,5 +612,58 @@ describe('calculateFinalPositionSize', () => {
 
       expect(finalPositionSize).toBe(0);
     });
+  });
+});
+
+describe('formatPartialTpslSize', () => {
+  // A partial TP/SL is a reduce-only trigger, so its size may never exceed the
+  // position it protects. formatHyperLiquidSize rounds half-up, so a size
+  // sitting on a half-increment used to be submitted larger than the position
+  // and HyperLiquid rejected it with "Reduce only order would increase
+  // position" (TAT-3252).
+  it.each([
+    { size: 0.115, szDecimals: 2, expected: '0.11' },
+    { size: 2.5, szDecimals: 0, expected: '2' },
+    { size: 0.000055, szDecimals: 5, expected: '0.00005' },
+  ])(
+    'floors $size at szDecimals $szDecimals instead of rounding it up',
+    ({ size, szDecimals, expected }) => {
+      const formatted = formatPartialTpslSize({ size, szDecimals });
+
+      expect(formatted).toBe(expected);
+      expect(parseFloat(formatted)).toBeLessThanOrEqual(size);
+    },
+  );
+
+  it('never exceeds the position for a size given as a string', () => {
+    const formatted = formatPartialTpslSize({ size: '0.115', szDecimals: 2 });
+
+    expect(parseFloat(formatted)).toBeLessThanOrEqual(0.115);
+  });
+
+  it('leaves a size already on the size grid untouched', () => {
+    expect(formatPartialTpslSize({ size: 0.11, szDecimals: 2 })).toBe('0.11');
+  });
+
+  it('keeps a grid-aligned size intact despite float representation error', () => {
+    // 0.07 * 3 is 0.21000000000000002 in IEEE 754; flooring must not shave a
+    // whole increment off a size that is really on the grid.
+    expect(formatPartialTpslSize({ size: 0.07 * 3, szDecimals: 2 })).toBe(
+      '0.21',
+    );
+  });
+
+  it('rejects a size that floors away at the asset precision', () => {
+    // Rounding half-up would have turned this into '0.01'; the exchange reads a
+    // zero-sized trigger as covering the whole position, so it must be refused.
+    expect(() => formatPartialTpslSize({ size: 0.006, szDecimals: 2 })).toThrow(
+      PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+    );
+  });
+
+  it('rejects a non-numeric size', () => {
+    expect(() => formatPartialTpslSize({ size: 'abc', szDecimals: 2 })).toThrow(
+      PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+    );
   });
 });

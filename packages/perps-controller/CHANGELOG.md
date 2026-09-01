@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add provider-routed Scale price normalization through `PerpsController:getScalePriceLadder`, the optional `PerpsProvider.getScalePriceLadder` hook, and their exported action, parameter, and result types ([#10021](https://github.com/MetaMask/core/pull/10021))
 
+### Fixed
+
+- Stop `updatePositionTPSL` from submitting a reduce-only trigger larger than the position it protects, which HyperLiquid rejected with `Order 0: Reduce only order would increase position` ([#10029](https://github.com/MetaMask/core/pull/10029))
+  - TP/SL sizes are floored onto the asset's size grid instead of rounded half-up. A size on a half-increment (`0.115` at `szDecimals: 2`) was formatted as `0.12` — more than the position — and rejected. This applies to both partial (quantity-scoped) TP/SL sizes and the whole-position size used when position-bound TP/SL is disabled. A partial size that now floors to zero is still refused with `ORDER_TPSL_SIZE_INVALID` rather than sent as `'0'`, which the exchange reads as covering the whole position.
+  - The caller-supplied `position` snapshot is re-validated against the WebSocket position cache before the order is built, as `closePosition` already did. Clients pass a throttled (~1s) snapshot, so a concurrent fill or partial close left its size larger than — or its side opposite to — the real position. The cache read issues no REST request. A symbol the cache does not hold, or an uninitialized cache, keeps the caller's snapshot rather than failing the update.
+
 ## [15.0.0]
 
 ### Added

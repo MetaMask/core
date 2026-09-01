@@ -200,6 +200,25 @@ describe('orderCalculations - advanced order types', () => {
       },
     );
 
+    // TAT-3252: an attached TP/SL is a reduce-only child, so it may not exceed
+    // the order it protects. The clamp to the parent size runs before the size
+    // is formatted, so formatting must floor — rounding half-up there would put
+    // the child back above the clamp ceiling and HyperLiquid would reject it
+    // with "Reduce only order would increase position".
+    it('floors an attached TP/SL child rather than rounding it above its parent', () => {
+      const { orders } = buildOrdersArray({
+        ...baseBuildParams,
+        formattedSize: '0.1155',
+        szDecimals: 3,
+        takeProfitPrice: '60000',
+        takeProfitSize: '0.1155',
+      });
+
+      const child = orders[orders.length - 1];
+      expect(child.s).toBe('0.115');
+      expect(parseFloat(child.s)).toBeLessThanOrEqual(0.1155);
+    });
+
     it('passes the reduce-only flag through for trigger placements', () => {
       const { orders } = buildOrdersArray({
         ...baseBuildParams,
