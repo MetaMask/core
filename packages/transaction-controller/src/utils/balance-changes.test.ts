@@ -363,6 +363,33 @@ describe('Balance Change Utils', () => {
           simulationRevert: undefined,
         });
       });
+
+      it('supports a gas cost above Number.MAX_SAFE_INTEGER', async () => {
+        // A wei-scale gas cost this large is realistic on chains such as
+        // Polygon, and would previously throw when the wire value was
+        // mistakenly parsed as a JS `number` via `new BN(offset)`.
+        const largeGasCost = '10500000000000000'; // 2^53 (9007199254740992) < this
+        simulateTransactionsMock.mockResolvedValueOnce(
+          createNativeBalanceResponse('0x0', '0x0', largeGasCost),
+        );
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result).toStrictEqual({
+          simulationData: {
+            callTraceErrors: [],
+            nativeBalanceChange: {
+              difference: '0x254db1c2244000',
+              isDecrease: false,
+              newBalance: '0x254db1c2244000',
+              previousBalance: '0x0',
+            },
+            tokenBalanceChanges: [],
+          },
+          gasUsed: undefined,
+          simulationRevert: undefined,
+        });
+      });
     });
 
     describe('returns token balance changes', () => {

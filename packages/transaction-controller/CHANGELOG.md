@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Type `SimulationResponseTransaction.gasCost` (and the internal `getSimulationBalanceChange` offset) as `string`, matching what the simulation API actually returns on the wire ([#PLACEHOLDER](https://github.com/MetaMask/core/pull/PLACEHOLDER))
-
 ## [69.7.0]
 
 ### Added
