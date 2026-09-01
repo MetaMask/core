@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- docs(perps-controller): describe package capabilities ([#10018](https://github.com/MetaMask/core/pull/10018))
+
 ## [15.0.0]
 
 ### Added
