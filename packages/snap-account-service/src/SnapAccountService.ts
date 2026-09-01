@@ -879,7 +879,6 @@ export class SnapAccountService {
         event,
         message.params.assets,
       );
-      // Nothing verified to forward — drop the event entirely.
       if (Object.keys(assets).length > 0) {
         this.#messenger.publish('SnapAccountService:accountAssetListUpdated', {
           ...message.params,
