@@ -841,44 +841,155 @@ export class SnapAccountService {
   }
 
   /**
-   * Publishes an account data update event from a Snap.
+   * Publishes an account data update event from a Snap, filtered to the
+   * accounts that the Snap actually owns.
+   *
+   * A Snap can emit `notify:accountTransactionsUpdated`,
+   * `notify:accountBalancesUpdated`, and `notify:accountAssetListUpdated` for
+   * account IDs it does not own. Forwarding those updates verbatim would let
+   * one Snap forge transactions, balances, or asset-list entries for accounts
+   * owned by another Snap (or for accounts that do not exist at all). This
+   * method restores the per-Snap ownership predicate that
+   * `SnapKeyringV1.handleKeyringSnapMessage` used to enforce before the
+   * non-keyring short-circuit bypassed it (see core#8916): it asks the Snap's
+   * own v2 keyring — via the lock-free `withKeyringV2Unsafe` path — which of
+   * the reported account IDs it tracks, drops any it does not, and only then
+   * re-emits the (now-verified) payload. Unknown account IDs are dropped with
+   * a warning rather than throwing, so a malicious or buggy Snap cannot use a
+   * bogus ID to abort the whole batch (and DoS other consumers).
    *
    * @param snapId - ID of the Snap.
    * @param event - Account data update event.
    * @param message - Message sent by the Snap.
    * @returns `null`.
    */
-  #publishAccountDataUpdatedEvent(
+  async #publishAccountDataUpdatedEvent(
     snapId: SnapId,
     event: AccountDataUpdatedKeyringEvent,
     message: SnapMessage,
-  ): null {
+  ): Promise<null> {
     log(
       `Forwarding message "${event}" from Snap "${snapId}" as a SnapAccountService event...`,
     );
 
     if (event === KeyringEvent.AccountAssetListUpdated) {
       assertStruct(message, AccountAssetListUpdatedEventStruct);
-      this.#messenger.publish(
-        'SnapAccountService:accountAssetListUpdated',
-        message.params,
+      const assets = await this.#filterOwnedAccountEntries(
+        snapId,
+        event,
+        message.params.assets,
       );
+      // Nothing verified to forward — drop the event entirely.
+      if (Object.keys(assets).length > 0) {
+        this.#messenger.publish('SnapAccountService:accountAssetListUpdated', {
+          ...message.params,
+          assets,
+        });
+      } else {
+        log(
+          `Dropping "${event}" from Snap "${snapId}": no Snap-owned accounts in the update.`,
+        );
+      }
     } else if (event === KeyringEvent.AccountBalancesUpdated) {
       assertStruct(message, AccountBalancesUpdatedEventStruct);
-      this.#messenger.publish(
-        'SnapAccountService:accountBalancesUpdated',
-        message.params,
+      const balances = await this.#filterOwnedAccountEntries(
+        snapId,
+        event,
+        message.params.balances,
       );
+      if (Object.keys(balances).length > 0) {
+        this.#messenger.publish('SnapAccountService:accountBalancesUpdated', {
+          ...message.params,
+          balances,
+        });
+      } else {
+        log(
+          `Dropping "${event}" from Snap "${snapId}": no Snap-owned accounts in the update.`,
+        );
+      }
     } else if (event === KeyringEvent.AccountTransactionsUpdated) {
       assertStruct(message, AccountTransactionsUpdatedEventStruct);
-      this.#messenger.publish(
-        'SnapAccountService:accountTransactionsUpdated',
-        message.params,
+      const transactions = await this.#filterOwnedAccountEntries(
+        snapId,
+        event,
+        message.params.transactions,
       );
+      if (Object.keys(transactions).length > 0) {
+        this.#messenger.publish(
+          'SnapAccountService:accountTransactionsUpdated',
+          {
+            ...message.params,
+            transactions,
+          },
+        );
+      } else {
+        log(
+          `Dropping "${event}" from Snap "${snapId}": no Snap-owned accounts in the update.`,
+        );
+      }
     }
 
     // We need to return a valid JSON value, so we cannot use `undefined` here.
     return null;
+  }
+
+  /**
+   * Filters an account-keyed map from a Snap's account data update event down
+   * to the entries whose account ID is owned by the Snap.
+   *
+   * Ownership is determined by the Snap's own v2 keyring (`keyring.hasAccount`),
+   * which is the same per-Snap registry predicate that
+   * `SnapKeyringV1.handleKeyringSnapMessage` enforced before core#8916
+   * short-circuited it. The lookup uses the lock-free
+   * `withKeyringV2Unsafe` path, so it does not acquire the keyring lock and is
+   * safe to call from this event path. If no keyring exists for the Snap yet,
+   * ownership cannot be verified, so the method fails closed (returns an empty
+   * map) instead of forwarding unverified data.
+   *
+   * @param snapId - ID of the Snap that emitted the event.
+   * @param event - The account data update event being filtered.
+   * @param entries - The account-keyed map to filter.
+   * @returns A new map containing only the entries for accounts the Snap owns.
+   */
+  async #filterOwnedAccountEntries<Value>(
+    snapId: SnapId,
+    event: AccountDataUpdatedKeyringEvent,
+    entries: Record<string, Value>,
+  ): Promise<Record<string, Value>> {
+    const accountIds = Object.keys(entries);
+    if (accountIds.length === 0) {
+      return {};
+    }
+
+    let ownedAccountIds: Set<string>;
+    try {
+      ownedAccountIds = await this.#withKeyringV2Unsafe(snapId, async (keyring) =>
+        new Set(accountIds.filter((id) => keyring.hasAccount(id))),
+      );
+    } catch (error) {
+      if (isKeyringNotFoundError(error)) {
+        // No keyring for this Snap yet — we cannot confirm ownership of any
+        // reported account, so fail closed and drop the whole update rather
+        // than forward unverified data.
+        log(
+          `No Snap keyring found for Snap "${snapId}" while verifying ownership for "${event}". Dropping ${accountIds.length} account update(s).`,
+        );
+        return {};
+      }
+      throw error;
+    }
+
+    const filtered: Record<string, Value> = {};
+    for (const accountId of accountIds) {
+      if (ownedAccountIds.has(accountId)) {
+        filtered[accountId] = entries[accountId];
+      } else {
+        log(
+          `Snap "${snapId}" reported "${event}" for account "${accountId}" it does not own. Skipping.`,
+        );
+      }
+    }
+    return filtered;
   }
 
   // eslint-disable-next-line jsdoc/require-returns

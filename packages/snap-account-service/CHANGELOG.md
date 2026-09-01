@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Filter account data update events (`notify:accountTransactionsUpdated`, `notify:accountBalancesUpdated`, and `notify:accountAssetListUpdated`) to the accounts that the originating Snap actually owns before republishing them ([#8916](https://github.com/MetaMask/core/pull/8916))
+
 ## [2.1.2]
 
 ### Changed

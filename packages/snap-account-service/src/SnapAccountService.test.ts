@@ -1182,15 +1182,24 @@ describe('SnapAccountService', () => {
     });
 
     const MOCK_ACCOUNT_ID = '00000000-0000-4000-8000-000000000001';
+    // An account ID that the Snap does NOT own. Updates for this ID must be
+    // stripped before the event is republished, otherwise a Snap could forge
+    // data for accounts owned by another Snap (or for accounts that do not
+    // exist at all).
+    const MOCK_UNOWNED_ACCOUNT_ID = '00000000-0000-4000-8000-000000000002';
 
     it.each([
       [
         KeyringEvent.AccountBalancesUpdated,
         'SnapAccountService:accountBalancesUpdated' as const,
+        'balances' as const,
         {
           balances: {
             [MOCK_ACCOUNT_ID]: {
               'eip155:1/slip44:60': { amount: '1', unit: 'ETH' },
+            },
+            [MOCK_UNOWNED_ACCOUNT_ID]: {
+              'eip155:1/slip44:60': { amount: '99', unit: 'ETH' },
             },
           },
         } satisfies AccountBalancesUpdatedEventPayload,
@@ -1198,25 +1207,41 @@ describe('SnapAccountService', () => {
       [
         KeyringEvent.AccountAssetListUpdated,
         'SnapAccountService:accountAssetListUpdated' as const,
+        'assets' as const,
         {
           assets: {
             [MOCK_ACCOUNT_ID]: { added: ['eip155:1/slip44:60'], removed: [] },
+            [MOCK_UNOWNED_ACCOUNT_ID]: {
+              added: ['eip155:1/slip44:60'],
+              removed: [],
+            },
           },
         } satisfies AccountAssetListUpdatedEventPayload,
       ],
       [
         KeyringEvent.AccountTransactionsUpdated,
         'SnapAccountService:accountTransactionsUpdated' as const,
+        'transactions' as const,
         {
-          transactions: { [MOCK_ACCOUNT_ID]: [] },
+          transactions: {
+            [MOCK_ACCOUNT_ID]: [],
+            [MOCK_UNOWNED_ACCOUNT_ID]: [],
+          },
         } satisfies AccountTransactionsUpdatedEventPayload,
       ],
     ] as const)(
-      'publishes %s as a service event without touching the keyring',
-      async (method, event, payload) => {
+      'filters %s to accounts owned by the Snap before republishing it',
+      async (method, event, key, payload) => {
         const { service, rootMessenger, mocks } = await setup();
         const listener = jest.fn();
         rootMessenger.subscribe(event, listener);
+
+        // The Snap only owns MOCK_ACCOUNT_ID; the unowned ID must be dropped.
+        mockWithKeyringV2Unsafe(mocks, {
+          [MOCK_SNAP_ID]: {
+            hasAccount: (id: string) => id === MOCK_ACCOUNT_ID,
+          },
+        });
 
         expect(service).toBeDefined();
 
@@ -1226,13 +1251,55 @@ describe('SnapAccountService', () => {
         } as unknown as SnapMessage);
 
         expect(result).toBeNull();
-        expect(listener).toHaveBeenCalledWith(payload);
+        // Only the owned account survives the ownership filter.
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith({
+          [key]: { [MOCK_ACCOUNT_ID]: payload[key][MOCK_ACCOUNT_ID] },
+        });
+        // The ownership filter must actually run on the live path — this
+        // assertion previously locked in the bypass (core#8916) and is now
+        // inverted.
         expect(
           mocks.KeyringController.withKeyringV2Unsafe,
-        ).not.toHaveBeenCalled();
+        ).toHaveBeenCalledTimes(1);
         expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
       },
     );
+
+    it('drops the whole update (and does not throw) when the Snap keyring does not exist yet', async () => {
+      const { service, rootMessenger, mocks } = await setup();
+      const listener = jest.fn();
+      rootMessenger.subscribe(
+        'SnapAccountService:accountBalancesUpdated',
+        listener,
+      );
+
+      // No keyring registered for the Snap -> the ownership lookup throws
+      // KeyringNotFound. The handler must fail closed (drop the update)
+      // rather than forward unverified data or let the error escape.
+      mocks.KeyringController.withKeyringV2Unsafe.mockRejectedValue(
+        new KeyringControllerError(
+          KeyringControllerErrorMessage.KeyringNotFound,
+        ),
+      );
+
+      const payload = {
+        balances: {
+          [MOCK_ACCOUNT_ID]: {
+            'eip155:1/slip44:60': { amount: '1', unit: 'ETH' },
+          },
+        },
+      } satisfies AccountBalancesUpdatedEventPayload;
+
+      const result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
+        method: KeyringEvent.AccountBalancesUpdated,
+        params: payload,
+      } as unknown as SnapMessage);
+
+      expect(result).toBeNull();
+
+      expect(listener).not.toHaveBeenCalled();
+    });
   });
 
   describe('on AccountTreeController:selectedAccountGroupChange', () => {
