@@ -109,15 +109,15 @@ function computeExchangeRatesForBridge(
   const currencyRates: CurrencyRateState['currencyRates'] = {};
   const marketData: TokenRatesControllerState['marketData'] = {};
 
+  // Only consumed by the non-EVM (else) branch below to key conversionRates.
+  // An unmapped selectedCurrency must not discard EVM marketData/currencyRates,
+  // which don't depend on this lookup at all — so this bails out only the
+  // non-EVM assets (individually, below) rather than the whole function.
+  // Left undefined (not defaulted to USD) because `price` for a non-EVM
+  // asset is already denominated in `selectedCurrency` (unlike `usdPrice`,
+  // which is always USD); labeling that `price` value's currency as USD
+  // when it isn't would be wrong data, not a safe fallback.
   const currencyCaip = MAP_CAIP_CURRENCIES[selectedCurrency.toLowerCase()];
-  if (!currencyCaip) {
-    return {
-      conversionRates: {},
-      currencyRates: {},
-      marketData: {},
-      currentCurrency: selectedCurrency,
-    };
-  }
 
   const fungibleAssetsPrice = Object.entries(assetsPrice).reduce<
     Record<Caip19AssetId, FungibleAssetPrice>
@@ -195,7 +195,7 @@ function computeExchangeRatesForBridge(
             usdConversionRate: usdPrice,
           };
         }
-      } else {
+      } else if (currencyCaip) {
         conversionRates[assetId as Caip19AssetId] = {
           rate: String(price),
           currency: currencyCaip,
