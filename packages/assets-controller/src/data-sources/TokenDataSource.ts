@@ -515,7 +515,11 @@ export class TokenDataSource {
       // Extract response from context
       const { response } = ctx;
 
-      const { assetsInfo: stateMetadata, customAssets } = ctx.getAssetsState();
+      const {
+        assetsInfo: stateMetadata,
+        customAssets,
+        assetsBalance: stateBalances,
+      } = ctx.getAssetsState();
       const assetIdsNeedingMetadata = new Set<string>();
       // Newly detected asset IDs (lowercase) — subject to spam filtering.
       const detectedAssetIds = new Set<string>();
@@ -531,6 +535,16 @@ export class TokenDataSource {
         Object.values(customAssets ?? {})
           .flat()
           .map((id) => id.toLowerCase()),
+      );
+
+      // Assets already tracked in state passed detection once already, so they
+      // are heals rather than new detections even when DetectionMiddleware
+      // re-lists them (e.g. to have their balance re-read via RPC). Without
+      // this, spam filtering could delete the refreshed balance.
+      const trackedAssetIds = new Set<string>(
+        Object.values(stateBalances ?? {}).flatMap((accountBalances) =>
+          Object.keys(accountBalances).map((id) => id.toLowerCase()),
+        ),
       );
 
       // Always include native asset IDs from NetworkEnablementController
@@ -563,7 +577,12 @@ export class TokenDataSource {
               continue;
             }
 
-            detectedAssetIds.add(assetId.toLowerCase());
+            const lowerCasedAssetId = assetId.toLowerCase();
+            if (trackedAssetIds.has(lowerCasedAssetId)) {
+              balanceHealAssetIds.add(lowerCasedAssetId);
+            } else {
+              detectedAssetIds.add(lowerCasedAssetId);
+            }
             assetIdsNeedingMetadata.add(assetId);
           }
         }

@@ -395,6 +395,59 @@ describe('TokenDataSource', () => {
     );
   });
 
+  it('middleware heals low-occurrence assets already tracked in state balances even when re-listed as detected', async () => {
+    // DetectionMiddleware re-lists tracked assets whose balance the upstream
+    // source left empty, so RpcFallbackMiddleware can read them on chain. Those
+    // holdings already passed detection once and must not be spam-filtered.
+    const lowOccurrenceAsset =
+      'eip155:1/erc20:0x3333333333333333333333333333333333333333' as Caip19AssetId;
+
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(lowOccurrenceAsset, { occurrences: 1 }),
+      ],
+      suggestedOccurrenceFloors: { '1': 3 },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [lowOccurrenceAsset],
+        },
+        assetsBalance: {
+          'mock-account-id': {
+            [lowOccurrenceAsset]: { amount: '50' },
+          },
+        },
+      },
+      getAssetsState: jest.fn().mockReturnValue({
+        assetsInfo: {},
+        assetsBalance: {
+          'mock-account-id': {
+            [lowOccurrenceAsset]: { amount: '12' },
+          },
+        },
+      }),
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsInfo?.[lowOccurrenceAsset]).toBeDefined();
+    expect(
+      (
+        context.response.assetsBalance?.['mock-account-id'] as
+          | Record<string, unknown>
+          | undefined
+      )?.[lowOccurrenceAsset],
+    ).toStrictEqual({ amount: '50' });
+    expect(context.response.detectedAssets?.['mock-account-id']).toContain(
+      lowOccurrenceAsset,
+    );
+  });
+
   it('middleware skips assets with existing metadata containing image in response', async () => {
     const { controller, apiClient } = setupController({
       messenger: createTestMessenger(),

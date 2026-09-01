@@ -14,6 +14,8 @@ const MOCK_ACCOUNT_ID = 'mock-account-id';
 const MOCK_ASSET_MAINNET = 'eip155:1/slip44:60' as Caip19AssetId;
 const MOCK_ASSET_POLYGON = 'eip155:137/slip44:966' as Caip19AssetId;
 const MOCK_ASSET_BSC = 'eip155:56/slip44:714' as Caip19AssetId;
+const MOCK_ERC20_MAINNET =
+  'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
 
 function createMockAccount(): InternalAccount {
   return {
@@ -89,6 +91,135 @@ describe('RpcFallbackMiddleware', () => {
 
     expect(rpcMw).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith(ctx);
+  });
+
+  it('passes through when detected assets all have a positive balance', async () => {
+    const { source, middleware: rpcMw } = createMockRpcSource();
+    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const ctx = createContext(createDataRequest(['eip155:1']), {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_MAINNET]: { amount: '12' } },
+      },
+      detectedAssets: { [MOCK_ACCOUNT_ID]: [MOCK_ERC20_MAINNET] },
+    });
+    const next = jest.fn(async (innerCtx) => innerCtx);
+
+    await mw.assetsMiddleware(ctx, next);
+
+    expect(rpcMw).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(ctx);
+  });
+
+  it('fetches detected assets missing from the response via RPC', async () => {
+    const rpcResponse: DataResponse = {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_MAINNET]: { amount: '42' } },
+      },
+    };
+    const { source, middleware: rpcMw } = createMockRpcSource(rpcResponse);
+    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const ctx = createContext(createDataRequest(['eip155:1']), {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_MAINNET]: { amount: '1' } },
+      },
+      detectedAssets: { [MOCK_ACCOUNT_ID]: [MOCK_ERC20_MAINNET] },
+    });
+    const next = jest.fn(async (innerCtx) => innerCtx);
+
+    await mw.assetsMiddleware(ctx, next);
+
+    expect(rpcMw).toHaveBeenCalledTimes(1);
+    const [rpcCtx] = rpcMw.mock.calls[0];
+    expect(rpcCtx.request.chainIds).toStrictEqual(['eip155:1']);
+    expect(rpcCtx.request.customAssets).toStrictEqual([MOCK_ERC20_MAINNET]);
+    expect(
+      next.mock.calls[0][0].response.assetsBalance[MOCK_ACCOUNT_ID],
+    ).toStrictEqual({
+      [MOCK_ASSET_MAINNET]: { amount: '1' },
+      [MOCK_ERC20_MAINNET]: { amount: '42' },
+    });
+  });
+
+  it('fetches detected assets the response reports as zero via RPC', async () => {
+    const rpcResponse: DataResponse = {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_MAINNET]: { amount: '9' } },
+      },
+    };
+    const { source, middleware: rpcMw } = createMockRpcSource(rpcResponse);
+    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const ctx = createContext(createDataRequest(['eip155:1']), {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_MAINNET]: { amount: '0' } },
+      },
+      detectedAssets: { [MOCK_ACCOUNT_ID]: [MOCK_ERC20_MAINNET] },
+    });
+    const next = jest.fn(async (innerCtx) => innerCtx);
+
+    await mw.assetsMiddleware(ctx, next);
+
+    expect(rpcMw).toHaveBeenCalledTimes(1);
+    expect(
+      next.mock.calls[0][0].response.assetsBalance[MOCK_ACCOUNT_ID][
+        MOCK_ERC20_MAINNET
+      ],
+    ).toStrictEqual({ amount: '9' });
+  });
+
+  it('keeps custom assets already on the request when fetching detected assets', async () => {
+    const otherCustom =
+      'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7' as Caip19AssetId;
+    const { source, middleware: rpcMw } = createMockRpcSource();
+    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const ctx = createContext(
+      { ...createDataRequest(['eip155:1']), customAssets: [otherCustom] },
+      {
+        detectedAssets: { [MOCK_ACCOUNT_ID]: [MOCK_ERC20_MAINNET] },
+      },
+    );
+    const next = jest.fn(async (innerCtx) => innerCtx);
+
+    await mw.assetsMiddleware(ctx, next);
+
+    expect(rpcMw.mock.calls[0][0].request.customAssets).toStrictEqual([
+      otherCustom,
+      MOCK_ERC20_MAINNET,
+    ]);
+  });
+
+  it('fetches both errored chains and chains of empty detected assets', async () => {
+    const { source, middleware: rpcMw } = createMockRpcSource();
+    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const ctx = createContext(createDataRequest(['eip155:1', 'eip155:137']), {
+      errors: { 'eip155:137': 'Unprocessed by Accounts API' },
+      detectedAssets: { [MOCK_ACCOUNT_ID]: [MOCK_ERC20_MAINNET] },
+    });
+    const next = jest.fn(async (innerCtx) => innerCtx);
+
+    await mw.assetsMiddleware(ctx, next);
+
+    expect(new Set(rpcMw.mock.calls[0][0].request.chainIds)).toStrictEqual(
+      new Set(['eip155:137', 'eip155:1']),
+    );
+  });
+
+  it('deduplicates detected assets shared by several accounts', async () => {
+    const secondAccountId = 'second-account-id';
+    const { source, middleware: rpcMw } = createMockRpcSource();
+    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const ctx = createContext(createDataRequest(['eip155:1']), {
+      detectedAssets: {
+        [MOCK_ACCOUNT_ID]: [MOCK_ERC20_MAINNET],
+        [secondAccountId]: [MOCK_ERC20_MAINNET],
+      },
+    });
+    const next = jest.fn(async (innerCtx) => innerCtx);
+
+    await mw.assetsMiddleware(ctx, next);
+
+    expect(rpcMw.mock.calls[0][0].request.customAssets).toStrictEqual([
+      MOCK_ERC20_MAINNET,
+    ]);
   });
 
   it('calls RPC only for chains present in response.errors', async () => {

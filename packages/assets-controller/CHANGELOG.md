@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix stale balances surviving in state when the Accounts API returns no entry for an asset it does not index (or reports an untrusted `0`), which the `merge` update kept as the previous amount
+  - `DetectionMiddleware` now also lists EVM assets tracked in state (`assetsBalance` or `customAssets`) whose balance is empty in the current response under `response.detectedAssets`, excluding staking vault assets and assets on chains outside the request
+  - `RpcFallbackMiddleware` reads those assets back from chain, passing them to `RpcDataSource` as `customAssets`, in addition to its existing retry of chains in `response.errors`
+  - The forced `getAssets` fast pipeline now runs `DetectionMiddleware` before `RpcFallbackMiddleware` so the fallback can see them
+  - `TokenDataSource` treats assets already present in `state.assetsBalance` as balance heals rather than new detections, so occurrence-floor spam filtering can no longer drop a re-read balance
+
 ## [14.0.3]
 
 ### Changed

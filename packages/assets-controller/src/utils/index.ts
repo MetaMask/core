@@ -27,3 +27,7 @@ export {
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
 } from './native-assets.js';
+export {
+  findUpstreamAmount,
+  isUpstreamBalanceEmpty,
+} from './upstream-balances.js';

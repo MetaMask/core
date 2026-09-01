@@ -1,7 +1,15 @@
+import { KnownCaipNamespace } from '@metamask/utils';
+
+import { isStakingContractAssetId } from '../data-sources/evm-rpc-services/index.js';
 import { projectLogger, createModuleLogger } from '../logger.js';
 import { forDataTypes } from '../types.js';
-import type { AccountId, Caip19AssetId, Middleware } from '../types.js';
-import { normalizeAssetId } from '../utils/index.js';
+import type {
+  AccountId,
+  Caip19AssetId,
+  ChainId,
+  Middleware,
+} from '../types.js';
+import { normalizeAssetId, isUpstreamBalanceEmpty } from '../utils/index.js';
 
 // ============================================================================
 // CONSTANTS
@@ -28,6 +36,12 @@ createModuleLogger(projectLogger, CONTROLLER_NAME);
  *   handles periodic refreshes for those.
  * - Each account's custom assets from state are always included because they
  *   may have no balance yet and are explicitly managed by the user.
+ * - EVM assets already tracked in state (`state.assetsBalance` or
+ *   `state.customAssets`) that this balance response left empty are included so
+ *   `RpcFallbackMiddleware` can re-read them on chain. The Accounts API omits
+ *   tokens it does not index, and a returned `0` is indistinguishable from
+ *   "not indexed", so state would otherwise keep a stale amount. Limited to
+ *   chains the account itself supports, since RPC cannot read the others.
  *
  * Usage:
  * ```typescript
@@ -49,8 +63,11 @@ export class DetectionMiddleware {
    * 1. Includes assets from response.assetsBalance that are absent from both
    *    state.assetsBalance and state.assetsInfo (brand-new assets only)
    * 2. Always includes each account's custom assets from state
-   * 3. Fills response.detectedAssets with the resulting asset IDs per account
-   * 4. Queues detected assets that lack a price in state on
+   * 3. Includes EVM assets tracked in state, on chains the account supports,
+   *    whose balance is empty in this response, for RpcFallbackMiddleware to
+   *    refetch on chain
+   * 4. Fills response.detectedAssets with the resulting asset IDs per account
+   * 5. Queues detected assets that lack a price in state on
    *    request.assetsForPriceUpdate so PriceDataSource fetches them in the same
    *    pipeline pass (including the background RPC detection path)
    *
@@ -136,6 +153,49 @@ export class DetectionMiddleware {
         }
       }
 
+      // 3. Assets already tracked in state that this response left empty. The
+      //    Accounts API omits tokens it does not index and can report an
+      //    untrusted 0, so merging its response would keep the stale amount.
+      //    RpcFallbackMiddleware reads these back from chain.
+      for (const {
+        account,
+        supportedChains,
+      } of request.accountsWithSupportedChains) {
+        const accountId = account.id;
+        const stateAccountBalances = stateAssetsBalance[accountId] ?? {};
+        const trackedAssetIds = new Set<Caip19AssetId>([
+          ...(Object.keys(stateAccountBalances) as Caip19AssetId[]),
+          ...(stateCustomAssets?.[accountId] ?? []),
+        ]);
+
+        // Only chains this account can actually be read on: RpcDataSource
+        // fetches per account and skips chains outside its supported set, so
+        // anything else would be queued and then silently dropped.
+        const chainsForAccount = supportedChains.filter((chainId) =>
+          request.chainIds.includes(chainId),
+        );
+
+        const detected = detectedAssets[accountId] ?? [];
+
+        for (const assetId of trackedAssetIds) {
+          if (
+            detected.includes(assetId) ||
+            !isEvmAssetOnChains(assetId, chainsForAccount) ||
+            // Staked vault balances belong to StakedBalanceDataSource; an RPC
+            // ERC-20 read of the share token would clobber them.
+            isStakingContractAssetId(assetId) ||
+            !isUpstreamBalanceEmpty(response.assetsBalance?.[accountId], assetId)
+          ) {
+            continue;
+          }
+          detected.push(assetId);
+        }
+
+        if (detected.length > 0) {
+          detectedAssets[accountId] = detected;
+        }
+      }
+
       if (Object.keys(detectedAssets).length > 0) {
         response.detectedAssets = detectedAssets;
       }
@@ -184,4 +244,21 @@ export class DetectionMiddleware {
       return next(ctx);
     });
   }
+}
+
+/**
+ * Whether an asset is an EVM asset on one of the given chains.
+ *
+ * @param assetId - CAIP-19 asset ID.
+ * @param chainIds - Chains to match against.
+ * @returns True for EVM assets whose chain is in `chainIds`.
+ */
+function isEvmAssetOnChains(
+  assetId: Caip19AssetId,
+  chainIds: ChainId[],
+): boolean {
+  if (!assetId.startsWith(`${KnownCaipNamespace.Eip155}:`)) {
+    return false;
+  }
+  return chainIds.includes(assetId.split('/')[0] as ChainId);
 }
