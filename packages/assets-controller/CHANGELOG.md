@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix the unlock-time spam cleanup sweep (`useUnlockCleanup`) deleting mUSD holdings on chains outside its 3-chain seeding registry, and treating a token entirely absent from the Token API's response as spam instead of unjudgeable ([#0](https://github.com/MetaMask/core/pull/0))
+- Fix the unlock-time spam cleanup sweep (`useUnlockCleanup`) deleting mUSD holdings on chains outside its 3-chain seeding registry, and treating a token entirely absent from the Token API's response as spam instead of unjudgeable ([#0](https://github.com/MetaMask/core/pull/10066))
 
 ## [14.0.3]
 
