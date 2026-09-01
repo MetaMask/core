@@ -114,6 +114,7 @@ import {
   createParallelBalanceMiddleware,
   createParallelMiddleware,
 } from './middlewares/ParallelMiddleware.js';
+import type { BalanceSource } from './middlewares/ParallelMiddleware.js';
 import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware.js';
 import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
 import {
@@ -1213,7 +1214,9 @@ export class AssetsController extends BaseController<
     this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
       (transactionMeta: TransactionMeta) => {
-        this.#refreshAssetsForTransaction(transactionMeta);
+        this.#refreshAssetsForTransaction(transactionMeta, {
+          postTransaction: true,
+        });
       },
     );
     // Start tracking only after the account tree is fully built. Unlock can
@@ -1234,8 +1237,15 @@ export class AssetsController extends BaseController<
    * chain is already covered by AccountActivity (real-time WebSocket balances).
    *
    * @param transactionMeta - The transaction that triggered the refresh.
+   * @param options - Additional options for the refresh.
+   * @param options.postTransaction - When true, forces the RPC slow pipeline for
+   * all chains so that potentially stale Accounts API cache data is overridden
+   * with authoritative on-chain values immediately after the transaction mines.
    */
-  #refreshAssetsForTransaction(transactionMeta: TransactionMeta): void {
+  #refreshAssetsForTransaction(
+    transactionMeta: TransactionMeta,
+    options?: { postTransaction?: boolean },
+  ): void {
     const hexChainId = transactionMeta.chainId;
     if (!hexChainId) {
       return;
@@ -1244,8 +1254,11 @@ export class AssetsController extends BaseController<
     const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
 
     // AccountActivity pushes live balance updates for its active chains; a
-    // force getAssets would be redundant and can race the WebSocket path.
+    // pre-confirmation force getAssets would be redundant and can race the
+    // WebSocket path. After confirmation, still run the post-transaction RPC
+    // pass because AccountActivity may update only part of a swap pair.
     if (
+      !options?.postTransaction &&
       this.#accountActivityDataSource
         .getActiveChainsSync()
         .includes(caipChainId)
@@ -1268,6 +1281,7 @@ export class AssetsController extends BaseController<
     this.getAssets([matchedAccount], {
       chainIds: [caipChainId],
       forceUpdate: true,
+      postTransaction: options?.postTransaction,
     }).catch((error) => {
       log('Failed to refresh assets after transaction event', { error });
     });
@@ -1671,6 +1685,12 @@ export class AssetsController extends BaseController<
       assetsForPriceUpdate?: Caip19AssetId[];
       /** When set to `'merge'`, fetch result is merged with existing state instead of replacing. Use for partial fetches (e.g. newly added chains). */
       updateMode?: AssetsUpdateMode;
+      /**
+       * When true, forces the RPC slow pipeline for all chains regardless of
+       * Accounts API coverage. Use after a transaction confirms to override
+       * potentially stale API cache with authoritative on-chain values.
+       */
+      postTransaction?: boolean;
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
     const chainIds = options?.chainIds ?? [...this.#enabledChains];
@@ -1683,9 +1703,26 @@ export class AssetsController extends BaseController<
 
     // Collect custom assets for all requested accounts
     const customAssets: Caip19AssetId[] = [];
+    const chainIdSet = new Set(chainIds);
     for (const account of accounts) {
       const accountCustomAssets = this.getCustomAssets(account.id);
       customAssets.push(...accountCustomAssets);
+
+      // When refreshing after a confirmed transaction, also include graduated
+      // tokens — ERC-20s currently in assetsBalance but removed from
+      // customAssets by CustomAssetGraduationMiddleware. The Accounts API
+      // indexes incoming transfers (received tokens) slower than outgoing
+      // ones, so without a direct RPC query the "to" token in a swap keeps
+      // the stale API-cached balance until the next polling cycle.
+      if (options?.postTransaction) {
+        const stateBalances = this.state.assetsBalance[account.id] ?? {};
+        for (const assetId of Object.keys(stateBalances) as Caip19AssetId[]) {
+          const assetChainId = assetId.split('/')[0] as ChainId;
+          if (chainIdSet.has(assetChainId) && !customAssets.includes(assetId)) {
+            customAssets.push(assetId);
+          }
+        }
+      }
     }
 
     if (options?.forceUpdate) {
@@ -1800,12 +1837,16 @@ export class AssetsController extends BaseController<
       const slowPipelineChainIds = this.#getSlowPipelineChainIds(
         chainIds,
         response,
+        { forceAll: options?.postTransaction === true },
       );
 
       if (slowPipelineChainIds.length > 0) {
-        const slowSources = this.#isBasicFunctionality()
-          ? [this.#snapDataSource, this.#rpcDataSource]
-          : [this.#rpcDataSource];
+        let slowSources: BalanceSource[];
+        if (options?.postTransaction || !this.#isBasicFunctionality()) {
+          slowSources = [this.#rpcDataSource];
+        } else {
+          slowSources = [this.#snapDataSource, this.#rpcDataSource];
+        }
 
         const slowRequest = { ...request, chainIds: slowPipelineChainIds };
 
@@ -2589,12 +2630,23 @@ export class AssetsController extends BaseController<
    *
    * @param chainIds - Chains requested by the caller.
    * @param fastResponse - Response committed by the fast pipeline.
+   * @param options - Additional options.
+   * @param options.forceAll - When true, bypasses the Accounts API coverage
+   * check and returns all chain IDs so the RPC slow pipeline runs for every
+   * chain. Use after a transaction confirms to override potentially stale API
+   * cache data with authoritative on-chain values.
    * @returns Chain IDs that still need the slow pipeline.
    */
   #getSlowPipelineChainIds(
     chainIds: ChainId[],
     fastResponse: DataResponse,
+    options?: { forceAll?: boolean },
   ): ChainId[] {
+    // Post-transaction: always run RPC to override potentially stale Accounts API data.
+    if (options?.forceAll) {
+      return chainIds;
+    }
+
     const accountsApiChains = new Set(
       this.#accountsApiDataSource.getActiveChainsSync(),
     );

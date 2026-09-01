@@ -21,6 +21,8 @@ import type {
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
 import { PriceDataSource } from './data-sources/PriceDataSource.js';
+import { RpcDataSource } from './data-sources/RpcDataSource.js';
+import { SnapDataSource } from './data-sources/SnapDataSource.js';
 import { TokenDataSource } from './data-sources/TokenDataSource.js';
 import { buildDefaultAssetsInfo } from './defaults.js';
 import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
@@ -1498,6 +1500,117 @@ describe('AssetsController', () => {
         );
       });
 
+      it('uses RPC as the authoritative slow pipeline after a transaction', async () => {
+        const arcNativeAssetId = 'eip155:5042/slip44:5042' as Caip19AssetId;
+        const arcEurcAssetId =
+          'eip155:5042/erc20:0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' as Caip19AssetId;
+        const arcAccount = createMockInternalAccount({
+          scopes: ['eip155:5042'],
+        });
+        const initialState: Partial<AssetsControllerState> = {
+          assetsInfo: {
+            [arcNativeAssetId]: {
+              type: 'native',
+              symbol: 'USDC',
+              name: 'USDC',
+              decimals: 18,
+            },
+            [arcEurcAssetId]: {
+              type: 'erc20',
+              symbol: 'EURC',
+              name: 'EURC',
+              decimals: 6,
+            },
+          },
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [arcNativeAssetId]: { amount: '1' },
+              [arcEurcAssetId]: { amount: '5' },
+            },
+          },
+        };
+
+        const snapActiveChainsSpy = jest
+          .spyOn(SnapDataSource.prototype, 'getActiveChainsSync')
+          .mockReturnValue(['eip155:5042']);
+        const rpcActiveChainsSpy = jest
+          .spyOn(RpcDataSource.prototype, 'getActiveChainsSync')
+          .mockReturnValue(['eip155:5042']);
+        const snapMiddleware = jest.fn(async (ctx, next) =>
+          next({
+            ...ctx,
+            response: {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [arcNativeAssetId]: { amount: '1' },
+                  [arcEurcAssetId]: { amount: '5' },
+                },
+              },
+            },
+          }),
+        );
+        const rpcMiddleware = jest.fn(async (ctx, next) =>
+          next({
+            ...ctx,
+            response: {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [arcNativeAssetId]: { amount: '2' },
+                  [arcEurcAssetId]: { amount: '0' },
+                },
+              },
+            },
+          }),
+        );
+        const snapMiddlewareSpy = jest
+          .spyOn(SnapDataSource.prototype, 'assetsMiddleware', 'get')
+          .mockReturnValue(snapMiddleware);
+        const rpcMiddlewareSpy = jest
+          .spyOn(RpcDataSource.prototype, 'assetsMiddleware', 'get')
+          .mockReturnValue(rpcMiddleware);
+
+        try {
+          await withController(
+            { state: initialState },
+            async ({ controller }) => {
+              await controller.getAssets([arcAccount], {
+                chainIds: ['eip155:5042'],
+                forceUpdate: true,
+                postTransaction: true,
+              });
+              await flushPromises();
+
+              expect(snapMiddleware).not.toHaveBeenCalled();
+              expect(rpcMiddleware).toHaveBeenCalled();
+              expect(rpcMiddleware).toHaveBeenCalledWith(
+                expect.objectContaining({
+                  request: expect.objectContaining({
+                    chainIds: ['eip155:5042'],
+                    customAssets: expect.arrayContaining([arcEurcAssetId]),
+                  }),
+                }),
+                expect.any(Function),
+              );
+              expect(
+                controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+                  arcNativeAssetId
+                ],
+              ).toStrictEqual({ amount: '2' });
+              expect(
+                controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+                  arcEurcAssetId
+                ],
+              ).toStrictEqual({ amount: '0' });
+            },
+          );
+        } finally {
+          snapActiveChainsSpy.mockRestore();
+          rpcActiveChainsSpy.mockRestore();
+          snapMiddlewareSpy.mockRestore();
+          rpcMiddlewareSpy.mockRestore();
+        }
+      });
+
       it('getAssets resolves without error when isBasicFunctionality is false', async () => {
         await withController(
           { isBasicFunctionality: () => false },
@@ -2846,6 +2959,7 @@ describe('AssetsController', () => {
           {
             chainIds: ['eip155:42161'],
             forceUpdate: true,
+            postTransaction: true,
           },
         );
 
@@ -2878,7 +2992,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('does not force refresh assets on transaction events for AccountActivity-active chains', async () => {
+    it('does not force refresh assets for unapproved transactions on AccountActivity-active chains', async () => {
       await withController(async ({ controller, messenger }) => {
         const getAssetsSpy = jest
           .spyOn(controller, 'getAssets')
@@ -2895,6 +3009,28 @@ describe('AssetsController', () => {
           chainId: '0xa4b1',
           txParams: { from: '0x1234567890123456789012345678901234567890' },
         });
+
+        await flushPromises();
+
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+
+    it('force refreshes confirmed transactions on AccountActivity-active chains', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        messenger.publish('AccountActivityService:statusChanged', {
+          chainIds: ['eip155:42161'],
+          status: 'up',
+        });
+
+        await flushPromises();
+
         messenger.publish('TransactionController:transactionConfirmed', {
           chainId: '0xa4b1',
           txParams: { from: '0x1234567890123456789012345678901234567890' },
@@ -2902,7 +3038,14 @@ describe('AssetsController', () => {
 
         await flushPromises();
 
-        expect(getAssetsSpy).not.toHaveBeenCalled();
+        expect(getAssetsSpy).toHaveBeenCalledWith(
+          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+          {
+            chainIds: ['eip155:42161'],
+            forceUpdate: true,
+            postTransaction: true,
+          },
+        );
 
         getAssetsSpy.mockRestore();
       });
