@@ -95,6 +95,7 @@ import type {
   GetMarketDataWithPricesParams,
   GetMarketsParams,
   GetOrderCapabilitiesParams,
+  GetScalePriceLadderParams,
   GetOrderFillsParams,
   GetOrdersParams,
   GetPositionsParams,
@@ -115,6 +116,7 @@ import type {
   PerpsControllerConfig,
   PerpsMarketData,
   PerpsOrderCapabilities,
+  PerpsScalePriceLadder,
   PerpsPendingManualRecovery,
   PerpsRecoveredDispatch,
   Position,
@@ -967,6 +969,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getOrderBookGrouping',
   'getOrderBookPreferences',
   'getOrderCapabilities',
+  'getScalePriceLadder',
   'getOrderFills',
   'getOrders',
   'getPendingManualRecoveries',
@@ -2928,6 +2931,65 @@ export class PerpsController extends BaseController<
         resolvedProviderId,
       );
     }
+  }
+
+  /**
+   * Build a Scale price ladder using the active provider's venue rules.
+   *
+   * @param params - Market, ladder bounds, count, and optional explicit route.
+   * @returns Provider-normalized prices or a typed unavailable result.
+   * @throws When the provider cannot normalize the requested ladder.
+   */
+  async getScalePriceLadder(
+    params: GetScalePriceLadderParams,
+  ): Promise<PerpsScalePriceLadder> {
+    let activeProvider: PerpsProvider;
+    try {
+      activeProvider = await this.#getActiveProviderWhenReady();
+    } catch (error) {
+      this.#debugLog('PerpsController: Scale price ladder unavailable', {
+        error: ensureError(error, 'PerpsController.getScalePriceLadder')
+          .message,
+      });
+      return this.#getUnavailableScalePriceLadder(
+        'provider_unavailable',
+        params.providerId,
+      );
+    }
+
+    const resolvedProviderId =
+      params.providerId ?? this.#getDirectProviderId(activeProvider);
+    if (this.#hasConflictingProviderRoute(params.providerId, activeProvider)) {
+      return this.#getUnavailableScalePriceLadder(
+        'provider_not_routable',
+        resolvedProviderId,
+      );
+    }
+    if (!activeProvider.getScalePriceLadder) {
+      return this.#getUnavailableScalePriceLadder(
+        'not_implemented',
+        resolvedProviderId,
+      );
+    }
+
+    const result = await activeProvider.getScalePriceLadder(params);
+    if (
+      result.status === 'unavailable' &&
+      result.providerId === undefined &&
+      resolvedProviderId !== undefined
+    ) {
+      return { ...result, providerId: resolvedProviderId };
+    }
+    return result;
+  }
+
+  #getUnavailableScalePriceLadder(
+    reason: OrderCapabilitiesUnavailableReason,
+    providerId: PerpsProviderType | undefined,
+  ): PerpsScalePriceLadder {
+    return providerId
+      ? { status: 'unavailable', providerId, reason }
+      : { status: 'unavailable', reason };
   }
 
   /**
