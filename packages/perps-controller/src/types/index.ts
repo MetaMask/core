@@ -1572,9 +1572,13 @@ export type GetOrderCapabilitiesParams = {
 
 /** Inputs for a provider-normalized Scale price ladder preview. */
 export type GetScalePriceLadderParams = {
+  /** Market symbol, including its provider route when applicable. */
   symbol: string;
+  /** Lowest raw price in the ladder. */
   minPrice: number;
+  /** Highest raw price in the ladder. */
   maxPrice: number;
+  /** Number of ladder rungs. */
   count: number;
   /** Optional explicit route; omitted uses the active/default provider. */
   providerId?: PerpsProviderType;
@@ -1618,6 +1622,7 @@ export type PerpsOrderCapabilities =
       reason: OrderCapabilitiesUnavailableReason;
     }>;
 
+/** Result of provider-routed Scale price normalization. */
 export type PerpsScalePriceLadder =
   | Readonly<{
       status: 'ready';

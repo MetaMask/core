@@ -1479,6 +1479,37 @@ describe('PerpsController', () => {
       });
     });
 
+    it('rejects an explicit route that conflicts with the active provider', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.getScalePriceLadder({ ...params, providerId: 'myx' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'myx',
+        reason: 'provider_not_routable',
+      });
+      expect(mockProvider.getScalePriceLadder).not.toHaveBeenCalled();
+    });
+
+    it('attaches the resolved provider when an unavailable result omits it', async () => {
+      mockProvider.getScalePriceLadder.mockResolvedValueOnce({
+        status: 'unavailable',
+        reason: 'market_not_found',
+      });
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.getScalePriceLadder(params),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'market_not_found',
+      });
+    });
+
     it('preserves provider validation errors', async () => {
       mockProvider.getScalePriceLadder.mockRejectedValueOnce(
         new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID),

@@ -103,6 +103,7 @@ export type PerpsControllerGetOrderCapabilitiesAction = {
  *
  * @param params - Market, ladder bounds, count, and optional explicit route.
  * @returns Provider-normalized prices or a typed unavailable result.
+ * @throws When the requested count or provider-normalized range is invalid.
  */
 export type PerpsControllerGetScalePriceLadderAction = {
   type: `PerpsController:getScalePriceLadder`;

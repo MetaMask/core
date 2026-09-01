@@ -1254,10 +1254,18 @@ const normalizeHyperLiquidScalePriceLadder = (params: {
   szDecimals: number;
 }): string[] => {
   const { szDecimals, ...ladderParams } = params;
-  return computeScalePriceLadder(ladderParams).map((price) =>
+  const prices = computeScalePriceLadder(ladderParams).map((price) =>
     formatHyperLiquidPrice({ price, szDecimals }),
   );
+  if (new Set(prices).size !== prices.length) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+  }
+  return prices;
 };
+
+type HyperLiquidOrderCapabilityMarket =
+  | Readonly<{ status: 'ready'; market: MarketInfo }>
+  | Extract<DirectProviderOrderCapabilities, { status: 'unavailable' }>;
 
 /**
  * HyperLiquid provider implementation
@@ -1627,15 +1635,49 @@ export class HyperLiquidProvider implements PerpsProvider {
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): Promise<DirectProviderOrderCapabilities> {
-    if (!isValidCapabilitySymbol(params.symbol, { allowProviderRoute: true })) {
+    const result = await this.#getOrderCapabilityMarket(params.symbol);
+    return result.status === 'ready' ? HYPERLIQUID_ORDER_CAPABILITIES : result;
+  }
+
+  async getScalePriceLadder(
+    params: GetScalePriceLadderParams,
+  ): Promise<PerpsScalePriceLadder> {
+    if (
+      params.providerId !== undefined &&
+      params.providerId !== this.protocolId
+    ) {
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'provider_not_routable',
+      };
+    }
+
+    const result = await this.#getOrderCapabilityMarket(params.symbol);
+    if (result.status === 'unavailable') {
+      return result;
+    }
+
+    const prices = normalizeHyperLiquidScalePriceLadder({
+      minPrice: params.minPrice,
+      maxPrice: params.maxPrice,
+      count: params.count,
+      szDecimals: result.market.szDecimals,
+    });
+
+    return { status: 'ready', providerId: this.protocolId, prices };
+  }
+
+  async #getOrderCapabilityMarket(
+    symbol: string,
+  ): Promise<HyperLiquidOrderCapabilityMarket> {
+    if (!isValidCapabilitySymbol(symbol, { allowProviderRoute: true })) {
       return {
         status: 'unavailable',
         providerId: this.protocolId,
         reason: 'invalid_symbol',
       };
     }
-    const { dex } = parseAssetName(params.symbol);
-
     if (this.#isDisconnected) {
       return {
         status: 'unavailable',
@@ -1644,18 +1686,18 @@ export class HyperLiquidProvider implements PerpsProvider {
       };
     }
 
+    const { dex } = parseAssetName(symbol);
     const lifecycleGeneration = this.#lifecycleGeneration;
-
     try {
-      const marketExists = (
-        await this.#getFreshOrderCapabilityMarkets(dex)
-      ).some((market) => market.name === params.symbol);
+      const market = (await this.#getFreshOrderCapabilityMarkets(dex)).find(
+        ({ name }) => name === symbol,
+      );
       this.#assertProviderLifecycleCurrent(
         lifecycleGeneration,
         'Order capability read',
       );
-      return marketExists
-        ? HYPERLIQUID_ORDER_CAPABILITIES
+      return market
+        ? { status: 'ready', market }
         : {
             status: 'unavailable',
             providerId: this.protocolId,
@@ -1665,7 +1707,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#deps.debugLogger.log(
         'HyperLiquid: Order capabilities unavailable',
         {
-          symbol: params.symbol,
+          symbol,
           error: ensureError(error, 'HyperLiquidProvider.getOrderCapabilities')
             .message,
         },
@@ -1676,55 +1718,6 @@ export class HyperLiquidProvider implements PerpsProvider {
         reason: 'provider_unavailable',
       };
     }
-  }
-
-  async getScalePriceLadder(
-    params: GetScalePriceLadderParams,
-  ): Promise<PerpsScalePriceLadder> {
-    if (params.providerId && params.providerId !== this.protocolId) {
-      return {
-        status: 'unavailable',
-        providerId: this.protocolId,
-        reason: 'provider_not_routable',
-      };
-    }
-
-    const capabilities = await this.getOrderCapabilities({
-      symbol: params.symbol,
-    });
-    if (capabilities.status === 'unavailable') {
-      return capabilities;
-    }
-    if (!capabilities.supportedStrategies.includes('scale')) {
-      return {
-        status: 'unavailable',
-        providerId: this.protocolId,
-        reason: 'strategy_market_unsupported',
-      };
-    }
-
-    const { dex } = parseAssetName(params.symbol);
-    const markets = await this.#getFreshOrderCapabilityMarkets(dex);
-    const asset = markets.find(({ name }) => name === params.symbol);
-    if (!asset) {
-      return {
-        status: 'unavailable',
-        providerId: this.protocolId,
-        reason: 'market_not_found',
-      };
-    }
-
-    const prices = normalizeHyperLiquidScalePriceLadder({
-      minPrice: params.minPrice,
-      maxPrice: params.maxPrice,
-      count: params.count,
-      szDecimals: asset.szDecimals,
-    });
-    if (new Set(prices).size !== prices.length) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
-    }
-
-    return { status: 'ready', providerId: this.protocolId, prices };
   }
 
   /**
@@ -5895,10 +5888,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       count: scaleNumOrders,
       szDecimals,
     });
-
-    if (new Set(prices).size !== prices.length) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
-    }
 
     // Throws ORDER_SCALE_SIZE_TOO_SMALL when a rung would round to nothing,
     // which a skew weighted far enough from even can do on its own.

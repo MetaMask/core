@@ -1601,6 +1601,26 @@ describe('AggregatedPerpsProvider', () => {
       });
     });
 
+    it('reports an explicit provider route that is not registered', async () => {
+      const providerWithoutMyx = new AggregatedPerpsProvider({
+        providers: new Map([['hyperliquid', mockHLProvider]]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+
+      await expect(
+        providerWithoutMyx.getScalePriceLadder({
+          ...params,
+          providerId: 'myx',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'myx',
+        reason: 'provider_not_found',
+      });
+      expect(mockHLProvider.getScalePriceLadder).not.toHaveBeenCalled();
+    });
+
     it('rejects a ladder attributed to another provider', async () => {
       mockMYXProvider.getScalePriceLadder.mockResolvedValueOnce({
         status: 'ready',
@@ -1618,6 +1638,16 @@ describe('AggregatedPerpsProvider', () => {
         providerId: 'myx',
         reason: 'provider_not_routable',
       });
+    });
+
+    it('preserves provider validation errors', async () => {
+      mockHLProvider.getScalePriceLadder.mockRejectedValueOnce(
+        new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID),
+      );
+
+      await expect(
+        aggregatedProvider.getScalePriceLadder(params),
+      ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
     });
   });
 
