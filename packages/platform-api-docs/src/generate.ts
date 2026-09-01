@@ -320,15 +320,13 @@ function addSourceFiles(
   project: Project,
   patterns: string[],
 ): ReturnType<Project['addSourceFilesAtPaths']> {
-  return project
-    .addSourceFilesAtPaths(patterns)
-    .sort(
-      (fileA, fileB) =>
-        // Subtracting the two comparisons keeps this branchless, so it reads
-        // the same whichever order the matcher happened to return.
-        Number(fileA.getFilePath() > fileB.getFilePath()) -
-        Number(fileA.getFilePath() < fileB.getFilePath()),
-    );
+  return project.addSourceFilesAtPaths(patterns).sort(
+    (fileA, fileB) =>
+      // Subtracting the two comparisons keeps this branchless, so it reads
+      // the same whichever order the matcher happened to return.
+      Number(fileA.getFilePath() > fileB.getFilePath()) -
+      Number(fileA.getFilePath() < fileB.getFilePath()),
+  );
 }
 
 /**
