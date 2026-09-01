@@ -10432,8 +10432,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Ensure provider is ready
       await this.#ensureReady();
 
-      // Get current position to determine direction (from cache to avoid 429 rate limiting)
-      const positions = await this.getPositions();
+      // getPositions() reads the aggregate cache, which can remain frozen at
+      // its pre-reconnect contents while the per-DEX slices keep updating.
+      // Refresh the target DEX from its connection-epoch-aware slice before
+      // deriving the position side. Cache reads only; no REST request or 429
+      // risk is added.
+      const positions = this.#refreshPositionsFromDexCaches(
+        await this.getPositions(),
+        parseAssetName(symbol).dex ?? '',
+      );
       const position = positions.find((pos) => pos.symbol === symbol);
 
       if (!position) {

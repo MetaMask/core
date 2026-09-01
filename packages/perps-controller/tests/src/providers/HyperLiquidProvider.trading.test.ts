@@ -3513,6 +3513,119 @@ describe('HyperLiquidProvider', () => {
     });
   });
 
+  describe('updateMargin position freshness', () => {
+    const createCachedPosition = (
+      overrides: Partial<Position> = {},
+    ): Position =>
+      ({
+        symbol: 'BTC',
+        size: '0.1',
+        entryPrice: '50000',
+        positionValue: '5000',
+        unrealizedPnl: '100',
+        marginUsed: '500',
+        leverage: { type: 'isolated', value: 10, rawUsd: '500' },
+        liquidationPrice: '45000',
+        maxLeverage: 50,
+        returnOnEquity: '20',
+        cumulativeFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+        takeProfitCount: 0,
+        stopLossCount: 0,
+        ...overrides,
+      }) as Position;
+
+    const primeFrozenAggregate = (
+      aggregate: Position[],
+      perDex: Position[] | null,
+    ) => {
+      mockSubscriptionService.isPositionsCacheInitialized = jest
+        .fn()
+        .mockReturnValue(true);
+      mockSubscriptionService.getCachedPositions = jest
+        .fn()
+        .mockReturnValue(aggregate);
+      mockSubscriptionService.getPublishedPositionDexs = jest
+        .fn()
+        .mockReturnValue(perDex === null ? [] : ['']);
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockImplementation((dexName: string) =>
+          dexName === '' ? perDex : null,
+        );
+    };
+
+    let updateIsolatedMargin: jest.Mock;
+
+    beforeEach(() => {
+      updateIsolatedMargin = jest.fn().mockResolvedValue({ status: 'ok' });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(createMockExchangeClient({ updateIsolatedMargin }));
+    });
+
+    it('uses the live per-DEX side instead of the frozen aggregate side', async () => {
+      primeFrozenAggregate(
+        [createCachedPosition({ size: '0.1' })],
+        [createCachedPosition({ size: '-0.05' })],
+      );
+
+      const result = await provider.updateMargin({
+        symbol: 'BTC',
+        amount: '-1',
+      });
+
+      expect(result).toStrictEqual({ success: true });
+      expect(updateIsolatedMargin).toHaveBeenCalledWith({
+        asset: 0,
+        isBuy: false,
+        ntli: -1_000_000,
+      });
+    });
+
+    it('finds a position present only in the live per-DEX slice', async () => {
+      primeFrozenAggregate([], [createCachedPosition({ size: '-0.05' })]);
+
+      const result = await provider.updateMargin({
+        symbol: 'BTC',
+        amount: '-1',
+      });
+
+      expect(result).toStrictEqual({ success: true });
+      expect(updateIsolatedMargin).toHaveBeenCalledWith(
+        expect.objectContaining({ isBuy: false }),
+      );
+    });
+
+    it('does not update a position the live per-DEX slice reports closed', async () => {
+      primeFrozenAggregate([createCachedPosition()], []);
+
+      const result = await provider.updateMargin({
+        symbol: 'BTC',
+        amount: '-1',
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: 'No position found for BTC',
+      });
+      expect(updateIsolatedMargin).not.toHaveBeenCalled();
+    });
+
+    it('keeps the aggregate position when its DEX has not republished', async () => {
+      primeFrozenAggregate([createCachedPosition({ size: '-0.05' })], null);
+
+      const result = await provider.updateMargin({
+        symbol: 'BTC',
+        amount: '-1',
+      });
+
+      expect(result).toStrictEqual({ success: true });
+      expect(updateIsolatedMargin).toHaveBeenCalledWith(
+        expect.objectContaining({ isBuy: false }),
+      );
+    });
+  });
+
   describe('Batch Operations', () => {
     describe('cancelOrders', () => {
       it('returns failure when no orders provided', async () => {
