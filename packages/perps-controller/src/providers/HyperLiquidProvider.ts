@@ -8646,10 +8646,30 @@ export class HyperLiquidProvider implements PerpsProvider {
         (typeof params.newOrder.slippage === 'number'
           ? Math.round(params.newOrder.slippage * BASIS_POINTS_DIVISOR)
           : undefined);
+      // calculateOrderPriceAndSize formats with formatHyperLiquidSize, which
+      // rounds half-up. On a reduce-only edit that can submit a size above the
+      // one requested, which HyperLiquid rejects with "Reduce only order would
+      // increase position", so floor onto the size grid first. An opening edit
+      // keeps its existing rounding: it has no position ceiling to breach.
+      const requestedSize = parseFloat(params.newOrder.size);
+      const sizeForSubmission =
+        params.newOrder.reduceOnly === true
+          ? floorToSizeDecimals(requestedSize, assetInfo.szDecimals)
+          : requestedSize;
+
+      // A reduce-only size below one increment floors to 0. Refuse it rather
+      // than submitting a zero-size modify the venue rejects.
+      if (sizeForSubmission <= 0) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE,
+        };
+      }
+
       const { formattedSize, formattedPrice } = calculateOrderPriceAndSize({
         orderType: params.newOrder.orderType,
         isBuy: params.newOrder.isBuy,
-        finalPositionSize: parseFloat(params.newOrder.size),
+        finalPositionSize: sizeForSubmission,
         currentPrice,
         limitPrice: params.newOrder.price,
         maxSlippageBps: normalizedMaxSlippageBps,
@@ -8997,8 +9017,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       // The provider-owned market policy is resolved from the positions below.
       await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
-      // Get all current positions from cache (avoids 429 rate limiting)
-      const positions = await this.getPositions();
+      // Get all current positions from cache (avoids 429 rate limiting), then
+      // refresh them against the per-DEX slices for the same reason
+      // closePosition does: getPositions() reads the aggregate, which can sit
+      // frozen at its pre-reconnect contents while the slices keep updating.
+      const positions = this.#refreshPositionsFromDexCaches(
+        await this.getPositions(),
+      );
 
       // Filter positions based on params
       positionsToClose =
@@ -10209,7 +10234,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       if (!position) {
-        const positions = await this.getPositions();
+        // getPositions() reads the aggregate cache, which sits frozen at its
+        // pre-reconnect contents until every expected DEX republishes. Refresh
+        // against the per-DEX slices first, or a position opened since the
+        // reconnect is reported as "No position found" while it is open
+        // (TAT-3873). The refresh reads caches only, so it adds no REST request.
+        const positions = this.#refreshPositionsFromDexCaches(
+          await this.getPositions(),
+          parseAssetName(params.symbol).dex ?? '',
+        );
         position = positions.find((pos) => pos.symbol === params.symbol);
       }
 
@@ -10676,6 +10709,76 @@ export class HyperLiquidProvider implements PerpsProvider {
       dexCount: dexs.length,
     });
     return snapshot;
+  }
+
+  /**
+   * Replace positions with what their own DEX's cache slice reports.
+   *
+   * `getPositions()` reads the aggregate cache, which is only rebuilt once every
+   * expected DEX has published. A WebSocket reconnect resets the initialized-DEX
+   * set without clearing the caches, so the aggregate can sit frozen at its
+   * pre-reconnect contents while the per-DEX slices keep updating. A batch close
+   * built from the aggregate then submits a stale size or side, which
+   * HyperLiquid rejects with "Reduce only order would increase position", or
+   * misses a position opened since the reconnect.
+   *
+   * Reading the caches issues no REST request, so this does not reintroduce the
+   * 429 rate limiting the cache-first read exists to avoid.
+   *
+   * A DEX that has not published returns null, which proves nothing about its
+   * symbols: those positions are left as the aggregate reported them. Only a
+   * published slice can override, drop, or add an entry.
+   *
+   * @param positions - Positions as the aggregate cache reported them.
+   * @param targetDex - DEX of the symbol being looked up ('' for the main DEX),
+   * so a single-symbol caller sweeps its own slice even when the aggregate does
+   * not mention that DEX. Omit when refreshing a whole list.
+   * @returns Positions refreshed against every published per-DEX slice.
+   */
+  #refreshPositionsFromDexCaches(
+    positions: Position[],
+    targetDex?: string,
+  ): Position[] {
+    // No global initialization gate here. `isPositionsCacheInitialized()` is set
+    // inside `#aggregateAndNotifySubscribers`, which returns early until EVERY
+    // expected DEX has published — so with one DEX live and another still
+    // pending it reads false, and gating on it would discard the fresh slices
+    // this refresh exists to read. Each slice carries its own freshness instead:
+    // `getCachedPositionsForDex` answers null unless that DEX published on the
+    // live connection, so an unpublished DEX is already handled below.
+    //
+    // Every DEX that has actually published a slice, which is the authoritative
+    // set of fresh data — not merely the DEXs the (possibly frozen) aggregate
+    // happens to mention. Deriving the sweep from the aggregate would miss a
+    // position opened on a HIP-3 DEX after the reconnect, because the aggregate
+    // has never seen that DEX: exactly the case this refresh exists to catch.
+    // The caller's target DEX is included so a lookup for a specific symbol
+    // consults its own slice even if nothing has published there yet.
+    const dexNames = new Set([
+      ...(this.#subscriptionService.getPublishedPositionDexs?.() ?? []),
+      ...(targetDex === undefined ? [] : [targetDex]),
+      ...positions.map((pos) => parseAssetName(pos.symbol).dex ?? ''),
+    ]);
+
+    const refreshed: Position[] = [];
+    const coveredDexs = new Set<string>();
+
+    for (const dexName of dexNames) {
+      const dexPositions =
+        this.#subscriptionService.getCachedPositionsForDex?.(dexName) ?? null;
+
+      if (dexPositions) {
+        coveredDexs.add(dexName);
+        refreshed.push(...dexPositions);
+      }
+    }
+
+    // Positions whose DEX never published keep their aggregate entry.
+    const uncovered = positions.filter(
+      (pos) => !coveredDexs.has(parseAssetName(pos.symbol).dex ?? ''),
+    );
+
+    return [...refreshed, ...uncovered];
   }
 
   /**

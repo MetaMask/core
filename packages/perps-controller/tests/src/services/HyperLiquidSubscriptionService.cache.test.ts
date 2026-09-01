@@ -460,6 +460,9 @@ describe('HyperLiquidSubscriptionService', () => {
       isTestnetMode: jest.fn(() => false),
       ensureTransportReady: jest.fn().mockResolvedValue(undefined),
       getConnectionState: jest.fn(() => 'connected'),
+      // Connection epoch: bumped by the client service on every raw socket
+      // close, including SDK-internal automatic reconnects.
+      getConnectionEpoch: jest.fn(() => 1),
     } as any;
 
     // Mock wallet service
@@ -579,6 +582,196 @@ describe('HyperLiquidSubscriptionService', () => {
       // No HIP-3 DEX published, so a miss there proves nothing
       expect(service.getCachedPositionsForDex('xyz')).toBeNull();
 
+      unsubscribe();
+    });
+
+    it('stops treating a DEX slice as live after a reconnect until it republishes', async () => {
+      // #dexPositionsCache is NOT cleared on resubscribe, so a slice cached
+      // before a reconnect survives with pre-reconnect sizes. Serving it would
+      // hand a reduce-only close a stale size — the failure the per-DEX read
+      // exists to avoid. Each slice is stamped with the connection epoch that
+      // produced it, so one from a previous connection stops matching.
+      //
+      // Publication is driven manually so the post-reconnect window
+      // (reconnected, nothing republished yet) can be observed at all.
+      let publish: ((payload: unknown) => void) | undefined;
+      let ordersCallback: ((payload: unknown) => void) | undefined;
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (params: any, callback: any) => {
+          if ((params.dex || '') === '') {
+            publish = callback;
+          }
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (_params: any, callback: any) => {
+          ordersCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      /**
+       * Deliver an openOrders payload for a DEX, which writes the positions
+       * cache without granting position freshness.
+       * @param dex - DEX identifier to publish orders for.
+       */
+      const publishOrdersFor = (dex: string) => {
+        ordersCallback?.({ dex, orders: [] });
+      };
+
+      const unsubscribe = service.subscribeToAccount({ callback: jest.fn() });
+      await jest.runAllTimersAsync();
+
+      // The pre-reconnect connection publishes a slice
+      publish?.({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [{ position: { szi: '0.1' }, coin: 'BTC' }],
+          marginSummary: { accountValue: '10000', totalMarginUsed: '500' },
+          withdrawable: '9500',
+        },
+      });
+      await jest.runAllTimersAsync();
+
+      expect(service.getCachedPositionsForDex('')).not.toBeNull();
+      expect(service.getPublishedPositionDexs()).toContain('');
+
+      // The socket closes and reopens: the client service retires the epoch.
+      // #dexPositionsCache still holds the pre-reconnect slice — that is the
+      // hazard — but its stamp no longer matches.
+      mockClientService.getConnectionEpoch = jest.fn(() => 2);
+
+      // The stale slice is still cached, but must not be served as live
+      expect(service.getCachedPositionsForDex('')).toBeNull();
+      expect(service.getPublishedPositionDexs()).not.toContain('');
+
+      // An openOrders payload must NOT restore it: its handler writes the
+      // positions cache but carries no sizes or sides
+      publishOrdersFor('');
+      await jest.runAllTimersAsync();
+      expect(service.getCachedPositionsForDex('')).toBeNull();
+      expect(service.getPublishedPositionDexs()).not.toContain('');
+
+      // Only clearinghouseState restores it, with the post-reconnect size
+      publish?.({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [{ position: { szi: '0.04' }, coin: 'BTC' }],
+          marginSummary: { accountValue: '10000', totalMarginUsed: '200' },
+          withdrawable: '9800',
+        },
+      });
+      await jest.runAllTimersAsync();
+
+      expect(service.getCachedPositionsForDex('')).not.toBeNull();
+      expect(service.getPublishedPositionDexs()).toContain('');
+
+      unsubscribe();
+    });
+
+    it('invalidates a slice on an SDK-internal automatic reconnect', async () => {
+      // The SDK reopens the socket underneath us with no callback into this
+      // service: no resubscribe runs, no connection-state transition is
+      // observed here, and the per-DEX subscriptions are re-established by the
+      // SDK itself. The only trace is the raw socket close, which the client
+      // service turns into a new epoch. Without that, positions from before the
+      // silent reconnect would keep reading as live indefinitely.
+      const unsubscribe = service.subscribeToAccount({ callback: jest.fn() });
+      await jest.runAllTimersAsync();
+
+      expect(service.getCachedPositionsForDex('')).not.toBeNull();
+      expect(service.getPublishedPositionDexs()).toContain('');
+
+      // The SDK reconnects silently. Connection state never leaves 'connected'
+      // from this service's point of view — only the epoch moves.
+      expect(mockClientService.getConnectionState()).toBe('connected');
+      mockClientService.getConnectionEpoch = jest.fn(() => 2);
+
+      expect(service.getCachedPositionsForDex('')).toBeNull();
+      expect(service.getPublishedPositionDexs()).not.toContain('');
+
+      unsubscribe();
+    });
+
+    it('keeps freshness through a webData3-only retry that reuses live clearinghouse subscriptions', async () => {
+      // #createUserDataSubscription also runs as a partial-setup retry: its
+      // early return keys on #webData3Subscriptions alone, so it can run while
+      // the per-DEX clearinghouseState subscriptions are still live. Those are
+      // NOT re-established (#ensureClearinghouseStateSubscription returns early
+      // when already subscribed), so they will never republish an initial
+      // payload. Resetting freshness there erased it for subscriptions that are
+      // still delivering, leaving a live slice permanently unreadable — the
+      // close paths would fall back to the stale aggregate for the rest of the
+      // session.
+      // clearinghouseState publishes once per subscription, as in production.
+      let clearinghouseCalls = 0;
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: any, callback: any) => {
+          clearinghouseCalls += 1;
+          setTimeout(() => {
+            callback({
+              dex: '',
+              clearinghouseState: {
+                assetPositions: [{ position: { szi: '0.1' }, coin: 'BTC' }],
+                marginSummary: {
+                  accountValue: '10000',
+                  totalMarginUsed: '500',
+                },
+                withdrawable: '9500',
+              },
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      // webData3 fails the first time, so #webData3Subscriptions stays unset
+      // while the per-DEX clearinghouseState subscriptions above are already
+      // established. That is precisely the partial-setup state: the next
+      // subscribe re-enters #createUserDataSubscription as a webData3-only
+      // retry.
+      let webData3Attempts = 0;
+      mockSubscriptionClient.webData3.mockImplementation(
+        (_params: any, _callback: any) => {
+          webData3Attempts += 1;
+          if (webData3Attempts === 1) {
+            return Promise.reject(new Error('webData3 transport failure'));
+          }
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const unsubscribe = service.subscribeToAccount({ callback: jest.fn() });
+      await jest.runAllTimersAsync();
+
+      // The clearinghouse subscription established and published despite the
+      // webData3 failure, so its slice is live
+      expect(clearinghouseCalls).toBeGreaterThan(0);
+      expect(service.getCachedPositionsForDex('')).not.toBeNull();
+      const callsAfterInitialSetup = clearinghouseCalls;
+
+      // The webData3-only retry
+      const retrying = service.subscribeToAccount({ callback: jest.fn() });
+      await jest.runAllTimersAsync();
+
+      expect(webData3Attempts).toBeGreaterThan(1);
+      // The live clearinghouse subscriptions were reused, not re-established,
+      // so they will not republish an initial payload...
+      expect(clearinghouseCalls).toBe(callsAfterInitialSetup);
+      // ...and their freshness must therefore survive the retry
+      expect(service.getCachedPositionsForDex('')).not.toBeNull();
+      expect(service.getPublishedPositionDexs()).toContain('');
+
+      retrying();
       unsubscribe();
     });
   });

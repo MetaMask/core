@@ -1343,6 +1343,99 @@ describe('HyperLiquidProvider', () => {
         mockClientService.getExchangeClient().modify,
       ).not.toHaveBeenCalled();
     });
+
+    // Regression coverage for the editOrder half of TAT-3252. The submitted
+    // size is formatted with formatHyperLiquidSize, which rounds half-up, so a
+    // reduce-only edit could be sent above the size the caller asked to keep —
+    // the same "Reduce only order would increase position" rejection the close
+    // and TP/SL paths were hardened against.
+    describe('reduce-only size formatting', () => {
+      /**
+       * Read the size submitted to the venue's modify action.
+       * @returns The formatted size string.
+       */
+      const getModifiedSize = () =>
+        (mockClientService.getExchangeClient().modify as jest.Mock).mock
+          .calls[0][0].order.s;
+
+      it('rounds a reduce-only edit size down to the size grid', async () => {
+        // BTC is szDecimals 3 here, so 0.1155 rounds half-up to '0.116' —
+        // one increment above the position the edit is meant to reduce.
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: false,
+            size: '0.1155',
+            orderType: 'limit',
+            price: '51000',
+            reduceOnly: true,
+          },
+        });
+
+        expect(result.success).toBe(true);
+        expect(getModifiedSize()).toBe('0.115');
+      });
+
+      it('leaves a non-reduce-only edit size on its existing rounding', async () => {
+        // An opening order has no position ceiling to breach, so rounding it
+        // down would shrink an order the caller asked for.
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1155',
+            orderType: 'limit',
+            price: '49000',
+          },
+        });
+
+        expect(result.success).toBe(true);
+        expect(getModifiedSize()).toBe('0.116');
+      });
+
+      it('refuses a reduce-only edit smaller than one size increment', async () => {
+        // Flooring 0.0004 at szDecimals 3 yields 0, and a zero-size modify is
+        // rejected by the venue rather than being a no-op.
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: false,
+            size: '0.0004',
+            orderType: 'limit',
+            price: '51000',
+            reduceOnly: true,
+          },
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+        expect(
+          mockClientService.getExchangeClient().modify,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('keeps a grid-aligned reduce-only edit size intact', async () => {
+        // 0.123 * 1000 === 122.99999999999999, so a naive truncation would
+        // drop a whole increment.
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: false,
+            size: '0.123',
+            orderType: 'limit',
+            price: '51000',
+            reduceOnly: true,
+          },
+        });
+
+        expect(result.success).toBe(true);
+        expect(getModifiedSize()).toBe('0.123');
+      });
+    });
   });
 
   describe('Advanced orders in open-orders state', () => {

@@ -222,6 +222,22 @@ export class HyperLiquidSubscriptionService {
   // Multi-DEX data caches
   readonly #dexPositionsCache = new Map<string, Position[]>(); // Per-DEX positions
 
+  // Connection epoch that produced each DEX's cached positions.
+  //
+  // `#dexPositionsCache` is not cleared on resubscribe, so its keys outlive a
+  // reconnect and say nothing about freshness. `#initializedDexs` is reset, but
+  // the openOrders handler also adds to it while only re-decorating already
+  // cached positions with TP/SL — it never delivers size or side — so a DEX can
+  // be "initialized" with pre-reconnect position data.
+  //
+  // Stamping each slice with the epoch of the `clearinghouseState` payload that
+  // produced it makes staleness self-evident: the getters compare against the
+  // live epoch, so a slice from a previous connection stops matching without any
+  // explicit invalidation step to place at the right lifecycle point. That also
+  // covers SDK-internal automatic reconnects, which fire no callback here, and
+  // leaves a same-epoch webData3 retry untouched because the epoch has not moved.
+  readonly #dexPositionsEpoch = new Map<string, number>();
+
   readonly #dexOrdersCache = new Map<string, Order[]>(); // Per-DEX orders
 
   readonly #dexAccountCache = new Map<string, AccountState>(); // Per-DEX account state
@@ -1947,6 +1963,13 @@ export class HyperLiquidSubscriptionService {
       // Clear previous tracking and set new expected DEXs
       this.#expectedDexs = new Set(dexsToSubscribe);
       this.#initializedDexs = new Set();
+      // Position freshness needs no reset here, or anywhere else on this path:
+      // each slice carries the connection epoch that produced it, so one from a
+      // previous connection stops matching on its own. That is what makes a
+      // webData3-only retry safe — this method also runs as one (its early
+      // return above keys on #webData3Subscriptions alone), and the per-DEX
+      // clearinghouseState subscriptions stay live and never republish, so any
+      // reset placed here would erase freshness they are still feeding.
 
       // Set up individual subscriptions for each DEX
       const subscriptionPromises: Promise<void>[] = [];
@@ -2197,6 +2220,15 @@ export class HyperLiquidSubscriptionService {
 
             // Mark this DEX as initialized (has sent first data)
             this.#initializedDexs.add(cacheKey);
+
+            // Stamp the slice with the connection that produced it. Only a
+            // clearinghouseState payload carries authoritative positions, so
+            // only this path stamps; the openOrders handler deliberately does
+            // not, because it never delivers a size or side.
+            this.#dexPositionsEpoch.set(
+              cacheKey,
+              this.#clientService.getConnectionEpoch?.() ?? 0,
+            );
 
             // Trigger aggregation and notify subscribers
             this.#aggregateAndNotifySubscribers();
@@ -2549,6 +2581,7 @@ export class HyperLiquidSubscriptionService {
       // Clear DEX tracking for synchronized notifications
       this.#expectedDexs.clear();
       this.#initializedDexs.clear();
+      this.#dexPositionsEpoch.clear();
 
       // Clear aggregated caches
       this.#cachedPositions = null;
@@ -2932,12 +2965,11 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
-   * Get the cached positions for one DEX, or null when that DEX has published
-   * none this session.
+   * Get the live positions for one DEX, or null when that DEX has not published
+   * authoritative positions on the current connection.
    *
-   * A DEX only enters this map once its `clearinghouseState` subscription has
-   * published, so `null` means the absence of a symbol proves nothing about
-   * whether a position exists there.
+   * `null` means the absence of a symbol proves nothing about whether a
+   * position exists there.
    *
    * Prefer this over `getCachedPositions()` when a decision depends on whether a
    * specific symbol is absent. The aggregate is only rebuilt once *every*
@@ -2948,11 +2980,69 @@ export class HyperLiquidSubscriptionService {
    * reading the symbol from the aggregate would mix a fresh answer with stale
    * data.
    *
+   * Only a DEX that has published `clearinghouseState` on the CURRENT
+   * connection answers non-null. The underlying cache is not cleared on
+   * resubscribe, so a key surviving from before a reconnect would otherwise
+   * hand back pre-reconnect sizes as though they were live.
+   *
    * @param dexName - DEX identifier, or '' for the main DEX.
-   * @returns That DEX's cached positions, or null if it has not published.
+   * @returns That DEX's live positions, or null if it has not published on this
+   * connection.
    */
   public getCachedPositionsForDex(dexName: string): Position[] | null {
+    if (!this.#isPositionDexFresh(dexName)) {
+      return null;
+    }
     return this.#dexPositionsCache.get(dexName) ?? null;
+  }
+
+  /**
+   * Whether a DEX's cached positions are safe to read as live right now.
+   *
+   * The slice must have been produced by the connection that is still current.
+   * A reconnect — manual or SDK-internal — retires the epoch, so a slice cached
+   * before it stops matching here without needing to be cleared anywhere. That
+   * covers the window in which trading stays HTTP-capable while the socket is
+   * down, during which a close built from positions that stopped updating would
+   * be rejected by the exchange.
+   *
+   * @param dexName - DEX identifier, or '' for the main DEX.
+   * @returns True when that DEX's slice was published on the live connection.
+   */
+  #isPositionDexFresh(dexName: string): boolean {
+    const stampedEpoch = this.#dexPositionsEpoch.get(dexName);
+    if (stampedEpoch === undefined) {
+      return false;
+    }
+
+    // A client without the accessor cannot report a reconnect, so the stamp
+    // stands on its own rather than failing every read closed.
+    const currentEpoch = this.#clientService.getConnectionEpoch?.();
+    return currentEpoch === undefined || stampedEpoch === currentEpoch;
+  }
+
+  /**
+   * Get the DEXs whose positions are authoritative for the current connection.
+   *
+   * These are exactly the DEXs `getCachedPositionsForDex` can answer non-null
+   * for, so a caller that needs to sweep every live slice — rather than only
+   * the DEXs some other (possibly stale) list happens to mention — can
+   * enumerate them here without guessing. Reading this issues no request.
+   *
+   * Membership is granted only by a `clearinghouseState` payload and is reset
+   * on resubscribe, so a slice cached before a reconnect is never reported as
+   * live. The openOrders handler deliberately does not grant it: that handler
+   * only re-decorates already cached positions with TP/SL and never delivers a
+   * position's size or side. Membership is also withheld while the socket is
+   * not `Connected`, so the window between a drop and the resubscribe — during
+   * which trading remains HTTP-capable — reports nothing as live.
+   *
+   * @returns DEX identifiers with live positions ('' is the main DEX).
+   */
+  public getPublishedPositionDexs(): string[] {
+    return Array.from(this.#dexPositionsEpoch.keys()).filter((dexName) =>
+      this.#isPositionDexFresh(dexName),
+    );
   }
 
   /**
@@ -4677,6 +4767,7 @@ export class HyperLiquidSubscriptionService {
     this.#dexPositionsCache.clear();
     this.#dexOrdersCache.clear();
     this.#dexAccountCache.clear();
+    this.#dexPositionsEpoch.clear();
     this.#cachedSpotState = null;
     this.#cachedSpotStateUserAddress = null;
     this.#abstractionModeByUser.clear();

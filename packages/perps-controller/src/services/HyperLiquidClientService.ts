@@ -91,6 +91,18 @@ export class HyperLiquidClientService {
   #connectionState: WebSocketConnectionState =
     WebSocketConnectionState.Disconnected;
 
+  // Monotonic identifier for the current WebSocket connection.
+  //
+  // Incremented on every raw socket `close`, which covers SDK-internal
+  // automatic reconnects as well as manual teardown — the SDK reconnects
+  // underneath us without notifying callers, and `terminate` only fires once
+  // retries are exhausted. Consumers stamp cached per-connection data with the
+  // epoch that produced it and compare on read, so anything carried over from a
+  // previous socket is rejected without any explicit invalidation step.
+  //
+  // Starts at 1 so a stamp of 0 (or an unstamped default) never matches.
+  #connectionEpoch = 1;
+
   #disconnectionPromise: Promise<void> | null = null;
 
   // Callback for SDK terminate event (fired when all reconnection attempts exhausted)
@@ -255,6 +267,24 @@ export class HyperLiquidClientService {
       reconnect: HYPERLIQUID_TRANSPORT_CONFIG.reconnect,
     });
 
+    // Retire the connection epoch whenever the raw socket closes.
+    //
+    // This is the only signal that covers an SDK-internal automatic reconnect:
+    // the SDK reopens the socket underneath us without notifying callers, and
+    // `terminate` fires only once reconnection attempts are exhausted. rews
+    // listeners survive reconnections, so attaching once here observes every
+    // subsequent close. Data cached against the old epoch stops matching from
+    // this moment, with no invalidation call to place correctly.
+    this.#wsTransport.socket.addEventListener('close', () => {
+      this.#connectionEpoch += 1;
+      this.#deps.debugLogger.log(
+        'HyperLiquid: WebSocket closed, epoch retired',
+        {
+          connectionEpoch: this.#connectionEpoch,
+        },
+      );
+    });
+
     // Listen for WebSocket termination (fired when SDK exhausts all reconnection attempts)
     this.#wsTransport.socket.addEventListener('terminate', (event: Event) => {
       const customEvent = event as CustomEvent;
@@ -343,9 +373,9 @@ export class HyperLiquidClientService {
   public isInitialized(): boolean {
     return Boolean(
       this.#exchangeClient &&
-      this.#infoClient &&
-      this.#infoClientHttp &&
-      this.#subscriptionClient,
+        this.#infoClient &&
+        this.#infoClientHttp &&
+        this.#subscriptionClient,
     );
   }
 
@@ -1112,6 +1142,22 @@ export class HyperLiquidClientService {
    */
   public getConnectionState(): WebSocketConnectionState {
     return this.#connectionState;
+  }
+
+  /**
+   * Get the identifier of the current WebSocket connection.
+   *
+   * The value changes whenever the raw socket closes — including an SDK-internal
+   * automatic reconnect, which is otherwise invisible to callers. Stamp cached
+   * per-connection data with the epoch that produced it and compare on read:
+   * anything carried across a reconnect stops matching on its own, so there is
+   * no invalidation hook that can be attached at the wrong lifecycle point.
+   *
+   * @returns The current connection epoch. Never 0, so an unstamped default
+   * cannot be mistaken for a live connection.
+   */
+  public getConnectionEpoch(): number {
+    return this.#connectionEpoch;
   }
 
   /**
