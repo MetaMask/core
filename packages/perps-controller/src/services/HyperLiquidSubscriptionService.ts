@@ -2965,6 +2965,25 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
+   * Check whether every expected DEX has published positions on the current
+   * connection.
+   *
+   * Unlike `isPositionsCacheInitialized`, this includes connection-epoch
+   * freshness. The aggregate flag can remain true across an SDK-internal
+   * reconnect while its cached value belongs to the retired socket.
+   *
+   * @returns True only when every expected DEX has a current position slice.
+   */
+  public arePositionDexCachesFresh(): boolean {
+    return (
+      this.#expectedDexs.size > 0 &&
+      Array.from(this.#expectedDexs).every((dexName) =>
+        this.#isPositionDexFresh(dexName),
+      )
+    );
+  }
+
+  /**
    * Get the live positions for one DEX, or null when that DEX has not published
    * authoritative positions on the current connection.
    *

@@ -574,13 +574,63 @@ describe('HyperLiquidSubscriptionService', () => {
       // closePosition treats a cache miss as "position closed" only for a
       // covered DEX, so coverage must be false until data arrives
       expect(service.getCachedPositionsForDex('')).toBeNull();
+      expect(service.arePositionDexCachesFresh()).toBe(false);
 
       const unsubscribe = service.subscribeToAccount({ callback: jest.fn() });
       await jest.runAllTimersAsync();
 
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
+      expect(service.arePositionDexCachesFresh()).toBe(true);
       // No HIP-3 DEX published, so a miss there proves nothing
       expect(service.getCachedPositionsForDex('xyz')).toBeNull();
+
+      unsubscribe();
+    });
+
+    it('reports the full position cache fresh only after every expected DEX publishes', async () => {
+      const callbacks = new Map<string, (payload: unknown) => void>();
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (params: any, callback: (payload: unknown) => void) => {
+          callbacks.set(params.dex || '', callback);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const hip3Service = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true,
+      );
+      await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+
+      const unsubscribe = hip3Service.subscribeToAccount({
+        callback: jest.fn(),
+      });
+      await jest.runAllTimersAsync();
+
+      callbacks.get('')?.({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [],
+          marginSummary: { accountValue: '10000', totalMarginUsed: '0' },
+          withdrawable: '10000',
+        },
+      });
+      await jest.runAllTimersAsync();
+      expect(hip3Service.arePositionDexCachesFresh()).toBe(false);
+
+      callbacks.get('xyz')?.({
+        dex: 'xyz',
+        clearinghouseState: {
+          assetPositions: [],
+          marginSummary: { accountValue: '0', totalMarginUsed: '0' },
+          withdrawable: '0',
+        },
+      });
+      await jest.runAllTimersAsync();
+      expect(hip3Service.arePositionDexCachesFresh()).toBe(true);
 
       unsubscribe();
     });
@@ -640,6 +690,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
       expect(service.getPublishedPositionDexs()).toContain('');
+      expect(service.arePositionDexCachesFresh()).toBe(true);
 
       // The socket closes and reopens: the client service retires the epoch.
       // #dexPositionsCache still holds the pre-reconnect slice — that is the
@@ -649,6 +700,7 @@ describe('HyperLiquidSubscriptionService', () => {
       // The stale slice is still cached, but must not be served as live
       expect(service.getCachedPositionsForDex('')).toBeNull();
       expect(service.getPublishedPositionDexs()).not.toContain('');
+      expect(service.arePositionDexCachesFresh()).toBe(false);
 
       // An openOrders payload must NOT restore it: its handler writes the
       // positions cache but carries no sizes or sides
@@ -670,6 +722,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
       expect(service.getPublishedPositionDexs()).toContain('');
+      expect(service.arePositionDexCachesFresh()).toBe(true);
 
       unsubscribe();
     });
@@ -686,6 +739,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
       expect(service.getPublishedPositionDexs()).toContain('');
+      expect(service.arePositionDexCachesFresh()).toBe(true);
 
       // The SDK reconnects silently. Connection state never leaves 'connected'
       // from this service's point of view — only the epoch moves.
@@ -694,6 +748,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
       expect(service.getCachedPositionsForDex('')).toBeNull();
       expect(service.getPublishedPositionDexs()).not.toContain('');
+      expect(service.arePositionDexCachesFresh()).toBe(false);
 
       unsubscribe();
     });
@@ -770,6 +825,7 @@ describe('HyperLiquidSubscriptionService', () => {
       // ...and their freshness must therefore survive the retry
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
       expect(service.getPublishedPositionDexs()).toContain('');
+      expect(service.arePositionDexCachesFresh()).toBe(true);
 
       retrying();
       unsubscribe();
