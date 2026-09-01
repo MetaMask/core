@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add transient `batchTransactionCounts` state so clients can track how many TransactionController transactions an active batch requires ([#9897](https://github.com/MetaMask/core/pull/9897))
+
 ### Changed
 
 - Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))

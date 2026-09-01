@@ -1,6 +1,6 @@
 {
   "name": "@metamask/platform-api-docs",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Produces documentation for the platform API, the set of actions and events available in the clients through the message bus",
   "keywords": [
     "Ethereum",
