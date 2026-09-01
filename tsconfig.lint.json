@@ -18,6 +18,9 @@
       "path": "./packages/base-controller/tsconfig.lint.json"
     },
     {
+      "path": "./packages/base-data-service/tsconfig.lint.json"
+    },
+    {
       "path": "./packages/build-utils/tsconfig.lint.json"
     },
     {
