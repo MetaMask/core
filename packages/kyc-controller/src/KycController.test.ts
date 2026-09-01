@@ -209,7 +209,7 @@ describe('KycController', () => {
         await controller.initialize();
 
         expect(controller.state.phase).toBe('terms');
-        expect(controller.state.disclaimersError).toMatch(/Failed to load/u);
+        expect(controller.state.vendorError).toMatch(/Failed to load/u);
       });
     });
 
@@ -303,7 +303,7 @@ describe('KycController', () => {
 
         await controller.loadDisclaimers({ country: 'USA' });
 
-        expect(controller.state.disclaimers).toStrictEqual(disclaimers);
+        expect(controller.state.vendorDisclaimers).toStrictEqual(disclaimers);
         expect(handlers.getGeoCountry).not.toHaveBeenCalled();
       });
     });
@@ -377,7 +377,7 @@ describe('KycController', () => {
 
         await controller.loadDisclaimers({ country: 'USA' });
 
-        expect(controller.state.disclaimersError).toMatch(/boom/u);
+        expect(controller.state.vendorError).toMatch(/boom/u);
       });
     });
   });
@@ -387,7 +387,7 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { disclaimers: [{ id: '1', display_name: 'T', url: 'u' }] },
+            state: { vendorDisclaimers: [{ id: '1', display_name: 'T', url: 'u' }] },
           },
         },
         async ({ controller, handlers }) => {
@@ -416,7 +416,7 @@ describe('KycController', () => {
           options: {
             state: {
               email: 'a@b.co',
-              disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -438,7 +438,7 @@ describe('KycController', () => {
           options: {
             state: {
               email: 'a@b.co',
-              disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -475,7 +475,7 @@ describe('KycController', () => {
               email: 'a@b.co',
               moonpaySessionToken: 'old-session',
               moonpayAccessToken: 'stale-access',
-              disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -519,7 +519,7 @@ describe('KycController', () => {
             state: {
               email: 'a@b.co',
               moonpaySessionToken: 'old-session',
-              disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -564,7 +564,7 @@ describe('KycController', () => {
             state: {
               email: 'a@b.co',
               moonpaySessionToken: 'old-session',
-              disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -595,7 +595,7 @@ describe('KycController', () => {
             state: {
               email: 'a@b.co',
               moonpaySessionToken: 'old-session',
-              disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -635,7 +635,7 @@ describe('KycController', () => {
             state: {
               email: 'a@b.co',
               activeProduct: 'card',
-              disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -661,7 +661,7 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { disclaimers: [{ id: '1', display_name: 'T', url: 'u' }] },
+            state: { vendorDisclaimers: [{ id: '1', display_name: 'T', url: 'u' }] },
           },
         },
         async ({ controller }) => {
@@ -2434,8 +2434,8 @@ describe('KycController', () => {
                 sumsub: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
               },
               idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-              disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
-              disclaimersError: 'stale disclaimers error',
+              vendorDisclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
+              vendorError: 'stale disclaimers error',
               geoCountry: 'USA',
               moonpaySessionToken: 'tok',
               moonpayAccessToken: 'a',
@@ -2613,7 +2613,7 @@ describe('KycController', () => {
         expect(controller.state.activeVendor).toBe('iron');
         expect(controller.state.activeProduct).toBe('money');
         expect(controller.state.phase).toBe('terms');
-        expect(controller.state.disclaimers).toHaveLength(1);
+        expect(controller.state.vendorDisclaimers).toHaveLength(1);
       });
     });
 
@@ -2920,7 +2920,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
             userStatusPollIntervalMs: 60_000,
           },
@@ -3060,7 +3060,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
             userStatusPollIntervalMs: 60_000,
           },
@@ -3145,7 +3145,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
             userStatusPollIntervalMs: 60_000,
           },
@@ -3182,7 +3182,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
             userStatusPollIntervalMs: 60_000,
           },
@@ -3235,7 +3235,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
             userStatusPollIntervalMs: 60_000,
           },
@@ -3282,7 +3282,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -3328,7 +3328,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -3364,7 +3364,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
             userStatusPollIntervalMs: 60_000,
           },
@@ -3422,7 +3422,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
             userStatusPollIntervalMs: 60_000,
           },
@@ -3464,7 +3464,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -3490,7 +3490,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -3514,7 +3514,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
             userStatusPollIntervalMs: 60_000,
           },
@@ -3551,7 +3551,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -3574,7 +3574,7 @@ describe('KycController', () => {
             state: {
               activeVendor: 'iron',
               email: 'a@b.co',
-              disclaimers: [],
+              vendorDisclaimers: [],
             },
           },
         },
@@ -3599,7 +3599,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -3628,7 +3628,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -3654,7 +3654,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -3688,7 +3688,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
             userStatusPollIntervalMs: 60_000,
           },
@@ -3733,7 +3733,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
             userStatusPollIntervalMs: 60_000,
           },
@@ -3764,7 +3764,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -3801,7 +3801,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
             userStatusPollIntervalMs: 60_000,
           },
@@ -3842,7 +3842,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -3880,7 +3880,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
             userStatusPollIntervalMs: 60_000,
           },
@@ -3917,7 +3917,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -3953,7 +3953,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -3981,7 +3981,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -4012,7 +4012,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -4040,7 +4040,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -4074,7 +4074,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -4109,7 +4109,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -4143,7 +4143,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -4186,7 +4186,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -4214,7 +4214,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -4242,7 +4242,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
           },
         },
@@ -4619,7 +4619,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
             userStatusPollIntervalMs: 60_000,
           },
@@ -4649,7 +4649,7 @@ describe('KycController', () => {
           options: {
             state: {
               activeVendor: 'iron',
-              disclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
             userStatusPollIntervalMs: 60_000,
           },

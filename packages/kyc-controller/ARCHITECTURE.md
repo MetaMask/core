@@ -178,8 +178,8 @@ classDiagram
         +string error
         +string email
         +KycVendorDisclaimersAccepted vendorDisclaimersAccepted [persisted]
-        +KycDisclaimer[] disclaimers
-        +string disclaimersError
+        +KycDisclaimer[] vendorDisclaimers
+        +string vendorError
         +string geoCountry
         +string moonpaySessionToken [secret]
         +string moonpayAccessToken [secret]
@@ -217,7 +217,7 @@ State metadata highlights (`kycControllerMetadata`):
   path proceeds); a failed or reset switch leaves the previous vendor's
   acceptance in place.
 - **Secrets, never persisted / never logged**: `moonpaySessionToken`, `moonpayAccessToken`,
-  `moonpayCustomerId`, `email`, `disclaimers`, and the whole `sumsub` sub-tree.
+  `moonpayCustomerId`, `email`, `vendorDisclaimers`, and the whole `sumsub` sub-tree.
   Switching away from MoonPay (`initialize` / `createVendorCustomer`) drops
   these MoonPay Check/Auth artifacts immediately so `buildCheckFrameUrl` cannot
   return a MoonPay URL while `activeVendor` is a consents-path vendor.
@@ -343,7 +343,7 @@ sequenceDiagram
     Note over Svc: map alpha-2 → alpha-3 locally
     Ctrl->>Svc: fetchVendorDisclaimers({ country })
     Svc->>API: GET /vendors/moonpay/disclaimers?country=
-    Ctrl-->>UI: phase = terms (+ disclaimers)
+    Ctrl-->>UI: phase = terms (+ vendorDisclaimers)
 
     User->>Ctrl: acceptTermsAndStartSession({ email, providerDisclaimersAccepted, idosDisclaimersAccepted })
     Ctrl->>Svc: createSession({ email, termsAcceptedAt, disclaimerIds })

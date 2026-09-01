@@ -180,10 +180,10 @@ export type KycControllerState = {
    */
   credentialReusabilityConsentGiven: boolean | null;
 
-  /** Disclaimers fetched for the current country. */
-  disclaimers: KycDisclaimer[];
-  /** Error encountered while loading disclaimers, or `null`. */
-  disclaimersError: string | null;
+  /** Vendor disclaimers fetched for the current country. */
+  vendorDisclaimers: KycDisclaimer[];
+  /** Error encountered while loading vendor disclaimers, or `null`. */
+  vendorError: string | null;
   /**
    * idOS / KYC-provider disclaimer catalog from `GET /disclaimers` or
    * `GET /sessions/{sessionId}/disclaimers`. `null` until the catalog has
@@ -296,13 +296,13 @@ const kycControllerMetadata = {
     persist: false,
     usedInUi: false,
   },
-  disclaimers: {
+  vendorDisclaimers: {
     includeInDebugSnapshot: false,
     includeInStateLogs: false,
     persist: false,
     usedInUi: true,
   },
-  disclaimersError: {
+  vendorError: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     persist: false,
@@ -416,8 +416,8 @@ export function getDefaultKycControllerState(): KycControllerState {
     providerDisclaimersAccepted: getDefaultKycProviderDisclaimersAccepted(),
     idosDisclaimersAccepted: null,
     credentialReusabilityConsentGiven: null,
-    disclaimers: [],
-    disclaimersError: null,
+    vendorDisclaimers: [],
+    vendorError: null,
     sessionDisclaimers: null,
     geoCountry: null,
     moonpaySessionToken: null,
@@ -961,7 +961,7 @@ export class KycController extends BaseController<
       } else {
         if (
           vendor === 'moonpay' &&
-          this.state.disclaimers.length === 0
+          this.state.vendorDisclaimers.length === 0
         ) {
           await this.loadDisclaimers();
           if (this.#generation !== generation) {
@@ -1057,12 +1057,12 @@ export class KycController extends BaseController<
         },
       );
       this.#updateIfCurrent(generation, (state) => {
-        state.disclaimers = disclaimers;
-        state.disclaimersError = null;
+        state.vendorDisclaimers = disclaimers;
+        state.vendorError = null;
       });
     } catch (error) {
       this.#updateIfCurrent(generation, (state) => {
-        state.disclaimersError = `Failed to load disclaimers: ${String(error)}`;
+        state.vendorError = `Failed to load disclaimers: ${String(error)}`;
       });
     }
   }
@@ -1106,7 +1106,7 @@ export class KycController extends BaseController<
       params?.credentialReusabilityConsentGiven ?? false;
 
     const termsAcceptedAt = new Date().toISOString();
-    const disclaimerIds = this.state.disclaimers.map(
+    const disclaimerIds = this.state.vendorDisclaimers.map(
       (disclaimer) => disclaimer.id,
     );
     this.#applyUpdate((state) => {
@@ -1424,7 +1424,7 @@ export class KycController extends BaseController<
     const { email } = this.state;
     const termsAcceptedAt =
       this.state.vendorDisclaimersAccepted.moonpay?.termsAcceptedAt;
-    const acceptedDisclaimerIds = this.state.disclaimers.map(
+    const acceptedDisclaimerIds = this.state.vendorDisclaimers.map(
       (disclaimer) => disclaimer.id,
     );
     if (!email) {
@@ -2514,8 +2514,8 @@ export class KycController extends BaseController<
       state.phase = 'idle';
       state.statusMessage = '';
       state.error = null;
-      state.disclaimers = [];
-      state.disclaimersError = null;
+      state.vendorDisclaimers = [];
+      state.vendorError = null;
       state.sessionDisclaimers = null;
       state.credentialReusabilityConsentGiven = null;
       state.moonpaySessionToken = null;
