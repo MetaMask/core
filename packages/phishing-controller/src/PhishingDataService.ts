@@ -24,7 +24,7 @@ import {
   type,
   unknown,
 } from '@metamask/superstruct';
-import { Duration, inMilliseconds } from '@metamask/utils';
+import { Duration, getErrorMessage, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
@@ -40,7 +40,10 @@ import type {
   PhishingStalelist,
   TokenScanApiResponse,
 } from './types.js';
-import { getHostnameFromWebUrl } from './utils.js';
+import {
+  getHostnameFromWebUrl,
+  getPhishingDetectionScanUrlParam,
+} from './utils.js';
 
 /**
  * A single token's scan result as returned by the bulk token scanning
@@ -99,6 +102,25 @@ const MAX_TOKENS_PER_SCAN_REQUEST = 100;
  * so this value is a security parameter and should not be raised casually.
  */
 export const SCAN_RESULT_STALE_TIME = inMilliseconds(1, Duration.Minute);
+
+/**
+ * How long a scan result is retained by the query cache before it is eligible
+ * for garbage collection. This is set explicitly because TanStack Query
+ * defaults `gcTime` to `Infinity` when it detects a server environment, which
+ * includes the extension's MV3 service worker (`window` is undefined there).
+ * Without it, the cache would grow without bound for the life of the worker,
+ * whereas the cache this service replaces was explicitly size-bounded.
+ */
+export const SCAN_RESULT_GC_TIME = inMilliseconds(5, Duration.Minute);
+
+/**
+ * How long a fetched list is retained by the query cache. The lists are always
+ * refetched (`staleTime: 0`) and the controller keeps its own copy in
+ * `phishingLists`, so retaining them here has no benefit and a large cost: the
+ * stalelist is several megabytes, and the persisted cache is rewritten
+ * whenever any query changes, including on every scan.
+ */
+const LIST_GC_TIME = 0;
 
 /**
  * Default persistence configuration for the service's query cache. The max
@@ -229,6 +251,29 @@ const ApprovalsResponseStruct = type({
 
 // === BATCH LOADING ===
 
+/**
+ * The outcome of one batched request: results keyed by item, plus any
+ * per-item errors reported by the endpoint. Items listed in `errors` are
+ * rejected rather than resolved, so that an endpoint-reported failure is not
+ * cached as a "no result" verdict.
+ */
+type BatchOutcome = {
+  results: Record<string, Json>;
+  errors?: Record<string, Error>;
+};
+
+/**
+ * An error reported by a batch endpoint for one specific item, as opposed to a
+ * failure of the request as a whole. These are surfaced to the caller per item
+ * and never cached, but they do not make the overall call fail.
+ */
+class BatchItemError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BatchItemError';
+  }
+}
+
 type BatchLoader = {
   /**
    * Registers an item to be resolved by the next executed batch.
@@ -262,7 +307,7 @@ function createBatchLoader({
   executeBatch,
 }: {
   maxBatchSize: number;
-  executeBatch: (keys: string[]) => Promise<Record<string, Json>>;
+  executeBatch: (keys: string[]) => Promise<BatchOutcome>;
 }): BatchLoader {
   type PendingItem = {
     key: string;
@@ -274,9 +319,16 @@ function createBatchLoader({
 
   const executeChunk = async (chunk: PendingItem[]): Promise<void> => {
     try {
-      const results = await executeBatch(chunk.map((item) => item.key));
+      const { results, errors = {} } = await executeBatch(
+        chunk.map((item) => item.key),
+      );
       for (const item of chunk) {
-        item.resolve(results[item.key] ?? null);
+        const itemError = errors[item.key];
+        if (itemError) {
+          item.reject(itemError);
+        } else {
+          item.resolve(results[item.key] ?? null);
+        }
       }
     } catch (error) {
       for (const item of chunk) {
@@ -382,8 +434,17 @@ export class PhishingDataService extends BaseDataService<
       // updates from the others. Protection against hammering a failing host
       // comes from the controller's refresh-interval bookkeeping and the scan
       // result stale times, matching the previous in-controller behavior.
+      //
+      // Retries are disabled by default for the same reason. The previous
+      // in-controller implementation made a single request per call, and the
+      // controller's timeouts are sized for one attempt. Retries are also
+      // unsafe for the batched endpoints: a failed batch rejects every item
+      // query in it, and each would then retry independently, turning one
+      // failed request into many single-item requests against a host that is
+      // already failing.
       policyOptions: {
         maxConsecutiveFailures: Number.MAX_SAFE_INTEGER,
+        maxRetries: 0,
         ...policyOptions,
       },
       persistenceConfig: persistenceConfig ?? undefined,
@@ -404,14 +465,12 @@ export class PhishingDataService extends BaseDataService<
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:getStalelist`],
       queryFn: async () => this.#getJson(METAMASK_STALELIST_URL),
+      responseStruct: StalelistResponseStruct,
       staleTime: 0,
+      gcTime: LIST_GC_TIME,
     });
 
-    return this.#validate(
-      jsonResponse,
-      StalelistResponseStruct,
-      'stalelist',
-    ) as DataResultWrapper<PhishingStalelist>;
+    return jsonResponse as DataResultWrapper<PhishingStalelist>;
   }
 
   /**
@@ -427,14 +486,12 @@ export class PhishingDataService extends BaseDataService<
       queryKey: [`${this.name}:getHotlistDiffs`, timestamp],
       queryFn: async () =>
         this.#getJson(`${METAMASK_HOTLIST_DIFF_URL}/${timestamp}`),
+      responseStruct: HotlistDiffsResponseStruct,
       staleTime: 0,
+      gcTime: LIST_GC_TIME,
     });
 
-    return this.#validate(
-      jsonResponse,
-      HotlistDiffsResponseStruct,
-      'hotlist diffs',
-    ) as DataResultWrapper<Hotlist>;
+    return jsonResponse as DataResultWrapper<Hotlist>;
   }
 
   /**
@@ -455,14 +512,12 @@ export class PhishingDataService extends BaseDataService<
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:getC2DomainBlocklist`, timestamp ?? null],
       queryFn: async () => this.#getJson(url),
+      responseStruct: C2DomainBlocklistResponseStruct,
       staleTime: 0,
+      gcTime: LIST_GC_TIME,
     });
 
-    return this.#validate(
-      jsonResponse,
-      C2DomainBlocklistResponseStruct,
-      'C2 domain blocklist',
-    ) as C2DomainBlocklistResponse;
+    return jsonResponse as C2DomainBlocklistResponse;
   }
 
   /**
@@ -487,31 +542,38 @@ export class PhishingDataService extends BaseDataService<
         );
         return this.#toJson(response);
       },
+      responseStruct: ScanUrlResponseStruct,
       staleTime: SCAN_RESULT_STALE_TIME,
+      gcTime: SCAN_RESULT_GC_TIME,
     });
 
-    return this.#validate(
-      jsonResponse,
-      ScanUrlResponseStruct,
-      'URL scan',
-    ) as PhishingDetectionScanResult;
+    return jsonResponse as PhishingDetectionScanResult;
   }
 
   /**
    * Scans a batch of URLs for phishing via the dapp-scanning API.
    *
-   * Results are cached per hostname using the same query keys as
+   * Results are cached under the same query keys as
    * {@link PhishingDataService.scanUrl}, so results are shared between single
-   * and bulk scans. Only hostnames without a fresh cached result are sent to
-   * the API, in requests of up to 50 URLs.
+   * and bulk scans, including for the path-sensitive hosts listed in
+   * `PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS`. Only URLs without a fresh
+   * cached result are sent to the API, in requests of up to 50 URLs.
+   *
+   * If some lookups fail, the results that did resolve are still returned and
+   * the failures are reported per URL. The call only rejects when nothing at
+   * all could be resolved.
    *
    * @param urls - The URLs to scan.
-   * @returns The scan results, keyed by URL, and any batch-level errors.
+   * @returns The scan results, keyed by URL, and any per-URL errors.
    */
   async bulkScanUrls(
     urls: string[],
   ): Promise<BulkPhishingDetectionScanResponse> {
     const errors: Record<string, string[]> = {};
+    const addError = (key: string, message: string): void => {
+      errors[key] = [...(errors[key] ?? []), message];
+    };
+
     const loader = createBatchLoader({
       maxBatchSize: MAX_URLS_PER_SCAN_REQUEST,
       executeBatch: async (batchUrls) => {
@@ -524,27 +586,62 @@ export class PhishingDataService extends BaseDataService<
           BulkScanUrlsResponseStruct,
           'bulk URL scan',
         ) as BulkPhishingDetectionScanResponse;
+        // URLs the endpoint reported an error for are rejected rather than
+        // resolved, so that the failure is surfaced to the caller instead of
+        // being cached as a "no result" verdict for the stale time.
+        const itemErrors: Record<string, Error> = {};
         for (const [key, messages] of Object.entries(response.errors)) {
-          errors[key] = [...(errors[key] ?? []), ...messages];
+          itemErrors[key] = new BatchItemError(messages.join(', '));
         }
-        return response.results as Record<string, Json>;
+        return {
+          results: response.results as Record<string, Json>,
+          errors: itemErrors,
+        };
       },
     });
 
-    const entries = urls.map((url) => {
+    const requested: { url: string; hostname: string }[] = [];
+    const entries: Promise<Json | null>[] = [];
+    for (const url of urls) {
+      const [scanUrlParam, ok] = getPhishingDetectionScanUrlParam(url);
+      if (!ok) {
+        addError(url, 'url is not a valid web URL');
+        continue;
+      }
       const [hostname] = getHostnameFromWebUrl(url);
-      return this.fetchQuery({
-        queryKey: [`${this.name}:scanUrl`, hostname],
-        queryFn: async () => loader.load(url),
-        staleTime: SCAN_RESULT_STALE_TIME,
-      }).then((result) => [url, hostname, result] as const);
-    });
+      requested.push({ url, hostname });
+      entries.push(
+        // Keyed by the scan parameter rather than the bare hostname so that
+        // path-sensitive hosts (see
+        // `PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS`) get one entry per
+        // path, and so that entries are shared with `scanUrl`.
+        this.fetchQuery({
+          queryKey: [`${this.name}:scanUrl`, scanUrlParam],
+          queryFn: async () => loader.load(url),
+          staleTime: SCAN_RESULT_STALE_TIME,
+          gcTime: SCAN_RESULT_GC_TIME,
+        }),
+      );
+    }
     loader.flush();
 
+    const settled = await Promise.allSettled(entries);
     const results: Record<string, PhishingDetectionScanResult> = {};
-    for (const [url, hostname, result] of await Promise.all(entries)) {
-      if (result !== null) {
-        const scanResult = result as PhishingDetectionScanResult;
+    let requestFailure: { reason: unknown } | undefined;
+
+    for (const [index, outcome] of settled.entries()) {
+      const { url, hostname } = requested[index];
+
+      if (outcome.status === 'rejected') {
+        addError(url, getErrorMessage(outcome.reason));
+        if (!(outcome.reason instanceof BatchItemError)) {
+          requestFailure ??= { reason: outcome.reason };
+        }
+        continue;
+      }
+
+      if (outcome.value !== null) {
+        const scanResult = outcome.value as PhishingDetectionScanResult;
         // Entries seeded by single-URL scans hold the raw scan response,
         // which may not include the hostname; fill it in from the URL.
         results[url] = {
@@ -552,6 +649,14 @@ export class PhishingDataService extends BaseDataService<
           hostname: scanResult.hostname ?? hostname,
         };
       }
+    }
+
+    // A request-level failure that produced nothing at all is surfaced to the
+    // caller, matching the previous behavior. If anything did resolve, keep
+    // it, including fresh cache hits, so that one failed lookup cannot
+    // discard a cached BLOCK verdict for a different URL.
+    if (requestFailure && Object.keys(results).length === 0) {
+      throw requestFailure.reason;
     }
 
     return { results, errors };
@@ -632,7 +737,7 @@ export class PhishingDataService extends BaseDataService<
           BulkScanTokensResponseStruct,
           'bulk token scan',
         ) as TokenScanApiResponse;
-        return (response.results ?? {}) as Record<string, Json>;
+        return { results: (response.results ?? {}) as Record<string, Json> };
       },
     });
   }
@@ -654,6 +759,7 @@ export class PhishingDataService extends BaseDataService<
       queryKey: [`${this.name}:scanToken`, chain, token],
       queryFn: async () => loader.load(token),
       staleTime: SCAN_RESULT_STALE_TIME,
+      gcTime: SCAN_RESULT_GC_TIME,
     });
     return result as TokenScanResultResponse | null;
   }
@@ -676,14 +782,12 @@ export class PhishingDataService extends BaseDataService<
           chain,
           address,
         }),
+      responseStruct: ScanAddressResponseStruct,
       staleTime: SCAN_RESULT_STALE_TIME,
+      gcTime: SCAN_RESULT_GC_TIME,
     });
 
-    return this.#validate(
-      jsonResponse,
-      ScanAddressResponseStruct,
-      'address scan',
-    ) as AddressScanResult;
+    return jsonResponse as AddressScanResult;
   }
 
   /**
@@ -699,16 +803,15 @@ export class PhishingDataService extends BaseDataService<
     chain: string,
     address: string,
   ): Promise<ApprovalsResponse> {
-    const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:getApprovals`, chain, address],
-      queryFn: async () =>
-        this.#postJson(`${SECURITY_ALERTS_BASE_URL}${APPROVALS_ENDPOINT}`, {
-          chain,
-          address,
-        }),
-      staleTime: 0,
-      gcTime: 0,
-    });
+    // Deliberately not routed through `fetchQuery`. Approvals reflect live,
+    // account-specific state that is never cached, so the query cache would
+    // provide no benefit while publishing the response on the messenger as a
+    // `cacheUpdated` payload. This matches the handling of non-cached POSTs
+    // elsewhere in the monorepo.
+    const jsonResponse = await this.#postJson(
+      `${SECURITY_ALERTS_BASE_URL}${APPROVALS_ENDPOINT}`,
+      { chain, address },
+    );
 
     return this.#validate(
       jsonResponse,

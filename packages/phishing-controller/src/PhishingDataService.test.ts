@@ -1,5 +1,6 @@
 import { ConstantBackoff } from '@metamask/base-data-service';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import { Duration, inMilliseconds } from '@metamask/utils';
 import type {
   MessengerActions,
   MessengerEvents,
@@ -22,6 +23,7 @@ import {
   TOKEN_BULK_SCANNING_ENDPOINT,
   ADDRESS_SCAN_ENDPOINT,
   APPROVALS_ENDPOINT,
+  SCAN_RESULT_GC_TIME,
   SCAN_RESULT_STALE_TIME,
 } from './PhishingDataService.js';
 import type { PhishingDataServiceMessenger } from './PhishingDataService.js';
@@ -96,7 +98,9 @@ describe('PhishingDataService', () => {
 
       await expect(
         rootMessenger.call('PhishingDataService:getStalelist'),
-      ).rejects.toThrow('Malformed response received from stalelist endpoint');
+      ).rejects.toThrow(
+        'Query function for "PhishingDataService:getStalelist" returned an unexpected response',
+      );
     });
   });
 
@@ -133,7 +137,7 @@ describe('PhishingDataService', () => {
       await expect(
         rootMessenger.call('PhishingDataService:getHotlistDiffs', 1700000000),
       ).rejects.toThrow(
-        'Malformed response received from hotlist diffs endpoint',
+        'Query function for "PhishingDataService:getHotlistDiffs" returned an unexpected response',
       );
     });
   });
@@ -186,7 +190,7 @@ describe('PhishingDataService', () => {
       await expect(
         rootMessenger.call('PhishingDataService:getC2DomainBlocklist'),
       ).rejects.toThrow(
-        'Malformed response received from C2 domain blocklist endpoint',
+        'Query function for "PhishingDataService:getC2DomainBlocklist" returned an unexpected response',
       );
     });
   });
@@ -264,7 +268,55 @@ describe('PhishingDataService', () => {
 
       await expect(
         rootMessenger.call('PhishingDataService:scanUrl', 'example.com'),
-      ).rejects.toThrow('Malformed response received from URL scan endpoint');
+      ).rejects.toThrow(
+        'Query function for "PhishingDataService:scanUrl" returned an unexpected response',
+      );
+    });
+
+    it('does not cache a malformed response', async () => {
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, { unexpected: 'shape' })
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, { recommendedAction: 'BLOCK' });
+      const { rootMessenger } = createService();
+
+      await expect(
+        rootMessenger.call('PhishingDataService:scanUrl', 'example.com'),
+      ).rejects.toThrow('returned an unexpected response');
+
+      // The malformed body must not have been committed to the cache, so the
+      // next call re-requests and sees the real verdict.
+      expect(
+        await rootMessenger.call('PhishingDataService:scanUrl', 'example.com'),
+      ).toStrictEqual({ recommendedAction: 'BLOCK' });
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('refetches once a cached result passes its garbage collection time', async () => {
+      jest.useFakeTimers({
+        doNotFake: ['nextTick', 'queueMicrotask'],
+        now: 1_000_000,
+      });
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .times(2)
+        .reply(200, { recommendedAction: 'NONE' });
+      const { rootMessenger } = createService();
+
+      await rootMessenger.call('PhishingDataService:scanUrl', 'example.com');
+
+      jest.advanceTimersByTime(SCAN_RESULT_GC_TIME + 1000);
+      await flushPromises();
+
+      await rootMessenger.call('PhishingDataService:scanUrl', 'example.com');
+
+      // The entry is collected rather than being retained forever, which is
+      // what TanStack Query would otherwise do in a service worker.
+      expect(scope.isDone()).toBe(true);
     });
   });
 
@@ -310,6 +362,121 @@ describe('PhishingDataService', () => {
       ).rejects.toThrow(
         'Malformed response received from bulk URL scan endpoint',
       );
+    });
+
+    it('sends each path separately for path-sensitive hosts', async () => {
+      const urls = ['https://ipfs.io/ipfs/AAA', 'https://ipfs.io/ipfs/BBB'];
+      nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, { urls })
+        .reply(200, {
+          results: {
+            [urls[0]]: { hostname: urls[0], recommendedAction: 'NONE' },
+            [urls[1]]: { hostname: urls[1], recommendedAction: 'BLOCK' },
+          },
+          errors: {},
+        });
+      const { rootMessenger } = createService();
+
+      const response = await rootMessenger.call(
+        'PhishingDataService:bulkScanUrls',
+        urls,
+      );
+
+      // Both paths must be scanned; they must not share one verdict.
+      expect(response.results[urls[0]].recommendedAction).toBe('NONE');
+      expect(response.results[urls[1]].recommendedAction).toBe('BLOCK');
+    });
+
+    it('reports invalid URLs without calling the API', async () => {
+      const { rootMessenger } = createService();
+
+      const response = await rootMessenger.call(
+        'PhishingDataService:bulkScanUrls',
+        ['not-a-url'],
+      );
+
+      expect(response).toStrictEqual({
+        results: {},
+        errors: { 'not-a-url': ['url is not a valid web URL'] },
+      });
+    });
+
+    it('does not cache URLs the API reported an error for', async () => {
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`)
+        .times(2)
+        .reply(200, {
+          results: {},
+          errors: { 'https://example1.com': ['upstream failure'] },
+        });
+      const { rootMessenger } = createService();
+
+      const first = await rootMessenger.call(
+        'PhishingDataService:bulkScanUrls',
+        ['https://example1.com'],
+      );
+      const second = await rootMessenger.call(
+        'PhishingDataService:bulkScanUrls',
+        ['https://example1.com'],
+      );
+
+      // The error must be reported both times rather than being cached as a
+      // silent "no result" for the stale time.
+      expect(first.errors['https://example1.com']).toStrictEqual([
+        'upstream failure',
+      ]);
+      expect(second.errors['https://example1.com']).toStrictEqual([
+        'upstream failure',
+      ]);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('keeps fresh cached results when another lookup fails', async () => {
+      nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`)
+        .reply(200, {
+          results: {
+            'https://blocked.com': {
+              hostname: 'blocked.com',
+              recommendedAction: 'BLOCK',
+            },
+          },
+          errors: {},
+        });
+      const { rootMessenger } = createService();
+
+      await rootMessenger.call('PhishingDataService:bulkScanUrls', [
+        'https://blocked.com',
+      ]);
+
+      nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`)
+        .reply(500, 'boom');
+
+      const response = await rootMessenger.call(
+        'PhishingDataService:bulkScanUrls',
+        ['https://blocked.com', 'https://uncached.com'],
+      );
+
+      expect(response.results['https://blocked.com'].recommendedAction).toBe(
+        'BLOCK',
+      );
+      expect(response.errors['https://uncached.com']).toStrictEqual([
+        '500 Internal Server Error',
+      ]);
+    });
+
+    it('rejects when no URL could be resolved', async () => {
+      nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`)
+        .reply(500, 'boom');
+      const { rootMessenger } = createService();
+
+      await expect(
+        rootMessenger.call('PhishingDataService:bulkScanUrls', [
+          'https://example1.com',
+        ]),
+      ).rejects.toThrow('500 Internal Server Error');
     });
   });
 
@@ -535,7 +702,7 @@ describe('PhishingDataService', () => {
           '0x1234567890123456789012345678901234567890',
         ),
       ).rejects.toThrow(
-        'Malformed response received from address scan endpoint',
+        'Query function for "PhishingDataService:scanAddress" returned an unexpected response',
       );
     });
   });
@@ -630,6 +797,124 @@ describe('PhishingDataService', () => {
         }),
       );
     });
+
+    it('does not persist fetched lists', async () => {
+      jest.useFakeTimers({
+        doNotFake: ['nextTick', 'queueMicrotask'],
+        now: 1_000_000,
+      });
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, STALELIST_RESPONSE);
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, { recommendedAction: 'NONE' });
+
+      const setItem = jest.fn();
+      const { rootMessenger } = createService({
+        options: { persistenceConfig: undefined },
+        setItemMock: setItem,
+      });
+
+      await rootMessenger.call('PhishingDataService:getStalelist');
+      await rootMessenger.call('PhishingDataService:scanUrl', 'example.com');
+
+      jest.advanceTimersByTime(15_000);
+      await flushPromises();
+
+      const written = JSON.stringify(setItem.mock.calls.at(-1)?.[2]);
+      // The scan result is persisted, but the (multi-megabyte) list is not.
+      expect(written).toContain('scanUrl');
+      expect(written).not.toContain('phishing.example.com');
+    });
+
+    it('rehydrates the cache from the StorageService on init', async () => {
+      jest.useFakeTimers({
+        doNotFake: ['nextTick', 'queueMicrotask'],
+        now: 1_000_000,
+      });
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, { recommendedAction: 'NONE' });
+
+      // Populate a cache using one service, then hand it to a second one.
+      const setItem = jest.fn();
+      const { rootMessenger: firstMessenger } = createService({
+        options: { persistenceConfig: undefined },
+        setItemMock: setItem,
+      });
+      await firstMessenger.call('PhishingDataService:scanUrl', 'example.com');
+
+      jest.advanceTimersByTime(15_000);
+      await flushPromises();
+
+      const persisted = setItem.mock.calls.at(-1)?.[2];
+      expect(persisted).toBeDefined();
+
+      const { rootMessenger: secondMessenger, service } = createService({
+        options: { persistenceConfig: undefined },
+        setItemMock: jest.fn(),
+        getItemMock: jest.fn().mockResolvedValue({ result: persisted }),
+      });
+      service.init();
+      await flushPromises();
+
+      // No nock interceptor is registered, so this can only succeed if the
+      // rehydrated entry was used.
+      const result = await secondMessenger.call(
+        'PhishingDataService:scanUrl',
+        'example.com',
+      );
+      expect(result).toStrictEqual({ recommendedAction: 'NONE' });
+    });
+
+    it('discards and removes a persisted cache older than maxAge', async () => {
+      const removeItem = jest.fn();
+      const getItem = jest.fn().mockResolvedValue({
+        result: {
+          timestamp: Date.now() - inMilliseconds(10, Duration.Minute),
+          state: { queries: [], mutations: [] },
+        },
+      });
+      const { service } = createService({
+        options: { persistenceConfig: undefined },
+        setItemMock: jest.fn(),
+        getItemMock: getItem,
+        removeItemMock: removeItem,
+      });
+
+      service.init();
+      await flushPromises();
+
+      expect(getItem).toHaveBeenCalledWith('PhishingDataService', 'cache');
+      expect(removeItem).toHaveBeenCalledWith('PhishingDataService', 'cache');
+    });
+  });
+
+  describe('retry policy', () => {
+    it('does not retry failed requests by default', async () => {
+      let attempts = 0;
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .times(5)
+        .reply(() => {
+          attempts += 1;
+          return [500, 'boom'];
+        });
+      // Build the service without the test helper's `maxRetries: 0` override
+      // so that the shipped defaults are what is exercised here.
+      const { rootMessenger } = createService({
+        options: { policyOptions: {} },
+      });
+
+      await expect(
+        rootMessenger.call('PhishingDataService:scanUrl', 'example.com'),
+      ).rejects.toThrow('500 Internal Server Error');
+      expect(attempts).toBe(1);
+    });
   });
 
   describe('direct method calls', () => {
@@ -675,14 +960,22 @@ function createRootMessenger(): RootMessenger {
  * `messenger`).
  * @param args.setItemMock - Optional mock `StorageService:setItem` handler to
  * register and delegate to the service messenger, enabling persistence.
+ * @param args.getItemMock - Optional mock `StorageService:getItem` handler to
+ * register and delegate to the service messenger, enabling rehydration.
+ * @param args.removeItemMock - Optional mock `StorageService:removeItem`
+ * handler to register and delegate to the service messenger.
  * @returns The new service, root messenger, and service messenger.
  */
 function createService({
   options = {},
   setItemMock,
+  getItemMock,
+  removeItemMock,
 }: {
   options?: Partial<ConstructorParameters<typeof PhishingDataService>[0]>;
   setItemMock?: jest.Mock;
+  getItemMock?: jest.Mock;
+  removeItemMock?: jest.Mock;
 } = {}): {
   service: PhishingDataService;
   rootMessenger: RootMessenger;
@@ -697,6 +990,23 @@ function createService({
     rootMessenger.registerActionHandler('StorageService:setItem', setItemMock);
     rootMessenger.delegate({
       actions: ['StorageService:setItem'],
+      messenger,
+    });
+  }
+  if (getItemMock) {
+    rootMessenger.registerActionHandler('StorageService:getItem', getItemMock);
+    rootMessenger.delegate({
+      actions: ['StorageService:getItem'],
+      messenger,
+    });
+  }
+  if (removeItemMock) {
+    rootMessenger.registerActionHandler(
+      'StorageService:removeItem',
+      removeItemMock,
+    );
+    rootMessenger.delegate({
+      actions: ['StorageService:removeItem'],
       messenger,
     });
   }

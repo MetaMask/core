@@ -54,6 +54,7 @@ export type {
 
 export {
   PhishingDataService,
+  SCAN_RESULT_GC_TIME,
   SCAN_RESULT_STALE_TIME,
   DEFAULT_PHISHING_PERSISTENCE_CONFIG,
 } from './PhishingDataService.js';

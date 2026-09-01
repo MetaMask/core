@@ -53,13 +53,18 @@ export type PhishingDataServiceScanUrlAction = {
 /**
  * Scans a batch of URLs for phishing via the dapp-scanning API.
  *
- * Results are cached per hostname using the same query keys as
+ * Results are cached under the same query keys as
  * {@link PhishingDataService.scanUrl}, so results are shared between single
- * and bulk scans. Only hostnames without a fresh cached result are sent to
- * the API, in requests of up to 50 URLs.
+ * and bulk scans, including for the path-sensitive hosts listed in
+ * `PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS`. Only URLs without a fresh
+ * cached result are sent to the API, in requests of up to 50 URLs.
+ *
+ * If some lookups fail, the results that did resolve are still returned and
+ * the failures are reported per URL. The call only rejects when nothing at
+ * all could be resolved.
  *
  * @param urls - The URLs to scan.
- * @returns The scan results, keyed by URL, and any batch-level errors.
+ * @returns The scan results, keyed by URL, and any per-URL errors.
  */
 export type PhishingDataServiceBulkScanUrlsAction = {
   type: `PhishingDataService:bulkScanUrls`;
