@@ -99,6 +99,17 @@ export type PerpsControllerGetOrderCapabilitiesAction = {
 };
 
 /**
+ * Build a Scale price ladder using the active provider's venue rules.
+ *
+ * @param params - Market, ladder bounds, count, and optional explicit route.
+ * @returns Provider-normalized prices or a typed unavailable result.
+ */
+export type PerpsControllerGetScalePriceLadderAction = {
+  type: `PerpsController:getScalePriceLadder`;
+  handler: PerpsController['getScalePriceLadder'];
+};
+
+/**
  * Place a new order
  * Thin delegation to TradingService
  *
@@ -1328,6 +1339,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetActiveProviderAction
   | PerpsControllerGetActiveProviderOrNullAction
   | PerpsControllerGetOrderCapabilitiesAction
+  | PerpsControllerGetScalePriceLadderAction
   | PerpsControllerPlaceOrderAction
   | PerpsControllerEditOrderAction
   | PerpsControllerCancelOrderAction

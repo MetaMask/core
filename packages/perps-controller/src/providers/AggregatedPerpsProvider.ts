@@ -45,6 +45,7 @@ import type {
   GetHistoricalPortfolioParams,
   GetMarketsParams,
   GetOrderCapabilitiesParams,
+  GetScalePriceLadderParams,
   GetOrderFillsParams,
   GetOrdersParams,
   GetOrFetchFillsParams,
@@ -67,6 +68,7 @@ import type {
   OrderResult,
   PerpsMarketData,
   PerpsOrderCapabilities,
+  PerpsScalePriceLadder,
   PerpsPendingManualRecovery,
   PerpsRecoveredDispatch,
   PerpsProviderType,
@@ -322,6 +324,35 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         reason: 'provider_unavailable',
       };
     }
+  }
+
+  async getScalePriceLadder(
+    params: GetScalePriceLadderParams,
+  ): Promise<PerpsScalePriceLadder> {
+    const providerId = params.providerId ?? this.#defaultProvider;
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_found',
+      };
+    }
+    if (!provider.getScalePriceLadder) {
+      return { status: 'unavailable', providerId, reason: 'not_implemented' };
+    }
+    const result = await provider.getScalePriceLadder({
+      ...params,
+      providerId,
+    });
+    if (result.providerId !== undefined && result.providerId !== providerId) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_routable',
+      };
+    }
+    return { ...result, providerId };
   }
 
   // ============================================================================

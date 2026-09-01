@@ -433,29 +433,6 @@ export function computeScalePriceLadder(params: {
 }
 
 /**
- * Build the exact price strings a HyperLiquid Scale order will receive.
- *
- * @param params - Ladder and asset precision parameters.
- * @param params.minPrice - Lowest price in the ladder.
- * @param params.maxPrice - Highest price in the ladder.
- * @param params.count - Number of rungs.
- * @param params.szDecimals - Asset size precision used for price formatting.
- * @returns The normalized rung prices, ascending.
- */
-export function normalizeHyperLiquidScalePriceLadder(params: {
-  minPrice: number;
-  maxPrice: number;
-  count: number;
-  szDecimals: number;
-}): string[] {
-  const { szDecimals, ...ladderParams } = params;
-
-  return computeScalePriceLadder(ladderParams).map((price) =>
-    formatHyperLiquidPrice({ price, szDecimals }),
-  );
-}
-
-/**
  * Split a scale placement's total size across its ladder rungs.
  *
  * The split is done in whole units of the asset's size grid rather than in

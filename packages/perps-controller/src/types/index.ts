@@ -1570,6 +1570,16 @@ export type GetOrderCapabilitiesParams = {
   providerId?: PerpsProviderType;
 };
 
+/** Inputs for a provider-normalized Scale price ladder preview. */
+export type GetScalePriceLadderParams = {
+  symbol: string;
+  minPrice: number;
+  maxPrice: number;
+  count: number;
+  /** Optional explicit route; omitted uses the active/default provider. */
+  providerId?: PerpsProviderType;
+};
+
 /** Provider-owned strategy capabilities for the selected market route. */
 export type DirectProviderOrderCapabilitiesUnavailableReason =
   | 'provider_unavailable'
@@ -1602,6 +1612,18 @@ export type DirectProviderOrderCapabilities =
 
 export type PerpsOrderCapabilities =
   | ReadyPerpsOrderCapabilities
+  | Readonly<{
+      status: 'unavailable';
+      providerId?: PerpsProviderType;
+      reason: OrderCapabilitiesUnavailableReason;
+    }>;
+
+export type PerpsScalePriceLadder =
+  | Readonly<{
+      status: 'ready';
+      providerId: PerpsProviderType;
+      prices: readonly string[];
+    }>
   | Readonly<{
       status: 'unavailable';
       providerId?: PerpsProviderType;
@@ -1825,6 +1847,11 @@ export type PerpsProvider = {
   getOrderCapabilities?(
     params: GetOrderCapabilitiesParams,
   ): Promise<PerpsOrderCapabilities>;
+
+  /** Normalize a Scale ladder using the selected provider's venue rules. */
+  getScalePriceLadder?(
+    params: GetScalePriceLadderParams,
+  ): Promise<PerpsScalePriceLadder>;
 
   // Unified asset and route information
   getDepositRoutes(params?: GetSupportedPathsParams): AssetRoute[]; // Assets and their deposit routes

@@ -1391,6 +1391,107 @@ describe('PerpsController', () => {
     });
   });
 
+  describe('Scale price ladder', () => {
+    const params = {
+      symbol: 'BTC',
+      minPrice: 100,
+      maxPrice: 200,
+      count: 3,
+    };
+
+    it('uses the active provider when providerId is omitted', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.getScalePriceLadder(params),
+      ).resolves.toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        prices: ['100', '150', '200'],
+      });
+      expect(mockProvider.getScalePriceLadder).toHaveBeenCalledWith(params);
+    });
+
+    it('routes an explicit provider through the active aggregator', async () => {
+      const myxProvider: PerpsProvider = {
+        ...createMockHyperLiquidProvider(),
+        protocolId: 'myx',
+        getScalePriceLadder: jest.fn().mockResolvedValue({
+          status: 'ready',
+          providerId: 'myx',
+          prices: ['100', '125', '150'],
+        }),
+      };
+      const aggregatedProvider = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', mockProvider],
+          ['myx', myxProvider],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+      markControllerAsInitialized();
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+      controller.testSetProviders(
+        new Map([
+          ['hyperliquid', mockProvider],
+          ['myx', myxProvider],
+        ]),
+      );
+      controller.testSetActiveProvider(aggregatedProvider);
+
+      await expect(
+        controller.getScalePriceLadder({ ...params, providerId: 'myx' }),
+      ).resolves.toStrictEqual({
+        status: 'ready',
+        providerId: 'myx',
+        prices: ['100', '125', '150'],
+      });
+      expect(myxProvider.getScalePriceLadder).toHaveBeenCalledWith({
+        ...params,
+        providerId: 'myx',
+      });
+    });
+
+    it('reports an unavailable active provider', async () => {
+      await expect(
+        controller.getScalePriceLadder(params),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        reason: 'provider_unavailable',
+      });
+    });
+
+    it('reports a provider that does not implement ladder normalization', async () => {
+      mockProvider.getScalePriceLadder = undefined;
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.getScalePriceLadder(params),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'not_implemented',
+      });
+    });
+
+    it('preserves provider validation errors', async () => {
+      mockProvider.getScalePriceLadder.mockRejectedValueOnce(
+        new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID),
+      );
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(controller.getScalePriceLadder(params)).rejects.toThrow(
+        PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID,
+      );
+    });
+  });
+
   describe('fee calculations', () => {
     it('approves the subscription builder outside order submission', async () => {
       mockProvider.approveSubscriptionBuilderFee = jest

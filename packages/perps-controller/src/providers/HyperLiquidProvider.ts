@@ -99,6 +99,7 @@ import type {
   GetHistoricalPortfolioParams,
   GetMarketsParams,
   GetOrderCapabilitiesParams,
+  GetScalePriceLadderParams,
   GetOrderFillsParams,
   GetOrdersParams,
   GetOrFetchFillsParams,
@@ -109,6 +110,7 @@ import type {
   InitializeResult,
   PerpsPlatformDependencies,
   PerpsProvider,
+  PerpsScalePriceLadder,
   LiquidationPriceParams,
   LiveDataConfig,
   MaintenanceMarginParams,
@@ -210,10 +212,10 @@ import {
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
   computeChaseQuotePrice,
+  computeScalePriceLadder,
   floorToSizeDecimals,
   formatPartialTpslSize,
   getPriceTick,
-  normalizeHyperLiquidScalePriceLadder,
   splitScaleSizes,
   validateOrderPrecision,
 } from '../utils/orderCalculations.js';
@@ -1245,6 +1247,18 @@ const adaptTwapOrderFill = (
   transactionHash: entry.fill.hash,
 });
 
+const normalizeHyperLiquidScalePriceLadder = (params: {
+  minPrice: number;
+  maxPrice: number;
+  count: number;
+  szDecimals: number;
+}): string[] => {
+  const { szDecimals, ...ladderParams } = params;
+  return computeScalePriceLadder(ladderParams).map((price) =>
+    formatHyperLiquidPrice({ price, szDecimals }),
+  );
+};
+
 /**
  * HyperLiquid provider implementation
  *
@@ -1662,6 +1676,55 @@ export class HyperLiquidProvider implements PerpsProvider {
         reason: 'provider_unavailable',
       };
     }
+  }
+
+  async getScalePriceLadder(
+    params: GetScalePriceLadderParams,
+  ): Promise<PerpsScalePriceLadder> {
+    if (params.providerId && params.providerId !== this.protocolId) {
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'provider_not_routable',
+      };
+    }
+
+    const capabilities = await this.getOrderCapabilities({
+      symbol: params.symbol,
+    });
+    if (capabilities.status === 'unavailable') {
+      return capabilities;
+    }
+    if (!capabilities.supportedStrategies.includes('scale')) {
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'strategy_market_unsupported',
+      };
+    }
+
+    const { dex } = parseAssetName(params.symbol);
+    const markets = await this.#getFreshOrderCapabilityMarkets(dex);
+    const asset = markets.find(({ name }) => name === params.symbol);
+    if (!asset) {
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'market_not_found',
+      };
+    }
+
+    const prices = normalizeHyperLiquidScalePriceLadder({
+      minPrice: params.minPrice,
+      maxPrice: params.maxPrice,
+      count: params.count,
+      szDecimals: asset.szDecimals,
+    });
+    if (new Set(prices).size !== prices.length) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+    }
+
+    return { status: 'ready', providerId: this.protocolId, prices };
   }
 
   /**

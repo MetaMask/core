@@ -7198,6 +7198,63 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
   });
 
+  describe('Scale price ladder preview', () => {
+    const params = {
+      symbol: 'BTC',
+      minPrice: 1234.567,
+      maxPrice: 1234.767,
+      count: 3,
+    };
+
+    it('normalizes every rung with provider-owned market precision', async () => {
+      const { infoClient } = useStrategyClients();
+
+      expect(await provider.getScalePriceLadder(params)).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        prices: ['1234.6', '1234.7', '1234.8'],
+      });
+      expect(infoClient.meta).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects rungs that collapse to duplicate provider prices', async () => {
+      useStrategyClients();
+
+      await expect(
+        provider.getScalePriceLadder({
+          ...params,
+          minPrice: 100.123456,
+          maxPrice: 100.123457,
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+    });
+
+    it('reports a route owned by another provider', async () => {
+      const { infoClient } = useStrategyClients();
+
+      expect(
+        await provider.getScalePriceLadder({ ...params, providerId: 'myx' }),
+      ).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_not_routable',
+      });
+      expect(infoClient.meta).not.toHaveBeenCalled();
+    });
+
+    it('reports an unknown market', async () => {
+      useStrategyClients();
+
+      expect(
+        await provider.getScalePriceLadder({ ...params, symbol: 'DOGE' }),
+      ).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'market_not_found',
+      });
+    });
+  });
+
   describe('Network-scoped fee cache', () => {
     const mainnetFees = {
       userCrossRate: '0.00030',
