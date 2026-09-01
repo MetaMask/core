@@ -10,8 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional event fragments to `AnalyticsController` (disabled by default via `isEventFragmentsEnabled`), letting clients accumulate analytics properties across a user journey and optionally emit an initial, success, or failure event for it ([#10055](https://github.com/MetaMask/core/pull/10055))
-  - Fragments apply the same consent gate as `trackEvent` to accumulation as well as emission, so a fragment only holds data while the user is opted in, or while they are undecided and the pre-consent queue is enabled
-  - `eventFragments` is persisted but excluded from state logs, debug snapshots, and UI, matching `eventQueue` and `preConsentEventQueue`
 
 ## [2.0.0]
 
