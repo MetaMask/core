@@ -164,8 +164,8 @@ export type KycVendorSigning = {
 };
 
 /**
- * A legal document in the session-scoped idOS / KYC-provider catalog
- * (`GET`/`POST /sessions/{sessionId}/disclaimers`).
+ * A legal document in the idOS / KYC-provider catalog
+ * (`GET /disclaimers`, or `GET`/`POST /sessions/{sessionId}/disclaimers`).
  */
 export type KycConsentDocument = {
   /** Stable identifier of the legal document. */
@@ -176,7 +176,10 @@ export type KycConsentDocument = {
   title: string;
   /** URL the document body is hosted at. */
   url: string;
-  /** Whether this session already consented to this document version. */
+  /**
+   * Whether the document version has already been consented to (session-scoped
+   * fetches). For the global catalog this is typically `false`.
+   */
   consented: boolean;
 };
 
@@ -190,14 +193,21 @@ export type KycConsentRecord = {
 };
 
 /**
- * Session-scoped disclaimer catalog returned by
- * `GET`/`POST /sessions/{sessionId}/disclaimers`.
+ * idOS / KYC-provider disclaimer catalog returned by
+ * `GET /disclaimers?country=` (no session — no credential-reuse consent state).
  */
-export type KycSessionDisclaimers = {
+export type KycDisclaimersCatalog = {
   /** idOS legal documents. */
   idOS: KycConsentDocument[];
   /** KYC provider (SumSub) legal documents. */
   kycProvider: KycConsentDocument[];
+};
+
+/**
+ * Session-scoped disclaimer catalog returned by
+ * `GET`/`POST /sessions/{sessionId}/disclaimers`.
+ */
+export type KycSessionDisclaimers = KycDisclaimersCatalog & {
   /** Whether the user consented to reuse existing idOS credentials. */
   credentialReusabilityConsentGiven: boolean;
 };

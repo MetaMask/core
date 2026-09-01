@@ -2,6 +2,8 @@ import {
   StatusTypes,
   FeeType,
   ActionTypes,
+  FeatureId,
+  getQuotesReceivedProperties,
   MetaMetricsSwapsEventSource,
 } from '@metamask/bridge-controller';
 import {
@@ -879,7 +881,7 @@ describe('metrics utils', () => {
       const result = getRequestMetadataFromHistory(mockHistoryItem);
       expect(result).toStrictEqual({
         slippage_limit: 0.5,
-        custom_slippage: true,
+        custom_slippage: false,
         security_warnings: [],
         usd_amount_source: 2000,
         swap_type: 'crosschain',
@@ -973,6 +975,52 @@ describe('metrics utils', () => {
       };
       const result = getRequestMetadataFromHistory(defaultSlippageHistoryItem);
       expect(result.slippage_limit).toBe(0.1);
+      expect(result.custom_slippage).toBe(false);
+    });
+
+    it('should use the persisted custom slippage value', () => {
+      expect(
+        getRequestMetadataFromHistory({
+          ...mockHistoryItem,
+          customSlippage: true,
+        }).custom_slippage,
+      ).toBe(true);
+
+      expect(
+        getRequestMetadataFromHistory({
+          ...mockHistoryItem,
+          customSlippage: false,
+        }).custom_slippage,
+      ).toBe(false);
+    });
+
+    it('should preserve an explicit Auto slippage override', () => {
+      const result = getRequestMetadataFromHistory({
+        ...mockHistoryItem,
+        slippagePercentage: 0,
+        customSlippage: true,
+      });
+
+      expect(result.slippage_limit).toBe(0);
+      expect(result.custom_slippage).toBe(true);
+    });
+
+    it('should preserve value-based slippage fallback for batch sell history', () => {
+      const result = getRequestMetadataFromHistory({
+        ...mockHistoryItem,
+        featureId: FeatureId.BATCH_SELL,
+        slippagePercentage: 0,
+      });
+
+      expect(result.custom_slippage).toBe(true);
+    });
+
+    it('should preserve legacy slippage inference for Quick Buy history', () => {
+      const result = getRequestMetadataFromHistory({
+        ...mockHistoryItem,
+        featureId: FeatureId.QUICK_BUY_FOLLOW_TRADING,
+      });
+
       expect(result.custom_slippage).toBe(true);
     });
 
@@ -1038,6 +1086,34 @@ describe('metrics utils', () => {
         }),
       );
     });
+
+    it('should use the explicit slippage context when provided', () => {
+      const result = getPreConfirmationPropertiesFromQuote(
+        {
+          quote: mockHistoryItem.quote,
+          estimatedProcessingTimeInSeconds: 900,
+          adjustedReturn: { usd: '1980' },
+          sentAmount: { usd: '2000' },
+          gasFee: { effective: { usd: '2.54739' } },
+        } as never,
+        false,
+        null,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        {
+          ...getQuotesReceivedProperties(null),
+          custom_slippage: true,
+          slippage_limit: 3.5,
+        } as never,
+      );
+
+      expect(result.custom_slippage).toBe(true);
+      expect(result.slippage_limit).toBe(3.5);
+    });
   });
 
   describe('getEVMSwapTxPropertiesFromTransactionMeta', () => {
@@ -1079,6 +1155,7 @@ describe('metrics utils', () => {
         account_hardware_type: null,
         swap_type: MetricsSwapType.SINGLE,
         security_warnings: [],
+        slippage_limit: 0,
         price_impact: 0,
         usd_quoted_gas: 0,
         gas_included: false,

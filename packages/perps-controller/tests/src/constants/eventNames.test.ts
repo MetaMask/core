@@ -321,6 +321,35 @@ describe('PERPS_EVENT_VALUE.INTERACTION_TYPE extensions', () => {
   });
 });
 
+describe('Scale analytics constants', () => {
+  it('exports Scale property keys', () => {
+    expect(PERPS_EVENT_PROPERTY.SCALE_ORDER_COUNT).toBe('scale_order_count');
+    expect(PERPS_EVENT_PROPERTY.SCALE_RANGE_PCT).toBe('scale_range_pct');
+    expect(PERPS_EVENT_PROPERTY.SCALE_SKEW).toBe('scale_skew');
+    expect(PERPS_EVENT_PROPERTY.REDUCE_ONLY).toBe('reduce_only');
+  });
+
+  it('exports Scale interaction values', () => {
+    expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.SCALE_CONFIG_CHANGED).toBe(
+      'scale_config_changed',
+    );
+    expect(
+      PERPS_EVENT_VALUE.INTERACTION_TYPE.SCALE_VALIDATION_ERROR_SHOWN,
+    ).toBe('scale_validation_error_shown');
+  });
+
+  it('exports Scale setting values', () => {
+    expect(PERPS_EVENT_VALUE.SETTING_TYPE.SCALE_START_PRICE).toBe(
+      'start_price',
+    );
+    expect(PERPS_EVENT_VALUE.SETTING_TYPE.SCALE_END_PRICE).toBe('end_price');
+    expect(PERPS_EVENT_VALUE.SETTING_TYPE.SCALE_TOTAL_ORDERS).toBe(
+      'total_orders',
+    );
+    expect(PERPS_EVENT_VALUE.SETTING_TYPE.SCALE_SIZE_SKEW).toBe('size_skew');
+  });
+});
+
 describe('PERPS_EVENT_VALUE.BUTTON_CLICKED extensions', () => {
   it('exports WATCHLIST', () => {
     expect(PERPS_EVENT_VALUE.BUTTON_CLICKED.WATCHLIST).toBe('watchlist');
