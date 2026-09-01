@@ -1322,7 +1322,7 @@ export class AssetsController extends BaseController<
    */
   #updateActive(): void {
     const shouldRun =
-      this.#uiOpen && this.#keyringUnlocked;
+      this.#uiOpen && this.#keyringUnlocked && this.#accountTreeInitialized;
     if (shouldRun) {
       this.#start();
     } else {
@@ -1703,8 +1703,7 @@ export class AssetsController extends BaseController<
         assetsForPriceUpdate: options?.assetsForPriceUpdate,
       });
 
-      // Fast pipeline: accountsApi + stakedBalance → graduation → detection →
-      // rpc fallback → token + price.
+      // Fast pipeline: accountsApi + stakedBalance → detection → token + price.
       // Snap and RPC are excluded here due to their latency (snap triggers account
       // creation, RPC is slow on many chains). Results are committed to state
       // immediately so the UI can display balances without waiting for them.
@@ -1722,10 +1721,8 @@ export class AssetsController extends BaseController<
             // AccountsApi/Websocket balances. RPC intentionally carries
             // custom assets and must never trigger graduation.
             this.#customAssetGraduationMiddleware,
-            // Detection runs before the RPC fallback so the fallback can see
-            // which tracked assets the Accounts API left empty.
-            this.#detectionMiddleware,
             this.#rpcFallbackMiddleware,
+            this.#detectionMiddleware,
             createParallelMiddleware([
               this.#tokenDataSource,
               this.#priceDataSource,

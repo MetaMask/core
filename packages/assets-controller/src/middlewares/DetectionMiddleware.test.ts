@@ -55,15 +55,9 @@ function createDataRequest(
   } as DataRequest;
 }
 
-type StateOverrides = {
-  assetsBalance?: Record<string, Record<string, { amount: string }>>;
-  customAssets?: Record<string, Caip19AssetId[]>;
-};
-
 function createAssetsState(
   metadataAssets: Caip19AssetId[] = [],
   assetsPrice: Caip19AssetId[] = [],
-  stateOverrides: StateOverrides = {},
 ): AssetsControllerStateInternal {
   const assetsInfo: Record<Caip19AssetId, { name: string }> = {};
   for (const assetId of metadataAssets) {
@@ -75,8 +69,8 @@ function createAssetsState(
   }
   return {
     assetsInfo,
-    assetsBalance: stateOverrides.assetsBalance ?? {},
-    customAssets: stateOverrides.customAssets ?? {},
+    assetsBalance: {},
+    customAssets: {},
     assetsPrice: priceState,
   } as AssetsControllerStateInternal;
 }
@@ -85,16 +79,13 @@ function createMiddlewareContext(
   overrides?: Partial<Context>,
   stateMetadata: Caip19AssetId[] = [],
   stateAssetsPrice: Caip19AssetId[] = [],
-  stateOverrides: StateOverrides = {},
 ): Context {
   return {
     request: createDataRequest(),
     response: {},
     getAssetsState: jest
       .fn()
-      .mockReturnValue(
-        createAssetsState(stateMetadata, stateAssetsPrice, stateOverrides),
-      ),
+      .mockReturnValue(createAssetsState(stateMetadata, stateAssetsPrice)),
     ...overrides,
   };
 }
@@ -466,317 +457,6 @@ describe('DetectionMiddleware', () => {
 
     expect(context.response.detectedAssets).toStrictEqual({
       [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1],
-    });
-  });
-
-  it('includes an account custom asset that is not yet in state alongside its balances', async () => {
-    const { middleware } = setupController();
-    const context = createMiddlewareContext(
-      {
-        response: {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_1]: { amount: '1000' } },
-          },
-        },
-      },
-      [],
-      [],
-      { customAssets: { [MOCK_ACCOUNT_ID]: [MOCK_ASSET_2] } },
-    );
-    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
-
-    await middleware.assetsMiddleware(context, next);
-
-    expect(context.response.detectedAssets).toStrictEqual({
-      [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1, MOCK_ASSET_2],
-    });
-  });
-
-  it('includes custom assets of accounts absent from the balance response', async () => {
-    const { middleware } = setupController();
-    const context = createMiddlewareContext(
-      {
-        response: { assetsBalance: {} },
-      },
-      [],
-      [],
-      { customAssets: { [MOCK_ACCOUNT_ID]: [MOCK_ASSET_2] } },
-    );
-    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
-
-    await middleware.assetsMiddleware(context, next);
-
-    expect(context.response.detectedAssets).toStrictEqual({
-      [MOCK_ACCOUNT_ID]: [MOCK_ASSET_2],
-    });
-  });
-
-  describe('assets tracked in state that the response left empty', () => {
-    it('includes a tracked asset the response omitted entirely', async () => {
-      const { middleware } = setupController();
-      const context = createMiddlewareContext(
-        {
-          response: {
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: { [MOCK_NATIVE_ASSET]: { amount: '2' } },
-            },
-          },
-        },
-        [MOCK_NATIVE_ASSET, MOCK_ASSET_1],
-        [MOCK_NATIVE_ASSET, MOCK_ASSET_1],
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_NATIVE_ASSET]: { amount: '2' },
-              [MOCK_ASSET_1]: { amount: '1000' },
-            },
-          },
-        },
-      );
-      const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
-
-      await middleware.assetsMiddleware(context, next);
-
-      expect(context.response.detectedAssets).toStrictEqual({
-        [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1],
-      });
-    });
-
-    it('includes a tracked asset the response reports as zero', async () => {
-      const { middleware } = setupController();
-      const context = createMiddlewareContext(
-        {
-          response: {
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_NATIVE_ASSET]: { amount: '2' },
-                [MOCK_ASSET_1]: { amount: '0' },
-              },
-            },
-          },
-        },
-        [MOCK_NATIVE_ASSET, MOCK_ASSET_1],
-        [MOCK_NATIVE_ASSET, MOCK_ASSET_1],
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_1]: { amount: '1000' } },
-          },
-        },
-      );
-      const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
-
-      await middleware.assetsMiddleware(context, next);
-
-      expect(context.response.detectedAssets).toStrictEqual({
-        [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1],
-      });
-    });
-
-    it('includes a custom asset already tracked in state balances', async () => {
-      const { middleware } = setupController();
-      const context = createMiddlewareContext(
-        {
-          response: {
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: { [MOCK_NATIVE_ASSET]: { amount: '2' } },
-            },
-          },
-        },
-        [MOCK_NATIVE_ASSET, MOCK_ASSET_2],
-        [MOCK_NATIVE_ASSET, MOCK_ASSET_2],
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_NATIVE_ASSET]: { amount: '2' },
-              [MOCK_ASSET_2]: { amount: '50' },
-            },
-          },
-          customAssets: { [MOCK_ACCOUNT_ID]: [MOCK_ASSET_2] },
-        },
-      );
-      const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
-
-      await middleware.assetsMiddleware(context, next);
-
-      expect(context.response.detectedAssets).toStrictEqual({
-        [MOCK_ACCOUNT_ID]: [MOCK_ASSET_2],
-      });
-    });
-
-    it('does not include a tracked asset with a positive amount in the response', async () => {
-      const { middleware } = setupController();
-      const context = createMiddlewareContext(
-        {
-          response: {
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_1]: { amount: '7' } },
-            },
-          },
-        },
-        [MOCK_ASSET_1],
-        [MOCK_ASSET_1],
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_1]: { amount: '1000' } },
-          },
-        },
-      );
-      const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
-
-      await middleware.assetsMiddleware(context, next);
-
-      expect(context.response.detectedAssets).toBeUndefined();
-    });
-
-    it('does not include tracked assets on chains outside the request', async () => {
-      const { middleware } = setupController();
-      const otherChainAsset =
-        'eip155:137/erc20:0x2791bca1f2de4661ed88a30c99a7a9449aa84174' as Caip19AssetId;
-      const context = createMiddlewareContext(
-        {
-          request: createDataRequest({ chainIds: ['eip155:1'] }),
-          response: {
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: { [MOCK_NATIVE_ASSET]: { amount: '2' } },
-            },
-          },
-        },
-        [MOCK_NATIVE_ASSET, otherChainAsset],
-        [MOCK_NATIVE_ASSET, otherChainAsset],
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_NATIVE_ASSET]: { amount: '2' },
-              [otherChainAsset]: { amount: '1000' },
-            },
-          },
-        },
-      );
-      const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
-
-      await middleware.assetsMiddleware(context, next);
-
-      expect(context.response.detectedAssets).toBeUndefined();
-    });
-
-    it('does not include tracked assets on chains the account does not support', async () => {
-      const { middleware } = setupController();
-      const request = createDataRequest({ chainIds: ['eip155:1'] });
-      const context = createMiddlewareContext(
-        {
-          // A non-EVM account can hold a leftover EVM balance entry in state,
-          // but RpcDataSource skips chains outside the account's scopes.
-          request: {
-            ...request,
-            accountsWithSupportedChains: [
-              { account: createMockAccount(), supportedChains: [] },
-            ],
-          } as DataRequest,
-          response: { assetsBalance: {} },
-        },
-        [MOCK_ASSET_1],
-        [MOCK_ASSET_1],
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_1]: { amount: '1000' } },
-          },
-        },
-      );
-      const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
-
-      await middleware.assetsMiddleware(context, next);
-
-      expect(context.response.detectedAssets).toBeUndefined();
-    });
-
-    it('does not include non-EVM tracked assets', async () => {
-      const { middleware } = setupController();
-      const solanaAsset =
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWd' as Caip19AssetId;
-      const context = createMiddlewareContext(
-        {
-          request: createDataRequest({
-            chainIds: ['eip155:1', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
-          }),
-          response: {
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: { [MOCK_NATIVE_ASSET]: { amount: '2' } },
-            },
-          },
-        },
-        [MOCK_NATIVE_ASSET, solanaAsset],
-        [MOCK_NATIVE_ASSET, solanaAsset],
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_NATIVE_ASSET]: { amount: '2' },
-              [solanaAsset]: { amount: '1000' },
-            },
-          },
-        },
-      );
-      const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
-
-      await middleware.assetsMiddleware(context, next);
-
-      expect(context.response.detectedAssets).toBeUndefined();
-    });
-
-    it('does not include staking contract assets', async () => {
-      const { middleware } = setupController();
-      const stakingAsset =
-        'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df' as Caip19AssetId;
-      const context = createMiddlewareContext(
-        {
-          response: {
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: { [MOCK_NATIVE_ASSET]: { amount: '2' } },
-            },
-          },
-        },
-        [MOCK_NATIVE_ASSET, stakingAsset],
-        [MOCK_NATIVE_ASSET, stakingAsset],
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_NATIVE_ASSET]: { amount: '2' },
-              [stakingAsset]: { amount: '3' },
-            },
-          },
-        },
-      );
-      const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
-
-      await middleware.assetsMiddleware(context, next);
-
-      expect(context.response.detectedAssets).toBeUndefined();
-    });
-
-    it('includes every tracked asset when the response has no entry for the account', async () => {
-      const { middleware } = setupController();
-      const context = createMiddlewareContext(
-        {
-          response: { assetsBalance: {} },
-        },
-        [MOCK_NATIVE_ASSET, MOCK_ASSET_1, MOCK_ASSET_2],
-        [MOCK_NATIVE_ASSET, MOCK_ASSET_1, MOCK_ASSET_2],
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_NATIVE_ASSET]: { amount: '2' },
-              [MOCK_ASSET_1]: { amount: '1000' },
-              [MOCK_ASSET_2]: { amount: '2000' },
-            },
-          },
-        },
-      );
-      const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
-
-      await middleware.assetsMiddleware(context, next);
-
-      expect(context.response.detectedAssets).toStrictEqual({
-        [MOCK_ACCOUNT_ID]: [MOCK_NATIVE_ASSET, MOCK_ASSET_1, MOCK_ASSET_2],
-      });
     });
   });
 });

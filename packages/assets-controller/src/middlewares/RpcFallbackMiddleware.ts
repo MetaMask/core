@@ -1,6 +1,10 @@
+import { KnownCaipNamespace } from '@metamask/utils';
+
+import { isStakingContractAssetId } from '../data-sources/evm-rpc-services/index.js';
 import { projectLogger, createModuleLogger } from '../logger.js';
 import { forDataTypes } from '../types.js';
 import type {
+  AssetBalance,
   AssetsDataSource,
   Caip19AssetId,
   ChainId,
@@ -8,7 +12,6 @@ import type {
   DataResponse,
   Middleware,
 } from '../types.js';
-import { isUpstreamBalanceEmpty } from '../utils/index.js';
 import { mergeDataResponses } from './ParallelMiddleware.js';
 
 const CONTROLLER_NAME = 'RpcFallbackMiddleware';
@@ -27,15 +30,16 @@ export type RpcFallbackMiddlewareOptions = {
  * 1. Chains present in `response.errors` (network error, unprocessedNetworks,
  *    timeout, …). Successful RPC results are merged into the response and
  *    their entries are cleared from `response.errors`.
- * 2. Assets in `response.detectedAssets` that the upstream response left empty.
- *    `DetectionMiddleware` lists assets tracked in state that the Accounts API
- *    omitted (or reported as an untrusted `0`), which would otherwise keep a
- *    stale amount in state. They are passed to RPC as `customAssets` so the
- *    balance fetcher includes them in its multicall.
+ * 2. EVM assets tracked in state (`state.assetsBalance` or
+ *    `state.customAssets`) that this balance response left empty. The Accounts
+ *    API omits tokens it does not index, and a returned `0` is
+ *    indistinguishable from "not indexed", so the `merge` state update would
+ *    otherwise keep a stale amount forever. They are passed to RPC as
+ *    `customAssets` so the balance fetcher includes them in its multicall.
  *
- * Place this after `DetectionMiddleware` in the fast pipeline so
- * `detectedAssets` is populated, and after `CustomAssetGraduationMiddleware` so
- * the custom assets RPC carries never trigger graduation.
+ * Place this immediately after `createParallelBalanceMiddleware` in the fast
+ * pipeline, after `CustomAssetGraduationMiddleware` so the custom assets RPC
+ * carries never trigger graduation.
  */
 export class RpcFallbackMiddleware {
   readonly name = CONTROLLER_NAME;
@@ -55,15 +59,15 @@ export class RpcFallbackMiddleware {
       const erroredChains = new Set<ChainId>(
         Object.keys(ctx.response.errors ?? {}) as ChainId[],
       );
-      const emptyAssets = collectEmptyDetectedAssets(ctx);
+      const staleAssets = collectStaleTrackedAssets(ctx);
 
       const chainsToFetch = [
         ...new Set([
           ...ctx.request.chainIds.filter((id) => erroredChains.has(id)),
-          // DetectionMiddleware already restricted these to requested chains.
-          // Their chain may not be errored: the Accounts API can answer for a
-          // chain while omitting a token it does not index.
-          ...emptyAssets.map((assetId) => assetId.split('/')[0] as ChainId),
+          // Already restricted to requested chains. Their chain may not be
+          // errored: the Accounts API can answer for a chain while omitting a
+          // token it does not index.
+          ...staleAssets.map((assetId) => assetId.split('/')[0] as ChainId),
         ]),
       ];
 
@@ -73,7 +77,7 @@ export class RpcFallbackMiddleware {
 
       log('Re-reading balances on RPC', {
         erroredChains: [...erroredChains],
-        emptyAssets,
+        staleAssets,
         chains: chainsToFetch,
       });
 
@@ -81,7 +85,7 @@ export class RpcFallbackMiddleware {
         ...ctx.request,
         chainIds: chainsToFetch,
         customAssets: [
-          ...new Set([...(ctx.request.customAssets ?? []), ...emptyAssets]),
+          ...new Set([...(ctx.request.customAssets ?? []), ...staleAssets]),
         ],
       };
 
@@ -128,28 +132,89 @@ export class RpcFallbackMiddleware {
 }
 
 /**
- * Detected assets that still have no positive balance in the response.
+ * EVM assets tracked in state that this balance response left empty and RPC
+ * should re-read.
  *
- * Brand-new assets that arrived with a real amount are skipped — only the ones
- * the upstream source left empty need an RPC read.
+ * Limited to chains both requested and supported by the owning account:
+ * RpcDataSource fetches per account and skips chains outside its supported
+ * set, so anything else would be queued and then silently dropped.
  *
  * @param ctx - Pipeline context.
  * @returns Asset IDs to hand to the RPC data source.
  */
-function collectEmptyDetectedAssets(ctx: Context): Caip19AssetId[] {
-  const { detectedAssets, assetsBalance } = ctx.response;
-  if (!detectedAssets) {
-    return [];
-  }
+function collectStaleTrackedAssets(ctx: Context): Caip19AssetId[] {
+  const { assetsBalance: stateAssetsBalance, customAssets: stateCustomAssets } =
+    ctx.getAssetsState();
 
-  const emptyAssets = new Set<Caip19AssetId>();
-  for (const [accountId, assetIds] of Object.entries(detectedAssets)) {
-    for (const assetId of assetIds) {
-      if (isUpstreamBalanceEmpty(assetsBalance?.[accountId], assetId)) {
-        emptyAssets.add(assetId);
+  const staleAssets = new Set<Caip19AssetId>();
+
+  for (const {
+    account,
+    supportedChains,
+  } of ctx.request.accountsWithSupportedChains) {
+    const accountId = account.id;
+    const trackedAssetIds = new Set<Caip19AssetId>([
+      ...(Object.keys(stateAssetsBalance[accountId] ?? {}) as Caip19AssetId[]),
+      ...(stateCustomAssets?.[accountId] ?? []),
+    ]);
+
+    const chainsForAccount = supportedChains.filter((chainId) =>
+      ctx.request.chainIds.includes(chainId),
+    );
+
+    for (const assetId of trackedAssetIds) {
+      if (
+        isEvmAssetOnChains(assetId, chainsForAccount) &&
+        // Staked vault balances belong to StakedBalanceDataSource; an RPC
+        // ERC-20 read of the share token would clobber them.
+        !isStakingContractAssetId(assetId) &&
+        isBalanceEmpty(ctx.response.assetsBalance?.[accountId], assetId)
+      ) {
+        staleAssets.add(assetId);
       }
     }
   }
 
-  return [...emptyAssets];
+  return [...staleAssets];
+}
+
+/**
+ * Whether a balance response carries no positive amount for an asset. A
+ * returned `0` cannot be distinguished from "not indexed", so both count as
+ * empty. Asset IDs are matched case-insensitively: state keys ERC-20 assets by
+ * checksummed address, while some data sources return them lower-cased.
+ *
+ * @param balances - Balance map for a single account from the response.
+ * @param assetId - Asset ID to check.
+ * @returns True when the response holds no positive amount for the asset.
+ */
+function isBalanceEmpty(
+  balances: Record<string, AssetBalance> | undefined,
+  assetId: Caip19AssetId,
+): boolean {
+  let amount = balances?.[assetId]?.amount;
+  if (amount === undefined && balances) {
+    const lowerCasedAssetId = assetId.toLowerCase();
+    amount = Object.entries(balances).find(
+      ([id]) => id.toLowerCase() === lowerCasedAssetId,
+    )?.[1]?.amount;
+  }
+  return !(Number(amount) > 0);
+}
+
+/**
+ * Whether an asset is an EVM asset on one of the given chains.
+ *
+ * @param assetId - CAIP-19 asset ID.
+ * @param chainIds - Chains to match against.
+ * @returns True for EVM assets whose chain is in `chainIds`.
+ */
+function isEvmAssetOnChains(
+  assetId: Caip19AssetId,
+  chainIds: ChainId[],
+): boolean {
+  if (!assetId.startsWith(`${KnownCaipNamespace.Eip155}:`)) {
+    return false;
+  }
+  return chainIds.includes(assetId.split('/')[0] as ChainId);
 }
