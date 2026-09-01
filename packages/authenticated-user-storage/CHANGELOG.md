@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Make `myx` optional on `PerpsWatchlistMarkets` and its validation schema ([#10037](https://github.com/MetaMask/core/pull/10037))
+- Make `myx` optional on `PerpsWatchlistMarkets` and its validation schema ([#10038](https://github.com/MetaMask/core/pull/10038))
   - MYX is no longer a supported perps venue, so nothing writes a `myx` watchlist. The key stays declared (and `@deprecated`) rather than removed so preference blobs already stored with a `myx` watchlist keep validating.
 
 ## [3.0.2]
