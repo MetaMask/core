@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
 
+### Fixed
+
+- Clean up spam assets on keyring unlock, gated behind the `assetsUnifyState` remote feature flag's `useUnlockCleanup` property (disabled unless the flag explicitly enables it) ([#9973](https://github.com/MetaMask/core/pull/9973))
+- Skip transaction-driven force `getAssets` refreshes on chains where AccountActivity already provides live WebSocket balance updates, avoiding a race with the Accounts API that could overwrite correct balances ([#10030](https://github.com/MetaMask/core/pull/10030))
+
 ## [14.0.2]
 
 ### Changed

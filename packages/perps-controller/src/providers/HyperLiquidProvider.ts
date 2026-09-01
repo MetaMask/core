@@ -5,6 +5,7 @@ import type {
   InfoClient,
   UserAbstractionResponse,
 } from '@nktkas/hyperliquid';
+import { HyperliquidError } from '@nktkas/hyperliquid';
 import { BigNumber } from 'bignumber.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -111,12 +112,15 @@ import type {
   LiquidationPriceParams,
   LiveDataConfig,
   MaintenanceMarginParams,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
   MarginResult,
   MarketInfo,
   Order,
   OrderFill,
   OrderParams,
   OrderResult,
+  ScaleOrderChild,
   PerpsMarketData,
   DirectProviderOrderCapabilities,
   Position,
@@ -178,6 +182,10 @@ import {
   HYPERLIQUID_SCALE_CLOID_MARKER,
   parseAssetName,
 } from '../utils/hyperLiquidAdapter.js';
+import {
+  previewHyperLiquidIsolatedPositionModify,
+  resolveHyperLiquidMarginTiers,
+} from '../utils/hyperLiquidPositionPreview.js';
 import {
   createErrorResult,
   getMaxOrderValue,
@@ -244,6 +252,176 @@ const HISTORICAL_ORDER_TYPE_BY_DETAILED_TYPE = {
  */
 const isStatusObject = (status: unknown): status is Record<string, unknown> =>
   typeof status === 'object' && status !== null;
+
+type ScaleBulkOrderResponse = {
+  status: 'ok';
+  response: {
+    type: 'order';
+    data: { statuses: unknown[] };
+  };
+};
+
+type ScaleBulkOrderStatus =
+  | { kind: 'accepted'; state: 'resting'; orderId: string }
+  | {
+      kind: 'accepted';
+      state: 'filled';
+      orderId: string;
+      averagePrice: string;
+      filledSize: string;
+    }
+  | { kind: 'accepted'; state: 'waitingForFill' | 'waitingForTrigger' }
+  | { kind: 'error'; error: string };
+
+/**
+ * Parse every status the HyperLiquid bulk order API can return for a Scale
+ * rung. Unknown or malformed statuses are not exchange rejections.
+ *
+ * @param status - One status from a bulk order response.
+ * @returns The classified status, or undefined when it is malformed.
+ */
+const parseScaleBulkOrderStatus = (
+  status: unknown,
+): ScaleBulkOrderStatus | undefined => {
+  if (status === 'waitingForFill' || status === 'waitingForTrigger') {
+    return { kind: 'accepted', state: status };
+  }
+
+  if (!isStatusObject(status) || Object.keys(status).length !== 1) {
+    return undefined;
+  }
+
+  if (hasProperty(status, 'error')) {
+    return typeof status.error === 'string'
+      ? { kind: 'error', error: status.error }
+      : undefined;
+  }
+
+  if (hasProperty(status, 'resting')) {
+    const order = status.resting;
+    if (
+      isStatusObject(order) &&
+      typeof order.oid === 'number' &&
+      Number.isSafeInteger(order.oid) &&
+      order.oid >= 0
+    ) {
+      return {
+        kind: 'accepted',
+        state: 'resting',
+        orderId: order.oid.toString(),
+      };
+    }
+  }
+
+  if (hasProperty(status, 'filled')) {
+    const order = status.filled;
+    if (
+      isStatusObject(order) &&
+      typeof order.oid === 'number' &&
+      Number.isSafeInteger(order.oid) &&
+      order.oid >= 0 &&
+      typeof order.avgPx === 'string' &&
+      new BigNumber(order.avgPx).isFinite() &&
+      new BigNumber(order.avgPx).gt(0) &&
+      typeof order.totalSz === 'string' &&
+      new BigNumber(order.totalSz).isFinite() &&
+      new BigNumber(order.totalSz).gt(0)
+    ) {
+      return {
+        kind: 'accepted',
+        state: 'filled',
+        orderId: order.oid.toString(),
+        averagePrice: order.avgPx,
+        filledSize: order.totalSz,
+      };
+    }
+  }
+
+  return undefined;
+};
+
+/**
+ * Recover a structurally valid bulk order response that the pinned SDK wraps
+ * in an `ApiRequestError`.
+ *
+ * @param error - The SDK error thrown by `ExchangeClient.order`.
+ * @param expectedStatusCount - Number of Scale rungs submitted.
+ * @returns The complete bulk order response, or undefined for any other error.
+ */
+const getScaleBulkOrderResponseFromError = (
+  error: unknown,
+  expectedStatusCount: number,
+): ScaleBulkOrderResponse | undefined => {
+  if (
+    !(error instanceof HyperliquidError) ||
+    error.name !== 'ApiRequestError' ||
+    !hasProperty(error, 'response')
+  ) {
+    return undefined;
+  }
+
+  const result = error.response;
+  if (!isStatusObject(result) || result.status !== 'ok') {
+    return undefined;
+  }
+
+  const { response } = result;
+  if (!isStatusObject(response) || response.type !== 'order') {
+    return undefined;
+  }
+
+  const { data } = response;
+  if (!isStatusObject(data)) {
+    return undefined;
+  }
+
+  const { statuses } = data;
+  if (!Array.isArray(statuses) || statuses.length !== expectedStatusCount) {
+    return undefined;
+  }
+
+  return result as ScaleBulkOrderResponse;
+};
+
+/**
+ * Read a complete cancel response from an SDK `ApiRequestError`.
+ *
+ * The SDK throws when any cancel entry is an error, including the benign
+ * already-gone response that confirms an order is no longer live.
+ *
+ * @param error - Error thrown by an exchange cancel method.
+ * @param expectedStatusCount - Number of cancel requests submitted.
+ * @returns The per-request statuses, or undefined for another error shape.
+ */
+const getCancelStatusesFromError = (
+  error: unknown,
+  expectedStatusCount: number,
+): unknown[] | undefined => {
+  if (
+    !(error instanceof HyperliquidError) ||
+    error.name !== 'ApiRequestError' ||
+    !hasProperty(error, 'response')
+  ) {
+    return undefined;
+  }
+
+  const result = error.response;
+  if (!isStatusObject(result) || result.status !== 'ok') {
+    return undefined;
+  }
+  const { response } = result;
+  if (
+    !isStatusObject(response) ||
+    response.type !== 'cancel' ||
+    !isStatusObject(response.data) ||
+    !Array.isArray(response.data.statuses) ||
+    response.data.statuses.length !== expectedStatusCount
+  ) {
+    return undefined;
+  }
+
+  return response.data.statuses;
+};
 
 /**
  * Exchange messages that mean a cancel was refused because the order is not on
@@ -351,6 +529,8 @@ type HyperLiquidTwapSliceFillEntry = Awaited<
 >[number];
 
 type ExchangeCancelRequest = { a: number; o: number };
+
+type ExchangeCancelByCloidRequest = { asset: number; cloid: Hex };
 
 type CancelOrderBatchOutcome = {
   remainingOrderIds: number[];
@@ -735,6 +915,7 @@ type ScaleOrderIdentity = {
 type ScaleOrderGroup = {
   symbol: string;
   orderIds: string[];
+  clientOrderIds: Hex[];
 };
 
 /**
@@ -3795,7 +3976,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     builder: string,
     userAddress: string,
   ): Promise<number | null> {
-    const infoClient = this.#clientService.getInfoClient();
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
 
     return infoClient.maxBuilderFee({
       user: userAddress,
@@ -5394,10 +5575,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw error;
     }
 
+    const resultFilledSize = new BigNumber(result.filledSize ?? 0);
     const hasVenueExposure =
       result.success === true ||
       result.orderId !== undefined ||
-      (result.childOrderIds?.length ?? 0) > 0;
+      (result.childOrderIds?.length ?? 0) > 0 ||
+      (resultFilledSize.isFinite() && resultFilledSize.gt(0));
     if (dexName && transferInfo && !hasVenueExposure) {
       await this.#handleHip3OrderRollback({ dexName, transferInfo });
       return result;
@@ -5791,8 +5974,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * The whole ladder goes in a single `order` action, which is one round trip
    * and one signature rather than one per rung. It is **not** atomic: an `na`
-   * grouping evaluates each entry independently. Every rung must either rest
-   * or fill; otherwise all known resting rungs are retracted before failure.
+   * grouping evaluates each entry independently. Accepted rungs remain live and
+   * are returned to the caller when another rung is rejected.
    *
    * @param params - Order parameters.
    * @param context - Prepared asset and sizing context.
@@ -5834,46 +6017,173 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
 
     const exchangeClient = this.#clientService.getExchangeClient();
-    const result = await exchangeClient.order({
-      orders,
-      grouping: 'na',
-      ...(builder && { builder }),
-    });
+    let result: ScaleBulkOrderResponse;
+    let thrownBulkOrderError: HyperliquidError | undefined;
+    try {
+      result = await exchangeClient.order({
+        orders,
+        grouping: 'na',
+        ...(builder && { builder }),
+      });
+    } catch (error) {
+      const bulkResponse = getScaleBulkOrderResponseFromError(error, count);
+      if (!bulkResponse) {
+        throw error;
+      }
+      result = bulkResponse;
+      thrownBulkOrderError = error as HyperliquidError;
+    }
 
-    const statuses = result.response?.data?.statuses ?? [];
-    const outcomes = statuses
-      .slice(0, count)
-      .map((status) => this.#readOrderPlacementOutcome(status));
+    const rawStatuses = result.response?.data?.statuses;
+    const statuses = Array.isArray(rawStatuses) ? rawStatuses : [];
+    const outcomes = Array.from({ length: count }, (_unused, index) =>
+      parseScaleBulkOrderStatus(statuses[index]),
+    );
     const acceptedCount = outcomes.filter(
-      (outcome) => outcome !== undefined,
+      (outcome) => outcome?.kind === 'accepted',
     ).length;
-    const restingChildOrderIds = outcomes.flatMap((outcome) =>
-      outcome?.state === 'resting' ? [outcome.orderId] : [],
+    const everyStatusClassified = outcomes.every(
+      (outcome) => outcome !== undefined,
     );
-    const filledChildOrderIds = outcomes.flatMap((outcome) =>
-      outcome?.state === 'filled' ? [outcome.orderId] : [],
+    const rejectedCount = outcomes.filter(
+      (outcome) => outcome?.kind === 'error',
+    ).length;
+    const acceptedRungs = outcomes.flatMap((outcome, index) =>
+      outcome?.kind === 'accepted'
+        ? [
+            {
+              outcome,
+              price: prices[index],
+              size: sizes[index],
+            },
+          ]
+        : [],
     );
+    const restingChildOrderIds = acceptedRungs.flatMap((rung) =>
+      rung.outcome.state === 'resting' ? [rung.outcome.orderId] : [],
+    );
+    // Waiting rungs have no exchange order ID and cannot be recovered after
+    // the in-memory Scale group registry is cleared on disconnect.
+    const hasWaitingRungs = acceptedRungs.some(
+      (rung) =>
+        rung.outcome.state === 'waitingForFill' ||
+        rung.outcome.state === 'waitingForTrigger',
+    );
+    const cleanupClientOrderIds = outcomes.flatMap((outcome, index) =>
+      outcome?.kind === 'error' || outcome?.state === 'resting'
+        ? []
+        : [clientOrderIds[index]],
+    );
+    const acceptedChildren: ScaleOrderChild[] = acceptedRungs.map(
+      ({ outcome }) =>
+        outcome.state === 'resting' || outcome.state === 'filled'
+          ? { orderId: outcome.orderId, state: outcome.state }
+          : { state: outcome.state },
+    );
+    const acceptedSize = acceptedRungs.reduce(
+      (total, rung) => total.plus(rung.size),
+      new BigNumber(0),
+    );
+    const acceptedNotional = acceptedRungs.reduce(
+      (total, rung) => total.plus(new BigNumber(rung.size).times(rung.price)),
+      new BigNumber(0),
+    );
+    const filledRungs = acceptedRungs.flatMap((rung) =>
+      rung.outcome.state === 'filled'
+        ? [{ ...rung, outcome: rung.outcome }]
+        : [],
+    );
+    const filledSize = filledRungs.reduce(
+      (total, rung) => total.plus(rung.outcome.filledSize),
+      new BigNumber(0),
+    );
+    const executedNotional = filledRungs.reduce(
+      (total, rung) =>
+        total.plus(
+          new BigNumber(rung.outcome.filledSize).times(
+            rung.outcome.averagePrice,
+          ),
+        ),
+      new BigNumber(0),
+    );
+    const acceptedResult = {
+      childOrderIds: restingChildOrderIds,
+      submittedSize: formattedSize,
+      acceptedSize: acceptedSize.toFixed(),
+      ...(acceptedSize.gt(0) && {
+        weightedAverageLimitPrice: acceptedNotional
+          .dividedBy(acceptedSize)
+          .toFixed(),
+      }),
+      acceptedChildren,
+      ...(filledSize.gt(0) && {
+        filledSize: filledSize.toFixed(),
+        averagePrice: executedNotional.dividedBy(filledSize).toFixed(),
+      }),
+    } satisfies Partial<OrderResult>;
+    const buildAcceptedResult = (): OrderResult => ({
+      success: true,
+      orderId: groupId,
+      ...acceptedResult,
+    });
+    const cancelNonRejectedOrders = async (): Promise<{
+      orderIds: string[];
+      clientOrderIds: Hex[];
+    }> => {
+      const [orderIds, pendingClientOrderIds] = await Promise.all([
+        this.#cancelOrderRequests(
+          exchangeClient,
+          restingChildOrderIds.map((orderId) => ({
+            a: assetId,
+            o: Number(orderId),
+          })),
+        ),
+        this.#cancelOrderCloidRequests(
+          exchangeClient,
+          cleanupClientOrderIds.map((clientOrderId) => ({
+            asset: assetId,
+            cloid: clientOrderId,
+          })),
+        ),
+      ]);
+      return {
+        orderIds: orderIds.map(String),
+        clientOrderIds: pendingClientOrderIds,
+      };
+    };
+
+    if (thrownBulkOrderError !== undefined) {
+      const isRecoverablePartial =
+        everyStatusClassified && acceptedCount > 0 && rejectedCount > 0;
+      if (!isRecoverablePartial) {
+        if (!everyStatusClassified) {
+          await cancelNonRejectedOrders();
+        }
+        throw thrownBulkOrderError;
+      }
+    }
 
     if (generation !== this.#strategyGeneration) {
-      const remainingOrderIds = await this.#cancelOrderRequests(
-        exchangeClient,
-        restingChildOrderIds.map((orderId) => ({
-          a: assetId,
-          o: Number(orderId),
-        })),
-      );
-      const recoverableOrderIds = [
-        ...filledChildOrderIds,
-        ...remainingOrderIds.map(String),
-      ];
+      const remaining = await cancelNonRejectedOrders();
+      if (
+        remaining.orderIds.length > 0 ||
+        remaining.clientOrderIds.length > 0
+      ) {
+        this.#scaleOrderGroups.set(groupId, {
+          symbol: params.symbol,
+          ...remaining,
+        });
+      }
       return createErrorResult(
         new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE),
         {
           success: false,
-          submittedSize: formattedSize,
-          ...(recoverableOrderIds.length > 0 && {
-            childOrderIds: recoverableOrderIds,
-          }),
+          ...acceptedResult,
+          ...(remaining.orderIds.length > 0 ||
+          remaining.clientOrderIds.length > 0
+            ? { orderId: groupId }
+            : {}),
+          childOrderIds: remaining.orderIds,
         },
       );
     }
@@ -5881,48 +6191,56 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (
       result.status !== 'ok' ||
       statuses.length !== count ||
-      acceptedCount !== count
+      acceptedCount !== count ||
+      hasWaitingRungs
     ) {
       this.#deps.debugLogger.log('Scale ladder was not fully accepted', {
         accepted: acceptedCount,
-        filled: filledChildOrderIds.length,
+        filled: filledRungs.length,
         resting: restingChildOrderIds.length,
         requested: count,
         statuses,
       });
-      const remainingOrderIds = await this.#cancelOrderRequests(
-        exchangeClient,
-        restingChildOrderIds.map((orderId) => ({
-          a: assetId,
-          o: Number(orderId),
-        })),
-      );
-      const recoverableOrderIds = [
-        ...filledChildOrderIds,
-        ...remainingOrderIds.map(String),
-      ];
-      if (remainingOrderIds.length > 0) {
-        const remainingRestingOrderIds = remainingOrderIds.map(String);
+      const isValidPartial =
+        result.status === 'ok' &&
+        statuses.length === count &&
+        everyStatusClassified &&
+        !hasWaitingRungs &&
+        acceptedCount > 0 &&
+        rejectedCount > 0;
+      if (isValidPartial) {
         this.#scaleOrderGroups.set(groupId, {
           symbol: params.symbol,
-          orderIds: remainingRestingOrderIds,
+          orderIds: restingChildOrderIds,
+          clientOrderIds: [],
+        });
+        return buildAcceptedResult();
+      }
+      const remaining = await cancelNonRejectedOrders();
+      if (
+        remaining.orderIds.length > 0 ||
+        remaining.clientOrderIds.length > 0
+      ) {
+        this.#scaleOrderGroups.set(groupId, {
+          symbol: params.symbol,
+          ...remaining,
         });
         return createErrorResult(
           new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE),
           {
             success: false,
             orderId: groupId,
-            childOrderIds: recoverableOrderIds,
-            submittedSize: formattedSize,
+            ...acceptedResult,
+            childOrderIds: remaining.orderIds,
           },
         );
       }
 
-      if (recoverableOrderIds.length > 0) {
+      if (acceptedCount > 0) {
         return createErrorResult(new Error(PERPS_ERROR_CODES.ORDER_REJECTED), {
           success: false,
-          childOrderIds: recoverableOrderIds,
-          submittedSize: formattedSize,
+          ...acceptedResult,
+          childOrderIds: [],
         });
       }
 
@@ -5932,13 +6250,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     this.#scaleOrderGroups.set(groupId, {
       symbol: params.symbol,
       orderIds: restingChildOrderIds,
+      clientOrderIds: [],
     });
-    return {
-      success: true,
-      orderId: groupId,
-      childOrderIds: restingChildOrderIds,
-      submittedSize: formattedSize,
-    };
+    return buildAcceptedResult();
   }
 
   /**
@@ -7540,9 +7854,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       a: assetId,
       o: Number(orderId),
     }));
-    const remaining = (
-      await this.#cancelOrderRequests(exchangeClient, cancelRequests)
-    ).map(String);
+    const cancelByCloidRequests = group.clientOrderIds.map((clientOrderId) => ({
+      asset: assetId,
+      cloid: clientOrderId,
+    }));
+    const [remainingOrderIds, remainingClientOrderIds] = await Promise.all([
+      this.#cancelOrderRequests(exchangeClient, cancelRequests),
+      this.#cancelOrderCloidRequests(exchangeClient, cancelByCloidRequests),
+    ]);
+    const remaining = remainingOrderIds.map(String);
 
     /*
      * A rung that filled or was cancelled individually comes back as a
@@ -7550,7 +7870,7 @@ export class HyperLiquidProvider implements PerpsProvider {
      * distinguishes that result from a refusal while retaining every child
      * after a malformed or non-ok batch response.
      */
-    if (remaining.length === 0) {
+    if (remaining.length === 0 && remainingClientOrderIds.length === 0) {
       this.#cancelledScaleOrderGroups.add(params.orderId);
       this.#scaleOrderGroups.delete(params.orderId);
       return { success: true, orderId: params.orderId };
@@ -7562,11 +7882,13 @@ export class HyperLiquidProvider implements PerpsProvider {
     this.#scaleOrderGroups.set(params.orderId, {
       symbol: group.symbol,
       orderIds: remaining,
+      clientOrderIds: remainingClientOrderIds,
     });
     this.#deps.debugLogger.log('Scale group cancel left children resting', {
       groupId: params.orderId,
-      remaining: remaining.length,
-      total: group.orderIds.length,
+      remainingOrderIds: remaining.length,
+      remainingClientOrderIds: remainingClientOrderIds.length,
+      total: group.orderIds.length + group.clientOrderIds.length,
     });
 
     return createErrorResult(
@@ -7690,6 +8012,55 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Cancel pending orders by client order ID and retain every request that may
+   * still be live.
+   *
+   * @param exchangeClient - Client that owns the orders.
+   * @param requests - Venue cancel-by-CLOID requests.
+   * @returns Client order IDs that may still be pending.
+   */
+  async #cancelOrderCloidRequests(
+    exchangeClient: ExchangeClient,
+    requests: ExchangeCancelByCloidRequest[],
+  ): Promise<Hex[]> {
+    if (requests.length === 0) {
+      return [];
+    }
+
+    const getRemainingClientOrderIds = (statuses: unknown[]): Hex[] =>
+      requests.flatMap((request, index) =>
+        classifyCancelStatus(statuses[index]) === CancelChildOutcome.Refused
+          ? [request.cloid]
+          : [],
+      );
+
+    try {
+      const result = await exchangeClient.cancelByCloid({
+        cancels: requests,
+      });
+      const statuses = result.response?.data?.statuses ?? [];
+      if (result.status !== 'ok' || statuses.length !== requests.length) {
+        return requests.map((request) => request.cloid);
+      }
+
+      return getRemainingClientOrderIds(statuses);
+    } catch (error) {
+      const statuses = getCancelStatusesFromError(error, requests.length);
+      if (statuses) {
+        return getRemainingClientOrderIds(statuses);
+      }
+      this.#deps.debugLogger.log('Order cancellation by CLOID failed', {
+        error: ensureError(
+          error,
+          'HyperLiquidProvider.cancelOrderCloidRequests',
+        ).message,
+        clientOrderIds: requests.map((request) => request.cloid),
+      });
+      return requests.map((request) => request.cloid);
+    }
+  }
+
+  /**
    * Cancel a batch while distinguishing confirmed cancellations from orders
    * that were already gone. Replacement rollback may only restore the former.
    *
@@ -7709,17 +8080,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       };
     }
 
-    try {
-      const result = await exchangeClient.cancel({ cancels: requests });
-      const statuses = result.response?.data?.statuses ?? [];
-      if (result.status !== 'ok' || statuses.length !== requests.length) {
-        return {
-          remainingOrderIds: requests.map((request) => request.o),
-          cancelledOrderIds: [],
-          responseComplete: false,
-        };
-      }
-
+    const classifyStatuses = (statuses: unknown[]): CancelOrderBatchOutcome => {
       const remainingOrderIds: number[] = [];
       const cancelledOrderIds: number[] = [];
       requests.forEach((request, index) => {
@@ -7731,7 +8092,25 @@ export class HyperLiquidProvider implements PerpsProvider {
         }
       });
       return { remainingOrderIds, cancelledOrderIds, responseComplete: true };
+    };
+
+    try {
+      const result = await exchangeClient.cancel({ cancels: requests });
+      const statuses = result.response?.data?.statuses ?? [];
+      if (result.status !== 'ok' || statuses.length !== requests.length) {
+        return {
+          remainingOrderIds: requests.map((request) => request.o),
+          cancelledOrderIds: [],
+          responseComplete: false,
+        };
+      }
+
+      return classifyStatuses(statuses);
     } catch (error) {
+      const statuses = getCancelStatusesFromError(error, requests.length);
+      if (statuses) {
+        return classifyStatuses(statuses);
+      }
       this.#deps.debugLogger.log('Order cancellation batch failed', {
         error: ensureError(error, 'HyperLiquidProvider.cancelOrderRequests')
           .message,
@@ -10756,6 +11135,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       const group = recovered.get(order.strategyGroupId) ?? {
         symbol: order.symbol,
         orderIds: [],
+        clientOrderIds: [],
       };
       group.orderIds.push(order.orderId);
       recovered.set(order.strategyGroupId, group);
@@ -13118,6 +13498,52 @@ export class HyperLiquidProvider implements PerpsProvider {
             : PERPS_ERROR_CODES.UNKNOWN_ERROR,
       };
     }
+  }
+
+  /**
+   * Project the isolated position that would remain after a proposed order.
+   *
+   * Fetches the asset's margin table from cached meta so liquidation uses the
+   * maintenance tier at the resulting liquidation notional. Cross-margin
+   * positions return unsupported without a table lookup.
+   *
+   * @param params - Live position plus the proposed order.
+   * @returns Discriminated preview; margin and liquidation are independently available.
+   */
+  async previewPositionModify(
+    params: PositionModifyPreviewParams,
+  ): Promise<PositionModifyPreviewResult> {
+    if (params.position.leverage.type === 'cross') {
+      return { status: 'unsupported', reason: 'cross_margin' };
+    }
+
+    const { dex: dexName } = parseAssetName(params.position.symbol);
+    let marginTiers = null;
+
+    try {
+      const meta = await this.#getCachedMeta({ dexName });
+      const assetInfo = meta.universe.find(
+        (universeItem) => universeItem.name === params.position.symbol,
+      );
+      marginTiers = resolveHyperLiquidMarginTiers({
+        marginTableId: assetInfo?.marginTableId,
+        maxLeverage: assetInfo?.maxLeverage ?? params.position.maxLeverage,
+        marginTables: meta.marginTables,
+      });
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        'HyperLiquidProvider: margin table unavailable for position preview',
+        {
+          symbol: params.position.symbol,
+          error,
+        },
+      );
+    }
+
+    return previewHyperLiquidIsolatedPositionModify({
+      ...params,
+      marginTiers,
+    });
   }
 
   /**

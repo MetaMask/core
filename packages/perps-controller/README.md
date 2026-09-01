@@ -12,22 +12,42 @@ or
 
 ## Usage
 
+`PerpsController` provides a provider-agnostic API for perpetual trading. It
+normalizes market data, account state, trading, funding, transfers, risk
+calculations, and live subscriptions across enabled providers.
+
+Applications construct the controller with a messenger and their
+platform-specific dependencies:
+
 ```typescript
-import { PerpsController } from '@metamask/perps-controller';
+import {
+  PerpsController,
+  type PerpsControllerOptions,
+} from '@metamask/perps-controller';
+
+export async function createPerpsController(
+  options: PerpsControllerOptions,
+): Promise<PerpsController> {
+  const controller = new PerpsController(options);
+  await controller.init();
+  return controller;
+}
 ```
 
-Chase orders are client-managed post-only strategies. Use
-`controller.getChaseOrders()` to read retained lifecycle snapshots and
-`controller.suspendChaseOrders()` when the creating client leaves the
-foreground; suspension stops repricing while leaving the latest child order
-resting. Cancel a Chase through `cancelOrder` with its stable strategy handle
-and `orderType: 'chase'`. When using an aggregated provider, also pass the
-`providerId` returned with the Chase snapshot so cancellation routes to its
-owning venue. `chaseMaxDistanceBps` caps adverse movement from the arrival
-price and must be greater than 0 and less than 10,000. The stop follows the
-live touch; the final resting child can sit just inside the boundary after
-venue price-grid rounding, and `distanceChasedBps` reports that actual resting
-distance rounded to the nearest whole basis point.
+The controller registers its public operations as `PerpsController:*`
+messenger actions, and clients can call the same methods directly. Its main
+capabilities are:
+
+- Provider and network lifecycle management.
+- Normalized market, account, position, order, and history reads.
+- Trading, position, margin, deposit, and withdrawal operations with
+  preflight validation and risk calculations.
+- Callback-based live prices, positions, orders, fills, order books, and
+  candles. Each subscription returns an unsubscribe function.
+
+The package exports the controller's parameter, result, provider, and
+messenger types for client integrations. Provider availability and aggregated
+routing are controlled by client configuration and feature flags.
 
 ## Contributing
 

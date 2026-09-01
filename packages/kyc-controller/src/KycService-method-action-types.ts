@@ -26,9 +26,9 @@ export type KycServiceGetGeoCountryAction = {
  * @param params.country - ISO 3166-1 alpha-3 country code.
  * @returns The disclaimers.
  */
-export type KycServiceFetchDisclaimersAction = {
-  type: `KycService:fetchDisclaimers`;
-  handler: KycService['fetchDisclaimers'];
+export type KycServiceFetchVendorDisclaimersAction = {
+  type: `KycService:fetchVendorDisclaimers`;
+  handler: KycService['fetchVendorDisclaimers'];
 };
 
 /**
@@ -88,9 +88,27 @@ export type KycServiceSubmitVendorDisclaimersAction = {
 };
 
 /**
+ * Fetches the global idOS + KYC-provider disclaimer catalog
+ * (`GET /disclaimers?country=`). Does not include
+ * `credentialReusabilityConsentGiven` — that is session-scoped via
+ * {@link fetchSessionDisclaimers}. Vendor T&Cs continue to come from
+ * {@link fetchVendorDisclaimers}.
+ *
+ * @param params - The parameters.
+ * @param params.country - ISO 3166-1 alpha-3 country code.
+ * @returns The catalog documents.
+ */
+export type KycServiceFetchDisclaimersCatalogAction = {
+  type: `KycService:fetchDisclaimersCatalog`;
+  handler: KycService['fetchDisclaimersCatalog'];
+};
+
+/**
  * Fetches the session-scoped idOS + KYC-provider disclaimer catalog
- * (`GET /sessions/{sessionId}/disclaimers`). Requires an existing UKYC
- * session; vendor T&Cs continue to come from {@link fetchDisclaimers}.
+ * (`GET /sessions/{sessionId}/disclaimers`), including per-session
+ * `consented` flags and `credentialReusabilityConsentGiven`. For the
+ * pre-session global catalog use {@link fetchDisclaimersCatalog}. Vendor
+ * T&Cs continue to come from {@link fetchVendorDisclaimers}.
  *
  * @param params - The parameters.
  * @param params.sessionId - The UKYC session id.
@@ -127,23 +145,41 @@ export type KycServiceFetchKycStatusAction = {
 };
 
 /**
- * Fetches the Fractal encryption service JWKS used to verify the `jwtChain`s
- * returned inside encryption schemas from {@link KycService.createUkycSession}.
+ * Fetches the idOS enclave JWKS used to verify the
+ * `encryptionDataKey` schema's `jwtChain` from
+ * {@link KycService.createUkycSession}.
  *
- * This is an unauthenticated request to a well-known path on the Fractal
+ * This is an unauthenticated request to a well-known path on the idOS enclave
  * host, distinct from the UKYC base URL.
  *
  * @returns The JWKS keys.
  */
-export type KycServiceFetchJwksAction = {
-  type: `KycService:fetchJwks`;
-  handler: KycService['fetchJwks'];
+export type KycServiceFetchIdosEnclaveJwksAction = {
+  type: `KycService:fetchIdosEnclaveJwks`;
+  handler: KycService['fetchIdosEnclaveJwks'];
+};
+
+/**
+ * Fetches the idOS relay JWKS used to verify the `ukycCapabilityToken`
+ * schema's `jwtChain` from {@link KycService.createUkycSession}.
+ *
+ * This is an unauthenticated request to a well-known path on the idOS relay
+ * host, distinct from both the UKYC base URL and the idOS enclave.
+ *
+ * @returns The JWKS keys.
+ */
+export type KycServiceFetchIdosRelayJwksAction = {
+  type: `KycService:fetchIdosRelayJwks`;
+  handler: KycService['fetchIdosRelayJwks'];
 };
 
 /**
  * Creates a UKYC session for the SumSub document-verification sub-flow.
  *
- * The response carries per-secret encryption schemas (`encryptionDataKey` and
+ * The client registers its per-session X25519 public key so the server can
+ * later open boxes sealed with the matching private key, and supplies the
+ * customer's ISO 3166-1 alpha-3 country of residence. The response
+ * carries per-secret encryption schemas (`encryptionDataKey` and
  * `ukycCapabilityToken`) so the client can wrap the `data_encryption_key` and
  * the read-only `ukyc_capability_token` and submit them via
  * {@link KycService.setAuthorizations}.
@@ -200,15 +236,17 @@ export type KycServiceGetSessionStatusAction = {
  */
 export type KycServiceMethodActions =
   | KycServiceGetGeoCountryAction
-  | KycServiceFetchDisclaimersAction
+  | KycServiceFetchVendorDisclaimersAction
   | KycServiceCreateSessionAction
   | KycServiceCheckKycRequiredAction
   | KycServiceCreateVendorCustomerAction
   | KycServiceSubmitVendorDisclaimersAction
+  | KycServiceFetchDisclaimersCatalogAction
   | KycServiceFetchSessionDisclaimersAction
   | KycServiceSubmitSessionDisclaimersAction
   | KycServiceFetchKycStatusAction
-  | KycServiceFetchJwksAction
+  | KycServiceFetchIdosEnclaveJwksAction
+  | KycServiceFetchIdosRelayJwksAction
   | KycServiceCreateUkycSessionAction
   | KycServiceSetAuthorizationsAction
   | KycServiceCreateJourneyAction

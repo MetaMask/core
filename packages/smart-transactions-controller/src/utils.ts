@@ -14,7 +14,7 @@ import _ from 'lodash';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import packageJson from '../package.json';
-import { API_BASE_URL, SENTINEL_API_BASE_URL_MAP } from './constants.js';
+import { SENTINEL_API_BASE_URL_MAP } from './constants.js';
 import type {
   SmartTransaction,
   SmartTransactionsStatus,
@@ -37,44 +37,33 @@ export const isSmartTransactionStatusResolved = (
   stxStatus: SmartTransactionsStatus | string,
 ) => stxStatus === 'uuid_not_found';
 
-// TODO use actual url once API is defined
-export function getAPIRequestURL(
-  apiType: APIType,
-  chainId: string,
-  useSentinel = false,
-): string {
+export function getAPIRequestURL(apiType: APIType, chainId: string): string {
   const chainIdDec = parseInt(chainId, 16);
+
+  // Throw the error that would have been thrown by transaction-api on an unsupported chain.
+  if (!SENTINEL_API_BASE_URL_MAP[chainIdDec]) {
+    throw new Error(`Chain ${chainIdDec} is not supported`);
+  }
+
   switch (apiType) {
     case APIType.GET_FEES: {
-      if (useSentinel && SENTINEL_API_BASE_URL_MAP[chainIdDec]) {
-        return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/getFees`;
-      }
-      return `${API_BASE_URL}/networks/${chainIdDec}/getFees`;
+      return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/getFees`;
     }
 
     case APIType.ESTIMATE_GAS: {
-      return `${API_BASE_URL}/networks/${chainIdDec}/estimateGas`;
+      return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/estimateGas`;
     }
 
     case APIType.SUBMIT_TRANSACTIONS: {
-      if (useSentinel && SENTINEL_API_BASE_URL_MAP[chainIdDec]) {
-        return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`;
-      }
-      return `${API_BASE_URL}/networks/${chainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`;
+      return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`;
     }
 
     case APIType.CANCEL: {
-      if (useSentinel && SENTINEL_API_BASE_URL_MAP[chainIdDec]) {
-        return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/cancel`;
-      }
-      return `${API_BASE_URL}/networks/${chainIdDec}/cancel`;
+      return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/cancel`;
     }
 
     case APIType.BATCH_STATUS: {
-      if (useSentinel && SENTINEL_API_BASE_URL_MAP[chainIdDec]) {
-        return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/batchStatus`;
-      }
-      return `${API_BASE_URL}/networks/${chainIdDec}/batchStatus`;
+      return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/batchStatus`;
     }
 
     case APIType.LIVENESS: {

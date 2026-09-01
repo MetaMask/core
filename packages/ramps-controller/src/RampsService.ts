@@ -7,6 +7,8 @@ import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
 import packageJson from '../package.json';
+import type { RampsClientIdentity } from './client-identity.js';
+import { addRampsClientIdentityParams } from './client-identity.js';
 import type { RampsServiceMethodActions } from './RampsService-method-action-types.js';
 
 /**
@@ -906,6 +908,8 @@ export class RampsService {
    */
   readonly #baseUrlOverride?: string;
 
+  readonly #clientIdentity: RampsClientIdentity;
+
   /**
    * Constructs a new RampsService object.
    *
@@ -920,6 +924,8 @@ export class RampsService {
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    * @param args.baseUrlOverride - Optional base URL override for local development.
+   * @param args.clientProduct - Optional MetaMask product id (`metamask-mobile`).
+   * @param args.clientVersion - Optional app SemVer (not the ramps-controller package version).
    */
   constructor({
     messenger,
@@ -928,6 +934,8 @@ export class RampsService {
     fetch: fetchFunction,
     policyOptions = {},
     baseUrlOverride,
+    clientProduct,
+    clientVersion,
   }: {
     messenger: RampsServiceMessenger;
     environment?: RampsEnvironment;
@@ -935,6 +943,8 @@ export class RampsService {
     fetch: typeof fetch;
     policyOptions?: CreateServicePolicyOptions;
     baseUrlOverride?: string;
+    clientProduct?: string;
+    clientVersion?: string;
   }) {
     this.name = serviceName;
     this.#messenger = messenger;
@@ -943,6 +953,10 @@ export class RampsService {
     this.#environment = environment;
     this.#context = context;
     this.#baseUrlOverride = baseUrlOverride;
+    this.#clientIdentity = {
+      clientProduct,
+      clientVersion,
+    };
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -1078,6 +1092,9 @@ export class RampsService {
     url.searchParams.set('sdk', RAMPS_SDK_VERSION);
     url.searchParams.set('controller', packageJson.version);
     url.searchParams.set('context', this.#context);
+    // In the query string (not headers) so CDN-cached responses vary per
+    // client product / version.
+    addRampsClientIdentityParams(url, this.#clientIdentity);
   }
 
   /**
