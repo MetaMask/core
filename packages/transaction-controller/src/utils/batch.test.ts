@@ -544,9 +544,7 @@ describe('Batch Utils', () => {
 
     it('tracks every transaction while a sequential batch is active', async () => {
       let resolvePublishBatch:
-        | ((
-            value: Awaited<ReturnType<PublishBatchHook>>,
-          ) => void)
+        | ((value: Awaited<ReturnType<PublishBatchHook>>) => void)
         | undefined;
       const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn(
         () =>
