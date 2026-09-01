@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix `normalizeGasEstimate` silently under-computing the gas buffer for estimates that need more than one 26-bit `BN` word (values at or above ~67.1M) ([#CHANGEME](https://github.com/MetaMask/core/pull/CHANGEME))
+- Fix `normalizeGasEstimate` silently under-computing the gas buffer for estimates that need more than one 26-bit `BN` word (values at or above ~67.1M) ([#10045](https://github.com/MetaMask/core/pull/10045))
   - Same root cause as the `LineaGasFeeFlow` fix in `@metamask/transaction-controller`: `BN.muln(1.5)` truncates instead of throwing once the value crosses the 26-bit-word boundary (~67.1M), e.g. `100000000 * 1.5` previously returned `116445568` instead of `150000000`.
 
 ## [41.2.9]
