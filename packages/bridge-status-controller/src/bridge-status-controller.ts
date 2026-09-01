@@ -98,7 +98,7 @@ import {
   getTxStatusesFromHistory,
   getPreConfirmationPropertiesFromQuote,
   getHashPresenceProperties,
-  getSubmitFailureTelemetry,
+  getBroadcastFailureProperties,
   getStatusFailureTelemetry,
   promoteFailurePhase,
 } from './utils/metrics.js';
@@ -1602,7 +1602,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         {
           error_message: (error as Error)?.message,
           ...preConfirmationProperties,
-          ...getSubmitFailureTelemetry(error),
+          ...getBroadcastFailureProperties(error),
         },
       );
       throw error;

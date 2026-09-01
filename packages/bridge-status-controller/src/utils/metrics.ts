@@ -125,12 +125,12 @@ export const promoteFailurePhase = (
 };
 
 /**
- * Telemetry for Failed events emitted from the submit catch (no tx hash yet).
+ * Mixpanel properties for Failed events in the `broadcast` phase (no tx hash yet).
  *
- * @param error - The thrown value from submit.
+ * @param error - The thrown value from the submit/broadcast catch.
  * @returns Phase, error code, and hash-presence flags.
  */
-export const getSubmitFailureTelemetry = (
+export const getBroadcastFailureProperties = (
   error: unknown,
 ): FailureTelemetryProperties => {
   return {

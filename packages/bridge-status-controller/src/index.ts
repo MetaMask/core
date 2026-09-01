@@ -58,6 +58,6 @@ export {
   getStatusFailurePhase,
   getStatusFailureTelemetry,
   getSubmitErrorCode,
-  getSubmitFailureTelemetry,
+  getBroadcastFailureProperties,
   promoteFailurePhase,
 } from './utils/metrics.js';

@@ -32,7 +32,7 @@ import {
   getStatusFailurePhase,
   getStatusFailureTelemetry,
   getSubmitErrorCode,
-  getSubmitFailureTelemetry,
+  getBroadcastFailureProperties,
   promoteFailurePhase,
 } from './metrics.js';
 
@@ -1383,17 +1383,17 @@ describe('metrics utils', () => {
     });
   });
 
-  describe('getSubmitFailureTelemetry', () => {
+  describe('getBroadcastFailureProperties', () => {
     it('uses broadcast for submit failures with no hash', () => {
-      expect(getSubmitFailureTelemetry(new Error('snap failed'))).toStrictEqual(
-        {
-          failure_phase: FailurePhase.Broadcast,
-          error_code: SwapBridgeErrorCode.Unknown,
-          source_hash_present: false,
-          destination_hash_present: false,
-        },
-      );
-      expect(getSubmitFailureTelemetry({ code: 4001 })).toStrictEqual({
+      expect(
+        getBroadcastFailureProperties(new Error('snap failed')),
+      ).toStrictEqual({
+        failure_phase: FailurePhase.Broadcast,
+        error_code: SwapBridgeErrorCode.Unknown,
+        source_hash_present: false,
+        destination_hash_present: false,
+      });
+      expect(getBroadcastFailureProperties({ code: 4001 })).toStrictEqual({
         failure_phase: FailurePhase.Broadcast,
         error_code: SwapBridgeErrorCode.NonErrorRejection,
         source_hash_present: false,
