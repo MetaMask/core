@@ -1,3 +1,6 @@
+import { Interface } from '@ethersproject/abi';
+import { abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
+
 import type { TransactionMeta } from '../types.js';
 import { TransactionStatus, TransactionType } from '../types.js';
 import { getEffectiveRecipient, getSendRecipients } from './recipient.js';
@@ -17,6 +20,24 @@ const TRANSFER_FROM_DATA = `0x23b872dd000000000000000000000000${FROM_ADDRESS.sli
 )}000000000000000000000000${TOKEN_RECIPIENT.slice(
   2,
 )}0000000000000000000000000000000000000000000000000000000000000064`;
+
+const ERC721_SAFE_TRANSFER_FROM_DATA = new Interface(
+  abiERC721,
+).encodeFunctionData('safeTransferFrom(address,address,uint256)', [
+  FROM_ADDRESS,
+  TOKEN_RECIPIENT,
+  '1',
+]);
+
+const ERC1155_SAFE_TRANSFER_FROM_DATA = new Interface(
+  abiERC1155,
+).encodeFunctionData('safeTransferFrom', [
+  FROM_ADDRESS,
+  TOKEN_RECIPIENT,
+  '1',
+  '1',
+  '0x',
+]);
 
 /**
  * Builds a minimal transaction meta object for testing.
@@ -152,6 +173,32 @@ describe('getSendRecipients', () => {
     const transactionMeta = buildTransactionMeta(
       TransactionType.tokenMethodTransferFrom,
       TRANSFER_FROM_DATA,
+    );
+
+    expect(
+      getSendRecipients(transactionMeta).map((address) =>
+        address.toLowerCase(),
+      ),
+    ).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('returns the decoded payee for ERC-721 safeTransferFrom transactions', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.tokenMethodSafeTransferFrom,
+      ERC721_SAFE_TRANSFER_FROM_DATA,
+    );
+
+    expect(
+      getSendRecipients(transactionMeta).map((address) =>
+        address.toLowerCase(),
+      ),
+    ).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('returns the decoded payee for ERC-1155 safeTransferFrom transactions', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.tokenMethodSafeTransferFrom,
+      ERC1155_SAFE_TRANSFER_FROM_DATA,
     );
 
     expect(
