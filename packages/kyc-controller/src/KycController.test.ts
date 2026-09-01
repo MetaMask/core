@@ -169,7 +169,7 @@ describe('KycController', () => {
     it('captures the active product for the automatic post-auth continuation', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getGeoCountry.mockResolvedValue('USA');
-        handlers.fetchDisclaimers.mockResolvedValue([]);
+        handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
         await controller.initialize({ product: 'card' });
 
@@ -182,7 +182,7 @@ describe('KycController', () => {
         { options: { state: { activeProduct: 'card' } } },
         async ({ controller, handlers }) => {
           handlers.getGeoCountry.mockResolvedValue('USA');
-          handlers.fetchDisclaimers.mockResolvedValue([]);
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.initialize({ email: 'a@b.co' });
 
@@ -239,7 +239,7 @@ describe('KycController', () => {
         },
         async ({ controller, handlers }) => {
           handlers.getGeoCountry.mockResolvedValue('USA');
-          handlers.fetchDisclaimers.mockResolvedValue([]);
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.initialize();
 
@@ -253,7 +253,7 @@ describe('KycController', () => {
     it('loads disclaimers for a provided country', async () => {
       await withController(async ({ controller, handlers }) => {
         const disclaimers = [{ id: '1', display_name: 'T', url: 'u' }];
-        handlers.fetchDisclaimers.mockResolvedValue(disclaimers);
+        handlers.fetchVendorDisclaimers.mockResolvedValue(disclaimers);
 
         await controller.loadDisclaimers({ country: 'USA' });
 
@@ -264,7 +264,7 @@ describe('KycController', () => {
 
     it('caches the provided country override in geoCountry', async () => {
       await withController(async ({ controller, handlers }) => {
-        handlers.fetchDisclaimers.mockResolvedValue([]);
+        handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
         await controller.loadDisclaimers({ country: 'USA' });
 
@@ -276,7 +276,7 @@ describe('KycController', () => {
       await withController(
         { options: { state: { accessToken: 'a' } } },
         async ({ controller, handlers }) => {
-          handlers.fetchDisclaimers.mockResolvedValue([]);
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
           handlers.checkKycRequired.mockResolvedValue({ kycRequired: true });
 
           await controller.loadDisclaimers({ country: 'USA' });
@@ -297,12 +297,12 @@ describe('KycController', () => {
       await withController(
         { options: { state: { geoCountry: 'USA' } } },
         async ({ controller, handlers }) => {
-          handlers.fetchDisclaimers.mockResolvedValue([]);
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.loadDisclaimers();
 
           expect(handlers.getGeoCountry).not.toHaveBeenCalled();
-          expect(handlers.fetchDisclaimers).toHaveBeenCalledWith({
+          expect(handlers.fetchVendorDisclaimers).toHaveBeenCalledWith({
             vendor: 'moonpay',
             country: 'USA',
           });
@@ -313,12 +313,12 @@ describe('KycController', () => {
     it('resolves the country when neither param nor cache is available', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getGeoCountry.mockResolvedValue('FRA');
-        handlers.fetchDisclaimers.mockResolvedValue([]);
+        handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
         await controller.loadDisclaimers();
 
         expect(controller.state.geoCountry).toBe('FRA');
-        expect(handlers.fetchDisclaimers).toHaveBeenCalledWith({
+        expect(handlers.fetchVendorDisclaimers).toHaveBeenCalledWith({
           vendor: 'moonpay',
           country: 'FRA',
         });
@@ -327,7 +327,7 @@ describe('KycController', () => {
 
     it('records an error when loading fails', async () => {
       await withController(async ({ controller, handlers }) => {
-        handlers.fetchDisclaimers.mockRejectedValue(new Error('boom'));
+        handlers.fetchVendorDisclaimers.mockRejectedValue(new Error('boom'));
 
         await controller.loadDisclaimers({ country: 'USA' });
 
@@ -516,7 +516,7 @@ describe('KycController', () => {
         },
         async ({ controller, handlers }) => {
           handlers.createSession.mockRejectedValue(new Error('nope'));
-          handlers.fetchDisclaimers.mockResolvedValue([]);
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.acceptTermsAndStartSession({
             sumsubTncSigned: true,
@@ -569,7 +569,7 @@ describe('KycController', () => {
 
           expect(controller.state.phase).toBe('idle');
           expect(controller.state.error).toBeNull();
-          expect(handlers.fetchDisclaimers).not.toHaveBeenCalled();
+          expect(handlers.fetchVendorDisclaimers).not.toHaveBeenCalled();
         },
       );
     });
@@ -587,7 +587,7 @@ describe('KycController', () => {
         },
         async ({ controller, handlers }) => {
           handlers.createSession.mockRejectedValue(new Error('nope'));
-          handlers.fetchDisclaimers.mockResolvedValue([]);
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.acceptTermsAndStartSession({
             product: 'ramps',
@@ -2353,7 +2353,7 @@ describe('KycController', () => {
         await pending;
 
         expect(controller.state.phase).toBe('idle');
-        expect(handlers.fetchDisclaimers).not.toHaveBeenCalled();
+        expect(handlers.fetchVendorDisclaimers).not.toHaveBeenCalled();
       });
     });
   });
@@ -2424,7 +2424,7 @@ describe('KycController', () => {
 
         expect(controller.state).toStrictEqual(getDefaultKycControllerState());
         // The superseded flow must not resume the terms step either.
-        expect(handlers.fetchDisclaimers).not.toHaveBeenCalled();
+        expect(handlers.fetchVendorDisclaimers).not.toHaveBeenCalled();
       });
     });
 
@@ -2530,7 +2530,7 @@ describe('KycController', () => {
     it('creates an Iron customer and loads Iron disclaimers on initialize', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getGeoCountry.mockResolvedValue('USA');
-        handlers.fetchDisclaimers.mockResolvedValue([
+        handlers.fetchVendorDisclaimers.mockResolvedValue([
           { id: 'd1', display_name: 'Iron T&C', url: 'https://t' },
         ]);
 
@@ -2544,7 +2544,7 @@ describe('KycController', () => {
           vendor: 'iron',
           email: 'a@b.co',
         });
-        expect(handlers.fetchDisclaimers).toHaveBeenCalledWith({
+        expect(handlers.fetchVendorDisclaimers).toHaveBeenCalledWith({
           vendor: 'iron',
           country: 'USA',
         });
@@ -2709,7 +2709,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.fetchDisclaimers.mockResolvedValue([
+          handlers.fetchVendorDisclaimers.mockResolvedValue([
             { id: 'iron-d1', display_name: 'T', url: 'u' },
           ]);
 
@@ -2719,7 +2719,7 @@ describe('KycController', () => {
           expect(controller.state.termsAcceptedAt).toBeNull();
           expect(controller.state.acceptedDisclaimerIds).toStrictEqual([]);
           expect(controller.state.termsAcceptedVendor).toBeNull();
-          expect(handlers.fetchDisclaimers).toHaveBeenCalledWith({
+          expect(handlers.fetchVendorDisclaimers).toHaveBeenCalledWith({
             vendor: 'iron',
             country: 'USA',
           });
@@ -2743,7 +2743,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.fetchDisclaimers.mockResolvedValue([
+          handlers.fetchVendorDisclaimers.mockResolvedValue([
             { id: 'd1', display_name: 'T', url: 'u' },
           ]);
 
@@ -3255,7 +3255,7 @@ describe('KycController', () => {
               "Fetching 'disclaimers' failed with status '409'",
             ),
           );
-          handlers.fetchDisclaimers.mockResolvedValue([]);
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -3292,7 +3292,7 @@ describe('KycController', () => {
               "Fetching 'disclaimers' failed with status '409'",
             ),
           );
-          handlers.fetchDisclaimers.mockResolvedValue([]);
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -3553,7 +3553,7 @@ describe('KycController', () => {
           handlers.createUkycSession.mockRejectedValue(
             new Error('sumsub down'),
           );
-          handlers.fetchDisclaimers.mockResolvedValue([]);
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -3580,7 +3580,7 @@ describe('KycController', () => {
         },
         async ({ controller, handlers }) => {
           handlers.createJourney.mockRejectedValue(new Error('journey down'));
-          handlers.fetchDisclaimers.mockResolvedValue([]);
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -3610,7 +3610,7 @@ describe('KycController', () => {
             onStatusChange?.('idle', 'InProgress');
             return { ok: false };
           });
-          handlers.fetchDisclaimers.mockResolvedValue([]);
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -3933,7 +3933,7 @@ describe('KycController', () => {
           handlers.submitVendorDisclaimers.mockRejectedValue(
             new Error('iron signings down'),
           );
-          handlers.fetchDisclaimers.mockResolvedValue([]);
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -3995,7 +3995,7 @@ describe('KycController', () => {
               "Fetching 'disclaimers' failed with status '500'",
             ),
           );
-          handlers.fetchDisclaimers.mockResolvedValue([]);
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -4028,7 +4028,7 @@ describe('KycController', () => {
             kycProvider: MOCK_SESSION_DISCLAIMERS.kycProvider,
             credentialReusabilityConsentGiven: false,
           });
-          handlers.fetchDisclaimers.mockResolvedValue([]);
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -4063,7 +4063,7 @@ describe('KycController', () => {
             kycProvider: [],
             credentialReusabilityConsentGiven: false,
           });
-          handlers.fetchDisclaimers.mockResolvedValue([]);
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -4108,7 +4108,7 @@ describe('KycController', () => {
               "Fetching 'disclaimers' failed with status '409'",
             ),
           );
-          handlers.fetchDisclaimers.mockResolvedValue([]);
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -4638,7 +4638,7 @@ type RootMessenger = Messenger<
 
 type ServiceHandlers = {
   getGeoCountry: jest.Mock;
-  fetchDisclaimers: jest.Mock;
+  fetchVendorDisclaimers: jest.Mock;
   createSession: jest.Mock;
   checkKycRequired: jest.Mock;
   createVendorCustomer: jest.Mock;
@@ -4674,7 +4674,7 @@ type WithControllerOptions = {
 
 const SERVICE_ACTIONS = [
   'KycService:getGeoCountry',
-  'KycService:fetchDisclaimers',
+  'KycService:fetchVendorDisclaimers',
   'KycService:createSession',
   'KycService:checkKycRequired',
   'KycService:createVendorCustomer',
@@ -4775,7 +4775,7 @@ function withController<ReturnValue>(
 
   const handlers: ServiceHandlers = {
     getGeoCountry: jest.fn().mockResolvedValue('USA'),
-    fetchDisclaimers: jest.fn().mockResolvedValue([]),
+    fetchVendorDisclaimers: jest.fn().mockResolvedValue([]),
     createSession: jest.fn().mockResolvedValue({ sessionToken: 'sess' }),
     checkKycRequired: jest.fn().mockResolvedValue({ kycRequired: false }),
     createVendorCustomer: jest.fn().mockResolvedValue({
@@ -4820,8 +4820,8 @@ function withController<ReturnValue>(
     handlers.getGeoCountry,
   );
   rootMessenger.registerActionHandler(
-    'KycService:fetchDisclaimers',
-    handlers.fetchDisclaimers,
+    'KycService:fetchVendorDisclaimers',
+    handlers.fetchVendorDisclaimers,
   );
   rootMessenger.registerActionHandler(
     'KycService:createSession',
