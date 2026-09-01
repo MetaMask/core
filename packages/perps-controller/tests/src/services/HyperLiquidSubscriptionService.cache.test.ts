@@ -930,6 +930,53 @@ describe('HyperLiquidSubscriptionService', () => {
       retrying();
       unsubscribe();
     });
+
+    it('refreshes position slices while only order subscribers remain', async () => {
+      let publish: ((payload: unknown) => void) | undefined;
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: any, callback: (payload: unknown) => void) => {
+          publish = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const unsubscribeAccount = service.subscribeToAccount({
+        callback: jest.fn(),
+      });
+      const unsubscribeOrders = service.subscribeToOrders({
+        callback: jest.fn(),
+      });
+      await jest.runAllTimersAsync();
+
+      publish?.({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [{ position: { szi: '0.1' } }],
+          marginSummary: { accountValue: '10000', totalMarginUsed: '500' },
+          withdrawable: '9500',
+        },
+      });
+      await jest.runAllTimersAsync();
+      unsubscribeAccount();
+
+      publish?.({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [{ position: { szi: '0.04' } }],
+          marginSummary: { accountValue: '10000', totalMarginUsed: '200' },
+          withdrawable: '9800',
+        },
+      });
+      await jest.runAllTimersAsync();
+
+      expect(service.getCachedPositionsForDex('')).toMatchObject([
+        { size: '0.04' },
+      ]);
+
+      unsubscribeOrders();
+    });
   });
 
   describe('spotState WebSocket Subscription', () => {

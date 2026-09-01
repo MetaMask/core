@@ -2995,6 +2995,43 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Resolve the complete DEX set for a fail-closed operation.
+   *
+   * Unlike ordinary discovery, this uses HTTP and never degrades to main-only
+   * when HIP-3 discovery fails.
+   *
+   * @returns The validated DEX set.
+   */
+  async #getValidatedDexsStrict(): Promise<(string | null)[]> {
+    if (!this.#hip3Enabled) {
+      return [null];
+    }
+
+    if (this.#dexDiscoveryCache.state?.validated) {
+      return this.#dexDiscoveryCache.state.validated;
+    }
+
+    const lifecycleGeneration = this.#lifecycleGeneration;
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+    let allDexs;
+    try {
+      allDexs = await infoClient.perpDexs();
+    } catch {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+
+    if (!Array.isArray(allDexs)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'Strict DEX discovery cache write',
+    );
+    return this.#dexDiscoveryCache.update(allDexs).validated;
+  }
+
+  /**
    * Get cached meta response for a DEX, fetching from API if not cached
    * This helper consolidates cache logic to avoid redundant API calls across the provider
    *
@@ -9309,10 +9346,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         results: positionsToClose.map((position) => ({
           symbol: position.symbol,
           success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : PERPS_ERROR_CODES.BATCH_CLOSE_FAILED,
+          error: safeError.message,
         })),
       };
     }
@@ -10667,14 +10701,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     await this.#ensureClientsInitialized();
     const infoClient = this.#clientService.getInfoClient({ useHttp: true });
     const userAddress = await this.#walletService.getUserAddressWithDefault();
-    const enabledDexs = await this.#getValidatedDexs();
-
-    // A valid discovery response always populates the cache, even when main is
-    // the only available DEX. With HIP-3 enabled, an uncached `[null]` is the
-    // tolerant discovery fallback and cannot certify all-DEX completeness.
-    if (this.#hip3Enabled && !this.#dexDiscoveryCache.state?.validated) {
-      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
-    }
+    const enabledDexs = await this.#getValidatedDexsStrict();
 
     const { results, failedDexs } = await this.#queryUserDataAcrossDexs(
       { user: userAddress },
@@ -10715,8 +10742,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * distinction: the first means the position is closed, while the second must
    * fail with `PROVIDER_NOT_AVAILABLE`.
    *
-   * TP/SL enrichment is skipped, as in standalone mode: the close path only reads
-   * size, side and margin.
+   * TP/SL enrichment is skipped because callers only read size, side, and margin.
    *
    * @param dexName - DEX identifier, or null for the main DEX.
    * @returns Whether the DEX answered, and the positions it reported.

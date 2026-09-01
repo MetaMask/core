@@ -2197,67 +2197,68 @@ export class HyperLiquidSubscriptionService {
         (data: ClearinghouseStateWsEvent) => {
           const cacheKey = data.dex || '';
 
-          // Update caches and notify subscribers if we have positions/account subscribers
+          // Keep authoritative slices current for as long as the subscription
+          // exists. Order-only subscribers keep this subscription alive too.
+          // Process positions from clearinghouse state
+          const positions = data.clearinghouseState.assetPositions
+            .filter((assetPos) => assetPos.position.szi !== '0')
+            .map((assetPos) => adaptPositionFromSDK(assetPos));
+
+          // Get cached orders to preserve TP/SL data (prevents flickering)
+          // Orders are cached by openOrders subscription
+          const cachedOrders = this.#dexOrdersCache.get(cacheKey) ?? [];
+
+          // Re-extract TP/SL from cached orders for the new positions
+          // This ensures TP/SL data persists across clearinghouseState updates
+          // Default the trigger arrays so "no triggers" and "not streamed yet"
+          // look the same to consumers as they do on the REST path.
+          let positionsWithTPSL: Position[] = positions.map((position) => ({
+            ...position,
+            takeProfitOrders: position.takeProfitOrders ?? [],
+            stopLossOrders: position.stopLossOrders ?? [],
+          }));
+          if (cachedOrders.length > 0) {
+            const { tpslMap, tpslCountMap, triggerOrderMap } =
+              this.#extractTPSLFromOrders([], positions, cachedOrders);
+
+            positionsWithTPSL = this.#mergeTPSLIntoPositions(
+              positions,
+              tpslMap,
+              tpslCountMap,
+              triggerOrderMap,
+            );
+          }
+
+          // Update account state
+          const accountState: AccountState = adaptAccountStateFromSDK(
+            data.clearinghouseState,
+          );
+
+          // Update caches
+          this.#dexPositionsCache.set(cacheKey, positionsWithTPSL);
+          this.#dexAccountCache.set(cacheKey, accountState);
+
+          // Mark this DEX as initialized (has sent first data)
+          this.#initializedDexs.add(cacheKey);
+
+          // Stamp at delivery, not subscription creation. The SDK keeps this
+          // listener across automatic reconnects, so a captured creation
+          // epoch would reject every legitimate payload after the first
+          // reconnect. Delivery is synchronous from the raw socket `message`
+          // event through the SDK listener; the raw `close` event that retires
+          // the epoch cannot interleave with this callback. Only this
+          // clearinghouseState path stamps because openOrders carries no
+          // authoritative size or side.
+          this.#dexPositionsEpoch.set(
+            cacheKey,
+            this.#clientService.getConnectionEpoch(),
+          );
+
           if (
             this.#positionSubscriberCount > 0 ||
             this.#accountSubscriberCount > 0
           ) {
-            // Process positions from clearinghouse state
-            const positions = data.clearinghouseState.assetPositions
-              .filter((assetPos) => assetPos.position.szi !== '0')
-              .map((assetPos) => adaptPositionFromSDK(assetPos));
-
-            // Get cached orders to preserve TP/SL data (prevents flickering)
-            // Orders are cached by openOrders subscription
-            const cachedOrders = this.#dexOrdersCache.get(cacheKey) ?? [];
-
-            // Re-extract TP/SL from cached orders for the new positions
-            // This ensures TP/SL data persists across clearinghouseState updates
-            // Default the trigger arrays so "no triggers" and "not streamed yet"
-            // look the same to consumers as they do on the REST path.
-            let positionsWithTPSL: Position[] = positions.map((position) => ({
-              ...position,
-              takeProfitOrders: position.takeProfitOrders ?? [],
-              stopLossOrders: position.stopLossOrders ?? [],
-            }));
-            if (cachedOrders.length > 0) {
-              const { tpslMap, tpslCountMap, triggerOrderMap } =
-                this.#extractTPSLFromOrders([], positions, cachedOrders);
-
-              positionsWithTPSL = this.#mergeTPSLIntoPositions(
-                positions,
-                tpslMap,
-                tpslCountMap,
-                triggerOrderMap,
-              );
-            }
-
-            // Update account state
-            const accountState: AccountState = adaptAccountStateFromSDK(
-              data.clearinghouseState,
-            );
-
-            // Update caches
-            this.#dexPositionsCache.set(cacheKey, positionsWithTPSL);
-            this.#dexAccountCache.set(cacheKey, accountState);
-
-            // Mark this DEX as initialized (has sent first data)
-            this.#initializedDexs.add(cacheKey);
-
-            // Stamp at delivery, not subscription creation. The SDK keeps this
-            // listener across automatic reconnects, so a captured creation
-            // epoch would reject every legitimate payload after the first
-            // reconnect. Delivery is synchronous from the raw socket `message`
-            // event through the SDK listener; the raw `close` event that retires
-            // the epoch cannot interleave with this callback. Only this
-            // clearinghouseState path stamps because openOrders carries no
-            // authoritative size or side.
-            this.#dexPositionsEpoch.set(
-              cacheKey,
-              this.#clientService.getConnectionEpoch(),
-            );
-
-            // Trigger aggregation and notify subscribers
+            // Aggregate only when a consumer needs positions/account updates.
             this.#aggregateAndNotifySubscribers();
           }
         },
