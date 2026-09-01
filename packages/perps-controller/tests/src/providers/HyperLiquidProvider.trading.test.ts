@@ -3743,6 +3743,13 @@ describe('HyperLiquidProvider', () => {
         results: [],
         error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
       });
+      expect(mockSubscriptionService.updateFeatureFlags).toHaveBeenCalledWith(
+        true,
+        [],
+        ['xyz:*'],
+        [],
+        false,
+      );
       expect(clearinghouseState).not.toHaveBeenCalled();
       expect(
         mockClientService.getExchangeClient().order,

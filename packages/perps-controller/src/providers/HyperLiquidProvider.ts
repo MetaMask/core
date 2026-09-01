@@ -1557,6 +1557,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       async () => {
         await this.#ensureClientsInitialized();
         const validatedDexs = await this.#getValidatedDexs();
+        if (this.#hip3Enabled && !this.#dexDiscoveryCache.state?.validated) {
+          throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        }
         return validatedDexs.filter((dex): dex is string => dex !== null);
       },
     );
@@ -9349,7 +9352,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         results: positionsToClose.map((position) => ({
           symbol: position.symbol,
           success: false,
-          error: safeError.message,
+          error:
+            error instanceof Error
+              ? safeError.message
+              : PERPS_ERROR_CODES.BATCH_CLOSE_FAILED,
         })),
       };
     }

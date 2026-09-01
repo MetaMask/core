@@ -1991,8 +1991,8 @@ export class HyperLiquidSubscriptionService {
       // previous connection stops matching on its own. That is what makes a
       // webData3-only retry safe — this method also runs as one (its early
       // return above keys on #webData3Subscriptions alone), and the per-DEX
-      // clearinghouseState subscriptions stay live and never republish, so any
-      // reset placed here would erase freshness they are still feeding.
+      // clearinghouseState subscriptions stay live and do not republish on this
+      // webData3-only retry, so a reset would erase freshness they still feed.
 
       // Set up individual subscriptions for each DEX
       const subscriptionPromises: Promise<void>[] = [];
