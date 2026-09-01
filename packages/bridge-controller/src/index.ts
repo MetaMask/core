@@ -29,6 +29,8 @@ export type {
   InputPrimaryDenominationData,
   HashPresenceData,
   FailureTelemetryData,
+  HashPresenceProperties,
+  FailureTelemetryProperties,
 } from './utils/metrics/types.js';
 
 export {

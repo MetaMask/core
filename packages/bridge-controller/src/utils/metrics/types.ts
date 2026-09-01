@@ -94,6 +94,14 @@ export type FailureTelemetryData = HashPresenceData & {
   error_code?: SwapBridgeErrorCode;
 };
 
+/**
+ * Classifier return shape. Event context types use the optional `*Data`
+ * variants above because Mixpanel fields are additive.
+ */
+export type HashPresenceProperties = Required<HashPresenceData>;
+
+export type FailureTelemetryProperties = Required<FailureTelemetryData>;
+
 export type InputPrimaryDenominationData = {
   input_primary_denomination?: InputPrimaryDenomination;
 };

@@ -1,5 +1,9 @@
-import { SwapBridgeErrorCode } from './constants.js';
+import { FailurePhase, SwapBridgeErrorCode } from './constants.js';
 import { getQuoteFetchErrorCode } from './failure-telemetry.js';
+import type {
+  FailureTelemetryProperties,
+  HashPresenceProperties,
+} from './types.js';
 
 describe('failure-telemetry', () => {
   describe('getQuoteFetchErrorCode', () => {
@@ -25,6 +29,24 @@ describe('failure-telemetry', () => {
       expect(getQuoteFetchErrorCode({ reason: 'no quotes' })).toBe(
         SwapBridgeErrorCode.NonErrorRejection,
       );
+    });
+  });
+
+  describe('required classifier types', () => {
+    it('requires all hash-presence and failure-telemetry fields', () => {
+      const hashPresence: HashPresenceProperties = {
+        source_hash_present: true,
+        destination_hash_present: false,
+      };
+      const failureTelemetry: FailureTelemetryProperties = {
+        ...hashPresence,
+        failure_phase: FailurePhase.Broadcast,
+        error_code: SwapBridgeErrorCode.Unknown,
+      };
+
+      expect(failureTelemetry.source_hash_present).toBe(true);
+      expect(failureTelemetry.destination_hash_present).toBe(false);
+      expect(failureTelemetry.error_code).toBe(SwapBridgeErrorCode.Unknown);
     });
   });
 });

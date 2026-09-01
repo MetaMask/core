@@ -31,6 +31,8 @@ import type {
   RequestMetadata,
   BatchSellTradesResponse,
   RequiredEventContextFromClient,
+  HashPresenceProperties,
+  FailureTelemetryProperties,
 } from '@metamask/bridge-controller';
 import {
   TransactionStatus,
@@ -46,16 +48,6 @@ import {
   getActualBridgeReceivedAmount,
   getActualSwapReceivedAmount,
 } from './swap-received-amount.js';
-
-export type HashPresenceProperties = {
-  source_hash_present: boolean;
-  destination_hash_present: boolean;
-};
-
-export type FailureTelemetryProperties = HashPresenceProperties & {
-  failure_phase: FailurePhase;
-  error_code: SwapBridgeErrorCode;
-};
 
 export const getTxStatusesFromHistory = ({
   status,
