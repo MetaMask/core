@@ -1,4 +1,10 @@
 import type { AnalyticsControllerState } from './AnalyticsController.js';
+import type {
+  AnalyticsEventFragment,
+  AnalyticsEventFragments,
+} from './EventFragment.types.js';
+
+const EMPTY_EVENT_FRAGMENTS: AnalyticsEventFragments = {};
 
 /**
  * Selects the analytics ID from the controller state.
@@ -41,6 +47,29 @@ const selectConsentDecisionMade = (state: AnalyticsControllerState): boolean =>
   state.consentDecisionMade ?? false;
 
 /**
+ * Selects the in-progress event fragments from the controller state.
+ *
+ * @param state - The controller state
+ * @returns The event fragments keyed by fragment ID, empty when the event
+ * fragments feature has never written any
+ */
+const selectEventFragments = (
+  state: AnalyticsControllerState,
+): AnalyticsEventFragments => state.eventFragments ?? EMPTY_EVENT_FRAGMENTS;
+
+/**
+ * Selects a single event fragment from the controller state.
+ *
+ * @param state - The controller state
+ * @param id - The fragment ID
+ * @returns The fragment, or `undefined` when no fragment has that ID
+ */
+const selectEventFragmentById = (
+  state: AnalyticsControllerState,
+  id: string,
+): AnalyticsEventFragment | undefined => state.eventFragments?.[id];
+
+/**
  * Selectors for the AnalyticsController state.
  * These can be used with Redux or directly with controller state.
  */
@@ -49,4 +78,6 @@ export const analyticsControllerSelectors = {
   selectOptedIn,
   selectEnabled,
   selectConsentDecisionMade,
+  selectEventFragments,
+  selectEventFragmentById,
 };

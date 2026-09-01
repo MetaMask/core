@@ -42,6 +42,98 @@ export type AnalyticsControllerTrackViewAction = {
 };
 
 /**
+ * Create an event fragment.
+ *
+ * A fragment accumulates properties across a user journey so that several
+ * parts of a client can contribute to the same set of events without
+ * re-deriving them. Declaring `successEvent` and `failureEvent` turns the
+ * fragment into a funnel that {@link finalizeEventFragment} closes. Declaring
+ * none of the event names makes it a pure property bag that the client reads
+ * back with {@link getEventFragmentById} when it emits its own events.
+ *
+ * Any existing fragment with the same ID is replaced, so a new journey never
+ * inherits properties from a stale one.
+ *
+ * @param options - The fragment definition. An ID is generated when one is
+ * not supplied.
+ * @returns The created fragment, or `undefined` when the event fragments
+ * feature is disabled.
+ */
+export type AnalyticsControllerCreateEventFragmentAction = {
+  type: `AnalyticsController:createEventFragment`;
+  handler: AnalyticsController['createEventFragment'];
+};
+
+/**
+ * Write to an event fragment, creating a property bag if none exists.
+ *
+ * This is the ergonomic entry point for contributors that do not know
+ * whether the journey has been started yet, and it avoids the read then
+ * write race a caller would otherwise have to implement itself.
+ *
+ * @param id - The fragment ID.
+ * @param payload - The properties and context to merge in.
+ */
+export type AnalyticsControllerUpsertEventFragmentAction = {
+  type: `AnalyticsController:upsertEventFragment`;
+  handler: AnalyticsController['upsertEventFragment'];
+};
+
+/**
+ * Write to an existing event fragment.
+ *
+ * @param id - The fragment ID.
+ * @param payload - The properties and context to merge in.
+ * @throws Error if no fragment has that ID. Use {@link upsertEventFragment}
+ * when the fragment may not exist yet.
+ */
+export type AnalyticsControllerUpdateEventFragmentAction = {
+  type: `AnalyticsController:updateEventFragment`;
+  handler: AnalyticsController['updateEventFragment'];
+};
+
+/**
+ * Read an event fragment.
+ *
+ * @param id - The fragment ID.
+ * @returns The fragment, or `undefined` when no fragment has that ID or the
+ * event fragments feature is disabled.
+ */
+export type AnalyticsControllerGetEventFragmentByIdAction = {
+  type: `AnalyticsController:getEventFragmentById`;
+  handler: AnalyticsController['getEventFragmentById'];
+};
+
+/**
+ * Discard an event fragment without emitting anything.
+ *
+ * @param id - The fragment ID.
+ */
+export type AnalyticsControllerDeleteEventFragmentAction = {
+  type: `AnalyticsController:deleteEventFragment`;
+  handler: AnalyticsController['deleteEventFragment'];
+};
+
+/**
+ * Close an event fragment, emitting its closing event and discarding it.
+ *
+ * The event emitted is `failureEvent` when the journey was abandoned and
+ * `successEvent` otherwise. A fragment that does not declare the relevant
+ * event name is discarded silently, which is what makes a pure property bag
+ * possible.
+ *
+ * @param id - The fragment ID.
+ * @param options - Finalization options.
+ * @param options.abandoned - Whether the journey was abandoned.
+ * @param options.context - Context merged over the fragment's own context.
+ * @throws Error if no fragment has that ID.
+ */
+export type AnalyticsControllerFinalizeEventFragmentAction = {
+  type: `AnalyticsController:finalizeEventFragment`;
+  handler: AnalyticsController['finalizeEventFragment'];
+};
+
+/**
  * Opt in to analytics.
  *
  * Records that a consent decision has been made and replays any events that
@@ -62,7 +154,8 @@ export type AnalyticsControllerOptInAction = {
  * Opt out of analytics.
  *
  * Records that a consent decision has been made and discards any persisted
- * events so nothing captured before the decision is ever delivered.
+ * events and in-progress event fragments so nothing captured before the
+ * decision is ever delivered.
  */
 export type AnalyticsControllerOptOutAction = {
   type: `AnalyticsController:optOut`;
@@ -89,6 +182,12 @@ export type AnalyticsControllerMethodActions =
   | AnalyticsControllerTrackEventAction
   | AnalyticsControllerIdentifyAction
   | AnalyticsControllerTrackViewAction
+  | AnalyticsControllerCreateEventFragmentAction
+  | AnalyticsControllerUpsertEventFragmentAction
+  | AnalyticsControllerUpdateEventFragmentAction
+  | AnalyticsControllerGetEventFragmentByIdAction
+  | AnalyticsControllerDeleteEventFragmentAction
+  | AnalyticsControllerFinalizeEventFragmentAction
   | AnalyticsControllerOptInAction
   | AnalyticsControllerOptOutAction
   | AnalyticsControllerResetConsentDecisionAction;

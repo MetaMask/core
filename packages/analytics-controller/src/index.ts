@@ -21,6 +21,15 @@ export type {
   AnalyticsTrackingEvent,
 } from './AnalyticsPlatformAdapter.types';
 
+// Export event fragment types
+export type {
+  AnalyticsEventFragment,
+  AnalyticsEventFragmentFinalizeOptions,
+  AnalyticsEventFragmentOptions,
+  AnalyticsEventFragmentPayload,
+  AnalyticsEventFragments,
+} from './EventFragment.types.js';
+
 // Export state types
 export type {
   AnalyticsControllerState,
@@ -52,5 +61,11 @@ export type {
   AnalyticsControllerOptInAction,
   AnalyticsControllerOptOutAction,
   AnalyticsControllerResetConsentDecisionAction,
+  AnalyticsControllerCreateEventFragmentAction,
+  AnalyticsControllerUpsertEventFragmentAction,
+  AnalyticsControllerUpdateEventFragmentAction,
+  AnalyticsControllerGetEventFragmentByIdAction,
+  AnalyticsControllerDeleteEventFragmentAction,
+  AnalyticsControllerFinalizeEventFragmentAction,
   AnalyticsControllerMethodActions,
 } from './AnalyticsController-method-action-types.js';

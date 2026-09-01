@@ -23,6 +23,7 @@ import type {
   AnalyticsTrackingEvent,
   AnalyticsControllerState,
   AnalyticsContext,
+  AnalyticsEventFragment,
 } from './index.js';
 
 /**
@@ -40,6 +41,7 @@ type SetupControllerOptions = {
   isEventQueuePersistenceEnabled?: boolean;
   isPreConsentQueueEnabled?: boolean;
   isGeolocationEnabled?: boolean;
+  isEventFragmentsEnabled?: boolean;
   /**
    * Geolocation returned by the mocked `GeolocationController` action.
    * Defaults to unknown geolocation so that events are not enriched.
@@ -91,6 +93,7 @@ type MockAnalyticsPlatformAdapter = AnalyticsPlatformAdapter & {
  * @param options.isEventQueuePersistenceEnabled - Optional event queue persistence flag (default: false)
  * @param options.isPreConsentQueueEnabled - Optional pre-consent queue flag (default: false)
  * @param options.isGeolocationEnabled - Optional geolocation enrichment flag (default: true)
+ * @param options.isEventFragmentsEnabled - Optional event fragments flag (default: false)
  * @param options.geolocation - Optional geolocation returned by the mocked geolocation action
  * @param options.geolocationHandler - Optional handler for the mocked geolocation action
  * @param options.omitGeolocationAction - When true, the geolocation action is not registered
@@ -106,6 +109,7 @@ async function setupController(
     isEventQueuePersistenceEnabled = false,
     isPreConsentQueueEnabled = false,
     isGeolocationEnabled = true,
+    isEventFragmentsEnabled = false,
     geolocation,
     geolocationHandler,
     omitGeolocationAction = false,
@@ -157,6 +161,7 @@ async function setupController(
     isEventQueuePersistenceEnabled,
     isPreConsentQueueEnabled,
     isGeolocationEnabled,
+    isEventFragmentsEnabled,
   });
 
   await controller.init();
@@ -409,6 +414,56 @@ describe('AnalyticsController', () => {
           'persist',
         ),
       ).toHaveProperty('preConsentEventQueue', state.preConsentEventQueue);
+    });
+
+    it('persists eventFragments but excludes them from logs, snapshots, and UI', async () => {
+      const state: AnalyticsControllerState = {
+        ...metadataFixtureState,
+        eventFragments: {
+          'signature-1': {
+            id: 'signature-1',
+            properties: { signature_type: 'personal_sign' },
+            sensitiveProperties: { eip712_primary_type: 'Permit' },
+            successEvent: 'Signature Approved',
+            persist: true,
+            createdAt: 1700000000000,
+            lastUpdated: 1700000000000,
+          },
+        },
+      };
+      const { controller } = await setupController({
+        state,
+        isEventFragmentsEnabled: true,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).not.toHaveProperty('eventFragments');
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).not.toHaveProperty('eventFragments');
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).not.toHaveProperty('eventFragments');
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toHaveProperty('eventFragments', state.eventFragments);
     });
 
     it('exposes expected state to UI', async () => {
@@ -2889,6 +2944,876 @@ describe('AnalyticsController', () => {
         expect.objectContaining({ messageId: expect.any(String) }),
       );
       expect(controller.state.preConsentEventQueue).toStrictEqual({});
+    });
+  });
+
+  describe('event fragments', () => {
+    const ANALYTICS_ID = '11111111-2222-4333-8444-555555555555';
+
+    /**
+     * Sets up a controller with the event fragments feature enabled and the
+     * user opted in.
+     *
+     * @param options - Overrides for the controller setup.
+     * @param options.state - Extra state merged over the opted-in defaults.
+     * @param options.isEventFragmentsEnabled - Whether the feature is enabled.
+     * @param options.isAnonymousEventsFeatureEnabled - Whether anonymous events are enabled.
+     * @param options.isPreConsentQueueEnabled - Whether the pre-consent queue is enabled.
+     * @returns The controller and its mock adapter.
+     */
+    async function setupFragmentController({
+      state,
+      isEventFragmentsEnabled = true,
+      isAnonymousEventsFeatureEnabled = false,
+      isPreConsentQueueEnabled = false,
+    }: {
+      state?: Partial<AnalyticsControllerState>;
+      isEventFragmentsEnabled?: boolean;
+      isAnonymousEventsFeatureEnabled?: boolean;
+      isPreConsentQueueEnabled?: boolean;
+    } = {}): Promise<{
+      controller: AnalyticsController;
+      messenger: AnalyticsControllerMessenger;
+      mockAdapter: MockAnalyticsPlatformAdapter;
+    }> {
+      const mockAdapter = createMockAdapter();
+      const { controller, messenger } = await setupController({
+        state: {
+          optedIn: true,
+          consentDecisionMade: true,
+          analyticsId: ANALYTICS_ID,
+          ...state,
+        },
+        platformAdapter: mockAdapter,
+        isEventFragmentsEnabled,
+        isAnonymousEventsFeatureEnabled,
+        isPreConsentQueueEnabled,
+      });
+
+      return { controller, messenger, mockAdapter };
+    }
+
+    /**
+     * Builds a stored event fragment fixture.
+     *
+     * @param overrides - Fields to override on the fixture.
+     * @returns An event fragment.
+     */
+    function buildFragment(
+      overrides: Partial<AnalyticsEventFragment> & { id: string },
+    ): AnalyticsEventFragment {
+      return {
+        properties: {},
+        sensitiveProperties: {},
+        createdAt: 1700000000000,
+        lastUpdated: 1700000000000,
+        ...overrides,
+      };
+    }
+
+    describe('when the feature is disabled', () => {
+      it('ignores every fragment method and writes nothing to state', async () => {
+        const { controller, mockAdapter } = await setupFragmentController({
+          isEventFragmentsEnabled: false,
+        });
+
+        expect(
+          controller.createEventFragment({
+            id: 'signature-1',
+            initialEvent: 'Signature Requested',
+          }),
+        ).toBeUndefined();
+        controller.upsertEventFragment('signature-1', {
+          properties: { foo: 'bar' },
+        });
+        controller.updateEventFragment('signature-1', {
+          properties: { foo: 'bar' },
+        });
+        controller.deleteEventFragment('signature-1');
+        controller.finalizeEventFragment('signature-1');
+
+        expect(controller.getEventFragmentById('signature-1')).toBeUndefined();
+        expect(controller.state.eventFragments).toBeUndefined();
+        expect(mockAdapter.track).not.toHaveBeenCalled();
+      });
+
+      it('does not throw from updateEventFragment or finalizeEventFragment for a missing fragment', async () => {
+        const { controller } = await setupFragmentController({
+          isEventFragmentsEnabled: false,
+        });
+
+        expect(() => controller.updateEventFragment('missing')).not.toThrow();
+        expect(() => controller.finalizeEventFragment('missing')).not.toThrow();
+      });
+
+      it('clears fragments persisted by a session that had the feature enabled', async () => {
+        const { controller } = await setupFragmentController({
+          isEventFragmentsEnabled: false,
+          state: {
+            eventFragments: {
+              'signature-1': buildFragment({
+                id: 'signature-1',
+                persist: true,
+              }),
+            },
+          },
+        });
+
+        expect(controller.state.eventFragments).toStrictEqual({});
+      });
+    });
+
+    describe('createEventFragment', () => {
+      it('stores a fragment under a generated ID', async () => {
+        const { controller } = await setupFragmentController();
+
+        const fragment = controller.createEventFragment();
+
+        expect(fragment).toBeDefined();
+        expect(isValidUUIDv4(fragment?.id as string)).toBe(true);
+        expect(controller.state.eventFragments).toStrictEqual({
+          [fragment?.id as string]: fragment,
+        });
+      });
+
+      it('defaults the property bags and timestamps', async () => {
+        const now = 1700000000000;
+        jest.spyOn(Date, 'now').mockReturnValue(now);
+        const { controller } = await setupFragmentController();
+
+        const fragment = controller.createEventFragment({ id: 'bag-1' });
+
+        expect(fragment).toStrictEqual({
+          id: 'bag-1',
+          properties: {},
+          sensitiveProperties: {},
+          createdAt: now,
+          lastUpdated: now,
+        });
+      });
+
+      it('stores every supplied field under the supplied ID', async () => {
+        const { controller } = await setupFragmentController();
+
+        const fragment = controller.createEventFragment({
+          id: 'signature-1',
+          initialEvent: 'Signature Requested',
+          successEvent: 'Signature Approved',
+          failureEvent: 'Signature Rejected',
+          properties: { signature_type: 'personal_sign' },
+          sensitiveProperties: { eip712_primary_type: 'Permit' },
+          context: { referrer: { url: 'https://dapp.test' } },
+          persist: true,
+        });
+
+        expect(controller.state.eventFragments?.['signature-1']).toStrictEqual({
+          id: 'signature-1',
+          initialEvent: 'Signature Requested',
+          successEvent: 'Signature Approved',
+          failureEvent: 'Signature Rejected',
+          properties: { signature_type: 'personal_sign' },
+          sensitiveProperties: { eip712_primary_type: 'Permit' },
+          context: { referrer: { url: 'https://dapp.test' } },
+          persist: true,
+          createdAt: expect.any(Number),
+          lastUpdated: expect.any(Number),
+        });
+        expect(fragment).toStrictEqual(
+          controller.state.eventFragments?.['signature-1'],
+        );
+      });
+
+      it('emits the initial event with the fragment properties and context', async () => {
+        const { controller, mockAdapter } = await setupFragmentController();
+
+        controller.createEventFragment({
+          id: 'signature-1',
+          initialEvent: 'Signature Requested',
+          successEvent: 'Signature Approved',
+          properties: { signature_type: 'personal_sign' },
+          context: { referrer: { url: 'https://dapp.test' } },
+        });
+
+        expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+        expect(mockAdapter.track).toHaveBeenCalledWith(
+          'Signature Requested',
+          { signature_type: 'personal_sign' },
+          { referrer: { url: 'https://dapp.test' } },
+        );
+      });
+
+      it('emits nothing when no initial event is declared', async () => {
+        const { controller, mockAdapter } = await setupFragmentController();
+
+        controller.createEventFragment({
+          id: 'transaction-ui-1',
+          properties: { gas_edit_attempted: 'basic' },
+        });
+
+        expect(mockAdapter.track).not.toHaveBeenCalled();
+      });
+
+      it('replaces an existing fragment so a new journey inherits nothing', async () => {
+        const { controller } = await setupFragmentController({
+          state: {
+            eventFragments: {
+              'signature-1': buildFragment({
+                id: 'signature-1',
+                persist: true,
+                properties: { stale: true },
+              }),
+            },
+          },
+        });
+
+        controller.createEventFragment({
+          id: 'signature-1',
+          properties: { fresh: true },
+        });
+
+        expect(
+          controller.state.eventFragments?.['signature-1']?.properties,
+        ).toStrictEqual({ fresh: true });
+      });
+    });
+
+    describe('upsertEventFragment', () => {
+      it('creates a property bag when the fragment does not exist', async () => {
+        const { controller, mockAdapter } = await setupFragmentController();
+
+        controller.upsertEventFragment('transaction-ui-1', {
+          properties: { simulation_response: 'no_changes' },
+        });
+
+        expect(
+          controller.state.eventFragments?.['transaction-ui-1'],
+        ).toStrictEqual({
+          id: 'transaction-ui-1',
+          properties: { simulation_response: 'no_changes' },
+          sensitiveProperties: {},
+          createdAt: expect.any(Number),
+          lastUpdated: expect.any(Number),
+        });
+        expect(mockAdapter.track).not.toHaveBeenCalled();
+      });
+
+      it('creates an empty bag when no payload is supplied', async () => {
+        const { controller } = await setupFragmentController();
+
+        controller.upsertEventFragment('transaction-ui-1');
+
+        expect(
+          controller.state.eventFragments?.['transaction-ui-1']?.properties,
+        ).toStrictEqual({});
+      });
+
+      it('merges into an existing fragment without disturbing its event names', async () => {
+        const { controller } = await setupFragmentController();
+        controller.createEventFragment({
+          id: 'transaction-ui-1',
+          successEvent: 'Transaction Finalized',
+          properties: { simulation_response: 'no_changes' },
+        });
+
+        controller.upsertEventFragment('transaction-ui-1', {
+          properties: { gas_edit_attempted: 'basic' },
+          sensitiveProperties: { sending_value: '0x1' },
+        });
+
+        expect(
+          controller.state.eventFragments?.['transaction-ui-1'],
+        ).toStrictEqual({
+          id: 'transaction-ui-1',
+          successEvent: 'Transaction Finalized',
+          properties: {
+            simulation_response: 'no_changes',
+            gas_edit_attempted: 'basic',
+          },
+          sensitiveProperties: { sending_value: '0x1' },
+          createdAt: expect.any(Number),
+          lastUpdated: expect.any(Number),
+        });
+      });
+    });
+
+    describe('updateEventFragment', () => {
+      it('merges properties into an existing fragment', async () => {
+        const { controller } = await setupFragmentController();
+        controller.createEventFragment({
+          id: 'signature-1',
+          properties: { alert_triggered_count: 1 },
+        });
+
+        controller.updateEventFragment('signature-1', {
+          properties: { alert_resolved_count: 1 },
+        });
+
+        expect(
+          controller.state.eventFragments?.['signature-1']?.properties,
+        ).toStrictEqual({ alert_triggered_count: 1, alert_resolved_count: 1 });
+      });
+
+      it('replaces an array property wholesale instead of merging it by index', async () => {
+        const { controller } = await setupFragmentController();
+        controller.createEventFragment({
+          id: 'transaction-ui-1',
+          properties: { simulation_receiving_assets_petname: ['a', 'b', 'c'] },
+        });
+
+        controller.updateEventFragment('transaction-ui-1', {
+          properties: { simulation_receiving_assets_petname: ['x', 'y'] },
+        });
+
+        expect(
+          controller.state.eventFragments?.['transaction-ui-1']?.properties,
+        ).toStrictEqual({ simulation_receiving_assets_petname: ['x', 'y'] });
+      });
+
+      it('merges context over the fragment context', async () => {
+        const { controller } = await setupFragmentController();
+        controller.createEventFragment({
+          id: 'signature-1',
+          context: { referrer: { url: 'https://dapp.test' }, keep: 'me' },
+        });
+
+        controller.updateEventFragment('signature-1', {
+          context: { referrer: { url: 'https://other.test' } },
+        });
+
+        expect(
+          controller.state.eventFragments?.['signature-1']?.context,
+        ).toStrictEqual({
+          referrer: { url: 'https://other.test' },
+          keep: 'me',
+        });
+      });
+
+      it('leaves the context unset when neither side has one', async () => {
+        const { controller } = await setupFragmentController();
+        controller.createEventFragment({ id: 'signature-1' });
+
+        controller.updateEventFragment('signature-1', {
+          properties: { foo: 'bar' },
+        });
+
+        expect(
+          controller.state.eventFragments?.['signature-1'],
+        ).not.toHaveProperty('context');
+      });
+
+      it('advances lastUpdated but preserves createdAt', async () => {
+        const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1000);
+        const { controller } = await setupFragmentController();
+        controller.createEventFragment({ id: 'signature-1' });
+        nowSpy.mockReturnValue(2000);
+
+        controller.updateEventFragment('signature-1', {
+          properties: { foo: 'bar' },
+        });
+
+        expect(controller.state.eventFragments?.['signature-1']).toStrictEqual(
+          expect.objectContaining({ createdAt: 1000, lastUpdated: 2000 }),
+        );
+      });
+
+      it('throws when the fragment does not exist', async () => {
+        const { controller } = await setupFragmentController();
+
+        expect(() => controller.updateEventFragment('missing')).toThrow(
+          'Event fragment with id missing does not exist.',
+        );
+      });
+    });
+
+    describe('getEventFragmentById', () => {
+      it('returns the stored fragment', async () => {
+        const { controller } = await setupFragmentController();
+        const fragment = controller.createEventFragment({ id: 'signature-1' });
+
+        expect(controller.getEventFragmentById('signature-1')).toStrictEqual(
+          fragment,
+        );
+      });
+
+      it('returns undefined for an unknown ID', async () => {
+        const { controller } = await setupFragmentController();
+
+        expect(controller.getEventFragmentById('missing')).toBeUndefined();
+      });
+    });
+
+    describe('deleteEventFragment', () => {
+      it('removes the fragment without emitting anything', async () => {
+        const { controller, mockAdapter } = await setupFragmentController();
+        controller.createEventFragment({
+          id: 'signature-1',
+          successEvent: 'Signature Approved',
+        });
+        mockAdapter.track.mockClear();
+
+        controller.deleteEventFragment('signature-1');
+
+        expect(controller.state.eventFragments).toStrictEqual({});
+        expect(mockAdapter.track).not.toHaveBeenCalled();
+      });
+
+      it('leaves state untouched for an unknown ID', async () => {
+        const { controller } = await setupFragmentController();
+        const stateBefore = controller.state;
+
+        controller.deleteEventFragment('missing');
+
+        expect(controller.state).toBe(stateBefore);
+      });
+    });
+
+    describe('finalizeEventFragment', () => {
+      it('emits the success event with the accumulated properties and deletes the fragment', async () => {
+        const { controller, mockAdapter } = await setupFragmentController();
+        controller.createEventFragment({
+          id: 'signature-1',
+          successEvent: 'Signature Approved',
+          failureEvent: 'Signature Rejected',
+          properties: { signature_type: 'personal_sign' },
+        });
+        controller.updateEventFragment('signature-1', {
+          properties: { alert_triggered_count: 1 },
+        });
+
+        controller.finalizeEventFragment('signature-1');
+
+        expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+        expect(mockAdapter.track).toHaveBeenCalledWith(
+          'Signature Approved',
+          { signature_type: 'personal_sign', alert_triggered_count: 1 },
+          undefined,
+        );
+        expect(controller.state.eventFragments).toStrictEqual({});
+      });
+
+      it('emits the failure event when the journey was abandoned', async () => {
+        const { controller, mockAdapter } = await setupFragmentController();
+        controller.createEventFragment({
+          id: 'signature-1',
+          successEvent: 'Signature Approved',
+          failureEvent: 'Signature Rejected',
+        });
+
+        controller.finalizeEventFragment('signature-1', { abandoned: true });
+
+        expect(mockAdapter.track).toHaveBeenCalledWith(
+          'Signature Rejected',
+          undefined,
+          undefined,
+        );
+      });
+
+      it('deletes without emitting when the relevant event name is not declared', async () => {
+        const { controller, mockAdapter } = await setupFragmentController();
+        controller.createEventFragment({
+          id: 'transaction-ui-1',
+          properties: { gas_edit_attempted: 'basic' },
+        });
+
+        controller.finalizeEventFragment('transaction-ui-1');
+        controller.upsertEventFragment('transaction-ui-2', {
+          properties: { gas_edit_attempted: 'basic' },
+        });
+        controller.finalizeEventFragment('transaction-ui-2', {
+          abandoned: true,
+        });
+
+        expect(mockAdapter.track).not.toHaveBeenCalled();
+        expect(controller.state.eventFragments).toStrictEqual({});
+      });
+
+      it('merges the finalize context over the fragment context', async () => {
+        const { controller, mockAdapter } = await setupFragmentController();
+        controller.createEventFragment({
+          id: 'signature-1',
+          successEvent: 'Signature Approved',
+          context: { referrer: { url: 'https://dapp.test' }, keep: 'me' },
+        });
+
+        controller.finalizeEventFragment('signature-1', {
+          context: { referrer: { url: 'https://other.test' } },
+        });
+
+        expect(mockAdapter.track).toHaveBeenCalledWith(
+          'Signature Approved',
+          undefined,
+          { referrer: { url: 'https://other.test' }, keep: 'me' },
+        );
+      });
+
+      it('sends the sensitive properties on a separate anonymous payload', async () => {
+        const { controller, mockAdapter } = await setupFragmentController({
+          isAnonymousEventsFeatureEnabled: true,
+        });
+        controller.createEventFragment({
+          id: 'signature-1',
+          successEvent: 'Signature Approved',
+          properties: { signature_type: 'personal_sign' },
+          sensitiveProperties: { eip712_primary_type: 'Permit' },
+        });
+
+        controller.finalizeEventFragment('signature-1');
+
+        expect(mockAdapter.track).toHaveBeenCalledTimes(2);
+        expect(mockAdapter.track).toHaveBeenNthCalledWith(
+          1,
+          'Signature Approved',
+          { signature_type: 'personal_sign' },
+          undefined,
+        );
+        expect(mockAdapter.track).toHaveBeenNthCalledWith(
+          2,
+          'Signature Approved',
+          {
+            signature_type: 'personal_sign',
+            eip712_primary_type: 'Permit',
+            anonymous: true,
+          },
+          undefined,
+        );
+      });
+
+      it('throws when the fragment does not exist', async () => {
+        const { controller } = await setupFragmentController();
+
+        expect(() => controller.finalizeEventFragment('missing')).toThrow(
+          'Event fragment with id missing does not exist.',
+        );
+      });
+    });
+
+    describe('consent gating', () => {
+      it('ignores every fragment method and writes nothing when the user has opted out', async () => {
+        const { controller, mockAdapter } = await setupFragmentController({
+          state: { optedIn: false, consentDecisionMade: true },
+        });
+
+        expect(
+          controller.createEventFragment({
+            id: 'signature-1',
+            initialEvent: 'Signature Requested',
+            successEvent: 'Signature Approved',
+            sensitiveProperties: { eip712_primary_type: 'Permit' },
+          }),
+        ).toBeUndefined();
+        controller.upsertEventFragment('signature-1', {
+          properties: { foo: 'bar' },
+        });
+        controller.updateEventFragment('signature-1', {
+          properties: { foo: 'bar' },
+        });
+        controller.deleteEventFragment('signature-1');
+        controller.finalizeEventFragment('signature-1');
+
+        expect(controller.getEventFragmentById('signature-1')).toBeUndefined();
+        expect(controller.state.eventFragments).toBeUndefined();
+        expect(mockAdapter.track).not.toHaveBeenCalled();
+      });
+
+      it('does not throw from updateEventFragment or finalizeEventFragment when the user has opted out', async () => {
+        const { controller } = await setupFragmentController({
+          state: { optedIn: false, consentDecisionMade: true },
+        });
+
+        expect(() => controller.updateEventFragment('missing')).not.toThrow();
+        expect(() => controller.finalizeEventFragment('missing')).not.toThrow();
+      });
+
+      it('writes nothing while the user is undecided and the pre-consent queue is disabled', async () => {
+        const { controller, mockAdapter } = await setupFragmentController({
+          state: { optedIn: false, consentDecisionMade: false },
+        });
+
+        controller.createEventFragment({
+          id: 'signature-1',
+          initialEvent: 'Signature Requested',
+          properties: { signature_type: 'personal_sign' },
+        });
+
+        expect(controller.state.eventFragments).toBeUndefined();
+        expect(mockAdapter.track).not.toHaveBeenCalled();
+      });
+
+      it('accumulates while the user is undecided when the pre-consent queue holds their events, then replays them', async () => {
+        const { controller, mockAdapter } = await setupFragmentController({
+          state: { optedIn: false, consentDecisionMade: false },
+          isPreConsentQueueEnabled: true,
+        });
+        controller.createEventFragment({
+          id: 'signature-1',
+          initialEvent: 'Signature Requested',
+        });
+
+        expect(controller.state.eventFragments).toHaveProperty('signature-1');
+        expect(mockAdapter.track).not.toHaveBeenCalled();
+
+        await controller.optIn();
+
+        expect(mockAdapter.track).toHaveBeenCalledWith(
+          'Signature Requested',
+          undefined,
+          undefined,
+          expect.objectContaining({ messageId: expect.any(String) }),
+        );
+      });
+
+      it('accumulates again once the user opts in', async () => {
+        const { controller } = await setupFragmentController({
+          state: { optedIn: false, consentDecisionMade: true },
+        });
+
+        await controller.optIn();
+        controller.createEventFragment({ id: 'signature-1' });
+
+        expect(controller.state.eventFragments).toHaveProperty('signature-1');
+      });
+
+      it('drops fragments persisted before the user opted out during init', async () => {
+        const { controller, mockAdapter } = await setupFragmentController({
+          state: {
+            optedIn: false,
+            consentDecisionMade: true,
+            eventFragments: {
+              'signature-1': buildFragment({
+                id: 'signature-1',
+                persist: true,
+                successEvent: 'Signature Approved',
+                sensitiveProperties: { eip712_primary_type: 'Permit' },
+              }),
+            },
+          },
+        });
+
+        expect(controller.state.eventFragments).toStrictEqual({});
+        expect(mockAdapter.track).not.toHaveBeenCalled();
+      });
+
+      it('drops persisted fragments during init while the user is undecided and the pre-consent queue is disabled', async () => {
+        const { controller } = await setupFragmentController({
+          state: {
+            optedIn: false,
+            consentDecisionMade: false,
+            eventFragments: {
+              'signature-1': buildFragment({
+                id: 'signature-1',
+                persist: true,
+              }),
+            },
+          },
+        });
+
+        expect(controller.state.eventFragments).toStrictEqual({});
+      });
+
+      it('keeps persisted fragments during init when the pre-consent queue holds events for an undecided user', async () => {
+        const persisted = buildFragment({ id: 'signature-1', persist: true });
+        const { controller } = await setupFragmentController({
+          state: {
+            optedIn: false,
+            consentDecisionMade: false,
+            eventFragments: { 'signature-1': persisted },
+          },
+          isPreConsentQueueEnabled: true,
+        });
+
+        expect(controller.state.eventFragments).toStrictEqual({
+          'signature-1': persisted,
+        });
+      });
+
+      it('discards fragments on resetConsentDecision when they can no longer accumulate', async () => {
+        const { controller } = await setupFragmentController();
+        controller.createEventFragment({ id: 'signature-1', persist: true });
+
+        controller.resetConsentDecision();
+
+        expect(controller.state.eventFragments).toStrictEqual({});
+      });
+
+      it('keeps fragments on resetConsentDecision when the pre-consent queue is enabled', async () => {
+        const { controller } = await setupFragmentController({
+          isPreConsentQueueEnabled: true,
+        });
+        const fragment = controller.createEventFragment({
+          id: 'signature-1',
+          persist: true,
+        });
+
+        controller.resetConsentDecision();
+
+        expect(controller.state.eventFragments).toStrictEqual({
+          'signature-1': fragment,
+        });
+      });
+    });
+
+    describe('init', () => {
+      it('keeps fragments that opted into persistence and drops the rest', async () => {
+        const persisted = buildFragment({ id: 'signature-1', persist: true });
+        const { controller, mockAdapter } = await setupFragmentController({
+          state: {
+            eventFragments: {
+              'signature-1': persisted,
+              'transaction-ui-1': buildFragment({ id: 'transaction-ui-1' }),
+              'transaction-ui-2': buildFragment({
+                id: 'transaction-ui-2',
+                persist: false,
+                failureEvent: 'Transaction Rejected',
+              }),
+            },
+          },
+        });
+
+        expect(controller.state.eventFragments).toStrictEqual({
+          'signature-1': persisted,
+        });
+        expect(mockAdapter.track).not.toHaveBeenCalled();
+      });
+
+      it('leaves state untouched when every fragment is persistent', async () => {
+        const { controller } = await setupFragmentController({
+          state: {
+            eventFragments: {
+              'signature-1': buildFragment({
+                id: 'signature-1',
+                persist: true,
+              }),
+            },
+          },
+        });
+        const stateBefore = controller.state;
+
+        await controller.init();
+
+        expect(controller.state).toBe(stateBefore);
+      });
+
+      it('leaves state untouched when there are no fragments', async () => {
+        const { controller } = await setupFragmentController();
+
+        expect(controller.state.eventFragments).toBeUndefined();
+      });
+
+      it.each([
+        ['a non-object', 'not-a-fragment'],
+        ['a missing id', { ...buildFragment({ id: 'x' }), id: undefined }],
+        ['an id that does not match its key', buildFragment({ id: 'other' })],
+        [
+          'a missing createdAt',
+          { ...buildFragment({ id: 'x' }), createdAt: undefined },
+        ],
+        [
+          'a missing lastUpdated',
+          { ...buildFragment({ id: 'x' }), lastUpdated: undefined },
+        ],
+        [
+          'non-object properties',
+          { ...buildFragment({ id: 'x' }), properties: 'nope' },
+        ],
+        [
+          'non-object sensitiveProperties',
+          { ...buildFragment({ id: 'x' }), sensitiveProperties: 'nope' },
+        ],
+        [
+          'a non-string initialEvent',
+          { ...buildFragment({ id: 'x' }), initialEvent: 1 },
+        ],
+        [
+          'a non-string successEvent',
+          { ...buildFragment({ id: 'x' }), successEvent: 1 },
+        ],
+        [
+          'a non-string failureEvent',
+          { ...buildFragment({ id: 'x' }), failureEvent: 1 },
+        ],
+        ['a non-object context', { ...buildFragment({ id: 'x' }), context: 1 }],
+        [
+          'a non-boolean persist',
+          { ...buildFragment({ id: 'x' }), persist: 'yes' },
+        ],
+      ])('drops a persisted fragment with %s', async (_description, value) => {
+        const { controller } = await setupFragmentController({
+          state: {
+            eventFragments: {
+              x: value as unknown as AnalyticsEventFragment,
+            },
+          },
+        });
+
+        expect(controller.state.eventFragments).toStrictEqual({});
+      });
+    });
+
+    describe('optOut', () => {
+      it('discards in-progress fragments', async () => {
+        const { controller } = await setupFragmentController();
+        controller.createEventFragment({
+          id: 'signature-1',
+          successEvent: 'Signature Approved',
+          persist: true,
+        });
+
+        controller.optOut();
+
+        expect(controller.state.eventFragments).toStrictEqual({});
+      });
+
+      it('leaves state untouched when there is nothing to discard', async () => {
+        const { controller } = await setupFragmentController();
+        controller.optOut();
+        const stateBefore = controller.state;
+
+        controller.optOut();
+
+        expect(controller.state).toBe(stateBefore);
+      });
+    });
+
+    describe('messenger actions', () => {
+      it('exposes the fragment lifecycle', async () => {
+        const { messenger, mockAdapter } = await setupFragmentController();
+
+        messenger.call('AnalyticsController:createEventFragment', {
+          id: 'signature-1',
+          successEvent: 'Signature Approved',
+        });
+        messenger.call('AnalyticsController:upsertEventFragment', 'bag-1', {
+          properties: { foo: 'bar' },
+        });
+        messenger.call(
+          'AnalyticsController:updateEventFragment',
+          'signature-1',
+          { properties: { signature_type: 'personal_sign' } },
+        );
+
+        expect(
+          messenger.call(
+            'AnalyticsController:getEventFragmentById',
+            'signature-1',
+          ),
+        ).toStrictEqual(
+          expect.objectContaining({
+            properties: { signature_type: 'personal_sign' },
+          }),
+        );
+
+        messenger.call('AnalyticsController:deleteEventFragment', 'bag-1');
+        messenger.call(
+          'AnalyticsController:finalizeEventFragment',
+          'signature-1',
+        );
+
+        expect(mockAdapter.track).toHaveBeenCalledWith(
+          'Signature Approved',
+          { signature_type: 'personal_sign' },
+          undefined,
+        );
+      });
     });
   });
 });
