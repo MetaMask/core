@@ -1617,6 +1617,12 @@ export type PerpsOrderCapabilities =
       reason: OrderCapabilitiesUnavailableReason;
     }>;
 
+/** Reasons a provider-routed Scale price ladder cannot be produced. */
+export type ScalePriceLadderUnavailableReason = Exclude<
+  OrderCapabilitiesUnavailableReason,
+  'strategy_market_unsupported'
+>;
+
 /** Result of provider-routed Scale price normalization. */
 export type PerpsScalePriceLadder =
   | Readonly<{
@@ -1627,7 +1633,7 @@ export type PerpsScalePriceLadder =
   | Readonly<{
       status: 'unavailable';
       providerId?: PerpsProviderType;
-      reason: OrderCapabilitiesUnavailableReason;
+      reason: ScalePriceLadderUnavailableReason;
     }>;
 
 export type FeeCalculationParams = {

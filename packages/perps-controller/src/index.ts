@@ -294,6 +294,7 @@ export type {
   OrderCapabilitiesUnavailableReason,
   DirectProviderOrderCapabilitiesUnavailableReason,
   RoutedOrderCapabilitiesUnavailableReason,
+  ScalePriceLadderUnavailableReason,
   DirectProviderOrderCapabilities,
   PerpsOrderCapabilities,
   PerpsScalePriceLadder,
