@@ -129,7 +129,7 @@ export class ChaseOrderSuspensionError extends Error {
  * const aggregated = new AggregatedPerpsProvider({
  *   providers: new Map([
  *     ['hyperliquid', hlProvider],
- *     ['myx', myxProvider],
+ *     ['lighter', lighterProvider],
  *   ]),
  *   defaultProvider: 'hyperliquid',
  *   infrastructure: deps,
@@ -139,7 +139,7 @@ export class ChaseOrderSuspensionError extends Error {
  * const positions = await aggregated.getPositions();
  *
  * // Write: routes to specific or default provider
- * await aggregated.placeOrder({ symbol: 'BTC', providerId: 'myx', ... });
+ * await aggregated.placeOrder({ symbol: 'BTC', providerId: 'lighter', ... });
  * ```
  */
 export class AggregatedPerpsProvider implements PerpsProvider {

@@ -80,7 +80,9 @@ const PerpsWatchlistExchangeSchema = type({
 
 const PerpsWatchlistMarketsSchema = type({
   hyperliquid: PerpsWatchlistExchangeSchema,
-  myx: PerpsWatchlistExchangeSchema,
+  // Deprecated: MYX is no longer a supported venue. Optional so blobs already
+  // stored with a `myx` watchlist keep validating.
+  myx: optional(PerpsWatchlistExchangeSchema),
 });
 
 const PerpsPreferenceSchema = type({

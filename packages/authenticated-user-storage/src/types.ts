@@ -92,7 +92,12 @@ export type PerpsWatchlistExchange = {
 
 export type PerpsWatchlistMarkets = {
   hyperliquid: PerpsWatchlistExchange;
-  myx: PerpsWatchlistExchange;
+  /**
+   * @deprecated MYX is no longer a supported perps venue. The key is kept
+   * optional so preference blobs already stored with a `myx` watchlist stay
+   * valid; nothing writes it any more.
+   */
+  myx?: PerpsWatchlistExchange;
 };
 
 export type PerpsPreference = {

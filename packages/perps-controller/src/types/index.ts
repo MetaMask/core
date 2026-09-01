@@ -582,7 +582,6 @@ export type AccountState = {
   /**
    * Total USD equity on this venue — collateral + unrealized PnL. Live MTM.
    * HL: crossMarginSummary.accountValue + spot(USDC) − spot.hold
-   * MYX: walletBalance + marginUsed + unrealizedPnl
    */
   totalBalance: string;
   /**
@@ -590,7 +589,6 @@ export type AccountState = {
    * with no internal transfer required.
    * HL Unified: withdrawable + freeSpotUSDC
    * HL Standard: withdrawable
-   * MYX: walletBalance
    */
   spendableBalance: string;
   /**
@@ -601,7 +599,6 @@ export type AccountState = {
    * withdraw — no client-side spot→perps sweep is performed.
    * HL Unified: withdrawable + freeSpotUSDC (USDC only; `freeSpotUSDC = spot.total - spot.hold`, and HL withdraw3 draws from the unified ledger server-side)
    * HL Standard: withdrawable (perps-clearinghouse only; spot is a separate ledger)
-   * MYX: walletBalance
    */
   withdrawableBalance: string;
   marginUsed: string;
@@ -1099,17 +1096,6 @@ export type HyperLiquidCredentials = {
   subscriptionBuilderAddressMainnet?: string;
 };
 
-export type MYXCredentials = {
-  /** Whether MYX provider is enabled via local env var. */
-  enabled?: boolean;
-  appIdTestnet?: string;
-  apiSecretTestnet?: string;
-  brokerAddressTestnet?: string;
-  appIdMainnet?: string;
-  apiSecretMainnet?: string;
-  brokerAddressMainnet?: string;
-};
-
 export type LighterCredentials = {
   /** Whether Lighter provider is enabled via local env var. */
   enabled?: boolean;
@@ -1135,7 +1121,6 @@ export type LighterCredentials = {
 
 export type PerpsProviderCredentials = {
   hyperliquid?: HyperLiquidCredentials;
-  myx?: MYXCredentials;
   lighter?: LighterCredentials;
 };
 
@@ -2079,11 +2064,11 @@ export type PerpsProvider = {
  * Provider identifier type for multi-provider support.
  * Add new providers here as they are implemented.
  */
-export type PerpsProviderType = 'hyperliquid' | 'myx' | 'lighter';
+export type PerpsProviderType = 'hyperliquid' | 'lighter';
 
 /**
  * Active provider mode for PerpsController state.
- * - Direct providers: 'hyperliquid', 'myx'
+ * - Direct providers: 'hyperliquid', 'lighter'
  * - 'aggregated': Multi-provider aggregation mode
  */
 export type PerpsActiveProviderMode = PerpsProviderType | 'aggregated';

@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add provider-routed Scale price normalization through `PerpsController:getScalePriceLadder`, the optional `PerpsProvider.getScalePriceLadder` hook, and their exported action, parameter, and result types ([#10021](https://github.com/MetaMask/core/pull/10021))
 
+### Removed
+
+- **BREAKING:** Remove all MYX protocol support ([#10037](https://github.com/MetaMask/core/pull/10037))
+  - Deletes the `MYXProvider`, `MYXClientService`, `MYXWalletService`, the MYX adapter, and the MYX config and type modules, along with the optional `@myx-trade/sdk` dependency and the `!dist/*MYX*` packaging exclusions that kept those files out of published bundles.
+  - **BREAKING:** `PerpsProviderType` is now `'hyperliquid' | 'lighter'`. Consumers that set `activeProvider: 'myx'`, pass `providerId: 'myx'`, or switch exhaustively on the union must drop the `'myx'` case; the controller now throws `Unsupported provider` for it.
+  - **BREAKING:** Removes the `MYXCredentials` type and the `providerCredentials.myx` option from `PerpsControllerOptions`. Consumers passing MYX credentials must delete that key.
+  - **BREAKING:** Removes the `MYX_*` constant, chain-id, endpoint, decimal, fee, and asset-config exports, the `getMYXChainId` / `getMYXHttpEndpoint` helpers, the `fromMYX*` / `toMYX*` converters, and the MYX-only `USDT_BNB_TESTNET` / `USDT_BNB_MAINNET` collateral addresses from the package entrypoint.
+  - **BREAKING:** Removes `PROVIDER_CONFIG.MYX_TESTNET_ONLY`. `buildProviderCacheKey` no longer special-cases `'myx'`.
+  - The `perpsMyxProviderEnabled` remote feature flag and the `MM_PERPS_MYX_PROVIDER_ENABLED` env override are no longer read; clients can retire both.
+  - HyperLiquid and Lighter behavior is unchanged.
+
 ## [15.0.0]
 
 ### Added

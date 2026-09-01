@@ -13,10 +13,6 @@ import {
 } from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
-jest.mock('@myx-trade/sdk', () => ({
-  MyxClient: jest.fn(),
-  OrderStatusEnum: { Successful: 9 },
-}));
 
 import {
   PERPS_EVENT_PROPERTY,
@@ -42,7 +38,6 @@ import { PerpsAnalyticsEvent } from '../../src/types/index.js';
 import { STRATEGY_ORDER_TYPES } from '../../src/utils/orderTypes.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
-jest.mock('../../src/providers/MYXProvider');
 
 // Mock transaction controller utility
 const mockAddTransaction = jest.fn();
@@ -359,16 +354,6 @@ class TestablePerpsController extends PerpsController {
 
   public testHasStandaloneProvider(): boolean {
     return this.hasStandaloneProvider();
-  }
-
-  public testRegisterMYXProvider(
-    MYXProvider: new (opts: Record<string, unknown>) => PerpsProvider,
-  ) {
-    this.registerMYXProvider(MYXProvider as never);
-  }
-
-  public testHandleMYXImportError(error: unknown) {
-    this.handleMYXImportError(error);
   }
 }
 
@@ -842,14 +827,14 @@ describe('PerpsController', () => {
 
   describe('order capabilities', () => {
     const setAggregatedProvider = (): AggregatedPerpsProvider => {
-      const myxProvider: PerpsProvider = {
+      const lighterProvider: PerpsProvider = {
         ...createMockHyperLiquidProvider(),
-        protocolId: 'myx',
+        protocolId: 'lighter',
       };
       const aggregatedProvider = new AggregatedPerpsProvider({
         providers: new Map([
           ['hyperliquid', mockProvider],
-          ['myx', myxProvider],
+          ['lighter', lighterProvider],
         ]),
         defaultProvider: 'hyperliquid',
         infrastructure: mockInfrastructure,
@@ -861,7 +846,7 @@ describe('PerpsController', () => {
       controller.testSetProviders(
         new Map([
           ['hyperliquid', mockProvider],
-          ['myx', myxProvider],
+          ['lighter', lighterProvider],
         ]),
       );
       controller.testSetActiveProvider(aggregatedProvider);
@@ -933,23 +918,23 @@ describe('PerpsController', () => {
       });
     });
 
-    it('preserves the resolved MYX provider when its hook is unavailable', async () => {
-      const myxProvider: PerpsProvider = {
+    it('preserves the resolved Lighter provider when its hook is unavailable', async () => {
+      const lighterProvider: PerpsProvider = {
         ...mockProvider,
-        protocolId: 'myx',
+        protocolId: 'lighter',
         getOrderCapabilities: undefined,
       };
       markControllerAsInitialized();
       controller.testUpdate((state) => {
-        state.activeProvider = 'myx';
+        state.activeProvider = 'lighter';
       });
-      controller.testSetProviders(new Map([['myx', myxProvider]]));
+      controller.testSetProviders(new Map([['lighter', lighterProvider]]));
 
       await expect(
         controller.getOrderCapabilities({ symbol: 'RHEA' }),
       ).resolves.toStrictEqual({
         status: 'unavailable',
-        providerId: 'myx',
+        providerId: 'lighter',
         reason: 'not_implemented',
       });
     });
@@ -974,30 +959,30 @@ describe('PerpsController', () => {
       await expect(
         controller.getOrderCapabilities({
           symbol: 'RHEA',
-          providerId: 'myx',
+          providerId: 'lighter',
         }),
       ).resolves.toStrictEqual({
         status: 'unavailable',
-        providerId: 'myx',
+        providerId: 'lighter',
         reason: 'provider_unavailable',
       });
     });
 
     it('routes an explicit provider through the active aggregator', async () => {
-      const getMyxOrderCapabilities = jest.fn().mockResolvedValue({
+      const getLighterOrderCapabilities = jest.fn().mockResolvedValue({
         status: 'ready',
-        providerId: 'myx',
+        providerId: 'lighter',
         supportedStrategies: [],
       });
-      const myxProvider: PerpsProvider = {
+      const lighterProvider: PerpsProvider = {
         ...createMockHyperLiquidProvider(),
-        protocolId: 'myx',
-        getOrderCapabilities: getMyxOrderCapabilities,
+        protocolId: 'lighter',
+        getOrderCapabilities: getLighterOrderCapabilities,
       };
       const aggregatedProvider = new AggregatedPerpsProvider({
         providers: new Map([
           ['hyperliquid', mockProvider],
-          ['myx', myxProvider],
+          ['lighter', lighterProvider],
         ]),
         defaultProvider: 'hyperliquid',
         infrastructure: mockInfrastructure,
@@ -1009,21 +994,24 @@ describe('PerpsController', () => {
       controller.testSetProviders(
         new Map([
           ['hyperliquid', mockProvider],
-          ['myx', myxProvider],
+          ['lighter', lighterProvider],
         ]),
       );
       controller.testSetActiveProvider(aggregatedProvider);
 
       await expect(
-        controller.getOrderCapabilities({ symbol: 'RHEA', providerId: 'myx' }),
+        controller.getOrderCapabilities({
+          symbol: 'RHEA',
+          providerId: 'lighter',
+        }),
       ).resolves.toStrictEqual({
         status: 'ready',
-        providerId: 'myx',
+        providerId: 'lighter',
         supportedStrategies: [],
       });
-      expect(getMyxOrderCapabilities).toHaveBeenCalledWith({
+      expect(getLighterOrderCapabilities).toHaveBeenCalledWith({
         symbol: 'RHEA',
-        providerId: 'myx',
+        providerId: 'lighter',
       });
     });
 
@@ -1031,14 +1019,17 @@ describe('PerpsController', () => {
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
       controller.testUpdate((state) => {
-        state.activeProvider = 'myx';
+        state.activeProvider = 'lighter';
       });
 
       await expect(
-        controller.getOrderCapabilities({ symbol: 'RHEA', providerId: 'myx' }),
+        controller.getOrderCapabilities({
+          symbol: 'RHEA',
+          providerId: 'lighter',
+        }),
       ).resolves.toStrictEqual({
         status: 'unavailable',
-        providerId: 'myx',
+        providerId: 'lighter',
         reason: 'provider_not_routable',
       });
       expect(mockProvider.getOrderCapabilities).not.toHaveBeenCalled();
@@ -1053,10 +1044,13 @@ describe('PerpsController', () => {
       controller.testSetProviders(new Map([['hyperliquid', directProvider]]));
 
       await expect(
-        controller.getOrderCapabilities({ symbol: 'RHEA', providerId: 'myx' }),
+        controller.getOrderCapabilities({
+          symbol: 'RHEA',
+          providerId: 'lighter',
+        }),
       ).resolves.toStrictEqual({
         status: 'unavailable',
-        providerId: 'myx',
+        providerId: 'lighter',
         reason: 'provider_not_routable',
       });
       expect(directProvider.getOrderCapabilities).not.toHaveBeenCalled();
@@ -1071,7 +1065,7 @@ describe('PerpsController', () => {
         await expect(
           controller.placeOrder({
             symbol: 'RHEA',
-            providerId: 'myx',
+            providerId: 'lighter',
             orderType,
             isBuy: true,
             size: '1',
@@ -1085,7 +1079,7 @@ describe('PerpsController', () => {
       const aggregatedProvider = setAggregatedProvider();
       const params = {
         symbol: 'RHEA',
-        providerId: 'myx',
+        providerId: 'lighter',
         orderType: 'twap',
         isBuy: true,
         size: '1',
@@ -1132,7 +1126,7 @@ describe('PerpsController', () => {
 
       const params = {
         symbol: 'RHEA',
-        providerId: 'myx',
+        providerId: 'lighter',
         orderType: 'market',
         isBuy: true,
         size: '1',
@@ -1155,7 +1149,7 @@ describe('PerpsController', () => {
           controller.cancelOrder({
             orderId: 'strategy-123',
             symbol: 'RHEA',
-            providerId: 'myx',
+            providerId: 'lighter',
             orderType,
           }),
         ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE);
@@ -1168,7 +1162,7 @@ describe('PerpsController', () => {
       const params = {
         orderId: 'twap-123',
         symbol: 'RHEA',
-        providerId: 'myx',
+        providerId: 'lighter',
         orderType: 'twap',
       } as const;
       mockTradingServiceInstance.cancelOrder.mockResolvedValue({
@@ -1214,7 +1208,7 @@ describe('PerpsController', () => {
         await expect(
           controller.validateOrder({
             symbol: 'RHEA',
-            providerId: 'myx',
+            providerId: 'lighter',
             orderType,
             isBuy: true,
             size: '1',
@@ -1230,7 +1224,7 @@ describe('PerpsController', () => {
       const aggregatedProvider = setAggregatedProvider();
       const params = {
         symbol: 'RHEA',
-        providerId: 'myx',
+        providerId: 'lighter',
         orderType: 'twap',
         isBuy: true,
         size: '1',
@@ -1279,7 +1273,7 @@ describe('PerpsController', () => {
       await expect(
         controller.validateOrder({
           symbol: 'RHEA',
-          providerId: 'myx',
+          providerId: 'lighter',
           orderType: 'limit',
           isBuy: true,
           size: '1',
@@ -1297,7 +1291,7 @@ describe('PerpsController', () => {
       const params = {
         orderId: 'order-123',
         symbol: 'RHEA',
-        providerId: 'myx',
+        providerId: 'lighter',
         orderType: 'limit',
       } satisfies CancelOrderParams;
 
@@ -1317,7 +1311,7 @@ describe('PerpsController', () => {
           orderId: 'order-123',
           newOrder: {
             symbol: 'RHEA',
-            providerId: 'myx',
+            providerId: 'lighter',
             orderType: 'limit',
             isBuy: true,
             size: '1',
@@ -1354,7 +1348,7 @@ describe('PerpsController', () => {
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
 
       await expect(
-        controller.closePosition({ symbol: 'RHEA', providerId: 'myx' }),
+        controller.closePosition({ symbol: 'RHEA', providerId: 'lighter' }),
       ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
       expect(mockTradingServiceInstance.closePosition).not.toHaveBeenCalled();
     });
@@ -1366,7 +1360,7 @@ describe('PerpsController', () => {
       await expect(
         controller.updatePositionTPSL({
           symbol: 'RHEA',
-          providerId: 'myx',
+          providerId: 'lighter',
           takeProfitPrice: '10',
         }),
       ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
@@ -1382,7 +1376,7 @@ describe('PerpsController', () => {
       await expect(
         controller.validateClosePosition({
           symbol: 'RHEA',
-          providerId: 'myx',
+          providerId: 'lighter',
         }),
       ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
       expect(
@@ -1581,7 +1575,7 @@ describe('PerpsController', () => {
       const params = {
         orderType: 'market',
         symbol: 'RHEA',
-        providerId: 'myx',
+        providerId: 'lighter',
       } satisfies FeeCalculationParams;
 
       await expect(controller.calculateFees(params)).rejects.toThrow(
@@ -1603,7 +1597,7 @@ describe('PerpsController', () => {
           controller.calculateFees({
             orderType,
             symbol: 'RHEA',
-            providerId: 'myx',
+            providerId: 'lighter',
           }),
         ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_ROUTE_UNAVAILABLE);
         expect(
