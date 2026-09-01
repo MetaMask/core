@@ -1,13 +1,17 @@
 import { TransactionType } from '@metamask/transaction-controller';
 
-import { TransactionPayStrategy } from '..';
-import type { TransactionPaymentToken } from '..';
-import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../constants';
-import { getMessengerMock } from '../tests/messenger-mock';
-import type { TransactionData, TransactionPayRequiredToken } from '../types';
-import { updateSourceAmounts } from './source-amounts';
-import { getTokenFiatRate } from './token';
-import { getTransaction } from './transaction';
+import {
+  ARBITRUM_USDC_ADDRESS,
+  CHAIN_ID_ARBITRUM,
+  PaymentOverride,
+} from '../constants.js';
+import { TransactionPayStrategy } from '../index.js';
+import type { TransactionPaymentToken } from '../index.js';
+import { getMessengerMock } from '../tests/messenger-mock.js';
+import type { TransactionData, TransactionPayRequiredToken } from '../types.js';
+import { updateSourceAmounts } from './source-amounts.js';
+import { getTokenFiatRate } from './token.js';
+import { getTransaction } from './transaction.js';
 
 jest.mock('./token', () => ({
   ...jest.requireActual('./token'),
@@ -54,7 +58,7 @@ describe('Source Amounts Utils', () => {
     jest.resetAllMocks();
 
     getTokenFiatRateMock.mockReturnValue({ fiatRate: '2.0', usdRate: '3.0' });
-    getStrategyMock.mockReturnValue(TransactionPayStrategy.Test);
+    getStrategyMock.mockReturnValue(TransactionPayStrategy.Across);
     getTransactionMock.mockReturnValue({
       id: TRANSACTION_ID_MOCK,
     } as never);
@@ -149,6 +153,53 @@ describe('Source Amounts Utils', () => {
       expect(transactionData.sourceAmounts).toHaveLength(1);
     });
 
+    it('does not return empty array if payment token matches but perps deposit and order and across strategy', () => {
+      getStrategyMock.mockReturnValue(TransactionPayStrategy.Across);
+      getTransactionMock.mockReturnValue({
+        id: TRANSACTION_ID_MOCK,
+        type: TransactionType.perpsDepositAndOrder,
+      } as never);
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          address: ARBITRUM_USDC_ADDRESS,
+          chainId: CHAIN_ID_ARBITRUM,
+        },
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            address: ARBITRUM_USDC_ADDRESS,
+            chainId: CHAIN_ID_ARBITRUM,
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toHaveLength(1);
+    });
+
+    it('does not return empty array if payment token matches but isQuoteRequired is true', () => {
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isQuoteRequired: true,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            address: PAYMENT_TOKEN_MOCK.address,
+            chainId: PAYMENT_TOKEN_MOCK.chainId,
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toHaveLength(1);
+    });
+
     it('returns empty array if skipIfBalance and has balance', () => {
       const transactionData: TransactionData = {
         isLoading: false,
@@ -212,6 +263,285 @@ describe('Source Amounts Utils', () => {
         {
           sourceAmountHuman: PAYMENT_TOKEN_MOCK.balanceHuman,
           sourceAmountRaw: PAYMENT_TOKEN_MOCK.balanceRaw,
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('uses getBalance override for isMaxAmount standard flow', () => {
+      const getBalance = jest.fn().mockReturnValue({
+        balanceRaw: '9900000',
+      });
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [TRANSACTION_TOKEN_MOCK],
+      };
+
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
+
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: PAYMENT_TOKEN_MOCK.balanceHuman,
+          sourceAmountRaw: '9900000',
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('falls back to payment token balance when getBalance returns undefined', () => {
+      const getBalance = jest.fn().mockReturnValue(undefined);
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [TRANSACTION_TOKEN_MOCK],
+      };
+
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
+
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: PAYMENT_TOKEN_MOCK.balanceHuman,
+          sourceAmountRaw: PAYMENT_TOKEN_MOCK.balanceRaw,
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('ignores getBalance when isMaxAmount is false', () => {
+      const getBalance = jest.fn().mockReturnValue({
+        balanceRaw: '9900000',
+      });
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [TRANSACTION_TOKEN_MOCK],
+      };
+
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
+
+      // isMaxAmount is false, so fiat-derived amounts should be used (not the override)
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: '2',
+          sourceAmountRaw: '2000000',
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('does not call getBalance when transaction is not found', () => {
+      // First call (top of updateSourceAmounts) returns undefined; subsequent
+      // calls (getStrategyContext) return the normal mock so no crash.
+      getTransactionMock.mockReturnValueOnce(undefined);
+
+      const getBalance = jest.fn().mockReturnValue({
+        balanceRaw: '9900000',
+      });
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [TRANSACTION_TOKEN_MOCK],
+      };
+
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
+
+      expect(getBalance).not.toHaveBeenCalled();
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: PAYMENT_TOKEN_MOCK.balanceHuman,
+          sourceAmountRaw: PAYMENT_TOKEN_MOCK.balanceRaw,
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('uses getBalance override for MoneyAccount max when getBalance is provided', () => {
+      const getBalance = jest.fn().mockReturnValue({
+        balanceRaw: '9900000',
+      });
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        paymentOverride: PaymentOverride.MoneyAccount,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          balanceHuman: '0.62',
+          balanceRaw: '620000',
+          balanceUsd: '0.62',
+        },
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            amountUsd: '6.0',
+          },
+        ],
+      };
+
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
+
+      // getBalance is provided, so its raw override is applied even for
+      // MoneyAccount. sourceAmountHuman is unread and falls back to the pay
+      // token balance.
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: '0.62',
+          sourceAmountRaw: '9900000',
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('uses the payment token balance on max when getBalance is not provided (payment-override agnostic)', () => {
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        paymentOverride: PaymentOverride.MoneyAccount,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          balanceHuman: '0.62',
+          balanceRaw: '620000',
+          balanceUsd: '0.62',
+        },
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            amountUsd: '6.0',
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      // No getBalance callback: max uses the pay token's on-chain balance,
+      // regardless of paymentOverride. All balance complexity now lives in the
+      // client getBalance callback.
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: '0.62',
+          sourceAmountRaw: '620000',
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('uses getBalance override for isMaxAmount post-quote flow', () => {
+      const DESTINATION_TOKEN = {
+        address: '0xdef' as const,
+        balanceFiat: '100.00',
+        balanceHuman: '1.00',
+        balanceRaw: '1000000000000000000',
+        balanceUsd: '100.00',
+        chainId: '0x38' as const,
+        decimals: 18,
+        symbol: 'BNB',
+      };
+
+      const getBalance = jest.fn().mockReturnValue({
+        balanceRaw: '5500000',
+      });
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        isPostQuote: true,
+        paymentToken: DESTINATION_TOKEN,
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            skipIfBalance: false,
+          },
+        ],
+      };
+
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
+
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: TRANSACTION_TOKEN_MOCK.balanceHuman,
+          sourceAmountRaw: '5500000',
+          sourceBalanceRaw: '5500000',
+          sourceChainId: TRANSACTION_TOKEN_MOCK.chainId,
+          sourceTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+          targetTokenAddress: DESTINATION_TOKEN.address,
+        },
+      ]);
+    });
+
+    it('falls back to the payment token balance when getBalance returns undefined for MoneyAccount max', () => {
+      // A getBalance callback that returns undefined is a deliberate signal to
+      // use the pay token's on-chain balance — not the legacy fiat-derived
+      // amount. The callback owns all balance complexity.
+      const getBalance = jest.fn().mockReturnValue(undefined);
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isMaxAmount: true,
+        paymentOverride: PaymentOverride.MoneyAccount,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          balanceHuman: '0.62',
+          balanceRaw: '620000',
+          balanceUsd: '0.62',
+        },
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            amountUsd: '6.0',
+          },
+        ],
+      };
+
+      updateSourceAmounts(
+        TRANSACTION_ID_MOCK,
+        transactionData,
+        messenger,
+        getBalance,
+      );
+
+      expect(getBalance).toHaveBeenCalled();
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: '0.62',
+          sourceAmountRaw: '620000',
           targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
         },
       ]);

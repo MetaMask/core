@@ -5,11 +5,11 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
+import { CONTROLLER_NAME, SERVICE_NAME } from '../../src/constants.js';
 import type {
   ClaimsServiceMessenger,
   ClaimsControllerMessenger,
-} from '../../src';
-import { CONTROLLER_NAME, SERVICE_NAME } from '../../src/constants';
+} from '../../src/index.js';
 
 type AllShieldControllerActions = MessengerActions<ClaimsControllerMessenger>;
 
@@ -113,22 +113,25 @@ export function createMockClaimsControllerMessenger({
 }
 
 type AllServiceActions = MessengerActions<ClaimsServiceMessenger>;
+type AllServiceEvents = MessengerEvents<ClaimsServiceMessenger>;
 
 export type RootServiceMessenger = Messenger<
   MockAnyNamespace,
-  AllServiceActions
-  // since there's no events for the service, we don't need to specify them
+  AllServiceActions,
+  AllServiceEvents
 >;
 
 /**
  * Create a mock messenger for the claims service.
  *
  * @param mockAuthenticationControllerGetBearerToken - A mock function for the authentication controller get bearer token.
+ * @param mockAuthenticationControllerGetSessionProfile - A mock function for the authentication controller get session profile.
  * @param mockCaptureException - A mock function for the capture exception.
  * @returns A mock messenger for the claims service.
  */
 export function createMockClaimsServiceMessenger(
   mockAuthenticationControllerGetBearerToken: jest.Mock,
+  mockAuthenticationControllerGetSessionProfile: jest.Mock,
   mockCaptureException: jest.Mock,
 ): {
   rootMessenger: RootServiceMessenger;
@@ -142,11 +145,15 @@ export function createMockClaimsServiceMessenger(
     'AuthenticationController:getBearerToken',
     mockAuthenticationControllerGetBearerToken,
   );
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getSessionProfile',
+    mockAuthenticationControllerGetSessionProfile,
+  );
 
   const messenger = new Messenger<
     typeof SERVICE_NAME,
     AllServiceActions,
-    never, // No events for the service
+    AllServiceEvents,
     RootServiceMessenger
   >({
     namespace: SERVICE_NAME,
@@ -157,7 +164,10 @@ export function createMockClaimsServiceMessenger(
   rootMessenger.delegate({
     messenger,
     events: [],
-    actions: ['AuthenticationController:getBearerToken'],
+    actions: [
+      'AuthenticationController:getBearerToken',
+      'AuthenticationController:getSessionProfile',
+    ],
   });
 
   return {

@@ -5,14 +5,17 @@ import type {
   EntropySourceId,
   KeyringAccount,
 } from '@metamask/keyring-api';
-import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
+import type {
+  Keyring as KeyringV2,
+  KeyringCapabilities,
+} from '@metamask/keyring-api/v2';
 import type {
   KeyringMetadata,
-  KeyringSelector,
+  KeyringSelectorV2,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { MultichainAccountServiceMessenger } from '../types';
+import type { MultichainAccountServiceMessenger } from '../types.js';
 
 /**
  * Asserts a keyring account is BIP-44 compatible.
@@ -76,6 +79,17 @@ export type Bip44AccountProvider<
    */
   createAccounts(options: CreateAccountOptions): Promise<Account[]>;
   /**
+   * Delete an account managed by this provider.
+   *
+   * Mirrors the v2 keyring `deleteAccount(accountId)` contract. Each provider
+   * implementation is responsible for resolving any extra information it needs
+   * (e.g. address for snap-based providers) and for performing the underlying
+   * keyring removal.
+   *
+   * @param id - The id of the account to delete.
+   */
+  deleteAccount(id: Account['id']): Promise<void>;
+  /**
    * Re-synchronize MetaMask accounts and the providers accounts if needed.
    *
    * NOTE: This is mostly required if one of the providers (keyrings or Snaps)
@@ -83,6 +97,33 @@ export type Bip44AccountProvider<
    * in-sync and use the same accounts (and same IDs).
    */
   resyncAccounts(accounts: Bip44Account<InternalAccount>[]): Promise<void>;
+  /**
+   * Check if the provider has an aligned (i.e. present and owned) account for
+   * the given entropy source and group index.
+   *
+   * Callers pre-filter the relevant account IDs from the group and pass them
+   * in so the provider needs no messenger call.
+   *
+   * @param context - The entropy source and group index to check.
+   * @param context.entropySource - The entropy source to check against.
+   * @param context.groupIndex - The group index to check against.
+   * @param accountIds - Account IDs already associated with this provider for
+   * the given group (may be empty if no alignment has happened yet).
+   * @returns `true` when `accountIds` is non-empty and every ID is in the
+   * provider's internal accounts Set.
+   */
+  isAligned(
+    context: { entropySource: EntropySourceId; groupIndex: number },
+    accountIds: Account['id'][],
+  ): boolean;
+  /**
+   * Ensures the provider is ready before any account operation is attempted:
+   * - EVM providers return immediately.
+   * - Snap providers will wait for the Snap platform and keyring to be available.
+   *
+   * @returns A promise that resolves when the provider is ready to use.
+   */
+  ensureReady(): Promise<void>;
 };
 
 export abstract class BaseBip44AccountProvider<
@@ -155,8 +196,22 @@ export abstract class BaseBip44AccountProvider<
     ) as unknown as Account;
   }
 
-  protected async withKeyring<SelectedKeyring, CallbackResult = void>(
-    selector: KeyringSelector,
+  /**
+   * Run an operation against a V2 keyring selected by `selector`.
+   *
+   * Forwards to `KeyringController:withKeyringV2`. Use this for keyrings
+   * that implement the unified V2 `Keyring` interface from
+   * `@metamask/keyring-api/v2`.
+   *
+   * @param selector - The selector identifying the keyring.
+   * @param operation - The operation to run with the selected keyring.
+   * @returns The result of the operation.
+   */
+  protected async withKeyringV2<
+    SelectedKeyring extends KeyringV2 = KeyringV2,
+    CallbackResult = void,
+  >(
+    selector: KeyringSelectorV2<SelectedKeyring>,
     operation: ({
       keyring,
       metadata,
@@ -166,7 +221,7 @@ export abstract class BaseBip44AccountProvider<
     }) => Promise<CallbackResult>,
   ): Promise<CallbackResult> {
     const result = await this.messenger.call(
-      'KeyringController:withKeyring',
+      'KeyringController:withKeyringV2',
       selector,
       ({ keyring, metadata }) =>
         operation({
@@ -176,6 +231,19 @@ export abstract class BaseBip44AccountProvider<
     );
 
     return result as CallbackResult;
+  }
+
+  isAligned(
+    _context: { entropySource: EntropySourceId; groupIndex: number },
+    accountIds: Account['id'][],
+  ): boolean {
+    return (
+      accountIds.length >= 1 && accountIds.every((id) => this.accounts.has(id))
+    );
+  }
+
+  async ensureReady(): Promise<void> {
+    // No-op for non-snap providers.
   }
 
   abstract get capabilities(): KeyringCapabilities;
@@ -189,6 +257,8 @@ export abstract class BaseBip44AccountProvider<
   abstract isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean;
 
   abstract createAccounts(options: CreateAccountOptions): Promise<Account[]>;
+
+  abstract deleteAccount(id: Account['id']): Promise<void>;
 
   abstract discoverAccounts({
     entropySource,

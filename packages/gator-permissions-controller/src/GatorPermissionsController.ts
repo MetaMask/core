@@ -4,7 +4,6 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
@@ -27,24 +26,28 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { DELEGATION_FRAMEWORK_VERSION } from './constants';
-import type { DecodedPermission } from './decodePermission';
+import { createPermissionDecodersForContracts } from './decodePermission/decoders/index.js';
 import {
-  createPermissionRulesForContracts,
-  findRuleWithMatchingCaveatAddresses,
+  delegationContractsByChainId,
+  toEnforcerAddressesByName,
+} from './decodePermission/enforcerAddresses.js';
+import type { DecodedPermission } from './decodePermission/index.js';
+import {
+  findDecodersWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
-} from './decodePermission';
+  selectUniqueDecoderAndDecodedPermission,
+} from './decodePermission/index.js';
 import {
   GatorPermissionsFetchError,
   GatorPermissionsProviderError,
   OriginNotAllowedError,
   PermissionDecodingError,
-} from './errors';
-import type { GatorPermissionsControllerMethodActions } from './GatorPermissionsController-method-action-types';
-import { controllerLog } from './logger';
-import { updateGrantedPermissionsStatus } from './permissionOnChainStatus';
-import type { PermissionStatusEip1193Provider } from './permissionOnChainStatus';
-import { GatorPermissionsSnapRpcMethod } from './types';
+} from './errors.js';
+import type { GatorPermissionsControllerMethodActions } from './GatorPermissionsController-method-action-types.js';
+import { controllerLog } from './logger.js';
+import { updateGrantedPermissionsStatus } from './permissionOnChainStatus.js';
+import type { PermissionStatusEip1193Provider } from './permissionOnChainStatus.js';
+import { GatorPermissionsSnapRpcMethod } from './types.js';
 import type {
   StoredGatorPermission,
   PermissionInfoWithMetadata,
@@ -53,8 +56,8 @@ import type {
   DelegationDetails,
   RevocationParams,
   PendingRevocationParams,
-} from './types';
-import { executeSnapRpc } from './utils';
+} from './types.js';
+import { executeSnapRpc } from './utils.js';
 
 // === GENERAL ===
 
@@ -82,8 +85,6 @@ const DEFAULT_MAX_SYNC_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days in mil
  * After this time, event listeners will be cleaned up to prevent memory leaks.
  */
 const PENDING_REVOCATION_TIMEOUT = 2 * 60 * 60 * 1000;
-
-const contractsByChainId = DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION];
 
 // === CONFIG ===
 
@@ -402,7 +403,6 @@ export class GatorPermissionsController extends BaseController<
   ): Promise<PermissionInfoWithMetadata[]> {
     return updateGrantedPermissionsStatus(grantedPermissions, {
       getProviderForChainId: (chainId) => this.#getProviderForChainId(chainId),
-      contractsByChainId,
     });
   }
 
@@ -561,7 +561,9 @@ export class GatorPermissionsController extends BaseController<
    *
    * @returns A decoded permission object suitable for UI consumption and follow-up actions.
    * @throws If the origin is not allowed, the context cannot be decoded into exactly one delegation,
-   * or the enforcers/terms do not match a supported permission type.
+   * the enforcers do not match any supported permission type, no candidate type validates
+   * the caveat terms, or more than one permission type successfully validates
+   * (ambiguous delegation).
    */
   public decodePermissionFromPermissionContextForOrigin({
     origin,
@@ -581,44 +583,46 @@ export class GatorPermissionsController extends BaseController<
       throw new OriginNotAllowedError({ origin });
     }
 
-    const contracts = contractsByChainId[chainId];
-
-    if (!contracts) {
-      throw new Error(`Contracts not found for chainId: ${chainId}`);
-    }
+    const deploymentContracts = delegationContractsByChainId[chainId];
 
     try {
-      const enforcers = caveats.map((caveat) => caveat.enforcer);
-      const permissionRules = createPermissionRulesForContracts(contracts);
-
-      // find the single rule where the specified enforcers contain all the required enforcers
-      // and no forbidden enforcers
-      const matchingRule = findRuleWithMatchingCaveatAddresses({
-        enforcers,
-        permissionRules,
-      });
-
-      // validate the terms of each caveat against the matching rule, returning the decoded result
-      // this happens in a single function, as decoding is an inherent part of validation.
-      const decodeResult = matchingRule.validateAndDecodePermission(caveats);
-
-      if (!decodeResult.isValid) {
-        throw new PermissionDecodingError({
-          cause: decodeResult.error,
-        });
+      if (!deploymentContracts) {
+        throw new Error(`Contracts not found for chainId: ${chainId}`);
       }
 
-      const { expiry, data } = decodeResult;
+      const contracts = toEnforcerAddressesByName(deploymentContracts);
+
+      const enforcers = caveats.map((caveat) => caveat.enforcer);
+      const permissionDecoders =
+        createPermissionDecodersForContracts(contracts);
+
+      // Every decoder where enforcer addresses match; multiple types may share the
+      // same caveat pattern and are disambiguated by validateAndDecodePermission.
+      const matchingDecoders = findDecodersWithMatchingCaveatAddresses({
+        enforcers,
+        permissionDecoders,
+      });
+
+      const {
+        decoder: { permissionType },
+        expiry,
+        data,
+        rules,
+      } = selectUniqueDecoderAndDecodedPermission({
+        candidateDecoders: matchingDecoders,
+        caveats,
+      });
 
       const permission = reconstructDecodedPermission({
         chainId,
-        permissionType: matchingRule.permissionType,
+        permissionType,
         delegator,
         delegate,
         authority,
         expiry,
         data,
         justification,
+        rules,
         specifiedOrigin,
       });
 

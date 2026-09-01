@@ -1,7 +1,13 @@
-import { bytesToBase64URL, base64URLToBytes } from '../utils/encoding';
-import { decodeClientDataJSON } from './decode-client-data-json';
-import type { PasskeyAuthenticationResponse } from './types';
-import { verifyAuthenticationResponse } from './verify-authentication-response';
+import { encodeCBOR } from '@levischuck/tiny-cbor';
+import { concatBytes } from '@metamask/utils';
+import { p256 } from '@noble/curves/p256';
+import { sha256 } from '@noble/hashes/sha2';
+
+import { bytesToBase64URL, base64URLToBytes } from '../utils/encoding.js';
+import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants.js';
+import { decodeClientDataJSON } from './decode-client-data-json.js';
+import type { PasskeyAuthenticationResponse } from './types.js';
+import { verifyAuthenticationResponse } from './verify-authentication-response.js';
 
 const EXPECTED_ORIGIN = 'https://dev.dontneeda.pw';
 const EXPECTED_RP_ID = 'dev.dontneeda.pw';
@@ -59,17 +65,87 @@ const assertionChallenge = decodeClientDataJSON(
   assertionResponse.response.clientDataJSON,
 ).challenge;
 
+/**
+ * Re-signs the assertion fixture's authenticator data over the given client
+ * data, using a freshly generated ES256 credential.
+ *
+ * Needed whenever a test alters `clientDataJSON`, since the fixture signature
+ * covers `authenticatorData || SHA-256(clientDataJSON)` and would otherwise no
+ * longer verify.
+ *
+ * @param clientData - Client data to serialize and sign over.
+ * @returns The signed assertion and the credential that signed it.
+ */
+function buildSignedAssertion(clientData: Record<string, unknown>): {
+  response: PasskeyAuthenticationResponse;
+  credential: { id: string; publicKey: Uint8Array; counter: number };
+} {
+  const privateKey = p256.utils.randomPrivateKey();
+  const publicKeyRaw = p256.getPublicKey(privateKey, false);
+  const coseKey = new Map<number, number | Uint8Array>();
+  coseKey.set(COSEKEYS.Kty, COSEKTY.EC2);
+  coseKey.set(COSEKEYS.Alg, COSEALG.ES256);
+  coseKey.set(COSEKEYS.Crv, COSECRV.P256);
+  coseKey.set(COSEKEYS.X, publicKeyRaw.slice(1, 33));
+  coseKey.set(COSEKEYS.Y, publicKeyRaw.slice(33, 65));
+
+  const { authenticatorData } = assertionResponse.response;
+  const clientDataJSON = bytesToBase64URL(
+    new TextEncoder().encode(JSON.stringify(clientData)),
+  );
+  const signatureBase = concatBytes([
+    base64URLToBytes(authenticatorData),
+    sha256(base64URLToBytes(clientDataJSON)),
+  ]);
+  const signature = p256
+    .sign(sha256(signatureBase), privateKey)
+    .toDERRawBytes();
+
+  return {
+    response: {
+      ...assertionResponse,
+      response: {
+        authenticatorData,
+        clientDataJSON,
+        signature: bytesToBase64URL(signature),
+      },
+    },
+    credential: {
+      id: assertionResponse.id,
+      publicKey: encodeCBOR(coseKey),
+      counter: credential.counter,
+    },
+  };
+}
+
 const assertionFirstTimeUsedChallenge = decodeClientDataJSON(
   assertionFirstTimeUsedResponse.response.clientDataJSON,
 ).challenge;
 
 describe('verifyAuthenticationResponse', () => {
+  it('verifies when expectedRPIDs is empty', async () => {
+    const verification = await verifyAuthenticationResponse({
+      response: assertionResponse,
+      expectedChallenge: assertionChallenge,
+      expectedOrigin: EXPECTED_ORIGIN,
+      expectedRPIDs: [],
+      credential,
+      requireUserVerification: false,
+    });
+
+    expect(verification.verified).toBe(true);
+    if (!verification.verified) {
+      return;
+    }
+    expect(verification.authenticationInfo.rpID).toBe('');
+  });
+
   it('verifies an assertion response', async () => {
     const verification = await verifyAuthenticationResponse({
       response: assertionResponse,
       expectedChallenge: assertionChallenge,
       expectedOrigin: EXPECTED_ORIGIN,
-      expectedRPID: EXPECTED_RP_ID,
+      expectedRPIDs: [EXPECTED_RP_ID],
       credential,
       requireUserVerification: false,
     });
@@ -82,7 +158,7 @@ describe('verifyAuthenticationResponse', () => {
       response: assertionResponse,
       expectedChallenge: assertionChallenge,
       expectedOrigin: EXPECTED_ORIGIN,
-      expectedRPID: EXPECTED_RP_ID,
+      expectedRPIDs: [EXPECTED_RP_ID],
       credential,
       requireUserVerification: false,
     });
@@ -103,7 +179,7 @@ describe('verifyAuthenticationResponse', () => {
         response: assertionResponse,
         expectedChallenge: 'shouldhavebeenthisvalue',
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Unexpected authentication response challenge');
@@ -115,7 +191,7 @@ describe('verifyAuthenticationResponse', () => {
         response: assertionResponse,
         expectedChallenge: assertionChallenge,
         expectedOrigin: 'https://different.address',
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Unexpected authentication response origin');
@@ -137,7 +213,7 @@ describe('verifyAuthenticationResponse', () => {
       },
       expectedChallenge: assertionChallenge,
       expectedOrigin: EXPECTED_ORIGIN,
-      expectedRPID: EXPECTED_RP_ID,
+      expectedRPIDs: [EXPECTED_RP_ID],
       credential,
     });
 
@@ -166,7 +242,7 @@ describe('verifyAuthenticationResponse', () => {
         },
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Unexpected authentication response type');
@@ -178,7 +254,7 @@ describe('verifyAuthenticationResponse', () => {
         response: assertionResponse,
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: 'wrong-rp.com',
+        expectedRPIDs: ['wrong-rp.com'],
         credential,
       }),
     ).rejects.toThrow('Unexpected RP ID hash');
@@ -194,7 +270,7 @@ describe('verifyAuthenticationResponse', () => {
         },
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Missing credential ID');
@@ -209,7 +285,7 @@ describe('verifyAuthenticationResponse', () => {
         },
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Credential ID was not base64url-encoded');
@@ -224,7 +300,7 @@ describe('verifyAuthenticationResponse', () => {
         } as unknown as PasskeyAuthenticationResponse,
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Unexpected credential type');
@@ -247,7 +323,7 @@ describe('verifyAuthenticationResponse', () => {
         },
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('User not present during authentication');
@@ -259,7 +335,7 @@ describe('verifyAuthenticationResponse', () => {
         response: assertionResponse,
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential: {
           ...credential,
           counter: 144,
@@ -277,7 +353,7 @@ describe('verifyAuthenticationResponse', () => {
         response: assertionResponse,
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential: {
           ...credential,
           counter: 200,
@@ -294,7 +370,7 @@ describe('verifyAuthenticationResponse', () => {
       response: assertionFirstTimeUsedResponse,
       expectedChallenge: assertionFirstTimeUsedChallenge,
       expectedOrigin: EXPECTED_ORIGIN,
-      expectedRPID: EXPECTED_RP_ID,
+      expectedRPIDs: [EXPECTED_RP_ID],
       credential: authenticatorFirstTimeUsed,
       requireUserVerification: false,
     });
@@ -308,7 +384,7 @@ describe('verifyAuthenticationResponse', () => {
         response: assertionResponse,
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
         requireUserVerification: true,
       }),
@@ -322,7 +398,7 @@ describe('verifyAuthenticationResponse', () => {
       response: assertionResponse,
       expectedChallenge: assertionChallenge,
       expectedOrigin: ['https://other.com', EXPECTED_ORIGIN],
-      expectedRPID: EXPECTED_RP_ID,
+      expectedRPIDs: [EXPECTED_RP_ID],
       credential,
       requireUserVerification: false,
     });
@@ -342,7 +418,7 @@ describe('verifyAuthenticationResponse', () => {
         },
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Credential response clientDataJSON was not a string');
@@ -360,7 +436,7 @@ describe('verifyAuthenticationResponse', () => {
         },
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Credential response userHandle was not a string');
@@ -387,7 +463,7 @@ describe('verifyAuthenticationResponse', () => {
         },
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('ClientDataJSON tokenBinding was not an object');
@@ -414,9 +490,29 @@ describe('verifyAuthenticationResponse', () => {
         },
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Unexpected tokenBinding status');
   });
+
+  it.each(['present', 'supported', 'not-supported'])(
+    'verifies an assertion whose tokenBinding status is %s',
+    async (status) => {
+      const signedAssertion = buildSignedAssertion({
+        ...decodeClientDataJSON(assertionResponse.response.clientDataJSON),
+        tokenBinding: { status },
+      });
+
+      const verification = await verifyAuthenticationResponse({
+        response: signedAssertion.response,
+        expectedChallenge: assertionChallenge,
+        expectedOrigin: EXPECTED_ORIGIN,
+        expectedRPIDs: [EXPECTED_RP_ID],
+        credential: signedAssertion.credential,
+      });
+
+      expect(verification.verified).toBe(true);
+    },
+  );
 });

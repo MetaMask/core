@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.0.2]
+
+### Changed
+
+- Bump `@metamask/eth-sig-util` from `^8.2.0` to `^9.0.0` ([#9999](https://github.com/MetaMask/core/pull/9999))
+
+### Fixed
+
+- Allow `null` values for optional fields in `eth_sendTransaction` / `eth_signTransaction` params ([#10039](https://github.com/MetaMask/core/pull/10039))
+  - Fields like `maxFeePerGas`, `maxPriorityFeePerGas`, `gasPrice`, `gas`, `value`, `data`, `to`, `nonce`, `chainId`, `type`, `gasLimit`, `accessList`, and `authorizationList` now accept `null` in addition to `undefined`, which is how some dApps signal an absent value in JSON
+
+## [24.0.1]
+
+### Changed
+
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
+
+### Fixed
+
+- Accept numeric values for quantity fields in `eth_sendTransaction` / `eth_signTransaction` params ([#9967](https://github.com/MetaMask/core/pull/9967))
+  - `chainId` (top-level and in `authorizationList` entries) and `authorizationList` `nonce` / `yParity` now accept both hex strings and numbers, matching the other quantity fields (`gas`, `value`, `nonce`, etc.) and restoring pre-`24.0.0` behavior
+
+## [24.0.0]
+
+### Changed
+
+- **BREAKING:** Add strict validation for `eth_sendTransaction` and `eth_signTransaction` params ([#9482](https://github.com/MetaMask/core/pull/9482))
+  - Reject requests whose params do not match the transaction schema (extraneous top-level keys, ill-typed fields such as non-hex `to`/`data`, malformed `accessList` / `authorizationList` entries) or exceed `MAX_TRANSACTION_PARAMS_SIZE_BYTES` when serialized
+  - Prevents downstream normalization / PPOM WASM from crashing on deeply-nested junk fields or padded payloads and silently bypassing security scans
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.5.0` ([#8661](https://github.com/MetaMask/core/pull/8661), [#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753))
+- Bump `@metamask/message-manager` from `^14.1.1` to `^14.1.2` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Drop `pify` dependency, which was no longer used in source ([#9064](https://github.com/MetaMask/core/pull/9064))
+
 ## [23.1.3]
 
 ### Fixed
@@ -95,7 +129,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See [`MetaMask/eth-json-rpc-middleware`](https://github.com/MetaMask/eth-json-rpc-middleware/blob/main/CHANGELOG.md)
     for the original changelog.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.2...HEAD
+[24.0.2]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.1...@metamask/eth-json-rpc-middleware@24.0.2
+[24.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.0...@metamask/eth-json-rpc-middleware@24.0.1
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.3...@metamask/eth-json-rpc-middleware@24.0.0
 [23.1.3]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.2...@metamask/eth-json-rpc-middleware@23.1.3
 [23.1.2]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.1...@metamask/eth-json-rpc-middleware@23.1.2
 [23.1.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.0...@metamask/eth-json-rpc-middleware@23.1.1

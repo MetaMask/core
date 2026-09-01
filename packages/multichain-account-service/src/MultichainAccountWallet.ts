@@ -18,27 +18,31 @@ import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
-import { toProviderDataTraces, traceFallback, TraceName } from './analytics';
-import { reportError } from './errors';
-import type { Logger } from './logger';
+import {
+  toProviderDataTraces,
+  traceFallback,
+  TraceName,
+} from './analytics/index.js';
+import { reportError } from './errors.js';
+import type { Logger } from './logger.js';
 import {
   createModuleLogger,
   ERROR_PREFIX,
   projectLogger as log,
   WARNING_PREFIX,
-} from './logger';
-import type { GroupState } from './MultichainAccountGroup';
-import { MultichainAccountGroup } from './MultichainAccountGroup';
-import type { ServiceState, StateKeys } from './MultichainAccountService';
-import type { Bip44AccountProvider } from './providers';
-import { EvmAccountProvider } from './providers/EvmAccountProvider';
-import type { MultichainAccountServiceMessenger } from './types';
+} from './logger.js';
+import type { GroupState } from './MultichainAccountGroup.js';
+import { MultichainAccountGroup } from './MultichainAccountGroup.js';
+import type { ServiceState, StateKeys } from './MultichainAccountService.js';
+import { EvmAccountProvider } from './providers/EvmAccountProvider.js';
+import type { Bip44AccountProvider } from './providers/index.js';
+import type { MultichainAccountServiceMessenger } from './types.js';
 import {
   assertGroupIndexIsValid,
   assertGroupIndexRangeIsValid,
   GroupIndexRange,
   toErrorMessage,
-} from './utils';
+} from './utils.js';
 
 /**
  * The context for a provider discovery.
@@ -305,19 +309,23 @@ export class MultichainAccountWallet<
   }
 
   /**
-   * Build group state for a range of group indices by calling all providers in parallel.
+   * Build group state by calling all providers in parallel.
    *
    * This is a non-locking shared core used by both creation and alignment paths.
+   * Each provider is asked which contiguous sub-ranges of group indices it needs
+   * accounts created for via `getSubRanges`, so callers can skip indices that are
+   * already satisfied (e.g. during alignment).
    *
-   * @param from - Starting group index (inclusive).
-   * @param to - Ending group index (inclusive).
    * @param providers - The providers to create accounts for.
+   * @param getSubRanges - Resolver returning the sub-ranges to create for a
+   * given provider. Returning an empty array means the provider is skipped.
    * @returns The collected group state and any provider failure messages.
    */
-  async #buildGroupStateForRange(
-    from: number,
-    to: number,
+  async #buildGroupState(
     providers: Bip44AccountProvider<Account>[],
+    getSubRanges: (
+      provider: Bip44AccountProvider<Account>,
+    ) => Required<GroupIndexRange>[],
   ): Promise<{
     groupStateByGroupIndex: Map<number, GroupState>;
     failures: string[];
@@ -327,23 +335,27 @@ export class MultichainAccountWallet<
     const results = await Promise.allSettled(
       providers.map(async (provider) => {
         const providerName = provider.getName();
-        const accounts = await this.#createAccountsRangeForProvider(
-          provider,
-          from,
-          to,
-        );
-        accounts.forEach((account) => {
-          const { groupIndex } = account.options.entropy;
-          let groupState = groupStateByGroupIndex.get(groupIndex);
-          if (!groupState) {
-            groupState = {};
-            groupStateByGroupIndex.set(groupIndex, groupState);
-          }
-          if (!groupState[providerName]) {
-            groupState[providerName] = [];
-          }
-          groupState[providerName].push(account.id);
-        });
+        const subRanges = getSubRanges(provider);
+
+        for (const { from, to } of subRanges) {
+          const accounts = await this.#createAccountsRangeForProvider(
+            provider,
+            from,
+            to,
+          );
+          accounts.forEach((account) => {
+            const { groupIndex } = account.options.entropy;
+            let groupState = groupStateByGroupIndex.get(groupIndex);
+            if (!groupState) {
+              groupState = {};
+              groupStateByGroupIndex.set(groupIndex, groupState);
+            }
+            if (!groupState[providerName]) {
+              groupState[providerName] = [];
+            }
+            groupState[providerName].push(account.id);
+          });
+        }
       }),
     );
 
@@ -358,6 +370,46 @@ export class MultichainAccountWallet<
     }, []);
 
     return { groupStateByGroupIndex, failures };
+  }
+
+  /**
+   * Compute the contiguous sub-ranges of group indices in `[from, to]` for which
+   * the given provider is NOT aligned (i.e. is missing an account).
+   *
+   * Already-aligned indices are skipped so alignment never re-creates (or
+   * re-traces) accounts that already exist. A group that does not exist yet is
+   * treated as unaligned.
+   *
+   * @param provider - The provider to compute missing sub-ranges for.
+   * @param from - Starting group index (inclusive).
+   * @param to - Ending group index (inclusive).
+   * @returns The contiguous sub-ranges where the provider needs accounts.
+   */
+  #getUnalignedSubRangesForProvider(
+    provider: Bip44AccountProvider<Account>,
+    from: number,
+    to: number,
+  ): Required<GroupIndexRange>[] {
+    const subRanges: Required<GroupIndexRange>[] = [];
+
+    let runStart: number | undefined;
+    for (let groupIndex = from; groupIndex <= to; groupIndex++) {
+      const group = this.getMultichainAccountGroup(groupIndex);
+      const aligned = group ? group.isProviderAligned(provider) : false;
+
+      if (!aligned) {
+        runStart ??= groupIndex;
+      } else if (runStart !== undefined) {
+        subRanges.push({ from: runStart, to: groupIndex - 1 });
+        runStart = undefined;
+      }
+    }
+
+    if (runStart !== undefined) {
+      subRanges.push({ from: runStart, to });
+    }
+
+    return subRanges;
   }
 
   /**
@@ -395,7 +447,7 @@ export class MultichainAccountWallet<
         this.#log(`Creating groups from index ${from} to ${to}...`);
 
         const { groupStateByGroupIndex, failures } =
-          await this.#buildGroupStateForRange(from, to, providers);
+          await this.#buildGroupState(providers, () => [{ from, to }]);
 
         // Check for provider failures — always treated as hard errors.
         if (failures.length) {
@@ -431,6 +483,43 @@ export class MultichainAccountWallet<
   }
 
   /**
+   * Calls `ensureReady` on every provider concurrently (best-effort).
+   *
+   * Returns the subset of providers that became ready and a list of failure
+   * messages for the ones that did not, following the same `{ ..., failures }`
+   * pattern used by {@link MultichainAccountWallet.#buildGroupState}.
+   *
+   * @param providers - Providers to check.
+   * @returns Ready providers and failure messages for those that were not.
+   */
+  async #ensureReadyProviders(
+    providers: Bip44AccountProvider<Account>[],
+  ): Promise<{
+    readyProviders: Bip44AccountProvider<Account>[];
+    failures: string[];
+  }> {
+    const results = await Promise.allSettled(
+      providers.map((provider) => provider.ensureReady()),
+    );
+
+    const readyProviders: Bip44AccountProvider<Account>[] = [];
+    const failures: string[] = [];
+
+    for (const [i, result] of results.entries()) {
+      const provider = providers[i];
+      if (result.status === 'fulfilled') {
+        readyProviders.push(provider);
+      } else {
+        failures.push(
+          `[${provider?.getName()}] ${toErrorMessage(result.reason)}`,
+        );
+      }
+    }
+
+    return { readyProviders, failures };
+  }
+
+  /**
    * Align accounts for a range of group indices (non-locking).
    *
    * Calls all providers in parallel via the batch API. Provider failures are
@@ -461,7 +550,9 @@ export class MultichainAccountWallet<
       },
       async () => {
         const { groupStateByGroupIndex, failures } =
-          await this.#buildGroupStateForRange(from, to, providers);
+          await this.#buildGroupState(providers, (provider) =>
+            this.#getUnalignedSubRangesForProvider(provider, from, to),
+          );
 
         if (failures.length) {
           const error = failures.reduce(
@@ -693,10 +784,32 @@ export class MultichainAccountWallet<
     // been created yet.
     if (!waitForAllProvidersToFinishCreatingAccounts) {
       const alignOtherAccounts = async (): Promise<void> => {
+        // Ensure the Snap platform is ready for each non-EVM provider BEFORE
+        // acquiring the wallet lock. Without this guard the lock would be held
+        // while waiting for onboarding to complete, blocking all subsequent
+        // wallet operations that also need the lock.
+        //
+        // This is best-effort: providers that fail to become ready are excluded
+        // from this round. Explicit alignments triggered later will recover them.
+        const { readyProviders, failures } =
+          await this.#ensureReadyProviders(otherProviders);
+
+        if (failures.length) {
+          const error = failures.reduce(
+            (message, failure) => `${message}\n- ${failure}`,
+            'Some providers are not ready and will be skipped for post-alignment:',
+          );
+          this.#log(`${WARNING_PREFIX} ${error}`);
+        }
+
+        if (readyProviders.length === 0) {
+          return;
+        }
+
         this.#log(`Aligning accounts... (post)`);
 
         await this.#withLock('in-progress:alignment', async () => {
-          await this.#alignAccountsForRange({ from, to }, otherProviders, {
+          await this.#alignAccountsForRange({ from, to }, readyProviders, {
             trace: {
               data: {
                 post: true, // Tag to identify post-alignment traces in analytics.
@@ -741,6 +854,11 @@ export class MultichainAccountWallet<
    * NOTE: This operation WILL lock the wallet's mutex.
    */
   async alignAccounts(): Promise<void> {
+    if (this.isAligned()) {
+      this.#log('Already aligned, skipping...');
+      return;
+    }
+
     const nextGroupIndex = this.getNextGroupIndex();
 
     if (nextGroupIndex > 0) {
@@ -760,6 +878,21 @@ export class MultichainAccountWallet<
   }
 
   /**
+   * Check whether every group in this wallet is aligned.
+   *
+   * A wallet is aligned when every multichain account group reports that all
+   * of its registered providers have contributed at least one account.
+   * Returns `true` if the wallet has no groups.
+   *
+   * @returns `true` when all groups are aligned.
+   */
+  isAligned(): boolean {
+    return this.getMultichainAccountGroups().every((group) =>
+      group.isAligned(),
+    );
+  }
+
+  /**
    * Align a specific multichain account group.
    *
    * NOTE: This operation WILL lock the wallet's mutex.
@@ -770,6 +903,11 @@ export class MultichainAccountWallet<
     const group = this.getMultichainAccountGroup(groupIndex);
 
     if (group) {
+      if (group.isAligned()) {
+        this.#log(`Group "${group.id}" is already aligned, skipping...`);
+        return;
+      }
+
       this.#log(`Aligning accounts for group "${group.id}"...`);
 
       await this.#withLock(

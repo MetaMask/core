@@ -430,6 +430,86 @@ class NestedController {
     });
   });
 
+  describe('--esm', () => {
+    it('adds .js extension to import paths in generated files', async () => {
+      expect.assertions(3);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await fs.promises.writeFile(
+          path.join(directoryPath, 'FooController.ts'),
+          `
+const MESSENGER_EXPOSED_METHODS = ['doSomething'] as const;
+
+class FooController {
+  doSomething() {
+    return true;
+  }
+}
+`,
+          'utf8',
+        );
+
+        const result = await runCLI(['--generate', '--esm', directoryPath]);
+        expect(result.exitCode).toBe(0);
+
+        const generatedFiles = await listGeneratedFiles(directoryPath);
+        expect(generatedFiles).toStrictEqual([
+          'FooController-method-action-types.ts',
+        ]);
+
+        const content = await fs.promises.readFile(
+          path.join(directoryPath, 'FooController-method-action-types.ts'),
+          'utf8',
+        );
+        expect(content).toMatchInlineSnapshot(`
+          "/**
+           * This file is auto generated.
+           * Do not edit manually.
+           */
+
+          import type { FooController } from './FooController.js';
+
+          export type FooControllerDoSomethingAction = {
+            type: \`FooController:doSomething\`;
+            handler: FooController['doSomething'];
+          };
+
+          /**
+           * Union of all FooController action types.
+           */
+          export type FooControllerMethodActions = FooControllerDoSomethingAction;
+          "
+        `);
+      });
+    });
+
+    it('--check passes for files generated with --esm', async () => {
+      expect.assertions(2);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await fs.promises.writeFile(
+          path.join(directoryPath, 'FooController.ts'),
+          `
+const MESSENGER_EXPOSED_METHODS = ['doSomething'] as const;
+
+class FooController {
+  doSomething() {
+    return true;
+  }
+}
+`,
+          'utf8',
+        );
+
+        await runCLI(['--generate', '--esm', directoryPath]);
+        const result = await runCLI(['--check', '--esm', directoryPath]);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.all).toContain('up to date');
+      });
+    });
+  });
+
   describe('--check', () => {
     it('exits 0 when generated files are up to date', async () => {
       expect.assertions(2);

@@ -2,14 +2,14 @@ import { decodePartialCBOR } from '@levischuck/tiny-cbor';
 import { concatBytes } from '@metamask/utils';
 import { sha256 } from '@noble/hashes/sha2';
 
-import type { AuthenticatorTransportFuture } from '../types';
-import { base64URLToBytes } from '../utils/encoding';
-import { decodeClientDataJSON } from './decode-client-data-json';
-import { matchExpectedRPID } from './match-expected-rp-id';
-import { parseAuthenticatorData } from './parse-authenticator-data';
-import type { ParsedAuthenticatorData } from './types';
-import type { PasskeyAuthenticationResponse } from './types';
-import { verifySignature } from './verify-signature';
+import type { AuthenticatorTransportFuture } from '../types.js';
+import { base64URLToBytes } from '../utils/encoding.js';
+import { decodeClientDataJSON } from './decode-client-data-json.js';
+import { matchExpectedRPID } from './match-expected-rp-id.js';
+import { parseAuthenticatorData } from './parse-authenticator-data.js';
+import type { ParsedAuthenticatorData } from './types.js';
+import type { PasskeyAuthenticationResponse } from './types.js';
+import { verifySignature } from './verify-signature.js';
 
 export type VerifiedAuthenticationResponse =
   | { verified: false; authenticationInfo?: never }
@@ -20,6 +20,7 @@ export type VerifiedAuthenticationResponse =
         newCounter: number;
         userVerified: boolean;
         origin: string;
+        /** Matched RP ID, or `""` when `expectedRPIDs` is empty (RP ID hash check skipped). */
         rpID: string;
       };
     };
@@ -46,7 +47,7 @@ export type VerifiedAuthenticationResponse =
  * @param opts.expectedChallenge - The base64url challenge that was issued
  *   for this ceremony.
  * @param opts.expectedOrigin - One or more acceptable origins.
- * @param opts.expectedRPID - The Relying Party ID domain.
+ * @param opts.expectedRPIDs - Relying Party ID strings to match against `rpIdHash`.
  * @param opts.credential - The stored credential record to verify against.
  * @param opts.credential.id - The credential ID (base64url).
  * @param opts.credential.publicKey - The COSE-encoded public key bytes
@@ -62,7 +63,7 @@ export async function verifyAuthenticationResponse(opts: {
   response: PasskeyAuthenticationResponse;
   expectedChallenge: string;
   expectedOrigin: string | string[];
-  expectedRPID: string;
+  expectedRPIDs: string[];
   credential: {
     id: string;
     publicKey: Uint8Array;
@@ -75,7 +76,7 @@ export async function verifyAuthenticationResponse(opts: {
     response,
     expectedChallenge,
     expectedOrigin,
-    expectedRPID,
+    expectedRPIDs,
     credential,
     requireUserVerification = false,
   } = opts;
@@ -157,8 +158,8 @@ export async function verifyAuthenticationResponse(opts: {
     parseAuthenticatorData(authDataBuffer);
   const { rpIdHash, flags, counter } = parsedAuthData;
 
-  // Make sure the response's RP ID is ours
-  const matchedRPID = matchExpectedRPID(rpIdHash, [expectedRPID]);
+  const matchedRPID =
+    expectedRPIDs.length > 0 ? matchExpectedRPID(rpIdHash, expectedRPIDs) : '';
 
   // WebAuthn only requires the user presence flag be true
   if (!flags.up) {

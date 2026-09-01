@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { NetworkEnablementController } from './NetworkEnablementController';
+import type { NetworkEnablementController } from './NetworkEnablementController.js';
 
 /**
  * Enables or disables a network for the user.
@@ -126,6 +126,21 @@ export type NetworkEnablementControllerDisableNetworkAction = {
 };
 
 /**
+ * Restores the enabled network map to a previously snapshotted state.
+ *
+ * Not a general merge API: only updates keys already present in the current
+ * map. Missing snapshot values default to `false`. Intended for callers with
+ * direct controller access (e.g. extension) to undo `#onAddNetwork` filter
+ * switches when adding a network without changing the active selection.
+ *
+ * @param enabledNetworkMap - Previously snapshotted enabledNetworkMap.
+ */
+export type NetworkEnablementControllerRestoreEnabledNetworkMapAction = {
+  type: `NetworkEnablementController:restoreEnabledNetworkMap`;
+  handler: NetworkEnablementController['restoreEnabledNetworkMap'];
+};
+
+/**
  * Checks if a network is enabled.
  *
  * @param chainId - The chain ID of the network to check. Can be either:
@@ -140,8 +155,8 @@ export type NetworkEnablementControllerIsNetworkEnabledAction = {
 
 /**
  * Returns popular EVM network chain IDs in hex form, restricted to networks
- * that exist in NetworkController (networkConfigurationsByChainId). Source list
- * is POPULAR_NETWORKS.
+ * that exist in NetworkController (networkConfigurationsByChainId). Source is
+ * the bundled `POPULAR_NETWORKS` unioned with registry-featured EVM chains.
  *
  * @returns Hex chain IDs for popular EVM networks that are configured.
  */
@@ -151,11 +166,11 @@ export type NetworkEnablementControllerListPopularEvmNetworksAction = {
 };
 
 /**
- * Returns popular multichain (Bitcoin, Solana, Tron) mainnet chain IDs in
+ * Returns popular multichain (Bitcoin, Solana, Tron, Stellar) mainnet chain IDs in
  * CAIP-2 form, restricted to networks that exist in MultichainNetworkController
  * (multichainNetworkConfigurationsByChainId).
  *
- * @returns CAIP-2 chain IDs for Bitcoin, Solana, and Tron mainnets that are configured.
+ * @returns CAIP-2 chain IDs for Bitcoin, Solana, Tron, and Stellar mainnets that are configured.
  */
 export type NetworkEnablementControllerListPopularMultichainNetworksAction = {
   type: `NetworkEnablementController:listPopularMultichainNetworks`;
@@ -167,7 +182,7 @@ export type NetworkEnablementControllerListPopularMultichainNetworksAction = {
  * networks that exist in NetworkController (networkConfigurationsByChainId) and
  * MultichainNetworkController (multichainNetworkConfigurationsByChainId). EVM
  * popular networks come from POPULAR_NETWORKS; multichain popular are Bitcoin,
- * Solana, and Tron mainnets.
+ * Solana, Tron, and Stellar mainnets.
  *
  * @returns CAIP-2 chain IDs for popular EVM networks and multichain mainnets that are configured.
  */
@@ -186,6 +201,7 @@ export type NetworkEnablementControllerMethodActions =
   | NetworkEnablementControllerInitAction
   | NetworkEnablementControllerInitNativeAssetIdentifiersAction
   | NetworkEnablementControllerDisableNetworkAction
+  | NetworkEnablementControllerRestoreEnabledNetworkMapAction
   | NetworkEnablementControllerIsNetworkEnabledAction
   | NetworkEnablementControllerListPopularEvmNetworksAction
   | NetworkEnablementControllerListPopularMultichainNetworksAction

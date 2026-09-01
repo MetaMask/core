@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { TransactionController } from './TransactionController';
+import type { TransactionController } from './TransactionController.js';
 
 /**
  * Handle new method data request.
@@ -51,33 +51,6 @@ export type TransactionControllerIsAtomicBatchSupportedAction = {
 export type TransactionControllerAddTransactionAction = {
   type: `TransactionController:addTransaction`;
   handler: TransactionController['addTransaction'];
-};
-
-/**
- * Starts polling for incoming transactions from the remote transaction source.
- */
-export type TransactionControllerStartIncomingTransactionPollingAction = {
-  type: `TransactionController:startIncomingTransactionPolling`;
-  handler: TransactionController['startIncomingTransactionPolling'];
-};
-
-/**
- * Stops polling for incoming transactions from the remote transaction source.
- */
-export type TransactionControllerStopIncomingTransactionPollingAction = {
-  type: `TransactionController:stopIncomingTransactionPolling`;
-  handler: TransactionController['stopIncomingTransactionPolling'];
-};
-
-/**
- * Update the incoming transactions by polling the remote transaction source.
- *
- * @param request - Request object.
- * @param request.tags - Additional tags to identify the source of the request.
- */
-export type TransactionControllerUpdateIncomingTransactionsAction = {
-  type: `TransactionController:updateIncomingTransactions`;
-  handler: TransactionController['updateIncomingTransactions'];
 };
 
 /**
@@ -162,6 +135,50 @@ export type TransactionControllerUpdateTransactionAction = {
 };
 
 /**
+ * Updates transaction metadata.
+ *
+ * @param options - Update options.
+ * @param options.transactionId - ID of the transaction to update.
+ * @param options.callback - Function that mutates the transaction metadata.
+ * @param options.skipResimulate - Whether to skip automatic re-simulation.
+ * @returns The updated transaction metadata.
+ */
+export type TransactionControllerUpdateTransactionMetadataAction = {
+  type: `TransactionController:updateTransactionMetadata`;
+  handler: TransactionController['updateTransactionMetadata'];
+};
+
+/**
+ * Mark a transaction as failed, transitioning it through the standard failure
+ * path.
+ *
+ * Unlike `updateTransaction`, this emits the transaction lifecycle events
+ * (`transactionFailed`, `transactionStatusUpdated`, `transactionFinished`), so
+ * downstream subscribers such as the bridge status controller and metrics are
+ * notified. Intended for callers that finalize a transaction out-of-band, for
+ * example the smart transactions controller when the relay cancels a smart
+ * transaction that never landed on chain.
+ *
+ * @param transactionId - The ID of the transaction to mark as failed.
+ * @param error - The error describing why the transaction failed.
+ */
+export type TransactionControllerFailTransactionAction = {
+  type: `TransactionController:failTransaction`;
+  handler: TransactionController['failTransaction'];
+};
+
+/**
+ * Update the security alert response for a transaction.
+ *
+ * @param transactionId - ID of the transaction.
+ * @param securityAlertResponse - The new security alert response for the transaction.
+ */
+export type TransactionControllerUpdateSecurityAlertResponseAction = {
+  type: `TransactionController:updateSecurityAlertResponse`;
+  handler: TransactionController['updateSecurityAlertResponse'];
+};
+
+/**
  * Remove transactions from state.
  *
  * @param options - The options bag.
@@ -183,6 +200,44 @@ export type TransactionControllerWipeTransactionsAction = {
 export type TransactionControllerConfirmExternalTransactionAction = {
   type: `TransactionController:confirmExternalTransaction`;
   handler: TransactionController['confirmExternalTransaction'];
+};
+
+/**
+ * Update the gas values of a transaction.
+ *
+ * @param transactionId - The ID of the transaction to update.
+ * @param gasValues - Gas values to update.
+ * @param gasValues.gas - Same as transaction.gasLimit.
+ * @param gasValues.gasLimit - Maxmimum number of units of gas to use for this transaction.
+ * @param gasValues.gasPrice - Price per gas for legacy transactions.
+ * @param gasValues.maxPriorityFeePerGas - Maximum amount per gas to give to validator as incentive.
+ * @param gasValues.maxFeePerGas - Maximum amount per gas to pay for the transaction, including the priority fee.
+ * @param gasValues.estimateUsed - Which estimate level was used.
+ * @param gasValues.estimateSuggested - Which estimate level that the API suggested.
+ * @param gasValues.defaultGasEstimates - The default estimate for gas.
+ * @param gasValues.originalGasEstimate - Original estimate for gas.
+ * @param gasValues.userEditedGasLimit - The gas limit supplied by user.
+ * @param gasValues.userFeeLevel - Estimate level user selected.
+ * @returns The updated transactionMeta.
+ */
+export type TransactionControllerUpdateTransactionGasFeesAction = {
+  type: `TransactionController:updateTransactionGasFees`;
+  handler: TransactionController['updateTransactionGasFees'];
+};
+
+/**
+ * Update the previous gas values of a transaction.
+ *
+ * @param transactionId - The ID of the transaction to update.
+ * @param previousGas - Previous gas values to update.
+ * @param previousGas.gasLimit - Maximum number of units of gas to use for this transaction.
+ * @param previousGas.maxFeePerGas - Maximum amount per gas to pay for the transaction, including the priority fee.
+ * @param previousGas.maxPriorityFeePerGas - Maximum amount per gas to give to validator as incentive.
+ * @returns The updated transactionMeta.
+ */
+export type TransactionControllerUpdatePreviousGasParamsAction = {
+  type: `TransactionController:updatePreviousGasParams`;
+  handler: TransactionController['updatePreviousGasParams'];
 };
 
 /**
@@ -332,6 +387,30 @@ export type TransactionControllerUpdateAtomicBatchDataAction = {
 };
 
 /**
+ * Update the selected gas fee token for a transaction.
+ *
+ * @param transactionId - The ID of the transaction to update.
+ * @param contractAddress - The contract address of the selected gas fee token.
+ */
+export type TransactionControllerUpdateSelectedGasFeeTokenAction = {
+  type: `TransactionController:updateSelectedGasFeeToken`;
+  handler: TransactionController['updateSelectedGasFeeToken'];
+};
+
+/**
+ * Update the required transaction IDs for a transaction.
+ *
+ * @param request - The request object.
+ * @param request.transactionId - The ID of the transaction to update.
+ * @param request.requiredTransactionIds - The additional required transaction IDs.
+ * @param request.append - Whether to append the IDs to any existing values. Defaults to true.
+ */
+export type TransactionControllerUpdateRequiredTransactionIdsAction = {
+  type: `TransactionController:updateRequiredTransactionIds`;
+  handler: TransactionController['updateRequiredTransactionIds'];
+};
+
+/**
  * Emulate a new transaction.
  *
  * @param transactionId - The transaction ID.
@@ -370,17 +449,19 @@ export type TransactionControllerMethodActions =
   | TransactionControllerAddTransactionBatchAction
   | TransactionControllerIsAtomicBatchSupportedAction
   | TransactionControllerAddTransactionAction
-  | TransactionControllerStartIncomingTransactionPollingAction
-  | TransactionControllerStopIncomingTransactionPollingAction
-  | TransactionControllerUpdateIncomingTransactionsAction
   | TransactionControllerStopTransactionAction
   | TransactionControllerSpeedUpTransactionAction
   | TransactionControllerEstimateGasAction
   | TransactionControllerEstimateGasBatchAction
   | TransactionControllerEstimateGasBufferedAction
   | TransactionControllerUpdateTransactionAction
+  | TransactionControllerUpdateTransactionMetadataAction
+  | TransactionControllerFailTransactionAction
+  | TransactionControllerUpdateSecurityAlertResponseAction
   | TransactionControllerWipeTransactionsAction
   | TransactionControllerConfirmExternalTransactionAction
+  | TransactionControllerUpdateTransactionGasFeesAction
+  | TransactionControllerUpdatePreviousGasParamsAction
   | TransactionControllerGetNonceLockAction
   | TransactionControllerUpdateEditableParamsAction
   | TransactionControllerSetTransactionActiveAction
@@ -392,6 +473,8 @@ export type TransactionControllerMethodActions =
   | TransactionControllerClearUnapprovedTransactionsAction
   | TransactionControllerAbortTransactionSigningAction
   | TransactionControllerUpdateAtomicBatchDataAction
+  | TransactionControllerUpdateSelectedGasFeeTokenAction
+  | TransactionControllerUpdateRequiredTransactionIdsAction
   | TransactionControllerEmulateNewTransactionAction
   | TransactionControllerEmulateTransactionUpdateAction
   | TransactionControllerGetGasFeeTokensAction;

@@ -12,8 +12,8 @@ import type {
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import type { SampleGasPricesControllerMethodActions } from './sample-gas-prices-controller-method-action-types';
-import type { SampleGasPricesServiceFetchGasPricesAction } from './sample-gas-prices-service/sample-gas-prices-service-method-action-types';
+import type { SampleGasPricesControllerMethodActions } from './sample-gas-prices-controller-method-action-types.js';
+import type { SampleGasPricesServiceFetchGasPricesAction } from './sample-gas-prices-service/sample-gas-prices-service-method-action-types.js';
 
 // === GENERAL ===
 

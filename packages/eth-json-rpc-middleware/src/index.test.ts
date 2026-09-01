@@ -1,4 +1,4 @@
-import * as indexModule from '.';
+import * as indexModule from './index.js';
 
 describe('index module', () => {
   it('has expected JavaScript exports', () => {
@@ -296,6 +296,7 @@ describe('index module', () => {
         "createWalletMiddleware": [Function],
         "providerAsMiddleware": [Function],
         "providerAsMiddlewareV2": [Function],
+        "validateTransactionParams": [Function],
       }
     `);
   });

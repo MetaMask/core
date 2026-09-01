@@ -463,6 +463,7 @@ Handles account-related operations including balances, transactions, NFTs, and t
 | `fetchV2Balances(address, queryOptions?, options?)`                                    | Get balances for single address (supports networks, filterSupportedTokens, includeTokenAddresses, includeStakedAssets) |
 | `fetchV4MultiAccountBalances(addresses, queryOptions?, options?)`                      | Get balances for multiple addresses                                                                                    |
 | `fetchV5MultiAccountBalances(accountIds, queryOptions?, options?)`                     | Get balances using CAIP-10 IDs                                                                                         |
+| `fetchV6MultiAccountBalances(accountIds, queryOptions?, options?)`                     | Get balances + DeFi positions + spot prices using CAIP-10 IDs                                                          |
 | `fetchV1TransactionByHash(chainId, txHash, queryOptions?, options?)`                   | Get transaction by hash                                                                                                |
 | `fetchV1AccountTransactions(address, queryOptions?, options?)`                         | Get account transactions                                                                                               |
 | `fetchV4MultiAccountTransactions(accountAddresses, queryOptions?, options?)`           | Get multi-account transactions                                                                                         |

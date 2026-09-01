@@ -7,7 +7,9 @@
     { "path": "../base-data-service" },
     { "path": "../controller-utils" },
     { "path": "../messenger" },
-    { "path": "../network-controller" }
+    { "path": "../money-account-api-data-service" },
+    { "path": "../network-controller" },
+    { "path": "../remote-feature-flag-controller" }
   ],
   "include": ["../../types", "./src"]
 }

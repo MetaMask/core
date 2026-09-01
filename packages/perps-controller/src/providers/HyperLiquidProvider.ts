@@ -1,45 +1,78 @@
-import { CaipAccountId, hasProperty } from '@metamask/utils';
+import { CaipAccountId, hasProperty, isHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import type { ExchangeClient } from '@nktkas/hyperliquid';
+import type {
+  ExchangeClient,
+  InfoClient,
+  UserAbstractionResponse,
+} from '@nktkas/hyperliquid';
+import { HyperliquidError } from '@nktkas/hyperliquid';
+import { BigNumber } from 'bignumber.js';
 import { v4 as uuidv4 } from 'uuid';
 
-import type { CandlePeriod } from '../constants/chartConfig';
+import type { CandlePeriod } from '../constants/chartConfig.js';
+import {
+  PERPS_EVENT_PROPERTY,
+  PERPS_EVENT_VALUE,
+} from '../constants/eventNames.js';
 import {
   BASIS_POINTS_DIVISOR,
   BUILDER_FEE_CONFIG,
+  canonicalizeHyperLiquidDexes,
   FEE_RATES,
+  HYPERLIQUID_ORDER_CAPABILITIES,
   getBridgeInfo,
   getChainId,
   HIP3_ASSET_MARKET_TYPES,
   HIP3_FEE_CONFIG,
   HIP3_MARGIN_CONFIG,
+  HYPERLIQUID_ASSET_NAMES,
+  HYPERLIQUID_CONFIG,
   HYPERLIQUID_WITHDRAWAL_MINUTES,
   REFERRAL_CONFIG,
-  SPOT_ASSET_ID_OFFSET,
   TRADING_DEFAULTS,
   USDC_DECIMALS,
-  USDH_CONFIG,
-} from '../constants/hyperLiquidConfig';
+  USDC_SYMBOL,
+} from '../constants/hyperLiquidConfig.js';
+import { DETAILED_ORDER_TYPES } from '../constants/orderTypes.js';
 import {
+  CHASE_ORDER_CONFIG,
+  CHASE_ORDER_STATUS,
+  HYPERLIQUID_TWAP_LIMITS,
   ORDER_SLIPPAGE_CONFIG,
   PERFORMANCE_CONFIG,
   PERPS_CONSTANTS,
+  PROVIDER_CONFIG,
   TP_SL_CONFIG,
   WITHDRAWAL_CONSTANTS,
-} from '../constants/perpsConfig';
-import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../constants/transactionsHistoryConfig';
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes';
-import { DexDiscoveryCacheManager } from '../services/DexDiscoveryCacheManager';
+} from '../constants/perpsConfig.js';
+import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../constants/transactionsHistoryConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import type { PerpsErrorCode } from '../perpsErrorCodes.js';
+import { DexDiscoveryCacheManager } from '../services/DexDiscoveryCacheManager.js';
 import {
   HyperLiquidClientService,
   WebSocketConnectionState,
-} from '../services/HyperLiquidClientService';
-import { HyperLiquidSubscriptionService } from '../services/HyperLiquidSubscriptionService';
-import { HyperLiquidWalletService } from '../services/HyperLiquidWalletService';
+} from '../services/HyperLiquidClientService.js';
+import { HyperLiquidSubscriptionService } from '../services/HyperLiquidSubscriptionService.js';
+import { HyperLiquidWalletService } from '../services/HyperLiquidWalletService.js';
 import {
   TradingReadinessCache,
   PerpsSigningCache,
-} from '../services/TradingReadinessCache';
+} from '../services/TradingReadinessCache.js';
+import type {
+  FrontendOrder,
+  OrderType as HyperLiquidOrderType,
+  SDKOrderParams,
+  MetaResponse,
+  PerpsAssetCtx,
+  SpotMetaResponse,
+} from '../types/hyperliquid-types.js';
+import {
+  HL_ABSTRACTION_WIRE,
+  HL_UNIFIED_ACCOUNT_MODE,
+  hyperLiquidModeFoldsSpot,
+} from '../types/hyperliquid-types.js';
+import { PerpsAnalyticsEvent } from '../types/index.js';
 import type {
   AccountState,
   AssetRoute,
@@ -47,6 +80,9 @@ import type {
   CancelOrderParams,
   CancelOrderResult,
   CancelOrdersResult,
+  ChaseOrder,
+  ChaseOrderMaxDistanceReached,
+  ChaseOrderStatus,
   CandleData,
   ClosePositionParams,
   ClosePositionsParams,
@@ -62,11 +98,13 @@ import type {
   GetFundingParams,
   GetHistoricalPortfolioParams,
   GetMarketsParams,
+  GetOrderCapabilitiesParams,
   GetOrderFillsParams,
   GetOrdersParams,
   GetOrFetchFillsParams,
   GetPositionsParams,
   GetSupportedPathsParams,
+  GetUserDataSnapshotParams,
   HistoricalPortfolioResult,
   InitializeResult,
   PerpsPlatformDependencies,
@@ -74,14 +112,19 @@ import type {
   LiquidationPriceParams,
   LiveDataConfig,
   MaintenanceMarginParams,
+  PositionModifyPreviewParams,
+  PositionModifyPreviewResult,
   MarginResult,
   MarketInfo,
   Order,
   OrderFill,
   OrderParams,
   OrderResult,
+  ScaleOrderChild,
   PerpsMarketData,
+  DirectProviderOrderCapabilities,
   Position,
+  PositionTriggerOrder,
   ReadyToTradeResult,
   SubscribeAccountParams,
   SubscribeCandlesParams,
@@ -94,6 +137,9 @@ import type {
   ToggleTestnetResult,
   TransferBetweenDexsParams,
   TransferBetweenDexsResult,
+  TwapOrder,
+  TwapOrderFill,
+  TwapOrderStatus,
   UpdateMarginParams,
   UpdatePositionTPSLParams,
   UserHistoryItem,
@@ -101,32 +147,45 @@ import type {
   WithdrawResult,
   RawLedgerUpdate,
   PerpsReadOptions,
-} from '../types';
+  PerpsUserDataSnapshot,
+  PerpsFeeResolution,
+} from '../types/index.js';
+import type { PerpsControllerMessengerBase } from '../types/messenger.js';
+import type { OrderType, StrategyOrderType } from '../types/perps-types.js';
 import type {
-  SDKOrderParams,
-  MetaResponse,
-  PerpsAssetCtx,
-  FrontendOrder,
-  SpotMetaResponse,
-} from '../types/hyperliquid-types';
-import type { PerpsControllerMessengerBase } from '../types/messenger';
-import type { ExtendedAssetMeta, ExtendedPerpDex } from '../types/perps-types';
+  ExtendedAssetMeta,
+  ExtendedPerpDex,
+} from '../types/perps-types.js';
 import {
   addSpotBalanceToAccountState,
   aggregateAccountStates,
-} from '../utils/accountUtils';
-import { ensureError } from '../utils/errorUtils';
+} from '../utils/accountUtils.js';
+import { isValidCapabilitySymbol } from '../utils/capabilitySymbols.js';
+import {
+  ensureError,
+  isHyperLiquidMultiSigRequiredError,
+  isHyperLiquidUserNotFoundError,
+  isKeyringLockedError,
+} from '../utils/errorUtils.js';
+import { shouldDeferUnifiedAccountSetup } from '../utils/hyperLiquidAbstraction.js';
 import {
   adaptAccountStateFromSDK,
   adaptHyperLiquidLedgerUpdateToUserHistoryItem,
   adaptMarketFromSDK,
   adaptOrderFromSDK,
   adaptPositionFromSDK,
+  adaptPositionTriggerOrderFromSDK,
+  adaptTpslLinkageToGrouping,
   buildAssetMapping,
   formatHyperLiquidPrice,
   formatHyperLiquidSize,
+  HYPERLIQUID_SCALE_CLOID_MARKER,
   parseAssetName,
-} from '../utils/hyperLiquidAdapter';
+} from '../utils/hyperLiquidAdapter.js';
+import {
+  previewHyperLiquidIsolatedPositionModify,
+  resolveHyperLiquidMarginTiers,
+} from '../utils/hyperLiquidPositionPreview.js';
 import {
   createErrorResult,
   getMaxOrderValue,
@@ -137,24 +196,52 @@ import {
   validateDepositParams,
   validateOrderParams,
   validateWithdrawalParams,
-} from '../utils/hyperLiquidValidation';
-import { transformMarketData } from '../utils/marketDataTransform';
+} from '../utils/hyperLiquidValidation.js';
+import type { StrategyOrderValidationParams } from '../utils/hyperLiquidValidation.js';
+import { generatePerpsId } from '../utils/idUtils.js';
+import { transformMarketData } from '../utils/marketDataTransform.js';
 import {
   compileMarketPattern,
   shouldIncludeMarket,
-} from '../utils/marketUtils';
-import type { CompiledMarketPattern } from '../utils/marketUtils';
+} from '../utils/marketUtils.js';
+import type { CompiledMarketPattern } from '../utils/marketUtils.js';
 import {
   buildOrdersArray,
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
-} from '../utils/orderCalculations';
+  computeChaseQuotePrice,
+  computeScalePriceLadder,
+  floorToSizeDecimals,
+  formatPartialTpslSize,
+  getPriceTick,
+  splitScaleSizes,
+  validateOrderPrecision,
+} from '../utils/orderCalculations.js';
+import {
+  getTriggerDirection,
+  getTriggerExecution,
+  isLimitExecutionOrderType,
+  isStrategyOrderType,
+  isTriggerOrderType,
+  resolvePositionTriggerSummaryPrice,
+  toSDKTimeInForce,
+} from '../utils/orderTypes.js';
 import {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,
   queryStandaloneOpenOrders,
-} from '../utils/standaloneInfoClient';
+} from '../utils/standaloneInfoClient.js';
+import { parseBoundedNonNegativeDecimal } from '../utils/stringParseUtils.js';
 // getStreamManagerInstance removed: use this.#deps.streamManager instead
+
+const HISTORICAL_ORDER_TYPE_BY_DETAILED_TYPE = {
+  [DETAILED_ORDER_TYPES.LIMIT]: 'limit',
+  [DETAILED_ORDER_TYPES.MARKET]: 'market',
+  [DETAILED_ORDER_TYPES.STOP_LIMIT]: 'limit',
+  [DETAILED_ORDER_TYPES.STOP_MARKET]: 'market',
+  [DETAILED_ORDER_TYPES.TAKE_PROFIT_LIMIT]: 'limit',
+  [DETAILED_ORDER_TYPES.TAKE_PROFIT_MARKET]: 'market',
+} as const satisfies Record<HyperLiquidOrderType, Order['orderType']>;
 
 /**
  * Type guard to check if a status is an object (not a string literal like "waitingForFill")
@@ -165,6 +252,455 @@ import {
  */
 const isStatusObject = (status: unknown): status is Record<string, unknown> =>
   typeof status === 'object' && status !== null;
+
+type ScaleBulkOrderResponse = {
+  status: 'ok';
+  response: {
+    type: 'order';
+    data: { statuses: unknown[] };
+  };
+};
+
+type ScaleBulkOrderStatus =
+  | { kind: 'accepted'; state: 'resting'; orderId: string }
+  | {
+      kind: 'accepted';
+      state: 'filled';
+      orderId: string;
+      averagePrice: string;
+      filledSize: string;
+    }
+  | { kind: 'accepted'; state: 'waitingForFill' | 'waitingForTrigger' }
+  | { kind: 'error'; error: string };
+
+/**
+ * Parse every status the HyperLiquid bulk order API can return for a Scale
+ * rung. Unknown or malformed statuses are not exchange rejections.
+ *
+ * @param status - One status from a bulk order response.
+ * @returns The classified status, or undefined when it is malformed.
+ */
+const parseScaleBulkOrderStatus = (
+  status: unknown,
+): ScaleBulkOrderStatus | undefined => {
+  if (status === 'waitingForFill' || status === 'waitingForTrigger') {
+    return { kind: 'accepted', state: status };
+  }
+
+  if (!isStatusObject(status) || Object.keys(status).length !== 1) {
+    return undefined;
+  }
+
+  if (hasProperty(status, 'error')) {
+    return typeof status.error === 'string'
+      ? { kind: 'error', error: status.error }
+      : undefined;
+  }
+
+  if (hasProperty(status, 'resting')) {
+    const order = status.resting;
+    if (
+      isStatusObject(order) &&
+      typeof order.oid === 'number' &&
+      Number.isSafeInteger(order.oid) &&
+      order.oid >= 0
+    ) {
+      return {
+        kind: 'accepted',
+        state: 'resting',
+        orderId: order.oid.toString(),
+      };
+    }
+  }
+
+  if (hasProperty(status, 'filled')) {
+    const order = status.filled;
+    if (
+      isStatusObject(order) &&
+      typeof order.oid === 'number' &&
+      Number.isSafeInteger(order.oid) &&
+      order.oid >= 0 &&
+      typeof order.avgPx === 'string' &&
+      new BigNumber(order.avgPx).isFinite() &&
+      new BigNumber(order.avgPx).gt(0) &&
+      typeof order.totalSz === 'string' &&
+      new BigNumber(order.totalSz).isFinite() &&
+      new BigNumber(order.totalSz).gt(0)
+    ) {
+      return {
+        kind: 'accepted',
+        state: 'filled',
+        orderId: order.oid.toString(),
+        averagePrice: order.avgPx,
+        filledSize: order.totalSz,
+      };
+    }
+  }
+
+  return undefined;
+};
+
+/**
+ * Recover a structurally valid bulk order response that the pinned SDK wraps
+ * in an `ApiRequestError`.
+ *
+ * @param error - The SDK error thrown by `ExchangeClient.order`.
+ * @param expectedStatusCount - Number of Scale rungs submitted.
+ * @returns The complete bulk order response, or undefined for any other error.
+ */
+const getScaleBulkOrderResponseFromError = (
+  error: unknown,
+  expectedStatusCount: number,
+): ScaleBulkOrderResponse | undefined => {
+  if (
+    !(error instanceof HyperliquidError) ||
+    error.name !== 'ApiRequestError' ||
+    !hasProperty(error, 'response')
+  ) {
+    return undefined;
+  }
+
+  const result = error.response;
+  if (!isStatusObject(result) || result.status !== 'ok') {
+    return undefined;
+  }
+
+  const { response } = result;
+  if (!isStatusObject(response) || response.type !== 'order') {
+    return undefined;
+  }
+
+  const { data } = response;
+  if (!isStatusObject(data)) {
+    return undefined;
+  }
+
+  const { statuses } = data;
+  if (!Array.isArray(statuses) || statuses.length !== expectedStatusCount) {
+    return undefined;
+  }
+
+  return result as ScaleBulkOrderResponse;
+};
+
+/**
+ * Read a complete cancel response from an SDK `ApiRequestError`.
+ *
+ * The SDK throws when any cancel entry is an error, including the benign
+ * already-gone response that confirms an order is no longer live.
+ *
+ * @param error - Error thrown by an exchange cancel method.
+ * @param expectedStatusCount - Number of cancel requests submitted.
+ * @returns The per-request statuses, or undefined for another error shape.
+ */
+const getCancelStatusesFromError = (
+  error: unknown,
+  expectedStatusCount: number,
+): unknown[] | undefined => {
+  if (
+    !(error instanceof HyperliquidError) ||
+    error.name !== 'ApiRequestError' ||
+    !hasProperty(error, 'response')
+  ) {
+    return undefined;
+  }
+
+  const result = error.response;
+  if (!isStatusObject(result) || result.status !== 'ok') {
+    return undefined;
+  }
+  const { response } = result;
+  if (
+    !isStatusObject(response) ||
+    response.type !== 'cancel' ||
+    !isStatusObject(response.data) ||
+    !Array.isArray(response.data.statuses) ||
+    response.data.statuses.length !== expectedStatusCount
+  ) {
+    return undefined;
+  }
+
+  return response.data.statuses;
+};
+
+/**
+ * Exchange messages that mean a cancel was refused because the order is not on
+ * the book any more.
+ *
+ * HyperLiquid answers a cancel it cannot match with "Order was never placed,
+ * already canceled, or filled." That is a rejection of the request but a
+ * confirmation of what the caller wanted — nothing of that order is resting.
+ * Every other rejection (multi-sig, a stale nonce, a rate limit) leaves the
+ * order exactly where it was, which is a materially different outcome.
+ */
+const ALREADY_GONE_CANCEL_MARKERS = [
+  'never placed',
+  'already canceled',
+  'already cancelled',
+  'order not found',
+  'twap not found',
+];
+
+const RETRYABLE_CHASE_PLACEMENT_MARKERS = [
+  'post only order would have immediately matched',
+  'price too far from oracle',
+];
+
+const CHASE_ORDER_STATUS_RETRY_COUNT = 2;
+const CHASE_ORDER_STATUS_RETRY_DELAY_MS = 100;
+const CHASE_ORDER_STATUS_UNAVAILABLE = 'status_unavailable';
+
+class ChaseOrderStatusUnavailableError extends Error {
+  constructor() {
+    super('Chase order status unavailable');
+    this.name = 'ChaseOrderStatusUnavailableError';
+  }
+}
+
+const isRetryableChasePlacementError = (error: unknown): boolean => {
+  const message = ensureError(
+    error,
+    'HyperLiquidProvider.startChaseSession',
+  ).message.toLowerCase();
+  return RETRYABLE_CHASE_PLACEMENT_MARKERS.some((marker) =>
+    message.includes(marker),
+  );
+};
+
+/**
+ * What happened to one order a cancel was asked to remove.
+ *
+ * `Cancelled` and `Gone` both mean nothing of it is resting, which is all a
+ * caller asked for; only `Refused` leaves an order behind.
+ */
+const enum CancelChildOutcome {
+  Cancelled = 'cancelled',
+  Gone = 'gone',
+  Refused = 'refused',
+}
+
+const enum HyperLiquidTwapLifecycleStatus {
+  Activated = 'activated',
+  Failed = 'error',
+  Finished = 'finished',
+  Stopped = 'stopped',
+  Terminated = 'terminated',
+  WaitingForTrigger = 'waitingForTrigger',
+}
+
+const enum PerpsTwapLifecycleStatus {
+  Active = 'active',
+  Canceled = 'canceled',
+  Completed = 'completed',
+  CompletedUnderfilled = 'completed_underfilled',
+  Failed = 'failed',
+}
+
+type SdkHyperLiquidTwapHistoryEntry = Awaited<
+  ReturnType<InfoClient['twapHistory']>
+>[number];
+
+type HyperLiquidTwapNonFailureLifecycleStatus =
+  | `${HyperLiquidTwapLifecycleStatus.Activated}`
+  | `${HyperLiquidTwapLifecycleStatus.Finished}`
+  | `${HyperLiquidTwapLifecycleStatus.Stopped}`
+  | `${HyperLiquidTwapLifecycleStatus.Terminated}`
+  | `${HyperLiquidTwapLifecycleStatus.WaitingForTrigger}`;
+
+type HyperLiquidTwapFailureLifecycleStatus =
+  `${HyperLiquidTwapLifecycleStatus.Failed}`;
+
+type HyperLiquidTwapHistoryEntry = Omit<
+  SdkHyperLiquidTwapHistoryEntry,
+  'status'
+> & {
+  status:
+    | {
+        status: HyperLiquidTwapNonFailureLifecycleStatus;
+      }
+    | {
+        status: HyperLiquidTwapFailureLifecycleStatus;
+        description: string;
+      };
+};
+
+type HyperLiquidTwapSliceFillEntry = Awaited<
+  ReturnType<InfoClient['userTwapSliceFills']>
+>[number];
+
+type ExchangeCancelRequest = { a: number; o: number };
+
+type ExchangeCancelByCloidRequest = { asset: number; cloid: Hex };
+
+type CancelOrderBatchOutcome = {
+  remainingOrderIds: number[];
+  cancelledOrderIds: number[];
+  responseComplete: boolean;
+};
+
+type OrderPlacementOutcome = {
+  orderId: string;
+  state: 'resting' | 'filled';
+};
+
+type TpslOrderPlacementOutcome = {
+  orderId?: string;
+  state: 'resting' | 'filled' | 'waitingForTrigger' | 'rejected' | 'unknown';
+};
+
+type RestorableTpslOrder = {
+  orderId: number;
+  order: SDKOrderParams;
+  chargesMetamaskBuilderFee: boolean;
+};
+
+type TpslProtectionRestorationOutcome = {
+  restoredOrderIds: string[];
+  success: boolean;
+};
+
+type BuilderFeeSetupContext = {
+  network: 'testnet' | 'mainnet';
+  userAddress: string;
+  builderAddress: string;
+};
+
+/**
+ * Classify one entry of a cancel response.
+ *
+ * @param status - A single status from the exchange's cancel response.
+ * @returns Whether the order was cancelled, was already gone, or still rests.
+ */
+const classifyCancelStatus = (status: unknown): CancelChildOutcome => {
+  if (status === 'success') {
+    return CancelChildOutcome.Cancelled;
+  }
+
+  const message = (
+    isStatusObject(status) && typeof status.error === 'string'
+      ? status.error
+      : ''
+  ).toLowerCase();
+
+  return ALREADY_GONE_CANCEL_MARKERS.some((marker) => message.includes(marker))
+    ? CancelChildOutcome.Gone
+    : CancelChildOutcome.Refused;
+};
+
+/**
+ * Read the best price on one side of the book, discounting the chase's own
+ * order.
+ *
+ * A chase rests one tick inside the spread, so its own order *is* the best
+ * price on its side. Reading the raw book would therefore see the chase's own
+ * quote every tick, conclude the touch has not moved, and never re-price —
+ * masking exactly the adverse moves the strategy exists to follow. Levels this
+ * provider occupies are netted down by what it holds there, and are skipped
+ * entirely when nothing else is left on them.
+ *
+ * "Own" means *every* chase this provider is running on that side, not just the
+ * one asking. Two chases on the same side each netting only themselves would
+ * read the other as the external touch and improve on it, then improve on the
+ * improvement — walking each other toward the opposite side of an unchanged
+ * market.
+ *
+ * The sizes must be what the orders still have resting, not what they were
+ * placed for: an order netted at its original size subtracts more than it
+ * occupies, which can hide external liquidity sharing the level.
+ *
+ * @param levels - One side of the book, best-first.
+ * @param ownByPrice - This provider's own resting size at each price.
+ * @returns The best price other participants are showing, or null.
+ */
+const readBestExternalPrice = (
+  levels: { px: string; sz: string }[] | undefined,
+  ownByPrice: Map<string, number>,
+): number | null => {
+  for (const level of levels ?? []) {
+    const price = parseFloat(level.px);
+    if (!Number.isFinite(price) || price <= 0) {
+      continue;
+    }
+
+    const size = parseFloat(level.sz) - (ownByPrice.get(level.px) ?? 0);
+    if (size > 0) {
+      return price;
+    }
+  }
+
+  return null;
+};
+
+/**
+ * Narrow order params down to their strategy fields.
+ *
+ * Both validation entry points forward exactly this group, so a field added to
+ * `StrategyOrderValidationParams` reaches both of them or neither.
+ *
+ * @param params - Order parameters.
+ * @returns The strategy fields, as validation takes them.
+ */
+const pickStrategyParams = (
+  params: OrderParams,
+): StrategyOrderValidationParams => ({
+  twapDuration: params.twapDuration,
+  twapRandomize: params.twapRandomize,
+  scaleMinPrice: params.scaleMinPrice,
+  scaleMaxPrice: params.scaleMaxPrice,
+  scaleNumOrders: params.scaleNumOrders,
+  scaleSkew: params.scaleSkew,
+  chaseIntervalMs: params.chaseIntervalMs,
+  chaseMaxDurationMs: params.chaseMaxDurationMs,
+  chaseMaxRepricings: params.chaseMaxRepricings,
+  chaseMaxDistanceBps: params.chaseMaxDistanceBps,
+});
+
+/**
+ * Check a strategy placement's notional against the minimum the venue will
+ * actually apply to it.
+ *
+ * The per-order minimum is charged against each order the venue receives, and a
+ * strategy placement does not send one order:
+ *
+ * A `twap` is a single instruction the venue slices itself, so it is bounded by
+ * the venue's own documented minimum for a TWAP rather than by the per-order
+ * minimum that `validateOrder` has already applied.
+ *
+ * `scale` is deliberately absent. Its rungs are the orders the venue charges
+ * the minimum against, and their sizes come from flooring onto the asset's size
+ * grid with the remainder landing on the first rung — none of which is knowable
+ * without `szDecimals`, which this check does not have. Every approximation
+ * available here is unsound in one direction or the other, and the one that was
+ * here rejected ladders whose submitted rungs all cleared the minimum.
+ * `#buildScaleLadder` applies the exact per-rung check against the real grid
+ * sizes, and it runs before anything is signed, so nothing is lost by leaving
+ * the question to it.
+ *
+ * `chase` is absent too: it rests one order at a time, so the per-order minimum
+ * the caller has already been checked against is the right bound.
+ *
+ * @param params - Notional parameters.
+ * @param params.orderType - The order placement type.
+ * @param params.orderValueUSD - Total notional of the placement, in USD.
+ * @returns Validation result with isValid flag and optional error message.
+ */
+const validateStrategyNotional = (params: {
+  orderType?: OrderType;
+  orderValueUSD: number;
+}): { isValid: boolean; error?: string } => {
+  const { orderType, orderValueUSD } = params;
+
+  if (orderType === 'twap') {
+    return orderValueUSD < HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd
+      ? {
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_TWAP_NOTIONAL_TOO_SMALL,
+        }
+      : { isValid: true };
+  }
+
+  return { isValid: true };
+};
 
 // Helper method parameter interfaces (module-level for class-dependent methods only)
 type GetAssetInfoParams = {
@@ -217,6 +753,83 @@ type PrepareAssetForTradingParams = {
   leverage?: number;
 };
 
+type Hip3TransferInfo = {
+  amount: number;
+  sourceDex: string;
+};
+
+type Hip3TransferContext = {
+  dexName: string;
+  transferInfo: Hip3TransferInfo;
+};
+
+type TwapOrderScope = {
+  network: 'testnet' | 'mainnet';
+  userAddress: string;
+  orderId: string;
+};
+
+type TwapAccountScope = Pick<TwapOrderScope, 'network' | 'userAddress'>;
+
+type TrackedTwapOrder = {
+  symbol: string;
+  hip3Transfer?: Hip3TransferContext;
+  rebalancePromise?: Promise<boolean>;
+};
+
+type ChaseTerminalStatus =
+  | typeof CHASE_ORDER_STATUS.Filled
+  | typeof CHASE_ORDER_STATUS.Canceled
+  | typeof CHASE_ORDER_STATUS.Failed;
+
+type ChaseOrderRemainder = {
+  remainingSize: string | null;
+  terminalStatus: ChaseTerminalStatus | null;
+};
+
+type ChaseTerminalResolution = {
+  remainingSize: string | null;
+  status: ChaseTerminalStatus;
+};
+
+type ChaseRestingOrder = {
+  orderId: string;
+  price: string;
+  size: string;
+};
+
+type OrderCapabilitiesMarketCacheEntry = Readonly<{
+  markets: MarketInfo[];
+  freshAt: number;
+}>;
+
+type AdaptTwapOrderParams = {
+  historyEntry: HyperLiquidTwapHistoryEntry;
+  sliceFills: HyperLiquidTwapSliceFillEntry[];
+  now: number;
+};
+
+type ChaseOrderMaxDistanceReachedHandler = (
+  event: ChaseOrderMaxDistanceReached,
+) => void;
+
+type HyperLiquidProviderOptions = {
+  isTestnet?: boolean;
+  hip3Enabled?: boolean;
+  allowlistMarkets?: string[];
+  blocklistMarkets?: string[];
+  priceDeviationLimit?: number;
+  useUnifiedAccount?: boolean;
+  platformDependencies: PerpsPlatformDependencies;
+  messenger: PerpsControllerMessengerBase;
+  initialAssetMapping?: [string, number][];
+  builderAddressTestnet?: string;
+  builderAddressMainnet?: string;
+  subscriptionBuilderAddressTestnet?: string;
+  subscriptionBuilderAddressMainnet?: string;
+  onChaseOrderMaxDistanceReached?: ChaseOrderMaxDistanceReachedHandler;
+};
+
 type HandleHip3PreOrderParams = {
   dexName: string;
   symbol: string;
@@ -228,7 +841,7 @@ type HandleHip3PreOrderParams = {
 };
 
 type HandleHip3PreOrderResult = {
-  transferInfo: { amount: number; sourceDex: string } | null;
+  transferInfo: Hip3TransferInfo | null;
 };
 
 type SubmitOrderWithRollbackParams = {
@@ -236,15 +849,19 @@ type SubmitOrderWithRollbackParams = {
   grouping: 'na' | 'normalTpsl' | 'positionTpsl';
   isHip3Order: boolean;
   dexName: string | null;
-  transferInfo: { amount: number; sourceDex: string } | null;
+  transferInfo: Hip3TransferInfo | null;
   symbol: string;
   assetId: number;
+  chargesMetamaskBuilderFee: boolean;
+  builderFeeSetupContext?: BuilderFeeSetupContext;
 };
+
+type BuilderOrderContext = { b: string; f: number };
 
 type HandleOrderErrorParams = {
   error: unknown;
   symbol: string;
-  orderType: 'market' | 'limit';
+  orderType: OrderType;
   isBuy: boolean;
 };
 
@@ -252,6 +869,381 @@ type GetOrFetchPriceParams = {
   symbol: string;
   dexName: string | null;
 };
+
+/**
+ * What every strategy placement needs before it can talk to the exchange.
+ *
+ * The single-order path derives the same values inline; strategy placements
+ * share them through `#prepareStrategyPlacement` so the three of them cannot
+ * drift apart on validation, readiness, or leverage.
+ */
+type StrategyPlacementContext = {
+  assetId: number;
+  szDecimals: number;
+  formattedSize: string;
+  builder?: BuilderOrderContext;
+  dexName: string | null;
+  network: 'testnet' | 'mainnet';
+  transferInfo: Hip3TransferInfo | null;
+  userAddress: string;
+  /** The validated ladder a scale placement submits; absent for other types. */
+  ladder?: ScaleLadder;
+};
+
+/**
+ * A scale placement's rungs, exactly as they will be submitted.
+ *
+ * Built and checked before anything is signed, so the sizes and prices the
+ * venue sees are the ones the minimums were applied to.
+ */
+type ScaleLadder = {
+  prices: string[];
+  sizes: string[];
+};
+
+type ScaleOrderIdentity = {
+  groupId: string;
+  clientOrderIds: Hex[];
+};
+
+/**
+ * A scale ladder's children, held so the group can be cancelled as one.
+ *
+ * The group can be rebuilt from open orders because each rung carries the
+ * same recoverable group identity in its venue client-order ID.
+ */
+type ScaleOrderGroup = {
+  symbol: string;
+  orderIds: string[];
+  clientOrderIds: Hex[];
+};
+
+/**
+ * Create one recoverable identity for a Scale ladder and one venue CLOID per
+ * rung. HyperLiquid requires every CLOID to be unique, so the last byte holds
+ * the rung index while the preceding 15 bytes identify the shared group.
+ *
+ * @param count - Number of ladder rungs.
+ * @returns The public group handle and venue client order IDs.
+ */
+const createScaleOrderIdentity = (count: number): ScaleOrderIdentity => {
+  const groupKey = `${HYPERLIQUID_SCALE_CLOID_MARKER}${uuidv4()
+    .replace(/-/gu, '')
+    .slice(0, 22)}`;
+  const clientOrderIds = Array.from({ length: count }, (_, index) => {
+    const clientOrderId: Hex = `0x${groupKey}${index
+      .toString(16)
+      .padStart(2, '0')}`;
+    if (!isHexString(clientOrderId)) {
+      throw new Error('Failed to create Scale client order ID');
+    }
+    return clientOrderId;
+  });
+  return { groupId: `scale:${groupKey}`, clientOrderIds };
+};
+
+/**
+ * A running chase: the order currently resting, and the loop re-pricing it.
+ */
+type ChaseSession = {
+  symbol: string;
+  assetId: number;
+  isBuy: boolean;
+  szDecimals: number;
+  reduceOnly: boolean;
+  /** Exchange ID of the order resting right now, or null once it is gone. */
+  orderId: string | null;
+  /** Previous child ID while a replacement is between cancel and rest. */
+  replacingOrderId: string | null;
+  /**
+   * Size the order resting right now was placed for.
+   *
+   * Shrinks as the chase re-prices: a child that partially filled before it was
+   * cancelled leaves less to chase, and re-placing the original size would
+   * execute more than the caller asked for.
+   */
+  size: string;
+  originalSize: string;
+  /**
+   * Settles when an in-flight replacement has finished resting (or failed).
+   * Null while no placement is in flight.
+   *
+   * `orderId` is null for the whole of that round trip, which is
+   * indistinguishable from "nothing rests" unless a canceller can tell the two
+   * apart — so a cancel joins this before deciding what to cancel.
+   */
+  pendingReplacement: Promise<void> | null;
+  /** Price the resting order sits at. */
+  restingPrice: string;
+  arrivalPrice: string;
+  startedAt: number;
+  maxDistanceBps?: number;
+  intervalMs: number;
+  /** Last live remainder refresh used by client-facing snapshots. */
+  lastSnapshotSizeRefreshAt: number;
+  /**
+   * Builder fee this chase was quoted at, in tenths of a basis point.
+   *
+   * Captured when the session starts because the rewards discount it reflects
+   * is set around the caller's `placeOrder` and cleared as soon as that returns.
+   * A chase returns immediately, so every replacement runs after the clear and
+   * would otherwise be re-quoted at the undiscounted maximum.
+   */
+  builder?: BuilderOrderContext;
+  /** Manual HIP-3 collateral retained while this session has venue exposure. */
+  hip3Transfer?: Hip3TransferContext;
+  /** Coalesces concurrent terminal cleanup reads for this session. */
+  hip3RebalancePromise?: Promise<boolean>;
+  /** Remove a canceled session once deferred collateral cleanup succeeds. */
+  removeAfterRebalance?: boolean;
+  /** Absolute deadline, as a `Date.now()` stamp. */
+  deadline: number;
+  maxRepricings: number;
+  repricings: number;
+  /** Cleared when the session stops; null while no tick is pending. */
+  timer: ReturnType<typeof setTimeout> | null;
+  /** False once the chase has stopped re-pricing, whatever the reason. */
+  active: boolean;
+  status: ChaseOrderStatus;
+};
+
+/**
+ * Collect the order IDs of every TP/SL child carried by a parent order.
+ *
+ * HyperLiquid lists `normalTpsl` children both nested under their parent and as
+ * top-level entries in `frontendOpenOrders`. Those children protect the pending
+ * parent order rather than the position, so callers use this set to exclude them.
+ *
+ * @param orders - Raw frontend open orders for the account.
+ * @returns The set of child order IDs.
+ */
+function collectChildOrderIds(orders: FrontendOrder[]): Set<number> {
+  const childOrderIds = new Set<number>();
+
+  orders.forEach((order) => {
+    order.children?.forEach((child) => {
+      childOrderIds.add(child.oid);
+    });
+  });
+
+  return childOrderIds;
+}
+
+/**
+ * Group orders by market, so a per-position pass does not rescan every order.
+ *
+ * @param orders - Raw frontend open orders across all DEXs.
+ * @returns Orders keyed by market symbol.
+ */
+function groupOrdersBySymbol(
+  orders: FrontendOrder[],
+): Map<string, FrontendOrder[]> {
+  const bySymbol = new Map<string, FrontendOrder[]>();
+
+  orders.forEach((order) => {
+    const existing = bySymbol.get(order.coin);
+    if (existing) {
+      existing.push(order);
+    } else {
+      bySymbol.set(order.coin, [order]);
+    }
+  });
+
+  return bySymbol;
+}
+
+/**
+ * Build the trigger-order view of a position: position-bound TP/SL plus
+ * standalone (partial) reduce-only triggers on the same market, de-duplicated by
+ * order ID and excluding children of pending parent orders.
+ *
+ * @param params - Collection parameters.
+ * @param params.orders - Raw frontend open orders across all DEXs.
+ * @param params.position - Position the triggers are attached to.
+ * @param params.childOrderIds - Order IDs that belong to a pending parent order.
+ * @returns The take profit and stop loss trigger orders for the position.
+ */
+function collectPositionTriggerOrders(params: {
+  orders: FrontendOrder[];
+  position: Position;
+  childOrderIds: Set<number>;
+}): {
+  takeProfitOrders: PositionTriggerOrder[];
+  stopLossOrders: PositionTriggerOrder[];
+  takeProfitPrice?: string;
+  stopLossPrice?: string;
+} {
+  const { orders, position, childOrderIds } = params;
+
+  const byOrderId = new Map<string, PositionTriggerOrder>();
+  let takeProfitPrice: string | undefined;
+  let stopLossPrice: string | undefined;
+
+  orders.forEach((rawOrder) => {
+    if (
+      rawOrder.isTrigger &&
+      rawOrder.reduceOnly &&
+      rawOrder.isPositionTpsl === Boolean(TP_SL_CONFIG.UsePositionBoundTpsl)
+    ) {
+      if (rawOrder.orderType.includes('Take Profit')) {
+        takeProfitPrice = rawOrder.triggerPx;
+      } else if (rawOrder.orderType.includes('Stop')) {
+        stopLossPrice = rawOrder.triggerPx;
+      }
+    }
+
+    rawOrder.children?.forEach((childOrder) => {
+      if (
+        !childOrder.isTrigger ||
+        !childOrder.reduceOnly ||
+        childOrder.isPositionTpsl !== Boolean(TP_SL_CONFIG.UsePositionBoundTpsl)
+      ) {
+        return;
+      }
+      if (childOrder.orderType.includes('Take Profit')) {
+        takeProfitPrice = childOrder.triggerPx;
+      } else if (childOrder.orderType.includes('Stop')) {
+        stopLossPrice = childOrder.triggerPx;
+      }
+    });
+
+    if (
+      rawOrder.coin !== position.symbol ||
+      !rawOrder.isTrigger ||
+      !rawOrder.reduceOnly ||
+      childOrderIds.has(rawOrder.oid)
+    ) {
+      return;
+    }
+
+    const triggerOrder = adaptPositionTriggerOrderFromSDK({
+      rawOrder,
+      positionSize: position.size,
+      entryPrice: position.entryPrice,
+    });
+
+    if (triggerOrder && !byOrderId.has(triggerOrder.orderId)) {
+      byOrderId.set(triggerOrder.orderId, triggerOrder);
+    }
+  });
+
+  const triggerOrders = Array.from(byOrderId.values());
+  const takeProfitOrders = triggerOrders.filter(
+    (order) => order.direction === 'take_profit',
+  );
+  const stopLossOrders = triggerOrders.filter(
+    (order) => order.direction !== 'take_profit',
+  );
+
+  const takeProfitSummaryPrice = resolvePositionTriggerSummaryPrice({
+    triggerOrders: takeProfitOrders,
+    scannedPrice: takeProfitPrice,
+  });
+  const stopLossSummaryPrice = resolvePositionTriggerSummaryPrice({
+    triggerOrders: stopLossOrders,
+    scannedPrice: stopLossPrice,
+  });
+
+  return {
+    takeProfitOrders,
+    stopLossOrders,
+    ...(takeProfitSummaryPrice && { takeProfitPrice: takeProfitSummaryPrice }),
+    ...(stopLossSummaryPrice && { stopLossPrice: stopLossSummaryPrice }),
+  };
+}
+
+type HyperLiquidOrderFeeContext =
+  | Readonly<OrderParams>
+  | Readonly<FeeCalculationParams>;
+
+type HyperLiquidOrderFeePolicy = Readonly<{
+  chargesMetamaskBuilderFee: boolean;
+}>;
+
+const MAX_API_FEE_RATE = 1;
+const MAX_API_FEE_DISCOUNT = 1;
+
+/**
+ * Fee applicability by canonical order type.
+ *
+ * The configuration type makes this map exhaustive, so a new order type cannot
+ * inherit a builder-fee policy accidentally. HyperLiquid's dedicated TWAP
+ * action has no builder field. Every other standalone placement uses an order
+ * action that can carry one builder context. This policy is deliberately not a
+ * constructor or order input. A future backend policy must be resolved inside
+ * the provider from its trusted source rather than accepted from a client.
+ */
+const HYPERLIQUID_ORDER_FEE_CONFIG = {
+  market: { chargesMetamaskBuilderFee: true },
+  limit: { chargesMetamaskBuilderFee: true },
+  stop_market: { chargesMetamaskBuilderFee: true },
+  stop_limit: { chargesMetamaskBuilderFee: true },
+  take_profit_market: { chargesMetamaskBuilderFee: true },
+  take_profit_limit: { chargesMetamaskBuilderFee: true },
+  twap: { chargesMetamaskBuilderFee: false },
+  scale: { chargesMetamaskBuilderFee: true },
+  chase: { chargesMetamaskBuilderFee: true },
+} satisfies Record<OrderType, HyperLiquidOrderFeePolicy>;
+
+const MILLISECONDS_PER_MINUTE = 60_000;
+const MILLISECONDS_PER_SECOND = 1_000;
+
+/**
+ * Normalize the TWAP history timestamp documented in seconds while tolerating
+ * an already-millisecond value from a future SDK response.
+ *
+ * @param timestamp - Venue timestamp in seconds or milliseconds.
+ * @returns Timestamp in milliseconds.
+ */
+const normalizeTwapHistoryTimestamp = (timestamp: number): number =>
+  timestamp < 1_000_000_000_000
+    ? timestamp * MILLISECONDS_PER_SECOND
+    : timestamp;
+
+const getTwapOrderScopeKey = (params: TwapOrderScope): string =>
+  `${params.network}:${params.userAddress.toLowerCase()}:${params.orderId}`;
+
+const resolveTwapOrderStatus = (
+  historyEntry: HyperLiquidTwapHistoryEntry,
+  executedSize: BigNumber,
+  totalSize: BigNumber,
+): TwapOrderStatus => {
+  switch (historyEntry.status.status) {
+    case HyperLiquidTwapLifecycleStatus.Activated:
+    case HyperLiquidTwapLifecycleStatus.WaitingForTrigger:
+      return PerpsTwapLifecycleStatus.Active;
+    case HyperLiquidTwapLifecycleStatus.Finished:
+      return executedSize.isLessThan(totalSize)
+        ? PerpsTwapLifecycleStatus.CompletedUnderfilled
+        : PerpsTwapLifecycleStatus.Completed;
+    case HyperLiquidTwapLifecycleStatus.Terminated:
+    case HyperLiquidTwapLifecycleStatus.Stopped:
+      return PerpsTwapLifecycleStatus.Canceled;
+    case HyperLiquidTwapLifecycleStatus.Failed:
+      return PerpsTwapLifecycleStatus.Failed;
+    default:
+      // A new venue status is not proof that a schedule stopped. Keep it
+      // non-terminal so collateral cannot be reclaimed from a live TWAP.
+      return PerpsTwapLifecycleStatus.Active;
+  }
+};
+
+const adaptTwapOrderFill = (
+  entry: HyperLiquidTwapSliceFillEntry,
+): TwapOrderFill => ({
+  fillId: entry.fill.tid.toString(),
+  orderId: entry.fill.oid.toString(),
+  side: entry.fill.side === 'B' ? 'buy' : 'sell',
+  price: entry.fill.px,
+  size: entry.fill.sz,
+  fee: entry.fill.fee,
+  feeToken: entry.fill.feeToken,
+  ...(entry.fill.builderFee === undefined
+    ? {}
+    : { builderFee: entry.fill.builderFee }),
+  timestamp: entry.fill.time,
+  transactionHash: entry.fill.hash,
+});
 
 /**
  * HyperLiquid provider implementation
@@ -265,7 +1257,7 @@ type GetOrFetchPriceParams = {
  * If not supported, falls back to programmatic balance management using SDK's sendAsset.
  */
 export class HyperLiquidProvider implements PerpsProvider {
-  readonly protocolId = 'hyperliquid';
+  readonly protocolId = PROVIDER_CONFIG.DefaultProvider;
 
   // Platform dependencies for logging and debugging
   readonly #deps: PerpsPlatformDependencies;
@@ -301,12 +1293,34 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   // Cache for raw meta responses (shared across methods to avoid redundant API calls)
   // Filtering is applied on-demand (cheap array operations) - no need for separate processed cache
-  readonly #cachedMetaByDex = new Map<string, MetaResponse>();
+  readonly #cachedMetaByDex = new Map<string | null, MetaResponse>();
+
+  // Fresh filtered markets used only for capability discovery. Each routed
+  // DEX owns its freshness window and coalesced refresh.
+  readonly #orderCapabilitiesMarketsByDex = new Map<
+    string | null,
+    OrderCapabilitiesMarketCacheEntry
+  >();
+
+  readonly #orderCapabilitiesRefreshByDex = new Map<
+    string | null,
+    Promise<MarketInfo[]>
+  >();
+
+  // Sticky for this instance. PerpsController discards disconnected providers
+  // during initialization; direct callers must call initialize() before reuse.
+  #isDisconnected = false;
+
+  #disconnectOperationsInFlight = 0;
+
+  #disconnectOperationPromise: Promise<DisconnectResult> | null = null;
+
+  #lifecycleGeneration = 0;
 
   // Last known-good market list for stale fallback when every enabled DEX fails in one fetch window.
   #cachedMarketDataWithPrices: CachedMarketDataSnapshot | null = null;
 
-  // Session cache for spot metadata (contains USDC/USDH token info for HIP-3 collateral checks)
+  // Session cache for spot metadata (contains token info for HIP-3 collateral checks)
   // Pre-fetched in ensureReadyForTrading() to avoid API failures during order placement
   #cachedSpotMeta: SpotMetaResponse | null = null;
 
@@ -329,6 +1343,11 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   readonly #pendingBuilderFeeApprovals = new Map<string, Promise<void>>();
 
+  #subscriptionBuilderApprovalEpoch = 0;
+
+  /** Builder approvals keyed by network, account, and builder address. */
+  readonly #approvedBuilderAddresses = new Set<string>();
+
   // Pre-compiled patterns for fast filtering
   readonly #compiledAllowlistPatterns: CompiledMarketPattern[] = [];
 
@@ -337,6 +1356,8 @@ export class HyperLiquidProvider implements PerpsProvider {
   // Fee discount context for MetaMask reward discounts (in basis points)
   #userFeeDiscountBips?: number;
 
+  #userFeeResolution?: PerpsFeeResolution;
+
   // Feature flag configuration for HIP-3 market filtering
   readonly #hip3Enabled: boolean;
 
@@ -344,12 +1365,22 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   readonly #blocklistMarkets: string[];
 
-  #useDexAbstraction: boolean;
+  // Legacy rollback switch. MetaMask production supports unified account and
+  // portfolio margin. The false branch and its manual HIP-3 transfers remain
+  // temporarily for rollback compatibility and will be removed separately.
+  #useUnifiedAccount: boolean;
 
   // True once DEX discovery has succeeded with real data (not a fallback).
   // When false, #ensureReadyPromise is reset after each init so the next
   // caller retries DEX discovery instead of reusing a degraded mapping.
   #dexDiscoveryComplete = false;
+
+  // True when the most recent #ensureUnifiedAccountEnabled run ended in a
+  // transient state that warrants retry (silent agent-key failure, REST
+  // userAbstraction lookup failure, or keyring locked). #ensureReady resets
+  // its memoized promise when this is set so the next entry retries the
+  // migration instead of returning the cached resolved promise.
+  #unifiedAccountSetupNeedsRetry = false;
 
   // Pending promise to deduplicate concurrent getValidatedDexs() calls
   #pendingValidatedDexsPromise: Promise<(string | null)[]> | null = null;
@@ -362,7 +1393,66 @@ export class HyperLiquidProvider implements PerpsProvider {
     'isolated position does not have sufficient margin available to decrease leverage':
       PERPS_ERROR_CODES.ORDER_LEVERAGE_REDUCTION_FAILED,
     'could not immediately match': PERPS_ERROR_CODES.IOC_CANCEL,
+    'multi-sig required': PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+    'invalid nonce': PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE,
   };
+
+  // Scale ladders placed by this provider instance, keyed by group handle, so
+  // one cancel can reach every rung. Cleared on disconnect; the rung IDs are
+  // also returned to the caller as `OrderResult.childOrderIds`.
+  readonly #scaleOrderGroups = new Map<string, ScaleOrderGroup>();
+
+  // Prevent a stale open-order cache from recreating a group that this
+  // provider lifecycle already canceled successfully.
+  readonly #cancelledScaleOrderGroups = new Set<string>();
+
+  // Native TWAP IDs and any manual HIP-3 collateral transfer must outlive one
+  // provider instance: controller disconnect/reinitialization replaces the
+  // provider while the venue schedule keeps running. Each controller messenger
+  // owns one registry, so separate controller lifecycles never share handles.
+  static readonly #trackedTwapOrdersByMessenger = new WeakMap<
+    PerpsControllerMessengerBase,
+    Map<string, TrackedTwapOrder>
+  >();
+
+  readonly #trackedTwapOrders: Map<string, TrackedTwapOrder>;
+
+  // Chase sessions running on this provider instance, keyed by session handle.
+  // Each owns a pending timer, so disconnect has to stop them.
+  readonly #chaseSessions = new Map<string, ChaseSession>();
+
+  // In-flight termination is keyed by stable strategy handle so retries share
+  // one venue mutation. Completed handles remain idempotent for this provider
+  // lifecycle and are cleared on disconnect.
+  readonly #chaseTerminations = new Map<string, Promise<CancelOrderResult>>();
+
+  // Provider-lifetime tombstones make every later retry idempotent. Disconnect
+  // clears them with the rest of the account-scoped Chase registry.
+  readonly #terminatedChaseHandles = new Set<string>();
+
+  // Chase placements that have reserved a slot against the venue's concurrency
+  // cap but have not registered their session yet. Two round trips separate the
+  // two, and a reservation is what keeps concurrent placements from both
+  // passing the check.
+  #chasePlacementsInFlight = 0;
+
+  // Allows lifecycle teardown to wait until every placement has either
+  // registered a session or retracted its newly-rested child.
+  readonly #chasePlacementWaiters = new Set<Promise<void>>();
+
+  // Serialize background Chase mutations. Several sessions share one signer and
+  // transport, so simultaneous cancel/replace ticks would create avoidable
+  // signed traffic and can starve a foreground placement.
+  #chaseTickQueue: Promise<void> = Promise.resolve();
+
+  // Every strategy captures this before its round trips. A changed generation
+  // prevents a late response from registering handles after disconnect.
+  #strategyGeneration = 0;
+
+  // Reference-counted because suspension and disconnect may overlap. One
+  // lifecycle owner finishing must not reopen placement while another still
+  // drains or tears down the provider.
+  #chasePlacementBlockers = 0;
 
   // Track whether clients have been initialized (lazy initialization)
   #clientsInitialized = false;
@@ -376,22 +1466,36 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   readonly #builderAddressMainnet?: string;
 
-  constructor(options: {
-    isTestnet?: boolean;
-    hip3Enabled?: boolean;
-    allowlistMarkets?: string[];
-    blocklistMarkets?: string[];
-    useDexAbstraction?: boolean;
-    platformDependencies: PerpsPlatformDependencies;
-    messenger: PerpsControllerMessengerBase;
-    initialAssetMapping?: [string, number][];
-    builderAddressTestnet?: string;
-    builderAddressMainnet?: string;
-  }) {
+  readonly #subscriptionBuilderAddressTestnet?: string;
+
+  readonly #subscriptionBuilderAddressMainnet?: string;
+
+  readonly #priceDeviationLimit: number;
+
+  readonly #onChaseOrderMaxDistanceReached?: ChaseOrderMaxDistanceReachedHandler;
+
+  constructor(options: HyperLiquidProviderOptions) {
     this.#deps = options.platformDependencies;
     this.#messenger = options.messenger;
+    const trackedTwapOrders =
+      HyperLiquidProvider.#trackedTwapOrdersByMessenger.get(this.#messenger) ??
+      new Map<string, TrackedTwapOrder>();
+    HyperLiquidProvider.#trackedTwapOrdersByMessenger.set(
+      this.#messenger,
+      trackedTwapOrders,
+    );
+    this.#trackedTwapOrders = trackedTwapOrders;
     this.#builderAddressTestnet = options.builderAddressTestnet;
     this.#builderAddressMainnet = options.builderAddressMainnet;
+    this.#subscriptionBuilderAddressTestnet =
+      options.subscriptionBuilderAddressTestnet;
+    this.#subscriptionBuilderAddressMainnet =
+      options.subscriptionBuilderAddressMainnet;
+    this.#onChaseOrderMaxDistanceReached =
+      options.onChaseOrderMaxDistanceReached;
+    this.#priceDeviationLimit =
+      options.priceDeviationLimit ??
+      HYPERLIQUID_CONFIG.OraclePriceDeviationLimit;
     const isTestnet = options.isTestnet ?? false;
 
     // Dev-friendly defaults: Enable all markets by default for easier testing (discovery mode)
@@ -399,8 +1503,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     this.#allowlistMarkets = options.allowlistMarkets ?? [];
     this.#blocklistMarkets = options.blocklistMarkets ?? [];
 
-    // Attempt native balance abstraction, fallback to programmatic transfer if unsupported
-    this.#useDexAbstraction = options.useDexAbstraction ?? true;
+    // Attempt unified account mode, fallback to programmatic transfer if unsupported
+    this.#useUnifiedAccount = options.useUnifiedAccount ?? true;
 
     // Initialize services with injected platform dependencies
     this.#clientService = new HyperLiquidClientService(this.#deps, {
@@ -426,6 +1530,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       [], // enabledDexs - will be populated after DEX discovery in buildAssetMapping
       this.#allowlistMarkets,
       this.#blocklistMarkets,
+      this.#priceDeviationLimit,
+      async () => {
+        await this.#ensureClientsInitialized();
+        const validatedDexs = await this.#getValidatedDexs();
+        return validatedDexs.filter((dex): dex is string => dex !== null);
+      },
     );
 
     // NOTE: Clients are NOT initialized here - they'll be initialized lazily
@@ -458,6 +1568,213 @@ export class HyperLiquidProvider implements PerpsProvider {
       blocklistMarkets: this.#blocklistMarkets,
       isTestnet,
     });
+  }
+
+  /**
+   * Resolve the provider-owned fee policy for one placement context.
+   *
+   * The full context is accepted so future policies can vary by market route
+   * or other order inputs without changing the provider contract. Runtime
+   * callers can still bypass TypeScript, so an unknown order type falls back to
+   * the revenue-preserving standard policy and is made observable.
+   *
+   * @param params - Fee quote or placement context.
+   * @returns HyperLiquid's fee policy for this order.
+   */
+  #resolveOrderFeePolicy(
+    params: HyperLiquidOrderFeeContext,
+  ): HyperLiquidOrderFeePolicy {
+    const fallbackPolicy = Object.prototype.hasOwnProperty.call(
+      HYPERLIQUID_ORDER_FEE_CONFIG,
+      params.orderType,
+    )
+      ? HYPERLIQUID_ORDER_FEE_CONFIG[params.orderType]
+      : undefined;
+    if (fallbackPolicy) {
+      return fallbackPolicy;
+    }
+
+    this.#deps.debugLogger.log(
+      'HyperLiquid: Unknown order type used the safe builder-fee policy',
+      { orderType: params.orderType },
+    );
+    return HYPERLIQUID_ORDER_FEE_CONFIG.market;
+  }
+
+  /**
+   * Return provider-owned strategy support for a routed market.
+   * HyperLiquid metadata has no per-market strategy flags. This provider
+   * advertises its implemented strategies uniformly after confirming the
+   * routed market exists.
+   *
+   * @param params - Required market route context.
+   * @returns Supported strategy order types.
+   */
+  async getOrderCapabilities(
+    params: GetOrderCapabilitiesParams,
+  ): Promise<DirectProviderOrderCapabilities> {
+    if (!isValidCapabilitySymbol(params.symbol, { allowProviderRoute: true })) {
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'invalid_symbol',
+      };
+    }
+    const { dex } = parseAssetName(params.symbol);
+
+    if (this.#isDisconnected) {
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'provider_unavailable',
+      };
+    }
+
+    const lifecycleGeneration = this.#lifecycleGeneration;
+
+    try {
+      const marketExists = (
+        await this.#getFreshOrderCapabilityMarkets(dex)
+      ).some((market) => market.name === params.symbol);
+      this.#assertProviderLifecycleCurrent(
+        lifecycleGeneration,
+        'Order capability read',
+      );
+      return marketExists
+        ? HYPERLIQUID_ORDER_CAPABILITIES
+        : {
+            status: 'unavailable',
+            providerId: this.protocolId,
+            reason: 'market_not_found',
+          };
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        'HyperLiquid: Order capabilities unavailable',
+        {
+          symbol: params.symbol,
+          error: ensureError(error, 'HyperLiquidProvider.getOrderCapabilities')
+            .message,
+        },
+      );
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'provider_unavailable',
+      };
+    }
+  }
+
+  /**
+   * Reject provider work that crossed an asynchronous disconnect boundary.
+   *
+   * @param generation - Provider lifecycle generation captured before work.
+   * @param operation - Operation name included in the cancellation error.
+   */
+  #assertProviderLifecycleCurrent(generation: number, operation: string): void {
+    if (this.#isDisconnected || generation !== this.#lifecycleGeneration) {
+      this.#deps.debugLogger.log(
+        'HyperLiquid: Provider operation became stale during disconnect',
+        { operation },
+      );
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+  }
+
+  /**
+   * Reject cache writes from an old lifecycle or while teardown is active.
+   * General reads may lazily rebuild caches after disconnect completes, but a
+   * request that crossed the disconnect boundary must not repopulate them.
+   *
+   * @param generation - Provider lifecycle generation captured before work.
+   * @param operation - Operation name included in the cancellation log.
+   */
+  #assertCacheWriteLifecycleCurrent(
+    generation: number,
+    operation: string,
+  ): void {
+    if (!this.#isCacheWriteLifecycleCurrent(generation, operation)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+  }
+
+  /**
+   * Check whether fetched data may still populate provider caches.
+   *
+   * @param generation - Provider lifecycle generation captured before work.
+   * @param operation - Operation name included in the cancellation log.
+   * @returns Whether a cache write is safe.
+   */
+  #isCacheWriteLifecycleCurrent(
+    generation: number,
+    operation: string,
+  ): boolean {
+    if (
+      this.#disconnectOperationsInFlight > 0 ||
+      generation !== this.#lifecycleGeneration
+    ) {
+      this.#deps.debugLogger.log(
+        'HyperLiquid: Cache write became stale during disconnect',
+        { operation },
+      );
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Return filtered market metadata fresh enough for a capability query.
+   * Each DEX shares one refresh across concurrent callers, and a failed
+   * refresh remains immediately retryable.
+   *
+   * @param dex - Routed DEX, or null for the main DEX.
+   * @returns Fresh filtered markets for that route.
+   */
+  async #getFreshOrderCapabilityMarkets(
+    dex: string | null,
+  ): Promise<MarketInfo[]> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
+    const cachedMarkets = this.#orderCapabilitiesMarketsByDex.get(dex);
+    if (
+      cachedMarkets &&
+      Date.now() - cachedMarkets.freshAt <
+        PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs
+    ) {
+      return cachedMarkets.markets;
+    }
+
+    let refreshPromise = this.#orderCapabilitiesRefreshByDex.get(dex);
+    if (!refreshPromise) {
+      refreshPromise = (async (): Promise<MarketInfo[]> => {
+        const markets = await this.#fetchMarketsForDex({
+          dex,
+          skipCache: true,
+        });
+        this.#assertProviderLifecycleCurrent(
+          lifecycleGeneration,
+          'Order capability metadata refresh',
+        );
+
+        this.#orderCapabilitiesMarketsByDex.set(dex, {
+          markets,
+          freshAt: Date.now(),
+        });
+        return markets;
+      })();
+      this.#orderCapabilitiesRefreshByDex.set(dex, refreshPromise);
+    }
+
+    try {
+      const markets = await refreshPromise;
+      this.#assertProviderLifecycleCurrent(
+        lifecycleGeneration,
+        'Order capability read',
+      );
+      return markets;
+    } finally {
+      if (this.#orderCapabilitiesRefreshByDex.get(dex) === refreshPromise) {
+        this.#orderCapabilitiesRefreshByDex.delete(dex);
+      }
+    }
   }
 
   /**
@@ -497,6 +1814,10 @@ export class HyperLiquidProvider implements PerpsProvider {
    * the connection is fully established before marking initialization complete.
    */
   async #ensureClientsInitialized(): Promise<void> {
+    if (this.#disconnectOperationsInFlight > 0) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+    }
+
     if (this.#clientsInitialized) {
       return; // Already initialized
     }
@@ -505,6 +1826,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     // This prevents race conditions when multiple methods call concurrently
     if (this.#initializationPromise) {
       await this.#initializationPromise;
+      if (this.#disconnectOperationsInFlight > 0) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
       return;
     }
 
@@ -514,9 +1838,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (this.#clientsInitialized) {
         return;
       }
+      if (this.#disconnectOperationsInFlight > 0) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
 
       const wallet = this.#walletService.createWalletAdapter();
       await this.#clientService.initialize(wallet);
+      if (this.#disconnectOperationsInFlight > 0) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
 
       // Set termination callback for logging when WebSocket terminates
       // Note: Do NOT restore subscriptions here - termination means connection failed permanently
@@ -564,7 +1894,111 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Attempt to enable HIP-3 native balance abstraction
+   * Decide whether the wallet has a Hyperliquid account.
+   *
+   * Hyperliquid accounts are created server-side on first USDC deposit.
+   * Before that, every user-scoped exchange write rejects with
+   * "User or API Wallet 0x... does not exist." — formerly the top source
+   * of `feature:perps` Sentry events (Sentry issues METAMASK-MOBILE-4XB5
+   * iOS / 4Q4M Android: ~530k events / ~100k users in 14d on 7.75.1).
+   *
+   * Probes `infoClient.userNonFundingLedgerUpdates` and caches a positive
+   * result in `PerpsSigningCache.walletRegistered`. Negative results are NOT
+   * cached — the wallet may deposit between checks; the next entry must
+   * re-probe. The probe is cheap (~100ms), non-throwing, and returns the
+   * full deposit/withdraw history. A non-empty array means the wallet has
+   * interacted with Hyperliquid at least once — necessary and sufficient
+   * for `agentSetAbstraction` / `userSetAbstraction` / `setReferrer` to
+   * succeed.
+   *
+   * If the probe itself throws (transient network), returns `true` and does
+   * not cache — fail open so one bad probe never traps a real Hyperliquid
+   * user in the deferred state.
+   *
+   * @param userAddress - The wallet address to check.
+   * @param network - The network environment (mainnet | testnet).
+   * @returns True if the wallet has been observed on Hyperliquid OR if
+   * the probe was inconclusive (fail open). False only when the probe
+   * succeeded AND returned an empty ledger.
+   * @private
+   */
+  async #isWalletOnHyperliquid(
+    userAddress: string,
+    network: 'mainnet' | 'testnet',
+  ): Promise<boolean> {
+    const cached = PerpsSigningCache.getWalletRegistered(network, userAddress);
+    if (cached?.registered) {
+      return true;
+    }
+
+    try {
+      const infoClient = this.#clientService.getInfoClient();
+      const ledger = await infoClient.userNonFundingLedgerUpdates({
+        user: userAddress,
+        startTime: 0,
+      });
+      const registered = Array.isArray(ledger) && ledger.length > 0;
+      if (registered) {
+        PerpsSigningCache.setWalletRegistered(network, userAddress, true);
+      }
+      return registered;
+    } catch (error) {
+      // Fail open. A transient probe failure must never prevent a
+      // legitimate Hyperliquid user from completing migration / referral
+      // setup. The next entry will re-probe.
+      this.#deps.debugLogger.log(
+        '[isWalletOnHyperliquid] Probe failed, assuming registered',
+        {
+          network,
+          user: userAddress,
+          error: ensureError(error, 'HyperLiquidProvider.isWalletOnHyperliquid')
+            .message,
+        },
+      );
+      return true;
+    }
+  }
+
+  /**
+   * Decide whether the Hyperliquid account is a multi-sig account.
+   *
+   * Hyperliquid rejects every single-signer exchange write for a converted
+   * multi-sig account with `ApiRequestError: Multi-sig required`, so the
+   * unified-account migration must not be attempted for those accounts.
+   *
+   * If the probe throws (transient network), returns `false` — fail open so
+   * one bad probe never blocks migration for a normal single-signer account.
+   * The `isHyperLiquidMultiSigRequiredError` fallback in the write's catch
+   * block remains the safety net.
+   *
+   * @param userAddress - The wallet address to check.
+   * @returns True only when Hyperliquid reports a multi-sig signer set.
+   * @private
+   */
+  async #isHyperliquidMultiSigAccount(userAddress: string): Promise<boolean> {
+    try {
+      const infoClient = this.#clientService.getInfoClient();
+      const signers = await infoClient.userToMultiSigSigners({
+        user: userAddress,
+      });
+      return signers !== null && signers !== undefined;
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[isHyperliquidMultiSigAccount] Probe failed, assuming single-signer',
+        {
+          user: userAddress,
+          error: ensureError(
+            error,
+            'HyperLiquidProvider.isHyperliquidMultiSigAccount',
+          ).message,
+        },
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Attempt to enable HyperLiquid Unified Account mode for HIP-3 orders
    *
    * If successful, HyperLiquid automatically manages collateral transfers for HIP-3 orders.
    * If not supported, disables the flag to trigger programmatic transfer fallback.
@@ -572,10 +2006,28 @@ export class HyperLiquidProvider implements PerpsProvider {
    * IMPORTANT: Uses global singleton cache to prevent repeated signing requests
    * across provider reconnections (critical for hardware wallets).
    *
+   * @param options - Optional configuration.
+   * @param options.allowUserSigning - When true, runs the EIP-712 user-signed migration for `dexAbstraction` accounts. Defaults to false so init does not surface a signing prompt; action-time entry points (trading, withdraw) pass true.
    * @private
    */
-  async #ensureDexAbstractionEnabled(): Promise<void> {
-    if (!this.#useDexAbstraction) {
+  async #ensureUnifiedAccountEnabled(options?: {
+    allowUserSigning?: boolean;
+  }): Promise<void> {
+    // dexAbstraction → unifiedAccount requires an EIP-712 prompt (HL blocks
+    // the agent path for that transition). Init calls with allowUserSigning=false so
+    // viewing the Perps section never surfaces a signing dialog. Trading and
+    // withdraw entry points pass allowUserSigning=true to drive the migration when
+    // the user actually intends to act.
+    const allowUserSigning = options?.allowUserSigning ?? false;
+
+    // Optimistic reset — set true below only at the failure points that
+    // warrant retry (silent agent failure, REST lookup failure, keyring
+    // locked). Final-state outcomes (success, prompted-failure cached,
+    // already-on-compatible, defer, unknown mode, feature off) leave it
+    // false so #ensureReady can keep the memoized promise.
+    this.#unifiedAccountSetupNeedsRetry = false;
+
+    if (!this.#useUnifiedAccount) {
       return; // Feature disabled
     }
 
@@ -583,11 +2035,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
 
     // Check global cache first to avoid repeated signing requests
-    // This is CRITICAL for hardware wallets to prevent QR popup spam
+    // This is CRITICAL for hardware wallets to prevent repeated signing prompts
+    // while browsing.
     const cachedStatus = TradingReadinessCache.get(network, userAddress);
     if (cachedStatus?.attempted) {
       this.#deps.debugLogger.log(
-        'HyperLiquidProvider: DEX abstraction already attempted (from global cache)',
+        'HyperLiquidProvider: Unified Account setup already attempted (from global cache)',
         {
           user: userAddress,
           network,
@@ -601,118 +2054,349 @@ export class HyperLiquidProvider implements PerpsProvider {
     // Check if another provider instance is currently attempting this operation
     // This prevents concurrent signing attempts across providers during reconnection
     const inFlightPromise = PerpsSigningCache.isInFlight(
-      'dexAbstraction',
+      'unifiedAccount',
       network,
       userAddress,
     );
     if (inFlightPromise) {
       this.#deps.debugLogger.log(
-        'HyperLiquidProvider: DEX abstraction in-flight, waiting...',
+        'HyperLiquidProvider: Unified Account setup in-flight, waiting...',
         { network, userAddress },
       );
       await inFlightPromise;
-      return; // After waiting, the cache should be set by the other provider
+      // The other instance may have finished without writing the cache (e.g.
+      // an init-time call deferred a dexAbstraction migration). If the cache
+      // is still empty and we are an action-time caller (allowUserSigning=true),
+      // we must run our own attempt — otherwise the trade/withdraw would
+      // proceed in the deprecated mode.
+      const postWaitCache = TradingReadinessCache.get(network, userAddress);
+      if (postWaitCache?.attempted) {
+        return;
+      }
+      // Fall through to acquire our own lock and retry.
     }
 
     // Set in-flight lock to prevent concurrent attempts
     const completeInFlight = PerpsSigningCache.setInFlight(
-      'dexAbstraction',
+      'unifiedAccount',
       network,
       userAddress,
     );
+
+    let currentMode: UserAbstractionResponse | undefined;
 
     try {
       // Re-check cache after acquiring lock (another provider might have finished)
       const recheckCache = TradingReadinessCache.get(network, userAddress);
       if (recheckCache?.attempted) {
         this.#deps.debugLogger.log(
-          'HyperLiquidProvider: DEX abstraction completed by another provider',
+          'HyperLiquidProvider: Unified Account setup completed by another provider',
           { network, userAddress },
         );
         completeInFlight();
         return;
       }
 
+      // Skip the migration entirely for wallets that have no Hyperliquid
+      // account yet. HL creates accounts server-side on first USDC deposit;
+      // before that, both `agentSetAbstraction` and `userSetAbstraction`
+      // reject with "User or API Wallet 0x... does not exist." — formerly
+      // the top source of `feature:perps` Sentry events on 7.75.1.
+      // The probe is cheap, non-throwing, and cached.
+      const isRegistered = await this.#isWalletOnHyperliquid(
+        userAddress,
+        network,
+      );
+      if (!isRegistered) {
+        this.#deps.debugLogger.log(
+          '[ensureUnifiedAccountEnabled] Wallet not yet on Hyperliquid, deferring migration',
+          { user: userAddress, network },
+        );
+        this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.AccountSetup, {
+          [PERPS_EVENT_PROPERTY.STATUS]:
+            PERPS_EVENT_VALUE.STATUS.NOT_APPLICABLE,
+          [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: 'no_hl_account',
+        });
+        // Signal #ensureReady to drop its memoized promise so the next entry
+        // re-probes. Without this, the resolved promise would be reused and
+        // the wallet would stay permanently deferred until reconnect.
+        this.#unifiedAccountSetupNeedsRetry = true;
+        completeInFlight();
+        return;
+      }
+
       const infoClient = this.#clientService.getInfoClient();
 
-      // Check if already enabled on-chain (returns boolean | null)
-      const isEnabled = await infoClient.userDexAbstraction({
+      // Check current abstraction mode on-chain
+      currentMode = await infoClient.userAbstraction({
         user: userAddress,
       });
 
-      if (isEnabled === true) {
+      if (
+        currentMode === 'unifiedAccount' ||
+        currentMode === 'portfolioMargin'
+      ) {
+        // portfolioMargin is a superset of unifiedAccount — it already supports
+        // auto-collateral management for HIP-3 orders and is more capital-efficient.
+        // Downgrading portfolio margin users to unifiedAccount would be harmful,
+        // so we treat both modes as already-enabled and skip migration.
         this.#deps.debugLogger.log(
-          'HyperLiquidProvider: DEX abstraction already enabled on-chain',
-          { user: userAddress, network },
+          'HyperLiquidProvider: Account already in a compatible mode, skipping migration',
+          { user: userAddress, network, mode: currentMode },
         );
-        // Cache the enabled status to skip future checks
+        this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.AccountSetup, {
+          [PERPS_EVENT_PROPERTY.ABSTRACTION_MODE]: currentMode,
+          [PERPS_EVENT_PROPERTY.STATUS]:
+            PERPS_EVENT_VALUE.STATUS.ALREADY_ENABLED,
+        });
         TradingReadinessCache.set(network, userAddress, {
           attempted: true,
           enabled: true,
+        });
+        // Record the resolved mode in the subscription service so the next
+        // aggregation folds spot correctly without waiting for #refreshSpotState.
+        this.#subscriptionService.setUserAbstractionMode(
+          userAddress,
+          currentMode,
+        );
+        completeInFlight();
+        return;
+      }
+
+      // Defer signing-backed transitions until the user attempts an action.
+      // Cache is intentionally left untouched so the next entry re-evaluates;
+      // the read-only userAbstraction call is cheap and gated by the in-flight
+      // lock, preventing concurrent prompts.
+      if (shouldDeferUnifiedAccountSetup(currentMode, allowUserSigning)) {
+        this.#deps.debugLogger.log(
+          'HyperLiquidProvider: Deferring unified account migration to action time',
+          { user: userAddress, network, mode: currentMode },
+        );
+        completeInFlight();
+        return;
+      }
+
+      // Bail on unknown modes BEFORE firing analytics or attempting dispatch.
+      // Keeps `migration_required` actionable (only fires for modes we can
+      // actually migrate) and avoids re-emitting on every reconnection.
+      if (
+        currentMode !== 'dexAbstraction' &&
+        currentMode !== 'default' &&
+        currentMode !== 'disabled'
+      ) {
+        this.#deps.debugLogger.log(
+          'HyperLiquidProvider: Unknown abstraction mode, skipping Unified Account migration',
+          { user: userAddress, network, mode: currentMode },
+        );
+        completeInFlight();
+        return;
+      }
+
+      // Hyperliquid rejects every single-signer exchange write for a converted
+      // multi-sig account with "ApiRequestError: Multi-sig required", which
+      // surfaced on the Perps tab on every entry (TAT-3214). Probe right
+      // before the write so accounts that never reach one (already compatible,
+      // deferred, unknown mode) do not pay the extra round trip.
+      const isMultiSig = await this.#isHyperliquidMultiSigAccount(userAddress);
+      if (isMultiSig) {
+        this.#deps.debugLogger.log(
+          '[ensureUnifiedAccountEnabled] Multi-sig account, skipping unified account migration',
+          { user: userAddress, network, mode: currentMode },
+        );
+        this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.AccountSetup, {
+          [PERPS_EVENT_PROPERTY.PREVIOUS_ABSTRACTION_MODE]: currentMode,
+          [PERPS_EVENT_PROPERTY.STATUS]:
+            PERPS_EVENT_VALUE.STATUS.NOT_APPLICABLE,
+          [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: 'multi_sig_account',
+        });
+        // Final state: the write can never succeed for this account, so cache
+        // it as attempted with unified mode off. Perps keeps working through
+        // the programmatic collateral-transfer fallback.
+        TradingReadinessCache.set(network, userAddress, {
+          attempted: true,
+          enabled: false,
         });
         completeInFlight();
         return;
       }
 
-      // Enable DEX abstraction (one-time, irreversible, requires signature)
+      // Track which mode users are currently on before we attempt migration.
+      // This tells us the distribution of legacy modes across our user base.
+      this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.AccountSetup, {
+        [PERPS_EVENT_PROPERTY.ABSTRACTION_MODE]: currentMode,
+        [PERPS_EVENT_PROPERTY.STATUS]:
+          PERPS_EVENT_VALUE.STATUS.MIGRATION_REQUIRED,
+      });
+
+      // Enable Unified Account mode.
+      // - default / disabled: agent wallet can do this silently (no prompt)
+      // - dexAbstraction: HL blocks the agent transition — requires the user's main
+      //   wallet to sign an EIP-712 action via userSetAbstraction (one-time prompt)
       this.#deps.debugLogger.log(
-        'HyperLiquidProvider: Enabling DEX abstraction (requires signature)',
+        'HyperLiquidProvider: Enabling Unified Account mode',
         {
           user: userAddress,
           network,
+          previousMode: currentMode,
           note: 'HyperLiquid will auto-manage collateral for HIP-3 orders',
         },
       );
 
       const exchangeClient = this.#clientService.getExchangeClient();
-      await exchangeClient.agentEnableDexAbstraction();
+      if (currentMode === 'dexAbstraction') {
+        // Requires EIP-712 signature from the user's main wallet (one-time migration).
+        // HL blocks the dexAbstraction → unifiedAccount transition via the agent wallet,
+        // so userSetAbstraction (user-signed) is the only path for legacy users.
+        await exchangeClient.userSetAbstraction({
+          user: userAddress,
+          abstraction: HL_UNIFIED_ACCOUNT_MODE,
+        });
+      } else {
+        // default / disabled — silent agent transition, no user prompt
+        await exchangeClient.agentSetAbstraction({
+          abstraction: HL_ABSTRACTION_WIRE.unifiedAccount,
+        });
+      }
 
       this.#deps.debugLogger.log(
-        '✅ HyperLiquidProvider: DEX abstraction enabled successfully',
+        '✅ HyperLiquidProvider: Unified Account enabled successfully',
       );
-
-      // Cache success to prevent re-attempts on reconnection
+      this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.AccountSetup, {
+        [PERPS_EVENT_PROPERTY.PREVIOUS_ABSTRACTION_MODE]: currentMode,
+        [PERPS_EVENT_PROPERTY.ABSTRACTION_MODE]: HL_UNIFIED_ACCOUNT_MODE,
+        [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.SUCCESS,
+      });
       TradingReadinessCache.set(network, userAddress, {
         attempted: true,
         enabled: true,
       });
+      // Record the post-migration mode in the subscription service so it
+      // immediately re-aggregates with fold=true and surfaces the unified
+      // balance rather than waiting for the next #refreshSpotState.
+      this.#subscriptionService.setUserAbstractionMode(
+        userAddress,
+        HL_UNIFIED_ACCOUNT_MODE,
+      );
       completeInFlight();
     } catch (error) {
-      // If keyring is locked, don't cache so it retries when unlocked
-      if (ensureError(error).message === PERPS_ERROR_CODES.KEYRING_LOCKED) {
+      // HyperLiquid wraps wallet signing failures and preserves KEYRING_LOCKED
+      // in `cause`, so classify the full chain and leave retry caches empty.
+      if (isKeyringLockedError(error)) {
         this.#deps.debugLogger.log(
-          '[ensureDexAbstractionEnabled] Keyring locked, will retry later',
+          '[ensureUnifiedAccountEnabled] Keyring locked, will retry later',
         );
+        this.#unifiedAccountSetupNeedsRetry = true;
         completeInFlight();
         return;
       }
 
-      // Cache the attempt (even on failure) to prevent repeated signing requests
-      // This is CRITICAL for hardware wallets - if user rejects, don't ask again
-      TradingReadinessCache.set(network, userAddress, {
-        attempted: true,
-        enabled: false,
-      });
+      // Safety net: a Hyperliquid "user does not exist" rejection slipped
+      // past the proactive probe (race with deposit confirmation, transient
+      // probe failure that failed open, ...). Treat as benign — do NOT
+      // forward to Sentry. The walletRegistered cache stores positive
+      // observations only, so no demotion is needed; the next entry will
+      // re-probe.
+      if (isHyperLiquidUserNotFoundError(error)) {
+        this.#deps.debugLogger.log(
+          '[ensureUnifiedAccountEnabled] Wallet not on Hyperliquid (race/stale-cache), deferring migration',
+          { user: userAddress, network, currentMode },
+        );
+        this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.AccountSetup, {
+          ...(currentMode && {
+            [PERPS_EVENT_PROPERTY.PREVIOUS_ABSTRACTION_MODE]: currentMode,
+            [PERPS_EVENT_PROPERTY.ABSTRACTION_MODE]: HL_UNIFIED_ACCOUNT_MODE,
+          }),
+          [PERPS_EVENT_PROPERTY.STATUS]:
+            PERPS_EVENT_VALUE.STATUS.NOT_APPLICABLE,
+          [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: 'no_hl_account',
+        });
+        this.#unifiedAccountSetupNeedsRetry = true;
+        completeInFlight();
+        return;
+      }
+
+      // Safety net for the multi-sig probe: the account can be converted
+      // between the lookup and the write, and the probe fails open on
+      // transient info-API errors. Either way the rejection is a permanent
+      // account-shape condition, not a failure worth reporting or retrying.
+      if (isHyperLiquidMultiSigRequiredError(error)) {
+        this.#deps.debugLogger.log(
+          '[ensureUnifiedAccountEnabled] Multi-sig account (race/probe fallback), skipping unified account migration',
+          { user: userAddress, network, mode: currentMode },
+        );
+        this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.AccountSetup, {
+          ...(currentMode && {
+            [PERPS_EVENT_PROPERTY.PREVIOUS_ABSTRACTION_MODE]: currentMode,
+          }),
+          [PERPS_EVENT_PROPERTY.STATUS]:
+            PERPS_EVENT_VALUE.STATUS.NOT_APPLICABLE,
+          [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: 'multi_sig_account',
+        });
+        TradingReadinessCache.set(network, userAddress, {
+          attempted: true,
+          enabled: false,
+        });
+        completeInFlight();
+        return;
+      }
+
+      // Cache failure ONLY for the user-prompted path
+      // (`dexAbstraction → unifiedAccount` via `userSetAbstraction`). The
+      // rationale for caching is "don't re-prompt a user who already saw the
+      // signature dialog and rejected it" — that doesn't apply to:
+      //   - Read-only userAbstraction lookup failures (no prompt; transient).
+      //   - Silent agent-key paths (`default`/`disabled` → `agentSetAbstraction`
+      //     does not show a UI prompt; failures are typically transient HL
+      //     outages and pinning them would leave users stuck in the
+      //     deprecated mode for the rest of the session).
+      // Action-time retries pick up the unmigrated state and try again.
+      if (currentMode === 'dexAbstraction') {
+        TradingReadinessCache.set(network, userAddress, {
+          attempted: true,
+          enabled: false,
+        });
+      } else {
+        // Silent agent-key failure (default/disabled) or read-only
+        // userAbstraction lookup failure — neither is a final state, so
+        // signal #ensureReady to drop its memoized promise and retry on
+        // the next entry instead of pinning the user in the deprecated
+        // mode for the provider's lifetime.
+        this.#unifiedAccountSetupNeedsRetry = true;
+      }
+
+      const errorMessage = ensureError(
+        error,
+        'HyperLiquidProvider.ensureUnifiedAccountEnabled',
+      ).message;
 
       this.#deps.debugLogger.log(
-        'HyperLiquidProvider: DEX abstraction failed, cached to prevent retries',
+        'HyperLiquidProvider: Unified Account setup failed',
         {
           user: userAddress,
           network,
-          error: ensureError(
-            error,
-            'HyperLiquidProvider.ensureDexAbstractionEnabled',
-          ).message,
+          error: errorMessage,
+          // Cache writes only happen on the user-prompted dexAbstraction
+          // path (see P2-B logic above). Reflect that here so retry
+          // behaviour is debuggable from the log alone.
+          cached: currentMode === 'dexAbstraction',
         },
       );
 
+      this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.AccountSetup, {
+        ...(currentMode && {
+          [PERPS_EVENT_PROPERTY.PREVIOUS_ABSTRACTION_MODE]: currentMode,
+          [PERPS_EVENT_PROPERTY.ABSTRACTION_MODE]: HL_UNIFIED_ACCOUNT_MODE,
+        }),
+        [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
+        [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: errorMessage,
+      });
+
       completeInFlight();
 
-      // Don't blindly disable the flag on any error
       this.#deps.logger.error(
-        ensureError(error, 'HyperLiquidProvider.ensureDexAbstractionEnabled'),
-        this.#getErrorContext('ensureDexAbstractionEnabled', {
-          note: 'Could not enable DEX abstraction (may already be enabled, user rejected, or network error)',
+        ensureError(error, 'HyperLiquidProvider.ensureUnifiedAccountEnabled'),
+        this.#getErrorContext('ensureUnifiedAccountEnabled', {
+          note: 'Could not enable Unified Account (user rejected, or network error)',
         }),
       );
     }
@@ -758,19 +2442,35 @@ export class HyperLiquidProvider implements PerpsProvider {
         await this.#buildAssetMapping();
       }
 
-      // NOTE: Signing operations (DEX abstraction, builder fee, referral) are now DEFERRED
-      // They are called on-demand in ensureReadyForTrading() when user attempts to trade
-      // This prevents QR popups when just viewing the Perps section (critical for hardware wallets)
+      // Attempt Unified Account migration as early as possible so users aren't
+      // blocked when they try to trade. Software wallets can complete the
+      // signing-backed migration during initial setup so the first trade sees
+      // the unified balance. Hardware wallets remain deferred to action time to
+      // avoid repeated signing prompts while browsing.
+      await this.#ensureUnifiedAccountEnabled({
+        allowUserSigning: !this.#walletService.isSelectedHardwareWallet(),
+      });
     })();
 
     // Await initialization - keep the promise so subsequent calls resolve immediately
     // The promise is only reset in disconnect() for clean reconnection,
     // or when DEX discovery was degraded so the next caller retries.
-    await this.#ensureReadyPromise;
+    try {
+      await this.#ensureReadyPromise;
+    } catch (error) {
+      this.#ensureReadyPromise = null;
+      throw error;
+    }
     if (!this.#dexDiscoveryComplete) {
       // DEX discovery failed transiently — reset so next call retries.
       // Trading still works (main DEX mapping is populated), but HIP-3 markets
       // will be re-discovered on the next #ensureReady() call.
+      this.#ensureReadyPromise = null;
+    } else if (this.#unifiedAccountSetupNeedsRetry) {
+      // Silent migration / lookup / keyring-locked failure left the cache
+      // empty. Without resetting the memoized promise, subsequent
+      // #ensureReady calls would skip retry and the user would be stuck
+      // in the deprecated mode for the provider's lifetime.
       this.#ensureReadyPromise = null;
     }
     this.#deps.debugLogger.log('[ensureReady] Initialization complete');
@@ -779,89 +2479,167 @@ export class HyperLiquidProvider implements PerpsProvider {
   /**
    * Ensure provider is ready for TRADING operations (signing required)
    *
-   * This method performs additional setup that requires user signatures:
+   * This method performs shared setup that may require user signatures:
    * - DEX abstraction enablement (for HIP-3 auto-transfers)
-   * - Builder fee approval (required for orders)
    * - Referral code setup (attribution)
+   * - Builder fee approval when the whole action carries a builder context
    *
-   * These operations are DEFERRED from ensureReady() to avoid QR popup spam
+   * These operations are DEFERRED from ensureReady() to avoid hardware wallet prompt spam
    * when users are just viewing the Perps section (critical for hardware wallets).
    *
-   * Call this method before any trading operation (placeOrder, cancelOrder, etc.)
+   * General trading readiness is independent of builder approval. Native TWAP
+   * and cancellations call this with `requiresBuilderFee: false`.
    */
   #tradingSetupPromise: Promise<void> | null = null;
 
   #tradingSetupComplete = false;
 
-  async #ensureReadyForTrading(): Promise<void> {
+  readonly #builderFeeSetupPromises = new Map<string, Promise<void>>();
+
+  /**
+   * Approve the standard builder fee once for the current account and network.
+   * TWAP never calls this because its native action has no builder field.
+   * Without an approval failure code, approval remains non-blocking and the
+   * returned context describes attribution only; it does not prove approval.
+   *
+   * @param approvalFailureCode - Operation-specific error to throw when
+   * approval is unavailable or fails.
+   * @returns The account, network, and configured builder for the action.
+   */
+  async #ensureBuilderFeeSetup(
+    approvalFailureCode?: PerpsErrorCode,
+  ): Promise<BuilderFeeSetupContext> {
+    const isTestnet = this.#clientService.isTestnetMode();
+    const network = isTestnet ? 'testnet' : 'mainnet';
+    const userAddress = await this.#walletService.getUserAddressWithDefault();
+    const cacheKey = this.#getCacheKey(network, userAddress);
+    const builderAddress = this.#getBuilderAddress(isTestnet);
+    const context: BuilderFeeSetupContext = {
+      network,
+      userAddress,
+      builderAddress,
+    };
+    const setupKey = this.#getApprovedBuilderKey(
+      network,
+      userAddress,
+      builderAddress,
+    );
+    if (this.#builderFeeCheckCache.has(cacheKey)) {
+      return context;
+    }
+
+    let pendingApproval = this.#builderFeeSetupPromises.get(setupKey);
+    if (!pendingApproval) {
+      pendingApproval = this.#ensureBuilderFeeApproval(context);
+      this.#builderFeeSetupPromises.set(setupKey, pendingApproval);
+    }
+
+    try {
+      await pendingApproval;
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        '[ensureBuilderFeeSetup] Builder fee approval failed',
+        error,
+      );
+      if (approvalFailureCode) {
+        throw new Error(approvalFailureCode);
+      }
+    } finally {
+      if (this.#builderFeeSetupPromises.get(setupKey) === pendingApproval) {
+        this.#builderFeeSetupPromises.delete(setupKey);
+      }
+    }
+
+    if (approvalFailureCode && !this.#builderFeeCheckCache.has(cacheKey)) {
+      throw new Error(approvalFailureCode);
+    }
+
+    return context;
+  }
+
+  #ensureReadyForTrading(options: {
+    requiresBuilderFee: true;
+    builderFeeApprovalFailureCode?: PerpsErrorCode;
+  }): Promise<BuilderFeeSetupContext>;
+
+  #ensureReadyForTrading(options: {
+    requiresBuilderFee: false;
+    builderFeeApprovalFailureCode?: PerpsErrorCode;
+  }): Promise<undefined>;
+
+  #ensureReadyForTrading(options: {
+    requiresBuilderFee: boolean;
+    builderFeeApprovalFailureCode?: PerpsErrorCode;
+  }): Promise<BuilderFeeSetupContext | undefined>;
+
+  async #ensureReadyForTrading(options: {
+    requiresBuilderFee: boolean;
+    builderFeeApprovalFailureCode?: PerpsErrorCode;
+  }): Promise<BuilderFeeSetupContext | undefined> {
     // First ensure basic initialization is complete
     await this.#ensureReady();
 
-    // If trading setup already complete, return immediately
-    if (this.#tradingSetupComplete) {
-      return;
-    }
+    // dexAbstraction users were deferred during init to avoid an EIP-712 prompt
+    // on Perps section open. Drive the migration here, gated by its own cache so
+    // already-migrated or already-rejected users are not re-prompted.
+    await this.#ensureUnifiedAccountEnabled({ allowUserSigning: true });
 
-    // If trading setup is in progress, wait for it
-    if (this.#tradingSetupPromise) {
+    if (!this.#tradingSetupComplete && !this.#tradingSetupPromise) {
+      const lifecycleGeneration = this.#lifecycleGeneration;
       this.#deps.debugLogger.log(
-        '[ensureReadyForTrading] Waiting for in-progress trading setup',
+        '[ensureReadyForTrading] Starting shared trading setup',
       );
-      await this.#tradingSetupPromise;
-      return;
+
+      this.#tradingSetupPromise = (async (): Promise<void> => {
+        // Pre-fetch spotMeta for HIP-3 operations (non-blocking if it fails)
+        // This ensures token info (e.g. USDC token index) is available during order placement
+        if (this.#hip3Enabled) {
+          try {
+            await this.#getCachedSpotMeta();
+          } catch (error) {
+            this.#deps.debugLogger.log(
+              '[ensureReadyForTrading] spotMeta pre-fetch failed, will retry when needed',
+              error,
+            );
+            // Don't throw - spotMeta will be fetched on-demand if needed
+          }
+        }
+
+        // Set up referral code independently from builder-fee applicability.
+        await this.#ensureReferralSet();
+
+        this.#assertProviderLifecycleCurrent(
+          lifecycleGeneration,
+          'Trading setup completion',
+        );
+
+        // Only mark complete if keyring was unlocked (signing could actually happen)
+        if (this.#walletService.isKeyringUnlocked()) {
+          this.#tradingSetupComplete = true;
+        }
+      })();
     }
 
-    this.#deps.debugLogger.log(
-      '[ensureReadyForTrading] Starting trading setup (may require signatures)',
-    );
-
-    this.#tradingSetupPromise = (async (): Promise<void> => {
-      // Pre-fetch spotMeta for HIP-3 operations (non-blocking if it fails)
-      // This ensures token info (USDC/USDH indices) is available during order placement
-      if (this.#hip3Enabled) {
-        try {
-          await this.#getCachedSpotMeta();
-        } catch (error) {
-          this.#deps.debugLogger.log(
-            '[ensureReadyForTrading] spotMeta pre-fetch failed, will retry when needed',
-            error,
-          );
-          // Don't throw - spotMeta will be fetched on-demand if needed
+    const pendingSetup = this.#tradingSetupPromise;
+    if (pendingSetup) {
+      try {
+        await pendingSetup;
+      } finally {
+        if (this.#tradingSetupPromise === pendingSetup) {
+          this.#tradingSetupPromise = null;
         }
       }
-
-      // Attempt to enable native balance abstraction
-      await this.#ensureDexAbstractionEnabled();
-
-      // Set up builder fee approval
-      try {
-        await this.#ensureBuilderFeeApproval();
-      } catch (error) {
-        this.#deps.debugLogger.log(
-          'HyperLiquidProvider: Builder fee approval failed',
-          error,
-        );
-        // Don't throw - let trading continue, will fail with clear error if needed
-      }
-
-      // Set up referral code
-      await this.#ensureReferralSet();
-
-      // Only mark complete if keyring was unlocked (signing could actually happen)
-      if (this.#walletService.isKeyringUnlocked()) {
-        this.#tradingSetupComplete = true;
-      }
-    })();
-
-    try {
-      await this.#tradingSetupPromise;
-    } finally {
-      this.#tradingSetupPromise = null;
     }
+
+    const builderFeeSetupContext = options.requiresBuilderFee
+      ? await this.#ensureBuilderFeeSetup(options.builderFeeApprovalFailureCode)
+      : undefined;
 
     this.#deps.debugLogger.log(
       '[ensureReadyForTrading] Trading setup complete',
     );
+
+    return builderFeeSetupContext;
   }
 
   /**
@@ -904,7 +2682,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       'Price cache miss for getOrFetchPrice, falling back to REST allMids',
       { symbol },
     );
-    const infoClient = this.#clientService.getInfoClient();
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
     const mids = await infoClient.allMids(
       dexName ? { dex: dexName } : undefined,
     );
@@ -988,6 +2766,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns Array of all DEX names (null for main DEX, strings for HIP-3 DEXs)
    */
   async #getAllAvailableDexs(): Promise<(string | null)[]> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     // Use unified state if available
     if (this.#dexDiscoveryCache.state) {
       const availableHip3Dexs: string[] = [];
@@ -1007,6 +2786,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         return [null]; // Fallback to main DEX only
       }
 
+      this.#assertCacheWriteLifecycleCurrent(
+        lifecycleGeneration,
+        'DEX discovery cache write',
+      );
       const state = this.#dexDiscoveryCache.update(allDexs);
       const availableHip3Dexs: string[] = [];
       state.raw.forEach((dex) => {
@@ -1061,14 +2844,17 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     // Create and cache the pending promise for deduplication
-    this.#pendingValidatedDexsPromise = this.#fetchValidatedDexsInternal();
+    const pendingPromise = this.#fetchValidatedDexsInternal();
+    this.#pendingValidatedDexsPromise = pendingPromise;
 
     try {
-      const result = await this.#pendingValidatedDexsPromise;
+      const result = await pendingPromise;
       return result;
     } finally {
-      // Clear the pending promise when done (success or error)
-      this.#pendingValidatedDexsPromise = null;
+      // A stale request must not clear a newer lifecycle's pending request.
+      if (this.#pendingValidatedDexsPromise === pendingPromise) {
+        this.#pendingValidatedDexsPromise = null;
+      }
     }
   }
 
@@ -1079,6 +2865,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async #fetchValidatedDexsInternal(): Promise<(string | null)[]> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     // Kill switch: HIP-3 disabled, return main DEX only
     if (!this.#hip3Enabled) {
       this.#deps.debugLogger.log(
@@ -1118,6 +2905,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     // Atomically update unified state (raw + validated + timestamp)
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'DEX discovery cache write',
+    );
     const state = this.#dexDiscoveryCache.update(allDexs);
 
     this.#deps.debugLogger.log(
@@ -1145,14 +2936,13 @@ export class HyperLiquidProvider implements PerpsProvider {
     dexName: string | null;
     skipCache?: boolean;
   }): Promise<MetaResponse> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     const { dexName, skipCache } = params;
-    // Use empty string for main DEX key (consistent with buildAssetMapping cache population)
-    const dexKey = dexName ?? '';
-    const dexDisplayName = dexKey || 'main';
+    const dexDisplayName = dexName ?? 'main';
 
     // Skip cache if requested (forces fresh fetch)
     if (!skipCache) {
-      const cached = this.#cachedMetaByDex.get(dexKey);
+      const cached = this.#cachedMetaByDex.get(dexName);
       if (cached) {
         this.#deps.debugLogger.log(
           '[getCachedMeta] Using cached meta response',
@@ -1165,11 +2955,48 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
     }
 
-    // Cache miss or skipCache=true - fetch from API
-    const infoClient = this.#clientService.getInfoClient();
+    // Cache miss or skipCache=true - fetch from API.
+    const meta = await this.#fetchMeta(dexName);
+    const cached = await this.#cacheDexMetadataFromRead({
+      dex: dexName,
+      meta,
+      lifecycleGeneration,
+    });
+    if (cached) {
+      this.#deps.debugLogger.log(
+        '[getCachedMeta] Fetched and cached meta response',
+        {
+          dex: dexDisplayName,
+          universeSize: meta.universe.length,
+          skipCache,
+        },
+      );
+    }
+
+    return meta;
+  }
+
+  /**
+   * Fetch and validate metadata without mutating provider caches.
+   *
+   * @param dexName - DEX name, or null for the main DEX.
+   * @returns Validated metadata for the requested DEX.
+   */
+  async #fetchMeta(dexName: string | null): Promise<MetaResponse> {
+    const dexDisplayName = dexName ?? 'main';
+
+    // Bring the SDK clients up first. This is the first client touch on the
+    // write path — placeOrder resolves asset info before it ensures trading
+    // readiness — so without it a cold start or a post-disconnect action fails
+    // with CLIENT_NOT_INITIALIZED instead of waiting for the clients it needs.
+    // Idempotent, and a warm cache hit returns above without reaching here.
+    await this.#ensureClientsInitialized();
+    // Metadata is request/response data, so keep this path available while a
+    // failed WebSocket reconnect is retrying.
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
     // Pass dex only for HIP-3 DEXs; omit for main DEX (empty string).
     // Testnet API returns null when dex="" is explicitly sent.
-    const meta = await infoClient.meta(dexKey ? { dex: dexKey } : undefined);
+    const meta = await infoClient.meta(dexName ? { dex: dexName } : undefined);
 
     // Defensive validation before caching
     if (!meta?.universe || !Array.isArray(meta.universe)) {
@@ -1178,20 +3005,84 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
     }
 
-    // Store raw meta response for reuse
-    this.#cachedMetaByDex.set(dexKey, meta);
-    await this.#backfillAssetMapForDex(dexName, meta);
-
-    this.#deps.debugLogger.log(
-      '[getCachedMeta] Fetched and cached meta response',
-      {
-        dex: dexDisplayName,
-        universeSize: meta.universe.length,
-        skipCache,
-      },
-    );
-
     return meta;
+  }
+
+  /**
+   * Write provider metadata caches only within the lifecycle that fetched it.
+   *
+   * @param params - Metadata and lifecycle context.
+   * @param params.dex - DEX name, or null for the main DEX.
+   * @param params.meta - Validated DEX metadata.
+   * @param params.assetCtxs - Asset contexts shared with subscriptions, if any.
+   * @param params.lifecycleGeneration - Lifecycle that produced the metadata.
+   */
+  #cacheDexMetadata(params: {
+    dex: string | null;
+    meta: MetaResponse;
+    assetCtxs?: PerpsAssetCtx[];
+    lifecycleGeneration: number;
+  }): void {
+    const { dex, meta, assetCtxs, lifecycleGeneration } = params;
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'DEX metadata cache write',
+    );
+    this.#cachedMetaByDex.set(dex, meta);
+    if (assetCtxs) {
+      const subscriptionDexKey = dex ?? '';
+      this.#subscriptionService.setDexMetaCache(subscriptionDexKey, meta);
+      this.#subscriptionService.setDexAssetCtxsCache(
+        subscriptionDexKey,
+        assetCtxs,
+      );
+    }
+  }
+
+  /**
+   * Cache metadata fetched for a read without discarding a valid response.
+   *
+   * @param params - Metadata and lifecycle context.
+   * @param params.dex - DEX name, or null for the main DEX.
+   * @param params.meta - Validated DEX metadata.
+   * @param params.assetCtxs - Asset contexts shared with subscriptions, if any.
+   * @param params.lifecycleGeneration - Lifecycle that produced the metadata.
+   * @returns Whether the fetched metadata was cached.
+   */
+  async #cacheDexMetadataFromRead(params: {
+    dex: string | null;
+    meta: MetaResponse;
+    assetCtxs?: PerpsAssetCtx[];
+    lifecycleGeneration: number;
+  }): Promise<boolean> {
+    const { dex, meta, assetCtxs, lifecycleGeneration } = params;
+    if (
+      !this.#isCacheWriteLifecycleCurrent(
+        lifecycleGeneration,
+        'DEX metadata read cache write',
+      )
+    ) {
+      return false;
+    }
+
+    try {
+      this.#cacheDexMetadata({
+        dex,
+        meta,
+        assetCtxs,
+        lifecycleGeneration,
+      });
+      await this.#backfillAssetMapForDex(dex, meta, lifecycleGeneration);
+      return true;
+    } catch (error) {
+      if (
+        ensureError(error, 'HyperLiquidProvider.cacheDexMetadataFromRead')
+          .message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE
+      ) {
+        return false;
+      }
+      throw error;
+    }
   }
 
   /**
@@ -1200,12 +3091,18 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param dex - DEX name (null for main DEX).
    * @param meta - Meta response containing the DEX universe.
+   * @param lifecycleGeneration - Lifecycle that produced the metadata.
    * @returns True if the mapping was rebuilt for the DEX.
    */
   async #backfillAssetMapForDex(
     dex: string | null,
     meta: MetaResponse,
+    lifecycleGeneration: number,
   ): Promise<boolean> {
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'Asset map backfill',
+    );
     if (!meta?.universe || !Array.isArray(meta.universe)) {
       return false;
     }
@@ -1226,6 +3123,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
       }
     }
+
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'Asset map backfill',
+    );
 
     const allPerpDexs = this.#dexDiscoveryCache.state?.raw ?? [null];
     const perpDexIndex = allPerpDexs.findIndex((entry) => {
@@ -1279,6 +3181,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     dexName: string | null;
     meta?: MetaResponse;
   }): Promise<number> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     const { symbol, dexName } = params;
     const existingAssetId = this.#symbolToAssetId.get(symbol);
 
@@ -1293,7 +3196,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     );
 
     if (assetExistsInMeta) {
-      await this.#backfillAssetMapForDex(dexName, meta);
+      await this.#backfillAssetMapForDex(dexName, meta, lifecycleGeneration);
       const repairedAssetId = this.#symbolToAssetId.get(symbol);
       if (repairedAssetId !== undefined) {
         return repairedAssetId;
@@ -1314,7 +3217,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   /**
    * Fetch spot metadata with session-based caching
-   * Contains token info (USDC, USDH indices) needed for HIP-3 collateral checks
+   * Contains token info (e.g. USDC token index) needed for HIP-3 collateral checks
    * Pre-fetched in ensureReadyForTrading() to ensure availability during order placement
    *
    * @returns SpotMetaResponse with tokens and universe data
@@ -1328,17 +3231,25 @@ export class HyperLiquidProvider implements PerpsProvider {
       return this.#cachedSpotMeta;
     }
 
+    const lifecycleGeneration = this.#lifecycleGeneration;
     const infoClient = this.#clientService.getInfoClient();
     const spotMeta = await infoClient.spotMeta();
 
-    this.#cachedSpotMeta = spotMeta;
-    this.#deps.debugLogger.log(
-      '[getCachedSpotMeta] Fetched and cached spotMeta',
-      {
-        tokensCount: spotMeta.tokens.length,
-        universeCount: spotMeta.universe.length,
-      },
-    );
+    if (
+      this.#isCacheWriteLifecycleCurrent(
+        lifecycleGeneration,
+        'Spot metadata cache write',
+      )
+    ) {
+      this.#cachedSpotMeta = spotMeta;
+      this.#deps.debugLogger.log(
+        '[getCachedSpotMeta] Fetched and cached spotMeta',
+        {
+          tokensCount: spotMeta.tokens.length,
+          universeCount: spotMeta.universe.length,
+        },
+      );
+    }
 
     return spotMeta;
   }
@@ -1350,6 +3261,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns Array of ExtendedPerpDex objects (null entries represent main DEX)
    */
   async #getCachedPerpDexs(): Promise<ExtendedPerpDex[]> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     const now = Date.now();
 
     // Return cached data if still valid (uses unified state timestamp for TTL)
@@ -1376,21 +3288,28 @@ export class HyperLiquidProvider implements PerpsProvider {
     const perpDexs =
       (await infoClient.perpDexs()) as unknown as ExtendedPerpDex[];
 
-    // Atomically update unified state (raw + validated + timestamp)
-    this.#dexDiscoveryCache.update(perpDexs);
+    if (
+      this.#isCacheWriteLifecycleCurrent(
+        lifecycleGeneration,
+        'Perp DEX cache write',
+      )
+    ) {
+      // Atomically update unified state (raw + validated + timestamp)
+      this.#dexDiscoveryCache.update(perpDexs);
 
-    this.#deps.debugLogger.log(
-      '[getCachedPerpDexs] Fetched and cached perpDexs data',
-      {
-        count: perpDexs.length,
-        dexes: perpDexs
-          .filter((dex) => dex !== null)
-          .map((dex) => ({
-            name: dex.name,
-            deployerFeeScale: dex.deployerFeeScale,
-          })),
-      },
-    );
+      this.#deps.debugLogger.log(
+        '[getCachedPerpDexs] Fetched and cached perpDexs data',
+        {
+          count: perpDexs.length,
+          dexes: perpDexs
+            .filter((dex) => dex !== null)
+            .map((dex) => ({
+              name: dex.name,
+              deployerFeeScale: dex.deployerFeeScale,
+            })),
+        },
+      );
+    }
 
     return perpDexs;
   }
@@ -1483,6 +3402,14 @@ export class HyperLiquidProvider implements PerpsProvider {
     return `${network}:${userAddress.toLowerCase()}`;
   }
 
+  #getApprovedBuilderKey(
+    network: string,
+    userAddress: string,
+    builderAddress: string,
+  ): string {
+    return `${this.#getCacheKey(network, userAddress)}:${builderAddress.toLowerCase()}`;
+  }
+
   /**
    * Fetch markets for a specific DEX with optional filtering
    * Uses session-based caching via getCachedMeta() - no TTL, cleared on disconnect
@@ -1506,6 +3433,18 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (!meta.universe || !Array.isArray(meta.universe)) {
       this.#deps.debugLogger.log(
         `HyperLiquidProvider: Invalid universe data for DEX ${dex ?? 'main'}`,
+      );
+      return [];
+    }
+
+    // TAT-3304: Following the USDH sunset, only USDC-collateral HIP-3 DEXs
+    // are supported for trading. Gate non-USDC-collateral DEXs out of market
+    // discovery entirely (regardless of skipFilters) so their markets can
+    // never be surfaced to trade, even via an allowlist entry naming the DEX.
+    if (dex !== null && !(await this.#isUsdcCollateralDex(dex))) {
+      this.#deps.debugLogger.log(
+        'HyperLiquidProvider: Filtering out non-USDC-collateral HIP-3 DEX from market discovery',
+        { dex },
       );
       return [];
     }
@@ -1566,13 +3505,24 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Check if a HIP-3 DEX uses USDH as collateral (vs USDC)
-   * Per HyperLiquid docs: USDH DEXs pull collateral from spot balance automatically
+   * Check if a HIP-3 DEX uses USDC as its collateral token
+   *
+   * TAT-3304: Following the USDH sunset, only USDC-collateral DEXs are
+   * supported for trading. This gate filters non-USDC-collateral DEXs
+   * (e.g. the now-sunset USDH) out of market discovery and blocks order
+   * placement, replacing the previous USDH-specific auto-swap path.
+   *
+   * Fails closed: only returns true when the collateral token index
+   * positively resolves to USDC against spot metadata. If the token can't
+   * be resolved (e.g. missing/stale spot metadata), the DEX is treated as
+   * non-USDC and gated out, since we can't otherwise verify the USDC-only
+   * requirement. This only affects HIP-3 DEXs — main-DEX trading (dex ===
+   * null) never calls this gate.
    *
    * @param dexName - The DEX identifier (empty string for main DEX).
    * @returns A promise that resolves to the boolean result.
    */
-  async #isUsdhCollateralDex(dexName: string): Promise<boolean> {
+  async #isUsdcCollateralDex(dexName: string): Promise<boolean> {
     const meta = await this.#getCachedMeta({ dexName });
     const spotMeta = await this.#getCachedSpotMeta();
 
@@ -1580,7 +3530,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       (tok: { index: number }) => tok.index === meta.collateralToken,
     );
 
-    const isUsdh = collateralToken?.name === USDH_CONFIG.TokenName;
+    const isUsdc = collateralToken?.name === USDC_SYMBOL;
 
     this.#deps.debugLogger.log(
       'HyperLiquidProvider: Checked DEX collateral type',
@@ -1588,388 +3538,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         dexName,
         collateralTokenIndex: meta.collateralToken,
         collateralTokenName: collateralToken?.name,
-        isUsdh,
+        isUsdc,
       },
     );
 
-    return isUsdh;
-  }
-
-  /**
-   * Get user's USDH balance in spot wallet
-   *
-   * @returns A promise that resolves to the numeric result.
-   */
-  async #getSpotUsdhBalance(): Promise<number> {
-    const infoClient = this.#clientService.getInfoClient();
-    const userAddress = await this.#walletService.getUserAddressWithDefault();
-
-    const spotState = await infoClient.spotClearinghouseState({
-      user: userAddress,
-    });
-
-    const usdhBalance = spotState.balances.find(
-      (b: { coin: string }) => b.coin === USDH_CONFIG.TokenName,
-    );
-
-    const balance = usdhBalance ? parseFloat(usdhBalance.total) : 0;
-
-    this.#deps.debugLogger.log('HyperLiquidProvider: Spot USDH balance', {
-      balance,
-      userAddress,
-    });
-
-    return balance;
-  }
-
-  /**
-   * Get user's USDC balance in spot wallet
-   * Required for USDH DEX orders - need USDC in spot to swap to USDH
-   *
-   * @returns A promise that resolves to the numeric result.
-   */
-  async #getSpotUsdcBalance(): Promise<number> {
-    const infoClient = this.#clientService.getInfoClient();
-    const userAddress = await this.#walletService.getUserAddressWithDefault();
-
-    const spotState = await infoClient.spotClearinghouseState({
-      user: userAddress,
-    });
-
-    const usdcBalance = spotState.balances.find(
-      (b: { coin: string }) => b.coin === 'USDC',
-    );
-
-    const balance = usdcBalance ? parseFloat(usdcBalance.total) : 0;
-
-    this.#deps.debugLogger.log('HyperLiquidProvider: Spot USDC balance', {
-      balance,
-      userAddress,
-    });
-
-    return balance;
-  }
-
-  /**
-   * Transfer USDC from main perps wallet to spot wallet
-   * Required before swapping USDC→USDH for USDH DEX orders
-   *
-   * @param amount - The amount value.
-   * @returns A promise that resolves to the result.
-   */
-  async #transferUsdcToSpot(
-    amount: number,
-  ): Promise<{ success: boolean; error?: string }> {
-    const exchangeClient = this.#clientService.getExchangeClient();
-    const userAddress = await this.#walletService.getUserAddressWithDefault();
-
-    this.#deps.debugLogger.log(
-      'HyperLiquidProvider: Transferring USDC to spot',
-      {
-        amount,
-        userAddress,
-      },
-    );
-
-    try {
-      const result = await exchangeClient.sendAsset({
-        destination: userAddress,
-        sourceDex: '', // Main perps DEX (empty string)
-        destinationDex: 'spot',
-        token: await this.#getUsdcTokenId(),
-        amount: amount.toString(),
-      });
-
-      if (result.status === 'ok') {
-        this.#deps.debugLogger.log(
-          'HyperLiquidProvider: USDC transferred to spot',
-          {
-            amount,
-          },
-        );
-        return { success: true };
-      }
-
-      return { success: false, error: PERPS_ERROR_CODES.TRANSFER_FAILED };
-    } catch (error) {
-      const errorMsg = ensureError(
-        error,
-        'HyperLiquidProvider.transferUSDCToPerps',
-      ).message;
-      this.#deps.debugLogger.log(
-        'HyperLiquidProvider: USDC transfer to spot failed',
-        {
-          error: errorMsg,
-        },
-      );
-      return { success: false, error: errorMsg };
-    }
-  }
-
-  /**
-   * Swap USDC to USDH on spot market
-   * Returns the result of the swap including filled size
-   *
-   * @param amount - The amount value.
-   * @returns A promise that resolves to the result.
-   */
-  async #swapUsdcToUsdh(
-    amount: number,
-  ): Promise<{ success: boolean; filledSize?: number; error?: string }> {
-    const spotMeta = await this.#getCachedSpotMeta();
-
-    // Find USDH and USDC tokens by name
-    const usdhToken = spotMeta.tokens.find(
-      (tok: { name: string }) => tok.name === USDH_CONFIG.TokenName,
-    );
-    const usdcToken = spotMeta.tokens.find(
-      (tok: { name: string }) => tok.name === 'USDC',
-    );
-
-    if (!usdhToken || !usdcToken) {
-      return {
-        success: false,
-        error: PERPS_ERROR_CODES.SPOT_PAIR_NOT_FOUND,
-      };
-    }
-
-    // Find USDH/USDC pair by token indices (NOT by name - name is @230)
-    const usdhUsdcPair = spotMeta.universe.find(
-      (univ: { tokens: number[] }) =>
-        univ.tokens.includes(usdhToken.index) &&
-        univ.tokens.includes(usdcToken.index),
-    );
-
-    if (!usdhUsdcPair) {
-      return { success: false, error: PERPS_ERROR_CODES.SPOT_PAIR_NOT_FOUND };
-    }
-
-    const spotAssetId = SPOT_ASSET_ID_OFFSET + usdhUsdcPair.index;
-
-    this.#deps.debugLogger.log(
-      'HyperLiquidProvider: Found USDH/USDC spot pair',
-      {
-        pairIndex: usdhUsdcPair.index,
-        pairName: usdhUsdcPair.name,
-        spotAssetId,
-        usdhTokenIndex: usdhToken.index,
-        usdcTokenIndex: usdcToken.index,
-      },
-    );
-
-    // Get current mid price
-    const infoClient = this.#clientService.getInfoClient();
-    const allMids = await infoClient.allMids();
-    const pairKey = `@${usdhUsdcPair.index}`;
-    const usdhPrice = parseFloat(allMids[pairKey] || '1');
-
-    if (usdhPrice === 0) {
-      return {
-        success: false,
-        error: PERPS_ERROR_CODES.PRICE_UNAVAILABLE,
-      };
-    }
-
-    // Calculate order parameters
-    // USDH is pegged 1:1 to USDC, add small slippage buffer
-    const slippageMultiplier =
-      1 + USDH_CONFIG.SwapSlippageBps / BASIS_POINTS_DIVISOR;
-    const maxPrice = usdhPrice * slippageMultiplier;
-
-    // Size in USDH = amount / price (since we're buying USDH with USDC)
-    let sizeInUsdh = amount / usdhPrice;
-
-    // Format size according to HyperLiquid requirements
-    let formattedSize = sizeInUsdh.toFixed(usdhToken.szDecimals);
-
-    // CRITICAL: Ensure USDC cost meets $10 minimum after rounding
-    // At price ~0.999995, buying 10.00 USDH costs 9.99995 USDC (under minimum)
-    // Bump up by one increment if needed to meet minimum
-    const minSpotOrderValue = TRADING_DEFAULTS.amount.mainnet;
-    const estimatedCost = parseFloat(formattedSize) * usdhPrice;
-    if (estimatedCost < minSpotOrderValue) {
-      const increment = Math.pow(10, -usdhToken.szDecimals); // 0.01 for szDecimals=2
-      sizeInUsdh = parseFloat(formattedSize) + increment;
-      formattedSize = sizeInUsdh.toFixed(usdhToken.szDecimals);
-    }
-
-    // Format price according to HyperLiquid requirements
-    const formattedPrice = formatHyperLiquidPrice({
-      price: maxPrice,
-      szDecimals: usdhToken.szDecimals,
-    });
-
-    this.#deps.debugLogger.log(
-      'HyperLiquidProvider: Placing USDC→USDH swap order',
-      {
-        usdcAmount: amount,
-        usdhPrice,
-        maxPrice: formattedPrice,
-        size: formattedSize,
-        szDecimals: usdhToken.szDecimals,
-      },
-    );
-
-    try {
-      const exchangeClient = this.#clientService.getExchangeClient();
-      const result = await exchangeClient.order({
-        orders: [
-          {
-            a: spotAssetId,
-            b: true, // Buy USDH
-            p: formattedPrice,
-            s: formattedSize,
-            r: false, // Not reduce-only
-            t: { limit: { tif: 'Ioc' } }, // Immediate-or-cancel
-          },
-        ],
-        grouping: 'na',
-      });
-
-      if (result.status !== 'ok') {
-        return {
-          success: false,
-          error: PERPS_ERROR_CODES.SWAP_FAILED,
-        };
-      }
-
-      // Check order status
-      const status = result.response?.data?.statuses?.[0];
-      if (isStatusObject(status) && hasProperty(status, 'error')) {
-        return { success: false, error: String(status.error) };
-      }
-
-      // Note: `in` narrows the HyperLiquid SDK discriminated union to the
-      // branch that has `filled`; `hasProperty` only narrows the key and
-      // types `status.filled` as `unknown`, which loses access to `.totalSz`.
-      /* eslint-disable no-restricted-syntax */
-      const filledSize =
-        isStatusObject(status) && 'filled' in status
-          ? parseFloat(status.filled?.totalSz ?? '0')
-          : 0;
-      /* eslint-enable no-restricted-syntax */
-
-      this.#deps.debugLogger.log(
-        'HyperLiquidProvider: USDC→USDH swap completed',
-        {
-          success: true,
-          filledSize,
-          requestedSize: formattedSize,
-        },
-      );
-
-      return { success: true, filledSize };
-    } catch (error) {
-      const errorMsg = ensureError(
-        error,
-        'HyperLiquidProvider.swapUSDCToUSDH',
-      ).message;
-      this.#deps.debugLogger.log('HyperLiquidProvider: USDC→USDH swap error', {
-        error: errorMsg,
-      });
-      return { success: false, error: errorMsg };
-    }
-  }
-
-  /**
-   * Ensure sufficient USDH collateral in spot for HIP-3 DEX order
-   * If user lacks USDH, auto-swap from USDC
-   *
-   * @param dexName - The DEX identifier (empty string for main DEX).
-   * @param requiredMargin - The required margin amount.
-   */
-  async #ensureUsdhCollateralForOrder(
-    dexName: string,
-    requiredMargin: number,
-  ): Promise<void> {
-    const spotUsdhBalance = await this.#getSpotUsdhBalance();
-
-    this.#deps.debugLogger.log(
-      'HyperLiquidProvider: Checking USDH collateral',
-      {
-        dexName,
-        requiredMargin,
-        spotUsdhBalance,
-      },
-    );
-
-    if (spotUsdhBalance >= requiredMargin) {
-      this.#deps.debugLogger.log(
-        'HyperLiquidProvider: Sufficient USDH in spot',
-      );
-      return;
-    }
-
-    const shortfall = requiredMargin - spotUsdhBalance;
-    // HyperLiquid spot has $10 minimum order value
-    const minSpotOrderValue = TRADING_DEFAULTS.amount.mainnet;
-
-    // If user has some USDH already, we can swap just the shortfall (if >= $10)
-    // If user has zero USDH, they need at least $10 for first swap
-    const swapAmount =
-      spotUsdhBalance > 0 && shortfall >= minSpotOrderValue
-        ? shortfall
-        : Math.max(shortfall, minSpotOrderValue);
-
-    // Step 1: Check spot USDC balance
-    const spotUsdcBalance = await this.#getSpotUsdcBalance();
-
-    // Calculate total available USDC (spot + what we can transfer from perps)
-    // For now, check if we have enough in spot first
-    const totalUsdcNeeded = swapAmount - spotUsdcBalance;
-
-    // Step 2: If insufficient USDC in spot, transfer from main perps
-    if (spotUsdcBalance < swapAmount) {
-      const transferAmount = totalUsdcNeeded;
-
-      this.#deps.debugLogger.log(
-        'HyperLiquidProvider: Transferring USDC to spot for swap',
-        {
-          spotUsdcBalance,
-          swapAmount,
-          transferAmount,
-        },
-      );
-
-      const transferResult = await this.#transferUsdcToSpot(transferAmount);
-      if (!transferResult.success) {
-        // Provide user-friendly error for insufficient funds
-        if (transferResult.error?.includes('Insufficient balance')) {
-          throw new Error(
-            `Insufficient USDC balance. Need $${swapAmount.toFixed(2)} for USDH swap but transfer failed. Please deposit more USDC to your HyperLiquid account.`,
-          );
-        }
-        throw new Error(
-          `Failed to transfer USDC to spot: ${transferResult.error}`,
-        );
-      }
-    }
-
-    // Step 3: Swap USDC → USDH
-    this.#deps.debugLogger.log(
-      'HyperLiquidProvider: Swapping USDC→USDH for collateral',
-      {
-        shortfall,
-        swapAmount,
-        minOrderValue: minSpotOrderValue,
-      },
-    );
-
-    const swapResult = await this.#swapUsdcToUsdh(swapAmount);
-
-    if (!swapResult.success) {
-      throw new Error(
-        `Failed to acquire USDH collateral for ${dexName}: ${swapResult.error}`,
-      );
-    }
-
-    this.#deps.debugLogger.log(
-      'HyperLiquidProvider: USDH collateral acquired',
-      {
-        dexName,
-        filledSize: swapResult.filledSize,
-      },
-    );
+    return isUsdc;
   }
 
   /**
@@ -1985,6 +3558,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * the asset ID lookup succeeds and the order routes to the correct DEX.
    */
   async #buildAssetMapping(): Promise<void> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     // Get feature-flag-validated DEXs to map (respects hip3Enabled and enabledDexs)
     let dexsToMap: (string | null)[];
     try {
@@ -2029,6 +3603,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#allowlistMarkets,
       this.#blocklistMarkets,
     );
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'Asset mapping rebuild',
+    );
 
     // Fetch metadata for each DEX in parallel using metaAndAssetCtxs
     // Optimization: Check cache first - getMarketDataWithPrices may have already fetched
@@ -2036,10 +3614,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     const infoClient = this.#clientService.getInfoClient();
     const allMetas = await Promise.allSettled(
       dexsToMap.map((dex) => {
-        const dexKey = dex ?? '';
-
         // Check if already cached (e.g., by getMarketDataWithPrices running in parallel)
-        const cachedMeta = this.#cachedMetaByDex.get(dexKey);
+        const cachedMeta = this.#cachedMetaByDex.get(dex);
         if (cachedMeta) {
           this.#deps.debugLogger.log(
             `[buildAssetMapping] Using cached meta for ${dex ?? 'main'}`,
@@ -2061,11 +3637,12 @@ export class HyperLiquidProvider implements PerpsProvider {
             const assetCtxs = result?.[1] || [];
             // Cache meta for later use by getCachedMeta
             if (meta?.universe) {
-              this.#cachedMetaByDex.set(dexKey, meta);
-              // Also populate subscription service cache to avoid redundant API calls
-              this.#subscriptionService.setDexMetaCache(dexKey, meta);
-              // Cache assetCtxs for getMarketDataWithPrices (avoids duplicate metaAndAssetCtxs calls)
-              this.#subscriptionService.setDexAssetCtxsCache(dexKey, assetCtxs);
+              this.#cacheDexMetadata({
+                dex,
+                meta,
+                assetCtxs,
+                lifecycleGeneration,
+              });
             }
             return { dex, meta, success: true as const };
           })
@@ -2081,6 +3658,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       }),
     );
 
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'Asset mapping rebuild',
+    );
     // Build mapping with DEX prefixes for HIP-3 DEXs using the utility function
     this.#symbolToAssetId.clear();
     let dexDiscoveryComplete = this.#dexDiscoveryCache.state !== null;
@@ -2165,12 +3746,29 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param discountBips - The discount in basis points (e.g., 550 = 5.5%)
    */
   setUserFeeDiscount(discountBips: number | undefined): void {
+    this.#userFeeResolution = undefined;
     this.#userFeeDiscountBips = discountBips;
 
     this.#deps.debugLogger.log('HyperLiquid: Fee discount context updated', {
       discountBips,
       discountPercentage: discountBips ? discountBips / 100 : undefined,
       isActive: discountBips !== undefined,
+    });
+  }
+
+  /**
+   * Set the resolved fee and its attribution source for the next operation.
+   *
+   * @param resolution - Unified fee resolution, or undefined to clear it.
+   */
+  setUserFeeResolution(resolution: PerpsFeeResolution | undefined): void {
+    this.#userFeeResolution = resolution;
+    this.#userFeeDiscountBips = resolution?.discountBips;
+
+    this.#deps.debugLogger.log('HyperLiquid: Fee resolution context updated', {
+      source: resolution?.source,
+      discountBips: resolution?.discountBips,
+      isActive: resolution !== undefined,
     });
   }
 
@@ -2241,6 +3839,15 @@ export class HyperLiquidProvider implements PerpsProvider {
   #mapError(error: unknown): Error {
     const { message } = ensureError(error, 'HyperLiquidProvider.mapError');
 
+    // "User or API Wallet 0x... does not exist." carries the user's address, so
+    // it cannot be matched by the static substring table below. It means the
+    // wallet has no Hyperliquid account yet — surface an actionable code the
+    // client can translate ("fund your account") instead of leaking the raw
+    // exchange string to the UI and to failed-trade analytics.
+    if (isHyperLiquidUserNotFoundError(error)) {
+      return new Error(PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND);
+    }
+
     for (const [pattern, code] of Object.entries(this.#errorMappings)) {
       if (message.toLowerCase().includes(pattern.toLowerCase())) {
         return new Error(code);
@@ -2288,6 +3895,39 @@ export class HyperLiquidProvider implements PerpsProvider {
     };
   }
 
+  #isMappedAccountModeExchangeError(error: Error): boolean {
+    return (
+      error.message === PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED ||
+      error.message === PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE
+    );
+  }
+
+  async #getTradingErrorContext(
+    method: string,
+    error: Error,
+    extra?: Record<string, unknown>,
+  ): Promise<{
+    tags?: Record<string, string | number>;
+    context?: { name: string; data: Record<string, unknown> };
+    extras?: Record<string, unknown>;
+  }> {
+    const contextExtra = { ...extra };
+    if (this.#isMappedAccountModeExchangeError(error)) {
+      try {
+        const userAddress =
+          await this.#walletService.getUserAddressWithDefault();
+        const abstractionMode =
+          this.#subscriptionService.getCachedAbstractionMode(userAddress);
+        if (abstractionMode) {
+          contextExtra[PERPS_EVENT_PROPERTY.ABSTRACTION_MODE] = abstractionMode;
+        }
+      } catch {
+        // Best-effort context enrichment only.
+      }
+    }
+    return this.#getErrorContext(method, contextExtra);
+  }
+
   /**
    * Get supported deposit routes with complete asset and routing information
    *
@@ -2328,14 +3968,15 @@ export class HyperLiquidProvider implements PerpsProvider {
   /**
    * Check current builder fee approval for the user
    *
+   * @param builder - Builder address to query.
+   * @param userAddress - Account whose approval should be queried.
    * @returns Current max fee rate or null if not approved
    */
-  async #checkBuilderFeeApproval(): Promise<number | null> {
-    const infoClient = this.#clientService.getInfoClient();
-    const userAddress = await this.#walletService.getUserAddressWithDefault();
-    const builder = this.#getBuilderAddress(
-      this.#clientService.isTestnetMode(),
-    );
+  async #checkBuilderFeeApproval(
+    builder: string,
+    userAddress: string,
+  ): Promise<number | null> {
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
 
     return infoClient.maxBuilderFee({
       user: userAddress,
@@ -2352,25 +3993,36 @@ export class HyperLiquidProvider implements PerpsProvider {
    * This prevents repeated signing requests for hardware wallets.
    *
    * Note: This is network-specific - testnet and mainnet have separate builder fee states
+   *
+   * @param params - Builder fee setup context.
+   * @param params.network - HyperLiquid network for the approval.
+   * @param params.userAddress - Account that owns the approval.
+   * @param params.builderAddress - Builder address being approved.
    */
-  async #ensureBuilderFeeApproval(): Promise<void> {
-    const isTestnet = this.#clientService.isTestnetMode();
-    const network = isTestnet ? 'testnet' : 'mainnet';
-    const builderAddress = this.#getBuilderAddress(isTestnet);
-    const userAddress = await this.#walletService.getUserAddressWithDefault();
+  async #ensureBuilderFeeApproval(
+    params: BuilderFeeSetupContext,
+  ): Promise<void> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
+    const { network, userAddress, builderAddress } = params;
+    this.#assertProviderLifecycleCurrent(
+      lifecycleGeneration,
+      'Builder fee approval',
+    );
     const cacheKey = this.#getCacheKey(network, userAddress);
 
     // Check GLOBAL cache first to avoid repeated signing requests across reconnections
-    // This is CRITICAL for hardware wallets to prevent QR popup spam
+    // This is CRITICAL for hardware wallets to prevent repeated signing prompts
+    // while browsing.
     const globalCached = PerpsSigningCache.getBuilderFee(network, userAddress);
-    if (globalCached?.attempted) {
+    if (globalCached?.attempted && globalCached?.success) {
       this.#deps.debugLogger.log(
-        '[ensureBuilderFeeApproval] Using global cache (prevents QR popup spam)',
+        '[ensureBuilderFeeApproval] Using global cache (prevents hardware wallet prompt spam)',
         { network, success: globalCached.success },
       );
-      if (globalCached.success) {
-        this.#builderFeeCheckCache.set(cacheKey, true);
-      }
+      this.#builderFeeCheckCache.set(cacheKey, true);
+      this.#approvedBuilderAddresses.add(
+        this.#getApprovedBuilderKey(network, userAddress, builderAddress),
+      );
       return;
     }
 
@@ -2386,6 +4038,16 @@ export class HyperLiquidProvider implements PerpsProvider {
         { network },
       );
       await inFlightPromise;
+      const completedApproval = PerpsSigningCache.getBuilderFee(
+        network,
+        userAddress,
+      );
+      if (completedApproval?.attempted && completedApproval.success) {
+        this.#builderFeeCheckCache.set(cacheKey, true);
+        this.#approvedBuilderAddresses.add(
+          this.#getApprovedBuilderKey(network, userAddress, builderAddress),
+        );
+      }
       return;
     }
 
@@ -2402,17 +4064,27 @@ export class HyperLiquidProvider implements PerpsProvider {
         network,
         userAddress,
       );
-      if (recheckCache?.attempted) {
+      if (recheckCache?.attempted && recheckCache?.success) {
         this.#deps.debugLogger.log(
           '[ensureBuilderFeeApproval] Completed by another provider',
           { network },
+        );
+        this.#builderFeeCheckCache.set(cacheKey, true);
+        this.#approvedBuilderAddresses.add(
+          this.#getApprovedBuilderKey(network, userAddress, builderAddress),
         );
         completeInFlight();
         return;
       }
 
-      const { isApproved, requiredDecimal } =
-        await this.#checkBuilderFeeStatus();
+      const { isApproved, requiredDecimal } = await this.#checkBuilderFeeStatus(
+        builderAddress,
+        userAddress,
+      );
+      this.#assertProviderLifecycleCurrent(
+        lifecycleGeneration,
+        'Builder fee approval',
+      );
 
       if (isApproved) {
         // User already has approval on-chain
@@ -2421,6 +4093,9 @@ export class HyperLiquidProvider implements PerpsProvider {
           success: true,
         });
         this.#builderFeeCheckCache.set(cacheKey, true);
+        this.#approvedBuilderAddresses.add(
+          this.#getApprovedBuilderKey(network, userAddress, builderAddress),
+        );
 
         this.#deps.debugLogger.log(
           '[ensureBuilderFeeApproval] Already approved on-chain',
@@ -2441,7 +4116,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         });
 
         // Verify approval was successful before caching
-        const afterApprovalDecimal = await this.#checkBuilderFeeApproval();
+        const afterApprovalDecimal = await this.#checkBuilderFeeApproval(
+          builderAddress,
+          userAddress,
+        );
 
         if (
           afterApprovalDecimal === null ||
@@ -2452,12 +4130,23 @@ export class HyperLiquidProvider implements PerpsProvider {
           );
         }
 
-        // Cache success in BOTH global and instance caches
+        // The approval is already confirmed on-chain. Preserve that fact for
+        // the next provider lifecycle even if this instance became stale while
+        // the approval request was in flight.
         PerpsSigningCache.setBuilderFee(network, userAddress, {
           attempted: true,
           success: true,
         });
+        this.#assertProviderLifecycleCurrent(
+          lifecycleGeneration,
+          'Builder fee approval',
+        );
+
+        // Cache success in the current instance after the lifecycle check.
         this.#builderFeeCheckCache.set(cacheKey, true);
+        this.#approvedBuilderAddresses.add(
+          this.#getApprovedBuilderKey(network, userAddress, builderAddress),
+        );
 
         this.#deps.debugLogger.log(
           '[ensureBuilderFeeApproval] Approval successful',
@@ -2469,8 +4158,17 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       completeInFlight();
     } catch (error) {
-      // If keyring is locked, don't cache so it retries when unlocked
-      if (ensureError(error).message === PERPS_ERROR_CODES.KEYRING_LOCKED) {
+      if (
+        ensureError(error, 'HyperLiquidProvider.ensureBuilderFeeApproval')
+          .message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE
+      ) {
+        completeInFlight();
+        return;
+      }
+
+      // HyperLiquid wraps wallet signing failures and preserves KEYRING_LOCKED
+      // in `cause`, so classify the full chain and leave retry caches empty.
+      if (isKeyringLockedError(error)) {
         this.#deps.debugLogger.log(
           '[ensureBuilderFeeApproval] Keyring locked, will retry later',
         );
@@ -2478,14 +4176,14 @@ export class HyperLiquidProvider implements PerpsProvider {
         return;
       }
 
-      // Cache failure to prevent retries
+      // Record failure — will be retried on next trading operation
       PerpsSigningCache.setBuilderFee(network, userAddress, {
         attempted: true,
         success: false,
       });
 
       this.#deps.debugLogger.log(
-        '[ensureBuilderFeeApproval] Failed, cached to prevent retries',
+        '[ensureBuilderFeeApproval] Failed, will retry on next trading operation',
         {
           network,
           error: ensureError(
@@ -2501,16 +4199,126 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Approve the dedicated subscription builder outside order submission.
+   * Failure is non-blocking: order construction will use the ordinary builder
+   * at the standard fee until a later approval succeeds.
+   *
+   * @returns Whether the builder is approved for the current account.
+   */
+  async approveSubscriptionBuilderFee(): Promise<boolean> {
+    const approvalEpoch = this.#subscriptionBuilderApprovalEpoch;
+    await this.#ensureClientsInitialized();
+    if (approvalEpoch !== this.#subscriptionBuilderApprovalEpoch) {
+      return false;
+    }
+    const isTestnet = this.#clientService.isTestnetMode();
+    const network = isTestnet ? 'testnet' : 'mainnet';
+    const builderAddress = this.#getSubscriptionBuilderAddress(isTestnet);
+    if (!builderAddress) {
+      return false;
+    }
+    const userAddress = await this.#walletService.getUserAddressWithDefault();
+    const key = this.#getApprovedBuilderKey(
+      network,
+      userAddress,
+      builderAddress,
+    );
+    if (this.#approvedBuilderAddresses.has(key)) {
+      return true;
+    }
+
+    const pending = this.#pendingBuilderFeeApprovals.get(key);
+    if (pending) {
+      try {
+        await pending;
+        return this.#approvedBuilderAddresses.has(key);
+      } catch (error) {
+        this.#deps.debugLogger.log(
+          'HyperLiquidProvider: Subscription builder approval unavailable',
+          error,
+        );
+        return false;
+      }
+    }
+
+    const approval = (async (): Promise<void> => {
+      const currentApproval = await this.#checkBuilderFeeApproval(
+        builderAddress,
+        userAddress,
+      );
+      if (approvalEpoch !== this.#subscriptionBuilderApprovalEpoch) {
+        return;
+      }
+      if (
+        currentApproval !== null &&
+        currentApproval >= BUILDER_FEE_CONFIG.MaxFeeDecimal
+      ) {
+        this.#approvedBuilderAddresses.add(key);
+        return;
+      }
+
+      const exchangeClient = this.#clientService.getExchangeClient();
+      await exchangeClient.approveBuilderFee({
+        builder: builderAddress,
+        maxFeeRate: BUILDER_FEE_CONFIG.MaxFeeRate,
+      });
+      if (approvalEpoch !== this.#subscriptionBuilderApprovalEpoch) {
+        return;
+      }
+      const afterApproval = await this.#checkBuilderFeeApproval(
+        builderAddress,
+        userAddress,
+      );
+      if (approvalEpoch !== this.#subscriptionBuilderApprovalEpoch) {
+        return;
+      }
+      if (
+        afterApproval === null ||
+        afterApproval < BUILDER_FEE_CONFIG.MaxFeeDecimal
+      ) {
+        throw new Error(
+          '[HyperLiquidProvider] Subscription builder approval verification failed',
+        );
+      }
+      this.#approvedBuilderAddresses.add(key);
+    })();
+    this.#pendingBuilderFeeApprovals.set(key, approval);
+
+    try {
+      await approval;
+      return this.#approvedBuilderAddresses.has(key);
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        'HyperLiquidProvider: Subscription builder approval unavailable',
+        error,
+      );
+      return false;
+    } finally {
+      if (this.#pendingBuilderFeeApprovals.get(key) === approval) {
+        this.#pendingBuilderFeeApprovals.delete(key);
+      }
+    }
+  }
+
+  /**
    * Check if builder fee is approved for the current user
    *
+   * @param builderAddress - Builder address to query.
+   * @param userAddress - Account whose approval should be queried.
    * @returns Object with approval status and current rate
    */
-  async #checkBuilderFeeStatus(): Promise<{
+  async #checkBuilderFeeStatus(
+    builderAddress: string,
+    userAddress: string,
+  ): Promise<{
     isApproved: boolean;
     currentRate: number | null;
     requiredDecimal: number;
   }> {
-    const currentApproval = await this.#checkBuilderFeeApproval();
+    const currentApproval = await this.#checkBuilderFeeApproval(
+      builderAddress,
+      userAddress,
+    );
     const requiredDecimal = BUILDER_FEE_CONFIG.MaxFeeDecimal;
 
     return {
@@ -2540,7 +4348,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     const accountState = await infoClient.clearinghouseState(queryParams);
     const adapted = adaptAccountStateFromSDK(accountState);
-    return parseFloat(adapted.availableBalance);
+    return parseFloat(adapted.withdrawableBalance);
   }
 
   /**
@@ -2833,7 +4641,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       const orderIsLong = isBuy;
 
       if (existingIsLong === orderIsLong) {
-        // Increasing position - HyperLiquid validates availableBalance >= totalRequiredMargin
+        // Increasing position - HyperLiquid validates spendableBalance >= totalRequiredMargin
         // BEFORE reallocating existing locked margin. Must transfer TOTAL margin temporarily.
         const existingSize = Math.abs(parseFloat(existingPosition.size));
         const existingMargin = parseFloat(existingPosition.marginUsed);
@@ -2913,12 +4721,12 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.transferInfo - The transfer information.
    * @param params.transferInfo.amount - The amount value.
    * @param params.transferInfo.sourceDex - The source DEX for the transfer.
+   * @returns Whether the balance check and any required transfer succeeded.
    * @private
    */
-  async #handleHip3PostOrderRebalance(params: {
-    dexName: string;
-    transferInfo: { amount: number; sourceDex: string };
-  }): Promise<void> {
+  async #handleHip3PostOrderRebalance(
+    params: Hip3TransferContext,
+  ): Promise<boolean> {
     const { dexName, transferInfo } = params;
 
     try {
@@ -2949,18 +4757,23 @@ export class HyperLiquidProvider implements PerpsProvider {
             '🔄 HyperLiquidProvider: Auto-rebalancing excess margin back to main DEX',
             {
               dex: dexName,
-              availableBalance: postOrderBalance.toFixed(2),
+              spendableBalance: postOrderBalance.toFixed(2),
               desiredBuffer: desiredBuffer.toFixed(2),
               excessAmount: excessAmount.toFixed(2),
               destinationDex: transferInfo.sourceDex,
             },
           );
 
-          await this.transferBetweenDexs({
+          const transferResult = await this.transferBetweenDexs({
             sourceDex: dexName,
             destinationDex: transferInfo.sourceDex,
             amount: excessAmount.toFixed(USDC_DECIMALS),
           });
+          if (!transferResult.success) {
+            throw new Error(
+              transferResult.error ?? PERPS_ERROR_CODES.TRANSFER_FAILED,
+            );
+          }
 
           this.#deps.debugLogger.log(
             '✅ HyperLiquidProvider: Auto-rebalance completed',
@@ -2970,6 +4783,7 @@ export class HyperLiquidProvider implements PerpsProvider {
               to: transferInfo.sourceDex,
             },
           );
+          return true;
         } catch (rebalanceError) {
           // Don't fail the order if rebalance fails (order already succeeded)
           this.#deps.logger.error(
@@ -2983,6 +4797,7 @@ export class HyperLiquidProvider implements PerpsProvider {
               note: 'Auto-rebalance failed - funds remain on HIP-3 DEX',
             }),
           );
+          return false;
         }
       } else {
         this.#deps.debugLogger.log(
@@ -2993,6 +4808,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             note: 'Excess below minimum transfer threshold',
           },
         );
+        return true;
       }
     } catch (balanceCheckError) {
       // Don't fail the order if balance check fails - log for monitoring
@@ -3006,6 +4822,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           note: 'Failed to verify post-order balance for auto-rebalance',
         }),
       );
+      return false;
     }
   }
 
@@ -3021,10 +4838,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.transferInfo.sourceDex - The source DEX for the transfer.
    * @private
    */
-  async #handleHip3OrderRollback(params: {
-    dexName: string;
-    transferInfo: { amount: number; sourceDex: string };
-  }): Promise<void> {
+  async #handleHip3OrderRollback(params: Hip3TransferContext): Promise<void> {
     const { dexName, transferInfo } = params;
 
     try {
@@ -3177,36 +4991,27 @@ export class HyperLiquidProvider implements PerpsProvider {
     const { dexName, symbol, orderPrice, positionSize, leverage, isBuy } =
       params;
 
-    // Check if this DEX uses USDH collateral (vs USDC)
-    // For USDH DEXs, HyperLiquid automatically pulls from spot balance
-    const isUsdhDex = await this.#isUsdhCollateralDex(dexName);
-    if (isUsdhDex) {
+    // TAT-3304: Only USDC-collateral HIP-3 DEXs are supported for trading.
+    // Following the USDH sunset, reject orders on any non-USDC-collateral
+    // DEX here instead of attempting the (now-removed) USDH auto-swap path.
+    // Market discovery (#fetchMarketsForDex) already filters such DEXs out,
+    // so this is a defense-in-depth check against stale caches or a
+    // misconfigured allowlist entry.
+    const isUsdcDex = await this.#isUsdcCollateralDex(dexName);
+    if (!isUsdcDex) {
       this.#deps.debugLogger.log(
-        'HyperLiquidProvider: USDH-collateralized DEX detected',
+        'HyperLiquidProvider: Rejecting order for non-USDC-collateral DEX',
         {
           dexName,
           symbol,
         },
       );
 
-      // Calculate required margin and ensure USDH is in spot
-      const requiredMargin = await this.#calculateHip3RequiredMargin({
-        symbol,
-        dexName,
-        positionSize,
-        orderPrice,
-        leverage,
-        isBuy,
-      });
-
-      await this.#ensureUsdhCollateralForOrder(dexName, requiredMargin);
-
-      // DEX abstraction will pull USDH from spot automatically
-      return { transferInfo: null };
+      throw new Error(PERPS_ERROR_CODES.UNSUPPORTED_COLLATERAL);
     }
 
-    if (this.#useDexAbstraction) {
-      this.#deps.debugLogger.log('Using DEX abstraction (no manual transfer)', {
+    if (this.#useUnifiedAccount) {
+      this.#deps.debugLogger.log('Using Unified Account (no manual transfer)', {
         symbol,
         dex: dexName,
       });
@@ -3240,7 +5045,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         this.#deps.debugLogger.log(
           'Detected DEX abstraction is enabled, switching mode',
         );
-        this.#useDexAbstraction = true;
+        this.#useUnifiedAccount = true;
         return { transferInfo: null };
       }
 
@@ -3262,18 +5067,12 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     const exchangeClient = this.#clientService.getExchangeClient();
 
-    // Calculate discounted builder fee
-    let builderFee = BUILDER_FEE_CONFIG.MaxFeeTenthsBps;
-    if (this.#userFeeDiscountBips !== undefined) {
-      builderFee = Math.floor(
-        builderFee * (1 - this.#userFeeDiscountBips / BASIS_POINTS_DIVISOR),
-      );
-      this.#deps.debugLogger.log('Applying builder fee discount', {
-        originalFee: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
-        discountBips: this.#userFeeDiscountBips,
-        discountedFee: builderFee,
-      });
-    }
+    const builder = params.chargesMetamaskBuilderFee
+      ? await this.#getBuilderOrderContext(
+          params.builderFeeSetupContext ??
+            (await this.#ensureBuilderFeeSetup()),
+        )
+      : undefined;
 
     this.#deps.debugLogger.log('Submitting order via asset ID routing', {
       symbol,
@@ -3288,10 +5087,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       const result = await exchangeClient.order({
         orders,
         grouping,
-        builder: {
-          b: this.#getBuilderAddress(this.#clientService.isTestnetMode()),
-          f: builderFee,
-        },
+        ...(builder && { builder }),
       });
 
       if (result.status !== 'ok') {
@@ -3318,6 +5114,14 @@ export class HyperLiquidProvider implements PerpsProvider {
         success: true,
         orderId: restingOrder?.oid?.toString() ?? filledOrder?.oid?.toString(),
         filledSize: filledOrder?.totalSz,
+        // The main order's `s` is the final normalized size sent to the exchange
+        // (post precision rounding, USD recalculation, and $10-minimum retry —
+        // the retry recurses through placeOrder so this reflects the last
+        // submission). TradingService uses it to classify partial fills. The SDK
+        // types `s` as `string | number`, so normalize to the string OrderResult
+        // shape while preserving `undefined` when no order was built.
+        submittedSize:
+          orders[0]?.s === undefined ? undefined : String(orders[0].s),
         averagePrice: filledOrder?.avgPx,
       };
     } catch (orderError) {
@@ -3335,19 +5139,33 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params - The operation parameters.
    * @returns The result of the operation.
    */
-  #handleOrderError(params: HandleOrderErrorParams): OrderResult {
+  async #handleOrderError(
+    params: HandleOrderErrorParams,
+  ): Promise<OrderResult> {
     const { error, symbol, orderType, isBuy } = params;
-
-    this.#deps.logger.error(
-      ensureError(error, 'HyperLiquidProvider.handleOrderError'),
-      this.#getErrorContext('placeOrder', {
-        symbol,
-        orderType,
-        isBuy,
-      }),
-    );
-
     const mappedError = this.#mapError(error);
+
+    // A wallet with no Hyperliquid account is an expected pre-account state,
+    // not an app defect — same policy already applied to every other
+    // user-scoped exchange write in this provider. Keep it out of Sentry; the
+    // failure is still reported to the caller (and to trade analytics) via the
+    // mapped EXCHANGE_ACCOUNT_NOT_FOUND code below.
+    if (isHyperLiquidUserNotFoundError(error)) {
+      this.#deps.debugLogger.log(
+        '[handleOrderError] Wallet has no Hyperliquid account, order cannot be placed',
+        { symbol, orderType, isBuy },
+      );
+    } else {
+      this.#deps.logger.error(
+        mappedError,
+        await this.#getTradingErrorContext('placeOrder', mappedError, {
+          symbol,
+          orderType,
+          isBuy,
+        }),
+      );
+    }
+
     return createErrorResult(mappedError, { success: false });
   }
 
@@ -3362,6 +5180,9 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async placeOrder(params: OrderParams, retryCount = 0): Promise<OrderResult> {
+    // Hoisted so the retry path in the catch block can use the fetched price
+    // even when the caller (e.g. flipPosition) omits currentPrice from params.
+    let effectivePrice: number | undefined;
     try {
       this.#deps.debugLogger.log('Placing order via HyperLiquid SDK:', params);
 
@@ -3371,16 +5192,86 @@ export class HyperLiquidProvider implements PerpsProvider {
         size: params.size,
         price: params.price,
         orderType: params.orderType,
+        triggerPrice: params.triggerPrice,
+        takeProfitPrice: params.takeProfitPrice,
+        stopLossPrice: params.stopLossPrice,
+        takeProfitSize: params.takeProfitSize,
+        stopLossSize: params.stopLossSize,
+        tpslLinkage: params.tpslLinkage,
+        grouping: params.grouping,
+        timeInForce: params.timeInForce,
+        clientOrderId: params.clientOrderId,
+        ...pickStrategyParams(params),
       });
       if (!validation.isValid) {
         throw new Error(validation.error);
       }
 
-      // Validate order at provider level (enforces USD validation rules)
-      await this.#validateOrderBeforePlacement(params);
+      // Strategy placements expand into an execution schedule rather than a
+      // single order, so they leave the shared path here — before the order
+      // array, the HIP-3 transfer, and the atomic single-order submit, none of
+      // which describe what a TWAP, a ladder, or a chase does.
+      if (isStrategyOrderType(params.orderType)) {
+        return await this.#placeStrategyOrder(params, params.orderType);
+      }
 
-      // Ensure provider is ready for trading (includes signing operations)
-      await this.#ensureReadyForTrading();
+      // Extract DEX name for API calls (main DEX = null)
+      const { dex: dexName } = parseAssetName(params.symbol);
+
+      // 1. Get asset info and current price before validation so price-less
+      // callers (e.g. flipPosition) can validate against the live fetched price.
+      const { assetInfo, currentPrice, meta } = await this.#getAssetInfo({
+        symbol: params.symbol,
+        dexName,
+      });
+
+      // A price or partial size that rounds away at the asset precision is
+      // caught here, as soon as szDecimals is known and before anything is
+      // committed: the signing prompts in #ensureReadyForTrading, the leverage
+      // change in #prepareAssetForTrading, and the HIP-3 margin transfer all
+      // come later.
+      const precision = validateOrderPrecision({
+        triggerPrice: params.triggerPrice,
+        takeProfitPrice: params.takeProfitPrice,
+        stopLossPrice: params.stopLossPrice,
+        takeProfitSize: params.takeProfitSize,
+        stopLossSize: params.stopLossSize,
+        szDecimals: assetInfo.szDecimals,
+      });
+      if (!precision.isValid) {
+        throw new Error(precision.error);
+      }
+
+      // Allow override with UI-provided price (optimization to avoid API call).
+      effectivePrice =
+        params.currentPrice && params.currentPrice > 0
+          ? params.currentPrice
+          : currentPrice;
+
+      if (params.currentPrice && params.currentPrice > 0) {
+        this.#deps.debugLogger.log('Using provided current price:', {
+          coin: params.symbol,
+          providedPrice: effectivePrice,
+          source: 'UI price feed',
+        });
+      }
+
+      // Validate order at provider level (enforces USD validation rules).
+      // Pass effectivePrice so price-less market orders (e.g. flipPosition)
+      // validate against the live fetched price instead of failing with
+      // ORDER_PRICE_REQUIRED.
+      await this.#validateOrderBeforePlacement({
+        ...params,
+        currentPrice: effectivePrice,
+      });
+
+      // Ensure provider is ready for trading (includes signing operations).
+      // Kept after validation so invalid orders never trigger signature prompts
+      // (builder-fee approval, DEX abstraction enablement, etc.).
+      const { chargesMetamaskBuilderFee } = this.#resolveOrderFeePolicy(params);
+      const builderFeeSetupContext = await this.#ensureReadyForTrading({
+        requiresBuilderFee: chargesMetamaskBuilderFee,
+      });
 
       // Debug: Log asset map state before order placement
       const allMapKeys = Array.from(this.#symbolToAssetId.keys());
@@ -3397,41 +5288,25 @@ export class HyperLiquidProvider implements PerpsProvider {
         blocklistMarkets: this.#blocklistMarkets,
       });
 
-      // Extract DEX name for API calls (main DEX = null)
-      const { dex: dexName } = parseAssetName(params.symbol);
+      // Normalize the deprecated decimal `slippage` to bps once so both the
+      // price-staleness check and the limit-price calc see the same value.
+      const normalizedMaxSlippageBps =
+        params.maxSlippageBps ??
+        (typeof params.slippage === 'number'
+          ? Math.round(params.slippage * BASIS_POINTS_DIVISOR)
+          : undefined);
 
-      // 1. Get asset info and current price
-      const { assetInfo, currentPrice, meta } = await this.#getAssetInfo({
-        symbol: params.symbol,
-        dexName,
-      });
-
-      // Allow override with UI-provided price (optimization to avoid API call)
-      const effectivePrice =
-        params.currentPrice && params.currentPrice > 0
-          ? params.currentPrice
-          : currentPrice;
-
-      if (params.currentPrice && params.currentPrice > 0) {
-        this.#deps.debugLogger.log('Using provided current price:', {
-          coin: params.symbol,
-          providedPrice: effectivePrice,
-          source: 'UI price feed',
-        });
-      }
-
-      // 2. Calculate final position size with USD reconciliation
       const { finalPositionSize } = calculateFinalPositionSize({
         usdAmount: params.usdAmount,
         size: params.size,
         currentPrice: effectivePrice,
         priceAtCalculation: params.priceAtCalculation,
-        maxSlippageBps: params.maxSlippageBps,
+        maxSlippageBps: normalizedMaxSlippageBps,
         szDecimals: assetInfo.szDecimals,
         leverage: params.leverage,
+        reduceOnly: params.reduceOnly,
       });
 
-      // 3. Calculate order price and formatted size
       const { orderPrice, formattedSize, formattedPrice } =
         calculateOrderPriceAndSize({
           orderType: params.orderType,
@@ -3439,7 +5314,8 @@ export class HyperLiquidProvider implements PerpsProvider {
           finalPositionSize,
           currentPrice: effectivePrice,
           limitPrice: params.price,
-          slippage: params.slippage,
+          triggerPrice: params.triggerPrice,
+          maxSlippageBps: normalizedMaxSlippageBps,
           szDecimals: assetInfo.szDecimals,
         });
 
@@ -3465,7 +5341,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       // 6. Handle HIP-3 balance management (if applicable)
       const isHip3Order = dexName !== null;
-      let transferInfo: { amount: number; sourceDex: string } | null = null;
+      let transferInfo: Hip3TransferInfo | null = null;
 
       if (isHip3Order && dexName) {
         const effectiveLeverage = params.leverage ?? assetInfo.maxLeverage ?? 1;
@@ -3489,11 +5365,19 @@ export class HyperLiquidProvider implements PerpsProvider {
         formattedSize,
         reduceOnly: params.reduceOnly ?? false,
         orderType: params.orderType,
+        timeInForce: params.timeInForce,
         clientOrderId: params.clientOrderId,
+        triggerPrice: params.triggerPrice,
         takeProfitPrice: params.takeProfitPrice,
         stopLossPrice: params.stopLossPrice,
+        takeProfitSize: params.takeProfitSize,
+        stopLossSize: params.stopLossSize,
         szDecimals: assetInfo.szDecimals,
-        grouping: params.grouping,
+        // The provider-agnostic linkage wins; `grouping` is the deprecated
+        // HyperLiquid-shaped spelling kept for existing callers.
+        grouping: params.tpslLinkage
+          ? adaptTpslLinkageToGrouping(params.tpslLinkage)
+          : params.grouping,
       });
 
       // 8. Submit order with atomic rollback
@@ -3505,6 +5389,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         transferInfo,
         symbol: params.symbol,
         assetId,
+        chargesMetamaskBuilderFee,
+        builderFeeSetupContext,
       });
     } catch (error) {
       // Retry mechanism for $10 minimum order errors
@@ -3517,7 +5403,22 @@ export class HyperLiquidProvider implements PerpsProvider {
         errorMessage.includes('Order must have minimum value of $10') ||
         errorMessage.includes('Order 0: Order must have minimum value');
 
-      if (isMinimumOrderError && retryCount === 0) {
+      // Reduce-only orders are excluded. The retry works by growing the order
+      // 1.5%, which a close cannot do: a full close already submits the whole
+      // position, and a partial close is capped at the size the caller asked to
+      // close, so the retry would either be rejected as "Reduce only order would
+      // increase position" or resubmit an identical order. Surfacing the
+      // minimum-value error names the real problem instead.
+      //
+      // Strategy placements are excluded for the same reason in a different
+      // shape: the minimum applies to each TWAP slice and each ladder rung, not
+      // to the total, so growing the total by 1.5% does not clear it.
+      if (
+        isMinimumOrderError &&
+        retryCount === 0 &&
+        !params.reduceOnly &&
+        !isStrategyOrderType(params.orderType)
+      ) {
         let adjustedUsdAmount: string;
         let originalValue: string | undefined;
 
@@ -3525,15 +5426,18 @@ export class HyperLiquidProvider implements PerpsProvider {
           // USD-based order: adjust the USD amount directly
           originalValue = params.usdAmount;
           adjustedUsdAmount = (parseFloat(params.usdAmount) * 1.015).toFixed(2);
-        } else if (params.currentPrice) {
-          // Size-based order: calculate USD from size and adjust
+        } else if (effectivePrice) {
+          // Size-based order: calculate USD from size and adjust.
+          // Use the hoisted effectivePrice (fetched live price) so callers that
+          // omit currentPrice (e.g. flipPosition) can still recover from the
+          // $10-minimum edge case.
           const sizeValue = parseFloat(params.size);
-          const estimatedUsd = sizeValue * params.currentPrice;
+          const estimatedUsd = sizeValue * effectivePrice;
           originalValue = `${estimatedUsd.toFixed(2)} (calculated from size ${params.size})`;
           adjustedUsdAmount = (estimatedUsd * 1.015).toFixed(2);
         } else {
           // No price information available - cannot retry
-          return this.#handleOrderError({
+          return await this.#handleOrderError({
             error,
             symbol: params.symbol,
             orderType: params.orderType,
@@ -3559,12 +5463,2963 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
       }
 
-      return this.#handleOrderError({
+      return await this.#handleOrderError({
         error,
         symbol: params.symbol,
         orderType: params.orderType,
         isBuy: params.isBuy,
       });
+    }
+  }
+
+  /**
+   * Dispatch a strategy placement to the handler that owns it.
+   *
+   * @param params - Order parameters, already validated.
+   * @param orderType - The strategy type, narrowed by the caller.
+   * @returns A promise that resolves to the result.
+   */
+  async #placeStrategyOrder(
+    params: OrderParams,
+    orderType: StrategyOrderType,
+  ): Promise<OrderResult> {
+    // Captured before the shared preamble, not after it: that preamble awaits
+    // asset info, validation, trading readiness and a leverage update, and a
+    // disconnect during any of them has to be seen before or after submission.
+    const generation = this.#strategyGeneration;
+
+    if (orderType !== 'chase') {
+      const context = await this.#prepareStrategyPlacement(params);
+      return await this.#submitPreparedStrategy(params, context, async () => {
+        if (generation !== this.#strategyGeneration) {
+          throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+        }
+        return orderType === 'twap'
+          ? await this.#placeTwapOrder(params, context, generation)
+          : await this.#placeScaleOrder(params, context, generation);
+      });
+    }
+
+    if (this.#chasePlacementBlockers > 0) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
+    }
+    // The chase slot is claimed before the preamble, not after it: the preamble
+    // completes the signing setup and can change the asset's leverage, and a
+    // request that is going to be refused for exceeding the venue's cap must
+    // not cost either. Reserved in the same synchronous step it is checked, so
+    // concurrent placements cannot both see room during the round trips that
+    // follow.
+    const activeChases = [...this.#chaseSessions.values()].filter(
+      (session) => session.active,
+    ).length;
+    if (
+      activeChases + this.#chasePlacementsInFlight >=
+      CHASE_ORDER_CONFIG.MaxActiveSessions
+    ) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_LIMIT_REACHED);
+    }
+    this.#chasePlacementsInFlight += 1;
+    this.#pauseChaseTicksForPlacement();
+
+    let settlePlacement: (() => void) | undefined;
+    const placementWaiter = new Promise<void>((resolve) => {
+      settlePlacement = resolve;
+    });
+    this.#chasePlacementWaiters.add(placementWaiter);
+
+    try {
+      await this.#chaseTickQueue;
+      const context = await this.#prepareStrategyPlacement(params);
+      return await this.#submitPreparedStrategy(
+        params,
+        context,
+        async () => await this.#startChaseSession(params, context, generation),
+      );
+    } finally {
+      settlePlacement?.();
+      this.#chasePlacementWaiters.delete(placementWaiter);
+      this.#chasePlacementsInFlight -= 1;
+      if (this.#chasePlacementsInFlight === 0) {
+        this.#resumeChaseTicksAfterPlacement();
+      }
+    }
+  }
+
+  /**
+   * Submit a prepared strategy and settle any manual HIP-3 collateral move.
+   *
+   * Scale and Chase leave regular orders or fills on the venue, so the normal
+   * HIP-3 post-order balance check can return any unreserved excess. Native
+   * TWAP executes future slices, so its transferred collateral stays on the
+   * routed DEX until cancellation confirms the schedule has stopped.
+   *
+   * @param params - Strategy order parameters.
+   * @param context - Prepared placement and HIP-3 transfer context.
+   * @param submit - Venue submission.
+   * @returns The strategy placement result.
+   */
+  async #submitPreparedStrategy(
+    params: OrderParams,
+    context: StrategyPlacementContext,
+    submit: () => Promise<OrderResult>,
+  ): Promise<OrderResult> {
+    const { dexName, network, transferInfo, userAddress } = context;
+    let result: OrderResult;
+
+    try {
+      result = await submit();
+    } catch (error) {
+      if (dexName && transferInfo) {
+        await this.#handleHip3OrderRollback({ dexName, transferInfo });
+      }
+      throw error;
+    }
+
+    const resultFilledSize = new BigNumber(result.filledSize ?? 0);
+    const hasVenueExposure =
+      result.success === true ||
+      result.orderId !== undefined ||
+      (result.childOrderIds?.length ?? 0) > 0 ||
+      (resultFilledSize.isFinite() && resultFilledSize.gt(0));
+    if (dexName && transferInfo && !hasVenueExposure) {
+      await this.#handleHip3OrderRollback({ dexName, transferInfo });
+      return result;
+    }
+
+    if (params.orderType === 'twap' && result.orderId) {
+      this.#trackedTwapOrders.set(
+        getTwapOrderScopeKey({
+          network,
+          userAddress,
+          orderId: result.orderId,
+        }),
+        {
+          symbol: params.symbol,
+          ...(dexName && transferInfo
+            ? { hip3Transfer: { dexName, transferInfo } }
+            : {}),
+        },
+      );
+      return result;
+    }
+
+    if (
+      params.orderType === 'chase' &&
+      result.success &&
+      result.orderId &&
+      dexName &&
+      transferInfo
+    ) {
+      const session = this.#chaseSessions.get(result.orderId);
+      if (session) {
+        session.hip3Transfer = { dexName, transferInfo };
+        return result;
+      }
+    }
+
+    if (params.orderType === 'chase' && hasVenueExposure) {
+      // A stale placement can fail after its child rests and the best-effort
+      // retraction is refused. With no session left to own that child, keep
+      // manual HIP-3 collateral on its DEX until the caller cancels the
+      // reported exchange ID.
+      return result;
+    }
+
+    if (dexName && transferInfo) {
+      await this.#handleHip3PostOrderRebalance({ dexName, transferInfo });
+    }
+
+    return result;
+  }
+
+  /**
+   * Run the shared preamble every strategy placement needs.
+   *
+   * Mirrors the single-order path's own preamble — validate against a live
+   * price, complete the signing setup, resolve the asset ID, apply leverage —
+   * so a strategy order is held to the same rules as an ordinary one.
+   *
+   * @param params - Order parameters.
+   * @returns The asset and sizing context the strategy handlers submit with.
+   */
+  async #prepareStrategyPlacement(
+    params: OrderParams,
+  ): Promise<StrategyPlacementContext> {
+    const { dex: dexName } = parseAssetName(params.symbol);
+
+    const { assetInfo, currentPrice, meta } = await this.#getAssetInfo({
+      symbol: params.symbol,
+      dexName,
+    });
+
+    const effectivePrice =
+      params.currentPrice && params.currentPrice > 0
+        ? params.currentPrice
+        : currentPrice;
+
+    await this.#validateOrderBeforePlacement({
+      ...params,
+      currentPrice: effectivePrice,
+    });
+
+    const normalizedMaxSlippageBps =
+      params.maxSlippageBps ??
+      (typeof params.slippage === 'number'
+        ? Math.round(params.slippage * BASIS_POINTS_DIVISOR)
+        : undefined);
+
+    const { finalPositionSize } = calculateFinalPositionSize({
+      usdAmount: params.usdAmount,
+      size: params.size,
+      currentPrice: effectivePrice,
+      priceAtCalculation: params.priceAtCalculation,
+      maxSlippageBps: normalizedMaxSlippageBps,
+      szDecimals: assetInfo.szDecimals,
+      leverage: params.leverage,
+      reduceOnly: params.reduceOnly,
+    });
+
+    const formattedSize = formatHyperLiquidSize({
+      size: finalPositionSize,
+      szDecimals: assetInfo.szDecimals,
+    });
+
+    // Everything below is checked here, before anything is signed: it needs
+    // `szDecimals`, which only arrives with the asset info above, and these are
+    // caller mistakes that must not cost a leverage change or a signing prompt
+    // first.
+    const ladder =
+      params.orderType === 'scale'
+        ? this.#buildScaleLadder({
+            params,
+            szDecimals: assetInfo.szDecimals,
+            finalPositionSize,
+          })
+        : undefined;
+
+    // `validateOrder` applied the venue minimum to the notional the caller
+    // asked for; this applies it to the size actually being submitted. The two
+    // differ whenever sizing floors onto the grid rather than rounding up to
+    // meet the requested USD — which is exactly what a reduce-only order does,
+    // since the venue rejects a close larger than the position. A boundary
+    // amount can therefore clear the check the caller sees and still arrive
+    // under the minimum the venue charges against what it receives.
+    if (params.orderType === 'twap' || params.orderType === 'chase') {
+      const submittedNotional = parseFloat(formattedSize) * effectivePrice;
+      const minimumNotional =
+        params.orderType === 'twap'
+          ? HYPERLIQUID_TWAP_LIMITS.MinNotionalUsd
+          : this.#getMinimumOrderSize();
+
+      if (submittedNotional < minimumNotional) {
+        throw new Error(
+          params.orderType === 'twap'
+            ? PERPS_ERROR_CODES.ORDER_TWAP_NOTIONAL_TOO_SMALL
+            : PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+        );
+      }
+    }
+
+    // Kept after validation so an invalid strategy order never triggers the
+    // signature prompts in trading setup — same ordering as `placeOrder`.
+    const { chargesMetamaskBuilderFee } = this.#resolveOrderFeePolicy(params);
+    const builderFeeSetupContext = chargesMetamaskBuilderFee
+      ? await this.#ensureReadyForTrading({ requiresBuilderFee: true })
+      : await this.#ensureReadyForTrading({ requiresBuilderFee: false });
+
+    const assetId = await this.#getAssetIdWithRepair({
+      symbol: params.symbol,
+      dexName,
+      meta,
+    });
+
+    await this.#prepareAssetForTrading({
+      symbol: params.symbol,
+      assetId,
+      leverage: params.leverage,
+    });
+
+    const builder = builderFeeSetupContext
+      ? await this.#getBuilderOrderContext(builderFeeSetupContext)
+      : undefined;
+    const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
+    const userAddress =
+      builderFeeSetupContext?.userAddress ??
+      (await this.#walletService.getUserAddressWithDefault());
+
+    let transferInfo: Hip3TransferInfo | null = null;
+    if (dexName) {
+      const orderPrice =
+        ladder === undefined
+          ? effectivePrice
+          : Math.max(...ladder.prices.map(Number.parseFloat));
+      const hip3Result = await this.#handleHip3PreOrder({
+        dexName,
+        symbol: params.symbol,
+        orderPrice,
+        positionSize: parseFloat(formattedSize),
+        leverage: params.leverage ?? assetInfo.maxLeverage ?? 1,
+        isBuy: params.isBuy,
+        maxLeverage: assetInfo.maxLeverage,
+      });
+      transferInfo = hip3Result.transferInfo;
+    }
+
+    return {
+      assetId,
+      szDecimals: assetInfo.szDecimals,
+      formattedSize,
+      ladder,
+      builder,
+      dexName,
+      network,
+      transferInfo,
+      userAddress,
+    };
+  }
+
+  /**
+   * The venue's minimum value for a single order, in USD.
+   *
+   * @returns The minimum for the network this provider is pointed at.
+   */
+  #getMinimumOrderSize(): number {
+    return this.#clientService.isTestnetMode()
+      ? TRADING_DEFAULTS.amount.testnet
+      : TRADING_DEFAULTS.amount.mainnet;
+  }
+
+  /**
+   * Build a scale placement's rungs and check them as the venue will see them.
+   *
+   * Three things can only be decided once the asset's precision is known, and
+   * all of them are decided here rather than after the order is on its way:
+   *
+   * - **Prices collapse.** Two distinct rung prices can round onto the same
+   *   venue-formatted price, which would submit several orders at one price
+   *   instead of a ladder spanning the requested range.
+   * - **Slices are not the average.** `splitScaleSizes` floors onto the size
+   *   grid, and a `scaleSkew` weights the rungs along the ladder on top of that,
+   *   so no rung carries the average slice the pre-network check in
+   *   `validateOrder` approximates with.
+   * - **The cheapest rung decides.** Each rung is an independent order, so the
+   *   venue applies its per-order minimum to the smallest slice at the lowest
+   *   price, not to the ladder's total.
+   *
+   * @param options - Ladder inputs.
+   * @param options.params - Order parameters.
+   * @param options.szDecimals - The asset's size and price precision.
+   * @param options.finalPositionSize - Total size to spread across the rungs.
+   * @returns The rungs, exactly as they will be submitted.
+   */
+  #buildScaleLadder(options: {
+    params: OrderParams;
+    szDecimals: number;
+    finalPositionSize: number;
+  }): ScaleLadder {
+    const { params, szDecimals, finalPositionSize } = options;
+    const { scaleMinPrice, scaleMaxPrice, scaleNumOrders } = params;
+    if (scaleMinPrice === undefined || scaleMaxPrice === undefined) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_REQUIRED);
+    }
+    if (scaleNumOrders === undefined) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID);
+    }
+
+    const prices = computeScalePriceLadder({
+      minPrice: parseFloat(scaleMinPrice),
+      maxPrice: parseFloat(scaleMaxPrice),
+      count: scaleNumOrders,
+    }).map((price) => formatHyperLiquidPrice({ price, szDecimals }));
+
+    if (new Set(prices).size !== prices.length) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+    }
+
+    // Throws ORDER_SCALE_SIZE_TOO_SMALL when a rung would round to nothing,
+    // which a skew weighted far enough from even can do on its own.
+    const sizes = splitScaleSizes({
+      totalSize: finalPositionSize,
+      count: scaleNumOrders,
+      szDecimals,
+      skew: params.scaleSkew,
+    });
+
+    const minimumOrderSize = this.#getMinimumOrderSize();
+    const cheapestRungNotional = Math.min(
+      ...sizes.map(
+        (size, index) => parseFloat(size) * parseFloat(prices[index]),
+      ),
+    );
+    if (cheapestRungNotional < minimumOrderSize) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_NOTIONAL_TOO_SMALL);
+    }
+
+    return { prices, sizes };
+  }
+
+  /**
+   * Submit a TWAP through HyperLiquid's dedicated TWAP action.
+   *
+   * A TWAP is not an order on the book, so it does not go through the `order`
+   * action, carries no builder fee, and comes back identified by a `twapId`
+   * rather than an `oid`. That ID is the handle `cancelOrder` needs.
+   *
+   * @param params - Order parameters.
+   * @param context - Prepared asset and sizing context.
+   * @param generation - Teardown generation captured before preparation.
+   * @returns A promise that resolves to the result.
+   */
+  async #placeTwapOrder(
+    params: OrderParams,
+    context: StrategyPlacementContext,
+    generation: number,
+  ): Promise<OrderResult> {
+    const { assetId, formattedSize } = context;
+    const durationMinutes = params.twapDuration;
+    if (durationMinutes === undefined) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_TWAP_DURATION_REQUIRED);
+    }
+    if (
+      !Number.isSafeInteger(durationMinutes) ||
+      durationMinutes < HYPERLIQUID_TWAP_LIMITS.MinDurationMinutes ||
+      durationMinutes > HYPERLIQUID_TWAP_LIMITS.MaxDurationMinutes
+    ) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_TWAP_DURATION_INVALID);
+    }
+    const exchangeClient = this.#clientService.getExchangeClient();
+
+    this.#deps.debugLogger.log('Submitting TWAP order', {
+      symbol: params.symbol,
+      assetId,
+      size: formattedSize,
+      durationMinutes,
+      randomize: params.twapRandomize ?? false,
+    });
+
+    const result = await exchangeClient.twapOrder({
+      twap: {
+        a: assetId,
+        b: params.isBuy,
+        s: formattedSize,
+        r: params.reduceOnly ?? false,
+        m: durationMinutes,
+        t: params.twapRandomize ?? false,
+      },
+    });
+
+    if (result.status !== 'ok') {
+      throw new Error(`TWAP order failed: ${JSON.stringify(result)}`);
+    }
+
+    const status: unknown = result.response?.data?.status;
+    if (!isStatusObject(status)) {
+      throw new Error('TWAP order rejected');
+    }
+
+    const rawError =
+      typeof status.error === 'string' ? status.error : 'TWAP order rejected';
+    const { running } = status;
+    if (
+      !isStatusObject(running) ||
+      typeof running.twapId !== 'number' ||
+      !Number.isSafeInteger(running.twapId) ||
+      running.twapId < 0
+    ) {
+      throw new Error(rawError);
+    }
+
+    const orderId = running.twapId.toString();
+    if (generation !== this.#strategyGeneration) {
+      let remainsLive = true;
+      try {
+        const cancelResult = await exchangeClient.twapCancel({
+          a: assetId,
+          t: running.twapId,
+        });
+        remainsLive =
+          classifyCancelStatus(cancelResult.response?.data?.status) ===
+          CancelChildOutcome.Refused;
+      } catch (error) {
+        this.#deps.debugLogger.log(
+          'Stale TWAP placement could not be retracted',
+          {
+            error: ensureError(
+              error,
+              'HyperLiquidProvider.placeTwapOrder.retract',
+            ).message,
+            orderId,
+          },
+        );
+      }
+      return createErrorResult(
+        new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE),
+        {
+          success: false,
+          submittedSize: formattedSize,
+          ...(remainsLive && { orderId }),
+        },
+      );
+    }
+
+    return {
+      success: true,
+      orderId,
+      submittedSize: formattedSize,
+    };
+  }
+
+  /**
+   * Fan a scale placement out into one batch of resting limit orders.
+   *
+   * The whole ladder goes in a single `order` action, which is one round trip
+   * and one signature rather than one per rung. It is **not** atomic: an `na`
+   * grouping evaluates each entry independently. Accepted rungs remain live and
+   * are returned to the caller when another rung is rejected.
+   *
+   * @param params - Order parameters.
+   * @param context - Prepared asset and sizing context.
+   * @param generation - Teardown generation captured before preparation.
+   * @returns A promise that resolves to the result.
+   */
+  async #placeScaleOrder(
+    params: OrderParams,
+    context: StrategyPlacementContext,
+    generation: number,
+  ): Promise<OrderResult> {
+    const { assetId, formattedSize, ladder, builder } = context;
+    // Built and validated in `#prepareStrategyPlacement`, before anything was
+    // signed, so what is submitted here is exactly what the minimums were
+    // applied to.
+    if (!ladder) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_REQUIRED);
+    }
+    const { prices, sizes } = ladder;
+    const count = prices.length;
+    const { groupId, clientOrderIds } = createScaleOrderIdentity(count);
+
+    const orders: SDKOrderParams[] = prices.map((price, index) => ({
+      a: assetId,
+      b: params.isBuy,
+      p: price,
+      s: sizes[index],
+      r: params.reduceOnly ?? false,
+      t: { limit: { tif: 'Gtc' as const } },
+      c: clientOrderIds[index],
+    }));
+
+    this.#deps.debugLogger.log('Submitting scale ladder', {
+      symbol: params.symbol,
+      assetId,
+      count,
+      prices: orders.map((order) => order.p),
+      sizes,
+    });
+
+    const exchangeClient = this.#clientService.getExchangeClient();
+    let result: ScaleBulkOrderResponse;
+    let thrownBulkOrderError: HyperliquidError | undefined;
+    try {
+      result = await exchangeClient.order({
+        orders,
+        grouping: 'na',
+        ...(builder && { builder }),
+      });
+    } catch (error) {
+      const bulkResponse = getScaleBulkOrderResponseFromError(error, count);
+      if (!bulkResponse) {
+        throw error;
+      }
+      result = bulkResponse;
+      thrownBulkOrderError = error as HyperliquidError;
+    }
+
+    const rawStatuses = result.response?.data?.statuses;
+    const statuses = Array.isArray(rawStatuses) ? rawStatuses : [];
+    const outcomes = Array.from({ length: count }, (_unused, index) =>
+      parseScaleBulkOrderStatus(statuses[index]),
+    );
+    const acceptedCount = outcomes.filter(
+      (outcome) => outcome?.kind === 'accepted',
+    ).length;
+    const everyStatusClassified = outcomes.every(
+      (outcome) => outcome !== undefined,
+    );
+    const rejectedCount = outcomes.filter(
+      (outcome) => outcome?.kind === 'error',
+    ).length;
+    const acceptedRungs = outcomes.flatMap((outcome, index) =>
+      outcome?.kind === 'accepted'
+        ? [
+            {
+              outcome,
+              price: prices[index],
+              size: sizes[index],
+            },
+          ]
+        : [],
+    );
+    const restingChildOrderIds = acceptedRungs.flatMap((rung) =>
+      rung.outcome.state === 'resting' ? [rung.outcome.orderId] : [],
+    );
+    // Waiting rungs have no exchange order ID and cannot be recovered after
+    // the in-memory Scale group registry is cleared on disconnect.
+    const hasWaitingRungs = acceptedRungs.some(
+      (rung) =>
+        rung.outcome.state === 'waitingForFill' ||
+        rung.outcome.state === 'waitingForTrigger',
+    );
+    const cleanupClientOrderIds = outcomes.flatMap((outcome, index) =>
+      outcome?.kind === 'error' || outcome?.state === 'resting'
+        ? []
+        : [clientOrderIds[index]],
+    );
+    const acceptedChildren: ScaleOrderChild[] = acceptedRungs.map(
+      ({ outcome }) =>
+        outcome.state === 'resting' || outcome.state === 'filled'
+          ? { orderId: outcome.orderId, state: outcome.state }
+          : { state: outcome.state },
+    );
+    const acceptedSize = acceptedRungs.reduce(
+      (total, rung) => total.plus(rung.size),
+      new BigNumber(0),
+    );
+    const acceptedNotional = acceptedRungs.reduce(
+      (total, rung) => total.plus(new BigNumber(rung.size).times(rung.price)),
+      new BigNumber(0),
+    );
+    const filledRungs = acceptedRungs.flatMap((rung) =>
+      rung.outcome.state === 'filled'
+        ? [{ ...rung, outcome: rung.outcome }]
+        : [],
+    );
+    const filledSize = filledRungs.reduce(
+      (total, rung) => total.plus(rung.outcome.filledSize),
+      new BigNumber(0),
+    );
+    const executedNotional = filledRungs.reduce(
+      (total, rung) =>
+        total.plus(
+          new BigNumber(rung.outcome.filledSize).times(
+            rung.outcome.averagePrice,
+          ),
+        ),
+      new BigNumber(0),
+    );
+    const acceptedResult = {
+      childOrderIds: restingChildOrderIds,
+      submittedSize: formattedSize,
+      acceptedSize: acceptedSize.toFixed(),
+      ...(acceptedSize.gt(0) && {
+        weightedAverageLimitPrice: acceptedNotional
+          .dividedBy(acceptedSize)
+          .toFixed(),
+      }),
+      acceptedChildren,
+      ...(filledSize.gt(0) && {
+        filledSize: filledSize.toFixed(),
+        averagePrice: executedNotional.dividedBy(filledSize).toFixed(),
+      }),
+    } satisfies Partial<OrderResult>;
+    const buildAcceptedResult = (): OrderResult => ({
+      success: true,
+      orderId: groupId,
+      ...acceptedResult,
+    });
+    const cancelNonRejectedOrders = async (): Promise<{
+      orderIds: string[];
+      clientOrderIds: Hex[];
+    }> => {
+      const [orderIds, pendingClientOrderIds] = await Promise.all([
+        this.#cancelOrderRequests(
+          exchangeClient,
+          restingChildOrderIds.map((orderId) => ({
+            a: assetId,
+            o: Number(orderId),
+          })),
+        ),
+        this.#cancelOrderCloidRequests(
+          exchangeClient,
+          cleanupClientOrderIds.map((clientOrderId) => ({
+            asset: assetId,
+            cloid: clientOrderId,
+          })),
+        ),
+      ]);
+      return {
+        orderIds: orderIds.map(String),
+        clientOrderIds: pendingClientOrderIds,
+      };
+    };
+
+    if (thrownBulkOrderError !== undefined) {
+      const isRecoverablePartial =
+        everyStatusClassified && acceptedCount > 0 && rejectedCount > 0;
+      if (!isRecoverablePartial) {
+        if (!everyStatusClassified) {
+          await cancelNonRejectedOrders();
+        }
+        throw thrownBulkOrderError;
+      }
+    }
+
+    if (generation !== this.#strategyGeneration) {
+      const remaining = await cancelNonRejectedOrders();
+      if (
+        remaining.orderIds.length > 0 ||
+        remaining.clientOrderIds.length > 0
+      ) {
+        this.#scaleOrderGroups.set(groupId, {
+          symbol: params.symbol,
+          ...remaining,
+        });
+      }
+      return createErrorResult(
+        new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE),
+        {
+          success: false,
+          ...acceptedResult,
+          ...(remaining.orderIds.length > 0 ||
+          remaining.clientOrderIds.length > 0
+            ? { orderId: groupId }
+            : {}),
+          childOrderIds: remaining.orderIds,
+        },
+      );
+    }
+
+    if (
+      result.status !== 'ok' ||
+      statuses.length !== count ||
+      acceptedCount !== count ||
+      hasWaitingRungs
+    ) {
+      this.#deps.debugLogger.log('Scale ladder was not fully accepted', {
+        accepted: acceptedCount,
+        filled: filledRungs.length,
+        resting: restingChildOrderIds.length,
+        requested: count,
+        statuses,
+      });
+      const isValidPartial =
+        result.status === 'ok' &&
+        statuses.length === count &&
+        everyStatusClassified &&
+        !hasWaitingRungs &&
+        acceptedCount > 0 &&
+        rejectedCount > 0;
+      if (isValidPartial) {
+        this.#scaleOrderGroups.set(groupId, {
+          symbol: params.symbol,
+          orderIds: restingChildOrderIds,
+          clientOrderIds: [],
+        });
+        return buildAcceptedResult();
+      }
+      const remaining = await cancelNonRejectedOrders();
+      if (
+        remaining.orderIds.length > 0 ||
+        remaining.clientOrderIds.length > 0
+      ) {
+        this.#scaleOrderGroups.set(groupId, {
+          symbol: params.symbol,
+          ...remaining,
+        });
+        return createErrorResult(
+          new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE),
+          {
+            success: false,
+            orderId: groupId,
+            ...acceptedResult,
+            childOrderIds: remaining.orderIds,
+          },
+        );
+      }
+
+      if (acceptedCount > 0) {
+        return createErrorResult(new Error(PERPS_ERROR_CODES.ORDER_REJECTED), {
+          success: false,
+          ...acceptedResult,
+          childOrderIds: [],
+        });
+      }
+
+      throw new Error(PERPS_ERROR_CODES.ORDER_REJECTED);
+    }
+
+    this.#scaleOrderGroups.set(groupId, {
+      symbol: params.symbol,
+      orderIds: restingChildOrderIds,
+      clientOrderIds: [],
+    });
+    return buildAcceptedResult();
+  }
+
+  /**
+   * Place a chase's first order and register the session that follows it.
+   *
+   * Split from the routing above so the concurrency reservation there wraps
+   * every await in one `try`/`finally`.
+   *
+   * @param params - Order parameters.
+   * @param context - Prepared asset and sizing context.
+   * @param generation - Teardown generation captured before any await.
+   * @returns A promise that resolves to the result.
+   */
+  async #startChaseSession(
+    params: OrderParams,
+    context: StrategyPlacementContext,
+    generation: number,
+  ): Promise<OrderResult> {
+    const { assetId, szDecimals, formattedSize, builder } = context;
+
+    // The preamble is several round trips long. A disconnect during it has
+    // already torn down everything this session would run on, so the chase
+    // stops here rather than reading the book and putting a fresh order on it
+    // for a provider that no longer exists.
+    if (generation !== this.#strategyGeneration) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
+    }
+
+    let quotePrice = await this.#getChaseQuotePrice({
+      symbol: params.symbol,
+      isBuy: params.isBuy,
+      szDecimals,
+    });
+    if (
+      quotePrice === CHASE_ORDER_STATUS_UNAVAILABLE ||
+      typeof quotePrice !== 'string'
+    ) {
+      // A first placement has no child whose terminal state could be read.
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_TOUCH_UNAVAILABLE);
+    }
+
+    // The book read is a round trip of its own, so the check above does not
+    // cover it. Re-checked here, immediately before the only statement that
+    // signs anything: every await on this path is now followed by a refusal
+    // before the next one, leaving one window that cannot be closed from here
+    // — a disconnect arriving while the submission itself is in flight, which
+    // the check after it handles.
+    if (generation !== this.#strategyGeneration) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
+    }
+
+    // Held onto rather than looked up again after the submission returns.
+    // `disconnect` drops the service's client reference synchronously, so a
+    // retraction that asked for a client after the fact would be refused one
+    // and leave the order resting under the account that placed it. This
+    // instance signed the order and can still cancel it as that account.
+    const placingClient = this.#clientService.getExchangeClient();
+
+    let orderId: string | undefined;
+    for (
+      let attempt = 1;
+      attempt <= CHASE_ORDER_CONFIG.InitialPlacementAttempts;
+      attempt += 1
+    ) {
+      try {
+        orderId = await this.#restChaseOrder({
+          assetId,
+          isBuy: params.isBuy,
+          price: quotePrice,
+          size: formattedSize,
+          reduceOnly: params.reduceOnly ?? false,
+          builder,
+          exchangeClient: placingClient,
+        });
+        break;
+      } catch (error) {
+        if (
+          attempt === CHASE_ORDER_CONFIG.InitialPlacementAttempts ||
+          !isRetryableChasePlacementError(error)
+        ) {
+          throw error;
+        }
+        if (generation !== this.#strategyGeneration) {
+          throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
+        }
+        const refreshedQuote = await this.#getChaseQuotePrice({
+          symbol: params.symbol,
+          isBuy: params.isBuy,
+          szDecimals,
+        });
+        if (
+          refreshedQuote === CHASE_ORDER_STATUS_UNAVAILABLE ||
+          typeof refreshedQuote !== 'string'
+        ) {
+          throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_TOUCH_UNAVAILABLE);
+        }
+        if (generation !== this.#strategyGeneration) {
+          throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED);
+        }
+        quotePrice = refreshedQuote;
+      }
+    }
+    if (!orderId) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_TOUCH_UNAVAILABLE);
+    }
+
+    const intervalMs =
+      params.chaseIntervalMs ?? CHASE_ORDER_CONFIG.DefaultIntervalMs;
+    const sessionId = generatePerpsId('chase');
+    const session: ChaseSession = {
+      symbol: params.symbol,
+      assetId,
+      isBuy: params.isBuy,
+      size: formattedSize,
+      originalSize: formattedSize,
+      szDecimals,
+      reduceOnly: params.reduceOnly ?? false,
+      orderId,
+      replacingOrderId: null,
+      pendingReplacement: null,
+      restingPrice: quotePrice,
+      arrivalPrice: quotePrice,
+      startedAt: Date.now(),
+      maxDistanceBps: params.chaseMaxDistanceBps,
+      intervalMs,
+      lastSnapshotSizeRefreshAt: 0,
+      builder,
+      deadline:
+        params.chaseMaxDurationMs === undefined
+          ? Number.POSITIVE_INFINITY
+          : Date.now() + params.chaseMaxDurationMs,
+      maxRepricings: params.chaseMaxRepricings ?? Number.POSITIVE_INFINITY,
+      repricings: 0,
+      timer: null,
+      active: true,
+      status: CHASE_ORDER_STATUS.Active,
+    };
+    // A disconnect landed while the submission was in flight — the one window
+    // the checks above cannot close. The order rested, but no strategy is
+    // running behind it and no handle names it, so this placement is reported
+    // as a failure. That makes the resting order an orphan: the caller is told
+    // the chase failed, nothing refreshes the caches a successful placement
+    // would have invalidated, and the exchange id is only usable for as long as
+    // the provider stays pointed at the account that placed it — a disconnect
+    // is usually followed by an account or network switch, after which handing
+    // the id back is no remedy at all. So it is cancelled here, through the
+    // client that signed it — the account switch cannot reach that instance —
+    // and the failure is then true of the venue as well as of this provider.
+    // Best-effort still: the transport underneath that client may already be
+    // closing, so a cancel that does not land falls back to reporting the id.
+    if (generation !== this.#strategyGeneration) {
+      this.#deps.debugLogger.log('Chase placement outlived its provider', {
+        orderId,
+        restingPrice: quotePrice,
+      });
+
+      const outcome = await this.#retractOrphanedChaseOrder(
+        session,
+        placingClient,
+      );
+      return createErrorResult(
+        new Error(PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED),
+        {
+          success: false,
+          // Reported only when the retraction did not take. Naming an order
+          // that is no longer on the book would send the caller to cancel
+          // something already gone; naming one that still rests is the only
+          // route left to it.
+          ...(outcome === CancelChildOutcome.Refused
+            ? { childOrderIds: [orderId] }
+            : {}),
+          submittedSize: formattedSize,
+        },
+      );
+    }
+
+    this.#chaseSessions.set(sessionId, session);
+    this.#scheduleChaseTick(sessionId);
+
+    this.#deps.debugLogger.log('Chase session started', {
+      sessionId,
+      symbol: params.symbol,
+      orderId,
+      restingPrice: quotePrice,
+      intervalMs,
+    });
+
+    return {
+      success: true,
+      orderId: sessionId,
+      childOrderIds: [orderId],
+      submittedSize: formattedSize,
+    };
+  }
+
+  /**
+   * Read the price a chase must rest at: the best bid for a buy, the best ask
+   * for a sell.
+   *
+   * The touch, not the mid: a post-only order priced at the mid would either
+   * cross or be rejected, and a chase that never rests at the front of the
+   * queue is not chasing anything.
+   *
+   * @param params - The lookup parameters.
+   * @param params.symbol - Market to read.
+   * @param params.isBuy - Which side the chase rests on.
+   * @param params.szDecimals - Asset size precision, for price formatting.
+   * @param params.own - The chase's own resting order, excluded from the book.
+   * @param params.own.orderId - Exchange ID of that order.
+   * @param params.own.price - Price that order rests at.
+   * @param params.own.size - Size it was last placed for.
+   * @returns The formatted price, a terminal child result, or the status
+   * unavailable sentinel when the child may still be live.
+   */
+  async #getChaseQuotePrice(params: {
+    symbol: string;
+    isBuy: boolean;
+    szDecimals: number;
+    /** The chase's own resting order, excluded from the book it reads. */
+    own?: { orderId: string; price: string; size: string };
+  }): Promise<
+    string | ChaseTerminalResolution | typeof CHASE_ORDER_STATUS_UNAVAILABLE
+  > {
+    const { symbol, isBuy, szDecimals, own } = params;
+
+    const book = await this.#clientService.getInfoClient().l2Book({
+      coin: symbol,
+    });
+
+    // `levels` is [bids, asks], each best-first.
+    const ownSide = book?.levels?.[isBuy ? 0 : 1];
+    const netting = await this.#resolveOwnRestingSizes({
+      symbol,
+      isBuy,
+      callerOrderId: own?.orderId,
+      ownSide,
+    });
+    if (
+      netting === CHASE_ORDER_STATUS_UNAVAILABLE ||
+      !(netting instanceof Map)
+    ) {
+      return netting;
+    }
+
+    const bestBid = readBestExternalPrice(book?.levels?.[0], netting);
+    const bestAsk = readBestExternalPrice(book?.levels?.[1], netting);
+
+    if (bestBid === null || bestAsk === null) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_CHASE_TOUCH_UNAVAILABLE);
+    }
+
+    return computeChaseQuotePrice({ bestBid, bestAsk, isBuy, szDecimals });
+  }
+
+  /**
+   * Rest one post-only order for a chase and return its exchange ID.
+   *
+   * @param params - The placement parameters.
+   * @param params.assetId - Resolved asset ID.
+   * @param params.isBuy - Order side.
+   * @param params.price - Formatted limit price.
+   * @param params.size - Formatted size.
+   * @param params.reduceOnly - Whether the order may only reduce a position.
+   * @param params.builder - Builder context captured when the session started.
+   * @param params.exchangeClient - Client to submit through. Passed in rather
+   * than looked up here so a first placement can keep the instance it signed
+   * with, which is the only one that can take the order back once `disconnect`
+   * has dropped the service's reference.
+   * @returns The resting order's exchange ID.
+   */
+  async #restChaseOrder(params: {
+    assetId: number;
+    isBuy: boolean;
+    price: string;
+    size: string;
+    reduceOnly: boolean;
+    builder?: BuilderOrderContext;
+    exchangeClient: ExchangeClient;
+  }): Promise<string> {
+    const result = await params.exchangeClient.order({
+      orders: [
+        {
+          a: params.assetId,
+          b: params.isBuy,
+          p: params.price,
+          s: params.size,
+          r: params.reduceOnly,
+          // Post-only: a chase adds liquidity at the touch. Crossing would end
+          // the chase on its first tick at a worse price than resting does.
+          t: { limit: { tif: 'Alo' as const } },
+        },
+      ],
+      grouping: 'na',
+      ...(params.builder && { builder: params.builder }),
+    });
+
+    if (result.status !== 'ok') {
+      throw new Error(`Chase order failed: ${JSON.stringify(result)}`);
+    }
+
+    const orderId = this.#readOrderIdFromStatus(
+      result.response?.data?.statuses?.[0],
+    );
+    if (!orderId) {
+      throw new Error(
+        `Chase order rejected: ${JSON.stringify(result.response?.data)}`,
+      );
+    }
+
+    return orderId;
+  }
+
+  /**
+   * Schedule the next tick of a chase session.
+   *
+   * @param sessionId - Session to advance.
+   */
+  #scheduleChaseTick(sessionId: string): void {
+    const session = this.#chaseSessions.get(sessionId);
+    if (!session?.active || session.timer !== null) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      session.timer = null;
+      this.#chaseTickQueue = this.#chaseTickQueue
+        .then(() => this.#runChaseTick(sessionId))
+        .catch((error: unknown) => {
+          // Resolve the shared queue after every failure. Otherwise one
+          // rejected tick prevents all later ticks and teardown from running.
+          this.#deps.debugLogger.log('Chase tick failed', {
+            sessionId,
+            error: ensureError(error, 'HyperLiquidProvider.chaseTick').message,
+          });
+          this.#recoverFailedChaseTick(sessionId);
+        });
+    }, session.intervalMs);
+
+    // Node keeps the process alive for a pending timer; a background chase is
+    // not a reason to hold an exiting process open. React Native's timers have
+    // no `unref`, hence the guard.
+    timer.unref?.();
+    session.timer = timer;
+  }
+
+  /** Pause scheduled background work while a foreground Chase is submitted. */
+  #pauseChaseTicksForPlacement(): void {
+    for (const session of this.#chaseSessions.values()) {
+      if (session.timer) {
+        clearTimeout(session.timer);
+        session.timer = null;
+      }
+    }
+  }
+
+  /** Restart the polling cadence after all foreground placements settle. */
+  #resumeChaseTicksAfterPlacement(): void {
+    for (const [sessionId, session] of this.#chaseSessions) {
+      if (session.active && !session.timer) {
+        this.#scheduleChaseTick(sessionId);
+      }
+    }
+  }
+
+  /**
+   * Decide what a session does after one of its ticks threw.
+   *
+   * Two outcomes, told apart by whether the session still owns a resting order:
+   *
+   * - It does — the failure was a book read or a refused cancel, and the order
+   *   is untouched. The chase keeps going; the deadline check at the top of the
+   *   next tick ends it if the window has since closed. Letting a transient
+   *   error end the chase would strand a live order under a session that still
+   *   claimed to be re-pricing it.
+   * - It does not — the tick cancelled the order and then failed to rest its
+   *   replacement, so nothing is on the book. There is nothing left to chase and
+   *   nothing left to cancel, so the session ends here. Leaving it `active` would
+   *   report a live chase with no timer, and every later cancel would try to
+   *   cancel the dead order and keep the handle forever.
+   *
+   * @param sessionId - Session whose tick failed.
+   */
+  #recoverFailedChaseTick(sessionId: string): void {
+    const session = this.#chaseSessions.get(sessionId);
+    if (!session?.active) {
+      return;
+    }
+
+    if (session.orderId === null) {
+      session.active = false;
+      session.status = CHASE_ORDER_STATUS.Failed;
+      this.#deps.debugLogger.log('Chase ended with nothing resting', {
+        sessionId,
+      });
+      this.#rebalanceChaseSession(session).catch((error: unknown) => {
+        this.#deps.debugLogger.log('Chase collateral cleanup failed', {
+          sessionId,
+          error: ensureError(
+            error,
+            'HyperLiquidProvider.recoverFailedChaseTick',
+          ).message,
+        });
+      });
+      return;
+    }
+
+    this.#scheduleChaseTick(sessionId);
+  }
+
+  /**
+   * Advance one chase session: re-price if the touch has moved, stop if the
+   * window has closed.
+   *
+   * @param sessionId - Session to advance.
+   */
+  async #runChaseTick(sessionId: string): Promise<void> {
+    const session = this.#chaseSessions.get(sessionId);
+    if (!session?.active) {
+      return;
+    }
+
+    // Give a new Chase placement priority over background cancel/replace
+    // traffic. With several active sessions, their signed mutations can
+    // otherwise overlap the placement preamble and trip the SDK transport's
+    // circuit breaker before the new order reaches the venue. Deferring one
+    // polling interval leaves every existing child resting as a valid ALO and
+    // preserves the venue's five-session limit without increasing request
+    // churn.
+    if (this.#chasePlacementsInFlight > 0) {
+      this.#scheduleChaseTick(sessionId);
+      return;
+    }
+
+    if (Date.now() >= session.deadline) {
+      // The window closed. The last order stays resting as an ordinary limit
+      // order and the session stays registered, so cancelling by its handle
+      // still reaches that order.
+      session.active = false;
+      session.status = CHASE_ORDER_STATUS.DurationReached;
+      this.#deps.debugLogger.log('Chase session window closed', { sessionId });
+      await this.#rebalanceChaseSession(session);
+      return;
+    }
+
+    const rawQuotePrice = await this.#getChaseQuotePrice({
+      symbol: session.symbol,
+      isBuy: session.isBuy,
+      szDecimals: session.szDecimals,
+      own: session.orderId
+        ? {
+            orderId: session.orderId,
+            price: session.restingPrice,
+            size: session.size,
+          }
+        : undefined,
+    });
+
+    if (typeof rawQuotePrice !== 'string') {
+      // The order left the book without the loop seeing it. Preserve the venue
+      // status so an external cancellation is not reported as a fill.
+      session.orderId = null;
+      session.active = false;
+      session.status = rawQuotePrice.status;
+      session.size = rawQuotePrice.remainingSize ?? '0';
+      this.#deps.debugLogger.log('Chase order ended between ticks', {
+        sessionId,
+        status: session.status,
+      });
+      await this.#rebalanceChaseSession(session);
+      return;
+    }
+    if (rawQuotePrice === CHASE_ORDER_STATUS_UNAVAILABLE) {
+      // The child may still be live. Leave it untouched and retry on the next
+      // normal interval instead of permanently stranding the Chase after one
+      // short status outage.
+      this.#deps.debugLogger.log('Chase order status unavailable', {
+        sessionId,
+        orderId: session.orderId,
+      });
+      this.#scheduleChaseTick(sessionId);
+      return;
+    }
+
+    const arrivalPrice = Number.parseFloat(session.arrivalPrice);
+    const rawQuote = Number.parseFloat(rawQuotePrice);
+    const adverseDistanceFromArrival = session.isBuy
+      ? (rawQuote - arrivalPrice) / arrivalPrice
+      : (arrivalPrice - rawQuote) / arrivalPrice;
+    const boundaryDirection = session.isBuy ? 1 : -1;
+    const maxDistanceRatio =
+      session.maxDistanceBps === undefined
+        ? undefined
+        : session.maxDistanceBps / BASIS_POINTS_DIVISOR;
+    const boundaryPrice =
+      maxDistanceRatio === undefined
+        ? undefined
+        : arrivalPrice * (1 + boundaryDirection * maxDistanceRatio);
+    let reachedMaxDistance =
+      boundaryPrice !== undefined &&
+      maxDistanceRatio !== undefined &&
+      adverseDistanceFromArrival >= maxDistanceRatio;
+    let quotePrice = rawQuotePrice;
+    if (reachedMaxDistance && boundaryPrice !== undefined) {
+      quotePrice = formatHyperLiquidPrice({
+        price: boundaryPrice,
+        szDecimals: session.szDecimals,
+      });
+      const formattedBoundary = Number.parseFloat(quotePrice);
+      const overshootsBoundary = session.isBuy
+        ? formattedBoundary > boundaryPrice
+        : formattedBoundary < boundaryPrice;
+      if (overshootsBoundary) {
+        const tick = getPriceTick({
+          price: boundaryPrice,
+          szDecimals: session.szDecimals,
+        });
+        quotePrice = formatHyperLiquidPrice({
+          price: session.isBuy
+            ? formattedBoundary - tick
+            : formattedBoundary + tick,
+          szDecimals: session.szDecimals,
+        });
+      }
+    }
+
+    // The book read is a round trip, and a cancel arriving during it stops the
+    // session. Without this re-check the tick would cancel and re-place the very
+    // order the caller just asked to be rid of.
+    if (!session.active) {
+      return;
+    }
+
+    if (quotePrice !== session.restingPrice && session.orderId) {
+      const outcome = await this.#cancelChaseChild(session);
+
+      // The cancel is a second round trip, and this is the window where a
+      // caller's `cancelOrder` does the most damage: it would cancel the order
+      // this tick has already cancelled, report the cancel incomplete, and then
+      // this tick would rest a replacement the caller has no idea exists.
+      // Stopping here leaves nothing on the book.
+      if (!session.active) {
+        // A refused cancel leaves the child resting. Preserve its ID so the
+        // caller that stopped this session can report an incomplete cancel and
+        // retry it instead of orphaning the order.
+        if (outcome !== CancelChildOutcome.Refused) {
+          session.orderId = null;
+        }
+        return;
+      }
+
+      if (outcome === CancelChildOutcome.Refused) {
+        // The exchange kept the order, so it is still resting at the old price.
+        // Placing the replacement anyway would double the position. Leave it
+        // alone and try again on the next tick, which is why this falls through
+        // to the reschedule below rather than ending the session.
+        this.#deps.debugLogger.log('Chase reprice cancel refused', {
+          sessionId,
+          orderId: session.orderId,
+        });
+        reachedMaxDistance = false;
+      } else if (outcome === CancelChildOutcome.Gone) {
+        // The order left the book between ticks: it filled, or something else
+        // cancelled it. There is nothing left to chase.
+        const goneOrderId = session.orderId;
+        session.orderId = null;
+        session.active = false;
+        let remainder: ChaseOrderRemainder;
+        try {
+          remainder = await this.#readOrderRemainder(
+            goneOrderId,
+            CHASE_ORDER_STATUS_RETRY_COUNT,
+          );
+        } catch (error) {
+          session.status = CHASE_ORDER_STATUS.Failed;
+          this.#deps.debugLogger.log('Chase order status unavailable', {
+            sessionId,
+            orderId: goneOrderId,
+            error: ensureError(
+              error,
+              'HyperLiquidProvider.chaseGoneOrderStatus',
+            ).message,
+          });
+          await this.#rebalanceChaseSession(session);
+          return;
+        }
+        session.status = remainder.terminalStatus ?? CHASE_ORDER_STATUS.Failed;
+        if (remainder.remainingSize !== null) {
+          session.size = remainder.remainingSize;
+        }
+        this.#deps.debugLogger.log('Chase order no longer resting', {
+          sessionId,
+          status: session.status,
+          remainingSize: session.size,
+        });
+        await this.#rebalanceChaseSession(session);
+        return;
+      } else {
+        // The cancel is confirmed, so the session owns nothing from here on.
+        // Recorded before the read rather than after it: a read that rejects
+        // would otherwise leave the session naming an order that is already off
+        // the book, and recovery would reschedule a chase with nothing resting.
+        const cancelledOrderId = session.orderId;
+        session.replacingOrderId = cancelledOrderId;
+        session.orderId = null;
+
+        // No further fills can reach a cancelled order, so what it did not fill
+        // is now fixed. Sampling before the cancel would have left a window in
+        // which a fill lands and is then re-placed.
+        let remainder: ChaseOrderRemainder;
+        try {
+          remainder = await this.#readOrderRemainder(
+            cancelledOrderId,
+            CHASE_ORDER_STATUS_RETRY_COUNT,
+          );
+        } catch (error) {
+          session.replacingOrderId = null;
+          throw error;
+        }
+
+        // Another round trip, another window for a cancel to land. By now the
+        // old order is already off the book, so a cancel that arrived during it
+        // found nothing to cancel and reported success — resting a replacement
+        // after that would put an order on the book the caller believes is gone
+        // and has no handle for.
+        if (!session.active || !this.#chaseSessions.has(sessionId)) {
+          session.replacingOrderId = null;
+          this.#deps.debugLogger.log('Chase cancelled mid-reprice', {
+            sessionId,
+          });
+          return;
+        }
+
+        if (
+          remainder.remainingSize === null ||
+          (remainder.terminalStatus !== null &&
+            remainder.terminalStatus !== CHASE_ORDER_STATUS.Canceled)
+        ) {
+          // Nothing is left to chase. Preserve whether the venue actually
+          // confirmed a fill rather than labelling every zero remainder filled.
+          session.replacingOrderId = null;
+          session.active = false;
+          session.size = remainder.remainingSize ?? '0';
+          session.status =
+            remainder.terminalStatus ?? CHASE_ORDER_STATUS.Failed;
+          this.#deps.debugLogger.log('Chase order has no remainder', {
+            sessionId,
+            status: session.status,
+          });
+          await this.#rebalanceChaseSession(session);
+          return;
+        }
+
+        const remaining = remainder.remainingSize;
+
+        // Published *before* the placement starts, not from the promise it
+        // returns: the window opens the moment `#restChaseOrder` is entered, so
+        // deriving the marker from its return value would leave the synchronous
+        // prefix of that call unguarded. A cancel arriving anywhere inside the
+        // round trip now waits for the replacement to land instead of reading
+        // the null `orderId` as "nothing rests", reporting success, and dropping
+        // the handle while this call is still putting an order on the book.
+        let settleReplacement: (() => void) | undefined;
+        session.pendingReplacement = new Promise<void>((resolve) => {
+          settleReplacement = resolve;
+        });
+
+        try {
+          session.orderId = await this.#restChaseOrder({
+            assetId: session.assetId,
+            isBuy: session.isBuy,
+            price: quotePrice,
+            size: remaining,
+            reduceOnly: session.reduceOnly,
+            builder: session.builder,
+            // A running session is on a live provider, so the current client is
+            // the right one; only the first placement has a teardown to survive.
+            exchangeClient: this.#clientService.getExchangeClient(),
+          });
+          session.size = remaining;
+        } finally {
+          // Cleared before the waiters wake, so they see the settled session.
+          session.replacingOrderId = null;
+          session.pendingReplacement = null;
+          settleReplacement?.();
+        }
+        session.restingPrice = quotePrice;
+        session.repricings += 1;
+
+        this.#deps.debugLogger.log('Chase re-priced', {
+          sessionId,
+          orderId: session.orderId,
+          restingPrice: quotePrice,
+          size: session.size,
+          repricings: session.repricings,
+        });
+
+        // A cancel that arrived during the round trip is now waiting on this
+        // session; it cancels the order just recorded above. A `disconnect`
+        // deregisters the session instead, and deliberately leaves resting
+        // orders alone — logged with its ID so it stays traceable.
+        if (!this.#chaseSessions.has(sessionId)) {
+          this.#deps.debugLogger.log('Chase replacement outlived its session', {
+            sessionId,
+            orderId: session.orderId,
+          });
+          return;
+        }
+        if (!session.active) {
+          return;
+        }
+      }
+    }
+
+    if (reachedMaxDistance && session.maxDistanceBps !== undefined) {
+      session.active = false;
+      session.status = CHASE_ORDER_STATUS.MaxDistanceReached;
+      this.#deps.debugLogger.log('Chase max distance reached', {
+        sessionId,
+        restingPrice: session.restingPrice,
+        maxDistanceBps: session.maxDistanceBps,
+      });
+      this.#onChaseOrderMaxDistanceReached?.({
+        handle: sessionId,
+        symbol: session.symbol,
+        side: session.isBuy ? 'buy' : 'sell',
+        restingOrderId: session.orderId,
+        restingPrice: session.restingPrice,
+        maxDistanceBps: session.maxDistanceBps,
+        timestamp: Date.now(),
+        providerId: PROVIDER_CONFIG.DefaultProvider,
+      });
+      await this.#rebalanceChaseSession(session);
+      return;
+    }
+
+    if (session.repricings >= session.maxRepricings) {
+      session.active = false;
+      session.status = CHASE_ORDER_STATUS.RepricingLimitReached;
+      this.#deps.debugLogger.log('Chase repricing cap reached', { sessionId });
+      await this.#rebalanceChaseSession(session);
+      return;
+    }
+
+    this.#scheduleChaseTick(sessionId);
+  }
+
+  /**
+   * Resolve how much of the chase's own order is really sitting on its level.
+   *
+   * The session tracks what its order was last *placed* for, which overstates
+   * the order once it partially fills. Over-subtracting only matters when it
+   * would net the level away entirely — while the level still shows more size
+   * than the order could possibly hold, the level has external liquidity either
+   * way and the stale figure is good enough.
+   *
+   * So the live size is fetched only in the ambiguous case, which keeps the
+   * common tick to a single book read rather than doubling the request rate
+   * against the venue for every chase on every interval.
+   *
+   * @param params - Netting parameters.
+   * @param params.symbol - Market being quoted.
+   * @param params.isBuy - Side being quoted.
+   * @param params.callerOrderId - The asking session's order, if it has one.
+   * @param params.ownSide - The side of the book those orders rest on.
+   * @returns Our resting size at each price, the asking child's terminal
+   * result, or the unavailable sentinel.
+   */
+  async #resolveOwnRestingSizes(params: {
+    symbol: string;
+    isBuy: boolean;
+    callerOrderId?: string;
+    ownSide?: { px: string; sz: string }[];
+  }): Promise<
+    | Map<string, number>
+    | ChaseTerminalResolution
+    | typeof CHASE_ORDER_STATUS_UNAVAILABLE
+  > {
+    const { symbol, isBuy, callerOrderId, ownSide } = params;
+
+    // Every chase this provider is running on this side, the caller included.
+    const ourOrders: ChaseRestingOrder[] = [];
+    for (const session of this.#chaseSessions.values()) {
+      if (
+        session.orderId !== null &&
+        session.symbol === symbol &&
+        session.isBuy === isBuy
+      ) {
+        ourOrders.push({
+          orderId: session.orderId,
+          price: session.restingPrice,
+          size: session.size,
+        });
+      }
+    }
+
+    if (ourOrders.length === 0) {
+      return new Map();
+    }
+
+    const recorded = new Map<string, number>();
+    for (const order of ourOrders) {
+      recorded.set(
+        order.price,
+        (recorded.get(order.price) ?? 0) + parseFloat(order.size),
+      );
+    }
+
+    // A level holding more than we possibly could has external size regardless,
+    // so the recorded figures cannot change the answer there and are left as
+    // they are. Elsewhere the recorded sizes may overstate what is really
+    // resting — an order partially fills without the loop seeing it — and only
+    // then is a lookup worth a round trip.
+    const ambiguous = ourOrders.filter((order) => {
+      const level = ownSide?.find((entry) => entry.px === order.price);
+      return !level || parseFloat(level.sz) <= (recorded.get(order.price) ?? 0);
+    });
+
+    let callerTerminalResult: ChaseTerminalResolution | null = null;
+    let callerStatusUnavailable = false;
+    const resolutions = await Promise.allSettled(
+      ambiguous.map((order) =>
+        this.#readOrderRemainder(order.orderId, CHASE_ORDER_STATUS_RETRY_COUNT),
+      ),
+    );
+    resolutions.forEach((resolution, index) => {
+      const order = ambiguous[index];
+      if (resolution.status === 'fulfilled') {
+        const { remainingSize: live, terminalStatus } = resolution.value;
+        const delta =
+          (live === null ? 0 : parseFloat(live)) - parseFloat(order.size);
+        recorded.set(
+          order.price,
+          Math.max(0, (recorded.get(order.price) ?? 0) + delta),
+        );
+        if (terminalStatus !== null && order.orderId === callerOrderId) {
+          callerTerminalResult = {
+            remainingSize: live,
+            status: terminalStatus,
+          };
+        }
+      } else {
+        const { reason: error } = resolution;
+        if (
+          error instanceof ChaseOrderStatusUnavailableError &&
+          order.orderId === callerOrderId
+        ) {
+          callerStatusUnavailable = true;
+        } else {
+          // A failed lookup must not stop the chase. Keeping the recorded size
+          // can only over-subtract, which quotes a level deeper rather than
+          // leaving the order stranded at a stale price.
+          this.#deps.debugLogger.log('Chase own-size lookup failed', {
+            orderId: order.orderId,
+            error: ensureError(error, 'HyperLiquidProvider.chaseOwnSize')
+              .message,
+          });
+        }
+      }
+    });
+
+    if (callerStatusUnavailable) {
+      return CHASE_ORDER_STATUS_UNAVAILABLE;
+    }
+    return callerTerminalResult ?? recorded;
+  }
+
+  /**
+   * Read what a chase's just-cancelled order left unfilled.
+   *
+   * A chase re-prices by cancelling and re-placing, and the order it cancels
+   * may have partially filled first; re-placing the session's original size
+   * would execute more than the caller asked for.
+   *
+   * Read *after* the cancel on purpose. The order's status endpoint answers for
+   * an order that is no longer on the book, and once the cancel has landed no
+   * further fills can reach it — so the unfilled size it reports is final.
+   * Sampling the open-order book beforehand would instead leave a one-round-trip
+   * window in which a fill lands and is then re-placed on top.
+   *
+   * @param orderId - Exchange ID of the order that was just cancelled.
+   * @param unknownStatusRetries - Remaining retries for a transient unknown ID.
+   * @returns The unfilled size and exact terminal status, when present.
+   */
+  async #readOrderRemainder(
+    orderId: string,
+    unknownStatusRetries = 0,
+  ): Promise<ChaseOrderRemainder> {
+    const userAddress = await this.#walletService.getUserAddressWithDefault();
+    const status = await this.#clientService.getInfoClient().orderStatus({
+      user: userAddress,
+      oid: parseInt(orderId, 10),
+    });
+
+    if (status.status !== 'order') {
+      // unknownOid can be transient while the order-status index catches up.
+      // Treating it as a fill would drop the only handle to a live order.
+      if (unknownStatusRetries > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, CHASE_ORDER_STATUS_RETRY_DELAY_MS),
+        );
+        return await this.#readOrderRemainder(
+          orderId,
+          unknownStatusRetries - 1,
+        );
+      }
+      throw new ChaseOrderStatusUnavailableError();
+    }
+
+    const remaining = String(status.order.order.sz);
+    const remainingSize = parseFloat(remaining) > 0 ? remaining : null;
+    switch (status.order.status) {
+      case 'open':
+      case 'triggered':
+        return { remainingSize, terminalStatus: null };
+      case 'filled':
+        return {
+          remainingSize: null,
+          terminalStatus: CHASE_ORDER_STATUS.Filled,
+        };
+      case 'canceled':
+        return remainingSize === null
+          ? {
+              remainingSize: null,
+              terminalStatus: CHASE_ORDER_STATUS.Filled,
+            }
+          : {
+              remainingSize,
+              terminalStatus: CHASE_ORDER_STATUS.Canceled,
+            };
+      default:
+        return {
+          remainingSize,
+          terminalStatus: CHASE_ORDER_STATUS.Failed,
+        };
+    }
+  }
+
+  /**
+   * Cancel the order a chase session currently has resting.
+   *
+   * @param session - The session whose child to cancel.
+   * @param placingClient - Client to cancel through. Omitted by every cancel on
+   * a live provider, which wants the current one; an abandoned placement passes
+   * the client it signed with, the only one still able to reach its order.
+   * @returns Whether the order was cancelled, was already gone, or still rests.
+   */
+  async #cancelChaseChild(
+    session: ChaseSession,
+    placingClient?: ExchangeClient,
+  ): Promise<CancelChildOutcome> {
+    if (!session.orderId) {
+      return CancelChildOutcome.Gone;
+    }
+
+    // Looked up only once there is something to cancel, so a session with
+    // nothing resting still answers on a provider whose client is already gone.
+    const exchangeClient =
+      placingClient ?? this.#clientService.getExchangeClient();
+    let result;
+    try {
+      result = await exchangeClient.cancel({
+        cancels: [{ a: session.assetId, o: parseInt(session.orderId, 10) }],
+      });
+    } catch (error) {
+      const message = ensureError(
+        error,
+        'HyperLiquidProvider.cancelChaseChild',
+      ).message.toLowerCase();
+      if (
+        ALREADY_GONE_CANCEL_MARKERS.some((marker) => message.includes(marker))
+      ) {
+        return CancelChildOutcome.Gone;
+      }
+      throw error;
+    }
+
+    return classifyCancelStatus(result.response?.data?.statuses?.[0]);
+  }
+
+  /**
+   * Take back the order of a chase that was abandoned before it registered.
+   *
+   * Best-effort by construction: the provider is already being torn down, so a
+   * cancel that fails outright is reported rather than retried or thrown. The
+   * caller reports the placement as a failure either way — the outcome only
+   * decides whether an exchange id is worth handing back with it.
+   *
+   * @param session - The unregistered session holding the resting order.
+   * @param placingClient - The client the order was signed with. The service's
+   * own reference is already cleared by the time this runs, so asking it for a
+   * client here would fail before a cancel was ever sent.
+   * @returns Whether the order was cancelled, was already gone, or still rests.
+   */
+  async #retractOrphanedChaseOrder(
+    session: ChaseSession,
+    placingClient: ExchangeClient,
+  ): Promise<CancelChildOutcome> {
+    try {
+      const outcome = await this.#cancelChaseChild(session, placingClient);
+      this.#deps.debugLogger.log('Retracted abandoned chase order', {
+        orderId: session.orderId,
+        outcome,
+      });
+      return outcome;
+    } catch (error) {
+      this.#deps.debugLogger.log('Could not retract abandoned chase order', {
+        orderId: session.orderId,
+        error: ensureError(error, 'HyperLiquidProvider.startChaseSession')
+          .message,
+      });
+      return CancelChildOutcome.Refused;
+    }
+  }
+
+  /**
+   * Stop a chase session's re-pricing loop.
+   *
+   * @param sessionId - Session to stop.
+   */
+  #stopChaseSession(sessionId: string): void {
+    const session = this.#chaseSessions.get(sessionId);
+    if (!session) {
+      return;
+    }
+
+    const wasActive = session.active;
+    session.active = false;
+    if (wasActive) {
+      session.status = CHASE_ORDER_STATUS.TerminationPending;
+    }
+    if (session.timer) {
+      clearTimeout(session.timer);
+      session.timer = null;
+    }
+  }
+
+  /**
+   * Rebalance one Chase session at most once at a time. Failed cleanup keeps
+   * the transfer context so a later lifecycle read or cancel can retry it.
+   *
+   * @param session - Chase session whose manual HIP-3 transfer is complete.
+   * @returns Whether no collateral cleanup remains for the session.
+   */
+  async #rebalanceChaseSession(session: ChaseSession): Promise<boolean> {
+    const { hip3Transfer } = session;
+    if (!hip3Transfer) {
+      return true;
+    }
+    if (
+      session.orderId !== null ||
+      session.replacingOrderId !== null ||
+      session.pendingReplacement !== null
+    ) {
+      return false;
+    }
+
+    let rebalancePromise = session.hip3RebalancePromise;
+    if (!rebalancePromise) {
+      rebalancePromise = this.#handleHip3PostOrderRebalance(hip3Transfer);
+      session.hip3RebalancePromise = rebalancePromise;
+    }
+
+    try {
+      const success = await rebalancePromise;
+      if (success && session.hip3Transfer === hip3Transfer) {
+        delete session.hip3Transfer;
+      }
+      return success;
+    } finally {
+      if (session.hip3RebalancePromise === rebalancePromise) {
+        delete session.hip3RebalancePromise;
+      }
+    }
+  }
+
+  /**
+   * Adapt one venue TWAP history record and its slice fills to the shared
+   * controller contract.
+   *
+   * @param params - Venue history, fills, and read time.
+   * @returns A TWAP lifecycle record, or null when the venue supplied no ID.
+   */
+  #adaptTwapOrder(params: AdaptTwapOrderParams): TwapOrder | null {
+    const { historyEntry, now } = params;
+    const { state, twapId } = historyEntry;
+    if (twapId === undefined || !Number.isSafeInteger(twapId) || twapId < 0) {
+      return null;
+    }
+
+    const totalSize = new BigNumber(state.sz);
+    const executedSize = new BigNumber(state.executedSz);
+    const executedNotional = new BigNumber(state.executedNtl);
+    if (
+      !totalSize.isFinite() ||
+      !executedSize.isFinite() ||
+      !executedNotional.isFinite() ||
+      !Number.isFinite(state.timestamp) ||
+      !Number.isFinite(historyEntry.time) ||
+      !Number.isFinite(state.minutes)
+    ) {
+      return null;
+    }
+    let boundedExecutedSize = executedSize;
+    if (executedSize.isLessThan(0)) {
+      boundedExecutedSize = new BigNumber(0);
+    } else if (executedSize.isGreaterThan(totalSize)) {
+      boundedExecutedSize = totalSize;
+    }
+    const rawRemainingSize = totalSize.minus(boundedExecutedSize);
+    const remainingSize = rawRemainingSize.isGreaterThan(0)
+      ? rawRemainingSize
+      : new BigNumber(0);
+    const status = resolveTwapOrderStatus(
+      historyEntry,
+      boundedExecutedSize,
+      totalSize,
+    );
+    const fills = params.sliceFills
+      .map(adaptTwapOrderFill)
+      .sort((left, right) => left.timestamp - right.timestamp);
+    const startedAt = state.timestamp;
+    const historyUpdatedAt = normalizeTwapHistoryTimestamp(historyEntry.time);
+    const lastUpdated = Math.max(
+      startedAt,
+      historyUpdatedAt,
+      ...fills.map((fill) => fill.timestamp),
+    );
+    const durationMilliseconds = state.minutes * MILLISECONDS_PER_MINUTE;
+    const elapsedTimeMilliseconds = Math.min(
+      durationMilliseconds,
+      Math.max(
+        0,
+        (status === PerpsTwapLifecycleStatus.Active ? now : lastUpdated) -
+          startedAt,
+      ),
+    );
+    const fillProgressBps = totalSize.isGreaterThan(0)
+      ? boundedExecutedSize
+          .dividedBy(totalSize)
+          .multipliedBy(BASIS_POINTS_DIVISOR)
+          .integerValue(BigNumber.ROUND_FLOOR)
+          .toNumber()
+      : 0;
+    const timeProgressBps =
+      durationMilliseconds > 0
+        ? Math.floor(
+            (elapsedTimeMilliseconds / durationMilliseconds) *
+              BASIS_POINTS_DIVISOR,
+          )
+        : 0;
+
+    return {
+      orderId: twapId.toString(),
+      symbol: state.coin,
+      side: state.side === 'B' ? 'buy' : 'sell',
+      size: state.sz,
+      executedSize: boundedExecutedSize.toString(),
+      remainingSize: remainingSize.toFixed(),
+      executedNotional: state.executedNtl,
+      ...(executedSize.isGreaterThan(0) && {
+        averagePrice: executedNotional.dividedBy(executedSize).toFixed(),
+      }),
+      fillProgressBps,
+      timeProgressBps,
+      elapsedTimeMilliseconds,
+      durationMinutes: state.minutes,
+      randomize: state.randomize,
+      reduceOnly: state.reduceOnly,
+      status,
+      startedAt,
+      lastUpdated,
+      ...(historyEntry.status.status ===
+        HyperLiquidTwapLifecycleStatus.Failed && {
+        error: historyEntry.status.description,
+      }),
+      fills,
+    };
+  }
+
+  /**
+   * Rebalance one tracked TWAP at most once at a time. A failed transfer keeps
+   * the tracking entry so the next lifecycle read or cancel can retry it.
+   *
+   * @param trackingKey - Account-scoped TWAP tracking key.
+   * @returns Whether no cleanup remains for the entry.
+   */
+  async #rebalanceTrackedTwapOrder(trackingKey: string): Promise<boolean> {
+    const trackedOrder = this.#trackedTwapOrders.get(trackingKey);
+    if (!trackedOrder) {
+      return true;
+    }
+    if (!trackedOrder.hip3Transfer) {
+      if (this.#trackedTwapOrders.get(trackingKey) === trackedOrder) {
+        this.#trackedTwapOrders.delete(trackingKey);
+      }
+      return true;
+    }
+
+    let { rebalancePromise } = trackedOrder;
+    if (!rebalancePromise) {
+      rebalancePromise = this.#handleHip3PostOrderRebalance(
+        trackedOrder.hip3Transfer,
+      );
+      trackedOrder.rebalancePromise = rebalancePromise;
+    }
+
+    try {
+      const success = await rebalancePromise;
+      if (
+        success &&
+        this.#trackedTwapOrders.get(trackingKey) === trackedOrder
+      ) {
+        this.#trackedTwapOrders.delete(trackingKey);
+      }
+      return success;
+    } finally {
+      if (
+        this.#trackedTwapOrders.get(trackingKey) === trackedOrder &&
+        trackedOrder.rebalancePromise === rebalancePromise
+      ) {
+        delete trackedOrder.rebalancePromise;
+      }
+    }
+  }
+
+  /**
+   * Return manually moved HIP-3 collateral after a TWAP reaches a terminal
+   * venue state. The scoped registry survives reconnects so an active schedule
+   * cannot lose its eventual cleanup path.
+   *
+   * @param orders - Current and historical TWAP lifecycle records.
+   * @param scope - Current account and network identity.
+   */
+  async #rebalanceTerminalHip3Twaps(
+    orders: TwapOrder[],
+    scope: TwapAccountScope,
+  ): Promise<void> {
+    for (const order of orders) {
+      if (order.status === PerpsTwapLifecycleStatus.Active) {
+        continue;
+      }
+
+      const trackingKey = getTwapOrderScopeKey({
+        ...scope,
+        orderId: order.orderId,
+      });
+      const trackedOrder = this.#trackedTwapOrders.get(trackingKey);
+      if (trackedOrder?.symbol !== order.symbol) {
+        continue;
+      }
+
+      await this.#rebalanceTrackedTwapOrder(trackingKey);
+    }
+  }
+
+  /**
+   * Read native TWAP schedules and their slice fills from the venue.
+   *
+   * @returns Current and terminal TWAP lifecycle records, newest first.
+   */
+  async getTwapOrders(): Promise<TwapOrder[]> {
+    await this.#ensureClientsInitialized();
+    this.#clientService.ensureInitialized();
+
+    const lifecycleGeneration = this.#lifecycleGeneration;
+    const infoClient = this.#clientService.getInfoClient();
+    const userAddress = await this.#walletService.getUserAddressWithDefault();
+    const [history, sliceFills] = await Promise.all([
+      infoClient.twapHistory({ user: userAddress }),
+      infoClient.userTwapSliceFills({ user: userAddress }),
+    ]);
+    this.#assertProviderLifecycleCurrent(
+      lifecycleGeneration,
+      'TWAP lifecycle read',
+    );
+
+    const fillsByTwapId = new Map<number, HyperLiquidTwapSliceFillEntry[]>();
+    for (const sliceFill of sliceFills) {
+      const existing = fillsByTwapId.get(sliceFill.twapId) ?? [];
+      existing.push(sliceFill);
+      fillsByTwapId.set(sliceFill.twapId, existing);
+    }
+
+    const now = Date.now();
+    const ordersById = new Map<string, TwapOrder>();
+    for (const historyEntry of history) {
+      const order = this.#adaptTwapOrder({
+        historyEntry,
+        sliceFills:
+          historyEntry.twapId === undefined
+            ? []
+            : (fillsByTwapId.get(historyEntry.twapId) ?? []),
+        now,
+      });
+      if (!order) {
+        continue;
+      }
+
+      const existing = ordersById.get(order.orderId);
+      if (!existing || order.lastUpdated >= existing.lastUpdated) {
+        ordersById.set(order.orderId, order);
+      }
+    }
+
+    const orders = [...ordersById.values()].sort(
+      (left, right) => right.startedAt - left.startedAt,
+    );
+    const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
+    await this.#rebalanceTerminalHip3Twaps(orders, {
+      network,
+      userAddress,
+    });
+    return orders;
+  }
+
+  /**
+   * Return stable client-facing snapshots for every Chase session retained by
+   * this provider instance. A read may refresh the current child order's
+   * remaining size from the venue, throttled to the Chase interval.
+   *
+   * @returns Current Chase session snapshots.
+   */
+  async getChaseOrders(): Promise<ChaseOrder[]> {
+    return await Promise.all(
+      [...this.#chaseSessions.entries()].map(async ([handle, session]) => {
+        const now = Date.now();
+        let snapshotRemainingSize = session.size;
+        if (
+          session.orderId !== null &&
+          session.pendingReplacement === null &&
+          now - session.lastSnapshotSizeRefreshAt >= session.intervalMs
+        ) {
+          session.lastSnapshotSizeRefreshAt = now;
+          const snapshotOrderId = session.orderId;
+          try {
+            const liveRemainder = await this.#readOrderRemainder(
+              snapshotOrderId,
+              CHASE_ORDER_STATUS_RETRY_COUNT,
+            );
+            if (
+              session.orderId === snapshotOrderId &&
+              session.pendingReplacement === null
+            ) {
+              if (liveRemainder.terminalStatus === null) {
+                if (liveRemainder.remainingSize !== null) {
+                  session.size = liveRemainder.remainingSize;
+                  snapshotRemainingSize = liveRemainder.remainingSize;
+                }
+              } else {
+                session.orderId = null;
+                session.size = liveRemainder.remainingSize ?? '0';
+                session.active = false;
+                if (session.timer) {
+                  clearTimeout(session.timer);
+                  session.timer = null;
+                }
+                session.status = liveRemainder.terminalStatus;
+                snapshotRemainingSize = session.size;
+              }
+            }
+          } catch (error) {
+            this.#deps.debugLogger.log('Chase snapshot size refresh failed', {
+              orderId: snapshotOrderId,
+              error: ensureError(error, 'HyperLiquidProvider.getChaseOrders')
+                .message,
+            });
+          }
+        }
+
+        if (!session.active && session.hip3Transfer) {
+          const rebalanced = await this.#rebalanceChaseSession(session);
+          if (rebalanced && session.removeAfterRebalance) {
+            this.#chaseSessions.delete(handle);
+          }
+        }
+
+        const arrival = Number.parseFloat(session.arrivalPrice);
+        const resting = Number.parseFloat(session.restingPrice);
+        const adverseDistance = session.isBuy
+          ? resting - arrival
+          : arrival - resting;
+        const measuredDistance =
+          Number.isFinite(arrival) &&
+          arrival > 0 &&
+          Number.isFinite(adverseDistance)
+            ? Math.round(
+                (Math.max(0, adverseDistance) / arrival) * BASIS_POINTS_DIVISOR,
+              )
+            : 0;
+        return {
+          handle,
+          symbol: session.symbol,
+          side: session.isBuy ? 'buy' : 'sell',
+          originalSize: session.originalSize,
+          remainingSize: snapshotRemainingSize,
+          arrivalPrice: session.arrivalPrice,
+          restingPrice: session.restingPrice,
+          restingOrderId: session.orderId,
+          distanceChasedBps: measuredDistance,
+          ...(session.maxDistanceBps === undefined
+            ? {}
+            : { maxDistanceBps: session.maxDistanceBps }),
+          repricings: session.repricings,
+          startedAt: session.startedAt,
+          status: session.status,
+        };
+      }),
+    );
+  }
+
+  /**
+   * Stop all active Chase loops while deliberately leaving their current
+   * post-only children resting. Used when a client moves to the background.
+   *
+   * @returns Snapshots after every in-flight replacement has settled.
+   */
+  async suspendChaseOrders(): Promise<ChaseOrder[]> {
+    this.#chasePlacementBlockers += 1;
+    try {
+      await Promise.all([...this.#chasePlacementWaiters]);
+      // Clear timers without deactivating sessions, then let any tick already
+      // admitted to the shared queue finish its cancel/replace. Stopping first
+      // can strand a session between children: the old order is cancelled, the
+      // tick observes `active === false`, and suspension reports a resting
+      // Chase that no longer owns an exchange order.
+      this.#pauseChaseTicksForPlacement();
+      await this.#chaseTickQueue;
+
+      for (const [sessionId, session] of this.#chaseSessions.entries()) {
+        if (!session.active) {
+          continue;
+        }
+        this.#stopChaseSession(sessionId);
+        session.status = CHASE_ORDER_STATUS.Backgrounded;
+      }
+      return await this.getChaseOrders();
+    } finally {
+      this.#chasePlacementBlockers -= 1;
+    }
+  }
+
+  /**
+   * Cancel a strategy placement by its handle.
+   *
+   * @param params - Cancellation parameters.
+   * @returns A promise that resolves to the result.
+   */
+  async #cancelStrategyOrder(
+    params: CancelOrderParams,
+  ): Promise<CancelOrderResult> {
+    try {
+      this.#deps.debugLogger.log('Canceling strategy order:', params);
+
+      if (params.orderType === 'twap') {
+        return await this.#cancelTwapOrder(params);
+      }
+      if (params.orderType === 'scale') {
+        return await this.#cancelScaleOrder(params);
+      }
+      return await this.#cancelChaseOrder(params);
+    } catch (error) {
+      const mappedError = this.#mapError(error);
+      this.#deps.logger.error(
+        mappedError,
+        await this.#getTradingErrorContext('cancelOrder', mappedError, {
+          orderId: params.orderId,
+          coin: params.symbol,
+          orderType: params.orderType,
+        }),
+      );
+      return createErrorResult(mappedError, {
+        success: false,
+        orderId: params.orderId,
+      });
+    }
+  }
+
+  /**
+   * Cancel a running TWAP through the venue's TWAP cancel action.
+   *
+   * A TWAP never rested on the book, so the ordinary `cancel` action has no
+   * order ID to match and would reject it.
+   *
+   * @param params - Cancellation parameters, with `orderId` carrying the TWAP ID.
+   * @returns A promise that resolves to the result.
+   */
+  async #cancelTwapOrder(
+    params: CancelOrderParams,
+  ): Promise<CancelOrderResult> {
+    await this.#ensureReady();
+
+    const coinValidation = validateCoinExists(
+      params.symbol,
+      this.#symbolToAssetId,
+    );
+    if (!coinValidation.isValid) {
+      throw new Error(coinValidation.error);
+    }
+
+    const twapId = Number(params.orderId);
+    if (!/^\d+$/u.test(params.orderId) || !Number.isSafeInteger(twapId)) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN);
+    }
+
+    await this.#ensureReadyForTrading({ requiresBuilderFee: false });
+
+    const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
+    const userAddress = await this.#walletService.getUserAddressWithDefault();
+    const trackingKey = getTwapOrderScopeKey({
+      network,
+      userAddress,
+      orderId: params.orderId,
+    });
+    const trackedOrder = this.#trackedTwapOrders.get(trackingKey);
+    let ownershipAuthenticated = trackedOrder !== undefined;
+    if (trackedOrder) {
+      if (trackedOrder.symbol !== params.symbol) {
+        throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN);
+      }
+    } else {
+      let venueOrders: TwapOrder[] | null = null;
+      try {
+        venueOrders = await this.getTwapOrders();
+      } catch (error) {
+        // History is an ownership check, not the cancellation transport. A
+        // transient read failure must not make a live TWAP impossible to stop.
+        this.#deps.debugLogger.log(
+          'TWAP history unavailable before cancellation',
+          {
+            orderId: params.orderId,
+            error: ensureError(
+              error,
+              'HyperLiquidProvider.cancelTwapOrderHistory',
+            ).message,
+          },
+        );
+      }
+      const venueOrder = venueOrders?.find(
+        (order) => order.orderId === params.orderId,
+      );
+      if (venueOrders !== null && venueOrder?.symbol !== params.symbol) {
+        throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN);
+      }
+      ownershipAuthenticated = venueOrder !== undefined;
+    }
+
+    const assetId = await this.#getAssetIdWithRepair({
+      symbol: params.symbol,
+      dexName: parseAssetName(params.symbol).dex,
+    });
+
+    const result = await this.#clientService.getExchangeClient().twapCancel({
+      a: assetId,
+      t: twapId,
+    });
+
+    const status = result.response?.data?.status;
+    const cancelOutcome = classifyCancelStatus(status);
+    if (cancelOutcome === CancelChildOutcome.Gone && !ownershipAuthenticated) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN);
+    }
+    if (cancelOutcome !== CancelChildOutcome.Refused) {
+      await this.#rebalanceTrackedTwapOrder(trackingKey);
+      return { success: true, orderId: params.orderId };
+    }
+
+    const rawError =
+      isStatusObject(status) && typeof status.error === 'string'
+        ? status.error
+        : 'TWAP cancellation failed';
+    return createErrorResult(this.#mapError(new Error(rawError)), {
+      success: false,
+      orderId: params.orderId,
+    });
+  }
+
+  /**
+   * Cancel every child of a scale ladder in one batch.
+   *
+   * @param params - Cancellation parameters, with `orderId` carrying the group handle.
+   * @returns A promise that resolves to the result.
+   */
+  async #cancelScaleOrder(
+    params: CancelOrderParams,
+  ): Promise<CancelOrderResult> {
+    const group = this.#scaleOrderGroups.get(params.orderId);
+    if (!group) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN);
+    }
+
+    await this.#ensureReadyForTrading({ requiresBuilderFee: false });
+
+    const assetId = await this.#getAssetIdWithRepair({
+      symbol: group.symbol,
+      dexName: parseAssetName(group.symbol).dex,
+    });
+    const exchangeClient = this.#clientService.getExchangeClient();
+    const cancelRequests = group.orderIds.map((orderId) => ({
+      a: assetId,
+      o: Number(orderId),
+    }));
+    const cancelByCloidRequests = group.clientOrderIds.map((clientOrderId) => ({
+      asset: assetId,
+      cloid: clientOrderId,
+    }));
+    const [remainingOrderIds, remainingClientOrderIds] = await Promise.all([
+      this.#cancelOrderRequests(exchangeClient, cancelRequests),
+      this.#cancelOrderCloidRequests(exchangeClient, cancelByCloidRequests),
+    ]);
+    const remaining = remainingOrderIds.map(String);
+
+    /*
+     * A rung that filled or was cancelled individually comes back as a
+     * rejection, but nothing of it is resting. The shared cancellation helper
+     * distinguishes that result from a refusal while retaining every child
+     * after a malformed or non-ok batch response.
+     */
+    if (remaining.length === 0 && remainingClientOrderIds.length === 0) {
+      this.#cancelledScaleOrderGroups.add(params.orderId);
+      this.#scaleOrderGroups.delete(params.orderId);
+      return { success: true, orderId: params.orderId };
+    }
+
+    // A rung the exchange refused to cancel may still be resting. Keeping the
+    // handle registered against what is left means the caller can retry the
+    // same cancel rather than being told the ladder is gone when it is not.
+    this.#scaleOrderGroups.set(params.orderId, {
+      symbol: group.symbol,
+      orderIds: remaining,
+      clientOrderIds: remainingClientOrderIds,
+    });
+    this.#deps.debugLogger.log('Scale group cancel left children resting', {
+      groupId: params.orderId,
+      remainingOrderIds: remaining.length,
+      remainingClientOrderIds: remainingClientOrderIds.length,
+      total: group.orderIds.length + group.clientOrderIds.length,
+    });
+
+    return createErrorResult(
+      new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE),
+      { success: false, orderId: params.orderId },
+    );
+  }
+
+  /**
+   * Stop a chase session and cancel whatever it still has resting.
+   *
+   * @param params - Cancellation parameters, with `orderId` carrying the session handle.
+   * @returns A promise that resolves to the result.
+   */
+  async #cancelChaseOrder(
+    params: CancelOrderParams,
+  ): Promise<CancelOrderResult> {
+    if (this.#terminatedChaseHandles.has(params.orderId)) {
+      return { success: true, orderId: params.orderId };
+    }
+    const existingTermination = this.#chaseTerminations.get(params.orderId);
+    if (existingTermination) {
+      return await existingTermination;
+    }
+
+    const termination = this.#performChaseTermination(params);
+    this.#chaseTerminations.set(params.orderId, termination);
+    try {
+      const result = await termination;
+      if (result.success) {
+        this.#terminatedChaseHandles.add(params.orderId);
+      }
+      return result;
+    } finally {
+      this.#chaseTerminations.delete(params.orderId);
+    }
+  }
+
+  /**
+   * Own one Chase termination after concurrent callers have been deduplicated.
+   *
+   * @param params - Cancellation parameters with a stable Chase handle.
+   * @returns The single underlying termination result.
+   */
+  async #performChaseTermination(
+    params: CancelOrderParams,
+  ): Promise<CancelOrderResult> {
+    const session = this.#chaseSessions.get(params.orderId);
+    if (!session) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN);
+    }
+
+    // Stopped first: a tick that fired between here and the cancel below would
+    // otherwise re-place the very order being cancelled.
+    this.#stopChaseSession(params.orderId);
+
+    // A replacement already in flight cannot be called off, so the cancel waits
+    // for it and then cancels whatever it rested. Deciding without waiting would
+    // read the session's null `orderId` as "nothing rests" and report a clean
+    // cancellation over an order that was about to appear on the book.
+    if (session.pendingReplacement) {
+      await session.pendingReplacement;
+    }
+
+    // Nothing rests: the order filled, something else cancelled it, or a
+    // replacement failed to go up. Either way the session ends cleanly.
+    if (session.orderId === null) {
+      session.removeAfterRebalance = true;
+      if (await this.#rebalanceChaseSession(session)) {
+        this.#chaseSessions.delete(params.orderId);
+      }
+      return { success: true, orderId: params.orderId };
+    }
+
+    await this.#ensureReadyForTrading({ requiresBuilderFee: false });
+    // Only a refusal leaves an order behind. A child that had already filled or
+    // been cancelled is reported as a rejection too, but nothing of it is
+    // resting — treating that as a failure would pin the handle open forever on
+    // a chase that is entirely finished.
+    const cancelOutcome = await this.#cancelChaseChild(session);
+
+    if (cancelOutcome === CancelChildOutcome.Refused) {
+      // The order is still resting. The session stays registered — stopped, but
+      // still cancellable — so the caller can retry with the same handle.
+      this.#deps.debugLogger.log('Chase cancel left its order resting', {
+        sessionId: params.orderId,
+        orderId: session.orderId,
+      });
+      await this.#rebalanceChaseSession(session);
+      return createErrorResult(
+        new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_CANCEL_INCOMPLETE),
+        { success: false, orderId: params.orderId },
+      );
+    }
+
+    session.orderId = null;
+    session.status = CHASE_ORDER_STATUS.Canceled;
+    session.removeAfterRebalance = true;
+    if (await this.#rebalanceChaseSession(session)) {
+      this.#chaseSessions.delete(params.orderId);
+    }
+    return { success: true, orderId: params.orderId };
+  }
+
+  /**
+   * Cancel a batch and retain every order that may still be live.
+   *
+   * A malformed, truncated, or rejected response cannot prove which requests
+   * reached the venue, so every requested ID remains recoverable for a retry.
+   *
+   * @param exchangeClient - Client that owns the orders.
+   * @param requests - Venue cancel requests.
+   * @returns Order IDs that may still be resting.
+   */
+  async #cancelOrderRequests(
+    exchangeClient: ExchangeClient,
+    requests: ExchangeCancelRequest[],
+  ): Promise<number[]> {
+    return (await this.#cancelOrderRequestBatch(exchangeClient, requests))
+      .remainingOrderIds;
+  }
+
+  /**
+   * Cancel pending orders by client order ID and retain every request that may
+   * still be live.
+   *
+   * @param exchangeClient - Client that owns the orders.
+   * @param requests - Venue cancel-by-CLOID requests.
+   * @returns Client order IDs that may still be pending.
+   */
+  async #cancelOrderCloidRequests(
+    exchangeClient: ExchangeClient,
+    requests: ExchangeCancelByCloidRequest[],
+  ): Promise<Hex[]> {
+    if (requests.length === 0) {
+      return [];
+    }
+
+    const getRemainingClientOrderIds = (statuses: unknown[]): Hex[] =>
+      requests.flatMap((request, index) =>
+        classifyCancelStatus(statuses[index]) === CancelChildOutcome.Refused
+          ? [request.cloid]
+          : [],
+      );
+
+    try {
+      const result = await exchangeClient.cancelByCloid({
+        cancels: requests,
+      });
+      const statuses = result.response?.data?.statuses ?? [];
+      if (result.status !== 'ok' || statuses.length !== requests.length) {
+        return requests.map((request) => request.cloid);
+      }
+
+      return getRemainingClientOrderIds(statuses);
+    } catch (error) {
+      const statuses = getCancelStatusesFromError(error, requests.length);
+      if (statuses) {
+        return getRemainingClientOrderIds(statuses);
+      }
+      this.#deps.debugLogger.log('Order cancellation by CLOID failed', {
+        error: ensureError(
+          error,
+          'HyperLiquidProvider.cancelOrderCloidRequests',
+        ).message,
+        clientOrderIds: requests.map((request) => request.cloid),
+      });
+      return requests.map((request) => request.cloid);
+    }
+  }
+
+  /**
+   * Cancel a batch while distinguishing confirmed cancellations from orders
+   * that were already gone. Replacement rollback may only restore the former.
+   *
+   * @param exchangeClient - Client that owns the orders.
+   * @param requests - Venue cancel requests.
+   * @returns IDs that may still rest and IDs this call confirmed it cancelled.
+   */
+  async #cancelOrderRequestBatch(
+    exchangeClient: ExchangeClient,
+    requests: ExchangeCancelRequest[],
+  ): Promise<CancelOrderBatchOutcome> {
+    if (requests.length === 0) {
+      return {
+        remainingOrderIds: [],
+        cancelledOrderIds: [],
+        responseComplete: true,
+      };
+    }
+
+    const classifyStatuses = (statuses: unknown[]): CancelOrderBatchOutcome => {
+      const remainingOrderIds: number[] = [];
+      const cancelledOrderIds: number[] = [];
+      requests.forEach((request, index) => {
+        const outcome = classifyCancelStatus(statuses[index]);
+        if (outcome === CancelChildOutcome.Refused) {
+          remainingOrderIds.push(request.o);
+        } else if (outcome === CancelChildOutcome.Cancelled) {
+          cancelledOrderIds.push(request.o);
+        }
+      });
+      return { remainingOrderIds, cancelledOrderIds, responseComplete: true };
+    };
+
+    try {
+      const result = await exchangeClient.cancel({ cancels: requests });
+      const statuses = result.response?.data?.statuses ?? [];
+      if (result.status !== 'ok' || statuses.length !== requests.length) {
+        return {
+          remainingOrderIds: requests.map((request) => request.o),
+          cancelledOrderIds: [],
+          responseComplete: false,
+        };
+      }
+
+      return classifyStatuses(statuses);
+    } catch (error) {
+      const statuses = getCancelStatusesFromError(error, requests.length);
+      if (statuses) {
+        return classifyStatuses(statuses);
+      }
+      this.#deps.debugLogger.log('Order cancellation batch failed', {
+        error: ensureError(error, 'HyperLiquidProvider.cancelOrderRequests')
+          .message,
+        orderIds: requests.map((request) => request.o),
+      });
+      return {
+        remainingOrderIds: requests.map((request) => request.o),
+        cancelledOrderIds: [],
+        responseComplete: false,
+      };
+    }
+  }
+
+  /**
+   * Read an order ID out of one `order` action status entry.
+   *
+   * @param status - A single status from the exchange response.
+   * @returns The order ID, or undefined when the entry rested nothing.
+   */
+  #readOrderPlacementOutcome(
+    status: unknown,
+  ): OrderPlacementOutcome | undefined {
+    if (!isStatusObject(status)) {
+      return undefined;
+    }
+
+    for (const state of ['resting', 'filled'] as const) {
+      if (!hasProperty(status, state)) {
+        continue;
+      }
+      const order = status[state];
+      if (
+        isStatusObject(order) &&
+        typeof order.oid === 'number' &&
+        Number.isSafeInteger(order.oid) &&
+        order.oid >= 0
+      ) {
+        return { orderId: order.oid.toString(), state };
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Classify one TP/SL placement response.
+   *
+   * HyperLiquid acknowledges a resting trigger with the bare
+   * `waitingForTrigger` string, which is successful but carries no order ID.
+   * Other placement paths still require a resting or filled ID.
+   *
+   * @param status - A single status from the exchange response.
+   * @returns The TP/SL-specific placement outcome.
+   */
+  #readTpslOrderPlacementOutcome(status: unknown): TpslOrderPlacementOutcome {
+    const placement = this.#readOrderPlacementOutcome(status);
+    if (placement) {
+      return placement;
+    }
+    if (status === 'waitingForTrigger') {
+      return { state: 'waitingForTrigger' };
+    }
+    if (isStatusObject(status) && hasProperty(status, 'error')) {
+      return { state: 'rejected' };
+    }
+    return { state: 'unknown' };
+  }
+
+  /**
+   * Recover IDs omitted from waiting trigger acknowledgements.
+   *
+   * HyperLiquid does not preserve submission order in `frontendOpenOrders`, so
+   * each unresolved leg is matched by its submitted trigger attributes and
+   * accepted only when exactly one new order qualifies.
+   *
+   * @param params - Reconciliation parameters.
+   * @param params.outcomes - Classified placement responses.
+   * @param params.orders - Submitted TP/SL orders.
+   * @param params.previousOrderIds - Order IDs observed before submission.
+   * @param params.dexName - DEX queried for the placement.
+   * @param params.symbol - Market the triggers protect.
+   * @returns Outcomes enriched with unambiguous exchange order IDs.
+   */
+  async #reconcileTpslOrderPlacementOutcomes(params: {
+    outcomes: TpslOrderPlacementOutcome[];
+    orders: SDKOrderParams[];
+    previousOrderIds: ReadonlySet<string>;
+    dexName: string | null;
+    symbol: string;
+  }): Promise<TpslOrderPlacementOutcome[]> {
+    if (
+      !params.outcomes.some(
+        (outcome) =>
+          outcome.state === 'waitingForTrigger' &&
+          outcome.orderId === undefined,
+      )
+    ) {
+      return params.outcomes;
+    }
+
+    try {
+      const appearedOrders = (
+        await this.#fetchOpenOrders({ dexName: params.dexName })
+      ).filter(
+        (order) =>
+          order.coin === params.symbol &&
+          order.reduceOnly &&
+          order.isTrigger &&
+          !params.previousOrderIds.has(order.oid.toString()),
+      );
+      const claimedOrderIds = new Set<number>();
+
+      return params.outcomes.map((outcome, index) => {
+        if (
+          outcome.orderId !== undefined ||
+          outcome.state !== 'waitingForTrigger'
+        ) {
+          return outcome;
+        }
+
+        const submittedOrder = params.orders[index];
+        const trigger = hasProperty(submittedOrder.t, 'trigger')
+          ? submittedOrder.t.trigger
+          : undefined;
+        if (
+          !isStatusObject(trigger) ||
+          !hasProperty(trigger, 'triggerPx') ||
+          (typeof trigger.triggerPx !== 'string' &&
+            typeof trigger.triggerPx !== 'number') ||
+          !hasProperty(trigger, 'tpsl') ||
+          (trigger.tpsl !== 'tp' && trigger.tpsl !== 'sl')
+        ) {
+          return outcome;
+        }
+        const submittedSize = parseFloat(String(submittedOrder.s));
+        const submittedTriggerPrice = parseFloat(String(trigger.triggerPx));
+        const expectedOrderType =
+          trigger.tpsl === 'tp' ? 'Take Profit' : 'Stop';
+        const candidates = appearedOrders.filter(
+          (order) =>
+            !claimedOrderIds.has(order.oid) &&
+            (order.side === 'B') === submittedOrder.b &&
+            parseFloat(order.sz) === submittedSize &&
+            parseFloat(order.triggerPx) === submittedTriggerPrice &&
+            order.orderType.includes(expectedOrderType),
+        );
+        if (candidates.length !== 1) {
+          return outcome;
+        }
+
+        claimedOrderIds.add(candidates[0].oid);
+        return { ...outcome, orderId: candidates[0].oid.toString() };
+      });
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        'Could not reconcile TP/SL placement order IDs',
+        {
+          error: ensureError(
+            error,
+            'HyperLiquidProvider.reconcileTpslOrderPlacementOutcomes',
+          ).message,
+          symbol: params.symbol,
+        },
+      );
+      return params.outcomes;
+    }
+  }
+
+  /**
+   * Read a valid order ID from a resting or filled placement status.
+   *
+   * @param status - A single status from the exchange response.
+   * @returns The order ID, or undefined when the status has no valid ID.
+   */
+  #readOrderIdFromStatus(status: unknown): string | undefined {
+    return this.#readOrderPlacementOutcome(status)?.orderId;
+  }
+
+  /**
+   * The builder fee this account pays, after any rewards discount.
+   *
+   * @returns The fee in tenths of a basis point.
+   */
+  #getDiscountedBuilderFee(): number {
+    if (this.#userFeeDiscountBips === undefined) {
+      return BUILDER_FEE_CONFIG.MaxFeeTenthsBps;
+    }
+    return Math.floor(
+      BUILDER_FEE_CONFIG.MaxFeeTenthsBps *
+        (1 - this.#userFeeDiscountBips / BASIS_POINTS_DIVISOR),
+    );
+  }
+
+  /**
+   * Resolve the builder payload for the current operation.
+   *
+   * Subscription waivers use their dedicated builder only after approval is
+   * cached for this provider/account session. Until then, the ordinary builder
+   * and standard fee keep the trade attributable and non-blocking.
+   *
+   * @param setupContext - Account, network, and builder approved for the order.
+   * @returns HyperLiquid builder address and fee payload.
+   */
+  async #getBuilderOrderContext(
+    setupContext: BuilderFeeSetupContext,
+  ): Promise<{ b: string; f: number }> {
+    const {
+      network,
+      userAddress,
+      builderAddress: defaultBuilder,
+    } = setupContext;
+    const isTestnet = network === 'testnet';
+
+    if (this.#userFeeResolution?.source === 'subscription') {
+      const subscriptionBuilder =
+        this.#getSubscriptionBuilderAddress(isTestnet);
+      if (
+        subscriptionBuilder &&
+        this.#approvedBuilderAddresses.has(
+          this.#getApprovedBuilderKey(
+            network,
+            userAddress,
+            subscriptionBuilder,
+          ),
+        )
+      ) {
+        return { b: subscriptionBuilder, f: 0 };
+      }
+
+      return {
+        b: defaultBuilder,
+        f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+      };
+    }
+
+    return { b: defaultBuilder, f: this.#getDiscountedBuilderFee() };
+  }
+
+  /**
+   * Read the account's currently resting orders.
+   *
+   * @param params - The lookup parameters.
+   * @param params.dexName - DEX to query, or null for the main DEX.
+   * @returns The raw open orders.
+   */
+  async #fetchOpenOrders(params: {
+    dexName: string | null;
+  }): Promise<FrontendOrder[]> {
+    const userAddress = await this.#walletService.getUserAddressWithDefault();
+    return await this.#clientService.getInfoClient().frontendOpenOrders({
+      user: userAddress,
+      dex: params.dexName ?? undefined,
+    });
+  }
+
+  /**
+   * Resolve the order id that a `modify` rested the replacement under.
+   *
+   * HyperLiquid does not edit an order in place: it cancels the target and
+   * rests a replacement under a NEW oid, which the SDK's modify response does
+   * not carry. The submitted oid therefore names an order that no longer
+   * exists, so the only honest source of identity is a post-modify read.
+   *
+   * An id is returned only when exactly one newly-rested order carries the
+   * attributes just submitted. Everything else leaves it absent: a market edit
+   * that filled rather than rested, a read that has not caught up yet, or two
+   * equally plausible candidates. Novelty is judged against the pre-edit
+   * snapshot rather than attributes alone, because an order that was already
+   * resting can share a market, side and size with the replacement.
+   *
+   * @param params - The resolution parameters.
+   * @param params.previousOrders - Orders resting immediately before the edit.
+   * @param params.dexName - DEX to query, or null for the main DEX.
+   * @param params.symbol - Market the edit was submitted against.
+   * @param params.isBuy - Direction submitted.
+   * @param params.size - Formatted size submitted.
+   * @returns The replacement order id, or undefined when it cannot be resolved unambiguously.
+   */
+  async #resolveReplacementOrderId(params: {
+    previousOrders: FrontendOrder[];
+    dexName: string | null;
+    symbol: string;
+    isBuy: boolean;
+    size: string;
+  }): Promise<string | undefined> {
+    try {
+      const previousOrderIds = new Set(
+        params.previousOrders.map((order) => order.oid.toString()),
+      );
+      const ordersAfterEdit = await this.#fetchOpenOrders({
+        dexName: params.dexName,
+      });
+      const submittedSize = parseFloat(params.size);
+      const candidates = ordersAfterEdit.filter(
+        (order) =>
+          !previousOrderIds.has(order.oid.toString()) &&
+          order.coin === params.symbol &&
+          (order.side === 'B') === params.isBuy &&
+          parseFloat(order.sz) === submittedSize,
+      );
+
+      return candidates.length === 1 ? candidates[0].oid.toString() : undefined;
+    } catch (error) {
+      // The modify was accepted; only the identity lookup failed. Reporting a
+      // failed edit here would misstate an order that really was changed.
+      this.#deps.debugLogger.log(
+        'Could not resolve the replacement order id after modify:',
+        error,
+      );
+      return undefined;
     }
   }
 
@@ -3592,22 +8447,107 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
+      // `modify` rebuilds an order as a plain limit/market order, so a trigger
+      // on either side of the edit would be silently dropped. Reject a resting
+      // trigger order as well as an edit *into* one; cancel and re-place instead.
+      if (isTriggerOrderType(params.newOrder.orderType)) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
+        };
+      }
+
+      // A strategy placement is not a single resting order, so there is nothing
+      // for `modify` to rewrite: it would submit the edit as an ordinary
+      // FrontendMarket modification and quietly drop the TWAP schedule, the
+      // ladder, or the chase loop the caller asked for. Cancel by the strategy
+      // handle and place again.
+      if (isStrategyOrderType(params.newOrder.orderType)) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_EDIT_STRATEGY_UNSUPPORTED,
+        };
+      }
+
+      // The WebSocket order cache is the cheap source for the resting order's
+      // placement type, but it may be cold or stale.
+      const cachedRestingOrder = this.#subscriptionService
+        .getOrdersCacheIfInitialized()
+        ?.find((order) => order.orderId === params.orderId.toString());
+      if (cachedRestingOrder?.isTrigger === true) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
+        };
+      }
+
       // Validate new order parameters
       const validation = validateOrderParams({
         coin: params.newOrder.symbol,
         size: params.newOrder.size,
         price: params.newOrder.price,
         orderType: params.newOrder.orderType,
+        triggerPrice: params.newOrder.triggerPrice,
+        takeProfitPrice: params.newOrder.takeProfitPrice,
+        stopLossPrice: params.newOrder.stopLossPrice,
+        takeProfitSize: params.newOrder.takeProfitSize,
+        stopLossSize: params.newOrder.stopLossSize,
+        tpslLinkage: params.newOrder.tpslLinkage,
+        grouping: params.newOrder.grouping,
+        timeInForce: params.newOrder.timeInForce,
       });
       if (!validation.isValid) {
         throw new Error(validation.error);
       }
 
-      // Ensure provider is ready for trading (includes signing operations)
-      await this.#ensureReadyForTrading();
-
       // Extract DEX name for API calls (main DEX = null)
       const { dex: dexName } = parseAssetName(params.newOrder.symbol);
+
+      // Initialization only — clients and the asset mapping. The signing half
+      // of readiness is deferred until after the checks below, so a refused
+      // edit never prompts for a signature or writes an approval.
+      await this.#ensureReady();
+
+      // What is resting before the edit serves two purposes, and they carry
+      // different weight. Verifying the target is REQUIRED when the cache could
+      // not do it — an unverified edit can rebuild a protective stop as a plain
+      // order — so that read must fail closed. Providing a baseline for the
+      // optional orderId resolution is not: when the cache already confirmed the
+      // order, a failed read must not sink a modify that would otherwise
+      // succeed, exactly as the post-modify lookup does not.
+      let ordersBeforeEdit: FrontendOrder[] | undefined;
+
+      if (cachedRestingOrder === undefined) {
+        ordersBeforeEdit = await this.#fetchOpenOrders({ dexName });
+        const restingOrder = ordersBeforeEdit.find(
+          (order) => order.oid.toString() === params.orderId.toString(),
+        );
+
+        if (!restingOrder) {
+          return {
+            success: false,
+            error: PERPS_ERROR_CODES.ORDER_EDIT_ORDER_UNVERIFIABLE,
+          };
+        }
+
+        if (restingOrder.isTrigger) {
+          return {
+            success: false,
+            error: PERPS_ERROR_CODES.ORDER_EDIT_TRIGGER_UNSUPPORTED,
+          };
+        }
+      } else {
+        try {
+          ordersBeforeEdit = await this.#fetchOpenOrders({ dexName });
+        } catch (error) {
+          // Only the optional identity baseline is lost. Without it novelty
+          // cannot be judged, so the id is omitted below rather than guessed.
+          this.#deps.debugLogger.log(
+            'Could not read the pre-edit orders baseline:',
+            error,
+          );
+        }
+      }
 
       // Get asset info and prices (uses cache to avoid redundant API calls)
       const meta = await this.#getCachedMeta({ dexName });
@@ -3629,35 +8569,21 @@ export class HyperLiquidProvider implements PerpsProvider {
         dexName: dexName ?? null,
       });
 
-      // Calculate order parameters using the same logic as placeOrder
-      let orderPrice: number;
-      let formattedSize: string;
-
-      if (params.newOrder.orderType === 'market') {
-        const positionSize = parseFloat(params.newOrder.size);
-        const slippage =
-          params.newOrder.slippage ??
-          ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps / 10000;
-        orderPrice = params.newOrder.isBuy
-          ? currentPrice * (1 + slippage)
-          : currentPrice * (1 - slippage);
-        formattedSize = formatHyperLiquidSize({
-          size: positionSize,
-          szDecimals: assetInfo.szDecimals,
-        });
-      } else {
-        if (!params.newOrder.price) {
-          throw new Error(PERPS_ERROR_CODES.ORDER_LIMIT_PRICE_REQUIRED);
-        }
-        orderPrice = parseFloat(params.newOrder.price);
-        formattedSize = formatHyperLiquidSize({
-          size: parseFloat(params.newOrder.size),
-          szDecimals: assetInfo.szDecimals,
-        });
-      }
-
-      const formattedPrice = formatHyperLiquidPrice({
-        price: orderPrice,
+      // Calculate order parameters using the same helper as placeOrder so the
+      // slippage rules stay in one place (bps → decimal, market-only, default).
+      // Accept the deprecated decimal `slippage` field too, normalizing to bps.
+      const normalizedMaxSlippageBps =
+        params.newOrder.maxSlippageBps ??
+        (typeof params.newOrder.slippage === 'number'
+          ? Math.round(params.newOrder.slippage * BASIS_POINTS_DIVISOR)
+          : undefined);
+      const { formattedSize, formattedPrice } = calculateOrderPriceAndSize({
+        orderType: params.newOrder.orderType,
+        isBuy: params.newOrder.isBuy,
+        finalPositionSize: parseFloat(params.newOrder.size),
+        currentPrice,
+        limitPrice: params.newOrder.price,
+        maxSlippageBps: normalizedMaxSlippageBps,
         szDecimals: assetInfo.szDecimals,
       });
       const assetId = await this.#getAssetIdWithRepair({
@@ -3673,15 +8599,22 @@ export class HyperLiquidProvider implements PerpsProvider {
         p: formattedPrice,
         s: formattedSize,
         r: params.newOrder.reduceOnly ?? false,
-        // Same TIF logic as placeOrder - see documentation above for details
+        // Same TIF logic as placeOrder - see documentation above for details.
+        // A limit order honours the caller's time in force; validation above has
+        // already rejected one on any other order shape.
         t:
           params.newOrder.orderType === 'limit'
-            ? { limit: { tif: 'Gtc' } } // Standard limit order
+            ? { limit: { tif: toSDKTimeInForce(params.newOrder.timeInForce) } }
             : { limit: { tif: 'FrontendMarket' } }, // True market order
         c: params.newOrder.clientOrderId
           ? (params.newOrder.clientOrderId as Hex)
           : undefined,
       };
+
+      // Every refusal is behind us, so shared trading readiness can run now.
+      // HyperLiquid's modify action has no builder field and must not request a
+      // builder-fee approval.
+      await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
       // Submit modification via SDK
       const exchangeClient = this.#clientService.getExchangeClient();
@@ -3697,9 +8630,27 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error(`Order modification failed: ${JSON.stringify(result)}`);
       }
 
+      // `params.orderId` is the order that was just REPLACED, so returning it
+      // as OrderResult.orderId (documented as the exchange order ID) names an
+      // order the venue has already cancelled. Report the replacement when it
+      // can be resolved unambiguously, and otherwise omit the optional id
+      // rather than fabricate identity.
+      const replacementOrderId =
+        ordersBeforeEdit === undefined
+          ? undefined
+          : await this.#resolveReplacementOrderId({
+              previousOrders: ordersBeforeEdit,
+              dexName,
+              symbol: params.newOrder.symbol,
+              isBuy: params.newOrder.isBuy,
+              size: formattedSize,
+            });
+
       return {
         success: true,
-        orderId: params.orderId.toString(),
+        ...(replacementOrderId === undefined
+          ? {}
+          : { orderId: replacementOrderId }),
       };
     } catch (error) {
       this.#deps.logger.error(
@@ -3721,10 +8672,43 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
+    // A strategy handle is not an exchange order ID, so it cannot go through
+    // the single-order cancel below. Callers that omit `orderType` — every
+    // existing one — keep the behaviour they have today.
+    if (params.orderType && isStrategyOrderType(params.orderType)) {
+      return await this.#cancelStrategyOrder(params);
+    }
+
+    // Resolve ownership before the first await. A reprice can change the child
+    // ID while an ordinary cancel is in flight; cancelling through the stable
+    // session handle stops the loop, joins any replacement, and removes the
+    // current child instead of leaving a replacement chasing behind the user.
+    const owningChase = [...this.#chaseSessions.entries()].find(
+      ([, session]) =>
+        session.orderId === params.orderId ||
+        session.replacingOrderId === params.orderId,
+    );
     try {
+      if (owningChase) {
+        this.#stopChaseSession(owningChase[0]);
+        await this.#chaseTickQueue;
+        const result = await this.#cancelChaseOrder({
+          ...params,
+          orderId: owningChase[0],
+          orderType: 'chase',
+        });
+        return { ...result, orderId: params.orderId };
+      }
+
       this.#deps.debugLogger.log('Canceling order:', params);
 
-      // Validate coin exists
+      // Hydrate the asset map before coin validation so a cold start (e.g.
+      // service-worker restart with an empty prefetch map) can self-heal
+      // without signature prompts on invalid cancels. Trading setup (builder
+      // referral and unified-account setup runs only after validation passes,
+      // matching placeOrder / editOrder. Cancel has no builder field.
+      await this.#ensureReady();
+
       const coinValidation = validateCoinExists(
         params.symbol,
         this.#symbolToAssetId,
@@ -3733,8 +8717,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error(coinValidation.error);
       }
 
-      // Ensure provider is ready for trading (includes signing operations)
-      await this.#ensureReadyForTrading();
+      await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
       const exchangeClient = this.#clientService.getExchangeClient();
       const asset = await this.#getAssetIdWithRepair({
@@ -3751,22 +8734,40 @@ export class HyperLiquidProvider implements PerpsProvider {
         ],
       });
 
-      const success = result.response?.data?.statuses?.[0] === 'success';
+      const status: unknown = result.response?.data?.statuses?.[0];
+      if (status === 'success') {
+        return {
+          success: true,
+          orderId: params.orderId,
+        };
+      }
 
-      return {
-        success,
+      // HyperLiquid usually rejects a cancel without throwing: the status entry
+      // carries the raw exchange string (e.g. "multi-sig required"). Map it the
+      // same way as a thrown rejection so callers get a standardized code
+      // instead of a generic message.
+      const rawError =
+        isStatusObject(status) && typeof status.error === 'string'
+          ? status.error
+          : 'Order cancellation failed';
+
+      return createErrorResult(this.#mapError(new Error(rawError)), {
+        success: false,
         orderId: params.orderId,
-        error: success ? undefined : 'Order cancellation failed',
-      };
+      });
     } catch (error) {
+      const mappedError = this.#mapError(error);
       this.#deps.logger.error(
-        ensureError(error, 'HyperLiquidProvider.cancelOrder'),
-        this.#getErrorContext('cancelOrder', {
+        mappedError,
+        await this.#getTradingErrorContext('cancelOrder', mappedError, {
           orderId: params.orderId,
           coin: params.symbol,
         }),
       );
-      return createErrorResult(error, { success: false });
+      return createErrorResult(mappedError, {
+        success: false,
+        orderId: params.orderId,
+      });
     }
   }
 
@@ -3780,88 +8781,140 @@ export class HyperLiquidProvider implements PerpsProvider {
   async cancelOrders(
     params: BatchCancelOrdersParams,
   ): Promise<CancelOrdersResult> {
-    try {
-      this.#deps.debugLogger.log('Batch canceling orders:', {
-        count: params.length,
-      });
+    this.#deps.debugLogger.log('Batch canceling orders:', {
+      count: params.length,
+    });
 
-      if (params.length === 0) {
-        return {
-          success: false,
-          successCount: 0,
-          failureCount: 0,
-          results: [],
-        };
-      }
-
-      // Ensure provider is ready for trading (includes signing operations)
-      await this.#ensureReadyForTrading();
-
-      const exchangeClient = this.#clientService.getExchangeClient();
-
-      // Map orders to SDK format and validate coins
-      const cancelRequests = await Promise.all(
-        params.map(async (order) => {
-          const asset = await this.#getAssetIdWithRepair({
-            symbol: order.symbol,
-            dexName: parseAssetName(order.symbol).dex,
-          });
-          return {
-            a: asset,
-            o: parseInt(order.orderId, 10),
-          };
-        }),
-      );
-
-      // Single batch API call
-      const result = await exchangeClient.cancel({
-        cancels: cancelRequests,
-      });
-
-      // Parse response statuses (one per order)
-      const { statuses } = result.response.data;
-      const successCount = statuses.filter(
-        (status) => status === 'success',
-      ).length;
-      const failureCount = statuses.length - successCount;
-
-      return {
-        success: successCount > 0,
-        successCount,
-        failureCount,
-        results: statuses.map((status, index) => ({
-          orderId: params[index].orderId,
-          symbol: params[index].symbol,
-          success: status === 'success',
-          error:
-            status === 'success'
-              ? undefined
-              : (status as { error: string }).error,
-        })),
-      };
-    } catch (error) {
-      this.#deps.logger.error(
-        ensureError(error, 'HyperLiquidProvider.cancelOrders'),
-        this.#getErrorContext('cancelOrders', {
-          orderCount: params.length,
-        }),
-      );
-      // Return all orders as failed
+    if (params.length === 0) {
       return {
         success: false,
         successCount: 0,
-        failureCount: params.length,
-        results: params.map((order) => ({
-          orderId: order.orderId,
-          symbol: order.symbol,
-          success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : PERPS_ERROR_CODES.BATCH_CANCEL_FAILED,
-        })),
+        failureCount: 0,
+        results: [],
       };
     }
+
+    const results: CancelOrdersResult['results'] = params.map((order) => ({
+      orderId: order.orderId,
+      symbol: order.symbol,
+      success: false,
+      error: PERPS_ERROR_CODES.BATCH_CANCEL_FAILED,
+    }));
+
+    // Resolve Chase ownership before the first await. A queued reprice may
+    // replace the child ID, but the stable session handle still reaches it.
+    const chaseSessions = [...this.#chaseSessions.entries()];
+    const chaseRoutes = params.flatMap((order, index) => {
+      const owner = chaseSessions.find(
+        ([, session]) =>
+          session.orderId === order.orderId ||
+          session.replacingOrderId === order.orderId,
+      );
+      return owner ? [{ handle: owner[0], index, order }] : [];
+    });
+    const chaseIndexes = new Set(chaseRoutes.map(({ index }) => index));
+
+    try {
+      for (const handle of new Set(chaseRoutes.map((route) => route.handle))) {
+        this.#stopChaseSession(handle);
+      }
+      if (chaseRoutes.length > 0) {
+        await this.#chaseTickQueue;
+      }
+      for (const { handle, index, order } of chaseRoutes) {
+        const result = await this.#cancelStrategyOrder({
+          orderId: handle,
+          symbol: order.symbol,
+          orderType: 'chase',
+        });
+        results[index] = {
+          orderId: order.orderId,
+          symbol: order.symbol,
+          success: result.success,
+          ...(result.error === undefined ? {} : { error: result.error }),
+        };
+      }
+
+      const ordinaryOrders = params.flatMap((order, index) =>
+        chaseIndexes.has(index) ? [] : [{ index, order }],
+      );
+      if (ordinaryOrders.length > 0) {
+        // Cancellation carries no builder context, so it must not prompt for a
+        // fee approval that the action cannot use.
+        await this.#ensureReadyForTrading({ requiresBuilderFee: false });
+        const exchangeClient = this.#clientService.getExchangeClient();
+        const cancelRequests = await Promise.all(
+          ordinaryOrders.map(async ({ order }) => {
+            const asset = await this.#getAssetIdWithRepair({
+              symbol: order.symbol,
+              dexName: parseAssetName(order.symbol).dex,
+            });
+            return {
+              a: asset,
+              o: parseInt(order.orderId, 10),
+            };
+          }),
+        );
+        const result = await exchangeClient.cancel({
+          cancels: cancelRequests,
+        });
+        const statuses = result.response?.data?.statuses ?? [];
+
+        if (
+          result.status === 'ok' &&
+          statuses.length === ordinaryOrders.length
+        ) {
+          ordinaryOrders.forEach(({ index, order }, statusIndex) => {
+            const status: unknown = statuses[statusIndex];
+            const success = status === 'success';
+            const statusError =
+              isStatusObject(status) && typeof status.error === 'string'
+                ? status.error
+                : undefined;
+            results[index] = {
+              orderId: order.orderId,
+              symbol: order.symbol,
+              success,
+              ...(success
+                ? {}
+                : {
+                    error:
+                      statusError === undefined
+                        ? PERPS_ERROR_CODES.BATCH_CANCEL_FAILED
+                        : this.#mapError(new Error(statusError)).message,
+                  }),
+            };
+          });
+        }
+      }
+    } catch (error) {
+      const mappedError = this.#mapError(error);
+      this.#deps.logger.error(
+        mappedError,
+        await this.#getTradingErrorContext('cancelOrders', mappedError, {
+          orderCount: params.length,
+        }),
+      );
+      for (const result of results) {
+        if (
+          !result.success &&
+          result.error === PERPS_ERROR_CODES.BATCH_CANCEL_FAILED
+        ) {
+          result.error =
+            error instanceof Error
+              ? mappedError.message
+              : PERPS_ERROR_CODES.BATCH_CANCEL_FAILED;
+        }
+      }
+    }
+
+    const successCount = results.filter(({ success }) => success).length;
+    return {
+      success: successCount > 0,
+      successCount,
+      failureCount: results.length - successCount,
+      results,
+    };
   }
 
   async closePositions(
@@ -3871,8 +8924,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     let positionsToClose: Position[] = [];
 
     try {
-      // Ensure provider is ready for trading (includes signing operations)
-      await this.#ensureReadyForTrading();
+      // Batch preparation needs trading readiness but not builder approval yet.
+      // The provider-owned market policy is resolved from the positions below.
+      await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
       // Get all current positions from cache (avoids 429 rate limiting)
       const positions = await this.getPositions();
@@ -3917,14 +8971,23 @@ export class HyperLiquidProvider implements PerpsProvider {
         ),
       );
 
-      // Track HIP-3 positions and freed margins for post-close transfers
-      const hip3Transfers: {
+      // Freed-margin transfer for each submitted order, or null when that order
+      // needs none. One entry per order rather than one per HIP-3 position: a
+      // compacted list read with the response-status index credits the wrong
+      // order in a mixed main-DEX/HIP-3 batch.
+      const orderedHip3Transfers: ({
         sourceDex: string;
         freedMargin: number;
-      }[] = [];
+      } | null)[] = [];
 
-      // Build orders array
+      // Build orders array, plus the positions each order closes so response
+      // statuses stay index-aligned when a position is skipped below
       const orders: SDKOrderParams[] = [];
+      const feePolicyContexts: OrderParams[] = [];
+      const orderedPositions: Position[] = [];
+      // Positions no order could be built for. Reported as failures so a caller
+      // cannot read "closed everything" from a result that left one open.
+      const skippedResults: ClosePositionsResult['results'] = [];
 
       for (const position of positionsToClose) {
         // Extract DEX name for HIP-3 positions
@@ -3958,13 +9021,38 @@ export class HyperLiquidProvider implements PerpsProvider {
         const closeSize = Math.abs(positionSize);
         const totalMarginUsed = parseFloat(position.marginUsed);
 
-        // Track HIP-3 transfers (full position close means all margin is freed)
-        if (isHip3Position && dexName && !this.#useDexAbstraction) {
-          hip3Transfers.push({
-            sourceDex: dexName,
-            freedMargin: totalMarginUsed,
+        // formatHyperLiquidSize() below rounds half-up, so floor onto the size
+        // grid first: a reduce-only order rounded above the position is rejected
+        // with "Reduce only order would increase position".
+        const flooredCloseSize = floorToSizeDecimals(
+          closeSize,
+          assetInfo.szDecimals,
+        );
+
+        // A dust position worth less than one size increment floors to 0, which
+        // would submit a zero-size order. Skip it rather than sending an order
+        // the exchange must reject; the remaining positions still close, and the
+        // skip is reported as a failure below.
+        if (flooredCloseSize <= 0) {
+          this.#deps.debugLogger.log(
+            'Skipping position smaller than one size increment',
+            { coin: position.symbol, size: position.size },
+          );
+          skippedResults.push({
+            symbol: position.symbol,
+            success: false,
+            error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE,
           });
+          continue;
         }
+
+        // Track this order's HIP-3 transfer, if it needs one (a full position
+        // close frees all of its margin). Pushed below alongside the order so the
+        // two stay index-aligned.
+        const hip3Transfer =
+          isHip3Position && dexName && !this.#useUnifiedAccount
+            ? { sourceDex: dexName, freedMargin: totalMarginUsed }
+            : null;
 
         const currentPrice = await this.#getOrFetchPrice({
           symbol: position.symbol,
@@ -3977,9 +9065,8 @@ export class HyperLiquidProvider implements PerpsProvider {
           ? currentPrice * (1 + slippage)
           : currentPrice * (1 - slippage);
 
-        // Format size and price
         const formattedSize = formatHyperLiquidSize({
-          size: closeSize,
+          size: flooredCloseSize,
           szDecimals: assetInfo.szDecimals,
         });
 
@@ -3997,24 +9084,48 @@ export class HyperLiquidProvider implements PerpsProvider {
           r: true, // reduceOnly
           t: { limit: { tif: 'Ioc' } }, // Immediate or cancel for market-like execution
         });
+        feePolicyContexts.push({
+          symbol: position.symbol,
+          isBuy,
+          size: formattedSize,
+          orderType: 'market',
+          reduceOnly: true,
+        });
+        orderedPositions.push(position);
+        orderedHip3Transfers.push(hip3Transfer);
       }
 
-      // Calculate discounted builder fee if reward discount is active
-      let builderFee = BUILDER_FEE_CONFIG.MaxFeeTenthsBps;
-      if (this.#userFeeDiscountBips !== undefined) {
-        builderFee = Math.floor(
-          builderFee * (1 - this.#userFeeDiscountBips / BASIS_POINTS_DIVISOR),
-        );
+      // Every position was smaller than one size increment. Return their
+      // failures rather than an empty result, which would be indistinguishable
+      // from "no positions matched".
+      if (orders.length === 0) {
+        return {
+          success: false,
+          successCount: 0,
+          failureCount: skippedResults.length,
+          results: skippedResults,
+        };
       }
+
+      // HyperLiquid accepts one builder context for the whole close batch.
+      // Resolve every position context and charge the batch when any included
+      // policy charges, preserving deterministic behavior for future policies
+      // that vary by market or route.
+      const chargesMetamaskBuilderFee = feePolicyContexts.some(
+        (context) =>
+          this.#resolveOrderFeePolicy(context).chargesMetamaskBuilderFee,
+      );
+      const builder = chargesMetamaskBuilderFee
+        ? await this.#getBuilderOrderContext(
+            await this.#ensureReadyForTrading({ requiresBuilderFee: true }),
+          )
+        : undefined;
 
       // Single batch API call
       const result = await exchangeClient.order({
         orders,
         grouping: 'na',
-        builder: {
-          b: this.#getBuilderAddress(this.#clientService.isTestnetMode()),
-          f: builderFee,
-        },
+        ...(builder && { builder }),
       });
 
       // Parse response statuses (one per order)
@@ -4024,21 +9135,24 @@ export class HyperLiquidProvider implements PerpsProvider {
           isStatusObject(stat) &&
           (hasProperty(stat, 'filled') || hasProperty(stat, 'resting')),
       ).length;
-      const failureCount = statuses.length - successCount;
+      const failureCount =
+        statuses.length - successCount + skippedResults.length;
 
       // Handle HIP-3 margin transfers for successful closes
-      if (!this.#useDexAbstraction) {
+      if (!this.#useUnifiedAccount) {
         for (let i = 0; i < statuses.length; i++) {
           const status = statuses[i];
           const isSuccess =
             isStatusObject(status) &&
             (hasProperty(status, 'filled') || hasProperty(status, 'resting'));
 
-          if (isSuccess && hip3Transfers[i]) {
-            const { sourceDex, freedMargin } = hip3Transfers[i];
+          const transfer = orderedHip3Transfers[i];
+
+          if (isSuccess && transfer) {
+            const { sourceDex, freedMargin } = transfer;
             this.#deps.debugLogger.log(
               'Position closed successfully, initiating manual auto-transfer back',
-              { symbol: positionsToClose[i].symbol, freedMargin },
+              { symbol: orderedPositions[i].symbol, freedMargin },
             );
 
             // Non-blocking: Transfer freed margin back to main DEX
@@ -4050,20 +9164,37 @@ export class HyperLiquidProvider implements PerpsProvider {
         }
       }
 
+      // Index submitted and skipped outcomes by symbol so `results` can keep the
+      // order of the requested positions: consumers may correlate them by index.
+      const submittedResults = new Map(
+        statuses.map((status, index) => [
+          orderedPositions[index].symbol,
+          {
+            symbol: orderedPositions[index].symbol,
+            success:
+              isStatusObject(status) &&
+              (hasProperty(status, 'filled') || hasProperty(status, 'resting')),
+            error:
+              isStatusObject(status) && hasProperty(status, 'error')
+                ? String(status.error)
+                : undefined,
+          },
+        ]),
+      );
+      const skippedBySymbol = new Map(
+        skippedResults.map((skipped) => [skipped.symbol, skipped]),
+      );
+
       return {
         success: successCount > 0,
         successCount,
         failureCount,
-        results: statuses.map((status, index) => ({
-          symbol: positionsToClose[index].symbol,
-          success:
-            isStatusObject(status) &&
-            (hasProperty(status, 'filled') || hasProperty(status, 'resting')),
-          error:
-            isStatusObject(status) && hasProperty(status, 'error')
-              ? String(status.error)
-              : undefined,
-        })),
+        results: positionsToClose.flatMap((position) => {
+          const outcome =
+            submittedResults.get(position.symbol) ??
+            skippedBySymbol.get(position.symbol);
+          return outcome ? [outcome] : [];
+        }),
       };
     } catch (error) {
       this.#deps.logger.error(
@@ -4103,10 +9234,23 @@ export class HyperLiquidProvider implements PerpsProvider {
    * 1. 'normalTpsl' - Tied to a parent order (set when placing the order)
    * 2. 'positionTpsl' - Tied to a position (can be set/modified after fill)
    *
+   * Partial TP/SL: when `takeProfitSize` or `stopLossSize` is supplied, the
+   * orders cannot use 'positionTpsl' (which always covers the whole position and
+   * requires size 0). They are submitted as standalone reduce-only trigger orders
+   * with 'na' grouping and explicit sizes instead.
+   *
+   * Note that the pre-cancel sweep clears every standalone reduce-only trigger
+   * on the symbol — whether this update is partial or whole-position — not only
+   * the ones this method placed. A trigger the caller placed independently
+   * through `placeOrder` (for example a manual reduce-only stop) is therefore
+   * cancelled too. Only TP/SL children of another pending order are protected.
+   *
    * @param params - The operation parameters.
    * @param params.symbol - Asset symbol of the position
    * @param params.takeProfitPrice - TP price (undefined to remove)
    * @param params.stopLossPrice - SL price (undefined to remove)
+   * @param params.takeProfitSize - Partial TP size (undefined for the whole position)
+   * @param params.stopLossSize - Partial SL size (undefined for the whole position)
    * @returns A promise that resolves to the result.
    */
   async updatePositionTPSL(
@@ -4119,20 +9263,28 @@ export class HyperLiquidProvider implements PerpsProvider {
         symbol,
         takeProfitPrice,
         stopLossPrice,
+        takeProfitSize,
+        stopLossSize,
         position: livePosition,
       } = params;
 
-      // Ensure provider is ready for trading (includes signing operations)
-      await this.#ensureReadyForTrading();
+      const isPartialTpsl =
+        takeProfitSize !== undefined || stopLossSize !== undefined;
+
+      // Basic initialization only. The trading setup that can prompt a hardware
+      // wallet and write the referral / builder-fee approvals is deferred until
+      // every validation below has passed, so a rejected update leaves nothing
+      // behind.
+      await this.#ensureReady();
 
       // Use live position (from WebSocket) if available, otherwise fetch via REST
       // Preferring WebSocket data avoids rate limiting issues with the REST API
-      let position: Position | undefined = livePosition;
+      let fetchedPosition: Position | undefined;
 
-      if (position) {
+      if (livePosition) {
         this.#deps.debugLogger.log('Using live position from WebSocket', {
-          symbol: position.symbol,
-          size: position.size,
+          symbol: livePosition.symbol,
+          size: livePosition.size,
         });
       } else {
         // Fallback: fetch positions via REST API (legacy behavior)
@@ -4151,9 +9303,10 @@ export class HyperLiquidProvider implements PerpsProvider {
           );
           throw error;
         }
-        position = positions.find((pos) => pos.symbol === symbol);
+        fetchedPosition = positions.find((pos) => pos.symbol === symbol);
       }
 
+      const position = livePosition ?? fetchedPosition;
       if (!position) {
         throw new Error(`No position found for ${symbol}`);
       }
@@ -4161,7 +9314,26 @@ export class HyperLiquidProvider implements PerpsProvider {
       const positionSize = Math.abs(parseFloat(position.size));
       const isLong = parseFloat(position.size) > 0;
 
-      // Get clients for API calls (ensureReady already called at method start)
+      // Partial TP/SL sizes must be positive, paired with their price, and no
+      // larger than the position they close.
+      const tpslSizeValidation = validateOrderParams({
+        coin: symbol,
+        size: positionSize.toString(),
+        takeProfitPrice,
+        stopLossPrice,
+        takeProfitSize,
+        stopLossSize,
+      });
+      if (!tpslSizeValidation.isValid) {
+        return {
+          success: false,
+          error: tpslSizeValidation.error,
+        };
+      }
+
+      // Get clients for API calls (#ensureReady already called at method start).
+      // Holding the exchange client reference is not itself a write; it is only
+      // used below, after the trading setup has run.
       const infoClient = this.#clientService.getInfoClient();
       const exchangeClient = this.#clientService.getExchangeClient();
       const userAddress = await this.#walletService.getUserAddressWithDefault();
@@ -4169,91 +9341,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Extract DEX name for API calls (main DEX = null)
       const { dex: dexName } = parseAssetName(symbol);
 
-      // Cancel existing TP/SL orders for this position
-      // OPTIMIZATION: Use WebSocket cache first (0 weight), fall back to single-DEX REST (20 weight)
-      // Previously: queryUserDataAcrossDexs queried ALL DEXs (20 weight × N DEXs = 40+ weight)
-      const assetId = await this.#getAssetIdWithRepair({
-        symbol,
-        dexName,
-      });
-
-      let cancelRequests: { a: number; o: number }[] = [];
-
-      // Use atomic getter to prevent race condition between check and get
-      const cachedOrders =
-        this.#subscriptionService.getOrdersCacheIfInitialized();
-
-      if (cachedOrders === null) {
-        // Fallback: Query only the specific DEX (20 weight instead of 40+)
-        this.#deps.debugLogger.log(
-          'WebSocket cache not initialized, falling back to single-DEX REST query',
-          { dex: dexName ?? 'main' },
-        );
-
-        const orders = await infoClient.frontendOpenOrders({
-          user: userAddress,
-          dex: dexName ?? undefined,
-        });
-
-        // Filter using raw SDK response properties
-        const tpslOrders = orders.filter(
-          (order) =>
-            order.coin === symbol &&
-            order.reduceOnly &&
-            order.isPositionTpsl ===
-              Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) &&
-            order.isTrigger &&
-            (order.orderType.includes('Take Profit') ||
-              order.orderType.includes('Stop')),
-        );
-
-        cancelRequests = tpslOrders.map((order) => ({
-          a: assetId,
-          o: order.oid,
-        }));
-      } else {
-        // WebSocket cache available - use it (no API call, 0 weight)
-        this.#deps.debugLogger.log(
-          'Using WebSocket cache for TP/SL orders lookup',
-          { cachedOrdersCount: cachedOrders.length },
-        );
-
-        // Filter using normalized Order type properties, matching the REST fallback criteria:
-        // - symbol matches
-        // - isTrigger === true
-        // - reduceOnly === true
-        // - isPositionTpsl matches the configured mode (only cancel position-bound TP/SL,
-        //   not normalTpsl children that belong to pending limit orders)
-        // - detailedOrderType contains 'Take Profit' or 'Stop'
-        const tpslOrders = cachedOrders.filter(
-          (order) =>
-            order.symbol === symbol &&
-            order.reduceOnly === true &&
-            order.isTrigger === true &&
-            order.isPositionTpsl ===
-              Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) &&
-            order.detailedOrderType &&
-            (order.detailedOrderType.includes('Take Profit') ||
-              order.detailedOrderType.includes('Stop')),
-        );
-        cancelRequests = tpslOrders.map((order) => ({
-          a: assetId,
-          o: parseInt(order.orderId, 10),
-        }));
-      }
-
-      if (cancelRequests.length > 0) {
-        this.#deps.debugLogger.log(
-          `Canceling ${cancelRequests.length} existing TP/SL orders for ${symbol}`,
-        );
-
-        const cancelResult = await exchangeClient.cancel({
-          cancels: cancelRequests,
-        });
-        this.#deps.debugLogger.log('Cancel result:', cancelResult);
-      }
-
-      // Get asset info (dexName already extracted above) - uses cache
+      // Asset info is resolved before the pre-cancel sweep so a partial size
+      // that rounds away at the asset precision is rejected while the
+      // position's existing triggers are still in place. Rejecting it after the
+      // sweep would leave the position unprotected with nothing put back.
       const meta = await this.#getCachedMeta({ dexName });
 
       // Check if meta is an error response (string) or doesn't have universe property
@@ -4283,17 +9374,261 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
       }
 
-      // assetId already validated above when building cancelRequests
+      const precision = validateOrderPrecision({
+        takeProfitPrice,
+        stopLossPrice,
+        takeProfitSize,
+        stopLossSize,
+        szDecimals: assetInfo.szDecimals,
+      });
+      if (!precision.isValid) {
+        return {
+          success: false,
+          error: precision.error,
+        };
+      }
+
+      const assetId = await this.#getAssetIdWithRepair({
+        symbol,
+        dexName,
+      });
+
+      const fullSize =
+        TP_SL_CONFIG.UsePositionBoundTpsl && !isPartialTpsl
+          ? '0'
+          : formatHyperLiquidSize({
+              size: positionSize,
+              szDecimals: assetInfo.szDecimals,
+            });
+
+      // Partial TP/SL orders carry their own size; the rest cover the position.
+      // A partial size that rounds away at the asset precision is rejected
+      // rather than sent as '0', which the exchange reads as whole-position.
+      const resolveTpslSize = (tpslSize?: string): string =>
+        tpslSize === undefined
+          ? fullSize
+          : formatPartialTpslSize({
+              size: parseFloat(tpslSize),
+              szDecimals: assetInfo.szDecimals,
+            });
+
+      // HyperLiquid accepts one builder context for the whole TP/SL action.
+      // Position TP/SL has no parent policy to inherit, so resolve every
+      // included trigger and charge the batch when any child policy charges.
+      const feePolicyContexts = [
+        ...(takeProfitPrice
+          ? [
+              {
+                symbol,
+                isBuy: !isLong,
+                size: resolveTpslSize(takeProfitSize),
+                orderType: 'take_profit_limit',
+                price: takeProfitPrice,
+                triggerPrice: takeProfitPrice,
+                reduceOnly: true,
+              } satisfies OrderParams,
+            ]
+          : []),
+        ...(stopLossPrice
+          ? [
+              {
+                symbol,
+                isBuy: !isLong,
+                size: resolveTpslSize(stopLossSize),
+                orderType: 'stop_market',
+                triggerPrice: stopLossPrice,
+                reduceOnly: true,
+              } satisfies OrderParams,
+            ]
+          : []),
+      ];
+      const replacementChargesMetamaskBuilderFee = feePolicyContexts.some(
+        (feePolicyContext) =>
+          this.#resolveOrderFeePolicy(feePolicyContext)
+            .chargesMetamaskBuilderFee,
+      );
+
+      // Cancel existing TP/SL orders for this position
+      // OPTIMIZATION: Use WebSocket cache first (0 weight), fall back to single-DEX REST (20 weight)
+      // Previously: queryUserDataAcrossDexs queried ALL DEXs (20 weight × N DEXs = 40+ weight)
+      let cancelRequests: ExchangeCancelRequest[] = [];
+      const orderIdsBeforePlacement = new Set<string>();
+      const restorablePositionTpslOrders: RestorableTpslOrder[] = [];
+      const restorableStandaloneTpslOrders: RestorableTpslOrder[] = [];
+
+      // Every replacement must cancel first so old and new reduce-only triggers
+      // cannot execute together. Retain the exact trigger definitions so a
+      // definitively failed replacement can restore confirmed cancellations.
+      const captureRestorableTpslOrders = (tpslOrders: Order[]): void => {
+        if (!takeProfitPrice && !stopLossPrice) {
+          return;
+        }
+
+        tpslOrders.forEach((order) => {
+          const orderId = Number(order.orderId);
+          const orderType = order.triggerOrderType;
+          const triggerPrice = order.triggerPrice ?? order.price;
+          if (!Number.isSafeInteger(orderId) || !orderType || !triggerPrice) {
+            throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+          }
+
+          const size = order.isPositionTpsl ? '0' : order.remainingSize;
+          const isBuy = order.side === 'buy';
+          const feePolicyContext = {
+            symbol,
+            isBuy,
+            size,
+            orderType,
+            triggerPrice,
+            reduceOnly: true,
+            ...(isLimitExecutionOrderType(orderType) && {
+              price: order.price,
+            }),
+          } satisfies OrderParams;
+          const restorableOrder = {
+            orderId,
+            order: {
+              a: assetId,
+              b: isBuy,
+              p: order.price,
+              s: size,
+              r: true,
+              t: {
+                trigger: {
+                  isMarket: !isLimitExecutionOrderType(orderType),
+                  triggerPx: triggerPrice,
+                  tpsl: getTriggerDirection(orderType) === 'stop' ? 'sl' : 'tp',
+                },
+              },
+            },
+            chargesMetamaskBuilderFee:
+              this.#resolveOrderFeePolicy(feePolicyContext)
+                .chargesMetamaskBuilderFee,
+          } satisfies RestorableTpslOrder;
+
+          if (order.isPositionTpsl) {
+            restorablePositionTpslOrders.push(restorableOrder);
+          } else {
+            restorableStandaloneTpslOrders.push(restorableOrder);
+          }
+        });
+      };
+
+      // Use atomic getter to prevent race condition between check and get
+      const cachedOrders =
+        this.#subscriptionService.getOrdersCacheIfInitialized();
+
+      // Replacing TP/SL has to consider standalone ('na' grouping) triggers —
+      // left by a partial update or placed independently — which are not
+      // position-bound. Telling those apart from a pending order's normalTpsl
+      // child requires the parent/child relationship, which only the REST
+      // payload carries. The cache path is therefore only safe when the cache
+      // shows no such trigger on this market: a partial update always places
+      // standalone triggers, and a whole-position update must still clear any
+      // standalone leftovers instead of letting them fire beside the new
+      // position-bound orders.
+      const cacheShowsStandaloneTriggers = Boolean(
+        cachedOrders?.some(
+          (order) =>
+            order.symbol === symbol &&
+            order.reduceOnly === true &&
+            order.isTrigger === true &&
+            order.isPositionTpsl !==
+              Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) &&
+            order.detailedOrderType &&
+            (order.detailedOrderType.includes('Take Profit') ||
+              order.detailedOrderType.includes('Stop')),
+        ),
+      );
+
+      if (
+        cachedOrders === null ||
+        isPartialTpsl ||
+        cacheShowsStandaloneTriggers
+      ) {
+        // Fallback: Query only the specific DEX (20 weight instead of 40+)
+        this.#deps.debugLogger.log(
+          cachedOrders === null
+            ? 'WebSocket cache not initialized, falling back to single-DEX REST query'
+            : 'TP/SL update needs parent/child order context: using single-DEX REST query',
+          { dex: dexName ?? 'main', isPartialTpsl },
+        );
+
+        const openOrders = await infoClient.frontendOpenOrders({
+          user: userAddress,
+          dex: dexName ?? undefined,
+        });
+        openOrders.forEach((order) =>
+          orderIdsBeforePlacement.add(order.oid.toString()),
+        );
+
+        // Orders that belong to a pending parent order (normalTpsl children) are
+        // also listed at the top level, so collect their IDs to exclude them:
+        // they protect that pending order, not this position.
+        const childOrderIds = collectChildOrderIds(openOrders);
+
+        // Filter using raw SDK response properties
+        const tpslOrders = openOrders.filter(
+          (order) =>
+            order.coin === symbol &&
+            order.reduceOnly &&
+            // Position-bound TP/SL always qualifies, and so do standalone
+            // triggers on this market (they belong to the position too, whether
+            // this update is partial or whole) — but never another order's
+            // TP/SL children.
+            (order.isPositionTpsl ===
+              Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) ||
+              !childOrderIds.has(order.oid)) &&
+            order.isTrigger &&
+            (order.orderType.includes('Take Profit') ||
+              order.orderType.includes('Stop')),
+        );
+
+        captureRestorableTpslOrders(
+          tpslOrders.map((order) => adaptOrderFromSDK(order, position)),
+        );
+        cancelRequests = tpslOrders.map((order) => ({
+          a: assetId,
+          o: order.oid,
+        }));
+      } else {
+        // WebSocket cache available - use it (no API call, 0 weight)
+        this.#deps.debugLogger.log(
+          'Using WebSocket cache for TP/SL orders lookup',
+          { cachedOrdersCount: cachedOrders.length },
+        );
+        cachedOrders.forEach((order) =>
+          orderIdsBeforePlacement.add(order.orderId),
+        );
+
+        // Filter using normalized Order type properties, matching the REST fallback criteria:
+        // - symbol matches
+        // - isTrigger === true
+        // - reduceOnly === true
+        // - isPositionTpsl matches the configured mode (only cancel position-bound TP/SL,
+        //   not normalTpsl children that belong to pending limit orders)
+        // - detailedOrderType contains 'Take Profit' or 'Stop'
+        const tpslOrders = cachedOrders.filter(
+          (order) =>
+            order.symbol === symbol &&
+            order.reduceOnly === true &&
+            order.isTrigger === true &&
+            order.isPositionTpsl ===
+              Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) &&
+            order.detailedOrderType &&
+            (order.detailedOrderType.includes('Take Profit') ||
+              order.detailedOrderType.includes('Stop')),
+        );
+        captureRestorableTpslOrders(tpslOrders);
+        cancelRequests = tpslOrders.map((order) => ({
+          a: assetId,
+          o: parseInt(order.orderId, 10),
+        }));
+      }
 
       // Build orders array for TP/SL
       const orders: SDKOrderParams[] = [];
 
-      const size = TP_SL_CONFIG.UsePositionBoundTpsl
-        ? '0'
-        : formatHyperLiquidSize({
-            size: positionSize,
-            szDecimals: assetInfo.szDecimals,
-          });
       // Take Profit order
       if (takeProfitPrice) {
         const tpOrder: SDKOrderParams = {
@@ -4303,7 +9638,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             price: parseFloat(takeProfitPrice),
             szDecimals: assetInfo.szDecimals,
           }),
-          s: size,
+          s: resolveTpslSize(takeProfitSize),
           r: true, // Always reduce-only for position TP
           t: {
             trigger: {
@@ -4328,7 +9663,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             price: parseFloat(stopLossPrice),
             szDecimals: assetInfo.szDecimals,
           }),
-          s: size,
+          s: resolveTpslSize(stopLossSize),
           r: true, // Always reduce-only for position SL
           t: {
             trigger: {
@@ -4344,8 +9679,129 @@ export class HyperLiquidProvider implements PerpsProvider {
         orders.push(slOrder);
       }
 
-      // If no new orders, we've just cancelled existing ones (clearing TP/SL)
+      const rollbackRequiresBuilderFee = [
+        ...restorablePositionTpslOrders,
+        ...restorableStandaloneTpslOrders,
+      ].some((order) => order.chargesMetamaskBuilderFee);
+      const requiresBuilderFee =
+        replacementChargesMetamaskBuilderFee || rollbackRequiresBuilderFee;
+
+      // Approval and builder-context resolution both finish before the
+      // pre-cancel. A failure here therefore leaves the old protection intact.
+      const builderFeeSetupContext = requiresBuilderFee
+        ? await this.#ensureReadyForTrading({
+            requiresBuilderFee: true,
+            builderFeeApprovalFailureCode: PERPS_ERROR_CODES.TPSL_UPDATE_FAILED,
+          })
+        : await this.#ensureReadyForTrading({ requiresBuilderFee: false });
+      const builderOrderContext = builderFeeSetupContext
+        ? await this.#getBuilderOrderContext(builderFeeSetupContext)
+        : undefined;
+
+      const restoreCancelledProtection = async (
+        cancelledOrderIds: Set<number>,
+      ): Promise<TpslProtectionRestorationOutcome> => {
+        const restoredOrderIds: string[] = [];
+        let success = true;
+        const protectionGroups: {
+          grouping: 'positionTpsl' | 'na';
+          entries: RestorableTpslOrder[];
+        }[] = [
+          {
+            grouping: 'positionTpsl',
+            entries: restorablePositionTpslOrders,
+          },
+          {
+            grouping: 'na',
+            entries: restorableStandaloneTpslOrders,
+          },
+        ];
+        for (const protection of protectionGroups) {
+          const entries = protection.entries.filter((entry) =>
+            cancelledOrderIds.has(entry.orderId),
+          );
+          if (entries.length === 0) {
+            continue;
+          }
+
+          try {
+            const result = await exchangeClient.order({
+              orders: entries.map((entry) => entry.order),
+              grouping: protection.grouping,
+              ...(entries.some((entry) => entry.chargesMetamaskBuilderFee) &&
+                builderOrderContext && { builder: builderOrderContext }),
+            });
+            const statuses = result.response?.data?.statuses ?? [];
+            const rawOutcomes = statuses
+              .slice(0, entries.length)
+              .map((status) => this.#readTpslOrderPlacementOutcome(status));
+            const outcomes = await this.#reconcileTpslOrderPlacementOutcomes({
+              outcomes: rawOutcomes,
+              orders: entries.map((entry) => entry.order),
+              previousOrderIds: new Set([
+                ...orderIdsBeforePlacement,
+                ...Array.from(cancelledOrderIds, String),
+              ]),
+              dexName,
+              symbol,
+            });
+            restoredOrderIds.push(
+              ...outcomes.flatMap((outcome) =>
+                outcome.orderId ? [outcome.orderId] : [],
+              ),
+            );
+            if (
+              result.status !== 'ok' ||
+              statuses.length !== entries.length ||
+              outcomes.some(
+                (outcome) =>
+                  outcome.state === 'rejected' || outcome.state === 'unknown',
+              )
+            ) {
+              success = false;
+              this.#deps.logger.error(
+                new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
+                this.#getErrorContext(
+                  'updatePositionTPSL > restoreCancelledProtection',
+                  { symbol, grouping: protection.grouping, statuses },
+                ),
+              );
+            }
+          } catch (error) {
+            success = false;
+            this.#deps.logger.error(
+              ensureError(
+                error,
+                'HyperLiquidProvider.updatePositionTPSL.restoreCancelledProtection',
+              ),
+              this.#getErrorContext(
+                'updatePositionTPSL > restoreCancelledProtection',
+                { symbol, grouping: protection.grouping },
+              ),
+            );
+          }
+        }
+        return { restoredOrderIds, success };
+      };
+
+      const createProtectionLostResult = (
+        survivingOrderIds: string[],
+      ): OrderResult =>
+        createErrorResult(new Error(PERPS_ERROR_CODES.TPSL_PROTECTION_LOST), {
+          success: false,
+          childOrderIds: [...new Set(survivingOrderIds)],
+        });
+
+      // Clearing has no replacement batch to preserve. A partial cancellation
+      // is reported so the caller can retry the same clear operation.
       if (orders.length === 0) {
+        const remainingOrderIds = await this.#cancelOrderRequests(
+          exchangeClient,
+          cancelRequests,
+        );
+        if (remainingOrderIds.length > 0) {
+          throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+        }
         this.#deps.debugLogger.log(
           'No new TP/SL orders to place - existing ones cancelled',
         );
@@ -4355,40 +9811,176 @@ export class HyperLiquidProvider implements PerpsProvider {
         };
       }
 
-      // Calculate discounted builder fee if reward discount is active
-      let builderFee = BUILDER_FEE_CONFIG.MaxFeeTenthsBps;
-      if (this.#userFeeDiscountBips !== undefined) {
-        builderFee = Math.floor(
-          builderFee * (1 - this.#userFeeDiscountBips / BASIS_POINTS_DIVISOR),
+      // Cancel before placing for both position-bound and standalone partial
+      // triggers. A place-first partial update leaves both trigger sets live
+      // during the cancellation round trip and can reduce more than requested.
+      const confirmedCancelledOldOrderIds = new Set<number>();
+      const oldCancellation = await this.#cancelOrderRequestBatch(
+        exchangeClient,
+        cancelRequests,
+      );
+      if (!oldCancellation.responseComplete) {
+        const requestedOrderIds = new Set(
+          cancelRequests.map((request) => request.o),
         );
-        this.#deps.debugLogger.log(
-          'HyperLiquid: Applying builder fee discount to TP/SL',
+        let possiblyLiveOrderIds = Array.from(requestedOrderIds, String);
+        try {
+          const liveOrders = await this.#fetchOpenOrders({ dexName });
+          possiblyLiveOrderIds = liveOrders
+            .filter((order) => requestedOrderIds.has(order.oid))
+            .map((order) => String(order.oid));
+        } catch (error) {
+          this.#deps.debugLogger.log(
+            'Could not reconcile TP/SL protection after an incomplete cancel',
+            {
+              symbol,
+              error: ensureError(
+                error,
+                'HyperLiquidProvider.updatePositionTPSL.reconcileProtection',
+              ).message,
+            },
+          );
+        }
+        return createProtectionLostResult(possiblyLiveOrderIds);
+      }
+      oldCancellation.cancelledOrderIds.forEach((orderId) =>
+        confirmedCancelledOldOrderIds.add(orderId),
+      );
+      if (oldCancellation.remainingOrderIds.length > 0) {
+        const restoration = await restoreCancelledProtection(
+          confirmedCancelledOldOrderIds,
+        );
+        if (!restoration.success) {
+          return createProtectionLostResult([
+            ...oldCancellation.remainingOrderIds.map(String),
+            ...restoration.restoredOrderIds,
+          ]);
+        }
+        const updateError = new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
+        this.#deps.logger.error(
+          updateError,
+          this.#getErrorContext('updatePositionTPSL', {
+            symbol: params.symbol,
+            hasTakeProfit: params.takeProfitPrice !== undefined,
+            hasStopLoss: params.stopLossPrice !== undefined,
+          }),
+        );
+        return createErrorResult(updateError, {
+          success: false,
+          childOrderIds: [
+            ...new Set([
+              ...oldCancellation.remainingOrderIds.map(String),
+              ...restoration.restoredOrderIds,
+            ]),
+          ],
+        });
+      }
+
+      let result: Awaited<ReturnType<ExchangeClient['order']>>;
+      try {
+        result = await exchangeClient.order({
+          orders,
+          grouping: isPartialTpsl ? 'na' : 'positionTpsl',
+          ...(replacementChargesMetamaskBuilderFee &&
+            builderOrderContext && { builder: builderOrderContext }),
+        });
+      } catch (error) {
+        const restoration = await restoreCancelledProtection(
+          confirmedCancelledOldOrderIds,
+        );
+        if (!restoration.success) {
+          return createProtectionLostResult(restoration.restoredOrderIds);
+        }
+        throw error;
+      }
+
+      const placementStatuses = result.response?.data?.statuses ?? [];
+      const initialPlacementOutcomes = placementStatuses
+        .slice(0, orders.length)
+        .map((status) => this.#readTpslOrderPlacementOutcome(status));
+      const placementAccepted =
+        result.status === 'ok' &&
+        placementStatuses.length === orders.length &&
+        initialPlacementOutcomes.every(
+          (outcome) =>
+            outcome.state === 'resting' ||
+            outcome.state === 'filled' ||
+            outcome.state === 'waitingForTrigger',
+        );
+
+      if (placementAccepted) {
+        return {
+          success: true,
+          orderId: 'TP/SL orders placed',
+        };
+      }
+
+      const placementOutcomes = await this.#reconcileTpslOrderPlacementOutcomes(
+        {
+          outcomes: initialPlacementOutcomes,
+          orders,
+          previousOrderIds: new Set([
+            ...orderIdsBeforePlacement,
+            ...Array.from(confirmedCancelledOldOrderIds, String),
+          ]),
+          dexName,
+          symbol,
+        },
+      );
+      const restingReplacementOrderIds = placementOutcomes.flatMap((outcome) =>
+        (outcome.state === 'resting' ||
+          outcome.state === 'waitingForTrigger') &&
+        outcome.orderId
+          ? [outcome.orderId]
+          : [],
+      );
+      const filledReplacementOrderIds = placementOutcomes.flatMap((outcome) =>
+        outcome.state === 'filled' && outcome.orderId ? [outcome.orderId] : [],
+      );
+      const hasUnresolvedWaitingTrigger = placementOutcomes.some(
+        (outcome) =>
+          outcome.state === 'waitingForTrigger' &&
+          outcome.orderId === undefined,
+      );
+      const remainingReplacementIds = await this.#cancelOrderRequests(
+        exchangeClient,
+        restingReplacementOrderIds.map((orderId) => ({
+          a: assetId,
+          o: Number(orderId),
+        })),
+      );
+      const recoverableOrderIds = [
+        ...filledReplacementOrderIds,
+        ...remainingReplacementIds.map(String),
+      ];
+      if (hasUnresolvedWaitingTrigger) {
+        return createProtectionLostResult(recoverableOrderIds);
+      }
+      if (recoverableOrderIds.length === 0) {
+        const restoration = await restoreCancelledProtection(
+          confirmedCancelledOldOrderIds,
+        );
+        if (!restoration.success) {
+          return createProtectionLostResult(restoration.restoredOrderIds);
+        }
+      }
+      // A filled replacement may have changed or closed the position, while
+      // an uncancelled replacement may still protect it. Restoring the old
+      // whole-position triggers in either case risks stale or duplicate
+      // protection, so return those IDs for caller reconciliation instead.
+      if (recoverableOrderIds.length > 0) {
+        if (!isPartialTpsl) {
+          return createProtectionLostResult(recoverableOrderIds);
+        }
+        return createErrorResult(
+          new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED),
           {
-            originalFee: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
-            discountBips: this.#userFeeDiscountBips,
-            discountedFee: builderFee,
+            success: false,
+            childOrderIds: recoverableOrderIds,
           },
         );
       }
-
-      // Submit via SDK exchange client with positionTpsl grouping
-      const result = await exchangeClient.order({
-        orders,
-        grouping: 'positionTpsl',
-        builder: {
-          b: this.#getBuilderAddress(this.#clientService.isTestnetMode()),
-          f: builderFee,
-        },
-      });
-
-      if (result.status !== 'ok') {
-        throw new Error(`TP/SL update failed: ${JSON.stringify(result)}`);
-      }
-
-      return {
-        success: true,
-        orderId: 'TP/SL orders placed',
-      };
+      throw new Error(PERPS_ERROR_CODES.TPSL_UPDATE_FAILED);
     } catch (error) {
       this.#deps.logger.error(
         ensureError(error, 'HyperLiquidProvider.updatePositionTPSL'),
@@ -4415,12 +10007,92 @@ export class HyperLiquidProvider implements PerpsProvider {
     try {
       this.#deps.debugLogger.log('Closing position:', params);
 
-      // Ensure provider is ready for trading (includes signing operations)
-      await this.#ensureReadyForTrading();
+      // The delegated placeOrder call resolves the builder-fee policy for the
+      // concrete close order after validation.
+      await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
       // Use provided position (from WebSocket) or fetch from cache
       // This avoids unnecessary API calls and prevents 429 rate limiting
       let { position } = params;
+
+      // Re-validate the caller-supplied snapshot against the freshest WebSocket
+      // position cache. Clients pass a throttled snapshot (~1s old on mobile),
+      // so a concurrent TP/SL fill, a liquidation, or a double-tapped close
+      // leaves the snapshot's side/size larger than (or opposite to) the real
+      // position and HyperLiquid rejects the reduce-only order with "Reduce
+      // only order would increase position". Reading the cache never issues a
+      // REST request, so this does not reintroduce 429 rate limiting.
+      if (position && this.#subscriptionService.isPositionsCacheInitialized()) {
+        // Read the symbol's own DEX slice, not the aggregate. The aggregate is
+        // only rebuilt once every expected DEX has published, so after a
+        // WebSocket reconnect — which resets the initialized-DEX set without
+        // clearing these caches — it can sit frozen at pre-reconnect contents
+        // while the per-DEX slices keep updating. Deciding "this DEX is covered"
+        // from the per-DEX map and then reading the position from the aggregate
+        // mixed a fresh answer with stale data: a close could reuse a stale size,
+        // or throw for a position that is open.
+        const dexPositions = this.#subscriptionService.getCachedPositionsForDex(
+          parseAssetName(params.symbol).dex ?? '',
+        );
+        const livePosition = dexPositions?.find(
+          (pos) => pos.symbol === params.symbol,
+        );
+
+        if (livePosition) {
+          if (livePosition.size !== position.size) {
+            this.#deps.debugLogger.log(
+              'Stale close position snapshot: using live WebSocket position',
+              {
+                coin: params.symbol,
+                snapshotSize: position.size,
+                liveSize: livePosition.size,
+              },
+            );
+          }
+
+          position = livePosition;
+        } else if (dexPositions) {
+          // That DEX has published and does not hold this symbol, so the position
+          // is already closed (e.g. a double-tapped close). This is the same read
+          // the lookup above used, so the two can never disagree. Fail here rather
+          // than falling back to REST: the cache is the freshest source, so a REST
+          // lookup can only burn a request that risks 429s and, if it lags, hand
+          // back a position that no longer exists.
+          throw new Error(`No position found for ${params.symbol}`);
+        } else {
+          // The cache holds nothing for this symbol's DEX — a HIP-3 DEX whose
+          // subscription has not published this session — so the symbol's
+          // absence proves nothing. Spend one REST request to get live data
+          // rather than trusting a snapshot the exchange may have moved past.
+          this.#deps.debugLogger.log(
+            'Position cache does not cover this DEX: fetching live positions',
+            { coin: params.symbol },
+          );
+
+          // Query the symbol's own DEX so the outcome carries provenance.
+          // getPositions() fans out across every enabled DEX, flattens the subset
+          // that answered and turns any failure into [], so it cannot distinguish
+          // "this DEX answered and holds nothing" from "this DEX failed or was
+          // never queried" — and those two need opposite decisions.
+          const { answered, positions } = await this.#queryDexPositions(
+            parseAssetName(params.symbol).dex,
+          );
+          const livePositionFromApi = positions.find(
+            (pos) => pos.symbol === params.symbol,
+          );
+
+          if (livePositionFromApi) {
+            position = livePositionFromApi;
+          } else if (answered) {
+            // The DEX answered without this symbol — even with no positions at
+            // all — so it is genuinely closed.
+            throw new Error(`No position found for ${params.symbol}`);
+          }
+          // Otherwise the query failed, so the absence proves nothing: keep the
+          // caller's snapshot rather than block a position that may be closable.
+        }
+      }
+
       if (!position) {
         const positions = await this.getPositions();
         position = positions.find((pos) => pos.symbol === params.symbol);
@@ -4432,12 +10104,32 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       const positionSize = parseFloat(position.size);
       const isBuy = positionSize < 0;
-      const closeSize = params.size ?? Math.abs(positionSize).toString();
+      const absPositionSize = Math.abs(positionSize);
+      // Only an omitted (or empty) size means "close 100%". A supplied size must
+      // be a positive number: silently promoting '0' or 'abc' to a full close
+      // would liquidate the whole position on a caller-side formatting slip.
+      // A supplied size is clamped to the live position size, because
+      // HyperLiquid rejects reduce-only orders that exceed the position and the
+      // caller computed its size from a snapshot that may already be too large.
+      const hasRequestedSize = params.size !== undefined && params.size !== '';
+      let closeSizeNumber = absPositionSize;
+
+      if (hasRequestedSize) {
+        const requestedSize = parseFloat(params.size as string);
+
+        if (!Number.isFinite(requestedSize) || requestedSize <= 0) {
+          throw new Error(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+        }
+
+        closeSizeNumber = Math.min(requestedSize, absPositionSize);
+      }
+
+      const closeSize = closeSizeNumber.toString();
 
       // Capture position details BEFORE closing for freed margin calculation
       const totalMarginUsed = parseFloat(position.marginUsed);
-      const totalPositionSize = Math.abs(positionSize);
-      const closeSizeNum = parseFloat(closeSize);
+      const totalPositionSize = absPositionSize;
+      const closeSizeNum = closeSizeNumber;
       const isHip3Position = position.symbol.includes(':');
       const hip3Dex = isHip3Position ? position.symbol.split(':')[0] : null;
 
@@ -4445,8 +10137,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       const freedMarginRatio = closeSizeNum / totalPositionSize;
       const freedMargin = totalMarginUsed * freedMarginRatio;
 
-      // Get current price for validation if not provided (and not a full close)
-      // Full closes don't need price for validation
+      // Get current price for USD/minimum validation if not provided. A full
+      // close skips *that* validation because it submits the exact live size —
+      // but not the price-staleness guard: calculateFinalPositionSize checks
+      // priceAtCalculation against the live price for every close that supplies
+      // it, using the price placeOrder fetches when none is passed here.
       let { currentPrice } = params;
       if (!currentPrice && params.size && !params.usdAmount) {
         // Partial close without USD or price: use limit price as fallback for validation
@@ -4474,6 +10169,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         freedMargin: freedMargin.toFixed(2),
       });
 
+      // True when the order closes 100% of the position: either no size was
+      // provided, or the requested size covers (or was clamped to) the whole
+      // position.
+      const isFullClose = closeSizeNum >= absPositionSize;
+
       // Execute position close with consistent slippage handling
       const result = await this.placeOrder({
         symbol: params.symbol,
@@ -4482,10 +10182,17 @@ export class HyperLiquidProvider implements PerpsProvider {
         orderType: params.orderType ?? 'market',
         price: params.price,
         reduceOnly: true,
-        isFullClose: !params.size, // True if closing 100% (size not provided)
+        isFullClose,
         // Pass through price and slippage parameters for consistent validation
         currentPrice,
-        usdAmount: params.usdAmount,
+        // A close of the whole position must submit exactly the live position
+        // size. Forwarding usdAmount would make placeOrder recompute the size as
+        // usdAmount / currentPrice — discarding the clamp above, since usdAmount
+        // is the source of truth there — and submit more than the position
+        // holds, which is rejected with "Reduce only order would increase
+        // position". Genuine partial closes keep usdAmount so their size stays
+        // USD-accurate.
+        usdAmount: isFullClose ? undefined : params.usdAmount,
         priceAtCalculation: params.priceAtCalculation,
         maxSlippageBps: params.maxSlippageBps,
       });
@@ -4495,7 +10202,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         result.success &&
         isHip3Position &&
         hip3Dex &&
-        !this.#useDexAbstraction
+        !this.#useUnifiedAccount
       ) {
         this.#deps.debugLogger.log(
           'Position closed successfully, initiating manual auto-transfer back',
@@ -4510,10 +10217,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         result.success &&
         isHip3Position &&
         hip3Dex &&
-        this.#useDexAbstraction
+        this.#useUnifiedAccount
       ) {
         this.#deps.debugLogger.log(
-          'Position closed - DEX abstraction will auto-return freed margin',
+          'Position closed - Unified Account will auto-return freed margin',
           {
             coin: params.symbol,
             dex: hip3Dex,
@@ -4587,6 +10294,20 @@ export class HyperLiquidProvider implements PerpsProvider {
         amount: amountFloat,
         ntli,
       });
+
+      // Guard: confirm spendableBalance can cover margin addition.
+      // spendableBalance is already mode-aware (includes free spot in Unified,
+      // excludes it in Standard), so no extra spot fetch needed.
+      if (amountFloat > 0) {
+        const accountState = await this.getAccountState();
+        const spendable = parseFloat(accountState.spendableBalance);
+
+        if (spendable < amountFloat) {
+          throw new Error(
+            `Insufficient balance for margin addition: need ${amountFloat}, available ${spendable.toFixed(2)}`,
+          );
+        }
+      }
 
       // Call SDK to update isolated margin
       const exchangeClient = this.#clientService.getExchangeClient();
@@ -4665,6 +10386,234 @@ export class HyperLiquidProvider implements PerpsProvider {
     // buildAssetMapping uses state.raw for perpDexIndex computation.
     const state = this.#dexDiscoveryCache.update(allDexs);
     return state.validated;
+  }
+
+  /**
+   * Fetch a complete standalone user-data bundle.
+   *
+   * Each DEX clearinghouse response is shared by position and account-state
+   * mapping. Any required request failure rejects the entire bundle.
+   *
+   * @param params - User and captured controller identity.
+   * @returns The complete user-data snapshot.
+   */
+  async getUserDataSnapshot(
+    params: GetUserDataSnapshotParams,
+  ): Promise<PerpsUserDataSnapshot> {
+    const { identity, userAddress } = params;
+    const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
+    const snapshotStartedAt = this.#deps.performance.now();
+    const measure = async <Result>(
+      stage: string,
+      request: () => Promise<Result>,
+      dex?: string | null,
+    ): Promise<Result> => {
+      const startedAt = this.#deps.performance.now();
+      const dexDetail = dex === undefined ? {} : { dex: dex ?? 'main' };
+      try {
+        const result = await request();
+        this.#deps.debugLogger.log('[PerpsUserSnapshot]', {
+          stage,
+          durationMs: Math.round(this.#deps.performance.now() - startedAt),
+          success: true,
+          ...dexDetail,
+        });
+        return result;
+      } catch (error) {
+        this.#deps.debugLogger.log('[PerpsUserSnapshot]', {
+          stage,
+          durationMs: Math.round(this.#deps.performance.now() - startedAt),
+          success: false,
+          ...dexDetail,
+        });
+        throw error;
+      }
+    };
+
+    if (identity.provider !== 'hyperliquid' || identity.network !== network) {
+      throw new Error('User data snapshot identity does not match provider');
+    }
+
+    const requestedDexes = identity.dexes;
+    const canonicalDexes = canonicalizeHyperLiquidDexes(requestedDexes);
+    const hasValidDexIdentity =
+      requestedDexes.length > 0 &&
+      new Set(requestedDexes).size === requestedDexes.length &&
+      requestedDexes.every(
+        (dex) => dex === 'main' || /^[a-z0-9][a-z0-9-]*$/u.test(dex),
+      ) &&
+      requestedDexes.length === canonicalDexes.length &&
+      requestedDexes.every((dex, index) => dex === canonicalDexes[index]);
+    if (!hasValidDexIdentity) {
+      throw new Error('User data snapshot DEX identity is invalid');
+    }
+    const dexs = requestedDexes.map((dex) => (dex === 'main' ? null : dex));
+    const standaloneInfoClient = createStandaloneInfoClient({
+      isTestnet: network === 'testnet',
+    });
+    const buildUserParams = (
+      dex: string | null,
+    ): { user: string; dex?: string } => ({
+      user: userAddress,
+      ...(dex ? { dex } : {}),
+    });
+
+    const [clearinghouseStates, openOrdersByDex, spotState, abstractionMode] =
+      await Promise.all([
+        Promise.all(
+          dexs.map((dex) =>
+            measure(
+              'clearinghouse_state',
+              () =>
+                standaloneInfoClient.clearinghouseState(buildUserParams(dex)),
+              dex,
+            ),
+          ),
+        ),
+        Promise.all(
+          dexs.map((dex) =>
+            measure(
+              'frontend_open_orders',
+              () =>
+                standaloneInfoClient.frontendOpenOrders(buildUserParams(dex)),
+              dex,
+            ),
+          ),
+        ),
+        measure('spot_clearinghouse_state', () =>
+          standaloneInfoClient.spotClearinghouseState({ user: userAddress }),
+        ),
+        measure('user_abstraction', () =>
+          standaloneInfoClient.userAbstraction({ user: userAddress }),
+        ),
+      ]);
+
+    const rawOrders = openOrdersByDex.flat();
+    const childOrderIds = collectChildOrderIds(rawOrders);
+    const ordersBySymbol = groupOrdersBySymbol(rawOrders);
+    const positions = clearinghouseStates.flatMap((state) =>
+      state.assetPositions
+        .filter(({ position }) => position.szi !== '0')
+        .map((assetPosition) => {
+          const position = adaptPositionFromSDK(assetPosition);
+          const {
+            takeProfitOrders,
+            stopLossOrders,
+            takeProfitPrice,
+            stopLossPrice,
+          } = collectPositionTriggerOrders({
+            orders: ordersBySymbol.get(position.symbol) ?? [],
+            position,
+            childOrderIds,
+          });
+          return {
+            ...position,
+            takeProfitCount: takeProfitOrders.length,
+            stopLossCount: stopLossOrders.length,
+            takeProfitOrders,
+            stopLossOrders,
+            ...(takeProfitPrice && { takeProfitPrice }),
+            ...(stopLossPrice && { stopLossPrice }),
+          };
+        }),
+    );
+    const positionsBySymbol = new Map(
+      positions.map((position) => [position.symbol, position]),
+    );
+    const orders = rawOrders.map((order) =>
+      adaptOrderFromSDK(order, positionsBySymbol.get(order.coin)),
+    );
+    const dexAccountStates = clearinghouseStates.map((state) =>
+      adaptAccountStateFromSDK(state),
+    );
+    const accountState = addSpotBalanceToAccountState(
+      aggregateAccountStates(dexAccountStates),
+      spotState,
+      { foldIntoCollateral: hyperLiquidModeFoldsSpot(abstractionMode) },
+    );
+
+    accountState.subAccountBreakdown = Object.fromEntries(
+      dexAccountStates.map((dexAccountState, index) => {
+        return [
+          dexs[index] ?? '',
+          {
+            spendableBalance: dexAccountState.spendableBalance,
+            withdrawableBalance: dexAccountState.withdrawableBalance,
+            totalBalance: dexAccountState.totalBalance,
+          },
+        ];
+      }),
+    );
+
+    const snapshot = {
+      positions,
+      orders,
+      accountState,
+      identity: {
+        ...identity,
+        address: userAddress,
+      },
+    };
+    this.#deps.debugLogger.log('[PerpsUserSnapshot]', {
+      stage: 'complete',
+      durationMs: Math.round(this.#deps.performance.now() - snapshotStartedAt),
+      success: true,
+      dexCount: dexs.length,
+    });
+    return snapshot;
+  }
+
+  /**
+   * Query one DEX's positions directly, preserving whether that DEX answered.
+   *
+   * `getPositions()` fans out across every enabled DEX, flattens the subset that
+   * answered and converts any thrown error into an empty array, so its result
+   * cannot distinguish "this DEX answered and holds no positions" from "this
+   * DEX's request failed or it was never queried". `closePosition` needs that
+   * distinction: the first means the position is closed and the close must fail
+   * before submitting, the second means the absence proves nothing and the
+   * caller's snapshot should stand.
+   *
+   * TP/SL enrichment is skipped, as in standalone mode: the close path only reads
+   * size, side and margin.
+   *
+   * @param dexName - DEX identifier, or null for the main DEX.
+   * @returns Whether the DEX answered, and the positions it reported.
+   */
+  async #queryDexPositions(
+    dexName: string | null,
+  ): Promise<{ answered: boolean; positions: Position[] }> {
+    try {
+      await this.#ensureClientsInitialized();
+      this.#clientService.ensureInitialized();
+
+      const infoClient = this.#clientService.getInfoClient();
+      const userAddress = await this.#walletService.getUserAddressWithDefault();
+      const state = await infoClient.clearinghouseState(
+        dexName ? { user: userAddress, dex: dexName } : { user: userAddress },
+      );
+      const positions = (state.assetPositions ?? [])
+        .filter((assetPos) => assetPos.position.szi !== '0')
+        .map((assetPos) => adaptPositionFromSDK(assetPos));
+
+      this.#deps.debugLogger.log('Target DEX position query answered', {
+        dex: dexName ?? 'main',
+        count: positions.length,
+      });
+
+      return { answered: true, positions };
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        'Target DEX position query failed; its silence proves nothing',
+        {
+          dex: dexName ?? 'main',
+          error: ensureError(error, 'HyperLiquidProvider.queryDexPositions')
+            .message,
+        },
+      );
+
+      return { answered: false, positions: [] };
+    }
   }
 
   /**
@@ -4779,6 +10728,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Combine all orders from all DEXs for TP/SL lookup
       const allOrders = orderResults.flatMap((result) => result.data);
 
+      // TP/SL children of pending parent orders are listed at the top level too;
+      // they belong to that order, not to a position.
+      const allOrdersChildIds = collectChildOrderIds(allOrders);
+
+      // Grouped once here rather than rescanned per position, mirroring the
+      // positionsBySymbol map on the WebSocket path.
+      const ordersBySymbol = groupOrdersBySymbol(allOrders);
+
       this.#deps.debugLogger.log('Frontend open orders (all DEXs):', {
         count: allOrders.length,
         orders: allOrders.map((ord) => ({
@@ -4826,6 +10783,18 @@ export class HyperLiquidProvider implements PerpsProvider {
             let takeProfitPrice: string | undefined;
             let stopLossPrice: string | undefined;
 
+            // Trigger orders attached to this position: position-bound TP/SL plus
+            // standalone ('na' grouping) partial TP/SL. A pending order's
+            // normalTpsl children are excluded — they are also listed at the top
+            // level, but they protect that order, not this position (same rule as
+            // the positionOrders filter above).
+            const { takeProfitOrders, stopLossOrders } =
+              collectPositionTriggerOrders({
+                orders: ordersBySymbol.get(position.symbol) ?? [],
+                position,
+                childOrderIds: allOrdersChildIds,
+              });
+
             // Check direct trigger orders
             positionOrders.forEach((order) => {
               // Frontend orders have explicit orderType field
@@ -4870,8 +10839,7 @@ export class HyperLiquidProvider implements PerpsProvider {
                 },
               );
 
-              parentOrder.children.forEach((childOrderUnknown) => {
-                const childOrder = childOrderUnknown as FrontendOrder;
+              parentOrder.children.forEach((childOrder) => {
                 if (childOrder.isTrigger && childOrder.reduceOnly) {
                   if (
                     childOrder.orderType === 'Take Profit Market' ||
@@ -4906,8 +10874,18 @@ export class HyperLiquidProvider implements PerpsProvider {
 
             return {
               ...position,
-              takeProfitPrice,
-              stopLossPrice,
+              takeProfitPrice: resolvePositionTriggerSummaryPrice({
+                triggerOrders: takeProfitOrders,
+                scannedPrice: takeProfitPrice,
+              }),
+              stopLossPrice: resolvePositionTriggerSummaryPrice({
+                triggerOrders: stopLossOrders,
+                scannedPrice: stopLossPrice,
+              }),
+              takeProfitCount: takeProfitOrders.length,
+              stopLossCount: stopLossOrders.length,
+              takeProfitOrders,
+              stopLossOrders,
             };
           }),
       );
@@ -5081,8 +11059,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Transform HyperLiquid orders to abstract Order type
       const orders: Order[] = (rawOrders || []).map((rawOrder) => {
         const { order, status, statusTimestamp } = rawOrder;
-        // Normalize side: HyperLiquid uses 'A' (Ask/Sell) and 'B' (Bid/Buy)
-        const normalizedSide = order.side === 'B' ? 'buy' : 'sell';
 
         // Normalize status
         let normalizedStatus: Order['status'];
@@ -5117,29 +11093,23 @@ export class HyperLiquidProvider implements PerpsProvider {
             normalizedStatus = 'queued';
         }
 
-        // Calculate filled and remaining size
-        const originalSize = parseFloat(order.origSz || order.sz);
-        const currentSize = parseFloat(order.sz);
-        const filledSize = originalSize - currentSize;
+        const adaptedOrder = adaptOrderFromSDK(order, undefined);
+        // limitPx is also populated as a slippage cap for market orders, so the
+        // exchange's detailed type is the reliable execution-mode source.
+        const historicalOrderType = hasProperty(
+          HISTORICAL_ORDER_TYPE_BY_DETAILED_TYPE,
+          order.orderType,
+        )
+          ? HISTORICAL_ORDER_TYPE_BY_DETAILED_TYPE[order.orderType]
+          : 'market';
 
         return {
-          orderId: order.oid?.toString() || '',
-          symbol: order.coin,
-          side: normalizedSide,
-          orderType: order.orderType?.toLowerCase().includes('limit')
-            ? 'limit'
-            : 'market',
-          size: order.sz,
-          originalSize: order.origSz || order.sz,
-          price: order.limitPx || '0',
-          filledSize: filledSize.toString(),
-          remainingSize: currentSize.toString(),
+          ...adaptedOrder,
+          orderType: historicalOrderType,
+          remainingSize: parseFloat(order.sz).toString(),
           status: normalizedStatus,
           timestamp: statusTimestamp,
           lastUpdated: statusTimestamp,
-          detailedOrderType: order.orderType, // Full order type from exchange (e.g., 'Take Profit Limit', 'Stop Market')
-          isTrigger: order.isTrigger,
-          reduceOnly: order.reduceOnly,
         };
       });
 
@@ -5147,6 +11117,53 @@ export class HyperLiquidProvider implements PerpsProvider {
     } catch (error) {
       this.#deps.debugLogger.log('Error getting user orders:', error);
       return [];
+    }
+  }
+
+  /**
+   * Rebuild Scale cancellation handles from the group identity persisted on
+   * open venue orders.
+   *
+   * @param orders - Current normalized open orders.
+   */
+  #restoreScaleOrderGroups(orders: Order[]): void {
+    const recovered = new Map<string, ScaleOrderGroup>();
+    for (const order of orders) {
+      if (!order.strategyGroupId) {
+        continue;
+      }
+      const group = recovered.get(order.strategyGroupId) ?? {
+        symbol: order.symbol,
+        orderIds: [],
+        clientOrderIds: [],
+      };
+      group.orderIds.push(order.orderId);
+      recovered.set(order.strategyGroupId, group);
+    }
+
+    for (const [groupId, group] of recovered) {
+      if (this.#cancelledScaleOrderGroups.has(groupId)) {
+        continue;
+      }
+      const existingGroup = this.#scaleOrderGroups.get(groupId);
+      if (!existingGroup) {
+        this.#scaleOrderGroups.set(groupId, group);
+        continue;
+      }
+      if (existingGroup.symbol === group.symbol) {
+        existingGroup.orderIds = [
+          ...new Set([...existingGroup.orderIds, ...group.orderIds]),
+        ];
+      } else {
+        this.#deps.debugLogger.log(
+          'Scale group symbol mismatch during recovery',
+          {
+            groupId,
+            existingSymbol: existingGroup.symbol,
+            recoveredSymbol: group.symbol,
+          },
+        );
+      }
     }
   }
 
@@ -5205,6 +11222,7 @@ export class HyperLiquidProvider implements PerpsProvider {
               count: cachedOrders.length,
             },
           );
+          this.#restoreScaleOrderGroups(cachedOrders);
           return cachedOrders;
         }
       }
@@ -5259,6 +11277,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         return adaptOrderFromSDK(order, position);
       });
 
+      this.#restoreScaleOrderGroups(orders);
       return orders;
     } catch (error) {
       this.#deps.debugLogger.log('Error getting currently open orders:', error);
@@ -5588,28 +11607,45 @@ export class HyperLiquidProvider implements PerpsProvider {
           isTestnet: this.#clientService.isTestnetMode(),
         });
         const dexs = await this.#getStandaloneValidatedDexs();
-        const [standaloneSpotStateResult, standalonePerpsResults] =
-          await Promise.all([
-            standaloneInfoClient
-              .spotClearinghouseState({ user: userAddress })
-              .catch((error: unknown) => {
-                this.#deps.debugLogger.log(
-                  'Standalone spot state fetch failed — falling back to perps-only totals',
-                  {
-                    error: ensureError(
-                      error,
-                      'HyperLiquidProvider.getAccountState.standalone.spot',
-                    ).message,
-                  },
-                );
-                return null;
-              }),
-            queryStandaloneClearinghouseStates(
-              standaloneInfoClient,
-              userAddress,
-              dexs,
-            ),
-          ]);
+        const [
+          standaloneSpotStateResult,
+          standalonePerpsResults,
+          standaloneAbstractionResult,
+        ] = await Promise.all([
+          standaloneInfoClient
+            .spotClearinghouseState({ user: userAddress })
+            .catch((error: unknown) => {
+              this.#deps.debugLogger.log(
+                'Standalone spot state fetch failed — falling back to perps-only totals',
+                {
+                  error: ensureError(
+                    error,
+                    'HyperLiquidProvider.getAccountState.standalone.spot',
+                  ).message,
+                },
+              );
+              return null;
+            }),
+          queryStandaloneClearinghouseStates(
+            standaloneInfoClient,
+            userAddress,
+            dexs,
+          ),
+          standaloneInfoClient
+            .userAbstraction({ user: userAddress })
+            .catch((error: unknown) => {
+              this.#deps.debugLogger.log(
+                'Standalone userAbstraction fetch failed; spot fold disabled until the mode resolves',
+                {
+                  error: ensureError(
+                    error,
+                    'HyperLiquidProvider.getAccountState.standalone.abstraction',
+                  ).message,
+                },
+              );
+              return null;
+            }),
+        ]);
 
         // Aggregate account states across all DEXs, then apply spot-backed
         // adjustments so streamed/standalone/full paths report the same totals.
@@ -5619,6 +11655,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         const aggregatedAccountState = addSpotBalanceToAccountState(
           aggregateAccountStates(dexAccountStates),
           standaloneSpotStateResult,
+          {
+            foldIntoCollateral: hyperLiquidModeFoldsSpot(
+              standaloneAbstractionResult,
+            ),
+          },
         );
 
         this.#deps.debugLogger.log(
@@ -5649,16 +11690,35 @@ export class HyperLiquidProvider implements PerpsProvider {
         this.#clientService.isTestnetMode() ? 'TESTNET' : 'MAINNET',
       );
 
-      // Get Spot balance (global, not DEX-specific) and Perps states across all DEXs.
+      // Get Spot balance, Perps states across DEXs, and the HL abstraction
+      // mode (Unified / Standard / Portfolio / DEX-abstraction). Mode decides
+      // whether spot USDC is perps collateral — see addSpotBalanceToAccountState.
       // One transient DEX failure should not blank the entire account state.
-      const [spotStateResult, perpsStateResult] = await Promise.allSettled([
-        infoClient.spotClearinghouseState({ user: userAddress }),
-        this.#queryUserDataAcrossDexs({ user: userAddress }, (userParam) =>
-          infoClient.clearinghouseState(userParam),
-        ),
-      ]);
+      const [spotStateResult, perpsStateResult, abstractionResult] =
+        await Promise.allSettled([
+          infoClient.spotClearinghouseState({ user: userAddress }),
+          this.#queryUserDataAcrossDexs({ user: userAddress }, (userParam) =>
+            infoClient.clearinghouseState(userParam),
+          ),
+          infoClient.userAbstraction({ user: userAddress }),
+        ]);
       const spotState =
         spotStateResult.status === 'fulfilled' ? spotStateResult.value : null;
+      const abstractionMode =
+        abstractionResult.status === 'fulfilled'
+          ? abstractionResult.value
+          : null;
+      if (abstractionResult.status === 'rejected') {
+        this.#deps.debugLogger.log(
+          'User abstraction fetch failed; spot fold disabled until the mode resolves',
+          {
+            error: ensureError(
+              abstractionResult.reason,
+              'HyperLiquidProvider.getAccountState.abstraction',
+            ).message,
+          },
+        );
+      }
       const perpsResponse =
         perpsStateResult.status === 'fulfilled'
           ? perpsStateResult.value
@@ -5727,7 +11787,8 @@ export class HyperLiquidProvider implements PerpsProvider {
           `DEX ${result.dex ?? 'main'} account state:`,
           {
             totalBalance: dexAccountState.totalBalance,
-            availableBalance: dexAccountState.availableBalance,
+            spendableBalance: dexAccountState.spendableBalance,
+            withdrawableBalance: dexAccountState.withdrawableBalance,
             marginUsed: dexAccountState.marginUsed,
             unrealizedPnl: dexAccountState.unrealizedPnl,
           },
@@ -5737,12 +11798,17 @@ export class HyperLiquidProvider implements PerpsProvider {
       const aggregatedAccountState = addSpotBalanceToAccountState(
         aggregateAccountStates(dexAccountStates),
         spotState,
+        { foldIntoCollateral: hyperLiquidModeFoldsSpot(abstractionMode) },
       );
 
       // Build per-sub-account breakdown (HIP-3 DEXs map to sub-accounts)
       const subAccountBreakdown: Record<
         string,
-        { availableBalance: string; totalBalance: string }
+        {
+          spendableBalance: string;
+          withdrawableBalance: string;
+          totalBalance: string;
+        }
       > = {};
       perpsStateResults.forEach((result) => {
         const { dex, data: perpsState } = result;
@@ -5750,7 +11816,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         const subAccountKey = dex ?? ''; // Empty string for main DEX
 
         subAccountBreakdown[subAccountKey] = {
-          availableBalance: dexAccountState.availableBalance,
+          spendableBalance: dexAccountState.spendableBalance,
+          withdrawableBalance: dexAccountState.withdrawableBalance,
           totalBalance: dexAccountState.totalBalance,
         };
       });
@@ -6050,9 +12117,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       typeof HyperLiquidClientService.prototype.getInfoClient
     >,
     dex: string | null,
+    lifecycleGeneration: number,
   ): Promise<DexFetchResult> {
     const dexParam = dex ?? '';
-
     let metaAndCtxs: [MetaResponse | null, PerpsAssetCtx[]] | null = null;
     try {
       metaAndCtxs = (await infoClient.metaAndAssetCtxs(
@@ -6088,10 +12155,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     if (meta?.universe) {
-      this.#cachedMetaByDex.set(dexParam, meta);
-      this.#subscriptionService.setDexMetaCache(dexParam, meta);
-      this.#subscriptionService.setDexAssetCtxsCache(dexParam, assetCtxs);
-      await this.#backfillAssetMapForDex(dex, meta);
+      await this.#cacheDexMetadataFromRead({
+        dex,
+        meta,
+        assetCtxs,
+        lifecycleGeneration,
+      });
     }
 
     return {
@@ -6105,6 +12174,69 @@ export class HyperLiquidProvider implements PerpsProvider {
     };
   }
 
+  /**
+   * Filter out successful HIP-3 DexFetchResults whose collateral token is
+   * not USDC, so getMarketDataWithPrices enforces the same USDC-only policy
+   * as market discovery (#fetchMarketsForDex) and order placement
+   * (#handleHip3PreOrder) — otherwise a non-USDC HIP-3 market could appear
+   * in overview data (and the cached stale snapshot derived from it) while
+   * order placement rejects it (TAT-3304).
+   *
+   * Main-DEX results (dex === null) and already-failed results pass through
+   * unchanged. #isUsdcCollateralDex fails closed, and on an unexpected
+   * error checking it (e.g. a spotMeta fetch failure) this also fails
+   * closed by dropping the DEX's result, rather than failing the whole
+   * method and losing main-DEX overview data.
+   *
+   * @param results - The DEX fetch results to filter.
+   * @returns A promise that resolves to the filtered results.
+   */
+  async #excludeNonUsdcCollateralResults(
+    results: DexFetchResult[],
+  ): Promise<DexFetchResult[]> {
+    return Promise.all(
+      results.map(async (result) => {
+        if (result.dex === null || !result.success) {
+          return result;
+        }
+
+        let isUsdcDex: boolean;
+        try {
+          isUsdcDex = await this.#isUsdcCollateralDex(result.dex);
+        } catch (error) {
+          this.#deps.debugLogger.log(
+            'HyperLiquidProvider: Failed to check collateral type for HIP-3 DEX; excluding from market data',
+            {
+              dex: result.dex,
+              error: ensureError(
+                error,
+                'HyperLiquidProvider.excludeNonUsdcCollateralResults',
+              ).message,
+            },
+          );
+          isUsdcDex = false;
+        }
+
+        if (isUsdcDex) {
+          return result;
+        }
+
+        this.#deps.debugLogger.log(
+          'HyperLiquidProvider: Excluding non-USDC-collateral HIP-3 DEX from market data',
+          { dex: result.dex },
+        );
+
+        return {
+          ...result,
+          meta: null,
+          assetCtxs: [],
+          allMids: {},
+          success: false,
+        };
+      }),
+    );
+  }
+
   #mergeDexResultsInto(
     results: DexFetchResult[],
     combinedUniverse: MetaResponse['universe'],
@@ -6114,21 +12246,29 @@ export class HyperLiquidProvider implements PerpsProvider {
     results.forEach((result) => {
       if (result.success && result.meta?.universe) {
         const marketsFromDex = result.meta.universe;
-        const filteredMarkets =
-          result.dex === null
-            ? marketsFromDex
-            : marketsFromDex.filter((asset) =>
-                shouldIncludeMarket(
-                  asset.name,
-                  result.dex,
-                  this.#hip3Enabled,
-                  this.#compiledAllowlistPatterns,
-                  this.#compiledBlocklistPatterns,
-                ),
-              );
+        const filteredMarketsWithContexts = marketsFromDex
+          .map((market, index) => ({
+            market,
+            assetCtx: result.assetCtxs[index],
+          }))
+          .filter(
+            ({ market }) =>
+              result.dex === null ||
+              shouldIncludeMarket(
+                market.name,
+                result.dex,
+                this.#hip3Enabled,
+                this.#compiledAllowlistPatterns,
+                this.#compiledBlocklistPatterns,
+              ),
+          );
 
-        combinedUniverse.push(...filteredMarkets);
-        combinedAssetCtxs.push(...result.assetCtxs);
+        combinedUniverse.push(
+          ...filteredMarketsWithContexts.map(({ market }) => market),
+        );
+        combinedAssetCtxs.push(
+          ...filteredMarketsWithContexts.map(({ assetCtx }) => assetCtx),
+        );
         Object.assign(combinedAllMids, result.allMids);
       }
     });
@@ -6176,6 +12316,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the combined market data from all enabled DEXs.
    */
   async getMarketDataWithPrices(): Promise<PerpsMarketData[]> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     this.#deps.debugLogger.log(
       'Getting market data with prices via HyperLiquid SDK',
     );
@@ -6198,14 +12339,17 @@ export class HyperLiquidProvider implements PerpsProvider {
     // has already populated it; on cache miss, delegate to #fetchSingleDexFresh.
     const dexDataResults = await Promise.all(
       enabledDexs.map(async (dex) => {
-        const dexKey = dex ?? '';
         const dexParam = dex ?? '';
-        const cachedMeta = this.#cachedMetaByDex.get(dexKey);
+        const cachedMeta = this.#cachedMetaByDex.get(dex);
         if (!cachedMeta) {
           this.#deps.debugLogger.log(
             `[getMarketDataWithPrices] Cache miss for ${dex ?? 'main'}, fetching`,
           );
-          return this.#fetchSingleDexFresh(infoClient, dex);
+          return this.#fetchSingleDexFresh(
+            infoClient,
+            dex,
+            lifecycleGeneration,
+          );
         }
 
         this.#deps.debugLogger.log(
@@ -6215,7 +12359,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
         let metaForDex = cachedMeta;
         let assetCtxs =
-          this.#subscriptionService.getDexAssetCtxsCache(dexKey) ?? [];
+          this.#subscriptionService.getDexAssetCtxsCache(dexParam) ?? [];
         let failedStep: DexFetchFailureStep | undefined;
         let errorMessage: string | undefined;
 
@@ -6242,10 +12386,12 @@ export class HyperLiquidProvider implements PerpsProvider {
 
             metaForDex = freshMeta;
             assetCtxs = freshAssetCtxs;
-            this.#cachedMetaByDex.set(dexKey, freshMeta);
-            this.#subscriptionService.setDexMetaCache(dexKey, freshMeta);
-            this.#subscriptionService.setDexAssetCtxsCache(dexKey, assetCtxs);
-            await this.#backfillAssetMapForDex(dex, freshMeta);
+            await this.#cacheDexMetadataFromRead({
+              dex,
+              meta: freshMeta,
+              assetCtxs,
+              lifecycleGeneration,
+            });
           } catch (error) {
             return {
               dex,
@@ -6288,14 +12434,21 @@ export class HyperLiquidProvider implements PerpsProvider {
       }),
     );
 
+    // TAT-3304: Exclude non-USDC-collateral HIP-3 DEXs before merging, so
+    // getMarketDataWithPrices (and the stale snapshot #cacheFreshMarketDataSnapshot
+    // derives from it) enforces the same USDC-only policy as market discovery
+    // and order placement.
+    const usdcFilteredDexDataResults =
+      await this.#excludeNonUsdcCollateralResults(dexDataResults);
+
     // Combine universe, assetCtxs, and allMids from all DEXs
     const combinedUniverse: MetaResponse['universe'] = [];
     const combinedAssetCtxs: PerpsAssetCtx[] = [];
     const combinedAllMids: Record<string, string> = {};
-    let latestDexResults = dexDataResults;
+    let latestDexResults = usdcFilteredDexDataResults;
 
     this.#mergeDexResultsInto(
-      dexDataResults,
+      usdcFilteredDexDataResults,
       combinedUniverse,
       combinedAssetCtxs,
       combinedAllMids,
@@ -6315,17 +12468,21 @@ export class HyperLiquidProvider implements PerpsProvider {
       await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
 
       const retryResults = await Promise.all(
-        enabledDexs.map((dex) => this.#fetchSingleDexFresh(infoClient, dex)),
+        enabledDexs.map((dex) =>
+          this.#fetchSingleDexFresh(infoClient, dex, lifecycleGeneration),
+        ),
       );
+      const usdcFilteredRetryResults =
+        await this.#excludeNonUsdcCollateralResults(retryResults);
 
       this.#mergeDexResultsInto(
-        retryResults,
+        usdcFilteredRetryResults,
         combinedUniverse,
         combinedAssetCtxs,
         combinedAllMids,
       );
 
-      latestDexResults = retryResults;
+      latestDexResults = usdcFilteredRetryResults;
 
       if (combinedUniverse.length === 0) {
         const failedDexs = retryResults
@@ -6397,20 +12554,16 @@ export class HyperLiquidProvider implements PerpsProvider {
       },
     );
 
-    // Debug: Log combinedAllMids to diagnose price lookup issues
-    const hip3Keys = Object.keys(combinedAllMids).filter((key) =>
-      key.includes(':'),
-    );
+    // Keep this diagnostic bounded. Logging every price stalls React Native
+    // DevTools and other CDP clients when thousands of spot keys are present.
+    const allMidEntries = Object.entries(combinedAllMids);
+    const hip3Entries = allMidEntries.filter(([key]) => key.includes(':'));
     this.#deps.debugLogger.log('Combined allMids price data:', {
-      totalKeys: Object.keys(combinedAllMids).length,
-      allKeys: Object.keys(combinedAllMids),
-      hip3Keys,
-      hip3Prices: Object.fromEntries(
-        hip3Keys.map((key) => [key, combinedAllMids[key]]),
-      ),
-      samplePrices: Object.fromEntries(
-        Object.entries(combinedAllMids).slice(0, 5),
-      ),
+      totalKeys: allMidEntries.length,
+      hip3Keys: hip3Entries.length,
+      keySample: allMidEntries.slice(0, 5).map(([key]) => key),
+      hip3KeySample: hip3Entries.slice(0, 5).map(([key]) => key),
+      samplePrices: Object.fromEntries(allMidEntries.slice(0, 5)),
     });
 
     // Transform to UI-friendly format using standalone utility
@@ -6422,8 +12575,16 @@ export class HyperLiquidProvider implements PerpsProvider {
       },
       this.#deps.marketDataFormatters,
       HIP3_ASSET_MARKET_TYPES,
+      HYPERLIQUID_ASSET_NAMES,
     );
-
+    if (
+      !this.#isCacheWriteLifecycleCurrent(
+        lifecycleGeneration,
+        'Market data cache write',
+      )
+    ) {
+      return transformedMarketData;
+    }
     return this.#cacheFreshMarketDataSnapshot(
       transformedMarketData,
       latestDexResults,
@@ -6464,6 +12625,16 @@ export class HyperLiquidProvider implements PerpsProvider {
         size: params.size,
         price: params.price,
         orderType: params.orderType,
+        triggerPrice: params.triggerPrice,
+        takeProfitPrice: params.takeProfitPrice,
+        stopLossPrice: params.stopLossPrice,
+        takeProfitSize: params.takeProfitSize,
+        stopLossSize: params.stopLossSize,
+        tpslLinkage: params.tpslLinkage,
+        grouping: params.grouping,
+        timeInForce: params.timeInForce,
+        clientOrderId: params.clientOrderId,
+        ...pickStrategyParams(params),
       });
       if (!basicValidation.isValid) {
         return basicValidation;
@@ -6500,11 +12671,12 @@ export class HyperLiquidProvider implements PerpsProvider {
           const size = parseFloat(params.size || '0');
           let priceForValidation = params.currentPrice;
 
-          // For limit orders without currentPrice, use limit price as fallback
+          // For limit-executing orders without currentPrice, use limit price as
+          // fallback (plain limit, stop_limit, take_profit_limit)
           if (
             !priceForValidation &&
             params.price &&
-            params.orderType === 'limit'
+            isLimitExecutionOrderType(params.orderType)
           ) {
             priceForValidation = parseFloat(params.price);
             this.#deps.debugLogger.log(
@@ -6512,6 +12684,24 @@ export class HyperLiquidProvider implements PerpsProvider {
               {
                 size,
                 limitPrice: priceForValidation,
+              },
+            );
+          }
+
+          // Market-executing trigger orders (stop_market, take_profit_market)
+          // have no limit price; the trigger price is the best notional estimate.
+          if (
+            !priceForValidation &&
+            params.triggerPrice &&
+            isTriggerOrderType(params.orderType)
+          ) {
+            priceForValidation = parseFloat(params.triggerPrice);
+            this.#deps.debugLogger.log(
+              'Using trigger price for order validation (trigger order):',
+              {
+                size,
+                triggerPrice: priceForValidation,
+                orderType: params.orderType,
               },
             );
           }
@@ -6539,6 +12729,16 @@ export class HyperLiquidProvider implements PerpsProvider {
             isValid: false,
             error: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
           };
+        }
+
+        // A strategy placement's total clearing the per-order minimum does not
+        // mean the orders it expands into will.
+        const strategyMinimum = validateStrategyNotional({
+          orderType: params.orderType,
+          orderValueUSD,
+        });
+        if (!strategyMinimum.isValid) {
+          return strategyMinimum;
         }
       }
 
@@ -6821,6 +13021,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Step 4: Ensure client is ready
       this.#deps.debugLogger.log('HyperLiquidProvider: ENSURING CLIENT READY');
       await this.#ensureReady();
+      await this.#ensureUnifiedAccountEnabled({ allowUserSigning: true });
       const exchangeClient = this.#clientService.getExchangeClient();
       this.#deps.debugLogger.log('HyperLiquidProvider: CLIENT READY');
 
@@ -6829,9 +13030,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         'HyperLiquidProvider: CHECKING ACCOUNT BALANCE',
       );
       const accountState = await this.getAccountState();
-      const availableBalance = parseFloat(accountState.availableBalance);
+      const withdrawableBalance = parseFloat(accountState.withdrawableBalance);
       this.#deps.debugLogger.log('HyperLiquidProvider: ACCOUNT BALANCE', {
-        availableBalance,
+        withdrawableBalance,
+        spendableBalance: accountState.spendableBalance,
         totalBalance: accountState.totalBalance,
         marginUsed: accountState.marginUsed,
         unrealizedPnl: accountState.unrealizedPnl,
@@ -6849,13 +13051,17 @@ export class HyperLiquidProvider implements PerpsProvider {
       const withdrawAmount = parseFloat(params.amount);
       this.#deps.debugLogger.log('HyperLiquidProvider: WITHDRAWAL AMOUNT', {
         requestedAmount: withdrawAmount,
-        availableBalance,
-        sufficientBalance: withdrawAmount <= availableBalance,
+        withdrawableBalance,
+        sufficientBalance: withdrawAmount <= withdrawableBalance,
       });
 
+      // Validate against withdrawableBalance — the mode-aware cap.
+      // No spot sweep: withdrawableBalance already reflects what withdraw3
+      // can pull. In Unified mode HL handles cross-wallet internally; in
+      // Standard mode spot is not withdrawable via perps.
       const balanceValidation = validateBalance(
         withdrawAmount,
-        availableBalance,
+        withdrawableBalance,
       );
       if (!balanceValidation.isValid) {
         this.#deps.debugLogger.log(
@@ -6863,8 +13069,8 @@ export class HyperLiquidProvider implements PerpsProvider {
           {
             error: balanceValidation.error,
             requestedAmount: withdrawAmount,
-            availableBalance,
-            difference: withdrawAmount - availableBalance,
+            withdrawableBalance,
+            difference: withdrawAmount - withdrawableBalance,
           },
         );
         throw new Error(balanceValidation.error);
@@ -7137,7 +13343,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   /**
    * Subscribe to open interest cap updates
-   * Zero additional overhead - data extracted from existing webData2 subscription
+   * Zero additional overhead - data extracted from existing webData3 subscription
    *
    * @param params - The operation parameters.
    * @returns A cleanup function to remove the subscription.
@@ -7184,26 +13390,34 @@ export class HyperLiquidProvider implements PerpsProvider {
   async toggleTestnet(): Promise<ToggleTestnetResult> {
     try {
       const newIsTestnet = !this.#clientService.isTestnetMode();
-
-      // Await pending initialization to prevent race condition where
-      // the IIFE sets clientsInitialized = true after we reset it
-      const pendingInit = this.#initializationPromise;
-      this.#initializationPromise = null;
-
-      if (pendingInit) {
-        try {
-          await pendingInit;
-        } catch {
-          // Ignore - we're switching networks anyway
-        }
+      const disconnectResult = await this.disconnect();
+      if (!disconnectResult.success) {
+        // The network did not change. Keep the provider eligible for lazy
+        // recovery instead of leaving this aborted toggle permanently sticky.
+        this.#isDisconnected = false;
+        throw new Error(
+          disconnectResult.error ??
+            'Failed to disconnect before network toggle',
+        );
       }
 
       // Update all services
       this.#clientService.setTestnetMode(newIsTestnet);
+      // Invalidate reads that started after disconnect completed but before
+      // the clients switched networks.
+      this.#lifecycleGeneration += 1;
       this.#walletService.setTestnetMode(newIsTestnet);
 
-      // Reset initialization flag so clients will be recreated on next use
-      this.#clientsInitialized = false;
+      const initializeResult = await this.initialize();
+      if (!initializeResult.success) {
+        // The network switch is already committed. Leave the provider eligible
+        // for lazy initialization so the next operation can retry the failed
+        // client setup instead of remaining permanently disconnected.
+        this.#isDisconnected = false;
+        throw new Error(
+          initializeResult.error ?? 'Failed to initialize after network toggle',
+        );
+      }
 
       return {
         success: true,
@@ -7223,9 +13437,20 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async initialize(): Promise<InitializeResult> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     try {
+      if (this.#disconnectOperationsInFlight > 0) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
       // Ensure clients are initialized (lazy initialization)
       await this.#ensureClientsInitialized();
+      if (
+        this.#disconnectOperationsInFlight > 0 ||
+        lifecycleGeneration !== this.#lifecycleGeneration
+      ) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+      }
+      this.#isDisconnected = false;
       return {
         success: true,
         chainId: getChainId(this.#clientService.isTestnetMode()),
@@ -7273,6 +13498,52 @@ export class HyperLiquidProvider implements PerpsProvider {
             : PERPS_ERROR_CODES.UNKNOWN_ERROR,
       };
     }
+  }
+
+  /**
+   * Project the isolated position that would remain after a proposed order.
+   *
+   * Fetches the asset's margin table from cached meta so liquidation uses the
+   * maintenance tier at the resulting liquidation notional. Cross-margin
+   * positions return unsupported without a table lookup.
+   *
+   * @param params - Live position plus the proposed order.
+   * @returns Discriminated preview; margin and liquidation are independently available.
+   */
+  async previewPositionModify(
+    params: PositionModifyPreviewParams,
+  ): Promise<PositionModifyPreviewResult> {
+    if (params.position.leverage.type === 'cross') {
+      return { status: 'unsupported', reason: 'cross_margin' };
+    }
+
+    const { dex: dexName } = parseAssetName(params.position.symbol);
+    let marginTiers = null;
+
+    try {
+      const meta = await this.#getCachedMeta({ dexName });
+      const assetInfo = meta.universe.find(
+        (universeItem) => universeItem.name === params.position.symbol,
+      );
+      marginTiers = resolveHyperLiquidMarginTiers({
+        marginTableId: assetInfo?.marginTableId,
+        maxLeverage: assetInfo?.maxLeverage ?? params.position.maxLeverage,
+        marginTables: meta.marginTables,
+      });
+    } catch (error) {
+      this.#deps.debugLogger.log(
+        'HyperLiquidProvider: margin table unavailable for position preview',
+        {
+          symbol: params.position.symbol,
+          error,
+        },
+      );
+    }
+
+    return previewHyperLiquidIsolatedPositionModify({
+      ...params,
+      marginTiers,
+    });
   }
 
   /**
@@ -7392,6 +13663,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the numeric result.
    */
   async getMaxLeverage(asset: string): Promise<number> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     try {
       // Check cache first
       const cached = this.#maxLeverageCache.get(asset);
@@ -7440,11 +13712,17 @@ export class HyperLiquidProvider implements PerpsProvider {
         return PERPS_CONSTANTS.DefaultMaxLeverage;
       }
 
-      // Cache the result
-      this.#maxLeverageCache.set(asset, {
-        value: assetInfo.maxLeverage,
-        timestamp: now,
-      });
+      if (
+        this.#isCacheWriteLifecycleCurrent(
+          lifecycleGeneration,
+          'Maximum leverage cache write',
+        )
+      ) {
+        this.#maxLeverageCache.set(asset, {
+          value: assetInfo.maxLeverage,
+          timestamp: now,
+        });
+      }
 
       return assetInfo.maxLeverage;
     } catch (error) {
@@ -7471,11 +13749,30 @@ export class HyperLiquidProvider implements PerpsProvider {
   async calculateFees(
     params: FeeCalculationParams,
   ): Promise<FeeCalculationResult> {
+    const lifecycleGeneration = this.#lifecycleGeneration;
     const { orderType, isMaker = false, amount, symbol } = params;
+    const numericAmount =
+      amount === undefined ? undefined : Number.parseFloat(amount);
+    const parsedAmount =
+      numericAmount === undefined ||
+      (Number.isFinite(numericAmount) && numericAmount >= 0)
+        ? numericAmount
+        : 0;
+
+    // Every placement is charged as its execution kind: a stop_market fills as a
+    // market order (taker), a stop_limit as a limit order, a scale ladder as the
+    // resting limit orders it fans out into, and a TWAP as the marketable
+    // suborders it crosses the book with.
+    const isMarketExecution = getTriggerExecution(orderType) === 'market';
+
+    // A chase is post-only by construction, so it can only ever fill as a maker.
+    // Quoting it at the taker rate would overstate the fee whatever the caller
+    // passes for `isMaker`.
+    const chargesMakerRate =
+      orderType === 'chase' || (!isMarketExecution && isMaker);
 
     // Start with base rates from config
-    let feeRate =
-      orderType === 'market' || !isMaker ? FEE_RATES.taker : FEE_RATES.maker;
+    let feeRate = chargesMakerRate ? FEE_RATES.maker : FEE_RATES.taker;
 
     // Parse symbol to detect HIP-3 DEX (e.g., "xyz:TSLA" → dex="xyz", parsedSymbol="TSLA")
     const { dex, symbol: parsedSymbol } = parseAssetName(symbol);
@@ -7516,6 +13813,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     // Try to get user-specific rates if wallet is connected
     try {
       const userAddress = await this.#walletService.getUserAddressWithDefault();
+      this.#assertProviderLifecycleCurrent(
+        lifecycleGeneration,
+        'User fee cache read',
+      );
 
       this.#deps.debugLogger.log('User Address Retrieved', {
         userAddress,
@@ -7526,11 +13827,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (this.#isFeeCacheValid(userAddress)) {
         const cached = this.#userFeeCache.get(userAddress);
         if (cached) {
-          // Market orders always use taker rate, limit orders check isMaker
-          let userFeeRate =
-            orderType === 'market' || !isMaker
-              ? cached.perpsTakerRate
-              : cached.perpsMakerRate;
+          // Same maker/taker decision as the base rates above, including the
+          // post-only chase case — re-deriving it here would quote a chase at
+          // the taker rate whenever the caller passed isMaker: false.
+          let userFeeRate = chargesMakerRate
+            ? cached.perpsMakerRate
+            : cached.perpsTakerRate;
 
           // Apply HIP-3 dynamic multiplier to user-specific rates (includes Growth Mode)
           if (isHip3Asset && hip3Multiplier > 0) {
@@ -7563,7 +13865,15 @@ export class HyperLiquidProvider implements PerpsProvider {
 
         // Fetch fresh rates from SDK
         // Read-only operation: only need client initialization
+        this.#assertProviderLifecycleCurrent(
+          lifecycleGeneration,
+          'User fee fetch',
+        );
         await this.#ensureClientsInitialized();
+        this.#assertProviderLifecycleCurrent(
+          lifecycleGeneration,
+          'User fee fetch',
+        );
         this.#clientService.ensureInitialized();
         const infoClient = this.#clientService.getInfoClient();
         const userFees = await infoClient.userFees({
@@ -7578,18 +13888,43 @@ export class HyperLiquidProvider implements PerpsProvider {
         });
 
         // Parse base user rates (these don't include discounts as expected)
-        const baseUserTakerRate = parseFloat(userFees.userCrossRate);
-        const baseUserMakerRate = parseFloat(userFees.userAddRate);
-        const baseUserSpotTakerRate = parseFloat(userFees.userSpotCrossRate);
-        const baseUserSpotMakerRate = parseFloat(userFees.userSpotAddRate);
+        const baseUserTakerRate = parseBoundedNonNegativeDecimal(
+          userFees.userCrossRate,
+          MAX_API_FEE_RATE,
+        );
+        const baseUserMakerRate = parseBoundedNonNegativeDecimal(
+          userFees.userAddRate,
+          MAX_API_FEE_RATE,
+        );
+        const baseUserSpotTakerRate = parseBoundedNonNegativeDecimal(
+          userFees.userSpotCrossRate,
+          MAX_API_FEE_RATE,
+        );
+        const baseUserSpotMakerRate = parseBoundedNonNegativeDecimal(
+          userFees.userSpotAddRate,
+          MAX_API_FEE_RATE,
+        );
 
         // Apply discounts manually since HyperLiquid API doesn't apply them
-        const referralDiscount = parseFloat(
+        const referralDiscount = parseBoundedNonNegativeDecimal(
           userFees.activeReferralDiscount || '0',
+          MAX_API_FEE_DISCOUNT,
         );
-        const stakingDiscount = parseFloat(
+        const stakingDiscount = parseBoundedNonNegativeDecimal(
           userFees.activeStakingDiscount?.discount || '0',
+          MAX_API_FEE_DISCOUNT,
         );
+
+        if (
+          baseUserTakerRate === null ||
+          baseUserMakerRate === null ||
+          baseUserSpotTakerRate === null ||
+          baseUserSpotMakerRate === null ||
+          referralDiscount === null ||
+          stakingDiscount === null
+        ) {
+          throw new Error('Invalid fee rates received from API');
+        }
 
         // Calculate total discount (referral + staking, but not compounding)
         const totalDiscount = Math.min(referralDiscount + stakingDiscount, 0.4); // Cap at 40%
@@ -7620,10 +13955,10 @@ export class HyperLiquidProvider implements PerpsProvider {
 
         // Validate all rates are valid numbers before caching
         if (
-          isNaN(perpsTakerRate) ||
-          isNaN(perpsMakerRate) ||
-          isNaN(spotTakerRate) ||
-          isNaN(spotMakerRate) ||
+          !Number.isFinite(perpsTakerRate) ||
+          !Number.isFinite(perpsMakerRate) ||
+          !Number.isFinite(spotTakerRate) ||
+          !Number.isFinite(spotMakerRate) ||
           perpsTakerRate < 0 ||
           perpsMakerRate < 0 ||
           spotTakerRate < 0 ||
@@ -7631,10 +13966,14 @@ export class HyperLiquidProvider implements PerpsProvider {
         ) {
           this.#deps.debugLogger.log('Fee Rate Validation Failed', {
             validation: {
-              perpsTakerValid: !isNaN(perpsTakerRate) && perpsTakerRate >= 0,
-              perpsMakerValid: !isNaN(perpsMakerRate) && perpsMakerRate >= 0,
-              spotTakerValid: !isNaN(spotTakerRate) && spotTakerRate >= 0,
-              spotMakerValid: !isNaN(spotMakerRate) && spotMakerRate >= 0,
+              perpsTakerValid:
+                Number.isFinite(perpsTakerRate) && perpsTakerRate >= 0,
+              perpsMakerValid:
+                Number.isFinite(perpsMakerRate) && perpsMakerRate >= 0,
+              spotTakerValid:
+                Number.isFinite(spotTakerRate) && spotTakerRate >= 0,
+              spotMakerValid:
+                Number.isFinite(spotMakerRate) && spotMakerRate >= 0,
             },
             rawValues: {
               perpsTakerRate,
@@ -7655,12 +13994,15 @@ export class HyperLiquidProvider implements PerpsProvider {
           ttl: 5 * 60 * 1000, // 5 minutes
         };
 
+        this.#assertProviderLifecycleCurrent(
+          lifecycleGeneration,
+          'User fee cache write',
+        );
         this.#userFeeCache.set(userAddress, rates);
-        // Market orders always use taker rate, limit orders check isMaker
-        let userFeeRate =
-          orderType === 'market' || !isMaker
-            ? rates.perpsTakerRate
-            : rates.perpsMakerRate;
+        // Same maker/taker decision as the base rates above, chase included.
+        let userFeeRate = chargesMakerRate
+          ? rates.perpsMakerRate
+          : rates.perpsTakerRate;
 
         // Apply HIP-3 dynamic multiplier to API-fetched rates (includes Growth Mode)
         if (isHip3Asset && hip3Multiplier > 0) {
@@ -7684,6 +14026,9 @@ export class HyperLiquidProvider implements PerpsProvider {
         error,
         'HyperLiquidProvider.getFeeSchedule',
       );
+      if (safeError.message === PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE) {
+        throw safeError;
+      }
       this.#deps.debugLogger.log(
         'Fee API Call Failed - Falling Back to Base Rates',
         {
@@ -7696,49 +14041,60 @@ export class HyperLiquidProvider implements PerpsProvider {
       );
     }
 
-    const parsedAmount = amount ? parseFloat(amount) : 0;
+    this.#assertProviderLifecycleCurrent(
+      lifecycleGeneration,
+      'Fee calculation',
+    );
 
     // Protocol base fee (HyperLiquid's fee)
     const protocolFeeRate = feeRate;
-    let protocolFeeAmount: number | undefined;
-    if (amount === undefined) {
-      protocolFeeAmount = undefined;
-    } else if (isNaN(parsedAmount)) {
-      protocolFeeAmount = 0;
-    } else {
-      protocolFeeAmount = parsedAmount * protocolFeeRate;
-    }
+    const protocolFeeAmount =
+      parsedAmount === undefined ? undefined : parsedAmount * protocolFeeRate;
 
-    // MetaMask builder fee (0.1% = 0.001) with optional reward discount
-    let metamaskFeeRate = BUILDER_FEE_CONFIG.MaxFeeDecimal;
+    // The provider policy, not the client, owns whether this placement can
+    // carry a builder fee. The dedicated TWAP action has no builder field.
+    const { chargesMetamaskBuilderFee } = this.#resolveOrderFeePolicy(params);
+    const baseMetamaskFeeRate = chargesMetamaskBuilderFee
+      ? BUILDER_FEE_CONFIG.MaxFeeDecimal
+      : 0;
+    const metamaskFeeDiscount =
+      this.#userFeeDiscountBips === undefined
+        ? 0
+        : this.#userFeeDiscountBips / BASIS_POINTS_DIVISOR;
+    const metamaskFeeRate = baseMetamaskFeeRate * (1 - metamaskFeeDiscount);
 
-    // Apply MetaMask reward discount if active
-    if (this.#userFeeDiscountBips !== undefined) {
-      const discount = this.#userFeeDiscountBips / BASIS_POINTS_DIVISOR; // Convert basis points to decimal
-      metamaskFeeRate = BUILDER_FEE_CONFIG.MaxFeeDecimal * (1 - discount);
-
+    if (chargesMetamaskBuilderFee && this.#userFeeDiscountBips !== undefined) {
       this.#deps.debugLogger.log('HyperLiquid: Applied MetaMask fee discount', {
-        originalRate: BUILDER_FEE_CONFIG.MaxFeeDecimal,
+        originalRate: baseMetamaskFeeRate,
         discountBips: this.#userFeeDiscountBips,
         discountPercentage: this.#userFeeDiscountBips / 100,
         adjustedRate: metamaskFeeRate,
-        discountAmount: BUILDER_FEE_CONFIG.MaxFeeDecimal * discount,
+        discountAmount: baseMetamaskFeeRate * metamaskFeeDiscount,
       });
     }
 
-    const validAmountForMetamaskFee = isNaN(parsedAmount)
-      ? 0
-      : parsedAmount * metamaskFeeRate;
     const metamaskFeeAmount =
-      amount === undefined ? undefined : validAmountForMetamaskFee;
+      parsedAmount === undefined ? undefined : parsedAmount * metamaskFeeRate;
 
     // Total fees
     const totalFeeRate = protocolFeeRate + metamaskFeeRate;
-    const validAmountForTotalFee = isNaN(parsedAmount)
-      ? 0
-      : parsedAmount * totalFeeRate;
     const totalFeeAmount =
-      amount === undefined ? undefined : validAmountForTotalFee;
+      parsedAmount === undefined ? undefined : parsedAmount * totalFeeRate;
+    if (
+      !Number.isFinite(protocolFeeRate) ||
+      protocolFeeRate < 0 ||
+      !Number.isFinite(metamaskFeeRate) ||
+      metamaskFeeRate < 0 ||
+      !Number.isFinite(totalFeeRate) ||
+      totalFeeRate < 0 ||
+      (protocolFeeAmount !== undefined &&
+        !Number.isFinite(protocolFeeAmount)) ||
+      (metamaskFeeAmount !== undefined &&
+        !Number.isFinite(metamaskFeeAmount)) ||
+      (totalFeeAmount !== undefined && !Number.isFinite(totalFeeAmount))
+    ) {
+      throw new Error('Invalid fee calculation result');
+    }
 
     const result = {
       // Total fees
@@ -7820,6 +14176,32 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns A promise that resolves to the result.
    */
   async disconnect(): Promise<DisconnectResult> {
+    if (this.#disconnectOperationPromise) {
+      return this.#disconnectOperationPromise;
+    }
+
+    const operation = this.#performDisconnect();
+    this.#disconnectOperationPromise = operation;
+    try {
+      return await operation;
+    } finally {
+      if (this.#disconnectOperationPromise === operation) {
+        this.#disconnectOperationPromise = null;
+      }
+    }
+  }
+
+  /**
+   * Perform one provider teardown shared by every concurrent caller.
+   *
+   * @returns A promise that resolves to the result.
+   */
+  async #performDisconnect(): Promise<DisconnectResult> {
+    this.#chasePlacementBlockers += 1;
+    this.#strategyGeneration += 1;
+    this.#disconnectOperationsInFlight += 1;
+    this.#isDisconnected = true;
+    this.#lifecycleGeneration += 1;
     try {
       this.#deps.debugLogger.log('HyperLiquid: Disconnecting provider', {
         isTestnet: this.#clientService.isTestnetMode(),
@@ -7829,15 +14211,45 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Clear subscriptions through subscription service
       this.#subscriptionService.clearAll();
 
-      // Clear fee cache
-      this.clearFeeCache();
+      // Stop every chase loop: each holds a pending timer, and re-pricing after
+      // a disconnect would sign orders against a client that is being torn down.
+      // Orders already resting are deliberately left alone — disconnecting is
+      // not a request to cancel the user's positions or orders.
+      // Invalidate placements first, then drain every mutation before clearing
+      // the registry and tearing down the clients they use.
+      for (const [sessionId, session] of this.#chaseSessions.entries()) {
+        if (session.active) {
+          this.#stopChaseSession(sessionId);
+        }
+      }
+      await Promise.all([...this.#chasePlacementWaiters]);
+      await this.#chaseTickQueue;
+      await Promise.allSettled([...this.#chaseTerminations.values()]);
+      await Promise.all(
+        [...this.#chaseSessions.values()].map(
+          async (session) => await this.#rebalanceChaseSession(session),
+        ),
+      );
+      this.#chaseSessions.clear();
+      this.#chaseTerminations.clear();
+      this.#terminatedChaseHandles.clear();
+      this.#scaleOrderGroups.clear();
+      this.#cancelledScaleOrderGroups.clear();
 
-      // Clear session caches (ensures fresh state on reconnect/account switch)
+      // Clear session caches. Capability and fee reads use the lifecycle
+      // generation above to discard any old response that resolves later.
+      this.clearFeeCache();
       this.#referralCheckCache.clear();
       this.#builderFeeCheckCache.clear();
-      // NOTE: DexAbstractionCache is global and NOT cleared on disconnect
-      // to prevent repeated signing requests across reconnections
+      this.#subscriptionBuilderApprovalEpoch += 1;
+      this.#approvedBuilderAddresses.clear();
+      this.#userFeeResolution = undefined;
+      this.#userFeeDiscountBips = undefined;
+      // UnifiedAccountCache stays global to avoid repeated signing requests.
       this.#cachedMetaByDex.clear();
+      this.#pendingValidatedDexsPromise = null;
+      this.#orderCapabilitiesMarketsByDex.clear();
+      this.#orderCapabilitiesRefreshByDex.clear();
       this.#cachedSpotMeta = null;
       this.#dexDiscoveryCache.reset();
       this.#dexDiscoveryComplete = false;
@@ -7847,12 +14259,16 @@ export class HyperLiquidProvider implements PerpsProvider {
       const pendingInit = this.#initializationPromise;
       const pendingReady = this.#ensureReadyPromise;
       const pendingTradingSetup = this.#tradingSetupPromise;
+      const pendingBuilderFeeSetups = [
+        ...this.#builderFeeSetupPromises.values(),
+      ];
 
       // Clear references first to prevent new callers from reusing
       this.#initializationPromise = null;
       this.#ensureReadyPromise = null;
       this.#tradingSetupPromise = null;
       this.#tradingSetupComplete = false;
+      this.#builderFeeSetupPromises.clear();
       this.#pendingBuilderFeeApprovals.clear();
 
       // Wait for pending operations to complete (ignore errors)
@@ -7880,6 +14296,14 @@ export class HyperLiquidProvider implements PerpsProvider {
         }
       }
 
+      for (const pendingBuilderFeeSetup of pendingBuilderFeeSetups) {
+        try {
+          await pendingBuilderFeeSetup;
+        } catch {
+          // Ignore - we're disconnecting anyway
+        }
+      }
+
       // Reset client initialization flag so wallet adapter will be recreated with new account
       // This fixes account synchronization issue where old account's address persists in wallet adapter
       this.#clientsInitialized = false;
@@ -7894,6 +14318,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       return { success: true };
     } catch (error) {
       return createErrorResult(error, { success: false });
+    } finally {
+      this.#chasePlacementBlockers -= 1;
+      this.#disconnectOperationsInFlight -= 1;
     }
   }
 
@@ -8070,6 +14497,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     return this.#builderAddressMainnet || BUILDER_FEE_CONFIG.MainnetBuilder;
   }
 
+  #getSubscriptionBuilderAddress(isTestnet: boolean): string | undefined {
+    return isTestnet
+      ? this.#subscriptionBuilderAddressTestnet
+      : this.#subscriptionBuilderAddressMainnet;
+  }
+
   #getReferralCode(isTestnet: boolean): string {
     return isTestnet
       ? REFERRAL_CONFIG.TestnetCode
@@ -8106,11 +14539,27 @@ export class HyperLiquidProvider implements PerpsProvider {
       return;
     }
 
+    // Skip the referral write for unfunded wallets — same proactive gate
+    // as `#ensureUnifiedAccountEnabled`. `exchangeClient.setReferrer`
+    // rejects with "User or API Wallet 0x... does not exist." for wallets
+    // that have not yet deposited.
+    const isRegistered = await this.#isWalletOnHyperliquid(
+      userAddress,
+      network,
+    );
+    if (!isRegistered) {
+      this.#deps.debugLogger.log(
+        '[ensureReferralSet] Wallet not yet on Hyperliquid, deferring referral setup',
+        { network },
+      );
+      return;
+    }
+
     // Check GLOBAL cache first
     const globalCached = PerpsSigningCache.getReferral(network, userAddress);
     if (globalCached?.attempted) {
       this.#deps.debugLogger.log(
-        '[ensureReferralSet] Using global cache (prevents QR popup spam)',
+        '[ensureReferralSet] Using global cache (prevents hardware wallet prompt spam)',
         { network, success: globalCached.success },
       );
       return;
@@ -8201,10 +14650,24 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       completeInFlight();
     } catch (error) {
-      // If keyring is locked, don't cache so it retries when unlocked
-      if (ensureError(error).message === PERPS_ERROR_CODES.KEYRING_LOCKED) {
+      // HyperLiquid wraps wallet signing failures and preserves KEYRING_LOCKED
+      // in `cause`, so classify the full chain and leave retry caches empty.
+      if (isKeyringLockedError(error)) {
         this.#deps.debugLogger.log(
           '[ensureReferralSet] Keyring locked, will retry later',
+        );
+        completeInFlight();
+        return;
+      }
+
+      // Safety net: wallet looked registered but the SDK still rejects with
+      // "User or API Wallet 0x... does not exist." Do not forward to Sentry.
+      // The walletRegistered cache stores positive observations only, so no
+      // demotion is needed; the next entry will re-probe.
+      if (isHyperLiquidUserNotFoundError(error)) {
+        this.#deps.debugLogger.log(
+          '[ensureReferralSet] Wallet not on Hyperliquid (race/stale-cache), deferring referral',
+          { network, user: userAddress },
         );
         completeInFlight();
         return;
@@ -8307,6 +14770,17 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       return Boolean(referralData?.referredBy?.code);
     } catch (error) {
+      // Benign for unfunded wallets — downgrade to debug log, do not Sentry.
+      if (isHyperLiquidUserNotFoundError(error)) {
+        this.#deps.debugLogger.log(
+          '[checkReferralSet] Wallet not on Hyperliquid yet, treating as no referral',
+          {
+            error: ensureError(error, 'HyperLiquidProvider.checkReferralSet')
+              .message,
+          },
+        );
+        return false;
+      }
       this.#deps.logger.error(
         ensureError(error, 'HyperLiquidProvider.checkReferralSet'),
         this.#getErrorContext('checkReferralSet', {
@@ -8347,6 +14821,19 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       return result?.status === 'ok';
     } catch (error) {
+      // Benign for unfunded wallets — downgrade and rethrow so the outer
+      // `#ensureReferralSet` catch self-heals the walletRegistered gate
+      // without forwarding to Sentry.
+      if (isHyperLiquidUserNotFoundError(error)) {
+        this.#deps.debugLogger.log(
+          '[setReferralCode] Wallet not on Hyperliquid yet, skipping referral write',
+          {
+            error: ensureError(error, 'HyperLiquidProvider.setReferralCode')
+              .message,
+          },
+        );
+        throw error;
+      }
       this.#deps.logger.error(
         ensureError(error, 'HyperLiquidProvider.setReferralCode'),
         this.#getErrorContext('setReferralCode', {

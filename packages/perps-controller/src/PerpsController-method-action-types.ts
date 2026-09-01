@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { PerpsController } from './PerpsController';
+import type { PerpsController } from './PerpsController.js';
 
 /**
  * Read cached market data for the currently active provider (or aggregated).
@@ -34,6 +34,18 @@ export type PerpsControllerGetCachedMarketDataForActiveProviderAction = {
 export type PerpsControllerGetCachedUserDataForActiveProviderAction = {
   type: `PerpsController:getCachedUserDataForActiveProvider`;
   handler: PerpsController['getCachedUserDataForActiveProvider'];
+};
+
+/**
+ * Fetch, validate, and atomically cache a complete user-data snapshot.
+ * This remains callable after mount so consumers can seed their live channel
+ * from one coherent positions/orders/account result.
+ *
+ * @returns The accepted user-data snapshot.
+ */
+export type PerpsControllerGetUserDataSnapshotAction = {
+  type: `PerpsController:getUserDataSnapshot`;
+  handler: PerpsController['getUserDataSnapshot'];
 };
 
 /**
@@ -74,6 +86,19 @@ export type PerpsControllerGetActiveProviderOrNullAction = {
 };
 
 /**
+ * Get strategy capabilities through the active provider route used by order
+ * placement. The query waits for in-flight initialization and reports an
+ * explicit unavailable status when no provider route can answer reliably.
+ *
+ * @param params - Market and optional provider route.
+ * @returns Provider-owned order capabilities.
+ */
+export type PerpsControllerGetOrderCapabilitiesAction = {
+  type: `PerpsController:getOrderCapabilities`;
+  handler: PerpsController['getOrderCapabilities'];
+};
+
+/**
  * Place a new order
  * Thin delegation to TradingService
  *
@@ -106,6 +131,41 @@ export type PerpsControllerEditOrderAction = {
 export type PerpsControllerCancelOrderAction = {
   type: `PerpsController:cancelOrder`;
   handler: PerpsController['cancelOrder'];
+};
+
+/**
+ * Read venue-backed TWAP lifecycle records through the active provider.
+ * Providers without native TWAP history return an empty list.
+ *
+ * @returns Current and terminal TWAP schedules with slice fills.
+ */
+export type PerpsControllerGetTwapOrdersAction = {
+  type: `PerpsController:getTwapOrders`;
+  handler: PerpsController['getTwapOrders'];
+};
+
+/**
+ * Read the active provider's retained Chase lifecycle snapshots.
+ * Providers without an emulated Chase implementation return an empty list.
+ *
+ * @returns Current Chase session snapshots.
+ */
+export type PerpsControllerGetChaseOrdersAction = {
+  type: `PerpsController:getChaseOrders`;
+  handler: PerpsController['getChaseOrders'];
+};
+
+/**
+ * Stop Chase repricing for app backgrounding without cancelling the current
+ * resting children.
+ *
+ * @returns Chase snapshots after suspension.
+ * @throws If an aggregated provider cannot suspend every active venue. Other
+ * providers may already be suspended; callers can retry to reconcile them.
+ */
+export type PerpsControllerSuspendChaseOrdersAction = {
+  type: `PerpsController:suspendChaseOrders`;
+  handler: PerpsController['suspendChaseOrders'];
 };
 
 /**
@@ -317,6 +377,43 @@ export type PerpsControllerGetOrderFillsAction = {
 };
 
 /**
+ * List TP/SL protection changes the active provider parked for
+ * explicit manual re-establishment. Providers without durable
+ * settlement state return an empty list.
+ *
+ * @returns Pending manual-recovery entries.
+ */
+export type PerpsControllerGetPendingManualRecoveriesAction = {
+  type: `PerpsController:getPendingManualRecoveries`;
+  handler: PerpsController['getPendingManualRecoveries'];
+};
+
+/**
+ * READ-ONLY list of the active provider's recovered-dispatch outcomes
+ * (previously ambiguous submissions later resolved). Providers without
+ * durable dispatch state return an empty list.
+ *
+ * @returns Pending recovered-dispatch outcomes.
+ */
+export type PerpsControllerGetRecoveredDispatchesAction = {
+  type: `PerpsController:getRecoveredDispatches`;
+  handler: PerpsController['getRecoveredDispatches'];
+};
+
+/**
+ * Acknowledge ONE recovered-dispatch outcome by its stable id, after
+ * refreshing venue state. Throws when the active provider has no
+ * durable dispatch state or the id no longer matches.
+ *
+ * @param recoveryId - Stable id from {@link getRecoveredDispatches}.
+ * @returns Resolves when the outcome is acknowledged.
+ */
+export type PerpsControllerAcknowledgeRecoveredDispatchAction = {
+  type: `PerpsController:acknowledgeRecoveredDispatch`;
+  handler: PerpsController['acknowledgeRecoveredDispatch'];
+};
+
+/**
  * Get historical user orders (order lifecycle)
  * Thin delegation to MarketDataService
  *
@@ -404,13 +501,18 @@ export type PerpsControllerGetMarketsAction = {
 };
 
 /**
- * Get market data with prices (includes price, volume, 24h change)
+ * Get market data with prices (includes price, volume, 24h change).
+ * Optionally filter by category, sort, and limit the results.
  *
  * For standalone mode, bypasses getActiveProvider() to allow market data queries
  * without full perps initialization (e.g., for background preloading on app start)
  *
  * @param params - The operation parameters.
  * @param params.standalone - Whether to use standalone mode.
+ * @param params.categories - Filter to markets matching any of these categories.
+ * @param params.sortBy - Sort results by this field.
+ * @param params.direction - Sort direction (default: desc).
+ * @param params.limit - Maximum number of results to return.
  * @returns A promise that resolves to the market data.
  */
 export type PerpsControllerGetMarketDataWithPricesAction = {
@@ -476,6 +578,19 @@ export type PerpsControllerCalculateLiquidationPriceAction = {
 };
 
 /**
+ * Project the isolated position that would remain after a proposed order.
+ * Margin and liquidation availability are independent: a missing liquidation
+ * does not hide a valid margin projection. Cross-margin returns unsupported.
+ *
+ * @param params - Live position plus the proposed order.
+ * @returns Discriminated preview of the resulting position.
+ */
+export type PerpsControllerPreviewPositionModifyAction = {
+  type: `PerpsController:previewPositionModify`;
+  handler: PerpsController['previewPositionModify'];
+};
+
+/**
  * Calculate maintenance margin for a specific asset
  * Returns a percentage (e.g., 0.0125 for 1.25%)
  *
@@ -491,6 +606,7 @@ export type PerpsControllerCalculateMaintenanceMarginAction = {
  * Get maximum leverage allowed for an asset
  *
  * @param asset - The asset identifier.
+ * @param providerId - Optional provider route for aggregated markets.
  * @returns A promise that resolves to the numeric result.
  */
 export type PerpsControllerGetMaxLeverageAction = {
@@ -542,6 +658,35 @@ export type PerpsControllerGetWithdrawalRoutesAction = {
 };
 
 /**
+ * Set the transient UTM / discovery attribution context.
+ * Replaces any previously set context. Held in-memory only — not persisted.
+ *
+ * @param context - The attribution context (UTM fields) to store.
+ */
+export type PerpsControllerSetAttributionContextAction = {
+  type: `PerpsController:setAttributionContext`;
+  handler: PerpsController['setAttributionContext'];
+};
+
+/**
+ * Get a copy of the current attribution context.
+ *
+ * @returns A shallow copy of the stored attribution context.
+ */
+export type PerpsControllerGetAttributionContextAction = {
+  type: `PerpsController:getAttributionContext`;
+  handler: PerpsController['getAttributionContext'];
+};
+
+/**
+ * Clear the stored attribution context.
+ */
+export type PerpsControllerClearAttributionContextAction = {
+  type: `PerpsController:clearAttributionContext`;
+  handler: PerpsController['clearAttributionContext'];
+};
+
+/**
  * Toggle between testnet and mainnet
  *
  * @returns The toggle result with success status and current network mode.
@@ -572,6 +717,18 @@ export type PerpsControllerSwitchProviderAction = {
 export type PerpsControllerGetCurrentNetworkAction = {
   type: `PerpsController:getCurrentNetwork`;
   handler: PerpsController['getCurrentNetwork'];
+};
+
+/**
+ * Get the ordered list of all market categories for HIP-3 markets.
+ * Returns a stable, explicitly ordered array so the UI can render
+ * category filter tabs without deriving order from config insertion.
+ *
+ * @returns Ordered array of {@link MarketTypeFilter} values. Does not include the 'all' or 'new' sentinels — those are separate UI controls.
+ */
+export type PerpsControllerGetMarketCategoriesAction = {
+  type: `PerpsController:getMarketCategories`;
+  handler: PerpsController['getMarketCategories'];
 };
 
 /**
@@ -709,8 +866,9 @@ export type PerpsControllerSetLiveDataConfigAction = {
 };
 
 /**
- * Calculate trading fees for the active provider
- * Each provider implements its own fee structure
+ * Calculate trading fees through the active provider route.
+ * Each provider owns its fee policy. An explicit provider route overrides
+ * the active/default provider used by placement.
  *
  * @param params - The operation parameters.
  * @returns The fee calculation result for the trade.
@@ -718,6 +876,32 @@ export type PerpsControllerSetLiveDataConfigAction = {
 export type PerpsControllerCalculateFeesAction = {
   type: `PerpsController:calculateFees`;
   handler: PerpsController['calculateFees'];
+};
+
+/**
+ * Approve the dedicated subscription builder outside order submission.
+ * Until this succeeds, subscription waivers fall back to the ordinary
+ * builder at the standard fee.
+ *
+ * @returns Whether the subscription builder is approved.
+ */
+export type PerpsControllerApproveSubscriptionBuilderFeeAction = {
+  type: `PerpsController:approveSubscriptionBuilderFee`;
+  handler: PerpsController['approveSubscriptionBuilderFee'];
+};
+
+/**
+ * Drop the cached subscription benefits snapshot.
+ *
+ * Call this when the identity behind the benefits changes — sign-out, or a
+ * profile switch. The snapshot carries no profile identity of its own, so
+ * without this it keeps answering for the previous profile until the next
+ * successful refresh. The next fee resolution reports the waiver as
+ * unavailable, so it is withheld until preview or lifecycle hydration.
+ */
+export type PerpsControllerInvalidateSubscriptionBenefitsAction = {
+  type: `PerpsController:invalidateSubscriptionBenefits`;
+  handler: PerpsController['invalidateSubscriptionBenefits'];
 };
 
 /**
@@ -834,7 +1018,7 @@ export type PerpsControllerSaveTradeConfigurationAction = {
 
 /**
  * Save pending trade configuration for a market
- * This is a temporary configuration that expires after 5 minutes
+ * This is a temporary configuration that expires after 30 seconds.
  *
  * @param symbol - Market symbol
  * @param config - Pending trade configuration (includes optional selected payment token from Pay row)
@@ -844,6 +1028,8 @@ export type PerpsControllerSaveTradeConfigurationAction = {
  * @param config.stopLossPrice - The stop loss price.
  * @param config.limitPrice - The limit price.
  * @param config.orderType - The order type.
+ * @param config.reduceOnly - Whether the order may only reduce a position.
+ * @param config.direction - Long or short.
  * @param config.selectedPaymentToken - The selected payment token.
  */
 export type PerpsControllerSavePendingTradeConfigurationAction = {
@@ -853,7 +1039,7 @@ export type PerpsControllerSavePendingTradeConfigurationAction = {
 
 /**
  * Get pending trade configuration for a market
- * Returns undefined if config doesn't exist or has expired (more than 5 minutes old)
+ * Returns undefined if config doesn't exist or has expired.
  *
  * @param symbol - Market symbol
  * @returns Pending trade configuration or undefined
@@ -893,6 +1079,119 @@ export type PerpsControllerGetMarketFilterPreferencesAction = {
 export type PerpsControllerSaveMarketFilterPreferencesAction = {
   type: `PerpsController:saveMarketFilterPreferences`;
   handler: PerpsController['saveMarketFilterPreferences'];
+};
+
+/**
+ * Get the user's max slippage tolerance in basis points.
+ *
+ * @returns The configured max slippage bps, or undefined if never set (callers should default to 300 bps / 3%).
+ */
+export type PerpsControllerGetMaxSlippageAction = {
+  type: `PerpsController:getMaxSlippage`;
+  handler: PerpsController['getMaxSlippage'];
+};
+
+/**
+ * Set the user's max slippage tolerance in basis points.
+ *
+ * @param bps - Max slippage in basis points (e.g. 300 = 3%). Clamped to 10–1000, snapped to step of 10.
+ */
+export type PerpsControllerSetMaxSlippageAction = {
+  type: `PerpsController:setMaxSlippage`;
+  handler: PerpsController['setMaxSlippage'];
+};
+
+/**
+ * Get market-agnostic Pro order-book display preferences.
+ *
+ * @returns The current order-book display preferences.
+ */
+export type PerpsControllerGetOrderBookPreferencesAction = {
+  type: `PerpsController:getOrderBookPreferences`;
+  handler: PerpsController['getOrderBookPreferences'];
+};
+
+/**
+ * Update market-agnostic Pro order-book display preferences.
+ *
+ * @param patch - Partial order-book preferences to update.
+ */
+export type PerpsControllerSetOrderBookPreferencesAction = {
+  type: `PerpsController:setOrderBookPreferences`;
+  handler: PerpsController['setOrderBookPreferences'];
+};
+
+/**
+ * Get the selected order type shared by every market.
+ *
+ * @returns The selected order type.
+ */
+export type PerpsControllerGetSelectedOrderTypeAction = {
+  type: `PerpsController:getSelectedOrderType`;
+  handler: PerpsController['getSelectedOrderType'];
+};
+
+/**
+ * Set the selected order type shared by every market.
+ *
+ * @param orderType - The selected order type.
+ */
+export type PerpsControllerSetSelectedOrderTypeAction = {
+  type: `PerpsController:setSelectedOrderType`;
+  handler: PerpsController['setSelectedOrderType'];
+};
+
+/**
+ * Get the number of candles shown in Lite and Pro chart viewports.
+ *
+ * @returns The visible candle count.
+ */
+export type PerpsControllerGetVisibleCandleCountAction = {
+  type: `PerpsController:getVisibleCandleCount`;
+  handler: PerpsController['getVisibleCandleCount'];
+};
+
+/**
+ * Set the number of candles shown in Lite and Pro chart viewports.
+ *
+ * @param count - Requested visible candle count.
+ */
+export type PerpsControllerSetVisibleCandleCountAction = {
+  type: `PerpsController:setVisibleCandleCount`;
+  handler: PerpsController['setVisibleCandleCount'];
+};
+
+/**
+ * Get the user's pro-mode layout preferences (network-independent).
+ *
+ * @returns The current pro-mode layout preferences.
+ */
+export type PerpsControllerGetProLayoutPreferencesAction = {
+  type: `PerpsController:getProLayoutPreferences`;
+  handler: PerpsController['getProLayoutPreferences'];
+};
+
+/**
+ * Update the user's pro-mode layout preferences.
+ *
+ * Patch-style setter: only the provided fields are updated, the rest are
+ * preserved. This keeps the signature stable as new layout fields are added.
+ *
+ * @param patch - Partial set of pro-mode layout preferences to update.
+ */
+export type PerpsControllerSetProLayoutPreferencesAction = {
+  type: `PerpsController:setProLayoutPreferences`;
+  handler: PerpsController['setProLayoutPreferences'];
+};
+
+/**
+ * Set the Perps interface mode (lite/pro).
+ *
+ * @param mode - The mode to switch to.
+ */
+export type PerpsControllerSetPerpsModeAction = {
+  type: `PerpsController:setPerpsMode`;
+  handler: PerpsController['setPerpsMode'];
 };
 
 /**
@@ -939,8 +1238,17 @@ export type PerpsControllerSaveOrderBookGroupingAction = {
 };
 
 /**
- * Toggle watchlist status for a market
- * Watchlist markets are stored per network (testnet/mainnet)
+ * Toggle watchlist status for a market.
+ *
+ * Updates local state immediately (optimistic UI) and then syncs the new
+ * watchlist to AuthenticatedUserStorageService.  If the remote write fails,
+ * the local state is reverted so it stays consistent with AUS.
+ *
+ * When the user is unauthenticated, or the active provider is not yet
+ * supported by the AUS schema, the controller continues operating with
+ * local-persisted state only — no error is surfaced to the caller.
+ *
+ * Watchlist markets are stored per network (testnet/mainnet).
  *
  * @param symbol - The trading pair symbol.
  */
@@ -971,6 +1279,35 @@ export type PerpsControllerGetWatchlistMarketsAction = {
 };
 
 /**
+ * Record that the user viewed a market.
+ *
+ * The symbol is prepended to the per-network recently-viewed list (newest-first).
+ * Any existing entry for the same symbol is removed first so there are no
+ * duplicates. The list is then capped at PERPS_CONSTANTS.RecentlyViewedMarketsLimit.
+ *
+ * @param symbol - The trading pair symbol (e.g. 'BTC', 'ETH', 'xyz:TSLA').
+ */
+export type PerpsControllerRecordMarketViewedAction = {
+  type: `PerpsController:recordMarketViewed`;
+  handler: PerpsController['recordMarketViewed'];
+};
+
+/**
+ * Get recently viewed markets for the current network.
+ *
+ * Returns up to PERPS_CONSTANTS.RecentlyViewedMarketsLimit symbols, ordered
+ * newest-first, filtered to entries within the last
+ * PERPS_CONSTANTS.RecentlyViewedMarketsTtlMs (24 hours). Returns an empty
+ * array when no qualifying entries exist.
+ *
+ * @returns Ordered array of market symbols.
+ */
+export type PerpsControllerGetRecentlyViewedMarketsAction = {
+  type: `PerpsController:getRecentlyViewedMarkets`;
+  handler: PerpsController['getRecentlyViewedMarkets'];
+};
+
+/**
  * Check if the controller is currently reinitializing
  *
  * @returns true if providers are being reinitialized
@@ -986,12 +1323,17 @@ export type PerpsControllerIsCurrentlyReinitializingAction = {
 export type PerpsControllerMethodActions =
   | PerpsControllerGetCachedMarketDataForActiveProviderAction
   | PerpsControllerGetCachedUserDataForActiveProviderAction
+  | PerpsControllerGetUserDataSnapshotAction
   | PerpsControllerInitAction
   | PerpsControllerGetActiveProviderAction
   | PerpsControllerGetActiveProviderOrNullAction
+  | PerpsControllerGetOrderCapabilitiesAction
   | PerpsControllerPlaceOrderAction
   | PerpsControllerEditOrderAction
   | PerpsControllerCancelOrderAction
+  | PerpsControllerGetTwapOrdersAction
+  | PerpsControllerGetChaseOrdersAction
+  | PerpsControllerSuspendChaseOrdersAction
   | PerpsControllerCancelOrdersAction
   | PerpsControllerClosePositionAction
   | PerpsControllerClosePositionsAction
@@ -1009,6 +1351,9 @@ export type PerpsControllerMethodActions =
   | PerpsControllerWithdrawAction
   | PerpsControllerGetPositionsAction
   | PerpsControllerGetOrderFillsAction
+  | PerpsControllerGetPendingManualRecoveriesAction
+  | PerpsControllerGetRecoveredDispatchesAction
+  | PerpsControllerAcknowledgeRecoveredDispatchAction
   | PerpsControllerGetOrdersAction
   | PerpsControllerGetOpenOrdersAction
   | PerpsControllerGetFundingAction
@@ -1021,15 +1366,20 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetAvailableDexsAction
   | PerpsControllerFetchHistoricalCandlesAction
   | PerpsControllerCalculateLiquidationPriceAction
+  | PerpsControllerPreviewPositionModifyAction
   | PerpsControllerCalculateMaintenanceMarginAction
   | PerpsControllerGetMaxLeverageAction
   | PerpsControllerValidateOrderAction
   | PerpsControllerValidateClosePositionAction
   | PerpsControllerValidateWithdrawalAction
   | PerpsControllerGetWithdrawalRoutesAction
+  | PerpsControllerSetAttributionContextAction
+  | PerpsControllerGetAttributionContextAction
+  | PerpsControllerClearAttributionContextAction
   | PerpsControllerToggleTestnetAction
   | PerpsControllerSwitchProviderAction
   | PerpsControllerGetCurrentNetworkAction
+  | PerpsControllerGetMarketCategoriesAction
   | PerpsControllerGetWebSocketConnectionStateAction
   | PerpsControllerSubscribeToConnectionStateAction
   | PerpsControllerReconnectAction
@@ -1043,6 +1393,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSubscribeToOICapsAction
   | PerpsControllerSetLiveDataConfigAction
   | PerpsControllerCalculateFeesAction
+  | PerpsControllerApproveSubscriptionBuilderFeeAction
+  | PerpsControllerInvalidateSubscriptionBenefitsAction
   | PerpsControllerDisconnectAction
   | PerpsControllerStartEligibilityMonitoringAction
   | PerpsControllerStopEligibilityMonitoringAction
@@ -1060,6 +1412,17 @@ export type PerpsControllerMethodActions =
   | PerpsControllerClearPendingTradeConfigurationAction
   | PerpsControllerGetMarketFilterPreferencesAction
   | PerpsControllerSaveMarketFilterPreferencesAction
+  | PerpsControllerGetMaxSlippageAction
+  | PerpsControllerSetMaxSlippageAction
+  | PerpsControllerGetOrderBookPreferencesAction
+  | PerpsControllerSetOrderBookPreferencesAction
+  | PerpsControllerGetSelectedOrderTypeAction
+  | PerpsControllerSetSelectedOrderTypeAction
+  | PerpsControllerGetVisibleCandleCountAction
+  | PerpsControllerSetVisibleCandleCountAction
+  | PerpsControllerGetProLayoutPreferencesAction
+  | PerpsControllerSetProLayoutPreferencesAction
+  | PerpsControllerSetPerpsModeAction
   | PerpsControllerSetSelectedPaymentTokenAction
   | PerpsControllerResetSelectedPaymentTokenAction
   | PerpsControllerGetOrderBookGroupingAction
@@ -1067,4 +1430,6 @@ export type PerpsControllerMethodActions =
   | PerpsControllerToggleWatchlistMarketAction
   | PerpsControllerIsWatchlistMarketAction
   | PerpsControllerGetWatchlistMarketsAction
+  | PerpsControllerRecordMarketViewedAction
+  | PerpsControllerGetRecentlyViewedMarketsAction
   | PerpsControllerIsCurrentlyReinitializingAction;

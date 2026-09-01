@@ -1,3 +1,5 @@
+import { getDefaultAnalyticsControllerState } from '@metamask/analytics-controller';
+import { RegistryNetworkConfig } from '@metamask/config-registry-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import type { ConnectivityStatus } from '@metamask/connectivity-controller';
 import {
@@ -14,14 +16,15 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import type { Hex } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
 
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import { FakeProvider } from '../../../tests/fake-provider';
-import type { FakeProviderStub } from '../../../tests/fake-provider';
-import { buildTestObject } from '../../../tests/helpers';
-import { NetworkController } from '../src';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
+import { FakeProvider } from '../../../tests/fake-provider.js';
+import type { FakeProviderStub } from '../../../tests/fake-provider.js';
+import { buildTestObject } from '../../../tests/helpers.js';
+import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client.js';
+import { NetworkController } from '../src/index.js';
 import type {
   BuiltInNetworkClientId,
   CustomNetworkClientId,
@@ -29,8 +32,7 @@ import type {
   NetworkClientConfiguration,
   NetworkClientId,
   NetworkConfiguration,
-} from '../src';
-import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client';
+} from '../src/index.js';
 import type {
   AddNetworkCustomRpcEndpointFields,
   AddNetworkFields,
@@ -39,14 +41,15 @@ import type {
   NetworkControllerMessenger,
   NetworkControllerOptions,
   UpdateNetworkCustomRpcEndpointFields,
-} from '../src/NetworkController';
-import { RpcEndpointType } from '../src/NetworkController';
-import { RpcServiceOptions } from '../src/rpc-service/rpc-service';
+} from '../src/NetworkController.js';
+import { RpcEndpointType } from '../src/NetworkController.js';
+import { RpcServiceOptions } from '../src/rpc-service/rpc-service.js';
+import type { RpcFailoverMode } from '../src/selectors.js';
 import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
-} from '../src/types';
-import { NetworkClientType } from '../src/types';
+} from '../src/types.js';
+import { NetworkClientType } from '../src/types.js';
 
 export type AllNetworkControllerActions =
   MessengerActions<NetworkControllerMessenger>;
@@ -89,12 +92,29 @@ export const TESTNET = {
  * @param options - Optional configuration.
  * @param options.connectivityStatus - The connectivity status to return by default.
  * If not provided, defaults to Online.
+ * @param options.rpcFailoverMode - The RPC failover mode to return, defaults to `disabled`.
+ * @param options.analyticsId - The analytics ID that `AnalyticsController:getState`
+ * returns by default. Defaults to a fixed valid UUIDv4.
+ * @param options.trackEvent - The handler registered for
+ * `AnalyticsController:trackEvent`. Defaults to a Jest mock so tests can assert
+ * on it.
+ * @param options.configRegistryNetworkConfigs - The network config that
+ * `ConfigRegistryController:getNetworkConfigByCaip2ChainId` returns by default. Defaults to
+ * a mock network config for the chain ID `eip155:9999`.
  * @returns The messenger.
  */
 export function buildRootMessenger({
   connectivityStatus = CONNECTIVITY_STATUSES.Online,
+  rpcFailoverMode = 'disabled',
+  analyticsId = '11111111-1111-4111-8111-111111111111',
+  trackEvent = jest.fn(),
+  configRegistryNetworkConfigs = [buildMockConfigRegistryControllerNetwork()],
 }: {
   connectivityStatus?: ConnectivityStatus;
+  rpcFailoverMode?: RpcFailoverMode;
+  analyticsId?: string;
+  trackEvent?: jest.Mock;
+  configRegistryNetworkConfigs?: RegistryNetworkConfig[];
 } = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
@@ -106,6 +126,51 @@ export function buildRootMessenger({
     'ConnectivityController:getState',
     () => ({
       connectivityStatus,
+    }),
+  );
+
+  rootMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => ({
+      remoteFeatureFlags: {
+        corePlatformRpcFailoverMode: rpcFailoverMode,
+      },
+      cacheTimestamp: 0,
+    }),
+  );
+
+  rootMessenger.registerActionHandler('AnalyticsController:getState', () => ({
+    ...getDefaultAnalyticsControllerState(),
+    analyticsId,
+  }));
+
+  rootMessenger.registerActionHandler(
+    'AnalyticsController:trackEvent',
+    trackEvent,
+  );
+
+  rootMessenger.registerActionHandler(
+    'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+    (caipChainId) =>
+      configRegistryNetworkConfigs.find(
+        (config) => config.chainId === caipChainId,
+      ),
+  );
+
+  rootMessenger.registerActionHandler(
+    'ConfigRegistryController:getState',
+    () => ({
+      configs: {
+        networks: configRegistryNetworkConfigs.reduce<
+          Record<CaipChainId, RegistryNetworkConfig>
+        >((acc, config) => {
+          acc[config.chainId] = config;
+          return acc;
+        }, {}),
+      },
+      version: '0',
+      lastFetched: 0,
+      etag: '',
     }),
   );
 
@@ -133,7 +198,19 @@ export function buildNetworkControllerMessenger(
 
   rootMessenger.delegate({
     messenger: networkControllerMessenger,
-    actions: ['ConnectivityController:getState'],
+    actions: [
+      'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+      'ConfigRegistryController:getState',
+      'ConnectivityController:getState',
+      'RemoteFeatureFlagController:getState',
+      'AnalyticsController:getState',
+      'AnalyticsController:trackEvent',
+    ],
+    events: [
+      // eslint-disable-next-line no-restricted-syntax
+      'RemoteFeatureFlagController:stateChange',
+      'ConfigRegistryController:stateChanged',
+    ],
   });
 
   return networkControllerMessenger;
@@ -604,6 +681,55 @@ function generateCustomRpcEndpointUrl(): string {
   return url;
 }
 
+/**
+ * Builds a mock RegistryNetworkConfig object for use in testing, providing defaults
+ * and allowing properties to be overridden at will.
+ *
+ * @param override - The properties to override the new RegistryNetworkConfig with.
+ * @returns The complete RegistryNetworkConfig object.
+ */
+export function buildMockConfigRegistryControllerNetwork(
+  override: Partial<RegistryNetworkConfig> = {},
+): RegistryNetworkConfig {
+  return {
+    chainId: 'eip155:9999',
+    imageUrl: 'https://example.com/network-logo.png',
+    coingeckoPlatformId: 'ethereum',
+    name: 'Ethereum Mainnet',
+    assets: {
+      native: {
+        assetId: 'eip155:1/slip44:60',
+        imageUrl: 'https://example.com/eth-logo.png',
+        name: 'Ether',
+        symbol: 'ETH',
+        decimals: 18,
+      },
+    },
+    rpcProviders: {
+      default: {
+        type: RpcEndpointType.Infura,
+        url: 'https://my-network.infura.io/v3/{infuraProjectId}',
+        networkClientId: 'my-network',
+      },
+      fallbacks: [],
+    },
+    blockExplorerUrls: {
+      default: 'https://etherscan.io',
+      fallbacks: [],
+    },
+    config: {
+      isActive: true,
+      isTestnet: false,
+      isDefault: false,
+      isDeprecated: false,
+      isDeletable: true,
+      isFeatured: false,
+      priority: 0,
+    },
+    ...override,
+  };
+}
+
 type WithControllerCallback<ReturnValue> = ({
   controller,
 }: {
@@ -612,7 +738,11 @@ type WithControllerCallback<ReturnValue> = ({
   networkControllerMessenger: NetworkControllerMessenger;
 }) => Promise<ReturnValue> | ReturnValue;
 
-type WithControllerOptions = Partial<NetworkControllerOptions>;
+type WithControllerOptions = Partial<NetworkControllerOptions> & {
+  rpcFailoverMode?: RpcFailoverMode;
+  configRegistryNetworkConfigs?: RegistryNetworkConfig[];
+  initializeController?: boolean;
+};
 
 type WithControllerArgs<ReturnValue> =
   | [WithControllerCallback<ReturnValue>]
@@ -632,7 +762,16 @@ export async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const messenger = buildRootMessenger();
+  const {
+    rpcFailoverMode,
+    initializeController = true,
+    configRegistryNetworkConfigs = [buildMockConfigRegistryControllerNetwork()],
+    ...controllerOptions
+  } = rest;
+  const messenger = buildRootMessenger({
+    rpcFailoverMode,
+    configRegistryNetworkConfigs,
+  });
   const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
   const controller = new NetworkController({
     messenger: networkControllerMessenger,
@@ -645,12 +784,17 @@ export async function withController<ReturnValue>(
       btoa,
       isOffline: (): boolean => false,
     }),
-    ...rest,
+    ...controllerOptions,
   });
+
+  if (initializeController) {
+    controller.init();
+  }
+
   try {
     return await fn({ controller, messenger, networkControllerMessenger });
   } finally {
     const { blockTracker } = controller.getProviderAndBlockTracker();
-    await blockTracker?.destroy();
+    await blockTracker?.__target__?.destroy();
   }
 }

@@ -1,8 +1,8 @@
-export * from './Caveat';
-export { createRestrictedMethodMessenger } from './createRestrictedMethodMessenger';
-export * from './errors';
-export * from './Permission';
-export * from './PermissionController';
+export * from './Caveat.js';
+export { createRestrictedMethodMessenger } from './createRestrictedMethodMessenger.js';
+export * from './errors.js';
+export * from './Permission.js';
+export * from './PermissionController.js';
 export type {
   PermissionControllerClearStateAction,
   PermissionControllerExecuteRestrictedMethodAction,
@@ -21,24 +21,23 @@ export type {
   PermissionControllerRevokePermissionForAllSubjectsAction,
   PermissionControllerRevokePermissionsAction,
   PermissionControllerUpdateCaveatAction,
-} from './PermissionController-method-action-types';
+  PermissionControllerGetPermissionAction,
+  PermissionControllerRevokePermissionAction,
+  PermissionControllerUpdatePermissionsByCaveatAction,
+  PermissionControllerAcceptPermissionsRequestAction,
+  PermissionControllerRejectPermissionsRequestAction,
+} from './PermissionController-method-action-types.js';
 export {
   createPermissionMiddleware,
   createPermissionMiddlewareV2,
   type PermissionMiddlewareActions,
-} from './permission-middleware';
-export type {
-  ExtractSpecifications,
-  HandlerMiddlewareFunction,
-  HookNames,
-  PermittedHandlerExport,
-} from './utils';
-export { MethodNames } from './utils';
-export * as permissionRpcMethods from './rpc-methods';
-export * from './SubjectMetadataController';
+} from './permission-middleware.js';
+export type { ExtractSpecifications } from './utils.js';
+export { MethodNames } from './utils.js';
+export * from './SubjectMetadataController.js';
 export type {
   SubjectMetadataControllerClearStateAction,
   SubjectMetadataControllerAddSubjectMetadataAction,
   SubjectMetadataControllerGetSubjectMetadataAction,
   SubjectMetadataControllerTrimMetadataStateAction,
-} from './SubjectMetadataController-method-action-types';
+} from './SubjectMetadataController-method-action-types.js';

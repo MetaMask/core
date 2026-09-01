@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { BridgeStatusController } from './bridge-status-controller';
+import type { BridgeStatusController } from './bridge-status-controller.js';
 
 export type BridgeStatusControllerStartPollingForBridgeTxStatusAction = {
   type: `BridgeStatusController:startPollingForBridgeTxStatus`;
@@ -40,6 +40,11 @@ export type BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction = {
   handler: BridgeStatusController['getBridgeHistoryItemByTxMetaId'];
 };
 
+export type BridgeStatusControllerSubmitBatchSellAction = {
+  type: `BridgeStatusController:submitBatchSell`;
+  handler: BridgeStatusController['submitBatchSell'];
+};
+
 /**
  * Union of all BridgeStatusController action types.
  */
@@ -50,4 +55,5 @@ export type BridgeStatusControllerMethodActions =
   | BridgeStatusControllerSubmitTxAction
   | BridgeStatusControllerSubmitIntentAction
   | BridgeStatusControllerRestartPollingForFailedAttemptsAction
-  | BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction;
+  | BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction
+  | BridgeStatusControllerSubmitBatchSellAction;

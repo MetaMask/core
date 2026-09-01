@@ -1,10 +1,10 @@
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { isValidSignature } from './signature';
-import { padHexToEvenLength } from './utils';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { isValidSignature } from './signature.js';
+import { padHexToEvenLength } from './utils.js';
 
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
 const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;
@@ -12,7 +12,6 @@ const DEFAULT_ACCELERATED_POLLING_INTERVAL_MS = 3 * 1000;
 const DEFAULT_BLOCK_TIME = 12 * 1000;
 const DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
 const DEFAULT_GAS_ESTIMATE_BUFFER = 1;
-const DEFAULT_INCOMING_TRANSACTIONS_POLLING_INTERVAL_MS = 1000 * 60 * 4; // 4 Minutes
 const DEFAULT_SUBMIT_HISTORY_LIMIT = 100;
 const DEFAULT_TRANSACTION_HISTORY_LIMIT = 40;
 
@@ -22,7 +21,6 @@ const DEFAULT_TRANSACTION_HISTORY_LIMIT = 40;
 export enum FeatureFlag {
   EIP7702 = 'confirmations_eip_7702',
   GasBuffer = 'confirmations_gas_buffer',
-  IncomingTransactions = 'confirmations_incoming_transactions',
   Transactions = 'confirmations_transactions',
 }
 
@@ -36,6 +34,14 @@ type GasEstimateFallback = {
    * The percentage multiplier gas estimate fallback for a transaction.
    */
   percentage?: number;
+
+  /**
+   * The maximum gas limit the fallback can resolve to, representing the chain's
+   * per-transaction gas cap. Clamps the `fixed` or `percentage`-derived fallback
+   * so it can never exceed the gas limit the RPC will accept (e.g. ~33.5M on
+   * Polygon, whereas 35% of its ~140M block gas limit would otherwise be ~49M).
+   */
+  maxGasLimit?: number;
 };
 
 export type TransactionControllerFeatureFlags = {
@@ -98,15 +104,6 @@ export type TransactionControllerFeatureFlags = {
         eip7702?: number;
       };
     };
-  };
-
-  /** Incoming transaction configuration. */
-  [FeatureFlag.IncomingTransactions]?: {
-    /** Interval between requests to accounts API to retrieve incoming transactions. */
-    pollingIntervalMs?: number;
-
-    /** Whether to use WebSocket for event-driven transaction updates instead of polling. */
-    useBackendWebSocketService?: boolean;
   };
 
   /** Miscellaneous feature flags to support the transaction controller. */
@@ -188,6 +185,46 @@ export type TransactionControllerFeatureFlags = {
        * This value is used when no specific threshold is found for a chain ID.
        */
       default?: number;
+    };
+
+    /**
+     * Replacement of underpriced dapp-suggested gas fees.
+     * If enabled, dapp-suggested EIP-1559 fees with a `maxFeePerGas` below the
+     * current low estimate are replaced with the wallet's suggested fees, as
+     * they are unlikely to be included in a block before fee values change.
+     */
+    replaceUnderpricedDappGasFees?: {
+      /** Enablement on a per-chain basis. */
+      perChainConfig?: {
+        [chainId: Hex]: boolean;
+      };
+
+      /**
+       * Default enablement.
+       * This value is used when no specific value is found for a chain ID.
+       */
+      default?: boolean;
+    };
+
+    /**
+     * Replacement of underpriced saved (advanced) gas fee preferences.
+     * If enabled, saved custom fees with a `maxBaseFee` below the current low
+     * estimate are ignored in favour of the wallet's suggested fees, as they
+     * are unlikely to be included in a block before fee values change.
+     * Level-based saved preferences track current estimates and are never
+     * ignored.
+     */
+    replaceUnderpricedSavedGasFees?: {
+      /** Enablement on a per-chain basis. */
+      perChainConfig?: {
+        [chainId: Hex]: boolean;
+      };
+
+      /**
+       * Default enablement.
+       * This value is used when no specific value is found for a chain ID.
+       */
+      default?: boolean;
     };
   };
 };
@@ -297,10 +334,15 @@ export function getSubmitHistoryLimit(
  */
 export function getTransactionHistoryLimit(
   messenger: TransactionControllerMessenger,
-): number {
+): number | undefined {
   const featureFlags = getFeatureFlags(messenger);
+
+  if (!featureFlags) {
+    return undefined;
+  }
+
   return (
-    featureFlags?.[FeatureFlag.Transactions]?.transactionHistoryLimit ??
+    featureFlags[FeatureFlag.Transactions]?.transactionHistoryLimit ??
     DEFAULT_TRANSACTION_HISTORY_LIMIT
   );
 }
@@ -375,6 +417,7 @@ export function getGasEstimateFallback(
 ): {
   fixed?: number;
   percentage: number;
+  maxGasLimit?: number;
 } {
   const featureFlags = getFeatureFlags(messenger);
 
@@ -390,7 +433,10 @@ export function getGasEstimateFallback(
 
   const fixed = chainFlags?.fixed ?? gasEstimateFallbackFlags?.default?.fixed;
 
-  return { fixed, percentage };
+  const maxGasLimit =
+    chainFlags?.maxGasLimit ?? gasEstimateFallbackFlags?.default?.maxGasLimit;
+
+  return { fixed, percentage, maxGasLimit };
 }
 
 /**
@@ -437,23 +483,6 @@ export function getGasEstimateBuffer({
 
 /**
  * Retrieves the incoming transactions polling interval.
- * Defaults to 4 minutes if not set.
- *
- * @param messenger - The controller messenger instance.
- * @returns The incoming transactions polling interval in milliseconds.
- */
-export function getIncomingTransactionsPollingInterval(
-  messenger: TransactionControllerMessenger,
-): number {
-  const featureFlags = getFeatureFlags(messenger);
-
-  return (
-    featureFlags?.[FeatureFlag.IncomingTransactions]?.pollingIntervalMs ??
-    DEFAULT_INCOMING_TRANSACTIONS_POLLING_INTERVAL_MS
-  );
-}
-
-/**
  * Retrieves the number of attempts to wait before automatically marking a transaction as dropped
  * if it has no receipt status.
  *
@@ -477,20 +506,50 @@ export function getTimeoutAttempts(
 }
 
 /**
- * Checks if WebSocket-based transaction updates are enabled.
- * When enabled, incoming transactions are fetched via event-driven updates
- * instead of polling.
+ * Retrieves whether underpriced dapp-suggested gas fees should be replaced
+ * with the wallet's suggested fees.
  *
+ * @param chainId - The chain ID.
  * @param messenger - The controller messenger instance.
- * @returns True if WebSocket updates are enabled, false otherwise.
+ * @returns Whether the replacement is enabled.
  */
-export function isIncomingTransactionsUseBackendWebSocketServiceEnabled(
+export function getReplaceUnderpricedDappGasFeesEnabled(
+  chainId: Hex,
   messenger: TransactionControllerMessenger,
 ): boolean {
   const featureFlags = getFeatureFlags(messenger);
+
+  const replaceUnderpricedDappGasFeesFlags =
+    featureFlags?.[FeatureFlag.Transactions]?.replaceUnderpricedDappGasFees;
+
   return (
-    featureFlags?.[FeatureFlag.IncomingTransactions]
-      ?.useBackendWebSocketService ?? false
+    replaceUnderpricedDappGasFeesFlags?.perChainConfig?.[chainId] ??
+    replaceUnderpricedDappGasFeesFlags?.default ??
+    false
+  );
+}
+
+/**
+ * Retrieves whether underpriced saved (advanced) gas fee preferences should be
+ * ignored in favour of the wallet's suggested fees.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns Whether the replacement is enabled.
+ */
+export function getReplaceUnderpricedSavedGasFeesEnabled(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): boolean {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const replaceUnderpricedSavedGasFeesFlags =
+    featureFlags?.[FeatureFlag.Transactions]?.replaceUnderpricedSavedGasFees;
+
+  return (
+    replaceUnderpricedSavedGasFeesFlags?.perChainConfig?.[chainId] ??
+    replaceUnderpricedSavedGasFeesFlags?.default ??
+    false
   );
 }
 
@@ -502,12 +561,17 @@ export function isIncomingTransactionsUseBackendWebSocketServiceEnabled(
  */
 function getFeatureFlags(
   messenger: TransactionControllerMessenger,
-): TransactionControllerFeatureFlags {
-  const featureFlags = messenger.call(
-    'RemoteFeatureFlagController:getState',
-  ).remoteFeatureFlags;
+): TransactionControllerFeatureFlags | undefined {
+  try {
+    const featureFlags = messenger.call(
+      'RemoteFeatureFlagController:getState',
+    ).remoteFeatureFlags;
 
-  log('Retrieved feature flags', featureFlags);
+    log('Retrieved feature flags', featureFlags);
 
-  return featureFlags as TransactionControllerFeatureFlags;
+    return featureFlags as TransactionControllerFeatureFlags;
+  } catch {
+    log('RemoteFeatureFlagController not available');
+    return undefined;
+  }
 }

@@ -1,5 +1,10 @@
-import type { PerpsControllerState } from '../PerpsController';
-import type { Order, Position } from '../types';
+import type { PerpsControllerState } from '../PerpsController.js';
+import type {
+  Order,
+  PerpsGlobalSnapshotRequest,
+  PerpsSubscriptionFeeWaiverStatus,
+  Position,
+} from '../types/index.js';
 
 /**
  * ServiceContext
@@ -59,6 +64,24 @@ export type ServiceContext = {
    */
   getOpenOrders?: () => Promise<Order[]>;
   getPositions?: () => Promise<Position[]>;
+
+  /**
+   * Exact per-call identity and guards for adopting a global market snapshot.
+   * Omitted when the active provider or DEX configuration is not static.
+   */
+  globalSnapshot?: {
+    request: PerpsGlobalSnapshotRequest;
+    isCurrent: () => boolean;
+    isMarketAllowed: (symbol: string) => boolean;
+  };
+
+  /**
+   * Cached subscription fee-waiver status for read-only fee previews.
+   * Read by the controller from `RewardsIntegrationService` — the same cached
+   * benefits snapshot the fee resolver uses — and omitted entirely when no
+   * subscription source is wired.
+   */
+  subscriptionFeeWaiver?: PerpsSubscriptionFeeWaiverStatus;
 
   /**
    * Callback functions for controller-specific operations

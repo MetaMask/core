@@ -2,13 +2,16 @@ import { encodeCBOR } from '@levischuck/tiny-cbor';
 import { p256 } from '@noble/curves/p256';
 import { sha256 } from '@noble/hashes/sha2';
 
-import { base64URLToBytes } from '../utils/encoding';
-import { bytesToBase64URL } from '../utils/encoding';
-import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants';
-import { decodeClientDataJSON } from './decode-client-data-json';
-import * as parseAuthenticatorDataModule from './parse-authenticator-data';
-import type { PasskeyRegistrationResponse } from './types';
-import { verifyRegistrationResponse } from './verify-registration-response';
+import { base64URLToBytes } from '../utils/encoding.js';
+import { bytesToBase64URL } from '../utils/encoding.js';
+import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants.js';
+import { decodeClientDataJSON } from './decode-client-data-json.js';
+import * as parseAuthenticatorDataModule from './parse-authenticator-data.js';
+import type { PasskeyRegistrationResponse } from './types.js';
+import {
+  getAAGUIDFromRegistrationResponse,
+  verifyRegistrationResponse,
+} from './verify-registration-response.js';
 
 const EXPECTED_ORIGIN = 'https://dev.dontneeda.pw';
 const EXPECTED_RP_ID = 'dev.dontneeda.pw';
@@ -240,12 +243,23 @@ function buildRegistrationResponse(
 }
 
 describe('verifyRegistrationResponse', () => {
+  it('verifies none attestation when expectedRPIDs is empty', async () => {
+    const verification = await verifyRegistrationResponse({
+      response: attestationNone,
+      expectedChallenge: noneChallenge,
+      expectedOrigin: EXPECTED_ORIGIN,
+      expectedRPIDs: [],
+    });
+
+    expect(verification.verified).toBe(true);
+  });
+
   it('verifies none attestation', async () => {
     const verification = await verifyRegistrationResponse({
       response: attestationNone,
       expectedChallenge: noneChallenge,
       expectedOrigin: EXPECTED_ORIGIN,
-      expectedRPID: EXPECTED_RP_ID,
+      expectedRPIDs: [EXPECTED_RP_ID],
     });
 
     expect(verification.verified).toBe(true);
@@ -276,7 +290,7 @@ describe('verifyRegistrationResponse', () => {
       response: attestationPacked,
       expectedChallenge: packedChallenge,
       expectedOrigin: EXPECTED_ORIGIN,
-      expectedRPID: EXPECTED_RP_ID,
+      expectedRPIDs: [EXPECTED_RP_ID],
     });
 
     expect(verification.verified).toBe(true);
@@ -302,7 +316,7 @@ describe('verifyRegistrationResponse', () => {
         response: attestationNone,
         expectedChallenge: 'shouldhavebeenthisvalue',
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
       }),
     ).rejects.toThrow('Unexpected registration response challenge');
   });
@@ -313,7 +327,7 @@ describe('verifyRegistrationResponse', () => {
         response: attestationNone,
         expectedChallenge: noneChallenge,
         expectedOrigin: 'https://different.address',
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
       }),
     ).rejects.toThrow('Unexpected registration response origin');
   });
@@ -324,7 +338,7 @@ describe('verifyRegistrationResponse', () => {
         response: attestationNone,
         expectedChallenge: noneChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: 'wrong-rp.com',
+        expectedRPIDs: ['wrong-rp.com'],
       }),
     ).rejects.toThrow('Unexpected RP ID hash');
   });
@@ -351,7 +365,7 @@ describe('verifyRegistrationResponse', () => {
         },
         expectedChallenge: noneChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
       }),
     ).rejects.toThrow('Unexpected registration response type');
   });
@@ -366,7 +380,7 @@ describe('verifyRegistrationResponse', () => {
         },
         expectedChallenge: noneChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
       }),
     ).rejects.toThrow('Missing credential ID');
   });
@@ -377,7 +391,7 @@ describe('verifyRegistrationResponse', () => {
         response: attestationFIDOU2F,
         expectedChallenge: fidoU2fChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         requireUserVerification: false,
       }),
     ).rejects.toThrow('Unsupported attestation format: fido-u2f');
@@ -389,7 +403,7 @@ describe('verifyRegistrationResponse', () => {
         response: attestationPackedX5C,
         expectedChallenge: packedX5cChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         requireUserVerification: false,
       }),
     ).rejects.toThrow(
@@ -416,7 +430,7 @@ describe('verifyRegistrationResponse edge cases', () => {
         response,
         expectedChallenge: TEST_CHALLENGE,
         expectedOrigin: TEST_ORIGIN,
-        expectedRPID: TEST_RP_ID,
+        expectedRPIDs: [TEST_RP_ID],
       }),
     ).rejects.toThrow('Credential ID was not base64url-encoded');
   });
@@ -438,7 +452,7 @@ describe('verifyRegistrationResponse edge cases', () => {
         response,
         expectedChallenge: TEST_CHALLENGE,
         expectedOrigin: TEST_ORIGIN,
-        expectedRPID: TEST_RP_ID,
+        expectedRPIDs: [TEST_RP_ID],
       }),
     ).rejects.toThrow('Unexpected credential type');
   });
@@ -466,7 +480,7 @@ describe('verifyRegistrationResponse edge cases', () => {
         response,
         expectedChallenge: TEST_CHALLENGE,
         expectedOrigin: TEST_ORIGIN,
-        expectedRPID: TEST_RP_ID,
+        expectedRPIDs: [TEST_RP_ID],
         requireUserVerification: true,
       }),
     ).rejects.toThrow('User verification was required');
@@ -495,7 +509,7 @@ describe('verifyRegistrationResponse edge cases', () => {
         response,
         expectedChallenge: TEST_CHALLENGE,
         expectedOrigin: TEST_ORIGIN,
-        expectedRPID: TEST_RP_ID,
+        expectedRPIDs: [TEST_RP_ID],
       }),
     ).rejects.toThrow('User presence was required');
   });
@@ -523,7 +537,7 @@ describe('verifyRegistrationResponse edge cases', () => {
         response,
         expectedChallenge: TEST_CHALLENGE,
         expectedOrigin: TEST_ORIGIN,
-        expectedRPID: TEST_RP_ID,
+        expectedRPIDs: [TEST_RP_ID],
       }),
     ).rejects.toThrow(
       'Credential id does not match the credential id in authenticator data',
@@ -561,7 +575,7 @@ describe('verifyRegistrationResponse edge cases', () => {
         response,
         expectedChallenge: TEST_CHALLENGE,
         expectedOrigin: TEST_ORIGIN,
-        expectedRPID: TEST_RP_ID,
+        expectedRPIDs: [TEST_RP_ID],
       }),
     ).rejects.toThrow('Unexpected public key alg');
   });
@@ -597,7 +611,7 @@ describe('verifyRegistrationResponse edge cases', () => {
         response,
         expectedChallenge: TEST_CHALLENGE,
         expectedOrigin: TEST_ORIGIN,
-        expectedRPID: TEST_RP_ID,
+        expectedRPIDs: [TEST_RP_ID],
       }),
     ).rejects.toThrow('Packed attestation statement missing alg');
   });
@@ -634,7 +648,7 @@ describe('verifyRegistrationResponse edge cases', () => {
         response,
         expectedChallenge: TEST_CHALLENGE,
         expectedOrigin: TEST_ORIGIN,
-        expectedRPID: TEST_RP_ID,
+        expectedRPIDs: [TEST_RP_ID],
       }),
     ).rejects.toThrow('does not match credential alg');
   });
@@ -670,7 +684,7 @@ describe('verifyRegistrationResponse edge cases', () => {
         response,
         expectedChallenge: TEST_CHALLENGE,
         expectedOrigin: TEST_ORIGIN,
-        expectedRPID: TEST_RP_ID,
+        expectedRPIDs: [TEST_RP_ID],
       }),
     ).rejects.toThrow('Packed attestation missing signature');
   });
@@ -706,7 +720,7 @@ describe('verifyRegistrationResponse edge cases', () => {
         response,
         expectedChallenge: TEST_CHALLENGE,
         expectedOrigin: TEST_ORIGIN,
-        expectedRPID: TEST_RP_ID,
+        expectedRPIDs: [TEST_RP_ID],
       }),
     ).rejects.toThrow('None attestation had unexpected attestation statement');
   });
@@ -733,7 +747,7 @@ describe('verifyRegistrationResponse edge cases', () => {
       response,
       expectedChallenge: TEST_CHALLENGE,
       expectedOrigin: ['https://other.com', TEST_ORIGIN],
-      expectedRPID: TEST_RP_ID,
+      expectedRPIDs: [TEST_RP_ID],
     });
 
     expect(result.verified).toBe(true);
@@ -760,7 +774,7 @@ describe('verifyRegistrationResponse edge cases', () => {
         },
         expectedChallenge: noneChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
       }),
     ).rejects.toThrow('ClientDataJSON tokenBinding was not an object');
   });
@@ -786,10 +800,39 @@ describe('verifyRegistrationResponse edge cases', () => {
         },
         expectedChallenge: noneChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
       }),
     ).rejects.toThrow('Unexpected tokenBinding.status value');
   });
+
+  it.each(['present', 'supported', 'not-supported'])(
+    'accepts tokenBinding with %s status',
+    async (status) => {
+      const clientDataJSON = bytesToBase64URL(
+        new TextEncoder().encode(
+          JSON.stringify({
+            ...decodeClientDataJSON(attestationNone.response.clientDataJSON),
+            tokenBinding: { status },
+          }),
+        ),
+      );
+
+      const verification = await verifyRegistrationResponse({
+        response: {
+          ...attestationNone,
+          response: {
+            ...attestationNone.response,
+            clientDataJSON,
+          },
+        },
+        expectedChallenge: noneChallenge,
+        expectedOrigin: EXPECTED_ORIGIN,
+        expectedRPIDs: [EXPECTED_RP_ID],
+      });
+
+      expect(verification.verified).toBe(true);
+    },
+  );
 
   it('rejects missing attested credential data', async () => {
     const rpIdHash = sha256(new TextEncoder().encode(TEST_RP_ID));
@@ -806,7 +849,7 @@ describe('verifyRegistrationResponse edge cases', () => {
         response,
         expectedChallenge: TEST_CHALLENGE,
         expectedOrigin: TEST_ORIGIN,
-        expectedRPID: TEST_RP_ID,
+        expectedRPIDs: [TEST_RP_ID],
       }),
     ).rejects.toThrow('No credential ID was provided by authenticator');
   });
@@ -840,7 +883,7 @@ describe('verifyRegistrationResponse edge cases', () => {
       response,
       expectedChallenge: TEST_CHALLENGE,
       expectedOrigin: TEST_ORIGIN,
-      expectedRPID: TEST_RP_ID,
+      expectedRPIDs: [TEST_RP_ID],
     });
 
     expect(verification).toStrictEqual({ verified: false });
@@ -872,7 +915,7 @@ describe('verifyRegistrationResponse edge cases', () => {
         response: attestationNone,
         expectedChallenge: noneChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
       }),
     ).rejects.toThrow('No credential ID was provided by authenticator');
 
@@ -897,7 +940,7 @@ describe('verifyRegistrationResponse edge cases', () => {
         },
         expectedChallenge: noneChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
       }),
     ).rejects.toThrow('No public key was provided by authenticator');
 
@@ -923,11 +966,75 @@ describe('verifyRegistrationResponse edge cases', () => {
         },
         expectedChallenge: noneChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
       }),
     ).rejects.toThrow('No AAGUID was present during registration');
 
     spy.mockRestore();
+  });
+});
+
+describe('getAAGUIDFromRegistrationResponse', () => {
+  const TEST_AAGUID = new Uint8Array([
+    0x6d, 0x44, 0xba, 0x9b, 0xf6, 0xec, 0x2e, 0x49, 0xb9, 0x30, 0x0c, 0x8f,
+    0xe9, 0x20, 0xcb, 0x73,
+  ]);
+
+  it('returns the AAGUID as a dashed UUID string', () => {
+    const { cosePublicKeyCBOR } = generateES256KeyPair();
+    const authData = buildAuthenticatorData({
+      rpIdHash: sha256(new TextEncoder().encode(TEST_RP_ID)),
+      flags: 0x41,
+      counter: 0,
+      aaguid: TEST_AAGUID,
+      credentialID: new Uint8Array(16).fill(0x40),
+      credentialPublicKey: cosePublicKeyCBOR,
+    });
+
+    expect(
+      getAAGUIDFromRegistrationResponse(
+        buildRegistrationResponse(authData, 'Y3JlZC1pZA'),
+      ),
+    ).toBe('6d44ba9b-f6ec-2e49-b930-0c8fe920cb73');
+  });
+
+  it('returns the all-zero AAGUID reported by privacy-preserving authenticators', () => {
+    expect(getAAGUIDFromRegistrationResponse(attestationNone)).toBe(
+      '00000000-0000-0000-0000-000000000000',
+    );
+  });
+
+  it('returns undefined when there is no attested credential data', () => {
+    const authData = buildAuthenticatorData({
+      rpIdHash: sha256(new TextEncoder().encode(TEST_RP_ID)),
+      flags: 0x01,
+      counter: 0,
+    });
+
+    expect(
+      getAAGUIDFromRegistrationResponse(
+        buildRegistrationResponse(authData, 'Y3JlZC1pZA'),
+      ),
+    ).toBeUndefined();
+  });
+
+  it('throws when the attestation object cannot be decoded', () => {
+    const response = buildRegistrationResponse(new Uint8Array(0), 'Y3JlZC1pZA');
+    response.response.attestationObject = bytesToBase64URL(
+      new Uint8Array([0xff, 0xff, 0xff]),
+    );
+
+    expect(() => getAAGUIDFromRegistrationResponse(response)).toThrow(
+      'Unsupported or not well formed at 0',
+    );
+  });
+
+  it('throws when the authenticator data is truncated', () => {
+    expect(() =>
+      getAAGUIDFromRegistrationResponse(
+        buildRegistrationResponse(new Uint8Array(10), 'Y3JlZC1pZA'),
+      ),
+    ).toThrow('authenticatorData is 10 bytes, expected at least 37');
   });
 });
 
@@ -962,7 +1069,7 @@ describe('verifyRegistrationResponse missing public key fields', () => {
         response,
         expectedChallenge: TEST_CHALLENGE,
         expectedOrigin: TEST_ORIGIN,
-        expectedRPID: TEST_RP_ID,
+        expectedRPIDs: [TEST_RP_ID],
       }),
     ).rejects.toThrow('Credential public key was missing numeric alg');
   });

@@ -2,6 +2,8 @@ import {
   StatusTypes,
   FeeType,
   ActionTypes,
+  FeatureId,
+  getQuotesReceivedProperties,
   MetaMetricsSwapsEventSource,
 } from '@metamask/bridge-controller';
 import {
@@ -15,7 +17,7 @@ import type {
 import { TransactionType } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
-import type { BridgeHistoryItem } from '../types';
+import type { BridgeHistoryItem } from '../types.js';
 import {
   getTxStatusesFromHistory,
   getFinalizedTxProperties,
@@ -24,7 +26,7 @@ import {
   getRequestMetadataFromHistory,
   getEVMTxPropertiesFromTransactionMeta,
   getPreConfirmationPropertiesFromQuote,
-} from './metrics';
+} from './metrics.js';
 
 describe('metrics utils', () => {
   const mockHistoryItem: BridgeHistoryItem = {
@@ -750,7 +752,16 @@ describe('metrics utils', () => {
         chain_id_destination: 'eip155:10',
         token_symbol_destination: 'ETH',
         token_address_destination: 'eip155:10/slip44:60',
+        token_security_type_destination: null,
       });
+    });
+
+    it('passes through tokenSecurityTypeDestination when present on the history item', () => {
+      const result = getRequestParamFromHistory({
+        ...mockHistoryItem,
+        tokenSecurityTypeDestination: 'Malicious',
+      });
+      expect(result.token_security_type_destination).toBe('Malicious');
     });
 
     it('should handle different token symbols', () => {
@@ -870,7 +881,7 @@ describe('metrics utils', () => {
       const result = getRequestMetadataFromHistory(mockHistoryItem);
       expect(result).toStrictEqual({
         slippage_limit: 0.5,
-        custom_slippage: true,
+        custom_slippage: false,
         security_warnings: [],
         usd_amount_source: 2000,
         swap_type: 'crosschain',
@@ -964,6 +975,52 @@ describe('metrics utils', () => {
       };
       const result = getRequestMetadataFromHistory(defaultSlippageHistoryItem);
       expect(result.slippage_limit).toBe(0.1);
+      expect(result.custom_slippage).toBe(false);
+    });
+
+    it('should use the persisted custom slippage value', () => {
+      expect(
+        getRequestMetadataFromHistory({
+          ...mockHistoryItem,
+          customSlippage: true,
+        }).custom_slippage,
+      ).toBe(true);
+
+      expect(
+        getRequestMetadataFromHistory({
+          ...mockHistoryItem,
+          customSlippage: false,
+        }).custom_slippage,
+      ).toBe(false);
+    });
+
+    it('should preserve an explicit Auto slippage override', () => {
+      const result = getRequestMetadataFromHistory({
+        ...mockHistoryItem,
+        slippagePercentage: 0,
+        customSlippage: true,
+      });
+
+      expect(result.slippage_limit).toBe(0);
+      expect(result.custom_slippage).toBe(true);
+    });
+
+    it('should preserve value-based slippage fallback for batch sell history', () => {
+      const result = getRequestMetadataFromHistory({
+        ...mockHistoryItem,
+        featureId: FeatureId.BATCH_SELL,
+        slippagePercentage: 0,
+      });
+
+      expect(result.custom_slippage).toBe(true);
+    });
+
+    it('should preserve legacy slippage inference for Quick Buy history', () => {
+      const result = getRequestMetadataFromHistory({
+        ...mockHistoryItem,
+        featureId: FeatureId.QUICK_BUY_FOLLOW_TRADING,
+      });
+
       expect(result.custom_slippage).toBe(true);
     });
 
@@ -1005,11 +1062,15 @@ describe('metrics utils', () => {
       ];
       const result = getPreConfirmationPropertiesFromQuote(
         {
-          quote: mockHistoryItem.quote,
-          estimatedProcessingTimeInSeconds: 900,
-          adjustedReturn: { usd: '1980' },
-          sentAmount: { usd: '2000' },
-          gasFee: { effective: { usd: '2.54739' } },
+          ...{
+            quote: mockHistoryItem.quote,
+            estimatedProcessingTimeInSeconds: 900,
+          },
+          ...{
+            adjustedReturn: { usd: '1980' },
+            sentAmount: { usd: '2000' },
+            gasFee: { effective: { usd: '2.54739' } },
+          },
         } as never,
         false,
         null,
@@ -1024,6 +1085,34 @@ describe('metrics utils', () => {
           active_ab_tests: activeAbTests,
         }),
       );
+    });
+
+    it('should use the explicit slippage context when provided', () => {
+      const result = getPreConfirmationPropertiesFromQuote(
+        {
+          quote: mockHistoryItem.quote,
+          estimatedProcessingTimeInSeconds: 900,
+          adjustedReturn: { usd: '1980' },
+          sentAmount: { usd: '2000' },
+          gasFee: { effective: { usd: '2.54739' } },
+        } as never,
+        false,
+        null,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        {
+          ...getQuotesReceivedProperties(null),
+          custom_slippage: true,
+          slippage_limit: 3.5,
+        } as never,
+      );
+
+      expect(result.custom_slippage).toBe(true);
+      expect(result.slippage_limit).toBe(3.5);
     });
   });
 
@@ -1060,11 +1149,13 @@ describe('metrics utils', () => {
         token_address_source: 'eip155:1/slip44:60',
         token_address_destination:
           'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        token_security_type_destination: null,
         custom_slippage: false,
         is_hardware_wallet: false,
         account_hardware_type: null,
         swap_type: MetricsSwapType.SINGLE,
         security_warnings: [],
+        slippage_limit: 0,
         price_impact: 0,
         usd_quoted_gas: 0,
         gas_included: false,

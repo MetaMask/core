@@ -2,10 +2,11 @@
 
 A TypeScript SDK for MetaMask's Authenticated User Storage API. Unlike E2EE user-storage, authenticated user storage holds **structured JSON** scoped to the authenticated user. The server can read and validate the contents, which allows other backend services to consume the data (e.g. delegation execution, notification delivery).
 
-The SDK currently supports two domains:
+The SDK currently supports three domains:
 
 - **Delegations** -- immutable, EIP-712 signed delegation records (list, create, revoke).
 - **Notification Preferences** -- mutable per-user notification settings (get, put).
+- **Assets watchlist** -- mutable per-user list of CAIP-19 asset identifiers (get, set).
 
 ## Installation
 
@@ -107,6 +108,30 @@ const updated: NotificationPreferences = {
   socialAI: { ... },
 };
 await service.putNotificationPreferences(updated, 'extension');
+```
+
+### Assets watchlist
+
+The assets-watchlist is a mutable per-user singleton blob. The first call to `setAssetsWatchlist` creates the record; subsequent calls overwrite it. Each entry in `assets` is a [CAIP-19](https://chainagnostic.org/CAIPs/caip-19) asset identifier (e.g. `eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`). The blob carries an explicit `version: 1` literal so the shape can evolve without breaking existing consumers.
+
+The SDK enforces a maximum of `ASSETS_WATCHLIST_MAX_ASSETS` (100) entries on writes; oversized blobs throw a superstruct `StructError` before the request is sent.
+
+```typescript
+import { ASSETS_WATCHLIST_MAX_ASSETS } from '@metamask/authenticated-user-storage';
+import type { AssetsWatchlistBlob } from '@metamask/authenticated-user-storage';
+
+// Retrieve the current assets-watchlist (returns null on the first read)
+const watchlist = await service.getAssetsWatchlist();
+
+// Create or update the assets-watchlist
+const updated: AssetsWatchlistBlob = {
+  version: 1,
+  assets: [
+    'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+    'eip155:1/slip44:60',
+  ],
+};
+await service.setAssetsWatchlist(updated, 'extension');
 ```
 
 ## Response validation

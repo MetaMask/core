@@ -3,10 +3,13 @@ import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
-} from '../../types';
-import { getFiatQuotes } from './fiat-quotes';
-import { submitFiatQuotes } from './fiat-submit';
-import type { FiatQuote } from './types';
+} from '../../types.js';
+import { prefixError } from '../../utils/error-prefix.js';
+import { getFiatQuotes } from './fiat-quotes.js';
+import { submitFiatQuotes } from './fiat-submit.js';
+import type { FiatQuote } from './types.js';
+
+const ERROR_PREFIX = 'Fiat: ';
 
 export class FiatStrategy implements PayStrategy<FiatQuote> {
   async getQuotes(
@@ -18,6 +21,16 @@ export class FiatStrategy implements PayStrategy<FiatQuote> {
   async execute(
     request: PayStrategyExecuteRequest<FiatQuote>,
   ): ReturnType<PayStrategy<FiatQuote>['execute']> {
-    return await submitFiatQuotes(request);
+    try {
+      const result = await submitFiatQuotes(request);
+
+      if (result.transactionHash === undefined) {
+        throw new Error('Missing transaction hash');
+      }
+
+      return result;
+    } catch (error) {
+      throw prefixError(error, ERROR_PREFIX);
+    }
   }
 }

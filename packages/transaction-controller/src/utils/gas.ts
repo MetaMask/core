@@ -6,30 +6,40 @@ import {
 } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
-import { add0x, createModuleLogger, remove0x } from '@metamask/utils';
+import {
+  add0x,
+  createModuleLogger,
+  isStrictHexString,
+  remove0x,
+} from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { simulateTransactions } from '../api/simulation-api';
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionEnvelopeType } from '../types';
+import { simulateTransactions } from '../api/simulation-api.js';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { TransactionEnvelopeType } from '../types.js';
 import type {
   AuthorizationList,
   BatchTransactionParams,
   GetSimulationConfig,
   IsAtomicBatchSupportedRequest,
   IsAtomicBatchSupportedResult,
+  Revert,
   TransactionBatchSingleRequest,
   TransactionMeta,
   TransactionParams,
-} from '../types';
+} from '../types.js';
 import {
   DELEGATION_PREFIX,
   doesAccountSupportEIP7702,
   generateEIP7702BatchTransaction,
-} from './eip7702';
-import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
-import { getChainId, rpcRequest } from './provider';
+} from './eip7702.js';
+import {
+  getGasEstimateBuffer,
+  getGasEstimateFallback,
+} from './feature-flags.js';
+import { getChainId, rpcRequest } from './provider.js';
+import { decodeRevert } from './revert-reason.js';
 
 export type UpdateGasRequest = {
   isCustomNetwork: boolean;
@@ -64,11 +74,16 @@ export async function updateGas(request: UpdateGasRequest): Promise<void> {
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
 
-  const [gas, simulationFails, gasLimitNoBuffer] = await getGas(request);
+  const [gas, simulationFails, gasLimitNoBuffer, gasRevert] =
+    await getGas(request);
 
   txMeta.txParams.gas = gas;
   txMeta.simulationFails = simulationFails;
   txMeta.gasLimitNoBuffer = gasLimitNoBuffer;
+
+  if (gasRevert) {
+    txMeta.revert = { ...txMeta.revert, gas: gasRevert };
+  }
 
   if (!initialParams.gas) {
     txMeta.originalGasEstimate = txMeta.txParams.gas;
@@ -108,6 +123,7 @@ export async function estimateGas({
 }): Promise<{
   blockGasLimit: string;
   estimatedGas: string;
+  gasRevert?: Revert;
   isUpgradeWithData: boolean;
   simulationFails: TransactionMeta['simulationFails'];
 }> {
@@ -127,16 +143,30 @@ export async function estimateGas({
   );
 
   const blockGasLimitBN = hexToBN(blockGasLimit);
-  const { percentage, fixed } = getGasEstimateFallback(chainId, messenger);
+  const { percentage, fixed, maxGasLimit } = getGasEstimateFallback(
+    chainId,
+    messenger,
+  );
 
-  const fallback = fixed
+  const uncappedFallback = fixed
     ? toHex(fixed)
     : BNToHex(fractionBN(blockGasLimitBN, percentage, 100));
+
+  // Clamp the fallback to the chain's per-transaction gas cap so it can never
+  // exceed the gas limit the RPC will accept. Without this, a percentage of a
+  // high block gas limit can overshoot the cap (e.g. 35% of Polygon's ~140M
+  // block limit is ~49M, but the node caps a tx at ~33.5M and rejects it with
+  // "transaction gas limit too high").
+  const fallback =
+    maxGasLimit !== undefined &&
+    hexToBN(uncappedFallback).gt(hexToBN(toHex(maxGasLimit)))
+      ? toHex(maxGasLimit)
+      : uncappedFallback;
 
   log('Estimation fallback values', fallback);
 
   request.data = data ? add0x(data) : data;
-  request.value = value ?? '0x0';
+  request.value = normalizeValue(value);
 
   request.authorizationList = normalizeAuthorizationList(
     request.authorizationList,
@@ -149,6 +179,7 @@ export async function estimateGas({
 
   let estimatedGas = fallback;
   let simulationFails: TransactionMeta['simulationFails'];
+  let gasRevert: Revert | undefined;
 
   const isUpgradeWithData =
     txParams.type === TransactionEnvelopeType.setCode &&
@@ -185,15 +216,51 @@ export async function estimateGas({
       },
     };
 
-    log('Estimation failed', { ...simulationFails, fallback });
+    gasRevert = decodeRevert(error, 'gas');
+
+    log('Estimation failed', { ...simulationFails, fallback, gasRevert });
   }
 
   return {
     blockGasLimit,
     estimatedGas,
+    gasRevert,
     isUpgradeWithData,
     simulationFails,
   };
+}
+
+/**
+ * Sum caller-provided gas limits across a batch.
+ *
+ * If every transaction in the batch already has a `gas` value, returns the
+ * parsed per-tx limits and their sum. Otherwise returns `undefined`.
+ *
+ * Used by `estimateGasBatch`:
+ * - non-7702 path: short-circuits simulation entirely when present.
+ * - EIP-7702 path: used as a fallback when simulation fails — required for
+ *   callers that submit batches whose individual sub-calls cannot be simulated
+ *   standalone (e.g. predict-withdraw, where the batch's first sub-call
+ *   provides source-token balance to subsequent sub-calls). When 7702
+ *   simulation succeeds it is preferred since the bundled call has no per-tx
+ *   intrinsic gas cost and produces a tighter estimate.
+ *
+ * @param transactions - Batch transactions to inspect.
+ * @returns Parsed gas limits and total when every transaction has gas; otherwise `undefined`.
+ */
+export function getProvidedBatchGasLimits(
+  transactions: BatchTransactionParams[],
+): { gasLimits: number[]; totalGasLimit: number } | undefined {
+  if (!transactions.every((transaction) => transaction.gas !== undefined)) {
+    return undefined;
+  }
+
+  const gasLimits = transactions.map((transaction) =>
+    new BigNumber(transaction.gas as Hex).toNumber(),
+  );
+  const totalGasLimit = gasLimits.reduce((acc, gasLimit) => acc + gasLimit, 0);
+
+  return { gasLimits, totalGasLimit };
 }
 
 export async function estimateGasBatch({
@@ -233,6 +300,8 @@ export async function estimateGasBatch({
   }
 
   if (chainResult) {
+    const providedBatchGasLimits = getProvidedBatchGasLimits(transactions);
+
     const authorizationList = isUpgradeRequired
       ? [{ address: chainResult.upgradeContractAddress as Hex }]
       : undefined;
@@ -248,13 +317,31 @@ export async function estimateGasBatch({
       type,
     };
 
-    const { estimatedGas: gasLimitHex } = await estimateGas({
+    // Prefer real EIP-7702 simulation when it succeeds — the bundled call has
+    // no per-tx intrinsic gas cost so the estimate is typically lower than
+    // summing per-tx provided limits. Fall back to the provided sum when the
+    // node-level simulation fails (e.g. predict-withdraw, where the batch's
+    // first sub-call provides source-token balance to subsequent sub-calls).
+    const { estimatedGas: gasLimitHex, simulationFails } = await estimateGas({
       isSimulationEnabled: true,
       getSimulationConfig,
       messenger,
       networkClientId,
       txParams: params,
     });
+
+    if (simulationFails && providedBatchGasLimits) {
+      log(
+        'EIP-7702 estimation failed, using batch parameter gas limits',
+        providedBatchGasLimits,
+        simulationFails,
+      );
+      return {
+        gasLimits: [providedBatchGasLimits.totalGasLimit],
+        ...(isUpgradeRequired ? { requiresAuthorizationList: true } : {}),
+        totalGasLimit: providedBatchGasLimits.totalGasLimit,
+      };
+    }
 
     const totalGasLimit = new BigNumber(gasLimitHex).toNumber();
 
@@ -267,20 +354,10 @@ export async function estimateGasBatch({
     };
   }
 
-  const allTransactionsHaveGas = transactions.every(
-    (transaction) => transaction.gas !== undefined,
-  );
-
-  if (allTransactionsHaveGas) {
-    const gasLimits = transactions.map((transaction) =>
-      new BigNumber(transaction.gas as Hex).toNumber(),
-    );
-
-    const total = gasLimits.reduce((acc, gasLimit) => acc + gasLimit, 0);
-
-    log('Using batch parameter gas limits', { gasLimits, total });
-
-    return { totalGasLimit: total, gasLimits };
+  const providedBatchGasLimits = getProvidedBatchGasLimits(transactions);
+  if (providedBatchGasLimits) {
+    log('Using batch parameter gas limits', providedBatchGasLimits);
+    return providedBatchGasLimits;
   }
 
   const { gasLimits: gasLimitsHex } = await simulateGasBatch({
@@ -422,7 +499,7 @@ export async function simulateGasBatch({
  */
 async function getGas(
   request: UpdateGasRequest,
-): Promise<[string, TransactionMeta['simulationFails']?, string?]> {
+): Promise<[string, TransactionMeta['simulationFails']?, string?, Revert?]> {
   const {
     isCustomNetwork,
     isSimulationEnabled,
@@ -444,14 +521,19 @@ async function getGas(
     return [FIXED_GAS, undefined, FIXED_GAS];
   }
 
-  const { blockGasLimit, estimatedGas, isUpgradeWithData, simulationFails } =
-    await estimateGas({
-      isSimulationEnabled,
-      getSimulationConfig,
-      messenger,
-      networkClientId,
-      txParams: txMeta.txParams,
-    });
+  const {
+    blockGasLimit,
+    estimatedGas,
+    gasRevert,
+    isUpgradeWithData,
+    simulationFails,
+  } = await estimateGas({
+    isSimulationEnabled,
+    getSimulationConfig,
+    messenger,
+    networkClientId,
+    txParams: txMeta.txParams,
+  });
 
   log('Original estimated gas', estimatedGas);
 
@@ -464,7 +546,7 @@ async function getGas(
   }
 
   if (simulationFails || disableGasBuffer) {
-    return [estimatedGas, simulationFails, estimatedGas];
+    return [estimatedGas, simulationFails, estimatedGas, gasRevert];
   }
 
   const bufferMultiplier = getGasEstimateBuffer({
@@ -484,7 +566,7 @@ async function getGas(
 
   log('Buffered gas', bufferedGas);
 
-  return [bufferedGas, simulationFails, estimatedGas];
+  return [bufferedGas, simulationFails, estimatedGas, gasRevert];
 }
 
 /**
@@ -702,6 +784,26 @@ function normalizeAuthorizationList(
     s: authorization.s ?? DUMMY_AUTHORIZATION_SIGNATURE,
     yParity: authorization.yParity ?? '0x1',
   }));
+}
+
+/**
+ * Normalize the value to a canonical hex quantity with no leading zero digits.
+ * Some RPC nodes (e.g. Go's `hexutil`) reject quantities such as `0x00` or
+ * `0x0de0b6b3a7640000`, failing gas estimation entirely.
+ *
+ * @param value - The transaction value to normalize.
+ * @returns The normalized transaction value.
+ */
+function normalizeValue(value: string | undefined): string {
+  const valueOrDefault = value ?? '0x0';
+
+  if (!isStrictHexString(valueOrDefault)) {
+    return valueOrDefault;
+  }
+
+  const stripped = remove0x(valueOrDefault).replace(/^0+/u, '');
+
+  return stripped.length === 0 ? '0x0' : add0x(stripped);
 }
 
 /**

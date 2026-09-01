@@ -3,29 +3,29 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
-} from '../constants/eventNames';
-import { USDC_SYMBOL } from '../constants/hyperLiquidConfig';
+} from '../constants/eventNames.js';
+import { USDC_SYMBOL } from '../constants/hyperLiquidConfig.js';
 import {
   PERPS_CONSTANTS,
   WITHDRAWAL_CONSTANTS,
-} from '../constants/perpsConfig';
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes';
+} from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import {
   PerpsAnalyticsEvent,
   PerpsTraceNames,
   PerpsTraceOperations,
-} from '../types';
+} from '../types/index.js';
 import type {
   PerpsProvider,
   WithdrawParams,
   WithdrawResult,
   PerpsPlatformDependencies,
-} from '../types';
-import type { PerpsControllerMessengerBase } from '../types/messenger';
-import type { TransactionStatus } from '../types/transactionTypes';
-import { getSelectedEvmAccount } from '../utils/accountUtils';
-import { ensureError } from '../utils/errorUtils';
-import type { ServiceContext } from './ServiceContext';
+} from '../types/index.js';
+import type { PerpsControllerMessengerBase } from '../types/messenger.js';
+import type { TransactionStatus } from '../types/transactionTypes.js';
+import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
+import { ensureError } from '../utils/errorUtils.js';
+import type { ServiceContext } from './ServiceContext.js';
 
 /**
  * AccountService
@@ -124,10 +124,8 @@ export class AccountService {
           const netAmount = Math.max(0, grossAmount - feeAmount);
 
           // Get current account address via messenger
-          const evmAccount = getSelectedEvmAccount(
-            this.#messenger.call(
-              'AccountTreeController:getAccountsFromSelectedAccountGroup',
-            ),
+          const evmAccount = getSelectedEvmAccountFromMessenger(
+            this.#messenger,
           );
           const accountAddress = evmAccount?.address ?? 'unknown';
 

@@ -1,27 +1,24 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 
-import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
-import { ChainId } from '../../types';
-import type {
-  GenericQuoteRequest,
-  QuoteMetadata,
-  QuoteRequest,
-  QuoteResponse,
-  TxData,
-} from '../../types';
-import { getNativeAssetForChainId, isCrossChain } from '../bridge';
+import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge.js';
+import { ChainId } from '../../types.js';
+import type { GenericQuoteRequest, QuoteRequest } from '../../types.js';
+import { FeatureId } from '../../validators/feature-flags.js';
+import type { QuoteResponse } from '../../validators/quote-response.js';
+import { getNativeAssetForChainId, isCrossChain } from '../bridge.js';
 import {
   formatAddressToAssetId,
   formatChainIdToCaip,
-} from '../caip-formatters';
-import { MetricsSwapType } from './constants';
+} from '../caip-formatters.js';
+import { MetricsSwapType } from './constants.js';
 import type {
   AccountHardwareType,
   InputKeys,
   InputValues,
   QuoteWarning,
   RequestParams,
-} from './types';
+} from './types.js';
 
 export const toInputChangedPropertyKey: Partial<
   Record<keyof QuoteRequest, InputKeys>
@@ -73,20 +70,40 @@ export const getSwapTypeFromQuote = (
 };
 
 export const formatProviderLabel = ({
-  bridgeId,
+  aggregator,
+  protocols,
   bridges,
-}: QuoteResponse<TxData | string>['quote']): `${string}_${string}` =>
-  `${bridgeId}_${bridges[0]}`;
+  bridgeId,
+}: {
+  aggregator?: string;
+  protocols?: string[];
+  bridges?: string[];
+  bridgeId?: string;
+}): `${string}_${string}` =>
+  `${aggregator ?? bridgeId}_${protocols?.[0] ?? bridges?.[0]}`;
 
-export const getRequestParams = ({
-  srcChainId,
-  destChainId,
-  srcTokenAddress,
-  destTokenAddress,
-}: Partial<GenericQuoteRequest>): Omit<
-  RequestParams,
-  'token_symbol_source' | 'token_symbol_destination'
-> => {
+/**
+ * @param quoteRequest - The current quote request used to derive chain and token identity fields.
+ * @param quoteRequest.srcChainId - Source chain id of the quote request.
+ * @param quoteRequest.destChainId - Destination chain id of the quote request.
+ * @param quoteRequest.srcTokenAddress - Source token address of the quote request.
+ * @param quoteRequest.destTokenAddress - Destination token address of the quote request.
+ * @param tokenSecurityTypeDestination - The security classification of the destination token,
+ * supplied by the client (e.g. from token security/scanning data). Pass `null` when no
+ * security data is available for the selected destination token.
+ * @returns The analytics request params derived from the quote request. Token symbols are
+ * omitted because the quote request only stores addresses; use
+ * {@link getQuotesReceivedProperties} when building a `QuotesReceived` payload.
+ */
+export const getRequestParams = (
+  {
+    srcChainId,
+    destChainId,
+    srcTokenAddress,
+    destTokenAddress,
+  }: Partial<GenericQuoteRequest>,
+  tokenSecurityTypeDestination: string | null,
+): Omit<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> => {
   // Fallback to ETH if srcChainId is not defined. This is ok since the clients default to Ethereum as the source chain
   // This also doesn't happen at runtime since the quote request is validated before metrics are published
   const srcChainIdCaip = formatChainIdToCaip(srcChainId ?? ChainId.ETH);
@@ -104,6 +121,7 @@ export const getRequestParams = ({
           destChainId ?? srcChainIdCaip,
         ) ?? null)
       : null,
+    token_security_type_destination: tokenSecurityTypeDestination,
   };
 };
 
@@ -138,17 +156,38 @@ export const isHardwareWallet = (
  * @deprecated This function should not be used. Use {@link selectDefaultSlippagePercentage} instead.
  */
 export const isCustomSlippage = (slippage: GenericQuoteRequest['slippage']) => {
-  return slippage !== DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest.slippage;
+  return slippage !== DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest[0]?.slippage;
 };
 
 export const getQuotesReceivedProperties = (
-  activeQuote: null | (QuoteResponse & Partial<QuoteMetadata>),
+  activeQuote: null | QuoteResponse,
   warnings: QuoteWarning[] = [],
   isSubmittable: boolean = true,
-  recommendedQuote?: null | (QuoteResponse & Partial<QuoteMetadata>),
+  recommendedQuote?: null | QuoteResponse,
   usdBalanceSource?: number,
+  hasSufficientGasForQuote?: boolean | null,
+  options: {
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- analytics property
+    custom_slippage?: boolean;
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- analytics property
+    slippage_limit?: number;
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- analytics property
+    usd_amount_source?: number;
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- analytics property
+    token_symbol_source?: string;
+    // eslint-disable-next-line @typescript-eslint/naming-convention -- analytics property
+    token_symbol_destination?: string | null;
+  } = {},
 ) => {
   const provider = activeQuote ? formatProviderLabel(activeQuote.quote) : '_';
+  const quoteUsdAmountSource = activeQuote?.quote?.src?.usd;
+  const quoteTokenSymbolSource = activeQuote?.quote.src.asset.symbol;
+  const quoteTokenSymbolDestination = activeQuote?.quote.dest.asset.symbol;
+  const usdAmountSource = Number(
+    quoteUsdAmountSource ?? options.usd_amount_source ?? 0,
+  );
+  const slippageLimit =
+    options.slippage_limit ?? activeQuote?.quote?.slippage ?? 0;
   return {
     can_submit: isSubmittable,
     gas_included: Boolean(activeQuote?.quote?.gasIncluded),
@@ -156,14 +195,29 @@ export const getQuotesReceivedProperties = (
     quoted_time_minutes: activeQuote?.estimatedProcessingTimeInSeconds
       ? activeQuote.estimatedProcessingTimeInSeconds / 60
       : 0,
-    usd_quoted_gas: Number(activeQuote?.gasFee?.effective?.usd ?? 0),
-    usd_quoted_return: Number(activeQuote?.toTokenAmount?.usd ?? 0),
+    usd_quoted_gas: Number(activeQuote?.quote?.feeData?.network?.[0]?.usd ?? 0),
+    usd_quoted_return: Number(activeQuote?.quote?.dest?.usd ?? 0),
     usd_balance_source: usdBalanceSource ?? 0,
+    usd_amount_source: usdAmountSource,
+    slippage_limit: slippageLimit,
     best_quote_provider: recommendedQuote
       ? formatProviderLabel(recommendedQuote.quote)
       : provider,
     provider,
+    token_symbol_source:
+      quoteTokenSymbolSource ?? options.token_symbol_source ?? '',
+    token_symbol_destination:
+      quoteTokenSymbolDestination ?? options.token_symbol_destination ?? null,
     warnings,
-    price_impact: Number(activeQuote?.quote.priceData?.priceImpact ?? 0),
+    price_impact: Number(
+      activeQuote?.quote.priceData?.priceImpact?.amount ?? 0,
+    ),
+    ...(hasSufficientGasForQuote !== undefined && {
+      has_sufficient_gas_for_quote: hasSufficientGasForQuote,
+    }),
+    ...(options.custom_slippage !== undefined && {
+      custom_slippage: options.custom_slippage,
+    }),
+    feature_id: activeQuote?.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
   };
 };

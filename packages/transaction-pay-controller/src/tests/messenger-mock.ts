@@ -2,10 +2,6 @@ import type { TokensControllerGetStateAction } from '@metamask/assets-controller
 import type { TokenBalancesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
-import type {
-  BridgeStatusControllerGetStateAction,
-  BridgeStatusControllerSubmitTxAction,
-} from '@metamask/bridge-status-controller';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type {
   MessengerActions,
@@ -15,7 +11,9 @@ import type {
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
+import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+import type { SentinelApiServiceSimulateTransactionsAction } from '@metamask/sentinel-api-service';
 import type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
@@ -26,12 +24,16 @@ import type {
 } from '@metamask/transaction-controller';
 import type { TransactionControllerUpdateTransactionAction } from '@metamask/transaction-controller';
 
-import type { TransactionPayControllerMessenger } from '..';
+import type { TransactionPayControllerMessenger } from '../index.js';
 import type {
   TransactionPayControllerGetDelegationTransactionAction,
+  TransactionPayControllerGetFiatOptionsAction,
+  TransactionPayControllerGetPaymentOverrideDataAction,
   TransactionPayControllerGetStrategyAction,
-} from '../TransactionPayController-method-action-types';
-import type { TransactionPayControllerGetStateAction } from '../types';
+  TransactionPayControllerPolymarketGetDepositWalletAddressAction,
+  TransactionPayControllerPolymarketSubmitDepositWalletBatchAction,
+} from '../TransactionPayController-method-action-types.js';
+import type { TransactionPayControllerGetStateAction } from '../types.js';
 
 type AllActions = MessengerActions<TransactionPayControllerMessenger>;
 type AllEvents = MessengerEvents<TransactionPayControllerMessenger>;
@@ -72,24 +74,14 @@ export function getMessengerMock({
     NetworkControllerFindNetworkClientIdByChainIdAction['handler']
   > = jest.fn();
 
-  const fetchQuotesMock = jest.fn();
-
   const getRemoteFeatureFlagControllerStateMock: jest.MockedFn<
     RemoteFeatureFlagControllerGetStateAction['handler']
   > = jest.fn();
 
   const getGasFeeControllerStateMock = jest.fn();
 
-  const submitTransactionMock: jest.MockedFunction<
-    BridgeStatusControllerSubmitTxAction['handler']
-  > = jest.fn();
-
   const updateTransactionMock: jest.MockedFn<
     TransactionControllerUpdateTransactionAction['handler']
-  > = jest.fn();
-
-  const getBridgeStatusControllerStateMock: jest.MockedFn<
-    BridgeStatusControllerGetStateAction['handler']
   > = jest.fn();
 
   const getTokensControllerStateMock: jest.MockedFn<
@@ -114,8 +106,28 @@ export function getMessengerMock({
     NetworkControllerGetNetworkClientByIdAction['handler']
   > = jest.fn();
 
+  const getNetworkConfigurationByChainIdMock: jest.MockedFn<
+    NetworkControllerGetNetworkConfigurationByChainIdAction['handler']
+  > = jest.fn();
+
   const getDelegationTransactionMock: jest.MockedFn<
     TransactionPayControllerGetDelegationTransactionAction['handler']
+  > = jest.fn();
+
+  const getFiatOptionsMock: jest.MockedFn<
+    TransactionPayControllerGetFiatOptionsAction['handler']
+  > = jest.fn();
+
+  const getPaymentOverrideDataMock: jest.MockedFn<
+    TransactionPayControllerGetPaymentOverrideDataAction['handler']
+  > = jest.fn().mockResolvedValue({ calls: [] });
+
+  const polymarketGetDepositWalletAddressMock: jest.MockedFn<
+    TransactionPayControllerPolymarketGetDepositWalletAddressAction['handler']
+  > = jest.fn();
+
+  const polymarketSubmitDepositWalletBatchMock: jest.MockedFn<
+    TransactionPayControllerPolymarketSubmitDepositWalletBatchAction['handler']
   > = jest.fn();
 
   const getGasFeeTokensMock: jest.MockedFn<
@@ -128,6 +140,10 @@ export function getMessengerMock({
 
   const estimateGasBatchMock: jest.MockedFn<
     TransactionControllerEstimateGasBatchAction['handler']
+  > = jest.fn();
+
+  const simulateTransactionsMock: jest.MockedFn<
+    SentinelApiServiceSimulateTransactionsAction['handler']
   > = jest.fn();
 
   const getAssetsControllerStateMock = jest.fn();
@@ -181,18 +197,8 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
-      'BridgeController:fetchQuotes',
-      fetchQuotesMock,
-    );
-
-    messenger.registerActionHandler(
       'RemoteFeatureFlagController:getState',
       getRemoteFeatureFlagControllerStateMock,
-    );
-
-    messenger.registerActionHandler(
-      'BridgeStatusController:submitTx',
-      submitTransactionMock,
     );
 
     messenger.registerActionHandler(
@@ -203,11 +209,6 @@ export function getMessengerMock({
     messenger.registerActionHandler(
       'TransactionController:updateTransaction',
       updateTransactionMock,
-    );
-
-    messenger.registerActionHandler(
-      'BridgeStatusController:getState',
-      getBridgeStatusControllerStateMock,
     );
 
     messenger.registerActionHandler(
@@ -241,8 +242,33 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'NetworkController:getNetworkConfigurationByChainId',
+      getNetworkConfigurationByChainIdMock,
+    );
+
+    messenger.registerActionHandler(
       'TransactionPayController:getDelegationTransaction',
       getDelegationTransactionMock,
+    );
+
+    messenger.registerActionHandler(
+      'TransactionPayController:getFiatOptions',
+      getFiatOptionsMock,
+    );
+
+    messenger.registerActionHandler(
+      'TransactionPayController:getPaymentOverrideData',
+      getPaymentOverrideDataMock,
+    );
+
+    messenger.registerActionHandler(
+      'TransactionPayController:polymarketGetDepositWalletAddress',
+      polymarketGetDepositWalletAddressMock,
+    );
+
+    messenger.registerActionHandler(
+      'TransactionPayController:polymarketSubmitDepositWalletBatch',
+      polymarketSubmitDepositWalletBatchMock,
     );
 
     messenger.registerActionHandler(
@@ -258,6 +284,11 @@ export function getMessengerMock({
     messenger.registerActionHandler(
       'TransactionController:estimateGasBatch',
       estimateGasBatchMock,
+    );
+
+    messenger.registerActionHandler(
+      'SentinelApiService:simulateTransactions',
+      simulateTransactionsMock,
     );
 
     messenger.registerActionHandler(
@@ -279,17 +310,18 @@ export function getMessengerMock({
     addTransactionBatchMock,
     estimateGasMock,
     estimateGasBatchMock,
-    fetchQuotesMock,
     findNetworkClientIdByChainIdMock,
     getAccountTrackerControllerStateMock,
-    getBridgeStatusControllerStateMock,
     getControllerStateMock,
     getCurrencyRateControllerStateMock,
     getDelegationTransactionMock,
+    getFiatOptionsMock,
+    getPaymentOverrideDataMock,
     getGasFeeControllerStateMock,
     getGasFeeTokensMock,
     getKeyringControllerStateMock,
     getNetworkClientByIdMock,
+    getNetworkConfigurationByChainIdMock,
     getRemoteFeatureFlagControllerStateMock,
     getStrategyMock,
     getTokenBalanceControllerStateMock,
@@ -297,8 +329,10 @@ export function getMessengerMock({
     getTokensControllerStateMock,
     getTransactionControllerStateMock,
     messenger: messenger as TransactionPayControllerMessenger,
+    polymarketGetDepositWalletAddressMock,
+    polymarketSubmitDepositWalletBatchMock,
     publish,
-    submitTransactionMock,
+    simulateTransactionsMock,
     updateTransactionMock,
   };
 }

@@ -1,4 +1,7 @@
-import { TransactionType } from '@metamask/transaction-controller';
+import {
+  TransactionType,
+  hasTransactionType,
+} from '@metamask/transaction-controller';
 
 import type {
   PayStrategy,
@@ -6,14 +9,15 @@ import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
-} from '../../types';
-import { getPayStrategiesConfig } from '../../utils/feature-flags';
-import { getAcrossDestination } from './across-actions';
-import { getAcrossQuotes } from './across-quotes';
-import { submitAcrossQuotes } from './across-submit';
-import { isSupportedAcrossPerpsDepositRequest } from './perps';
-import { isAcrossQuoteRequest } from './requests';
-import type { AcrossQuote } from './types';
+} from '../../types.js';
+import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getAcrossDestination } from './across-actions.js';
+import { getAcrossQuotes } from './across-quotes.js';
+import { submitAcrossQuotes } from './across-submit.js';
+import { hasUnsupportedTransactionAuthorizationList } from './authorization-list.js';
+import { isSupportedAcrossPerpsDepositRequest } from './perps.js';
+import { isAcrossQuoteRequest } from './requests.js';
+import type { AcrossQuote } from './types.js';
 
 export class AcrossStrategy implements PayStrategy<AcrossQuote> {
   supports(request: PayStrategyGetQuotesRequest): boolean {
@@ -52,15 +56,22 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       }
     }
 
-    // Across cannot submit EIP-7702 authorization lists. This pre-quote check
-    // catches transactions where the authorization list is already present.
-    // First-time 7702 upgrades discovered during gas planning are handled in
-    // `checkQuoteSupport` below.
-    if (request.transaction.txParams?.authorizationList?.length) {
+    if (
+      hasUnsupportedTransactionAuthorizationList(
+        request.transaction,
+        actionableRequests,
+      )
+    ) {
       return false;
     }
 
     return actionableRequests.every((singleRequest) => {
+      if (singleRequest.isPostQuote) {
+        return hasTransactionType(request.transaction, [
+          TransactionType.predictWithdraw,
+        ]);
+      }
+
       try {
         getAcrossDestination(request.transaction, singleRequest);
         return true;
@@ -76,8 +87,29 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
     // Gas planning can discover that TransactionController would add an
     // authorization list for a first-time 7702 upgrade. `is7702` alone is not a
     // blocker because it also covers already-upgraded accounts.
-    return !request.quotes.some(
+    const requiresAuthorizationList = request.quotes.some(
       (quote) => quote.original.metamask.requiresAuthorizationList,
+    );
+
+    if (!requiresAuthorizationList) {
+      return true;
+    }
+
+    if (
+      !hasTransactionType(request.transaction, [
+        TransactionType.predictWithdraw,
+      ])
+    ) {
+      return false;
+    }
+
+    // A first-time 7702 authorization list is acceptable here only because it is
+    // attached to MetaMask's source-chain batch transaction. It must not be
+    // smuggled into Across destination post-swap actions.
+    return request.quotes.every(
+      (quote) =>
+        quote.request.isPostQuote === true &&
+        quote.original.request.actions.length === 0,
     );
   }
 

@@ -1,19 +1,26 @@
 import { bytesToHex } from '@noble/hashes/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 
-import { deleteFromTrie, insertToTrie, deepCopyPathTrie } from './PathTrie';
-import type { Hotlist, PhishingListState } from './PhishingController';
-import { ListKeys, phishingListKeyNameMap } from './PhishingController';
+import { deleteFromTrie, insertToTrie, deepCopyPathTrie } from './PathTrie.js';
+import type { Hotlist, PhishingListState } from './PhishingController.js';
+import { ListKeys, phishingListKeyNameMap } from './PhishingController.js';
 import type {
   PhishingDetectorList,
   PhishingDetectorConfiguration,
-} from './PhishingDetector';
-import { APPROVAL_SUPPORTED_CHAINS, DEFAULT_CHAIN_ID_TO_NAME } from './types';
+} from './PhishingDetector.js';
+import {
+  ADDRESS_SCAN_SUPPORTED_CHAINS,
+  APPROVAL_SUPPORTED_CHAINS,
+  DEFAULT_CHAIN_ID_TO_NAME,
+  TOKEN_SCAN_SUPPORTED_CHAINS,
+} from './types.js';
 import type {
+  AddressScanSupportedChain,
   ApprovalSupportedChain,
   TokenScanCacheData,
   TokenScanResult,
-} from './types';
+  TokenScanSupportedChain,
+} from './types.js';
 
 const DEFAULT_TOLERANCE = 3;
 
@@ -224,28 +231,30 @@ export const processDomainList = (list: string[]): string[][] => {
  * @param override.blocklist - the optional blocklist to override.
  * @param override.fuzzylist - the optional fuzzylist to override.
  * @param override.tolerance - the optional tolerance to override.
+ * @param override.c2DomainBlocklist - the optional c2DomainBlocklist to override.
  * @returns the default phishing detector configuration.
  */
 export const getDefaultPhishingDetectorConfig = ({
   allowlist = [],
   blocklist = [],
+  c2DomainBlocklist = [],
   fuzzylist = [],
   tolerance = DEFAULT_TOLERANCE,
 }: {
   allowlist?: string[];
   blocklist?: string[];
+  c2DomainBlocklist?: string[];
   fuzzylist?: string[];
   tolerance?: number;
-}): PhishingDetectorConfiguration => {
-  return {
-    allowlist: processDomainList(allowlist),
-    // We can assume that blocklist is already separated into hostname-only entries
-    // and hostname+path entries so we do not need to separate it again.
-    blocklist: processDomainList(blocklist),
-    fuzzylist: processDomainList(fuzzylist),
-    tolerance,
-  };
-};
+}): PhishingDetectorConfiguration => ({
+  allowlist: processDomainList(allowlist),
+  // We can assume that blocklist is already separated into hostname-only entries
+  // and hostname+path entries so we do not need to separate it again.
+  blocklist: processDomainList(blocklist),
+  c2DomainBlocklist,
+  fuzzylist: processDomainList(fuzzylist),
+  tolerance,
+});
 
 /**
  * Processes the configurations for the phishing detector, filtering out any invalid configs.
@@ -365,6 +374,60 @@ export const getHostnameFromWebUrl = (url: string): [string, boolean] => {
   return [hostname || '', Boolean(hostname)];
 };
 
+/**
+ * Hosts where PDS single-URL scans include the URL path (shared gateways / hosts where many sites
+ * share one origin). For all other hosts, only the hostname is sent.
+ */
+export const PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS = [
+  'ipfs.io',
+  'dweb.link',
+  'cf-ipfs.com',
+  'cloudflare-ipfs.com',
+  'irys.xyz',
+  'sites.google.com',
+] as const;
+
+/**
+ * @param hostname - Lowercase normalization is applied for matching registered roots and subdomains.
+ * @returns Whether {@link getPhishingDetectionScanUrlParam} appends pathname for this hostname.
+ */
+export function isPhishingDetectionPathBasedHostname(
+  hostname: string,
+): boolean {
+  const normalizedHost = hostname.toLowerCase();
+  return PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS.some(
+    (root) => normalizedHost === root || normalizedHost.endsWith(`.${root}`),
+  );
+}
+
+/**
+ * Builds the `url` query parameter for {@link PhishingController.scanUrl}. For hosts in
+ * {@link PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS} (and their subdomains), the value is hostname
+ * plus pathname, without protocol, query, or fragment. For all other hosts, only hostname is used.
+ *
+ * @param url - A web URL string (must use `http:` or `https:` — same rules as {@link getHostnameFromWebUrl}).
+ * @returns A tuple of `[scanUrlParam, ok]` where `ok` is false when the URL is not a valid web URL.
+ */
+export const getPhishingDetectionScanUrlParam = (
+  url: string,
+): [scanUrlParam: string, ok: boolean] => {
+  const [hostname, ok] = getHostnameFromWebUrl(url);
+  if (!ok) {
+    return ['', false];
+  }
+
+  if (!isPhishingDetectionPathBasedHostname(hostname)) {
+    return [hostname, true];
+  }
+
+  // `getHostnameFromWebUrl` already required a successful `new URL(url)` parse.
+  const { pathname } = new URL(url);
+  const pathSuffix = pathname === '/' ? '' : pathname;
+  const scanUrlParam = pathSuffix ? `${hostname}${pathSuffix}` : hostname;
+
+  return [scanUrlParam, true];
+};
+
 export const getPathnameFromUrl = (url: string): string => {
   try {
     const { pathname } = new URL(url);
@@ -453,6 +516,28 @@ export const isApprovalSupportedChain = (
   (APPROVAL_SUPPORTED_CHAINS as readonly string[]).includes(chain);
 
 /**
+ * Determines whether a chain name is supported for bulk token scanning.
+ *
+ * @param chain - The chain name to check.
+ * @returns `true` if the chain is supported, `false` otherwise.
+ */
+export const isTokenScanSupportedChain = (
+  chain: string,
+): chain is TokenScanSupportedChain =>
+  (TOKEN_SCAN_SUPPORTED_CHAINS as readonly string[]).includes(chain);
+
+/**
+ * Determines whether a chain name is supported for address scanning.
+ *
+ * @param chain - The chain name to check.
+ * @returns `true` if the chain is supported, `false` otherwise.
+ */
+export const isAddressScanSupportedChain = (
+  chain: string,
+): chain is AddressScanSupportedChain =>
+  (ADDRESS_SCAN_SUPPORTED_CHAINS as readonly string[]).includes(chain);
+
+/**
  * Resolves the chain name from a chain ID.
  *
  * @param chainId - The chain ID.
@@ -465,6 +550,39 @@ export const resolveChainName = (
 ): string | null => {
   return mapping[chainId.toLowerCase() as keyof typeof mapping] ?? null;
 };
+
+/**
+ * Resolves a chain ID to a Blockaid address-scan chain name, or `null` if
+ * `scanAddress` would not call the Security Alerts API for this chain.
+ *
+ * @param chainId - Hex chain ID for EVM chains (e.g. `'0x1'`) or a chain
+ * name for non-EVM chains (e.g. `'solana'`).
+ * @returns The address-scan chain name, or `null` if unsupported.
+ */
+export const getAddressScanSupportedChain = (
+  chainId: string,
+): AddressScanSupportedChain | null => {
+  const chain = resolveChainName(chainId);
+  if (!chain || !isAddressScanSupportedChain(chain)) {
+    return null;
+  }
+  return chain;
+};
+
+/**
+ * Determines whether `scanAddress` will call the Security Alerts API for
+ * this chain, rather than immediately returning `ErrorResult`.
+ *
+ * Matches the gate inside `scanAddress`: the chain ID must resolve via
+ * {@link resolveChainName}, and that name must be in
+ * `ADDRESS_SCAN_SUPPORTED_CHAINS`.
+ *
+ * @param chainId - Hex chain ID for EVM chains (e.g. `'0x1'`) or a chain
+ * name for non-EVM chains (e.g. `'solana'`).
+ * @returns `true` if an address scan would hit the API.
+ */
+export const isAddressScanSupportedChainId = (chainId: string): boolean =>
+  getAddressScanSupportedChain(chainId) !== null;
 
 /**
  * Split tokens into cached results and tokens that need to be fetched.

@@ -1,72 +1,54 @@
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangedEvent,
-  StateMetadata,
-} from '@metamask/base-controller';
+import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { Messenger } from '@metamask/messenger';
 import { areUint8ArraysEqual, stringToBytes } from '@metamask/utils';
-import { randomBytes } from '@noble/ciphers/webcrypto';
+import { Mutex } from 'async-mutex';
 
-import { WEBAUTHN_TIMEOUT_MS, CeremonyManager } from './ceremony-manager';
+import { WEBAUTHN_TIMEOUT_MS, CeremonyManager } from './ceremony-manager.js';
 import {
   controllerName,
   PasskeyControllerErrorCode,
   PasskeyControllerErrorMessage,
-} from './constants';
-import { PasskeyControllerError } from './errors';
+} from './constants.js';
+import { PasskeyControllerError } from './errors.js';
+import { deriveKeyFromAuthenticationResponse } from './key-derivation.js';
+import { createModuleLogger, projectLogger } from './logger.js';
+import type {
+  AuthenticatorTransportFuture,
+  PasskeyControllerMessenger,
+  PasskeyControllerOptions,
+  PasskeyControllerState,
+  PasskeyCredentialInfo,
+  PasskeyKeyDerivation,
+  PasskeyRecord,
+  PrfClientExtensionResults,
+} from './types.js';
 import {
-  deriveKeyFromAuthenticationResponse,
-  deriveKeyFromRegistrationResponse,
-} from './key-derivation';
-import { createModuleLogger, projectLogger } from './logger';
-import type { PasskeyRecord } from './types';
-import { decryptWithKey, encryptWithKey } from './utils/crypto';
-import { base64URLToBytes, bytesToBase64URL } from './utils/encoding';
-import { COSEALG } from './webauthn/constants';
-import { decodeClientDataJSON } from './webauthn/decode-client-data-json';
+  decryptWithKey,
+  encryptWithKey,
+  randomBytesToBase64URL,
+} from './utils/crypto.js';
+import { base64URLToBytes, bytesToBase64URL } from './utils/encoding.js';
+import { COSEALG } from './webauthn/constants.js';
+import { decodeClientDataJSON } from './webauthn/decode-client-data-json.js';
 import type {
   PasskeyAuthenticationOptions,
   PasskeyAuthenticationResponse,
   PasskeyRegistrationOptions,
   PasskeyRegistrationResponse,
-} from './webauthn/types';
-import { verifyAuthenticationResponse } from './webauthn/verify-authentication-response';
-import { verifyRegistrationResponse } from './webauthn/verify-registration-response';
+} from './webauthn/types.js';
+import { verifyAuthenticationResponse } from './webauthn/verify-authentication-response.js';
+import { verifyRegistrationResponse } from './webauthn/verify-registration-response.js';
 
-export type PasskeyControllerState = {
-  passkeyRecord: PasskeyRecord | null;
-};
-
-export type PasskeyControllerGetStateAction = ControllerGetStateAction<
-  typeof controllerName,
-  PasskeyControllerState
->;
-
-/**
- * Actions exposed by {@link PasskeyController} on its messenger.
- *
- * Only `:getState` is exposed. Derived enrollment status is available via
- * {@link passkeyControllerSelectors.selectIsPasskeyEnrolled}, and lifecycle
- * methods ({@link PasskeyController.generateRegistrationOptions},
- * {@link PasskeyController.protectVaultKeyWithPasskey}, etc.) accept or
- * return non-`Json` runtime values (WebAuthn `PublicKeyCredential` objects
- * and the vault key string), so they require a direct controller reference.
- */
-export type PasskeyControllerActions = PasskeyControllerGetStateAction;
-
-export type PasskeyControllerStateChangedEvent = ControllerStateChangedEvent<
-  typeof controllerName,
-  PasskeyControllerState
->;
-
-export type PasskeyControllerEvents = PasskeyControllerStateChangedEvent;
-
-export type PasskeyControllerMessenger = Messenger<
-  typeof controllerName,
+export type {
   PasskeyControllerActions,
-  PasskeyControllerEvents
->;
+  PasskeyControllerAllowedActions,
+  PasskeyControllerEvents,
+  PasskeyControllerGetStateAction,
+  PasskeyControllerMessenger,
+  PasskeyControllerOptions,
+  PasskeyControllerState,
+  PasskeyControllerStateChangedEvent,
+} from './types.js';
 
 /**
  * Returns the default (empty) state for {@link PasskeyController}.
@@ -100,11 +82,28 @@ export const passkeyControllerSelectors = {
     state.passkeyRecord !== null,
 };
 
+const MESSENGER_EXPOSED_METHODS = [
+  'isPasskeyEnrolled',
+  'generateRegistrationOptions',
+  'generatePostRegistrationAuthenticationOptions',
+  'generateAuthenticationOptions',
+  'protectVaultKeyWithPasskey',
+  'retrieveVaultKeyWithPasskey',
+  'unlockWithPasskey',
+  'verifyPasskeyAuthentication',
+  'renewVaultKeyProtection',
+  'changePasswordWithPasskeyVerification',
+  'exportSeedPhraseWithPasskey',
+  'exportAccountsWithPasskey',
+  'removePasskeyWithPasskeyVerification',
+  'removePasskeyWithPasswordVerification',
+  'clearState',
+  'destroy',
+] as const;
+
 /**
- * Passkey-based protection for the vault encryption key (WebAuthn).
- *
- * Uses PRF-backed derivation when available; otherwise uses the credential
- * `userHandle`.
+ * Controller that enrolls a WebAuthn passkey and uses it to protect and unlock
+ * the vault encryption key.
  */
 export class PasskeyController extends BaseController<
   typeof controllerName,
@@ -113,7 +112,9 @@ export class PasskeyController extends BaseController<
 > {
   readonly #ceremonyManager = new CeremonyManager();
 
-  readonly #rpID: string;
+  readonly #expectedRPIDs: string[];
+
+  readonly #rpId: string | undefined;
 
   readonly #rpName: string;
 
@@ -123,42 +124,35 @@ export class PasskeyController extends BaseController<
 
   readonly #userDisplayName: string;
 
+  readonly #getIsOnboardingCompleted: () => boolean;
+
+  readonly #operationMutex = new Mutex();
+
   /**
-   * Constructs a new {@link PasskeyController}.
+   * Creates a passkey controller with WebAuthn relying-party settings.
    *
-   * @param args - The constructor arguments.
-   * @param args.messenger - The messenger suited for this controller.
-   * @param args.state - Initial state. Missing properties are filled in with
-   *   defaults from {@link getDefaultPasskeyControllerState}.
-   * @param args.rpID - WebAuthn Relying Party ID (typically the eTLD+1 of the
-   *   client origin, or `localhost` in dev).
-   * @param args.rpName - Human-readable Relying Party name shown by the OS
-   *   passkey UI.
-   * @param args.expectedOrigin - One or more acceptable origins for the
-   *   `clientDataJSON.origin` check (e.g. `chrome-extension://...`).
-   * @param args.userName - Optional `user.name` shown by the OS passkey UI.
-   *   Defaults to `rpName` so client builds (Stable, Flask, etc.) can
-   *   differentiate without changes here.
-   * @param args.userDisplayName - Optional `user.displayName` shown by the OS
-   *   passkey UI. Defaults to `rpName`.
+   * @param options - Constructor options.
+   * @param options.messenger - The messenger to use for communication.
+   * @param options.state - The initial state of the controller.
+   * @param options.rpId - The relying party ID to use for the passkey.
+   * @param options.expectedRPID - The expected relying party ID to use for the passkey.
+   * @param options.rpName - The relying party name to use for the passkey.
+   * @param options.expectedOrigin - The expected origin to use for the passkey.
+   * @param options.userName - The user name to use for the passkey.
+   * @param options.userDisplayName - The user display name to use for the passkey.
+   * @param options.getIsOnboardingCompleted - The callback to use to check if onboarding is complete.
    */
   constructor({
     messenger,
     state = {},
-    rpID,
+    rpId,
+    expectedRPID,
     rpName,
     expectedOrigin,
     userName,
     userDisplayName,
-  }: {
-    messenger: PasskeyControllerMessenger;
-    state?: Partial<PasskeyControllerState>;
-    rpID: string;
-    rpName: string;
-    expectedOrigin: string | string[];
-    userName?: string;
-    userDisplayName?: string;
-  }) {
+    getIsOnboardingCompleted,
+  }: PasskeyControllerOptions) {
     super({
       messenger,
       metadata: passkeyControllerMetadata,
@@ -166,57 +160,53 @@ export class PasskeyController extends BaseController<
       state: { ...getDefaultPasskeyControllerState(), ...state },
     });
 
-    this.#rpID = rpID;
+    const expectedRPIDs = Array.isArray(expectedRPID)
+      ? expectedRPID
+      : [expectedRPID];
+    this.#expectedRPIDs = [...expectedRPIDs];
+    this.#rpId = rpId;
     this.#rpName = rpName;
     this.#expectedOrigin = expectedOrigin;
     this.#userName = userName ?? rpName;
     this.#userDisplayName = userDisplayName ?? rpName;
-  }
+    this.#getIsOnboardingCompleted = getIsOnboardingCompleted;
 
-  #requireEnrolled(): PasskeyRecord {
-    const record = this.state.passkeyRecord;
-    if (!record) {
-      throw new PasskeyControllerError(
-        PasskeyControllerErrorMessage.NotEnrolled,
-        {
-          code: PasskeyControllerErrorCode.NotEnrolled,
-        },
-      );
-    }
-    return record;
-  }
-
-  #getChallengeFromClientData(clientDataJSON: string): string {
-    return decodeClientDataJSON(clientDataJSON).challenge;
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
-   * Checks if the passkey is enrolled.
+   * Whether a passkey is enrolled and vault key material is stored.
    *
-   * @returns Whether the passkey is enrolled.
+   * @returns `true` if enrolled, otherwise `false`.
    */
   isPasskeyEnrolled(): boolean {
     return passkeyControllerSelectors.selectIsPasskeyEnrolled(this.state);
   }
 
   /**
-   * Registration options for enrolling a passkey.
+   * Builds WebAuthn credential creation options for passkey enrollment.
    *
-   * Call before {@link protectVaultKeyWithPasskey}.
-   *
-   * @param creationOptionsConfig - Optional configuration.
-   * @param creationOptionsConfig.prfAvailable - Omit PRF when `false`. Default `true`.
-   * @returns Options for `navigator.credentials.create()`.
+   * @param creationOptionsConfig - Optional creation behavior.
+   * @param creationOptionsConfig.prfAvailable - Request the PRF extension unless `false`. Defaults to `true`.
+   * @returns Public key credential creation options for `navigator.credentials.create()`.
    */
   generateRegistrationOptions(creationOptionsConfig?: {
     prfAvailable?: boolean;
   }): PasskeyRegistrationOptions {
+    if (this.isPasskeyEnrolled()) {
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.AlreadyEnrolled,
+        { code: PasskeyControllerErrorCode.AlreadyEnrolled },
+      );
+    }
+
     const includePrf = creationOptionsConfig?.prfAvailable !== false;
-    const prfSalt = includePrf
-      ? bytesToBase64URL(randomBytes(32).slice())
-      : undefined;
-    const userHandle = bytesToBase64URL(randomBytes(64).slice());
-    const challenge = bytesToBase64URL(randomBytes(32).slice());
+    const prfSalt = includePrf ? randomBytesToBase64URL(32) : undefined;
+    const userHandle = randomBytesToBase64URL(64);
+    const challenge = randomBytesToBase64URL(32);
 
     const extensions: Record<string, unknown> = {};
     if (prfSalt) {
@@ -224,7 +214,10 @@ export class PasskeyController extends BaseController<
     }
 
     const options: PasskeyRegistrationOptions = {
-      rp: { name: this.#rpName, id: this.#rpID },
+      rp: {
+        name: this.#rpName,
+        id: this.#rpId,
+      },
       user: {
         id: userHandle,
         name: this.#userName,
@@ -238,7 +231,7 @@ export class PasskeyController extends BaseController<
       ],
       timeout: WEBAUTHN_TIMEOUT_MS,
       authenticatorSelection: {
-        userVerification: 'preferred',
+        userVerification: 'required',
         authenticatorAttachment: 'platform',
         residentKey: 'preferred',
       },
@@ -249,7 +242,7 @@ export class PasskeyController extends BaseController<
 
     this.#ceremonyManager.saveRegistrationCeremony(challenge, {
       userHandle,
-      prfSalt: prfSalt ?? '',
+      prfSalt,
       challenge,
       createdAt: Date.now(),
     });
@@ -258,17 +251,73 @@ export class PasskeyController extends BaseController<
   }
 
   /**
-   * WebAuthn request options for authenticating with the enrolled passkey.
+   * Builds WebAuthn credential request options for the post-registration
+   * authentication step (between `create` and {@link protectVaultKeyWithPasskey}).
    *
-   * Call before {@link retrieveVaultKeyWithPasskey},
-   * {@link verifyPasskeyAuthentication}, or {@link renewVaultKeyProtection}.
+   * @param params - Input for the pending registration ceremony.
+   * @param params.registrationResponse - Result of `navigator.credentials.create()`.
+   * @returns Public key credential request options for `navigator.credentials.get()`.
+   */
+  generatePostRegistrationAuthenticationOptions(params: {
+    registrationResponse: PasskeyRegistrationResponse;
+  }): PasskeyAuthenticationOptions {
+    // get registration ceremony
+    const { registrationResponse } = params;
+    const regChallenge = this.#getChallengeFromClientData(
+      registrationResponse.response.clientDataJSON,
+    );
+    const registrationCeremony =
+      this.#ceremonyManager.getRegistrationCeremony(regChallenge);
+    if (!registrationCeremony) {
+      log('No active passkey registration ceremony for challenge');
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.NoRegistrationCeremony,
+        { code: PasskeyControllerErrorCode.NoRegistrationCeremony },
+      );
+    }
+
+    // build auth options
+    const challenge = randomBytesToBase64URL(32);
+    const extensions: Record<string, unknown> = {};
+    if (registrationCeremony.prfSalt) {
+      extensions.prf = { eval: { first: registrationCeremony.prfSalt } };
+    }
+    const options: PasskeyAuthenticationOptions = {
+      challenge,
+      rpId: this.#rpId,
+      allowCredentials: [
+        {
+          id: registrationResponse.id,
+          type: 'public-key',
+          transports: registrationResponse.response.transports as
+            | AuthenticatorTransportFuture[]
+            | undefined,
+        },
+      ],
+      userVerification: 'required',
+      hints: ['client-device', 'hybrid'],
+      timeout: WEBAUTHN_TIMEOUT_MS,
+      extensions,
+    };
+
+    // save auth ceremony
+    this.#ceremonyManager.saveAuthenticationCeremony(challenge, {
+      challenge,
+      createdAt: Date.now(),
+    });
+
+    return options;
+  }
+
+  /**
+   * Builds WebAuthn credential request options for the enrolled passkey.
    *
-   * @returns Options for `navigator.credentials.get()`.
+   * @returns Public key credential request options for `navigator.credentials.get()`.
    */
   generateAuthenticationOptions(): PasskeyAuthenticationOptions {
     const record = this.#requireEnrolled();
 
-    const challenge = bytesToBase64URL(randomBytes(32).slice());
+    const challenge = randomBytesToBase64URL(32);
 
     const extensions: Record<string, unknown> = {};
     if (record.keyDerivation.method === 'prf') {
@@ -277,7 +326,7 @@ export class PasskeyController extends BaseController<
 
     const options: PasskeyAuthenticationOptions = {
       challenge,
-      rpId: this.#rpID,
+      rpId: this.#rpId,
       allowCredentials: [
         {
           id: record.credential.id,
@@ -285,7 +334,7 @@ export class PasskeyController extends BaseController<
           transports: record.credential.transports,
         },
       ],
-      userVerification: 'preferred',
+      userVerification: 'required',
       hints: ['client-device', 'hybrid'],
       timeout: WEBAUTHN_TIMEOUT_MS,
       extensions,
@@ -300,19 +349,48 @@ export class PasskeyController extends BaseController<
   }
 
   /**
-   * Completes enrollment and binds the vault key to the new passkey.
+   * Verifies registration and post-registration authentication, then stores the
+   * vault key encrypted under the new passkey.
    *
-   * @param params - Protection parameters.
-   * @param params.registrationResponse - Credential from `navigator.credentials.create()`.
-   * @param params.vaultKey - Vault encryption key to protect.
+   * Fetches the current vault encryption key from KeyringController before wrapping.
+   * When onboarding is complete, requires `password` for step-up verification first.
+   *
+   * @param params - Enrollment completion inputs.
+   * @param params.registrationResponse - Result of `navigator.credentials.create()`.
+   * @param params.authenticationResponse - Result of `navigator.credentials.get()` after {@link generatePostRegistrationAuthenticationOptions}.
+   * @param params.password - Wallet password when onboarding is complete (step-up).
+   * @returns Resolves when enrollment completes.
    */
   async protectVaultKeyWithPasskey(params: {
     registrationResponse: PasskeyRegistrationResponse;
-    vaultKey: string;
+    authenticationResponse: PasskeyAuthenticationResponse;
+    password?: string;
   }): Promise<void> {
-    const { registrationResponse, vaultKey } = params;
+    return this.#withOperationLock(() =>
+      this.#protectVaultKeyWithPasskey(params),
+    );
+  }
 
-    // get challenge
+  async #protectVaultKeyWithPasskey(params: {
+    registrationResponse: PasskeyRegistrationResponse;
+    authenticationResponse: PasskeyAuthenticationResponse;
+    password?: string;
+  }): Promise<void> {
+    if (this.isPasskeyEnrolled()) {
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.AlreadyEnrolled,
+        { code: PasskeyControllerErrorCode.AlreadyEnrolled },
+      );
+    }
+
+    await this.#assertEnrollmentAllowed(params.password);
+    const vaultKey = await this.messenger.call(
+      'KeyringController:exportEncryptionKey',
+    );
+
+    const { registrationResponse, authenticationResponse } = params;
+
+    // get registration ceremony
     const challenge = this.#getChallengeFromClientData(
       registrationResponse.response.clientDataJSON,
     );
@@ -332,8 +410,8 @@ export class PasskeyController extends BaseController<
         response: registrationResponse,
         expectedChallenge: registrationCeremony.challenge,
         expectedOrigin: this.#expectedOrigin,
-        expectedRPID: this.#rpID,
-        requireUserVerification: false,
+        expectedRPIDs: this.#expectedRPIDs,
+        requireUserVerification: true,
       }).catch((error) => {
         log('Error verifying passkey registration response', error);
         throw new PasskeyControllerError(
@@ -354,63 +432,123 @@ export class PasskeyController extends BaseController<
         );
       }
 
-      // derive key
-      const { encKey, keyDerivation } = deriveKeyFromRegistrationResponse(
-        registrationResponse,
-        registrationCeremony,
-        registrationInfo.credentialId,
+      // verify authentication response
+      const credential = {
+        id: registrationInfo.credentialId,
+        publicKey: bytesToBase64URL(registrationInfo.publicKey),
+        counter: registrationInfo.counter,
+        transports: registrationInfo.transports,
+        aaguid: registrationInfo.aaguid,
+      };
+      const { newCounter } = await this.#verifyAuthenticationResponse(
+        authenticationResponse,
+        credential,
       );
 
-      // encrypt vault key
+      // determine key derivation method
+      const prfFirst = (
+        authenticationResponse.clientExtensionResults as PrfClientExtensionResults
+      )?.prf?.results?.first;
+      const authHasPrfOutput =
+        typeof prfFirst === 'string' && prfFirst.length > 0;
+      const keyDerivation: PasskeyKeyDerivation =
+        authHasPrfOutput && registrationCeremony.prfSalt
+          ? { method: 'prf', prfSalt: registrationCeremony.prfSalt }
+          : { method: 'userHandle' };
+
+      if (
+        keyDerivation.method === 'userHandle' &&
+        authenticationResponse.response.userHandle !==
+          registrationCeremony.userHandle
+      ) {
+        log(
+          'Post-registration assertion userHandle does not match registration ceremony',
+        );
+        throw new PasskeyControllerError(
+          PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
+          { code: PasskeyControllerErrorCode.AuthenticationVerificationFailed },
+        );
+      }
+
+      // derive key and encrypt vault key
+      const encKey = deriveKeyFromAuthenticationResponse(
+        authenticationResponse,
+        { credential, keyDerivation },
+      );
       const { ciphertext, iv } = encryptWithKey(vaultKey, encKey);
 
       // persist passkey record
       this.update((state) => {
         state.passkeyRecord = {
           credential: {
-            id: registrationInfo.credentialId,
-            publicKey: bytesToBase64URL(registrationInfo.publicKey),
-            counter: registrationInfo.counter,
-            transports: registrationInfo.transports,
-            aaguid: registrationInfo.aaguid,
+            ...credential,
+            counter: Math.max(newCounter, credential.counter),
           },
           encryptedVaultKey: { ciphertext, iv },
           keyDerivation,
         };
       });
     } finally {
+      // delete registration ceremony
       this.#ceremonyManager.deleteRegistrationCeremony(challenge);
     }
   }
 
   /**
-   * Returns the decrypted vault encryption key from the passkey authentication
-   * response.
+   * Verifies an authentication assertion and returns the decrypted vault key.
    *
-   * @param authenticationResponse - Credential from `navigator.credentials.get()`.
-   * @returns The vault encryption key.
+   * Prefer orchestrated methods ({@link unlockWithPasskey},
+   * {@link exportSeedPhraseWithPasskey}, {@link exportAccountsWithPasskey}) for product
+   * flows instead of calling KeyringController with the returned key manually.
+   *
+   * @param authenticationResponse - Result of `navigator.credentials.get()`.
+   * @returns The plaintext vault encryption key.
    */
   async retrieveVaultKeyWithPasskey(
     authenticationResponse: PasskeyAuthenticationResponse,
   ): Promise<string> {
-    // verify authentication response
-    await this.#verifyAuthenticationResponse(authenticationResponse);
+    return this.#withOperationLock(() =>
+      this.#retrieveVaultKeyWithPasskey(authenticationResponse),
+    );
+  }
 
-    // derive key (#verifyAuthenticationResponse guarantees enrolled)
+  async #retrieveVaultKeyWithPasskey(
+    authenticationResponse: PasskeyAuthenticationResponse,
+  ): Promise<string> {
     const passkeyRecord = this.#requireEnrolled();
+
+    // verify authentication response and update counter
+    const { newCounter } = await this.#verifyAuthenticationResponse(
+      authenticationResponse,
+      passkeyRecord.credential,
+    );
+    this.update((state) => {
+      if (!state.passkeyRecord) {
+        throw new PasskeyControllerError(
+          PasskeyControllerErrorMessage.NotEnrolled,
+          { code: PasskeyControllerErrorCode.NotEnrolled },
+        );
+      }
+      state.passkeyRecord.credential.counter = Math.max(
+        newCounter,
+        state.passkeyRecord.credential.counter,
+      );
+    });
+
+    // derive key
     const encKey = deriveKeyFromAuthenticationResponse(
       authenticationResponse,
       passkeyRecord,
     );
 
     // decrypt vault key
-    let vaultKey: string;
     try {
-      vaultKey = decryptWithKey(
+      const vaultKey = decryptWithKey(
         passkeyRecord.encryptedVaultKey.ciphertext,
         passkeyRecord.encryptedVaultKey.iv,
         encKey,
       );
+      return vaultKey;
     } catch (cause) {
       log(
         'Error decrypting vault key with passkey',
@@ -424,26 +562,103 @@ export class PasskeyController extends BaseController<
         },
       );
     }
-
-    return vaultKey;
   }
 
   /**
-   * Returns whether passkey authentication succeeds for this credential (same
-   * work as {@link retrieveVaultKeyWithPasskey} without exposing the vault key).
+   * Unlocks the keyring using a passkey authentication assertion.
    *
-   * Returns `false` only when the failure is a {@link PasskeyControllerError}
-   * with a defined `code`. Unexpected errors (e.g. malformed `clientDataJSON`,
-   * internal bugs) are rethrown.
+   * @param authenticationResponse - Result of `navigator.credentials.get()`.
+   * @returns Resolves when the keyring is unlocked.
+   */
+  async unlockWithPasskey(
+    authenticationResponse: PasskeyAuthenticationResponse,
+  ): Promise<void> {
+    return this.#withOperationLock(async () => {
+      const vaultKey = await this.#retrieveVaultKeyWithPasskey(
+        authenticationResponse,
+      );
+      await this.messenger.call(
+        'KeyringController:submitEncryptionKey',
+        vaultKey,
+      );
+    });
+  }
+
+  /**
+   * Exports the seed phrase after passkey step-up authentication.
    *
-   * @param authenticationResponse - Credential from `navigator.credentials.get()`.
-   * @returns `true` if authentication succeeds, otherwise `false`.
+   * @param authenticationResponse - Result of `navigator.credentials.get()`.
+   * @param keyringId - Optional keyring id; defaults to the primary HD keyring.
+   * @returns Raw seed phrase bytes from KeyringController.
+   */
+  async exportSeedPhraseWithPasskey(
+    authenticationResponse: PasskeyAuthenticationResponse,
+    keyringId?: string,
+  ): Promise<Uint8Array> {
+    return this.#withOperationLock(async () => {
+      const vaultKey = await this.#retrieveVaultKeyWithPasskey(
+        authenticationResponse,
+      );
+      return await this.messenger.call(
+        'KeyringController:exportSeedPhrase',
+        { encryptionKey: vaultKey },
+        keyringId,
+      );
+    });
+  }
+
+  /**
+   * Exports private keys for the given addresses after passkey step-up authentication.
+   *
+   * @param authenticationResponse - Result of `navigator.credentials.get()`.
+   * @param addresses - Account addresses to export.
+   * @returns Private keys in the same order as `addresses`.
+   */
+  async exportAccountsWithPasskey(
+    authenticationResponse: PasskeyAuthenticationResponse,
+    addresses: string[],
+  ): Promise<string[]> {
+    return this.#withOperationLock(async () => {
+      const vaultKey = await this.#retrieveVaultKeyWithPasskey(
+        authenticationResponse,
+      );
+
+      const privateKeys: string[] = [];
+      for (const address of addresses) {
+        privateKeys.push(
+          await this.messenger.call(
+            'KeyringController:exportAccount',
+            { encryptionKey: vaultKey },
+            address,
+          ),
+        );
+      }
+      return privateKeys;
+    });
+  }
+
+  /**
+   * Checks whether the given authentication assertion is valid for the enrolled passkey.
+   *
+   * On failure, returns `false` for {@link PasskeyControllerError} with a `code`;
+   * other errors propagate.
+   *
+   * @param authenticationResponse - Result of `navigator.credentials.get()`.
+   * @returns `true` if verification succeeds, otherwise `false`.
    */
   async verifyPasskeyAuthentication(
     authenticationResponse: PasskeyAuthenticationResponse,
   ): Promise<boolean> {
+    return this.#withOperationLock(() =>
+      this.#verifyPasskeyAuthentication(authenticationResponse),
+    );
+  }
+
+  async #verifyPasskeyAuthentication(
+    authenticationResponse: PasskeyAuthenticationResponse,
+  ): Promise<boolean> {
     try {
-      await this.retrieveVaultKeyWithPasskey(authenticationResponse);
+      await this.#retrieveVaultKeyWithPasskey(authenticationResponse);
       return true;
     } catch (error: unknown) {
       if (error instanceof PasskeyControllerError && error.code !== undefined) {
@@ -454,21 +669,32 @@ export class PasskeyController extends BaseController<
   }
 
   /**
-   * Updates the vault encryption key for the same passkey (e.g. after a password change).
+   * Re-wraps the vault key after rotation. Updates persisted `encryptedVaultKey` on success.
    *
-   * Caller MUST first verify the assertion via {@link verifyPasskeyAuthentication}
-   * or {@link retrieveVaultKeyWithPasskey}. This method does not re-verify
-   * because the ceremony is single-use (deleted on verify) and the signature
-   * counter is advanced (replay would be rejected). Authentication here is
-   * enforced by the prior verification plus the `oldVaultKey` match below.
+   * Does not verify WebAuthn or ceremony state—call only after your layer has authenticated
+   * the user (passkey `get()` + verified assertion, or verified password). On passkey paths,
+   * pass the same `authenticationResponse` you just verified (e.g. from
+   * {@link retrieveVaultKeyWithPasskey} / {@link verifyPasskeyAuthentication}).
    *
-   * @param params - Renewal parameters.
-   * @param params.authenticationResponse - Credential from `navigator.credentials.get()`,
-   *   already verified by the caller.
+   * For password change with passkey step-up, prefer
+   * {@link changePasswordWithPasskeyVerification}, which orchestrates keyring export,
+   * `changePassword`, and re-wrap in one call.
+   *
+   * @param params - Re-wrap inputs.
+   * @param params.authenticationResponse - Used to derive the wrapping key.
    * @param params.oldVaultKey - Expected current vault key.
-   * @param params.newVaultKey - New vault key to protect.
+   * @param params.newVaultKey - New vault key to encrypt under the passkey.
+   * @returns Resolves when the passkey record is updated.
    */
   async renewVaultKeyProtection(params: {
+    authenticationResponse: PasskeyAuthenticationResponse;
+    oldVaultKey: string;
+    newVaultKey: string;
+  }): Promise<void> {
+    return this.#withOperationLock(() => this.#renewVaultKeyProtection(params));
+  }
+
+  async #renewVaultKeyProtection(params: {
     authenticationResponse: PasskeyAuthenticationResponse;
     oldVaultKey: string;
     newVaultKey: string;
@@ -539,18 +765,147 @@ export class PasskeyController extends BaseController<
   }
 
   /**
-   * Unenrolls the passkey, removing the protected vault key material.
+   * Changes the wallet password after passkey step-up authentication.
+   *
+   * When `renewVaultKeyProtection` is `true` (default), re-wraps the vault key under the
+   * passkey after rotation. When `false`, removes the passkey instead.
+   *
+   * @param params - Change-password inputs.
+   * @param params.newPassword - New wallet password.
+   * @param params.authenticationResponse - Result of `navigator.credentials.get()`.
+   * @param params.options - Optional flow controls.
+   * @param params.options.renewVaultKeyProtection - Re-wrap vault key after password change.
+   * @returns Resolves when the password change completes.
    */
-  removePasskey(): void {
-    this.update(() => getDefaultPasskeyControllerState());
-    this.#ceremonyManager.clear();
+  async changePasswordWithPasskeyVerification(params: {
+    newPassword: string;
+    authenticationResponse: PasskeyAuthenticationResponse;
+    options?: { renewVaultKeyProtection?: boolean };
+  }): Promise<void> {
+    return this.#withOperationLock(() =>
+      this.#changePasswordWithPasskeyVerification(params),
+    );
+  }
+
+  async #changePasswordWithPasskeyVerification(params: {
+    newPassword: string;
+    authenticationResponse: PasskeyAuthenticationResponse;
+    options?: { renewVaultKeyProtection?: boolean };
+  }): Promise<void> {
+    this.#requireEnrolled();
+
+    const verified = await this.#verifyPasskeyAuthentication(
+      params.authenticationResponse,
+    );
+    if (!verified) {
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
+        { code: PasskeyControllerErrorCode.AuthenticationVerificationFailed },
+      );
+    }
+
+    const renewVaultKeyProtection =
+      params.options?.renewVaultKeyProtection ?? true;
+
+    if (!renewVaultKeyProtection) {
+      await this.messenger.call(
+        'KeyringController:changePassword',
+        params.newPassword,
+      );
+      this.#removePasskey();
+      return;
+    }
+
+    const vaultKeyBefore = await this.messenger.call(
+      'KeyringController:exportEncryptionKey',
+    );
+    await this.messenger.call(
+      'KeyringController:changePassword',
+      params.newPassword,
+    );
+
+    try {
+      const vaultKeyAfter = await this.messenger.call(
+        'KeyringController:exportEncryptionKey',
+      );
+      await this.#renewVaultKeyProtection({
+        authenticationResponse: params.authenticationResponse,
+        oldVaultKey: vaultKeyBefore,
+        newVaultKey: vaultKeyAfter,
+      });
+    } catch (error) {
+      this.#removePasskey();
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.VaultKeyRenewalFailed,
+        {
+          code: PasskeyControllerErrorCode.VaultKeyRenewalFailed,
+          cause: error instanceof Error ? error : new Error(String(error)),
+        },
+      );
+    }
+  }
+
+  /**
+   * Removes the enrolled passkey after verifying a passkey authentication assertion.
+   *
+   * @param authenticationResponse - Result of `navigator.credentials.get()`.
+   * @returns Resolves when the passkey is removed.
+   */
+  async removePasskeyWithPasskeyVerification(
+    authenticationResponse: PasskeyAuthenticationResponse,
+  ): Promise<void> {
+    return this.#withOperationLock(() =>
+      this.#removePasskeyWithPasskeyVerification(authenticationResponse),
+    );
+  }
+
+  async #removePasskeyWithPasskeyVerification(
+    authenticationResponse: PasskeyAuthenticationResponse,
+  ): Promise<void> {
+    this.#requireEnrolled();
+
+    const verified = await this.#verifyPasskeyAuthentication(
+      authenticationResponse,
+    );
+    if (!verified) {
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
+        { code: PasskeyControllerErrorCode.AuthenticationVerificationFailed },
+      );
+    }
+
+    this.#removePasskey();
+  }
+
+  /**
+   * Removes the enrolled passkey after verifying the wallet password.
+   *
+   * @param password - Wallet password for step-up verification.
+   * @returns Resolves when the passkey is removed.
+   */
+  async removePasskeyWithPasswordVerification(password: string): Promise<void> {
+    return this.#withOperationLock(() =>
+      this.#removePasskeyWithPasswordVerification(password),
+    );
+  }
+
+  async #removePasskeyWithPasswordVerification(
+    password: string,
+  ): Promise<void> {
+    this.#requireEnrolled();
+    await this.messenger.call('KeyringController:verifyPassword', password);
+    this.#removePasskey();
   }
 
   /**
    * Resets state and clears in-flight registration/authentication ceremonies.
+   *
+   * For user-facing passkey removal with step-up, use
+   * {@link removePasskeyWithPasskeyVerification} or
+   * {@link removePasskeyWithPasswordVerification}.
    */
   clearState(): void {
-    this.removePasskey();
+    this.#removePasskey();
   }
 
   /**
@@ -562,48 +917,46 @@ export class PasskeyController extends BaseController<
   }
 
   /**
-   * Verifies an authentication response for the enrolled passkey.
+   * Validates a WebAuthn authentication response against stored credential data.
    *
-   * @param authenticationResponse - Authentication result JSON.
+   * @param authenticationResponse - Parsed authentication response from the client.
+   * @param credential - Credential identifiers and public key material for verification.
+   * @returns Updated authenticator signature counter.
    */
   async #verifyAuthenticationResponse(
     authenticationResponse: PasskeyAuthenticationResponse,
-  ): Promise<void> {
-    let challenge: string | undefined;
-    try {
-      // get challenge
-      challenge = this.#getChallengeFromClientData(
-        authenticationResponse.response.clientDataJSON,
+    credential: PasskeyCredentialInfo,
+  ): Promise<{ newCounter: number }> {
+    // get challenge
+    const challenge = this.#getChallengeFromClientData(
+      authenticationResponse.response.clientDataJSON,
+    );
+
+    // get authentication ceremony
+    const authenticationCeremony =
+      this.#ceremonyManager.getAuthenticationCeremony(challenge);
+    if (!authenticationCeremony) {
+      log('No active passkey authentication ceremony for challenge');
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.NoAuthenticationCeremony,
+        { code: PasskeyControllerErrorCode.NoAuthenticationCeremony },
       );
+    }
 
-      // get passkey record
-      const record = this.#requireEnrolled();
-
-      // get authentication ceremony
-      const authenticationCeremony =
-        this.#ceremonyManager.getAuthenticationCeremony(challenge);
-      if (!authenticationCeremony) {
-        log('No active passkey authentication ceremony for challenge');
-        throw new PasskeyControllerError(
-          PasskeyControllerErrorMessage.NoAuthenticationCeremony,
-          { code: PasskeyControllerErrorCode.NoAuthenticationCeremony },
-        );
-      }
-
+    try {
       // verify authentication response
       const result = await verifyAuthenticationResponse({
         response: authenticationResponse,
         expectedChallenge: authenticationCeremony.challenge,
         expectedOrigin: this.#expectedOrigin,
-        expectedRPID: this.#rpID,
+        expectedRPIDs: this.#expectedRPIDs,
         credential: {
-          id: record.credential.id,
-          publicKey: base64URLToBytes(record.credential.publicKey),
-          counter: record.credential.counter,
-          transports: record.credential.transports,
+          id: credential.id,
+          publicKey: base64URLToBytes(credential.publicKey),
+          counter: credential.counter,
+          transports: credential.transports,
         },
-        // UV optional for device compatibility; vault key remains password-gated.
-        requireUserVerification: false,
+        requireUserVerification: true,
       }).catch((error) => {
         log(
           'Error verifying passkey authentication response',
@@ -627,24 +980,64 @@ export class PasskeyController extends BaseController<
         );
       }
 
-      // persist passkey record with updated counter without clobbering concurrent updates
-      this.update((state) => {
-        if (!state.passkeyRecord) {
-          throw new PasskeyControllerError(
-            PasskeyControllerErrorMessage.NotEnrolled,
-            { code: PasskeyControllerErrorCode.NotEnrolled },
-          );
-        }
-        const latest = state.passkeyRecord;
-        latest.credential.counter = Math.max(
-          result.authenticationInfo.newCounter,
-          latest.credential.counter,
-        );
-      });
+      return { newCounter: result.authenticationInfo.newCounter };
     } finally {
-      if (challenge) {
-        this.#ceremonyManager.deleteAuthenticationCeremony(challenge);
-      }
+      // delete authentication ceremony
+      this.#ceremonyManager.deleteAuthenticationCeremony(challenge);
     }
+  }
+
+  /**
+   * Serializes orchestrated passkey operations that mutate state or call KeyringController.
+   *
+   * @param callback - Operation to run while the mutex is held.
+   * @returns The result of the callback.
+   */
+  async #withOperationLock<Result>(
+    callback: () => Promise<Result>,
+  ): Promise<Result> {
+    return this.#operationMutex.runExclusive(callback);
+  }
+
+  async #assertEnrollmentAllowed(password?: string): Promise<void> {
+    if (!this.#getIsOnboardingCompleted()) {
+      return;
+    }
+
+    if (!password) {
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.EnrollmentPasswordRequired,
+        {
+          code: PasskeyControllerErrorCode.EnrollmentPasswordRequired,
+        },
+      );
+    }
+
+    await this.messenger.call('KeyringController:verifyPassword', password);
+  }
+
+  #requireEnrolled(): PasskeyRecord {
+    const record = this.state.passkeyRecord;
+    if (!record) {
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.NotEnrolled,
+        {
+          code: PasskeyControllerErrorCode.NotEnrolled,
+        },
+      );
+    }
+    return record;
+  }
+
+  #getChallengeFromClientData(clientDataJSON: string): string {
+    return decodeClientDataJSON(clientDataJSON).challenge;
+  }
+
+  /**
+   * Clears enrolled passkey state and in-flight ceremonies.
+   */
+  #removePasskey(): void {
+    this.update(() => getDefaultPasskeyControllerState());
+    this.#ceremonyManager.clear();
   }
 }

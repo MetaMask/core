@@ -1,6 +1,6 @@
 /* eslint-disable no-void */
-import { backupAndSyncLogger } from '../../logger';
-import { AtomicSyncQueue } from './atomic-sync-queue';
+import { backupAndSyncLogger } from '../../logger.js';
+import { AtomicSyncQueue } from './atomic-sync-queue.js';
 
 jest.mock('../../logger', () => ({
   backupAndSyncLogger: jest.fn(),

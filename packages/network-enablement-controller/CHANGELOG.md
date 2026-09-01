@@ -7,12 +7,153 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.5]
+
 ### Changed
 
-- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.1` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/config-registry-controller` from `^3.0.0` to `^3.1.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/multichain-network-controller` from `^3.2.3` to `^3.2.4` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-controller` from `^35.0.1` to `^36.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+
+## [6.0.4]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.5.0` to `^69.5.2` ([#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823))
+- Bump `@metamask/config-registry-controller` from `^2.0.1` to `^3.0.0` ([#9923](https://github.com/MetaMask/core/pull/9923))
+
+## [6.0.3]
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^23.7.0` to `^24.0.0` ([#9754](https://github.com/MetaMask/core/pull/9754))
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.0` ([#9780](https://github.com/MetaMask/core/pull/9780))
+- Bump `@metamask/config-registry-controller` from `^2.0.0` to `^2.0.1` ([#9779](https://github.com/MetaMask/core/pull/9779))
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+- Bump `@metamask/multichain-network-controller` from `^3.2.2` to `^3.2.3` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+## [6.0.2]
+
+### Changed
+
+- Bump `@metamask/config-registry-controller` from `^1.0.1` to `^2.0.0` ([#9740](https://github.com/MetaMask/core/pull/9740))
+
+## [6.0.1]
+
+### Changed
+
+- Bump `@metamask/config-registry-controller` from `^1.0.0` to `^1.0.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/multichain-network-controller` from `^3.2.1` to `^3.2.2` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/transaction-controller` from `^69.3.0` to `^69.4.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [6.0.0]
+
+### Added
+
+- Expose missing public `NetworkEnablementController` method through its messenger ([#9660](https://github.com/MetaMask/core/pull/9660))
+  - The following action is now available:
+    - `NetworkEnablementController:restoreEnabledNetworkMap`
+  - Corresponding action type (`NetworkEnablementControllerRestoreEnabledNetworkMapAction`) is available as well.
+
+### Changed
+
+- **BREAKING:** Popular-network classification is now augmented by `ConfigRegistryController` ([#9611](https://github.com/MetaMask/core/pull/9611))
+  - `NetworkEnablementControllerMessenger` now requires the `ConfigRegistryController:getState` action to be available.
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.3.0` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593), [#9693](https://github.com/MetaMask/core/pull/9693))
+- Bump `@metamask/keyring-api` from `^23.5.0` to `^23.7.0` ([#9676](https://github.com/MetaMask/core/pull/9676))
+- Bump `@metamask/config-registry-controller` from `^0.4.1` to `^1.0.0` ([#9706](https://github.com/MetaMask/core/pull/9706))
+
+## [5.6.0]
+
+### Added
+
+- Add `restoreEnabledNetworkMap` on `NetworkEnablementController` to restore a previously snapshotted `enabledNetworkMap` when adding a network without switching the active network filter. Not exposed as a messenger action ([#9480](https://github.com/MetaMask/core/pull/9480))
+
+## [5.5.0]
+
+### Added
+
+- Added Robinhood Chain (`0x1237`) to `POPULAR_NETWORKS` ([#9461](https://github.com/MetaMask/core/pull/9461))
+
+### Changed
+
+- Restore Stellar to the Network Enablement Controller enabled network map by reverting the temporary rollback, as the corresponding Extension issue has already been resolved ([#9385](https://github.com/MetaMask/core/pull/9385))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/transaction-controller` from `^68.2.2` to `^69.0.0` ([#9421](https://github.com/MetaMask/core/pull/9421), [#9456](https://github.com/MetaMask/core/pull/9456), [#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+
+## [5.4.1]
+
+### Added
+
+- Add Stellar network enablement: default `enabledNetworkMap` entries for Stellar namespace (pubnet on, testnet off), enable Stellar pubnet during popular-network init when it exists in `MultichainNetworkController`, and include Stellar pubnet in `listPopularMultichainNetworks` ([#8832](https://github.com/MetaMask/core/pull/8832))
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
+- Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.2` ([#9253](https://github.com/MetaMask/core/pull/9253), [#9337](https://github.com/MetaMask/core/pull/9337), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/multichain-network-controller` from `^3.1.4` to `^3.2.1` ([#9264](https://github.com/MetaMask/core/pull/9264), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [5.4.0]
+
+### Added
+
+- Export `NetworkEnablementControllerStateChangeEvent` type from the package root ([#9084](https://github.com/MetaMask/core/pull/9084))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.3.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/transaction-controller` from `^66.0.1` to `^68.1.1` ([#9021](https://github.com/MetaMask/core/pull/9021), [#9066](https://github.com/MetaMask/core/pull/9066), [#9089](https://github.com/MetaMask/core/pull/9089), [#9177](https://github.com/MetaMask/core/pull/9177), [#9203](https://github.com/MetaMask/core/pull/9203), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/multichain-network-controller` from `^3.1.3` to `^3.1.4` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [5.3.0]
+
+### Added
+
+- Added Arc (`0x13b2`) to `POPULAR_NETWORKS` ([#8997](https://github.com/MetaMask/core/pull/8997))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^65.4.0` to `^66.0.1` ([#8848](https://github.com/MetaMask/core/pull/8848), [#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/multichain-network-controller` from `^3.1.2` to `^3.1.3` ([#8999](https://github.com/MetaMask/core/pull/8999))
+
+## [5.2.0]
+
+### Added
+
+- Add Monad mainnet (`0x8f`, chain ID 143) to the default enabled network map for new users ([#8743](https://github.com/MetaMask/core/pull/8743))
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^31.0.0` to `^32.0.0` ([#8765](https://github.com/MetaMask/core/pull/8765), [#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^65.4.0` ([#8796](https://github.com/MetaMask/core/pull/8796))
+- Bump `@metamask/multichain-network-controller` from `^3.1.1` to `^3.1.2` ([#8834](https://github.com/MetaMask/core/pull/8834))
+
+## [5.1.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^65.0.0` to `^65.3.0` ([#8691](https://github.com/MetaMask/core/pull/8691), [#8722](https://github.com/MetaMask/core/pull/8722), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/multichain-network-controller` from `^3.1.0` to `^3.1.1` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [5.1.0]
+
+### Changed
+
+- Bump `@metamask/multichain-network-controller` from `^3.0.6` to `^3.1.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/transaction-controller` from `^64.0.0` to `^65.0.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447), [#8482](https://github.com/MetaMask/core/pull/8482), [#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
-- Bump `@metamask/keyring-api` from `^21.6.0` to `^23.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
+- Bump `@metamask/keyring-api` from `^21.6.0` to `^23.1.0` ([#8464](https://github.com/MetaMask/core/pull/8464), [#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
 
 ## [5.0.2]
 
@@ -57,13 +198,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `listPopularNetworks()` method and `NetworkEnablementController:listPopularNetworks` messenger action. Returns CAIP-2 chain IDs for popular EVM networks (from POPULAR_NETWORKS) and Bitcoin, Solana, and Tron mainnets that are present in NetworkController `networkConfigurationsByChainId` and MultichainNetworkController `multichainNetworkConfigurationsByChainId` respectively ([#8105](https://github.com/MetaMask/core/pull/8105)).
-- Add `listPopularEvmNetworks()` and `NetworkEnablementController:listPopularEvmNetworks` for popular EVM networks only (returns hex chain IDs); add `listPopularMultichainNetworks()` and `NetworkEnablementController:listPopularMultichainNetworks` for Bitcoin, Solana, and Tron mainnets only (each restricted to configured networks in the corresponding controller state) ([#8105](https://github.com/MetaMask/core/pull/8105)).
+- Add `listPopularNetworks()` method and `NetworkEnablementController:listPopularNetworks` messenger action. Returns CAIP-2 chain IDs for popular EVM networks (from POPULAR_NETWORKS) and Bitcoin, Solana, and Tron mainnets that are present in NetworkController `networkConfigurationsByChainId` and MultichainNetworkController `multichainNetworkConfigurationsByChainId` respectively. ([#8105](https://github.com/MetaMask/core/pull/8105))
+- Add `listPopularEvmNetworks()` and `NetworkEnablementController:listPopularEvmNetworks` for popular EVM networks only (returns hex chain IDs); add `listPopularMultichainNetworks()` and `NetworkEnablementController:listPopularMultichainNetworks` for Bitcoin, Solana, and Tron mainnets only (each restricted to configured networks in the corresponding controller state). ([#8105](https://github.com/MetaMask/core/pull/8105))
 
 ### Changed
 
-- `listPopularEvmNetworks()` now returns `Hex[]` (e.g. `'0x1'`, `'0x89'`) instead of CAIP-2 chain IDs; `listPopularNetworks()` still returns CAIP-2 for the full combined list ([#8105](https://github.com/MetaMask/core/pull/8105)).
-- Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.20.0` ([#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031) [#8104](https://github.com/MetaMask/core/pull/8104))
+- `listPopularEvmNetworks()` now returns `Hex[]` (e.g. `'0x1'`, `'0x89'`) instead of CAIP-2 chain IDs; `listPopularNetworks()` still returns CAIP-2 for the full combined list. ([#8105](https://github.com/MetaMask/core/pull/8105))
+- Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.20.0` ([#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031), [#8104](https://github.com/MetaMask/core/pull/8104))
 
 ## [4.1.2]
 
@@ -79,7 +220,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
-- Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.17.0` ([#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872)), ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.17.0` ([#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872), [#7897](https://github.com/MetaMask/core/pull/7897))
 - Bump `@metamask/multichain-network-controller` from `3.0.2` to `3.0.3` ([#7897](https://github.com/MetaMask/core/pull/7897))
 
 ### Fixed
@@ -271,7 +412,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.5...HEAD
+[6.0.5]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.4...@metamask/network-enablement-controller@6.0.5
+[6.0.4]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.3...@metamask/network-enablement-controller@6.0.4
+[6.0.3]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.2...@metamask/network-enablement-controller@6.0.3
+[6.0.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.1...@metamask/network-enablement-controller@6.0.2
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.0...@metamask/network-enablement-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.6.0...@metamask/network-enablement-controller@6.0.0
+[5.6.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.5.0...@metamask/network-enablement-controller@5.6.0
+[5.5.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.4.1...@metamask/network-enablement-controller@5.5.0
+[5.4.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.4.0...@metamask/network-enablement-controller@5.4.1
+[5.4.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.3.0...@metamask/network-enablement-controller@5.4.0
+[5.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.2.0...@metamask/network-enablement-controller@5.3.0
+[5.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.1.1...@metamask/network-enablement-controller@5.2.0
+[5.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.1.0...@metamask/network-enablement-controller@5.1.1
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.0.2...@metamask/network-enablement-controller@5.1.0
 [5.0.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.0.1...@metamask/network-enablement-controller@5.0.2
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.0.0...@metamask/network-enablement-controller@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.2.0...@metamask/network-enablement-controller@5.0.0

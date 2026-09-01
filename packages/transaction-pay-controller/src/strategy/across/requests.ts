@@ -1,8 +1,9 @@
-import type { QuoteRequest } from '../../types';
+import type { QuoteRequest } from '../../types.js';
 
 export function isAcrossQuoteRequest(request: QuoteRequest): boolean {
   return (
     request.isMaxAmount === true ||
+    request.isPostQuote === true ||
     (request.targetAmountMinimum !== undefined &&
       request.targetAmountMinimum !== '0')
   );

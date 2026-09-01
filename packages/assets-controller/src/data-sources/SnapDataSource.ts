@@ -10,14 +10,15 @@ import type {
 import type {
   SnapControllerGetRunnableSnapsAction,
   SnapControllerHandleRequestAction,
+  SnapControllerSnapInstalledEvent,
 } from '@metamask/snaps-controllers';
 import type { Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType, SnapCaveatType } from '@metamask/snaps-utils';
 import { parseCaipAssetType } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
-import type { AssetsControllerMessenger } from '../AssetsController';
-import { projectLogger, createModuleLogger } from '../logger';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   AssetBalance,
   ChainId,
@@ -25,12 +26,12 @@ import type {
   DataRequest,
   DataResponse,
   Middleware,
-} from '../types';
-import { AbstractDataSource } from './AbstractDataSource';
+} from '../types.js';
+import { AbstractDataSource } from './AbstractDataSource.js';
 import type {
   DataSourceState,
   SubscriptionRequest,
-} from './AbstractDataSource';
+} from './AbstractDataSource.js';
 
 // ============================================================================
 // SNAP KEYRING EVENT TYPES
@@ -46,6 +47,7 @@ export type AccountBalancesUpdatedEventPayload = {
       [assetId: string]: {
         amount: string;
         unit: string;
+        metadata?: Record<string, Json>;
       };
     };
   };
@@ -144,7 +146,8 @@ const defaultSnapState: SnapDataSourceState = {
  */
 export type SnapDataSourceAllowedEvents =
   | AccountsControllerAccountBalancesUpdatedEvent
-  | PermissionControllerStateChange;
+  | PermissionControllerStateChange
+  | SnapControllerSnapInstalledEvent;
 
 export type SnapDataSourceAllowedActions =
   | SnapControllerGetRunnableSnapsAction
@@ -164,6 +167,12 @@ export type SnapDataSourceOptions = {
     chains: ChainId[],
     previousChains: ChainId[],
   ) => void;
+  /**
+   * Called directly with snap-sourced balance updates (from
+   * AccountsController:accountBalancesUpdated), independent of whether the
+   * controller currently has an active subscription for the chain.
+   */
+  onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
   /** Configured networks to support (defaults to all snap networks) */
   configuredNetworks?: ChainId[];
   /** Default polling interval in ms for subscriptions */
@@ -206,6 +215,8 @@ export class SnapDataSource extends AbstractDataSource<
     previousChains: ChainId[],
   ) => void;
 
+  readonly #onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
+
   /** Bound handler for snap keyring balance updates, stored for cleanup */
   readonly #handleSnapBalancesUpdatedBound: (
     payload: AccountBalancesUpdatedEventPayload,
@@ -224,6 +235,7 @@ export class SnapDataSource extends AbstractDataSource<
 
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
+    this.#onAssetsUpdate = options.onAssetsUpdate;
 
     // Bind handlers for cleanup in destroy()
     this.#handleSnapBalancesUpdatedBound = this.#handleSnapBalancesUpdated.bind(
@@ -254,6 +266,10 @@ export class SnapDataSource extends AbstractDataSource<
       'PermissionController:stateChange',
       this.#handlePermissionStateChangeBound,
     );
+    // Rediscover keyring snaps when any snap gets installed
+    messenger.subscribe('SnapController:snapInstalled', () => {
+      this.#discoverKeyringSnaps();
+    });
   }
 
   /**
@@ -286,6 +302,7 @@ export class SnapDataSource extends AbstractDataSource<
           accountAssets ??= {};
           accountAssets[assetId as Caip19AssetId] = {
             amount: balance.amount,
+            ...(balance.metadata ? { metadata: balance.metadata } : {}),
           };
         }
       }
@@ -299,9 +316,7 @@ export class SnapDataSource extends AbstractDataSource<
     // Only report if we have snap-related updates
     if (assetsBalance) {
       const response: DataResponse = { assetsBalance, updateMode: 'merge' };
-      for (const subscription of this.activeSubscriptions.values()) {
-        subscription.onAssetsUpdate(response)?.catch(console.error);
-      }
+      Promise.resolve(this.#onAssetsUpdate(response)).catch(console.error);
     }
   }
 
@@ -439,13 +454,13 @@ export class SnapDataSource extends AbstractDataSource<
       return {};
     }
     if (!request?.accountsWithSupportedChains?.length) {
-      return { assetsBalance: {}, assetsInfo: {}, updateMode: 'full' };
+      return { assetsBalance: {}, assetsInfo: {}, updateMode: 'merge' };
     }
 
     const results: DataResponse = {
       assetsBalance: {},
       assetsInfo: {},
-      updateMode: 'full',
+      updateMode: 'merge',
     };
 
     // Fetch balances for each account using its snap ID from metadata
@@ -491,6 +506,7 @@ export class SnapDataSource extends AbstractDataSource<
             if (accountBalances) {
               (accountBalances as Record<string, unknown>)[assetId] = {
                 amount: balance.amount,
+                ...(balance.metadata ? { metadata: balance.metadata } : {}),
               };
             }
           }
@@ -601,7 +617,7 @@ export class SnapDataSource extends AbstractDataSource<
   // ============================================================================
 
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
-    const { request, subscriptionId, isUpdate } = subscriptionRequest;
+    const { request, subscriptionId } = subscriptionRequest;
 
     // Guard against undefined request or chainIds
     if (!request?.chainIds) {
@@ -617,55 +633,14 @@ export class SnapDataSource extends AbstractDataSource<
       return;
     }
 
-    if (isUpdate) {
-      const existing = this.activeSubscriptions.get(subscriptionId);
-      if (existing) {
-        existing.chains = supportedChains;
-        // Do a fetch to get latest data on subscription update
-        this.fetch({
-          ...request,
-          chainIds: supportedChains,
-        })
-          .then(async (fetchResponse) => {
-            if (Object.keys(fetchResponse.assetsBalance ?? {}).length > 0) {
-              await existing.onAssetsUpdate(fetchResponse);
-            }
-            return fetchResponse;
-          })
-          .catch((error) => {
-            log('Subscription update fetch failed', { subscriptionId, error });
-          });
-        return;
-      }
-    }
-
-    await this.unsubscribe(subscriptionId);
-
-    // Snaps provide real-time updates via AccountsController:accountBalancesUpdated
-    // We only need to track the subscription and do an initial fetch
-    // No polling needed - updates come through #handleSnapBalancesUpdated
-
-    this.activeSubscriptions.set(subscriptionId, {
-      cleanup: () => {
-        // No timer to clear - we use event-based updates
-      },
-      chains: supportedChains,
-      onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
-    });
-
-    // Initial fetch to get current balances
     try {
       const fetchResponse = await this.fetch({
         ...request,
         chainIds: supportedChains,
       });
 
-      const subscription = this.activeSubscriptions.get(subscriptionId);
-      if (
-        Object.keys(fetchResponse.assetsBalance ?? {}).length > 0 &&
-        subscription
-      ) {
-        await subscription.onAssetsUpdate(fetchResponse);
+      if (Object.keys(fetchResponse.assetsBalance ?? {}).length > 0) {
+        await this.#onAssetsUpdate(fetchResponse);
       }
     } catch (error) {
       log('Initial fetch failed', { subscriptionId, error });
@@ -733,13 +708,6 @@ export class SnapDataSource extends AbstractDataSource<
       );
     } catch (error) {
       log('Failed to unsubscribe from permission changes', { error });
-    }
-
-    // Clean up active subscriptions
-    for (const [subscriptionId] of this.activeSubscriptions) {
-      this.unsubscribe(subscriptionId).catch(() => {
-        // Ignore cleanup errors
-      });
     }
 
     // Clear keyring client cache

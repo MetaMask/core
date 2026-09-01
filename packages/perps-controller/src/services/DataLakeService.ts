@@ -1,16 +1,16 @@
 import { v4 as uuidv4 } from 'uuid';
 
-import { PerpsMeasurementName } from '../constants/performanceMetrics';
+import { PerpsMeasurementName } from '../constants/performanceMetrics.js';
 import {
   DATA_LAKE_API_CONFIG,
   PERPS_CONSTANTS,
-} from '../constants/perpsConfig';
-import { PerpsTraceNames, PerpsTraceOperations } from '../types';
-import type { PerpsPlatformDependencies } from '../types';
-import type { PerpsControllerMessengerBase } from '../types/messenger';
-import { getSelectedEvmAccount } from '../utils/accountUtils';
-import { ensureError } from '../utils/errorUtils';
-import type { ServiceContext } from './ServiceContext';
+} from '../constants/perpsConfig.js';
+import { PerpsTraceNames, PerpsTraceOperations } from '../types/index.js';
+import type { PerpsPlatformDependencies } from '../types/index.js';
+import type { PerpsControllerMessengerBase } from '../types/messenger.js';
+import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
+import { ensureError } from '../utils/errorUtils.js';
+import type { ServiceContext } from './ServiceContext.js';
 
 /**
  * DataLakeService
@@ -131,11 +131,7 @@ export class DataLakeService {
 
     try {
       const token = await this.#getBearerToken();
-      const evmAccount = getSelectedEvmAccount(
-        this.#messenger.call(
-          'AccountTreeController:getAccountsFromSelectedAccountGroup',
-        ),
-      );
+      const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
 
       if (!evmAccount || !token) {
         this.#deps.debugLogger.log('DataLake API: Missing requirements', {

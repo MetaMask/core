@@ -2,6 +2,7 @@ import base, { createConfig } from '@metamask/eslint-config';
 import jest from '@metamask/eslint-config-jest';
 import nodejs from '@metamask/eslint-config-nodejs';
 import typescript from '@metamask/eslint-config-typescript';
+import node from 'eslint-plugin-n';
 
 const NODE_LTS_VERSION = 22;
 
@@ -73,11 +74,15 @@ const config = createConfig([
   ...base,
   {
     ignores: [
+      '**/.docusaurus',
+      '**/coverage/**',
       '**/dist/**',
       '**/docs/**',
-      '**/coverage/**',
-      'merged-packages/**',
+      '.platform-api-docs/**',
+      '.skills-cache/**',
       '.yarn/**',
+      'merged-packages/**',
+      'packages/wallet-framework-docs/site/build/**',
       'scripts/create-package/package-template/**',
     ],
   },
@@ -110,11 +115,13 @@ const config = createConfig([
     files: [
       '**/*.{js,cjs,mjs}',
       '**/*.test.{js,ts}',
+      '**/docusaurus.config.ts',
       '**/test/**/*.{js,ts}',
       '**/tests/**/*.{js,ts}',
-      'scripts/*.ts',
-      'scripts/create-package/**/*.ts',
+      'scripts/**/*.{ts,mts}',
+      'packages/platform-api-docs/**/*.ts',
     ],
+    ignores: ['scripts/create-package/package-template/**/*.ts'],
     extends: [nodejs],
   },
   {
@@ -125,7 +132,7 @@ const config = createConfig([
     },
   },
   {
-    files: ['**/*.ts'],
+    files: ['**/*.ts', '**/*.mts'],
     extends: [typescript],
     languageOptions: {
       parserOptions: {
@@ -207,7 +214,7 @@ const config = createConfig([
     },
   },
   {
-    files: ['scripts/*.ts'],
+    files: ['scripts/*.ts', 'packages/platform-api-docs/src/cli.ts'],
     rules: {
       // Scripts may be self-executable and thus have hashbangs.
       'n/hashbang': 'off',
@@ -295,15 +302,43 @@ const config = createConfig([
     },
   },
   {
-    files: ['packages/messenger/src/generate-action-types/**/*.{js,ts}'],
+    files: ['packages/messenger-cli/src/**/*.{js,ts}'],
     rules: {
       'import-x/no-nodejs-modules': 'off',
     },
   },
   {
-    files: ['packages/messenger-cli/src/**/*.{js,ts}'],
+    files: ['packages/wallet-cli/src/**/*.{js,ts}'],
     rules: {
       'import-x/no-nodejs-modules': 'off',
+      'no-restricted-globals': 'off',
+    },
+  },
+  {
+    // The UKYC test-token minter is a dev-only Node CLI, so it may use Node
+    // builtins and globals unlike the platform-agnostic package source.
+    files: ['packages/kyc-controller/scripts/**/*.ts'],
+    rules: {
+      'import-x/no-nodejs-modules': 'off',
+      'no-restricted-globals': 'off',
+    },
+  },
+  {
+    files: [
+      'packages/wallet-cli/src/**/*.test.{js,ts}',
+      'packages/wallet-cli/tests/**/*.{js,ts}',
+      'packages/platform-api-docs/**/*.{js,ts}',
+    ],
+    rules: {
+      'jest/unbound-method': 'off',
+      'n/no-process-env': 'off',
+      'n/no-sync': 'off',
+    },
+  },
+  {
+    files: ['packages/wallet-cli/bin/**/*.mjs'],
+    rules: {
+      'import-x/no-unresolved': 'off',
     },
   },
   {
@@ -323,7 +358,6 @@ const config = createConfig([
       'packages/assets-controllers/src/TokenRatesController.ts',
       'packages/assets-controllers/src/TokensController.ts',
       'packages/controller-utils/src/siwe.ts',
-      'packages/ens-controller/src/EnsController.ts',
       'packages/gas-fee-controller/src/GasFeeController.ts',
       'packages/logging-controller/src/LoggingController.ts',
       'packages/message-manager/src/AbstractMessageManager.ts',
@@ -341,6 +375,37 @@ const config = createConfig([
       // for types that don't follow TSDoc properly.
       // See https://github.com/gajus/eslint-plugin-jsdoc/issues/1054
       'jsdoc/check-tag-names': 'off',
+    },
+  },
+  {
+    files: ['packages/wallet-framework-docs/site/docusaurus.config.ts'],
+    rules: {
+      'n/no-process-env': 'off',
+    },
+  },
+  {
+    // `import-x/extensions` doesn't support using ".js" for TypeScript
+    // files(?), so we load the `n` plugin and use
+    // `n/file-extension-in-import` instead.
+    plugins: { n: node },
+
+    rules: {
+      'n/file-extension-in-import': ['error', 'always'],
+      'import-x/extensions': [
+        'error',
+        {
+          js: 'ignorePackages',
+          ts: 'never',
+          tsx: 'never',
+          json: 'always',
+        },
+      ],
+      'import-x/no-useless-path-segments': [
+        'error',
+        {
+          noUselessIndex: false,
+        },
+      ],
     },
   },
 ]);

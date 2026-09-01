@@ -4,7 +4,6 @@ export type {
   TransactionControllerActions,
   TransactionControllerEvents,
   TransactionControllerGetStateAction,
-  TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerPostTransactionBalanceUpdatedEvent,
   TransactionControllerSpeedupTransactionAddedEvent,
   TransactionControllerState,
@@ -23,7 +22,7 @@ export type {
   TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionControllerMessenger,
   TransactionControllerOptions,
-} from './TransactionController';
+} from './TransactionController.js';
 export type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
@@ -37,11 +36,9 @@ export type {
   TransactionControllerGetTransactionsAction,
   TransactionControllerUpdateCustodialTransactionAction,
   TransactionControllerUpdateTransactionAction,
+  TransactionControllerUpdateTransactionMetadataAction,
   TransactionControllerHandleMethodDataAction,
   TransactionControllerIsAtomicBatchSupportedAction,
-  TransactionControllerStartIncomingTransactionPollingAction,
-  TransactionControllerStopIncomingTransactionPollingAction,
-  TransactionControllerUpdateIncomingTransactionsAction,
   TransactionControllerStopTransactionAction,
   TransactionControllerSpeedUpTransactionAction,
   TransactionControllerEstimateGasBufferedAction,
@@ -49,21 +46,26 @@ export type {
   TransactionControllerSetTransactionActiveAction,
   TransactionControllerApproveTransactionsWithSameNonceAction,
   TransactionControllerEstimateGasFeeAction,
+  TransactionControllerFailTransactionAction,
   TransactionControllerGetLayer1GasFeeAction,
   TransactionControllerClearUnapprovedTransactionsAction,
   TransactionControllerAbortTransactionSigningAction,
   TransactionControllerUpdateAtomicBatchDataAction,
   TransactionControllerWipeTransactionsAction,
-} from './TransactionController-method-action-types';
+  TransactionControllerUpdateSecurityAlertResponseAction,
+  TransactionControllerUpdateTransactionGasFeesAction,
+  TransactionControllerUpdatePreviousGasParamsAction,
+  TransactionControllerUpdateSelectedGasFeeTokenAction,
+  TransactionControllerUpdateRequiredTransactionIdsAction,
+} from './TransactionController-method-action-types.js';
 export {
   CANCEL_RATE,
   SPEED_UP_RATE,
   TransactionController,
-} from './TransactionController';
+} from './TransactionController.js';
 export type {
   AddTransactionOptions,
   AfterAddHook,
-  AfterSimulateHook,
   Authorization,
   AuthorizationList,
   BatchTransaction,
@@ -88,6 +90,7 @@ export type {
   Log,
   MetamaskPayMetadata,
   NestedTransactionMetadata,
+  NestedTransactionUpdate,
   PublishBatchHook,
   PublishBatchHookRequest,
   PublishBatchHookResult,
@@ -97,7 +100,6 @@ export type {
   RequiredAsset,
   SavedGasFees,
   SecurityAlertResponse,
-  SecurityProviderRequest,
   SendFlowHistoryEntry,
   SimulationBalanceChange,
   SimulationData,
@@ -115,7 +117,7 @@ export type {
   TransactionParams,
   TransactionReceipt,
   ValidateSecurityRequest,
-} from './types';
+} from './types.js';
 export {
   GasFeeEstimateLevel,
   GasFeeEstimateType,
@@ -127,17 +129,24 @@ export {
   TransactionType,
   UserFeeLevel,
   WalletDevice,
-} from './types';
-export { mergeGasFeeEstimates } from './utils/gas-flow';
+} from './types.js';
+export { mergeGasFeeEstimates } from './utils/gas-flow.js';
+export {
+  decodeAuthorizationSignature,
+  generateEIP7702BatchTransaction,
+  updateEIP7702BatchData,
+} from './utils/eip7702.js';
 export {
   isEIP1559Transaction,
   normalizeTransactionParams,
-} from './utils/utils';
-export { CHAIN_IDS } from './constants';
-export { SUPPORTED_CHAIN_IDS as INCOMING_TRANSACTIONS_SUPPORTED_CHAIN_IDS } from './helpers/AccountsApiRemoteTransactionSource';
-export { HARDFORK } from './utils/prepare';
-export { getAccountAddressRelationship } from './api/accounts-api';
+} from './utils/utils.js';
+export { hasTransactionType } from './utils/transaction-type.js';
+export { getEffectiveRecipient } from './utils/recipient.js';
+export { CHAIN_IDS } from './constants.js';
+export { HARDFORK } from './utils/prepare.js';
+export { getAccountAddressRelationship } from './api/accounts-api.js';
 export type {
   GetAccountAddressRelationshipRequest,
   AccountAddressRelationshipResult,
-} from './api/accounts-api';
+} from './api/accounts-api.js';
+export { generateBatchId } from './utils/batch.js';

@@ -7,8 +7,8 @@ import type {
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Hex } from '@metamask/utils';
 
-import type { TransactionControllerMessenger } from '..';
-import type { TransactionControllerFeatureFlags } from './feature-flags';
+import type { TransactionControllerMessenger } from '../index.js';
+import type { TransactionControllerFeatureFlags } from './feature-flags.js';
 import {
   getAcceleratedPollingParams,
   getBatchSizeLimit,
@@ -21,11 +21,11 @@ import {
   getSubmitHistoryLimit,
   getTransactionHistoryLimit,
   FeatureFlag,
-  getIncomingTransactionsPollingInterval,
   getTimeoutAttempts,
-  isIncomingTransactionsUseBackendWebSocketServiceEnabled,
-} from './feature-flags';
-import { isValidSignature } from './signature';
+  getReplaceUnderpricedDappGasFeesEnabled,
+  getReplaceUnderpricedSavedGasFeesEnabled,
+} from './feature-flags.js';
+import { isValidSignature } from './signature.js';
 
 jest.mock('./signature');
 
@@ -38,6 +38,7 @@ const SIGNATURE_MOCK = '0xcba' as Hex;
 const DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK = 35;
 const GAS_ESTIMATE_FALLBACK_MOCK = 50;
 const FIXED_GAS_MOCK = 100000;
+const MAX_GAS_LIMIT_MOCK = 33554432;
 const GAS_BUFFER_MOCK = 1.1;
 const GAS_BUFFER_2_MOCK = 1.2;
 const GAS_BUFFER_3_MOCK = 1.3;
@@ -613,6 +614,7 @@ describe('Feature Flags Utils', () => {
               [CHAIN_ID_MOCK]: {
                 fixed: FIXED_GAS_MOCK,
                 percentage: GAS_ESTIMATE_FALLBACK_MOCK,
+                maxGasLimit: MAX_GAS_LIMIT_MOCK,
               },
             },
           },
@@ -624,6 +626,7 @@ describe('Feature Flags Utils', () => {
       ).toStrictEqual({
         fixed: FIXED_GAS_MOCK,
         percentage: GAS_ESTIMATE_FALLBACK_MOCK,
+        maxGasLimit: MAX_GAS_LIMIT_MOCK,
       });
     });
 
@@ -644,6 +647,55 @@ describe('Feature Flags Utils', () => {
       ).toStrictEqual({
         fixed: undefined,
         percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+        maxGasLimit: undefined,
+      });
+    });
+
+    it('returns maxGasLimit from the default config when no chain-specific value is set', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          gasEstimateFallback: {
+            default: {
+              percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+              maxGasLimit: MAX_GAS_LIMIT_MOCK,
+            },
+          },
+        },
+      });
+
+      expect(
+        getGasEstimateFallback(CHAIN_ID_MOCK, controllerMessenger),
+      ).toStrictEqual({
+        fixed: undefined,
+        percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+        maxGasLimit: MAX_GAS_LIMIT_MOCK,
+      });
+    });
+
+    it('prefers the chain-specific maxGasLimit over the default', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          gasEstimateFallback: {
+            default: {
+              percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+              maxGasLimit: MAX_GAS_LIMIT_MOCK * 2,
+            },
+            perChainConfig: {
+              [CHAIN_ID_MOCK]: {
+                percentage: GAS_ESTIMATE_FALLBACK_MOCK,
+                maxGasLimit: MAX_GAS_LIMIT_MOCK,
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        getGasEstimateFallback(CHAIN_ID_MOCK, controllerMessenger),
+      ).toStrictEqual({
+        fixed: undefined,
+        percentage: GAS_ESTIMATE_FALLBACK_MOCK,
+        maxGasLimit: MAX_GAS_LIMIT_MOCK,
       });
     });
   });
@@ -772,25 +824,49 @@ describe('Feature Flags Utils', () => {
     });
   });
 
-  describe('getIncomingTransactionsPollingInterval', () => {
-    it('returns default value if no feature flags set', () => {
+  describe.each([
+    [
+      'getReplaceUnderpricedDappGasFeesEnabled',
+      getReplaceUnderpricedDappGasFeesEnabled,
+      'replaceUnderpricedDappGasFees' as const,
+    ],
+    [
+      'getReplaceUnderpricedSavedGasFeesEnabled',
+      getReplaceUnderpricedSavedGasFeesEnabled,
+      'replaceUnderpricedSavedGasFees' as const,
+    ],
+  ])('%s', (_name, getter, flagKey) => {
+    it('returns false if no feature flags set', () => {
       mockFeatureFlags({});
 
-      expect(getIncomingTransactionsPollingInterval(controllerMessenger)).toBe(
-        1000 * 60 * 4,
-      );
+      expect(getter(CHAIN_ID_MOCK, controllerMessenger)).toBe(false);
     });
 
-    it('returns value from remote feature flag controller', () => {
+    it('returns default value if no chain-specific config', () => {
       mockFeatureFlags({
-        [FeatureFlag.IncomingTransactions]: {
-          pollingIntervalMs: 5000,
+        [FeatureFlag.Transactions]: {
+          [flagKey]: {
+            default: true,
+          },
         },
       });
 
-      expect(getIncomingTransactionsPollingInterval(controllerMessenger)).toBe(
-        5000,
-      );
+      expect(getter(CHAIN_ID_MOCK, controllerMessenger)).toBe(true);
+    });
+
+    it('returns chain-specific value when available', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          [flagKey]: {
+            default: true,
+            perChainConfig: {
+              [CHAIN_ID_MOCK]: false,
+            },
+          },
+        },
+      });
+
+      expect(getter(CHAIN_ID_MOCK, controllerMessenger)).toBe(false);
     });
   });
 
@@ -865,58 +941,6 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getTimeoutAttempts(CHAIN_ID_MOCK, controllerMessenger)).toBe(0);
-    });
-  });
-
-  describe('isIncomingTransactionsUseBackendWebSocketServiceEnabled', () => {
-    it('returns true when useBackendWebSocketService is true', () => {
-      mockFeatureFlags({
-        [FeatureFlag.IncomingTransactions]: {
-          useBackendWebSocketService: true,
-        },
-      });
-
-      expect(
-        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
-          controllerMessenger,
-        ),
-      ).toBe(true);
-    });
-
-    it('returns false when useBackendWebSocketService is false', () => {
-      mockFeatureFlags({
-        [FeatureFlag.IncomingTransactions]: {
-          useBackendWebSocketService: false,
-        },
-      });
-
-      expect(
-        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
-          controllerMessenger,
-        ),
-      ).toBe(false);
-    });
-
-    it('returns false when flag is not present', () => {
-      mockFeatureFlags({});
-
-      expect(
-        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
-          controllerMessenger,
-        ),
-      ).toBe(false);
-    });
-
-    it('returns false when useBackendWebSocketService property is not present', () => {
-      mockFeatureFlags({
-        [FeatureFlag.IncomingTransactions]: {},
-      });
-
-      expect(
-        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
-          controllerMessenger,
-        ),
-      ).toBe(false);
     });
   });
 });

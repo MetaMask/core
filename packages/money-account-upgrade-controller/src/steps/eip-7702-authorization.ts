@@ -2,7 +2,8 @@ import type { Provider } from '@metamask/network-controller';
 import { add0x, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type { Step, StepContext } from './step';
+import { TerminalUpgradeError } from '../errors.js';
+import type { Step, StepContext } from './step.js';
 
 const EIP_7702_DELEGATION_PREFIX = '0xef0100';
 // '0x' (2) + 'ef0100' (6) + 20-byte address (40) = 48 characters.
@@ -47,7 +48,7 @@ export const eip7702AuthorizationStep: Step = {
       if (existingDelegation === delegatorImplAddress.toLowerCase()) {
         return 'already-done';
       }
-      throw new Error(
+      throw new TerminalUpgradeError(
         `Account ${address} is already upgraded to another smart account: ${existingDelegation}.`,
       );
     }
@@ -67,19 +68,39 @@ export const eip7702AuthorizationStep: Step = {
 
     const { r, s, v, yParity } = splitEip7702Signature(signature);
 
-    await messenger.call('ChompApiService:createUpgrade', {
-      r,
-      s,
-      v,
-      yParity,
-      address,
-      chainId: chainIdDecimal.toString(),
-      nonce: nonce.toString(),
-    });
+    try {
+      await messenger.call('ChompApiService:createUpgrade', {
+        r,
+        s,
+        v,
+        yParity,
+        address: delegatorImplAddress,
+        chainId,
+        nonce: add0x(nonce.toString(16)),
+      });
+    } catch (error) {
+      // CHOMP returns 409 when an authorization for this address already
+      // exists with the same or higher nonce — typically on retry when a
+      // previous submission was accepted but hasn't yet been observed
+      // on-chain (so `fetchDelegationAddress` returned undefined above).
+      // Treat as already-done so the upgrade sequence is retry-safe.
+      if (isHttp409(error)) {
+        return 'already-done';
+      }
+      throw error;
+    }
 
     return 'completed';
   },
 };
+
+function isHttp409(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+  const { httpStatus } = error as { httpStatus?: unknown };
+  return httpStatus === 409;
+}
 
 /**
  * Splits a 65-byte ECDSA signature produced by
@@ -164,7 +185,7 @@ async function fetchDelegationAddress(
     return add0x(normalized.slice(EIP_7702_DELEGATION_PREFIX.length));
   }
 
-  throw new Error(
+  throw new TerminalUpgradeError(
     `Account ${address} has unexpected on-chain code; expected either no code or an EIP-7702 delegation.`,
   );
 }

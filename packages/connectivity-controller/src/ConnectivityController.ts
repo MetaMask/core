@@ -6,9 +6,9 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import { ConnectivityControllerMethodActions } from './ConnectivityController-method-action-types';
-import { CONNECTIVITY_STATUSES } from './types';
-import type { ConnectivityAdapter, ConnectivityStatus } from './types';
+import { ConnectivityControllerMethodActions } from './ConnectivityController-method-action-types.js';
+import { CONNECTIVITY_STATUSES } from './types.js';
+import type { ConnectivityAdapter, ConnectivityStatus } from './types.js';
 
 /**
  * The name of the {@link ConnectivityController}, used to namespace the

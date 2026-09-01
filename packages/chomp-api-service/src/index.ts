@@ -1,4 +1,4 @@
-export { ChompApiService } from './chomp-api-service';
+export { ChompApiService } from './chomp-api-service.js';
 export type {
   ChompApiServiceMessenger,
   ChompApiServiceActions,
@@ -6,28 +6,33 @@ export type {
   ChompApiServiceInvalidateQueriesAction,
   ChompApiServiceCacheUpdatedEvent,
   ChompApiServiceGranularCacheUpdatedEvent,
-} from './chomp-api-service';
+} from './chomp-api-service.js';
 export type {
   ChompApiServiceAssociateAddressAction,
+  ChompApiServiceGetAssociatedAddressesAction,
   ChompApiServiceCreateUpgradeAction,
-  ChompApiServiceGetUpgradeAction,
+  ChompApiServiceGetUpgradesAction,
   ChompApiServiceVerifyDelegationAction,
   ChompApiServiceCreateIntentsAction,
   ChompApiServiceGetIntentsByAddressAction,
   ChompApiServiceCreateWithdrawalAction,
   ChompApiServiceGetServiceDetailsAction,
-} from './chomp-api-service-method-action-types';
+} from './chomp-api-service-method-action-types.js';
 export type {
+  AccountUpgradeStatus,
   AssociateAddressParams,
   AssociateAddressResponse,
+  AuthorizationData,
   CreateUpgradeParams,
+  CreateUpgradeResponse,
   CreateWithdrawalParams,
   CreateWithdrawalResponse,
   DelegationCaveat,
-  UpgradeResponse,
+  UpgradeEntry,
   IntentEntry,
   IntentMetadataParams,
   IntentMetadataResponse,
+  ProfileAddressEntry,
   SendIntentParams,
   SendIntentResponse,
   ServiceDetailsChain,
@@ -37,4 +42,4 @@ export type {
   SignedDelegation,
   VerifyDelegationParams,
   VerifyDelegationResponse,
-} from './types';
+} from './types.js';

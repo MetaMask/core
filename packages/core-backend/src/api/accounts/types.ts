@@ -3,7 +3,7 @@
  * API: accounts.api.cx.metamask.io
  */
 
-import type { PageInfo } from '../shared-types';
+import type { PageInfo } from '../shared-types.js';
 
 // ============================================================================
 // BALANCE TYPES
@@ -54,6 +54,112 @@ export type V4BalancesResponse = {
   count: number;
   balances: V2BalanceItem[];
   unprocessedNetworks: number[];
+};
+
+/**
+ * Quote currency accepted by the v6 balances endpoint when `includePrices` is
+ * true. A superset of {@link SupportedCurrency} (adds e.g. `sol`, `xdr`,
+ * `xag`, `xau`, `bits`, `sats`). Defaults to `usd`.
+ */
+export type V6VsCurrency = string;
+
+/**
+ * Possible `positionType` values on DeFi rows in the v6 balances response.
+ * Categorizes the protocol module where the position is held.
+ * Link here: https://developers.zerion.io/api-reference/wallets/get-wallet-fungible-positions#parameter-filter-position-types
+ */
+export const V6_DEFI_POSITION_TYPES = [
+  'deposit',
+  'loan',
+  'locked',
+  'staked',
+  'reward',
+  'wallet',
+  'investment',
+] as const;
+
+/**
+ * The specific module or functionality within a DeFi protocol where a position
+ * is held.
+ */
+export type V6DeFiPositionType = (typeof V6_DEFI_POSITION_TYPES)[number];
+
+/**
+ * DeFi protocol metadata attached to an `object: defi` row in the v6 balances
+ * response (`BalanceMetadataV3ResponseDto`).
+ */
+export type V6BalanceMetadata = {
+  protocolId: string;
+  productName: string;
+  description: string;
+  protocolUrl: string;
+  protocolIconUrl?: string;
+  positionType: V6DeFiPositionType;
+  poolAddress: string;
+  groupId: string;
+};
+
+/**
+ * Token-level metadata attached to an `object: token` row in the v6 balances
+ * response, e.g. Stellar trustline metadata. Additional keys may be present.
+ */
+export type V6TokenMetadata = {
+  /** Stellar trustline limit. */
+  limit?: string;
+  /** Whether the Stellar trustline is authorized. */
+  authorized?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * A single balance row in the v6 balances response (`BalanceV3ResponseDto`).
+ * `object: token` rows are token balances (and may carry
+ * {@link V6TokenMetadata}, e.g. Stellar trustline info). `object: defi` rows
+ * are flat DeFi positions and include {@link V6BalanceMetadata}.
+ */
+export type V6BalanceItem = {
+  accountId: string;
+  object: 'token' | 'defi';
+  /** Asset standard reported by the network (for example `native` or `erc20`). */
+  type: string;
+  assetId: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  balance: string;
+  /** Spot price in the requested `vsCurrency`. Present when `includePrices` is true. */
+  price?: string;
+  /** Asset metadata labels. Present when `includeLabels` is true. */
+  labels?: string[];
+  /** Canonical head asset ID. Present when `includeCanonicalHead` is true. */
+  canonicalHead?: string;
+  /**
+   * DeFi protocol metadata for `object: defi` rows; token-level metadata such
+   * as Stellar trustline info (e.g. `limit`, `authorized`) for `object: token`
+   * rows.
+   */
+  metadata?: V6BalanceMetadata | V6TokenMetadata;
+};
+
+/**
+ * V6 multi-account balances response (`MultiAccountBalancesV3ResponseDto`).
+ */
+export type V6BalancesResponse = {
+  /** CAIP-2 networks that could not be processed for this request. */
+  unprocessedNetworks: string[];
+  /**
+   * ERC-20 IDs from `includeAssetIds` that were not detected on any requested
+   * account, plus other IDs that still need a client fallback flow.
+   */
+  unprocessedIncludeAssetIds: string[];
+  /** Flat token and DeFi balance rows. */
+  balances: V6BalanceItem[];
+  /**
+   * CAIP-10 account IDs whose DeFi positions are still being indexed upstream;
+   * poll again shortly. DeFi balance rows for these accounts are omitted from
+   * `balances` until indexing completes.
+   */
+  processingDefiPositions?: string[];
 };
 
 // ============================================================================

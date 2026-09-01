@@ -14,7 +14,7 @@ import type {
   AccountGroupMultichainAccountObject,
   AccountGroupObject,
   AccountGroupSingleAccountObject,
-} from './group';
+} from './group.js';
 import type { UpdatableField, ExtractFieldValues } from './type-utils.js';
 
 /**

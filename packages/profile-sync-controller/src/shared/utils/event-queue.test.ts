@@ -1,4 +1,4 @@
-import { EventQueue } from './event-queue';
+import { EventQueue } from './event-queue.js';
 
 describe('EventQueue', () => {
   let eventQueue: EventQueue;

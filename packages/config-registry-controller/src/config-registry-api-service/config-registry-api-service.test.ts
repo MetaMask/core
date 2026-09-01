@@ -1,13 +1,15 @@
-import { SDK } from '@metamask/profile-sync-controller';
 import nock from 'nock';
 
-import { createMockNetworkConfig } from '../../tests/helpers';
-import { ConfigRegistryApiService } from './config-registry-api-service';
+import { createMockNetworkConfig } from '../../tests/helpers.js';
+import {
+  ConfigRegistryApiEnv,
+  ConfigRegistryApiService,
+} from './config-registry-api-service.js';
 import type {
   ConfigRegistryApiServiceMessenger,
   ConfigRegistryApiServiceOptions,
-} from './config-registry-api-service';
-import type { RegistryConfigApiResponse } from './types';
+} from './config-registry-api-service.js';
+import type { RegistryConfigApiResponse } from './types.js';
 
 function createMockServiceMessenger(): ConfigRegistryApiServiceMessenger {
   return {
@@ -45,7 +47,7 @@ describe('ConfigRegistryApiService', () => {
           .get(CONFIG_PATH)
           .reply(200, MOCK_API_RESPONSE);
 
-        const service = createService({ env: SDK.Env.UAT });
+        const service = createService({ env: ConfigRegistryApiEnv.UAT });
         await service.fetchConfig();
         expect(scope.isDone()).toBe(true);
       });
@@ -55,7 +57,7 @@ describe('ConfigRegistryApiService', () => {
           .get(CONFIG_PATH)
           .reply(200, MOCK_API_RESPONSE);
 
-        const service = createService({ env: SDK.Env.DEV });
+        const service = createService({ env: ConfigRegistryApiEnv.DEV });
         await service.fetchConfig();
         expect(scope.isDone()).toBe(true);
       });
@@ -65,7 +67,7 @@ describe('ConfigRegistryApiService', () => {
           .get(CONFIG_PATH)
           .reply(200, MOCK_API_RESPONSE);
 
-        const service = createService({ env: SDK.Env.PRD });
+        const service = createService({ env: ConfigRegistryApiEnv.PRD });
         await service.fetchConfig();
         expect(scope.isDone()).toBe(true);
       });

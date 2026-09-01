@@ -1,4 +1,4 @@
-import type { PushNotificationEnv } from '.';
+import type { PushNotificationEnv } from './index.js';
 
 type Unsubscribe = () => void;
 

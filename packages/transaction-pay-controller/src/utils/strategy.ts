@@ -1,14 +1,13 @@
-import { TransactionPayStrategy } from '../constants';
-import { AcrossStrategy } from '../strategy/across/AcrossStrategy';
-import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
-import { FiatStrategy } from '../strategy/fiat/FiatStrategy';
-import { RelayStrategy } from '../strategy/relay/RelayStrategy';
-import { TestStrategy } from '../strategy/test/TestStrategy';
+import { TransactionPayStrategy } from '../constants.js';
+import { AcrossStrategy } from '../strategy/across/AcrossStrategy.js';
+import { FiatStrategy } from '../strategy/fiat/FiatStrategy.js';
+import { RelayStrategy } from '../strategy/relay/RelayStrategy.js';
+import { ServerStrategy } from '../strategy/server/ServerStrategy.js';
 import type {
   PayStrategy,
   PayStrategyCheckQuoteSupportRequest,
   PayStrategyGetQuotesRequest,
-} from '../types';
+} from '../types.js';
 
 export type NamedStrategy = {
   name: TransactionPayStrategy;
@@ -28,17 +27,14 @@ export function getStrategyByName(
     case TransactionPayStrategy.Across:
       return new AcrossStrategy() as never;
 
-    case TransactionPayStrategy.Bridge:
-      return new BridgeStrategy() as never;
-
     case TransactionPayStrategy.Relay:
       return new RelayStrategy() as never;
 
     case TransactionPayStrategy.Fiat:
       return new FiatStrategy() as never;
 
-    case TransactionPayStrategy.Test:
-      return new TestStrategy() as never;
+    case TransactionPayStrategy.Server:
+      return new ServerStrategy() as never;
 
     default:
       throw new Error(`Unknown strategy: ${strategyName as string}`);

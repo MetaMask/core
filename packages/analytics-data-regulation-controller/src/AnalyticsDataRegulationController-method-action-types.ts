@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { AnalyticsDataRegulationController } from './AnalyticsDataRegulationController';
+import type { AnalyticsDataRegulationController } from './AnalyticsDataRegulationController.js';
 
 /**
  * Creates a new delete regulation for the user.

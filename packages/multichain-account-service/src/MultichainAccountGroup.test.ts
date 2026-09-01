@@ -8,10 +8,10 @@ import {
 import { EthScope, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { GroupState } from './MultichainAccountGroup';
-import { MultichainAccountGroup } from './MultichainAccountGroup';
-import { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { RootMessenger, MockAccountProvider } from './tests';
+import type { GroupState } from './MultichainAccountGroup.js';
+import { MultichainAccountGroup } from './MultichainAccountGroup.js';
+import { MultichainAccountWallet } from './MultichainAccountWallet.js';
+import type { RootMessenger, MockAccountProvider } from './tests/index.js';
 import {
   MOCK_SNAP_ACCOUNT_2,
   MOCK_WALLET_1_BTC_P2TR_ACCOUNT,
@@ -22,8 +22,8 @@ import {
   setupBip44AccountProvider,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
-} from './tests';
-import type { MultichainAccountServiceMessenger } from './types';
+} from './tests/index.js';
+import type { MultichainAccountServiceMessenger } from './types.js';
 
 function setup({
   groupIndex = 0,
@@ -177,6 +177,46 @@ describe('MultichainAccountGroup', () => {
       const { group } = setup({ accounts: [[MOCK_WALLET_1_EVM_ACCOUNT]] });
 
       expect(group.select({ scopes: [SolScope.Mainnet] })).toStrictEqual([]);
+    });
+  });
+
+  describe('isAligned', () => {
+    it('returns true when every provider has at least one account in the group', () => {
+      const { group } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
+      });
+
+      expect(group.isAligned()).toBe(true);
+    });
+
+    it('returns false when at least one provider has no accounts in the group', () => {
+      const { group } = setup({
+        accounts: [
+          [MOCK_WALLET_1_EVM_ACCOUNT],
+          [], // second provider has no accounts for this group
+        ],
+      });
+
+      expect(group.isAligned()).toBe(false);
+    });
+
+    it('returns true for a group with no providers', () => {
+      const { group } = setup({ accounts: [] });
+
+      expect(group.isAligned()).toBe(true);
+    });
+
+    it('returns true when a provider mock is configured to return true despite having no accounts (simulates disabled wrapper)', () => {
+      const { group, providers } = setup({
+        accounts: [
+          [MOCK_WALLET_1_EVM_ACCOUNT],
+          [], // second provider has no accounts
+        ],
+      });
+      // Simulate a disabled AccountProviderWrapper, which always returns true.
+      providers[1].isAligned.mockReturnValue(true);
+
+      expect(group.isAligned()).toBe(true);
     });
   });
 });

@@ -9,6 +9,8 @@ import {
   UseInfiniteQueryOptions,
   UseQueryResult,
   UseInfiniteQueryResult,
+  DefaultError,
+  InfiniteData,
 } from '@tanstack/react-query';
 
 /**
@@ -30,7 +32,7 @@ const DATA_SERVICE_QUERY_DEFAULTS = {
  */
 export function useQuery<
   TQueryFnData = unknown,
-  TError = unknown,
+  TError = DefaultError,
   TData = TQueryFnData,
   TQueryKey extends QueryKey = QueryKey,
 >(
@@ -56,18 +58,13 @@ export function useQuery<
  */
 export function useInfiniteQuery<
   TQueryFnData = unknown,
-  TError = unknown,
-  TData = TQueryFnData,
+  TError = DefaultError,
+  TData = InfiniteData<TQueryFnData>,
   TQueryKey extends QueryKey = QueryKey,
+  TPageParam = unknown,
 >(
   options: OmitKeyof<
-    UseInfiniteQueryOptions<
-      TQueryFnData,
-      TError,
-      TData,
-      TQueryFnData,
-      TQueryKey
-    >,
+    UseInfiniteQueryOptions<TQueryFnData, TError, TData, TQueryKey, TPageParam>,
     'staleTime' | 'queryFn'
   >,
 ): UseInfiniteQueryResult<TData, TError> {

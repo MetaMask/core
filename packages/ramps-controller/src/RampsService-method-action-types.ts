@@ -3,7 +3,38 @@
  * Do not edit manually.
  */
 
-import type { RampsService } from './RampsService';
+import type { RampsService } from './RampsService.js';
+
+/**
+ * Returns the default redirect ("fake callback") URL for this service's
+ * environment.
+ *
+ * The quotes API only embeds a `buyURL`/`buyWidget` (the WebView page a
+ * non-native provider needs) when a `redirectUrl` is present, so callers
+ * that omit one (MM Pay's widened Headless Buy fetch) use this value.
+ * Exposing it here makes the service's environment the single runtime source
+ * of truth, so the callback can never point at a different environment than
+ * the one the quotes themselves came from.
+ *
+ * `baseUrlOverride` deliberately does not apply. That option overrides the
+ * ramps API base URL for local development. In production and staging the
+ * callback lives on a different host (`on-ramp-content` versus
+ * `on-ramp{-cache}`), so an API override says nothing about where
+ * `/regions/fake-callback` lives. In development the callback already shares
+ * the API host family (`on-ramp.dev-api`). The redirect URL is also handed
+ * to the provider and matched by client UI to detect flow completion, so
+ * returning an unrelated local API origin here would break completion
+ * detection rather than help it. Point `environment` at
+ * {@link RampsEnvironment.Local} for a localhost callback, noting that URL
+ * is pinned to `http://localhost:3000` and does not follow a non-3000
+ * `baseUrlOverride`.
+ *
+ * @returns The default redirect callback URL for the configured environment.
+ */
+export type RampsServiceGetDefaultRedirectCallbackUrlAction = {
+  type: `RampsService:getDefaultRedirectCallbackUrl`;
+  handler: RampsService['getDefaultRedirectCallbackUrl'];
+};
 
 /**
  * Makes a request to the API in order to retrieve the user's geolocation
@@ -45,13 +76,13 @@ export type RampsServiceGetTokensAction = {
 
 /**
  * Fetches the list of providers for a given region.
- * Supports optional query filters: provider, crypto, fiat, payments.
+ * Supports optional query filters: provider, crypto, payments.
+ * Region local fiat filtering is applied server-side when `fiat` is omitted.
  *
  * @param regionCode - The region code (e.g., "us", "fr", "us-ny").
  * @param options - Optional query parameters for filtering providers.
  * @param options.provider - Provider ID(s) to filter by.
  * @param options.crypto - Crypto currency ID(s) to filter by.
- * @param options.fiat - Fiat currency ID(s) to filter by.
  * @param options.payments - Payment method ID(s) to filter by.
  * @returns The providers response containing providers array.
  */
@@ -63,9 +94,10 @@ export type RampsServiceGetProvidersAction = {
 /**
  * Fetches the list of payment methods for a given region, asset, and provider.
  *
+ * Region local fiat filtering is applied server-side when `fiat` is omitted.
+ *
  * @param options - Query parameters for filtering payment methods.
  * @param options.region - User's region code (e.g., "us-al").
- * @param options.fiat - Fiat currency code (e.g., "usd").
  * @param options.assetId - CAIP-19 cryptocurrency identifier.
  * @param options.provider - Provider ID path.
  * @returns The payment methods response containing payments array.
@@ -148,6 +180,7 @@ export type RampsServiceGetOrderFromCallbackAction = {
  * Union of all RampsService action types.
  */
 export type RampsServiceMethodActions =
+  | RampsServiceGetDefaultRedirectCallbackUrlAction
   | RampsServiceGetGeolocationAction
   | RampsServiceGetCountriesAction
   | RampsServiceGetTokensAction

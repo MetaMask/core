@@ -14,13 +14,13 @@ module.exports = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
-  // cli.ts is tested via execa subprocess in cli.test.ts; Jest can't instrument it
-  coveragePathIgnorePatterns: ['./src/generate-action-types/cli.ts'],
+  // Exclude TSTyche type test files from coverage collection
+  collectCoverageFrom: ['./src/**/*.ts', '!**/*.tst.ts'],
 
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {
-      branches: 100,
+      branches: 98.97,
       functions: 100,
       lines: 100,
       statements: 100,

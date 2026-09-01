@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+## [10.1.1]
+
+### Added
+
+- Add `AuthConnection.Telegram` (`'telegram'`) to align with client social-login providers that already persist this value on `state.authConnection` ([#9737](https://github.com/MetaMask/core/pull/9737))
+
+## [10.1.0]
+
+### Added
+
+- Add `InvalidPrimarySecretDataTypeError` with an ordered list of non-sensitive `SecretType` / `EncAccountDataType` values when fetched secret metadata does not include a primary mnemonic ([#9587](https://github.com/MetaMask/core/pull/9587))
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [10.0.3]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- `SecretMetadata.compare` no longer uses `createdAt` (server-stamped TIMEUUID) for ordering; sort priority is now `PrimarySrp` tag first, then client-side timestamp ([#9247](https://github.com/MetaMask/core/pull/9247))
+- The password change flow passes a `transformDataItems` callback to `changeEncKey` so sorting happens inside the metadata lock, preventing data loss from concurrent writes ([#9247](https://github.com/MetaMask/core/pull/9247))
+
+### Fixed
+
+- Fix `InvalidPrimarySecretDataType` crash caused by `changeEncKey` re-inserting items without sorting, causing the server to stamp `createdAt` in arbitrary order on password change ([#9247](https://github.com/MetaMask/core/pull/9247))
+
+## [10.0.2]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [10.0.1]
+
+### Added
+
+- Expose `runMigrations` as a messenger action (`SeedlessOnboardingController:runMigrations`) ([#9031](https://github.com/MetaMask/core/pull/9031))
+
+## [10.0.0]
+
 ### Added
 
 - Add `runMigrations` method to run pending data migrations for legacy secrets ([#7284](https://github.com/MetaMask/core/pull/7284))
@@ -22,8 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
-- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^26.0.0` ([#8363](https://github.com/MetaMask/core/pull/8363), [#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665), [#8722](https://github.com/MetaMask/core/pull/8722), [#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/toprf-secure-backup` from `^0.11.0` to `^1.0.0` ([#7284](https://github.com/MetaMask/core/pull/7284))
 - **BREAKING:** Change `addNewSecretData` method signature to require `dataType: EncAccountDataType` instead of `type: SecretType` ([#7284](https://github.com/MetaMask/core/pull/7284))
   - `SecretType` is now derived internally from `EncAccountDataType`
@@ -271,7 +318,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added an optional parameter, `passwordOutdatedCacheTTL` to the constructor params and exported `SecretMetadata` class from the controller.([#6169](https://github.com/MetaMask/core/pull/6169))
-
 - Added `revokeRefreshToken` function to revoke refresh token and update vault with the new revoke token.([#6187](https://github.com/MetaMask/core/pull/6187))
 
 ## [2.4.0]
@@ -320,7 +366,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `PrivateKey sync` feature to the controller ([#5948](https://github.com/MetaMask/core/pull/5948)).
+- Added `PrivateKey sync` feature to the controller. ([#5948](https://github.com/MetaMask/core/pull/5948))
   - **BREAKING** Updated controller methods signatures.
   - removed `addNewSeedPhraseBackup` and replaced with `addNewSecretData` method.
   - added `addNewSecretData` method implementation to support adding different secret data types.
@@ -343,7 +389,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `createToprfKeyAndBackupSeedPhrase`, `fetchAllSecretData` store revoke token in vault
   - check for token expired in toprf call, refresh token and retry if expired
   - `submitPassword` revoke refresh token and replace with new one after password submit to prevent malicious use if refresh token leak in persisted state
-- Removed `recoveryRatelimitCache` from the controller state. ([#5976](https://github.com/MetaMask/core/pull/5976)).
+- Removed `recoveryRatelimitCache` from the controller state.. ([#5976](https://github.com/MetaMask/core/pull/5976))
 - **BREAKING:** Changed `syncLatestGlobalPassword`. ([#5995](https://github.com/MetaMask/core/pull/5995))
   - removed parameter `oldPassword`
   - no longer verifying old password
@@ -381,7 +427,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@9.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.1.1...HEAD
+[10.1.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.1.0...@metamask/seedless-onboarding-controller@10.1.1
+[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.0.3...@metamask/seedless-onboarding-controller@10.1.0
+[10.0.3]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.0.2...@metamask/seedless-onboarding-controller@10.0.3
+[10.0.2]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.0.1...@metamask/seedless-onboarding-controller@10.0.2
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.0.0...@metamask/seedless-onboarding-controller@10.0.1
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@9.1.0...@metamask/seedless-onboarding-controller@10.0.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@9.0.0...@metamask/seedless-onboarding-controller@9.1.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@8.1.0...@metamask/seedless-onboarding-controller@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@8.0.0...@metamask/seedless-onboarding-controller@8.1.0

@@ -2,7 +2,8 @@ import { SPOT_PRICES_SUPPORT_INFO } from '@metamask/assets-controllers';
 import { fetchWithErrorHandling } from '@metamask/controller-utils';
 import { parseCaipAssetType } from '@metamask/utils';
 
-import type { Caip19AssetId, ChainId } from '../types';
+import type { Caip19AssetId, ChainId } from '../types.js';
+import { normalizeAssetId } from './normalizeAssetId.js';
 
 const CHAINID_NETWORK_URL = 'https://chainid.network/chains.json';
 
@@ -23,7 +24,7 @@ export function buildNativeAssetsFromConstant(): Record<
   const nativeAssetsMap: Record<ChainId, Caip19AssetId> = {};
   for (const nativeAssetId of Object.values(SPOT_PRICES_SUPPORT_INFO)) {
     const { chainId } = parseCaipAssetType(nativeAssetId);
-    nativeAssetsMap[chainId] = nativeAssetId;
+    nativeAssetsMap[chainId] = normalizeAssetId(nativeAssetId);
   }
   return nativeAssetsMap;
 }

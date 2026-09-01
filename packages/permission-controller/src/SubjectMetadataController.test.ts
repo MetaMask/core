@@ -10,11 +10,11 @@ import type { Json } from '@metamask/utils';
 import type {
   SubjectMetadata,
   SubjectMetadataControllerMessenger,
-} from './SubjectMetadataController';
+} from './SubjectMetadataController.js';
 import {
   SubjectMetadataController,
   SubjectType,
-} from './SubjectMetadataController';
+} from './SubjectMetadataController.js';
 
 const controllerName = 'SubjectMetadataController';
 

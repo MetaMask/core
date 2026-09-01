@@ -6,10 +6,21 @@
     "rootDir": "./src"
   },
   "references": [
-    { "path": "../../packages/base-controller/tsconfig.build.json" },
-    { "path": "../../packages/base-data-service/tsconfig.build.json" },
-    { "path": "../../packages/messenger/tsconfig.build.json" },
-    { "path": "../../packages/network-controller/tsconfig.build.json" }
+    {
+      "path": "../base-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../base-data-service/tsconfig.build.json"
+    },
+    {
+      "path": "../controller-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../messenger/tsconfig.build.json"
+    },
+    {
+      "path": "../network-controller/tsconfig.build.json"
+    }
   ],
   "include": ["../../types", "./src"]
 }

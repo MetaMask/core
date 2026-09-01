@@ -1,13 +1,13 @@
-import { arrangeMockProvider } from '../__fixtures__/test-utils';
-import type { MockVariable } from '../__fixtures__/test-utils';
-import type { Snap } from './messaging-signing-snap-requests';
+import { arrangeMockProvider } from '../__fixtures__/test-utils.js';
+import type { MockVariable } from '../__fixtures__/test-utils.js';
+import type { Snap } from './messaging-signing-snap-requests.js';
 import {
   MESSAGE_SIGNING_SNAP,
   SNAP_ORIGIN,
   connectSnap,
   getSnaps,
   isSnapConnected,
-} from './messaging-signing-snap-requests';
+} from './messaging-signing-snap-requests.js';
 
 /**
  * Most of these utilities are wrappers around making wallet requests,

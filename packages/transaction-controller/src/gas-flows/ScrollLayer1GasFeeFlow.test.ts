@@ -1,10 +1,10 @@
 import type { Hex } from '@metamask/utils';
 
-import { CHAIN_IDS } from '../constants';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { TransactionMeta } from '../types';
-import { TransactionStatus } from '../types';
-import { ScrollLayer1GasFeeFlow } from './ScrollLayer1GasFeeFlow';
+import { CHAIN_IDS } from '../constants.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { TransactionMeta } from '../types.js';
+import { TransactionStatus } from '../types.js';
+import { ScrollLayer1GasFeeFlow } from './ScrollLayer1GasFeeFlow.js';
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',

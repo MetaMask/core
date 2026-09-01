@@ -12,7 +12,6 @@
     { "path": "../keyring-controller/tsconfig.build.json" },
     { "path": "../messenger/tsconfig.build.json" },
     { "path": "../polling-controller/tsconfig.build.json" },
-    { "path": "../profile-sync-controller/tsconfig.build.json" },
     { "path": "../remote-feature-flag-controller/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"]

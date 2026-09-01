@@ -91,6 +91,7 @@ export type AcrossQuote = {
   };
   quote: AcrossSwapApprovalResponse;
   request: {
+    actions: AcrossAction[];
     amount: string;
     tradeType: 'exactOutput' | 'exactInput';
   };

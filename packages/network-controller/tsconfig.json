@@ -5,14 +5,17 @@
     "rootDir": "../.."
   },
   "references": [
+    { "path": "../analytics-controller" },
     { "path": "../base-controller" },
+    { "path": "../config-registry-controller" },
     { "path": "../controller-utils" },
     { "path": "../connectivity-controller" },
     { "path": "../eth-block-tracker" },
     { "path": "../eth-json-rpc-middleware" },
     { "path": "../eth-json-rpc-provider" },
     { "path": "../json-rpc-engine" },
-    { "path": "../messenger" }
+    { "path": "../messenger" },
+    { "path": "../remote-feature-flag-controller" }
   ],
   "include": ["../../types", "../../tests", "./src", "./tests"]
 }

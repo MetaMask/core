@@ -1,9 +1,10 @@
-import * as allExports from '.';
+import * as allExports from './index.js';
 
 describe('@metamask/controller-utils', () => {
   it('has expected JavaScript exports', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
       [
+        "encodeFunctionData",
         "BrokenCircuitError",
         "CircuitState",
         "CockatielEventEmitter",
@@ -81,6 +82,7 @@ describe('@metamask/controller-utils', () => {
         "weiHexToGweiDec",
         "isEqualCaseInsensitive",
         "InfuraNetworkType",
+        "DEFAULT_INFURA_NETWORKS",
         "CustomNetworkType",
         "NetworkType",
         "isNetworkType",

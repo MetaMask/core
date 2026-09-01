@@ -2,19 +2,19 @@ import { decodePartialCBOR } from '@levischuck/tiny-cbor';
 import { concatBytes } from '@metamask/utils';
 import { sha256 } from '@noble/hashes/sha2';
 
-import type { AuthenticatorTransportFuture } from '../types';
+import type { AuthenticatorTransportFuture } from '../types.js';
 import {
   base64URLToBytes,
   bytesToBase64URL,
   bytesToHex,
-} from '../utils/encoding';
-import { COSEALG, COSEKEYS } from './constants';
-import { decodeAttestationObject } from './decode-attestation-object';
-import { decodeClientDataJSON } from './decode-client-data-json';
-import { matchExpectedRPID } from './match-expected-rp-id';
-import { parseAuthenticatorData } from './parse-authenticator-data';
-import type { PasskeyRegistrationResponse } from './types';
-import { verifySignature } from './verify-signature';
+} from '../utils/encoding.js';
+import { COSEALG, COSEKEYS } from './constants.js';
+import { decodeAttestationObject } from './decode-attestation-object.js';
+import { decodeClientDataJSON } from './decode-client-data-json.js';
+import { matchExpectedRPID } from './match-expected-rp-id.js';
+import { parseAuthenticatorData } from './parse-authenticator-data.js';
+import type { PasskeyRegistrationResponse } from './types.js';
+import { verifySignature } from './verify-signature.js';
 
 export type VerifiedRegistrationResponse =
   | { verified: false; registrationInfo?: never }
@@ -53,10 +53,10 @@ export type VerifiedRegistrationResponse =
  *   `navigator.credentials.create()`, serialized as JSON.
  * @param opts.expectedChallenge - The base64url challenge that was passed
  *   to the authenticator (must match `clientDataJSON.challenge`).
- * @param opts.expectedOrigin - One or more acceptable origins (e.g.
- *   `"chrome-extension://..."` or `"https://metamask.io"`).
- * @param opts.expectedRPID - The Relying Party ID domain. The
- *   authenticator's `rpIdHash` is compared against `SHA-256(expectedRPID)`.
+ * @param opts.expectedOrigin - One or more acceptable values for
+ *   `clientDataJSON.origin` (WebAuthn). Extension and HTTPS contexts differ by scheme.
+ * @param opts.expectedRPIDs - Relying Party ID strings. The authenticator's
+ *   `rpIdHash` must equal `SHA-256(rpID)` for at least one entry.
  * @param opts.requireUserVerification - When `true`, verification fails
  *   if the UV flag is not set. Defaults to `false`.
  * @param opts.supportedAlgorithmIDs - COSE algorithm identifiers accepted
@@ -69,7 +69,7 @@ export async function verifyRegistrationResponse(opts: {
   response: PasskeyRegistrationResponse;
   expectedChallenge: string;
   expectedOrigin: string | string[];
-  expectedRPID: string;
+  expectedRPIDs: string[];
   requireUserVerification?: boolean;
   supportedAlgorithmIDs?: number[];
 }): Promise<VerifiedRegistrationResponse> {
@@ -77,7 +77,7 @@ export async function verifyRegistrationResponse(opts: {
     response,
     expectedChallenge,
     expectedOrigin,
-    expectedRPID,
+    expectedRPIDs,
     requireUserVerification = false,
     supportedAlgorithmIDs = [COSEALG.EdDSA, COSEALG.ES256, COSEALG.RS256],
   } = opts;
@@ -165,7 +165,9 @@ export async function verifyRegistrationResponse(opts: {
     aaguid,
   } = parsedAuthData;
 
-  matchExpectedRPID(rpIdHash, [expectedRPID]);
+  if (expectedRPIDs.length > 0) {
+    matchExpectedRPID(rpIdHash, expectedRPIDs);
+  }
 
   // Make sure someone was physically present
   if (!flags.up) {
@@ -235,15 +237,6 @@ export async function verifyRegistrationResponse(opts: {
     return { verified: false };
   }
 
-  const aaguidHex = bytesToHex(aaguid);
-  const aaguidStr = [
-    aaguidHex.slice(0, 8),
-    aaguidHex.slice(8, 12),
-    aaguidHex.slice(12, 16),
-    aaguidHex.slice(16, 20),
-    aaguidHex.slice(20),
-  ].join('-');
-
   return {
     verified: true,
     registrationInfo: {
@@ -252,11 +245,59 @@ export async function verifyRegistrationResponse(opts: {
       counter,
       transports:
         attestationResponse.transports as AuthenticatorTransportFuture[],
-      aaguid: aaguidStr,
+      aaguid: formatAAGUID(aaguid),
       attestationFormat: fmt,
       userVerified: flags.uv,
     },
   };
+}
+
+/**
+ * Reads the authenticator AAGUID out of a registration response by decoding its
+ * attestation object and parsing the attested credential data within
+ * `authData`.
+ *
+ * The AAGUID identifies the authenticator model (e.g. iCloud Keychain, Google
+ * Password Manager, a hardware key), so it is useful for telemetry or for
+ * showing the user where their passkey lives.
+ *
+ * Unlike {@link verifyRegistrationResponse}, this reads the response as-is
+ * without verifying it, so treat the value as untrusted until enrollment
+ * completes; the verified AAGUID is persisted on
+ * `passkeyRecord.credential.aaguid`. Note also that many authenticators
+ * deliberately report an all-zero AAGUID.
+ *
+ * @param registrationResponse - Result of `navigator.credentials.create()`.
+ * @returns The AAGUID as a dashed UUID string, or `undefined` if the
+ * authenticator data carries no attested credential data.
+ * @throws If the attestation object or its authenticator data is malformed.
+ */
+export function getAAGUIDFromRegistrationResponse(
+  registrationResponse: PasskeyRegistrationResponse,
+): string | undefined {
+  const attestationObject = decodeAttestationObject(
+    base64URLToBytes(registrationResponse.response.attestationObject),
+  );
+  const { aaguid } = parseAuthenticatorData(attestationObject.get('authData'));
+  return aaguid ? formatAAGUID(aaguid) : undefined;
+}
+
+/**
+ * Format the raw 16-byte AAGUID from attested credential data as a dashed
+ * UUID string (8-4-4-4-12).
+ *
+ * @param aaguid - Raw AAGUID bytes.
+ * @returns The AAGUID in canonical UUID form.
+ */
+function formatAAGUID(aaguid: Uint8Array): string {
+  const aaguidHex = bytesToHex(aaguid);
+  return [
+    aaguidHex.slice(0, 8),
+    aaguidHex.slice(8, 12),
+    aaguidHex.slice(12, 16),
+    aaguidHex.slice(16, 20),
+    aaguidHex.slice(20),
+  ].join('-');
 }
 
 /**

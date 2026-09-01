@@ -1,0 +1,235 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Changed
+
+- Bump `@metamask/claims-controller` from `^0.6.0` to `^0.6.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/shield-controller` from `^6.0.0` to `^6.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/subscription-controller` from `^8.0.0` to `^8.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
+
+## [12.0.2]
+
+### Changed
+
+- Bump `@metamask/passkey-controller` from `^3.0.0` to `^3.1.0`. ([#9952](https://github.com/MetaMask/core/pull/9952))
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.1` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/accounts-controller` from `^39.1.0` to `^39.1.1` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/config-registry-controller` from `^3.0.0` to `^3.1.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/gas-fee-controller` from `^26.3.1` to `^26.3.2` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/network-controller` from `^35.0.1` to `^36.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+
+## [12.0.1]
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+  - This should have been included in 12.0.0.
+
+## [12.0.0]
+
+### Added
+
+- Add optional `instanceOptions.remoteFeatureFlagController.getCanonicalProfileId` constructor option to `RemoteFeatureFlagController` for threshold flag segmentation ([#9325](https://github.com/MetaMask/core/pull/9325))
+- Add optional `instanceOptions.remoteFeatureFlagController.metaMetricsFlags` constructor option to `RemoteFeatureFlagController` to segment flags by MetaMetrics ID ([#9325](https://github.com/MetaMask/core/pull/9325))
+- **BREAKING:** Wire `ConfigRegistryApiService` and `ConfigRegistryController` into the default wallet initialization ([#9928](https://github.com/MetaMask/core/pull/9928))
+  - Adds a required `configRegistryApiService` slot to `instanceOptions` with a required `env` (`ConfigRegistryApiEnv`) and optional `fetch` and `policyOptions`. `fetch` defaults to `globalThis.fetch` via `ConfigRegistryApiService`.
+  - Adds an optional `configRegistryController` slot to `instanceOptions` for optional `pollingInterval` and `fallbackConfig`.
+  - `ConfigRegistryController` delegates `KeyringController:getState`, `RemoteFeatureFlagController:getState`, and `ConfigRegistryApiService:fetchConfig`, and subscribes to `KeyringController:unlock`, `KeyringController:lock`, and `RemoteFeatureFlagController:stateChange`.
+  - Consumers that pass their own root messenger and already wire `ConfigRegistryApiService` / `ConfigRegistryController` must remove their own before upgrading, or the duplicate registration will collide.
+
+## [11.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/subscription-controller` from `^7.0.0` to `^8.0.0` ([#9903](https://github.com/MetaMask/core/pull/9903))
+  - Exported `DefaultActions` and root-messenger `SubscriptionController:*` actions pick up the 8.0.0 renames: `SubscriptionController:startShieldSubscriptionWithCard` is now `SubscriptionController:startSubscriptionWithCard`, and `SubscriptionController:submitShieldSubscriptionCryptoApproval` is now `SubscriptionController:submitSubscriptionCryptoApproval`.
+  - `submitSubscriptionCryptoApproval` and `cacheLastSelectedPaymentMethod` now take a single request object instead of positional arguments.
+  - Exported `DefaultState['SubscriptionController']` changes: `lastSelectedPaymentMethod` is `Partial`, `PricingPaymentMethod` and `TokenPaymentInfo` are discriminated unions, and `TokenPaymentInfo.conversionRate` is optional. Narrow with `type === 'crypto'` / `isVaultShare === true` before reading crypto- or vault-only fields.
+- Bump `@metamask/transaction-controller` from `^69.5.1` to `^69.5.2` ([#9823](https://github.com/MetaMask/core/pull/9823))
+
+## [10.0.0]
+
+### Added
+
+- **BREAKING:** Wire `ClaimsService` and `ClaimsController` into the default wallet initialization ([#9588](https://github.com/MetaMask/core/pull/9588))
+  - Adds an optional `claimsService` slot to `instanceOptions` for optional `env` (defaults to production), `captureException`, `queryClientConfig`, and `policyOptions`. `fetchFunction` defaults to `globalThis.fetch` via `ClaimsService`.
+  - `ClaimsService` delegates `AuthenticationController:getBearerToken` and `AuthenticationController:getSessionProfile`; hosts must register `AuthenticationController` on the supplied root messenger before authenticated Claims API calls succeed.
+  - Consumers that pass their own root messenger and already wire `ClaimsService` / `ClaimsController` must remove their own before upgrading, or the duplicate registration will collide.
+- **BREAKING:** Wire `ShieldController` and `ShieldApiService` into the default wallet initialization ([#9616](https://github.com/MetaMask/core/pull/9616))
+  - Adds an optional `shieldApiService` slot to `instanceOptions` for optional `env` (defaults to production), polling, and policy configuration. `fetchFunction` defaults to `globalThis.fetch` via `ShieldApiService`.
+  - `shieldController` instance options are now controller-only (`transactionHistoryLimit`, `coverageHistoryLimit`, `normalizeSignatureRequest`).
+  - `ShieldApiService` delegates `AuthenticationController:getBearerToken`; `ShieldController` delegates `ShieldApiService:*` actions plus `TransactionController:stateChange` and `SignatureController:stateChange`.
+  - Hosts must register `AuthenticationController` and `SignatureController` on the wallet root messenger and explicitly call `ShieldController:start` after wiring.
+  - Consumers that pass their own root messenger and already wire `ShieldApiService` / `ShieldController` must remove their own before upgrading, or the duplicate registration will collide.
+- **BREAKING:** Wire `SubscriptionController` and `SubscriptionService` into the default wallet initialization ([#9598](https://github.com/MetaMask/core/pull/9598))
+  - Adds an optional `subscriptionService` slot to `instanceOptions` for optional `env` (defaults to production), `captureException`, `queryClientConfig`, and `policyOptions`. `fetchFunction` defaults to `globalThis.fetch` via `SubscriptionService`.
+  - Adds an optional `subscriptionController` slot to `instanceOptions` for an optional `pollingInterval`.
+  - `SubscriptionService` delegates `AuthenticationController:getBearerToken` and `AuthenticationController:getSessionProfile` from the wallet root messenger; hosts must register `AuthenticationController` on the root messenger for authenticated subscription API calls.
+- Add optional `instanceOptions.remoteFeatureFlagController.defaultFeatureFlags` to pass client-side default feature flags through to `RemoteFeatureFlagController` ([#9747](https://github.com/MetaMask/core/pull/9747))
+
+### Changed
+
+- Bump `@metamask/claims-controller` from `^0.5.4` to `^0.6.0` ([#9809](https://github.com/MetaMask/core/pull/9809))
+- Bump `@metamask/shield-controller` from `^5.1.3` to `^6.0.0` ([#9809](https://github.com/MetaMask/core/pull/9809))
+- Bump `@metamask/subscription-controller` from `^6.2.2` to `^7.0.0` ([#9809](https://github.com/MetaMask/core/pull/9809))
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.5.1` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798))
+- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
+- Bump `@metamask/seedless-onboarding-controller` from `^10.1.0` to `^10.1.1` ([#9779](https://github.com/MetaMask/core/pull/9779))
+- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.1.0` ([#9791](https://github.com/MetaMask/core/pull/9791), [#9807](https://github.com/MetaMask/core/pull/9807))
+- Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+
+## [9.0.0]
+
+### Added
+
+- **BREAKING:** Wire analytics into the default `NetworkController` initialization ([#9270](https://github.com/MetaMask/core/pull/9270))
+  - Adds an optional `instanceOptions.networkController.analyticsOptions` option (`isRpcEndpointUrlPublic` and `rpcServiceEventsSampleRate`, both optional) that the controller uses to emit `RPC Service Unavailable` and `RPC Service Degraded` events.
+  - The `Wallet` root messenger now requires the `AnalyticsController:getState` and `AnalyticsController:trackEvent` actions. Consumers must register handlers for them on the root messenger; a consumer that does not use analytics can register handlers that do nothing.
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.2.1` to `^69.4.0` ([#9693](https://github.com/MetaMask/core/pull/9693), [#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/accounts-controller` from `^39.0.5` to `^39.0.6` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/gas-fee-controller` from `^26.3.0` to `^26.3.1` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/network-controller` from `^34.0.0` to `^35.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^5.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735))
+
+## [8.1.0]
+
+### Changed
+
+- Bump `@metamask/gas-fee-controller` from `^26.2.4` to `^26.3.0` ([#9629](https://github.com/MetaMask/core/pull/9629))
+
+## [8.0.0]
+
+### Added
+
+- **BREAKING:** Wire `GasFeeController` into the default wallet initialization ([#9527](https://github.com/MetaMask/core/pull/9527))
+  - Adds a required `instanceOptions.gasFeeController` option whose `clientId` (sent as `X-Client-Id` to the gas API) is required, so every client identifies itself; all other fields are optional and fall back to platform-agnostic defaults.
+- **BREAKING** Wire `SeedlessOnboardingController` and `PasskeyController` into the default wallet initialization ([#9533](https://github.com/MetaMask/core/pull/9533))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.0.0` to `^69.2.1` ([#9568](https://github.com/MetaMask/core/pull/9568), [#9589](https://github.com/MetaMask/core/pull/9589), [#9593](https://github.com/MetaMask/core/pull/9593))
+- Bump `@metamask/seedless-onboarding-controller` from `^10.0.3` to `^10.1.0` ([#9600](https://github.com/MetaMask/core/pull/9600))
+
+## [7.0.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.2.2` to `^69.0.0` ([#9421](https://github.com/MetaMask/core/pull/9421), [#9456](https://github.com/MetaMask/core/pull/9456), [#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/connectivity-controller` from `^0.2.0` to `^0.3.0` ([#9435](https://github.com/MetaMask/core/pull/9435))
+- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+
+## [7.0.0]
+
+### Added
+
+- **BREAKING:** Wire `TransactionController` into the default wallet initialization ([#8975](https://github.com/MetaMask/core/pull/8975))
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [6.0.0]
+
+### Added
+
+- **BREAKING:** Wire `AddressBookController` into the default wallet initialization ([#9291](https://github.com/MetaMask/core/pull/9291))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [5.0.0]
+
+### Added
+
+- **BREAKING:** Add `NetworkController` initialization ([#9001](https://github.com/MetaMask/core/pull/9001))
+  - Passing `instanceOptions.networkController.infuraProjectId` is now required.
+- Add the `Wallet.init` function which calls `init` on required instances ([#9001](https://github.com/MetaMask/core/pull/9001))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+
+## [4.0.0]
+
+### Added
+
+- **BREAKING:** Add `AccountsController` and `ConnectivityController` as default initialized controllers ([#8924](https://github.com/MetaMask/core/pull/8924))
+  - Passing `instanceOptions.connectivityController.connectivityAdapter` is now required.
+  - Export `AlwaysOnlineAdapter` from the package root for environments without a platform-specific network API (e.g. Node/tests).
+- **BREAKING:** Wire `RemoteFeatureFlagController` into the default wallet initialization ([#8969](https://github.com/MetaMask/core/pull/8969))
+  - The default `Wallet` now constructs a `RemoteFeatureFlagController` and registers its `RemoteFeatureFlagController:*` messenger actions. Consumers that pass their own `messenger` and already wire a `RemoteFeatureFlagController` must remove their own before upgrading, or the duplicate registration will collide.
+  - Adds a required `remoteFeatureFlagController` slot to `instanceOptions`. `clientConfigApiService` is required (each client injects a `ClientConfigApiService` configured for its own client type, distribution, and environment); `getMetaMetricsId`, `clientVersion`, `prevClientVersion`, `fetchInterval`, and `disabled` are optional. `prevClientVersion` lets consumers trigger feature-flag cache invalidation when the client version changes between sessions.
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.3.0` ([#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- Bump `@metamask/accounts-controller` from `^39.0.1` to `^39.0.2` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [3.0.0]
+
+### Added
+
+- **BREAKING:** Wire `ApprovalController` into the default wallet initialization ([#8953](https://github.com/MetaMask/core/pull/8953))
+  - The default `Wallet` now constructs an `ApprovalController` and registers its `ApprovalController:*` messenger actions. Consumers that pass their own `messenger` and already wire an `ApprovalController` must remove their own before upgrading, or the duplicate registration will collide.
+  - Adds an `approvalController` slot to `instanceOptions` with `showApprovalRequest` (the callback that surfaces pending approval requests to the user; defaults to a no-op) and `typesExcludedFromRateLimiting` (the approval types exempt from per-origin rate limiting; defaults to a baseline of EVM approval types). Both let consumers (extension, mobile, wallet-cli) inject their platform-specific values.
+
+### Changed
+
+- Bump `@metamask/approval-controller` from `^9.0.1` to `^9.0.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/storage-service` from `^1.0.1` to `^1.0.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [2.0.0]
+
+### Added
+
+- Add `keyringV2Builders` to the `keyringController` instance options, forwarded to the `KeyringController` constructor ([#8956](https://github.com/MetaMask/core/pull/8956))
+- **BREAKING:** Add `StorageService` initialization ([#8946](https://github.com/MetaMask/core/pull/8946))
+  - Passing `instanceOptions.storageService.storage` is now required.
+- Export `importSecretRecoveryPhrase` from the package root ([#8952](https://github.com/MetaMask/core/pull/8952))
+
+## [1.0.1]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [1.0.0]
+
+### Added
+
+- Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
+
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.2...HEAD
+[12.0.2]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.1...@metamask/wallet@12.0.2
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@12.0.0...@metamask/wallet@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@11.0.0...@metamask/wallet@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@10.0.0...@metamask/wallet@11.0.0
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@9.0.0...@metamask/wallet@10.0.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.1.0...@metamask/wallet@9.0.0
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@8.0.0...@metamask/wallet@8.1.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@7.0.1...@metamask/wallet@8.0.0
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@7.0.0...@metamask/wallet@7.0.1
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@6.0.0...@metamask/wallet@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@5.0.0...@metamask/wallet@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@4.0.0...@metamask/wallet@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@3.0.0...@metamask/wallet@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@2.0.0...@metamask/wallet@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@1.0.1...@metamask/wallet@2.0.0
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@1.0.0...@metamask/wallet@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/wallet@1.0.0

@@ -2,14 +2,14 @@ import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
-import { buildPushPlatformNotificationsControllerMessenger } from './__fixtures__/mockMessenger';
-import { NotificationServicesPushController } from './NotificationServicesPushController';
+import { buildPushPlatformNotificationsControllerMessenger } from './__fixtures__/mockMessenger.js';
+import { NotificationServicesPushController } from './NotificationServicesPushController.js';
 import type {
   ControllerConfig,
   NotificationServicesPushControllerMessenger,
-} from './NotificationServicesPushController';
-import * as services from './services/services';
-import type { PushNotificationEnv } from './types';
+} from './NotificationServicesPushController.js';
+import * as services from './services/services.js';
+import type { PushNotificationEnv } from './types/index.js';
 
 const MOCK_JWT = 'mockJwt';
 const MOCK_FCM_TOKEN = 'mockFcmToken';
@@ -119,6 +119,33 @@ describe('NotificationServicesPushController', () => {
           platform: 'extension',
           locale: 'en',
           oldToken: 'existing-token',
+        },
+        controllerEnv: 'prd',
+      });
+    });
+
+    it('should call activatePushNotifications with mobile OS and app version metadata', async () => {
+      const mocks = arrangeServicesMocks();
+      const { controller, messenger } = arrangeMockMessenger({
+        platform: 'mobile',
+        os: 'android',
+        appVersion: '7.42.0',
+      });
+      mockAuthBearerTokenCall(messenger);
+
+      await controller.enablePushNotifications(MOCK_ADDRESSES);
+
+      expect(mocks.activatePushNotificationsMock).toHaveBeenCalledWith({
+        bearerToken: MOCK_JWT,
+        addresses: MOCK_ADDRESSES,
+        env: expect.any(Object),
+        createRegToken: expect.any(Function),
+        regToken: {
+          platform: 'mobile',
+          locale: 'en',
+          oldToken: '',
+          os: 'android',
+          appVersion: '7.42.0',
         },
         controllerEnv: 'prd',
       });
@@ -378,6 +405,37 @@ describe('NotificationServicesPushController', () => {
           token: MOCK_FCM_TOKEN,
           platform: 'extension',
           locale: 'en',
+        },
+        env: 'prd',
+      });
+      expect(result).toBe(true);
+    });
+
+    it('should call updateLinksAPI with mobile OS and app version metadata', async () => {
+      const mocks = arrangeServicesMocks();
+      const { controller, messenger } = arrangeMockMessenger({
+        platform: 'mobile',
+        os: 'ios',
+        appVersion: '7.42.0',
+        state: {
+          fcmToken: MOCK_FCM_TOKEN,
+          isPushEnabled: true,
+          isUpdatingFCMToken: false,
+        },
+      });
+      mockAuthBearerTokenCall(messenger);
+
+      const result = await controller.addPushNotificationLinks(MOCK_ADDRESSES);
+
+      expect(mocks.updateLinksAPIMock).toHaveBeenCalledWith({
+        bearerToken: MOCK_JWT,
+        addresses: MOCK_ADDRESSES,
+        regToken: {
+          token: MOCK_FCM_TOKEN,
+          platform: 'mobile',
+          locale: 'en',
+          os: 'ios',
+          appVersion: '7.42.0',
         },
         env: 'prd',
       });

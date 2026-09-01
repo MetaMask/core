@@ -18,6 +18,12 @@
     },
     {
       "path": "../transaction-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../base-data-service"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

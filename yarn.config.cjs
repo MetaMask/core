@@ -23,15 +23,38 @@ const { inspect } = require('util');
  * Only intended as temporary measures to faciliate upgrades and releases.
  * This should trend towards empty.
  */
-const ALLOWED_INCONSISTENT_DEPENDENCIES = {
-  '@tanstack/query-core': ['^4.43.0'],
-};
+const ALLOWED_INCONSISTENT_DEPENDENCIES = {};
 
 /**
  * These packages are allowed as peer dependencies without requiring installation as
  * devDependencies.
  */
 const ALLOWED_PEER_DEPENDENCIES = ['react', 'react-dom', 'react-native'];
+
+/**
+ * These packages are tools and do not ship with APIs.
+ */
+const TOOLS = [
+  '@metamask/foundryup',
+  '@metamask/messenger-cli',
+  '@metamask/wallet-cli',
+  '@metamask/wallet-framework-docs',
+  '@metamask/platform-api-docs',
+];
+
+/**
+ * These packages deploy documentation sites and use a different build script.
+ */
+const DOCSITE_PACKAGES = ['@metamask/wallet-framework-docs'];
+
+/**
+ * We don't check that test scripts are defined for these packages.
+ *
+ * Here we exclude `@metamask/wallet-cli`: it prepends a `better-sqlite3`
+ * prebuild fetch to its "test" script, as the native addon isn't built
+ * during `yarn install` (Yarn runs with `enableScripts: false`).
+ */
+const PACKAGES_WITH_CUSTOM_TEST_SCRIPTS = ['@metamask/wallet-cli'];
 
 /**
  * Aliases for the Yarn type definitions, to make the code more readable.
@@ -116,30 +139,33 @@ module.exports = defineConfig({
         }
 
         // All non-root packages must set up ESM- and CommonJS-compatible
-        // exports correctly.
-        if (
-          workspace.ident !== '@metamask/foundryup' &&
-          workspace.ident !== '@metamask/messenger-cli'
-        ) {
+        // exports correctly (aside from tools).
+        if (!TOOLS.includes(workspace.ident)) {
           expectCorrectWorkspaceExports(workspace);
         }
 
-        // All non-root packages must have the same "build" script.
-        expectWorkspaceField(
-          workspace,
-          'scripts.build',
-          'ts-bridge --project tsconfig.build.json --verbose --clean --no-references',
-        );
+        // All non-root packages must have a "build" script. All packages that
+        // do not exclusively deploy documentation sites must use `ts-bridge`.
+        if (DOCSITE_PACKAGES.includes(workspace.ident)) {
+          expectWorkspaceField(workspace, 'scripts.build');
+        } else {
+          expectWorkspaceField(
+            workspace,
+            'scripts.build',
+            'ts-bridge --project tsconfig.build.json --verbose --clean --no-references',
+          );
 
-        // All non-root packages must have the same "build:all" script.
-        expectWorkspaceField(
-          workspace,
-          'scripts.build:all',
-          'ts-bridge --project tsconfig.build.json --verbose --clean',
-        );
+          // All non-root packages must have the same "build:all" script.
+          expectWorkspaceField(
+            workspace,
+            'scripts.build:all',
+            'ts-bridge --project tsconfig.build.json --verbose --clean',
+          );
+        }
 
-        // All non-root packages must have the same "build:docs" script.
-        if (workspace.ident !== '@metamask/messenger-cli') {
+        // All non-root packages must have the same "build:docs" script (aside
+        // from tools).
+        if (!TOOLS.includes(workspace.ident)) {
           expectWorkspaceField(workspace, 'scripts.build:docs', 'typedoc');
         }
 
@@ -157,32 +183,21 @@ module.exports = defineConfig({
           '../../scripts/since-latest-release.sh',
         );
 
-        // All non-root packages must have the same "test" script.
-        expectWorkspaceField(
-          workspace,
-          'scripts.test',
-          'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
-        );
+        if (!PACKAGES_WITH_CUSTOM_TEST_SCRIPTS.includes(workspace.ident)) {
+          expectTestScripts(workspace);
+        }
 
-        // All non-root packages must have the same "test:clean" script.
+        // All non-root packages must have scripts that lint-check tsconfig
+        // project references for this package.
         expectWorkspaceField(
           workspace,
-          'scripts.test:clean',
-          'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
+          'scripts.lint:tsconfigs',
+          'tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts',
         );
-
-        // All non-root packages must have the same "test:verbose" script.
         expectWorkspaceField(
           workspace,
-          'scripts.test:verbose',
-          'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
-        );
-
-        // All non-root packages must have the same "test:watch" script.
-        expectWorkspaceField(
-          workspace,
-          'scripts.test:watch',
-          'NODE_OPTIONS=--experimental-vm-modules jest --watch',
+          'scripts.lint:tsconfigs:fix',
+          'tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix',
         );
       }
 
@@ -197,6 +212,10 @@ module.exports = defineConfig({
         // `node/no-unpublished-require` ESLint rule will disallow it.)
         expectWorkspaceField(workspace, 'files', []);
       }
+
+      // All packages must have tsx as a dev dependency. (This is required to
+      // run various TypeScript scripts.)
+      expectWorkspaceField(workspace, 'devDependencies["tsx"]');
 
       // If one workspace package lists another workspace package within
       // `dependencies` or `devDependencies`, the version used within the
@@ -240,11 +259,18 @@ module.exports = defineConfig({
       if (isChildWorkspace) {
         workspace.unset('packageManager');
       } else {
-        expectWorkspaceField(workspace, 'packageManager', 'yarn@4.10.3');
+        expectYarnPackageManager(workspace);
       }
 
       // All packages must specify a minimum Node.js version of 18.18.
-      expectWorkspaceField(workspace, 'engines.node', '^18.18 || >=20');
+      // @metamask/wallet-cli depends on `better-sqlite3`, which only ships
+      // prebuilt binaries for Node 20+; bumping its declared minimum keeps the
+      // engines field honest.
+      if (workspace.ident === '@metamask/wallet-cli') {
+        expectWorkspaceField(workspace, 'engines.node', '>=20');
+      } else {
+        expectWorkspaceField(workspace, 'engines.node', '^18.18 || >=20');
+      }
 
       // All non-root public packages should be published to the NPM registry;
       // all non-root private packages should not.
@@ -261,7 +287,7 @@ module.exports = defineConfig({
 
       if (isChildWorkspace) {
         // All non-root packages must have a valid README.md file.
-        await expectReadme(workspace, workspaceBasename);
+        await expectReadme(workspace, workspaceBasename, isPrivate);
 
         await expectCodeowner(workspace, workspaceBasename);
       }
@@ -516,6 +542,7 @@ async function expectWorkspaceLicense(workspace) {
       '@metamask/permission-log-controller',
       '@metamask/eth-json-rpc-middleware',
       '@metamask/eth-json-rpc-provider',
+      '@metamask/smart-transactions-controller',
     ].includes(workspace.manifest.name)
   ) {
     expectWorkspaceField(workspace, 'license');
@@ -608,6 +635,75 @@ function expectCorrectWorkspaceChangelogScripts(workspace) {
         `Expected package's "changelog:${variant}" script to be or start with "${expectedStartString}", but it was "${script}".`,
       );
     }
+  }
+}
+
+/**
+ * Expect that the workspace has scripts for running tests.
+ *
+ * If the workspace has a `test:types` script (i.e. it runs type tests in
+ * addition to Jest tests), it must have scripts that run both Jest and the type
+ * tests, otherwise just Jest.
+ *
+ * It must also provide scripts that allow Jest to be run in silent mode, clean
+ * mode, verbose mode, and watch mode.
+ *
+ * @param {Workspace} workspace - The workspace to check.
+ */
+function expectTestScripts(workspace) {
+  expectWorkspaceField(
+    workspace,
+    'scripts.test:watch',
+    'NODE_OPTIONS=--experimental-vm-modules jest --watch',
+  );
+
+  if (workspace.manifest.scripts['test:types'] === undefined) {
+    expectWorkspaceField(
+      workspace,
+      'scripts.test',
+      'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:clean',
+      'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:verbose',
+      'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
+    );
+  } else {
+    expectWorkspaceField(
+      workspace,
+      'scripts.test',
+      'yarn test:unit && yarn test:types',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:clean',
+      'yarn test:unit:clean && yarn test:types',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:verbose',
+      'yarn test:unit:verbose && yarn test:types',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:unit',
+      'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:unit:clean',
+      'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:unit:verbose',
+      'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
+    );
   }
 }
 
@@ -901,18 +997,19 @@ function expectConsistentDependenciesAndDevDependencies(Yarn) {
 }
 
 /**
- * Expect that the workspace has a README.md file, and that it is a non-empty
- * string. The README.md is expected to:
+ * Expects the README.md:
  *
- * - Not contain template instructions (unless the workspace is the module
+ * - To not contain template instructions (unless the workspace is the module
  * template itself).
- * - Match the version of Node.js specified in the `.nvmrc` file.
+ * - To contain installation instructions (if it is not private)
+ * - To match the version of Node.js specified in the `.nvmrc` file.
  *
  * @param {Workspace} workspace - The workspace to check.
  * @param {string} workspaceBasename - The name of the workspace.
+ * @param {boolean} isPrivate - Whether the package is private.
  * @returns {Promise<void>}
  */
-async function expectReadme(workspace, workspaceBasename) {
+async function expectReadme(workspace, workspaceBasename, isPrivate) {
   const readme = await getWorkspaceFile(workspace, 'README.md');
 
   if (
@@ -924,13 +1021,19 @@ async function expectReadme(workspace, workspaceBasename) {
     );
   }
 
-  if (!readme.includes(`yarn add @metamask/${workspaceBasename}`)) {
+  if (
+    !isPrivate &&
+    !readme.includes(`yarn add @metamask/${workspaceBasename}`)
+  ) {
     workspace.error(
       `The README.md does not contain an example of how to install the package using Yarn (\`yarn add @metamask/${workspaceBasename}\`). Please add an example.`,
     );
   }
 
-  if (!readme.includes(`npm install @metamask/${workspaceBasename}`)) {
+  if (
+    !isPrivate &&
+    !readme.includes(`npm install @metamask/${workspaceBasename}`)
+  ) {
     workspace.error(
       `The README.md does not contain an example of how to install the package using npm (\`npm install @metamask/${workspaceBasename}\`). Please add an example.`,
     );
@@ -993,5 +1096,28 @@ async function expectCodeowner(workspace, workspaceBasename) {
         'Missing CODEOWNER rule for package.json co-ownership with core platform team',
       );
     }
+  }
+}
+
+/**
+ * Expect that the workspace has a package manager set, and that it is Yarn with
+ * a sha256 hash.
+ *
+ * @param {Workspace} workspace - The workspace to check.
+ */
+function expectYarnPackageManager(workspace) {
+  expectWorkspaceField(workspace, 'packageManager');
+
+  const { packageManager } = workspace.manifest;
+  if (!packageManager.startsWith('yarn@')) {
+    workspace.error(
+      `Expected packageManager to start with "yarn@<version>", but got "${packageManager}".`,
+    );
+  }
+
+  if (!packageManager.includes('sha256')) {
+    workspace.error(
+      `Expected packageManager to include a sha256 hash, but got "${packageManager}".`,
+    );
   }
 }

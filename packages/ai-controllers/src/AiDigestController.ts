@@ -9,18 +9,15 @@ import type { Messenger } from '@metamask/messenger';
 import {
   AiDigestControllerErrorMessage,
   controllerName,
-  CACHE_DURATION_MS,
-  MAX_CACHE_ENTRIES,
-} from './ai-digest-constants';
+} from './ai-digest-constants.js';
 import type {
   AiDigestControllerState,
   DigestService,
   MarketInsightsReport,
-  MarketInsightsEntry,
   MarketOverview,
-  MarketOverviewEntry,
-} from './ai-digest-types';
-import type { AiDigestControllerMethodActions } from './AiDigestController-method-action-types';
+  MarketOverviewFrontPage,
+} from './ai-digest-types.js';
+import type { AiDigestControllerMethodActions } from './AiDigestController-method-action-types.js';
 
 export type AiDigestControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -46,35 +43,19 @@ export type AiDigestControllerMessenger = Messenger<
 
 export type AiDigestControllerOptions = {
   messenger: AiDigestControllerMessenger;
-  state?: Partial<AiDigestControllerState>;
   digestService: DigestService;
 };
 
 export function getDefaultAiDigestControllerState(): AiDigestControllerState {
-  return {
-    marketInsights: {},
-    marketOverview: null,
-  };
+  return {};
 }
 
-const aiDigestControllerMetadata: StateMetadata<AiDigestControllerState> = {
-  marketInsights: {
-    persist: true,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    usedInUi: true,
-  },
-  marketOverview: {
-    persist: true,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    usedInUi: true,
-  },
-};
+const aiDigestControllerMetadata: StateMetadata<AiDigestControllerState> = {};
 
 const MESSENGER_EXPOSED_METHODS = [
   'fetchMarketInsights',
   'fetchMarketOverview',
+  'fetchFrontPageItem',
 ] as const;
 
 export class AiDigestController extends BaseController<
@@ -84,14 +65,11 @@ export class AiDigestController extends BaseController<
 > {
   readonly #digestService: DigestService;
 
-  constructor({ messenger, state, digestService }: AiDigestControllerOptions) {
+  constructor({ messenger, digestService }: AiDigestControllerOptions) {
     super({
       name: controllerName,
       metadata: aiDigestControllerMetadata,
-      state: {
-        ...getDefaultAiDigestControllerState(),
-        ...state,
-      },
+      state: getDefaultAiDigestControllerState(),
       messenger,
     });
 
@@ -104,11 +82,10 @@ export class AiDigestController extends BaseController<
 
   /**
    * Fetches market insights for a given asset identifier.
-   * Returns cached data if still fresh, otherwise calls the service.
    *
    * Accepts either a CAIP-19 asset type (e.g. `eip155:1/slip44:60`) or a perps
    * market symbol (e.g. `ETH`). The service handles choosing the correct API
-   * query parameter automatically.
+   * query parameter automatically. Clients own freshness/caching.
    *
    * @param assetIdentifier - The asset identifier (CAIP-19 ID or perps market symbol).
    * @returns The market insights report, or `null` if none exists.
@@ -120,105 +97,37 @@ export class AiDigestController extends BaseController<
       throw new Error(AiDigestControllerErrorMessage.INVALID_ASSET_IDENTIFIER);
     }
 
-    const existing = this.state.marketInsights[assetIdentifier];
-    if (existing) {
-      const age = Date.now() - existing.fetchedAt;
-      if (age < CACHE_DURATION_MS) {
-        return existing.data;
-      }
-    }
-
-    const data = await this.#digestService.searchDigest(assetIdentifier);
-
-    if (data === null) {
-      // No insights available for this asset — clear any stale cache entry
-      this.update((state) => {
-        delete state.marketInsights[assetIdentifier];
-      });
-      return null;
-    }
-
-    const entry: MarketInsightsEntry = {
-      assetIdentifier,
-      fetchedAt: Date.now(),
-      data,
-    };
-
-    this.update((state) => {
-      state.marketInsights[assetIdentifier] = entry;
-      this.#evictStaleCachedEntries(state.marketInsights);
-    });
-
-    return data;
+    return this.#digestService.searchDigest(assetIdentifier);
   }
 
   /**
    * Fetches the market overview report.
-   * Returns cached data if still fresh, otherwise calls the service.
+   *
+   * Clients own freshness/caching.
    *
    * @returns The market overview report, or `null` if none exists.
    */
   async fetchMarketOverview(): Promise<MarketOverview | null> {
-    const existing = this.state.marketOverview;
-    if (existing) {
-      const age = Date.now() - existing.fetchedAt;
-      if (age < CACHE_DURATION_MS) {
-        return existing.data;
-      }
-    }
-
-    const data = await this.#digestService.fetchMarketOverview();
-
-    if (data === null) {
-      this.update((state) => {
-        state.marketOverview = null;
-      });
-      return null;
-    }
-
-    const entry: MarketOverviewEntry = {
-      fetchedAt: Date.now(),
-      data,
-    };
-
-    this.update((state) => {
-      state.marketOverview = entry;
-    });
-
-    return data;
+    return this.#digestService.fetchMarketOverview();
   }
 
   /**
-   * Evicts stale (TTL expired) and oldest entries (FIFO) if cache exceeds max size.
+   * Fetches a single market overview front page by id.
    *
-   * @param cache - The cache record to evict entries from.
+   * Unlike the market overview report (which only returns the latest items),
+   * this resolves an older item that has since dropped out of the report, so
+   * clients can render it directly (e.g. from a deep link).
+   *
+   * @param id - The front-page identifier (UUID).
+   * @returns The market overview front page, or `null` if none exists.
    */
-  #evictStaleCachedEntries<EntryType extends { fetchedAt: number }>(
-    cache: Record<string, EntryType>,
-  ): void {
-    const now = Date.now();
-    const entries = Object.entries(cache);
-    const keysToDelete: string[] = [];
-    const freshEntries: [string, EntryType][] = [];
-
-    for (const [key, entry] of entries) {
-      if (now - entry.fetchedAt >= CACHE_DURATION_MS) {
-        keysToDelete.push(key);
-      } else {
-        freshEntries.push([key, entry]);
-      }
+  async fetchFrontPageItem(
+    id: string,
+  ): Promise<MarketOverviewFrontPage | null> {
+    if (!id) {
+      throw new Error(AiDigestControllerErrorMessage.INVALID_FRONT_PAGE_ID);
     }
 
-    if (freshEntries.length > MAX_CACHE_ENTRIES) {
-      freshEntries.sort((a, b) => a[1].fetchedAt - b[1].fetchedAt);
-      const entriesToRemove = freshEntries.length - MAX_CACHE_ENTRIES;
-      for (let i = 0; i < entriesToRemove; i++) {
-        keysToDelete.push(freshEntries[i][0]);
-      }
-    }
-
-    for (const key of keysToDelete) {
-      delete cache[key];
-    }
+    return this.#digestService.fetchFrontPageItem(id);
   }
 }

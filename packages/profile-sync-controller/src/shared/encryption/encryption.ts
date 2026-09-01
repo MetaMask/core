@@ -4,12 +4,12 @@ import { scryptAsync } from '@noble/hashes/scrypt';
 import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 
-import type { NativeScrypt } from '../types/encryption';
+import type { NativeScrypt } from '../types/encryption.js';
 import {
   getCachedKeyBySalt,
   getCachedKeyGeneratedWithSharedSalt,
   setCachedKey,
-} from './cache';
+} from './cache.js';
 import {
   ALGORITHM_KEY_SIZE,
   ALGORITHM_NONCE_SIZE,
@@ -19,13 +19,13 @@ import {
   SCRYPT_r,
   SCRYPT_SALT_SIZE,
   SHARED_SALT,
-} from './constants';
+} from './constants.js';
 import {
   base64ToByteArray,
   byteArrayToBase64,
   bytesToUtf8,
   stringToByteArray,
-} from './utils';
+} from './utils.js';
 
 export type EncryptedPayload = {
   // version

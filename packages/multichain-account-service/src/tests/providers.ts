@@ -1,10 +1,19 @@
 import type { Bip44Account } from '@metamask/account-api';
-import { BtcScope, EthScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import {
+  BtcScope,
+  EthScope,
+  SolScope,
+  TrxScope,
+  XlmScope,
+} from '@metamask/keyring-api';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 
-import { AccountProviderWrapper, EvmAccountProvider } from '../providers';
-import { GroupIndexRange } from '../utils';
+import {
+  AccountProviderWrapper,
+  EvmAccountProvider,
+} from '../providers/index.js';
+import { GroupIndexRange } from '../utils.js';
 
 export type MockAccountProvider = {
   mockAccounts: KeyringAccount[];
@@ -17,9 +26,12 @@ export type MockAccountProvider = {
   getAccount: jest.Mock;
   getAccounts: jest.Mock;
   createAccounts: jest.Mock;
+  deleteAccount: jest.Mock;
   discoverAccounts: jest.Mock;
   isAccountCompatible: jest.Mock;
+  isAligned: jest.Mock;
   getName: jest.Mock;
+  ensureReady: jest.Mock;
   isEnabled: boolean;
   isDisabled: jest.Mock;
   setEnabled: jest.Mock;
@@ -37,6 +49,7 @@ export function makeMockAccountProvider(
         SolScope.Testnet,
         BtcScope.Testnet,
         TrxScope.Shasta,
+        XlmScope.Testnet,
         EthScope.Eoa,
       ],
       bip44: { deriveIndex: true },
@@ -48,9 +61,12 @@ export function makeMockAccountProvider(
     getAccount: jest.fn(),
     getAccounts: jest.fn(),
     createAccounts: jest.fn(),
+    deleteAccount: jest.fn(),
     discoverAccounts: jest.fn(),
     isAccountCompatible: jest.fn(),
+    isAligned: jest.fn().mockReturnValue(false),
     getName: jest.fn(),
+    ensureReady: jest.fn().mockResolvedValue(undefined),
     isDisabled: jest.fn(),
     setEnabled: jest.fn(),
     isEnabled: true,
@@ -97,6 +113,15 @@ export function setupBip44AccountProvider({
     (accountIds: Bip44Account<KeyringAccount>['id'][]) => {
       accountIds.forEach((id) => mocks.accounts.add(id));
     },
+  );
+
+  mocks.isAligned.mockImplementation(
+    (
+      _context: { entropySource: string; groupIndex: number },
+      accountIds: string[],
+    ) =>
+      accountIds.length >= 1 &&
+      accountIds.every((id) => mocks.accounts.has(id)),
   );
 
   if (index === 0) {

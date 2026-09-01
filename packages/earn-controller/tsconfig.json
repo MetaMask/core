@@ -19,6 +19,9 @@
     },
     {
       "path": "../messenger"
+    },
+    {
+      "path": "../controller-utils"
     }
   ]
 }

@@ -6,10 +6,10 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import type { ConnectivityControllerMessenger } from './ConnectivityController';
-import { ConnectivityController } from './ConnectivityController';
-import { CONNECTIVITY_STATUSES } from './types';
-import type { ConnectivityAdapter, ConnectivityStatus } from './types';
+import type { ConnectivityControllerMessenger } from './ConnectivityController.js';
+import { ConnectivityController } from './ConnectivityController.js';
+import { CONNECTIVITY_STATUSES } from './types.js';
+import type { ConnectivityAdapter, ConnectivityStatus } from './types.js';
 
 describe('ConnectivityController', () => {
   describe('constructor', () => {

@@ -1,4 +1,4 @@
-import type { Env, Platform } from '../../shared/env';
+import type { Env, Platform } from '../../shared/env.js';
 
 export enum AuthType {
   /* sign in using a private key derived from your secret recovery phrase (SRP).
@@ -8,6 +8,25 @@ export enum AuthType {
   /* sign in with Ethereum */
   SiWE = 'SiWE',
 }
+
+/**
+ * Login identifier type sent in the `/srp/login` metametrics object.
+ * Defaults to `SRP`; social-backed entropy overrides with the OAuth provider.
+ *
+ * Orthogonal to {@link SrpLoginTag}: a secondary entropy source can still be
+ * `GOOGLE` / `APPLE` / `TELEGRAM` if it is social-backed.
+ */
+export type LoginIdentifierType = 'SRP' | 'GOOGLE' | 'APPLE' | 'TELEGRAM';
+
+/**
+ * Tag appended to the SRP login `raw_message` so the auth server can
+ * distinguish primary vs secondary SRPs.
+ *
+ * Message format: `metamask:<nonce>:<pubkey>:<tag>`
+ *
+ * Orthogonal to {@link LoginIdentifierType}: tag is entropy-slot only.
+ */
+export type SrpLoginTag = 'primary' | 'secondary';
 
 export type AuthConfig = {
   env: Env;
@@ -36,13 +55,30 @@ export type UserProfile = {
    */
   identifierId: string;
   /**
-   * The Unique profile for a logged in user. A Profile can be logged in via multiple Identifiers
+   * The original per-SRP profile ID. Immutable after first login.
+   * Used for user storage key derivation — MUST NOT be replaced with the canonical.
    */
   profileId: string;
+  /**
+   * The unified canonical profile ID across all paired SRPs.
+   * Set from the server response and updated after pairing via canonical propagation.
+   * For pre-upgrade state, defaults to profileId.
+   */
+  canonicalProfileId: string;
   /**
    * Server MetaMetrics ID. Allows grouping of user events cross platform.
    */
   metaMetricsId: string;
+};
+
+/**
+ * Represents a profile alias returned by the server in profile_aliases.
+ * Transient — this is not persisted in LoginResponse or srpSessionData.
+ */
+export type ProfileAlias = {
+  aliasProfileId: string;
+  canonicalProfileId: string;
+  identifierIds: { id: string; type: string }[];
 };
 
 export type LoginResponse = {

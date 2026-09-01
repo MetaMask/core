@@ -13,41 +13,49 @@ import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { assert } from '@metamask/utils';
+import { assert, isCaipChainId } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 
-import type { BackupAndSyncEmitAnalyticsEventParams } from './backup-and-sync/analytics';
+import type { BackupAndSyncEmitAnalyticsEventParams } from './backup-and-sync/analytics/index.js';
 import {
   formatAnalyticsEvent,
   traceFallback,
-} from './backup-and-sync/analytics';
-import { BackupAndSyncService } from './backup-and-sync/service';
-import type { BackupAndSyncContext } from './backup-and-sync/types';
-import type { AccountGroupObject, AccountTypeOrderKey } from './group';
+} from './backup-and-sync/analytics/index.js';
+import { BackupAndSyncService } from './backup-and-sync/service/index.js';
+import type { BackupAndSyncContext } from './backup-and-sync/types.js';
+import { createSyncMutationTracker } from './backup-and-sync/utils/index.js';
+import type { AccountGroupObject, AccountTypeOrderKey } from './group.js';
 import {
   ACCOUNT_TYPE_TO_SORT_ORDER,
   isAccountGroupNameUnique,
   isAccountGroupNameUniqueFromWallet,
   MAX_SORT_ORDER,
-} from './group';
-import { projectLogger as log } from './logger';
-import type { Rule } from './rule';
-import { EntropyRule } from './rules/entropy';
-import { KeyringRule } from './rules/keyring';
-import { SnapRule } from './rules/snap';
+} from './group.js';
+import { projectLogger as log } from './logger.js';
+import type { Rule } from './rule.js';
+import { EntropyRule } from './rules/entropy.js';
+import { KeyringRule } from './rules/keyring.js';
+import { SnapRule } from './rules/snap.js';
+import { exportState } from './state/export.js';
+import { importState } from './state/import.js';
+import type { ExportStateOptions } from './state/payload.js';
+import type { AccountTreeSnapshot } from './state/snapshot.js';
 import type {
   AccountTreeControllerConfig,
   AccountTreeControllerInternalBackupAndSyncConfig,
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
-} from './types';
-import type { AccountWalletObject, AccountWalletObjectOf } from './wallet';
+} from './types.js';
+import type { AccountWalletObject, AccountWalletObjectOf } from './wallet.js';
 
 export const controllerName = 'AccountTreeController';
 
 const MESSENGER_EXPOSED_METHODS = [
   'getSelectedAccountGroup',
   'setSelectedAccountGroup',
+  'setSelectedAccountGroupByAccountId',
   'getAccountsFromSelectedAccountGroup',
+  'getAccountFromSelectedAccountGroup',
   'getAccountContext',
   'setAccountWalletName',
   'setAccountGroupName',
@@ -59,6 +67,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'clearState',
   'syncWithUserStorage',
   'syncWithUserStorageAtLeastOnce',
+  'init',
+  'reinit',
+  'exportState',
+  'importState',
 ] as const;
 
 const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
@@ -428,8 +440,9 @@ export class AccountTreeController extends BaseController<
       previousSelectedAccountGroup,
     );
 
-    log('Initialized!');
     this.#initialized = true;
+    log('Initialized!');
+    this.messenger.publish(`${controllerName}:initialized`, this.state);
   }
 
   /**
@@ -856,6 +869,48 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Gets an account from the currently selected account group, optionally
+   * filtered by a CAIP-2 chain ID.
+   *
+   * This is the group-based replacement for both
+   * `AccountsController:getSelectedAccount` and
+   * `AccountsController:getSelectedMultichainAccount`.
+   *
+   * When no chain ID is provided, an account of the selected group is returned
+   * using an EVM-priority rule: the first EVM account found in the group, or the
+   * first account in the group if no EVM account is found. When a chain ID is
+   * provided, the first account in the selected group whose scopes match the
+   * given chain is returned.
+   *
+   * @param chainId - Optional CAIP-2 chain ID used to filter accounts by scope.
+   * @returns The matching internal account from the selected group, or
+   * undefined if no group is selected or no account matches.
+   * @throws If `chainId` is provided but is not a valid CAIP-2 chain ID.
+   */
+  getAccountFromSelectedAccountGroup(
+    chainId?: CaipChainId,
+  ): InternalAccount | undefined {
+    const groupId = this.getSelectedAccountGroup();
+    if (!groupId) {
+      return undefined;
+    }
+
+    if (!chainId) {
+      return this.#getAccountFromAccountGroupId(groupId);
+    }
+
+    if (!isCaipChainId(chainId)) {
+      throw new Error(`Invalid CAIP-2 chain ID: ${String(chainId)}`);
+    }
+
+    const accounts = this.getAccountsFromSelectedAccountGroup({
+      scopes: [chainId],
+    });
+
+    return accounts[0];
+  }
+
+  /**
    * Gets the account group object from its ID.
    *
    * @param groupId - Account group ID.
@@ -906,19 +961,32 @@ export class AccountTreeController extends BaseController<
       return;
     }
 
+    const createdGroups = new Map<AccountGroupId, AccountWalletId>();
+    const updatedGroups = new Map<AccountGroupId, AccountWalletId>();
+
     this.update((state) => {
       for (const account of newAccounts) {
-        this.#insert(state.accountTree.wallets, account);
+        const { walletId, groupId, created } = this.#insert(
+          state.accountTree.wallets,
+          account,
+        );
 
-        const context = this.#accountIdToContext.get(account.id);
-        if (context) {
-          const { walletId, groupId } = context;
+        if (created) {
+          createdGroups.set(groupId, walletId);
+        } else if (!createdGroups.has(groupId)) {
+          // ^ We check that the group has not been created in this same batch before adding it to the `updatedGroups`
+          // map, to avoid sending both created and updated events for the same group:
+          // - Account 1 + Account 2 + Account 3
+          // - Account 1 and 3 belong to the same group
+          // - Account 1 will create the group
+          // - Account 3 will update the group (but we only want to send a created event, not an updated one)
+          updatedGroups.set(groupId, walletId);
+        }
 
-          const wallet = state.accountTree.wallets[walletId];
-          if (wallet) {
-            this.#applyAccountWalletMetadata(state, walletId);
-            this.#applyAccountGroupMetadata(state, walletId, groupId);
-          }
+        const wallet = state.accountTree.wallets[walletId];
+        if (wallet) {
+          this.#applyAccountWalletMetadata(state, walletId);
+          this.#applyAccountGroupMetadata(state, walletId, groupId);
         }
       }
     });
@@ -927,6 +995,13 @@ export class AccountTreeController extends BaseController<
       `${controllerName}:accountTreeChange`,
       this.state.accountTree,
     );
+
+    for (const [groupId, walletId] of createdGroups) {
+      this.#publishAccountGroupCreated(walletId, groupId);
+    }
+    for (const [groupId, walletId] of updatedGroups) {
+      this.#publishAccountGroupUpdated(walletId, groupId);
+    }
   }
 
   /**
@@ -956,6 +1031,8 @@ export class AccountTreeController extends BaseController<
     }
 
     const previousSelectedAccountGroup = this.state.selectedAccountGroup;
+    const updatedGroups = new Map<AccountGroupId, AccountWalletId>();
+    const removedGroups = new Set<AccountGroupId>();
 
     this.update((state) => {
       for (const { id: accountId, context } of knownAccounts) {
@@ -979,6 +1056,12 @@ export class AccountTreeController extends BaseController<
           }
           if (accounts.length === 0) {
             this.#pruneEmptyGroupAndWallet(state, walletId, groupId);
+
+            // If the group gets pruned, we should not consider it as updated.
+            updatedGroups.delete(groupId);
+            removedGroups.add(groupId);
+          } else {
+            updatedGroups.set(groupId, walletId);
           }
         }
       }
@@ -993,6 +1076,13 @@ export class AccountTreeController extends BaseController<
       `${controllerName}:accountTreeChange`,
       this.state.accountTree,
     );
+
+    for (const [groupId, walletId] of updatedGroups) {
+      this.#publishAccountGroupUpdated(walletId, groupId);
+    }
+    for (const groupId of removedGroups) {
+      this.#publishAccountGroupRemoved(groupId);
+    }
 
     const newSelectedAccountGroup = this.state.selectedAccountGroup;
     if (newSelectedAccountGroup !== previousSelectedAccountGroup) {
@@ -1038,6 +1128,49 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Publishes the `:accountGroupCreated` event for a newly added group.
+   * No-op if the group is not in state (defensive).
+   *
+   * @param walletId - The parent wallet ID.
+   * @param groupId - The newly created group's ID.
+   */
+  #publishAccountGroupCreated(
+    walletId: AccountWalletId,
+    groupId: AccountGroupId,
+  ): void {
+    const group = this.state.accountTree.wallets[walletId]?.groups[groupId];
+    if (group) {
+      this.messenger.publish(`${controllerName}:accountGroupCreated`, group);
+    }
+  }
+
+  /**
+   * Publishes the `:accountGroupUpdated` event for an existing group.
+   * No-op if the group is not in state (e.g. it was pruned).
+   *
+   * @param walletId - The parent wallet ID.
+   * @param groupId - The updated group's ID.
+   */
+  #publishAccountGroupUpdated(
+    walletId: AccountWalletId,
+    groupId: AccountGroupId,
+  ): void {
+    const group = this.state.accountTree.wallets[walletId]?.groups[groupId];
+    if (group) {
+      this.messenger.publish(`${controllerName}:accountGroupUpdated`, group);
+    }
+  }
+
+  /**
+   * Publishes the `:accountGroupRemoved` event for a pruned group.
+   *
+   * @param groupId - The removed group's ID.
+   */
+  #publishAccountGroupRemoved(groupId: AccountGroupId): void {
+    this.messenger.publish(`${controllerName}:accountGroupRemoved`, groupId);
+  }
+
+  /**
    * Insert an account inside an account tree.
    *
    * We go over multiple rules to try to "match" the account following
@@ -1046,11 +1179,12 @@ export class AccountTreeController extends BaseController<
    *
    * @param wallets - Account tree.
    * @param account - The account to be inserted.
+   * @returns The wallet ID, group ID, and whether the group has been created or not.
    */
   #insert(
     wallets: AccountTreeControllerState['accountTree']['wallets'],
     account: InternalAccount,
-  ) {
+  ): { walletId: AccountWalletId; groupId: AccountGroupId; created: boolean } {
     const result =
       this.#getEntropyRule().match(account) ??
       this.#getSnapRule().match(account) ??
@@ -1084,6 +1218,7 @@ export class AccountTreeController extends BaseController<
     let group = wallet.groups[groupId];
     const { type, id } = account;
     const sortOrder = ACCOUNT_TYPE_TO_SORT_ORDER[type];
+    const created = !group;
 
     if (!group) {
       log(`[${walletId}] Add new group: [${groupId}]`);
@@ -1141,6 +1276,8 @@ export class AccountTreeController extends BaseController<
       groupId: group.id,
       sortOrder,
     });
+
+    return { walletId: wallet.id, groupId: group.id, created };
   }
 
   /**
@@ -1218,7 +1355,7 @@ export class AccountTreeController extends BaseController<
     }
 
     // Find the first account in this group to select
-    const accountToSelect = this.#getDefaultAccountFromAccountGroupId(groupId);
+    const accountToSelect = this.#getAccountFromAccountGroupId(groupId);
     if (!accountToSelect) {
       throw new Error('No accounts found in group');
     }
@@ -1258,10 +1395,10 @@ export class AccountTreeController extends BaseController<
       // but our handler is idempotent so it won't cause infinite loop
       this.messenger.call(
         'AccountsController:setSelectedAccount',
-        accountToSelect,
+        accountToSelect.id,
       );
 
-      log(`Selected account is now: ${accountToSelect}`);
+      log(`Selected account is now: ${accountToSelect.id}`);
     }
   }
 
@@ -1272,6 +1409,19 @@ export class AccountTreeController extends BaseController<
    */
   setSelectedAccountGroup(groupId: AccountGroupId): void {
     this.#setSelectedAccountGroup(groupId);
+  }
+
+  /**
+   * Sets the selected account group and updates the AccountsController selectedAccount accordingly.
+   *
+   * @param accountId - The account ID to select the group for.
+   */
+  setSelectedAccountGroupByAccountId(accountId: AccountId): void {
+    const context = this.#accountIdToContext.get(accountId);
+    if (!context) {
+      throw new Error('Account not found in the account tree');
+    }
+    this.setSelectedAccountGroup(context.groupId);
   }
 
   /**
@@ -1354,35 +1504,42 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * Gets the default account for specified group.
+   * Gets an account for the specified group using the EVM-priority rule.
+   *
+   * The account is the first EVM account found in the group, or the first
+   * account in the group if no EVM account is found.
    *
    * @param groupId - The account group ID.
-   * @returns The first account ID in the group, or undefined if no accounts found.
+   * @returns The internal account in the group, or undefined if the group does
+   * not exist or is empty.
    */
-  #getDefaultAccountFromAccountGroupId(
+  #getAccountFromAccountGroupId(
     groupId: AccountGroupId,
-  ): AccountId | undefined {
+  ): InternalAccount | undefined {
     const group = this.#getAccountGroup(groupId);
 
     if (group) {
-      let candidate;
+      let candidateId: AccountId | undefined;
       for (const id of group.accounts) {
         const account = this.messenger.call(
           'AccountsController:getAccount',
           id,
         );
 
-        if (!candidate) {
-          candidate = id;
-        }
-        if (account && isEvmAccountType(account.type)) {
-          // EVM accounts have a higher priority, so if we find any, we just
-          // use that account!
-          return account.id;
+        if (account) {
+          candidateId ??= id;
+
+          if (isEvmAccountType(account.type)) {
+            // EVM accounts have a higher priority, so if we find any, we just
+            // use that account!
+            return account;
+          }
         }
       }
 
-      return candidate;
+      return candidateId
+        ? this.messenger.call('AccountsController:getAccount', candidateId)
+        : undefined;
     }
 
     return undefined;
@@ -1524,6 +1681,8 @@ export class AccountTreeController extends BaseController<
         finalName;
     });
 
+    this.#publishAccountGroupUpdated(walletId, groupId);
+
     // Trigger atomic sync for group rename (only for groups from entropy wallets)
     if (wallet.type === AccountWalletType.Entropy) {
       this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
@@ -1594,6 +1753,10 @@ export class AccountTreeController extends BaseController<
       }
     });
 
+    if (walletId) {
+      this.#publishAccountGroupUpdated(walletId, groupId);
+    }
+
     // Trigger atomic sync for group pinning (only for groups from entropy wallets)
     if (
       walletId &&
@@ -1636,6 +1799,10 @@ export class AccountTreeController extends BaseController<
       }
     });
 
+    if (walletId) {
+      this.#publishAccountGroupUpdated(walletId, groupId);
+    }
+
     // Trigger atomic sync for group hiding (only for groups from entropy wallets)
     if (
       walletId &&
@@ -1653,6 +1820,8 @@ export class AccountTreeController extends BaseController<
   clearState(): void {
     log('Clearing state');
 
+    const previousSelectedAccountGroup = this.state.selectedAccountGroup;
+
     this.update(() => {
       return {
         ...getDefaultAccountTreeControllerState(),
@@ -1660,8 +1829,22 @@ export class AccountTreeController extends BaseController<
     });
     this.#backupAndSyncService.clearState();
 
+    // Clear in-memory reverse-lookup Maps so stale data is not accessible
+    // between this call and the next init().
+    this.#accountIdToContext.clear();
+    this.#groupIdToWalletId.clear();
+
+    // Notify subscribers that the selected group has been cleared,
+    // mirroring what #setSelectedAccountGroup does on normal transitions.
+    this.messenger.publish(
+      `${controllerName}:selectedAccountGroupChange`,
+      '',
+      previousSelectedAccountGroup,
+    );
+
     // So we know we have to call `init` again.
     this.#initialized = false;
+    this.messenger.publish(`${controllerName}:uninitialized`);
   }
 
   /**
@@ -1696,6 +1879,60 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Produces a versioned snapshot of the current wallet and group state.
+   *
+   * When `options.includeSecrets` is `true`, `options.password` is required
+   * and verified against the vault before any secret is read. Without
+   * `includeSecrets`, only metadata (names, pinned, hidden) is exported and
+   * no password is needed.
+   *
+   * @param options - Export options.
+   * @returns A promise resolving to an `AccountTreeSnapshot`.
+   * @throws If the vault is locked or the password is incorrect.
+   */
+  async exportState(
+    options?: ExportStateOptions,
+  ): Promise<AccountTreeSnapshot> {
+    return exportState(
+      { getState: () => this.state, messenger: this.messenger },
+      options,
+    );
+  }
+
+  /**
+   * Applies a validated snapshot to the current state.
+   *
+   * Accepts an {@link AccountTreeSnapshot} only — untrusted wire data must be
+   * parsed with {@link AccountTreeSnapshot.deserialize} first. Callers may
+   * filter the snapshot with {@link AccountTreeSnapshot.filterWallets},
+   * {@link AccountTreeSnapshot.filterGroups}, or
+   * {@link AccountTreeSnapshot.filterAllGroups} before importing.
+   *
+   * New mnemonic wallets are imported via `MultichainAccountService` and new
+   * private-key accounts via `KeyringController`. Metadata (name, pinned,
+   * hidden) is applied to all existing and newly created wallets / groups.
+   *
+   * @param snapshot - The validated snapshot to import.
+   * @returns A promise that resolves when the import is complete.
+   */
+  async importState(snapshot: AccountTreeSnapshot): Promise<void> {
+    return importState(
+      {
+        getState: () => this.state,
+        messenger: this.messenger,
+        setWalletName: (id, name) => this.setAccountWalletName(id, name),
+        setAccountGroupName: (id, name) =>
+          this.setAccountGroupName(id, name, true),
+        setAccountGroupPinned: (id, pinned) =>
+          this.setAccountGroupPinned(id, pinned),
+        setAccountGroupHidden: (id, hidden) =>
+          this.setAccountGroupHidden(id, hidden),
+      },
+      snapshot,
+    );
+  }
+
+  /**
    * Creates an backup and sync context for sync operations.
    * Used by the backup and sync service.
    *
@@ -1709,6 +1946,7 @@ export class AccountTreeController extends BaseController<
       controllerStateUpdateFn: this.update.bind(this),
       traceFn: this.#trace.bind(this),
       groupIdToWalletId: this.#groupIdToWalletId,
+      mutationTracker: createSyncMutationTracker(),
     };
   }
 }

@@ -9,7 +9,7 @@
  * are deferred to Phase 3.
  */
 
-import type { PerpsProviderType, RoutingStrategy } from '../types';
+import type { PerpsProviderType, RoutingStrategy } from '../types/index.js';
 
 /**
  * Parameters for selecting a provider for an operation

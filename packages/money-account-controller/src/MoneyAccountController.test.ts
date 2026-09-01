@@ -10,11 +10,11 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import type { MoneyAccount, MoneyAccountControllerMessenger } from '.';
+import type { MoneyAccount, MoneyAccountControllerMessenger } from './index.js';
 import {
   MoneyAccountController,
   getDefaultMoneyAccountControllerState,
-} from '.';
+} from './index.js';
 
 const MOCK_ENTROPY_SOURCE_ID = 'entropy-source-1';
 const MOCK_OTHER_ENTROPY_SOURCE_ID = 'entropy-source-2';
@@ -41,7 +41,6 @@ const MOCK_MONEY_ACCOUNT: MoneyAccount = {
     exportable: false,
   },
   methods: [
-    'eth_signTransaction',
     'personal_sign',
     'eth_signTypedData_v1',
     'eth_signTypedData_v3',
@@ -64,7 +63,6 @@ const MOCK_MONEY_ACCOUNT_2: MoneyAccount = {
     exportable: false,
   },
   methods: [
-    'eth_signTransaction',
     'personal_sign',
     'eth_signTypedData_v1',
     'eth_signTypedData_v3',
@@ -295,10 +293,7 @@ describe('MoneyAccountController', () => {
             derivationPath: "m/44'/4392018'/0'/0",
           },
         },
-        methods: expect.arrayContaining([
-          'personal_sign',
-          'eth_signTransaction',
-        ]),
+        methods: expect.arrayContaining(['personal_sign']),
       });
       expect(typeof account.id).toBe('string');
     });

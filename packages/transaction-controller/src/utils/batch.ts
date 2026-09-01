@@ -18,7 +18,12 @@ import { bytesToHex, createModuleLogger } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
 import { parse, v4 } from 'uuid';
 
-import { GasFeeEstimateLevel, TransactionStatus } from '..';
+import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow.js';
+import { updateTransactionGasEstimates } from '../helpers/GasFeePoller.js';
+import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker.js';
+import { CollectPublishHook } from '../hooks/CollectPublishHook.js';
+import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook.js';
+import { GasFeeEstimateLevel, TransactionStatus } from '../index.js';
 import type {
   BatchTransactionParams,
   GetSimulationConfig,
@@ -27,15 +32,11 @@ import type {
   TransactionControllerMessenger,
   TransactionControllerState,
   TransactionMeta,
-} from '..';
-import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
-import { updateTransactionGasEstimates } from '../helpers/GasFeePoller';
-import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker';
-import { CollectPublishHook } from '../hooks/CollectPublishHook';
-import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
-import { projectLogger } from '../logger';
-import { TransactionEnvelopeType, TransactionType } from '../types';
+} from '../index.js';
+import { projectLogger } from '../logger.js';
+import { TransactionEnvelopeType, TransactionType } from '../types.js';
 import type {
+  AuthorizationList,
   NestedTransactionMetadata,
   SecurityAlertResponse,
   TransactionBatchSingleRequest,
@@ -47,24 +48,24 @@ import type {
   IsAtomicBatchSupportedResult,
   IsAtomicBatchSupportedResultEntry,
   TransactionBatchMeta,
-} from '../types';
-import type { TransactionBatchResult, TransactionParams } from '../types';
+} from '../types.js';
+import type { TransactionBatchResult, TransactionParams } from '../types.js';
 import {
   ERROR_MESSGE_PUBLIC_KEY,
   doesAccountSupportEIP7702,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
   isAccountUpgradedToEIP7702,
-} from './eip7702';
+} from './eip7702.js';
 import {
   getBatchSizeLimit,
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
-} from './feature-flags';
-import { simulateGasBatch } from './gas';
-import { getChainId } from './provider';
-import { determineTransactionType } from './transaction-type';
-import { validateBatchRequest } from './validation';
+} from './feature-flags.js';
+import { simulateGasBatch } from './gas.js';
+import { getChainId } from './provider.js';
+import { determineTransactionType } from './transaction-type.js';
+import { validateBatchRequest } from './validation.js';
 
 type UpdateStateCallback = (
   callback: (
@@ -84,7 +85,7 @@ type AddTransactionBatchRequest = {
   ) => PendingTransactionTracker;
   getSimulationConfig: GetSimulationConfig;
   getTransaction: (id: string) => TransactionMeta;
-  isSimulationEnabled: () => boolean;
+  isSimulationEnabled: (transactionMeta?: TransactionMeta) => boolean;
   messenger: TransactionControllerMessenger;
   publishBatchHook?: PublishBatchHook;
   publishTransaction: (transactionMeta: TransactionMeta) => Promise<Hex>;
@@ -127,10 +128,15 @@ export async function addTransactionBatch(
     messenger,
     request: transactionBatchRequest,
   } = request;
+
+  const { disableHook, disable7702, disableSequential } =
+    transactionBatchRequest;
+
   const sizeLimit = getBatchSizeLimit(messenger);
 
   validateBatchRequest({
     internalAccounts: getInternalAccounts(),
+    isInternal: transactionBatchRequest.isInternal,
     request: transactionBatchRequest,
     sizeLimit,
   });
@@ -142,7 +148,11 @@ export async function addTransactionBatch(
     transactionBatchRequest.from,
   );
 
-  if (!transactionBatchRequest.disable7702 && accountCanUse7702) {
+  if (disableHook && disableSequential && !disable7702 && !accountCanUse7702) {
+    throw rpcErrors.internal('Account does not support EIP-7702');
+  }
+
+  if (!disable7702 && accountCanUse7702) {
     try {
       return await addTransactionBatchWith7702(request);
     } catch (error: unknown) {
@@ -150,7 +160,7 @@ export async function addTransactionBatch(
         error instanceof JsonRpcError &&
         error.message === 'Chain does not support EIP-7702';
 
-      if (!isEIP7702NotSupportedError) {
+      if (!isEIP7702NotSupportedError || (disableHook && disableSequential)) {
         throw error;
       }
     }
@@ -231,7 +241,7 @@ export async function isAtomicBatchSupported(
  *
  * @returns  A unique batch ID as a hexadecimal string.
  */
-function generateBatchId(): Hex {
+export function generateBatchId(): Hex {
   const idString = v4();
   const idBytes = new Uint8Array(parse(idString));
   return bytesToHex(idBytes);
@@ -274,6 +284,58 @@ async function getNestedTransactionMeta(
 }
 
 /**
+ * Build the authorization list for an EIP-7702 batch transaction.
+ *
+ * When the batch payer (`from`) requires an upgrade, an unsigned upgrade
+ * authorization for that account is included first. Any caller-provided
+ * authorizations (e.g. a pre-signed Money Account upgrade) are appended so
+ * both can be submitted on the same type-4 transaction.
+ *
+ * @param options - Options bag.
+ * @param options.chainId - Chain ID of the batch.
+ * @param options.messenger - Controller messenger.
+ * @param options.providedAuthorizationList - Optional authorizations from the batch request.
+ * @param options.publicKeyEIP7702 - Public key used to resolve the upgrade contract.
+ * @param options.requiresUpgrade - Whether the batch payer requires an EIP-7702 upgrade.
+ * @returns The combined authorization list, or undefined when none are needed.
+ */
+function buildBatchAuthorizationList({
+  chainId,
+  messenger,
+  providedAuthorizationList,
+  publicKeyEIP7702,
+  requiresUpgrade,
+}: {
+  chainId: Hex;
+  messenger: TransactionControllerMessenger;
+  providedAuthorizationList?: AuthorizationList;
+  publicKeyEIP7702: Hex;
+  requiresUpgrade: boolean;
+}): AuthorizationList | undefined {
+  const authorizationList: AuthorizationList = [];
+
+  if (requiresUpgrade) {
+    const upgradeContractAddress = getEIP7702UpgradeContractAddress(
+      chainId,
+      messenger,
+      publicKeyEIP7702,
+    );
+
+    if (!upgradeContractAddress) {
+      throw rpcErrors.internal(ERROR_MESSAGE_NO_UPGRADE_CONTRACT);
+    }
+
+    authorizationList.push({ address: upgradeContractAddress });
+  }
+
+  if (providedAuthorizationList?.length) {
+    authorizationList.push(...providedAuthorizationList);
+  }
+
+  return authorizationList.length ? authorizationList : undefined;
+}
+
+/**
  * Process a batch transaction using an EIP-7702 transaction.
  *
  * @param request - The request object including the user request and necessary callbacks.
@@ -291,11 +353,13 @@ async function addTransactionBatchWith7702(
 
   const {
     atomic,
+    authorizationList: providedAuthorizationList,
     batchId: batchIdOverride,
     disableUpgrade,
     from,
     gasFeeToken,
     gasLimit7702,
+    isInternal,
     networkClientId,
     origin,
     overwriteUpgrade,
@@ -372,22 +436,23 @@ async function addTransactionBatchWith7702(
     maxPriorityFeePerGas: nestedTransactions[0]?.maxPriorityFeePerGas,
   };
 
-  if (requiresUpgrade) {
-    const upgradeContractAddress = getEIP7702UpgradeContractAddress(
-      chainId,
-      messenger,
-      publicKeyEIP7702,
-    );
+  const authorizationList = buildBatchAuthorizationList({
+    chainId,
+    messenger,
+    providedAuthorizationList,
+    publicKeyEIP7702,
+    requiresUpgrade,
+  });
 
-    if (!upgradeContractAddress) {
-      throw rpcErrors.internal(ERROR_MESSAGE_NO_UPGRADE_CONTRACT);
-    }
-
+  if (authorizationList?.length) {
     txParams.type = TransactionEnvelopeType.setCode;
-    txParams.authorizationList = [{ address: upgradeContractAddress }];
+    txParams.authorizationList = authorizationList;
   }
 
   if (validateSecurity) {
+    // `delegationMock` applies to the batch payer (`from`) only. When
+    // `requiresUpgrade` is true, that upgrade authorization is always first in
+    // the list. Caller-provided auths for other accounts must not be used here.
     const securityRequest: ValidateSecurityRequest = {
       method: 'eth_sendTransaction',
       params: [
@@ -397,7 +462,9 @@ async function addTransactionBatchWith7702(
           type: TransactionEnvelopeType.feeMarket,
         },
       ],
-      delegationMock: txParams.authorizationList?.[0]?.address,
+      delegationMock: requiresUpgrade
+        ? authorizationList?.[0]?.address
+        : undefined,
       origin,
     };
 
@@ -438,6 +505,7 @@ async function addTransactionBatchWith7702(
     excludeNativeTokenForFee,
     isGasFeeIncluded,
     isGasFeeSponsored,
+    isInternal,
     nestedTransactions,
     networkClientId,
     origin,
@@ -724,7 +792,7 @@ async function processTransactionWithHook(
     updateTransaction,
   } = request;
 
-  const { from, networkClientId, origin } = userRequest;
+  const { from, isInternal, networkClientId, origin } = userRequest;
 
   if (existingTransaction) {
     const { id, onPublish } = existingTransaction;
@@ -797,6 +865,7 @@ async function processTransactionWithHook(
       assetsFiatValues,
       batchId,
       disableGasBuffer: true,
+      isInternal,
       networkClientId,
       origin,
       publishHook,
@@ -941,6 +1010,7 @@ async function prepareApprovalData({
 
   const {
     from,
+    isInternal,
     origin,
     networkClientId,
     transactions: nestedTransactions,
@@ -966,6 +1036,7 @@ async function prepareApprovalData({
     from,
     gas: gasLimit,
     id: batchId,
+    isInternal,
     networkClientId,
     origin,
     transactions: nestedTransactions,

@@ -8,18 +8,36 @@ export type ExchangeRateResponse = {
 
 /**
  * Response from {@link MoneyAccountBalanceService.getMusdEquivalentValue}.
- * All values are raw uint256 strings. The `musdEquivalentValue` is
- * `musdSHFvdBalance * exchangeRate / 10^underlyingTokenDecimals` (= 1e6 for mUSD).
+ * Balance of in assets is the raw uint256 string returned by the Lens's `balanceOfInAssets()`.
  */
 export type MusdEquivalentValueResponse = {
-  musdSHFvdBalance: string;
-  exchangeRate: string;
-  musdEquivalentValue: string;
+  balanceOfInAssets: string;
 };
 
 /**
+ * Response from {@link MoneyAccountBalanceService.getMoneyAccountBalance}.
+ */
+export type MoneyAccountBalanceResponse = {
+  musdBalance: string;
+  vmusdValueInMusd: string;
+  totalBalance: string;
+};
+
+/**
+ * Canonical balance result from
+ * {@link MoneyAccountBalanceService.fetchBalanceWithFallback}.
+ */
+export type CanonicalMoneyAccountBalanceResponse =
+  MoneyAccountBalanceResponse & {
+    source: 'api' | 'rpc';
+    usedFallback: boolean;
+  };
+
+/**
  * Response from {@link MoneyAccountBalanceService.getVaultApy}.
- * All APY / fee values are decimals (multiply by 100 for percentage).
+ * APY and fee values are decimals (multiply by 100 for percentage).
+ * Veda's APY values are actually APR (labeled incorrectly). They are converted APY using daily compounding
+ * (see {@link convertAprToApy}) before this response is returned.
  *
  * Only `apy` and `timestamp` are guaranteed to be present — all other fields
  * are optional because the Veda API omits them when the vault has no activity.

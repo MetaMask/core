@@ -2,9 +2,18 @@ import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
 } from '@metamask/account-tree-controller';
+import type {
+  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerSelectedAccountChangeEvent,
+} from '@metamask/accounts-controller';
+import type {
+  AuthenticatedUserStorageServiceGetNotificationPreferencesAction,
+  AuthenticatedUserStorageServicePutNotificationPreferencesAction,
+} from '@metamask/authenticated-user-storage';
 import type { GeolocationControllerGetGeolocationAction } from '@metamask/geolocation-controller';
 import type {
   KeyringControllerGetStateAction,
+  KeyringControllerSignPersonalMessageAction,
   KeyringControllerSignTypedMessageAction,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -30,16 +39,21 @@ export type PerpsControllerAllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | KeyringControllerGetStateAction
   | KeyringControllerSignTypedMessageAction
+  | KeyringControllerSignPersonalMessageAction
   | TransactionControllerAddTransactionAction
   | RemoteFeatureFlagControllerGetStateAction
+  | AccountsControllerGetSelectedAccountAction
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
-  | AuthenticationController.AuthenticationControllerGetBearerTokenAction;
+  | AuthenticationController.AuthenticationControllerGetBearerTokenAction
+  | AuthenticatedUserStorageServiceGetNotificationPreferencesAction
+  | AuthenticatedUserStorageServicePutNotificationPreferencesAction;
 
 /**
  * Events from other controllers that PerpsController is allowed to subscribe to.
  */
 export type PerpsControllerAllowedEvents =
   | RemoteFeatureFlagControllerStateChangeEvent
+  | AccountsControllerSelectedAccountChangeEvent
   | AccountTreeControllerSelectedAccountGroupChangeEvent;
 
 /**
