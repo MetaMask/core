@@ -93,6 +93,9 @@ describe('balance selectors', () => {
   const assetPolygon = 'eip155:137/slip44:966' as Caip19AssetId;
   const assetTangYuan =
     'eip155:56/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
+  // Real mainnet staking vault contract address (STAKING_CONTRACT_ADDRESS_BY_CHAINID).
+  const assetStakedEth =
+    'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df' as Caip19AssetId;
 
   const assetInfoEth = {
     type: 'native' as const,
@@ -120,6 +123,13 @@ describe('balance selectors', () => {
     symbol: 'TangYuan',
     name: 'TangYuan',
     decimals: 9,
+  };
+
+  const assetInfoStakedEth = {
+    type: 'erc20' as const,
+    symbol: 'stETH',
+    name: 'Staked ETH',
+    decimals: 18,
   };
 
   function testFungibleAssetPrice(
@@ -480,6 +490,102 @@ describe('balance selectors', () => {
       const result = getAggregatedBalanceForAccount(state, selectedAccount);
 
       expect(result.entries).toHaveLength(2);
+    });
+
+    it('prices a staked position at parity with the chain native currency, not zero', () => {
+      // Regression test: the staking vault contract (assetStakedEth) is never
+      // itself a priced token — the Price API always returns null for it — so
+      // it must be aliased to the native asset's price (assetEth) rather than
+      // silently valued at zero. Mirrors a real mainnet ETH + staked-ETH
+      // portfolio.
+      const state = arrangeAssetsControllerState({
+        assetsBalance: {
+          [accountId1]: {
+            [assetEth]: { amount: '1' },
+            [assetStakedEth]: { amount: '2' },
+          },
+        },
+        assetsInfo: {
+          [assetEth]: assetInfoEth,
+          [assetStakedEth]: assetInfoStakedEth,
+        },
+        assetsPrice: {
+          // Only the native asset has a price entry — matching the real API,
+          // which never returns price data for the vault contract address.
+          [assetEth]: testFungibleAssetPrice(2000, 5),
+        },
+      });
+
+      const result = getAggregatedBalanceForAccount(state, selectedAccount);
+
+      expect(result.entries).toHaveLength(2);
+      const stakedEntry = result.entries.find(
+        (entry) => entry.assetId === assetStakedEth,
+      );
+      expect(stakedEntry).toMatchObject({ amount: '2' });
+      // 1 ETH liquid + 2 ETH staked, both priced at 2000 -> 3 * 2000 = 6000.
+      // Before the fix this was 2000 (the staked leg silently priced at 0).
+      expect(result.totalBalanceInFiat).toBe(6000);
+      expect(result.pricePercentChange1d).toBeCloseTo(5, 10);
+    });
+
+    it('prices an unrelated erc20 at zero (an address that merely resembles a vault, on a chain that DOES have one)', () => {
+      // Sanity check for the fix's boundary: mainnet (eip155:1) is a known
+      // staking chain, but this address is NOT its staking contract — only
+      // the address is unrelated, not the chain. It must not be aliased to
+      // anything; it has no price entry and no native-currency fallback
+      // applies, so it stays at zero as before.
+      const unrelatedErc20 =
+        'eip155:1/erc20:0x9999999999999999999999999999999999999999' as Caip19AssetId;
+      const state = arrangeAssetsControllerState({
+        assetsBalance: {
+          [accountId1]: {
+            [unrelatedErc20]: { amount: '10' },
+          },
+        },
+        assetsInfo: {
+          [unrelatedErc20]: assetInfoUsdc,
+        },
+        assetsPrice: {
+          [assetEth]: testFungibleAssetPrice(2000, 5),
+        },
+      });
+
+      const result = getAggregatedBalanceForAccount(state, selectedAccount);
+
+      expect(result.entries).toHaveLength(1);
+      expect(result.totalBalanceInFiat).toBe(0);
+    });
+
+    it('prices a staked position from the native entry even when a stale/wrong price is also recorded under the vault asset ID itself', () => {
+      // Regression test for a second failure mode Codex review caught: a
+      // fallback that only fires when the vault's own price entry is MISSING
+      // still lets a persisted-but-stale (or wrong-currency) vault price win
+      // over the correct native price. The native price must be used
+      // unconditionally for a recognized staking asset, never merely as a
+      // fallback-on-absence.
+      const state = arrangeAssetsControllerState({
+        assetsBalance: {
+          [accountId1]: {
+            [assetStakedEth]: { amount: '2' },
+          },
+        },
+        assetsInfo: {
+          [assetStakedEth]: assetInfoStakedEth,
+        },
+        assetsPrice: {
+          [assetEth]: testFungibleAssetPrice(2000, 5),
+          // A stale/wrong price recorded directly under the vault's own
+          // asset ID (e.g. left over from before this fix, or a partial
+          // currency-switch refresh) — must NOT be used.
+          [assetStakedEth]: testFungibleAssetPrice(0, 0),
+        },
+      });
+
+      const result = getAggregatedBalanceForAccount(state, selectedAccount);
+
+      // 2 ETH staked at the NATIVE price (2000), not the stale vault price (0).
+      expect(result.totalBalanceInFiat).toBe(4000);
     });
   });
 
