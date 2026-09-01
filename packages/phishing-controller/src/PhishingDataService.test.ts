@@ -1,11 +1,11 @@
 import { ConstantBackoff } from '@metamask/base-data-service';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import { Duration, inMilliseconds } from '@metamask/utils';
 import type {
   MessengerActions,
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { Duration, inMilliseconds } from '@metamask/utils';
 import nock, { cleanAll } from 'nock';
 
 import { flushPromises } from '../../../tests/helpers.js';
