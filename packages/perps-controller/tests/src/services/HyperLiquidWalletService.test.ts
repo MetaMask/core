@@ -131,8 +131,8 @@ describe('HyperLiquidWalletService', () => {
       getChainId?: () => Promise<number>;
     };
 
-    beforeEach(() => {
-      walletAdapter = service.createWalletAdapter();
+    beforeEach(async () => {
+      walletAdapter = await service.createWalletAdapter();
     });
 
     it('should create wallet adapter with signTypedData method', () => {
@@ -159,7 +159,7 @@ describe('HyperLiquidWalletService', () => {
           mockMessenger,
           { isTestnet: true },
         );
-        const testnetAdapter = testnetService.createWalletAdapter();
+        const testnetAdapter = await testnetService.createWalletAdapter();
 
         expect(testnetAdapter.getChainId).toBeDefined();
         const chainId = await testnetAdapter.getChainId?.();
@@ -246,7 +246,7 @@ describe('HyperLiquidWalletService', () => {
         );
 
         // Creating wallet adapter should throw when no account
-        expect(() => service.createWalletAdapter()).toThrow(
+        await expect(service.createWalletAdapter()).rejects.toThrow(
           'NO_ACCOUNT_SELECTED',
         );
       });
@@ -271,7 +271,7 @@ describe('HyperLiquidWalletService', () => {
         );
 
         // Need to recreate the adapter after changing the mock
-        const freshAdapter = service.createWalletAdapter();
+        const freshAdapter = await service.createWalletAdapter();
 
         await expect(
           freshAdapter.signTypedData(mockTypedDataParams),
@@ -431,7 +431,7 @@ describe('HyperLiquidWalletService', () => {
     });
 
     it('should throw KEYRING_LOCKED when keyring is locked', async () => {
-      const walletAdapter = service.createWalletAdapter();
+      const walletAdapter = await service.createWalletAdapter();
       (mockMessenger.call as jest.Mock).mockImplementation((action: string) => {
         if (
           action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
@@ -483,7 +483,7 @@ describe('HyperLiquidWalletService', () => {
     });
 
     it('should handle keyring controller initialization errors', async () => {
-      const walletAdapter = service.createWalletAdapter();
+      const walletAdapter = await service.createWalletAdapter();
       (mockMessenger.call as jest.Mock).mockImplementation((action: string) => {
         if (
           action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
@@ -522,7 +522,7 @@ describe('HyperLiquidWalletService', () => {
 
   describe('Integration Scenarios', () => {
     it('should handle full wallet adapter workflow', async () => {
-      const walletAdapter = service.createWalletAdapter();
+      const walletAdapter = await service.createWalletAdapter();
 
       // Get chain ID
       expect(walletAdapter.getChainId).toBeDefined();
@@ -552,7 +552,7 @@ describe('HyperLiquidWalletService', () => {
     });
 
     it('should maintain consistency between wallet adapter and service methods', async () => {
-      const walletAdapter = service.createWalletAdapter();
+      const walletAdapter = await service.createWalletAdapter();
 
       // Get chain ID through wallet adapter
       expect(walletAdapter.getChainId).toBeDefined();

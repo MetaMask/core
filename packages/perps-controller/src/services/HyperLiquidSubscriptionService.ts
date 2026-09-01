@@ -1620,7 +1620,7 @@ export class HyperLiquidSubscriptionService {
       // instance subscribeToAccount can race ahead of the webData3 path,
       // so initialize here first — subsequent calls are no-ops.
       await this.#clientService.ensureSubscriptionClient(
-        this.#walletService.createWalletAdapter(),
+        await this.#walletService.createWalletAdapter(),
       );
 
       // Don't bail here even if generation has bumped (e.g. WS spot snapshot
@@ -1744,7 +1744,7 @@ export class HyperLiquidSubscriptionService {
 
     const promise = (async (): Promise<void> => {
       await this.#clientService.ensureSubscriptionClient(
-        this.#walletService.createWalletAdapter(),
+        await this.#walletService.createWalletAdapter(),
       );
       const subscriptionClient = this.#clientService.getSubscriptionClient();
       if (!subscriptionClient) {
@@ -1860,7 +1860,7 @@ export class HyperLiquidSubscriptionService {
     });
 
     await this.#clientService.ensureSubscriptionClient(
-      this.#walletService.createWalletAdapter(),
+      await this.#walletService.createWalletAdapter(),
     );
 
     const subscriptionClient = this.#clientService.getSubscriptionClient();
@@ -2030,7 +2030,7 @@ export class HyperLiquidSubscriptionService {
    */
   async #createUserDataSubscription(accountId?: CaipAccountId): Promise<void> {
     await this.#clientService.ensureSubscriptionClient(
-      this.#walletService.createWalletAdapter(),
+      await this.#walletService.createWalletAdapter(),
     );
     const subscriptionClient = this.#clientService.getSubscriptionClient();
 
@@ -2281,7 +2281,7 @@ export class HyperLiquidSubscriptionService {
     dexName: string,
   ): Promise<void> {
     await this.#clientService.ensureSubscriptionClient(
-      this.#walletService.createWalletAdapter(),
+      await this.#walletService.createWalletAdapter(),
     );
     const subscriptionClient = this.#clientService.getSubscriptionClient();
     if (!subscriptionClient) {
@@ -2452,7 +2452,7 @@ export class HyperLiquidSubscriptionService {
     dexName: string,
   ): Promise<void> {
     await this.#clientService.ensureSubscriptionClient(
-      this.#walletService.createWalletAdapter(),
+      await this.#walletService.createWalletAdapter(),
     );
     const subscriptionClient = this.#clientService.getSubscriptionClient();
     if (!subscriptionClient) {
@@ -2916,7 +2916,7 @@ export class HyperLiquidSubscriptionService {
     const subscriptionClient = this.#clientService.getSubscriptionClient();
     if (!subscriptionClient) {
       await this.#clientService.ensureSubscriptionClient(
-        this.#walletService.createWalletAdapter(),
+        await this.#walletService.createWalletAdapter(),
       );
       const client = this.#clientService.getSubscriptionClient();
       if (!client) {
@@ -4215,7 +4215,7 @@ export class HyperLiquidSubscriptionService {
    */
   async #createDexAllMidsSubscription(dex: string): Promise<void> {
     await this.#clientService.ensureSubscriptionClient(
-      this.#walletService.createWalletAdapter(),
+      await this.#walletService.createWalletAdapter(),
     );
     const subscriptionClient = this.#clientService.getSubscriptionClient();
 
@@ -4270,7 +4270,7 @@ export class HyperLiquidSubscriptionService {
    */
   async #createAssetCtxsSubscription(dex: string): Promise<void> {
     await this.#clientService.ensureSubscriptionClient(
-      this.#walletService.createWalletAdapter(),
+      await this.#walletService.createWalletAdapter(),
     );
     const subscriptionClient = this.#clientService.getSubscriptionClient();
 
@@ -4653,8 +4653,9 @@ export class HyperLiquidSubscriptionService {
       onError,
     } = params;
 
-    this.#clientService
-      .ensureSubscriptionClient(this.#walletService.createWalletAdapter())
+    this.#walletService
+      .createWalletAdapter()
+      .then((wallet) => this.#clientService.ensureSubscriptionClient(wallet))
       .catch(() => {
         // Handled by getSubscriptionClient check below
       });

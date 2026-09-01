@@ -56,6 +56,7 @@ import { DataLakeService } from './services/DataLakeService.js';
 import { DepositService } from './services/DepositService.js';
 import { EligibilityService } from './services/EligibilityService.js';
 import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigurationService.js';
+import type { AgentSigner } from './services/HyperLiquidWalletService.js';
 import { MarketDataService } from './services/MarketDataService.js';
 import { RewardsIntegrationService } from './services/RewardsIntegrationService.js';
 import type { ServiceContext } from './services/ServiceContext.js';
@@ -869,6 +870,15 @@ export type PerpsControllerOptions = {
    * geolocation fetch from firing during wallet onboarding (privacy compliance).
    */
   deferEligibilityCheck?: boolean;
+  /**
+   * Resolves the local agent signer for a master account address, or null
+   * when no agent is active or the wallet is locked. When provided, HyperLiquid
+   * signing switches to the agent key without touching the keyring; use
+   * `setTradingWalletOverride` to switch while running.
+   */
+  getAgentSigner?: (
+    masterAccountAddress: string,
+  ) => Promise<AgentSigner | null>;
 };
 
 type BlockedRegionList = {
@@ -975,6 +985,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'setLiveDataConfig',
   'setSelectedPaymentToken',
   'setVisibleCandleCount',
+  'setTradingWalletOverride',
   'startEligibilityMonitoring',
   'startMarketDataPreload',
   'stopEligibilityMonitoring',
@@ -1150,6 +1161,12 @@ export class PerpsController extends BaseController<
 
   #userDiskWrite: Promise<void> = Promise.resolve();
 
+  // Resolves the local agent signer for the selected master account, or null.
+  // Passed through to the HyperLiquid provider for the agent signing seam.
+  readonly #getAgentSigner:
+    | ((masterAccountAddress: string) => Promise<AgentSigner | null>)
+    | undefined = undefined;
+
   // Store options for dependency injection (allows core package to inject platform-specific services)
   readonly #options: PerpsControllerOptions;
 
@@ -1185,6 +1202,7 @@ export class PerpsController extends BaseController<
     clientConfig = {},
     infrastructure,
     deferEligibilityCheck = false,
+    getAgentSigner,
   }: PerpsControllerOptions) {
     super({
       name: 'PerpsController',
@@ -1194,6 +1212,7 @@ export class PerpsController extends BaseController<
     });
 
     this.#eligibilityCheckDeferred = deferEligibilityCheck;
+    this.#getAgentSigner = getAgentSigner;
 
     // Store options for dependency injection
     this.#options = {
@@ -1774,6 +1793,7 @@ export class PerpsController extends BaseController<
       priceDeviationLimit: this.#priceDeviationLimit,
       platformDependencies: this.#options.infrastructure,
       messenger: this.messenger,
+      getAgentSigner: this.#getAgentSigner,
       builderAddressTestnet:
         this.#options.clientConfig?.providerCredentials?.hyperliquid
           ?.builderAddressTestnet,
@@ -2310,6 +2330,7 @@ export class PerpsController extends BaseController<
       priceDeviationLimit: this.#priceDeviationLimit,
       platformDependencies: this.#options.infrastructure,
       messenger: this.messenger,
+      getAgentSigner: this.#getAgentSigner,
       builderAddressTestnet:
         this.#options.clientConfig?.providerCredentials?.hyperliquid
           ?.builderAddressTestnet,
@@ -5089,6 +5110,26 @@ export class PerpsController extends BaseController<
     }
     // Provided properties win over attribution context.
     return { ...utm, ...properties };
+  }
+
+  /**
+   * Override (or clear) the trading wallet the HyperLiquid provider signs with.
+   *
+   * The host app calls this with a local agent signer when an agent wallet
+   * activates, and with `null` when the keyring locks (restoring the master
+   * keyring path). Throws when the HyperLiquid provider is not (yet)
+   * registered — callers should treat that as best-effort.
+   *
+   * @param signer - The agent signer to sign with, or null for the master path.
+   * @returns A promise that resolves when the clients have re-initialized with
+   * the new wallet.
+   */
+  async setTradingWalletOverride(signer: AgentSigner | null): Promise<void> {
+    const provider = this.providers.get('hyperliquid');
+    if (!(provider instanceof HyperLiquidProvider)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+    return provider.setTradingWalletOverride(signer);
   }
 
   /**

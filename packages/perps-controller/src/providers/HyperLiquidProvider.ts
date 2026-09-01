@@ -53,8 +53,10 @@ import {
   HyperLiquidClientService,
   WebSocketConnectionState,
 } from '../services/HyperLiquidClientService.js';
+import type { HyperLiquidWalletParams } from '../services/HyperLiquidClientService.js';
 import { HyperLiquidSubscriptionService } from '../services/HyperLiquidSubscriptionService.js';
 import { HyperLiquidWalletService } from '../services/HyperLiquidWalletService.js';
+import type { AgentSigner } from '../services/HyperLiquidWalletService.js';
 import {
   TradingReadinessCache,
   PerpsSigningCache,
@@ -833,6 +835,9 @@ type HyperLiquidProviderOptions = {
   subscriptionBuilderAddressTestnet?: string;
   subscriptionBuilderAddressMainnet?: string;
   onChaseOrderMaxDistanceReached?: ChaseOrderMaxDistanceReachedHandler;
+  getAgentSigner?: (
+    masterAccountAddress: string,
+  ) => Promise<AgentSigner | null>;
 };
 
 type HandleHip3PreOrderParams = {
@@ -1490,6 +1495,14 @@ export class HyperLiquidProvider implements PerpsProvider {
   // Promise-based lock to prevent race conditions in concurrent initialization
   #initializationPromise: Promise<void> | null = null;
 
+  // Active agent signer override; consulted by every wallet (re)build so the
+  // override survives lazy initializations and network toggles.
+  #agentSignerOverride?: AgentSigner | undefined;
+
+  // Serializes setTradingWalletOverride calls so a lock event cannot interleave
+  // with an activation event mid disconnect/initialize.
+  #overridePromise: Promise<void> = Promise.resolve();
+
   readonly #messenger: PerpsControllerMessengerBase;
 
   readonly #builderAddressTestnet?: string;
@@ -1550,6 +1563,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#messenger,
       {
         isTestnet,
+        getAgentSigner: options.getAgentSigner,
       },
     );
     this.#subscriptionService = new HyperLiquidSubscriptionService(
@@ -1924,39 +1938,13 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
       }
 
-      const wallet = this.#walletService.createWalletAdapter();
+      const wallet = await this.#buildWallet();
       await this.#clientService.initialize(wallet);
       if (this.#disconnectOperationsInFlight > 0) {
         throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
       }
 
-      // Set termination callback for logging when WebSocket terminates
-      // Note: Do NOT restore subscriptions here - termination means connection failed permanently
-      this.#clientService.setOnTerminateCallback((error: Error) => {
-        this.#deps.debugLogger.log(
-          '[HyperLiquidProvider] WebSocket terminated',
-          {
-            error: error.message,
-          },
-        );
-      });
-
-      // Set reconnection callback to restore subscriptions after successful reconnection
-      // This is called in handleConnectionDrop() after the WebSocket reconnects successfully
-      this.#clientService.setOnReconnectCallback(async () => {
-        try {
-          this.#deps.debugLogger.log(
-            '[HyperLiquidProvider] WebSocket reconnected, restoring subscriptions',
-          );
-          await this.#subscriptionService.restoreSubscriptions();
-          this.#deps.streamManager.clearAllChannels();
-        } catch (restoreError) {
-          this.#deps.debugLogger.log(
-            '[HyperLiquidProvider] Failed to restore subscriptions',
-            restoreError,
-          );
-        }
-      });
+      this.#registerConnectionCallbacks();
 
       // Only set flag AFTER successful initialization
       this.#clientsInitialized = true;
@@ -1973,6 +1961,94 @@ export class HyperLiquidProvider implements PerpsProvider {
       // so future calls can retry if needed
       this.#initializationPromise = null;
     }
+  }
+
+  /**
+   * Register the WebSocket terminate/reconnect callbacks on the client
+   * service. Shared by lazy initialization and the trading-wallet override
+   * re-initialization so subscriptions are restored after either path.
+   */
+  #registerConnectionCallbacks(): void {
+    // Set termination callback for logging when WebSocket terminates
+    // Note: Do NOT restore subscriptions here - termination means connection failed permanently
+    this.#clientService.setOnTerminateCallback((error: Error) => {
+      this.#deps.debugLogger.log('[HyperLiquidProvider] WebSocket terminated', {
+        error: error.message,
+      });
+    });
+
+    // Set reconnection callback to restore subscriptions after successful reconnection
+    // This is called in handleConnectionDrop() after the WebSocket reconnects successfully
+    this.#clientService.setOnReconnectCallback(async () => {
+      try {
+        this.#deps.debugLogger.log(
+          '[HyperLiquidProvider] WebSocket reconnected, restoring subscriptions',
+        );
+        await this.#subscriptionService.restoreSubscriptions();
+        this.#deps.streamManager.clearAllChannels();
+      } catch (restoreError) {
+        this.#deps.debugLogger.log(
+          '[HyperLiquidProvider] Failed to restore subscriptions',
+          restoreError,
+        );
+      }
+    });
+  }
+
+  /**
+   * Build the wallet the SDK clients should sign with.
+   *
+   * With an active agent override the agent adapter is used; otherwise the
+   * master keyring adapter is created (unchanged behavior).
+   *
+   * @param signer - Optional explicit signer; defaults to the stored override.
+   * @returns The wallet adapter for the client service.
+   */
+  async #buildWallet(
+    signer?: AgentSigner | null,
+  ): Promise<HyperLiquidWalletParams> {
+    const effectiveSigner =
+      signer === undefined ? this.#agentSignerOverride : signer;
+    if (effectiveSigner) {
+      return this.#walletService.createAgentWalletAdapter(effectiveSigner);
+    }
+    return this.#walletService.createWalletAdapter();
+  }
+
+  /**
+   * Override (or clear) the trading wallet used for signing.
+   *
+   * Called when an agent wallet activates (pass the local agent signer) and
+   * when the keyring locks (pass null, restoring the master path). Reconnects
+   * the SDK clients so every subsequent action signs with the new wallet.
+   * Calls are serialized so concurrent events cannot interleave the
+   * disconnect/initialize pair.
+   *
+   * @param signer - The agent signer to sign with, or null to restore the master path.
+   */
+  async setTradingWalletOverride(signer: AgentSigner | null): Promise<void> {
+    const run = this.#overridePromise.then(() =>
+      this.#applyTradingWalletOverride(signer),
+    );
+    this.#overridePromise = run.catch(() => undefined);
+    await run;
+  }
+
+  /**
+   * Apply a trading wallet override: store it, disconnect, and re-initialize
+   * the client service with an adapter built from it.
+   *
+   * @param signer - The agent signer to sign with, or null for the master path.
+   */
+  async #applyTradingWalletOverride(signer: AgentSigner | null): Promise<void> {
+    this.#agentSignerOverride = signer ?? undefined;
+    await this.#clientService.disconnect();
+    const wallet = await this.#buildWallet(signer);
+    await this.#clientService.initialize(wallet);
+    this.#registerConnectionCallbacks();
+    // Mark initialized so the lazy path does not rebuild (and discard) the
+    // override wallet on the next action.
+    this.#clientsInitialized = true;
   }
 
   /**

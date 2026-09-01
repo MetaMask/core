@@ -699,6 +699,21 @@ export type PerpsControllerClearAttributionContextAction = {
 };
 
 /**
+ * Override (or clear) the trading wallet the HyperLiquid provider signs with.
+ *
+ * The host app calls this with a local agent signer when an agent wallet
+ * activates, and with `null` when the keyring locks (restoring the master
+ * keyring path). Throws when the HyperLiquid provider is not (yet)
+ * registered — callers should treat that as best-effort.
+ *
+ * @param signer - The agent signer to sign with, or null for the master path.
+ */
+export type PerpsControllerSetTradingWalletOverrideAction = {
+  type: `PerpsController:setTradingWalletOverride`;
+  handler: PerpsController['setTradingWalletOverride'];
+};
+
+/**
  * Toggle between testnet and mainnet
  *
  * @returns The toggle result with success status and current network mode.
@@ -1404,6 +1419,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSetAttributionContextAction
   | PerpsControllerGetAttributionContextAction
   | PerpsControllerClearAttributionContextAction
+  | PerpsControllerSetTradingWalletOverrideAction
   | PerpsControllerToggleTestnetAction
   | PerpsControllerSwitchProviderAction
   | PerpsControllerGetCurrentNetworkAction

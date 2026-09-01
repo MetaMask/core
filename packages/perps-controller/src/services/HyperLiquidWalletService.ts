@@ -28,6 +28,55 @@ const HARDWARE_KEYRING_TYPES = new Set<string>([
 ]);
 
 /**
+ * A local signer for a HyperLiquid agent account, in the SDK-native
+ * `AbstractEthersV6Signer` shape (positional EIP-712 arguments, message as
+ * the signed value). Provided by the client (e.g. a local key stored in
+ * memory) so agent actions never touch the keyring.
+ */
+export type AgentSigner = {
+  /** The agent account address used as the actor for signed actions. */
+  address: `0x${string}`;
+  /**
+   * Sign EIP-712 typed data with the agent key.
+   *
+   * @param domain - The EIP-712 domain.
+   * @param domain.name - The domain name.
+   * @param domain.version - The domain version.
+   * @param domain.chainId - The domain chain ID.
+   * @param domain.verifyingContract - The verifying contract address.
+   * @param types - The EIP-712 type definitions (without `EIP712Domain`).
+   * @param value - The message payload to sign.
+   * @returns The 65-byte hex signature.
+   */
+  signTypedData(
+    domain: {
+      name: string;
+      version: string;
+      chainId: number;
+      verifyingContract: `0x${string}`;
+    },
+    types: {
+      [key: string]: { name: string; type: string }[];
+    },
+    value: Record<string, unknown>,
+  ): Promise<string>;
+};
+
+/** Options bag for {@link HyperLiquidWalletService}. */
+export type HyperLiquidWalletServiceOptions = {
+  isTestnet?: boolean;
+  /**
+   * Resolves the local agent signer for a master account address, or null
+   * when the account has no active agent or the wallet is locked. When it
+   * returns a signer, wallet adapters sign with the agent key instead of
+   * contacting the keyring.
+   */
+  getAgentSigner?: (
+    masterAccountAddress: string,
+  ) => Promise<AgentSigner | null>;
+};
+
+/**
  * Service for MetaMask wallet integration with HyperLiquid SDK
  * Provides wallet adapter that implements AbstractWindowEthereum interface
  */
@@ -39,14 +88,19 @@ export class HyperLiquidWalletService {
 
   readonly #messenger: PerpsControllerMessengerBase;
 
+  readonly #getAgentSigner?:
+    | ((masterAccountAddress: string) => Promise<AgentSigner | null>)
+    | undefined;
+
   constructor(
     deps: PerpsPlatformDependencies,
     messenger: PerpsControllerMessengerBase,
-    options: { isTestnet?: boolean } = {},
+    options: HyperLiquidWalletServiceOptions = {},
   ) {
     this.#deps = deps;
     this.#messenger = messenger;
     this.#isTestnet = options.isTestnet ?? false;
+    this.#getAgentSigner = options.getAgentSigner;
   }
 
   /**
@@ -101,12 +155,19 @@ export class HyperLiquidWalletService {
   }
 
   /**
-   * Create wallet adapter that implements AbstractViemJsonRpcAccount interface
-   * Required by @nktkas/hyperliquid SDK for signing transactions
+   * Create a wallet adapter backed by a local agent signer.
    *
-   * @returns The wallet adapter with address, signTypedData, and getChainId methods.
+   * The returned adapter keeps the params-style `signTypedData` shape the SDK
+   * already accepts (viem local account), but delegates directly to the
+   * injected signer — no keyring messenger call is ever made. The SDK's viem
+   * adapters inject an `EIP712Domain` entry into `types` before calling
+   * params-style wallets; ethers-style signers reject that entry, so it is
+   * stripped before delegation.
+   *
+   * @param agentSigner - The local agent signer to delegate to.
+   * @returns The agent wallet adapter.
    */
-  public createWalletAdapter(): {
+  public createAgentWalletAdapter(agentSigner: AgentSigner): {
     address: Hex;
     signTypedData: (params: {
       domain: {
@@ -123,6 +184,70 @@ export class HyperLiquidWalletService {
     }) => Promise<Hex>;
     getChainId?: () => Promise<number>;
   } {
+    return {
+      address: agentSigner.address,
+      signTypedData: async (params: {
+        domain: {
+          name: string;
+          version: string;
+          chainId: number;
+          verifyingContract: Hex;
+        };
+        types: {
+          [key: string]: { name: string; type: string }[];
+        };
+        primaryType: string;
+        message: Record<string, unknown>;
+      }): Promise<Hex> => {
+        const { EIP712Domain: _eip712Domain, ...types } = params.types;
+
+        this.#deps.debugLogger.log(
+          'HyperLiquidWalletService: Signing typed data (agent mode)',
+          {
+            address: agentSigner.address,
+            primaryType: params.primaryType,
+          },
+        );
+
+        return (await agentSigner.signTypedData(
+          params.domain,
+          types,
+          params.message,
+        )) as Hex;
+      },
+      getChainId: async (): Promise<number> =>
+        parseInt(getChainId(this.#isTestnet), 10),
+    };
+  }
+
+  /**
+   * Create wallet adapter that implements AbstractViemJsonRpcAccount interface
+   * Required by @nktkas/hyperliquid SDK for signing transactions
+   *
+   * When the injected `getAgentSigner` resolves a signer for the selected
+   * master account, the returned adapter signs with that local agent key and
+   * never contacts the keyring. Otherwise the master keyring path is used,
+   * unchanged.
+   *
+   * @returns The wallet adapter with address, signTypedData, and getChainId methods.
+   */
+  public async createWalletAdapter(): Promise<{
+    address: Hex;
+    signTypedData: (params: {
+      domain: {
+        name: string;
+        version: string;
+        chainId: number;
+        verifyingContract: Hex;
+      };
+      types: {
+        [key: string]: { name: string; type: string }[];
+      };
+      primaryType: string;
+      message: Record<string, unknown>;
+    }) => Promise<Hex>;
+    getChainId?: () => Promise<number>;
+  }> {
     // Get current EVM account via DI messenger
     const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
 
@@ -131,6 +256,16 @@ export class HyperLiquidWalletService {
     }
 
     const address = evmAccount.address as Hex;
+
+    // Agent mode: a local signer for this master account takes over signing
+    // entirely. The unlocked-vault gate for agent signing is the in-memory
+    // plaintext key (null while locked), not the keyring.
+    const agentSigner = this.#getAgentSigner
+      ? await this.#getAgentSigner(address)
+      : null;
+    if (agentSigner) {
+      return this.createAgentWalletAdapter(agentSigner);
+    }
 
     return {
       address,

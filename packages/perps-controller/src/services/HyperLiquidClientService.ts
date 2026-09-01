@@ -43,8 +43,13 @@ export type ValidCandleInterval = CandlePeriod;
 /**
  * Wallet interface for HyperLiquid SDK operations.
  * Extracted for reuse across initialize(), toggleTestnet(), and ensureSubscriptionClient() methods.
+ *
+ * `address` is optional but recommended: the SDK's viem local-account
+ * dispatch reads it to determine the signing address (e.g. for agent
+ * wallets, whose address differs from the selected master account).
  */
 export type HyperLiquidWalletParams = {
+  address?: Hex;
   signTypedData: (params: {
     domain: {
       name: string;
