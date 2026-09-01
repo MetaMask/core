@@ -79,6 +79,12 @@ const MOCK_SESSION_DISCLAIMERS: KycSessionDisclaimers = {
 const MOCK_IDOS_DISCLAIMERS_ACCEPTED: KycConsentRecord[] =
   MOCK_SESSION_DISCLAIMERS.idOS.map(({ key, version }) => ({ key, version }));
 
+const MOCK_SUMSUB_DISCLAIMERS_ACCEPTED: KycConsentRecord[] =
+  MOCK_SESSION_DISCLAIMERS.kycProvider.map(({ key, version }) => ({
+    key,
+    version,
+  }));
+
 /**
  * Builds an encrypted envelope for a recipient's X25519 public key.
  *
@@ -357,7 +363,7 @@ describe('KycController', () => {
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
             product: 'ramps',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -405,13 +411,15 @@ describe('KycController', () => {
           handlers.createSession.mockResolvedValue({ sessionToken: 'sess' });
 
           await controller.acceptTermsAndStartSession({
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
           expect(controller.state.acceptedDisclaimerIds).toStrictEqual(['1']);
           expect(controller.state.termsAcceptedVendor).toBe('moonpay');
-          expect(controller.state.sumsubTncAccepted).toBe(true);
+          expect(controller.state.sumsubDisclaimersAccepted).toStrictEqual(
+            MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+          );
           expect(controller.state.idosDisclaimersAccepted).toStrictEqual(
             MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           );
@@ -456,7 +464,7 @@ describe('KycController', () => {
 
           // Creating a new session must invalidate the carried-over auth.
           await controller.acceptTermsAndStartSession({
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -491,7 +499,7 @@ describe('KycController', () => {
           );
 
           const pending = controller.acceptTermsAndStartSession({
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -528,7 +536,7 @@ describe('KycController', () => {
           handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.acceptTermsAndStartSession({
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -565,7 +573,7 @@ describe('KycController', () => {
           );
 
           const pending = controller.acceptTermsAndStartSession({
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -600,7 +608,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             product: 'ramps',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -621,7 +629,7 @@ describe('KycController', () => {
         },
         async ({ controller }) => {
           await controller.acceptTermsAndStartSession({
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -635,7 +643,7 @@ describe('KycController', () => {
       await withController(async ({ controller }) => {
         await controller.acceptTermsAndStartSession({
           email: 'a@b.co',
-          sumsubTncSigned: true,
+          sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
           idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
         });
 
@@ -2380,7 +2388,7 @@ describe('KycController', () => {
               termsAcceptedAt: 't',
               acceptedDisclaimerIds: ['1'],
               termsAcceptedVendor: 'iron',
-              sumsubTncAccepted: true,
+              sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
               idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
               disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
               disclaimersError: 'stale disclaimers error',
@@ -2675,7 +2683,7 @@ describe('KycController', () => {
               termsAcceptedAt: 't',
               acceptedDisclaimerIds: ['d1'],
               termsAcceptedVendor: 'iron',
-              sumsubTncAccepted: true,
+              sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
               idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
             },
             userStatusPollIntervalMs: 60_000,
@@ -2746,7 +2754,7 @@ describe('KycController', () => {
               acceptedDisclaimerIds: ['d1'],
               termsAcceptedVendor: 'iron',
               // T&C2 flags are null, simulating pre-migration state
-              sumsubTncAccepted: null,
+              sumsubDisclaimersAccepted: null,
               idosDisclaimersAccepted: null,
             },
           },
@@ -2761,7 +2769,7 @@ describe('KycController', () => {
           // T&C2 flags were null; reacceptance required.
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.termsAcceptedAt).toBeNull();
-          expect(controller.state.sumsubTncAccepted).toBeNull();
+          expect(controller.state.sumsubDisclaimersAccepted).toBeNull();
           expect(controller.state.idosDisclaimersAccepted).toBeNull();
         },
       );
@@ -2890,12 +2898,14 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
           expect(controller.state.termsAcceptedVendor).toBe('iron');
-          expect(controller.state.sumsubTncAccepted).toBe(true);
+          expect(controller.state.sumsubDisclaimersAccepted).toStrictEqual(
+            MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+          );
           expect(controller.state.idosDisclaimersAccepted).toStrictEqual(
             MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           );
@@ -3051,7 +3061,7 @@ describe('KycController', () => {
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
             product: 'money',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -3120,7 +3130,7 @@ describe('KycController', () => {
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
             product: 'money',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
             credentialReusabilityConsentGiven: true,
           });
@@ -3178,7 +3188,7 @@ describe('KycController', () => {
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
             product: 'money',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -3226,7 +3236,7 @@ describe('KycController', () => {
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
             product: 'money',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: [],
           });
 
@@ -3271,7 +3281,7 @@ describe('KycController', () => {
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
             product: 'money',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
             credentialReusabilityConsentGiven: true,
           });
@@ -3308,7 +3318,7 @@ describe('KycController', () => {
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
             product: 'money',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -3359,7 +3369,7 @@ describe('KycController', () => {
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
             product: 'money',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: [
               { key: 'idos-tos', version: '1' },
               { key: 'idos-privacy', version: '2' },
@@ -3408,7 +3418,7 @@ describe('KycController', () => {
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
             product: 'money',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -3458,7 +3468,7 @@ describe('KycController', () => {
           // @ts-expect-error both T&C2 flags are required
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
           });
 
           expect(controller.state.phase).toBe('error');
@@ -3488,12 +3498,12 @@ describe('KycController', () => {
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
             product: 'money',
-            sumsubTncSigned: false,
+            sumsubDisclaimersAccepted: [],
             idosDisclaimersAccepted: [],
           });
 
           expect(handlers.submitSessionDisclaimers).not.toHaveBeenCalled();
-          expect(controller.state.sumsubTncAccepted).toBe(false);
+          expect(controller.state.sumsubDisclaimersAccepted).toStrictEqual([]);
           expect(controller.state.idosDisclaimersAccepted).toStrictEqual([]);
           expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith({
             vendor: 'iron',
@@ -3517,7 +3527,7 @@ describe('KycController', () => {
         },
         async ({ controller }) => {
           await controller.acceptTermsAndStartSession({
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -3541,7 +3551,7 @@ describe('KycController', () => {
         async ({ controller }) => {
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -3571,7 +3581,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -3598,7 +3608,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -3628,7 +3638,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -3667,7 +3677,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -3705,7 +3715,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -3740,7 +3750,7 @@ describe('KycController', () => {
 
           const pending = controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
           controller.reset();
@@ -3776,7 +3786,7 @@ describe('KycController', () => {
 
           const pending = controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
           // Session create + session disclaimers run first; wait until launch
@@ -3816,7 +3826,7 @@ describe('KycController', () => {
 
           const pending = controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
           while (handlers.createUkycSession.mock.calls.length === 0) {
@@ -3854,7 +3864,7 @@ describe('KycController', () => {
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
             product: 'money',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -3895,7 +3905,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -3923,7 +3933,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -3951,7 +3961,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -3982,7 +3992,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -4013,7 +4023,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -4046,7 +4056,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -4081,7 +4091,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -4126,7 +4136,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -4156,7 +4166,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -4184,7 +4194,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -4212,7 +4222,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -4590,7 +4600,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
@@ -4619,7 +4629,7 @@ describe('KycController', () => {
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
-            sumsubTncSigned: true,
+            sumsubDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 

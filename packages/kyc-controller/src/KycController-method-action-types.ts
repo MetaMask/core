@@ -62,8 +62,9 @@ export type KycControllerLoadDisclaimersAction = {
  * @param params.product - The consuming feature the flow runs for. See
  * {@link initialize} for how the product drives the automatic post
  * authentication continuation.
- * @param params.sumsubTncSigned - Whether Sumsub T&C were accepted (T&C2).
- * Required for every vendor so callers explicitly declare acceptance.
+ * @param params.sumsubDisclaimersAccepted - Sumsub disclaimer documents the
+ * customer accepted (`{ key, version }` records). Required for every vendor
+ * so callers explicitly declare acceptance.
  * @param params.idosDisclaimersAccepted - idOS disclaimer documents the
  * customer accepted (`{ key, version }` records). Required for every vendor
  * so callers explicitly declare acceptance.

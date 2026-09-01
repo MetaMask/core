@@ -207,7 +207,7 @@ classDiagram
 State metadata highlights (`kycControllerMetadata`):
 
 - **Persisted** (`persist: true`): `termsAcceptedAt`, `acceptedDisclaimerIds`,
-  `termsAcceptedVendor`, `sumsubTncAccepted`, `idosDisclaimersAccepted`,
+  `termsAcceptedVendor`, `sumsubDisclaimersAccepted`, `idosDisclaimersAccepted`,
   `kycRequiredByProduct`, `lastCheckedAt`. These survive restarts so the flow
   can skip already-accepted terms and reuse cached results. Session-scoped
   `sessionDisclaimers` and `credentialReusabilityConsentGiven` are in-memory
@@ -241,7 +241,7 @@ stateDiagram-v2
     idle --> terms : initialize() (no saved terms)
     idle --> session : initialize() (saved terms + email)
 
-    terms --> session : acceptTermsAndStartSession({ sumsubTncSigned, idosDisclaimersAccepted })
+    terms --> session : acceptTermsAndStartSession({ sumsubDisclaimersAccepted, idosDisclaimersAccepted })
     session --> check : createSession() ok
     session --> terms : createSession() fails<br/>(clears saved terms, activeProduct + stale tokens)
 
@@ -279,7 +279,7 @@ stateDiagram-v2
 > or SDK close without completion) rewinds to `terms` instead of forcing `done`.
 > A terminal UKYC rejection after the SDK reported `Completed` still finishes as
 > `done` so `refreshKycStatus` can surface the decision.
-> `acceptTermsAndStartSession` requires `sumsubTncSigned` and `idosDisclaimersAccepted`
+> `acceptTermsAndStartSession` requires `sumsubDisclaimersAccepted` and `idosDisclaimersAccepted`
 > (T&C2) for every vendor; omitted flags fail the flow instead of defaulting to
 > `true`. Those flags are mapped onto the session catalog's `idOS` /
 > `kycProvider` document records; `credentialReusabilityConsentGiven` is
@@ -347,7 +347,7 @@ sequenceDiagram
     Svc->>API: GET /vendors/moonpay/disclaimers?country=
     Ctrl-->>UI: phase = terms (+ disclaimers)
 
-    User->>Ctrl: acceptTermsAndStartSession({ email, sumsubTncSigned, idosDisclaimersAccepted })
+    User->>Ctrl: acceptTermsAndStartSession({ email, sumsubDisclaimersAccepted, idosDisclaimersAccepted })
     Ctrl->>Svc: createSession({ email, termsAcceptedAt, disclaimerIds })
     Svc->>API: POST /sessions
     Ctrl-->>UI: phase = check (+ sessionToken)
