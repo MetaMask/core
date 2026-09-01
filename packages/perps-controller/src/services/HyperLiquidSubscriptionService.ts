@@ -710,12 +710,14 @@ export class HyperLiquidSubscriptionService {
    * @param enabledDexs - The array of enabled DEX identifiers.
    * @param allowlistMarkets - The array of allowed market patterns.
    * @param blocklistMarkets - The array of blocked market patterns.
+   * @param dexDiscoveryComplete - Whether the DEX list came from a valid discovery response.
    */
   public async updateFeatureFlags(
     hip3Enabled: boolean,
     enabledDexs: string[],
     allowlistMarkets: string[],
     blocklistMarkets: string[],
+    dexDiscoveryComplete: boolean = true,
   ): Promise<void> {
     const previousEnabledDexs = [...this.#enabledDexs];
     const previousAllowlistMarkets = [...this.#allowlistMarkets];
@@ -733,9 +735,10 @@ export class HyperLiquidSubscriptionService {
     // new DEXs before creating their subscriptions so all-DEX reads fail closed
     // until each one publishes on the current connection. Removing or disabling
     // a DEX removes it from the required set immediately.
-    this.#positionSnapshotDexs = new Set(
-      hip3Enabled ? ['', ...enabledDexs] : [''],
-    );
+    this.#positionSnapshotDexs =
+      hip3Enabled && !dexDiscoveryComplete
+        ? new Set()
+        : new Set(hip3Enabled ? ['', ...enabledDexs] : ['']);
 
     // Resolve any pending DEX discovery wait now that DEXs are available
     if (this.#dexDiscoveryResolver && enabledDexs.length > 0) {
@@ -2996,8 +2999,8 @@ export class HyperLiquidSubscriptionService {
    * every expected DEX. The check and copy are synchronous, so a reconnect
    * cannot interleave between proving completeness and reading the slices.
    *
-   * @returns A copied complete snapshot, or null until every expected DEX is
-   * current.
+   * @returns A shallow-copied complete snapshot, or null until every configured
+   * DEX is current.
    */
   public getFreshPositionsForAllDexs(): Position[] | null {
     if (

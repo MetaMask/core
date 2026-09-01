@@ -3674,6 +3674,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       enabledDexs,
       this.#allowlistMarkets,
       this.#blocklistMarkets,
+      !this.#hip3Enabled || Boolean(this.#dexDiscoveryCache.state?.validated),
     );
     this.#assertCacheWriteLifecycleCurrent(
       lifecycleGeneration,
@@ -8660,9 +8661,8 @@ export class HyperLiquidProvider implements PerpsProvider {
           ? floorToSizeDecimals(requestedSize, assetInfo.szDecimals)
           : requestedSize;
 
-      // A reduce-only size below one increment floors to 0. Refuse it rather
-      // than submitting a zero-size modify the venue rejects.
-      if (sizeForSubmission <= 0) {
+      // Refuse non-numeric and non-positive sizes before formatting or submit.
+      if (!(sizeForSubmission > 0)) {
         return {
           success: false,
           error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE,
@@ -10611,9 +10611,10 @@ export class HyperLiquidProvider implements PerpsProvider {
    * provider's live subscription source for that exact DEX. If the target DEX
    * has not published, the caller uses REST instead of a stale aggregate.
    *
-   * A whole-list caller uses one copied WebSocket snapshot only when every
-   * expected DEX is current. Otherwise it falls back to REST. No path mixes
-   * sources of unknown relative recency.
+   * A whole-list caller uses one shallow-copied WebSocket snapshot only when
+   * every configured DEX is current. Otherwise it falls back to REST. No path
+   * mixes sources of unknown relative recency. WebSocket positions include
+   * TP/SL decoration; REST positions do not.
    *
    * @param targetDex - DEX for a single-symbol lookup, or undefined for a full
    * position list.
@@ -10693,8 +10694,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
     }
 
+    if (results.some(({ data }) => !Array.isArray(data.assetPositions))) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+
     return results.flatMap(({ data }) =>
-      (data.assetPositions ?? [])
+      data.assetPositions
         .filter((assetPos) => assetPos.position.szi !== '0')
         .map((assetPos) => adaptPositionFromSDK(assetPos)),
     );
@@ -10726,7 +10731,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       const state = await infoClient.clearinghouseState(
         dexName ? { user: userAddress, dex: dexName } : { user: userAddress },
       );
-      const positions = (state.assetPositions ?? [])
+      if (!Array.isArray(state.assetPositions)) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      }
+      const positions = state.assetPositions
         .filter((assetPos) => assetPos.position.szi !== '0')
         .map((assetPos) => adaptPositionFromSDK(assetPos));
 
@@ -10746,13 +10754,6 @@ export class HyperLiquidProvider implements PerpsProvider {
         this.#getErrorContext('queryDexPositions', {
           dex: dexName ?? 'main',
         }),
-      );
-      this.#deps.debugLogger.log(
-        'Target DEX position query failed; its silence proves nothing',
-        {
-          dex: dexName ?? 'main',
-          error: safeError.message,
-        },
       );
 
       return { answered: false, positions: [] };

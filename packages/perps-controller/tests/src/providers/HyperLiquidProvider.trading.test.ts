@@ -3748,6 +3748,40 @@ describe('HyperLiquidProvider', () => {
         mockClientService.getExchangeClient().order,
       ).not.toHaveBeenCalled();
     });
+
+    it('rejects a malformed all-DEX REST position response', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
+        .fn()
+        .mockReturnValue(null);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          perpDexs: jest
+            .fn()
+            .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+          clearinghouseState: jest
+            .fn()
+            .mockImplementation((params?: { dex?: string }) =>
+              params?.dex === 'xyz'
+                ? Promise.resolve({})
+                : Promise.resolve({ assetPositions: [] }),
+            ),
+        }),
+      );
+
+      const result = await hip3Provider.closePositions({ closeAll: true });
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      });
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
   });
 
   describe('updateMargin position freshness', () => {

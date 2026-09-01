@@ -1419,6 +1419,25 @@ describe('HyperLiquidProvider', () => {
         ).not.toHaveBeenCalled();
       });
 
+      it('refuses a non-numeric edit size', async () => {
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: 'abc',
+            orderType: 'limit',
+            price: '51000',
+          },
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+        expect(
+          mockClientService.getExchangeClient().modify,
+        ).not.toHaveBeenCalled();
+      });
+
       it('keeps a grid-aligned reduce-only edit size intact', async () => {
         // 0.123 * 1000 === 122.99999999999999, so a naive truncation would
         // drop a whole increment.
