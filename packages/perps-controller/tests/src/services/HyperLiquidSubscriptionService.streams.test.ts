@@ -1594,6 +1594,24 @@ describe('HyperLiquidSubscriptionService', () => {
   });
 
   describe('subscribeToTwapOrders', () => {
+    const buildHistoryEntry = (twapId: number, coin: string) => ({
+      time: 1_700_000_000,
+      state: {
+        coin,
+        executedNtl: '400',
+        executedSz: '4',
+        minutes: 30,
+        randomize: false,
+        reduceOnly: false,
+        side: 'B',
+        sz: '10',
+        timestamp: 1_700_000_000_000,
+        user: '0x123',
+      },
+      status: { status: 'activated' },
+      twapId,
+    });
+
     const adaptStub = (history: any) =>
       history.map((entry: any) => ({
         orderId: String(entry.twapId),
@@ -1701,6 +1719,91 @@ describe('HyperLiquidSubscriptionService', () => {
 
       // Assert
       expect(subscription.unsubscribe).toHaveBeenCalled();
+    });
+
+    it('keeps schedules absent from a delta update', async () => {
+      // Arrange: snapshot carries two schedules, the delta only mentions one
+      mockSubscriptionClient.userTwapHistory.mockImplementation(
+        (_params: any, listener: any) => {
+          setTimeout(() => {
+            listener({
+              user: _params.user,
+              history: [
+                buildHistoryEntry(77, 'BTC'),
+                buildHistoryEntry(88, 'ETH'),
+              ],
+              isSnapshot: true,
+            });
+            listener({
+              user: _params.user,
+              history: [buildHistoryEntry(77, 'BTC')],
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const callback = jest.fn();
+
+      // Act
+      const unsubscribe = service.subscribeToTwapOrders({
+        callback,
+        adapt: adaptStub,
+      });
+      await jest.runAllTimersAsync();
+
+      // Assert: the delta must not drop the schedule it did not mention
+      const [deliveredOrders] =
+        callback.mock.calls[callback.mock.calls.length - 1];
+      expect(
+        deliveredOrders
+          .map((order: { orderId: string }) => order.orderId)
+          .sort(),
+      ).toStrictEqual(['77', '88']);
+      unsubscribe();
+    });
+
+    it('replaces merged state when a fresh snapshot arrives', async () => {
+      // Arrange: a snapshot after a delta must not retain the older schedule
+      mockSubscriptionClient.userTwapHistory.mockImplementation(
+        (_params: any, listener: any) => {
+          setTimeout(() => {
+            listener({
+              user: _params.user,
+              history: [
+                buildHistoryEntry(77, 'BTC'),
+                buildHistoryEntry(88, 'ETH'),
+              ],
+              isSnapshot: true,
+            });
+            listener({
+              user: _params.user,
+              history: [buildHistoryEntry(99, 'SOL')],
+              isSnapshot: true,
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const callback = jest.fn();
+
+      // Act
+      const unsubscribe = service.subscribeToTwapOrders({
+        callback,
+        adapt: adaptStub,
+      });
+      await jest.runAllTimersAsync();
+
+      // Assert
+      const [deliveredOrders] =
+        callback.mock.calls[callback.mock.calls.length - 1];
+      expect(
+        deliveredOrders.map((order: { orderId: string }) => order.orderId),
+      ).toStrictEqual(['99']);
+      unsubscribe();
     });
 
     it('stops delivering to a callback after it unsubscribes', async () => {

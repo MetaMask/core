@@ -13595,10 +13595,53 @@ export class HyperLiquidProvider implements PerpsProvider {
             ordersById.set(order.orderId, order);
           }
         }
-        return [...ordersById.values()].sort(
+        const orders = [...ordersById.values()].sort(
           (left, right) => right.startedAt - left.startedAt,
         );
+
+        // A streamed terminal schedule must reclaim HIP-3 collateral the same
+        // way a polled read does, or a consumer that replaced polling with
+        // this subscription strands manually transferred collateral. The
+        // listener is synchronous, so this runs detached and logs its own
+        // failures rather than rejecting into the stream.
+        this.#rebalanceStreamedTerminalTwaps(orders, params.accountId);
+
+        return orders;
       },
+    });
+  }
+
+  /**
+   * Reclaim HIP-3 collateral for terminal schedules seen on the TWAP stream.
+   *
+   * `getTwapOrders()` does this on every read; without the same call here a
+   * consumer that replaced polling with the subscription would strand
+   * manually transferred collateral. Detached on purpose: the stream listener
+   * is synchronous and must not reject.
+   *
+   * @param orders - Schedules from the latest stream push.
+   * @param accountId - Optional CAIP account ID the subscription is scoped to.
+   */
+  #rebalanceStreamedTerminalTwaps(
+    orders: TwapOrder[],
+    accountId?: CaipAccountId,
+  ): void {
+    if (orders.every((order) => order.status === 'active')) {
+      return;
+    }
+
+    (async (): Promise<void> => {
+      const userAddress =
+        await this.#walletService.getUserAddressWithDefault(accountId);
+      await this.#rebalanceTerminalHip3Twaps(orders, {
+        network: this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet',
+        userAddress,
+      });
+    })().catch((error) => {
+      this.#deps.debugLogger.log('TWAP stream HIP-3 rebalance failed', {
+        error: ensureError(error, 'HyperLiquidProvider.subscribeToTwapOrders')
+          .message,
+      });
     });
   }
 

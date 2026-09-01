@@ -920,13 +920,26 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    * native TWAP push channel.
    */
   subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
+    const defaultProviderId = this.#defaultProvider;
     const provider = this.#getDefaultProvider();
     if (!provider.subscribeToTwapOrders) {
       return () => {
         // No-op: default provider exposes no native TWAP push channel
       };
     }
-    return provider.subscribeToTwapOrders(params);
+    return provider.subscribeToTwapOrders({
+      ...params,
+      // Stamp the same way getTwapOrders does, so swapping a poll for this
+      // subscription does not silently drop providerId from every schedule.
+      callback: (twapOrders, isSnapshot) =>
+        params.callback(
+          twapOrders.map((order) => ({
+            ...order,
+            providerId: defaultProviderId,
+          })),
+          isSnapshot,
+        ),
+    });
   }
 
   subscribeToAccount(params: SubscribeAccountParams): () => void {
