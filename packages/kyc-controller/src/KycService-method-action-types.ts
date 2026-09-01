@@ -26,9 +26,9 @@ export type KycServiceGetGeoCountryAction = {
  * @param params.country - ISO 3166-1 alpha-3 country code.
  * @returns The disclaimers.
  */
-export type KycServiceFetchDisclaimersAction = {
-  type: `KycService:fetchDisclaimers`;
-  handler: KycService['fetchDisclaimers'];
+export type KycServiceFetchVendorDisclaimersAction = {
+  type: `KycService:fetchVendorDisclaimers`;
+  handler: KycService['fetchVendorDisclaimers'];
 };
 
 /**
@@ -71,14 +71,66 @@ export type KycServiceCreateVendorCustomerAction = {
 };
 
 /**
- * Posts T&C1 (vendor signings) and T&C2 (Sumsub + idOS) consents for the
- * authenticated user. The API responds with 204 No Content on success.
+ * Records vendor T&C acceptance (`POST /vendors/{vendor}/disclaimers`).
+ * For Iron this creates content signings from the disclaimer ids the
+ * customer accepted. Session-scoped idOS / KYC-provider consents are
+ * recorded separately via {@link submitSessionDisclaimers}. Retries re-POST
+ * the same ids, matching the legacy `POST /consents` signing step.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - Identity vendor (e.g. `iron`).
+ * @param params.disclaimerIds - Accepted vendor T&C ids.
+ * @returns The vendor signing records.
+ */
+export type KycServiceSubmitVendorDisclaimersAction = {
+  type: `KycService:submitVendorDisclaimers`;
+  handler: KycService['submitVendorDisclaimers'];
+};
+
+/**
+ * Fetches the global idOS + KYC-provider disclaimer catalog
+ * (`GET /disclaimers?country=`). Does not include
+ * `credentialReusabilityConsentGiven` — that is session-scoped via
+ * {@link fetchSessionDisclaimers}. Vendor T&Cs continue to come from
+ * {@link fetchVendorDisclaimers}.
+ *
+ * @param params - The parameters.
+ * @param params.country - ISO 3166-1 alpha-3 country code.
+ * @returns The catalog documents.
+ */
+export type KycServiceFetchDisclaimersCatalogAction = {
+  type: `KycService:fetchDisclaimersCatalog`;
+  handler: KycService['fetchDisclaimersCatalog'];
+};
+
+/**
+ * Fetches the session-scoped idOS + KYC-provider disclaimer catalog
+ * (`GET /sessions/{sessionId}/disclaimers`), including per-session
+ * `consented` flags and `credentialReusabilityConsentGiven`. For the
+ * pre-session global catalog use {@link fetchDisclaimersCatalog}. Vendor
+ * T&Cs continue to come from {@link fetchVendorDisclaimers}.
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - The UKYC session id.
+ * @returns The catalog, including which documents are already consented.
+ */
+export type KycServiceFetchSessionDisclaimersAction = {
+  type: `KycService:fetchSessionDisclaimers`;
+  handler: KycService['fetchSessionDisclaimers'];
+};
+
+/**
+ * Records idOS + KYC-provider consents for a UKYC session
+ * (`POST /sessions/{sessionId}/disclaimers`). `key`/`version` pairs must
+ * match the current catalog from {@link fetchSessionDisclaimers}. A 409
+ * means those document versions were already recorded for the session.
  *
  * @param params - The consent parameters.
+ * @returns The updated catalog after recording.
  */
-export type KycServiceSubmitConsentsAction = {
-  type: `KycService:submitConsents`;
-  handler: KycService['submitConsents'];
+export type KycServiceSubmitSessionDisclaimersAction = {
+  type: `KycService:submitSessionDisclaimers`;
+  handler: KycService['submitSessionDisclaimers'];
 };
 
 /**
@@ -93,50 +145,65 @@ export type KycServiceFetchKycStatusAction = {
 };
 
 /**
- * Requests a per-session wrapping key from the UKYC backend.
+ * Fetches the idOS enclave JWKS used to verify the
+ * `encryptionDataKey` schema's `jwtChain` from
+ * {@link KycService.createUkycSession}.
  *
- * The client sends its ephemeral X25519 public key; the backend responds with
- * its session public key (`sessionServerPublicKey`) and a `jwtChain` that
- * attests it. The caller must verify `jwtChain` against the Fractal JWKS
- * (see {@link KycService.fetchJwks}) before trusting the key to wrap the
- * `data_encryption_key`.
- *
- * @param params - The parameters.
- * @param params.sessionClientPublicKey - Our ephemeral X25519 public key
- * (base64url).
- * @returns The wrapping key id, `jwtChain`, and session server public key.
- */
-export type KycServiceGetWrappingKeyAction = {
-  type: `KycService:getWrappingKey`;
-  handler: KycService['getWrappingKey'];
-};
-
-/**
- * Fetches the Fractal encryption service JWKS used to verify the `jwtChain`
- * returned by {@link KycService.getWrappingKey}.
- *
- * This is an unauthenticated request to a well-known path on the Fractal
+ * This is an unauthenticated request to a well-known path on the idOS enclave
  * host, distinct from the UKYC base URL.
  *
  * @returns The JWKS keys.
  */
-export type KycServiceFetchJwksAction = {
-  type: `KycService:fetchJwks`;
-  handler: KycService['fetchJwks'];
+export type KycServiceFetchIdosEnclaveJwksAction = {
+  type: `KycService:fetchIdosEnclaveJwks`;
+  handler: KycService['fetchIdosEnclaveJwks'];
 };
 
 /**
- * Creates a UKYC session for the SumSub document-verification sub-flow,
- * handing over the wrapped `data_encryption_key` and the client-signed,
- * read-only `ukyc_capability_token` that authorizes later storage access for
- * the session.
+ * Fetches the idOS relay JWKS used to verify the `ukycCapabilityToken`
+ * schema's `jwtChain` from {@link KycService.createUkycSession}.
+ *
+ * This is an unauthenticated request to a well-known path on the idOS relay
+ * host, distinct from both the UKYC base URL and the idOS enclave.
+ *
+ * @returns The JWKS keys.
+ */
+export type KycServiceFetchIdosRelayJwksAction = {
+  type: `KycService:fetchIdosRelayJwks`;
+  handler: KycService['fetchIdosRelayJwks'];
+};
+
+/**
+ * Creates a UKYC session for the SumSub document-verification sub-flow.
+ *
+ * The client registers its per-session X25519 public key so the server can
+ * later open boxes sealed with the matching private key, and supplies the
+ * customer's ISO 3166-1 alpha-3 country of residence. The response
+ * carries per-secret encryption schemas (`encryptionDataKey` and
+ * `ukycCapabilityToken`) so the client can wrap the `data_encryption_key` and
+ * the read-only `ukyc_capability_token` and submit them via
+ * {@link KycService.setAuthorizations}.
  *
  * @param params - The session parameters.
- * @returns The UKYC session identifiers.
+ * @returns The UKYC session id and encryption schemas.
  */
 export type KycServiceCreateUkycSessionAction = {
   type: `KycService:createUkycSession`;
   handler: KycService['createUkycSession'];
+};
+
+/**
+ * Submits the wrapped `data_encryption_key` and wrapped
+ * `ukyc_capability_token` for a UKYC session. Both secrets are sealed with
+ * `wrapEncryptionKey` against the encryption schemas returned by
+ * {@link KycService.createUkycSession}.
+ *
+ * @param params - The wrapped authorizations.
+ * @returns The session status after the authorizations are applied.
+ */
+export type KycServiceSetAuthorizationsAction = {
+  type: `KycService:setAuthorizations`;
+  handler: KycService['setAuthorizations'];
 };
 
 /**
@@ -169,14 +236,18 @@ export type KycServiceGetSessionStatusAction = {
  */
 export type KycServiceMethodActions =
   | KycServiceGetGeoCountryAction
-  | KycServiceFetchDisclaimersAction
+  | KycServiceFetchVendorDisclaimersAction
   | KycServiceCreateSessionAction
   | KycServiceCheckKycRequiredAction
   | KycServiceCreateVendorCustomerAction
-  | KycServiceSubmitConsentsAction
+  | KycServiceSubmitVendorDisclaimersAction
+  | KycServiceFetchDisclaimersCatalogAction
+  | KycServiceFetchSessionDisclaimersAction
+  | KycServiceSubmitSessionDisclaimersAction
   | KycServiceFetchKycStatusAction
-  | KycServiceGetWrappingKeyAction
-  | KycServiceFetchJwksAction
+  | KycServiceFetchIdosEnclaveJwksAction
+  | KycServiceFetchIdosRelayJwksAction
   | KycServiceCreateUkycSessionAction
+  | KycServiceSetAuthorizationsAction
   | KycServiceCreateJourneyAction
   | KycServiceGetSessionStatusAction;

@@ -164,4 +164,175 @@ export type QuxMessenger = Messenger<'Qux', QuxAction, never>;
       expect(result.all).toContain('No scannable directories found');
     });
   });
+
+  describe('--strategy root-messenger', () => {
+    /**
+     * Write a project whose root messenger unions live in `app/types.ts`.
+     *
+     * @param directoryPath - The sandbox root.
+     */
+    async function writeRootMessengerProject(
+      directoryPath: string,
+    ): Promise<void> {
+      const appDir = path.join(directoryPath, 'app');
+      await fs.promises.mkdir(appDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(appDir, 'types.ts'),
+        `
+export type FooControllerGetStateAction = {
+  type: 'FooController:getState';
+  handler: () => FooState;
+};
+
+export type FooControllerStateChangeEvent = {
+  type: 'FooController:stateChange';
+  payload: [FooState, Patch[]];
+};
+
+export type GlobalActions = FooControllerGetStateAction;
+export type GlobalEvents = FooControllerStateChangeEvent;
+`,
+      );
+    }
+
+    it('generates docs from the named root messenger unions', async () => {
+      expect.assertions(3);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await writeRootMessengerProject(directoryPath);
+
+        const result = await runCLI([
+          directoryPath,
+          '--strategy',
+          'root-messenger',
+          '--root-actions',
+          'app/types.ts#GlobalActions',
+          '--root-events',
+          'app/types.ts#GlobalEvents',
+        ]);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.all).toContain('Found 2 messenger items total');
+        expect(result.all).toContain('Generated docs for 1 namespace');
+      });
+    });
+
+    it('exits with error when the root type references are missing', async () => {
+      expect.assertions(2);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await writeRootMessengerProject(directoryPath);
+
+        const result = await runCLI([
+          directoryPath,
+          '--strategy',
+          'root-messenger',
+        ]);
+
+        expect(result.exitCode).not.toBe(0);
+        expect(result.all).toContain(
+          'requires both --root-actions and --root-events',
+        );
+      });
+    });
+
+    it('exits with error when a root type reference is malformed', async () => {
+      expect.assertions(2);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await writeRootMessengerProject(directoryPath);
+
+        const result = await runCLI([
+          directoryPath,
+          '--strategy',
+          'root-messenger',
+          '--root-actions',
+          'app/types.ts',
+          '--root-events',
+          'app/types.ts#GlobalEvents',
+        ]);
+
+        expect(result.exitCode).not.toBe(0);
+        expect(result.all).toContain(
+          'Expected a reference of the form "<file>#<TypeName>"',
+        );
+      });
+    });
+
+    it('exits with error when the named type is not declared', async () => {
+      expect.assertions(2);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await writeRootMessengerProject(directoryPath);
+
+        const result = await runCLI([
+          directoryPath,
+          '--strategy',
+          'root-messenger',
+          '--root-actions',
+          'app/types.ts#NotDeclared',
+          '--root-events',
+          'app/types.ts#GlobalEvents',
+        ]);
+
+        expect(result.exitCode).not.toBe(0);
+        expect(result.all).toContain('No type alias named "NotDeclared"');
+      });
+    });
+
+    it('exits with error when --scan-dir is combined with it', async () => {
+      expect.assertions(2);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await writeRootMessengerProject(directoryPath);
+
+        const result = await runCLI([
+          directoryPath,
+          '--strategy',
+          'root-messenger',
+          '--root-actions',
+          'app/types.ts#GlobalActions',
+          '--root-events',
+          'app/types.ts#GlobalEvents',
+          '--scan-dir',
+          'app',
+        ]);
+
+        expect(result.exitCode).not.toBe(0);
+        expect(result.all).toContain(
+          '--scan-dir only applies to --strategy scan',
+        );
+      });
+    });
+
+    it('exits with error when root type references are used with --strategy scan', async () => {
+      expect.assertions(2);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        await writeRootMessengerProject(directoryPath);
+
+        const result = await runCLI([
+          directoryPath,
+          '--root-actions',
+          'app/types.ts#GlobalActions',
+        ]);
+
+        expect(result.exitCode).not.toBe(0);
+        expect(result.all).toContain(
+          '--root-actions and --root-events only apply to --strategy root-messenger',
+        );
+      });
+    });
+
+    it('rejects an unknown strategy', async () => {
+      expect.assertions(2);
+
+      await withinSandbox(async ({ directoryPath }) => {
+        const result = await runCLI([directoryPath, '--strategy', 'telepathy']);
+
+        expect(result.exitCode).not.toBe(0);
+        expect(result.all).toContain('Invalid values');
+      });
+    });
+  });
 });

@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/assets-controller` from `^14.0.2` to `^14.0.3` ([#10042](https://github.com/MetaMask/core/pull/10042))
+- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.7.0` ([#10046](https://github.com/MetaMask/core/pull/10046))
+
+## [80.1.1]
+
+### Fixed
+
+- Read `priceData.cost` from backend-provided quote metadata and use it to sort quotes ([#10012](https://github.com/MetaMask/core/pull/10012))
+
+## [80.1.0]
+
+### Added
+
+- Include sufficient-funds and normalized slippage properties in Unified SwapBridge quote metrics ([#9986](https://github.com/MetaMask/core/pull/9986))
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
+
+## [80.0.0]
+
+### Added
+
+- Export `QuoteMetadataMigrationPhase` (`'1' | '1.5' | '2'`) ([#9744](https://github.com/MetaMask/core/pull/9744))
+- Export `isQuoteResponseV2`, a type guard that's true when `quote.quote` has a `src` property ([#9744](https://github.com/MetaMask/core/pull/9744))
+
+### Changed
+
+- **BREAKING:** Require `migrationPhase` on `selectBridgeQuotes` / `selectBatchSellQuotes` client params ([#9744](https://github.com/MetaMask/core/pull/9744))
+  - `V1Data` (`'1'`): omit API V2 currency metadata; serve legacy `calcQuoteMetadata`
+  - `V2WithV1Fallback` (`'1.5'`): prefer API V2 metadata (plus fiat from `usd`); fall back to legacy
+  - `V2Only` (`'2'`): API V2 metadata only
+- **BREAKING:** `mergeQuoteMetadata` only accepts `QuoteResponse` V2, and takes optional `migrationPhase` and `currencyValues` ([#9744](https://github.com/MetaMask/core/pull/9744))
+
+### Fixed
+
+- `toQuoteMetadataV2` and `toQuoteResponseV2` omit empty `feeData` / `priceData` objects ([#9744](https://github.com/MetaMask/core/pull/9744))
+
 ## [79.3.1]
 
 ### Changed
@@ -1936,7 +1976,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.1.1...HEAD
+[80.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.1.0...@metamask/bridge-controller@80.1.1
+[80.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.0.0...@metamask/bridge-controller@80.1.0
+[80.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.3.1...@metamask/bridge-controller@80.0.0
 [79.3.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.3.0...@metamask/bridge-controller@79.3.1
 [79.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.2.0...@metamask/bridge-controller@79.3.0
 [79.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.1.0...@metamask/bridge-controller@79.2.0

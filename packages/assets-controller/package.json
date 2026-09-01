@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controller",
-  "version": "14.0.2",
+  "version": "14.0.3",
   "description": "Tracks assets balances/prices and handles token detection across all digital assets",
   "keywords": [
     "Ethereum",
@@ -77,10 +77,10 @@
     "@metamask/phishing-controller": "^17.4.0",
     "@metamask/polling-controller": "^16.0.9",
     "@metamask/preferences-controller": "^23.1.0",
-    "@metamask/remote-feature-flag-controller": "^6.0.0",
+    "@metamask/remote-feature-flag-controller": "^6.1.0",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-utils": "^12.1.2",
-    "@metamask/transaction-controller": "^69.6.1",
+    "@metamask/transaction-controller": "^69.7.0",
     "@metamask/utils": "^11.11.0",
     "async-mutex": "^0.5.0",
     "bignumber.js": "^9.1.2",
@@ -94,6 +94,7 @@
     "@types/lodash": "^4.14.191",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
+    "nock": "^13.3.1",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",

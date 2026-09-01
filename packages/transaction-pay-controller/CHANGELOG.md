@@ -7,9 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.1.1]
+
 ### Changed
 
+- Bump `@metamask/assets-controller` from `^14.0.2` to `^14.0.3` ([#10042](https://github.com/MetaMask/core/pull/10042))
+- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.7.0` ([#10046](https://github.com/MetaMask/core/pull/10046))
+
+### Fixed
+
+- Prevent Relay quotes from offering EIP-7702 gas fee token sponsorship when the source account does not support EIP-7702 ([#9897](https://github.com/MetaMask/core/pull/9897))
+
+## [27.1.0]
+
+### Changed
+
+- Use `EXACT_INPUT` Relay quotes when no transaction is embedded, except for `perpsDepositAndOrder` flows that require a guaranteed target amount; expose optional `TransactionPayQuote.isInputBased` and `TransactionPayTotals.isInputBased` flags; and preserve `EXACT_OUTPUT` for embedded transactions such as Money Account calls ([#9954](https://github.com/MetaMask/core/pull/9954))
 - Bump `@metamask/sentinel-api-service` from `^1.0.0` to `^1.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
+- Bump `@metamask/ramps-controller` from `^20.0.0` to `^20.2.0` ([#10004](https://github.com/MetaMask/core/pull/10004), [#10005](https://github.com/MetaMask/core/pull/10005))
 
 ## [27.0.0]
 
@@ -1474,7 +1490,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.1.1...HEAD
+[27.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.1.0...@metamask/transaction-pay-controller@27.1.1
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.0.0...@metamask/transaction-pay-controller@27.1.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.4.1...@metamask/transaction-pay-controller@27.0.0
 [26.4.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.4.0...@metamask/transaction-pay-controller@26.4.1
 [26.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.3.1...@metamask/transaction-pay-controller@26.4.0

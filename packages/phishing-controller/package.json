@@ -62,7 +62,7 @@
     "@metamask/messenger": "^2.0.0",
     "@metamask/storage-service": "^1.0.2",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^69.6.1",
+    "@metamask/transaction-controller": "^69.7.0",
     "@metamask/utils": "^11.11.0",
     "@noble/hashes": "^1.8.0",
     "@tanstack/query-core": "^5.62.16",

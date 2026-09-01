@@ -168,7 +168,6 @@ export async function updateQuotes(
 
     const totals = calculateTotals({
       fiatPaymentAmount: fiatPayment?.amountFiat,
-      isMaxAmount,
       messenger,
       quotes: executableQuotes as TransactionPayQuote<unknown>[],
       tokens,

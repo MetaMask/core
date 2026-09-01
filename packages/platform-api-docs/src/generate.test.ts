@@ -56,6 +56,7 @@ export type FooControllerMessenger = Messenger<'FooController', FooControllerGet
       const result = await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -94,6 +95,7 @@ export type BarMessenger = Messenger<'Bar', BarAction, never>;
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -134,6 +136,7 @@ export type MyMessenger = Messenger<'My', MyGetAction, never>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -169,6 +172,7 @@ export type TestMessenger = Messenger<'Test', TestGetAction, never>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -209,6 +213,7 @@ export type LinkedMessenger = Messenger<'Linked', LinkedGetAction, never>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir: path.join(directoryPath, '.docs'),
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -226,6 +231,7 @@ export type LinkedMessenger = Messenger<'Linked', LinkedGetAction, never>;
         generate({
           projectPath: directoryPath,
           outputDir,
+          strategy: 'scan',
           scanDirs: ['nonexistent'],
         }),
       ).rejects.toThrow('No scannable directories found');
@@ -271,6 +277,7 @@ export type FooMessenger = Messenger<'Foo', FooAction, never>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -299,6 +306,7 @@ export type FooMessenger = Messenger<'Foo', FooAction, never>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -335,6 +343,7 @@ export type GitMessenger = Messenger<'Git', GitGetAction, never>;
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -377,6 +386,7 @@ export type GitMessenger = Messenger<'Git', GitGetAction, never>;
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
         commitSha: 'abc1234',
       });
@@ -424,6 +434,7 @@ export type OkMessenger = Messenger<'Ok', OkAction, never>;
         const result = await generate({
           projectPath: directoryPath,
           outputDir: path.join(directoryPath, '.docs'),
+          strategy: 'scan',
           scanDirs: ['src'],
         });
 
@@ -457,6 +468,7 @@ export type EventsOnlyMessenger = Messenger<'EventsOnly', never, EventsOnlyChang
       const result = await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -492,6 +504,7 @@ export type FirstMessenger = Messenger<'First', FirstAction, never>;
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
       const firstExists = await fs.promises
@@ -515,6 +528,7 @@ export type SecondMessenger = Messenger<'Second', SecondAction, never>;
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
       const stalePresent = await fs.promises
@@ -546,6 +560,7 @@ export type AlphaMessenger = Messenger<'Alpha', AlphaAction, never>;
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -597,6 +612,7 @@ export type FooMessenger = Messenger<'Foo', FooAction, never>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -639,6 +655,7 @@ export type DupeMessenger = Messenger<'Dupe', never, DupeEvent>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir: path.join(directoryPath, '.docs'),
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -675,6 +692,7 @@ export type FooMessenger = Messenger<
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -726,6 +744,7 @@ export type DupeMessenger = Messenger<'Dupe', DupeAction, never>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir: path.join(directoryPath, '.docs'),
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -766,6 +785,7 @@ export type SWMessenger = Messenger<'ServiceWorkerController', never, SWEvent>;
       const result = await generate({
         projectPath: directoryPath,
         outputDir: path.join(directoryPath, '.docs'),
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -808,6 +828,7 @@ export type FooMessenger = Messenger<'Foo', FooAction, never>;
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -846,6 +867,7 @@ export type NonGhMessenger = Messenger<'NonGh', NonGhGetAction, never>;
       await generate({
         projectPath: directoryPath,
         outputDir,
+        strategy: 'scan',
         scanDirs: ['src'],
       });
 
@@ -900,6 +922,246 @@ describe('resolveRepoUrl', () => {
       const url = await resolveRepoUrl(directoryPath);
 
       expect(url).toBeNull();
+    });
+  });
+});
+
+describe('generate with the root-messenger strategy', () => {
+  it('generates docs from the root messenger unions without scanning', async () => {
+    expect.assertions(4);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const appDir = path.join(directoryPath, 'app');
+      await fs.promises.mkdir(appDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(appDir, 'types.ts'),
+        `
+/**
+ * Retrieves the state of the FooController.
+ */
+export type FooControllerGetStateAction = {
+  type: 'FooController:getState';
+  handler: () => FooState;
+};
+
+export type FooControllerStateChangeEvent = {
+  type: 'FooController:stateChange';
+  payload: [FooState, Patch[]];
+};
+
+export type GlobalActions = FooControllerGetStateAction;
+export type GlobalEvents = FooControllerStateChangeEvent;
+`,
+      );
+
+      // A messenger type outside the root capability collections. The scan
+      // strategy would pick
+      // it up; the root-messenger strategy must not, since it isn't reachable
+      // from the root messenger.
+      await fs.promises.writeFile(
+        path.join(appDir, 'unreachable.ts'),
+        `
+export type OrphanDoAction = {
+  type: 'Orphan:do';
+  handler: () => void;
+};
+
+export type OrphanMessenger = Messenger<'Orphan', OrphanDoAction, never>;
+`,
+      );
+
+      const outputDir = path.join(directoryPath, '.docs');
+      const result = await generate({
+        projectPath: directoryPath,
+        outputDir,
+        strategy: 'root-messenger',
+        rootActions: {
+          filePath: path.join('app', 'types.ts'),
+          typeName: 'GlobalActions',
+        },
+        rootEvents: {
+          filePath: path.join('app', 'types.ts'),
+          typeName: 'GlobalEvents',
+        },
+      });
+
+      expect(result).toStrictEqual({ namespaces: 1, actions: 1, events: 1 });
+
+      const docsDir = path.join(outputDir, 'docs');
+      const actionsMd = await fs.promises.readFile(
+        path.join(docsDir, 'FooController', 'actions.md'),
+        'utf8',
+      );
+      expect(actionsMd).toContain('FooController:getState');
+      expect(actionsMd).toContain('Retrieves the state of the FooController.');
+      expect(await fs.promises.readdir(docsDir)).not.toContain('Orphan');
+    });
+  });
+
+  it('warns about capability types it could not document', async () => {
+    expect.assertions(3);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const appDir = path.join(directoryPath, 'app');
+      await fs.promises.mkdir(appDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(appDir, 'types.ts'),
+        `
+export type GoodAction = {
+  type: 'Good:do';
+  handler: () => void;
+};
+
+export type UnnamespacedAction = {
+  type: 'nocolon';
+  handler: () => void;
+};
+
+export type GlobalActions =
+  | GoodAction
+  | UnnamespacedAction
+  | { type: 'Anonymous:do'; handler: () => void };
+
+export type GlobalEvents = never;
+`,
+      );
+
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {
+        // Silence the warnings while asserting on them.
+      });
+
+      try {
+        const result = await generate({
+          projectPath: directoryPath,
+          outputDir: path.join(directoryPath, '.docs'),
+          strategy: 'root-messenger',
+          rootActions: {
+            filePath: path.join('app', 'types.ts'),
+            typeName: 'GlobalActions',
+          },
+          rootEvents: {
+            filePath: path.join('app', 'types.ts'),
+            typeName: 'GlobalEvents',
+          },
+        });
+
+        expect(result).toStrictEqual({ namespaces: 1, actions: 1, events: 0 });
+        expect(warn).toHaveBeenCalledWith(
+          'Warning: skipped 1 capability type declared inline, with no name to document: { type: "Anonymous:do"; handler: () => void; }',
+        );
+        expect(warn).toHaveBeenCalledWith(
+          `Warning: skipped 1 capability type whose shape could not be read: UnnamespacedAction (${path.join('app', 'types.ts')}:7)`,
+        );
+      } finally {
+        warn.mockRestore();
+      }
+    });
+  });
+
+  it('pluralizes the skipped-capability warnings and truncates long lists', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const appDir = path.join(directoryPath, 'app');
+      await fs.promises.mkdir(appDir, { recursive: true });
+      // Twelve inline members, so the warning names ten and summarizes two.
+      const anonymousMembers = Array.from(
+        { length: 12 },
+        (_unused, index) =>
+          `  | { type: 'Anonymous:member${index}'; handler: () => void }`,
+      ).join('\n');
+      await fs.promises.writeFile(
+        path.join(appDir, 'types.ts'),
+        `
+export type FirstBadAction = { type: 'nocolon1'; handler: () => void };
+export type SecondBadAction = { type: 'nocolon2'; handler: () => void };
+
+export type GlobalActions =
+  | FirstBadAction
+  | SecondBadAction
+${anonymousMembers};
+
+export type GlobalEvents = never;
+`,
+      );
+
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {
+        // Silence the warnings while asserting on them.
+      });
+
+      try {
+        await generate({
+          projectPath: directoryPath,
+          outputDir: path.join(directoryPath, '.docs'),
+          strategy: 'root-messenger',
+          rootActions: {
+            filePath: path.join('app', 'types.ts'),
+            typeName: 'GlobalActions',
+          },
+          rootEvents: {
+            filePath: path.join('app', 'types.ts'),
+            typeName: 'GlobalEvents',
+          },
+        }).catch(() => undefined);
+
+        expect(warn).toHaveBeenCalledWith(
+          expect.stringMatching(
+            /^Warning: skipped 12 capability types declared inline, with no name to document: .*, and 2 more$/u,
+          ),
+        );
+        expect(warn).toHaveBeenCalledWith(
+          expect.stringMatching(
+            /^Warning: skipped 2 capability types whose shape could not be read: FirstBadAction \(.*\), SecondBadAction \(.*\)$/u,
+          ),
+        );
+      } finally {
+        warn.mockRestore();
+      }
+    });
+  });
+
+  it('throws rather than emptying the docs when nothing resolves', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const appDir = path.join(directoryPath, 'app');
+      await fs.promises.mkdir(appDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(appDir, 'types.ts'),
+        `
+import type { Missing } from 'this-package-does-not-exist';
+
+export type GlobalActions = Missing;
+export type GlobalEvents = never;
+`,
+      );
+
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {
+        // Silence the warnings; this test is about the throw.
+      });
+
+      try {
+        await expect(
+          generate({
+            projectPath: directoryPath,
+            outputDir: path.join(directoryPath, '.docs'),
+            strategy: 'root-messenger',
+            rootActions: {
+              filePath: path.join('app', 'types.ts'),
+              typeName: 'GlobalActions',
+            },
+            rootEvents: {
+              filePath: path.join('app', 'types.ts'),
+              typeName: 'GlobalEvents',
+            },
+          }),
+        ).rejects.toThrow(
+          "named by --root-actions, resolved to `Missing`. It's likely that an " +
+            'individual action or event type is also `Missing`',
+        );
+      } finally {
+        warn.mockRestore();
+      }
     });
   });
 });

@@ -116,7 +116,11 @@ import {
 } from './middlewares/ParallelMiddleware.js';
 import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware.js';
 import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
-import { tempHealAssetsInfoMetadata } from './migrations/healAssetsInfoMetadata.js';
+import {
+  cleanSpamAssets,
+  isUnlockCleanupEnabled,
+  tempHealAssetsInfoMetadata,
+} from './migrations/healAssetsInfoMetadata.js';
 import type {
   AccountId,
   AssetPreferences,
@@ -1178,8 +1182,13 @@ export class AssetsController extends BaseController<
       },
       clientControllerSelectors.selectIsUiOpen,
     );
-    this.messenger.subscribe('KeyringController:unlock', () => {
+
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    this.messenger.subscribe('KeyringController:unlock', async () => {
       this.#keyringUnlocked = true;
+      await this.#runSpamCleanup().catch(() => {
+        /* Do nothing */
+      });
       this.#updateActive();
     });
     this.messenger.subscribe('KeyringController:lock', () => {
@@ -1187,22 +1196,24 @@ export class AssetsController extends BaseController<
       this.#updateActive();
     });
 
-    // Subscribe to unapproved transactions - TXs that need confirmation
-    // Ensures that balances for the account making transaction are updated (e.g. for gas estimations)
+    // Subscribe to unapproved transactions - TXs that need confirmation.
+    // Ensures balances for the account making the transaction are updated
+    // (e.g. for gas estimations), except on AccountActivity-active chains.
     this.messenger.subscribe(
       'TransactionController:unapprovedTransactionAdded',
       (transactionMeta: TransactionMeta) => {
-        this.#onUnapprovedTransactionAdded(transactionMeta);
+        this.#refreshAssetsForTransaction(transactionMeta);
       },
     );
 
     // Post-tx refresh via the full fetch pipeline (Accounts API + RPC fallback).
+    // Skipped for chains covered by AccountActivity (real-time WS updates).
     // RpcDataSource also listens for transactionConfirmed, but only refreshes
     // chains it owns via an active subscription.
     this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
       (transactionMeta: TransactionMeta) => {
-        this.#onTransactionConfirmed(transactionMeta);
+        this.#refreshAssetsForTransaction(transactionMeta);
       },
     );
     // Start tracking only after the account tree is fully built. Unlock can
@@ -1218,13 +1229,30 @@ export class AssetsController extends BaseController<
     });
   }
 
-  #onUnapprovedTransactionAdded(transactionMeta: TransactionMeta): void {
+  /**
+   * Force-refresh assets for the account/chain of a transaction, unless the
+   * chain is already covered by AccountActivity (real-time WebSocket balances).
+   *
+   * @param transactionMeta - The transaction that triggered the refresh.
+   */
+  #refreshAssetsForTransaction(transactionMeta: TransactionMeta): void {
     const hexChainId = transactionMeta.chainId;
     if (!hexChainId) {
       return;
     }
 
     const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
+
+    // AccountActivity pushes live balance updates for its active chains; a
+    // force getAssets would be redundant and can race the WebSocket path.
+    if (
+      this.#accountActivityDataSource
+        .getActiveChainsSync()
+        .includes(caipChainId)
+    ) {
+      return;
+    }
+
     const fromAddress = transactionMeta.txParams.from?.toLowerCase();
     if (!fromAddress) {
       return;
@@ -1241,37 +1269,50 @@ export class AssetsController extends BaseController<
       chainIds: [caipChainId],
       forceUpdate: true,
     }).catch((error) => {
-      log('Failed to refresh assets after unapproved transaction added', {
-        error,
-      });
+      log('Failed to refresh assets after transaction event', { error });
     });
   }
 
-  #onTransactionConfirmed(transactionMeta: TransactionMeta): void {
-    const hexChainId = transactionMeta.chainId;
-    if (!hexChainId) {
+  async #runSpamCleanup(): Promise<void> {
+    try {
+      const shouldRun =
+        this.#keyringUnlocked &&
+        this.#isBasicFunctionality() &&
+        isUnlockCleanupEnabled(
+          this.messenger.call('RemoteFeatureFlagController:getState')
+            ?.remoteFeatureFlags,
+        );
+      if (!shouldRun) {
+        return;
+      }
+    } catch (error) {
+      log('Failed to start spam cleanup', { error });
       return;
     }
 
-    const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
-    const fromAddress = transactionMeta.txParams.from?.toLowerCase();
-    if (!fromAddress) {
-      return;
-    }
+    try {
+      const originalState = this.state;
+      const result = await cleanSpamAssets({
+        state: originalState,
+        apiClient: this.#queryApiClient,
+        captureException: this.#captureException,
+      });
 
-    const matchedAccount = this.#getSelectedAccounts().find(
-      (account) => account.address.toLowerCase() === fromAddress,
-    );
-    if (!matchedAccount) {
-      return;
-    }
+      if (!result) {
+        return;
+      }
 
-    this.getAssets([matchedAccount], {
-      chainIds: [caipChainId],
-      forceUpdate: true,
-    }).catch((error) => {
-      log('Failed to refresh assets after transaction confirmed', { error });
-    });
+      this.update((state) => {
+        result.applyPatch(
+          state as Pick<AssetsControllerState, 'assetsInfo' | 'assetsBalance'>,
+          {
+            spamAssetIds: result.spamAssetIds,
+          },
+        );
+      });
+    } catch (error) {
+      log('Failed to run spam cleanup', { error });
+    }
   }
 
   /**
