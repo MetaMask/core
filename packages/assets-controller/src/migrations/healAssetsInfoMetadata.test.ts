@@ -12,6 +12,7 @@ import {
   BASE_FARTCOIN,
   BASE_SPAM,
   BASE_USDC,
+  BNB_MUSD,
   MAINNET_NATIVE,
   MAINNET_USDT,
   MONAD_WMON,
@@ -778,10 +779,16 @@ describe('cleanSpamAssets', () => {
       removed: [MONAD_WMON],
     },
     {
-      description: 'drops a token the API leaves out of its response',
+      // An asset entirely absent from the response array (as opposed to
+      // present with no occurrence count, like MONAD_WMON above) is one the
+      // API has never indexed at all — unjudgeable, so it must be kept, not
+      // deleted. MAINNET_USDT is a genuine, high-volume token; a chain the
+      // Token API doesn't serve for this asset is not evidence of spam.
+      description:
+        'keeps a token the API leaves out of its response entirely',
       held: [MAINNET_USDT, OPTIMISM_USDC],
       omittedFromResponse: [MAINNET_USDT],
-      removed: [MAINNET_USDT],
+      removed: [],
     },
     {
       // State keys are EIP-55 checksummed; the API answers in lowercase.
@@ -796,6 +803,16 @@ describe('cleanSpamAssets', () => {
       held: [OPTIMISM_USDC.toLowerCase() as Caip19AssetId],
       removed: [],
       casing: 'checksum',
+    },
+    {
+      // BNB is Accounts-API-covered but absent from
+      // `DEFAULT_TRACKED_ASSETS_BY_CHAIN`'s mUSD entries (only Ethereum,
+      // Linea, and Monad are seeded there) — mUSD's real, below-floor
+      // occurrence count on this chain used to make the sweep delete it.
+      // mUSD must be exempt chain-agnostically, by address, everywhere.
+      description: 'never drops mUSD, even on a chain it is not default-tracked on',
+      held: [BNB_MUSD, OPTIMISM_SPAM],
+      removed: [OPTIMISM_SPAM],
     },
   ];
 

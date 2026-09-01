@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.7.0` ([#10046](https://github.com/MetaMask/core/pull/10046))
 
+### Fixed
+
+- Fix the unlock-time spam cleanup sweep (`useUnlockCleanup`) deleting mUSD holdings on chains outside its 3-chain seeding registry, and treating a token entirely absent from the Token API's response as spam instead of unjudgeable ([#10066](https://github.com/MetaMask/core/pull/10066))
+
 ## [14.0.3]
 
 ### Changed

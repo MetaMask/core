@@ -9,6 +9,7 @@ import { KnownCaipNamespace, parseCaipAssetType } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 
 import type { AssetsControllerMessenger } from '../AssetsController.js';
+import { isMusdAssetId } from '../defaults.js';
 import { projectLogger, createModuleLogger } from '../logger.js';
 import { forDataTypes } from '../types.js';
 import type {
@@ -51,8 +52,6 @@ export enum CaipAssetNamespace {
   Erc20 = 'erc20',
   Token = 'token',
 }
-
-const MUSD_ADDRESS_LOWERCASE = '0xaca92e438df0b2401ff60da7e4337b687a2435da';
 
 // ============================================================================
 // OPTIONS
@@ -402,7 +401,7 @@ export class TokenDataSource {
             knownBalanceIds.has(lowerId) ||
             knownMetadataIds.has(lowerId) ||
             customAssetIds.has(lowerId) ||
-            lowerId.includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`)
+            isMusdAssetId(lowerId)
           ) {
             continue;
           }
@@ -679,7 +678,7 @@ export class TokenDataSource {
               balanceHealAssetIds.has(id.toLowerCase()) ||
               (occurrencesByAssetId.get(id) ?? 0) >=
                 getOccurrenceFloorForAsset(id, suggestedOccurrenceFloors) ||
-              id.includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`),
+              isMusdAssetId(id),
           ),
         );
 
