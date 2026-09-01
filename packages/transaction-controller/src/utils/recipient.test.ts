@@ -166,6 +166,34 @@ describe('getSendRecipients', () => {
     expect(getSendRecipients(transactionMeta)).toStrictEqual([TOKEN_RECIPIENT]);
   });
 
+  it.each([
+    { data: TRANSFER_DATA, standard: 'ERC-20' },
+    { data: ERC721_SAFE_TRANSFER_FROM_DATA, standard: 'ERC-721' },
+    { data: ERC1155_SAFE_TRANSFER_FROM_DATA, standard: 'ERC-1155' },
+  ])(
+    'decodes an $standard payee from original params after wrapping changed the type',
+    ({ data }) => {
+      const transactionMeta = {
+        ...buildTransactionMeta(
+          TransactionType.contractInteraction,
+          '0xdeadbeef',
+        ),
+        txParamsOriginal: {
+          data,
+          from: FROM_ADDRESS,
+          to: TOKEN_CONTRACT,
+          value: '0x0',
+        },
+      };
+
+      expect(
+        getSendRecipients(transactionMeta).map((address) =>
+          address.toLowerCase(),
+        ),
+      ).toStrictEqual([TOKEN_RECIPIENT]);
+    },
+  );
+
   it('returns the decoded payee for token transfers and ignores the token contract', () => {
     const transactionMeta = buildTransactionMeta(
       TransactionType.tokenMethodTransfer,
@@ -232,6 +260,23 @@ describe('getSendRecipients', () => {
       TransactionType.tokenMethodApprove,
       '0x095ea7b3000000000000000000000000cccccccccccccccccccccccccccccccccccccccc0000000000000000000000000000000000000000000000000000000000000001',
     );
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
+  });
+
+  it('does not infer an approval recipient from original params', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(
+        TransactionType.contractInteraction,
+        '0xdeadbeef',
+      ),
+      txParamsOriginal: {
+        data: '0x095ea7b3000000000000000000000000cccccccccccccccccccccccccccccccccccccccc0000000000000000000000000000000000000000000000000000000000000001',
+        from: FROM_ADDRESS,
+        to: TOKEN_CONTRACT,
+        value: '0x0',
+      },
+    };
 
     expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
   });

@@ -14,6 +14,7 @@ const ERC1155_SAFE_BATCH_TRANSFER_FROM_SELECTOR = '0x2eb2c2d6';
 
 type SendRecipientSource = {
   data?: string;
+  inferTransferType?: boolean;
   to?: string;
   type?: TransactionType;
 };
@@ -84,7 +85,8 @@ export function getSendRecipients(transactionMeta: TransactionMeta): string[] {
   // its `to` and `data` always describe the same call. Mixing an original `to`
   // with a wrapped `data` would misread an untyped transaction as a contract
   // call and drop a real payee.
-  const params = transactionMeta.txParamsOriginal ?? transactionMeta.txParams;
+  const originalParams = transactionMeta.txParamsOriginal;
+  const params = originalParams ?? transactionMeta.txParams;
   const recipients: string[] = [];
   const seen = new Set<string>();
 
@@ -100,6 +102,7 @@ export function getSendRecipients(transactionMeta: TransactionMeta): string[] {
   addRecipient(
     getSendRecipientFromSource({
       data: params?.data,
+      inferTransferType: Boolean(originalParams),
       to: params?.to,
       type: getEffectiveType(
         transactionMeta.type,
@@ -128,6 +131,7 @@ function isCancellation({
 
 function getSendRecipientFromSource({
   data,
+  inferTransferType,
   to,
   type,
 }: SendRecipientSource): string | undefined {
@@ -135,19 +139,40 @@ function getSendRecipientFromSource({
     return to;
   }
 
-  if (type && TOKEN_TRANSFER_TYPES.includes(type) && hasCalldata(data)) {
+  if (!hasCalldata(data)) {
+    return undefined;
+  }
+
+  // Wrapping can replace the current type while preserving the original
+  // calldata without its original type. Infer only for original params so
+  // ordinary contract interactions remain excluded.
+  const inferredType = inferTransferType
+    ? (decodeTransactionData(data, {
+        getMethodName: true,
+      }) as string | undefined)
+    : undefined;
+
+  if (isTokenTransferType(type) || isTokenTransferType(inferredType)) {
     return decodeTokenTransferRecipient(data);
   }
 
   if (
-    hasCalldata(data) &&
     data.slice(0, 10).toLowerCase() ===
-      ERC1155_SAFE_BATCH_TRANSFER_FROM_SELECTOR
+    ERC1155_SAFE_BATCH_TRANSFER_FROM_SELECTOR
   ) {
     return decodeTokenTransferRecipient(data);
   }
 
   return undefined;
+}
+
+function isTokenTransferType(type?: string): boolean {
+  return Boolean(
+    type &&
+    TOKEN_TRANSFER_TYPES.some(
+      (transferType) => transferType.toLowerCase() === type.toLowerCase(),
+    ),
+  );
 }
 
 function isNativeSendType(
