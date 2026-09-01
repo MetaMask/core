@@ -1,5 +1,6 @@
 import { defaultAbiCoder } from '@ethersproject/abi';
 import * as ProviderModule from '@ethersproject/providers';
+import { clientControllerSelectors } from '@metamask/client-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
   MOCK_ANY_NAMESPACE,
@@ -31,6 +32,42 @@ export type MockRootMessenger = Messenger<
 const MAINNET_CHAIN_ID_HEX = '0x1';
 const MOCK_CHAIN_ID_CAIP = 'eip155:1';
 
+type MessengerWithPublish = {
+  publish: (event: string, ...args: unknown[]) => void;
+  registerActionHandler: (
+    action: string,
+    handler: (...args: unknown[]) => unknown,
+  ) => void;
+};
+
+/**
+ * Register a mock `KeyringController:isUnlocked` handler. Updates unlock state
+ * before `:unlock` / `:lock` events are delivered, matching KeyringController.
+ *
+ * @param messenger - The root messenger to register handlers on.
+ * @param initialUnlocked - Initial unlock state.
+ */
+export function registerKeyringUnlockMock(
+  messenger: MessengerWithPublish,
+  initialUnlocked = false,
+): void {
+  let isKeyringUnlocked = initialUnlocked;
+  messenger.registerActionHandler(
+    'KeyringController:isUnlocked',
+    () => isKeyringUnlocked,
+  );
+
+  const originalPublish = messenger.publish.bind(messenger);
+  messenger.publish = (event: string, ...args: unknown[]): void => {
+    if (event === 'KeyringController:unlock') {
+      isKeyringUnlocked = true;
+    } else if (event === 'KeyringController:lock') {
+      isKeyringUnlocked = false;
+    }
+    return originalPublish(event, ...args);
+  };
+}
+
 export function createMockAssetControllerMessenger(options?: {
   delegateGetState?: boolean;
 }): {
@@ -54,6 +91,9 @@ export function createMockAssetControllerMessenger(options?: {
       // AssetsController
       'AccountsController:getSelectedAccount',
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
+      'AccountTreeController:isInitialized',
+      'ClientController:getState',
+      'KeyringController:isUnlocked',
       ...(delegateGetState ? ['AssetsController:getState' as const] : []),
       // RpcDataSource
       'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
@@ -74,7 +114,6 @@ export function createMockAssetControllerMessenger(options?: {
     events: [
       // AssetsController
       'AccountTreeController:selectedAccountGroupChange',
-      'AccountTreeController:stateChange',
       'AccountTreeController:initialized',
       'AccountTreeController:uninitialized',
       'ClientController:stateChange',
@@ -263,6 +302,8 @@ export function createMockNetworkState(
 export type RegisterAssetsControllerActionsOptions = {
   accounts?: InternalAccount[];
   selectedAccount?: InternalAccount;
+  isAccountTreeInitialized?: boolean;
+  isKeyringUnlocked?: boolean;
   enabledNetworkMap?: Record<string, Record<string, boolean>>;
   nativeAssetIdentifiers?: Record<string, string>;
   networkState?: NetworkState;
@@ -324,6 +365,20 @@ export function registerAssetsControllerActions(
     () => accounts,
   );
 
+  let isAccountTreeInitialized = opts.isAccountTreeInitialized ?? false;
+  rootMessenger.registerActionHandler(
+    'AccountTreeController:isInitialized',
+    () => isAccountTreeInitialized,
+  );
+  rootMessenger.subscribe('AccountTreeController:initialized', () => {
+    isAccountTreeInitialized = true;
+  });
+  rootMessenger.subscribe('AccountTreeController:uninitialized', () => {
+    isAccountTreeInitialized = false;
+  });
+
+  registerKeyringUnlockMock(rootMessenger, opts.isKeyringUnlocked ?? false);
+
   rootMessenger.registerActionHandler(
     'NetworkEnablementController:getState',
     () =>
@@ -364,14 +419,16 @@ export function registerAssetsControllerActions(
     () => undefined,
   );
 
-  if (opts.clientControllerState !== undefined) {
-    (
-      rootMessenger as {
-        registerActionHandler: (a: string, h: () => unknown) => void;
-      }
-    ).registerActionHandler(
-      'ClientController:getState',
-      () => opts.clientControllerState,
-    );
-  }
+  let clientControllerState = opts.clientControllerState ?? { isUiOpen: false };
+  rootMessenger.registerActionHandler(
+    'ClientController:getState',
+    () => clientControllerState,
+  );
+  rootMessenger.subscribe(
+    'ClientController:stateChanged',
+    (isUiOpen: boolean) => {
+      clientControllerState = { isUiOpen };
+    },
+    clientControllerSelectors.selectIsUiOpen,
+  );
 }
