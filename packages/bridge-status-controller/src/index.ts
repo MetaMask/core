@@ -59,5 +59,4 @@ export {
   getFailurePropertiesFromHistory,
   getSubmitErrorCode,
   getBroadcastFailureProperties,
-  promoteFailurePhase,
 } from './utils/metrics.js';
