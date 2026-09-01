@@ -250,7 +250,9 @@ const QuantityStruct = union([string(), number()]);
 
 export const TransactionParamsStruct = object({
   accessList: optional(
-    nullable(array(object({ address: string(), storageKeys: array(string()) }))),
+    nullable(
+      array(object({ address: string(), storageKeys: array(string()) })),
+    ),
   ),
   authorizationList: optional(
     nullable(
