@@ -49,6 +49,12 @@ import {
   signStorageAccessToken,
 } from './ukyc/storageAccessToken.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
+import {
+  clearVendorDisclaimerAcceptance,
+  hasVendorDisclaimerAcceptance,
+  ironDisclaimerIds,
+  recordVendorDisclaimerAcceptance,
+} from './vendorDisclaimerAcceptance.js';
 
 // === GENERAL ===
 
@@ -468,29 +474,6 @@ function isConsentConflictError(error: unknown): boolean {
     typeof (error as { httpStatus?: unknown }).httpStatus === 'number' &&
     (error as { httpStatus: number }).httpStatus === 409
   );
-}
-
-function hasVendorDisclaimerAcceptance(
-  accepted: KycVendorDisclaimersAccepted,
-  vendor: KycVendor,
-): boolean {
-  if (vendor === 'moonpay') {
-    return Boolean(accepted.moonpay?.termsAcceptedAt);
-  }
-  if (vendor === 'iron') {
-    return Boolean(accepted.iron?.disclaimerIds.length);
-  }
-  return false;
-}
-
-/**
- * Returns persisted Iron disclaimer ids, if any.
- *
- * @param accepted - Vendor-disclaimer acceptance map.
- * @returns The accepted disclaimer ids, or an empty array.
- */
-function ironDisclaimerIds(accepted: KycVendorDisclaimersAccepted): string[] {
-  return accepted.iron?.disclaimerIds ?? [];
 }
 
 /**
@@ -960,10 +943,7 @@ export class KycController extends BaseController<
             this.state.credentialReusabilityConsentGiven ?? false,
         });
       } else {
-        if (
-          vendor === 'moonpay' &&
-          this.state.vendorDisclaimers.length === 0
-        ) {
+        if (vendor === 'moonpay' && this.state.vendorDisclaimers.length === 0) {
           await this.loadDisclaimers();
           if (this.#generation !== generation) {
             return;
@@ -1018,9 +998,6 @@ export class KycController extends BaseController<
         vendor: params.vendor,
         email: params.email,
       });
-      if (this.#generation !== generation) {
-        return;
-      }
     } catch (error) {
       if (this.#generation !== generation) {
         return;
@@ -1117,17 +1094,11 @@ export class KycController extends BaseController<
       if (params?.product) {
         state.activeProduct = params.product;
       }
-      if (state.activeVendor === 'moonpay') {
-        state.vendorDisclaimersAccepted = {
-          ...state.vendorDisclaimersAccepted,
-          moonpay: { termsAcceptedAt },
-        };
-      } else if (state.activeVendor === 'iron') {
-        state.vendorDisclaimersAccepted = {
-          ...state.vendorDisclaimersAccepted,
-          iron: { disclaimerIds },
-        };
-      }
+      state.vendorDisclaimersAccepted = recordVendorDisclaimerAcceptance(
+        state.vendorDisclaimersAccepted,
+        state.activeVendor,
+        { termsAcceptedAt, disclaimerIds },
+      );
       state.providerDisclaimersAccepted = {
         ...state.providerDisclaimersAccepted,
         sumsub: providerDisclaimersAccepted,
@@ -1341,10 +1312,7 @@ export class KycController extends BaseController<
     });
 
     if (
-      isAcceptedCategoryEmpty(
-        catalog.idOS,
-        consents.idosDisclaimersAccepted,
-      ) ||
+      isAcceptedCategoryEmpty(catalog.idOS, consents.idosDisclaimersAccepted) ||
       isAcceptedCategoryEmpty(
         catalog.kycProvider,
         consents.providerDisclaimersAccepted,
@@ -1498,7 +1466,8 @@ export class KycController extends BaseController<
    */
   clearSavedTerms(): void {
     this.#applyUpdate((state) => {
-      state.vendorDisclaimersAccepted = getDefaultKycVendorDisclaimersAccepted();
+      state.vendorDisclaimersAccepted =
+        getDefaultKycVendorDisclaimersAccepted();
       state.providerDisclaimersAccepted =
         getDefaultKycProviderDisclaimersAccepted();
       state.idosDisclaimersAccepted = null;
@@ -1519,17 +1488,10 @@ export class KycController extends BaseController<
    */
   #clearAcceptedTerms(state: KycControllerState, vendor?: KycVendor): void {
     const targetVendor = vendor ?? state.activeVendor;
-    if (targetVendor === 'moonpay') {
-      state.vendorDisclaimersAccepted = {
-        ...state.vendorDisclaimersAccepted,
-        moonpay: null,
-      };
-    } else if (targetVendor === 'iron') {
-      state.vendorDisclaimersAccepted = {
-        ...state.vendorDisclaimersAccepted,
-        iron: null,
-      };
-    }
+    state.vendorDisclaimersAccepted = clearVendorDisclaimerAcceptance(
+      state.vendorDisclaimersAccepted,
+      targetVendor,
+    );
     state.providerDisclaimersAccepted =
       getDefaultKycProviderDisclaimersAccepted();
     state.idosDisclaimersAccepted = null;
@@ -1762,7 +1724,10 @@ export class KycController extends BaseController<
    * @returns The Check-frame URL or `null`.
    */
   buildCheckFrameUrl(): string | null {
-    if (this.state.activeVendor !== 'moonpay' || !this.state.moonpaySessionToken) {
+    if (
+      this.state.activeVendor !== 'moonpay' ||
+      !this.state.moonpaySessionToken
+    ) {
       return null;
     }
     const url = new URL(`${FRAMES_BASE_URL}/check-connection`);
@@ -1814,7 +1779,9 @@ export class KycController extends BaseController<
   }): Promise<boolean> {
     const { moonpayAccessToken } = this.state;
     if (!moonpayAccessToken) {
-      this.#fail('Missing moonpayAccessToken — repeat the authentication step.');
+      this.#fail(
+        'Missing moonpayAccessToken — repeat the authentication step.',
+      );
       return false;
     }
     const country = params.country ?? this.state.geoCountry;
@@ -1835,7 +1802,11 @@ export class KycController extends BaseController<
     try {
       const { kycRequired } = await this.messenger.call(
         'KycService:checkKycRequired',
-        { accessToken: moonpayAccessToken, country, capabilities: [{ product: params.product }] },
+        {
+          accessToken: moonpayAccessToken,
+          country,
+          capabilities: [{ product: params.product }],
+        },
       );
       // The flow was reset while the check was in flight; discard the result
       // rather than resurrecting a done/cached state on an idle controller.
