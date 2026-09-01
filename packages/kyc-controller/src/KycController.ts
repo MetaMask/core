@@ -44,6 +44,7 @@ import {
   encodeStorageAccessTokenForHeader,
   signStorageAccessToken,
 } from './ukyc/storageAccessToken.js';
+import { controllerLog } from './logger.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
 
 // === GENERAL ===
@@ -1138,7 +1139,7 @@ export class KycController extends BaseController<
         try {
           await this.refreshKycStatus();
         } catch (statusError) {
-          console.error('KYC status refresh failed:', statusError);
+          controllerLog('KYC status refresh failed:', statusError);
         }
         this.#updateIfCurrent(generation, (state) => {
           state.phase = 'done';
@@ -1177,7 +1178,7 @@ export class KycController extends BaseController<
       try {
         await this.refreshKycStatus();
       } catch (statusError) {
-        console.error('KYC status refresh failed:', statusError);
+        controllerLog('KYC status refresh failed:', statusError);
       }
       this.#updateIfCurrent(generation, (state) => {
         if (state.phase !== 'error' && state.phase !== 'done') {
@@ -1204,7 +1205,7 @@ export class KycController extends BaseController<
         });
         return;
       }
-      console.error('Consents session failed:', error);
+      controllerLog('Consents session failed:', error);
       if (this.#generation !== generation) {
         return;
       }
@@ -1379,7 +1380,7 @@ export class KycController extends BaseController<
         state.statusMessage = 'Authenticating via Check frame...';
       });
     } catch (error) {
-      console.error('Session creation failed:', error);
+      controllerLog('Session creation failed:', error);
       // A reset() superseded this flow while the request was in flight; leave
       // the idle controller alone rather than forcing it back to `terms`.
       if (this.#generation !== generation) {
