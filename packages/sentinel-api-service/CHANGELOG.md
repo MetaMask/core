@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `SentinelSimulationResponseTransaction.gasCost` is now typed `string` instead of `number`, matching the value the Sentinel API actually returns on the wire (a quoted decimal string, not a JSON number) ([#PLACEHOLDER](https://github.com/MetaMask/core/pull/PLACEHOLDER))
+- **BREAKING:** `SentinelSimulationResponseTransaction.gasCost` is now typed `string` instead of `number`, matching the value the Sentinel API actually returns on the wire (a quoted decimal string, not a JSON number) ([#10050](https://github.com/MetaMask/core/pull/10050))
   - Consumers reading `gasCost` and treating it as a `number` (e.g. doing arithmetic directly on it) must parse it first, e.g. via `new BN(gasCost)` or `BigInt(gasCost)`.
 
 ## [1.0.1]
