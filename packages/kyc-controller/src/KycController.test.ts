@@ -106,14 +106,31 @@ function makeEnvelope(
  * @param credentials - The plaintext credentials to encrypt.
  * @returns The encrypted envelope.
  */
-function envelopeFor(
+async function envelopeFor(
   controller: KycController,
   credentials: Record<string, unknown>,
-): { ephemeralPublicKey: string; iv: string; ciphertext: string } {
-  const url = controller.buildCheckFrameUrl();
-  const publicKeyHex = new URL(url as string).searchParams.get(
-    'publicKey',
-  ) as string;
+): Promise<{ ephemeralPublicKey: string; iv: string; ciphertext: string }> {
+  let url = controller.buildCheckFrameUrl();
+  if (!url) {
+    const inProgressPhases: KycController['state']['phase'][] = [
+      'session',
+      'check',
+      'auth',
+      'form',
+      'submit',
+    ];
+    if (!inProgressPhases.includes(controller.state.phase)) {
+      throw new Error(
+        'Controller needs a MoonPay frame keypair; call initialize({ vendor: "moonpay" }) first',
+      );
+    }
+    await controller.initialize({ vendor: 'moonpay' });
+    url = controller.buildCheckFrameUrl();
+  }
+  if (!url) {
+    throw new Error('Could not build Check frame URL for envelope');
+  }
+  const publicKeyHex = new URL(url).searchParams.get('publicKey') as string;
   return makeEnvelope(hexToBytes(publicKeyHex), credentials);
 }
 
@@ -431,7 +448,7 @@ describe('KycController', () => {
           });
 
           // Establish an auth-frame client token from a prior authentication.
-          const envelope = envelopeFor(controller, {
+          const envelope = await envelopeFor(controller, {
             clientToken: 'old-client',
           });
           await controller.handleFrameMessage({
@@ -496,6 +513,7 @@ describe('KycController', () => {
           await pending;
 
           expect(controller.state.sessionToken).toBe('new-session');
+          await controller.initialize({ vendor: 'moonpay' });
           expect(controller.buildCheckFrameUrl()).toContain(
             'sessionToken=new-session',
           );
@@ -713,14 +731,13 @@ describe('KycController', () => {
       await withController(
         { options: { state: { phase: 'done', sessionToken: 'tok' } } },
         async ({ controller }) => {
-          const envelope = envelopeFor(controller, { accessToken: 'access-1' });
           const result = await controller.handleFrameMessage({
             message: {
               kind: 'complete',
               meta: { channelId: 'ch_1' },
               payload: {
                 status: 'active',
-                credentials: envelope,
+                credentials: 'not-used',
                 customer: { id: 'cust-late' },
               },
             },
@@ -770,6 +787,7 @@ describe('KycController', () => {
       await withController(
         { options: { state: { phase: 'check', sessionToken: 'tok' } } },
         async ({ controller }) => {
+          await controller.initialize({ vendor: 'moonpay' });
           await controller.handleFrameMessage({
             message: {
               kind: 'complete',
@@ -788,7 +806,7 @@ describe('KycController', () => {
         await withController(
           { options: { state: { phase: 'check', sessionToken: 'tok' } } },
           async ({ controller }) => {
-            const envelope = envelopeFor(controller, {
+            const envelope = await envelopeFor(controller, {
               accessToken: 'access-1',
             });
             await controller.handleFrameMessage({
@@ -808,7 +826,7 @@ describe('KycController', () => {
         await withController(
           { options: { state: { phase: 'check', sessionToken: 'tok' } } },
           async ({ controller }) => {
-            const envelope = envelopeFor(controller, {
+            const envelope = await envelopeFor(controller, {
               clientToken: 'client-1',
             });
             await controller.handleFrameMessage({
@@ -877,7 +895,7 @@ describe('KycController', () => {
         await withController(
           { options: { state: { phase: 'auth', sessionToken: 'tok' } } },
           async ({ controller }) => {
-            const envelope = envelopeFor(controller, {
+            const envelope = await envelopeFor(controller, {
               accessToken: 'access-2',
             });
             await controller.handleFrameMessage({
@@ -936,7 +954,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          const envelope = envelopeFor(controller, { accessToken: 'access-1' });
+          const envelope = await envelopeFor(controller, { accessToken: 'access-1' });
 
           await controller.handleFrameMessage({
             message: {
@@ -966,7 +984,7 @@ describe('KycController', () => {
         },
         async ({ controller, handlers, launcher }) => {
           handlers.checkKycRequired.mockResolvedValue({ kycRequired: false });
-          const envelope = envelopeFor(controller, { accessToken: 'access-1' });
+          const envelope = await envelopeFor(controller, { accessToken: 'access-1' });
 
           await controller.handleFrameMessage({
             message: {
@@ -1006,7 +1024,7 @@ describe('KycController', () => {
             onStatusChange?.('InProgress', 'Completed');
             return { ok: true };
           });
-          const envelope = envelopeFor(controller, { accessToken: 'access-2' });
+          const envelope = await envelopeFor(controller, { accessToken: 'access-2' });
 
           await controller.handleFrameMessage({
             message: {
@@ -1038,7 +1056,7 @@ describe('KycController', () => {
         async ({ controller, handlers, launcher }) => {
           handlers.checkKycRequired.mockResolvedValue({ kycRequired: true });
           launcher.isAvailable.mockReturnValue(false);
-          const envelope = envelopeFor(controller, { accessToken: 'access-1' });
+          const envelope = await envelopeFor(controller, { accessToken: 'access-1' });
 
           const result = await controller.handleFrameMessage({
             message: {
@@ -1083,7 +1101,7 @@ describe('KycController', () => {
             onStatusChange?.('InProgress', 'Completed');
             return { ok: true };
           });
-          const envelope = envelopeFor(controller, { accessToken: 'access-1' });
+          const envelope = await envelopeFor(controller, { accessToken: 'access-1' });
           const message = {
             kind: 'complete',
             meta: { channelId: 'ch_2' },
@@ -1122,14 +1140,8 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          // The keypair is stable across reset, so both envelopes can be built
-          // up front while the session token (used only to derive the public
-          // key here) is still present.
-          const envelope1 = envelopeFor(controller, {
+          const envelope1 = await envelopeFor(controller, {
             accessToken: 'access-1',
-          });
-          const envelope2 = envelopeFor(controller, {
-            accessToken: 'access-2',
           });
           const messageFor = (
             credentials: unknown,
@@ -1169,6 +1181,9 @@ describe('KycController', () => {
           // returns to phase `check`) and confirm the next completion continues
           // again rather than being blocked forever by a stuck guard.
           await controller.initialize({ product: 'ramps' });
+          const envelope2 = await envelopeFor(controller, {
+            accessToken: 'access-2',
+          });
           handlers.checkKycRequired.mockResolvedValue({ kycRequired: false });
           await controller.handleFrameMessage({
             message: messageFor(envelope2),
@@ -1193,7 +1208,7 @@ describe('KycController', () => {
         },
         async ({ controller, handlers, launcher }) => {
           handlers.checkKycRequired.mockRejectedValue(new Error('down'));
-          const envelope = envelopeFor(controller, { accessToken: 'access-1' });
+          const envelope = await envelopeFor(controller, { accessToken: 'access-1' });
 
           await controller.handleFrameMessage({
             message: {
@@ -1220,7 +1235,8 @@ describe('KycController', () => {
     it('builds the check frame URL with a session', async () => {
       await withController(
         { options: { state: { sessionToken: 'tok' } } },
-        ({ controller }) => {
+        async ({ controller }) => {
+          await controller.initialize({ vendor: 'moonpay' });
           const url = controller.buildCheckFrameUrl() as string;
           expect(url).toContain('sessionToken=tok');
           expect(url).toContain('channelId=ch_1');
@@ -2432,7 +2448,7 @@ describe('KycController', () => {
       await withController(
         { options: { state: { phase: 'check', sessionToken: 'tok' } } },
         async ({ controller }) => {
-          const envelope = envelopeFor(controller, {
+          const envelope = await envelopeFor(controller, {
             clientToken: 'client-1',
           });
           await controller.handleFrameMessage({
