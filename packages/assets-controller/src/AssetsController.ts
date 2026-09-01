@@ -1718,7 +1718,11 @@ export class AssetsController extends BaseController<
         const stateBalances = this.state.assetsBalance[account.id] ?? {};
         for (const assetId of Object.keys(stateBalances) as Caip19AssetId[]) {
           const assetChainId = assetId.split('/')[0] as ChainId;
-          if (chainIdSet.has(assetChainId) && !customAssets.includes(assetId)) {
+          if (
+            chainIdSet.has(assetChainId) &&
+            !isStakingContractAssetId(assetId) &&
+            !customAssets.includes(assetId)
+          ) {
             customAssets.push(assetId);
           }
         }
