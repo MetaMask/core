@@ -148,10 +148,8 @@ function collectStaleTrackedAssets(ctx: Context): Caip19AssetId[] {
 
   const staleAssets = new Set<Caip19AssetId>();
 
-  for (const {
-    account,
-    supportedChains,
-  } of ctx.request.accountsWithSupportedChains) {
+  for (const { account, supportedChains } of ctx.request
+    .accountsWithSupportedChains) {
     const accountId = account.id;
     const trackedAssetIds = new Set<Caip19AssetId>([
       ...(Object.keys(stateAssetsBalance[accountId] ?? {}) as Caip19AssetId[]),
