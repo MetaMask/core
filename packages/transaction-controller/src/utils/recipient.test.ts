@@ -39,6 +39,16 @@ const ERC1155_SAFE_TRANSFER_FROM_DATA = new Interface(
   '0x',
 ]);
 
+const ERC1155_SAFE_BATCH_TRANSFER_FROM_DATA = new Interface(
+  abiERC1155,
+).encodeFunctionData('safeBatchTransferFrom', [
+  FROM_ADDRESS,
+  TOKEN_RECIPIENT,
+  ['1'],
+  ['1'],
+  '0x',
+]);
+
 /**
  * Builds a minimal transaction meta object for testing.
  *
@@ -235,6 +245,19 @@ describe('getSendRecipients', () => {
     expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
   });
 
+  it('returns the decoded payee for ERC-1155 safeBatchTransferFrom contract interactions', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.contractInteraction,
+      ERC1155_SAFE_BATCH_TRANSFER_FROM_DATA,
+    );
+
+    expect(
+      getSendRecipients(transactionMeta).map((address) =>
+        address.toLowerCase(),
+      ),
+    ).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
   it('returns swapAndSendRecipient for swap-and-send transactions', () => {
     const transactionMeta = {
       ...buildTransactionMeta(TransactionType.swapAndSend, TRANSFER_DATA),
@@ -274,6 +297,29 @@ describe('getSendRecipients', () => {
         address.toLowerCase(),
       ),
     ).toStrictEqual([nestedSendRecipient, TOKEN_RECIPIENT]);
+  });
+
+  it('includes a nested ERC-1155 safeBatchTransferFrom payee from a batch', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(
+        TransactionType.batch,
+        '0xdeadbeef',
+        TOKEN_CONTRACT,
+      ),
+      nestedTransactions: [
+        {
+          data: ERC1155_SAFE_BATCH_TRANSFER_FROM_DATA,
+          to: TOKEN_CONTRACT,
+          type: TransactionType.contractInteraction,
+        },
+      ],
+    };
+
+    expect(
+      getSendRecipients(transactionMeta).map((address) =>
+        address.toLowerCase(),
+      ),
+    ).toStrictEqual([TOKEN_RECIPIENT]);
   });
 
   it('treats untyped transactions with no calldata as native sends', () => {

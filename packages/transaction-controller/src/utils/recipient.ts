@@ -10,6 +10,8 @@ const TOKEN_TRANSFER_TYPES = [
   TransactionType.tokenMethodSafeTransferFrom,
 ];
 
+const ERC1155_SAFE_BATCH_TRANSFER_FROM_SELECTOR = '0x2eb2c2d6';
+
 type SendRecipientSource = {
   data?: string;
   to?: string;
@@ -54,6 +56,7 @@ export function getEffectiveRecipient(
  * Included:
  * - `simpleSend` `to`, preferring `txParamsOriginal` when present
  * - Decoded `to` / `_to` for ERC-20/721/1155 transfer methods
+ * - Decoded `to` for ERC-1155 `safeBatchTransferFrom`
  * - `swapAndSendRecipient` whenever set (only ever a user-entered payee)
  * - Nested batch calls that themselves are sends or token transfers
  * - Untyped transactions with no calldata, treated as legacy native sends
@@ -124,6 +127,14 @@ function getSendRecipientFromSource({
   }
 
   if (type && TOKEN_TRANSFER_TYPES.includes(type) && hasCalldata(data)) {
+    return decodeTokenTransferRecipient(data);
+  }
+
+  if (
+    hasCalldata(data) &&
+    data.slice(0, 10).toLowerCase() ===
+      ERC1155_SAFE_BATCH_TRANSFER_FROM_SELECTOR
+  ) {
     return decodeTokenTransferRecipient(data);
   }
 
