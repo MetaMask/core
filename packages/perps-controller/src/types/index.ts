@@ -679,6 +679,7 @@ export type ClosePositionsResult = {
   success: boolean; // Overall success (true if at least one position closed)
   successCount: number; // Number of positions closed successfully
   failureCount: number; // Number of positions that failed to close
+  error?: string; // Batch-level failure before per-position results are available
   results: {
     symbol: string;
     success: boolean;

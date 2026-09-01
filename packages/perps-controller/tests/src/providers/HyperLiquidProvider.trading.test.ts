@@ -3702,11 +3702,48 @@ describe('HyperLiquidProvider', () => {
       expect(result).toMatchObject({
         success: false,
         successCount: 0,
+        failureCount: 0,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
       });
       expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
         useHttp: true,
       });
       expect(clearinghouseState).toHaveBeenCalledTimes(2);
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rejects a main-only REST snapshot when HIP-3 DEX discovery fails', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
+        .fn()
+        .mockReturnValue(null);
+      const clearinghouseState = jest.fn().mockResolvedValue({
+        assetPositions: [],
+        marginSummary: { totalMarginUsed: '0', accountValue: '10000' },
+        withdrawable: '10000',
+      });
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          perpDexs: jest.fn().mockRejectedValue(new Error('DEX unavailable')),
+          clearinghouseState,
+        }),
+      );
+
+      const result = await hip3Provider.closePositions({ closeAll: true });
+
+      expect(result).toStrictEqual({
+        success: false,
+        successCount: 0,
+        failureCount: 0,
+        results: [],
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      });
+      expect(clearinghouseState).not.toHaveBeenCalled();
       expect(
         mockClientService.getExchangeClient().order,
       ).not.toHaveBeenCalled();

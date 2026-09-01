@@ -3853,6 +3853,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param baseParams - Base parameters (e.g., { user: '0x...' })
    * @param queryFn - API method to call per DEX
+   * @param resolvedDexs - Optional pre-resolved DEX list.
    * @returns Array of results per DEX with DEX identifier
    * @example
    * ```typescript
@@ -3868,8 +3869,9 @@ export class HyperLiquidProvider implements PerpsProvider {
   >(
     baseParams: TParams,
     queryFn: (params: TParams & { dex?: string }) => Promise<TResult>,
+    resolvedDexs?: (string | null)[],
   ): Promise<DexQueryResponse<TResult>> {
-    const enabledDexs = await this.#getValidatedDexs();
+    const enabledDexs = resolvedDexs ?? (await this.#getValidatedDexs());
 
     const settledResults = await Promise.allSettled(
       enabledDexs.map(async (dex) => {
@@ -9288,8 +9290,12 @@ export class HyperLiquidProvider implements PerpsProvider {
         }),
       };
     } catch (error) {
+      const safeError = ensureError(
+        error,
+        'HyperLiquidProvider.closePositions',
+      );
       this.#deps.logger.error(
-        ensureError(error, 'HyperLiquidProvider.closePositions'),
+        safeError,
         this.#getErrorContext('closePositions', {
           positionCount: positionsToClose.length,
         }),
@@ -9299,6 +9305,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         success: false,
         successCount: 0,
         failureCount: positionsToClose.length,
+        error: safeError.message,
         results: positionsToClose.map((position) => ({
           symbol: position.symbol,
           success: false,
@@ -10659,9 +10666,19 @@ export class HyperLiquidProvider implements PerpsProvider {
     await this.#ensureClientsInitialized();
     const infoClient = this.#clientService.getInfoClient({ useHttp: true });
     const userAddress = await this.#walletService.getUserAddressWithDefault();
+    const enabledDexs = await this.#getValidatedDexs();
+
+    // A valid discovery response always populates the cache, even when main is
+    // the only available DEX. With HIP-3 enabled, an uncached `[null]` is the
+    // tolerant discovery fallback and cannot certify all-DEX completeness.
+    if (this.#hip3Enabled && !this.#dexDiscoveryCache.state?.validated) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+
     const { results, failedDexs } = await this.#queryUserDataAcrossDexs(
       { user: userAddress },
       (userParam) => infoClient.clearinghouseState(userParam),
+      enabledDexs,
     );
 
     if (failedDexs.length > 0) {
