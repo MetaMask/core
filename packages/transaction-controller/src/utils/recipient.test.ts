@@ -369,6 +369,37 @@ describe('getSendRecipients', () => {
     expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
   });
 
+  it('returns no recipients for a cancellation with stale original ERC-1155 batch calldata', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(TransactionType.cancel, undefined, FROM_ADDRESS),
+      txParamsOriginal: {
+        data: ERC1155_SAFE_BATCH_TRANSFER_FROM_DATA,
+        from: FROM_ADDRESS,
+        to: TOKEN_CONTRACT,
+        value: '0x0',
+      },
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
+  });
+
+  it('returns no recipients for a sped-up cancellation with stale send metadata', () => {
+    const nestedSendRecipient = '0x1234dddddddddddddddddddddddddddddddd9abc';
+    const transactionMeta = {
+      ...buildTransactionMeta(TransactionType.retry, undefined, FROM_ADDRESS),
+      originalType: TransactionType.cancel,
+      swapAndSendRecipient: TOKEN_RECIPIENT,
+      nestedTransactions: [
+        {
+          to: nestedSendRecipient,
+          type: TransactionType.simpleSend,
+        },
+      ],
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
+  });
+
   it('treats a native transfer to a contract address as a native send', () => {
     const transactionMeta = buildTransactionMeta(
       TransactionType.contractInteraction,

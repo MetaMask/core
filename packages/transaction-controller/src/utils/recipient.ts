@@ -62,10 +62,10 @@ export function getEffectiveRecipient(
  * - Untyped transactions with no calldata, treated as legacy native sends
  * - Speed-up transactions (`type: retry`), classified using `originalType`,
  *   since `txParams` are otherwise unchanged from the transaction being sped
- *   up. Cancellations (`type: cancel`) are not resolved this way: `to` and
- *   `data` are overwritten into a self-send with no real payee to track, and
- *   a cancelled batch's nested transactions are skipped entirely for the
- *   same reason, even though they are still present on the transaction.
+ *   up.
+ * - Cancellations and retries of cancellations return no payees. Their
+ *   original params, nested transactions, and swap-and-send recipient can
+ *   remain on the metadata even though none of those sends executed.
  * - A native transfer with no calldata to an address that happens to be a
  *   contract. `determineTransactionType` only returns `simpleSend` when `to`
  *   is not a contract, so these are typed `contractInteraction` even though
@@ -75,6 +75,10 @@ export function getEffectiveRecipient(
  * @returns Deduplicated send recipient addresses, possibly empty.
  */
 export function getSendRecipients(transactionMeta: TransactionMeta): string[] {
+  if (isCancellation(transactionMeta)) {
+    return [];
+  }
+
   // Swap the whole params object rather than falling back field by field.
   // `txParamsOriginal` is a `cloneDeep` snapshot of the pre-wrapping params, so
   // its `to` and `data` always describe the same call. Mixing an original `to`
@@ -105,16 +109,21 @@ export function getSendRecipients(transactionMeta: TransactionMeta): string[] {
   );
   addRecipient(transactionMeta.swapAndSendRecipient);
 
-  // A cancellation keeps the batch's original nestedTransactions (only
-  // txParams/type are overwritten into a self-send), but none of those nested
-  // calls actually executed, so they must not be read as real payees.
-  if (transactionMeta.type !== TransactionType.cancel) {
-    for (const nestedTransaction of transactionMeta.nestedTransactions ?? []) {
-      addRecipient(getSendRecipientFromSource(nestedTransaction));
-    }
+  for (const nestedTransaction of transactionMeta.nestedTransactions ?? []) {
+    addRecipient(getSendRecipientFromSource(nestedTransaction));
   }
 
   return recipients;
+}
+
+function isCancellation({
+  type,
+  originalType,
+}: Pick<TransactionMeta, 'type' | 'originalType'>): boolean {
+  return (
+    type === TransactionType.cancel ||
+    (type === TransactionType.retry && originalType === TransactionType.cancel)
+  );
 }
 
 function getSendRecipientFromSource({
