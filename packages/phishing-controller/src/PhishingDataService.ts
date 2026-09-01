@@ -464,8 +464,14 @@ export class PhishingDataService extends BaseDataService<
   async getStalelist(): Promise<DataResultWrapper<PhishingStalelist>> {
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:getStalelist`],
-      queryFn: async () => this.#getJson(METAMASK_STALELIST_URL),
-      responseStruct: StalelistResponseStruct,
+      // Validated inside the query function so that a malformed response is
+      // never committed to, or persisted from, the query cache.
+      queryFn: async () =>
+        this.#validate(
+          await this.#getJson(METAMASK_STALELIST_URL),
+          StalelistResponseStruct,
+          'stalelist',
+        ) as Json,
       staleTime: 0,
       gcTime: LIST_GC_TIME,
     });
@@ -485,8 +491,11 @@ export class PhishingDataService extends BaseDataService<
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:getHotlistDiffs`, timestamp],
       queryFn: async () =>
-        this.#getJson(`${METAMASK_HOTLIST_DIFF_URL}/${timestamp}`),
-      responseStruct: HotlistDiffsResponseStruct,
+        this.#validate(
+          await this.#getJson(`${METAMASK_HOTLIST_DIFF_URL}/${timestamp}`),
+          HotlistDiffsResponseStruct,
+          'hotlist diffs',
+        ) as Json,
       staleTime: 0,
       gcTime: LIST_GC_TIME,
     });
@@ -511,8 +520,12 @@ export class PhishingDataService extends BaseDataService<
 
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:getC2DomainBlocklist`, timestamp ?? null],
-      queryFn: async () => this.#getJson(url),
-      responseStruct: C2DomainBlocklistResponseStruct,
+      queryFn: async () =>
+        this.#validate(
+          await this.#getJson(url),
+          C2DomainBlocklistResponseStruct,
+          'C2 domain blocklist',
+        ) as Json,
       staleTime: 0,
       gcTime: LIST_GC_TIME,
     });
@@ -540,9 +553,12 @@ export class PhishingDataService extends BaseDataService<
             },
           },
         );
-        return this.#toJson(response);
+        return this.#validate(
+          await this.#toJson(response),
+          ScanUrlResponseStruct,
+          'URL scan',
+        ) as Json;
       },
-      responseStruct: ScanUrlResponseStruct,
       staleTime: SCAN_RESULT_STALE_TIME,
       gcTime: SCAN_RESULT_GC_TIME,
     });
@@ -778,11 +794,14 @@ export class PhishingDataService extends BaseDataService<
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:scanAddress`, chain, address],
       queryFn: async () =>
-        this.#postJson(`${SECURITY_ALERTS_BASE_URL}${ADDRESS_SCAN_ENDPOINT}`, {
-          chain,
-          address,
-        }),
-      responseStruct: ScanAddressResponseStruct,
+        this.#validate(
+          await this.#postJson(
+            `${SECURITY_ALERTS_BASE_URL}${ADDRESS_SCAN_ENDPOINT}`,
+            { chain, address },
+          ),
+          ScanAddressResponseStruct,
+          'address scan',
+        ) as Json,
       staleTime: SCAN_RESULT_STALE_TIME,
       gcTime: SCAN_RESULT_GC_TIME,
     });

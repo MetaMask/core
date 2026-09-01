@@ -98,9 +98,7 @@ describe('PhishingDataService', () => {
 
       await expect(
         rootMessenger.call('PhishingDataService:getStalelist'),
-      ).rejects.toThrow(
-        'Query function for "PhishingDataService:getStalelist" returned an unexpected response',
-      );
+      ).rejects.toThrow('Malformed response received from stalelist endpoint');
     });
   });
 
@@ -137,7 +135,7 @@ describe('PhishingDataService', () => {
       await expect(
         rootMessenger.call('PhishingDataService:getHotlistDiffs', 1700000000),
       ).rejects.toThrow(
-        'Query function for "PhishingDataService:getHotlistDiffs" returned an unexpected response',
+        'Malformed response received from hotlist diffs endpoint',
       );
     });
   });
@@ -190,7 +188,7 @@ describe('PhishingDataService', () => {
       await expect(
         rootMessenger.call('PhishingDataService:getC2DomainBlocklist'),
       ).rejects.toThrow(
-        'Query function for "PhishingDataService:getC2DomainBlocklist" returned an unexpected response',
+        'Malformed response received from C2 domain blocklist endpoint',
       );
     });
   });
@@ -268,9 +266,7 @@ describe('PhishingDataService', () => {
 
       await expect(
         rootMessenger.call('PhishingDataService:scanUrl', 'example.com'),
-      ).rejects.toThrow(
-        'Query function for "PhishingDataService:scanUrl" returned an unexpected response',
-      );
+      ).rejects.toThrow('Malformed response received from URL scan endpoint');
     });
 
     it('does not cache a malformed response', async () => {
@@ -285,7 +281,7 @@ describe('PhishingDataService', () => {
 
       await expect(
         rootMessenger.call('PhishingDataService:scanUrl', 'example.com'),
-      ).rejects.toThrow('returned an unexpected response');
+      ).rejects.toThrow('Malformed response received from URL scan endpoint');
 
       // The malformed body must not have been committed to the cache, so the
       // next call re-requests and sees the real verdict.
@@ -702,7 +698,7 @@ describe('PhishingDataService', () => {
           '0x1234567890123456789012345678901234567890',
         ),
       ).rejects.toThrow(
-        'Query function for "PhishingDataService:scanAddress" returned an unexpected response',
+        'Malformed response received from address scan endpoint',
       );
     });
   });
