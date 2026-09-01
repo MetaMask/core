@@ -54,10 +54,14 @@ export type AnalyticsControllerTrackViewAction = {
  * Any existing fragment with the same ID is replaced, so a new journey never
  * inherits properties from a stale one.
  *
+ * Nothing is created unless the user is opted in, or undecided with the
+ * pre-consent queue enabled, so an opted-out user accumulates no fragment
+ * data.
+ *
  * @param options - The fragment definition. An ID is generated when one is
  * not supplied.
  * @returns The created fragment, or `undefined` when the event fragments
- * feature is disabled.
+ * feature is disabled or the consent state does not allow capture.
  */
 export type AnalyticsControllerCreateEventFragmentAction = {
   type: `AnalyticsController:createEventFragment`;
@@ -96,8 +100,9 @@ export type AnalyticsControllerUpdateEventFragmentAction = {
  * Read an event fragment.
  *
  * @param id - The fragment ID.
- * @returns The fragment, or `undefined` when no fragment has that ID or the
- * event fragments feature is disabled.
+ * @returns The fragment, or `undefined` when no fragment has that ID, the
+ * event fragments feature is disabled, or the consent state does not allow
+ * capture.
  */
 export type AnalyticsControllerGetEventFragmentByIdAction = {
   type: `AnalyticsController:getEventFragmentById`;
@@ -169,6 +174,10 @@ export type AnalyticsControllerOptOutAction = {
  * preference and discards the delivery queue, but preserves any pre-consent
  * events so they can still be replayed if the user opts in again. The user is
  * treated as undecided again.
+ *
+ * In-progress event fragments are kept only while the undecided user can
+ * still accumulate them, and discarded otherwise, so no fragment outlives the
+ * consent state that allowed it.
  */
 export type AnalyticsControllerResetConsentDecisionAction = {
   type: `AnalyticsController:resetConsentDecision`;
