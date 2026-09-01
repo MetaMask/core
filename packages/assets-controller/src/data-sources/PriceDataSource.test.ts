@@ -828,11 +828,17 @@ describe('PriceDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
+    // `assetsForPriceUpdate` is not pre-normalized by the caller; the data
+    // source normalizes it before both the outgoing API request and the key
+    // it stores the result under (real ERC-20 addresses are checksummed —
+    // MOCK_TOKEN_ASSET is deliberately all-lowercase so this exercises that).
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
-      [MOCK_TOKEN_ASSET],
+      [normalizeAssetId(MOCK_TOKEN_ASSET)],
       { currency: 'usd', includeMarketData: true },
     );
-    expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toStrictEqual({
+    expect(
+      context.response.assetsPrice?.[normalizeAssetId(MOCK_TOKEN_ASSET)],
+    ).toStrictEqual({
       assetPriceType: 'fungible',
       price: 1.0,
       usdPrice: 1.0,
@@ -868,7 +874,9 @@ describe('PriceDataSource', () => {
       [normalizeAssetId(MOCK_TOKEN_ASSET)],
       { currency: 'usd', includeMarketData: true },
     );
-    expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toStrictEqual({
+    expect(
+      context.response.assetsPrice?.[normalizeAssetId(MOCK_TOKEN_ASSET)],
+    ).toStrictEqual({
       assetPriceType: 'fungible',
       price: 1.0,
       usdPrice: 1.0,
@@ -960,7 +968,9 @@ describe('PriceDataSource', () => {
     await controller.assetsMiddleware(context, next);
 
     expect(context.response.assetsPrice?.[anotherAsset]).toBeDefined();
-    expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeDefined();
+    expect(
+      context.response.assetsPrice?.[normalizeAssetId(MOCK_TOKEN_ASSET)],
+    ).toBeDefined();
 
     controller.destroy();
   });
@@ -1138,9 +1148,19 @@ describe('PriceDataSource', () => {
     // Still only one API call total
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
-    // Both contexts received the price
-    expect(context1.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeDefined();
-    expect(context2.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeDefined();
+    // Both contexts received the price, keyed by the normalized (checksummed)
+    // asset ID — including context2, which joined the inflight fetch rather
+    // than starting its own. Before the fix, an inflight joiner's per-key
+    // promise resolved by looking up the requested (already-normalized) key
+    // in the batch's raw, differently-cased response object and found
+    // nothing, so context2 silently received no price at all for this asset.
+    const normalizedTokenAsset = normalizeAssetId(MOCK_TOKEN_ASSET);
+    expect(context1.response.assetsPrice?.[normalizedTokenAsset]).toStrictEqual(
+      expect.objectContaining({ price: 1.0 }),
+    );
+    expect(context2.response.assetsPrice?.[normalizedTokenAsset]).toStrictEqual(
+      expect.objectContaining({ price: 1.0 }),
+    );
 
     controller.destroy();
   });
@@ -1179,7 +1199,7 @@ describe('PriceDataSource', () => {
     // Only MOCK_TOKEN_ASSET should be sent to the API (MOCK_NATIVE_ASSET is fresh)
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenLastCalledWith(
-      [MOCK_TOKEN_ASSET],
+      [normalizeAssetId(MOCK_TOKEN_ASSET)],
       expect.anything(),
     );
 
@@ -1315,4 +1335,270 @@ describe('PriceDataSource', () => {
       controller.destroy();
     },
   );
+
+  describe('regression: checksummed vs lowercase asset ID casing', () => {
+    // Real USDC address. The Price API's response echoes back whatever
+    // casing it normalizes addresses to (lowercase in practice), which does
+    // not match the app's own checksummed request form — this must not
+    // desync the deduper's key from the batch's response key.
+    const CHECKSUMMED_TOKEN_ASSET =
+      'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+    const LOWERCASE_TOKEN_ASSET = normalizeAssetId(
+      CHECKSUMMED_TOKEN_ASSET,
+    ).toLowerCase() as Caip19AssetId;
+
+    it('an inflight joiner receives the price when the API response key casing differs from the request casing', async () => {
+      expect(LOWERCASE_TOKEN_ASSET).not.toBe(CHECKSUMMED_TOKEN_ASSET);
+
+      let resolveApi: ((value: Record<string, unknown>) => void) | undefined;
+      const apiPromise = new Promise<Record<string, unknown>>((resolve) => {
+        resolveApi = resolve;
+      });
+
+      const { controller, apiClient } = setupController({});
+      apiClient.prices.fetchV3SpotPrices.mockReturnValue(apiPromise);
+
+      const next = jest.fn().mockResolvedValue(undefined);
+
+      // Both callers request the CHECKSUMMED form (the app's normalized
+      // form); the API mock will respond with the LOWERCASE form, matching
+      // how the real Price API actually echoes back addresses.
+      const starter = createMiddlewareContext({
+        request: createDataRequest({
+          assetsForPriceUpdate: [CHECKSUMMED_TOKEN_ASSET],
+        }),
+        response: {},
+      });
+      const joiner = createMiddlewareContext({
+        request: createDataRequest({
+          assetsForPriceUpdate: [CHECKSUMMED_TOKEN_ASSET],
+        }),
+        response: {},
+      });
+
+      const starterPromise = controller.assetsMiddleware(starter, next);
+      const joinerPromise = controller.assetsMiddleware(joiner, next);
+
+      // Only one API call: the joiner coalesced onto the starter's inflight
+      // fetch instead of issuing its own.
+      expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+
+      expect(resolveApi).toBeDefined();
+      resolveApi?.({
+        [LOWERCASE_TOKEN_ASSET]: createMockPriceData(1.0),
+      });
+      await Promise.all([starterPromise, joinerPromise]);
+
+      const expectedPrice = expect.objectContaining({ price: 1.0 });
+      // Before the fix: the starter's own result was rescued by downstream
+      // (AssetsController-level) key re-normalization, but the joiner's
+      // per-key inflight promise looked up its checksummed key in a
+      // lowercase-keyed raw response and got `undefined` — the price was
+      // silently dropped for the joiner only.
+      expect(
+        starter.response.assetsPrice?.[CHECKSUMMED_TOKEN_ASSET],
+      ).toStrictEqual(expectedPrice);
+      expect(
+        joiner.response.assetsPrice?.[CHECKSUMMED_TOKEN_ASSET],
+      ).toStrictEqual(expectedPrice);
+
+      controller.destroy();
+    });
+
+    it('a caller requesting the lowercase form coalesces onto an inflight fetch started for the checksummed form', async () => {
+      const { controller, apiClient } = setupController({
+        priceResponse: {
+          [LOWERCASE_TOKEN_ASSET]: createMockPriceData(1.0),
+        },
+      });
+
+      const next = jest.fn().mockResolvedValue(undefined);
+
+      const checksummedCaller = createMiddlewareContext({
+        request: createDataRequest({
+          assetsForPriceUpdate: [CHECKSUMMED_TOKEN_ASSET],
+        }),
+        response: {},
+      });
+      const lowercaseCaller = createMiddlewareContext({
+        request: createDataRequest({
+          assetsForPriceUpdate: [LOWERCASE_TOKEN_ASSET],
+        }),
+        response: {},
+      });
+
+      await Promise.all([
+        controller.assetsMiddleware(checksummedCaller, next),
+        controller.assetsMiddleware(lowercaseCaller, next),
+      ]);
+
+      // One real-world asset requested under two different casings still
+      // produces a single deduper key (both callers' keys normalize to the
+      // same value), so only one API call is made.
+      expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+
+      const expectedPrice = expect.objectContaining({ price: 1.0 });
+      expect(
+        checksummedCaller.response.assetsPrice?.[CHECKSUMMED_TOKEN_ASSET],
+      ).toStrictEqual(expectedPrice);
+      expect(
+        lowercaseCaller.response.assetsPrice?.[CHECKSUMMED_TOKEN_ASSET],
+      ).toStrictEqual(expectedPrice);
+
+      controller.destroy();
+    });
+  });
+
+  describe('regression: forceUpdate invalidation uses the normalized deduper key', () => {
+    it('forceUpdate on an unnormalized asset ID actually forces a re-fetch, not a silent no-op', async () => {
+      const CHECKSUMMED_TOKEN_ASSET =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const LOWERCASE_TOKEN_ASSET = normalizeAssetId(
+        CHECKSUMMED_TOKEN_ASSET,
+      ).toLowerCase() as Caip19AssetId;
+
+      const { controller, apiClient } = setupController({
+        priceResponse: {
+          [LOWERCASE_TOKEN_ASSET]: createMockPriceData(1.0),
+        },
+      });
+
+      const next = jest.fn().mockResolvedValue(undefined);
+
+      // First fetch: populates the freshness cache under the normalized key.
+      await controller.assetsMiddleware(
+        createMiddlewareContext({
+          request: createDataRequest({
+            assetsForPriceUpdate: [CHECKSUMMED_TOKEN_ASSET],
+          }),
+          response: {},
+        }),
+        next,
+      );
+      expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+
+      // Second call, same asset, no forceUpdate: freshness cache skips it —
+      // still within TTL, no new API call.
+      await controller.assetsMiddleware(
+        createMiddlewareContext({
+          request: createDataRequest({
+            assetsForPriceUpdate: [CHECKSUMMED_TOKEN_ASSET],
+          }),
+          response: {},
+        }),
+        next,
+      );
+      expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+
+      // Third call, forceUpdate: must invalidate the SAME (normalized) key
+      // that was populated in the first fetch, or invalidateKeys silently
+      // targets a key that was never in the freshness cache in the first
+      // place, and the "forced" refetch is actually skipped.
+      await controller.assetsMiddleware(
+        createMiddlewareContext({
+          request: createDataRequest({
+            assetsForPriceUpdate: [CHECKSUMMED_TOKEN_ASSET],
+            forceUpdate: true,
+          }),
+          response: {},
+        }),
+        next,
+      );
+      expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
+
+      controller.destroy();
+    });
+  });
+
+  describe('regression: currency switch racing an inflight fetch', () => {
+    it('a request under a new currency does not join an inflight fetch started under the previous currency', async () => {
+      let currentCurrency: SupportedCurrency = 'usd';
+      const { controller, apiClient } = setupController({
+        getSelectedCurrency: () => currentCurrency,
+      });
+
+      // The FIRST call (the original USD fetch) hangs until manually
+      // resolved. Every later call resolves immediately — including the EUR
+      // fetch's own internal USD-baseline leg (PriceDataSource always fetches
+      // a USD baseline alongside a non-USD currency), which must NOT be
+      // confused with the original hanging USD call just because it also
+      // requests `currency: 'usd'`; only call order distinguishes them here.
+      let resolveUsd: ((value: Record<string, unknown>) => void) | undefined;
+      const usdPromise = new Promise<Record<string, unknown>>((resolve) => {
+        resolveUsd = resolve;
+      });
+      let callCount = 0;
+      apiClient.prices.fetchV3SpotPrices.mockImplementation(
+        (_assetIds: string[], options: { currency: SupportedCurrency }) => {
+          callCount += 1;
+          if (callCount === 1) {
+            return usdPromise;
+          }
+          if (options.currency === 'usd') {
+            return Promise.resolve({
+              [MOCK_TOKEN_ASSET]: createMockPriceData(2419.66), // EUR fetch's own USD baseline
+            });
+          }
+          return Promise.resolve({
+            [MOCK_TOKEN_ASSET]: createMockPriceData(2087.78), // real EUR price
+          });
+        },
+      );
+
+      const next = jest.fn().mockResolvedValue(undefined);
+
+      // Start a fetch under USD; it hangs (join point for the race).
+      const usdContext = createMiddlewareContext({
+        request: createDataRequest({
+          assetsForPriceUpdate: [MOCK_TOKEN_ASSET],
+        }),
+        response: {},
+      });
+      const usdMiddlewarePromise = controller.assetsMiddleware(
+        usdContext,
+        next,
+      );
+
+      // Switch currency mid-flight, mirroring AssetsController's real
+      // currency-change handler: invalidate the freshness cache (never the
+      // inflight map — invalidate() is documented not to touch it), then
+      // re-request the same asset under the new currency.
+      currentCurrency = 'eur';
+      controller.invalidatePriceCache();
+
+      const eurContext = createMiddlewareContext({
+        request: createDataRequest({
+          assetsForPriceUpdate: [MOCK_TOKEN_ASSET],
+        }),
+        response: {},
+      });
+      // Before the fix: the deduper key had no currency component, so this
+      // EUR request would see the USD fetch still registered in `#inflight`
+      // under the same bare asset-ID key and join it — receiving the (still
+      // pending) USD result once resolved, mislabeled as EUR.
+      await controller.assetsMiddleware(eurContext, next);
+
+      const normalizedTokenAsset = normalizeAssetId(MOCK_TOKEN_ASSET);
+      expect(
+        eurContext.response.assetsPrice?.[normalizedTokenAsset],
+      ).toStrictEqual(expect.objectContaining({ price: 2087.78 }));
+
+      // Resolve the now-stale USD fetch. Its result is discarded rather than
+      // delivered to the caller that originally requested it — by the time
+      // it settles, the currency has already moved on to EUR, so returning
+      // it would let outdated-currency data reach state just as easily as
+      // joining the wrong inflight promise would have. Key isolation alone
+      // stops a *new* request from joining a stale fetch; discarding a stale
+      // fetch's own result on settlement closes the other half of the race.
+      resolveUsd?.({
+        [MOCK_TOKEN_ASSET]: createMockPriceData(2419.66), // real USD price
+      });
+      await usdMiddlewarePromise;
+      expect(
+        usdContext.response.assetsPrice?.[normalizedTokenAsset],
+      ).toBeUndefined();
+
+      controller.destroy();
+    });
+  });
 });
