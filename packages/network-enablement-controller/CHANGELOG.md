@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.7.0` ([#10046](https://github.com/MetaMask/core/pull/10046))
+
 ## [6.0.5]
 
 ### Changed

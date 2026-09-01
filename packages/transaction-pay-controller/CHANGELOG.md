@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.1.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^14.0.2` to `^14.0.3` ([#10042](https://github.com/MetaMask/core/pull/10042))
+- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.7.0` ([#10046](https://github.com/MetaMask/core/pull/10046))
+
+### Fixed
+
+- Prevent Relay quotes from offering EIP-7702 gas fee token sponsorship when the source account does not support EIP-7702 ([#9897](https://github.com/MetaMask/core/pull/9897))
+
 ## [27.1.0]
 
 ### Changed
@@ -1479,7 +1490,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.1.1...HEAD
+[27.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.1.0...@metamask/transaction-pay-controller@27.1.1
 [27.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.0.0...@metamask/transaction-pay-controller@27.1.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.4.1...@metamask/transaction-pay-controller@27.0.0
 [26.4.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@26.4.0...@metamask/transaction-pay-controller@26.4.1

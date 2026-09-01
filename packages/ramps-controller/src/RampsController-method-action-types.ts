@@ -325,6 +325,104 @@ export type RampsControllerRemoveOrderAction = {
 };
 
 /**
+ * Adds or updates a local autoramp last-seen cursor (e.g. after create).
+ *
+ * @param accountOrInput - Full account or create fields.
+ * @returns The upserted {@link AutorampAccount}.
+ */
+export type RampsControllerAddAutorampAction = {
+  type: `RampsController:addAutoramp`;
+  handler: RampsController['addAutoramp'];
+};
+
+/**
+ * Creates an autoramp via the neo-bank proxy and applies the returned
+ * snapshot as the local last-seen cursor.
+ *
+ * The vendor `customer_id` is resolved via
+ * {@link RampsController.resolveAutorampCustomerId} and injected into the
+ * request (any caller-supplied `customer_id` is overwritten).
+ *
+ * @param request - CreateAutoramp payload.
+ * @param options - Optional idempotency key forwarded to the proxy.
+ * @param options.idempotencyKey - Value sent as `Idempotency-Key`.
+ * @returns The created/updated local {@link AutorampAccount}.
+ */
+export type RampsControllerCreateAutorampAction = {
+  type: `RampsController:createAutoramp`;
+  handler: RampsController['createAutoramp'];
+};
+
+/**
+ * Registers a Money Account wallet with MoonPay Iron via neobank-proxy.
+ *
+ * @param params - Money Account wallet registration parameters.
+ * @param params.address - Monad Money Account address.
+ * @returns The registration state, or `{ type: 'lookupUnavailable' }` when
+ * the address-list lookup fails (never treated as unregistered).
+ */
+export type RampsControllerRegisterMoneyAccountWalletAction = {
+  type: `RampsController:registerMoneyAccountWallet`;
+  handler: RampsController['registerMoneyAccountWallet'];
+};
+
+/**
+ * Removes a local autoramp last-seen cursor by id.
+ *
+ * @param autorampId - MoonPay autoramp id.
+ */
+export type RampsControllerRemoveAutorampAction = {
+  type: `RampsController:removeAutoramp`;
+  handler: RampsController['removeAutoramp'];
+};
+
+/**
+ * Marks that the UI has already notified for the autoramp's current status.
+ *
+ * @param autorampId - MoonPay autoramp id.
+ */
+export type RampsControllerMarkAutorampAsNotifiedAction = {
+  type: `RampsController:markAutorampAsNotified`;
+  handler: RampsController['markAutorampAsNotified'];
+};
+
+/**
+ * Applies a remote autoramp snapshot from a websocket / webhook push.
+ *
+ * @param remote - Remote autoramp snapshot.
+ * @returns The updated local account.
+ */
+export type RampsControllerApplyAutorampStatusFromPushAction = {
+  type: `RampsController:applyAutorampStatusFromPush`;
+  handler: RampsController['applyAutorampStatusFromPush'];
+};
+
+/**
+ * Fetches one autoramp from the neo-bank proxy and applies it to the
+ * last-seen cursor. Does not recreate a cursor that was removed while the
+ * request was in flight.
+ *
+ * @param autorampId - MoonPay autoramp id.
+ * @returns The updated local account, or an unpersisted snapshot if the
+ * cursor was removed during the fetch.
+ */
+export type RampsControllerRefreshAutorampAction = {
+  type: `RampsController:refreshAutoramp`;
+  handler: RampsController['refreshAutoramp'];
+};
+
+/**
+ * Refreshes all known local autoramps from MoonPay.
+ * Intended for app resume / unlock catch-up when webhooks were missed.
+ *
+ * @returns Updated autoramp accounts (failed fetches are skipped).
+ */
+export type RampsControllerRefreshAutorampsAction = {
+  type: `RampsController:refreshAutoramps`;
+  handler: RampsController['refreshAutoramps'];
+};
+
+/**
  * Starts polling all pending V2 orders at a fixed interval.
  * Each poll cycle iterates orders with non-terminal statuses,
  * respects pollingSecondsMinimum and backoff from error count.
@@ -734,6 +832,14 @@ export type RampsControllerMethodActions =
   | RampsControllerGetQuotesAction
   | RampsControllerAddOrderAction
   | RampsControllerRemoveOrderAction
+  | RampsControllerAddAutorampAction
+  | RampsControllerCreateAutorampAction
+  | RampsControllerRegisterMoneyAccountWalletAction
+  | RampsControllerRemoveAutorampAction
+  | RampsControllerMarkAutorampAsNotifiedAction
+  | RampsControllerApplyAutorampStatusFromPushAction
+  | RampsControllerRefreshAutorampAction
+  | RampsControllerRefreshAutorampsAction
   | RampsControllerStartOrderPollingAction
   | RampsControllerStopOrderPollingAction
   | RampsControllerGetBuyWidgetDataAction

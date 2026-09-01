@@ -726,6 +726,7 @@ async function normalizeQuote(
     messenger,
     request,
     fullRequest.transaction,
+    fullRequest.accountSupports7702,
   );
 
   const targetNetwork = {
@@ -864,6 +865,7 @@ function getFiatRates(
  * @param messenger - Controller messenger.
  * @param request - Quote request.
  * @param transaction - Original transaction metadata.
+ * @param accountSupports7702 - Whether the source account supports EIP-7702.
  * @returns Total source network cost in USD and fiat.
  */
 async function calculateSourceNetworkCost(
@@ -871,6 +873,7 @@ async function calculateSourceNetworkCost(
   messenger: TransactionPayControllerMessenger,
   request: QuoteRequest,
   transaction: TransactionMeta,
+  accountSupports7702: boolean | undefined,
 ): Promise<
   TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] & {
     gasLimits: number[];
@@ -1005,6 +1008,14 @@ async function calculateSourceNetworkCost(
   const result = { estimate, max, gasLimits, is7702 };
 
   if (new BigNumber(nativeBalance).isGreaterThanOrEqualTo(max.raw)) {
+    return result;
+  }
+
+  if (accountSupports7702 === false) {
+    log('Skipping gas station as account does not support EIP-7702', {
+      from,
+    });
+
     return result;
   }
 

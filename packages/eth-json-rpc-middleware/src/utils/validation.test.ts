@@ -368,6 +368,70 @@ describe('Validation Utils', () => {
       ).not.toThrow();
     });
 
+    it('does not throw when optional quantity fields are null', () => {
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          to: VALID_TO,
+          chainId: null,
+          gas: null,
+          gasLimit: null,
+          gasPrice: null,
+          maxFeePerGas: null,
+          maxPriorityFeePerGas: null,
+          nonce: null,
+          value: null,
+        }),
+      ).not.toThrow();
+    });
+
+    it('does not throw when optional string fields are null', () => {
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          to: null,
+          data: null,
+          type: null,
+        }),
+      ).not.toThrow();
+    });
+
+    it('does not throw when accessList is null', () => {
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          accessList: null,
+        }),
+      ).not.toThrow();
+    });
+
+    it('does not throw when authorizationList is null', () => {
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          authorizationList: null,
+        }),
+      ).not.toThrow();
+    });
+
+    it('does not throw when authorizationList entry fields are null', () => {
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          authorizationList: [
+            {
+              address: VALID_TO,
+              chainId: null,
+              nonce: null,
+              r: null,
+              s: null,
+              yParity: null,
+            },
+          ],
+        }),
+      ).not.toThrow();
+    });
+
     it.each([
       ['null', null],
       ['undefined', undefined],
