@@ -142,13 +142,16 @@ export const getBroadcastFailureProperties = (
 };
 
 /**
- * Telemetry for Failed events derived from a status poll.
+ * Mixpanel properties for Failed events derived from history hashes.
  *
- * @param sourceHash - Source tx hash if known.
- * @param destinationHash - Destination tx hash if known.
+ * Used for poll Failed and TransactionController Failed once a history
+ * item exists. Not poll-only.
+ *
+ * @param sourceHash - Source tx hash from history if known.
+ * @param destinationHash - Destination tx hash from history if known.
  * @returns Phase, error code, and hash-presence flags.
  */
-export const getStatusFailureTelemetry = (
+export const getFailurePropertiesFromHistory = (
   sourceHash?: string | null,
   destinationHash?: string | null,
 ): FailureTelemetryProperties => {

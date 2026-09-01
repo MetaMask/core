@@ -56,7 +56,7 @@ export {
 export {
   getHashPresenceProperties,
   getStatusFailurePhase,
-  getStatusFailureTelemetry,
+  getFailurePropertiesFromHistory,
   getSubmitErrorCode,
   getBroadcastFailureProperties,
   promoteFailurePhase,

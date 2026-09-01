@@ -99,7 +99,7 @@ import {
   getPreConfirmationPropertiesFromQuote,
   getHashPresenceProperties,
   getBroadcastFailureProperties,
-  getStatusFailureTelemetry,
+  getFailurePropertiesFromHistory,
   promoteFailurePhase,
 } from './utils/metrics.js';
 import { getSelectedChainId } from './utils/network.js';
@@ -1847,7 +1847,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       historyItem.status.destChain?.txHash,
     );
 
-    const statusFailureTelemetry = getStatusFailureTelemetry(
+    const failurePropertiesFromHistory = getFailurePropertiesFromHistory(
       historyItem.status.srcChain.txHash,
       historyItem.status.destChain?.txHash,
     );
@@ -1860,12 +1860,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         Boolean(failedProperties?.destination_hash_present),
     };
     const failedPhase = promoteFailurePhase(
-      failedProperties?.failure_phase ?? statusFailureTelemetry.failure_phase,
+      failedProperties?.failure_phase ??
+        failurePropertiesFromHistory.failure_phase,
       failedHashPresence,
     );
     const failedErrorCode =
       failedProperties?.failure_phase === undefined
-        ? statusFailureTelemetry.error_code
+        ? failurePropertiesFromHistory.error_code
         : (failedProperties.error_code ?? SwapBridgeErrorCode.Unknown);
 
     const requiredEventProperties = {
@@ -1887,7 +1888,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         }),
       }),
       ...(eventName === UnifiedSwapBridgeEventName.Failed && {
-        ...statusFailureTelemetry,
+        ...failurePropertiesFromHistory,
         ...failedHashPresence,
         failure_phase: failedPhase,
         error_code: failedErrorCode,

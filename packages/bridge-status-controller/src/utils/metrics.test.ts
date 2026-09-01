@@ -30,7 +30,7 @@ import {
   getPreConfirmationPropertiesFromQuote,
   getHashPresenceProperties,
   getStatusFailurePhase,
-  getStatusFailureTelemetry,
+  getFailurePropertiesFromHistory,
   getSubmitErrorCode,
   getBroadcastFailureProperties,
   promoteFailurePhase,
@@ -1402,15 +1402,17 @@ describe('metrics utils', () => {
     });
   });
 
-  describe('getStatusFailureTelemetry', () => {
+  describe('getFailurePropertiesFromHistory', () => {
     it('uses status_failed_without_reason and phase from hashes', () => {
-      expect(getStatusFailureTelemetry('0xsrc', undefined)).toStrictEqual({
-        failure_phase: FailurePhase.SourceExecution,
-        error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
-        source_hash_present: true,
-        destination_hash_present: false,
-      });
-      expect(getStatusFailureTelemetry('0xsrc', '0xdest')).toStrictEqual({
+      expect(getFailurePropertiesFromHistory('0xsrc', undefined)).toStrictEqual(
+        {
+          failure_phase: FailurePhase.SourceExecution,
+          error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
+          source_hash_present: true,
+          destination_hash_present: false,
+        },
+      );
+      expect(getFailurePropertiesFromHistory('0xsrc', '0xdest')).toStrictEqual({
         failure_phase: FailurePhase.DestinationExecution,
         error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
         source_hash_present: true,
