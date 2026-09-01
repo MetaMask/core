@@ -286,21 +286,6 @@ function buildTsSourceExclusions(contentRoot: string): string[] {
 }
 
 /**
- * Patterns excluded when reading published declaration files: dependencies
- * vendored inside a package's own `dist`.
- *
- * Deliberately narrower than {@link buildTsSourceExclusions}. A blanket `dist/**`
- * exclusion would match the very `dist` segment these files live under and
- * silently drop every one of them.
- *
- * @param root - Resolved `node_modules/@metamask` directory.
- * @returns The exclusion patterns.
- */
-function buildDeclarationFileExclusions(root: string): string[] {
-  return [`!${root}/*/dist/**/node_modules/**`];
-}
-
-/**
  * Add every file matching a set of glob patterns to the project, in a stable
  * order.
  *
@@ -396,12 +381,7 @@ async function scanSources(
 
   if (sources.nodeModulesDir) {
     const root = await toGlobPath(sources.nodeModulesDir);
-    sourceFiles.push(
-      ...addSourceFiles(project, [
-        `${root}/*/dist/**/*.d.cts`,
-        ...buildDeclarationFileExclusions(root),
-      ]),
-    );
+    sourceFiles.push(...addSourceFiles(project, [`${root}/*/dist/**/*.d.cts`]));
   }
 
   // Matched paths are fully resolved, so the root they are made relative to
@@ -419,7 +399,7 @@ async function scanSources(
       // catches a file whose types defeat the extractor — worth surviving
       // when scanning thousands of files, but not reproducible in a test.
       console.warn(
-        `Warning: failed to parse ${path.relative(resolvedProjectPath, sourceFile.getFilePath())}`,
+        `Warning: Failed to parse ${path.relative(resolvedProjectPath, sourceFile.getFilePath())}`,
       );
       // istanbul ignore next: see above.
       console.warn(error);
