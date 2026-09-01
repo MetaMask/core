@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Add the missing Georgian lari (`gel`) entry to `MAP_CAIP_CURRENCIES` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add the missing Georgian lari (`gel`) entry to `MAP_CAIP_CURRENCIES` ([#10064](https://github.com/MetaMask/core/pull/10064))
 
 ## [111.1.3]
 

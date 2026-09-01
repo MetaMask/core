@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Preserve EVM bridge exchange-rate data and omit non-EVM conversion rates when the selected currency has no CAIP mapping, instead of discarding the whole result ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Preserve EVM bridge exchange-rate data and omit non-EVM conversion rates when the selected currency has no CAIP mapping, instead of discarding the whole result ([#10064](https://github.com/MetaMask/core/pull/10064))
 
 ## [14.0.3]
 
