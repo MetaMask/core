@@ -954,7 +954,9 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          const envelope = await envelopeFor(controller, { accessToken: 'access-1' });
+          const envelope = await envelopeFor(controller, {
+            accessToken: 'access-1',
+          });
 
           await controller.handleFrameMessage({
             message: {
@@ -984,7 +986,9 @@ describe('KycController', () => {
         },
         async ({ controller, handlers, launcher }) => {
           handlers.checkKycRequired.mockResolvedValue({ kycRequired: false });
-          const envelope = await envelopeFor(controller, { accessToken: 'access-1' });
+          const envelope = await envelopeFor(controller, {
+            accessToken: 'access-1',
+          });
 
           await controller.handleFrameMessage({
             message: {
@@ -1024,7 +1028,9 @@ describe('KycController', () => {
             onStatusChange?.('InProgress', 'Completed');
             return { ok: true };
           });
-          const envelope = await envelopeFor(controller, { accessToken: 'access-2' });
+          const envelope = await envelopeFor(controller, {
+            accessToken: 'access-2',
+          });
 
           await controller.handleFrameMessage({
             message: {
@@ -1056,7 +1062,9 @@ describe('KycController', () => {
         async ({ controller, handlers, launcher }) => {
           handlers.checkKycRequired.mockResolvedValue({ kycRequired: true });
           launcher.isAvailable.mockReturnValue(false);
-          const envelope = await envelopeFor(controller, { accessToken: 'access-1' });
+          const envelope = await envelopeFor(controller, {
+            accessToken: 'access-1',
+          });
 
           const result = await controller.handleFrameMessage({
             message: {
@@ -1101,7 +1109,9 @@ describe('KycController', () => {
             onStatusChange?.('InProgress', 'Completed');
             return { ok: true };
           });
-          const envelope = await envelopeFor(controller, { accessToken: 'access-1' });
+          const envelope = await envelopeFor(controller, {
+            accessToken: 'access-1',
+          });
           const message = {
             kind: 'complete',
             meta: { channelId: 'ch_2' },
@@ -1208,7 +1218,9 @@ describe('KycController', () => {
         },
         async ({ controller, handlers, launcher }) => {
           handlers.checkKycRequired.mockRejectedValue(new Error('down'));
-          const envelope = await envelopeFor(controller, { accessToken: 'access-1' });
+          const envelope = await envelopeFor(controller, {
+            accessToken: 'access-1',
+          });
 
           await controller.handleFrameMessage({
             message: {
