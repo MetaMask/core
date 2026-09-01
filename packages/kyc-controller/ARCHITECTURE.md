@@ -181,7 +181,7 @@ classDiagram
         +KycDisclaimer[] disclaimers
         +string disclaimersError
         +string geoCountry
-        +string sessionToken [secret]
+        +string moonpaySessionToken [secret]
         +string accessToken [secret]
         +string moonpayCustomerId
         +KycProduct activeProduct
@@ -198,7 +198,7 @@ classDiagram
     KycControllerState --> SumSubState : sumsub
 ```
 
-> Note: nullable fields (`error`, `email`, `sessionToken`, …) are typed as
+> Note: nullable fields (`error`, `email`, `moonpaySessionToken`, …) are typed as
 > `T | null` in the source; `Record` is `Partial<Record<KycProduct, boolean>>`.
 > Types are simplified above for diagram readability.
 
@@ -216,7 +216,7 @@ State metadata highlights (`kycControllerMetadata`):
   vendor switch commits (`createVendorCustomer` succeeds, or the MoonPay
   path proceeds); a failed or reset switch leaves the previous vendor's
   acceptance in place.
-- **Secrets, never persisted / never logged**: `sessionToken`, `accessToken`,
+- **Secrets, never persisted / never logged**: `moonpaySessionToken`, `accessToken`,
   `moonpayCustomerId`, `email`, `disclaimers`, and the whole `sumsub` sub-tree.
   Switching away from MoonPay (`initialize` / `createVendorCustomer`) drops
   these MoonPay Check/Auth artifacts immediately so `buildCheckFrameUrl` cannot
@@ -288,7 +288,7 @@ stateDiagram-v2
 > `form`, `submit`), a repeat `initialize` or `createVendorCustomer` is a
 > **no-op** — it will not create a new session, switch `activeVendor`, clear
 > tokens, or reset `activeProduct`. Call `reset()` first to start over.
-> When a switch away from MoonPay is allowed, leftover `sessionToken`,
+> When a switch away from MoonPay is allowed, leftover `moonpaySessionToken`,
 > `accessToken`, `moonpayCustomerId`, and `#authClientToken` are cleared so
 > Check/Auth URLs cannot outlive the MoonPay session. Check/Auth `complete`
 > messages are also ignored unless `activeVendor` is `moonpay`, so a
@@ -348,7 +348,7 @@ sequenceDiagram
     User->>Ctrl: acceptTermsAndStartSession({ email, providerDisclaimersAccepted, idosDisclaimersAccepted })
     Ctrl->>Svc: createSession({ email, termsAcceptedAt, disclaimerIds })
     Svc->>API: POST /sessions
-    Ctrl-->>UI: phase = check (+ sessionToken)
+    Ctrl-->>UI: phase = check (+ moonpaySessionToken)
 
     UI->>Ctrl: buildCheckFrameUrl()
     Ctrl-->>UI: URL (sessionToken + publicKey)

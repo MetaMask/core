@@ -194,8 +194,8 @@ export type KycControllerState = {
   /** Resolved ISO 3166-1 alpha-3 country code. */
   geoCountry: string | null;
 
-  /** Vendor session token (not persisted, not logged). */
-  sessionToken: string | null;
+  /** MoonPay session token (not persisted, not logged). */
+  moonpaySessionToken: string | null;
   /** Vendor access token (not persisted, not logged). */
   accessToken: string | null;
   /** Vendor customer id, used for the SumSub hand-off. */
@@ -320,7 +320,7 @@ const kycControllerMetadata = {
     persist: false,
     usedInUi: true,
   },
-  sessionToken: {
+  moonpaySessionToken: {
     includeInDebugSnapshot: false,
     includeInStateLogs: false,
     persist: false,
@@ -420,7 +420,7 @@ export function getDefaultKycControllerState(): KycControllerState {
     disclaimersError: null,
     sessionDisclaimers: null,
     geoCountry: null,
-    sessionToken: null,
+    moonpaySessionToken: null,
     accessToken: null,
     moonpayCustomerId: null,
     activeVendor: 'moonpay',
@@ -873,7 +873,7 @@ export class KycController extends BaseController<
       }
       state.activeVendor = vendor;
       // MoonPay Check/Auth artifacts must not survive a switch to another
-      // vendor: leftover `sessionToken` would keep `buildCheckFrameUrl` alive,
+      // vendor: leftover `moonpaySessionToken` would keep `buildCheckFrameUrl` alive,
       // leftover `accessToken` / `#authClientToken` would keep Auth / KYC
       // calls bound to MoonPay, and leftover `moonpayCustomerId` would make
       // `getCustomerIdentity` report a MoonPay id under the wrong vendor.
@@ -1442,7 +1442,7 @@ export class KycController extends BaseController<
     // (or, on failure, invalid) session token, `buildAuthFrameUrl` cannot
     // return a URL tied to an old client token, and `checkKycRequired` cannot
     // run with an access token from an earlier authentication. The Check/Auth
-    // frames re-populate these for the new session. Because `sessionToken` is
+    // frames re-populate these for the new session. Because `moonpaySessionToken` is
     // cleared here and only re-set on success, a failed creation leaves it
     // `null` rather than resurrecting the previous session.
     // Capture the flow generation so a `reset()` landing while the create
@@ -1455,7 +1455,7 @@ export class KycController extends BaseController<
       state.error = null;
       state.phase = 'session';
       state.statusMessage = 'Creating session...';
-      state.sessionToken = null;
+      state.moonpaySessionToken = null;
       state.accessToken = null;
     });
 
@@ -1465,7 +1465,7 @@ export class KycController extends BaseController<
         { email, termsAcceptedAt, disclaimerIds: acceptedDisclaimerIds },
       );
       this.#updateIfCurrent(generation, (state) => {
-        state.sessionToken = sessionToken;
+        state.moonpaySessionToken = sessionToken;
         state.phase = 'check';
         state.statusMessage = 'Authenticating via Check frame...';
       });
@@ -1545,7 +1545,7 @@ export class KycController extends BaseController<
    */
   #clearMoonPaySession(state: KycControllerState): void {
     state.moonpayCustomerId = null;
-    state.sessionToken = null;
+    state.moonpaySessionToken = null;
     state.accessToken = null;
   }
 
@@ -1761,11 +1761,11 @@ export class KycController extends BaseController<
    * @returns The Check-frame URL or `null`.
    */
   buildCheckFrameUrl(): string | null {
-    if (this.state.activeVendor !== 'moonpay' || !this.state.sessionToken) {
+    if (this.state.activeVendor !== 'moonpay' || !this.state.moonpaySessionToken) {
       return null;
     }
     const url = new URL(`${FRAMES_BASE_URL}/check-connection`);
-    url.searchParams.set('sessionToken', this.state.sessionToken);
+    url.searchParams.set('sessionToken', this.state.moonpaySessionToken);
     url.searchParams.set('publicKey', this.#keypair.publicKeyHex);
     url.searchParams.set('channelId', CHANNEL_CHECK);
     url.searchParams.set('skipKyc', 'true');
@@ -2518,7 +2518,7 @@ export class KycController extends BaseController<
       state.disclaimersError = null;
       state.sessionDisclaimers = null;
       state.credentialReusabilityConsentGiven = null;
-      state.sessionToken = null;
+      state.moonpaySessionToken = null;
       state.accessToken = null;
       state.moonpayCustomerId = null;
       state.activeVendor = 'moonpay';

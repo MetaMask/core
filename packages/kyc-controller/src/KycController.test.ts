@@ -196,7 +196,7 @@ describe('KycController', () => {
           await controller.initialize({ email: 'a@b.co' });
 
           expect(controller.state.geoCountry).toBe('USA');
-          expect(controller.state.sessionToken).toBe('sess');
+          expect(controller.state.moonpaySessionToken).toBe('sess');
           expect(controller.state.phase).toBe('check');
         },
       );
@@ -245,7 +245,7 @@ describe('KycController', () => {
             state: {
               phase: 'check',
               email: 'a@b.co',
-              sessionToken: 'live-session',
+              moonpaySessionToken: 'live-session',
               ...VENDOR_TERMS_MOONPAY,
               activeProduct: 'ramps',
               activeVendor: 'moonpay',
@@ -267,7 +267,7 @@ describe('KycController', () => {
           expect(handlers.getGeoCountry).not.toHaveBeenCalled();
           expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
           expect(controller.state.phase).toBe('check');
-          expect(controller.state.sessionToken).toBe('live-session');
+          expect(controller.state.moonpaySessionToken).toBe('live-session');
           expect(controller.state.activeProduct).toBe('ramps');
           expect(controller.state.email).toBe('a@b.co');
           expect(controller.state.activeVendor).toBe('moonpay');
@@ -473,7 +473,7 @@ describe('KycController', () => {
             state: {
               phase: 'check',
               email: 'a@b.co',
-              sessionToken: 'old-session',
+              moonpaySessionToken: 'old-session',
               accessToken: 'stale-access',
               disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
             },
@@ -507,7 +507,7 @@ describe('KycController', () => {
 
           expect(controller.state.accessToken).toBeNull();
           expect(controller.buildAuthFrameUrl()).toBeNull();
-          expect(controller.state.sessionToken).toBe('new-session');
+          expect(controller.state.moonpaySessionToken).toBe('new-session');
         },
       );
     });
@@ -518,7 +518,7 @@ describe('KycController', () => {
           options: {
             state: {
               email: 'a@b.co',
-              sessionToken: 'old-session',
+              moonpaySessionToken: 'old-session',
               disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
             },
           },
@@ -543,13 +543,13 @@ describe('KycController', () => {
           // While the request is in flight (phase `session`) the stale token
           // must already be gone so no Check frame URL can be built for it.
           expect(controller.state.phase).toBe('session');
-          expect(controller.state.sessionToken).toBeNull();
+          expect(controller.state.moonpaySessionToken).toBeNull();
           expect(controller.buildCheckFrameUrl()).toBeNull();
 
           releaseSession({ sessionToken: 'new-session' });
           await pending;
 
-          expect(controller.state.sessionToken).toBe('new-session');
+          expect(controller.state.moonpaySessionToken).toBe('new-session');
           expect(controller.buildCheckFrameUrl()).toContain(
             'sessionToken=new-session',
           );
@@ -563,7 +563,7 @@ describe('KycController', () => {
           options: {
             state: {
               email: 'a@b.co',
-              sessionToken: 'old-session',
+              moonpaySessionToken: 'old-session',
               disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
             },
           },
@@ -582,7 +582,7 @@ describe('KycController', () => {
           expect(controller.state.error).toMatch(/Session creation failed/u);
           // A failed creation must not leave the old session token behind, so
           // the Check frame cannot be built against an invalid session.
-          expect(controller.state.sessionToken).toBeNull();
+          expect(controller.state.moonpaySessionToken).toBeNull();
           expect(controller.buildCheckFrameUrl()).toBeNull();
         },
       );
@@ -594,7 +594,7 @@ describe('KycController', () => {
           options: {
             state: {
               email: 'a@b.co',
-              sessionToken: 'old-session',
+              moonpaySessionToken: 'old-session',
               disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
             },
           },
@@ -767,7 +767,7 @@ describe('KycController', () => {
       // to an idle phase) means the Check frame is no longer active; a late or
       // duplicate `ch_1` completion must not resurrect tokens or rewind phase.
       await withController(
-        { options: { state: { phase: 'done', sessionToken: 'tok' } } },
+        { options: { state: { phase: 'done', moonpaySessionToken: 'tok' } } },
         async ({ controller }) => {
           const envelope = envelopeFor(controller, { accessToken: 'access-1' });
           const result = await controller.handleFrameMessage({
@@ -796,7 +796,7 @@ describe('KycController', () => {
             state: {
               phase: 'check',
               activeVendor: 'iron',
-              sessionToken: 'tok',
+              moonpaySessionToken: 'tok',
             },
           },
         },
@@ -824,7 +824,7 @@ describe('KycController', () => {
 
     it('fails when credential decryption throws', async () => {
       await withController(
-        { options: { state: { phase: 'check', sessionToken: 'tok' } } },
+        { options: { state: { phase: 'check', moonpaySessionToken: 'tok' } } },
         async ({ controller }) => {
           await controller.handleFrameMessage({
             message: {
@@ -842,7 +842,7 @@ describe('KycController', () => {
     describe('check frame', () => {
       it('moves to form on an active status with an access token', async () => {
         await withController(
-          { options: { state: { phase: 'check', sessionToken: 'tok' } } },
+          { options: { state: { phase: 'check', moonpaySessionToken: 'tok' } } },
           async ({ controller }) => {
             const envelope = envelopeFor(controller, {
               accessToken: 'access-1',
@@ -862,7 +862,7 @@ describe('KycController', () => {
 
       it('moves to auth on connectionRequired and enables the auth frame URL', async () => {
         await withController(
-          { options: { state: { phase: 'check', sessionToken: 'tok' } } },
+          { options: { state: { phase: 'check', moonpaySessionToken: 'tok' } } },
           async ({ controller }) => {
             const envelope = envelopeFor(controller, {
               clientToken: 'client-1',
@@ -891,7 +891,7 @@ describe('KycController', () => {
             options: {
               state: {
                 phase: 'check',
-                sessionToken: 'tok',
+                moonpaySessionToken: 'tok',
                 ...VENDOR_TERMS_MOONPAY,
               },
             },
@@ -912,7 +912,7 @@ describe('KycController', () => {
 
       it('fails on an unexpected status', async () => {
         await withController(
-          { options: { state: { phase: 'check', sessionToken: 'tok' } } },
+          { options: { state: { phase: 'check', moonpaySessionToken: 'tok' } } },
           async ({ controller }) => {
             await controller.handleFrameMessage({
               message: {
@@ -930,7 +930,7 @@ describe('KycController', () => {
     describe('auth frame', () => {
       it('moves to form on an active status with an access token', async () => {
         await withController(
-          { options: { state: { phase: 'auth', sessionToken: 'tok' } } },
+          { options: { state: { phase: 'auth', moonpaySessionToken: 'tok' } } },
           async ({ controller }) => {
             const envelope = envelopeFor(controller, {
               accessToken: 'access-2',
@@ -987,7 +987,7 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { phase: 'check', sessionToken: 'tok', geoCountry: 'USA' },
+            state: { phase: 'check', moonpaySessionToken: 'tok', geoCountry: 'USA' },
           },
         },
         async ({ controller, handlers }) => {
@@ -1013,7 +1013,7 @@ describe('KycController', () => {
           options: {
             state: {
               phase: 'check',
-              sessionToken: 'tok',
+              moonpaySessionToken: 'tok',
               activeProduct: 'ramps',
               geoCountry: 'USA',
             },
@@ -1049,7 +1049,7 @@ describe('KycController', () => {
           options: {
             state: {
               phase: 'auth',
-              sessionToken: 'tok',
+              moonpaySessionToken: 'tok',
               activeProduct: 'card',
               geoCountry: 'FRA',
             },
@@ -1084,7 +1084,7 @@ describe('KycController', () => {
           options: {
             state: {
               phase: 'check',
-              sessionToken: 'tok',
+              moonpaySessionToken: 'tok',
               activeProduct: 'ramps',
               geoCountry: 'USA',
             },
@@ -1115,7 +1115,7 @@ describe('KycController', () => {
           options: {
             state: {
               phase: 'auth',
-              sessionToken: 'tok',
+              moonpaySessionToken: 'tok',
               activeProduct: 'card',
               geoCountry: 'FRA',
             },
@@ -1165,7 +1165,7 @@ describe('KycController', () => {
             state: {
               phase: 'check',
               email: 'a@b.co',
-              sessionToken: 'tok',
+              moonpaySessionToken: 'tok',
               activeProduct: 'ramps',
               geoCountry: 'USA',
               // Persisted terms so a post-reset `initialize` auto-recreates the
@@ -1242,7 +1242,7 @@ describe('KycController', () => {
           options: {
             state: {
               phase: 'check',
-              sessionToken: 'tok',
+              moonpaySessionToken: 'tok',
               activeProduct: 'ramps',
               geoCountry: 'USA',
             },
@@ -1276,7 +1276,7 @@ describe('KycController', () => {
 
     it('builds the check frame URL with a session', async () => {
       await withController(
-        { options: { state: { sessionToken: 'tok' } } },
+        { options: { state: { moonpaySessionToken: 'tok' } } },
         ({ controller }) => {
           const url = controller.buildCheckFrameUrl() as string;
           expect(url).toContain('sessionToken=tok');
@@ -1290,7 +1290,7 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { sessionToken: 'tok', activeVendor: 'iron' },
+            state: { moonpaySessionToken: 'tok', activeVendor: 'iron' },
           },
         },
         ({ controller }) => {
@@ -1482,7 +1482,7 @@ describe('KycController', () => {
             state: {
               moonpayCustomerId: 'cust-1',
               activeVendor: 'moonpay',
-              sessionToken: 'tok',
+              moonpaySessionToken: 'tok',
               accessToken: 'access-1',
             },
           },
@@ -1491,7 +1491,7 @@ describe('KycController', () => {
           await controller.initialize({ vendor: 'iron' });
 
           expect(controller.state.moonpayCustomerId).toBeNull();
-          expect(controller.state.sessionToken).toBeNull();
+          expect(controller.state.moonpaySessionToken).toBeNull();
           expect(controller.state.accessToken).toBeNull();
           expect(controller.buildCheckFrameUrl()).toBeNull();
           expect(controller.getCustomerIdentity()).toBeNull();
@@ -1506,7 +1506,7 @@ describe('KycController', () => {
             state: {
               moonpayCustomerId: 'cust-1',
               activeVendor: 'moonpay',
-              sessionToken: 'tok',
+              moonpaySessionToken: 'tok',
               accessToken: 'access-1',
             },
           },
@@ -1515,7 +1515,7 @@ describe('KycController', () => {
           await controller.initialize({ vendor: 'moonpay' });
 
           expect(controller.state.moonpayCustomerId).toBe('cust-1');
-          expect(controller.state.sessionToken).toBe('tok');
+          expect(controller.state.moonpaySessionToken).toBe('tok');
           expect(controller.state.accessToken).toBe('access-1');
           expect(controller.buildCheckFrameUrl()).toContain('sessionToken=tok');
         },
@@ -1529,7 +1529,7 @@ describe('KycController', () => {
             state: {
               moonpayCustomerId: 'cust-1',
               activeVendor: 'moonpay',
-              sessionToken: 'tok',
+              moonpaySessionToken: 'tok',
               accessToken: 'access-1',
             },
           },
@@ -1541,7 +1541,7 @@ describe('KycController', () => {
           });
 
           expect(controller.state.moonpayCustomerId).toBeNull();
-          expect(controller.state.sessionToken).toBeNull();
+          expect(controller.state.moonpaySessionToken).toBeNull();
           expect(controller.state.accessToken).toBeNull();
           expect(controller.buildCheckFrameUrl()).toBeNull();
           expect(controller.getCustomerIdentity()).toBeNull();
@@ -1569,7 +1569,7 @@ describe('KycController', () => {
             state: {
               moonpayCustomerId: 'cust-1',
               activeVendor: 'moonpay',
-              sessionToken: 'tok',
+              moonpaySessionToken: 'tok',
               accessToken: 'access-1',
             },
           },
@@ -1587,7 +1587,7 @@ describe('KycController', () => {
           });
 
           expect(controller.state.moonpayCustomerId).toBe('cust-1');
-          expect(controller.state.sessionToken).toBe('tok');
+          expect(controller.state.moonpaySessionToken).toBe('tok');
           expect(controller.state.accessToken).toBe('access-1');
         },
       );
@@ -2372,7 +2372,7 @@ describe('KycController', () => {
           options: {
             state: {
               phase: 'form',
-              sessionToken: 'tok',
+              moonpaySessionToken: 'tok',
               accessToken: 'a',
               activeProduct: 'ramps',
               ...VENDOR_TERMS_MOONPAY,
@@ -2383,7 +2383,7 @@ describe('KycController', () => {
         ({ controller }) => {
           controller.reset();
           expect(controller.state.phase).toBe('idle');
-          expect(controller.state.sessionToken).toBeNull();
+          expect(controller.state.moonpaySessionToken).toBeNull();
           expect(controller.state.accessToken).toBeNull();
           expect(controller.state.activeProduct).toBeNull();
           expect(
@@ -2437,7 +2437,7 @@ describe('KycController', () => {
               disclaimers: [{ id: '1', display_name: 'T', url: 'u' }],
               disclaimersError: 'stale disclaimers error',
               geoCountry: 'USA',
-              sessionToken: 'tok',
+              moonpaySessionToken: 'tok',
               accessToken: 'a',
               moonpayCustomerId: 'cus-1',
               activeVendor: 'iron',
@@ -2491,7 +2491,7 @@ describe('KycController', () => {
 
     it('drops the auth-frame client token', async () => {
       await withController(
-        { options: { state: { phase: 'check', sessionToken: 'tok' } } },
+        { options: { state: { phase: 'check', moonpaySessionToken: 'tok' } } },
         async ({ controller }) => {
           const envelope = envelopeFor(controller, {
             clientToken: 'client-1',
@@ -2891,7 +2891,7 @@ describe('KycController', () => {
                 phase,
                 activeVendor: 'moonpay',
                 moonpayCustomerId: 'cust-1',
-                sessionToken: 'tok',
+                moonpaySessionToken: 'tok',
               },
             },
           },
