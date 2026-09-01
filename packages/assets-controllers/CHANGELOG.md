@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
 - Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.7.0` ([#10046](https://github.com/MetaMask/core/pull/10046))
 
+### Fixed
+
+- Add the missing Georgian lari (`gel`) entry to `MAP_CAIP_CURRENCIES` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+
 ## [111.1.3]
 
 ### Changed
