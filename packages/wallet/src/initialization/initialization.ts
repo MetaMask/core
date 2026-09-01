@@ -1,3 +1,5 @@
+import { validateControllerState } from '@metamask/base-controller';
+
 import type { InstanceSpecificOptions, WalletOptions } from '../types.js';
 import type {
   DefaultActions,
@@ -32,15 +34,20 @@ export function initialize(options: InitializeOptions): DefaultInstances {
   const configurationEntries = initializationConfigurations.concat(
     Object.values(defaultConfigurations).filter(
       (config) => !overriddenConfiguration.includes(config.name),
-    ) as InitializationConfiguration<unknown, unknown>[],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ) as InitializationConfiguration<any, unknown>[],
   );
 
   const instances: Record<string, unknown> = {};
 
   for (const config of configurationEntries) {
-    const { name } = config;
+    const { name, reference } = config;
 
-    const instanceState = state[name];
+    const rawState = state[name];
+
+    const instanceState = reference?.struct
+      ? validateControllerState(name, reference as never, rawState, 'lenient')
+      : rawState;
 
     const instanceMessenger = config.getMessenger(messenger);
 

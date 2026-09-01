@@ -11,6 +11,7 @@ export const transactionController: InitializationConfiguration<
   TransactionControllerMessenger
 > = {
   name: 'TransactionController',
+  reference: TransactionController,
   init: ({ state, messenger, options }) => {
     const { disableSwaps = false, ...rest } = options;
 

@@ -27,10 +27,8 @@ import type { InitializationConfiguration } from './initialization/types.js';
 export type WalletOptions = {
   messenger?: RootMessenger<DefaultActions, DefaultEvents>;
   state?: Record<string, Record<string, Json> | undefined>;
-  initializationConfigurations?: InitializationConfiguration<
-    unknown,
-    unknown
-  >[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  initializationConfigurations?: InitializationConfiguration<any, unknown>[];
   instanceOptions: InstanceSpecificOptions;
 };
 
