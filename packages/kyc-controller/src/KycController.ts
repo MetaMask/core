@@ -65,10 +65,18 @@ const MOCK_JWT_TOKEN = 'mock-jwt-token';
 // rather than a fixed short window, so this is a session-scoped window.
 const UKYC_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
 
-// The SumSub SDK status that signals the applicant finished the flow
-// successfully. Any other resolution (abandonment, failure, or a non-success
-// outcome) must not be recorded as `complete`.
-const SUMSUB_COMPLETED_STATUS = 'Completed';
+// SumSub SDK statuses that mean the applicant submitted verification (or the
+// vendor already decided). Native SNSMobileSDKStatus uses Approved / Pending /
+// TemporarilyDeclined / FinallyRejected; some launchers and tests still emit
+// Completed. Incomplete / Initial / Failed / Ready are unfinished and must
+// not be recorded as submitted.
+const SUMSUB_SUBMITTED_STATUSES = new Set([
+  'Approved',
+  'Pending',
+  'TemporarilyDeclined',
+  'FinallyRejected',
+  'Completed',
+]);
 
 // Phases that represent an active vendor-session flow (tokens issued and/or
 // Check/Auth frames in progress). A repeat `initialize` while in one of these
@@ -452,6 +460,20 @@ export function getDefaultKycControllerState(): KycControllerState {
  */
 function isSessionAlreadyCompletedError(error: unknown): boolean {
   return String(error).includes(SESSION_NOT_IN_VALID_STATE);
+}
+
+/**
+ * Whether a SumSub SDK status means the applicant finished submitting.
+ *
+ * Checked against both `onStatusChange` and the `launch()` result `status`,
+ * because the native SDK often closes with Pending/Approved on the result
+ * and never emits `Completed`.
+ *
+ * @param status - SDK status string from the callback or launch result.
+ * @returns True when UKYC session-status polling should start.
+ */
+function isSumSubSubmittedStatus(status: unknown): boolean {
+  return typeof status === 'string' && SUMSUB_SUBMITTED_STATUSES.has(status);
 }
 
 /**
@@ -1155,10 +1177,10 @@ export class KycController extends BaseController<
         return;
       }
       // `startSumSub` records `sumsub.status = 'failed'` for thrown steps,
-      // an SDK close without Completed, *and* a terminal UKYC rejection
-      // after the SDK reported Completed. Only rewind when there is no
-      // session-status decision yet (abandonment / thrown step). A
-      // Completed-then-rejected poll writes `sessionStatus` and is a
+      // an SDK close without a submitted status, *and* a terminal UKYC
+      // rejection after the SDK reported submitted. Only rewind when there
+      // is no session-status decision yet (abandonment / thrown step). A
+      // submitted-then-rejected poll writes `sessionStatus` and is a
       // finished flow: refresh user status and land on `done`.
       if (
         this.state.sumsub.status === 'failed' &&
@@ -2073,9 +2095,9 @@ export class KycController extends BaseController<
         return {};
       }
 
-      // Track whether the SDK ever reported a successful completion. A resolved
+      // Track whether the SDK reported that the applicant submitted. A resolved
       // `launch` alone does not imply success — the applicant may have
-      // abandoned the flow or the SDK may have reported a non-success outcome.
+      // abandoned the flow (`Incomplete`) or the SDK may have failed.
       let reachedCompletion = false;
 
       const result = await this.#sumsubLauncher.launch({
@@ -2096,21 +2118,32 @@ export class KycController extends BaseController<
           return refreshed.applicantAccessToken;
         },
         onStatusChange: (_prev, next) => {
-          if (next === SUMSUB_COMPLETED_STATUS) {
+          if (isSumSubSubmittedStatus(next)) {
             reachedCompletion = true;
+            this.#updateIfCurrent(generation, (state) => {
+              state.sumsub.status = 'complete';
+            });
+            return;
           }
           this.#updateIfCurrent(generation, (state) => {
-            state.sumsub.status =
-              next === SUMSUB_COMPLETED_STATUS ? 'complete' : 'inProgress';
+            state.sumsub.status = 'inProgress';
           });
         },
         locale: params?.locale ?? 'en',
         debug: params?.debug ?? false,
       });
 
+      // Native SumSub often closes with Pending/Approved on the result and
+      // never emits `Completed` via `onStatusChange`. Honor `result.status`
+      // as well so a finished SDK session is not recorded as failed.
+      if (isSumSubSubmittedStatus(result.status)) {
+        reachedCompletion = true;
+      }
+
       // A resolved `launch` alone is not the final outcome: only a SDK-reported
-      // completion is worth polling for a verification decision. Anything else
-      // (abandonment, non-success) is `failed` and must not be polled.
+      // submitted status is worth polling for a verification decision.
+      // Anything else (abandonment, non-success) is `failed` and must not be
+      // polled.
       const applied = this.#updateIfCurrent(generation, (state) => {
         state.sumsub.status = reachedCompletion ? 'polling' : 'failed';
         state.sumsub.result = result as Json;
