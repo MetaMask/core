@@ -1,4 +1,4 @@
-import { hexToBN } from '@metamask/controller-utils';
+import { fractionBN, hexToBN } from '@metamask/controller-utils';
 import { add0x } from '@metamask/utils';
 import BN from 'bn.js';
 
@@ -16,6 +16,18 @@ const log = createModuleLogger(projectLogger, 'gas');
  * A multiplier to apply to all gas estimate values returned from the bundler.
  */
 const GAS_ESTIMATE_MULTIPLIER = 1.5;
+
+/**
+ * Precision used to convert `GAS_ESTIMATE_MULTIPLIER` into an integer
+ * numerator/denominator pair for `fractionBN`. `BN.muln` cannot be used
+ * directly with a fractional multiplier: it silently truncates to the
+ * integer part on a per-26-bit-word basis instead of throwing, so
+ * `value.muln(1.5)` can return a wrong, under-computed result once the gas
+ * estimate needs more than one 26-bit word (values at or above ~67.1M, i.e.
+ * 2^26, are susceptible, though not every value above that boundary is
+ * actually affected).
+ */
+const GAS_ESTIMATE_MULTIPLIER_PRECISION = 100;
 
 /**
  * Populates the gas properties for a user operation.
@@ -87,7 +99,11 @@ function normalizeGasEstimate(rawValue: string | number): string {
   const value =
     typeof rawValue === 'string' ? hexToBN(rawValue) : new BN(rawValue);
 
-  const bufferedValue = value.muln(GAS_ESTIMATE_MULTIPLIER);
+  const bufferedValue = fractionBN(
+    value,
+    Math.round(GAS_ESTIMATE_MULTIPLIER * GAS_ESTIMATE_MULTIPLIER_PRECISION),
+    GAS_ESTIMATE_MULTIPLIER_PRECISION,
+  );
 
   return add0x(bufferedValue.toString(16));
 }

@@ -123,6 +123,26 @@ describe('gas', () => {
         );
       });
 
+      it('applies the gas buffer multiplier without integer truncation for large estimates', async () => {
+        // 100_000_000 is above the 2^26 threshold at which `BN.muln` with a
+        // fractional multiplier silently truncates instead of throwing -
+        // `muln(1.5)` on this value previously returned 116445568 instead of
+        // the correct 150000000.
+        bundlerMock.estimateUserOperationGas.mockResolvedValue({
+          callGasLimit: 100_000_000,
+          preVerificationGas: 456,
+          verificationGasLimit: 789,
+        });
+
+        await callUpdateGas();
+
+        expect(metadata.userOperation).toStrictEqual(
+          expect.objectContaining({
+            callGasLimit: '0x8f0d180',
+          }),
+        );
+      });
+
       it('if estimates are hexadecimal strings', async () => {
         bundlerMock.estimateUserOperationGas.mockResolvedValue(
           ESTIMATE_RESPONSE_HEX_MOCK,

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `LineaGasFeeFlow` silently under-computing fee estimates for the `medium` and `high` levels ([#CHANGEME](https://github.com/MetaMask/core/pull/CHANGEME))
+  - `BN.muln()` was called with the fractional multipliers (`1.35`, `1.7`, `1.05`, `1.1`) used to derive Linea gas fee levels; `muln` truncates non-integer input per 26-bit word instead of throwing, so the previous implementation silently returned an under-computed value (e.g. `1 gwei * 1.05` returned `1003023795` instead of `1050000000`).
+
 ### Changed
 
 - Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))

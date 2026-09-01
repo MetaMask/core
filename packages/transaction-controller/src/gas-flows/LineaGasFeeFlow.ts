@@ -1,4 +1,9 @@
-import { ChainId, hexToBN, toHex } from '@metamask/controller-utils';
+import {
+  ChainId,
+  fractionBN,
+  hexToBN,
+  toHex,
+} from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
@@ -27,6 +32,16 @@ type FeesByLevel = {
 };
 
 const log = createModuleLogger(projectLogger, 'linea-gas-fee-flow');
+
+/**
+ * Precision used to convert a decimal multiplier (e.g. 1.35) into an integer
+ * numerator/denominator pair for `fractionBN`, which does the multiplication
+ * as an arbitrary-precision BN operation. `BN.muln` cannot be used directly
+ * with a fractional multiplier: it silently truncates to the integer part on
+ * a per-26-bit-word basis instead of throwing, so `base.muln(1.35)` returns a
+ * wrong, under-computed result rather than failing loudly.
+ */
+const MULTIPLIER_PRECISION = 100;
 
 const LINEA_CHAIN_IDS: Hex[] = [
   ChainId['linea-mainnet'],
@@ -150,15 +165,34 @@ export class LineaGasFeeFlow implements GasFeeFlow {
     multipliers: { low: number; medium: number; high: number },
   ): FeesByLevel {
     const base = hexToBN(value);
-    const low = base.muln(multipliers.low);
-    const medium = base.muln(multipliers.medium);
-    const high = base.muln(multipliers.high);
+    const low = this.#applyMultiplier(base, multipliers.low);
+    const medium = this.#applyMultiplier(base, multipliers.medium);
+    const high = this.#applyMultiplier(base, multipliers.high);
 
     return {
       low,
       medium,
       high,
     };
+  }
+
+  /**
+   * Multiplies a BN value by a decimal multiplier, quantized to
+   * `MULTIPLIER_PRECISION` decimal places, without `BN.muln`'s word-boundary
+   * truncation. All multipliers this flow uses have at most two decimal
+   * places, so this is exact for them; it is not a general-purpose
+   * arbitrary-precision decimal multiply.
+   *
+   * @param value - The value to multiply.
+   * @param multiplier - The decimal multiplier (e.g. 1.35).
+   * @returns The multiplied value.
+   */
+  #applyMultiplier(value: BN, multiplier: number): BN {
+    return fractionBN(
+      value,
+      Math.round(multiplier * MULTIPLIER_PRECISION),
+      MULTIPLIER_PRECISION,
+    );
   }
 
   #getMaxFees(
