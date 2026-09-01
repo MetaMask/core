@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Speed up documentation generation by loading source files in bulk instead of one at a time ([#9990](https://github.com/MetaMask/core/pull/9990))
+
 ## [0.1.0]
 
 ### Added
