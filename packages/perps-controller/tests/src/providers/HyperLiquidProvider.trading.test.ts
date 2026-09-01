@@ -465,7 +465,7 @@ describe('HyperLiquidProvider', () => {
       subscribeToOrderFills: jest.fn().mockReturnValue(jest.fn()), // Returns function directly
       clearAll: jest.fn(),
       isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
-      arePositionDexCachesFresh: jest.fn().mockReturnValue(false),
+      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
       // Production starts with no aggregate. Use null here so tests that do not
       // opt into a cache fixture keep the real cold-start REST path.
       getCachedPositions: jest.fn().mockReturnValue(null),
@@ -2445,9 +2445,6 @@ describe('HyperLiquidProvider', () => {
       mockSubscriptionService.getPublishedPositionDexs = jest
         .fn()
         .mockReturnValue(['']);
-      mockSubscriptionService.arePositionDexCachesFresh = jest
-        .fn()
-        .mockReturnValue(true);
       mockSubscriptionService.getCachedPositionsForDex = jest
         .fn()
         .mockImplementation((dexName: string) =>
@@ -3015,12 +3012,11 @@ describe('HyperLiquidProvider', () => {
     });
 
     // Regression coverage for TAT-3873 ("No position found on close and TP/SL"),
-    // close half. When no snapshot is supplied the position comes from
-    // getPositions(), which reads the aggregate cache. In the post-reconnect
-    // window that aggregate is frozen, so a position opened since the reconnect
-    // is reported as missing and the close fails with "No position found" for a
-    // position that is open.
+    // close half. A snapshot-less lookup used the aggregate cache, so a position
+    // opened after reconnect could be reported missing while its own DEX slice
+    // already held the live position.
     it('closes a position the frozen aggregate omits when no snapshot is supplied', async () => {
+      const infoClient = mockClientService.getInfoClient();
       mockSubscriptionService.isPositionsCacheInitialized = jest
         .fn()
         .mockReturnValue(true);
@@ -3042,6 +3038,56 @@ describe('HyperLiquidProvider', () => {
 
       expect(result.success).toBe(true);
       expect(getSubmittedOrder()).toMatchObject({ s: '0.06', r: true });
+      expect(infoClient.clearinghouseState).not.toHaveBeenCalled();
+    });
+
+    it('uses target-DEX REST when no current slice exists', async () => {
+      const infoClient = mockClientService.getInfoClient();
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockReturnValue(null);
+      mockSubscriptionService.getCachedPositions = jest
+        .fn()
+        .mockReturnValue([createPositionSnapshot({ size: '-0.08' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({
+        b: false,
+        s: '0.1',
+        r: true,
+      });
+      expect(infoClient.clearinghouseState).toHaveBeenCalled();
+    });
+
+    it('does not report a position closed when its target-DEX REST query fails', async () => {
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockReturnValue(null);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: jest
+            .fn()
+            .mockRejectedValue(new Error('REST unavailable')),
+        }),
+      );
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      });
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
     });
 
     it('still reports no position when both the aggregate and the fresh slice agree it is gone', async () => {
@@ -3091,9 +3137,6 @@ describe('HyperLiquidProvider', () => {
       mockSubscriptionService.getPublishedPositionDexs = jest
         .fn()
         .mockReturnValue(['', 'xyz']);
-      mockSubscriptionService.arePositionDexCachesFresh = jest
-        .fn()
-        .mockReturnValue(true);
       mockSubscriptionService.getCachedPositionsForDex = jest
         .fn()
         .mockImplementation((dexName: string) =>
@@ -3259,9 +3302,9 @@ describe('HyperLiquidProvider', () => {
       mockSubscriptionService.getPublishedPositionDexs = jest
         .fn()
         .mockReturnValue(['']);
-      mockSubscriptionService.arePositionDexCachesFresh = jest
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
         .fn()
-        .mockReturnValue(true);
+        .mockReturnValue(perDex);
       mockSubscriptionService.getCachedPositionsForDex = jest
         .fn()
         .mockImplementation((dexName: string) =>
@@ -3373,21 +3416,20 @@ describe('HyperLiquidProvider', () => {
       mockSubscriptionService.getPublishedPositionDexs = jest
         .fn()
         .mockReturnValue(['', 'xyz']);
-      mockSubscriptionService.arePositionDexCachesFresh = jest
+      const freshHip3Positions = [
+        createCachedPosition({
+          symbol: 'xyz:STOCK1',
+          size: '8',
+          marginUsed: '100',
+        }),
+      ];
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
         .fn()
-        .mockReturnValue(true);
+        .mockReturnValue(freshHip3Positions);
       mockSubscriptionService.getCachedPositionsForDex = jest
         .fn()
         .mockImplementation((dexName: string) =>
-          dexName === 'xyz'
-            ? [
-                createCachedPosition({
-                  symbol: 'xyz:STOCK1',
-                  size: '8',
-                  marginUsed: '100',
-                }),
-              ]
-            : [],
+          dexName === 'xyz' ? freshHip3Positions : [],
         );
       const mockOrder = jest.fn().mockResolvedValue({
         status: 'ok',
@@ -3492,9 +3534,9 @@ describe('HyperLiquidProvider', () => {
       mockSubscriptionService.getPublishedPositionDexs = jest
         .fn()
         .mockReturnValue(['']);
-      mockSubscriptionService.arePositionDexCachesFresh = jest
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
         .fn()
-        .mockReturnValue(false);
+        .mockReturnValue(null);
       mockSubscriptionService.getCachedPositionsForDex = jest
         .fn()
         .mockImplementation((dexName: string) =>
@@ -3518,9 +3560,9 @@ describe('HyperLiquidProvider', () => {
       mockSubscriptionService.isPositionsCacheInitialized = jest
         .fn()
         .mockReturnValue(false);
-      mockSubscriptionService.arePositionDexCachesFresh = jest
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
         .fn()
-        .mockReturnValue(false);
+        .mockReturnValue(null);
       const infoClient = mockClientService.getInfoClient();
 
       const result = await provider.closePositions({ symbols: ['BTC'] });
@@ -3542,9 +3584,9 @@ describe('HyperLiquidProvider', () => {
       mockSubscriptionService.getCachedPositionsForDex = jest
         .fn()
         .mockReturnValue(null);
-      mockSubscriptionService.arePositionDexCachesFresh = jest
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
         .fn()
-        .mockReturnValue(false);
+        .mockReturnValue(null);
       const infoClient = mockClientService.getInfoClient();
 
       const result = await provider.closePositions({ closeAll: true });

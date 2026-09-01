@@ -574,13 +574,13 @@ describe('HyperLiquidSubscriptionService', () => {
       // closePosition treats a cache miss as "position closed" only for a
       // covered DEX, so coverage must be false until data arrives
       expect(service.getCachedPositionsForDex('')).toBeNull();
-      expect(service.arePositionDexCachesFresh()).toBe(false);
+      expect(service.getFreshPositionsForAllDexs()).toBeNull();
 
       const unsubscribe = service.subscribeToAccount({ callback: jest.fn() });
       await jest.runAllTimersAsync();
 
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
-      expect(service.arePositionDexCachesFresh()).toBe(true);
+      expect(service.getFreshPositionsForAllDexs()).not.toBeNull();
       // No HIP-3 DEX published, so a miss there proves nothing
       expect(service.getCachedPositionsForDex('xyz')).toBeNull();
 
@@ -619,7 +619,7 @@ describe('HyperLiquidSubscriptionService', () => {
         },
       });
       await jest.runAllTimersAsync();
-      expect(hip3Service.arePositionDexCachesFresh()).toBe(false);
+      expect(hip3Service.getFreshPositionsForAllDexs()).toBeNull();
 
       callbacks.get('xyz')?.({
         dex: 'xyz',
@@ -630,7 +630,7 @@ describe('HyperLiquidSubscriptionService', () => {
         },
       });
       await jest.runAllTimersAsync();
-      expect(hip3Service.arePositionDexCachesFresh()).toBe(true);
+      expect(hip3Service.getFreshPositionsForAllDexs()).toStrictEqual([]);
 
       unsubscribe();
     });
@@ -690,7 +690,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
       expect(service.getPublishedPositionDexs()).toContain('');
-      expect(service.arePositionDexCachesFresh()).toBe(true);
+      expect(service.getFreshPositionsForAllDexs()).not.toBeNull();
 
       // The socket closes and reopens: the client service retires the epoch.
       // #dexPositionsCache still holds the pre-reconnect slice — that is the
@@ -700,7 +700,7 @@ describe('HyperLiquidSubscriptionService', () => {
       // The stale slice is still cached, but must not be served as live
       expect(service.getCachedPositionsForDex('')).toBeNull();
       expect(service.getPublishedPositionDexs()).not.toContain('');
-      expect(service.arePositionDexCachesFresh()).toBe(false);
+      expect(service.getFreshPositionsForAllDexs()).toBeNull();
 
       // An openOrders payload must NOT restore it: its handler writes the
       // positions cache but carries no sizes or sides
@@ -722,7 +722,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
       expect(service.getPublishedPositionDexs()).toContain('');
-      expect(service.arePositionDexCachesFresh()).toBe(true);
+      expect(service.getFreshPositionsForAllDexs()).not.toBeNull();
 
       unsubscribe();
     });
@@ -739,7 +739,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
       expect(service.getPublishedPositionDexs()).toContain('');
-      expect(service.arePositionDexCachesFresh()).toBe(true);
+      expect(service.getFreshPositionsForAllDexs()).not.toBeNull();
 
       // The SDK reconnects silently. Connection state never leaves 'connected'
       // from this service's point of view — only the epoch moves.
@@ -748,7 +748,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
       expect(service.getCachedPositionsForDex('')).toBeNull();
       expect(service.getPublishedPositionDexs()).not.toContain('');
-      expect(service.arePositionDexCachesFresh()).toBe(false);
+      expect(service.getFreshPositionsForAllDexs()).toBeNull();
 
       unsubscribe();
     });
@@ -825,7 +825,7 @@ describe('HyperLiquidSubscriptionService', () => {
       // ...and their freshness must therefore survive the retry
       expect(service.getCachedPositionsForDex('')).not.toBeNull();
       expect(service.getPublishedPositionDexs()).toContain('');
-      expect(service.arePositionDexCachesFresh()).toBe(true);
+      expect(service.getFreshPositionsForAllDexs()).not.toBeNull();
 
       retrying();
       unsubscribe();

@@ -10735,10 +10735,9 @@ export class HyperLiquidProvider implements PerpsProvider {
    * provider's live subscription source for that exact DEX. If the target DEX
    * has not published, the caller uses REST instead of a stale aggregate.
    *
-   * A whole-list caller may merge current slices into the cached aggregate only
-   * when every expected DEX is fresh. Otherwise `getPositions()` falls back to
-   * REST, and that result is returned unchanged rather than mixed with
-   * WebSocket data of unknown relative recency.
+   * A whole-list caller uses one copied WebSocket snapshot only when every
+   * expected DEX is current. Otherwise it falls back to REST. No path mixes
+   * sources of unknown relative recency.
    *
    * @param targetDex - DEX for a single-symbol lookup, or undefined for a full
    * position list.
@@ -10754,78 +10753,29 @@ export class HyperLiquidProvider implements PerpsProvider {
         return [...targetPositions];
       }
 
-      return this.getPositions({ skipCache: true });
-    }
-
-    if (this.#subscriptionService.arePositionDexCachesFresh?.()) {
-      const aggregatePositions =
-        this.#subscriptionService.getCachedPositions() ?? [];
-      return this.#refreshPositionsFromDexCaches(aggregatePositions);
-    }
-
-    return this.getPositions({ skipCache: true });
-  }
-
-  /**
-   * Replace positions with what their own DEX's cache slice reports.
-   *
-   * The aggregate cache is only rebuilt once every expected DEX has published.
-   * A WebSocket reconnect resets the initialized-DEX set without clearing the
-   * caches, so the aggregate can sit frozen at its pre-reconnect contents while
-   * the per-DEX slices keep updating. A batch close built from the aggregate then
-   * submits a stale size or side, which HyperLiquid rejects with "Reduce only
-   * order would increase position", or misses a position opened since the
-   * reconnect.
-   *
-   * Reading the caches issues no REST request, so this does not reintroduce the
-   * 429 rate limiting the cache-first read exists to avoid.
-   *
-   * A DEX that has not published returns null, which proves nothing about its
-   * symbols: those positions are left as the aggregate reported them. Only a
-   * published slice can override, drop, or add an entry.
-   *
-   * @param positions - Positions read directly from the aggregate WebSocket
-   * cache. Never pass a REST result here.
-   * @returns Positions refreshed against every published per-DEX slice.
-   */
-  #refreshPositionsFromDexCaches(positions: Position[]): Position[] {
-    // No global initialization gate here. `isPositionsCacheInitialized()` is set
-    // inside `#aggregateAndNotifySubscribers`, which returns early until EVERY
-    // expected DEX has published — so with one DEX live and another still
-    // pending it reads false, and gating on it would discard the fresh slices
-    // this refresh exists to read. Each slice carries its own freshness instead:
-    // `getCachedPositionsForDex` answers null unless that DEX published on the
-    // live connection, so an unpublished DEX is already handled below.
-    //
-    // Every DEX that has actually published a slice, which is the authoritative
-    // set of fresh data — not merely the DEXs the (possibly frozen) aggregate
-    // happens to mention. Deriving the sweep from the aggregate would miss a
-    // position opened on a HIP-3 DEX after the reconnect, because the aggregate
-    // has never seen that DEX: exactly the case this refresh exists to catch.
-    const dexNames = new Set([
-      ...(this.#subscriptionService.getPublishedPositionDexs?.() ?? []),
-      ...positions.map((pos) => parseAssetName(pos.symbol).dex ?? ''),
-    ]);
-
-    const refreshed: Position[] = [];
-    const coveredDexs = new Set<string>();
-
-    for (const dexName of dexNames) {
-      const dexPositions =
-        this.#subscriptionService.getCachedPositionsForDex?.(dexName) ?? null;
-
-      if (dexPositions) {
-        coveredDexs.add(dexName);
-        refreshed.push(...dexPositions);
+      this.#deps.debugLogger.log(
+        'Target DEX position cache unavailable: fetching REST positions',
+        { dex: targetDex || 'main' },
+      );
+      const { answered, positions } = await this.#queryDexPositions(
+        targetDex || null,
+      );
+      if (!answered) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
       }
+      return positions;
     }
 
-    // Positions whose DEX never published keep their aggregate entry.
-    const uncovered = positions.filter(
-      (pos) => !coveredDexs.has(parseAssetName(pos.symbol).dex ?? ''),
-    );
+    const cachedPositions =
+      this.#subscriptionService.getFreshPositionsForAllDexs();
+    if (cachedPositions !== null) {
+      return cachedPositions;
+    }
 
-    return [...refreshed, ...uncovered];
+    this.#deps.debugLogger.log(
+      'Position caches incomplete: fetching full REST positions',
+    );
+    return this.getPositions({ skipCache: true });
   }
 
   /**

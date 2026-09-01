@@ -441,6 +441,7 @@ describe('HyperLiquidProvider', () => {
       // keep the aggregate behaviour they were written against.
       getCachedPositionsForDex: jest.fn().mockReturnValue(null),
       getPublishedPositionDexs: jest.fn().mockReturnValue([]),
+      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
       getCachedPositions: jest.fn().mockReturnValue([]),
       updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization

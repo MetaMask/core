@@ -2965,22 +2965,28 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
-   * Check whether every expected DEX has published positions on the current
-   * connection.
+   * Get one complete position snapshot from current-connection DEX slices.
    *
-   * Unlike `isPositionsCacheInitialized`, this includes connection-epoch
-   * freshness. The aggregate flag can remain true across an SDK-internal
-   * reconnect while its cached value belongs to the retired socket.
+   * Unlike the aggregate cache, this checks connection-epoch freshness for
+   * every expected DEX. The check and copy are synchronous, so a reconnect
+   * cannot interleave between proving completeness and reading the slices.
    *
-   * @returns True only when every expected DEX has a current position slice.
+   * @returns A copied complete snapshot, or null until every expected DEX is
+   * current.
    */
-  public arePositionDexCachesFresh(): boolean {
-    return (
-      this.#expectedDexs.size > 0 &&
-      Array.from(this.#expectedDexs).every((dexName) =>
+  public getFreshPositionsForAllDexs(): Position[] | null {
+    if (
+      this.#expectedDexs.size === 0 ||
+      !Array.from(this.#expectedDexs).every((dexName) =>
         this.#isPositionDexFresh(dexName),
       )
-    );
+    ) {
+      return null;
+    }
+
+    return Array.from(this.#expectedDexs).flatMap((dexName) => [
+      ...(this.#dexPositionsCache.get(dexName) ?? []),
+    ]);
   }
 
   /**
