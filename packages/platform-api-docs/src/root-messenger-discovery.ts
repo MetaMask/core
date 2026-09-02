@@ -109,10 +109,10 @@ function resolveMessengerCapabilitiesTypeReference({
 }): TypeAliasDeclaration {
   const absolutePath = path.resolve(projectPath, reference.filePath);
 
-  // `addSourceFileAtPath` is idempotent: the two references often name the same
-  // file, and the second call returns the source file added by the first.
   let sourceFile;
   try {
+    // `addSourceFileAtPath` is idempotent: the two references often name the
+    // same file, and the second call returns the source file added by the first.
     sourceFile = project.addSourceFileAtPath(absolutePath);
   } catch {
     throw new Error(

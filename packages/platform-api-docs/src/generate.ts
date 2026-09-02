@@ -335,15 +335,14 @@ async function toGlobPath(...segments: string[]): Promise<string> {
 }
 
 /**
- * Scan every source location described by `sources` and return all extracted
- * messenger items. A single ts-morph Project is shared across every file so
- * the type checker can resolve cross-file references (e.g. a `*Messenger`
- * declaration in one file walking through an imported umbrella union into
- * an auto-generated `*-method-action-types.ts` sibling).
+ * Scan every source location described by `sources` (scan directories first,
+ * then workspace packages, then published declaration files) and return all
+ * extracted messenger items.
  *
- * Locations are scanned in the order the previous implementation used — scan
- * directories, then workspace packages, then published declaration files — as
- * deduplication resolves ties in favour of whichever item it saw first.
+ * A single ts-morph Project is shared across every file so the type checker can
+ * resolve cross-file references (e.g. a `*Messenger` declaration in one file
+ * walking through an imported umbrella union into an auto-generated
+ * `*-method-action-types.ts` sibling).
  *
  * @param projectPath - The project root path.
  * @param sources - The set of source locations to scan.
@@ -391,19 +390,7 @@ async function scanSources(
 
   const allItems: MessengerCapabilityPacket[] = [];
   for (const sourceFile of sourceFiles) {
-    try {
-      allItems.push(...extractFromSourceFile(sourceFile, resolvedProjectPath));
-    } catch (error) {
-      // istanbul ignore next: defensive. Files that can't be read or parsed
-      // are dropped by the matcher before they reach here, so this only
-      // catches a file whose types defeat the extractor — worth surviving
-      // when scanning thousands of files, but not reproducible in a test.
-      console.warn(
-        `Warning: Failed to parse ${path.relative(resolvedProjectPath, sourceFile.getFilePath())}`,
-      );
-      // istanbul ignore next: see above.
-      console.warn(error);
-    }
+    allItems.push(...extractFromSourceFile(sourceFile, resolvedProjectPath));
   }
   return allItems;
 }
