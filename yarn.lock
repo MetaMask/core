@@ -6517,7 +6517,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/create-release-branch": "npm:^4.2.2"
     "@metamask/eslint-config": "npm:^15.0.0"
-    "@metamask/eslint-config-jest": "npm:^15.0.0"
+    "@metamask/eslint-config-jest": "npm:^15.0.1"
     "@metamask/eslint-config-nodejs": "npm:^15.0.0"
     "@metamask/eslint-config-typescript": "npm:^15.0.0"
     "@metamask/eth-block-tracker": "npm:^15.0.1"
@@ -6756,17 +6756,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eslint-config-jest@npm:^15.0.0":
-  version: 15.0.0
-  resolution: "@metamask/eslint-config-jest@npm:15.0.0"
+"@metamask/eslint-config-jest@npm:^15.0.1":
+  version: 15.0.1
+  resolution: "@metamask/eslint-config-jest@npm:15.0.1"
   dependencies:
     "@eslint/js": "npm:^9.11.0"
     globals: "npm:^15.9.0"
   peerDependencies:
-    "@metamask/eslint-config": ^15.0.0
+    "@metamask/eslint-config": "workspace:^"
     eslint: ^9.11.0
     eslint-plugin-jest: ^28.8.3
-  checksum: 10/4728c6b80bed48b9e369ed538de2a1f099a74825f08e7a1c0c5df53901905ce6d54fb7c77da4454ed640af7fd873845ab0f084a4f370fe26ccb4455e683e6bba
+  checksum: 10/048abf263608bb25f7a19f5b7469e1dd908b774329ac1dc840b0d067eac8491ccbf7bea4d411571981f30924d87c66f2d62281210e55843b3f37142897305eab
   languageName: node
   linkType: hard
 
