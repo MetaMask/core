@@ -1503,6 +1503,13 @@ export class HyperLiquidProvider implements PerpsProvider {
   // with an activation event mid disconnect/initialize.
   #overridePromise: Promise<void> = Promise.resolve();
 
+  // Resolves an already-active agent on first client init when the host has
+  // not yet called setTradingWalletOverride. Explicit override clears skip
+  // this lookup so a lock event cannot pick the agent back up.
+  readonly #getAgentSigner:
+    | ((masterAccountAddress: string) => Promise<AgentSigner | null>)
+    | undefined;
+
   readonly #messenger: PerpsControllerMessengerBase;
 
   readonly #builderAddressTestnet?: string;
@@ -1536,6 +1543,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       options.subscriptionBuilderAddressMainnet;
     this.#onChaseOrderMaxDistanceReached =
       options.onChaseOrderMaxDistanceReached;
+    this.#getAgentSigner = options.getAgentSigner;
     this.#priceDeviationLimit =
       options.priceDeviationLimit ??
       HYPERLIQUID_CONFIG.OraclePriceDeviationLimit;
@@ -1563,7 +1571,6 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#messenger,
       {
         isTestnet,
-        getAgentSigner: options.getAgentSigner,
       },
     );
     this.#subscriptionService = new HyperLiquidSubscriptionService(
@@ -1998,8 +2005,10 @@ export class HyperLiquidProvider implements PerpsProvider {
   /**
    * Build the wallet the SDK clients should sign with.
    *
-   * With an active agent override the agent adapter is used; otherwise the
-   * master keyring adapter is created (unchanged behavior).
+   * An explicit `signer` (including `null` to restore the master path) wins.
+   * Otherwise the stored override is used. On lazy init with neither, an
+   * already-active agent is resolved via `getAgentSigner` so the first
+   * initialize does not wait for `setTradingWalletOverride`.
    *
    * @param signer - Optional explicit signer; defaults to the stored override.
    * @returns The wallet adapter for the client service.
@@ -2012,6 +2021,18 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (effectiveSigner) {
       return this.#walletService.createAgentWalletAdapter(effectiveSigner);
     }
+
+    // Explicit clear (`null`) must restore the master path and not re-query
+    // getAgentSigner; a lock event can race the in-memory key still being set.
+    if (signer === undefined && this.#getAgentSigner) {
+      const masterWallet = this.#walletService.createWalletAdapter();
+      const agentSigner = await this.#getAgentSigner(masterWallet.address);
+      if (agentSigner) {
+        return this.#walletService.createAgentWalletAdapter(agentSigner);
+      }
+      return masterWallet;
+    }
+
     return this.#walletService.createWalletAdapter();
   }
 

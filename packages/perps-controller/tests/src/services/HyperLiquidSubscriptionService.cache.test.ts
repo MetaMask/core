@@ -467,7 +467,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
     // Mock wallet service
     mockWalletService = {
-      createWalletAdapter: jest.fn().mockResolvedValue(mockWalletAdapter),
+      createWalletAdapter: jest.fn(() => mockWalletAdapter),
       getUserAddressWithDefault: jest.fn().mockResolvedValue('0x123' as Hex),
     } as any;
 

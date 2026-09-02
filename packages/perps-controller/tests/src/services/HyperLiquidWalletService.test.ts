@@ -246,7 +246,7 @@ describe('HyperLiquidWalletService', () => {
         );
 
         // Creating wallet adapter should throw when no account
-        await expect(service.createWalletAdapter()).rejects.toThrow(
+        expect(() => service.createWalletAdapter()).toThrow(
           'NO_ACCOUNT_SELECTED',
         );
       });

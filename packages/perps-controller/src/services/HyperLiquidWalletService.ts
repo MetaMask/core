@@ -65,15 +65,6 @@ export type AgentSigner = {
 /** Options bag for {@link HyperLiquidWalletService}. */
 export type HyperLiquidWalletServiceOptions = {
   isTestnet?: boolean;
-  /**
-   * Resolves the local agent signer for a master account address, or null
-   * when the account has no active agent or the wallet is locked. When it
-   * returns a signer, wallet adapters sign with the agent key instead of
-   * contacting the keyring.
-   */
-  getAgentSigner?: (
-    masterAccountAddress: string,
-  ) => Promise<AgentSigner | null>;
 };
 
 /**
@@ -88,10 +79,6 @@ export class HyperLiquidWalletService {
 
   readonly #messenger: PerpsControllerMessengerBase;
 
-  readonly #getAgentSigner?:
-    | ((masterAccountAddress: string) => Promise<AgentSigner | null>)
-    | undefined;
-
   constructor(
     deps: PerpsPlatformDependencies,
     messenger: PerpsControllerMessengerBase,
@@ -100,7 +87,6 @@ export class HyperLiquidWalletService {
     this.#deps = deps;
     this.#messenger = messenger;
     this.#isTestnet = options.isTestnet ?? false;
-    this.#getAgentSigner = options.getAgentSigner;
   }
 
   /**
@@ -317,18 +303,16 @@ export class HyperLiquidWalletService {
   }
 
   /**
-   * Create wallet adapter that implements AbstractViemJsonRpcAccount interface
-   * Required by @nktkas/hyperliquid SDK for signing transactions
+   * Create the master-keyring wallet adapter for the HyperLiquid SDK.
    *
-   * When the injected `getAgentSigner` resolves a signer for the selected
-   * master account, the returned adapter signs L1 (phantom-agent) actions
-   * with that local agent key and routes user-signed actions to the master
-   * keyring path. Otherwise the master keyring path is used for everything,
-   * unchanged.
+   * This factory is synchronous and always signs via the selected master
+   * account. Agent wallets are built separately with
+   * {@link createAgentWalletAdapter}; the provider selects which adapter the
+   * SDK clients use.
    *
    * @returns The wallet adapter with address, signTypedData, and getChainId methods.
    */
-  public async createWalletAdapter(): Promise<{
+  public createWalletAdapter(): {
     address: Hex;
     signTypedData: (params: {
       domain: {
@@ -344,7 +328,7 @@ export class HyperLiquidWalletService {
       message: Record<string, unknown>;
     }) => Promise<Hex>;
     getChainId?: () => Promise<number>;
-  }> {
+  } {
     // Get current EVM account via DI messenger
     const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
 
@@ -353,16 +337,6 @@ export class HyperLiquidWalletService {
     }
 
     const address = evmAccount.address as Hex;
-
-    // Agent mode: a local signer for this master account takes over signing.
-    // The unlocked-vault gate for agent signing is the in-memory
-    // plaintext key (null while locked), not the keyring.
-    const agentSigner = this.#getAgentSigner
-      ? await this.#getAgentSigner(address)
-      : null;
-    if (agentSigner) {
-      return this.createAgentWalletAdapter(agentSigner);
-    }
 
     return {
       address,

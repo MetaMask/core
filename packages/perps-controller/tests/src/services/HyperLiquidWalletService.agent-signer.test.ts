@@ -2,13 +2,13 @@
 /**
  * Unit tests for the HyperLiquidWalletService agent-signer seam.
  *
- * Agent mode: when the injected `getAgentSigner` returns a signer for the
- * selected master account, `createWalletAdapter` returns an adapter whose
- * address is the agent's and whose `signTypedData` delegates directly to the
- * local signer — the keyring messenger is never contacted.
+ * Agent mode: `createAgentWalletAdapter` returns an adapter whose address is
+ * the agent's and whose `signTypedData` delegates L1 actions to the local
+ * signer — the keyring messenger is never contacted for those.
  *
- * Master mode: when no signer is available, the existing keyring-backed
- * adapter is returned unchanged.
+ * Master mode: `createWalletAdapter` is a synchronous master-keyring factory.
+ * It does not look up an agent signer; the provider selects the agent adapter
+ * via `#buildWallet` / `setTradingWalletOverride`.
  */
 
 // Mock keyring-api to avoid import issues with definePattern
@@ -89,43 +89,30 @@ describe('HyperLiquidWalletService agent signer seam', () => {
     mockMessenger = createMockMessenger();
   });
 
-  describe('agent mode', () => {
-    it('returns an adapter whose address is the agent address', async () => {
-      const agentSigner: AgentSigner = {
-        address: AGENT_ADDRESS,
-        signTypedData: jest.fn().mockResolvedValue('0xagentsig'),
-      };
-      const service = new HyperLiquidWalletService(mockDeps, mockMessenger, {
-        getAgentSigner: jest.fn().mockResolvedValue(agentSigner),
-      });
+  const createAgentAdapter = (signTypedData: jest.Mock = jest.fn()) => {
+    const agentSigner: AgentSigner = {
+      address: AGENT_ADDRESS,
+      signTypedData,
+    };
+    const service = new HyperLiquidWalletService(mockDeps, mockMessenger);
+    return {
+      service,
+      agentSigner,
+      adapter: service.createAgentWalletAdapter(agentSigner),
+    };
+  };
 
-      const adapter = await service.createWalletAdapter();
+  describe('agent mode', () => {
+    it('returns an adapter whose address is the agent address', () => {
+      const { adapter } = createAgentAdapter();
 
       expect(adapter.address).toBe(AGENT_ADDRESS);
     });
 
-    it('passes the selected master account address to getAgentSigner', async () => {
-      const getAgentSigner = jest.fn().mockResolvedValue(null);
-      const service = new HyperLiquidWalletService(mockDeps, mockMessenger, {
-        getAgentSigner,
-      });
-
-      await service.createWalletAdapter();
-
-      expect(getAgentSigner).toHaveBeenCalledWith(mockEvmAccount.address);
-    });
-
     it('delegates signing directly to the injected signer with no keyring call', async () => {
       const signTypedData = jest.fn().mockResolvedValue('0xagentsig');
-      const agentSigner: AgentSigner = {
-        address: AGENT_ADDRESS,
-        signTypedData,
-      };
-      const service = new HyperLiquidWalletService(mockDeps, mockMessenger, {
-        getAgentSigner: jest.fn().mockResolvedValue(agentSigner),
-      });
+      const { adapter } = createAgentAdapter(signTypedData);
 
-      const adapter = await service.createWalletAdapter();
       const signature = await adapter.signTypedData(typedDataParams);
 
       expect(signature).toBe('0xagentsig');
@@ -139,15 +126,8 @@ describe('HyperLiquidWalletService agent signer seam', () => {
 
     it('strips the injected EIP712Domain type before delegating', async () => {
       const signTypedData = jest.fn().mockResolvedValue('0xagentsig');
-      const agentSigner: AgentSigner = {
-        address: AGENT_ADDRESS,
-        signTypedData,
-      };
-      const service = new HyperLiquidWalletService(mockDeps, mockMessenger, {
-        getAgentSigner: jest.fn().mockResolvedValue(agentSigner),
-      });
+      const { adapter } = createAgentAdapter(signTypedData);
 
-      const adapter = await service.createWalletAdapter();
       await adapter.signTypedData(typedDataParams);
 
       const [domain, types, value] = signTypedData.mock.calls[0];
@@ -158,13 +138,7 @@ describe('HyperLiquidWalletService agent signer seam', () => {
 
     it('signs with the agent adapter even when the keyring reports locked', async () => {
       const signTypedData = jest.fn().mockResolvedValue('0xagentsig');
-      const agentSigner: AgentSigner = {
-        address: AGENT_ADDRESS,
-        signTypedData,
-      };
-      const service = new HyperLiquidWalletService(mockDeps, mockMessenger, {
-        getAgentSigner: jest.fn().mockResolvedValue(agentSigner),
-      });
+      const { adapter } = createAgentAdapter(signTypedData);
       (mockMessenger.call as jest.Mock).mockImplementation((action: string) => {
         if (
           action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
@@ -177,7 +151,6 @@ describe('HyperLiquidWalletService agent signer seam', () => {
         return undefined;
       });
 
-      const adapter = await service.createWalletAdapter();
       const signature = await adapter.signTypedData(typedDataParams);
 
       expect(signature).toBe('0xagentsig');
@@ -247,19 +220,10 @@ describe('HyperLiquidWalletService agent signer seam', () => {
       },
     };
 
-    const createAgentModeService = (signTypedData: jest.Mock) =>
-      new HyperLiquidWalletService(mockDeps, mockMessenger, {
-        getAgentSigner: jest.fn().mockResolvedValue({
-          address: AGENT_ADDRESS,
-          signTypedData,
-        }),
-      });
-
     it('signs Exchange-domain Agent actions with the agent signer and zero keyring calls', async () => {
       const signTypedData = jest.fn().mockResolvedValue('0xagentsig');
-      const service = createAgentModeService(signTypedData);
+      const { adapter } = createAgentAdapter(signTypedData);
 
-      const adapter = await service.createWalletAdapter();
       const signature = await adapter.signTypedData(l1ActionParams);
 
       expect(signature).toBe('0xagentsig');
@@ -273,9 +237,8 @@ describe('HyperLiquidWalletService agent signer seam', () => {
 
     it('routes HyperliquidSignTransaction domain actions to the master keyring path', async () => {
       const signTypedData = jest.fn().mockResolvedValue('0xagentsig');
-      const service = createAgentModeService(signTypedData);
+      const { adapter } = createAgentAdapter(signTypedData);
 
-      const adapter = await service.createWalletAdapter();
       const signature = await adapter.signTypedData(userSignedParams);
 
       expect(signature).toBe('0xSignatureResult');
@@ -297,9 +260,8 @@ describe('HyperLiquidWalletService agent signer seam', () => {
 
     it('signs unknown Exchange-domain shapes with the agent signer', async () => {
       const signTypedData = jest.fn().mockResolvedValue('0xagentsig');
-      const service = createAgentModeService(signTypedData);
+      const { adapter } = createAgentAdapter(signTypedData);
 
-      const adapter = await service.createWalletAdapter();
       await adapter.signTypedData({
         ...l1ActionParams,
         primaryType: 'UsdClassTransfer',
@@ -314,49 +276,31 @@ describe('HyperLiquidWalletService agent signer seam', () => {
       );
     });
 
-    it('keeps the agent address on the adapter for user-signed actions', async () => {
-      const signTypedData = jest.fn().mockResolvedValue('0xagentsig');
-      const service = createAgentModeService(signTypedData);
-
-      const adapter = await service.createWalletAdapter();
+    it('keeps the agent address on the adapter for user-signed actions', () => {
+      const { adapter } = createAgentAdapter(
+        jest.fn().mockResolvedValue('0xagentsig'),
+      );
 
       expect(adapter.address).toBe(AGENT_ADDRESS);
     });
   });
 
   describe('master mode', () => {
-    it('returns the keyring-backed adapter when getAgentSigner returns null', async () => {
-      const service = new HyperLiquidWalletService(mockDeps, mockMessenger, {
-        getAgentSigner: jest.fn().mockResolvedValue(null),
-      });
-
-      const adapter = await service.createWalletAdapter();
-
-      expect(adapter.address).toBe(mockEvmAccount.address);
-      const signature = await adapter.signTypedData(typedDataParams);
-      expect(signature).toBe('0xSignatureResult');
-      expect(mockMessenger.call).toHaveBeenCalledWith(
-        'KeyringController:signTypedMessage',
-        {
-          from: mockEvmAccount.address,
-          data: {
-            domain: typedDataParams.domain,
-            types: typedDataParams.types,
-            primaryType: typedDataParams.primaryType,
-            message: typedDataParams.message,
-          },
-        },
-        'V4',
-      );
-    });
-
-    it('uses the master path when no getAgentSigner option is provided', async () => {
+    it('returns the keyring-backed adapter synchronously', () => {
       const service = new HyperLiquidWalletService(mockDeps, mockMessenger);
 
-      const adapter = await service.createWalletAdapter();
+      const adapter = service.createWalletAdapter();
 
+      expect(adapter).not.toBeInstanceOf(Promise);
       expect(adapter.address).toBe(mockEvmAccount.address);
+    });
+
+    it('uses the master path when creating the default wallet adapter', async () => {
+      const service = new HyperLiquidWalletService(mockDeps, mockMessenger);
+
+      const adapter = service.createWalletAdapter();
       const signature = await adapter.signTypedData(typedDataParams);
+
       expect(signature).toBe('0xSignatureResult');
       expect(mockMessenger.call).toHaveBeenCalledWith(
         'KeyringController:signTypedMessage',
@@ -368,7 +312,7 @@ describe('HyperLiquidWalletService agent signer seam', () => {
     it('routes Exchange-domain Agent actions through the keyring in master mode', async () => {
       const service = new HyperLiquidWalletService(mockDeps, mockMessenger);
 
-      const adapter = await service.createWalletAdapter();
+      const adapter = service.createWalletAdapter();
       const signature = await adapter.signTypedData({
         ...typedDataParams,
         domain: {

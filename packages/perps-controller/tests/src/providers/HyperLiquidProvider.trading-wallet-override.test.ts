@@ -1,7 +1,7 @@
 /* eslint-disable */
 /**
  * Unit tests for HyperLiquidProvider.setTradingWalletOverride and the
- * getAgentSigner pass-through to the wallet service.
+ * getAgentSigner lookup on first client initialization.
  */
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
@@ -82,7 +82,9 @@ describe('HyperLiquidProvider trading wallet override', () => {
       setTestnetMode: jest.fn(),
     } as unknown as jest.Mocked<HyperLiquidWalletService>;
 
-    mockSubscriptionService = {} as jest.Mocked<HyperLiquidSubscriptionService>;
+    mockSubscriptionService = {
+      clearAll: jest.fn(),
+    } as unknown as jest.Mocked<HyperLiquidSubscriptionService>;
 
     MockedHyperLiquidClientService.mockImplementation(() => mockClientService);
     MockedHyperLiquidWalletService.mockImplementation(() => mockWalletService);
@@ -91,13 +93,56 @@ describe('HyperLiquidProvider trading wallet override', () => {
     );
   });
 
-  it('passes getAgentSigner through to the wallet service constructor', () => {
+  it('does not pass getAgentSigner to the wallet service', () => {
     const getAgentSigner = jest.fn();
     createTestProvider({ getAgentSigner });
 
     const constructorArgs = MockedHyperLiquidWalletService.mock.calls[0];
     const options = constructorArgs?.[2] as { getAgentSigner?: unknown };
-    expect(options.getAgentSigner).toBe(getAgentSigner);
+    expect(options?.getAgentSigner).toBeUndefined();
+  });
+
+  it('uses getAgentSigner on first initialize when no override is set', async () => {
+    const agentSigner: AgentSigner = {
+      address: AGENT_ADDRESS,
+      signTypedData: jest.fn().mockResolvedValue('0xagentsig'),
+    };
+    const getAgentSigner = jest.fn().mockResolvedValue(agentSigner);
+    const provider = createTestProvider({ getAgentSigner });
+
+    await provider.initialize();
+
+    expect(getAgentSigner).toHaveBeenCalledWith(MASTER_ADDRESS);
+    expect(mockWalletService.createAgentWalletAdapter).toHaveBeenCalledWith(
+      agentSigner,
+    );
+    const wallet = mockClientService.initialize.mock.calls[0]?.[0];
+    expect(wallet?.address).toBe(AGENT_ADDRESS);
+  });
+
+  it('uses the master adapter when getAgentSigner returns null', async () => {
+    const getAgentSigner = jest.fn().mockResolvedValue(null);
+    const provider = createTestProvider({ getAgentSigner });
+
+    await provider.initialize();
+
+    expect(mockWalletService.createWalletAdapter).toHaveBeenCalledTimes(1);
+    expect(mockWalletService.createAgentWalletAdapter).not.toHaveBeenCalled();
+    const wallet = mockClientService.initialize.mock.calls[0]?.[0];
+    expect(wallet?.address).toBe(MASTER_ADDRESS);
+  });
+
+  it('does not re-query getAgentSigner when the override is cleared', async () => {
+    const getAgentSigner = jest.fn().mockResolvedValue({
+      address: AGENT_ADDRESS,
+      signTypedData: jest.fn().mockResolvedValue('0xagentsig'),
+    });
+    const provider = createTestProvider({ getAgentSigner });
+
+    await provider.setTradingWalletOverride(null);
+
+    expect(getAgentSigner).not.toHaveBeenCalled();
+    expect(mockWalletService.createWalletAdapter).toHaveBeenCalledTimes(1);
   });
 
   it('reinitializes the client service with the agent adapter', async () => {
