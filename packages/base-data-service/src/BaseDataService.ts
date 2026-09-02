@@ -236,14 +236,10 @@ export class BaseDataService<
       defaultOptions: {
         queries: {
           ...QUERY_CLIENT_DEFAULTS.queries,
-          // We always provide defaultOptions in our tests.
-          /* c8 ignore next */
           ...queryClientConfig.defaultOptions?.queries,
         },
         mutations: {
           ...QUERY_CLIENT_DEFAULTS.mutations,
-          // We always provide defaultOptions in our tests.
-          /* c8 ignore next */
           ...queryClientConfig.defaultOptions?.mutations,
         },
       },
@@ -257,10 +253,8 @@ export class BaseDataService<
       this.#persistenceConfig &&
       debounce(
         () => {
-          this.#persistCache().catch(
-            // We always provide this in our tests.
-            /* c8 ignore next */
-            (error) => this.#messenger.captureException?.(error),
+          this.#persistCache().catch((error) =>
+            this.#messenger.captureException?.(error),
           );
         },
         this.#persistenceConfig.writeDelay ??
@@ -540,10 +534,8 @@ export class BaseDataService<
    * Initialize the service, rehydrating the cache with persisted data if possible.
    */
   init(): void {
-    this.#loadCache().catch(
-      // We always provide captureException in our tests.
-      /* c8 ignore next */
-      (error) => this.#messenger.captureException?.(error),
+    this.#loadCache().catch((error) =>
+      this.#messenger.captureException?.(error),
     );
   }
 
