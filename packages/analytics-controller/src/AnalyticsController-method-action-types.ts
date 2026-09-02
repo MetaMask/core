@@ -60,8 +60,10 @@ export type AnalyticsControllerTrackViewAction = {
  *
  * @param options - The fragment definition. An ID is generated when one is
  * not supplied.
- * @returns The created fragment, or `undefined` when the event fragments
- * feature is disabled or the consent state does not allow capture.
+ * @returns A read-only copy of the created fragment, or `undefined` when the
+ * event fragments feature is disabled or the consent state does not allow
+ * capture. Mutating the returned object does not change controller state.
+ * Use {@link updateEventFragment} or {@link upsertEventFragment} to write.
  */
 export type AnalyticsControllerCreateEventFragmentAction = {
   type: `AnalyticsController:createEventFragment`;
@@ -102,9 +104,11 @@ export type AnalyticsControllerUpdateEventFragmentAction = {
  * Read an event fragment.
  *
  * @param id - The fragment ID.
- * @returns The fragment, or `undefined` when no fragment has that ID, the
- * event fragments feature is disabled, or the consent state does not allow
- * capture.
+ * @returns A read-only copy of the fragment, or `undefined` when no fragment
+ * has that ID, the event fragments feature is disabled, or the consent state
+ * does not allow capture. Mutating the returned object does not change
+ * controller state. Use {@link updateEventFragment} or
+ * {@link upsertEventFragment} to write.
  */
 export type AnalyticsControllerGetEventFragmentByIdAction = {
   type: `AnalyticsController:getEventFragmentById`;

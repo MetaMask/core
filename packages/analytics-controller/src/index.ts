@@ -29,6 +29,7 @@ export type {
   AnalyticsEventFragmentOptions,
   AnalyticsEventFragmentPayload,
   AnalyticsEventFragments,
+  ReadonlyAnalyticsEventFragment,
 } from './EventFragment.types.js';
 
 // Export state types

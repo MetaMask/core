@@ -31,6 +31,7 @@ import type {
   AnalyticsEventFragmentOptions,
   AnalyticsEventFragmentPayload,
   AnalyticsEventFragments,
+  ReadonlyAnalyticsEventFragment,
 } from './EventFragment.types.js';
 import { analyticsControllerSelectors } from './selectors.js';
 
@@ -1544,12 +1545,14 @@ export class AnalyticsController extends BaseController<
    *
    * @param options - The fragment definition. An ID is generated when one is
    * not supplied.
-   * @returns The created fragment, or `undefined` when the event fragments
-   * feature is disabled or the consent state does not allow capture.
+   * @returns A read-only copy of the created fragment, or `undefined` when the
+   * event fragments feature is disabled or the consent state does not allow
+   * capture. Mutating the returned object does not change controller state.
+   * Use {@link updateEventFragment} or {@link upsertEventFragment} to write.
    */
   createEventFragment(
     options: AnalyticsEventFragmentOptions = {},
-  ): AnalyticsEventFragment | undefined {
+  ): ReadonlyAnalyticsEventFragment | undefined {
     if (this.#shouldIgnoreEventFragmentCall('createEventFragment')) {
       return undefined;
     }
@@ -1571,7 +1574,9 @@ export class AnalyticsController extends BaseController<
       ...(options.failureEvent === undefined
         ? {}
         : { failureEvent: options.failureEvent }),
-      ...(options.context === undefined ? {} : { context: options.context }),
+      ...(options.context === undefined
+        ? {}
+        : { context: { ...options.context } }),
       ...(options.persist === undefined ? {} : { persist: options.persist }),
     };
 
@@ -1585,7 +1590,7 @@ export class AnalyticsController extends BaseController<
       );
     }
 
-    return fragment;
+    return cloneDeep(fragment);
   }
 
   /**
@@ -1647,16 +1652,20 @@ export class AnalyticsController extends BaseController<
    * Read an event fragment.
    *
    * @param id - The fragment ID.
-   * @returns The fragment, or `undefined` when no fragment has that ID, the
-   * event fragments feature is disabled, or the consent state does not allow
-   * capture.
+   * @returns A read-only copy of the fragment, or `undefined` when no fragment
+   * has that ID, the event fragments feature is disabled, or the consent state
+   * does not allow capture. Mutating the returned object does not change
+   * controller state. Use {@link updateEventFragment} or
+   * {@link upsertEventFragment} to write.
    */
-  getEventFragmentById(id: string): AnalyticsEventFragment | undefined {
+  getEventFragmentById(id: string): ReadonlyAnalyticsEventFragment | undefined {
     if (this.#shouldIgnoreEventFragmentCall('getEventFragmentById')) {
       return undefined;
     }
 
-    return this.#getEventFragment(id);
+    const fragment = this.#getEventFragment(id);
+
+    return fragment === undefined ? undefined : cloneDeep(fragment);
   }
 
   /**

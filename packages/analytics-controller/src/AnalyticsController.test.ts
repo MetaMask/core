@@ -3103,6 +3103,30 @@ describe('AnalyticsController', () => {
         });
       });
 
+      it('returns a copy that cannot mutate controller state', async () => {
+        const { controller } = await setupFragmentController();
+        const fragment = controller.createEventFragment({
+          id: 'signature-1',
+          properties: { signature_type: 'personal_sign' },
+          context: { referrer: { url: 'https://dapp.test' } },
+        });
+        expect(fragment).toBeDefined();
+
+        (fragment as AnalyticsEventFragment).properties.signature_type =
+          'eth_signTypedData_v4';
+        const context = (fragment as AnalyticsEventFragment).context as {
+          referrer: { url: string };
+        };
+        context.referrer.url = 'https://evil.test';
+
+        expect(controller.state.eventFragments?.['signature-1']).toStrictEqual(
+          expect.objectContaining({
+            properties: { signature_type: 'personal_sign' },
+            context: { referrer: { url: 'https://dapp.test' } },
+          }),
+        );
+      });
+
       it('stores every supplied field under the supplied ID', async () => {
         const { controller } = await setupFragmentController();
 
@@ -3361,6 +3385,39 @@ describe('AnalyticsController', () => {
 
         expect(controller.getEventFragmentById('signature-1')).toStrictEqual(
           fragment,
+        );
+      });
+
+      it('returns a copy that cannot mutate controller state', async () => {
+        const { controller } = await setupFragmentController();
+        controller.createEventFragment({
+          id: 'signature-1',
+          properties: { signature_type: 'personal_sign' },
+          sensitiveProperties: { eip712_primary_type: 'Permit' },
+          context: { referrer: { url: 'https://dapp.test' } },
+        });
+
+        const fragment = controller.getEventFragmentById('signature-1');
+        expect(fragment).toBeDefined();
+
+        // Readonly is a type-level contract. At runtime we still return a deep
+        // copy so accidental writes cannot reach controller state.
+        (fragment as AnalyticsEventFragment).properties.signature_type =
+          'eth_signTypedData_v4';
+        (
+          fragment as AnalyticsEventFragment
+        ).sensitiveProperties.eip712_primary_type = 'Order';
+        const context = (fragment as AnalyticsEventFragment).context as {
+          referrer: { url: string };
+        };
+        context.referrer.url = 'https://evil.test';
+
+        expect(controller.state.eventFragments?.['signature-1']).toStrictEqual(
+          expect.objectContaining({
+            properties: { signature_type: 'personal_sign' },
+            sensitiveProperties: { eip712_primary_type: 'Permit' },
+            context: { referrer: { url: 'https://dapp.test' } },
+          }),
         );
       });
 

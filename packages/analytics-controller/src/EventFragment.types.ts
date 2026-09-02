@@ -76,6 +76,27 @@ export type AnalyticsEventFragment = {
 };
 
 /**
+ * Public, read-only view of an {@link AnalyticsEventFragment}.
+ *
+ * Returned by {@link AnalyticsController.createEventFragment} and
+ * {@link AnalyticsController.getEventFragmentById}. Callers must use
+ * {@link AnalyticsController.updateEventFragment} (or
+ * {@link AnalyticsController.upsertEventFragment}) to modify fragment data.
+ */
+export type ReadonlyAnalyticsEventFragment = Readonly<{
+  id: string;
+  properties: Readonly<AnalyticsEventProperties>;
+  sensitiveProperties: Readonly<AnalyticsEventProperties>;
+  initialEvent?: string;
+  successEvent?: string;
+  failureEvent?: string;
+  context?: Readonly<AnalyticsContext>;
+  persist?: boolean;
+  createdAt: number;
+  lastUpdated: number;
+}>;
+
+/**
  * Event fragments keyed by fragment ID.
  */
 export type AnalyticsEventFragments = Record<string, AnalyticsEventFragment>;
