@@ -1378,6 +1378,7 @@ export class KycController extends BaseController<
       this.#applyUpdate((state) => {
         state.sessionDisclaimers = latest;
       });
+      // TODO: Should we really be doing client side validation of these?
       const stillMissingIdos = acceptedCategoryStillMissing(
         latest.idOS,
         consents.idosDisclaimersAccepted,
