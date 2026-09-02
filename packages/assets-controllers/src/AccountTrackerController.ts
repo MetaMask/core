@@ -153,7 +153,7 @@ export type AccountTrackerControllerState = {
 const accountTrackerMetadata: StateMetadata<AccountTrackerControllerState> = {
   accountsByChainId: {
     includeInStateLogs: false,
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },

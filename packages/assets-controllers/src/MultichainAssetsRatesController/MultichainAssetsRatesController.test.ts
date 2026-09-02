@@ -1613,11 +1613,7 @@ describe('MultichainAssetsRatesController', () => {
           controller.metadata,
           'persist',
         ),
-      ).toMatchInlineSnapshot(`
-        {
-          "conversionRates": {},
-        }
-      `);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('exposes expected state to UI', () => {
