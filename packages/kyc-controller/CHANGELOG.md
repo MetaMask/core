@@ -7,15 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat(kyc-controller): move moonpay keypair generation out of constructor ([#10053](https://github.com/MetaMask/core/pull/10053))
+
 ### Added
 
 - Add `idosRelayBaseUrl` on `KycService` and `KycService.fetchIdosRelayJwks()` to fetch the idOS relay well-known JWKS used to verify the `ukycCapabilityToken` encryption schema. `encryptionDataKey` continues to verify against idOS enclave JWKS via `fetchIdosEnclaveJwks` / `idosEnclaveBaseUrl`. ([#10008](https://github.com/MetaMask/core/pull/10008))
-- Add session-scoped disclaimer APIs on `KycService` for the idOS / KYC-provider catalog ([#9979](https://github.com/MetaMask/core/pull/9979)):
+- Add session-scoped disclaimer APIs on `KycService` for the idOS / KYC-provider catalog: ([#9979](https://github.com/MetaMask/core/pull/9979))
   - `fetchSessionDisclaimers({ sessionId })` calls `GET /sessions/{sessionId}/disclaimers`
   - `submitSessionDisclaimers({ sessionId, idOS, kycProvider, credentialReusabilityConsentGiven })` calls `POST /sessions/{sessionId}/disclaimers`
 - Add `KycService.submitVendorDisclaimers({ vendor, disclaimerIds })` (`POST /vendors/{vendor}/disclaimers`) to record Iron T&C signings, plus the `KycVendorSigning` response type. The consents path calls this alongside session-scoped disclaimers; vendor T&C ids are no longer sent on the session disclaimer POST. ([#9979](https://github.com/MetaMask/core/pull/9979))
 - Add `KycConsentDocument`, `KycConsentRecord`, and `KycSessionDisclaimers` types for that catalog, plus in-memory `credentialReusabilityConsentGiven` and `sessionDisclaimers` controller state. `acceptTermsAndStartSession` forwards optional `credentialReusabilityConsentGiven` (default `false`). ([#9979](https://github.com/MetaMask/core/pull/9979))
-- Parameterize Universal KYC vendor HTTP on `KycService` so identity vendors share one client surface instead of vendor-branded methods ([#9908](https://github.com/MetaMask/core/pull/9908)):
+- Parameterize Universal KYC vendor HTTP on `KycService` so identity vendors share one client surface instead of vendor-branded methods: ([#9908](https://github.com/MetaMask/core/pull/9908))
   - `fetchDisclaimers({ vendor, country })` and `checkKycRequired({ vendor, ... })` call `/vendors/{vendor}/disclaimers` and `/vendors/{vendor}/kyc-required` (`vendor` defaults to `moonpay`)
   - `createVendorCustomer({ vendor, email })` calls `POST /vendors/{vendor}/customers`
   - `fetchKycStatus()` reads `GET /kyc/status`

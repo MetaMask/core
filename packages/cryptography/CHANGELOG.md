@@ -7,4 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: Initialize `cryptography` package ([#10073](https://github.com/MetaMask/core/pull/10073))
+
 [Unreleased]: https://github.com/MetaMask/core/
