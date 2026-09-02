@@ -79,6 +79,7 @@ const PACKAGES: Record<string, PackageInfo> = {
       '@MetaMask/mobile-platform',
       '@MetaMask/extension-platform',
       '@MetaMask/networks',
+      '@MetaMask/emerging-opportunities',
     ],
   },
   'bridge-controller': {
@@ -121,7 +122,7 @@ const PACKAGES: Record<string, PackageInfo> = {
     teams: ['@MetaMask/core-platform'],
   },
   'config-registry-controller': {
-    teams: ['@MetaMask/networks'],
+    teams: ['@MetaMask/networks', '@MetaMask/emerging-opportunities'],
   },
   'connectivity-controller': {
     teams: ['@MetaMask/core-platform'],
@@ -178,6 +179,7 @@ const PACKAGES: Record<string, PackageInfo> = {
       '@MetaMask/mobile-platform',
       '@MetaMask/extension-platform',
       '@MetaMask/networks',
+      '@MetaMask/emerging-opportunities',
     ],
   },
   'json-rpc-engine': {
@@ -198,6 +200,7 @@ const PACKAGES: Record<string, PackageInfo> = {
       '@MetaMask/mobile-platform',
       '@MetaMask/extension-platform',
       '@MetaMask/networks',
+      '@MetaMask/emerging-opportunities',
     ],
   },
   'logging-controller': {
@@ -344,6 +347,7 @@ const PACKAGES: Record<string, PackageInfo> = {
       '@MetaMask/mobile-platform',
       '@MetaMask/extension-platform',
       '@MetaMask/networks',
+      '@MetaMask/emerging-opportunities',
     ],
   },
   'stellar-quickstart-up': {
@@ -351,6 +355,7 @@ const PACKAGES: Record<string, PackageInfo> = {
       '@MetaMask/mobile-platform',
       '@MetaMask/extension-platform',
       '@MetaMask/networks',
+      '@MetaMask/emerging-opportunities',
     ],
   },
   'storage-service': {
