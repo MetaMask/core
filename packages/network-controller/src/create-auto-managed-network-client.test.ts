@@ -156,6 +156,7 @@ describe('createAutoManagedNetworkClient', () => {
           const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
             pollingInterval: 5000,
           });
+          const getInfuraAuthToken = async (): Promise<string> => 'some-token';
           const messenger = buildNetworkControllerMessenger();
 
           const { provider } = createAutoManagedNetworkClient({
@@ -163,6 +164,7 @@ describe('createAutoManagedNetworkClient', () => {
             networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
+            getInfuraAuthToken,
             messenger,
             rpcFailoverMode: 'enabled',
           });
@@ -185,6 +187,7 @@ describe('createAutoManagedNetworkClient', () => {
             configuration: networkClientConfiguration,
             getRpcServiceOptions,
             getBlockTrackerOptions,
+            getInfuraAuthToken,
             messenger,
             rpcFailoverMode: 'enabled',
           });

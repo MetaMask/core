@@ -62,6 +62,7 @@
     "@metamask/eth-query": "^4.0.0",
     "@metamask/json-rpc-engine": "^11.0.0",
     "@metamask/messenger": "^3.0.0",
+    "@metamask/profile-sync-controller": "^32.1.1",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/swappable-obj-proxy": "^2.3.0",
