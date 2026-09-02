@@ -26,6 +26,7 @@ export type {
   NotificationServicesControllerDisableAccountsAction,
   NotificationServicesControllerEnableAccountsAction,
   NotificationServicesControllerFetchAndUpdateMetamaskNotificationsAction,
+  NotificationServicesControllerFetchMetamaskNotificationsCategoriesAction,
   NotificationServicesControllerGetNotificationsByTypeAction,
   NotificationServicesControllerDeleteNotificationByIdAction,
   NotificationServicesControllerDeleteNotificationsByIdAction,

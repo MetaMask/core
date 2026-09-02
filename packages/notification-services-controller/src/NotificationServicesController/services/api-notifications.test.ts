@@ -1,13 +1,18 @@
+import nock from 'nock';
+
 import {
   mockGetOnChainNotificationsConfig,
   mockGetAPINotifications,
   mockMarkNotificationsAsRead,
+  mockGetNotificationsCategories,
 } from '../__fixtures__/mockServices.js';
 import {
   createMockNotificationERC20Sent,
   createMockPlatformNotification,
+  getMockNotificationsCategoriesResponse,
 } from '../mocks/index.js';
 import * as OnChainNotifications from './api-notifications.js';
+import { NOTIFICATION_API_CATEGORIES_LIST_ENDPOINT } from './api-notifications.js';
 
 const MOCK_BEARER_TOKEN = 'MOCK_BEARER_TOKEN';
 const MOCK_ADDRESSES = ['0x123', '0x456', '0x789'];
@@ -160,5 +165,41 @@ describe('On Chain Notifications - markNotificationsAsRead()', () => {
 
     // Should not call the endpoint when no IDs provided
     expect(mockEndpoint.isDone()).toBe(false);
+  });
+});
+
+describe('On Chain Notifications - getNotificationsCategories()', () => {
+  it('should return a list of notification categories', async () => {
+    const mockEndpoint = mockGetNotificationsCategories();
+
+    const result = await OnChainNotifications.getNotificationsCategories();
+
+    expect(mockEndpoint.isDone()).toBe(true);
+    expect(result).toStrictEqual(
+      getMockNotificationsCategoriesResponse().response,
+    );
+  });
+
+  it('should return an empty array if endpoint fails', async () => {
+    const mockBadEndpoint = mockGetNotificationsCategories({
+      status: 500,
+      body: { error: 'mock api failure' },
+    });
+
+    const result = await OnChainNotifications.getNotificationsCategories();
+
+    expect(mockBadEndpoint.isDone()).toBe(true);
+    expect(result).toStrictEqual([]);
+  });
+
+  it('should return an empty array if the request fails at the network level', async () => {
+    const mockBadEndpoint = nock(NOTIFICATION_API_CATEGORIES_LIST_ENDPOINT())
+      .get('')
+      .replyWithError('network error');
+
+    const result = await OnChainNotifications.getNotificationsCategories();
+
+    expect(mockBadEndpoint.isDone()).toBe(true);
+    expect(result).toStrictEqual([]);
   });
 });

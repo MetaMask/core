@@ -1,26 +1,43 @@
+type JsonRequestMethod = 'POST';
+type NoBodyMethod = 'GET' | 'DELETE';
+
+type MakeApiCallOptions<Body> =
+  | {
+      method: NoBodyMethod;
+      bearerToken?: string;
+    }
+  | {
+      method: JsonRequestMethod;
+      body: Body;
+      bearerToken?: string;
+    };
+
 /**
- * Performs an API call with automatic retries on failure.
+ * Performs an API call with optional bearer authentication and JSON body support.
  *
- * @param bearerToken - The JSON Web Token for authorization.
  * @param endpoint - The URL of the API endpoint to call.
- * @param method - The HTTP method ('POST' or 'DELETE').
- * @param body - The body of the request. It should be an object that can be serialized to JSON.
+ * @param options - Request configuration.
  * @returns A Promise that resolves to the response of the fetch request.
  */
-export async function makeApiCall<Body>(
-  bearerToken: string,
+export async function makeApiCall<Body = never>(
   endpoint: string,
-  method: 'POST' | 'DELETE',
-  body: Body,
+  options: MakeApiCallOptions<Body>,
 ): Promise<Response> {
-  const options: RequestInit = {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${bearerToken}`,
-    },
-    body: JSON.stringify(body),
-  };
+  const headers: HeadersInit = {};
 
-  return await fetch(endpoint, options);
+  if (options.bearerToken) {
+    headers.Authorization = `Bearer ${options.bearerToken}`;
+  }
+
+  let body: string | undefined;
+  if (options.method === 'POST') {
+    headers['Content-Type'] = 'application/json';
+    body = JSON.stringify(options.body);
+  }
+
+  return fetch(endpoint, {
+    method: options.method,
+    headers,
+    body,
+  });
 }

@@ -10,6 +10,7 @@ export function createMockNotificationEthSent(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ETH_SENT,
     notification_type: 'wallet_activity',
+    category: 'wallet_activity',
     notification_subtype: 'eth_sent',
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa7',
     unread: true,
@@ -57,6 +58,7 @@ export function createMockNotificationEthReceived(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ETH_RECEIVED,
     notification_type: 'wallet_activity',
+    category: 'wallet_activity',
     notification_subtype: 'eth_received',
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa8',
     unread: true,
@@ -104,6 +106,7 @@ export function createMockNotificationERC20Sent(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ERC20_SENT,
     notification_type: 'wallet_activity',
+    category: 'wallet_activity',
     notification_subtype: 'erc20_sent',
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa9',
     unread: true,
@@ -157,6 +160,7 @@ export function createMockNotificationERC20Received(): NormalisedAPINotification
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ERC20_RECEIVED,
     notification_type: 'wallet_activity',
+    category: 'wallet_activity',
     notification_subtype: 'erc20_received',
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
     unread: true,
@@ -210,6 +214,7 @@ export function createMockNotificationERC721Sent(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ERC721_SENT,
     notification_type: 'wallet_activity',
+    category: 'wallet_activity',
     notification_subtype: 'erc721_sent',
     id: 'a4193058-9814-537e-9df4-79dcac727fb6',
     created_at: '2023-11-15T11:08:17.895407Z',
@@ -266,6 +271,7 @@ export function createMockNotificationERC721Received(): NormalisedAPINotificatio
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ERC721_RECEIVED,
     notification_type: 'wallet_activity',
+    category: 'wallet_activity',
     notification_subtype: 'erc721_received',
     id: '00a79d24-befa-57ed-a55a-9eb8696e1654',
     created_at: '2023-11-14T17:40:52.319281Z',
@@ -322,6 +328,7 @@ export function createMockNotificationERC1155Sent(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ERC1155_SENT,
     notification_type: 'wallet_activity',
+    category: 'wallet_activity',
     notification_subtype: 'erc1155_sent',
     id: 'a09ff9d1-623a-52ab-a3d4-c7c8c9a58362',
     created_at: '2023-11-20T20:44:10.110706Z',
@@ -378,6 +385,7 @@ export function createMockNotificationERC1155Received(): NormalisedAPINotificati
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ERC1155_RECEIVED,
     notification_type: 'wallet_activity',
+    category: 'wallet_activity',
     notification_subtype: 'erc1155_received',
     id: 'b6b93c84-e8dc-54ed-9396-7ea50474843a',
     created_at: '2023-11-20T20:44:10.110706Z',
@@ -434,6 +442,7 @@ export function createMockNotificationMetaMaskSwapsCompleted(): NormalisedAPINot
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.METAMASK_SWAP_COMPLETED,
     notification_type: 'wallet_activity',
+    category: 'wallet_activity',
     notification_subtype: 'metamask_swap_completed',
     id: '7ddfe6a1-ac52-5ffe-aa40-f04242db4b8b',
     created_at: '2023-10-18T13:58:49.854596Z',
@@ -496,6 +505,7 @@ export function createMockNotificationRocketPoolStakeCompleted(): NormalisedAPIN
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ROCKETPOOL_STAKE_COMPLETED,
     notification_type: 'wallet_activity',
+    category: 'wallet_activity',
     notification_subtype: 'rocketpool_stake_completed',
     id: 'c2a2f225-b2fb-5d6c-ba56-e27a5c71ffb9',
     created_at: '2023-11-20T12:02:48.796824Z',
@@ -557,6 +567,7 @@ export function createMockNotificationRocketPoolUnStakeCompleted(): NormalisedAP
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ROCKETPOOL_UNSTAKE_COMPLETED,
     notification_type: 'wallet_activity',
+    category: 'wallet_activity',
     notification_subtype: 'rocketpool_unstake_completed',
     id: '291ec897-f569-4837-b6c0-21001b198dff',
     created_at: '2023-10-19T13:11:10.623042Z',
@@ -618,6 +629,7 @@ export function createMockNotificationLidoStakeCompleted(): NormalisedAPINotific
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.LIDO_STAKE_COMPLETED,
     notification_type: 'wallet_activity',
+    category: 'wallet_activity',
     notification_subtype: 'lido_stake_completed',
     id: 'ec10d66a-f78f-461f-83c9-609aada8cc50',
     created_at: '2023-11-02T22:28:49.970865Z',
@@ -679,6 +691,7 @@ export function createMockNotificationLidoWithdrawalRequested(): NormalisedAPINo
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.LIDO_WITHDRAWAL_REQUESTED,
     notification_type: 'wallet_activity',
+    category: 'wallet_activity',
     notification_subtype: 'lido_withdrawal_requested',
     id: 'ef003925-3379-4ba7-9e2d-8218690cadc9',
     created_at: '2023-10-18T15:04:02.482526Z',
@@ -740,6 +753,7 @@ export function createMockNotificationLidoWithdrawalCompleted(): NormalisedAPINo
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.LIDO_WITHDRAWAL_COMPLETED,
     notification_type: 'wallet_activity',
+    category: 'wallet_activity',
     notification_subtype: 'lido_withdrawal_completed',
     id: 'd73df14d-ce73-4f38-bad3-ab028154042f',
     created_at: '2023-10-18T16:35:03.147606Z',
@@ -801,6 +815,7 @@ export function createMockNotificationLidoReadyToBeWithdrawn(): NormalisedAPINot
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.LIDO_STAKE_READY_TO_BE_WITHDRAWN,
     notification_type: 'wallet_activity',
+    category: 'wallet_activity',
     notification_subtype: 'lido_stake_ready_to_be_withdrawn',
     id: 'd73df14d-ce73-4f38-bad3-ab028154042e',
     created_at: '2023-10-18T16:35:03.147606Z',
@@ -849,6 +864,7 @@ export function createMockPlatformNotification(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.PLATFORM,
     notification_type: 'perps',
+    category: 'trading_activity',
     notification_subtype: 'position_liquidated',
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
     unread: true,
