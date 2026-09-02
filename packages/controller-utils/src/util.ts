@@ -31,14 +31,21 @@ export const PROTOTYPE_POLLUTION_BLOCKLIST = [
  * Checks whether a dynamic property key could be used in
  * a [prototype pollution attack](https://portswigger.net/web-security/prototype-pollution).
  *
+ * String keys are compared against the {@link PROTOTYPE_POLLUTION_BLOCKLIST}.
+ * Number and symbol keys are always considered safe: number keys are coerced
+ * to numeric strings, which can never collide with the blocklist, and symbol
+ * keys cannot alias the string-keyed `Object.prototype` properties.
+ *
  * @param key - The dynamic key to validate.
  * @returns Whether the given dynamic key is safe to use.
  */
-export function isSafeDynamicKey(key: string): boolean {
-  return (
-    typeof key === 'string' &&
-    !PROTOTYPE_POLLUTION_BLOCKLIST.some((blockedKey) => key === blockedKey)
-  );
+export function isSafeDynamicKey(key: PropertyKey): boolean {
+  if (typeof key === 'string') {
+    return !PROTOTYPE_POLLUTION_BLOCKLIST.some(
+      (blockedKey) => key === blockedKey,
+    );
+  }
+  return typeof key === 'number' || typeof key === 'symbol';
 }
 
 /**

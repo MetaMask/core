@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `startTime` to `TraceRequest` to allow backdating a span's start time ([#9315](https://github.com/MetaMask/core/pull/9315))
 
+### Changed
+
+- Widen `isSafeDynamicKey` parameter type from `string` to `PropertyKey` ([#9774](https://github.com/MetaMask/core/pull/9774))
+  - `number` and `symbol` keys are now considered safe and return `true`; previously any non-string input returned `false`
+
 ### Deprecated
 
 - Deprecate `createServicePolicy` and related symbols ([#9418](https://github.com/MetaMask/core/pull/9418))
