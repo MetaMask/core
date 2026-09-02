@@ -14,11 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/phishing-controller` from `^17.4.0` to `^17.4.1` ([#RELEASE_PR](https://github.com/MetaMask/core/pull/RELEASE_PR))
 - **BREAKING:** `AssetsControllerMessenger` now requires `AccountTreeController:isInitialized`, `ClientController:getState`, and `KeyringController:isUnlocked` so lifecycle checks read controller state on demand instead of mirroring it from events ([#10059](https://github.com/MetaMask/core/pull/10059))
   - Hosts that restrict which actions flow through the `AssetsController` messenger must delegate these three actions
   - `AccountTreeController:stateChange` is no longer subscribed to; remove it from allowed events if your messenger wiring lists events explicitly
 - Revert to `selectedAccountGroupChange` for account-group switches; snap accounts added mid-session are picked up on restart ([#10059](https://github.com/MetaMask/core/pull/10059))
-- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.7.0` ([#10046](https://github.com/MetaMask/core/pull/10046))
+- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.8.0` ([#10046](https://github.com/MetaMask/core/pull/10046), [#RELEASE_PR](https://github.com/MetaMask/core/pull/RELEASE_PR))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
 
 ### Fixed

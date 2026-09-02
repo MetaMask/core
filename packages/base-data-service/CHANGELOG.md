@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Add typechecking in CI for react-data-query ([#10010](https://github.com/MetaMask/core/pull/10010))
-- Enable typechecking in CI for base-data-service ([#10009](https://github.com/MetaMask/core/pull/10009))
-- docs: Improve `ExampleDataService` types ([#10001](https://github.com/MetaMask/core/pull/10001))
-
 ### Changed
 
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
