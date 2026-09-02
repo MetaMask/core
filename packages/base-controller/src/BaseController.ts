@@ -245,7 +245,6 @@ export class BaseController<
     metadata,
     name,
     state,
-    struct,
   }: {
     messenger: ControllerActions<
       ControllerName,
@@ -266,7 +265,6 @@ export class BaseController<
     metadata: StateMetadata<ControllerState>;
     name: ControllerName;
     state: ControllerState;
-    struct?: Struct<ControllerState>;
   }) {
     // The parameter type validates that the expected actions/events are present
     // We don't have a way to validate the type property because the type is invariant
