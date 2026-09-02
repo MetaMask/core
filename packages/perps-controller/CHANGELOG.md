@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add provider-routed Scale price normalization through `PerpsController:getScalePriceLadder`, the optional `PerpsProvider.getScalePriceLadder` hook, and their exported action, parameter, and result types ([#10021](https://github.com/MetaMask/core/pull/10021))
+- Add provider-routed Scale price normalization through `PerpsController:getScalePriceLadder`, the optional `PerpsProvider.getScalePriceLadder` hook, and their exported action, parameter, and result types. `DirectProviderScalePriceLadderUnavailableReason` and `ScalePriceLadderUnavailableReason` limit unavailable results to direct-provider and routed failures respectively ([#10021](https://github.com/MetaMask/core/pull/10021), [#10065](https://github.com/MetaMask/core/pull/10065))
 - Add an optional batch-level `error` to `ClosePositionsResult` for an operation-level close failure, including cases that also populate per-position results ([#10037](https://github.com/MetaMask/core/pull/10037))
 - Add `PerpsController.subscribeToTwapOrders` and the optional `PerpsProvider.subscribeToTwapOrders` hook for streaming TWAP updates, implemented for HyperLiquid ([#10056](https://github.com/MetaMask/core/pull/10056))
 
