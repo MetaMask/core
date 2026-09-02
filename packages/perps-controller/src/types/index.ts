@@ -1345,9 +1345,18 @@ export type SubscribeOrdersParams = {
 
 export type SubscribeTwapOrdersParams = {
   /**
-   * Receives the full set of current and terminal TWAP schedules, newest
-   * first — the same shape `getTwapOrders()` returns, so a client can swap a
-   * poll for this subscription without reshaping its state.
+   * Receives current and terminal TWAP schedules, newest first — the same
+   * shape `getTwapOrders()` returns, so a client can swap a poll for this
+   * subscription without reshaping its state.
+   *
+   * Retention differs from the REST read on purpose: every active schedule is
+   * always delivered, while terminal ones are bounded to the most recent 100
+   * so a long-lived stream cannot accumulate an account's entire history.
+   * Callers needing older terminal schedules should still read
+   * `getTwapOrders()`.
+   *
+   * `isSnapshot` marks the venue's initial full set; later invocations carry
+   * the merged result of a delta.
    */
   callback: (twapOrders: TwapOrder[], isSnapshot?: boolean) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
