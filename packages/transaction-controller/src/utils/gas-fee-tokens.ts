@@ -187,6 +187,20 @@ export async function checkGasFeeTokenBeforePublish({
     isExternalSign: true,
   });
 
+  const isSelectedGasFeeTokenAvailable = gasFeeTokens?.some(
+    (token) =>
+      token.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
+  );
+
+  if (!isSelectedGasFeeTokenAvailable) {
+    updateTransaction(transaction.id, (tx) => {
+      tx.gasFeeTokens = gasFeeTokens;
+      tx.isExternalSign = false;
+    });
+
+    throw new Error('Gas fee token not found and insufficient native balance');
+  }
+
   updateTransaction(transaction.id, (tx) => {
     tx.gasFeeTokens = gasFeeTokens;
     tx.isExternalSign = true;
@@ -194,16 +208,6 @@ export async function checkGasFeeTokenBeforePublish({
   });
 
   log('Updated gas fee tokens before publish', gasFeeTokens);
-
-  if (
-    !gasFeeTokens?.some(
-      (token) =>
-        token.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
-    )
-  ) {
-    throw new Error('Gas fee token not found and insufficient native balance');
-  }
-
   log('Publishing with selected gas fee token', { selectedGasFeeToken });
 }
 

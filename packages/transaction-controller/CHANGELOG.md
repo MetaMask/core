@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Harden gas fee token preflight by not treating pending gas estimates as zero-cost native gas, and by resetting `isExternalSign` when preflight validation fails ([#10071](https://github.com/MetaMask/core/pull/10071))
+
 ## [69.7.0]
 
 ### Added
