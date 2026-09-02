@@ -90,9 +90,9 @@ export type KycServiceSubmitVendorDisclaimersAction = {
 /**
  * Fetches the global idOS + KYC-provider disclaimer catalog
  * (`GET /disclaimers?country=`). Carries no consent state — per-document
- * `consented` flags and `credentialReusabilityConsentGiven` are session-scoped
- * via {@link fetchSessionDisclaimers}. Vendor T&Cs continue to come from
- * {@link fetchVendorDisclaimers}.
+ * `consented` flags and `credentialReusabilityConsentGiven` are
+ * session-scoped via {@link fetchSessionDisclaimers}. Vendor T&Cs continue to
+ * come from {@link fetchVendorDisclaimers}.
  *
  * @param params - The parameters.
  * @param params.country - ISO 3166-1 alpha-3 country code.
