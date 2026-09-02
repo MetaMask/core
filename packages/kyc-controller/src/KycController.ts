@@ -951,6 +951,7 @@ export class KycController extends BaseController<
             this.state.credentialReusabilityConsentGiven ?? false,
         });
       } else {
+        // TODO: should this be here? or should it exist at all?
         if (vendor === 'moonpay' && this.state.vendorDisclaimers.length === 0) {
           await this.loadDisclaimers();
           if (this.#generation !== generation) {
