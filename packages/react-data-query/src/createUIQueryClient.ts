@@ -13,6 +13,7 @@ import {
   QueryClientConfig,
   MutationOptions,
   DehydratedState,
+  MutationState,
 } from '@tanstack/query-core';
 
 import { createModuleLogger, projectLogger } from './loggers.js';
@@ -118,9 +119,42 @@ function hydrateMutations(
       mutationCache.notify({
         type: 'updated',
         mutation: existingMutation,
-        action: { type: 'success', data: state.data },
+        action: deriveMutationAction(state),
       });
     }
+  }
+}
+
+/**
+ * Build the `notify` action that describes a mutation's current state.
+ *
+ * @param state - The synced mutation state.
+ * @returns The action describing the state.
+ */
+function deriveMutationAction(
+  state: MutationState,
+):
+  | { type: 'success'; data: unknown }
+  | { type: 'error'; error: unknown }
+  | { type: 'pending'; variables: unknown; context: unknown; isPaused: boolean }
+  | { type: 'continue' } {
+  switch (state.status) {
+    case 'success':
+      return { type: 'success', data: state.data };
+    case 'error':
+      // A mutation in the `error` state always carries a non-null `error`.
+      return { type: 'error', error: state.error };
+    case 'pending':
+      return {
+        type: 'pending',
+        variables: state.variables,
+        context: state.context,
+        isPaused: state.isPaused,
+      };
+    // The `idle` status carries no data, error, or variables, so a neutral
+    // `continue` action refreshes subscribers without implying a result.
+    default:
+      return { type: 'continue' };
   }
 }
 

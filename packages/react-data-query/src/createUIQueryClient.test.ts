@@ -354,6 +354,91 @@ describe('createUIQueryClient', () => {
     service.destroy();
   });
 
+  it('reports a synced mutation as a success when it succeeded on the service', async () => {
+    const { clientA, clientB, service } = createClients();
+
+    mockAddFollowerRequest();
+    mockAddFollowerRequest();
+
+    const observerA = new TanStackQueryMutationObserver<AddFollowerResponse>(
+      clientA,
+      {
+        mutationKey: addFollowerMutationKey,
+      },
+    );
+    const observerB = new TanStackQueryMutationObserver<AddFollowerResponse>(
+      clientB,
+      {
+        mutationKey: addFollowerMutationKey,
+      },
+    );
+
+    const syncedActions: { type: string }[] = [];
+    clientB.getMutationCache().subscribe((event) => {
+      if (event.type === 'updated') {
+        syncedActions.push(event.action);
+      }
+    });
+
+    await observerA.mutate();
+    await observerB.mutate();
+
+    expect(syncedActions).toContainEqual({
+      type: 'success',
+      data: DEFAULT_ADD_FOLLOWER_REPLY.body,
+    });
+
+    observerA.reset();
+    observerB.reset();
+    service.destroy();
+  });
+
+  it('reports a synced mutation as an error when it failed on the service', async () => {
+    const { clientA, clientB, service } = createClients();
+
+    mockAddFollowerRequest({ mockReply: { status: 500 } });
+    mockAddFollowerRequest({ mockReply: { status: 500 } });
+
+    const observerA = new TanStackQueryMutationObserver<AddFollowerResponse>(
+      clientA,
+      {
+        mutationKey: addFollowerMutationKey,
+      },
+    );
+    const observerB = new TanStackQueryMutationObserver<AddFollowerResponse>(
+      clientB,
+      {
+        mutationKey: addFollowerMutationKey,
+      },
+    );
+
+    const syncedActions: { type: string }[] = [];
+    clientB.getMutationCache().subscribe((event) => {
+      if (event.type === 'updated') {
+        syncedActions.push(event.action);
+      }
+    });
+
+    await expect(observerA.mutate()).rejects.toThrow(
+      'Mutation failed with status code: 500.',
+    );
+    await expect(observerB.mutate()).rejects.toThrow(
+      'Mutation failed with status code: 500.',
+    );
+
+    expect(syncedActions).toContainEqual({
+      type: 'error',
+      error: new Error('Mutation failed with status code: 500.'),
+    });
+    expect(syncedActions).not.toContainEqual(
+      expect.objectContaining({ type: 'success' }),
+    );
+
+    observerA.reset();
+    observerB.reset();
+    service.destroy();
+  });
+
   it('fetches queries using observers in the same client', async () => {
     const { clientA, service } = createClients();
 
