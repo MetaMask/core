@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add provider-routed Scale price normalization through `PerpsController:getScalePriceLadder`, the optional `PerpsProvider.getScalePriceLadder` hook, and their exported action, parameter, and result types ([#10021](https://github.com/MetaMask/core/pull/10021))
-
 ### Removed
 
 - **BREAKING:** Remove all MYX protocol support ([#10038](https://github.com/MetaMask/core/pull/10038))
@@ -19,6 +15,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - No migration is required for stored client state: an `activeProvider` value naming a removed venue falls back to `'hyperliquid'` and is rewritten on next launch.
   - The `perpsMyxProviderEnabled` remote feature flag and the `MM_PERPS_MYX_PROVIDER_ENABLED` env override are no longer read; clients can retire both.
   - HyperLiquid and Lighter behavior is unchanged.
+
+## [15.1.0]
+
+### Added
+
+- Add provider-routed Scale price normalization through `PerpsController:getScalePriceLadder`, the optional `PerpsProvider.getScalePriceLadder` hook, and their exported action, parameter, and result types. `DirectProviderScalePriceLadderUnavailableReason` and `ScalePriceLadderUnavailableReason` limit unavailable results to direct-provider and routed failures respectively ([#10021](https://github.com/MetaMask/core/pull/10021), [#10065](https://github.com/MetaMask/core/pull/10065))
+- Add an optional batch-level `error` to `ClosePositionsResult` for an operation-level close failure, including cases that also populate per-position results ([#10037](https://github.com/MetaMask/core/pull/10037))
+- Add `PerpsController.subscribeToTwapOrders` and the optional `PerpsProvider.subscribeToTwapOrders` hook for streaming TWAP updates, implemented for HyperLiquid ([#10056](https://github.com/MetaMask/core/pull/10056))
+
+### Fixed
+
+- Prevent stale HyperLiquid positions from driving TP/SL, close, batch-close, margin-update, and HIP-3 margin calculations ([#10037](https://github.com/MetaMask/core/pull/10037))
+  - Symbol operations use the current DEX slice or an HTTP read. Batch operations require a complete current WebSocket or REST snapshot. Partial reads fail with `PROVIDER_NOT_AVAILABLE`; REST and WebSocket data are never merged.
+  - Selected-symbol `closePositions` loads only the market groups those symbols belong to. A complete all-DEX snapshot is required only for `closeAll` or an empty `symbols` list. A `PROVIDER_NOT_AVAILABLE` failure on one requested DEX does not abort closes on the others; those symbols are reported as per-position failures.
+  - A delayed `clearinghouseState` payload from a replaced subscription client is ignored so it cannot stamp stale size or side with the new connection epoch.
+- Floor TP/SL and reduce-only edit sizes to the venue size grid instead of rounding above the position ([#10037](https://github.com/MetaMask/core/pull/10037))
+  - Sub-increment sizes fail before side effects with `ORDER_TPSL_SIZE_INVALID` or `ORDER_SIZE_POSITIVE`.
 
 ## [15.0.0]
 
@@ -841,7 +854,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@15.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@15.1.0...HEAD
+[15.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@15.0.0...@metamask/perps-controller@15.1.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@14.0.0...@metamask/perps-controller@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@13.1.0...@metamask/perps-controller@14.0.0
 [13.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@13.0.0...@metamask/perps-controller@13.1.0

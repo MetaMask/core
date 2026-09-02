@@ -809,6 +809,21 @@ export type PerpsControllerSubscribeToOrderFillsAction = {
 };
 
 /**
+ * Stream TWAP lifecycle updates through the active provider.
+ *
+ * Providers without a native TWAP push channel do not implement this; the
+ * returned no-op cleanup lets a client fall back to polling `getTwapOrders`
+ * without branching on provider identity.
+ *
+ * @param params - Subscription parameters including callback and account ID.
+ * @returns A cleanup function to remove the subscription.
+ */
+export type PerpsControllerSubscribeToTwapOrdersAction = {
+  type: `PerpsController:subscribeToTwapOrders`;
+  handler: PerpsController['subscribeToTwapOrders'];
+};
+
+/**
  * Subscribe to live order updates
  *
  * @param params - The operation parameters.
@@ -1399,6 +1414,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSubscribeToPricesAction
   | PerpsControllerSubscribeToPositionsAction
   | PerpsControllerSubscribeToOrderFillsAction
+  | PerpsControllerSubscribeToTwapOrdersAction
   | PerpsControllerSubscribeToOrdersAction
   | PerpsControllerSubscribeToAccountAction
   | PerpsControllerSubscribeToOrderBookAction

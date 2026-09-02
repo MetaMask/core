@@ -157,7 +157,7 @@
   },
   "packages/assets-controller/src/AssetsController.ts": {
     "no-restricted-syntax": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/assets-controller/src/data-sources/AccountsApiDataSource.ts": {
