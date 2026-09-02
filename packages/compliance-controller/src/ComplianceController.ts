@@ -12,7 +12,10 @@ import type {
   ComplianceServiceCheckWalletsComplianceAction,
 } from './ComplianceService-method-action-types.js';
 import type { WalletComplianceStatus } from './types.js';
-import { getWalletComplianceStatus } from './utils.js';
+import {
+  getWalletComplianceStatus,
+  setWalletComplianceStatus,
+} from './utils.js';
 
 // === GENERAL ===
 
@@ -203,7 +206,11 @@ export class ComplianceController extends BaseController<
       };
 
       this.update((draftState) => {
-        draftState.walletComplianceStatusMap[address] = status;
+        setWalletComplianceStatus(
+          draftState.walletComplianceStatusMap,
+          address,
+          status,
+        );
         draftState.lastCheckedAt = now;
       });
 
@@ -249,7 +256,11 @@ export class ComplianceController extends BaseController<
       this.update((draftState) => {
         for (let idx = 0; idx < statuses.length; idx++) {
           const callerAddress = addresses[idx];
-          draftState.walletComplianceStatusMap[callerAddress] = statuses[idx];
+          setWalletComplianceStatus(
+            draftState.walletComplianceStatusMap,
+            callerAddress,
+            statuses[idx],
+          );
         }
         draftState.lastCheckedAt = now;
       });
