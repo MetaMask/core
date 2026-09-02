@@ -316,6 +316,44 @@ describe('createUIQueryClient', () => {
     service.destroy();
   });
 
+  it('does not accumulate duplicate mutations in the cache when the service emits cache updates', async () => {
+    const { clientA, clientB, service } = createClients();
+
+    mockAddFollowerRequest();
+    mockAddFollowerRequest();
+
+    const observerA = new TanStackQueryMutationObserver<AddFollowerResponse>(
+      clientA,
+      {
+        mutationKey: addFollowerMutationKey,
+      },
+    );
+    const observerB = new TanStackQueryMutationObserver<AddFollowerResponse>(
+      clientB,
+      {
+        mutationKey: addFollowerMutationKey,
+      },
+    );
+
+    await observerA.mutate();
+    await observerB.mutate();
+
+    expect(
+      clientA
+        .getMutationCache()
+        .findAll({ mutationKey: addFollowerMutationKey }),
+    ).toHaveLength(1);
+    expect(
+      clientB
+        .getMutationCache()
+        .findAll({ mutationKey: addFollowerMutationKey }),
+    ).toHaveLength(1);
+
+    observerA.reset();
+    observerB.reset();
+    service.destroy();
+  });
+
   it('fetches queries using observers in the same client', async () => {
     const { clientA, service } = createClients();
 
@@ -627,9 +665,9 @@ describe('createUIQueryClient', () => {
     service.destroy();
   });
 
-  it.only('cleans up removed mutation cache entries once all mutation observers are removed', async () => {
+  it('cleans up removed mutation cache entries once all mutation observers are removed', async () => {
     const defaultOptions = {
-      queries: { gcTime: inMilliseconds(5, Duration.Minute) },
+      mutations: { gcTime: inMilliseconds(5, Duration.Minute) },
     };
 
     const { clientA, clientB, service } = createClients({ defaultOptions });

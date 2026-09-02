@@ -12,6 +12,7 @@ import {
   QueryKey,
   QueryClientConfig,
   MutationOptions,
+  DehydratedState,
 } from '@tanstack/query-core';
 
 import { createModuleLogger, projectLogger } from './loggers.js';
@@ -61,6 +62,67 @@ type MessengerAdapter<DataServiceName extends string> = {
     handler: DataServiceGranularCacheUpdatedHandler,
   ): void;
 };
+
+/**
+ * Load a dehydrated mutation cache into a query client.
+ *
+ * TanStack Query's own `hydrate` matches dehydrated queries against the cache
+ * by hash and updates them in place, but it always inserts a brand-new mutation
+ * for every dehydrated mutation. Because data services emit a cache update on
+ * every `added`/`updated` mutation event, calling `hydrate` directly would
+ * append a fresh mutation to each subscribed query client on every event, so
+ * the cache would grow without bound, and a found migration could be stale.
+ *
+ * This behavior for `hydrate` makes sense because TanStack treats queries and
+ * mutations differently. Queries are deduplicated: two attempts for the same
+ * query using the same query key show up once in the query cache. But mutations
+ * are discrete events/attempts, and `mutationKey` is used by observers to find
+ * mutations, not enforce uniqueness.
+ *
+ * However, our situation is a bit unusual: we're using a mutation key as a
+ * stable shared identity between the service-side and UI-side caches (more
+ * query-like), which is exactly the case `hydrate` doesn't support.
+ *
+ * Instead of appending new mutations to the query client, this function reuses
+ * the mutation that already exists for a given key, updating its state to match
+ * the service.
+ *
+ * @param client - The UI query client whose mutation cache should be synced.
+ * @param dehydratedState - The dehydrated state emitted by the data service.
+ */
+function migrateMutations(
+  client: QueryClient,
+  dehydratedState: DehydratedState,
+): void {
+  const mutationCache = client.getMutationCache();
+
+  for (const dehydratedMutation of dehydratedState.mutations) {
+    const { mutationKey, state } = dehydratedMutation;
+
+    // A data service only publishes cache updates for mutations that have a
+    // `mutationKey`, so we can disregard the case in which the key is not set.
+    // istanbul ignore next
+    if (!mutationKey) {
+      continue;
+    }
+
+    const existingMutation = mutationCache.find({ mutationKey });
+
+    // A UI query client only subscribes to a mutation key's cache updates after
+    // it has built a mutation for that key, so there is always a matching
+    // mutation to update in place, and we can disregard the case in which there
+    // is not.
+    // istanbul ignore else
+    if (existingMutation) {
+      existingMutation.state = state;
+      mutationCache.notify({
+        type: 'updated',
+        mutation: existingMutation,
+        action: { type: 'success', data: state.data },
+      });
+    }
+  }
+}
 
 /**
  * Create a QueryClient that queries and subscribes to data services using a
@@ -263,7 +325,7 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
             return;
           }
 
-          hydrate(client, payload.state);
+          migrateMutations(client, payload.state);
         };
 
         subscriptions.set(hash, cacheListener);
