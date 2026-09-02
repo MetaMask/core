@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `bypassCache` option to `FetchOptions`
+- Add `bypassCache` option to `FetchOptions` ([#10068](https://github.com/MetaMask/core/pull/10068))
   - When true, the v5/v6 multi-account balances requests skip the client-side query cache (stale time defaults to 0) and append a random `cacheBuster` query param so the Accounts API's server-side cache (keyed on the full URL) misses. Intended for hard refreshes only, e.g. right after a transaction confirms.
 
 ### Changed
