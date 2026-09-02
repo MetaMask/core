@@ -8042,6 +8042,7 @@ __metadata:
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^6.1.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
+    "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/swappable-obj-proxy": "npm:^2.3.0"
     "@metamask/utils": "npm:^11.12.0"
     "@ts-bridge/cli": "npm:^0.6.4"
