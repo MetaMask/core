@@ -531,6 +531,18 @@ describe('AccountTreeController', () => {
       expect(controller.isInitialized()).toBe(false);
     });
 
+    it('returns true after reinit', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+      controller.reinit();
+
+      expect(controller.isInitialized()).toBe(true);
+    });
+
     it('is exposed via AccountTreeController:isInitialized', () => {
       const { controller, messenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
