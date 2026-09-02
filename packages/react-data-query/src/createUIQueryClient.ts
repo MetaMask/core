@@ -71,7 +71,7 @@ type MessengerAdapter<DataServiceName extends string> = {
  * for every dehydrated mutation. Because data services emit a cache update on
  * every `added`/`updated` mutation event, calling `hydrate` directly would
  * append a fresh mutation to each subscribed query client on every event, so
- * the cache would grow without bound, and a found migration could be stale.
+ * the cache would grow without bound, and a found mutation could be stale.
  *
  * This behavior for `hydrate` makes sense because TanStack treats queries and
  * mutations differently. Queries are deduplicated: two attempts for the same
@@ -87,10 +87,10 @@ type MessengerAdapter<DataServiceName extends string> = {
  * the mutation that already exists for a given key, updating its state to match
  * the service.
  *
- * @param client - The UI query client whose mutation cache should be synced.
+ * @param client - The UI query client whose mutation cache should be hydrated.
  * @param dehydratedState - The dehydrated state emitted by the data service.
  */
-function migrateMutations(
+function hydrateMutations(
   client: QueryClient,
   dehydratedState: DehydratedState,
 ): void {
@@ -325,7 +325,7 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
             return;
           }
 
-          migrateMutations(client, payload.state);
+          hydrateMutations(client, payload.state);
         };
 
         subscriptions.set(hash, cacheListener);
