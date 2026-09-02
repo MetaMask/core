@@ -23,6 +23,7 @@ import type {
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
 import { PriceDataSource } from './data-sources/PriceDataSource.js';
+import { RpcDataSource } from './data-sources/RpcDataSource.js';
 import { TokenDataSource } from './data-sources/TokenDataSource.js';
 import { buildDefaultAssetsInfo } from './defaults.js';
 import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
@@ -1763,6 +1764,76 @@ describe('AssetsController', () => {
   });
 
   describe('handleAssetsUpdate', () => {
+    it('re-reads tracked assets an Accounts API poll left empty via the RPC fallback', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '1000' } },
+        },
+      };
+      const rpcMiddleware = jest.fn(
+        async (ctx: unknown, next: (ctx: unknown) => Promise<unknown>) =>
+          next(ctx),
+      );
+      const rpcMiddlewareGetter = jest
+        .spyOn(RpcDataSource.prototype, 'assetsMiddleware', 'get')
+        .mockReturnValue(rpcMiddleware as never);
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        const pollRequest: DataRequest = {
+          accountsWithSupportedChains: [
+            {
+              account: createMockInternalAccount(),
+              supportedChains: ['eip155:1' as ChainId],
+            },
+          ],
+          chainIds: ['eip155:1' as ChainId],
+          dataTypes: ['balance'],
+        };
+
+        // The poll response omits MOCK_ASSET_ID even though state tracks it —
+        // the fallback must hand it to RPC for an on-chain re-read.
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'merge',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
+              },
+            },
+          },
+          'AccountsApiDataSource',
+          pollRequest,
+        );
+
+        expect(rpcMiddleware).toHaveBeenCalledTimes(1);
+        const [rpcCtx] = rpcMiddleware.mock.calls[0] as [
+          { request: DataRequest },
+        ];
+        expect(rpcCtx.request.chainIds).toStrictEqual(['eip155:1']);
+        expect(rpcCtx.request.customAssets).toContain(MOCK_ASSET_ID);
+
+        // Same update from the WebSocket source must NOT trigger the
+        // fallback: its pushes are incremental single-asset updates, so an
+        // absent asset is not stale there.
+        rpcMiddleware.mockClear();
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'merge',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
+              },
+            },
+          },
+          'AccountActivityDataSource',
+          pollRequest,
+        );
+        expect(rpcMiddleware).not.toHaveBeenCalled();
+      });
+
+      rpcMiddlewareGetter.mockRestore();
+    });
+
     it('does not fail when parent trace rejects after enrichment completes', async () => {
       const traceMock = jest
         .fn()

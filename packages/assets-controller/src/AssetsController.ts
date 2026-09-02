@@ -3912,6 +3912,7 @@ export class AssetsController extends BaseController<
           sourceId === 'AccountActivityDataSource' &&
           this.#isBasicFunctionality();
 
+        const shouldRunRpcFallback = sourceId === 'AccountsApiDataSource';
         const enrichmentSources: AssetsDataSource[] = [
           ...(shouldGraduateCustomAssets
             ? [this.#customAssetGraduationMiddleware]
@@ -3925,6 +3926,7 @@ export class AssetsController extends BaseController<
                 },
               ]
             : []),
+          ...(shouldRunRpcFallback ? [this.#rpcFallbackMiddleware] : []),
           this.#detectionMiddleware,
         ];
         if (this.#isBasicFunctionality()) {
