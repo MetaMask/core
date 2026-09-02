@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `BaseBip44AccountProvider` leaking removed accounts and stale account IDs ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+  - `getAccounts()` now filters out entries the `AccountsController` no longer knows about instead of returning them as if they were real accounts.
+  - `init()` now replaces the tracked account set instead of adding to it, so a re-init after an account removal (e.g. on unlock) no longer leaves the removed account's ID tracked forever.
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^39.1.0` to `^39.1.1` ([#9969](https://github.com/MetaMask/core/pull/9969))

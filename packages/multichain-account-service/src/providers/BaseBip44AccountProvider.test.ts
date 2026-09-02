@@ -1,8 +1,8 @@
 import type {
   CreateAccountOptions,
   KeyringAccount,
-  KeyringCapabilities,
 } from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import type { Bip44Account } from '@metamask/account-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
