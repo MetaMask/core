@@ -164,10 +164,11 @@ export type KycVendorSigning = {
 };
 
 /**
- * A legal document in the idOS / KYC-provider catalog
- * (`GET /disclaimers`, or `GET`/`POST /sessions/{sessionId}/disclaimers`).
+ * A legal document in the global idOS / KYC-provider catalog
+ * (`GET /disclaimers`). Carries no consent state, which only exists within a
+ * session.
  */
-export type KycConsentDocument = {
+export type KycCatalogDocument = {
   /** Stable identifier of the legal document. */
   key: string;
   /** Version of the document currently in force. */
@@ -176,10 +177,14 @@ export type KycConsentDocument = {
   title: string;
   /** URL the document body is hosted at. */
   url: string;
-  /**
-   * Whether the document version has already been consented to (session-scoped
-   * fetches). For the global catalog this is typically `false`.
-   */
+};
+
+/**
+ * A legal document in the session-scoped idOS / KYC-provider catalog
+ * (`GET`/`POST /sessions/{sessionId}/disclaimers`).
+ */
+export type KycConsentDocument = KycCatalogDocument & {
+  /** Whether the document version has already been consented to. */
   consented: boolean;
 };
 
@@ -198,16 +203,21 @@ export type KycConsentRecord = {
  */
 export type KycDisclaimersCatalog = {
   /** idOS legal documents. */
-  idOS: KycConsentDocument[];
+  idOS: KycCatalogDocument[];
   /** KYC provider (SumSub) legal documents. */
-  kycProvider: KycConsentDocument[];
+  kycProvider: KycCatalogDocument[];
 };
 
 /**
  * Session-scoped disclaimer catalog returned by
- * `GET`/`POST /sessions/{sessionId}/disclaimers`.
+ * `GET`/`POST /sessions/{sessionId}/disclaimers`. Documents additionally report
+ * whether that version was already consented to for the session.
  */
-export type KycSessionDisclaimers = KycDisclaimersCatalog & {
+export type KycSessionDisclaimers = {
+  /** idOS legal documents. */
+  idOS: KycConsentDocument[];
+  /** KYC provider (SumSub) legal documents. */
+  kycProvider: KycConsentDocument[];
   /** Whether the user consented to reuse existing idOS credentials. */
   credentialReusabilityConsentGiven: boolean;
 };

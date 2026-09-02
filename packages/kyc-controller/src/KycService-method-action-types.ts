@@ -89,9 +89,9 @@ export type KycServiceSubmitVendorDisclaimersAction = {
 
 /**
  * Fetches the global idOS + KYC-provider disclaimer catalog
- * (`GET /disclaimers?country=`). Does not include
- * `credentialReusabilityConsentGiven` — that is session-scoped via
- * {@link fetchSessionDisclaimers}. Vendor T&Cs continue to come from
+ * (`GET /disclaimers?country=`). Carries no consent state — per-document
+ * `consented` flags and `credentialReusabilityConsentGiven` are session-scoped
+ * via {@link fetchSessionDisclaimers}. Vendor T&Cs continue to come from
  * {@link fetchVendorDisclaimers}.
  *
  * @param params - The parameters.

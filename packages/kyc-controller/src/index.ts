@@ -94,6 +94,7 @@ export type {
 } from './crypto.js';
 
 export type {
+  KycCatalogDocument,
   KycConsentDocument,
   KycConsentRecord,
   KycCustomerIdentity,
