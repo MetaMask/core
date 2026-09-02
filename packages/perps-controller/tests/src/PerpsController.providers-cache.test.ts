@@ -3337,6 +3337,28 @@ describe('PerpsController', () => {
       expect(mockProvider.subscribeToOrders).not.toHaveBeenCalled();
     });
 
+    it('subscribeToTwapOrders returns no-op when provider is null', () => {
+      controller.testSetInitialized(false);
+
+      const unsub = controller.subscribeToTwapOrders({ callback: jest.fn() });
+
+      expect(typeof unsub).toBe('function');
+      unsub();
+    });
+
+    it('subscribeToTwapOrders returns no-op when the provider has no TWAP push channel', () => {
+      // Arrange: a provider that implements no native TWAP subscription
+      delete (mockProvider as { subscribeToTwapOrders?: unknown })
+        .subscribeToTwapOrders;
+
+      // Act
+      const unsub = controller.subscribeToTwapOrders({ callback: jest.fn() });
+
+      // Assert
+      expect(typeof unsub).toBe('function');
+      unsub();
+    });
+
     it('subscribeToPositions returns no-op when provider is null', () => {
       controller.testSetInitialized(false);
 

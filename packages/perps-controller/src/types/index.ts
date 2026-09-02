@@ -660,25 +660,12 @@ export type ClosePositionParams = {
   providerId?: PerpsProviderType; // Optional: override active provider for routing
 
   /**
-   * Optional live position data from WebSocket.
+   * Optional caller snapshot for diagnostics.
    *
-   * Pass a WebSocket-sourced snapshot only. The provider treats its own
-   * WebSocket position cache as fresher than this value and overrides the
-   * snapshot's size and side with it, so a REST-sourced (potentially older)
-   * position gives no benefit here.
-   *
-   * Providing it avoids a position fetch in the common case, but does not
-   * guarantee one is skipped: when the WebSocket cache does not cover the
-   * symbol's DEX (for example a HIP-3 DEX whose subscription has not published
-   * this session), the provider issues a single `clearinghouseState` request for
-   * that DEX alone, because the cache's silence proves nothing about the symbol.
-   * If that request succeeds, its answer is authoritative — the close fails with
-   * `No position found for <symbol>` when the DEX reports the symbol gone, even
-   * if it reports no positions at all. This snapshot is used only when that
-   * request fails, since a failed lookup proves nothing either.
-   *
-   * If not provided, the position is read from the WebSocket cache, falling back
-   * to a REST fetch when the cache is not initialized.
+   * The provider always resolves the position from the current DEX WebSocket
+   * slice or an HTTP read. It never uses this snapshot for order size or side.
+   * If neither authoritative source answers, the close fails with
+   * `PROVIDER_NOT_AVAILABLE`.
    */
   position?: Position;
 };
@@ -692,6 +679,14 @@ export type ClosePositionsResult = {
   success: boolean; // Overall success (true if at least one position closed)
   successCount: number; // Number of positions closed successfully
   failureCount: number; // Number of positions that failed to close
+  /**
+   * Batch-level operation error.
+   *
+   * Set when the close fails as a whole: snapshot/preparation errors with no
+   * per-position outcomes, or a thrown batch submission that also fills
+   * `results` with per-position failures.
+   */
+  error?: string;
   results: {
     symbol: string;
     success: boolean;
@@ -1348,6 +1343,25 @@ export type SubscribeOrdersParams = {
   includeHistory?: boolean; // Optional: include filled/canceled orders
 };
 
+export type SubscribeTwapOrdersParams = {
+  /**
+   * Receives current and terminal TWAP schedules, newest first — the same
+   * shape `getTwapOrders()` returns, so a client can swap a poll for this
+   * subscription without reshaping its state.
+   *
+   * Retention differs from the REST read on purpose: every active schedule is
+   * always delivered, while terminal ones are bounded to the most recent 100
+   * so a long-lived stream cannot accumulate an account's entire history.
+   * Callers needing older terminal schedules should still read
+   * `getTwapOrders()`.
+   *
+   * `isSnapshot` marks the venue's initial full set; later invocations carry
+   * the merged result of a delta.
+   */
+  callback: (twapOrders: TwapOrder[], isSnapshot?: boolean) => void;
+  accountId?: CaipAccountId; // Optional: defaults to selected account
+};
+
 export type SubscribeAccountParams = {
   callback: (account: AccountState | null) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
@@ -1622,6 +1636,17 @@ export type PerpsOrderCapabilities =
       reason: OrderCapabilitiesUnavailableReason;
     }>;
 
+/** Reasons a direct provider cannot produce a Scale price ladder. */
+export type DirectProviderScalePriceLadderUnavailableReason = Exclude<
+  DirectProviderOrderCapabilitiesUnavailableReason,
+  'strategy_market_unsupported'
+>;
+
+/** Reasons a provider-routed Scale price ladder cannot be produced. */
+export type ScalePriceLadderUnavailableReason =
+  | DirectProviderScalePriceLadderUnavailableReason
+  | RoutedOrderCapabilitiesUnavailableReason;
+
 /** Result of provider-routed Scale price normalization. */
 export type PerpsScalePriceLadder =
   | Readonly<{
@@ -1632,7 +1657,7 @@ export type PerpsScalePriceLadder =
   | Readonly<{
       status: 'unavailable';
       providerId?: PerpsProviderType;
-      reason: OrderCapabilitiesUnavailableReason;
+      reason: ScalePriceLadderUnavailableReason;
     }>;
 
 export type FeeCalculationParams = {
@@ -1791,9 +1816,12 @@ export type UpdatePositionTPSLParams = {
   trackingData?: TPSLTrackingData;
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
   /**
-   * Optional live position data from WebSocket.
-   * If provided, skips the REST API position fetch (avoids rate limiting issues).
-   * If not provided, falls back to fetching positions via REST API.
+   * Optional caller snapshot for diagnostics.
+   *
+   * The provider always resolves the position from the current DEX WebSocket
+   * slice or an HTTP read. It never uses this snapshot for trigger size or side.
+   * If neither authoritative source answers, the update fails with
+   * `PROVIDER_NOT_AVAILABLE`.
    */
   position?: Position;
 };
@@ -1874,6 +1902,11 @@ export type PerpsProvider = {
   cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult>;
   cancelOrders?(params: BatchCancelOrdersParams): Promise<CancelOrdersResult>; // Optional: batch cancel for protocols that support it
   getTwapOrders?(): Promise<TwapOrder[]>;
+  /**
+   * Stream TWAP lifecycle updates. Optional: providers without a native TWAP
+   * push channel omit it, and clients fall back to polling `getTwapOrders`.
+   */
+  subscribeToTwapOrders?(params: SubscribeTwapOrdersParams): () => void;
   getChaseOrders?(): Promise<ChaseOrder[]>;
   suspendChaseOrders?(): Promise<ChaseOrder[]>;
   closePosition(params: ClosePositionParams): Promise<OrderResult>;

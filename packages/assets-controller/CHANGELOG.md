@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `AssetsControllerMessenger` now requires `AccountTreeController:isInitialized`, `ClientController:getState`, and `KeyringController:isUnlocked` so lifecycle checks read controller state on demand instead of mirroring it from events ([#10059](https://github.com/MetaMask/core/pull/10059))
+  - Hosts that restrict which actions flow through the `AssetsController` messenger must delegate these three actions
+  - `AccountTreeController:stateChange` is no longer subscribed to; remove it from allowed events if your messenger wiring lists events explicitly
+- Revert to `selectedAccountGroupChange` for account-group switches; snap accounts added mid-session are picked up on restart ([#10059](https://github.com/MetaMask/core/pull/10059))
 - Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.7.0` ([#10046](https://github.com/MetaMask/core/pull/10046))
 
 ### Fixed
