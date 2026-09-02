@@ -1217,6 +1217,39 @@ describe('validateControllerState', () => {
       FooControllerStateStruct;
   }
 
+  it('returns the validated state', () => {
+    const state = { foo: 'foo', bar: 1 };
+    expect(
+      validateControllerState('FooController', FooController, state, 'strict'),
+    ).toStrictEqual(state);
+
+    expect(
+      validateControllerState('FooController', FooController, state, 'lenient'),
+    ).toStrictEqual(state);
+  });
+
+  it('captures warning and returns in lenient mode', () => {
+    const captureException = jest.fn();
+    const state = { foo: 'foo', bar: 'bar' };
+
+    expect(
+      validateControllerState(
+        'FooController',
+        FooController,
+        state,
+        'lenient',
+        captureException,
+      ),
+    ).toStrictEqual(state);
+
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message:
+          'Validation of "FooController" state failed, but did not block: At path: bar -- Expected a number, but received: "bar"',
+      }),
+    );
+  });
+
   it('throws for invalid state in strict mode', () => {
     expect(() =>
       validateControllerState(
@@ -1225,6 +1258,6 @@ describe('validateControllerState', () => {
         { foo: 'foo', bar: 'bar' },
         'strict',
       ),
-    ).toThrow('At path: bar -- Expected a number, but received: \"bar\"');
+    ).toThrow('At path: bar -- Expected a number, but received: "bar"');
   });
 });
