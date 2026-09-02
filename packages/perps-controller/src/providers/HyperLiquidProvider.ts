@@ -2026,9 +2026,13 @@ export class HyperLiquidProvider implements PerpsProvider {
     // getAgentSigner; a lock event can race the in-memory key still being set.
     if (signer === undefined && this.#getAgentSigner) {
       const masterWallet = this.#walletService.createWalletAdapter();
-      const agentSigner = await this.#getAgentSigner(masterWallet.address);
-      if (agentSigner) {
-        return this.#walletService.createAgentWalletAdapter(agentSigner);
+      // The master adapter always carries the selected account address; if
+      // it is somehow absent, fall through to the master path.
+      if (masterWallet.address) {
+        const agentSigner = await this.#getAgentSigner(masterWallet.address);
+        if (agentSigner) {
+          return this.#walletService.createAgentWalletAdapter(agentSigner);
+        }
       }
       return masterWallet;
     }

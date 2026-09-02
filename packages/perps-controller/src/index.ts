@@ -715,10 +715,7 @@ export {
 // Services (only externally consumed items)
 export { TradingReadinessCache } from './services/TradingReadinessCache.js';
 export type { ServiceContext } from './services/ServiceContext.js';
-export type {
-  AgentSigner,
-  HyperLiquidWalletServiceOptions,
-} from './services/HyperLiquidWalletService.js';
+export type { AgentSigner } from './services/HyperLiquidWalletService.js';
 export {
   AggregatedOrderBookConnection,
   processAggregatedOrderBook,

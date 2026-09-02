@@ -8,6 +8,10 @@ import type { CaipAccountId, Hex } from '@metamask/utils';
 import { getChainId } from '../constants/hyperLiquidConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type {
+  HyperLiquidSignTypedDataParams,
+  HyperLiquidWalletParams,
+} from './HyperLiquidClientService.js';
+import type {
   PerpsPlatformDependencies,
   PerpsTypedMessageParams,
 } from '../types/index.js';
@@ -37,34 +41,19 @@ export type AgentSigner = {
   /** The agent account address used as the actor for signed actions. */
   address: `0x${string}`;
   /**
-   * Sign EIP-712 typed data with the agent key.
+   * Sign EIP-712 typed data with the agent key (positional ethers-style
+   * arguments; `types` must not include `EIP712Domain`).
    *
    * @param domain - The EIP-712 domain.
-   * @param domain.name - The domain name.
-   * @param domain.version - The domain version.
-   * @param domain.chainId - The domain chain ID.
-   * @param domain.verifyingContract - The verifying contract address.
    * @param types - The EIP-712 type definitions (without `EIP712Domain`).
    * @param value - The message payload to sign.
-   * @returns The 65-byte hex signature.
+   * @returns The hex signature.
    */
   signTypedData(
-    domain: {
-      name: string;
-      version: string;
-      chainId: number;
-      verifyingContract: `0x${string}`;
-    },
-    types: {
-      [key: string]: { name: string; type: string }[];
-    },
+    domain: HyperLiquidSignTypedDataParams['domain'],
+    types: HyperLiquidSignTypedDataParams['types'],
     value: Record<string, unknown>,
   ): Promise<string>;
-};
-
-/** Options bag for {@link HyperLiquidWalletService}. */
-export type HyperLiquidWalletServiceOptions = {
-  isTestnet?: boolean;
 };
 
 /**
@@ -82,7 +71,7 @@ export class HyperLiquidWalletService {
   constructor(
     deps: PerpsPlatformDependencies,
     messenger: PerpsControllerMessengerBase,
-    options: HyperLiquidWalletServiceOptions = {},
+    options: { isTestnet?: boolean } = {},
   ) {
     this.#deps = deps;
     this.#messenger = messenger;
@@ -144,32 +133,10 @@ export class HyperLiquidWalletService {
    * Sign typed data with the master account via the keyring, resolving the
    * selected account fresh so account switches cannot race the adapter.
    *
-   * @param params - The typed data params the SDK passed to the adapter.
-   * @param params.domain - The EIP-712 domain.
-   * @param params.domain.name - The domain name.
-   * @param params.domain.version - The domain version.
-   * @param params.domain.chainId - The domain chain ID.
-   * @param params.domain.verifyingContract - The verifying contract address.
-   * @param params.types - The EIP-712 type definitions.
-   * @param params.primaryType - The EIP-712 primary type.
-   * @param params.message - The message payload to sign.
+   * @param params - The typed-data signing request the SDK passed to the adapter.
    * @returns The signature string.
    */
-  async #signWithMaster(
-    params: {
-      domain: {
-        name: string;
-        version: string;
-        chainId: number;
-        verifyingContract: Hex;
-      };
-      types: {
-        [key: string]: { name: string; type: string }[];
-      };
-      primaryType: string;
-      message: Record<string, unknown>;
-    },
-  ): Promise<Hex> {
+  async #signWithMaster(params: HyperLiquidSignTypedDataParams): Promise<Hex> {
     const currentEvmAccount = getSelectedEvmAccountFromMessenger(
       this.#messenger,
     );
@@ -240,41 +207,17 @@ export class HyperLiquidWalletService {
    * @param agentSigner - The local agent signer to delegate L1 actions to.
    * @returns The agent wallet adapter.
    */
-  public createAgentWalletAdapter(agentSigner: AgentSigner): {
-    address: Hex;
-    signTypedData: (params: {
-      domain: {
-        name: string;
-        version: string;
-        chainId: number;
-        verifyingContract: Hex;
-      };
-      types: {
-        [key: string]: { name: string; type: string }[];
-      };
-      primaryType: string;
-      message: Record<string, unknown>;
-    }) => Promise<Hex>;
-    getChainId?: () => Promise<number>;
-  } {
+  public createAgentWalletAdapter(
+    agentSigner: AgentSigner,
+  ): HyperLiquidWalletParams {
     return {
       // The agent address is returned for identity purposes: the SDK only uses
       // it for local lock/nonce keying (`getWalletAddress`), never inside the
       // signed payload — HyperLiquid recovers the signer from the signature.
       address: agentSigner.address,
-      signTypedData: async (params: {
-        domain: {
-          name: string;
-          version: string;
-          chainId: number;
-          verifyingContract: Hex;
-        };
-        types: {
-          [key: string]: { name: string; type: string }[];
-        };
-        primaryType: string;
-        message: Record<string, unknown>;
-      }): Promise<Hex> => {
+      signTypedData: async (
+        params: HyperLiquidSignTypedDataParams,
+      ): Promise<Hex> => {
         if (this.#isL1AgentAction(params.primaryType, params.domain?.name)) {
           const { EIP712Domain: _eip712Domain, ...types } = params.types;
 
@@ -312,23 +255,7 @@ export class HyperLiquidWalletService {
    *
    * @returns The wallet adapter with address, signTypedData, and getChainId methods.
    */
-  public createWalletAdapter(): {
-    address: Hex;
-    signTypedData: (params: {
-      domain: {
-        name: string;
-        version: string;
-        chainId: number;
-        verifyingContract: Hex;
-      };
-      types: {
-        [key: string]: { name: string; type: string }[];
-      };
-      primaryType: string;
-      message: Record<string, unknown>;
-    }) => Promise<Hex>;
-    getChainId?: () => Promise<number>;
-  } {
+  public createWalletAdapter(): HyperLiquidWalletParams {
     // Get current EVM account via DI messenger
     const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
 
@@ -340,19 +267,9 @@ export class HyperLiquidWalletService {
 
     return {
       address,
-      signTypedData: async (params: {
-        domain: {
-          name: string;
-          version: string;
-          chainId: number;
-          verifyingContract: Hex;
-        };
-        types: {
-          [key: string]: { name: string; type: string }[];
-        };
-        primaryType: string;
-        message: Record<string, unknown>;
-      }): Promise<Hex> => this.#signWithMaster(params),
+      signTypedData: async (
+        params: HyperLiquidSignTypedDataParams,
+      ): Promise<Hex> => this.#signWithMaster(params),
       getChainId: async (): Promise<number> =>
         parseInt(getChainId(this.#isTestnet), 10),
     };

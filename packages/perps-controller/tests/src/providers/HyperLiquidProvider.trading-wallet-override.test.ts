@@ -33,16 +33,15 @@ const MockedHyperLiquidSubscriptionService =
 const AGENT_ADDRESS = '0x2222222222222222222222222222222222222222' as const;
 const MASTER_ADDRESS = '0x1234567890123456789012345678901234567890' as const;
 
-const createMockAgentAdapter = () => ({
-  address: AGENT_ADDRESS,
-  signTypedData: jest.fn().mockResolvedValue('0xagentsig'),
+const createMockAdapter = (address: string, signature: string) => ({
+  address,
+  signTypedData: jest.fn().mockResolvedValue(signature),
   getChainId: jest.fn().mockResolvedValue(42161),
 });
 
-const createMockMasterAdapter = () => ({
-  address: MASTER_ADDRESS,
-  signTypedData: jest.fn().mockResolvedValue('0xmastersig'),
-  getChainId: jest.fn().mockResolvedValue(42161),
+const createAgentSigner = (signature = '0xagentsig'): AgentSigner => ({
+  address: AGENT_ADDRESS,
+  signTypedData: jest.fn().mockResolvedValue(signature),
 });
 
 describe('HyperLiquidProvider trading wallet override', () => {
@@ -77,8 +76,12 @@ describe('HyperLiquidProvider trading wallet override', () => {
     } as unknown as jest.Mocked<HyperLiquidClientService>;
 
     mockWalletService = {
-      createWalletAdapter: jest.fn(() => createMockMasterAdapter()),
-      createAgentWalletAdapter: jest.fn(() => createMockAgentAdapter()),
+      createWalletAdapter: jest.fn(() =>
+        createMockAdapter(MASTER_ADDRESS, '0xmastersig'),
+      ),
+      createAgentWalletAdapter: jest.fn(() =>
+        createMockAdapter(AGENT_ADDRESS, '0xagentsig'),
+      ),
       setTestnetMode: jest.fn(),
     } as unknown as jest.Mocked<HyperLiquidWalletService>;
 
@@ -103,10 +106,7 @@ describe('HyperLiquidProvider trading wallet override', () => {
   });
 
   it('uses getAgentSigner on first initialize when no override is set', async () => {
-    const agentSigner: AgentSigner = {
-      address: AGENT_ADDRESS,
-      signTypedData: jest.fn().mockResolvedValue('0xagentsig'),
-    };
+    const agentSigner = createAgentSigner();
     const getAgentSigner = jest.fn().mockResolvedValue(agentSigner);
     const provider = createTestProvider({ getAgentSigner });
 
@@ -133,10 +133,7 @@ describe('HyperLiquidProvider trading wallet override', () => {
   });
 
   it('does not re-query getAgentSigner when the override is cleared', async () => {
-    const getAgentSigner = jest.fn().mockResolvedValue({
-      address: AGENT_ADDRESS,
-      signTypedData: jest.fn().mockResolvedValue('0xagentsig'),
-    });
+    const getAgentSigner = jest.fn().mockResolvedValue(createAgentSigner());
     const provider = createTestProvider({ getAgentSigner });
 
     await provider.setTradingWalletOverride(null);
@@ -146,13 +143,10 @@ describe('HyperLiquidProvider trading wallet override', () => {
   });
 
   it('reinitializes the client service with the agent adapter', async () => {
-    const agentSigner: AgentSigner = {
-      address: AGENT_ADDRESS,
-      signTypedData: jest.fn().mockResolvedValue('0xagentsig'),
-    };
+    const agentSigner = createAgentSigner();
     const provider = createTestProvider();
     mockWalletService.createAgentWalletAdapter = jest.fn(() =>
-      createMockAgentAdapter(),
+      createMockAdapter(AGENT_ADDRESS, '0xagentsig'),
     );
 
     await provider.setTradingWalletOverride(agentSigner);
@@ -179,10 +173,7 @@ describe('HyperLiquidProvider trading wallet override', () => {
   });
 
   it('keeps the override for rebuilds after a network toggle', async () => {
-    const agentSigner: AgentSigner = {
-      address: AGENT_ADDRESS,
-      signTypedData: jest.fn().mockResolvedValue('0xagentsig'),
-    };
+    const agentSigner = createAgentSigner();
     const provider = createTestProvider();
 
     await provider.setTradingWalletOverride(agentSigner);
@@ -198,10 +189,7 @@ describe('HyperLiquidProvider trading wallet override', () => {
   });
 
   it('applies concurrent overrides sequentially', async () => {
-    const firstSigner: AgentSigner = {
-      address: AGENT_ADDRESS,
-      signTypedData: jest.fn().mockResolvedValue('0xfirst'),
-    };
+    const firstSigner = createAgentSigner('0xfirst');
     const provider = createTestProvider();
 
     await Promise.all([

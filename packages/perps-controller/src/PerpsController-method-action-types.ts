@@ -699,16 +699,9 @@ export type PerpsControllerClearAttributionContextAction = {
 };
 
 /**
- * Override (or clear) the trading wallet the HyperLiquid provider signs with.
- *
- * The host app calls this with a local agent signer when an agent wallet
- * activates, and with `null` when the keyring locks (restoring the master
- * keyring path). Throws when the HyperLiquid provider is not (yet)
- * registered — callers should treat that as best-effort.
- *
- * @param signer - The agent signer to sign with, or null for the master path.
- * @returns A promise that resolves when the clients have re-initialized with
- * the new wallet.
+ * Override (or clear) the trading wallet the HyperLiquid provider signs with
+ * (agent signer on activation, `null` on keyring lock to restore the master
+ * path). See {@link PerpsController.setTradingWalletOverride}.
  */
 export type PerpsControllerSetTradingWalletOverrideAction = {
   type: `PerpsController:setTradingWalletOverride`;
@@ -935,16 +928,10 @@ export type PerpsControllerApproveSubscriptionBuilderFeeAction = {
 };
 
 /**
- * Run the deferred trading-readiness steps for the active provider
- * (unified account enablement with user signing, builder fee approval) so
- * any required master signature surfaces during a guided session (e.g.
- * agent wallet setup) instead of as a surprise prompt on the first order.
- *
- * Reuses the provider's own trading-readiness sequence, which is cached:
- * an already-ready wallet completes without any signature. Providers
- * without deferred setup make this a no-op. Best-effort by design of the
- * underlying sequence: builder-fee failures are swallowed there and retried
- * at order time; only initialization/migration errors propagate.
+ * Run the deferred trading-readiness steps (unified account enablement with
+ * user signing, builder fee approval) ahead of the first order, so any
+ * required master signature surfaces in a guided session rather than at
+ * order time. See {@link PerpsController.prepareTradingWallet}.
  */
 export type PerpsControllerPrepareTradingWalletAction = {
   type: `PerpsController:prepareTradingWallet`;
