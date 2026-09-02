@@ -1,4 +1,178 @@
 /* eslint-disable @typescript-eslint/naming-convention */
+import type { PathTrie } from './PathTrie.js';
+
+/**
+ * @type ListTypes
+ *
+ * Type outlining the types of lists provided by aggregating different source lists
+ */
+export type ListTypes =
+  | 'fuzzylist'
+  | 'blocklist'
+  | 'blocklistPaths'
+  | 'allowlist'
+  | 'c2DomainBlocklist';
+
+/**
+ * @type EthPhishingResponse
+ *
+ * Configuration response from the eth-phishing-detect package
+ * consisting of approved and unapproved website origins
+ *
+ * @property blacklist - List of unapproved origins
+ * @property fuzzylist - List of fuzzy-matched unapproved origins
+ * @property tolerance - Fuzzy match tolerance level
+ * @property version - Version number of this configuration
+ * @property whitelist - List of approved origins
+ */
+export type EthPhishingResponse = {
+  blacklist: string[];
+  fuzzylist: string[];
+  tolerance: number;
+  version: number;
+  whitelist: string[];
+};
+
+/**
+ * @type C2DomainBlocklistResponse
+ *
+ * Response for blocklist update requests
+ *
+ * @property recentlyAdded - List of c2 domains recently added to the blocklist
+ * @property recentlyRemoved - List of c2 domains recently removed from the blocklist
+ * @property lastFetchedAt - Timestamp of the last fetch request
+ */
+export type C2DomainBlocklistResponse = {
+  recentlyAdded: string[];
+  recentlyRemoved: string[];
+  lastFetchedAt: string;
+};
+
+/**
+ * PhishingStalelist defines the expected type of the stalelist from the API.
+ *
+ * allowlist - List of approved origins.
+ * blocklist - List of unapproved origins (hostname-only entries).
+ * blocklistPaths - Trie of unapproved origins with paths (hostname + path entries).
+ * fuzzylist - List of fuzzy-matched unapproved origins.
+ * tolerance - Fuzzy match tolerance level
+ * lastUpdated - Timestamp of last update.
+ * version - Stalelist data structure iteration.
+ */
+export type PhishingStalelist = {
+  allowlist: string[];
+  blocklist: string[];
+  blocklistPaths: string[];
+  fuzzylist: string[];
+  tolerance: number;
+  version: number;
+  lastUpdated: number;
+};
+
+/**
+ * @type PhishingListState
+ *
+ * type defining the persisted list state. This is the persisted state that is updated frequently with `this.maybeUpdateState()`.
+ *
+ * @property allowlist - List of approved origins (legacy naming "whitelist")
+ * @property blocklist - List of unapproved origins (legacy naming "blacklist")
+ * @property blocklistPaths - Trie of unapproved origins with paths (hostname + path, no query params).
+ * @property c2DomainBlocklist - List of hashed hostnames that C2 requests are blocked against.
+ * @property fuzzylist - List of fuzzy-matched unapproved origins
+ * @property tolerance - Fuzzy match tolerance level
+ * @property lastUpdated - Timestamp of last update.
+ * @property version - Version of the phishing list state.
+ * @property name - Name of the list. Used for attribution.
+ */
+export type PhishingListState = {
+  allowlist: string[];
+  blocklist: string[];
+  blocklistPaths: PathTrie;
+  c2DomainBlocklist: string[];
+  fuzzylist: string[];
+  tolerance: number;
+  version: number;
+  lastUpdated: number;
+  name: ListNames;
+};
+
+/**
+ * @type HotlistDiff
+ *
+ * type defining the expected type of the diffs in hotlist.json file.
+ *
+ * @property url - Url of the diff entry.
+ * @property timestamp - Timestamp at which the diff was identified.
+ * @property targetList - The list name where the diff was identified.
+ * @property isRemoval - Was the diff identified a removal type.
+ */
+export type HotlistDiff = {
+  url: string;
+  timestamp: number;
+  targetList: `${ListKeys}.${ListTypes}`;
+  isRemoval?: boolean;
+};
+
+export type DataResultWrapper<T> = {
+  data: T;
+};
+
+/**
+ * @type Hotlist
+ *
+ * Type defining expected hotlist.json file.
+ *
+ * @property url - Url of the diff entry.
+ * @property timestamp - Timestamp at which the diff was identified.
+ * @property targetList - The list name where the diff was identified.
+ * @property isRemoval - Was the diff identified a removal type.
+ */
+export type Hotlist = HotlistDiff[];
+
+/**
+ * Enum containing upstream data provider source list keys.
+ * These are the keys denoting lists consumed by the upstream data provider.
+ */
+export enum ListKeys {
+  EthPhishingDetectConfig = 'eth_phishing_detect_config',
+}
+
+/**
+ * Enum containing downstream client attribution names.
+ */
+export enum ListNames {
+  MetaMask = 'MetaMask',
+}
+
+/**
+ * Maps from downstream client attribution name
+ * to list key sourced from upstream data provider.
+ */
+export const phishingListNameKeyMap = {
+  [ListNames.MetaMask]: ListKeys.EthPhishingDetectConfig,
+};
+
+/**
+ * Maps from list key sourced from upstream data
+ * provider to downstream client attribution name.
+ */
+export const phishingListKeyNameMap = {
+  [ListKeys.EthPhishingDetectConfig]: ListNames.MetaMask,
+};
+
+/**
+ * BulkPhishingDetectionScanResponse
+ *
+ * Response for bulk phishing detection scan requests
+ * results - Record of domain names and their corresponding phishing detection scan results
+ *
+ * errors - Record of domain names and their corresponding errors
+ */
+export type BulkPhishingDetectionScanResponse = {
+  results: Record<string, PhishingDetectionScanResult>;
+  errors: Record<string, string[]>;
+};
+
 /**
  * Represents the result of checking a domain.
  */

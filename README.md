@@ -535,8 +535,10 @@ linkStyle default opacity:0.5
   perps_controller --> transaction_controller;
   phishing_controller --> address_book_controller;
   phishing_controller --> base_controller;
+  phishing_controller --> base_data_service;
   phishing_controller --> controller_utils;
   phishing_controller --> messenger;
+  phishing_controller --> storage_service;
   phishing_controller --> transaction_controller;
   polling_controller --> base_controller;
   polling_controller --> messenger;
