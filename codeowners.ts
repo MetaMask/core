@@ -133,7 +133,7 @@ const PACKAGES: Record<string, PackageInfo> = {
   'core-backend': {
     teams: ['@MetaMask/core-platform', '@MetaMask/metamask-assets'],
   },
-  'cryptography': {
+  cryptography: {
     teams: ['@MetaMask/core-platform'],
   },
   'delegation-controller': {
