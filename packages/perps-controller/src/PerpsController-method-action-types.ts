@@ -699,6 +699,16 @@ export type PerpsControllerClearAttributionContextAction = {
 };
 
 /**
+ * Override (or clear) the trading wallet the HyperLiquid provider signs with
+ * (agent signer on activation, `null` on keyring lock to restore the master
+ * path). See {@link PerpsController.setTradingWalletOverride}.
+ */
+export type PerpsControllerSetTradingWalletOverrideAction = {
+  type: `PerpsController:setTradingWalletOverride`;
+  handler: PerpsController['setTradingWalletOverride'];
+};
+
+/**
  * Toggle between testnet and mainnet
  *
  * @returns The toggle result with success status and current network mode.
@@ -915,6 +925,17 @@ export type PerpsControllerCalculateFeesAction = {
 export type PerpsControllerApproveSubscriptionBuilderFeeAction = {
   type: `PerpsController:approveSubscriptionBuilderFee`;
   handler: PerpsController['approveSubscriptionBuilderFee'];
+};
+
+/**
+ * Run the deferred trading-readiness steps (unified account enablement with
+ * user signing, builder fee approval) ahead of the first order, so any
+ * required master signature surfaces in a guided session rather than at
+ * order time. See {@link PerpsController.prepareTradingWallet}.
+ */
+export type PerpsControllerPrepareTradingWalletAction = {
+  type: `PerpsController:prepareTradingWallet`;
+  handler: PerpsController['prepareTradingWallet'];
 };
 
 /**
@@ -1404,6 +1425,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSetAttributionContextAction
   | PerpsControllerGetAttributionContextAction
   | PerpsControllerClearAttributionContextAction
+  | PerpsControllerSetTradingWalletOverrideAction
   | PerpsControllerToggleTestnetAction
   | PerpsControllerSwitchProviderAction
   | PerpsControllerGetCurrentNetworkAction
@@ -1423,6 +1445,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSetLiveDataConfigAction
   | PerpsControllerCalculateFeesAction
   | PerpsControllerApproveSubscriptionBuilderFeeAction
+  | PerpsControllerPrepareTradingWalletAction
   | PerpsControllerInvalidateSubscriptionBenefitsAction
   | PerpsControllerDisconnectAction
   | PerpsControllerStartEligibilityMonitoringAction

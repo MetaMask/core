@@ -41,23 +41,34 @@ const maxReconnectionAttempts = 10;
 export type ValidCandleInterval = CandlePeriod;
 
 /**
+ * Params-style EIP-712 typed-data signing request, as passed by the
+ * HyperLiquid SDK to wallet adapters (viem local-account shape).
+ */
+export type HyperLiquidSignTypedDataParams = {
+  domain: {
+    name: string;
+    version: string;
+    chainId: number;
+    verifyingContract: Hex;
+  };
+  types: {
+    [key: string]: { name: string; type: string }[];
+  };
+  primaryType: string;
+  message: Record<string, unknown>;
+};
+
+/**
  * Wallet interface for HyperLiquid SDK operations.
  * Extracted for reuse across initialize(), toggleTestnet(), and ensureSubscriptionClient() methods.
+ *
+ * `address` is optional but recommended: the SDK's viem local-account
+ * dispatch reads it to determine the signing address (e.g. for agent
+ * wallets, whose address differs from the selected master account).
  */
 export type HyperLiquidWalletParams = {
-  signTypedData: (params: {
-    domain: {
-      name: string;
-      version: string;
-      chainId: number;
-      verifyingContract: Hex;
-    };
-    types: {
-      [key: string]: { name: string; type: string }[];
-    };
-    primaryType: string;
-    message: Record<string, unknown>;
-  }) => Promise<Hex>;
+  address?: Hex;
+  signTypedData: (params: HyperLiquidSignTypedDataParams) => Promise<Hex>;
   getChainId?: () => Promise<number>;
 };
 
@@ -392,9 +403,9 @@ export class HyperLiquidClientService {
   public isInitialized(): boolean {
     return Boolean(
       this.#exchangeClient &&
-      this.#infoClient &&
-      this.#infoClientHttp &&
-      this.#subscriptionClient,
+        this.#infoClient &&
+        this.#infoClientHttp &&
+        this.#subscriptionClient,
     );
   }
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add an agent-wallet signing seam for HyperLiquid: the optional `PerpsControllerOptions.getAgentSigner` callback resolves a local agent signer (exported `AgentSigner` type) whose key never touches the keyring, and `PerpsController:setTradingWalletOverride` switches (or clears) the HyperLiquid signing wallet at runtime. L1 actions are signed by the agent key; user-signed actions (`approveBuilderFee`, `sendAsset`, `withdraw3`, …) always fall back to the master wallet ([#10075](https://github.com/MetaMask/core/pull/10075))
+- Add `PerpsController:prepareTradingWallet` and the optional `PerpsProvider.prepareTradingWallet` hook to run deferred trading-readiness steps (unified account enablement with user signing, builder fee approval) ahead of the first order, so required master signatures surface in a guided session rather than at order time ([#10075](https://github.com/MetaMask/core/pull/10075))
+
 ### Removed
 
 - **BREAKING:** Remove all MYX protocol support ([#10038](https://github.com/MetaMask/core/pull/10038))

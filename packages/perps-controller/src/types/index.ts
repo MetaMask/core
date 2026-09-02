@@ -2067,6 +2067,14 @@ export type PerpsProvider = {
   setUserFeeResolution?(resolution: PerpsFeeResolution | undefined): void;
   /** Approve the dedicated subscription builder outside order submission. */
   approveSubscriptionBuilderFee?(): Promise<boolean>;
+  /**
+   * Drive the deferred trading-readiness steps (unified account enablement
+   * with user signing, builder fee approval) ahead of the first order, so any
+   * required master signature surfaces in a guided session rather than at
+   * order time. Optional for backward compatibility; providers without
+   * deferred setup simply omit it.
+   */
+  prepareTradingWallet?(): Promise<void>;
 
   // HIP-3 (Builder-deployed DEXs) operations - optional for backward compatibility
   /**
