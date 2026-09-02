@@ -5721,12 +5721,6 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Subscribe to live order updates
-   *
-   * @param params - The operation parameters.
-   * @returns A cleanup function to remove the subscription.
-   */
-  /**
    * Stream TWAP lifecycle updates through the active provider.
    *
    * Providers without a native TWAP push channel do not implement this; the
@@ -5758,6 +5752,12 @@ export class PerpsController extends BaseController<
     }
   }
 
+  /**
+   * Subscribe to live order updates
+   *
+   * @param params - The operation parameters.
+   * @returns A cleanup function to remove the subscription.
+   */
   subscribeToOrders(params: SubscribeOrdersParams): () => void {
     const provider = this.getActiveProviderOrNull();
     if (!provider) {

@@ -823,6 +823,12 @@ export type PerpsControllerSubscribeToTwapOrdersAction = {
   handler: PerpsController['subscribeToTwapOrders'];
 };
 
+/**
+ * Subscribe to live order updates
+ *
+ * @param params - The operation parameters.
+ * @returns A cleanup function to remove the subscription.
+ */
 export type PerpsControllerSubscribeToOrdersAction = {
   type: `PerpsController:subscribeToOrders`;
   handler: PerpsController['subscribeToOrders'];

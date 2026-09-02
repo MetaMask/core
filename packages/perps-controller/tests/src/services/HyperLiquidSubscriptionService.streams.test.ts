@@ -1806,6 +1806,66 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe();
     });
 
+    it('keeps one account subscription alive when another account tears down', async () => {
+      // Arrange: two accounts, each with its own live TWAP subscriber
+      const accountA =
+        'eip155:1:0x1111111111111111111111111111111111111111' as CaipAccountId;
+      const accountB =
+        'eip155:1:0x2222222222222222222222222222222222222222' as CaipAccountId;
+      const callbackA = jest.fn();
+      const callbackB = jest.fn();
+      const unsubscribeA = service.subscribeToTwapOrders({
+        callback: callbackA,
+        accountId: accountA,
+        adapt: adaptStub,
+      });
+      const unsubscribeB = service.subscribeToTwapOrders({
+        callback: callbackB,
+        accountId: accountB,
+        adapt: adaptStub,
+      });
+      await jest.runAllTimersAsync();
+      // Act: account A's only subscriber leaves
+      unsubscribeA();
+      await jest.runAllTimersAsync();
+      callbackB.mockClear();
+
+      // Assert: B still receives pushes, so its subscription survived A's
+      // teardown. Asserted through delivery rather than the mock handle,
+      // which every subscription in this suite shares.
+      const subscribeCallCount =
+        mockSubscriptionClient.userTwapHistory.mock.calls.length;
+      expect(subscribeCallCount).toBe(2);
+      service.subscribeToTwapOrders({
+        callback: jest.fn(),
+        accountId: accountB,
+        adapt: adaptStub,
+      })();
+      expect(mockSubscriptionClient.userTwapHistory).toHaveBeenCalledTimes(
+        subscribeCallCount,
+      );
+      unsubscribeB();
+    });
+
+    it('re-establishes the venue subscription after a reconnect', async () => {
+      // Arrange
+      const callback = jest.fn();
+      const unsubscribe = service.subscribeToTwapOrders({
+        callback,
+        adapt: adaptStub,
+      });
+      await jest.runAllTimersAsync();
+      expect(mockSubscriptionClient.userTwapHistory).toHaveBeenCalledTimes(1);
+
+      // Act
+      await service.restoreSubscriptions();
+      await jest.runAllTimersAsync();
+
+      // Assert: the retained adapter reopened the socket for this account
+      expect(mockSubscriptionClient.userTwapHistory).toHaveBeenCalledTimes(2);
+      unsubscribe();
+    });
+
     it('stops delivering to a callback after it unsubscribes', async () => {
       // Arrange
       const callback = jest.fn();

@@ -921,8 +921,10 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    */
   subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
     const defaultProviderId = this.#defaultProvider;
-    const provider = this.#getDefaultProvider();
-    if (!provider.subscribeToTwapOrders) {
+    // Read the map directly: #getDefaultProvider throws when the default is
+    // unavailable, and this method's contract is a no-op cleanup, not a throw.
+    const provider = this.#providers.get(defaultProviderId);
+    if (!provider?.subscribeToTwapOrders) {
       return () => {
         // No-op: default provider exposes no native TWAP push channel
       };

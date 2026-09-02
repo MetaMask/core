@@ -78,6 +78,13 @@ import type { HyperLiquidClientService } from './HyperLiquidClientService.js';
 import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
 
 /**
+ * Cap on TWAP schedules retained per account from the venue's history stream,
+ * matching the fills cache bound. Without it a long-lived session accumulates
+ * every terminal schedule the account has ever run.
+ */
+const MAX_RETAINED_TWAP_ORDERS = 100;
+
+/**
  * Per-symbol view of the trigger orders attached to a position, keyed by symbol.
  */
 type PositionTriggerOrderMap = Map<
@@ -224,9 +231,22 @@ export class HyperLiquidSubscriptionService {
   // the full set the public callback promises is accumulated here.
   readonly #cachedTwapOrders = new Map<string, Map<string, TwapOrder>>();
 
-  // Bumped by teardown and reconnect so an in-flight open discards its
-  // subscription instead of rehydrating a cleared map.
-  #twapOrderSubscriptionGeneration = 0;
+  // Bumped per account by teardown and reconnect so an in-flight open for
+  // that account discards its subscription instead of rehydrating a cleared
+  // map. Keyed rather than global: every other TWAP map is per-account, so a
+  // single scalar would let one account's teardown discard another's open.
+  readonly #twapOrderSubscriptionGenerations = new Map<string, number>();
+
+  #twapOrderGeneration(normalizedAccountId: string): number {
+    return this.#twapOrderSubscriptionGenerations.get(normalizedAccountId) ?? 0;
+  }
+
+  #bumpTwapOrderGeneration(normalizedAccountId: string): void {
+    this.#twapOrderSubscriptionGenerations.set(
+      normalizedAccountId,
+      this.#twapOrderGeneration(normalizedAccountId) + 1,
+    );
+  }
 
   readonly #spotStateSubscriptions = new Map<string, ISubscription>();
 
@@ -2988,9 +3008,9 @@ export class HyperLiquidSubscriptionService {
           });
           this.#twapOrderSubscriptions.delete(normalizedAccountId);
         }
-        // Invalidate any open still in flight: without this its continuation
-        // installs a live socket that no subscriber is listening to.
-        this.#twapOrderSubscriptionGeneration += 1;
+        // Invalidate any open still in flight for this account: without this
+        // its continuation installs a live socket nobody is listening to.
+        this.#bumpTwapOrderGeneration(normalizedAccountId);
         this.#pendingTwapOrderSubscriptions.delete(normalizedAccountId);
         this.#twapOrderAdapters.delete(normalizedAccountId);
         this.#cachedTwapOrders.delete(normalizedAccountId);
@@ -3018,18 +3038,27 @@ export class HyperLiquidSubscriptionService {
 
     // Another subscriber is already opening this account's socket. Awaiting it
     // rather than starting a second one is what keeps two near-simultaneous
-    // subscribes on one venue subscription.
+    // subscribes on one venue subscription. That open can still discard
+    // itself, and it resolves rather than rejecting when it does, so verify a
+    // subscription actually landed instead of assuming one did.
     const pending =
       this.#pendingTwapOrderSubscriptions.get(normalizedAccountId);
     if (pending) {
       await pending;
-      return;
+      if (this.#twapOrderSubscriptions.has(normalizedAccountId)) {
+        return;
+      }
     }
 
+    // Captured once here, spanning the whole open including the client
+    // handshake. Capturing inside the open would let a bump that lands during
+    // the handshake be adopted as the baseline and silently forgotten.
+    const startGeneration = this.#twapOrderGeneration(normalizedAccountId);
     const subscriptionPromise = this.#createTwapOrderSubscription(
       normalizedAccountId,
       accountId,
       adapt,
+      startGeneration,
     );
     this.#pendingTwapOrderSubscriptions.set(
       normalizedAccountId,
@@ -3038,7 +3067,14 @@ export class HyperLiquidSubscriptionService {
     try {
       await subscriptionPromise;
     } finally {
-      this.#pendingTwapOrderSubscriptions.delete(normalizedAccountId);
+      // Delete by identity: a reconnect may have cleared the map and installed
+      // a newer open behind this one, which must not be evicted here.
+      if (
+        this.#pendingTwapOrderSubscriptions.get(normalizedAccountId) ===
+        subscriptionPromise
+      ) {
+        this.#pendingTwapOrderSubscriptions.delete(normalizedAccountId);
+      }
     }
   }
 
@@ -3048,30 +3084,27 @@ export class HyperLiquidSubscriptionService {
    * @param normalizedAccountId - Map key for this account ('default' when unset).
    * @param accountId - Optional CAIP account ID to resolve the address from.
    * @param adapt - Maps a raw venue history payload to TWAP schedules.
+   * @param startGeneration - This account's generation when the open began.
    * @returns A promise that resolves once the subscription is registered.
    */
   async #createTwapOrderSubscription(
     normalizedAccountId: string,
     accountId: CaipAccountId | undefined,
     adapt: (history: TwapHistoryResponse) => TwapOrder[],
+    startGeneration: number,
   ): Promise<void> {
-    const startGeneration = this.#twapOrderSubscriptionGeneration;
-
-    const subscriptionClient = this.#clientService.getSubscriptionClient();
+    // Bootstrap the client inline rather than recursing: a recursive call
+    // would re-read the generation after the handshake and adopt a bump that
+    // landed during it as its own baseline.
+    let subscriptionClient = this.#clientService.getSubscriptionClient();
     if (!subscriptionClient) {
       await this.#clientService.ensureSubscriptionClient(
         this.#walletService.createWalletAdapter(),
       );
-      const client = this.#clientService.getSubscriptionClient();
-      if (!client) {
+      subscriptionClient = this.#clientService.getSubscriptionClient();
+      if (!subscriptionClient) {
         throw new Error('SubscriptionClient not available');
       }
-      await this.#createTwapOrderSubscription(
-        normalizedAccountId,
-        accountId,
-        adapt,
-      );
-      return;
     }
 
     const userAddress =
@@ -3093,9 +3126,15 @@ export class HyperLiquidSubscriptionService {
             merged.set(order.orderId, order);
           }
         }
-        this.#cachedTwapOrders.set(normalizedAccountId, merged);
-        const twapOrders = [...merged.values()].sort(
-          (left, right) => right.startedAt - left.startedAt,
+        // `userTwapHistory` is history, so terminal schedules would otherwise
+        // accumulate for the life of the session. Bound the retained set the
+        // way the fills cache does, keeping the newest.
+        const twapOrders = [...merged.values()]
+          .sort((left, right) => right.startedAt - left.startedAt)
+          .slice(0, MAX_RETAINED_TWAP_ORDERS);
+        this.#cachedTwapOrders.set(
+          normalizedAccountId,
+          new Map(twapOrders.map((order) => [order.orderId, order])),
         );
 
         const subscribers = this.#twapOrderSubscribers.get(normalizedAccountId);
@@ -3116,7 +3155,7 @@ export class HyperLiquidSubscriptionService {
     // subscriber set — the venue keeps streaming and every push is discarded.
     const subscribers = this.#twapOrderSubscribers.get(normalizedAccountId);
     if (
-      startGeneration !== this.#twapOrderSubscriptionGeneration ||
+      startGeneration !== this.#twapOrderGeneration(normalizedAccountId) ||
       this.#twapOrderSubscriptions.has(normalizedAccountId) ||
       !subscribers ||
       subscribers.size === 0
@@ -4823,9 +4862,16 @@ export class HyperLiquidSubscriptionService {
     // Re-establish TWAP subscriptions if there are TWAP subscribers
     if (this.#twapOrderSubscribers.size > 0) {
       // Existing subscription references are dead after reconnection. Bump
-      // the generation first so a pre-reconnect open still in flight discards
-      // itself instead of occupying the map ahead of its replacement.
-      this.#twapOrderSubscriptionGeneration += 1;
+      // each account's generation first so a pre-reconnect open still in
+      // flight discards itself instead of occupying the map ahead of its
+      // replacement.
+      for (const normalizedAccountId of new Set([
+        ...this.#twapOrderSubscribers.keys(),
+        ...this.#twapOrderSubscriptions.keys(),
+        ...this.#pendingTwapOrderSubscriptions.keys(),
+      ])) {
+        this.#bumpTwapOrderGeneration(normalizedAccountId);
+      }
       this.#twapOrderSubscriptions.clear();
       this.#pendingTwapOrderSubscriptions.clear();
       // Drop merged state: the fresh socket opens with a new snapshot.
@@ -5032,9 +5078,16 @@ export class HyperLiquidSubscriptionService {
     });
     this.#orderFillSubscriptions.clear();
 
-    // Clear TWAP subscriptions. Bump the generation first so any in-flight
-    // open discards its subscription rather than rehydrating a cleared map.
-    this.#twapOrderSubscriptionGeneration += 1;
+    // Clear TWAP subscriptions. Bump every account's generation first so any
+    // in-flight open discards its subscription rather than rehydrating a
+    // cleared map.
+    for (const normalizedAccountId of new Set([
+      ...this.#twapOrderSubscribers.keys(),
+      ...this.#twapOrderSubscriptions.keys(),
+      ...this.#pendingTwapOrderSubscriptions.keys(),
+    ])) {
+      this.#bumpTwapOrderGeneration(normalizedAccountId);
+    }
     this.#cachedTwapOrders.clear();
     this.#twapOrderSubscriptions.forEach((subscription) => {
       subscription.unsubscribe().catch(() => {

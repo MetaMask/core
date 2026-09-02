@@ -13559,18 +13559,12 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Subscribe to live order updates
-   *
-   * @param params - The operation parameters.
-   * @returns A cleanup function to remove the subscription.
-   */
-  /**
    * Stream TWAP lifecycle updates from the venue's own push channel.
    *
    * The venue streams schedule state without slice fills, so each pushed
-   * schedule carries the fills already known from the last read rather than an
-   * empty list — a subscriber that renders fill history keeps what it has
-   * until the next `getTwapOrders()` refresh supplies newer ones.
+   * schedule carries an empty `fills` array. A subscriber that renders fill
+   * history should keep what a prior `getTwapOrders()` read supplied rather
+   * than replacing it from the stream.
    *
    * @param params - Subscription parameters including callback and account ID.
    * @returns A cleanup function to unsubscribe from TWAP updates.
@@ -13645,6 +13639,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     });
   }
 
+  /**
+   * Subscribe to live order updates
+   *
+   * @param params - The operation parameters.
+   * @returns A cleanup function to remove the subscription.
+   */
   subscribeToOrders(params: SubscribeOrdersParams): () => void {
     return this.#subscriptionService.subscribeToOrders(params);
   }
