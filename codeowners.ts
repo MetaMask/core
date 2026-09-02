@@ -79,6 +79,7 @@ const PACKAGES: Record<string, PackageInfo> = {
       '@MetaMask/mobile-platform',
       '@MetaMask/extension-platform',
       '@MetaMask/networks',
+      '@MetaMask/emerging-opportunities',
     ],
   },
   'bridge-controller': {
@@ -121,7 +122,7 @@ const PACKAGES: Record<string, PackageInfo> = {
     teams: ['@MetaMask/core-platform'],
   },
   'config-registry-controller': {
-    teams: ['@MetaMask/networks'],
+    teams: ['@MetaMask/networks', '@MetaMask/emerging-opportunities'],
   },
   'connectivity-controller': {
     teams: ['@MetaMask/core-platform'],
@@ -132,6 +133,9 @@ const PACKAGES: Record<string, PackageInfo> = {
   },
   'core-backend': {
     teams: ['@MetaMask/core-platform', '@MetaMask/metamask-assets'],
+  },
+  cryptography: {
+    teams: ['@MetaMask/core-platform'],
   },
   'delegation-controller': {
     teams: ['@MetaMask/delegation'],
@@ -175,6 +179,7 @@ const PACKAGES: Record<string, PackageInfo> = {
       '@MetaMask/mobile-platform',
       '@MetaMask/extension-platform',
       '@MetaMask/networks',
+      '@MetaMask/emerging-opportunities',
     ],
   },
   'json-rpc-engine': {
@@ -195,6 +200,7 @@ const PACKAGES: Record<string, PackageInfo> = {
       '@MetaMask/mobile-platform',
       '@MetaMask/extension-platform',
       '@MetaMask/networks',
+      '@MetaMask/emerging-opportunities',
     ],
   },
   'logging-controller': {
@@ -341,6 +347,7 @@ const PACKAGES: Record<string, PackageInfo> = {
       '@MetaMask/mobile-platform',
       '@MetaMask/extension-platform',
       '@MetaMask/networks',
+      '@MetaMask/emerging-opportunities',
     ],
   },
   'stellar-quickstart-up': {
@@ -348,6 +355,7 @@ const PACKAGES: Record<string, PackageInfo> = {
       '@MetaMask/mobile-platform',
       '@MetaMask/extension-platform',
       '@MetaMask/networks',
+      '@MetaMask/emerging-opportunities',
     ],
   },
   'storage-service': {
@@ -540,6 +548,7 @@ function buildTeamSections(): CodeownersSection[] {
         buildRuleForPackage('composable-controller'),
         buildRuleForPackage('connectivity-controller'),
         buildRuleForPackage('controller-utils'),
+        buildRuleForPackage('cryptography'),
         buildRuleForPackage('eip-5792-middleware'),
         buildRuleForPackage('eip1193-permission-middleware'),
         buildRuleForPackage('eth-block-tracker'),

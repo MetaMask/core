@@ -1247,7 +1247,7 @@ export class LighterProvider implements PerpsProvider {
   }
 
   async toggleTestnet(): Promise<ToggleTestnetResult> {
-    // Network is fixed at construction, mirroring MYXProvider.
+    // Network is fixed at construction.
     return {
       success: false,
       isTestnet: this.#isTestnet,

@@ -424,9 +424,17 @@ export class AccountsApiDataSource extends AbstractDataSource<
         return response;
       }
 
-      const fetchOptions = request.forceUpdate
-        ? { staleTime: 0, gcTime: 0 }
-        : undefined;
+      const fetchOptions =
+        request.forceUpdate || request.bypassServerCache
+          ? {
+              staleTime: 0,
+              gcTime: 0,
+              // Also defeats the API's server-side cache (via a random
+              // bypassServerCache query param) so a post-transaction refresh cannot
+              // be answered with a pre-transaction snapshot.
+              ...(request.bypassServerCache ? { bypassServerCache: true } : {}),
+            }
+          : undefined;
 
       // Feature-flagged: v6 endpoint with a fallback to legacy v5. The flag is
       // read here (not cached) so a runtime toggle can revert v6 -> v5.
@@ -485,7 +493,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
    */
   async #fetchV5Balances(
     accountIds: string[],
-    fetchOptions: { staleTime: number; gcTime: number } | undefined,
+    fetchOptions:
+      | { staleTime: number; gcTime: number; bypassServerCache?: boolean }
+      | undefined,
     request: DataRequest,
   ): Promise<{
     unprocessedNetworks: string[];
@@ -522,7 +532,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
    */
   async #fetchV6Balances(
     accountIds: string[],
-    fetchOptions: { staleTime: number; gcTime: number } | undefined,
+    fetchOptions:
+      | { staleTime: number; gcTime: number; bypassServerCache?: boolean }
+      | undefined,
     request: DataRequest,
   ): Promise<{
     unprocessedNetworks: string[];
