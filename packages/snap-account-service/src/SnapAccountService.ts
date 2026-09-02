@@ -1,4 +1,8 @@
 import { AccountGroupId } from '@metamask/account-api';
+import type {
+  AccountsControllerGetStateAction,
+  AccountsControllerState,
+} from '@metamask/accounts-controller';
 import {
   SnapKeyring as LegacySnapKeyring,
   SnapMessage,
@@ -89,6 +93,7 @@ import type {
   AccountTreeControllerAccountGroupCreatedEvent,
   AccountTreeControllerAccountGroupUpdatedEvent,
   AccountTreeControllerAccountGroupRemovedEvent,
+  AccountsControllerStateChangedEvent,
   AccountGroupObject,
 } from './types.js';
 
@@ -143,7 +148,8 @@ type AllowedActions =
   | KeyringControllerWithKeyringV2Action
   | KeyringControllerWithKeyringV2UnsafeAction
   | AccountTreeControllerGetAccountGroupObjectAction
-  | AccountTreeControllerGetSelectedAccountGroupAction;
+  | AccountTreeControllerGetSelectedAccountGroupAction
+  | AccountsControllerGetStateAction;
 
 /**
  * Events that {@link SnapAccountService} exposes to other consumers.
@@ -184,7 +190,8 @@ type AllowedEvents =
   | AccountTreeControllerSelectedAccountGroupChangeEvent
   | AccountTreeControllerAccountGroupCreatedEvent
   | AccountTreeControllerAccountGroupUpdatedEvent
-  | AccountTreeControllerAccountGroupRemovedEvent;
+  | AccountTreeControllerAccountGroupRemovedEvent
+  | AccountsControllerStateChangedEvent;
 
 /**
  * The messenger which is restricted to actions and events accessed by
@@ -272,6 +279,17 @@ export class SnapAccountService {
   #migratePromise: Promise<void> | null = null;
 
   /**
+   * Cache mapping each Snap-owned account ID to the ID of the Snap that owns
+   * it, derived from `AccountsController` state.
+   */
+  #accountSnapIds: Map<AccountId, SnapId> = new Map();
+
+  /**
+   * Whether `#accountSnapIds` has been populated yet.
+   */
+  #accountSnapCacheInitialized = false;
+
+  /**
    * Constructs a new {@link SnapAccountService}.
    *
    * @param args - The constructor arguments.
@@ -296,6 +314,16 @@ export class SnapAccountService {
     this.#messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
+    );
+
+    // Keep the Snap-ownership cache in sync as accounts are added/removed.
+    // The initial cache is built lazily on first use (see
+    // `#ensureAccountSnapCache`) rather than in the constructor, so that this
+    // service does not force clients to instantiate `AccountsController`
+    // before it. This keeps the account data update event path synchronous —
+    // the cache is a plain `Map` read.
+    this.#messenger.subscribe('AccountsController:stateChanged', (state) =>
+      this.#rebuildAccountSnapCache(state),
     );
 
     this.#messenger.subscribe(
@@ -848,33 +876,30 @@ export class SnapAccountService {
    * `notify:accountBalancesUpdated`, and `notify:accountAssetListUpdated` for
    * account IDs it does not own. Forwarding those updates verbatim would let
    * one Snap forge transactions, balances, or asset-list entries for accounts
-   * owned by another Snap (or for accounts that do not exist at all). This
-   * method restores the per-Snap ownership predicate that
-   * `SnapKeyringV1.handleKeyringSnapMessage` used to enforce before the
-   * non-keyring short-circuit bypassed it (see core#8916): it asks the Snap's
-   * own v2 keyring — via the lock-free `withKeyringV2Unsafe` path — which of
-   * the reported account IDs it tracks, drops any it does not, and only then
-   * re-emits the (now-verified) payload. Unknown account IDs are dropped with
-   * a warning rather than throwing, so a malicious or buggy Snap cannot use a
-   * bogus ID to abort the whole batch (and DoS other consumers).
+   * owned by another Snap (or for accounts that do not exist at all).
+   *
+   * The cache is rebuilt lazily on first use and on every
+   * `AccountsController:stateChanged`, so the lookup here is a synchronous
+   * `Map` read — preserving synchronous event handling and avoiding a
+   * per-event keyring round-trip on a path that fires frequently.
    *
    * @param snapId - ID of the Snap.
    * @param event - Account data update event.
    * @param message - Message sent by the Snap.
    * @returns `null`.
    */
-  async #publishAccountDataUpdatedEvent(
+  #publishAccountDataUpdatedEvent(
     snapId: SnapId,
     event: AccountDataUpdatedKeyringEvent,
     message: SnapMessage,
-  ): Promise<null> {
+  ): null {
     log(
       `Forwarding message "${event}" from Snap "${snapId}" as a SnapAccountService event...`,
     );
 
     if (event === KeyringEvent.AccountAssetListUpdated) {
       assertStruct(message, AccountAssetListUpdatedEventStruct);
-      const assets = await this.#filterOwnedAccountEntries(
+      const assets = this.#filterOwnedAccountEntries(
         snapId,
         event,
         message.params.assets,
@@ -891,7 +916,7 @@ export class SnapAccountService {
       }
     } else if (event === KeyringEvent.AccountBalancesUpdated) {
       assertStruct(message, AccountBalancesUpdatedEventStruct);
-      const balances = await this.#filterOwnedAccountEntries(
+      const balances = this.#filterOwnedAccountEntries(
         snapId,
         event,
         message.params.balances,
@@ -908,7 +933,7 @@ export class SnapAccountService {
       }
     } else if (event === KeyringEvent.AccountTransactionsUpdated) {
       assertStruct(message, AccountTransactionsUpdatedEventStruct);
-      const transactions = await this.#filterOwnedAccountEntries(
+      const transactions = this.#filterOwnedAccountEntries(
         snapId,
         event,
         message.params.transactions,
@@ -936,52 +961,22 @@ export class SnapAccountService {
    * Filters an account-keyed map from a Snap's account data update event down
    * to the entries whose account ID is owned by the Snap.
    *
-   * Ownership is determined by the Snap's own v2 keyring (`keyring.hasAccount`),
-   * which is the same per-Snap registry predicate that
-   * `SnapKeyringV1.handleKeyringSnapMessage` enforced before core#8916
-   * short-circuited it. The lookup uses the lock-free
-   * `withKeyringV2Unsafe` path, so it does not acquire the keyring lock and is
-   * safe to call from this event path. If no keyring exists for the Snap yet,
-   * ownership cannot be verified, so the method fails closed (returns an empty
-   * map) instead of forwarding unverified data.
    *
    * @param snapId - ID of the Snap that emitted the event.
    * @param event - The account data update event being filtered.
    * @param entries - The account-keyed map to filter.
    * @returns A new map containing only the entries for accounts the Snap owns.
    */
-  async #filterOwnedAccountEntries<Value>(
+  #filterOwnedAccountEntries<Value>(
     snapId: SnapId,
     event: AccountDataUpdatedKeyringEvent,
     entries: Record<string, Value>,
-  ): Promise<Record<string, Value>> {
-    const accountIds = Object.keys(entries);
-    if (accountIds.length === 0) {
-      return {};
-    }
-
-    let ownedAccountIds: Set<string>;
-    try {
-      ownedAccountIds = await this.#withKeyringV2Unsafe(snapId, async (keyring) =>
-        new Set(accountIds.filter((id) => keyring.hasAccount(id))),
-      );
-    } catch (error) {
-      if (isKeyringNotFoundError(error)) {
-        // No keyring for this Snap yet — we cannot confirm ownership of any
-        // reported account, so fail closed and drop the whole update rather
-        // than forward unverified data.
-        log(
-          `No Snap keyring found for Snap "${snapId}" while verifying ownership for "${event}". Dropping ${accountIds.length} account update(s).`,
-        );
-        return {};
-      }
-      throw error;
-    }
-
+  ): Record<string, Value> {
+    this.#ensureAccountSnapCache();
     const filtered: Record<string, Value> = {};
-    for (const accountId of accountIds) {
-      if (ownedAccountIds.has(accountId)) {
-        filtered[accountId] = entries[accountId];
+    for (const [accountId, value] of Object.entries(entries)) {
+      if (this.#accountSnapIds.get(accountId) === snapId) {
+        filtered[accountId] = value;
       } else {
         log(
           `Snap "${snapId}" reported "${event}" for account "${accountId}" it does not own. Skipping.`,
@@ -989,6 +984,34 @@ export class SnapAccountService {
       }
     }
     return filtered;
+  }
+
+  /**
+   * Rebuilds the Snap-ownership cache from `AccountsController` state.
+   *
+   * @param state - The current `AccountsController` state.
+   */
+  #rebuildAccountSnapCache(state: AccountsControllerState): void {
+    const cache = new Map<AccountId, SnapId>();
+    for (const account of Object.values(state.internalAccounts.accounts)) {
+      const snapId = account.metadata?.snap?.id;
+      if (snapId) {
+        cache.set(account.id, snapId as SnapId);
+      }
+    }
+    this.#accountSnapIds = cache;
+    this.#accountSnapCacheInitialized = true;
+  }
+
+  /**
+   * Lazily builds the Snap-ownership cache on first use.
+   */
+  #ensureAccountSnapCache(): void {
+    if (!this.#accountSnapCacheInitialized) {
+      this.#rebuildAccountSnapCache(
+        this.#messenger.call('AccountsController:getState'),
+      );
+    }
   }
 
   // eslint-disable-next-line jsdoc/require-returns

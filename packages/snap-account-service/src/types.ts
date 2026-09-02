@@ -1,4 +1,5 @@
 import type { AccountGroupId } from '@metamask/account-api';
+import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { AccountId } from '@metamask/keyring-utils';
 
 /*
@@ -75,4 +76,12 @@ export type AccountTreeControllerAccountGroupUpdatedEvent = {
 export type AccountTreeControllerAccountGroupRemovedEvent = {
   type: `AccountTreeController:accountGroupRemoved`;
   payload: [AccountGroupId];
+};
+
+/**
+ * Mirror of the `AccountsControllerStateChangedEvent`.
+ */
+export type AccountsControllerStateChangedEvent = {
+  type: `AccountsController:stateChanged`;
+  payload: [AccountsControllerState, unknown[]];
 };
