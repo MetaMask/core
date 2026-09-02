@@ -277,8 +277,8 @@ stateDiagram-v2
 > disclaimers, and launches SumSub. MoonPay Check/Auth frames are skipped;
 > `phase` moves `terms → session → submit → done`. A SumSub failure (thrown step
 > or SDK close without completion) rewinds to `terms` instead of forcing `done`.
-> A terminal UKYC rejection after the SDK reported `Completed` still finishes as
-> `done` so `refreshKycStatus` can surface the decision.
+> A terminal UKYC rejection after the SDK reported a submitted status still
+> finishes as `done` so `refreshKycStatus` can surface the decision.
 > `acceptTermsAndStartSession` requires `sumsubTncSigned` and `idosTncSigned`
 > (T&C2) for every vendor; omitted flags fail the flow instead of defaulting to
 > `true`. Those flags are mapped onto the session catalog's `idOS` /
@@ -473,11 +473,11 @@ stateDiagram-v2
     creatingSession --> fetchingToken : setAuthorizations() ok
     creatingSession --> vendorProcessing : setAuthorizations() kycStatus=approved, finalStatus=pending
     fetchingToken --> launching : createJourney() ok
-    launching --> inProgress : onStatusChange (non-Completed)
-    launching --> complete : onStatusChange = Completed
-    inProgress --> complete : onStatusChange = Completed
-    launching --> failed : resolves without a Completed status
-    inProgress --> failed : resolves without a Completed status
+    launching --> inProgress : onStatusChange (not submitted)
+    launching --> complete : submitted status (Approved / Pending / Completed / ...)
+    inProgress --> complete : submitted status
+    launching --> failed : resolves without a submitted status
+    inProgress --> failed : resolves without a submitted status
     creatingSession --> failed : error
     fetchingToken --> failed : error
     launching --> failed : launcher unavailable / error
@@ -491,11 +491,13 @@ stateDiagram-v2
 > applicant is not asked to verify again.
 
 > **Completion is status-driven, not resolution-driven.** A resolved `launch`
-> is only recorded as `complete` when the SDK reported the `Completed` status
-> via `onStatusChange` at least once. If `launch` resolves without ever having
-> reported `Completed` (e.g. the applicant abandoned the flow, or a non-success
-> outcome), the controller records `failed` — so consumers never mistake an
-> unfinished flow for a verified one.
+> is only recorded as submitted when the SDK reported a submitted status via
+> `onStatusChange` **or** on the `launch()` result `status`. Native SumSub
+> closes with `Pending` / `Approved` / `TemporarilyDeclined` /
+> `FinallyRejected` (and some launchers still emit `Completed`). If neither
+> the callback nor the result carries one of those (e.g. the applicant
+> abandoned with `Incomplete`), the controller records `failed` — so
+> consumers never mistake an unfinished flow for a verified one.
 
 The `KycSumSubLauncher` interface (injected per client):
 
@@ -710,6 +712,6 @@ Reference client (metamask-mobile):
 | `app/core/Engine/controllers/kyc/kyc-service-init.ts`          | Construct service.                      |
 | `app/core/Engine/controllers/kyc/reactNativeSumSubLauncher.ts` | Native SumSub adapter.                  |
 | `app/core/Engine/messengers/kyc/*.ts`                          | Messenger delegation.                   |
-| `app/components/Views/MoonpayDemo/useKycFlow.ts`               | React ↔ controller binding.             |
+| `app/components/Views/MoonpayDemo/useKycFlow.ts`               | React ↔ controller binding.            |
 | `app/components/Views/MoonpayDemo/useMoonpayFrame.ts`          | WebView postMessage bridge.             |
 | `app/selectors/kycController.ts`                               | Redux selectors.                        |

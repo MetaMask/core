@@ -1941,11 +1941,11 @@ describe('KycController', () => {
       });
     });
 
-    it('marks failed when launch resolves without a Completed status', async () => {
+    it('marks failed when launch resolves without a submitted status', async () => {
       await withController(async ({ controller, launcher }) => {
         launcher.launch.mockImplementation(async ({ onStatusChange }) => {
           // The applicant abandons the flow: the SDK reports progress but never
-          // a Completed status, yet `launch` still resolves.
+          // a submitted status, yet `launch` still resolves.
           onStatusChange?.('idle', 'InProgress');
           return { ok: false };
         });
@@ -1955,6 +1955,49 @@ describe('KycController', () => {
         expect(result).toStrictEqual({ ok: false });
         expect(controller.state.sumsub.status).toBe('failed');
         expect(controller.state.sumsub.result).toStrictEqual({ ok: false });
+      });
+    });
+
+    it('treats a Pending launch result as submitted when onStatusChange never fires', async () => {
+      await withController(async ({ controller, launcher }) => {
+        // Native SumSub closes with Pending on the result and may never emit
+        // Completed via onStatusChange.
+        launcher.launch.mockResolvedValue({ status: 'Pending' });
+
+        const result = await controller.startSumSub();
+
+        expect(result).toStrictEqual({ status: 'Pending' });
+        expect(controller.state.sumsub.status).toBe('complete');
+      });
+    });
+
+    it.each(['Approved', 'TemporarilyDeclined', 'FinallyRejected'])(
+      'treats an %s onStatusChange as submitted',
+      async (status) => {
+        await withController(async ({ controller, launcher }) => {
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            onStatusChange?.('Incomplete', status);
+            return { status };
+          });
+
+          await controller.startSumSub();
+
+          expect(controller.state.sumsub.status).toBe('complete');
+        });
+      },
+    );
+
+    it('marks failed when launch resolves with Incomplete', async () => {
+      await withController(async ({ controller, launcher }) => {
+        launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+          onStatusChange?.('Ready', 'Incomplete');
+          return { status: 'Incomplete' };
+        });
+
+        const result = await controller.startSumSub();
+
+        expect(result).toStrictEqual({ status: 'Incomplete' });
+        expect(controller.state.sumsub.status).toBe('failed');
       });
     });
 
@@ -2127,7 +2170,7 @@ describe('KycController', () => {
     it('does not poll when the SDK did not report completion', async () => {
       await withController(async ({ controller, handlers, launcher }) => {
         // The applicant abandons the flow: `launch` resolves without ever
-        // reporting a Completed status.
+        // reporting a submitted status.
         launcher.launch.mockResolvedValue({ ok: false });
 
         await controller.startSumSub();
