@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Rename `KycController` state field `accessToken` to `moonpayAccessToken` (MoonPay Auth-frame access token; `KycService.checkKycRequired` still accepts an `accessToken` parameter). ([#10062](https://github.com/MetaMask/core/pull/10062))
 - **BREAKING:** Rename `KycController` state field `sessionToken` to `moonpaySessionToken` (MoonPay Check-frame session token; the Check-frame URL query parameter remains `sessionToken`). ([#10062](https://github.com/MetaMask/core/pull/10062))
 - **BREAKING:** Replace persisted `termsAcceptedAt`, `acceptedDisclaimerIds`, and `termsAcceptedVendor` with `vendorDisclaimersAccepted`: a fixed map with `moonpay: { termsAcceptedAt } | null` and `iron: { disclaimerIds } | null` keys (default `{ moonpay: null, iron: null }`). ([#10062](https://github.com/MetaMask/core/pull/10062))
