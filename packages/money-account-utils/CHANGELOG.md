@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Money Account vault-config helpers, shared by the upgrade controller and clients ([#10072](https://github.com/MetaMask/core/pull/10072))
+  - `getMoneyAccountVaultConfig` and `parseMoneyAccountVaultConfig` read and validate the `moneyAccountVaultConfig` remote feature flag into a `MoneyAccountVaultConfig` whose chain id and addresses are known-good `Hex`
+  - `areMoneyAccountVaultConfigsEqual` compares configs field by field so consumers keyed on the config (bootstraps, caches) can detect changes
+  - `MONEY_ACCOUNT_VAULT_CONFIG_FLAG_NAME` names the flag
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.8.0` ([#9780](https://github.com/MetaMask/core/pull/9780), [#10080](https://github.com/MetaMask/core/pull/10080), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823), [#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969), [#10046](https://github.com/MetaMask/core/pull/10046))
