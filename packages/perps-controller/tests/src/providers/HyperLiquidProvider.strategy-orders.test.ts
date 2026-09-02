@@ -3034,11 +3034,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const { exchangeClient } = useStrategyClients({
         exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
       });
-      const minPrice = 1234.567;
-      const maxPrice = 1234.767;
+      const { symbol } = baseOrder;
+      const minPrice = 12.341;
+      const maxPrice = 12.381;
       const count = 3;
       const preview = await provider.getScalePriceLadder({
-        symbol: 'BTC',
+        symbol,
         minPrice,
         maxPrice,
         count,
@@ -3046,9 +3047,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
       if (preview.status !== 'ready') {
         throw new Error('Expected Scale price ladder preview to be ready');
       }
+      expect(preview.prices).toStrictEqual(['12.34', '12.36', '12.38']);
 
       await provider.placeOrder({
         ...baseOrder,
+        symbol,
+        currentPrice: 12.36,
+        usdAmount: '300',
         orderType: 'scale',
         scaleMinPrice: minPrice.toString(),
         scaleMaxPrice: maxPrice.toString(),

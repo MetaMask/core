@@ -126,7 +126,7 @@ import type {
   ScaleOrderChild,
   PerpsMarketData,
   DirectProviderOrderCapabilities,
-  DirectProviderOrderCapabilitiesUnavailableReason,
+  DirectProviderScalePriceLadderUnavailableReason,
   Position,
   PositionTriggerOrder,
   ReadyToTradeResult,
@@ -1271,10 +1271,7 @@ type HyperLiquidOrderCapabilityMarket =
   | Readonly<{
       status: 'unavailable';
       providerId?: PerpsProviderType;
-      reason: Exclude<
-        DirectProviderOrderCapabilitiesUnavailableReason,
-        'strategy_market_unsupported'
-      >;
+      reason: DirectProviderScalePriceLadderUnavailableReason;
     }>;
 
 /**

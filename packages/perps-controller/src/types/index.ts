@@ -1617,11 +1617,16 @@ export type PerpsOrderCapabilities =
       reason: OrderCapabilitiesUnavailableReason;
     }>;
 
-/** Reasons a provider-routed Scale price ladder cannot be produced. */
-export type ScalePriceLadderUnavailableReason = Exclude<
-  OrderCapabilitiesUnavailableReason,
+/** Reasons a direct provider cannot produce a Scale price ladder. */
+export type DirectProviderScalePriceLadderUnavailableReason = Exclude<
+  DirectProviderOrderCapabilitiesUnavailableReason,
   'strategy_market_unsupported'
 >;
+
+/** Reasons a provider-routed Scale price ladder cannot be produced. */
+export type ScalePriceLadderUnavailableReason =
+  | DirectProviderScalePriceLadderUnavailableReason
+  | RoutedOrderCapabilitiesUnavailableReason;
 
 /** Result of provider-routed Scale price normalization. */
 export type PerpsScalePriceLadder =
