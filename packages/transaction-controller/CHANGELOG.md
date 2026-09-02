@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Prevent clearing a selected gas fee token when native gas estimates are still pending ([#TBD](https://github.com/MetaMask/core/pull/TBD))
-- Avoid leaving `isExternalSign` enabled when gas fee token preflight validation fails ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Prevent clearing a selected gas fee token when native gas estimates are still pending ([#10071](https://github.com/MetaMask/core/pull/10071))
+- Avoid leaving `isExternalSign` enabled when gas fee token preflight validation fails ([#10071](https://github.com/MetaMask/core/pull/10071))
 
 ## [69.7.0]
 
