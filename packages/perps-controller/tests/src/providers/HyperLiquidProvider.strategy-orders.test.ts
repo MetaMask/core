@@ -3030,6 +3030,42 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ).toStrictEqual(['2000', '2500', '3000']);
     });
 
+    it('submits the provider preview prices for fractional bounds', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+      });
+      const { symbol } = baseOrder;
+      const minPrice = 12.341;
+      const maxPrice = 12.381;
+      const count = 3;
+      const preview = await provider.getScalePriceLadder({
+        symbol,
+        minPrice,
+        maxPrice,
+        count,
+      });
+      if (preview.status !== 'ready') {
+        throw new Error('Expected Scale price ladder preview to be ready');
+      }
+      expect(preview.prices).toStrictEqual(['12.34', '12.36', '12.38']);
+
+      await provider.placeOrder({
+        ...baseOrder,
+        symbol,
+        currentPrice: 12.36,
+        usdAmount: '300',
+        orderType: 'scale',
+        scaleMinPrice: minPrice.toString(),
+        scaleMaxPrice: maxPrice.toString(),
+        scaleNumOrders: count,
+      } satisfies OrderParams);
+
+      const submitted = exchangeClient.order.mock.calls[0][0];
+      expect(
+        submitted.orders.map((order: { p: string }) => order.p),
+      ).toStrictEqual(preview.prices);
+    });
+
     it('splits the size across the rungs so the total is preserved', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },

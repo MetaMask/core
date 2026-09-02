@@ -117,6 +117,7 @@ import type {
   PerpsMarketData,
   PerpsOrderCapabilities,
   PerpsScalePriceLadder,
+  ScalePriceLadderUnavailableReason,
   PerpsPendingManualRecovery,
   PerpsRecoveredDispatch,
   Position,
@@ -2986,7 +2987,7 @@ export class PerpsController extends BaseController<
   }
 
   #getUnavailableScalePriceLadder(
-    reason: OrderCapabilitiesUnavailableReason,
+    reason: ScalePriceLadderUnavailableReason,
     providerId: PerpsProviderType | undefined,
   ): PerpsScalePriceLadder {
     return providerId
