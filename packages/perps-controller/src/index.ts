@@ -126,6 +126,7 @@ export type {
   PerpsControllerMarkFirstOrderCompletedAction,
   PerpsControllerMarkTutorialCompletedAction,
   PerpsControllerPlaceOrderAction,
+  PerpsControllerPrepareTradingWalletAction,
   PerpsControllerReconnectAction,
   PerpsControllerRecordMarketViewedAction,
   PerpsControllerRefreshEligibilityAction,

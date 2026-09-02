@@ -1004,6 +1004,14 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       : false;
   }
 
+  async prepareTradingWallet(): Promise<void> {
+    const provider =
+      this.#providers.get('hyperliquid') ?? this.#getDefaultProvider();
+    if (provider.prepareTradingWallet) {
+      await provider.prepareTradingWallet();
+    }
+  }
+
   // ============================================================================
   // Lifecycle (Delegate to default provider)
   // ============================================================================

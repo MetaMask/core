@@ -707,6 +707,8 @@ export type PerpsControllerClearAttributionContextAction = {
  * registered — callers should treat that as best-effort.
  *
  * @param signer - The agent signer to sign with, or null for the master path.
+ * @returns A promise that resolves when the clients have re-initialized with
+ * the new wallet.
  */
 export type PerpsControllerSetTradingWalletOverrideAction = {
   type: `PerpsController:setTradingWalletOverride`;
@@ -930,6 +932,23 @@ export type PerpsControllerCalculateFeesAction = {
 export type PerpsControllerApproveSubscriptionBuilderFeeAction = {
   type: `PerpsController:approveSubscriptionBuilderFee`;
   handler: PerpsController['approveSubscriptionBuilderFee'];
+};
+
+/**
+ * Run the deferred trading-readiness steps for the active provider
+ * (unified account enablement with user signing, builder fee approval) so
+ * any required master signature surfaces during a guided session (e.g.
+ * agent wallet setup) instead of as a surprise prompt on the first order.
+ *
+ * Reuses the provider's own trading-readiness sequence, which is cached:
+ * an already-ready wallet completes without any signature. Providers
+ * without deferred setup make this a no-op. Best-effort by design of the
+ * underlying sequence: builder-fee failures are swallowed there and retried
+ * at order time; only initialization/migration errors propagate.
+ */
+export type PerpsControllerPrepareTradingWalletAction = {
+  type: `PerpsController:prepareTradingWallet`;
+  handler: PerpsController['prepareTradingWallet'];
 };
 
 /**
@@ -1439,6 +1458,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSetLiveDataConfigAction
   | PerpsControllerCalculateFeesAction
   | PerpsControllerApproveSubscriptionBuilderFeeAction
+  | PerpsControllerPrepareTradingWalletAction
   | PerpsControllerInvalidateSubscriptionBenefitsAction
   | PerpsControllerDisconnectAction
   | PerpsControllerStartEligibilityMonitoringAction

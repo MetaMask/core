@@ -13957,6 +13957,26 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Drive the deferred trading-readiness steps ahead of the first order.
+   *
+   * Runs the exact sequence the order path uses (see `#ensureReadyForTrading`):
+   * unified account enablement with user signing allowed, builder fee approval,
+   * and referral setup. Calling this before the first order means hardware
+   * wallet users complete every master device prompt in one guided session
+   * (e.g. during agent wallet setup) instead of hitting a surprise prompt on
+   * their first trade.
+   *
+   * Safe to call repeatedly: readiness results are cached (globally and per
+   * session), so an already-approved wallet never sees a second prompt.
+   * Builder-fee failures are swallowed by the underlying sequence (trading
+   * retries at order time), but initialization and migration errors propagate
+   * to the caller.
+   */
+  async prepareTradingWallet(): Promise<void> {
+    await this.#ensureReadyForTrading({ requiresBuilderFee: true });
+  }
+
+  /**
    * Calculate liquidation price using HyperLiquid's formula
    * Formula: liq_price = price - side * margin_available / position_size / (1 - maintenanceMarginRatio * side)
    * where maintenanceMarginRatio = 1 / MAINTENANCE_LEVERAGE = 1 / (2 * max_leverage)

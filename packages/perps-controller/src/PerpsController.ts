@@ -965,6 +965,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'markTutorialCompleted',
   'placeOrder',
   'previewPositionModify',
+  'prepareTradingWallet',
   'reconnect',
   'recordMarketViewed',
   'refreshEligibility',
@@ -5837,6 +5838,25 @@ export class PerpsController extends BaseController<
     return provider.approveSubscriptionBuilderFee
       ? provider.approveSubscriptionBuilderFee()
       : false;
+  }
+
+  /**
+   * Run the deferred trading-readiness steps for the active provider
+   * (unified account enablement with user signing, builder fee approval) so
+   * any required master signature surfaces during a guided session (e.g.
+   * agent wallet setup) instead of as a surprise prompt on the first order.
+   *
+   * Reuses the provider's own trading-readiness sequence, which is cached:
+   * an already-ready wallet completes without any signature. Providers
+   * without deferred setup make this a no-op. Best-effort by design of the
+   * underlying sequence: builder-fee failures are swallowed there and retried
+   * at order time; only initialization/migration errors propagate.
+   */
+  async prepareTradingWallet(): Promise<void> {
+    const provider = await this.#getActiveProviderWhenReady();
+    if (provider.prepareTradingWallet) {
+      await provider.prepareTradingWallet();
+    }
   }
 
   /**

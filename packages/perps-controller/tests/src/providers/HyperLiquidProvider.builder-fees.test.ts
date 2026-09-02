@@ -1552,6 +1552,71 @@ describe('HyperLiquidProvider', () => {
     });
   });
 
+  describe('prepareTradingWallet', () => {
+    it('runs the trading-readiness sequence with user signing allowed and approves the builder fee when not yet approved', async () => {
+      // Unified account already unified (no migration signing needed), but
+      // builder fee NOT approved on-chain: the readiness pass must sign it.
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
+          maxBuilderFee: jest
+            .fn()
+            // First call: status check (not approved). Second call:
+            // post-approval verification (now approved).
+            .mockResolvedValueOnce(0)
+            .mockResolvedValue(0.001),
+          referral: jest.fn().mockResolvedValue({
+            referrerState: {
+              stage: 'ready',
+              data: { code: REFERRAL_CONFIG.MainnetCode },
+            },
+            referredBy: { code: 'EXISTING_REFERRAL' },
+          }),
+        }),
+      );
+
+      await provider.prepareTradingWallet();
+
+      // The builder-fee approval (a master signature for hardware wallets)
+      // was driven by the readiness call — the exact prompt the first order
+      // would otherwise surface as a surprise.
+      expect(
+        mockClientService.getExchangeClient().approveBuilderFee,
+      ).toHaveBeenCalledWith({
+        builder: expect.any(String),
+        maxFeeRate: expect.stringContaining('%'),
+      });
+      // The unified-account readiness leg ran with user signing allowed (the
+      // on-chain abstraction mode was queried rather than skipped).
+      const mockInfoClient = mockClientService.getInfoClient();
+      expect(mockInfoClient.userAbstraction).toHaveBeenCalled();
+    });
+
+    it('does not prompt for a signature when the builder fee is already approved on-chain', async () => {
+      const approveBuilderFee = jest.fn().mockResolvedValue({ status: 'ok' });
+      mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+        createMockExchangeClient({ approveBuilderFee }),
+      );
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
+          maxBuilderFee: jest.fn().mockResolvedValue(1), // Already approved
+          referral: jest.fn().mockResolvedValue({
+            referrerState: {
+              stage: 'ready',
+              data: { code: REFERRAL_CONFIG.MainnetCode },
+            },
+            referredBy: { code: 'EXISTING_REFERRAL' },
+          }),
+        }),
+      );
+
+      await provider.prepareTradingWallet();
+
+      expect(approveBuilderFee).not.toHaveBeenCalled();
+    });
+  });
+
   // TODO: Refactor to test through public API — ES # private fields prevent direct access
   describe.skip('Builder Fee Global Cache (PR #25334)', () => {
     interface ProviderWithBuilderFee {
