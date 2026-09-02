@@ -512,10 +512,10 @@ function mergeEventFragment(
 
   return {
     ...fragment,
-    properties: { ...fragment.properties, ...payload.properties },
+    properties: { ...fragment.properties, ...(payload.properties ?? {}) },
     sensitiveProperties: {
       ...fragment.sensitiveProperties,
-      ...payload.sensitiveProperties,
+      ...(payload.sensitiveProperties ?? {}),
     },
     ...(context === undefined ? {} : { context }),
     lastUpdated: Date.now(),
@@ -538,7 +538,7 @@ function mergeEventFragmentContext(
     return undefined;
   }
 
-  return { ...base, ...override };
+  return { ...(base ?? {}), ...(override ?? {}) };
 }
 
 /**
@@ -1502,8 +1502,8 @@ export class AnalyticsController extends BaseController<
 
     const fragment: AnalyticsEventFragment = {
       id: options.id ?? uuid(),
-      properties: { ...options.properties },
-      sensitiveProperties: { ...options.sensitiveProperties },
+      properties: { ...(options.properties ?? {}) },
+      sensitiveProperties: { ...(options.sensitiveProperties ?? {}) },
       createdAt: now,
       lastUpdated: now,
       ...(options.initialEvent === undefined
