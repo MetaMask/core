@@ -4,7 +4,9 @@ import type {
   AnalyticsEventFragments,
 } from './EventFragment.types.js';
 
-const EMPTY_EVENT_FRAGMENTS: AnalyticsEventFragments = {};
+const EMPTY_EVENT_FRAGMENTS = Object.freeze(
+  {},
+) as AnalyticsEventFragments;
 
 /**
  * Selects the analytics ID from the controller state.

@@ -128,6 +128,27 @@ describe('analyticsControllerSelectors', () => {
 
         expect(result).toStrictEqual({});
       });
+
+      it('returns the same empty record on repeated reads', () => {
+        const first = analyticsControllerSelectors.selectEventFragments(
+          stateWithoutFragments,
+        );
+        const second = analyticsControllerSelectors.selectEventFragments(
+          stateWithoutFragments,
+        );
+
+        expect(first).toBe(second);
+      });
+
+      it('does not allow mutating the empty fallback record', () => {
+        const result = analyticsControllerSelectors.selectEventFragments(
+          stateWithoutFragments,
+        );
+
+        expect(() => {
+          result['signature-1'] = fragment;
+        }).toThrow('Cannot add property');
+      });
     });
 
     describe('selectEventFragmentById', () => {
