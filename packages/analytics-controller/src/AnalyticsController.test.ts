@@ -57,6 +57,10 @@ type SetupControllerOptions = {
    * a client that has not wired up geolocation.
    */
   omitGeolocationAction?: boolean;
+  /**
+   * When true, {@link AnalyticsController.init} is not called automatically.
+   */
+  skipInit?: boolean;
 };
 
 type SetupControllerReturn = {
@@ -97,6 +101,7 @@ type MockAnalyticsPlatformAdapter = AnalyticsPlatformAdapter & {
  * @param options.geolocation - Optional geolocation returned by the mocked geolocation action
  * @param options.geolocationHandler - Optional handler for the mocked geolocation action
  * @param options.omitGeolocationAction - When true, the geolocation action is not registered
+ * @param options.skipInit - When true, init is not called automatically
  * @returns The controller and messenger
  */
 async function setupController(
@@ -113,6 +118,7 @@ async function setupController(
     geolocation,
     geolocationHandler,
     omitGeolocationAction = false,
+    skipInit = false,
   } = options;
 
   const adapter =
@@ -164,7 +170,9 @@ async function setupController(
     isEventFragmentsEnabled,
   });
 
-  await controller.init();
+  if (!skipInit) {
+    await controller.init();
+  }
 
   return {
     controller,
@@ -3673,6 +3681,62 @@ describe('AnalyticsController', () => {
           'signature-1': persisted,
         });
         expect(mockAdapter.track).not.toHaveBeenCalled();
+      });
+
+      it('keeps fragments created while init is in flight and still drops stale non-persistent ones', async () => {
+        let resolveGeolocation!: (value: GeolocationData) => void;
+        const geolocationHandler = jest.fn(
+          () =>
+            new Promise<GeolocationData>((resolve) => {
+              resolveGeolocation = resolve;
+            }),
+        );
+        const mockAdapter = createMockAdapter();
+        const analyticsId = '11111111-2222-4333-8444-555555555555';
+
+        const { controller } = await setupController({
+          state: {
+            optedIn: true,
+            consentDecisionMade: true,
+            analyticsId,
+            eventFragments: {
+              'transaction-ui-1': buildFragment({ id: 'transaction-ui-1' }),
+            },
+          },
+          platformAdapter: mockAdapter,
+          isEventFragmentsEnabled: true,
+          isGeolocationEnabled: true,
+          geolocationHandler,
+          skipInit: true,
+        });
+
+        const initPromise = controller.init();
+
+        controller.createEventFragment({
+          id: 'signature-1',
+          successEvent: 'Signature Approved',
+          properties: { signature_type: 'personal_sign' },
+        });
+
+        resolveGeolocation(buildGeolocationData());
+        await initPromise;
+
+        expect(controller.state.eventFragments).toStrictEqual({
+          'signature-1': expect.objectContaining({
+            id: 'signature-1',
+            successEvent: 'Signature Approved',
+            properties: { signature_type: 'personal_sign' },
+          }),
+        });
+
+        controller.finalizeEventFragment('signature-1');
+
+        expect(mockAdapter.track).toHaveBeenCalledWith(
+          'Signature Approved',
+          { signature_type: 'personal_sign' },
+          undefined,
+        );
+        expect(controller.state.eventFragments).toStrictEqual({});
       });
 
       it('leaves state untouched when every fragment is persistent', async () => {

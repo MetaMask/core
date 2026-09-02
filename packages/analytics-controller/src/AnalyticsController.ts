@@ -688,6 +688,12 @@ export class AnalyticsController extends BaseController<
    * and pre-consent events.
    */
   async #performInit(): Promise<void> {
+    // Snapshot fragment IDs before any awaited init work so reconciliation can
+    // tell previous-session leftovers from fragments created while init runs.
+    const initEventFragmentIds = new Set(
+      Object.keys(this.state.eventFragments ?? {}),
+    );
+
     // Resolve geolocation only when the user is already opted in; for undecided
     // or opted-out users it is deferred to {@link optIn}. Awaited so that an
     // already-opted-in session has location available before events replay.
@@ -704,7 +710,7 @@ export class AnalyticsController extends BaseController<
 
     this.#replayQueuedEvents();
     this.#reconcilePreConsentEvents();
-    this.#reconcileEventFragments();
+    this.#reconcileEventFragments(initEventFragmentIds);
   }
 
   /**
@@ -1161,8 +1167,14 @@ export class AnalyticsController extends BaseController<
    * consent state no longer allows capture (e.g. the fragments were written
    * before the user opted out), every persisted fragment is dropped so none of
    * them can linger.
+   *
+   * Non-persistent fragments are dropped only when their ID was already present
+   * at the start of {@link init}. Fragments created while init is in flight are
+   * kept so a slow startup path cannot discard an in-progress journey.
+   *
+   * @param initEventFragmentIds - Fragment IDs present when {@link init} began.
    */
-  #reconcileEventFragments(): void {
+  #reconcileEventFragments(initEventFragmentIds: Set<string>): void {
     const fragments = this.state.eventFragments;
 
     if (!fragments) {
@@ -1174,20 +1186,22 @@ export class AnalyticsController extends BaseController<
       return;
     }
 
-    this.#purgeNonPersistentEventFragments(fragments);
+    this.#purgeNonPersistentEventFragments(fragments, initEventFragmentIds);
   }
 
   /**
-   * Drop every persisted fragment that is invalid or did not opt into
-   * `persist`.
+   * Drop every persisted fragment that is invalid, did not opt into `persist`,
+   * or was already present when {@link init} began.
    *
    * Only called by {@link #reconcileEventFragments}, which guarantees the
    * fragments exist and that the event fragments feature is enabled.
    *
    * @param currentEventFragments - The persisted fragments to filter.
+   * @param initEventFragmentIds - Fragment IDs present when {@link init} began.
    */
   #purgeNonPersistentEventFragments(
     currentEventFragments: AnalyticsEventFragments,
+    initEventFragmentIds: Set<string>,
   ): void {
     const eventFragments: AnalyticsEventFragments = {};
 
@@ -1197,7 +1211,10 @@ export class AnalyticsController extends BaseController<
         continue;
       }
 
-      if (fragment.persist === true) {
+      if (
+        fragment.persist === true ||
+        !initEventFragmentIds.has(id)
+      ) {
         eventFragments[id] = fragment;
       }
     }
