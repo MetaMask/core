@@ -535,6 +535,112 @@ describe('RpcFallbackMiddleware', () => {
       );
     });
 
+    it('discards failed RPC results for stale-asset chains so upstream balances survive', async () => {
+      // Regression: RpcDataSource writes a native `0` stub for chains it fails
+      // on. For a chain fetched only because of a stale tracked asset (the
+      // upstream source succeeded on it), merging that stub would overwrite
+      // the correct native amount and, with replaceCoveredChainBalances, wipe
+      // the chain's token slice from state.
+      const rpcFailureResponse: DataResponse = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_MAINNET]: { amount: '0' } },
+        },
+        errors: { 'eip155:1': 'Fetch failed: provider down' },
+      };
+      const { source } = createMockRpcSource(rpcFailureResponse);
+      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const ctx = createContext(
+        createDataRequest(['eip155:1']),
+        {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_MAINNET]: { amount: '5' } },
+          },
+        },
+        {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MOCK_ASSET_MAINNET]: { amount: '5' },
+              [MOCK_ERC20_MAINNET]: { amount: '1000' },
+            },
+          },
+        },
+      );
+      const next = jest.fn(async (innerCtx) => innerCtx);
+
+      await mw.assetsMiddleware(ctx, next);
+
+      const finalCtx = next.mock.calls[0][0];
+      expect(finalCtx.response.assetsBalance[MOCK_ACCOUNT_ID]).toStrictEqual({
+        [MOCK_ASSET_MAINNET]: { amount: '5' },
+      });
+      expect(finalCtx.response.errors?.['eip155:1']).toBeUndefined();
+    });
+
+    it('drops failure stubs but keeps the error for chains already errored upstream', async () => {
+      // The stub must not count as a "recovered" balance either — the chain
+      // stays errored so the slow pipeline retries it.
+      const rpcFailureResponse: DataResponse = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_POLYGON]: { amount: '0' } },
+        },
+        errors: { 'eip155:137': 'Fetch failed: provider down' },
+      };
+      const { source } = createMockRpcSource(rpcFailureResponse);
+      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const ctx = createContext(createDataRequest(['eip155:137']), {
+        errors: { 'eip155:137': 'Unprocessed by Accounts API' },
+      });
+      const next = jest.fn(async (innerCtx) => innerCtx);
+
+      await mw.assetsMiddleware(ctx, next);
+
+      const finalCtx = next.mock.calls[0][0];
+      expect(
+        finalCtx.response.assetsBalance?.[MOCK_ACCOUNT_ID],
+      ).toBeUndefined();
+      expect(finalCtx.response.errors?.['eip155:137']).toBe(
+        'Fetch failed: provider down',
+      );
+    });
+
+    it('merges recovered errored chains while discarding a failed stale-asset chain', async () => {
+      const rpcResponse: DataResponse = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_POLYGON]: { amount: '7' },
+            [MOCK_ASSET_MAINNET]: { amount: '0' },
+          },
+        },
+        errors: { 'eip155:1': 'Fetch failed: provider down' },
+      };
+      const { source } = createMockRpcSource(rpcResponse);
+      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+      const ctx = createContext(
+        createDataRequest(['eip155:1', 'eip155:137']),
+        {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_MAINNET]: { amount: '5' } },
+          },
+          errors: { 'eip155:137': 'Unprocessed by Accounts API' },
+        },
+        {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_MAINNET]: { amount: '1000' } },
+          },
+        },
+      );
+      const next = jest.fn(async (innerCtx) => innerCtx);
+
+      await mw.assetsMiddleware(ctx, next);
+
+      const finalCtx = next.mock.calls[0][0];
+      expect(finalCtx.response.assetsBalance[MOCK_ACCOUNT_ID]).toStrictEqual({
+        [MOCK_ASSET_MAINNET]: { amount: '5' },
+        [MOCK_ASSET_POLYGON]: { amount: '7' },
+      });
+      expect(finalCtx.response.errors).toStrictEqual({});
+    });
+
     it('deduplicates stale assets shared by several accounts', async () => {
       const secondAccountId = 'second-account-id';
       const stateBalances = {

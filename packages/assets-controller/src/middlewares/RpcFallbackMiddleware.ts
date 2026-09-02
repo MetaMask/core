@@ -99,19 +99,45 @@ export class RpcFallbackMiddleware {
         noopNext,
       );
 
+      // A chain RPC itself failed on contributed nothing trustworthy: its
+      // balances are failure stubs (native 0) that would overwrite correct
+      // upstream amounts and, with replaceCoveredChainBalances, wipe the
+      // chain's token slice from state. Drop them before merging — this also
+      // keeps failed chains from counting as "recovered" below.
+      const rpcFailedChains = new Set<ChainId>(
+        Object.keys(rpcResult.response.errors ?? {}) as ChainId[],
+      );
+      const rpcAssetsBalance = filterOutChainBalances(
+        rpcResult.response.assetsBalance,
+        rpcFailedChains,
+      );
+
+      // RPC errors are kept only for chains that were already errored
+      // upstream. For chains fetched solely for stale tracked assets the
+      // upstream response succeeded and stays authoritative — the stale asset
+      // keeps its previous amount and is retried on the next pass.
+      const rpcErrors = Object.fromEntries(
+        Object.entries(rpcResult.response.errors ?? {}).filter(([chainId]) =>
+          erroredChains.has(chainId as ChainId),
+        ),
+      );
+
       const merged: DataResponse = mergeDataResponses([
         ctx.response,
-        rpcResult.response,
+        {
+          ...rpcResult.response,
+          assetsBalance: rpcAssetsBalance,
+          errors: rpcErrors,
+        },
       ]);
 
       // Clear errors only for chains RPC actually recovered a balance for.
-      // We must inspect rpcResult.response — NOT merged — because merged
-      // also contains balances from the upstream sources (AccountsApi /
+      // We must inspect the (filtered) RPC balances — NOT merged — because
+      // merged also contains balances from the upstream sources (AccountsApi /
       // Websocket / Staked). If those sources returned partial data for
       // a chain that they also flagged as errored (e.g. via
       // unprocessedNetworks), and RPC then failed for that same chain,
       // looking at merged would incorrectly mark the error as recovered.
-      const rpcAssetsBalance = rpcResult.response.assetsBalance;
       if (merged.errors && rpcAssetsBalance) {
         const chainsRecoveredByRpc = new Set<string>();
         for (const accountBalances of Object.values(rpcAssetsBalance)) {
@@ -129,6 +155,38 @@ export class RpcFallbackMiddleware {
       return next({ ...ctx, response: merged });
     });
   }
+}
+
+/**
+ * Remove all balances that belong to the given chains.
+ *
+ * Used to discard results for chains the RPC source itself failed on, whose
+ * entries are failure stubs (native `0`) rather than real readings.
+ *
+ * @param assetsBalance - Balances by account from the RPC response.
+ * @param chainIds - Chains whose balances should be dropped.
+ * @returns The filtered balance map, without accounts left empty.
+ */
+function filterOutChainBalances(
+  assetsBalance: DataResponse['assetsBalance'],
+  chainIds: Set<ChainId>,
+): DataResponse['assetsBalance'] {
+  if (!assetsBalance || chainIds.size === 0) {
+    return assetsBalance;
+  }
+
+  const filtered: NonNullable<DataResponse['assetsBalance']> = {};
+  for (const [accountId, accountBalances] of Object.entries(assetsBalance)) {
+    const kept = Object.fromEntries(
+      Object.entries(accountBalances).filter(
+        ([assetId]) => !chainIds.has(assetId.split('/')[0] as ChainId),
+      ),
+    ) as Record<Caip19AssetId, AssetBalance>;
+    if (Object.keys(kept).length > 0) {
+      filtered[accountId] = kept;
+    }
+  }
+  return filtered;
 }
 
 /**
