@@ -9054,6 +9054,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   ): Promise<ClosePositionsResult> {
     // Declare outside try block so it's accessible in catch block
     let positionsToClose: Position[] = [];
+    const unavailableResults: ClosePositionsResult['results'] = [];
 
     try {
       // Batch preparation needs trading readiness but not builder approval yet.
@@ -9072,7 +9073,6 @@ export class HyperLiquidProvider implements PerpsProvider {
         params.symbols.length === 0
           ? undefined
           : params.symbols;
-      const unavailableResults: ClosePositionsResult['results'] = [];
       let positions: Position[];
       if (requestedSymbols === undefined) {
         positions = await this.#getPositionsForOperation();
@@ -9399,23 +9399,26 @@ export class HyperLiquidProvider implements PerpsProvider {
           positionCount: positionsToClose.length,
         }),
       );
-      // Return all positions as failed
+      // Return all selected positions as failed, including unavailable DEXes.
       return {
         success: false,
         successCount: 0,
-        failureCount: positionsToClose.length,
+        failureCount: positionsToClose.length + unavailableResults.length,
         error:
           error instanceof Error
             ? safeError.message
             : PERPS_ERROR_CODES.BATCH_CLOSE_FAILED,
-        results: positionsToClose.map((position) => ({
-          symbol: position.symbol,
-          success: false,
-          error:
-            error instanceof Error
-              ? safeError.message
-              : PERPS_ERROR_CODES.BATCH_CLOSE_FAILED,
-        })),
+        results: [
+          ...positionsToClose.map((position) => ({
+            symbol: position.symbol,
+            success: false,
+            error:
+              error instanceof Error
+                ? safeError.message
+                : PERPS_ERROR_CODES.BATCH_CLOSE_FAILED,
+          })),
+          ...unavailableResults,
+        ],
       };
     }
   }

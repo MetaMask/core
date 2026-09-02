@@ -3874,6 +3874,49 @@ describe('HyperLiquidProvider', () => {
       );
     });
 
+    it('preserves unavailable symbols when batch submission fails', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockImplementation((dexName: string) =>
+          dexName === '' ? [createCachedPosition()] : null,
+        );
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: jest
+            .fn()
+            .mockRejectedValue(new Error('xyz unavailable')),
+        }),
+      );
+      mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+        createMockExchangeClient({
+          order: jest.fn().mockRejectedValue(new Error('batch failed')),
+        }),
+      );
+
+      const result = await hip3Provider.closePositions({
+        symbols: ['BTC', 'xyz:STOCK1'],
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        successCount: 0,
+        failureCount: 2,
+        error: 'batch failed',
+        results: [
+          { symbol: 'BTC', success: false, error: 'batch failed' },
+          {
+            symbol: 'xyz:STOCK1',
+            success: false,
+            error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          },
+        ],
+      });
+    });
+
     it('rejects a main-only REST snapshot when HIP-3 DEX discovery fails', async () => {
       const hip3Provider = createTestProvider({
         hip3Enabled: true,
