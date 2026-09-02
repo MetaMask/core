@@ -69,6 +69,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/connectivity-controller`](packages/connectivity-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/core-backend`](packages/core-backend)
+- [`@metamask/cryptography`](packages/cryptography)
 - [`@metamask/delegation-controller`](packages/delegation-controller)
 - [`@metamask/earn-controller`](packages/earn-controller)
 - [`@metamask/eip-5792-middleware`](packages/eip-5792-middleware)
@@ -175,6 +176,7 @@ linkStyle default opacity:0.5
   connectivity_controller(["@metamask/connectivity-controller"]);
   controller_utils(["@metamask/controller-utils"]);
   core_backend(["@metamask/core-backend"]);
+  cryptography(["@metamask/cryptography"]);
   delegation_controller(["@metamask/delegation-controller"]);
   earn_controller(["@metamask/earn-controller"]);
   eip_5792_middleware(["@metamask/eip-5792-middleware"]);

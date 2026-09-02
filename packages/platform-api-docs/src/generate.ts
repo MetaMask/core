@@ -15,7 +15,80 @@ import {
   generateNamespacePage,
   generateSidebars,
 } from './markdown.js';
+import type { RootCapabilitiesTypeReference } from './root-messenger-discovery.js';
+import { discoverFromRootMessengerCapabilitiesTypes } from './root-messenger-discovery.js';
 import type { MessengerCapabilityPacket, NamespaceGroup } from './types.js';
+
+/** How many skipped capability types to name before summarizing the rest. */
+const MAX_SKIPPED_SHOWN = 10;
+
+/**
+ * Options for the `scan` strategy, which reads every `*Messenger` type alias
+ * in every file it can find. Used when no single messenger aggregates every
+ * capability.
+ */
+type ScanStrategyOptions = {
+  /** The selected strategy. */
+  strategy: 'scan';
+  /** Directories, relative to the project root, to scan. */
+  scanDirs: string[];
+};
+
+/**
+ * Options for the `root-messenger` strategy, which walks the types a
+ * project declares for its root messenger capabilities instead of scanning the
+ * entire repo. Used when one messenger carries every action and event.
+ */
+type RootMessengerStrategyOptions = {
+  /** The selected strategy. */
+  strategy: 'root-messenger';
+  /** The root messenger actions type reference. */
+  rootActions: RootCapabilitiesTypeReference;
+  /** The root messenger events type reference. */
+  rootEvents: RootCapabilitiesTypeReference;
+};
+
+/**
+ * Options for the generate function.
+ */
+export type GenerateOptions = {
+  /** Absolute path to the project to scan. */
+  projectPath: string;
+  /** Absolute path to the output directory for generated docs. */
+  outputDir: string;
+  /**
+   * Short label identifying the project the docs were generated from (e.g.
+   * "Core", "Extension"). Stamped in the index page title.
+   */
+  projectLabel?: string | null;
+  /**
+   * Git commit SHA the docs were generated from. Stamped in the index page
+   * intro so engineers know how current the site is.
+   */
+  commitSha?: string | null;
+} & (ScanStrategyOptions | RootMessengerStrategyOptions);
+
+/**
+ * Result returned by the generate function.
+ */
+export type GenerateResult = {
+  namespaces: number;
+  actions: number;
+  events: number;
+};
+
+/**
+ * The set of directories available to scan for messenger types, resolved from
+ * the project's filesystem layout.
+ */
+type ScanSources = {
+  /** User-configured scan dirs that exist on disk (relative to projectPath). */
+  scanDirs: string[];
+  /** Absolute path to `packages/` if it exists, otherwise null. */
+  packagesDir: string | null;
+  /** Absolute path to `node_modules/@metamask/` if it exists, otherwise null. */
+  nodeModulesDir: string | null;
+};
 
 /**
  * Compute a deduplication score for a messenger item, preferring items with
@@ -127,50 +200,6 @@ async function resolveRepoBaseUrl(
   const ref = commitSha ?? (await resolveDefaultBranch(projectPath));
   return `${repoUrl}/blob/${ref}/`;
 }
-
-/**
- * Options for the generate function.
- */
-export type GenerateOptions = {
-  /** Absolute path to the project to scan. */
-  projectPath: string;
-  /** Absolute path to the output directory for generated docs. */
-  outputDir: string;
-  /** Directories (relative to projectPath) to scan for .ts source files. */
-  scanDirs: string[];
-  /**
-   * Short label identifying the project the docs were generated from (e.g.
-   * "Core", "Extension"). Stamped in the index page title.
-   */
-  projectLabel?: string | null;
-  /**
-   * Git commit SHA the docs were generated from. Stamped in the index page
-   * intro so engineers know how current the site is.
-   */
-  commitSha?: string | null;
-};
-
-/**
- * Result returned by the generate function.
- */
-export type GenerateResult = {
-  namespaces: number;
-  actions: number;
-  events: number;
-};
-
-/**
- * The set of directories available to scan for messenger types, resolved from
- * the project's filesystem layout.
- */
-type ScanSources = {
-  /** User-configured scan dirs that exist on disk (relative to projectPath). */
-  scanDirs: string[];
-  /** Absolute path to `packages/` if it exists, otherwise null. */
-  packagesDir: string | null;
-  /** Absolute path to `node_modules/@metamask/` if it exists, otherwise null. */
-  nodeModulesDir: string | null;
-};
 
 /**
  * Discover which configured source locations actually exist on disk.
@@ -510,16 +539,17 @@ async function writeOutput(
 }
 
 /**
- * Scan a project for messenger action/event types and generate documentation.
+ * Collect capabilities by scanning the project's files.
  *
- * @param options - Generation options.
- * @returns A promise resolving to counts of generated namespaces, actions, and events.
+ * @param projectPath - The project root path.
+ * @param scanDirs - Directories (relative to projectPath) to scan.
+ * @returns The extracted capabilities.
+ * @throws If the project has no scannable directories at all.
  */
-export async function generate(
-  options: GenerateOptions,
-): Promise<GenerateResult> {
-  const { projectPath, outputDir, scanDirs, projectLabel, commitSha } = options;
-
+async function collectByScanning(
+  projectPath: string,
+  scanDirs: string[],
+): Promise<MessengerCapabilityPacket[]> {
   const sources = await discoverScanSources(projectPath, scanDirs);
 
   if (
@@ -535,7 +565,101 @@ export async function generate(
 
   logScanPlan(sources);
 
-  const allItems = await scanSources(projectPath, sources);
+  return await scanSources(projectPath, sources);
+}
+
+/**
+ * Using the project's root messenger capability collection types as
+ * entrypoints, collect the constituent individual capability types and package
+ * them so that they can be displayed within the documentation site.
+ *
+ * @param projectPath - The project root path.
+ * @param options - The root-messenger strategy options.
+ * @returns The extracted capabilities.
+ */
+function collectFromRootMessengerCapabilities(
+  projectPath: string,
+  options: RootMessengerStrategyOptions,
+): MessengerCapabilityPacket[] {
+  const { rootActions, rootEvents } = options;
+
+  console.log(
+    `Resolving actions from ${rootActions.filePath}#${rootActions.typeName} ` +
+      `and events from ${rootEvents.filePath}#${rootEvents.typeName}...`,
+  );
+
+  const { capabilityPackets, skippedCapabilities } =
+    discoverFromRootMessengerCapabilitiesTypes({
+      projectPath,
+      rootActionsTypeReference: rootActions,
+      rootEventsTypeReference: rootEvents,
+    });
+
+  // Report rather than drop silently: a jump in any of these usually means the
+  // project changed how it declares its capabilities.
+  warnSkipped(
+    'declared inline, with no name to document',
+    skippedCapabilities.unnamedCapabilities,
+  );
+  warnSkipped(
+    'whose shape could not be read',
+    skippedCapabilities.unextractableCapabilities,
+  );
+
+  // If both capability collection types resolve to nothing, it's always a
+  // misconfiguration (a wrong type name, or imports that didn't resolve).
+  // Failing here matters because generation would otherwise replace an existing
+  // docs directory with an empty one and exit successfully.
+  if (capabilityPackets.length === 0) {
+    throw new Error(
+      `No messenger actions or events found in ` +
+        `${rootActions.filePath}#${rootActions.typeName} or ` +
+        `${rootEvents.filePath}#${rootEvents.typeName}. ` +
+        `Check that these types name the collections carrying every ` +
+        `capability, and that their imports resolve.`,
+    );
+  }
+
+  return capabilityPackets;
+}
+
+/**
+ * Warn about capability types that couldn't be documented, naming them so the
+ * warning is actionable.
+ *
+ * @param description - Why they were skipped, as a noun phrase.
+ * @param labels - Labels identifying each skipped type.
+ */
+function warnSkipped(description: string, labels: string[]): void {
+  if (labels.length === 0) {
+    return;
+  }
+
+  const shown = labels.slice(0, MAX_SKIPPED_SHOWN);
+  const remaining = labels.length - shown.length;
+  console.warn(
+    `Warning: skipped ${labels.length} capability ` +
+      `${labels.length === 1 ? 'type' : 'types'} ${description}: ` +
+      `${shown.join(', ')}${remaining > 0 ? `, and ${remaining} more` : ''}`,
+  );
+}
+
+/**
+ * Scan a project for messenger action/event types and generate documentation.
+ *
+ * @param options - Generation options.
+ * @returns A promise resolving to counts of generated namespaces, actions, and events.
+ */
+export async function generate(
+  options: GenerateOptions,
+): Promise<GenerateResult> {
+  const { projectPath, outputDir, projectLabel, commitSha } = options;
+
+  const allItems =
+    options.strategy === 'root-messenger'
+      ? collectFromRootMessengerCapabilities(projectPath, options)
+      : await collectByScanning(projectPath, options.scanDirs);
+
   console.log(
     `Found ${allItems.length} messenger ${allItems.length === 1 ? 'item' : 'items'} total.`,
   );

@@ -226,6 +226,52 @@ describe('RemoteFeatureFlagController', () => {
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
     });
 
+    it('fetches and updates state when cache is not expired if force is true', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: MOCK_FLAGS_TWO,
+      });
+      const { controller, messenger } = createController({
+        state: {
+          remoteFeatureFlags: MOCK_FLAGS,
+          cacheTimestamp: Date.now() - 10,
+        },
+        clientConfigApiService,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+        true,
+      );
+
+      expect(
+        clientConfigApiService.fetchRemoteFeatureFlags,
+      ).toHaveBeenCalledTimes(1);
+      expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS_TWO);
+    });
+
+    it('does not fetch when disabled even if force is true', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: MOCK_FLAGS_TWO,
+      });
+      const { controller, messenger } = createController({
+        state: {
+          remoteFeatureFlags: MOCK_FLAGS,
+        },
+        clientConfigApiService,
+        disabled: true,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+        true,
+      );
+
+      expect(
+        clientConfigApiService.fetchRemoteFeatureFlags,
+      ).not.toHaveBeenCalled();
+      expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
+    });
+
     it('resets cache and fetch when clientVersion changes', async () => {
       const versionedFlags = {
         exploreFeature: {

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.6.0` to `^69.7.0` ([#9969](https://github.com/MetaMask/core/pull/9969), [#10046](https://github.com/MetaMask/core/pull/10046))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+## [2.1.1]
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^8.1.2` to `^9.0.0` ([#9960](https://github.com/MetaMask/core/pull/9960))
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.0` ([#9960](https://github.com/MetaMask/core/pull/9960))
+
 ## [2.1.0]
 
 ### Added
@@ -139,7 +151,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.1.1...HEAD
+[2.1.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.1.0...@metamask/client-utils@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.0.2...@metamask/client-utils@2.1.0
 [2.0.2]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.0.1...@metamask/client-utils@2.0.2
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.0.0...@metamask/client-utils@2.0.1

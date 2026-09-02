@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+### Fixed
+
+- Allow `QueryKey` to be not only mutable, but also readonly ([#9445](https://github.com/MetaMask/core/pull/9445))
+  - This allows the `queryKey` argument to `fetchQuery` or `fetchInfiniteQuery` to be extracted to its own variable (as long as `as const` is used to type the query key).
+
+## [1.0.0]
+
 ### Added
 
 - Add support for cache persistence ([#9445](https://github.com/MetaMask/core/pull/9445))
@@ -76,7 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8039](https://github.com/MetaMask/core/pull/8039), [#8292](https://github.com/MetaMask/core/pull/8292))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.3...@metamask/base-data-service@1.0.0
 [0.1.3]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.2...@metamask/base-data-service@0.1.3
 [0.1.2]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.1...@metamask/base-data-service@0.1.2
 [0.1.1]: https://github.com/MetaMask/core/compare/@metamask/base-data-service@0.1.0...@metamask/base-data-service@0.1.1

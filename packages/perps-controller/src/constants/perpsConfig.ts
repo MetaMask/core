@@ -122,19 +122,17 @@ export const ORDER_SLIPPAGE_CONFIG = {
  * No supported venue exposes a chase as an API action — HyperLiquid documents it
  * as running client-side — so the strategy is run here: a post-only order rests
  * one tick inside the spread and is cancelled and re-placed as the touch moves.
- * The poll floor and the repricing cap exist to keep a chase from turning into a
- * cancel/replace loop against a venue's rate limits. Protocol-agnostic — a
- * provider that gains a native chase ignores these entirely.
+ * The poll floor limits request frequency; callers may also set explicit
+ * duration or repricing caps. Protocol-agnostic — a provider that gains a
+ * native chase ignores these entirely.
  */
 export const CHASE_ORDER_CONFIG = {
+  /** Maximum submissions used to survive a touch moving before an ALO rests. */
+  InitialPlacementAttempts: 3,
   /** How often the touch is re-read when the caller does not say. */
-  DefaultIntervalMs: 3000,
+  DefaultIntervalMs: 15000,
   /** Floor on the poll interval, whatever the caller asks for. */
   MinIntervalMs: 1000,
-  /** How long a chase runs before it stops re-pricing and rests. */
-  DefaultMaxDurationMs: 60_000,
-  /** How many cancel/replace cycles a single chase may perform. */
-  DefaultMaxRepricings: 20,
   /**
    * How many chases may run at once.
    *
@@ -144,6 +142,19 @@ export const CHASE_ORDER_CONFIG = {
    * the only thing that can enforce it.
    */
   MaxActiveSessions: 5,
+} as const;
+
+/** Public lifecycle states reported for an emulated Chase order. */
+export const CHASE_ORDER_STATUS = {
+  Active: 'active',
+  TerminationPending: 'termination_pending',
+  Backgrounded: 'backgrounded',
+  MaxDistanceReached: 'max_distance_reached',
+  DurationReached: 'duration_reached',
+  RepricingLimitReached: 'repricing_limit_reached',
+  Filled: 'filled',
+  Canceled: 'canceled',
+  Failed: 'failed',
 } as const;
 
 /**
@@ -176,6 +187,9 @@ export const PERFORMANCE_CONFIG = {
   // Order validation debounce delay (milliseconds)
   // Prevents excessive validation calls during rapid form input changes
   ValidationDebounceMs: 300,
+
+  // Freshness window for provider market metadata used by strategy capability reads
+  OrderCapabilitiesMetaFreshnessMs: 30_000,
 
   // Liquidation price debounce delay (milliseconds)
   // Prevents excessive liquidation price calls during rapid form input changes
@@ -640,8 +654,14 @@ export const FUNDING_RATE_CONFIG = {
 export const PROVIDER_CONFIG = {
   /** Default perpetual DEX provider when no explicit selection exists */
   DefaultProvider: 'hyperliquid' as const,
-  /** Force MYX to testnet only (mainnet credentials not yet available) */
-  MYX_TESTNET_ONLY: false,
+  /**
+   * Force Lighter to testnet only. Off: Lighter follows the global network
+   * toggle — mainnet reads AND writes are enabled (the initial rollout
+   * write gate was removed once the write path was validated end-to-end
+   * on testnet). Flip on to pin Lighter to testnet regardless of the
+   * global network toggle.
+   */
+  LIGHTER_TESTNET_ONLY: false,
 } as const;
 
 // Disk-backed cold-start cache keys and throttle interval.
@@ -679,10 +699,10 @@ export function getProviderNetworkKey(state: {
 
 /**
  * Build a provider:network cache key for a specific provider id.
- * Accounts for MYX_TESTNET_ONLY: MYX is always on testnet regardless of the
- * global network flag.
+ * Accounts for LIGHTER_TESTNET_ONLY: when set, Lighter stays on testnet
+ * regardless of the global network flag.
  *
- * @param providerId - The provider identifier (e.g. "hyperliquid", "myx").
+ * @param providerId - The provider identifier (e.g. "hyperliquid", "lighter").
  * @param isTestnet - Global testnet flag from controller state.
  * @returns Cache key in the format "provider:mainnet" or "provider:testnet".
  */
@@ -690,9 +710,9 @@ export function buildProviderCacheKey(
   providerId: string,
   isTestnet: boolean,
 ): string {
-  const effectiveTestnet =
-    providerId === 'myx'
-      ? PROVIDER_CONFIG.MYX_TESTNET_ONLY || isTestnet
-      : isTestnet;
+  let effectiveTestnet = isTestnet;
+  if (providerId === 'lighter') {
+    effectiveTestnet = PROVIDER_CONFIG.LIGHTER_TESTNET_ONLY || isTestnet;
+  }
   return `${providerId}:${effectiveTestnet ? 'testnet' : 'mainnet'}`;
 }

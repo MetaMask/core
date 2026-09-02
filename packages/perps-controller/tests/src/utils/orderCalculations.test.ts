@@ -2,7 +2,9 @@ import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import {
   calculateFinalPositionSize,
   floorToSizeDecimals,
+  formatPartialTpslSize,
   getMaxAllowedAmount,
+  validateOrderPrecision,
 } from '../../../src/utils/orderCalculations.js';
 
 /**
@@ -611,5 +613,138 @@ describe('calculateFinalPositionSize', () => {
 
       expect(finalPositionSize).toBe(0);
     });
+  });
+});
+
+describe('formatPartialTpslSize', () => {
+  // A partial TP/SL is a reduce-only trigger, so its size may never exceed the
+  // position it protects. formatHyperLiquidSize rounds half-up, so a size
+  // sitting on a half-increment used to be submitted larger than the position
+  // and HyperLiquid rejected it with "Reduce only order would increase
+  // position" (TAT-3252).
+  it.each([
+    { size: 0.115, szDecimals: 2, expected: '0.11' },
+    { size: 2.5, szDecimals: 0, expected: '2' },
+    { size: 0.000055, szDecimals: 5, expected: '0.00005' },
+  ])(
+    'floors $size at szDecimals $szDecimals instead of rounding it up',
+    ({ size, szDecimals, expected }) => {
+      const formatted = formatPartialTpslSize({ size, szDecimals });
+
+      expect(formatted).toBe(expected);
+      expect(parseFloat(formatted)).toBeLessThanOrEqual(size);
+    },
+  );
+
+  it('never exceeds the position for a size given as a string', () => {
+    const formatted = formatPartialTpslSize({ size: '0.115', szDecimals: 2 });
+
+    expect(parseFloat(formatted)).toBeLessThanOrEqual(0.115);
+  });
+
+  it('leaves a size already on the size grid untouched', () => {
+    expect(formatPartialTpslSize({ size: 0.11, szDecimals: 2 })).toBe('0.11');
+  });
+
+  it('keeps a grid-aligned size intact despite float representation error', () => {
+    // 0.07 * 3 is 0.21000000000000002 in IEEE 754; flooring must not shave a
+    // whole increment off a size that is really on the grid.
+    expect(formatPartialTpslSize({ size: 0.07 * 3, szDecimals: 2 })).toBe(
+      '0.21',
+    );
+  });
+
+  it('rejects a size that floors away at the asset precision', () => {
+    // Rounding half-up would have turned this into '0.01'; the exchange reads a
+    // zero-sized trigger as covering the whole position, so it must be refused.
+    expect(() => formatPartialTpslSize({ size: 0.006, szDecimals: 2 })).toThrow(
+      PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+    );
+  });
+
+  // Flooring widens the refused band from below half an increment to below a
+  // whole one: a size in [0.5, 1) increment used to round *up* to one increment
+  // and reach the exchange, and is now refused. That is the intended trade —
+  // rounding a reduce-only size up is the defect being fixed — but it is
+  // consumer-visible, so the boundary is pinned here rather than left to follow
+  // incidentally from the flooring.
+  it.each([
+    { size: 0.0004, label: 'below half an increment' },
+    { size: 0.0005, label: 'exactly half an increment' },
+    { size: 0.0009, label: 'just below a whole increment' },
+  ])('refuses a size $label ($size at szDecimals 3)', ({ size }) => {
+    expect(() => formatPartialTpslSize({ size, szDecimals: 3 })).toThrow(
+      PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+    );
+  });
+
+  it('accepts a size of exactly one increment, the first representable size', () => {
+    expect(formatPartialTpslSize({ size: 0.001, szDecimals: 3 })).toBe('0.001');
+  });
+
+  it('rejects a non-numeric size', () => {
+    expect(() => formatPartialTpslSize({ size: 'abc', szDecimals: 2 })).toThrow(
+      PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+    );
+  });
+});
+
+// This is the pre-side-effect gate for updatePositionTPSL: it runs before
+// trading setup prompts for signatures and before the pre-cancel sweep clears
+// the position's existing triggers. It must therefore agree with the size that
+// is actually submitted, which formatPartialTpslSize FLOORS. Checking with the
+// half-up formatter accepted sizes in [0.5, 1) increments here and refused them
+// only afterwards, once those side effects had already run.
+describe('validateOrderPrecision', () => {
+  it.each([
+    { size: '0.0004', label: 'below half an increment' },
+    { size: '0.0005', label: 'exactly half an increment' },
+    { size: '0.0007', label: 'between half and one increment' },
+    { size: '0.0009', label: 'just below one increment' },
+  ])(
+    'refuses a partial TP/SL size $label ($size at szDecimals 3)',
+    ({ size }) => {
+      expect(
+        validateOrderPrecision({ takeProfitSize: size, szDecimals: 3 }),
+      ).toStrictEqual({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+      });
+    },
+  );
+
+  it('accepts a size of exactly one increment, the smallest submittable size', () => {
+    expect(
+      validateOrderPrecision({ takeProfitSize: '0.001', szDecimals: 3 }),
+    ).toStrictEqual({ isValid: true });
+  });
+
+  it('applies the same floor to a stop loss size', () => {
+    expect(
+      validateOrderPrecision({ stopLossSize: '0.0007', szDecimals: 3 }),
+    ).toStrictEqual({
+      isValid: false,
+      error: PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
+    });
+  });
+
+  it('agrees with the size formatPartialTpslSize would submit', () => {
+    // The two must not disagree: anything this gate accepts has to survive
+    // flooring, or the refusal lands after the side effects again.
+    for (const size of ['0.0004', '0.0005', '0.0007', '0.0009', '0.001']) {
+      const accepted = validateOrderPrecision({
+        takeProfitSize: size,
+        szDecimals: 3,
+      }).isValid;
+
+      let submits = true;
+      try {
+        formatPartialTpslSize({ size, szDecimals: 3 });
+      } catch {
+        submits = false;
+      }
+
+      expect(accepted).toBe(submits);
+    }
   });
 });

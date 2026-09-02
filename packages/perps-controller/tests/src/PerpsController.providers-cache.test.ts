@@ -16,10 +16,6 @@ import {
 } from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
-jest.mock('@myx-trade/sdk', () => ({
-  MyxClient: jest.fn(),
-  OrderStatusEnum: { Successful: 9 },
-}));
 
 import {
   PERPS_EVENT_PROPERTY,
@@ -34,8 +30,6 @@ import {
   PerpsController,
   getDefaultPerpsControllerState,
   InitializationState,
-  firstNonEmpty,
-  resolveMyxAuthConfig,
 } from '../../src/PerpsController.js';
 import type { PerpsControllerState } from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
@@ -55,7 +49,7 @@ import type {
 import { PerpsAnalyticsEvent } from '../../src/types/index.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
-jest.mock('../../src/providers/MYXProvider');
+jest.mock('../../src/providers/LighterProvider');
 
 // Mock transaction controller utility
 const mockAddTransaction = jest.fn();
@@ -137,6 +131,7 @@ const mockMarketDataServiceInstance = {
   calculateLiquidationPrice: jest.fn(),
   getMaxLeverage: jest.fn(),
   calculateFees: jest.fn().mockResolvedValue({ totalFee: 0 }),
+  previewPositionModify: jest.fn(),
   getAvailableDexs: jest.fn().mockResolvedValue([]),
   getBlockExplorerUrl: jest.fn(),
   getOrderFills: jest.fn(),
@@ -373,12 +368,14 @@ class TestablePerpsController extends PerpsController {
     return this.hasStandaloneProvider();
   }
 
-  public testRegisterMYXProvider(MYXProvider: unknown) {
-    this.registerMYXProvider(MYXProvider);
+  public testRegisterLighterProvider(
+    LighterProvider: new (opts: Record<string, unknown>) => PerpsProvider,
+  ) {
+    this.registerLighterProvider(LighterProvider as never);
   }
 
-  public testHandleMYXImportError(error: unknown) {
-    this.handleMYXImportError(error);
+  public testHandleLighterImportError(error: unknown) {
+    this.handleLighterImportError(error);
   }
 }
 
@@ -621,13 +618,13 @@ describe('PerpsController', () => {
   });
 
   describe('switchProvider', () => {
-    it('returns success as no-op before init() when already on requested provider', async () => {
-      // Before init(), providers map is empty.
-      // switchProvider should still succeed as a no-op because activeProvider already matches.
+    it('initializes before a same-provider switch on a cold controller', async () => {
       const result = await controller.switchProvider('hyperliquid');
 
       expect(result.success).toBe(true);
       expect(result.providerId).toBe('hyperliquid');
+      expect(controller.testGetInitialized()).toBe(true);
+      expect(controller.getActiveProviderOrNull()).not.toBeNull();
     });
 
     it('returns success without re-init when switching to same provider', async () => {
@@ -642,18 +639,18 @@ describe('PerpsController', () => {
     it('returns error when already reinitializing', async () => {
       await controller.init();
 
-      // Register myx in providers map so it passes the isValidProvider check
-      const mockMYXProvider = {
+      // Register lighter in providers map so it passes the isValidProvider check
+      const mockLighterProvider = {
         ...createMockHyperLiquidProvider(),
-        protocolId: 'myx',
+        protocolId: 'lighter',
       };
       const providers = controller.testGetProviders();
-      providers.set('myx', mockMYXProvider as any);
+      providers.set('lighter', mockLighterProvider as any);
       controller.testSetProviders(providers);
 
       jest.spyOn(controller, 'isCurrentlyReinitializing').mockReturnValue(true);
 
-      const result = await controller.switchProvider('myx');
+      const result = await controller.switchProvider('lighter');
 
       expect(result.success).toBe(false);
       expect(result.error).toBe(PERPS_ERROR_CODES.CLIENT_REINITIALIZING);
@@ -662,10 +659,10 @@ describe('PerpsController', () => {
     it('returns error for invalid provider not in providers map', async () => {
       await controller.init();
 
-      const result = await controller.switchProvider('myx');
+      const result = await controller.switchProvider('lighter');
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Provider myx not available');
+      expect(result.error).toContain('Provider lighter not available');
     });
 
     it('allows aggregated even without explicit map entry', async () => {
@@ -679,19 +676,19 @@ describe('PerpsController', () => {
       expect(result.success).toBe(true);
     });
 
-    it('switches to myx provider successfully', async () => {
-      // Create controller with MYX-enabled mocks
-      const myxInfrastructure = createMockInfrastructure();
+    it('switches to lighter provider successfully', async () => {
+      // Create controller with Lighter-enabled mocks
+      const lighterInfrastructure = createMockInfrastructure();
       (
-        myxInfrastructure.featureFlags.validateVersionGated as jest.Mock
+        lighterInfrastructure.featureFlags.validateVersionGated as jest.Mock
       ).mockReturnValue(true);
-      // Enable MYX feature flag via messenger
-      const myxMockCall = jest.fn().mockImplementation((action: string) => {
+      // Enable Lighter feature flag via messenger
+      const lighterMockCall = jest.fn().mockImplementation((action: string) => {
         if (action === 'RemoteFeatureFlagController:getState') {
           return {
             remoteFeatureFlags: {
               perpsPerpTradingGeoBlockedCountriesV2: { blockedRegions: [] },
-              perpsMyxProviderEnabled: {
+              perpsLighterProviderEnabled: {
                 enabled: true,
                 minimumVersion: '0.0.0',
               },
@@ -701,62 +698,64 @@ describe('PerpsController', () => {
         return undefined;
       });
 
-      const myxController = new TestablePerpsController({
-        messenger: createMockMessenger({ call: myxMockCall }),
+      const lighterController = new TestablePerpsController({
+        messenger: createMockMessenger({ call: lighterMockCall }),
         state: getDefaultPerpsControllerState(),
-        infrastructure: myxInfrastructure,
+        infrastructure: lighterInfrastructure,
+        // Local override: the remote flag alone does not enable Lighter
+        // without a client-mounted signer bridge, and the reinit inside
+        // switchProvider would otherwise drop the injected provider.
+        clientConfig: { providerCredentials: { lighter: { enabled: true } } },
       });
 
-      await myxController.init();
+      await lighterController.init();
 
-      // Register a mock MYX provider
-      const mockMYXProvider = {
+      // Register a mock Lighter provider
+      const mockLighterProvider = {
         ...createMockHyperLiquidProvider(),
-        protocolId: 'myx',
+        protocolId: 'lighter',
       };
-      const providers = myxController.testGetProviders();
-      providers.set('myx', mockMYXProvider as any);
-      myxController.testSetProviders(providers);
+      const providers = lighterController.testGetProviders();
+      providers.set('lighter', mockLighterProvider as any);
+      lighterController.testSetProviders(providers);
 
       // Mock init on the reinit call inside switchProvider.
       // Dynamic import() rejects in Jest (no --experimental-vm-modules),
-      // so MYX can't register via #createProviders. Mock init to
+      // so Lighter can't register via #createProviders. Mock init to
       // simulate successful reinitialization while preserving our
-      // manually-injected MYX provider in the map.
-      jest.spyOn(myxController, 'init').mockImplementationOnce(async () => {
-        myxController.testUpdate((state) => {
+      // manually-injected Lighter provider in the map.
+      jest.spyOn(lighterController, 'init').mockImplementationOnce(async () => {
+        lighterController.testUpdate((state) => {
           state.initializationState = InitializationState.Initialized;
         });
       });
 
-      const result = await myxController.switchProvider('myx');
+      const result = await lighterController.switchProvider('lighter');
 
       expect(result.success).toBe(true);
-      expect(result.providerId).toBe('myx');
-      expect(myxController.state.activeProvider).toBe('myx');
+      expect(result.providerId).toBe('lighter');
+      expect(lighterController.state.activeProvider).toBe('lighter');
     });
 
     it('rolls back to previous provider on init failure', async () => {
       await controller.init();
 
-      // Register a mock MYX provider
-      const mockMYXProvider = {
+      // Register a mock Lighter provider
+      const mockLighterProvider = {
         ...createMockHyperLiquidProvider(),
-        protocolId: 'myx',
+        protocolId: 'lighter',
       };
       const providers = controller.testGetProviders();
-      providers.set('myx', mockMYXProvider as any);
+      providers.set('lighter', mockLighterProvider as any);
       controller.testSetProviders(providers);
 
-      // Make init set state to Failed so switchProvider detects failure
-      jest.spyOn(controller, 'init').mockImplementationOnce(async () => {
-        controller.testUpdate((state) => {
-          state.initializationState = InitializationState.Failed;
-          state.initializationError = 'MYX init failed';
-        });
+      // Reinitialization now runs through the private serialized lifecycle,
+      // so fail provider reconstruction rather than spying on public init().
+      jest.mocked(HyperLiquidProvider).mockImplementation(() => {
+        throw new Error('Lighter init failed');
       });
 
-      const result = await controller.switchProvider('myx');
+      const result = await controller.switchProvider('lighter');
 
       expect(result.success).toBe(false);
       // Should roll back to previous provider
@@ -769,15 +768,15 @@ describe('PerpsController', () => {
     it('clears isReinitializing flag after success', async () => {
       await controller.init();
 
-      const mockMYXProvider = {
+      const mockLighterProvider = {
         ...createMockHyperLiquidProvider(),
-        protocolId: 'myx',
+        protocolId: 'lighter',
       };
       const providers = controller.testGetProviders();
-      providers.set('myx', mockMYXProvider as any);
+      providers.set('lighter', mockLighterProvider as any);
       controller.testSetProviders(providers);
 
-      await controller.switchProvider('myx');
+      await controller.switchProvider('lighter');
 
       expect(controller.isCurrentlyReinitializing()).toBe(false);
     });
@@ -785,12 +784,12 @@ describe('PerpsController', () => {
     it('clears isReinitializing flag after failure', async () => {
       await controller.init();
 
-      const mockMYXProvider = {
+      const mockLighterProvider = {
         ...createMockHyperLiquidProvider(),
-        protocolId: 'myx',
+        protocolId: 'lighter',
       };
       const providers = controller.testGetProviders();
-      providers.set('myx', mockMYXProvider as any);
+      providers.set('lighter', mockLighterProvider as any);
       controller.testSetProviders(providers);
 
       jest.spyOn(controller, 'init').mockImplementationOnce(async () => {
@@ -800,7 +799,7 @@ describe('PerpsController', () => {
         });
       });
 
-      await controller.switchProvider('myx');
+      await controller.switchProvider('lighter');
 
       expect(controller.isCurrentlyReinitializing()).toBe(false);
 
@@ -808,65 +807,93 @@ describe('PerpsController', () => {
     });
   });
 
-  describe('init - MYX fallback', () => {
-    it('falls back to hyperliquid when activeProvider is myx but MYX feature flag is disabled', async () => {
-      // Set state to myx before init
+  describe('init - Lighter fallback', () => {
+    it('falls back to hyperliquid when activeProvider is lighter but Lighter feature flag is disabled', async () => {
+      // Set state to lighter before init
       controller.testUpdate((state) => {
-        state.activeProvider = 'myx';
+        state.activeProvider = 'lighter';
       });
 
-      // isMYXProviderEnabled() returns false by default (no perpsMyxProviderEnabled in remote flags)
+      // #isLighterProviderEnabled() returns false by default (no perpsLighterProviderEnabled in remote flags)
       await controller.init();
 
-      // The init path should detect MYX is not available and fall back
+      // The init path should detect Lighter is not available and fall back
       expect(controller.state.activeProvider).toBe('hyperliquid');
     });
 
-    it('registerMYXProvider creates and registers the MYX provider', () => {
-      // Arrange
-      const mockMYXInstance = createMockHyperLiquidProvider();
-      const MockMYXConstructor = jest.fn(() => mockMYXInstance);
+    it('falls back to hyperliquid when activeProvider is a removed provider persisted from an older version', async () => {
+      // `activeProvider` is persisted, so a user who selected a venue that has
+      // since been removed still has its id in restored state. Init must
+      // self-heal that value rather than throwing, or perps stays broken on
+      // every launch until the client clears state. The literal below is a
+      // removed venue's id as it would appear in a real persisted blob.
+      controller.testUpdate((state) => {
+        (state as { activeProvider: string }).activeProvider = 'myx';
+      });
+
+      await controller.init();
+
+      expect(controller.state.activeProvider).toBe('hyperliquid');
+      expect(controller.state.initializationState).toBe(
+        InitializationState.Initialized,
+      );
+    });
+
+    it('registerLighterProvider registers the provider and forwards the signer bridge from the Lighter credentials', () => {
+      // Arrange — the client (mobile WebView / headless WASM) supplies the
+      // bridge through the Lighter credentials bag; the controller must
+      // forward it (the shared platform surface stays venue-agnostic).
+      const mockBridge = {
+        createClient: jest.fn(),
+        execute: jest.fn(),
+      };
+      const mockLighterInstance = createMockHyperLiquidProvider();
+      const MockLighterConstructor = jest.fn(() => mockLighterInstance);
+      controller = new TestablePerpsController({
+        messenger: createMockMessenger(),
+        state: getDefaultPerpsControllerState(),
+        clientConfig: {
+          providerCredentials: { lighter: { signerBridge: mockBridge } },
+        },
+        infrastructure: mockInfrastructure,
+      });
 
       // Act
-      controller.testRegisterMYXProvider(
-        MockMYXConstructor as unknown as new (
+      controller.testRegisterLighterProvider(
+        MockLighterConstructor as unknown as new (
           opts: Record<string, unknown>,
         ) => PerpsProvider,
       );
 
       // Assert
       const providers = controller.testGetProviders();
-      expect(providers.get('myx')).toBe(mockMYXInstance);
-      expect(MockMYXConstructor).toHaveBeenCalledWith(
-        expect.objectContaining({ isTestnet: false }),
+      expect(providers.get('lighter')).toBe(mockLighterInstance);
+      expect(MockLighterConstructor).toHaveBeenCalledWith(
+        expect.objectContaining({
+          // Lighter follows the controller's global network (mainnet default);
+          // mainnet writes are blocked inside LighterProvider instead.
+          isTestnet: false,
+          signerBridge: mockBridge,
+        }),
       );
     });
 
-    it('registerMYXProvider ignores a missing optional constructor', () => {
-      controller.testRegisterMYXProvider(undefined);
-
-      expect(controller.testGetProviders().has('myx')).toBe(false);
-    });
-
-    it('handleMYXImportError logs debug for MODULE_NOT_FOUND errors', () => {
-      // Arrange — Node sets code: 'MODULE_NOT_FOUND' on missing modules
+    it('handleLighterImportError logs debug for MODULE_NOT_FOUND errors', () => {
       const moduleError = Object.assign(
-        new Error('Cannot find module ./providers/MYXProvider'),
+        new Error('Cannot find module ./providers/LighterProvider'),
         { code: 'MODULE_NOT_FOUND' },
       );
 
-      // Act
-      controller.testHandleMYXImportError(moduleError);
+      controller.testHandleLighterImportError(moduleError);
 
-      // Assert
       expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
-        'PerpsController: MYX provider module not available, skipping registration',
+        'PerpsController: Lighter provider module not available, skipping registration',
       );
     });
 
-    it('handleMYXImportError routes runtime errors to logError', () => {
+    it('handleLighterImportError routes runtime errors to logError', () => {
       // Act — error without MODULE_NOT_FOUND code goes to Sentry
-      controller.testHandleMYXImportError(new Error('Invalid auth config'));
+      controller.testHandleLighterImportError(new Error('Invalid auth config'));
 
       // Assert
       expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
@@ -874,7 +901,7 @@ describe('PerpsController', () => {
         expect.objectContaining({
           context: expect.objectContaining({
             data: expect.objectContaining({
-              method: 'createProviders.myx',
+              method: 'createProviders.lighter',
             }),
           }),
         }),
@@ -1466,7 +1493,7 @@ describe('PerpsController', () => {
             timestamp,
           },
           {
-            providerNetworkKey: 'myx:mainnet',
+            providerNetworkKey: 'lighter:mainnet',
             data: [
               {
                 symbol: 'ETH',
@@ -1500,7 +1527,7 @@ describe('PerpsController', () => {
         },
         clientConfig: {
           providerCredentials: {
-            myx: {
+            lighter: {
               enabled: true,
             },
           },
@@ -1541,9 +1568,9 @@ describe('PerpsController', () => {
             dexes: ['main'],
           },
           {
-            providerNetworkKey: 'myx:mainnet',
+            providerNetworkKey: 'lighter:mainnet',
             address: '0x1234567890abcdef1234567890abcdef12345678',
-            positions: [createMockPosition({ symbol: 'MYX', size: '2.0' })],
+            positions: [createMockPosition({ symbol: 'ETH', size: '2.0' })],
             orders: [],
             accountState: null,
             timestamp,
@@ -1568,7 +1595,7 @@ describe('PerpsController', () => {
         },
         clientConfig: {
           providerCredentials: {
-            myx: {
+            lighter: {
               enabled: true,
             },
           },
@@ -2701,7 +2728,7 @@ describe('PerpsController', () => {
         'provider',
         () =>
           preloadController.testUpdate((state) => {
-            state.activeProvider = 'myx';
+            state.activeProvider = 'lighter';
           }),
       ],
       [
@@ -2742,6 +2769,52 @@ describe('PerpsController', () => {
       await expect(request).rejects.toThrow('context changed');
       expect(preloadController.state.cachedUserDataByProvider).toEqual({});
       expect(preloadInfrastructure.diskCache.setItem).not.toHaveBeenCalled();
+    });
+
+    it('discards an in-flight user snapshot after disconnect', async () => {
+      const deferred = createDeferredSnapshot();
+      preloadMockProvider.getUserDataSnapshot = jest
+        .fn()
+        .mockReturnValue(deferred.promise);
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      const request = preloadController.getUserDataSnapshot();
+      await Promise.resolve();
+      await preloadController.disconnect();
+      deferred.resolve(createUserSnapshot());
+
+      await expect(request).rejects.toThrow('context changed');
+      expect(preloadController.state.cachedUserDataByProvider).toEqual({});
+      expect(preloadInfrastructure.diskCache.setItem).not.toHaveBeenCalled();
+    });
+
+    it('does not report an expected background preload invalidation as an error', async () => {
+      const deferred = createDeferredSnapshot();
+      preloadMockProvider.getUserDataSnapshot = jest
+        .fn()
+        .mockReturnValue(deferred.promise);
+      preloadMockProvider.getMarketDataWithPrices.mockResolvedValue([]);
+      preloadMockProvider.getWebSocketConnectionState.mockReturnValue(
+        WSState.Disconnected,
+      );
+      preloadController.testMarkInitialized();
+      preloadController.testSetProviders(
+        new Map([['hyperliquid', preloadMockProvider]]),
+      );
+
+      preloadController.startMarketDataPreload();
+      await jest.advanceTimersByTimeAsync(100);
+      expect(preloadMockProvider.getUserDataSnapshot).toHaveBeenCalledTimes(1);
+
+      await preloadController.disconnect();
+      deferred.resolve(createUserSnapshot());
+      await jest.advanceTimersByTimeAsync(0);
+
+      expect(preloadController.state.cachedUserDataByProvider).toEqual({});
+      expect(preloadInfrastructure.logger.error).not.toHaveBeenCalled();
     });
 
     it('preserves last-known-good data when a snapshot request fails', async () => {
@@ -3230,6 +3303,28 @@ describe('PerpsController', () => {
       expect(mockProvider.subscribeToOrders).not.toHaveBeenCalled();
     });
 
+    it('subscribeToTwapOrders returns no-op when provider is null', () => {
+      controller.testSetInitialized(false);
+
+      const unsub = controller.subscribeToTwapOrders({ callback: jest.fn() });
+
+      expect(typeof unsub).toBe('function');
+      unsub();
+    });
+
+    it('subscribeToTwapOrders returns no-op when the provider has no TWAP push channel', () => {
+      // Arrange: a provider that implements no native TWAP subscription
+      delete (mockProvider as { subscribeToTwapOrders?: unknown })
+        .subscribeToTwapOrders;
+
+      // Act
+      const unsub = controller.subscribeToTwapOrders({ callback: jest.fn() });
+
+      // Assert
+      expect(typeof unsub).toBe('function');
+      unsub();
+    });
+
     it('subscribeToPositions returns no-op when provider is null', () => {
       controller.testSetInitialized(false);
 
@@ -3411,12 +3506,12 @@ describe('PerpsController', () => {
     });
 
     it('assembles data from multiple providers in aggregated mode', () => {
-      const mockMYXProvider = createMockHyperLiquidProvider();
+      const mockLighterProvider = createMockHyperLiquidProvider();
       markControllerAsInitialized();
       controller.testSetProviders(
         new Map([
           ['hyperliquid', mockProvider],
-          ['myx', mockMYXProvider],
+          ['lighter', mockLighterProvider],
         ] as any),
       );
       controller.testUpdate((state) => {
@@ -3432,13 +3527,13 @@ describe('PerpsController', () => {
           ],
           timestamp: Date.now(),
         };
-        state.cachedMarketDataByProvider['myx:mainnet'] = {
+        state.cachedMarketDataByProvider['lighter:mainnet'] = {
           data: [
             {
-              symbol: 'MYX',
-              name: 'MYX',
+              symbol: 'ETH',
+              name: 'ETH',
               price: '1',
-              providerId: 'myx',
+              providerId: 'lighter',
             } as any,
           ],
           timestamp: Date.now(),
@@ -3449,16 +3544,16 @@ describe('PerpsController', () => {
 
       expect(result).toHaveLength(2);
       const symbols = (result ?? []).map((m: any) => m.symbol);
-      expect(symbols).toEqual(expect.arrayContaining(['BTC', 'MYX']));
+      expect(symbols).toEqual(expect.arrayContaining(['BTC', 'ETH']));
     });
 
     it('returns null in aggregated mode when all provider caches are empty', () => {
-      const mockMYXProvider = createMockHyperLiquidProvider();
+      const mockLighterProvider = createMockHyperLiquidProvider();
       markControllerAsInitialized();
       controller.testSetProviders(
         new Map([
           ['hyperliquid', mockProvider],
-          ['myx', mockMYXProvider],
+          ['lighter', mockLighterProvider],
         ] as any),
       );
       controller.testUpdate((state) => {
@@ -3475,12 +3570,12 @@ describe('PerpsController', () => {
     });
 
     it('keeps current provider data when another aggregated entry is stale', () => {
-      const mockMYXProvider = createMockHyperLiquidProvider();
+      const mockLighterProvider = createMockHyperLiquidProvider();
       markControllerAsInitialized();
       controller.testSetProviders(
         new Map([
           ['hyperliquid', mockProvider],
-          ['myx', mockMYXProvider],
+          ['lighter', mockLighterProvider],
         ] as any),
       );
       controller.testUpdate((state) => {
@@ -3489,15 +3584,15 @@ describe('PerpsController', () => {
           data: [{ symbol: 'BTC', name: 'BTC', price: '50000' } as any],
           timestamp: Date.now() - 999_999_999, // very old
         };
-        state.cachedMarketDataByProvider['myx:mainnet'] = {
-          data: [{ symbol: 'MYX', name: 'MYX', price: '1' } as any],
+        state.cachedMarketDataByProvider['lighter:mainnet'] = {
+          data: [{ symbol: 'ETH', name: 'ETH', price: '1' } as any],
           timestamp: Date.now(), // fresh
         };
       });
 
       const result = controller.getCachedMarketDataForActiveProvider();
 
-      expect(result).toEqual([expect.objectContaining({ symbol: 'MYX' })]);
+      expect(result).toEqual([expect.objectContaining({ symbol: 'ETH' })]);
     });
   });
 
@@ -3580,13 +3675,16 @@ describe('PerpsController', () => {
 
     it('assembles user data from multiple providers in aggregated mode', () => {
       const hlPosition = createMockPosition({ symbol: 'BTC', size: '1.0' });
-      const myxPosition = createMockPosition({ symbol: 'MYX', size: '5.0' });
-      const mockMYXProvider = createMockHyperLiquidProvider();
+      const lighterPosition = createMockPosition({
+        symbol: 'ETH',
+        size: '5.0',
+      });
+      const mockLighterProvider = createMockHyperLiquidProvider();
       markControllerAsInitialized();
       controller.testSetProviders(
         new Map([
           ['hyperliquid', mockProvider],
-          ['myx', mockMYXProvider],
+          ['lighter', mockLighterProvider],
         ] as any),
       );
       controller.testUpdate((state) => {
@@ -3607,8 +3705,8 @@ describe('PerpsController', () => {
           hip3ConfigVersion: 0,
           dexes: ['main'],
         };
-        state.cachedUserDataByProvider['myx:mainnet'] = {
-          positions: [myxPosition],
+        state.cachedUserDataByProvider['lighter:mainnet'] = {
+          positions: [lighterPosition],
           orders: [],
           accountState: null,
           timestamp: Date.now(),
@@ -3624,12 +3722,12 @@ describe('PerpsController', () => {
     });
 
     it('returns null in aggregated mode when no valid entries exist', () => {
-      const mockMYXProvider = createMockHyperLiquidProvider();
+      const mockLighterProvider = createMockHyperLiquidProvider();
       markControllerAsInitialized();
       controller.testSetProviders(
         new Map([
           ['hyperliquid', mockProvider],
-          ['myx', mockMYXProvider],
+          ['lighter', mockLighterProvider],
         ] as any),
       );
       controller.testUpdate((state) => {
@@ -3703,10 +3801,10 @@ describe('PerpsController', () => {
         },
         {
           ...base,
-          symbol: 'MYX',
-          name: 'MYX',
+          symbol: 'LTR',
+          name: 'LTR',
           price: '1',
-          providerId: 'myx' as const,
+          providerId: 'lighter' as const,
         },
       ];
       markControllerAsInitialized();
@@ -3725,10 +3823,10 @@ describe('PerpsController', () => {
       expect(hlEntry?.data).toHaveLength(2);
       expect(hlEntry?.data[0].symbol).toBe('BTC');
 
-      const myxEntry =
-        controller.state.cachedMarketDataByProvider['myx:mainnet'];
-      expect(myxEntry?.data).toHaveLength(1);
-      expect(myxEntry?.data[0].symbol).toBe('MYX');
+      const lighterEntry =
+        controller.state.cachedMarketDataByProvider['lighter:mainnet'];
+      expect(lighterEntry?.data).toHaveLength(1);
+      expect(lighterEntry?.data[0].symbol).toBe('LTR');
 
       // Aggregated sentinel should be empty
       const sentinel =
@@ -3763,96 +3861,6 @@ describe('PerpsController', () => {
         controller.state.cachedMarketDataByProvider['hyperliquid:mainnet'];
       expect(hlEntry?.data).toHaveLength(1);
       expect(hlEntry?.data[0].symbol).toBe('BTC');
-    });
-  });
-
-  describe('firstNonEmpty', () => {
-    it('returns the first non-empty string', () => {
-      expect(firstNonEmpty('', undefined, 'hello', 'world')).toBe('hello');
-    });
-
-    it('returns empty string when all values are empty or undefined', () => {
-      expect(firstNonEmpty('', undefined, '')).toBe('');
-    });
-
-    it('returns the first value if it is non-empty', () => {
-      expect(firstNonEmpty('first', 'second')).toBe('first');
-    });
-
-    it('skips empty strings and returns the fallback', () => {
-      expect(firstNonEmpty('', 'fallback')).toBe('fallback');
-    });
-  });
-
-  describe('resolveMyxAuthConfig', () => {
-    it('uses testnet credentials on testnet', () => {
-      // Arrange
-      const myx = {
-        appIdTestnet: 'test-app',
-        apiSecretTestnet: 'test-secret',
-        brokerAddressTestnet: '0xTestBroker',
-        appIdMainnet: 'main-app',
-        apiSecretMainnet: 'main-secret',
-        brokerAddressMainnet: '0xMainBroker',
-      };
-
-      // Act
-      const result = resolveMyxAuthConfig(myx, true);
-
-      // Assert
-      expect(result.appId).toBe('test-app');
-      expect(result.apiSecret).toBe('test-secret');
-      expect(result.brokerAddress).toBe('0xTestBroker');
-    });
-
-    it('uses mainnet credentials on mainnet', () => {
-      // Arrange
-      const myx = {
-        appIdTestnet: 'test-app',
-        apiSecretTestnet: 'test-secret',
-        brokerAddressTestnet: '0xTestBroker',
-        appIdMainnet: 'main-app',
-        apiSecretMainnet: 'main-secret',
-        brokerAddressMainnet: '0xMainBroker',
-      };
-
-      // Act
-      const result = resolveMyxAuthConfig(myx, false);
-
-      // Assert
-      expect(result.appId).toBe('main-app');
-      expect(result.apiSecret).toBe('main-secret');
-      expect(result.brokerAddress).toBe('0xMainBroker');
-    });
-
-    it('falls back to testnet credentials when mainnet are empty', () => {
-      // Arrange
-      const myx = {
-        appIdTestnet: 'test-app',
-        apiSecretTestnet: 'test-secret',
-        brokerAddressTestnet: '0xTestBroker',
-        appIdMainnet: '',
-        apiSecretMainnet: '',
-        brokerAddressMainnet: '',
-      };
-
-      // Act
-      const result = resolveMyxAuthConfig(myx, false);
-
-      // Assert
-      expect(result.appId).toBe('test-app');
-      expect(result.apiSecret).toBe('test-secret');
-      expect(result.brokerAddress).toBe('0xTestBroker');
-    });
-
-    it('returns empty strings when no credentials are set', () => {
-      // Act
-      const result = resolveMyxAuthConfig({}, true);
-
-      // Assert
-      expect(result.appId).toBe('');
-      expect(result.apiSecret).toBe('');
-      expect(result.brokerAddress).toBe('');
     });
   });
 });

@@ -1,4 +1,9 @@
 import { Messenger } from '@metamask/messenger';
+import {
+  StorageServiceGetItemAction,
+  StorageServiceRemoveItemAction,
+  StorageServiceSetItemAction,
+} from '@metamask/storage-service';
 import { object, number, string, array } from '@metamask/superstruct';
 import {
   CaipAssetType,
@@ -22,7 +27,10 @@ export const serviceName = 'ExampleDataService';
 
 export type ExampleDataServiceActions =
   | ExampleDataServiceMethodActions
-  | DataServiceInvalidateQueriesAction<typeof serviceName>;
+  | DataServiceInvalidateQueriesAction<typeof serviceName>
+  | StorageServiceGetItemAction
+  | StorageServiceSetItemAction
+  | StorageServiceRemoveItemAction;
 
 export type ExampleDataServiceEvents =
   | DataServiceCacheUpdatedEvent<typeof serviceName>
@@ -127,19 +135,21 @@ export class ExampleDataService extends BaseDataService<
     address: string,
     page?: PageParam,
   ): Promise<GetActivityResponse> {
-    return this.fetchInfiniteQuery<GetActivityResponse>(
+    return this.fetchInfiniteQuery(
       {
         queryKey: [`${this.name}:getActivity`, address],
-        initialPageParam: null,
+        initialPageParam: null as PageParam,
         queryFn: async ({ pageParam }) => {
           const caipAddress = `eip155:0:${address.toLowerCase()}`;
           const url = new URL(
             `${this.#accountsBaseUrl}/v4/multiaccount/transactions?limit=3&accountAddresses=${caipAddress}`,
           );
 
-          if (pageParam?.after) {
+          // eslint-disable-next-line no-restricted-syntax
+          if (pageParam && 'after' in pageParam) {
             url.searchParams.set('after', pageParam.after);
-          } else if (pageParam?.before) {
+            // eslint-disable-next-line no-restricted-syntax
+          } else if (pageParam && 'before' in pageParam) {
             url.searchParams.set('before', pageParam.before);
           }
 

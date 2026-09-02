@@ -441,6 +441,8 @@ describe('HyperLiquidProvider', () => {
       clearAll: jest.fn(),
       isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
       getCachedPositions: jest.fn().mockReturnValue([]),
+      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
+      getCachedPositionsForDex: jest.fn().mockReturnValue(null),
       updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
       setDexMetaCache: jest.fn(),
@@ -532,10 +534,18 @@ describe('HyperLiquidProvider', () => {
       );
 
       mockClientService.getExchangeClient = jest.fn().mockReturnValue({
-        order: jest.fn().mockResolvedValue({
-          status: 'ok',
-          response: { data: { statuses: [{ resting: { oid: '123' } }] } },
-        }),
+        order: jest.fn().mockImplementation((request: { orders: unknown[] }) =>
+          Promise.resolve({
+            status: 'ok',
+            response: {
+              data: {
+                statuses: request.orders.map((_order, index) => ({
+                  resting: { oid: 123 + index },
+                })),
+              },
+            },
+          }),
+        ),
         modify: jest.fn().mockResolvedValue({
           status: 'ok',
           response: { data: { statuses: [{ resting: { oid: '123' } }] } },
@@ -662,8 +672,8 @@ describe('HyperLiquidProvider', () => {
       expect(
         mockClientService.getExchangeClient().approveBuilderFee,
       ).toHaveBeenCalledWith({
-        builder: expect.any(String),
-        maxFeeRate: expect.stringContaining('%'),
+        builder: BUILDER_FEE_CONFIG.MainnetBuilder,
+        maxFeeRate: BUILDER_FEE_CONFIG.MaxFeeRate,
       });
 
       // Note: Referral setup is fire-and-forget (non-blocking), so we can't reliably
@@ -1053,8 +1063,6 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.updatePositionTPSL(updateParams);
 
-      expect(result.success).toBe(true);
-
       // Verify builder fee approval was called
       expect(
         mockClientService.getExchangeClient().approveBuilderFee,
@@ -1076,11 +1084,85 @@ describe('HyperLiquidProvider', () => {
           orders: expect.any(Array),
           grouping: 'positionTpsl',
           builder: {
-            b: expect.any(String),
-            f: expect.any(Number),
+            b: BUILDER_FEE_CONFIG.MainnetBuilder,
+            f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
           },
         }),
       );
+      expect(result.success).toBe(true);
+    });
+
+    it('uses HTTP for builder fee reads during a cold-start TP/SL update', async () => {
+      const webSocketMaxBuilderFee = jest
+        .fn()
+        .mockRejectedValue(
+          Object.assign(
+            new Error(
+              'WebSocket connection closed before the request was sent',
+            ),
+            { name: 'WebSocketRequestError' },
+          ),
+        );
+      const httpMaxBuilderFee = jest
+        .fn()
+        .mockResolvedValue(BUILDER_FEE_CONFIG.MaxFeeDecimal);
+      const webSocketInfoClient = createMockInfoClient({
+        maxBuilderFee: webSocketMaxBuilderFee,
+      });
+      const httpInfoClient = createMockInfoClient({
+        maxBuilderFee: httpMaxBuilderFee,
+      });
+      mockClientService.getInfoClient.mockImplementation((options) =>
+        options?.useHttp ? httpInfoClient : webSocketInfoClient,
+      );
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '55000',
+        stopLossPrice: '45000',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
+        useHttp: true,
+      });
+      expect(httpMaxBuilderFee).toHaveBeenCalledWith({
+        user: '0x1234567890123456789012345678901234567890',
+        builder: BUILDER_FEE_CONFIG.MainnetBuilder,
+      });
+      expect(webSocketMaxBuilderFee).not.toHaveBeenCalled();
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalledWith(
+        expect.objectContaining({ grouping: 'positionTpsl' }),
+      );
+    });
+
+    it('uses a builder approval completed while acquiring the global lock', async () => {
+      const mockedCache = PerpsSigningCache as jest.Mocked<
+        typeof PerpsSigningCache
+      >;
+      mockedCache.getBuilderFee
+        .mockReturnValueOnce(undefined)
+        .mockReturnValueOnce({ attempted: true, success: true });
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '55000',
+        stopLossPrice: '45000',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockedCache.getBuilderFee).toHaveBeenCalledTimes(2);
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalledWith(
+        expect.objectContaining({
+          builder: {
+            b: BUILDER_FEE_CONFIG.MainnetBuilder,
+            f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+          },
+        }),
+      );
+      expect(
+        mockClientService.getExchangeClient().approveBuilderFee,
+      ).not.toHaveBeenCalled();
     });
 
     it('skips referral setup when user is the builder', async () => {
