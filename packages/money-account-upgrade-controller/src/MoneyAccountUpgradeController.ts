@@ -19,19 +19,35 @@ import type {
 } from '@metamask/chomp-api-service';
 import type { DelegationControllerSignDelegationAction } from '@metamask/delegation-controller';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
+  KeyringControllerGetStateAction,
   KeyringControllerSignEip7702AuthorizationAction,
   KeyringControllerSignPersonalMessageAction,
+  KeyringControllerState,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
+import {
+  areMoneyAccountVaultConfigsEqual,
+  getMoneyAccountVaultConfig,
+} from '@metamask/money-account-utils';
+import type { MoneyAccountVaultConfig } from '@metamask/money-account-utils';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
+import type {
+  FeatureFlags,
+  RemoteFeatureFlagControllerGetStateAction,
+  RemoteFeatureFlagControllerState,
+} from '@metamask/remote-feature-flag-controller';
 import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { MoneyAccountUpgradeStepError } from './errors.js';
+import {
+  MissingMoneyAccountVaultConfigError,
+  MoneyAccountUpgradeStepError,
+} from './errors.js';
 import type { MoneyAccountUpgradeControllerMethodActions } from './MoneyAccountUpgradeController-method-action-types.js';
 import { associateAddressStep } from './steps/associate-address.js';
 import { buildDelegationStep } from './steps/build-delegations.js';
@@ -117,10 +133,12 @@ type AllowedActions =
   | ChompApiServiceGetServiceDetailsAction
   | ChompApiServiceVerifyDelegationAction
   | DelegationControllerSignDelegationAction
+  | KeyringControllerGetStateAction
   | KeyringControllerSignEip7702AuthorizationAction
   | KeyringControllerSignPersonalMessageAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | RemoteFeatureFlagControllerGetStateAction;
 
 export type MoneyAccountUpgradeControllerStateChangedEvent =
   ControllerStateChangedEvent<
@@ -131,7 +149,12 @@ export type MoneyAccountUpgradeControllerStateChangedEvent =
 export type MoneyAccountUpgradeControllerEvents =
   MoneyAccountUpgradeControllerStateChangedEvent;
 
-type AllowedEvents = never;
+type AllowedEvents =
+  | ControllerStateChangedEvent<'KeyringController', KeyringControllerState>
+  | ControllerStateChangedEvent<
+      'RemoteFeatureFlagController',
+      RemoteFeatureFlagControllerState
+    >;
 
 export type MoneyAccountUpgradeControllerMessenger = Messenger<
   typeof controllerName,
@@ -140,7 +163,70 @@ export type MoneyAccountUpgradeControllerMessenger = Messenger<
 >;
 
 /**
- * Controller that orchestrates the Money Account upgrade sequence.
+ * The hooks a client supplies for the parts of the bootstrap that cannot be
+ * decided in this package.
+ */
+export type MoneyAccountUpgradeControllerHooks = {
+  /**
+   * Whether the Money Account feature is enabled for this client. Called with
+   * the current remote feature flags on every sync and re-checked across the
+   * bootstrap's `await` points; it must re-read any client state it depends
+   * on (e.g. a version-gated flag, a "basic functionality" toggle) rather
+   * than caching it. Returning `false` after a successful bootstrap disarms
+   * the controller: `upgradeAccount` refuses to run until a later sync
+   * re-bootstraps.
+   */
+  isEnabled: (remoteFeatureFlags: FeatureFlags) => boolean;
+
+  /**
+   * An asynchronous client gate checked once per bootstrap run, before any
+   * network is added or external service is called — e.g. a fail-closed
+   * geolocation check. A run skipped here is forgotten and retried on the
+   * next sync trigger. Defaults to always eligible.
+   */
+  isEligible?: () => Promise<boolean>;
+
+  /**
+   * Ensure the vault chain exists in the client's NetworkController before
+   * the bootstrap validates it. Adding a network is client-specific (featured
+   * network lists, enabled-network bookkeeping), so the controller only
+   * promises to have awaited this before calling
+   * `NetworkController:findNetworkClientIdByChainId` consumers. Defaults to a
+   * no-op.
+   */
+  ensureChainConfigured?: (vaultConfig: MoneyAccountVaultConfig) => Promise<void>;
+
+  /**
+   * Called when a bootstrap run fails or cannot be scheduled. Receives a
+   * {@link MissingMoneyAccountVaultConfigError} (once per controller
+   * lifetime) when the enable flag is on but `moneyAccountVaultConfig` is
+   * unserved or malformed. The controller never throws out of its
+   * subscriptions; this hook is the only failure signal.
+   */
+  onBootstrapError?: (error: unknown) => void;
+};
+
+/**
+ * Controller that owns the Money Account upgrade sequence and its own
+ * bootstrap.
+ *
+ * After {@link MoneyAccountUpgradeController.init} is called (once, after all
+ * controllers are constructed), the controller watches
+ * `RemoteFeatureFlagController` and `KeyringController` state and bootstraps
+ * itself when every gate is open:
+ *
+ * 1. the client's `isEnabled` hook returns `true` for the current flags,
+ * 2. the wallet is unlocked with an HD keyring,
+ * 3. the client's `isEligible` hook (if any) resolves `true`, and
+ * 4. the `moneyAccountVaultConfig` flag parses.
+ *
+ * The bootstrap awaits the client's `ensureChainConfigured` hook and then
+ * fetches CHOMP service details to arm the upgrade config. Gates 1–2 are
+ * re-checked across the `await` points so a lock or an `isEnabled` flip
+ * mid-bootstrap cannot still produce an external call; a skipped or failed
+ * run is forgotten so the next trigger retries it. The bootstrap re-runs
+ * whenever the vault config changes, and `isEnabled` going `false` disarms
+ * the controller entirely.
  */
 export class MoneyAccountUpgradeController extends BaseController<
   typeof controllerName,
@@ -148,6 +234,28 @@ export class MoneyAccountUpgradeController extends BaseController<
   MoneyAccountUpgradeControllerMessenger
 > {
   #config?: UpgradeConfig & { chainId: Hex };
+
+  readonly #isEnabled: MoneyAccountUpgradeControllerHooks['isEnabled'];
+
+  readonly #isEligible: NonNullable<
+    MoneyAccountUpgradeControllerHooks['isEligible']
+  >;
+
+  readonly #ensureChainConfigured: NonNullable<
+    MoneyAccountUpgradeControllerHooks['ensureChainConfigured']
+  >;
+
+  readonly #onBootstrapError: NonNullable<
+    MoneyAccountUpgradeControllerHooks['onBootstrapError']
+  >;
+
+  #initialized = false;
+
+  #bootstrap?: Promise<void>;
+
+  #bootstrappedConfig?: MoneyAccountVaultConfig;
+
+  #missingConfigReported = false;
 
   readonly #steps: Step[] = [
     associateAddressStep,
@@ -162,13 +270,17 @@ export class MoneyAccountUpgradeController extends BaseController<
    * @param options - The options for constructing the controller.
    * @param options.messenger - The messenger to use for inter-controller communication.
    * @param options.state - The initial state, merged with the defaults.
+   * @param options.hooks - The client hooks for the bootstrap; see
+   * {@link MoneyAccountUpgradeControllerHooks}.
    */
   constructor({
     messenger,
     state,
+    hooks,
   }: {
     messenger: MoneyAccountUpgradeControllerMessenger;
     state?: Partial<MoneyAccountUpgradeControllerState>;
+    hooks: MoneyAccountUpgradeControllerHooks;
   }) {
     super({
       messenger,
@@ -180,6 +292,12 @@ export class MoneyAccountUpgradeController extends BaseController<
       },
     });
 
+    this.#isEnabled = hooks.isEnabled;
+    this.#isEligible = hooks.isEligible ?? (async (): Promise<boolean> => true);
+    this.#ensureChainConfigured =
+      hooks.ensureChainConfigured ?? (async (): Promise<void> => undefined);
+    this.#onBootstrapError = hooks.onBootstrapError ?? ((): void => undefined);
+
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
@@ -187,24 +305,178 @@ export class MoneyAccountUpgradeController extends BaseController<
   }
 
   /**
-   * Fetches service details and validates the controller can operate on the
-   * given chain. Resolves the Delegation Framework contract addresses for the
-   * chain from `@metamask/delegation-deployments`.
-   *
-   * @param params - The parameters for initialization.
-   * @param params.chainId - The chain to initialize for.
-   * @param params.boringVaultAddress - The Veda boring vault contract
-   * (vmUSD) for the given chain. Used as the withdrawal-side delegation
-   * token. Supplied by the consumer until the CHOMP service-details API
-   * exposes it.
+   * Start the controller's bootstrap: subscribe to the feature-flag and
+   * keyring triggers and run an initial sync. Call once, after all
+   * controllers and services the messenger reaches are constructed — this is
+   * the only method that may be called before the controller is bootstrapped,
+   * and it is the reason the constructor performs no messenger calls.
    */
-  async init({
-    chainId,
-    boringVaultAddress,
-  }: {
-    chainId: Hex;
-    boringVaultAddress: Hex;
-  }): Promise<void> {
+  init(): void {
+    if (this.#initialized) {
+      return;
+    }
+    this.#initialized = true;
+
+    this.messenger.subscribe('RemoteFeatureFlagController:stateChanged', () =>
+      this.sync(),
+    );
+    this.messenger.subscribe('KeyringController:stateChanged', () =>
+      this.sync(),
+    );
+    this.sync();
+  }
+
+  /**
+   * Re-evaluate the bootstrap gates against live state and schedule a
+   * bootstrap run when they are open and the vault config is new. Runs on
+   * every feature-flag and keyring state change; clients with additional
+   * gates read inside their `isEnabled` hook (onboarding, preferences)
+   * should call this when those change too. Never throws: a failure is
+   * reported through `onBootstrapError` and retried on the next trigger.
+   */
+  sync(): void {
+    try {
+      const { remoteFeatureFlags } = this.messenger.call(
+        'RemoteFeatureFlagController:getState',
+      );
+
+      if (!this.#isEnabled(remoteFeatureFlags)) {
+        // Disarm so a later `upgradeAccount` cannot run against a config
+        // armed while the feature was still enabled. Re-enabling re-runs the
+        // bootstrap from scratch.
+        this.#config = undefined;
+        this.#bootstrappedConfig = undefined;
+        return;
+      }
+
+      if (!this.#isWalletReady()) {
+        return;
+      }
+
+      const vaultConfig = getMoneyAccountVaultConfig(remoteFeatureFlags);
+      if (!vaultConfig) {
+        this.#reportMissingConfig();
+        return;
+      }
+
+      if (
+        this.#bootstrappedConfig &&
+        areMoneyAccountVaultConfigsEqual(vaultConfig, this.#bootstrappedConfig)
+      ) {
+        return;
+      }
+
+      this.#scheduleBootstrap(vaultConfig);
+    } catch (error) {
+      this.#onBootstrapError(error);
+    }
+  }
+
+  /**
+   * Whether the wallet can sign right now: unlocked with an HD keyring. The
+   * keyring list matters because during a vault restore the unlock flips
+   * before the keyrings land in state.
+   *
+   * @returns Whether the wallet is ready.
+   */
+  #isWalletReady(): boolean {
+    const { isUnlocked, keyrings } = this.messenger.call(
+      'KeyringController:getState',
+    );
+    return (
+      isUnlocked && keyrings.some((keyring) => keyring.type === KeyringTypes.hd)
+    );
+  }
+
+  /**
+   * Whether the synchronous bootstrap gates are open right now. Re-read from
+   * live state on every call because the bootstrap re-validates them across
+   * its `await` points.
+   *
+   * @returns Whether the bootstrap may proceed.
+   */
+  #areGatesOpen(): boolean {
+    const { remoteFeatureFlags } = this.messenger.call(
+      'RemoteFeatureFlagController:getState',
+    );
+    return this.#isEnabled(remoteFeatureFlags) && this.#isWalletReady();
+  }
+
+  #scheduleBootstrap(vaultConfig: MoneyAccountVaultConfig): void {
+    this.#bootstrappedConfig = vaultConfig;
+
+    const run = async (): Promise<void> => {
+      // The gates were checked when this run was scheduled, but it may start
+      // much later, chained behind an in-flight bootstrap. Eligibility comes
+      // after the gates so a disabled client also skips the (possibly
+      // external) eligibility lookup.
+      if (!this.#areGatesOpen() || !(await this.#isEligible())) {
+        this.#forget(vaultConfig);
+        return;
+      }
+
+      await this.#ensureChainConfigured(vaultConfig);
+
+      // Configuring the chain can suspend for a while, so re-check the gates
+      // before the external CHOMP call.
+      if (!this.#areGatesOpen()) {
+        this.#forget(vaultConfig);
+        return;
+      }
+
+      await this.#applyVaultConfig(vaultConfig);
+    };
+
+    const bootstrap = this.#bootstrap
+      ? this.#bootstrap.catch(() => undefined).then(run)
+      : run();
+    this.#bootstrap = bootstrap;
+
+    bootstrap.catch((error) => {
+      this.#onBootstrapError(error);
+      this.#forget(vaultConfig);
+    });
+  }
+
+  /**
+   * Forget a scheduled bootstrap that was skipped or failed, so the next
+   * trigger re-runs it — but only if no newer config has been scheduled
+   * meanwhile: a newer config supersedes this run, success or failure.
+   *
+   * @param vaultConfig - The config the abandoned run was scheduled with.
+   */
+  #forget(vaultConfig: MoneyAccountVaultConfig): void {
+    if (this.#bootstrappedConfig === vaultConfig) {
+      this.#bootstrappedConfig = undefined;
+    }
+  }
+
+  /**
+   * Report a served enable flag without a usable `moneyAccountVaultConfig` —
+   * a flag misconfiguration that silently disables upgrades. Reported once
+   * per controller lifetime; flag refreshes arrive continuously and would
+   * otherwise spam.
+   */
+  #reportMissingConfig(): void {
+    if (!this.#missingConfigReported) {
+      this.#missingConfigReported = true;
+      this.#onBootstrapError(new MissingMoneyAccountVaultConfigError());
+    }
+  }
+
+  /**
+   * Fetches service details and validates the controller can operate on the
+   * vault's chain, arming the upgrade config `upgradeAccount` runs against.
+   * Resolves the Delegation Framework contract addresses for the chain from
+   * `@metamask/delegation-deployments`.
+   *
+   * @param vaultConfig - The vault config to arm; its `boringVault` is the
+   * withdrawal-side delegation token (vmUSD), supplied via the flag until
+   * the CHOMP service-details API exposes it.
+   */
+  async #applyVaultConfig(vaultConfig: MoneyAccountVaultConfig): Promise<void> {
+    const { chainId, boringVault: boringVaultAddress } = vaultConfig;
+
     const contracts =
       DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][hexToNumber(chainId)];
     if (!contracts) {
@@ -263,12 +535,19 @@ export class MoneyAccountUpgradeController extends BaseController<
    * active config no longer matches the recorded fingerprint, the sequence
    * re-runs.
    *
+   * A call that arrives while the bootstrap is still in flight waits for it
+   * rather than failing; it only throws when no bootstrap has armed a config
+   * (feature disabled, wallet locked, or the last bootstrap failed).
+   *
    * @param address - The Money Account address to upgrade.
    */
   async upgradeAccount(address: Hex): Promise<void> {
+    if (!this.#config && this.#bootstrap) {
+      await this.#bootstrap.catch(() => undefined);
+    }
     if (!this.#config) {
       throw new Error(
-        'MoneyAccountUpgradeController must be initialized via init() before upgradeAccount() can be called',
+        'MoneyAccountUpgradeController is not bootstrapped: upgradeAccount() requires the feature flag on, the wallet unlocked, and a successful bootstrap',
       );
     }
     const config = this.#config;

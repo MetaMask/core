@@ -19,6 +19,10 @@ import type { MoneyAccountUpgradeController } from './MoneyAccountUpgradeControl
  * active config no longer matches the recorded fingerprint, the sequence
  * re-runs.
  *
+ * A call that arrives while the bootstrap is still in flight waits for it
+ * rather than failing; it only throws when no bootstrap has armed a config
+ * (feature disabled, wallet locked, or the last bootstrap failed).
+ *
  * @param address - The Money Account address to upgrade.
  */
 export type MoneyAccountUpgradeControllerUpgradeAccountAction = {

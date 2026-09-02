@@ -53,6 +53,21 @@ export class TerminalUpgradeError extends Error {
 }
 
 /**
+ * Error reported through the `onBootstrapError` hook when the Money Account
+ * enable flag is on but the `moneyAccountVaultConfig` flag is unserved or
+ * malformed — a flag misconfiguration that silently disables upgrades.
+ * Reported once per controller lifetime.
+ */
+export class MissingMoneyAccountVaultConfigError extends Error {
+  constructor() {
+    super(
+      'Money Account upgrade bootstrap skipped: vault configuration is unavailable',
+    );
+    this.name = 'MissingMoneyAccountVaultConfigError';
+  }
+}
+
+/**
  * Type guard for {@link MoneyAccountUpgradeStepError}.
  *
  * Uses a structural check rather than `instanceof` so it holds across module
