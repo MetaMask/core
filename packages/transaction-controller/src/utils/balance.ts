@@ -51,22 +51,22 @@ export async function isNativeBalanceSufficientForGas(
   messenger: TransactionControllerMessenger,
   networkClientId: NetworkClientId,
 ): Promise<boolean> {
-  const from = transaction.txParams.from as Hex;
-  const gas = transaction.txParams.gas;
-  const maxFeePerGas =
-    transaction.txParams.maxFeePerGas ?? transaction.txParams.gasPrice;
+  const {
+    txParams: { from, gas, maxFeePerGas, gasPrice },
+  } = transaction;
+  const maxFeePerGasValue = maxFeePerGas ?? gasPrice;
 
   // Gas estimates can still be in flight (e.g. skipInitialGasEstimate). Treating
   // missing fee fields as zero makes every balance look sufficient and clears a
   // selected gas fee token before publish.
-  if (!gas || !maxFeePerGas) {
+  if (!gas || !maxFeePerGasValue) {
     return false;
   }
 
-  const gasCostRawValue = new BigNumber(gas).multipliedBy(maxFeePerGas);
+  const gasCostRawValue = new BigNumber(gas).multipliedBy(maxFeePerGasValue);
 
   const { balanceRaw } = await getNativeBalance(
-    from,
+    from as Hex,
     messenger,
     networkClientId,
   );
