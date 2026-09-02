@@ -902,6 +902,80 @@ describe('MoneyAccountUpgradeController', () => {
       expect(mocks.signPersonalMessage).toHaveBeenCalled();
     });
 
+    it('waits for an in-flight re-bootstrap instead of using the superseded config', async () => {
+      let resolveSecond: (value?: unknown) => void = () => undefined;
+      const { controller, config, mocks, bootstrap, triggerFlagChange } =
+        setup();
+      await bootstrap();
+      mocks.getServiceDetails.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSecond = resolve;
+          }),
+      );
+      config.vaultConfig = CHANGED_VAULT_CONFIG;
+      await triggerFlagChange();
+
+      const upgrade = controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+      await flushPromises();
+      expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
+
+      resolveSecond(MOCK_SERVICE_DETAILS_RESPONSE);
+
+      expect(await upgrade).toBeUndefined();
+      expect(mocks.signPersonalMessage).toHaveBeenCalled();
+    });
+
+    it('waits for a run chained on while it was already waiting', async () => {
+      let resolveFirst: (value?: unknown) => void = () => undefined;
+      const { controller, config, mocks, triggerFlagChange } = setup();
+      mocks.getServiceDetails.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          }),
+      );
+      controller.init();
+      await flushPromises();
+
+      // The upgrade captures the first run's promise; a config change then
+      // chains a second run, which supersedes the first.
+      const upgrade = controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+      config.vaultConfig = CHANGED_VAULT_CONFIG;
+      await triggerFlagChange();
+      resolveFirst(MOCK_SERVICE_DETAILS_RESPONSE);
+
+      expect(await upgrade).toBeUndefined();
+      expect(mocks.getServiceDetails).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws instead of using the superseded config when a re-bootstrap fails', async () => {
+      const {
+        controller,
+        config,
+        mocks,
+        bootstrap,
+        triggerFlagChange,
+        triggerKeyringChange,
+      } = setup();
+      await bootstrap();
+      mocks.getServiceDetails.mockRejectedValueOnce(new Error('CHOMP outage'));
+      config.vaultConfig = CHANGED_VAULT_CONFIG;
+      await triggerFlagChange();
+
+      await expect(
+        controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('MoneyAccountUpgradeController is not bootstrapped');
+
+      // The next trigger retries the bootstrap; once it succeeds the
+      // upgrade runs against the new config.
+      await triggerKeyringChange();
+
+      expect(
+        await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
+      ).toBeUndefined();
+    });
+
     it('throws after the isEnabled hook flips off and a sync disarms the controller', async () => {
       const { controller, config, mocks, bootstrap, triggerFlagChange } =
         setup();

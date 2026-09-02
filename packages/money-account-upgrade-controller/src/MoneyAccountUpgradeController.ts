@@ -407,6 +407,12 @@ export class MoneyAccountUpgradeController extends BaseController<
   #scheduleBootstrap(vaultConfig: MoneyAccountVaultConfig): void {
     this.#bootstrappedConfig = vaultConfig;
 
+    // Scheduling means the served vault config no longer matches whatever is
+    // armed, so disarm now: until this run succeeds, `upgradeAccount` must
+    // wait for it (or refuse if it fails) rather than sign delegations
+    // against the superseded vault.
+    this.#config = undefined;
+
     const run = async (): Promise<void> => {
       // The gates were checked when this run was scheduled, but it may start
       // much later, chained behind an in-flight bootstrap. Eligibility comes
@@ -544,15 +550,22 @@ export class MoneyAccountUpgradeController extends BaseController<
    * active config no longer matches the recorded fingerprint, the sequence
    * re-runs.
    *
-   * A call that arrives while the bootstrap is still in flight waits for it
-   * rather than failing; it only throws when no bootstrap has armed a config
-   * (feature disabled, wallet locked, or the last bootstrap failed).
+   * A call that arrives while the bootstrap chain is still in flight —
+   * including runs scheduled while waiting — waits for it to settle rather
+   * than failing, so the upgrade always runs against the latest armed
+   * config. Scheduling a bootstrap for a changed vault config disarms the
+   * previous one, so it only throws when no bootstrap has armed a config:
+   * feature disabled, wallet locked, or the last bootstrap failed.
    *
    * @param address - The Money Account address to upgrade.
    */
   async upgradeAccount(address: Hex): Promise<void> {
-    if (!this.#config && this.#bootstrap) {
-      await this.#bootstrap.catch(() => undefined);
+    let bootstrap = this.#bootstrap;
+    while (bootstrap) {
+      await bootstrap.catch(() => undefined);
+      // A newer run may have been chained on while we waited; wait for that
+      // one too, until the chain settles.
+      bootstrap = this.#bootstrap === bootstrap ? undefined : this.#bootstrap;
     }
     if (!this.#config) {
       throw new Error(
