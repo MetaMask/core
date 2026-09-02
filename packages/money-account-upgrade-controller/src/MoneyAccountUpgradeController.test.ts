@@ -456,11 +456,14 @@ describe('MoneyAccountUpgradeController', () => {
     it('is idempotent: a second init() does not re-subscribe or re-bootstrap', async () => {
       const { controller, mocks, bootstrap, triggerFlagChange } = setup();
       await bootstrap();
+      const syncsAfterFirstInit = mocks.isEnabled.mock.calls.length;
 
       controller.init();
       await flushPromises();
-      await triggerFlagChange();
+      expect(mocks.isEnabled).toHaveBeenCalledTimes(syncsAfterFirstInit);
 
+      await triggerFlagChange();
+      expect(mocks.isEnabled).toHaveBeenCalledTimes(syncsAfterFirstInit + 1);
       expect(mocks.getServiceDetails).toHaveBeenCalledTimes(1);
     });
 
@@ -607,6 +610,45 @@ describe('MoneyAccountUpgradeController', () => {
       await triggerFlagChange();
 
       expect(mocks.getServiceDetails).toHaveBeenCalledTimes(1);
+    });
+
+    it('skips a chained run entirely when the wallet locks before it starts', async () => {
+      let resolveServiceDetails: (value?: unknown) => void = () => undefined;
+      const {
+        config,
+        mocks,
+        bootstrap,
+        triggerFlagChange,
+        triggerKeyringChange,
+      } = setup();
+      mocks.getServiceDetails
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveServiceDetails = resolve;
+            }),
+        )
+        .mockResolvedValue(MOCK_SERVICE_DETAILS_RESPONSE);
+      await bootstrap();
+
+      config.vaultConfig = CHANGED_VAULT_CONFIG;
+      await triggerFlagChange();
+      config.isUnlocked = false;
+      await triggerKeyringChange();
+      resolveServiceDetails(MOCK_SERVICE_DETAILS_RESPONSE);
+      await flushPromises();
+
+      expect(mocks.isEligible).toHaveBeenCalledTimes(1);
+      expect(mocks.ensureChainConfigured).toHaveBeenCalledTimes(1);
+      expect(mocks.getServiceDetails).toHaveBeenCalledTimes(1);
+
+      config.isUnlocked = true;
+      await triggerKeyringChange();
+
+      expect(mocks.ensureChainConfigured).toHaveBeenLastCalledWith(
+        CHANGED_VAULT_CONFIG,
+      );
+      expect(mocks.getServiceDetails).toHaveBeenCalledTimes(2);
     });
 
     it('reports a missing vault config through onBootstrapError only once', async () => {
@@ -776,6 +818,34 @@ describe('MoneyAccountUpgradeController', () => {
 
       expect(() => controller.sync()).not.toThrow();
       expect(mocks.onBootstrapError).toHaveBeenCalledWith(failure);
+    });
+
+    it('still retries a failed bootstrap when the onBootstrapError hook throws', async () => {
+      const { mocks, bootstrap, triggerKeyringChange } = setup();
+      mocks.getServiceDetails
+        .mockRejectedValueOnce(new Error('CHOMP outage'))
+        .mockResolvedValue(MOCK_SERVICE_DETAILS_RESPONSE);
+      mocks.onBootstrapError.mockImplementationOnce(() => {
+        throw new Error('reporter is broken');
+      });
+
+      await bootstrap();
+      await triggerKeyringChange();
+
+      expect(mocks.getServiceDetails).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not let a throwing onBootstrapError hook escape sync', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      await bootstrap();
+      mocks.isEnabled.mockImplementationOnce(() => {
+        throw new Error('handler not registered');
+      });
+      mocks.onBootstrapError.mockImplementationOnce(() => {
+        throw new Error('reporter is broken');
+      });
+
+      expect(() => controller.sync()).not.toThrow();
     });
   });
 
@@ -1022,6 +1092,79 @@ describe('MoneyAccountUpgradeController', () => {
       await triggerFlagChange();
 
       expect(mocks.getServiceDetails).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws without running any step while the wallet is locked, and resumes on unlock without re-bootstrapping', async () => {
+      const { controller, config, mocks, bootstrap, triggerKeyringChange } =
+        setup();
+      await bootstrap();
+
+      config.isUnlocked = false;
+      await triggerKeyringChange();
+
+      await expect(
+        controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow(
+        'MoneyAccountUpgradeController is not bootstrapped: upgradeAccount() requires the feature flag on, the wallet unlocked, and a successful bootstrap',
+      );
+      expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
+
+      config.isUnlocked = true;
+      await triggerKeyringChange();
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      expect(mocks.getServiceDetails).toHaveBeenCalledTimes(1);
+      expect(
+        controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS],
+      ).toBeDefined();
+    });
+
+    it('aborts the sequence without signing further when disarmed mid-run', async () => {
+      const { controller, config, mocks, bootstrap, triggerFlagChange } =
+        setup();
+      await bootstrap();
+      mocks.signPersonalMessage.mockImplementationOnce(async () => {
+        config.isEnabled = false;
+        await triggerFlagChange();
+        return '0xdeadbeef';
+      });
+
+      await expect(
+        controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow(
+        'MoneyAccountUpgradeController upgrade aborted: the upgrade config was disarmed or superseded while the sequence was running',
+      );
+
+      expect(mocks.signEip7702Authorization).not.toHaveBeenCalled();
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
+      expect(controller.state.upgradedAccounts).toStrictEqual({});
+    });
+
+    it('aborts the sequence when the vault config changes mid-run, then upgrades against the new config', async () => {
+      const { controller, config, mocks, bootstrap, triggerFlagChange } =
+        setup();
+      await bootstrap();
+      mocks.signEip7702Authorization.mockImplementationOnce(async () => {
+        config.vaultConfig = CHANGED_VAULT_CONFIG;
+        await triggerFlagChange();
+        return `0x${'1'.repeat(64)}${'2'.repeat(64)}1c`;
+      });
+
+      await expect(
+        controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('MoneyAccountUpgradeController upgrade aborted');
+
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
+      expect(controller.state.upgradedAccounts).toStrictEqual({});
+      expect(mocks.getServiceDetails).toHaveBeenCalledTimes(2);
+
+      clearMockCalls(mocks);
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      expect(mocks.signDelegation).toHaveBeenCalled();
+      expect(
+        controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS],
+      ).toBeDefined();
     });
 
     it('runs each step against the deployment-derived contract addresses', async () => {

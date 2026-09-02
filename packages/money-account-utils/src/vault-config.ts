@@ -15,6 +15,10 @@ export const MONEY_ACCOUNT_VAULT_CONFIG_FLAG_NAME = 'moneyAccountVaultConfig';
 /**
  * The Money Account vault contracts served via remote feature flags, with the
  * chain id and every address validated as known-good `Hex`.
+ *
+ * `underlyingToken` is optional because flags deployed before the field
+ * existed must still validate, matching the balance service's schema for the
+ * same flag.
  */
 export type MoneyAccountVaultConfig = {
   chainId: Hex;
@@ -22,7 +26,7 @@ export type MoneyAccountVaultConfig = {
   tellerAddress: Hex;
   accountantAddress: Hex;
   lensAddress: Hex;
-  underlyingToken: Hex;
+  underlyingToken?: Hex;
 };
 
 /**
@@ -63,26 +67,25 @@ export const parseMoneyAccountVaultConfig = (
   const tellerAddress = parseAddress(raw.tellerAddress);
   const accountantAddress = parseAddress(raw.accountantAddress);
   const lensAddress = parseAddress(raw.lensAddress);
-  const underlyingToken = parseAddress(raw.underlyingToken);
 
-  if (
-    !boringVault ||
-    !tellerAddress ||
-    !accountantAddress ||
-    !lensAddress ||
-    !underlyingToken
-  ) {
+  if (!boringVault || !tellerAddress || !accountantAddress || !lensAddress) {
     return undefined;
   }
 
-  return {
+  const config: MoneyAccountVaultConfig = {
     chainId,
     boringVault,
     tellerAddress,
     accountantAddress,
     lensAddress,
-    underlyingToken,
   };
+
+  if (raw.underlyingToken === undefined) {
+    return config;
+  }
+
+  const underlyingToken = parseAddress(raw.underlyingToken);
+  return underlyingToken ? { ...config, underlyingToken } : undefined;
 };
 
 /**

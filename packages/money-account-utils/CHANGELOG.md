@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add Money Account vault-config helpers, shared by the upgrade controller and clients ([#10072](https://github.com/MetaMask/core/pull/10072))
-  - `getMoneyAccountVaultConfig` and `parseMoneyAccountVaultConfig` read and validate the `moneyAccountVaultConfig` remote feature flag into a `MoneyAccountVaultConfig` whose chain id and addresses are known-good `Hex`
+  - `getMoneyAccountVaultConfig` and `parseMoneyAccountVaultConfig` read and validate the `moneyAccountVaultConfig` remote feature flag into a `MoneyAccountVaultConfig` whose chain id and addresses are known-good `Hex`; `underlyingToken` is optional so flags deployed before that field existed still parse
   - `areMoneyAccountVaultConfigsEqual` compares configs field by field so consumers keyed on the config (bootstraps, caches) can detect changes
   - `MONEY_ACCOUNT_VAULT_CONFIG_FLAG_NAME` names the flag
 

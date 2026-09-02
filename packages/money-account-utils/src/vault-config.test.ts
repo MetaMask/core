@@ -14,13 +14,14 @@ const VALID_CONFIG = {
   underlyingToken: '0xacA92E438df0B2401fF60dA7E4337B687a2435DA',
 } as const;
 
-const ADDRESS_KEYS = [
+const REQUIRED_ADDRESS_KEYS = [
   'boringVault',
   'tellerAddress',
   'accountantAddress',
   'lensAddress',
-  'underlyingToken',
 ] as const;
+
+const ADDRESS_KEYS = [...REQUIRED_ADDRESS_KEYS, 'underlyingToken'] as const;
 
 const INVALID_CHAIN_IDS: [string, unknown][] = [
   ['is not prefixed', '8f'],
@@ -92,7 +93,7 @@ describe('parseMoneyAccountVaultConfig', () => {
     });
   }
 
-  for (const key of ADDRESS_KEYS) {
+  for (const key of REQUIRED_ADDRESS_KEYS) {
     for (const [description, value] of INVALID_ADDRESSES) {
       it(`rejects a config whose ${key} ${description}`, () => {
         expect(
@@ -100,6 +101,30 @@ describe('parseMoneyAccountVaultConfig', () => {
         ).toBeUndefined();
       });
     }
+  }
+
+  // Flags deployed before `underlyingToken` existed must still parse, matching
+  // the balance service's schema for the same flag.
+  it('accepts a config without an underlyingToken', () => {
+    const { underlyingToken: _omitted, ...withoutUnderlyingToken } =
+      VALID_CONFIG;
+
+    expect(parseMoneyAccountVaultConfig(withoutUnderlyingToken)).toStrictEqual(
+      withoutUnderlyingToken,
+    );
+  });
+
+  for (const [description, value] of INVALID_ADDRESSES.filter(
+    ([, invalid]) => invalid !== undefined,
+  )) {
+    it(`rejects a config whose underlyingToken ${description}`, () => {
+      expect(
+        parseMoneyAccountVaultConfig({
+          ...VALID_CONFIG,
+          underlyingToken: value,
+        }),
+      ).toBeUndefined();
+    });
   }
 
   for (const [description, raw] of NON_OBJECT_FLAGS) {
@@ -152,4 +177,22 @@ describe('areMoneyAccountVaultConfigsEqual', () => {
       ).toBe(false);
     });
   }
+
+  it('treats configs that both omit the underlyingToken as equal', () => {
+    const { underlyingToken: _omitted, ...withoutUnderlyingToken } = config;
+
+    expect(
+      areMoneyAccountVaultConfigsEqual(withoutUnderlyingToken, {
+        ...withoutUnderlyingToken,
+      }),
+    ).toBe(true);
+  });
+
+  it('treats a config that gains an underlyingToken as changed', () => {
+    const { underlyingToken: _omitted, ...withoutUnderlyingToken } = config;
+
+    expect(
+      areMoneyAccountVaultConfigsEqual(withoutUnderlyingToken, config),
+    ).toBe(false);
+  });
 });

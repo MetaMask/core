@@ -370,7 +370,24 @@ export class MoneyAccountUpgradeController extends BaseController<
 
       this.#scheduleBootstrap(vaultConfig);
     } catch (error) {
+      this.#reportBootstrapError(error);
+    }
+  }
+
+  /**
+   * Hand a bootstrap failure to the client's `onBootstrapError` hook. A hook
+   * that throws must not break the controller: from a subscription it would
+   * surface as an unhandled rejection, and from `init()` it would abort the
+   * caller's startup.
+   *
+   * @param error - The failure to report.
+   */
+  #reportBootstrapError(error: unknown): void {
+    try {
       this.#onBootstrapError(error);
+    } catch {
+      // The hook is the client's error sink; there is nowhere else to send its
+      // own failure without recursing into it.
     }
   }
 
@@ -441,8 +458,8 @@ export class MoneyAccountUpgradeController extends BaseController<
     this.#bootstrap = bootstrap;
 
     bootstrap.catch((error) => {
-      this.#onBootstrapError(error);
       this.#forget(vaultConfig);
+      this.#reportBootstrapError(error);
     });
   }
 
@@ -468,7 +485,7 @@ export class MoneyAccountUpgradeController extends BaseController<
   #reportMissingConfig(): void {
     if (!this.#missingConfigReported) {
       this.#missingConfigReported = true;
-      this.#onBootstrapError(new MissingMoneyAccountVaultConfigError());
+      this.#reportBootstrapError(new MissingMoneyAccountVaultConfigError());
     }
   }
 
@@ -554,8 +571,12 @@ export class MoneyAccountUpgradeController extends BaseController<
    * including runs scheduled while waiting — waits for it to settle rather
    * than failing, so the upgrade always runs against the latest armed
    * config. Scheduling a bootstrap for a changed vault config disarms the
-   * previous one, so it only throws when no bootstrap has armed a config:
-   * feature disabled, wallet locked, or the last bootstrap failed.
+   * previous one, so it throws when no bootstrap has armed a config (feature
+   * disabled or the last bootstrap failed) or when the wallet is locked.
+   *
+   * The armed config is re-checked before every step: if a sync disarms or
+   * supersedes it while the sequence is running, the sequence aborts before
+   * the next step signs anything, and nothing is recorded.
    *
    * @param address - The Money Account address to upgrade.
    */
@@ -567,7 +588,9 @@ export class MoneyAccountUpgradeController extends BaseController<
       // one too, until the chain settles.
       bootstrap = this.#bootstrap === bootstrap ? undefined : this.#bootstrap;
     }
-    if (!this.#config) {
+    // A lock does not disarm the config (unlocking must not cost a CHOMP
+    // re-fetch), so the wallet has to be checked here as well.
+    if (!this.#config || !this.#areGatesOpen()) {
       throw new Error(
         'MoneyAccountUpgradeController is not bootstrapped: upgradeAccount() requires the feature flag on, the wallet unlocked, and a successful bootstrap',
       );
@@ -584,6 +607,11 @@ export class MoneyAccountUpgradeController extends BaseController<
     }
 
     for (const step of this.#steps) {
+      if (this.#config !== config) {
+        throw new Error(
+          'MoneyAccountUpgradeController upgrade aborted: the upgrade config was disarmed or superseded while the sequence was running',
+        );
+      }
       try {
         await step.run({
           messenger: this.messenger,
