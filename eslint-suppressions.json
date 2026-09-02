@@ -1501,11 +1501,6 @@
       "count": 2
     }
   },
-  "packages/perps-controller/src/utils/myxAdapter.ts": {
-    "@typescript-eslint/no-base-to-string": {
-      "count": 2
-    }
-  },
   "packages/perps-controller/src/utils/perpsConnectionAttemptContext.ts": {
     "require-atomic-updates": {
       "count": 1

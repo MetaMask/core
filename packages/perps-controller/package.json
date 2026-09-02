@@ -16,10 +16,7 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "files": [
-    "dist/",
-    "!dist/providers/MYXProvider*",
-    "!dist/services/MYXClientService*",
-    "!dist/services/MYXWalletService*"
+    "dist/"
   ],
   "sideEffects": false,
   "main": "./dist/index.cjs",
@@ -131,9 +128,6 @@
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3",
     "viem": "^2.55.8"
-  },
-  "optionalDependencies": {
-    "@myx-trade/sdk": "^0.1.265"
   },
   "engines": {
     "node": "^18.18 || >=20"
