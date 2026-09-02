@@ -13,9 +13,7 @@ jest.mock('@tanstack/react-query', () => ({
 describe('useQuery', () => {
   it('calls the underlying TanStack query function', () => {
     const options = {
-      // Type assertion: `useQuery` wants `[string, ...Json[]]`,
-      // which is not the inferred type of this key.
-      queryKey: ['foo'] as ['foo'],
+      queryKey: ['foo'] as const,
     };
     expect(() => useQuery(options)).not.toThrow();
     expect(useQueryTanStack).toHaveBeenCalledWith({
@@ -29,9 +27,7 @@ describe('useQuery', () => {
 describe('useInfiniteQuery', () => {
   it('calls the underlying TanStack query function', () => {
     const options = {
-      // Type assertion: `useQuery` wants `[string, ...Json[]]`,
-      // which is not the inferred type of this key.
-      queryKey: ['foo'] as ['foo'],
+      queryKey: ['foo'] as const,
       initialPageParam: undefined,
       getNextPageParam: (): undefined => undefined,
     };
