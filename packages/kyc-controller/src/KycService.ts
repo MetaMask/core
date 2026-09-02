@@ -501,7 +501,7 @@ export class KycService extends BaseDataService<
     // Guard nullish/empty geolocation with the documented domain error rather
     // than letting `assert(location, string())` surface a superstruct
     // assertion error (which would change how the failure reads in
-    // `disclaimersError`).
+    // `vendorError`).
     const alpha2 =
       typeof location === 'string' ? location.split('-')[0].toUpperCase() : '';
     if (!alpha2 || alpha2 === 'UNKNOWN') {

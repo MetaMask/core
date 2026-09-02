@@ -25,16 +25,19 @@ import type {
 import { controllerLog } from './logger.js';
 import type {
   KycConsentDocument,
+  KycConsentRecord,
   KycCustomerIdentity,
   KycDisclaimer,
   KycPhase,
   KycProduct,
+  KycProviderDisclaimersAccepted,
   KycSessionDisclaimers,
   KycSessionStatus,
   KycSumSubLauncher,
   KycSumSubStatus,
   KycUserStatus,
   KycVendor,
+  KycVendorDisclaimersAccepted,
 } from './types.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
 import { verifyJwtChain } from './ukyc/jwtChain.js';
@@ -46,6 +49,12 @@ import {
   signStorageAccessToken,
 } from './ukyc/storageAccessToken.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
+import {
+  clearVendorDisclaimerAcceptance,
+  hasVendorDisclaimerAcceptance,
+  ironDisclaimerIds,
+  recordVendorDisclaimerAcceptance,
+} from './vendorDisclaimerAcceptance.js';
 
 // === GENERAL ===
 
@@ -149,30 +158,27 @@ export type KycControllerState = {
   /** Email associated with the session (sourced from the account). */
   email: string | null;
 
-  /** ISO-8601 timestamp of the customer's terms acceptance (persisted). */
-  termsAcceptedAt: string | null;
-  /** IDs of the disclaimers the customer accepted (persisted). */
-  acceptedDisclaimerIds: string[];
   /**
-   * The vendor whose disclaimers `acceptedDisclaimerIds` belong to (persisted).
-   * Each vendor serves its own disclaimer set, so acceptance recorded for one
-   * vendor must not be reused for another. `null` when nothing is accepted.
+   * Persisted vendor-disclaimer acceptance (T&C1) with fixed `moonpay` and
+   * `iron` keys. MoonPay stores only `termsAcceptedAt`; Iron stores
+   * `disclaimerIds`.
    */
-  termsAcceptedVendor: KycVendor | null;
+  vendorDisclaimersAccepted: KycVendorDisclaimersAccepted;
   /**
-   * Whether the customer accepted the SumSub T&C (T&C2) during the last
-   * terms acceptance (persisted). Consents-path vendors require this flag
-   * when resuming a session. `null` for acceptance recorded before this
-   * field existed (treated as requiring reacceptance).
+   * KYC-provider disclaimer documents the customer accepted during the last
+   * terms acceptance (persisted `{ key, version }` records under `sumsub`).
+   * Consents-path vendors require this when resuming a session. `null` for
+   * acceptance recorded before this field existed (treated as requiring
+   * reacceptance).
    */
-  sumsubTncAccepted: boolean | null;
+  providerDisclaimersAccepted: KycProviderDisclaimersAccepted;
   /**
-   * Whether the customer accepted the idOS T&C (T&C2) during the last
-   * terms acceptance (persisted). Consents-path vendors require this flag
-   * when resuming a session. `null` for acceptance recorded before this
-   * field existed (treated as requiring reacceptance).
+   * idOS disclaimer documents the customer accepted during the last terms
+   * acceptance (persisted `{ key, version }` records). Consents-path vendors
+   * require this when resuming a session. `null` for acceptance recorded
+   * before this field existed (treated as requiring reacceptance).
    */
-  idosTncAccepted: boolean | null;
+  idosDisclaimersAccepted: KycConsentRecord[] | null;
   /**
    * Whether the customer consented to reuse existing idOS credentials
    * during this session. Applied when recording session-scoped disclaimers.
@@ -181,10 +187,10 @@ export type KycControllerState = {
    */
   credentialReusabilityConsentGiven: boolean | null;
 
-  /** Disclaimers fetched for the current country. */
-  disclaimers: KycDisclaimer[];
-  /** Error encountered while loading disclaimers, or `null`. */
-  disclaimersError: string | null;
+  /** Vendor disclaimers fetched for the current country. */
+  vendorDisclaimers: KycDisclaimer[];
+  /** Error encountered while loading vendor disclaimers, or `null`. */
+  vendorError: string | null;
   /**
    * idOS / KYC-provider disclaimer catalog from `GET /disclaimers` or
    * `GET /sessions/{sessionId}/disclaimers`. `null` until the catalog has
@@ -195,10 +201,10 @@ export type KycControllerState = {
   /** Resolved ISO 3166-1 alpha-3 country code. */
   geoCountry: string | null;
 
-  /** Vendor session token (not persisted, not logged). */
-  sessionToken: string | null;
-  /** Vendor access token (not persisted, not logged). */
-  accessToken: string | null;
+  /** MoonPay session token (not persisted, not logged). */
+  moonpaySessionToken: string | null;
+  /** MoonPay access token (not persisted, not logged). */
+  moonpayAccessToken: string | null;
   /** Vendor customer id, used for the SumSub hand-off. */
   moonpayCustomerId: string | null;
 
@@ -273,31 +279,19 @@ const kycControllerMetadata = {
     persist: false,
     usedInUi: false,
   },
-  termsAcceptedAt: {
+  vendorDisclaimersAccepted: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     persist: true,
     usedInUi: false,
   },
-  acceptedDisclaimerIds: {
+  providerDisclaimersAccepted: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     persist: true,
     usedInUi: false,
   },
-  termsAcceptedVendor: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: false,
-  },
-  sumsubTncAccepted: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: false,
-  },
-  idosTncAccepted: {
+  idosDisclaimersAccepted: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     persist: true,
@@ -309,13 +303,13 @@ const kycControllerMetadata = {
     persist: false,
     usedInUi: false,
   },
-  disclaimers: {
+  vendorDisclaimers: {
     includeInDebugSnapshot: false,
     includeInStateLogs: false,
     persist: false,
     usedInUi: true,
   },
-  disclaimersError: {
+  vendorError: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     persist: false,
@@ -333,13 +327,13 @@ const kycControllerMetadata = {
     persist: false,
     usedInUi: true,
   },
-  sessionToken: {
+  moonpaySessionToken: {
     includeInDebugSnapshot: false,
     includeInStateLogs: false,
     persist: false,
     usedInUi: false,
   },
-  accessToken: {
+  moonpayAccessToken: {
     includeInDebugSnapshot: false,
     includeInStateLogs: false,
     persist: false,
@@ -402,6 +396,19 @@ const kycControllerMetadata = {
 } satisfies StateMetadata<KycControllerState>;
 
 /**
+ * Constructs the default {@link KycVendorDisclaimersAccepted} value.
+ *
+ * @returns The default vendor-disclaimer acceptance map.
+ */
+export function getDefaultKycVendorDisclaimersAccepted(): KycVendorDisclaimersAccepted {
+  return { moonpay: null, iron: null };
+}
+
+export function getDefaultKycProviderDisclaimersAccepted(): KycProviderDisclaimersAccepted {
+  return { sumsub: null };
+}
+
+/**
  * Constructs the default {@link KycController} state.
  *
  * @returns The default state.
@@ -412,18 +419,16 @@ export function getDefaultKycControllerState(): KycControllerState {
     statusMessage: '',
     error: null,
     email: null,
-    termsAcceptedAt: null,
-    acceptedDisclaimerIds: [],
-    termsAcceptedVendor: null,
-    sumsubTncAccepted: null,
-    idosTncAccepted: null,
+    vendorDisclaimersAccepted: getDefaultKycVendorDisclaimersAccepted(),
+    providerDisclaimersAccepted: getDefaultKycProviderDisclaimersAccepted(),
+    idosDisclaimersAccepted: null,
     credentialReusabilityConsentGiven: null,
-    disclaimers: [],
-    disclaimersError: null,
+    vendorDisclaimers: [],
+    vendorError: null,
     sessionDisclaimers: null,
     geoCountry: null,
-    sessionToken: null,
-    accessToken: null,
+    moonpaySessionToken: null,
+    moonpayAccessToken: null,
     moonpayCustomerId: null,
     activeVendor: 'moonpay',
     activeProduct: null,
@@ -472,57 +477,89 @@ function isConsentConflictError(error: unknown): boolean {
 }
 
 /**
- * Maps a session-disclaimer catalog into the `{ key, version }` records the
- * record-consents API expects, or an empty list when the user declined that
- * category.
+ *
+ * @param value - The value to validate.
+ * @returns `true` when `value` is a valid consent record list.
+ */
+function isValidConsentRecordList(value: unknown): value is KycConsentRecord[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        typeof item === 'object' &&
+        item !== null &&
+        typeof (item as KycConsentRecord).key === 'string' &&
+        typeof (item as KycConsentRecord).version === 'string',
+    )
+  );
+}
+
+/**
+ * Maps accepted disclaimer records onto unconsented catalog documents.
  *
  * @param documents - Catalog documents for one consent category.
- * @param accepted - Whether the user accepted that category.
- * @returns Consent records, or `[]` when not accepted.
+ * @param accepted - Accepted `{ key, version }` records from the caller.
+ * @returns Consent records to POST, omitting already-consented documents.
  */
-function consentRecordsFromCatalog(
+function consentRecordsFromAcceptedList(
   documents: KycConsentDocument[],
-  accepted: boolean,
-): { key: string; version: string }[] {
-  if (!accepted) {
+  accepted: KycConsentRecord[],
+): KycConsentRecord[] {
+  if (accepted.length === 0) {
     return [];
   }
+  const acceptedKeys = new Set(
+    accepted.map((record) => `${record.key}:${record.version}`),
+  );
   return documents
-    .filter((document) => !document.consented)
+    .filter(
+      (document) =>
+        !document.consented &&
+        acceptedKeys.has(`${document.key}:${document.version}`),
+    )
     .map(({ key, version }) => ({ key, version }));
 }
 
 /**
- * Whether an accepted T&C2 category has no catalog documents. An empty list
- * would otherwise skip the POST and count as success.
+ * Whether accepted disclaimers reference a missing catalog category.
  *
  * @param documents - Catalog documents for one consent category.
- * @param accepted - Whether the user accepted that category.
- * @returns `true` when the user accepted and the catalog is empty.
+ * @param accepted - Accepted `{ key, version }` records from the caller.
+ * @returns `true` when the caller accepted docs but the catalog is empty.
  */
 function isAcceptedCategoryEmpty(
   documents: KycConsentDocument[],
-  accepted: boolean,
+  accepted: KycConsentRecord[],
 ): boolean {
-  return accepted && documents.length === 0;
+  return accepted.length > 0 && documents.length === 0;
 }
 
 /**
- * Whether an accepted category is still missing consent after a 409 re-GET:
- * empty catalog or any document still unconsented.
+ * Whether accepted disclaimers are still missing consent after a 409 re-GET:
+ * empty catalog or any accepted document still unconsented.
  *
  * @param documents - Latest catalog documents for one consent category.
- * @param accepted - Whether the user accepted that category.
+ * @param accepted - Accepted `{ key, version }` records from the caller.
  * @returns `true` when accepted documents are not fully consented.
  */
 function acceptedCategoryStillMissing(
   documents: KycConsentDocument[],
-  accepted: boolean,
+  accepted: KycConsentRecord[],
 ): boolean {
+  if (accepted.length === 0) {
+    return false;
+  }
+  if (documents.length === 0) {
+    return true;
+  }
+  const acceptedKeys = new Set(
+    accepted.map((record) => `${record.key}:${record.version}`),
+  );
+  const relevant = documents.filter((document) =>
+    acceptedKeys.has(`${document.key}:${document.version}`),
+  );
   return (
-    accepted &&
-    (documents.length === 0 ||
-      documents.some((document) => !document.consented))
+    relevant.length === 0 || relevant.some((document) => !document.consented)
   );
 }
 
@@ -828,8 +865,8 @@ export class KycController extends BaseController<
       }
       state.activeVendor = vendor;
       // MoonPay Check/Auth artifacts must not survive a switch to another
-      // vendor: leftover `sessionToken` would keep `buildCheckFrameUrl` alive,
-      // leftover `accessToken` / `#authClientToken` would keep Auth / KYC
+      // vendor: leftover `moonpaySessionToken` would keep `buildCheckFrameUrl` alive,
+      // leftover `moonpayAccessToken` / `#authClientToken` would keep Auth / KYC
       // calls bound to MoonPay, and leftover `moonpayCustomerId` would make
       // `getCustomerIdentity` report a MoonPay id under the wrong vendor.
       if (vendor !== 'moonpay') {
@@ -885,19 +922,21 @@ export class KycController extends BaseController<
     if (this.#generation !== generation) {
       return;
     }
-    this.#dropTermsUnlessForVendor(vendor);
-
-    const hasTerms =
-      Boolean(this.state.termsAcceptedAt) &&
-      this.state.acceptedDisclaimerIds.length > 0;
+    const hasTerms = hasVendorDisclaimerAcceptance(
+      this.state.vendorDisclaimersAccepted,
+      vendor,
+    );
 
     if (hasTerms && this.state.email) {
       if (usesConsentsFlow(vendor)) {
         // Consents-path vendors require T&C2 flags; if they weren't persisted
         // (i.e. null from pre-migration state), require reacceptance.
-        const sumsubTncSigned = this.state.sumsubTncAccepted;
-        const idosTncSigned = this.state.idosTncAccepted;
-        if (sumsubTncSigned === null || idosTncSigned === null) {
+        const { providerDisclaimersAccepted, idosDisclaimersAccepted } =
+          this.state;
+        if (
+          providerDisclaimersAccepted.sumsub === null ||
+          idosDisclaimersAccepted === null
+        ) {
           this.#applyUpdate((state) => {
             this.#clearAcceptedTerms(state);
             state.phase = 'terms';
@@ -906,12 +945,19 @@ export class KycController extends BaseController<
           return;
         }
         await this.#startConsentsSession({
-          sumsubTncSigned,
-          idosTncSigned,
+          providerDisclaimersAccepted: providerDisclaimersAccepted.sumsub,
+          idosDisclaimersAccepted,
           credentialReusabilityConsentGiven:
             this.state.credentialReusabilityConsentGiven ?? false,
         });
       } else {
+        // TODO: should this be here? or should it exist at all?
+        if (vendor === 'moonpay' && this.state.vendorDisclaimers.length === 0) {
+          await this.loadDisclaimers();
+          if (this.#generation !== generation) {
+            return;
+          }
+        }
         await this.#createSession();
       }
       return;
@@ -962,10 +1008,6 @@ export class KycController extends BaseController<
         vendor: params.vendor,
         email: params.email,
       });
-      if (this.#generation !== generation) {
-        return;
-      }
-      this.#dropTermsUnlessForVendor(params.vendor);
     } catch (error) {
       if (this.#generation !== generation) {
         return;
@@ -1003,12 +1045,12 @@ export class KycController extends BaseController<
         },
       );
       this.#updateIfCurrent(generation, (state) => {
-        state.disclaimers = disclaimers;
-        state.disclaimersError = null;
+        state.vendorDisclaimers = disclaimers;
+        state.vendorError = null;
       });
     } catch (error) {
       this.#updateIfCurrent(generation, (state) => {
-        state.disclaimersError = `Failed to load disclaimers: ${String(error)}`;
+        state.vendorError = `Failed to load disclaimers: ${String(error)}`;
       });
     }
   }
@@ -1022,56 +1064,63 @@ export class KycController extends BaseController<
    * @param params.product - The consuming feature the flow runs for. See
    * {@link initialize} for how the product drives the automatic post
    * authentication continuation.
-   * @param params.sumsubTncSigned - Whether Sumsub T&C were accepted (T&C2).
-   * Required for every vendor so callers explicitly declare acceptance.
-   * @param params.idosTncSigned - Whether idOS T&C were accepted (T&C2).
-   * Required for every vendor so callers explicitly declare acceptance.
+   * @param params.providerDisclaimersAccepted - Sumsub disclaimer documents the
+   * customer accepted (`{ key, version }` records). Required for every vendor
+   * so callers explicitly declare acceptance.
+   * @param params.idosDisclaimersAccepted - idOS disclaimer documents the
+   * customer accepted (`{ key, version }` records). Required for every vendor
+   * so callers explicitly declare acceptance.
    * @param params.credentialReusabilityConsentGiven - Whether the customer
    * consented to reuse existing idOS credentials. Used when recording
    * session-scoped disclaimers on the consents path. Defaults to `false`.
    */
-  async acceptTermsAndStartSession(params: {
+  async acceptTermsAndStartSession(params?: {
     email?: string;
     product?: KycProduct;
-    sumsubTncSigned: boolean;
-    idosTncSigned: boolean;
+    providerDisclaimersAccepted: KycConsentRecord[];
+    idosDisclaimersAccepted: KycConsentRecord[];
     credentialReusabilityConsentGiven?: boolean;
   }): Promise<void> {
-    const sumsubTncSigned = params?.sumsubTncSigned;
-    const idosTncSigned = params?.idosTncSigned;
+    const providerDisclaimersAccepted = params?.providerDisclaimersAccepted;
+    const idosDisclaimersAccepted = params?.idosDisclaimersAccepted;
     if (
-      typeof sumsubTncSigned !== 'boolean' ||
-      typeof idosTncSigned !== 'boolean'
+      !isValidConsentRecordList(providerDisclaimersAccepted) ||
+      !isValidConsentRecordList(idosDisclaimersAccepted)
     ) {
       this.#fail('Missing T&C2 acceptance flags.');
       return;
     }
     const credentialReusabilityConsentGiven =
-      params.credentialReusabilityConsentGiven ?? false;
+      params?.credentialReusabilityConsentGiven ?? false;
 
     const termsAcceptedAt = new Date().toISOString();
-    const disclaimerIds = this.state.disclaimers.map(
+    const disclaimerIds = this.state.vendorDisclaimers.map(
       (disclaimer) => disclaimer.id,
     );
     this.#applyUpdate((state) => {
-      if (params.email) {
+      if (params?.email) {
         state.email = params.email;
       }
-      if (params.product) {
+      if (params?.product) {
         state.activeProduct = params.product;
       }
-      state.termsAcceptedAt = termsAcceptedAt;
-      state.acceptedDisclaimerIds = disclaimerIds;
-      state.termsAcceptedVendor = state.activeVendor;
-      state.sumsubTncAccepted = sumsubTncSigned;
-      state.idosTncAccepted = idosTncSigned;
+      state.vendorDisclaimersAccepted = recordVendorDisclaimerAcceptance(
+        state.vendorDisclaimersAccepted,
+        state.activeVendor,
+        { termsAcceptedAt, disclaimerIds },
+      );
+      state.providerDisclaimersAccepted = {
+        ...state.providerDisclaimersAccepted,
+        sumsub: providerDisclaimersAccepted,
+      };
+      state.idosDisclaimersAccepted = idosDisclaimersAccepted;
       state.credentialReusabilityConsentGiven =
         credentialReusabilityConsentGiven;
     });
     if (usesConsentsFlow(this.state.activeVendor)) {
       await this.#startConsentsSession({
-        sumsubTncSigned,
-        idosTncSigned,
+        providerDisclaimersAccepted,
+        idosDisclaimersAccepted,
         credentialReusabilityConsentGiven,
       });
       return;
@@ -1085,17 +1134,20 @@ export class KycController extends BaseController<
    * SumSub — skipping MoonPay Check/Auth frames.
    *
    * @param consents - T&C2 flags mapped onto the session disclaimer catalog.
-   * @param consents.sumsubTncSigned - Whether Sumsub T&C were accepted.
-   * @param consents.idosTncSigned - Whether idOS T&C were accepted.
+   * @param consents.providerDisclaimersAccepted - Accepted Sumsub disclaimer records.
+   * @param consents.idosDisclaimersAccepted - Accepted idOS disclaimer records.
    * @param consents.credentialReusabilityConsentGiven - Whether credential
    * reuse was accepted.
    */
   async #startConsentsSession(consents: {
-    sumsubTncSigned: boolean;
-    idosTncSigned: boolean;
+    providerDisclaimersAccepted: KycConsentRecord[];
+    idosDisclaimersAccepted: KycConsentRecord[];
     credentialReusabilityConsentGiven: boolean;
   }): Promise<void> {
-    const { email, acceptedDisclaimerIds } = this.state;
+    const { email } = this.state;
+    const acceptedDisclaimerIds = ironDisclaimerIds(
+      this.state.vendorDisclaimersAccepted,
+    );
     if (!email) {
       this.#fail('Missing email for consents session.');
       return;
@@ -1242,8 +1294,8 @@ export class KycController extends BaseController<
    *
    * @param sessionId - The UKYC session id.
    * @param consents - T&C2 flags mapped onto catalog documents.
-   * @param consents.sumsubTncSigned - Whether Sumsub T&C were accepted.
-   * @param consents.idosTncSigned - Whether idOS T&C were accepted.
+   * @param consents.providerDisclaimersAccepted - Accepted Sumsub disclaimer records.
+   * @param consents.idosDisclaimersAccepted - Accepted idOS disclaimer records.
    * @param consents.credentialReusabilityConsentGiven - Whether credential
    * reuse was accepted.
    * @param generation - Flow generation captured by the caller.
@@ -1251,8 +1303,8 @@ export class KycController extends BaseController<
   async #recordSessionDisclaimers(
     sessionId: string,
     consents: {
-      sumsubTncSigned: boolean;
-      idosTncSigned: boolean;
+      providerDisclaimersAccepted: KycConsentRecord[];
+      idosDisclaimersAccepted: KycConsentRecord[];
       credentialReusabilityConsentGiven: boolean;
     },
     generation: number,
@@ -1270,21 +1322,24 @@ export class KycController extends BaseController<
     });
 
     if (
-      isAcceptedCategoryEmpty(catalog.idOS, consents.idosTncSigned) ||
-      isAcceptedCategoryEmpty(catalog.kycProvider, consents.sumsubTncSigned)
+      isAcceptedCategoryEmpty(catalog.idOS, consents.idosDisclaimersAccepted) ||
+      isAcceptedCategoryEmpty(
+        catalog.kycProvider,
+        consents.providerDisclaimersAccepted,
+      )
     ) {
       throw new Error(
         'Session disclaimer catalog is missing documents for an accepted category.',
       );
     }
 
-    const idOS = consentRecordsFromCatalog(
+    const idOS = consentRecordsFromAcceptedList(
       catalog.idOS,
-      consents.idosTncSigned,
+      consents.idosDisclaimersAccepted,
     );
-    const kycProvider = consentRecordsFromCatalog(
+    const kycProvider = consentRecordsFromAcceptedList(
       catalog.kycProvider,
-      consents.sumsubTncSigned,
+      consents.providerDisclaimersAccepted,
     );
     const reuseUnchanged =
       catalog.credentialReusabilityConsentGiven ===
@@ -1324,13 +1379,14 @@ export class KycController extends BaseController<
       this.#applyUpdate((state) => {
         state.sessionDisclaimers = latest;
       });
+      // TODO: Should we really be doing client side validation of these?
       const stillMissingIdos = acceptedCategoryStillMissing(
         latest.idOS,
-        consents.idosTncSigned,
+        consents.idosDisclaimersAccepted,
       );
       const stillMissingProvider = acceptedCategoryStillMissing(
         latest.kycProvider,
-        consents.sumsubTncSigned,
+        consents.providerDisclaimersAccepted,
       );
       const stillMissingReuse =
         consents.credentialReusabilityConsentGiven &&
@@ -1345,7 +1401,12 @@ export class KycController extends BaseController<
    * Creates a vendor session from the currently stored terms + email.
    */
   async #createSession(): Promise<void> {
-    const { email, termsAcceptedAt, acceptedDisclaimerIds } = this.state;
+    const { email } = this.state;
+    const termsAcceptedAt =
+      this.state.vendorDisclaimersAccepted.moonpay?.termsAcceptedAt;
+    const acceptedDisclaimerIds = this.state.vendorDisclaimers.map(
+      (disclaimer) => disclaimer.id,
+    );
     if (!email) {
       this.#fail('Missing email for session creation.');
       return;
@@ -1361,7 +1422,7 @@ export class KycController extends BaseController<
     // (or, on failure, invalid) session token, `buildAuthFrameUrl` cannot
     // return a URL tied to an old client token, and `checkKycRequired` cannot
     // run with an access token from an earlier authentication. The Check/Auth
-    // frames re-populate these for the new session. Because `sessionToken` is
+    // frames re-populate these for the new session. Because `moonpaySessionToken` is
     // cleared here and only re-set on success, a failed creation leaves it
     // `null` rather than resurrecting the previous session.
     // Capture the flow generation so a `reset()` landing while the create
@@ -1374,8 +1435,8 @@ export class KycController extends BaseController<
       state.error = null;
       state.phase = 'session';
       state.statusMessage = 'Creating session...';
-      state.sessionToken = null;
-      state.accessToken = null;
+      state.moonpaySessionToken = null;
+      state.moonpayAccessToken = null;
     });
 
     try {
@@ -1384,7 +1445,7 @@ export class KycController extends BaseController<
         { email, termsAcceptedAt, disclaimerIds: acceptedDisclaimerIds },
       );
       this.#updateIfCurrent(generation, (state) => {
-        state.sessionToken = sessionToken;
+        state.moonpaySessionToken = sessionToken;
         state.phase = 'check';
         state.statusMessage = 'Authenticating via Check frame...';
       });
@@ -1416,7 +1477,12 @@ export class KycController extends BaseController<
    */
   clearSavedTerms(): void {
     this.#applyUpdate((state) => {
-      this.#clearAcceptedTerms(state);
+      state.vendorDisclaimersAccepted =
+        getDefaultKycVendorDisclaimersAccepted();
+      state.providerDisclaimersAccepted =
+        getDefaultKycProviderDisclaimersAccepted();
+      state.idosDisclaimersAccepted = null;
+      state.credentialReusabilityConsentGiven = null;
     });
   }
 
@@ -1428,13 +1494,18 @@ export class KycController extends BaseController<
    * rest of the flow (geolocation, disclaimers, phase) untouched.
    *
    * @param state - The state to mutate.
+   * @param vendor - Vendor whose acceptance to clear. Defaults to
+   * `state.activeVendor`.
    */
-  #clearAcceptedTerms(state: KycControllerState): void {
-    state.termsAcceptedAt = null;
-    state.acceptedDisclaimerIds = [];
-    state.termsAcceptedVendor = null;
-    state.sumsubTncAccepted = null;
-    state.idosTncAccepted = null;
+  #clearAcceptedTerms(state: KycControllerState, vendor?: KycVendor): void {
+    const targetVendor = vendor ?? state.activeVendor;
+    state.vendorDisclaimersAccepted = clearVendorDisclaimerAcceptance(
+      state.vendorDisclaimersAccepted,
+      targetVendor,
+    );
+    state.providerDisclaimersAccepted =
+      getDefaultKycProviderDisclaimersAccepted();
+    state.idosDisclaimersAccepted = null;
     state.credentialReusabilityConsentGiven = null;
   }
 
@@ -1448,41 +1519,8 @@ export class KycController extends BaseController<
    */
   #clearMoonPaySession(state: KycControllerState): void {
     state.moonpayCustomerId = null;
-    state.sessionToken = null;
-    state.accessToken = null;
-  }
-
-  /**
-   * Drops persisted terms acceptance when it does not belong to `vendor`.
-   * Callers must invoke this only after the vendor switch has committed
-   * (e.g. `createVendorCustomer` succeeded) so a failed or reset switch
-   * cannot erase another vendor's stored acceptance.
-   *
-   * @param vendor - The vendor that now owns the flow.
-   */
-  #dropTermsUnlessForVendor(vendor: KycVendor): void {
-    if (this.#hasTermsForVendor(vendor)) {
-      return;
-    }
-    this.#applyUpdate((state) => {
-      this.#clearAcceptedTerms(state);
-    });
-  }
-
-  /**
-   * Determines whether the stored terms acceptance belongs to the given
-   * vendor. Acceptance persisted before `termsAcceptedVendor` existed
-   * (indicated by `null`) is invalidated to force reacceptance, ensuring users
-   * re-review vendor terms after the multi-vendor upgrade.
-   *
-   * @param vendor - The vendor about to drive the flow.
-   * @returns `true` when the stored acceptance can be reused for `vendor`.
-   */
-  #hasTermsForVendor(vendor: KycVendor): boolean {
-    if (this.state.termsAcceptedVendor === null) {
-      return false;
-    }
-    return this.state.termsAcceptedVendor === vendor;
+    state.moonpaySessionToken = null;
+    state.moonpayAccessToken = null;
   }
 
   /**
@@ -1590,7 +1628,7 @@ export class KycController extends BaseController<
   ): Promise<void> {
     if (status === 'active' && accessToken) {
       this.#applyUpdate((state) => {
-        state.accessToken = accessToken;
+        state.moonpayAccessToken = accessToken;
         state.phase = 'form';
         state.statusMessage = 'Already authenticated. Review to submit.';
       });
@@ -1624,7 +1662,7 @@ export class KycController extends BaseController<
   ): Promise<void> {
     if (status === 'active' && accessToken) {
       this.#applyUpdate((state) => {
-        state.accessToken = accessToken;
+        state.moonpayAccessToken = accessToken;
         state.phase = 'form';
         state.statusMessage = 'Authenticated. Review to submit.';
       });
@@ -1699,13 +1737,13 @@ export class KycController extends BaseController<
   buildCheckFrameUrl(): string | null {
     if (
       this.state.activeVendor !== 'moonpay' ||
-      !this.state.sessionToken ||
+      !this.state.moonpaySessionToken ||
       !this.#moonpayFrameKeypair
     ) {
       return null;
     }
     const url = new URL(`${FRAMES_BASE_URL}/check-connection`);
-    url.searchParams.set('sessionToken', this.state.sessionToken);
+    url.searchParams.set('sessionToken', this.state.moonpaySessionToken);
     url.searchParams.set('publicKey', this.#moonpayFrameKeypair.publicKeyHex);
     url.searchParams.set('channelId', CHANNEL_CHECK);
     url.searchParams.set('skipKyc', 'true');
@@ -1755,9 +1793,11 @@ export class KycController extends BaseController<
     product: KycProduct;
     country?: string;
   }): Promise<boolean> {
-    const { accessToken } = this.state;
-    if (!accessToken) {
-      this.#fail('Missing accessToken — repeat the authentication step.');
+    const { moonpayAccessToken } = this.state;
+    if (!moonpayAccessToken) {
+      this.#fail(
+        'Missing moonpayAccessToken — repeat the authentication step.',
+      );
       return false;
     }
     const country = params.country ?? this.state.geoCountry;
@@ -1778,7 +1818,11 @@ export class KycController extends BaseController<
     try {
       const { kycRequired } = await this.messenger.call(
         'KycService:checkKycRequired',
-        { accessToken, country, capabilities: [{ product: params.product }] },
+        {
+          accessToken: moonpayAccessToken,
+          country,
+          capabilities: [{ product: params.product }],
+        },
       );
       // The flow was reset while the check was in flight; discard the result
       // rather than resurrecting a done/cached state on an idle controller.
@@ -1855,7 +1899,7 @@ export class KycController extends BaseController<
       return {
         vendor: 'moonpay',
         vendorMetadata: {
-          moonPayAccessToken: this.state.accessToken,
+          moonPayAccessToken: this.state.moonpayAccessToken,
           moonPayUserId: this.state.moonpayCustomerId,
         },
       };
@@ -2458,12 +2502,12 @@ export class KycController extends BaseController<
       state.phase = 'idle';
       state.statusMessage = '';
       state.error = null;
-      state.disclaimers = [];
-      state.disclaimersError = null;
+      state.vendorDisclaimers = [];
+      state.vendorError = null;
       state.sessionDisclaimers = null;
       state.credentialReusabilityConsentGiven = null;
-      state.sessionToken = null;
-      state.accessToken = null;
+      state.moonpaySessionToken = null;
+      state.moonpayAccessToken = null;
       state.moonpayCustomerId = null;
       state.activeVendor = 'moonpay';
       state.activeProduct = null;

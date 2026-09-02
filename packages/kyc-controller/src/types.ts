@@ -198,6 +198,40 @@ export type KycConsentRecord = {
 };
 
 /**
+ * MoonPay vendor T&C1 acceptance persisted under
+ * {@link KycVendorDisclaimersAccepted.moonpay}.
+ */
+export type KycMoonpayVendorDisclaimersAccepted = {
+  /** ISO-8601 timestamp of terms acceptance for MoonPay. */
+  termsAcceptedAt: string;
+};
+
+/**
+ * Iron vendor T&C1 acceptance persisted under
+ * {@link KycVendorDisclaimersAccepted.iron}.
+ */
+export type KycIronVendorDisclaimersAccepted = {
+  /** IDs of Iron vendor disclaimers the customer accepted. */
+  disclaimerIds: string[];
+};
+
+/**
+ * Persisted KYC-provider disclaimer acceptance (T&C2) with a fixed `sumsub`
+ * key.
+ */
+export type KycProviderDisclaimersAccepted = {
+  sumsub: KycConsentRecord[] | null;
+};
+
+/**
+ * Persisted vendor-disclaimer acceptance with fixed `moonpay` and `iron` keys.
+ */
+export type KycVendorDisclaimersAccepted = {
+  moonpay: KycMoonpayVendorDisclaimersAccepted | null;
+  iron: KycIronVendorDisclaimersAccepted | null;
+};
+
+/**
  * idOS / KYC-provider disclaimer catalog returned by
  * `GET /disclaimers?country=` (no session — no credential-reuse consent state).
  */
