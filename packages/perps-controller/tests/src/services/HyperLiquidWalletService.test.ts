@@ -203,7 +203,7 @@ describe('HyperLiquidWalletService', () => {
 
         expect(result).toBe('0xSignatureResult');
         expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
-          'HyperLiquidWalletService: Signing typed data',
+          'HyperLiquidWalletService: Signing typed data (master fallback)',
           {
             address: mockEvmAccount.address,
             primaryType: 'Order',

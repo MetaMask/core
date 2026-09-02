@@ -184,6 +184,146 @@ describe('HyperLiquidWalletService agent signer seam', () => {
     });
   });
 
+  describe('agent mode: user-signed action routing', () => {
+    // L1 action shape produced by the SDK's `signL1Action`: domain
+    // { name: "Exchange", ... } with primaryType "Agent". These are the only
+    // signatures the agent key may produce.
+    const l1ActionParams = {
+      domain: {
+        name: 'Exchange',
+        version: '1',
+        chainId: 1337,
+        verifyingContract:
+          '0x0000000000000000000000000000000000000000' as `0x${string}`,
+      },
+      types: {
+        EIP712Domain: [
+          { name: 'name', type: 'string' },
+          { name: 'version', type: 'string' },
+          { name: 'chainId', type: 'uint256' },
+          { name: 'verifyingContract', type: 'address' },
+        ],
+        Agent: [
+          { name: 'source', type: 'string' },
+          { name: 'connectionId', type: 'bytes32' },
+        ],
+      },
+      primaryType: 'Agent',
+      message: { source: 'a', connectionId: '0xabc123' },
+    };
+
+    // User-signed action shape produced by the SDK's `signUserSignedAction`
+    // (e.g. `approveBuilderFee`): domain { name:
+    // "HyperliquidSignTransaction", ... }. These are master-account
+    // authorizations and must fall through to the master keyring path.
+    const userSignedParams = {
+      domain: {
+        name: 'HyperliquidSignTransaction',
+        version: '1',
+        chainId: 42161,
+        verifyingContract:
+          '0x0000000000000000000000000000000000000000' as `0x${string}`,
+      },
+      types: {
+        EIP712Domain: [
+          { name: 'name', type: 'string' },
+          { name: 'version', type: 'string' },
+          { name: 'chainId', type: 'uint256' },
+          { name: 'verifyingContract', type: 'address' },
+        ],
+        'HyperliquidTransaction:ApproveBuilderFee': [
+          { name: 'hyperliquidChain', type: 'string' },
+          { name: 'maxFeeRate', type: 'string' },
+          { name: 'builder', type: 'address' },
+          { name: 'nonce', type: 'uint64' },
+        ],
+      },
+      primaryType: 'HyperliquidTransaction:ApproveBuilderFee',
+      message: {
+        hyperliquidChain: 'Mainnet',
+        maxFeeRate: '0.01%',
+        builder: '0x3333333333333333333333333333333333333333',
+        nonce: 1700000000000,
+      },
+    };
+
+    const createAgentModeService = (signTypedData: jest.Mock) =>
+      new HyperLiquidWalletService(mockDeps, mockMessenger, {
+        getAgentSigner: jest.fn().mockResolvedValue({
+          address: AGENT_ADDRESS,
+          signTypedData,
+        }),
+      });
+
+    it('signs Exchange-domain Agent actions with the agent signer and zero keyring calls', async () => {
+      const signTypedData = jest.fn().mockResolvedValue('0xagentsig');
+      const service = createAgentModeService(signTypedData);
+
+      const adapter = await service.createWalletAdapter();
+      const signature = await adapter.signTypedData(l1ActionParams);
+
+      expect(signature).toBe('0xagentsig');
+      expect(signTypedData).toHaveBeenCalledTimes(1);
+      expect(mockMessenger.call).not.toHaveBeenCalledWith(
+        'KeyringController:signTypedMessage',
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('routes HyperliquidSignTransaction domain actions to the master keyring path', async () => {
+      const signTypedData = jest.fn().mockResolvedValue('0xagentsig');
+      const service = createAgentModeService(signTypedData);
+
+      const adapter = await service.createWalletAdapter();
+      const signature = await adapter.signTypedData(userSignedParams);
+
+      expect(signature).toBe('0xSignatureResult');
+      expect(signTypedData).not.toHaveBeenCalled();
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'KeyringController:signTypedMessage',
+        {
+          from: mockEvmAccount.address,
+          data: {
+            domain: userSignedParams.domain,
+            types: userSignedParams.types,
+            primaryType: userSignedParams.primaryType,
+            message: userSignedParams.message,
+          },
+        },
+        'V4',
+      );
+    });
+
+    it('signs unknown Exchange-domain shapes with the agent signer', async () => {
+      const signTypedData = jest.fn().mockResolvedValue('0xagentsig');
+      const service = createAgentModeService(signTypedData);
+
+      const adapter = await service.createWalletAdapter();
+      await adapter.signTypedData({
+        ...l1ActionParams,
+        primaryType: 'UsdClassTransfer',
+        message: { source: 'a' },
+      });
+
+      expect(signTypedData).toHaveBeenCalledTimes(1);
+      expect(mockMessenger.call).not.toHaveBeenCalledWith(
+        'KeyringController:signTypedMessage',
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('keeps the agent address on the adapter for user-signed actions', async () => {
+      const signTypedData = jest.fn().mockResolvedValue('0xagentsig');
+      const service = createAgentModeService(signTypedData);
+
+      const adapter = await service.createWalletAdapter();
+
+      expect(adapter.address).toBe(AGENT_ADDRESS);
+    });
+  });
+
   describe('master mode', () => {
     it('returns the keyring-backed adapter when getAgentSigner returns null', async () => {
       const service = new HyperLiquidWalletService(mockDeps, mockMessenger, {
@@ -217,6 +357,37 @@ describe('HyperLiquidWalletService agent signer seam', () => {
 
       expect(adapter.address).toBe(mockEvmAccount.address);
       const signature = await adapter.signTypedData(typedDataParams);
+      expect(signature).toBe('0xSignatureResult');
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'KeyringController:signTypedMessage',
+        expect.anything(),
+        'V4',
+      );
+    });
+
+    it('routes Exchange-domain Agent actions through the keyring in master mode', async () => {
+      const service = new HyperLiquidWalletService(mockDeps, mockMessenger);
+
+      const adapter = await service.createWalletAdapter();
+      const signature = await adapter.signTypedData({
+        ...typedDataParams,
+        domain: {
+          name: 'Exchange',
+          version: '1',
+          chainId: 1337,
+          verifyingContract:
+            '0x0000000000000000000000000000000000000000' as `0x${string}`,
+        },
+        message: { source: 'a', connectionId: '0xabc123' },
+        types: {
+          ...typedDataParams.types,
+          Agent: [
+            { name: 'source', type: 'string' },
+            { name: 'connectionId', type: 'bytes32' },
+          ],
+        },
+      });
+
       expect(signature).toBe('0xSignatureResult');
       expect(mockMessenger.call).toHaveBeenCalledWith(
         'KeyringController:signTypedMessage',

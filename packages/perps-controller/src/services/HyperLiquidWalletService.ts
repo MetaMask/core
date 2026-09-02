@@ -155,16 +155,103 @@ export class HyperLiquidWalletService {
   }
 
   /**
+   * Sign typed data with the master account via the keyring, resolving the
+   * selected account fresh so account switches cannot race the adapter.
+   *
+   * @param params - The typed data params the SDK passed to the adapter.
+   * @param params.domain - The EIP-712 domain.
+   * @param params.domain.name - The domain name.
+   * @param params.domain.version - The domain version.
+   * @param params.domain.chainId - The domain chain ID.
+   * @param params.domain.verifyingContract - The verifying contract address.
+   * @param params.types - The EIP-712 type definitions.
+   * @param params.primaryType - The EIP-712 primary type.
+   * @param params.message - The message payload to sign.
+   * @returns The signature string.
+   */
+  async #signWithMaster(
+    params: {
+      domain: {
+        name: string;
+        version: string;
+        chainId: number;
+        verifyingContract: Hex;
+      };
+      types: {
+        [key: string]: { name: string; type: string }[];
+      };
+      primaryType: string;
+      message: Record<string, unknown>;
+    },
+  ): Promise<Hex> {
+    const currentEvmAccount = getSelectedEvmAccountFromMessenger(
+      this.#messenger,
+    );
+
+    if (!currentEvmAccount?.address) {
+      throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
+    }
+
+    const currentAddress = currentEvmAccount.address as Hex;
+
+    this.#deps.debugLogger.log(
+      'HyperLiquidWalletService: Signing typed data (master fallback)',
+      {
+        address: currentAddress,
+        primaryType: params.primaryType,
+        domain: params.domain,
+      },
+    );
+
+    const signature = await this.#signTypedMessage({
+      from: currentAddress,
+      data: {
+        domain: params.domain,
+        types: params.types,
+        primaryType: params.primaryType,
+        message: params.message,
+      },
+    });
+
+    return signature as Hex;
+  }
+
+  /**
+   * Whether a typed-data signing request is an L1 (phantom-agent) action.
+   *
+   * The HyperLiquid SDK signs L1 actions (order/cancel/modify/TWAP/leverage/
+   * margin/agentSetAbstraction) with EIP-712 primaryType `Agent` over domain
+   * `{ name: "Exchange", version: "1", chainId: 1337 }`. Only these may be
+   * signed by an agent key; every other shape (e.g. `approveBuilderFee`,
+   * `userSetAbstraction`, `sendAsset`, `withdraw3` over the
+   * `HyperliquidSignTransaction` domain) is a user-signed action that
+   * authorizes the master account and must be signed by the master wallet.
+   *
+   * @param primaryType - The EIP-712 primary type of the signing request.
+   * @param domainName - The EIP-712 domain name of the signing request.
+   * @returns True when the request belongs to the agent-signable L1 class.
+   */
+  #isL1AgentAction(primaryType: string, domainName?: string): boolean {
+    return primaryType === 'Agent' || domainName === 'Exchange';
+  }
+
+  /**
    * Create a wallet adapter backed by a local agent signer.
    *
    * The returned adapter keeps the params-style `signTypedData` shape the SDK
-   * already accepts (viem local account), but delegates directly to the
-   * injected signer — no keyring messenger call is ever made. The SDK's viem
-   * adapters inject an `EIP712Domain` entry into `types` before calling
+   * already accepts (viem local account), but routes by typed-data shape:
+   * L1 (phantom-agent) actions — primaryType `Agent` over the `Exchange`
+   * domain — are signed directly by the injected local signer with no keyring
+   * contact; user-signed actions (`approveBuilderFee`, `userSetAbstraction`,
+   * `sendAsset`, `withdraw3`, … over the `HyperliquidSignTransaction` domain)
+   * are master-account authorizations and fall through to the master keyring
+   * signing path, so hardware users get the normal device prompt. The SDK's
+   * viem adapters inject an `EIP712Domain` entry into `types` before calling
    * params-style wallets; ethers-style signers reject that entry, so it is
-   * stripped before delegation.
+   * stripped before delegating to the agent signer (the master path passes
+   * `types` through unchanged, matching the pre-seam master adapter).
    *
-   * @param agentSigner - The local agent signer to delegate to.
+   * @param agentSigner - The local agent signer to delegate L1 actions to.
    * @returns The agent wallet adapter.
    */
   public createAgentWalletAdapter(agentSigner: AgentSigner): {
@@ -185,6 +272,9 @@ export class HyperLiquidWalletService {
     getChainId?: () => Promise<number>;
   } {
     return {
+      // The agent address is returned for identity purposes: the SDK only uses
+      // it for local lock/nonce keying (`getWalletAddress`), never inside the
+      // signed payload — HyperLiquid recovers the signer from the signature.
       address: agentSigner.address,
       signTypedData: async (params: {
         domain: {
@@ -199,21 +289,27 @@ export class HyperLiquidWalletService {
         primaryType: string;
         message: Record<string, unknown>;
       }): Promise<Hex> => {
-        const { EIP712Domain: _eip712Domain, ...types } = params.types;
+        if (this.#isL1AgentAction(params.primaryType, params.domain?.name)) {
+          const { EIP712Domain: _eip712Domain, ...types } = params.types;
 
-        this.#deps.debugLogger.log(
-          'HyperLiquidWalletService: Signing typed data (agent mode)',
-          {
-            address: agentSigner.address,
-            primaryType: params.primaryType,
-          },
-        );
+          this.#deps.debugLogger.log(
+            'HyperLiquidWalletService: Signing typed data (agent mode)',
+            {
+              address: agentSigner.address,
+              primaryType: params.primaryType,
+            },
+          );
 
-        return (await agentSigner.signTypedData(
-          params.domain,
-          types,
-          params.message,
-        )) as Hex;
+          return (await agentSigner.signTypedData(
+            params.domain,
+            types,
+            params.message,
+          )) as Hex;
+        }
+
+        // User-signed action: master-account authorization, must be signed
+        // by the master wallet (device prompt on hardware).
+        return this.#signWithMaster(params);
       },
       getChainId: async (): Promise<number> =>
         parseInt(getChainId(this.#isTestnet), 10),
@@ -225,8 +321,9 @@ export class HyperLiquidWalletService {
    * Required by @nktkas/hyperliquid SDK for signing transactions
    *
    * When the injected `getAgentSigner` resolves a signer for the selected
-   * master account, the returned adapter signs with that local agent key and
-   * never contacts the keyring. Otherwise the master keyring path is used,
+   * master account, the returned adapter signs L1 (phantom-agent) actions
+   * with that local agent key and routes user-signed actions to the master
+   * keyring path. Otherwise the master keyring path is used for everything,
    * unchanged.
    *
    * @returns The wallet adapter with address, signTypedData, and getChainId methods.
@@ -257,8 +354,8 @@ export class HyperLiquidWalletService {
 
     const address = evmAccount.address as Hex;
 
-    // Agent mode: a local signer for this master account takes over signing
-    // entirely. The unlocked-vault gate for agent signing is the in-memory
+    // Agent mode: a local signer for this master account takes over signing.
+    // The unlocked-vault gate for agent signing is the in-memory
     // plaintext key (null while locked), not the keyring.
     const agentSigner = this.#getAgentSigner
       ? await this.#getAgentSigner(address)
@@ -281,44 +378,7 @@ export class HyperLiquidWalletService {
         };
         primaryType: string;
         message: Record<string, unknown>;
-      }): Promise<Hex> => {
-        // Get FRESH account on every sign to handle account switches
-        // This prevents race conditions where wallet adapter was created with old account
-        const currentEvmAccount = getSelectedEvmAccountFromMessenger(
-          this.#messenger,
-        );
-
-        if (!currentEvmAccount?.address) {
-          throw new Error(PERPS_ERROR_CODES.NO_ACCOUNT_SELECTED);
-        }
-
-        const currentAddress = currentEvmAccount.address as Hex;
-
-        // Construct EIP-712 typed data
-        const typedData = {
-          domain: params.domain,
-          types: params.types,
-          primaryType: params.primaryType,
-          message: params.message,
-        };
-
-        this.#deps.debugLogger.log(
-          'HyperLiquidWalletService: Signing typed data',
-          {
-            address: currentAddress,
-            primaryType: params.primaryType,
-            domain: params.domain,
-          },
-        );
-
-        // Use messenger to sign typed data
-        const signature = await this.#signTypedMessage({
-          from: currentAddress,
-          data: typedData,
-        });
-
-        return signature as Hex;
-      },
+      }): Promise<Hex> => this.#signWithMaster(params),
       getChainId: async (): Promise<number> =>
         parseInt(getChainId(this.#isTestnet), 10),
     };
