@@ -52,7 +52,6 @@ describe('assertIsValidVaultData', () => {
     toprfEncryptionKey: 'mock_encryption_key',
     toprfPwEncryptionKey: 'mock_pw_encryption_key',
     toprfAuthKeyPair: 'mock_auth_key_pair',
-    accessToken: 'mock_access_token',
     revokeToken: 'mock_revoke_token',
   });
 
@@ -119,23 +118,22 @@ describe('assertIsValidVaultData', () => {
       }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
     });
 
-    it('should throw when accessToken is missing or not a string', () => {
+    it('should throw when revokeToken is missing or not a string', () => {
       const invalidData = createValidVaultData();
-      delete (invalidData as Record<string, unknown>).accessToken;
+      delete (invalidData as Record<string, unknown>).revokeToken;
 
       expect(() => {
         assertIsValidVaultData(invalidData);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidAccessToken);
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken);
 
       const invalidData2 = {
         ...createValidVaultData(),
-        revokeToken: 'MOCK_REVOKE_TOKEN',
-        accessToken: 999,
+        revokeToken: 999,
       };
 
       expect(() => {
         assertIsValidVaultData(invalidData2);
-      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidAccessToken);
+      }).toThrow(SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken);
     });
   });
 
@@ -157,6 +155,17 @@ describe('assertIsValidVaultData', () => {
 
       expect(() => {
         assertIsValidVaultData(validDataWithExtras);
+      }).not.toThrow();
+    });
+
+    it('should not throw when a legacy vault includes accessToken', () => {
+      const legacyVaultData = {
+        ...createValidVaultData(),
+        accessToken: 'legacy_access_token',
+      };
+
+      expect(() => {
+        assertIsValidVaultData(legacyVaultData);
       }).not.toThrow();
     });
   });

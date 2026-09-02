@@ -170,6 +170,9 @@ export type SeedlessOnboardingControllerState =
 
       /**
        * The access token used for pairing with profile sync auth service and to access other services.
+       *
+       * Kept in memory only (`persist: false`) and not stored in the vault.
+       * Refreshed from `refreshToken` when missing or near expiry.
        */
       accessToken?: string;
 
@@ -267,16 +270,9 @@ export type VaultData = {
    * The revoke token may no longer be available after a large number of password changes. In this case, re-authentication is advised.
    */
   revokeToken: string;
-  /**
-   * The access token used for pairing with profile sync auth service and to access other services.
-   */
-  accessToken: string;
 };
 
-export type DeserializedVaultData = Pick<
-  VaultData,
-  'accessToken' | 'revokeToken'
-> & {
+export type DeserializedVaultData = Pick<VaultData, 'revokeToken'> & {
   toprfEncryptionKey: Uint8Array;
   toprfPwEncryptionKey: Uint8Array;
   toprfAuthKeyPair: KeyPair;
