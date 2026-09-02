@@ -1,0 +1,51 @@
+diff --git a/lib/common.js b/lib/common.js
+index a6f7f766d03fb7acc9fe2494488685684fa7fe07..1d29b572e18ee94c4a76e593e69cf628f9e18d69 100644
+--- a/lib/common.js
++++ b/lib/common.js
+@@ -612,7 +612,45 @@ const wrapTimer =
+     return id
+   }
+ 
+-const setTimeout = wrapTimer(timers.setTimeout, timeouts)
++/**
++ * PATCH NOTES (https://github.com/MetaMask/core/issues/4428):
++ *
++ * Schedule positive response delays (e.g. from `.delay()`) on the global
++ * `setTimeout`, resolved at call time, instead of the `timers` module
++ * function captured at module load time. Jest/Sinon fake timers replace the
++ * global timer functions but cannot affect the load-time-captured `timers`
++ * module reference, so delayed responses were not controllable by fake
++ * timers and ran in real time.
++ *
++ * Zero-delay scheduling (used for every mocked response) is deliberately
++ * left on the real `timers` module function so that tests which enable fake
++ * timers but do not advance them still receive undelayed mock responses, as
++ * they do today.
++ *
++ * This is a more conservative version of the patch applied in the extension
++ * repository: https://github.com/MetaMask/metamask-extension/pull/24805
++ *
++ * TODO: Remove this patch after updating to `nock@14`, which no longer uses
++ * the `timers` module for response delays.
++ */
++const wrapDelayTimer =
++  (timer, ids) =>
++  (callback, ...timerArgs) => {
++    const cb = (...callbackArgs) => {
++      try {
++        // eslint-disable-next-line n/no-callback-literal
++        callback(...callbackArgs)
++      } finally {
++        ids.delete(id)
++      }
++    }
++    const timerFn = timerArgs[0] > 0 ? globalThis.setTimeout : timer
++    const id = timerFn(cb, ...timerArgs)
++    ids.add(id)
++    return id
++  }
++
++const setTimeout = wrapDelayTimer(timers.setTimeout, timeouts)
+ const setImmediate = wrapTimer(timers.setImmediate, immediates)
+ 
+ function clearTimer(clear, ids) {
