@@ -11,13 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add provider-routed Scale price normalization through `PerpsController:getScalePriceLadder`, the optional `PerpsProvider.getScalePriceLadder` hook, and their exported action, parameter, and result types ([#10021](https://github.com/MetaMask/core/pull/10021))
 - Add an optional batch-level `error` to `ClosePositionsResult` for an operation-level close failure, including cases that also populate per-position results ([#10037](https://github.com/MetaMask/core/pull/10037))
-- Add `PerpsController.subscribeToTwapOrders` for streaming TWAP lifecycle updates ([#10056](https://github.com/MetaMask/core/pull/10056))
-  - `SubscribeTwapOrdersParams` delivers the same `TwapOrder[]` shape `getTwapOrders()` returns, so a client can replace a poll with this subscription without reshaping its state.
-  - `PerpsProvider.subscribeToTwapOrders` is optional. Providers without a native TWAP push channel omit it and the controller returns a no-op cleanup, so callers need not branch on provider identity.
-  - HyperLiquid implements it over the venue's `userTwapHistory` channel. Concurrent subscribers for one account share a single socket, and the subscription is re-established after a reconnect.
-  - The venue sends an initial snapshot then deltas, so the service merges by `orderId` and each callback receives the complete set rather than only the schedules that changed.
-  - Streamed schedules are stamped with `providerId` and reclaim HIP-3 collateral on terminal status, matching `getTwapOrders()` so a poll can be swapped for the subscription without behavioural drift.
-  - The venue streams schedule state without slice fills, so pushed schedules carry an empty `fills` array; clients that render fill history keep what a prior `getTwapOrders()` read supplied.
+- Add `PerpsController.subscribeToTwapOrders` and the optional `PerpsProvider.subscribeToTwapOrders` hook for streaming TWAP updates, implemented for HyperLiquid ([#10056](https://github.com/MetaMask/core/pull/10056))
 
 ### Fixed
 
