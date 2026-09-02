@@ -1408,19 +1408,19 @@ describe('PerpsController', () => {
     });
 
     it('routes an explicit provider through the active aggregator', async () => {
-      const myxProvider: PerpsProvider = {
+      const lighterProvider: PerpsProvider = {
         ...createMockHyperLiquidProvider(),
-        protocolId: 'myx',
+        protocolId: 'lighter',
         getScalePriceLadder: jest.fn().mockResolvedValue({
           status: 'ready',
-          providerId: 'myx',
+          providerId: 'lighter',
           prices: ['100', '125', '150'],
         }),
       };
       const aggregatedProvider = new AggregatedPerpsProvider({
         providers: new Map([
           ['hyperliquid', mockProvider],
-          ['myx', myxProvider],
+          ['lighter', lighterProvider],
         ]),
         defaultProvider: 'hyperliquid',
         infrastructure: mockInfrastructure,
@@ -1432,21 +1432,21 @@ describe('PerpsController', () => {
       controller.testSetProviders(
         new Map([
           ['hyperliquid', mockProvider],
-          ['myx', myxProvider],
+          ['lighter', lighterProvider],
         ]),
       );
       controller.testSetActiveProvider(aggregatedProvider);
 
       await expect(
-        controller.getScalePriceLadder({ ...params, providerId: 'myx' }),
+        controller.getScalePriceLadder({ ...params, providerId: 'lighter' }),
       ).resolves.toStrictEqual({
         status: 'ready',
-        providerId: 'myx',
+        providerId: 'lighter',
         prices: ['100', '125', '150'],
       });
-      expect(myxProvider.getScalePriceLadder).toHaveBeenCalledWith({
+      expect(lighterProvider.getScalePriceLadder).toHaveBeenCalledWith({
         ...params,
-        providerId: 'myx',
+        providerId: 'lighter',
       });
     });
 
@@ -1478,10 +1478,10 @@ describe('PerpsController', () => {
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
 
       await expect(
-        controller.getScalePriceLadder({ ...params, providerId: 'myx' }),
+        controller.getScalePriceLadder({ ...params, providerId: 'lighter' }),
       ).resolves.toStrictEqual({
         status: 'unavailable',
-        providerId: 'myx',
+        providerId: 'lighter',
         reason: 'provider_not_routable',
       });
       expect(mockProvider.getScalePriceLadder).not.toHaveBeenCalled();

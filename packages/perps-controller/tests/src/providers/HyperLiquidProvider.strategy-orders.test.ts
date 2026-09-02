@@ -7233,7 +7233,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const { infoClient } = useStrategyClients();
 
       expect(
-        await provider.getScalePriceLadder({ ...params, providerId: 'myx' }),
+        await provider.getScalePriceLadder({
+          ...params,
+          providerId: 'lighter',
+        }),
       ).toStrictEqual({
         status: 'unavailable',
         providerId: 'hyperliquid',

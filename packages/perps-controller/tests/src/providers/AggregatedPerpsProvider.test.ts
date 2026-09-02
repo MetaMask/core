@@ -1576,70 +1576,70 @@ describe('AggregatedPerpsProvider', () => {
         ...params,
         providerId: 'hyperliquid',
       });
-      expect(mockMYXProvider.getScalePriceLadder).not.toHaveBeenCalled();
+      expect(mockLighterProvider.getScalePriceLadder).not.toHaveBeenCalled();
     });
 
     it('routes an explicit providerId', async () => {
-      mockMYXProvider.getScalePriceLadder.mockResolvedValueOnce({
+      mockLighterProvider.getScalePriceLadder.mockResolvedValueOnce({
         status: 'ready',
-        providerId: 'myx',
+        providerId: 'lighter',
         prices: ['100', '125', '150'],
       });
 
       await expect(
         aggregatedProvider.getScalePriceLadder({
           ...params,
-          providerId: 'myx',
+          providerId: 'lighter',
         }),
       ).resolves.toStrictEqual({
         status: 'ready',
-        providerId: 'myx',
+        providerId: 'lighter',
         prices: ['100', '125', '150'],
       });
-      expect(mockMYXProvider.getScalePriceLadder).toHaveBeenCalledWith({
+      expect(mockLighterProvider.getScalePriceLadder).toHaveBeenCalledWith({
         ...params,
-        providerId: 'myx',
+        providerId: 'lighter',
       });
       expect(mockHLProvider.getScalePriceLadder).not.toHaveBeenCalled();
     });
 
     it('reports a provider that does not implement ladder normalization', async () => {
-      mockMYXProvider.getScalePriceLadder = undefined;
+      mockLighterProvider.getScalePriceLadder = undefined;
 
       await expect(
         aggregatedProvider.getScalePriceLadder({
           ...params,
-          providerId: 'myx',
+          providerId: 'lighter',
         }),
       ).resolves.toStrictEqual({
         status: 'unavailable',
-        providerId: 'myx',
+        providerId: 'lighter',
         reason: 'not_implemented',
       });
     });
 
     it('reports an explicit provider route that is not registered', async () => {
-      const providerWithoutMyx = new AggregatedPerpsProvider({
+      const providerWithoutLighterLadder = new AggregatedPerpsProvider({
         providers: new Map([['hyperliquid', mockHLProvider]]),
         defaultProvider: 'hyperliquid',
         infrastructure: mockInfrastructure,
       });
 
       await expect(
-        providerWithoutMyx.getScalePriceLadder({
+        providerWithoutLighterLadder.getScalePriceLadder({
           ...params,
-          providerId: 'myx',
+          providerId: 'lighter',
         }),
       ).resolves.toStrictEqual({
         status: 'unavailable',
-        providerId: 'myx',
+        providerId: 'lighter',
         reason: 'provider_not_found',
       });
       expect(mockHLProvider.getScalePriceLadder).not.toHaveBeenCalled();
     });
 
     it('rejects a ladder attributed to another provider', async () => {
-      mockMYXProvider.getScalePriceLadder.mockResolvedValueOnce({
+      mockLighterProvider.getScalePriceLadder.mockResolvedValueOnce({
         status: 'ready',
         providerId: 'hyperliquid',
         prices: ['100', '150', '200'],
@@ -1648,11 +1648,11 @@ describe('AggregatedPerpsProvider', () => {
       await expect(
         aggregatedProvider.getScalePriceLadder({
           ...params,
-          providerId: 'myx',
+          providerId: 'lighter',
         }),
       ).resolves.toStrictEqual({
         status: 'unavailable',
-        providerId: 'myx',
+        providerId: 'lighter',
         reason: 'provider_not_routable',
       });
     });
