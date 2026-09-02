@@ -9,7 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `AssetsControllerMessenger` now requires `AccountTreeController:isInitialized`, `ClientController:getState`, and `KeyringController:isUnlocked` so lifecycle checks read controller state on demand instead of mirroring it from events ([#10059](https://github.com/MetaMask/core/pull/10059))
+  - Hosts that restrict which actions flow through the `AssetsController` messenger must delegate these three actions
+  - `AccountTreeController:stateChange` is no longer subscribed to; remove it from allowed events if your messenger wiring lists events explicitly
+- Revert to `selectedAccountGroupChange` for account-group switches; snap accounts added mid-session are picked up on restart ([#10059](https://github.com/MetaMask/core/pull/10059))
 - Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.7.0` ([#10046](https://github.com/MetaMask/core/pull/10046))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+### Fixed
+
+- Fix stale balances surviving in state when the Accounts API returns no entry for an asset it does not index (or reports an untrusted `0`), which the `merge` update kept as the previous amount ([#10061](https://github.com/MetaMask/core/pull/10061))
+  - `RpcFallbackMiddleware` now re-reads EVM assets tracked in state (`assetsBalance` or `customAssets`) whose balance is empty in the current response, passing them to `RpcDataSource` as `customAssets`, in addition to its existing retry of chains in `response.errors`. Staking vault assets and assets on chains outside the request or the account's supported set are excluded.
+  - Balances from chains the RPC read itself failed on are discarded instead of merged, so a transient RPC failure can no longer overwrite a correct upstream balance with the failure stub's native `0` (or, previously, falsely clear the chain's error as "recovered"). The chain's error is kept only when it was already errored upstream.
+  - `RpcDataSource.assetsMiddleware` now propagates per-chain fetch errors onto the pipeline response (previously it only used them internally), which is what lets `RpcFallbackMiddleware` identify the failed chains.
 
 ## [14.0.3]
 

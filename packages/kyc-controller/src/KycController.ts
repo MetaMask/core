@@ -22,6 +22,7 @@ import type {
   CreateUkycSessionParams,
   EncryptionSchema,
 } from './KycService.js';
+import { controllerLog } from './logger.js';
 import type {
   KycConsentDocument,
   KycCustomerIdentity,
@@ -663,8 +664,8 @@ export class KycController extends BaseController<
 > {
   readonly #sumsubLauncher: KycSumSubLauncher;
 
-  /** Ephemeral X25519 keypair for the frame key exchange (never persisted). */
-  readonly #keypair: X25519KeyPair;
+  /** MoonPay Check/Auth frame X25519 keypair (never persisted). */
+  #moonpayFrameKeypair: X25519KeyPair | null = null;
 
   /** Auth-frame client token, kept out of state. */
   #authClientToken: string | null = null;
@@ -739,7 +740,6 @@ export class KycController extends BaseController<
     this.#sumsubLauncher = sumsubLauncher;
     this.#sessionStatusPollIntervalMs = sessionStatusPollIntervalMs;
     this.#userStatusPollIntervalMs = userStatusPollIntervalMs;
-    this.#keypair = generateKeyPair();
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -803,11 +803,20 @@ export class KycController extends BaseController<
     // forces `phase` back through `session`/`check`, breaking an in-flight
     // Check/Auth frame flow. Leave the active flow untouched and let the
     // consumer drive it (or call `reset` first to start over).
+    const vendor = params?.vendor ?? 'moonpay';
+
     if (IN_PROGRESS_PHASES.includes(this.state.phase)) {
+      if (vendor === 'moonpay' && !this.#moonpayFrameKeypair) {
+        this.#moonpayFrameKeypair = generateKeyPair();
+      }
       return;
     }
 
-    const vendor = params?.vendor ?? 'moonpay';
+    if (vendor === 'moonpay') {
+      this.#moonpayFrameKeypair = generateKeyPair();
+    } else {
+      this.#moonpayFrameKeypair = null;
+    }
 
     // `initialize` starts a fresh flow, so `activeProduct` is always reset to
     // this call's product (or `null`). Otherwise a prior run's product could
@@ -943,6 +952,7 @@ export class KycController extends BaseController<
       state.activeVendor = params.vendor;
       if (params.vendor !== 'moonpay') {
         this.#authClientToken = null;
+        this.#moonpayFrameKeypair = null;
         this.#clearMoonPaySession(state);
       }
     });
@@ -1138,7 +1148,7 @@ export class KycController extends BaseController<
         try {
           await this.refreshKycStatus();
         } catch (statusError) {
-          console.error('KYC status refresh failed:', statusError);
+          controllerLog('KYC status refresh failed:', statusError);
         }
         this.#updateIfCurrent(generation, (state) => {
           state.phase = 'done';
@@ -1177,7 +1187,7 @@ export class KycController extends BaseController<
       try {
         await this.refreshKycStatus();
       } catch (statusError) {
-        console.error('KYC status refresh failed:', statusError);
+        controllerLog('KYC status refresh failed:', statusError);
       }
       this.#updateIfCurrent(generation, (state) => {
         if (state.phase !== 'error' && state.phase !== 'done') {
@@ -1204,7 +1214,7 @@ export class KycController extends BaseController<
         });
         return;
       }
-      console.error('Consents session failed:', error);
+      controllerLog('Consents session failed:', error);
       if (this.#generation !== generation) {
         return;
       }
@@ -1379,7 +1389,7 @@ export class KycController extends BaseController<
         state.statusMessage = 'Authenticating via Check frame...';
       });
     } catch (error) {
-      console.error('Session creation failed:', error);
+      controllerLog('Session creation failed:', error);
       // A reset() superseded this flow while the request was in flight; leave
       // the idle controller alone rather than forcing it back to `terms`.
       if (this.#generation !== generation) {
@@ -1542,11 +1552,11 @@ export class KycController extends BaseController<
 
     let accessToken: string | undefined;
     let clientToken: string | undefined;
-    if (credsEnvelope) {
+    if (credsEnvelope && this.#moonpayFrameKeypair) {
       try {
         const { credentials } = decryptCredentials(
           credsEnvelope,
-          this.#keypair.privateKey,
+          this.#moonpayFrameKeypair.privateKey,
         );
         accessToken = credentials.accessToken;
         clientToken = credentials.clientToken;
@@ -1687,12 +1697,16 @@ export class KycController extends BaseController<
    * @returns The Check-frame URL or `null`.
    */
   buildCheckFrameUrl(): string | null {
-    if (this.state.activeVendor !== 'moonpay' || !this.state.sessionToken) {
+    if (
+      this.state.activeVendor !== 'moonpay' ||
+      !this.state.sessionToken ||
+      !this.#moonpayFrameKeypair
+    ) {
       return null;
     }
     const url = new URL(`${FRAMES_BASE_URL}/check-connection`);
     url.searchParams.set('sessionToken', this.state.sessionToken);
-    url.searchParams.set('publicKey', this.#keypair.publicKeyHex);
+    url.searchParams.set('publicKey', this.#moonpayFrameKeypair.publicKeyHex);
     url.searchParams.set('channelId', CHANNEL_CHECK);
     url.searchParams.set('skipKyc', 'true');
     return url.toString();
@@ -1704,12 +1718,16 @@ export class KycController extends BaseController<
    * @returns The Auth-frame URL or `null`.
    */
   buildAuthFrameUrl(): string | null {
-    if (this.state.activeVendor !== 'moonpay' || !this.#authClientToken) {
+    if (
+      this.state.activeVendor !== 'moonpay' ||
+      !this.#authClientToken ||
+      !this.#moonpayFrameKeypair
+    ) {
       return null;
     }
     const url = new URL(`${FRAMES_BASE_URL}/auth`);
     url.searchParams.set('clientToken', this.#authClientToken);
-    url.searchParams.set('publicKey', this.#keypair.publicKeyHex);
+    url.searchParams.set('publicKey', this.#moonpayFrameKeypair.publicKeyHex);
     url.searchParams.set('channelId', CHANNEL_AUTH);
     return url.toString();
   }

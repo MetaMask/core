@@ -80,7 +80,6 @@ const PerpsWatchlistExchangeSchema = type({
 
 const PerpsWatchlistMarketsSchema = type({
   hyperliquid: PerpsWatchlistExchangeSchema,
-  myx: PerpsWatchlistExchangeSchema,
 });
 
 const PerpsPreferenceSchema = type({

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/perps-controller",
-  "version": "15.0.0",
+  "version": "15.1.0",
   "description": "Controller for perpetual trading functionality in MetaMask",
   "keywords": [
     "Ethereum",
@@ -16,10 +16,7 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "files": [
-    "dist/",
-    "!dist/providers/MYXProvider*",
-    "!dist/services/MYXClientService*",
-    "!dist/services/MYXWalletService*"
+    "dist/"
   ],
   "sideEffects": false,
   "main": "./dist/index.cjs",
@@ -103,7 +100,7 @@
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/messenger": "^2.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/utils": "^11.11.0",
+    "@metamask/utils": "^11.12.0",
     "@nktkas/hyperliquid": "^0.33.1",
     "bignumber.js": "^9.1.2",
     "reselect": "^5.1.1",
@@ -131,9 +128,6 @@
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3",
     "viem": "^2.55.8"
-  },
-  "optionalDependencies": {
-    "@myx-trade/sdk": "^0.1.265"
   },
   "engines": {
     "node": "^18.18 || >=20"
