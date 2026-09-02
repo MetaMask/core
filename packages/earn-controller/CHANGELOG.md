@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^69.7.0` to `^69.8.0` ([#RELEASE_PR](https://github.com/MetaMask/core/pull/RELEASE_PR))
+- Bump `@metamask/transaction-controller` from `^69.7.0` to `^69.8.0` ([#10080](https://github.com/MetaMask/core/pull/10080))
 
 ## [12.2.6]
 
