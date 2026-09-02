@@ -22,7 +22,7 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import {
-  getEffectiveRecipient,
+  getSendRecipients,
   TransactionStatus,
 } from '@metamask/transaction-controller';
 import type { Patch } from 'immer';
@@ -962,18 +962,11 @@ export class PhishingController extends BaseController<
       return [];
     }
 
-    const transactionRecipient = this.#normalizeAddress(
-      getEffectiveRecipient(transaction),
-    );
-    const swapAndSendRecipient = this.#normalizeAddress(
-      transaction.swapAndSendRecipient,
-    );
-
     return Array.from(
       new Set(
-        [transactionRecipient, swapAndSendRecipient].filter(
-          (address): address is string => Boolean(address),
-        ),
+        getSendRecipients(transaction)
+          .map((address) => this.#normalizeAddress(address))
+          .filter((address): address is string => Boolean(address)),
       ),
     );
   }
