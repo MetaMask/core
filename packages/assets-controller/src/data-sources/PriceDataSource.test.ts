@@ -1315,4 +1315,66 @@ describe('PriceDataSource', () => {
       controller.destroy();
     },
   );
+
+  it('requests the chain native asset price for a staked-position balance, not the vault contract address', async () => {
+    // Regression test: the vault contract itself is never a priced token —
+    // requesting it would always return null — so a staked-position balance
+    // must be mapped to its chain's native asset before the price fetch,
+    // not merely dropped by the priceable-asset filter.
+    const MAINNET_STAKING_VAULT =
+      'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df' as Caip19AssetId;
+    const { controller, apiClient, getAssetsState } = setupController({
+      balanceState: {
+        'mock-account-id': {
+          [MAINNET_STAKING_VAULT]: { amount: '2' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2000),
+      },
+    });
+
+    const response = await controller.fetch(
+      createDataRequest(),
+      getAssetsState,
+    );
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+      [MOCK_NATIVE_ASSET],
+      { currency: 'usd', includeMarketData: true },
+    );
+    // The vault's own asset ID must never appear as a requested key.
+    expect(apiClient.prices.fetchV3SpotPrices.mock.calls[0][0]).not.toContain(
+      MAINNET_STAKING_VAULT,
+    );
+    expect(response.assetsPrice?.[MOCK_NATIVE_ASSET]?.price).toBe(2000);
+
+    controller.destroy();
+  });
+
+  it('requests the native asset only once when both a native and a staked balance are held on the same chain', async () => {
+    // A holder with both liquid and staked ETH must not cause a duplicate
+    // request for the native asset.
+    const MAINNET_STAKING_VAULT =
+      'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df' as Caip19AssetId;
+    const { controller, apiClient, getAssetsState } = setupController({
+      balanceState: {
+        'mock-account-id': {
+          [MOCK_NATIVE_ASSET]: { amount: '1' },
+          [MAINNET_STAKING_VAULT]: { amount: '2' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2000),
+      },
+    });
+
+    await controller.fetch(createDataRequest(), getAssetsState);
+
+    const requested = apiClient.prices.fetchV3SpotPrices.mock
+      .calls[0][0] as Caip19AssetId[];
+    expect(requested.filter((id) => id === MOCK_NATIVE_ASSET)).toHaveLength(1);
+
+    controller.destroy();
+  });
 });

@@ -12,6 +12,7 @@ import {
 import BigNumberJS from 'bignumber.js';
 
 import type { AssetsControllerState } from '../AssetsController.js';
+import { resolvePriceLookupAssetId } from '../data-sources/evm-rpc-services/utils/index.js';
 import type {
   AccountId,
   AssetBalance,
@@ -110,7 +111,8 @@ const getPriceDatumFast = (
   assetsPrice: AssetsControllerState['assetsPrice'] | undefined,
   assetId: Caip19AssetId,
 ): PriceDatum => {
-  const raw = assetsPrice?.[assetId];
+  const raw =
+    assetsPrice?.[resolvePriceLookupAssetId(assetId) as Caip19AssetId];
   if (!raw || typeof raw !== 'object') {
     return ZERO_PRICE;
   }

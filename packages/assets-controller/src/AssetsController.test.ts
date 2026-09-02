@@ -1013,6 +1013,45 @@ describe('AssetsController', () => {
       });
     });
 
+    it('prices a staked position from the chain native asset, not the vault contract (public getter)', async () => {
+      // Regression test: this is the public getter surface, separate from
+      // the aggregated-balance selector — the vault contract's own asset ID
+      // never has a Price API entry, so it must be aliased to the chain's
+      // native asset price here too, not just in the balance selector.
+      // State is keyed by the checksummed form, matching how normalizeAssetId
+      // stores every asset ID (see the "normalizes a lowercase EVM asset ID"
+      // test above) — STAKING_CONTRACT_ADDRESS_BY_CHAINID itself stores the
+      // address lowercase since it only ever compares case-insensitively.
+      const stakedAssetId =
+        'eip155:1/erc20:0x4FEF9D741011476750A243aC70b9789a63dd47Df' as Caip19AssetId;
+      const stakedMetadata = {
+        type: 'erc20' as const,
+        symbol: 'stETH',
+        name: 'Staked ETH',
+        decimals: 18,
+      };
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: { [stakedAssetId]: stakedMetadata },
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [stakedAssetId]: { amount: '2' } },
+        },
+        // Only the native asset has a price entry, matching the real API.
+        assetsPrice: {
+          [MOCK_NATIVE_ASSET_ID]: { price: 2000, lastUpdated: 123 },
+        },
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        const asset = controller.getAccountAssetByID(
+          MOCK_ACCOUNT_ID,
+          stakedAssetId,
+        );
+
+        expect(asset?.price).toStrictEqual({ price: 2000, lastUpdated: 123 });
+        expect(asset?.fiatValue).toBe(4000);
+      });
+    });
+
     it('throws when accountId is empty', async () => {
       await withController(({ controller }) => {
         expect(() =>

@@ -85,6 +85,7 @@ import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiData
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource.js';
 import { isStakingContractAssetId } from './data-sources/evm-rpc-services/index.js';
 import { shouldSkipNativeForCaipChainId } from './data-sources/evm-rpc-services/utils/assets.js';
+import { resolvePriceLookupAssetId } from './data-sources/evm-rpc-services/utils/index.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
 import {
   isPriceableAsset,
@@ -2378,13 +2379,29 @@ export class AssetsController extends BaseController<
           continue;
         }
         const normalizedAssetId = normalizeAssetId(assetId as Caip19AssetId);
-        if (prices[normalizedAssetId] ?? prices[assetId]) {
+        // Resolve BEFORE checking presence/priceability: a staked position's
+        // own asset ID never has (and, since it's non-priceable, never will
+        // have) a legitimate price entry, and `isPriceableAsset` now rejects
+        // it outright — checking against the raw ID would silently skip it
+        // every time instead of enqueueing its resolved native asset's
+        // price. For a staking asset, a price recorded under the raw vault
+        // key is stale/foreign noise (e.g. from before this alias existed)
+        // and must NOT count as "already priced" — only the resolved
+        // (native) key's presence is authoritative there.
+        const priceLookupAssetId = resolvePriceLookupAssetId(
+          normalizedAssetId,
+        ) as Caip19AssetId;
+        const isStakedPosition = priceLookupAssetId !== normalizedAssetId;
+        const alreadyHasPrice = isStakedPosition
+          ? Boolean(prices[priceLookupAssetId])
+          : Boolean(prices[normalizedAssetId] ?? prices[assetId]);
+        if (alreadyHasPrice) {
           continue;
         }
-        if (!isPriceableAsset(normalizedAssetId)) {
+        if (!isPriceableAsset(priceLookupAssetId)) {
           continue;
         }
-        assetsForPriceUpdate.push(normalizedAssetId);
+        assetsForPriceUpdate.push(priceLookupAssetId);
       }
     }
 
@@ -3065,7 +3082,13 @@ export class AssetsController extends BaseController<
       }
     }
 
-    const priceRaw = this.state.assetsPrice[assetId];
+    // Staked positions are priced under the chain's native asset instead of
+    // the vault contract's own asset ID — the Price API never has data for
+    // the vault itself. See `resolvePriceLookupAssetId`.
+    const priceRaw =
+      this.state.assetsPrice[
+        resolvePriceLookupAssetId(assetId) as Caip19AssetId
+      ];
     const price: AssetPrice = priceRaw ?? {
       price: 0,
       lastUpdated: 0,

@@ -1,3 +1,4 @@
+import { resolvePriceLookupAssetId } from '../data-sources/evm-rpc-services/utils/index.js';
 import { projectLogger, createModuleLogger } from '../logger.js';
 import { forDataTypes } from '../types.js';
 import type { AccountId, Caip19AssetId, Middleware } from '../types.js';
@@ -144,16 +145,27 @@ export class DetectionMiddleware {
       // 1) newly detected assets missing a price, and
       // 2) assets in this balance response that already exist in state but still
       //    lack a price (e.g. natives seeded before the first price poll).
-      // PriceDataSource filters non-priceable IDs before calling the API.
+      // PriceDataSource filters non-priceable IDs (and resolves staking-vault
+      // IDs to their chain's native asset) before calling the API.
       const prices = stateAssetsPrice as Record<string, unknown>;
       const missingPriceAssets = new Set<Caip19AssetId>();
 
       const maybeQueue = (assetId: Caip19AssetId): void => {
         const normalizedAssetId = normalizeAssetId(assetId);
-        if (
-          prices[normalizedAssetId] === undefined &&
-          prices[assetId] === undefined
-        ) {
+        // For a staking asset, only the RESOLVED (native) key's presence is
+        // authoritative — a price recorded under the raw vault key is
+        // stale/foreign noise (e.g. left over from before this alias
+        // existed) and must never count as "already priced", since the
+        // vault's own key never gets a fresh write to age it out.
+        const priceLookupAssetId = resolvePriceLookupAssetId(
+          normalizedAssetId,
+        ) as Caip19AssetId;
+        const isStakedPosition = priceLookupAssetId !== normalizedAssetId;
+        const alreadyHasPrice = isStakedPosition
+          ? prices[priceLookupAssetId] !== undefined
+          : prices[normalizedAssetId] !== undefined ||
+            prices[assetId] !== undefined;
+        if (!alreadyHasPrice) {
           missingPriceAssets.add(normalizedAssetId);
         }
       };

@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.7.0` ([#10046](https://github.com/MetaMask/core/pull/10046))
 
+### Fixed
+
+- Price a staked position at parity with its chain's native currency instead of `$0`, in both the aggregated-balance selectors and the public asset getters (`getAccountAssetByID`, `getAccountAssetsByIDs`, `getAccountAssetsByScope`, `getAssets`, `getAssetsPrice`); price-refresh queuing (`assetsMiddleware`'s detected-asset queuing, `DetectionMiddleware`, and the force-refresh path) no longer lets a stale price recorded under the staking-vault's own asset ID suppress fetching the correct native price ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+
 ## [14.0.3]
 
 ### Changed
