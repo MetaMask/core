@@ -9064,26 +9064,52 @@ export class HyperLiquidProvider implements PerpsProvider {
       // market group would refuse a BTC close when an unrelated HIP-3 DEX
       // cannot be read. closeAll / empty symbols still need a complete
       // snapshot so a missed DEX cannot be reported as "nothing to close".
+      // Per-DEX loads are independent: a requested xyz outage must not
+      // abort a BTC close in the same symbols list.
       const requestedSymbols =
         params.closeAll === true ||
         params.symbols === undefined ||
         params.symbols.length === 0
           ? undefined
           : params.symbols;
-      const positions =
-        requestedSymbols === undefined
-          ? await this.#getPositionsForOperation()
-          : (
-              await Promise.all(
-                [
-                  ...new Set(
-                    requestedSymbols.map(
-                      (symbol) => parseAssetName(symbol).dex ?? '',
-                    ),
-                  ),
-                ].map((dexName) => this.#getPositionsForOperation(dexName)),
-              )
-            ).flat();
+      const unavailableResults: ClosePositionsResult['results'] = [];
+      let positions: Position[];
+      if (requestedSymbols === undefined) {
+        positions = await this.#getPositionsForOperation();
+      } else {
+        const dexNames = [
+          ...new Set(
+            requestedSymbols.map((symbol) => parseAssetName(symbol).dex ?? ''),
+          ),
+        ];
+        const settled = await Promise.allSettled(
+          dexNames.map((dexName) => this.#getPositionsForOperation(dexName)),
+        );
+        positions = [];
+        settled.forEach((outcome, index) => {
+          if (outcome.status === 'fulfilled') {
+            positions.push(...outcome.value);
+            return;
+          }
+          const message =
+            outcome.reason instanceof Error
+              ? outcome.reason.message
+              : String(outcome.reason);
+          if (message !== PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE) {
+            throw outcome.reason;
+          }
+          const failedDex = dexNames[index];
+          for (const symbol of requestedSymbols) {
+            if ((parseAssetName(symbol).dex ?? '') === failedDex) {
+              unavailableResults.push({
+                symbol,
+                success: false,
+                error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+              });
+            }
+          }
+        });
+      }
 
       positionsToClose =
         requestedSymbols === undefined
@@ -9097,11 +9123,20 @@ export class HyperLiquidProvider implements PerpsProvider {
       });
 
       if (positionsToClose.length === 0) {
+        if (unavailableResults.length === 0) {
+          return {
+            success: false,
+            successCount: 0,
+            failureCount: 0,
+            results: [],
+          };
+        }
         return {
           success: false,
           successCount: 0,
-          failureCount: 0,
-          results: [],
+          failureCount: unavailableResults.length,
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          results: unavailableResults,
         };
       }
 
@@ -9253,8 +9288,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         return {
           success: false,
           successCount: 0,
-          failureCount: skippedResults.length,
-          results: skippedResults,
+          failureCount: skippedResults.length + unavailableResults.length,
+          results: [...skippedResults, ...unavailableResults],
         };
       }
 
@@ -9287,7 +9322,10 @@ export class HyperLiquidProvider implements PerpsProvider {
           (hasProperty(stat, 'filled') || hasProperty(stat, 'resting')),
       ).length;
       const failureCount =
-        statuses.length - successCount + skippedResults.length;
+        statuses.length -
+        successCount +
+        skippedResults.length +
+        unavailableResults.length;
 
       // Handle HIP-3 margin transfers for successful closes
       if (!this.#useUnifiedAccount) {
@@ -9340,12 +9378,15 @@ export class HyperLiquidProvider implements PerpsProvider {
         success: successCount > 0,
         successCount,
         failureCount,
-        results: positionsToClose.flatMap((position) => {
-          const outcome =
-            submittedResults.get(position.symbol) ??
-            skippedBySymbol.get(position.symbol);
-          return outcome ? [outcome] : [];
-        }),
+        results: [
+          ...positionsToClose.flatMap((position) => {
+            const outcome =
+              submittedResults.get(position.symbol) ??
+              skippedBySymbol.get(position.symbol);
+            return outcome ? [outcome] : [];
+          }),
+          ...unavailableResults,
+        ],
       };
     } catch (error) {
       const safeError = ensureError(

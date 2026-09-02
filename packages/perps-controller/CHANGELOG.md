@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Prevent stale HyperLiquid positions from driving TP/SL, close, batch-close, margin-update, and HIP-3 margin calculations ([#10037](https://github.com/MetaMask/core/pull/10037))
   - Symbol operations use the current DEX slice or an HTTP read. Batch operations require a complete current WebSocket or REST snapshot. Partial reads fail with `PROVIDER_NOT_AVAILABLE`; REST and WebSocket data are never merged.
-  - Selected-symbol `closePositions` loads only the market groups those symbols belong to. A complete all-DEX snapshot is required only for `closeAll` or an empty `symbols` list.
+  - Selected-symbol `closePositions` loads only the market groups those symbols belong to. A complete all-DEX snapshot is required only for `closeAll` or an empty `symbols` list. A `PROVIDER_NOT_AVAILABLE` failure on one requested DEX does not abort closes on the others; those symbols are reported as per-position failures.
   - A delayed `clearinghouseState` payload from a replaced subscription client is ignored so it cannot stamp stale size or side with the new connection epoch.
 - Floor TP/SL and reduce-only edit sizes to the venue size grid instead of rounding above the position ([#10037](https://github.com/MetaMask/core/pull/10037))
   - Sub-increment sizes fail before side effects with `ORDER_TPSL_SIZE_INVALID` or `ORDER_SIZE_POSITIVE`.
