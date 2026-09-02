@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `clearState` now resets internal mappings and resets selected account group through `:selectedAccountGroupChange` ([#9825](https://github.com/MetaMask/core/pull/9825))
   - Consumers are (and were already) expected to handle `''` for `:selectedAccountGroupChange` (which can happens during onboarding, and now, during wallet resets).
 
+### Removed
+
+- **BREAKING:** Remove `AccountTreeControllerConfig.accountOrderCallbacks` and stop migrating pinned/hidden state from account-order callbacks
+
 ## [7.6.1]
 
 ### Changed
