@@ -2195,6 +2195,19 @@ export class HyperLiquidSubscriptionService {
           dex: dexName || undefined, // Empty string -> undefined for main DEX
         },
         (data: ClearinghouseStateWsEvent) => {
+          // Automatic reconnect reuses this client. Replacing the transport
+          // creates a new one, and a queued payload from the retired client
+          // must not stamp stale size or side with the new connection epoch.
+          if (
+            this.#clientService.getSubscriptionClient() !== subscriptionClient
+          ) {
+            this.#deps.debugLogger.log(
+              'Ignoring clearinghouseState update from a replaced subscription client',
+              { dex: data.dex || 'main' },
+            );
+            return;
+          }
+
           const cacheKey = data.dex || '';
 
           // Keep authoritative slices current for as long as the subscription

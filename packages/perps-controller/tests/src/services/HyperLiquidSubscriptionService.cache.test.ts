@@ -830,6 +830,58 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe();
     });
 
+    it('does not treat a delayed payload from a replaced subscription client as current', async () => {
+      let publish: ((payload: unknown) => void) | undefined;
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (params: any, callback: any) => {
+          if ((params.dex || '') === '') {
+            publish = callback;
+          }
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const unsubscribe = service.subscribeToAccount({ callback: jest.fn() });
+      await jest.runAllTimersAsync();
+
+      publish?.({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [{ position: { szi: '0.1' }, coin: 'BTC' }],
+          marginSummary: { accountValue: '10000', totalMarginUsed: '500' },
+          withdrawable: '9500',
+        },
+      });
+      await jest.runAllTimersAsync();
+
+      expect(service.getCachedPositionsForDex('')).not.toBeNull();
+
+      mockClientService.getSubscriptionClient = jest.fn(() => ({
+        clearinghouseState: jest.fn(),
+      }));
+      mockClientService.getConnectionEpoch = jest.fn(() => 2);
+
+      expect(service.getCachedPositionsForDex('')).toBeNull();
+      expect(service.getFreshPositionsForAllDexs()).toBeNull();
+
+      publish?.({
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [{ position: { szi: '0.1' }, coin: 'BTC' }],
+          marginSummary: { accountValue: '10000', totalMarginUsed: '500' },
+          withdrawable: '9500',
+        },
+      });
+      await jest.runAllTimersAsync();
+
+      expect(service.getCachedPositionsForDex('')).toBeNull();
+      expect(service.getFreshPositionsForAllDexs()).toBeNull();
+
+      unsubscribe();
+    });
+
     it('invalidates a slice on an SDK-internal automatic reconnect', async () => {
       // The SDK reopens the socket underneath us with no callback into this
       // service: no resubscribe runs, no connection-state transition is

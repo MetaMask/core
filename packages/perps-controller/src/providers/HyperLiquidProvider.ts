@@ -9060,17 +9060,35 @@ export class HyperLiquidProvider implements PerpsProvider {
       // The provider-owned market policy is resolved from the positions below.
       await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
-      // Use a complete current WebSocket snapshot or a strict all-DEX REST
-      // snapshot. Never mix sources whose relative recency is unknown.
-      const positions = await this.#getPositionsForOperation();
-
-      // Filter positions based on params
-      positionsToClose =
+      // Selected symbols only need the DEXes they belong to. Loading every
+      // market group would refuse a BTC close when an unrelated HIP-3 DEX
+      // cannot be read. closeAll / empty symbols still need a complete
+      // snapshot so a missed DEX cannot be reported as "nothing to close".
+      const requestedSymbols =
         params.closeAll === true ||
-        !params.symbols ||
+        params.symbols === undefined ||
         params.symbols.length === 0
+          ? undefined
+          : params.symbols;
+      const positions =
+        requestedSymbols === undefined
+          ? await this.#getPositionsForOperation()
+          : (
+              await Promise.all(
+                [
+                  ...new Set(
+                    requestedSymbols.map(
+                      (symbol) => parseAssetName(symbol).dex ?? '',
+                    ),
+                  ),
+                ].map((dexName) => this.#getPositionsForOperation(dexName)),
+              )
+            ).flat();
+
+      positionsToClose =
+        requestedSymbols === undefined
           ? positions
-          : positions.filter((pos) => params.symbols?.includes(pos.symbol));
+          : positions.filter((pos) => requestedSymbols.includes(pos.symbol));
 
       this.#deps.debugLogger.log('Batch closing positions:', {
         count: positionsToClose.length,

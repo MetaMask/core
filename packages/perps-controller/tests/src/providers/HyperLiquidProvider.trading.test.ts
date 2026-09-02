@@ -3599,9 +3599,9 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('does not replace a fresh REST result with an older WebSocket slice', async () => {
-      // On a cold staggered start there is no aggregate to merge. getPositions()
-      // therefore reads REST, which may already reflect a fill that the first
-      // same-epoch WebSocket slice has not delivered yet. The REST result wins.
+      // closeAll cannot treat a single live DEX slice as a complete snapshot.
+      // REST is the only remaining complete source, even if one DEX has already
+      // published a current-epoch slice.
       primeFrozenAggregate(null, [createCachedPosition({ size: '0.03' })]);
       mockSubscriptionService.isPositionsCacheInitialized = jest
         .fn()
@@ -3611,10 +3611,13 @@ describe('HyperLiquidProvider', () => {
         .mockReturnValue(null);
       const infoClient = mockClientService.getInfoClient();
 
-      const result = await provider.closePositions({ symbols: ['BTC'] });
+      const result = await provider.closePositions({ closeAll: true });
 
       expect(result.success).toBe(true);
-      expect(getSubmittedOrders()).toMatchObject([{ s: '0.1', r: true }]);
+      expect(getSubmittedOrders()).toMatchObject([
+        { s: '0.1', r: true },
+        { s: '1.5', r: true },
+      ]);
       expect(infoClient.clearinghouseState).toHaveBeenCalled();
     });
 
@@ -3712,6 +3715,81 @@ describe('HyperLiquidProvider', () => {
       expect(
         mockClientService.getExchangeClient().order,
       ).not.toHaveBeenCalled();
+    });
+
+    it('closes a selected BTC position when loading xyz positions fails', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
+        .fn()
+        .mockReturnValue(null);
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockReturnValue(null);
+      const clearinghouseState = jest
+        .fn()
+        .mockImplementation((params?: { dex?: string }) =>
+          params?.dex === 'xyz'
+            ? Promise.reject(new Error('xyz unavailable'))
+            : Promise.resolve({
+                assetPositions: [
+                  {
+                    position: {
+                      coin: 'BTC',
+                      szi: '0.1',
+                      entryPx: '50000',
+                      positionValue: '5000',
+                      unrealizedPnl: '100',
+                      marginUsed: '500',
+                      leverage: { type: 'cross', value: 10 },
+                      liquidationPx: '45000',
+                      maxLeverage: 50,
+                      returnOnEquity: '20',
+                      cumFunding: {
+                        allTime: '10',
+                        sinceOpen: '5',
+                        sinceChange: '2',
+                      },
+                    },
+                    type: 'oneWay',
+                  },
+                ],
+                marginSummary: {
+                  totalMarginUsed: '500',
+                  accountValue: '10500',
+                },
+                withdrawable: '9500',
+              }),
+        );
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          perpDexs: jest
+            .fn()
+            .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+          clearinghouseState,
+          meta: jest.fn().mockResolvedValue({
+            universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+          }),
+          allMids: jest.fn().mockResolvedValue({ BTC: '50000' }),
+        }),
+      );
+
+      const result = await hip3Provider.closePositions({ symbols: ['BTC'] });
+
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(1);
+      expect(getSubmittedOrders()).toMatchObject([{ s: '0.1', r: true }]);
+      expect(clearinghouseState).toHaveBeenCalledTimes(1);
+      expect(clearinghouseState).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user: '0x1234567890123456789012345678901234567890',
+        }),
+      );
+      expect(clearinghouseState).not.toHaveBeenCalledWith(
+        expect.objectContaining({ dex: 'xyz' }),
+      );
     });
 
     it('rejects a main-only REST snapshot when HIP-3 DEX discovery fails', async () => {

@@ -10,12 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add provider-routed Scale price normalization through `PerpsController:getScalePriceLadder`, the optional `PerpsProvider.getScalePriceLadder` hook, and their exported action, parameter, and result types ([#10021](https://github.com/MetaMask/core/pull/10021))
-- Add an optional batch-level `error` to `ClosePositionsResult` when a close fails before per-position results exist ([#10037](https://github.com/MetaMask/core/pull/10037))
+- Add an optional batch-level `error` to `ClosePositionsResult` for an operation-level close failure, including cases that also populate per-position results ([#10037](https://github.com/MetaMask/core/pull/10037))
 
 ### Fixed
 
 - Prevent stale HyperLiquid positions from driving TP/SL, close, batch-close, margin-update, and HIP-3 margin calculations ([#10037](https://github.com/MetaMask/core/pull/10037))
   - Symbol operations use the current DEX slice or an HTTP read. Batch operations require a complete current WebSocket or REST snapshot. Partial reads fail with `PROVIDER_NOT_AVAILABLE`; REST and WebSocket data are never merged.
+  - Selected-symbol `closePositions` loads only the market groups those symbols belong to. A complete all-DEX snapshot is required only for `closeAll` or an empty `symbols` list.
+  - A delayed `clearinghouseState` payload from a replaced subscription client is ignored so it cannot stamp stale size or side with the new connection epoch.
 - Floor TP/SL and reduce-only edit sizes to the venue size grid instead of rounding above the position ([#10037](https://github.com/MetaMask/core/pull/10037))
   - Sub-increment sizes fail before side effects with `ORDER_TPSL_SIZE_INVALID` or `ORDER_SIZE_POSITIVE`.
 
