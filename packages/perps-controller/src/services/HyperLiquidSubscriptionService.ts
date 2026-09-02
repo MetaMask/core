@@ -119,6 +119,10 @@ export class HyperLiquidSubscriptionService {
   // Ensures all DEXs send initial data before notifying subscribers
   #expectedDexs: Set<string> = new Set();
 
+  // DEXs the current configuration requires for a complete position snapshot.
+  // Unlike #expectedDexs, subscription failures do not remove entries here.
+  #positionSnapshotDexs: Set<string> = new Set();
+
   #initializedDexs: Set<string> = new Set();
 
   // Subscriber collections
@@ -221,6 +225,22 @@ export class HyperLiquidSubscriptionService {
 
   // Multi-DEX data caches
   readonly #dexPositionsCache = new Map<string, Position[]>(); // Per-DEX positions
+
+  // Connection epoch that produced each DEX's cached positions.
+  //
+  // `#dexPositionsCache` is not cleared on resubscribe, so its keys outlive a
+  // reconnect and say nothing about freshness. `#initializedDexs` is reset, but
+  // the openOrders handler also adds to it while only re-decorating already
+  // cached positions with TP/SL — it never delivers size or side — so a DEX can
+  // be "initialized" with pre-reconnect position data.
+  //
+  // Stamping each slice with the epoch of the `clearinghouseState` payload that
+  // produced it makes staleness self-evident: the getters compare against the
+  // live epoch, so a slice from a previous connection stops matching without any
+  // explicit invalidation step to place at the right lifecycle point. That also
+  // covers SDK-internal automatic reconnects, which fire no callback here, and
+  // leaves a same-epoch webData3 retry untouched because the epoch has not moved.
+  readonly #dexPositionsEpoch = new Map<string, number>();
 
   readonly #dexOrdersCache = new Map<string, Order[]>(); // Per-DEX orders
 
@@ -632,11 +652,12 @@ export class HyperLiquidSubscriptionService {
    * This allows subscriptions to wait for DEX discovery before creating per-DEX subscriptions.
    *
    * @param timeoutMs - The maximum time in milliseconds to wait for DEX discovery.
+   * @returns Whether discovery completed before the timeout.
    */
-  async #waitForDexDiscovery(timeoutMs: number = 5000): Promise<void> {
+  async #waitForDexDiscovery(timeoutMs: number = 5000): Promise<boolean> {
     // Already have DEXs, no need to wait
     if (this.#enabledDexs.length > 0) {
-      return;
+      return true;
     }
 
     // Create promise if not exists
@@ -667,10 +688,12 @@ export class HyperLiquidSubscriptionService {
 
     try {
       await Promise.race([discovery, timeoutPromise]);
+      return true;
     } catch {
       this.#deps.debugLogger.log(
         'DEX discovery wait timed out, proceeding with main DEX only',
       );
+      return false;
     } finally {
       if (timeoutId) {
         clearTimeout(timeoutId);
@@ -687,12 +710,14 @@ export class HyperLiquidSubscriptionService {
    * @param enabledDexs - The array of enabled DEX identifiers.
    * @param allowlistMarkets - The array of allowed market patterns.
    * @param blocklistMarkets - The array of blocked market patterns.
+   * @param dexDiscoveryComplete - Whether the DEX list came from a valid discovery response.
    */
   public async updateFeatureFlags(
     hip3Enabled: boolean,
     enabledDexs: string[],
     allowlistMarkets: string[],
     blocklistMarkets: string[],
+    dexDiscoveryComplete: boolean = true,
   ): Promise<void> {
     const previousEnabledDexs = [...this.#enabledDexs];
     const previousAllowlistMarkets = [...this.#allowlistMarkets];
@@ -704,6 +729,16 @@ export class HyperLiquidSubscriptionService {
     this.#allowlistMarkets = allowlistMarkets;
     this.#blocklistMarkets = blocklistMarkets;
     this.#discoveredDexNames = enabledDexs; // Store DEX order for webData3 index mapping
+
+    // A complete position snapshot must follow the current configuration, not
+    // the DEX set that happened to exist when subscriptions first started. Add
+    // new DEXs before creating their subscriptions so all-DEX reads fail closed
+    // until each one publishes on the current connection. Removing or disabling
+    // a DEX removes it from the required set immediately.
+    this.#positionSnapshotDexs =
+      hip3Enabled && !dexDiscoveryComplete
+        ? new Set()
+        : new Set(hip3Enabled ? ['', ...enabledDexs] : ['']);
 
     // Resolve any pending DEX discovery wait now that DEXs are available
     if (this.#dexDiscoveryResolver && enabledDexs.length > 0) {
@@ -1915,11 +1950,12 @@ export class HyperLiquidSubscriptionService {
 
     // Wait for DEX discovery if HIP-3 is enabled but DEXs haven't been discovered yet
     // This ensures HIP-3 subscriptions are created together with main DEX
+    let dexDiscoveryComplete = true;
     if (this.#hip3Enabled && this.#enabledDexs.length === 0) {
       this.#deps.debugLogger.log(
         'Waiting for DEX discovery before creating subscriptions...',
       );
-      await this.#waitForDexDiscovery();
+      dexDiscoveryComplete = await this.#waitForDexDiscovery();
       this.#deps.debugLogger.log(
         'DEX discovery complete, proceeding with subscriptions',
         {
@@ -1946,7 +1982,17 @@ export class HyperLiquidSubscriptionService {
       // Track expected DEXs for synchronized notifications
       // Clear previous tracking and set new expected DEXs
       this.#expectedDexs = new Set(dexsToSubscribe);
+      this.#positionSnapshotDexs = dexDiscoveryComplete
+        ? new Set(dexsToSubscribe)
+        : new Set();
       this.#initializedDexs = new Set();
+      // Position freshness needs no reset here, or anywhere else on this path:
+      // each slice carries the connection epoch that produced it, so one from a
+      // previous connection stops matching on its own. That is what makes a
+      // webData3-only retry safe — this method also runs as one (its early
+      // return above keys on #webData3Subscriptions alone), and the per-DEX
+      // clearinghouseState subscriptions stay live and do not republish on this
+      // webData3-only retry, so a reset would erase freshness they still feed.
 
       // Set up individual subscriptions for each DEX
       const subscriptionPromises: Promise<void>[] = [];
@@ -2149,56 +2195,83 @@ export class HyperLiquidSubscriptionService {
           dex: dexName || undefined, // Empty string -> undefined for main DEX
         },
         (data: ClearinghouseStateWsEvent) => {
+          // Automatic reconnect reuses this client. Replacing the transport
+          // creates a new one, and a queued payload from the retired client
+          // must not stamp stale size or side with the new connection epoch.
+          if (
+            this.#clientService.getSubscriptionClient() !== subscriptionClient
+          ) {
+            this.#deps.debugLogger.log(
+              'Ignoring clearinghouseState update from a replaced subscription client',
+              { dex: data.dex || 'main' },
+            );
+            return;
+          }
+
           const cacheKey = data.dex || '';
 
-          // Update caches and notify subscribers if we have positions/account subscribers
+          // Keep authoritative slices current for as long as the subscription
+          // exists. Order-only subscribers keep this subscription alive too.
+          // Process positions from clearinghouse state
+          const positions = data.clearinghouseState.assetPositions
+            .filter((assetPos) => assetPos.position.szi !== '0')
+            .map((assetPos) => adaptPositionFromSDK(assetPos));
+
+          // Get cached orders to preserve TP/SL data (prevents flickering)
+          // Orders are cached by openOrders subscription
+          const cachedOrders = this.#dexOrdersCache.get(cacheKey) ?? [];
+
+          // Re-extract TP/SL from cached orders for the new positions
+          // This ensures TP/SL data persists across clearinghouseState updates
+          // Default the trigger arrays so "no triggers" and "not streamed yet"
+          // look the same to consumers as they do on the REST path.
+          let positionsWithTPSL: Position[] = positions.map((position) => ({
+            ...position,
+            takeProfitOrders: position.takeProfitOrders ?? [],
+            stopLossOrders: position.stopLossOrders ?? [],
+          }));
+          if (cachedOrders.length > 0) {
+            const { tpslMap, tpslCountMap, triggerOrderMap } =
+              this.#extractTPSLFromOrders([], positions, cachedOrders);
+
+            positionsWithTPSL = this.#mergeTPSLIntoPositions(
+              positions,
+              tpslMap,
+              tpslCountMap,
+              triggerOrderMap,
+            );
+          }
+
+          // Update account state
+          const accountState: AccountState = adaptAccountStateFromSDK(
+            data.clearinghouseState,
+          );
+
+          // Update caches
+          this.#dexPositionsCache.set(cacheKey, positionsWithTPSL);
+          this.#dexAccountCache.set(cacheKey, accountState);
+
+          // Mark this DEX as initialized (has sent first data)
+          this.#initializedDexs.add(cacheKey);
+
+          // Stamp at delivery, not subscription creation. The SDK keeps this
+          // listener across automatic reconnects, so a captured creation
+          // epoch would reject every legitimate payload after the first
+          // reconnect. Delivery is synchronous from the raw socket `message`
+          // event through the SDK listener; the raw `close` event that retires
+          // the epoch cannot interleave with this callback. Only this
+          // clearinghouseState path stamps because openOrders carries no
+          // authoritative size or side.
+          this.#dexPositionsEpoch.set(
+            cacheKey,
+            this.#clientService.getConnectionEpoch(),
+          );
+
           if (
             this.#positionSubscriberCount > 0 ||
             this.#accountSubscriberCount > 0
           ) {
-            // Process positions from clearinghouse state
-            const positions = data.clearinghouseState.assetPositions
-              .filter((assetPos) => assetPos.position.szi !== '0')
-              .map((assetPos) => adaptPositionFromSDK(assetPos));
-
-            // Get cached orders to preserve TP/SL data (prevents flickering)
-            // Orders are cached by openOrders subscription
-            const cachedOrders = this.#dexOrdersCache.get(cacheKey) ?? [];
-
-            // Re-extract TP/SL from cached orders for the new positions
-            // This ensures TP/SL data persists across clearinghouseState updates
-            // Default the trigger arrays so "no triggers" and "not streamed yet"
-            // look the same to consumers as they do on the REST path.
-            let positionsWithTPSL: Position[] = positions.map((position) => ({
-              ...position,
-              takeProfitOrders: position.takeProfitOrders ?? [],
-              stopLossOrders: position.stopLossOrders ?? [],
-            }));
-            if (cachedOrders.length > 0) {
-              const { tpslMap, tpslCountMap, triggerOrderMap } =
-                this.#extractTPSLFromOrders([], positions, cachedOrders);
-
-              positionsWithTPSL = this.#mergeTPSLIntoPositions(
-                positions,
-                tpslMap,
-                tpslCountMap,
-                triggerOrderMap,
-              );
-            }
-
-            // Update account state
-            const accountState: AccountState = adaptAccountStateFromSDK(
-              data.clearinghouseState,
-            );
-
-            // Update caches
-            this.#dexPositionsCache.set(cacheKey, positionsWithTPSL);
-            this.#dexAccountCache.set(cacheKey, accountState);
-
-            // Mark this DEX as initialized (has sent first data)
-            this.#initializedDexs.add(cacheKey);
-
-            // Trigger aggregation and notify subscribers
+            // Aggregate only when a consumer needs positions/account updates.
             this.#aggregateAndNotifySubscribers();
           }
         },
@@ -2548,7 +2621,9 @@ export class HyperLiquidSubscriptionService {
 
       // Clear DEX tracking for synchronized notifications
       this.#expectedDexs.clear();
+      this.#positionSnapshotDexs.clear();
       this.#initializedDexs.clear();
+      this.#dexPositionsEpoch.clear();
 
       // Clear aggregated caches
       this.#cachedPositions = null;
@@ -2932,12 +3007,42 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
-   * Get the cached positions for one DEX, or null when that DEX has published
-   * none this session.
+   * Get one complete position snapshot from current-connection DEX slices.
    *
-   * A DEX only enters this map once its `clearinghouseState` subscription has
-   * published, so `null` means the absence of a symbol proves nothing about
-   * whether a position exists there.
+   * Unlike the aggregate cache, this checks connection-epoch freshness for
+   * every configured position DEX. The check and copy are synchronous, so a reconnect
+   * cannot interleave between proving completeness and reading the slices.
+   *
+   * @returns A shallow-copied complete snapshot, or null until every configured
+   * DEX is current.
+   */
+  public getFreshPositionsForAllDexs(): Position[] | null {
+    if (
+      this.#positionSnapshotDexs.size === 0 ||
+      !Array.from(this.#positionSnapshotDexs).every((dexName) =>
+        this.#isPositionDexFresh(dexName),
+      )
+    ) {
+      return null;
+    }
+
+    const snapshot: Position[] = [];
+    for (const dexName of this.#positionSnapshotDexs) {
+      const positions = this.#dexPositionsCache.get(dexName);
+      if (!positions) {
+        return null;
+      }
+      snapshot.push(...positions);
+    }
+    return snapshot;
+  }
+
+  /**
+   * Get the live positions for one DEX, or null when that DEX has not published
+   * authoritative positions on the current connection.
+   *
+   * `null` means the absence of a symbol proves nothing about whether a
+   * position exists there.
    *
    * Prefer this over `getCachedPositions()` when a decision depends on whether a
    * specific symbol is absent. The aggregate is only rebuilt once *every*
@@ -2948,11 +3053,42 @@ export class HyperLiquidSubscriptionService {
    * reading the symbol from the aggregate would mix a fresh answer with stale
    * data.
    *
+   * Only a DEX that has published `clearinghouseState` on the CURRENT
+   * connection answers non-null. The underlying cache is not cleared on
+   * resubscribe, so a key surviving from before a reconnect would otherwise
+   * hand back pre-reconnect sizes as though they were live.
+   *
    * @param dexName - DEX identifier, or '' for the main DEX.
-   * @returns That DEX's cached positions, or null if it has not published.
+   * @returns That DEX's live positions, or null if it has not published on this
+   * connection.
    */
   public getCachedPositionsForDex(dexName: string): Position[] | null {
+    if (!this.#isPositionDexFresh(dexName)) {
+      return null;
+    }
     return this.#dexPositionsCache.get(dexName) ?? null;
+  }
+
+  /**
+   * Whether a DEX's cached positions are safe to read as live right now.
+   *
+   * The slice must have been produced by the connection that is still current.
+   * A reconnect — manual or SDK-internal — retires the epoch, so a slice cached
+   * before it stops matching here without needing to be cleared anywhere. That
+   * covers the window in which trading stays HTTP-capable while the socket is
+   * down, during which a close built from positions that stopped updating would
+   * be rejected by the exchange.
+   *
+   * @param dexName - DEX identifier, or '' for the main DEX.
+   * @returns True when that DEX's slice was published on the live connection.
+   */
+  #isPositionDexFresh(dexName: string): boolean {
+    const stampedEpoch = this.#dexPositionsEpoch.get(dexName);
+    if (stampedEpoch === undefined) {
+      return false;
+    }
+
+    return stampedEpoch === this.#clientService.getConnectionEpoch();
   }
 
   /**
@@ -4677,6 +4813,7 @@ export class HyperLiquidSubscriptionService {
     this.#dexPositionsCache.clear();
     this.#dexOrdersCache.clear();
     this.#dexAccountCache.clear();
+    this.#dexPositionsEpoch.clear();
     this.#cachedSpotState = null;
     this.#cachedSpotStateUserAddress = null;
     this.#abstractionModeByUser.clear();

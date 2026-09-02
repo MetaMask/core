@@ -460,6 +460,7 @@ describe('HyperLiquidSubscriptionService', () => {
       isTestnetMode: jest.fn(() => false),
       ensureTransportReady: jest.fn().mockResolvedValue(undefined),
       getConnectionState: jest.fn(() => 'connected'),
+      getConnectionEpoch: jest.fn(() => 1),
     } as any;
 
     // Mock wallet service
