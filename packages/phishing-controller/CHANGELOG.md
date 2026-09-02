@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.4.1]
+
 ### Changed
 
 - Optimize C2 domain blocklist lookups by switching internal storage from `Array` to `Set`, reducing per-lookup complexity from O(n) to O(1) ([#6388](https://github.com/MetaMask/core/pull/6388))
-- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.7.0` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969), [#10046](https://github.com/MetaMask/core/pull/10046))
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.8.0` ([#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969), [#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080))
 
 ### Fixed
 
@@ -652,7 +654,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.4.1...HEAD
+[17.4.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.4.0...@metamask/phishing-controller@17.4.1
 [17.4.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.3.1...@metamask/phishing-controller@17.4.0
 [17.3.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.3.0...@metamask/phishing-controller@17.3.1
 [17.3.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.2.1...@metamask/phishing-controller@17.3.0
