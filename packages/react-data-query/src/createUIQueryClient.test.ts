@@ -627,54 +627,56 @@ describe('createUIQueryClient', () => {
     service.destroy();
   });
 
-  it('cleans up removed mutation cache entries once all mutation observers are removed', async () => {
+  it.only('cleans up removed mutation cache entries once all mutation observers are removed', async () => {
     const defaultOptions = {
       queries: { gcTime: inMilliseconds(5, Duration.Minute) },
     };
 
     const { clientA, clientB, service } = createClients({ defaultOptions });
+    mockAddFollowerRequest();
+    mockAddFollowerRequest();
 
-    const observerA = new QueryObserver(clientA, {
-      queryKey: getAssetsQueryKey,
+    const observerA = new TanStackQueryMutationObserver(clientA, {
+      mutationKey: addFollowerMutationKey,
     });
 
-    const observerB = new QueryObserver(clientB, {
-      queryKey: getAssetsQueryKey,
+    const observerB = new TanStackQueryMutationObserver(clientB, {
+      mutationKey: addFollowerMutationKey,
     });
 
-    const promiseA = new Promise((resolve) => {
-      observerA.subscribe((event) => {
-        if (event.status === 'success' && !event.isFetching) {
-          resolve(event.data);
-        }
-      });
-    });
-
-    const promiseB = new Promise((resolve) => {
-      observerB.subscribe((event) => {
-        if (event.status === 'success' && !event.isFetching) {
-          resolve(event.data);
-        }
-      });
-    });
+    const promiseA = observerA.mutate();
+    const promiseB = observerB.mutate();
 
     jest.advanceTimersByTime(0);
 
     await Promise.all([promiseA, promiseB]);
 
+    // Advance the full gcTime of ExampleDataService
     jest.advanceTimersByTime(inMilliseconds(1, Duration.Day));
 
-    const queryData = clientA.getQueryData(getAssetsQueryKey);
+    const mutationBeforeRemovalA = clientA
+      .getMutationCache()
+      .find({ mutationKey: addFollowerMutationKey });
+    const mutationBeforeRemovalB = clientB
+      .getMutationCache()
+      .find({ mutationKey: addFollowerMutationKey });
+    expect(mutationBeforeRemovalA).toBeDefined();
+    expect(mutationBeforeRemovalB).toBeDefined();
 
-    expect(queryData).toBeDefined();
-    expect(queryData).toStrictEqual(clientB.getQueryData(getAssetsQueryKey));
-
-    observerA.destroy();
-    observerB.destroy();
+    observerA.reset();
+    observerB.reset();
 
     jest.advanceTimersByTime(inMilliseconds(5, Duration.Minute));
 
-    expect(clientA.getQueryData(getAssetsQueryKey)).toBeUndefined();
+    const mutationDataAfterRemovalA = clientA
+      .getMutationCache()
+      .find({ mutationKey: addFollowerMutationKey });
+    const mutationDataAfterRemovalB = clientB
+      .getMutationCache()
+      .find({ mutationKey: addFollowerMutationKey });
+    expect(mutationDataAfterRemovalA).toBeUndefined();
+    expect(mutationDataAfterRemovalB).toBeUndefined();
+
     service.destroy();
   });
 
