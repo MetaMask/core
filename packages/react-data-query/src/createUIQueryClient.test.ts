@@ -610,6 +610,7 @@ describe('createUIQueryClient', () => {
 
     await Promise.all([promiseA, promiseB]);
 
+    // Advance the full gcTime of ExampleDataService
     jest.advanceTimersByTime(inMilliseconds(1, Duration.Day));
 
     const queryData = clientA.getQueryData(getAssetsQueryKey);
