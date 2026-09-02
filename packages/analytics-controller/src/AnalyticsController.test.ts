@@ -3739,6 +3739,71 @@ describe('AnalyticsController', () => {
         expect(controller.state.eventFragments).toStrictEqual({});
       });
 
+      it('keeps a fragment that reuses an ID from a stale leftover during init', async () => {
+        let resolveGeolocation!: (value: GeolocationData) => void;
+        const geolocationHandler = jest.fn(
+          () =>
+            new Promise<GeolocationData>((resolve) => {
+              resolveGeolocation = resolve;
+            }),
+        );
+        const mockAdapter = createMockAdapter();
+        const analyticsId = '11111111-2222-4333-8444-555555555555';
+        const staleCreatedAt = 1700000000000;
+
+        const { controller } = await setupController({
+          state: {
+            optedIn: true,
+            consentDecisionMade: true,
+            analyticsId,
+            eventFragments: {
+              'signature-123': buildFragment({
+                id: 'signature-123',
+                createdAt: staleCreatedAt,
+                lastUpdated: staleCreatedAt,
+              }),
+            },
+          },
+          platformAdapter: mockAdapter,
+          isEventFragmentsEnabled: true,
+          isGeolocationEnabled: true,
+          geolocationHandler,
+          skipInit: true,
+        });
+
+        const initPromise = controller.init();
+
+        controller.createEventFragment({
+          id: 'signature-123',
+          successEvent: 'Signature Approved',
+          properties: { signature_type: 'personal_sign' },
+        });
+
+        resolveGeolocation(buildGeolocationData());
+        await initPromise;
+
+        expect(controller.state.eventFragments).toStrictEqual({
+          'signature-123': expect.objectContaining({
+            id: 'signature-123',
+            successEvent: 'Signature Approved',
+            properties: { signature_type: 'personal_sign' },
+            createdAt: expect.any(Number),
+          }),
+        });
+        expect(
+          controller.state.eventFragments?.['signature-123']?.createdAt,
+        ).not.toBe(staleCreatedAt);
+
+        controller.finalizeEventFragment('signature-123');
+
+        expect(mockAdapter.track).toHaveBeenCalledWith(
+          'Signature Approved',
+          { signature_type: 'personal_sign' },
+          undefined,
+        );
+        expect(controller.state.eventFragments).toStrictEqual({});
+      });
+
       it('leaves state untouched when every fragment is persistent', async () => {
         const { controller } = await setupFragmentController({
           state: {

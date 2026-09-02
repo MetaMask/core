@@ -688,11 +688,21 @@ export class AnalyticsController extends BaseController<
    * and pre-consent events.
    */
   async #performInit(): Promise<void> {
-    // Snapshot fragment IDs before any awaited init work so reconciliation can
-    // tell previous-session leftovers from fragments created while init runs.
-    const initEventFragmentIds = new Set(
-      Object.keys(this.state.eventFragments ?? {}),
-    );
+    // Snapshot fragment IDs and createdAt before any awaited init work so
+    // reconciliation can tell previous-session leftovers from fragments
+    // created or replaced while init runs.
+    const initEventFragmentSnapshot = new Map<string, number>();
+    for (const [id, fragment] of Object.entries(
+      this.state.eventFragments ?? {},
+    )) {
+      if (
+        isAnalyticsEventFragment(fragment) &&
+        fragment.id === id &&
+        typeof fragment.createdAt === 'number'
+      ) {
+        initEventFragmentSnapshot.set(id, fragment.createdAt);
+      }
+    }
 
     // Resolve geolocation only when the user is already opted in; for undecided
     // or opted-out users it is deferred to {@link optIn}. Awaited so that an
@@ -710,7 +720,7 @@ export class AnalyticsController extends BaseController<
 
     this.#replayQueuedEvents();
     this.#reconcilePreConsentEvents();
-    this.#reconcileEventFragments(initEventFragmentIds);
+    this.#reconcileEventFragments(initEventFragmentSnapshot);
   }
 
   /**
@@ -1168,13 +1178,15 @@ export class AnalyticsController extends BaseController<
    * before the user opted out), every persisted fragment is dropped so none of
    * them can linger.
    *
-   * Non-persistent fragments are dropped only when their ID was already present
-   * at the start of {@link init}. Fragments created while init is in flight are
-   * kept so a slow startup path cannot discard an in-progress journey.
+   * Non-persistent fragments are dropped only when their ID and `createdAt`
+   * match a fragment present at the start of {@link init}. Fragments created
+   * or replaced while init is in flight are kept so a slow startup path cannot
+   * discard an in-progress journey.
    *
-   * @param initEventFragmentIds - Fragment IDs present when {@link init} began.
+   * @param initEventFragmentSnapshot - Fragment IDs and `createdAt` values
+   * present when {@link init} began.
    */
-  #reconcileEventFragments(initEventFragmentIds: Set<string>): void {
+  #reconcileEventFragments(initEventFragmentSnapshot: Map<string, number>): void {
     const fragments = this.state.eventFragments;
 
     if (!fragments) {
@@ -1186,22 +1198,26 @@ export class AnalyticsController extends BaseController<
       return;
     }
 
-    this.#purgeNonPersistentEventFragments(fragments, initEventFragmentIds);
+    this.#purgeNonPersistentEventFragments(
+      fragments,
+      initEventFragmentSnapshot,
+    );
   }
 
   /**
    * Drop every persisted fragment that is invalid, did not opt into `persist`,
-   * or was already present when {@link init} began.
+   * or was already present with the same `createdAt` when {@link init} began.
    *
    * Only called by {@link #reconcileEventFragments}, which guarantees the
    * fragments exist and that the event fragments feature is enabled.
    *
    * @param currentEventFragments - The persisted fragments to filter.
-   * @param initEventFragmentIds - Fragment IDs present when {@link init} began.
+   * @param initEventFragmentSnapshot - Fragment IDs and `createdAt` values
+   * present when {@link init} began.
    */
   #purgeNonPersistentEventFragments(
     currentEventFragments: AnalyticsEventFragments,
-    initEventFragmentIds: Set<string>,
+    initEventFragmentSnapshot: Map<string, number>,
   ): void {
     const eventFragments: AnalyticsEventFragments = {};
 
@@ -1211,9 +1227,12 @@ export class AnalyticsController extends BaseController<
         continue;
       }
 
+      const snapshotCreatedAt = initEventFragmentSnapshot.get(id);
+
       if (
         fragment.persist === true ||
-        !initEventFragmentIds.has(id)
+        snapshotCreatedAt === undefined ||
+        fragment.createdAt !== snapshotCreatedAt
       ) {
         eventFragments[id] = fragment;
       }
