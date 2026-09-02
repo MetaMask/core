@@ -36,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `handleWhen`
   - These symbols will be removed in a future major version. Please use equivalent implementations from `@metamask/base-data-service` going forward.
 
+### Fixed
+
+- Fix `fetchWithErrorHandling` ignoring its `timeout` option ([#10048](https://github.com/MetaMask/core/pull/10048))
+  - Previously, the fetch was awaited before `Promise.race` was constructed, so the race always resolved to the already-settled fetch and the timeout could never fire.
+
 ## [12.3.0]
 
 ### Added
