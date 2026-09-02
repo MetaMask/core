@@ -437,6 +437,10 @@ describe('HyperLiquidProvider', () => {
       subscribeToOrderFills: jest.fn().mockReturnValue(jest.fn()), // Returns function directly
       clearAll: jest.fn(),
       isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
+      // Per-DEX position slices. Default to "nothing published", so these tests
+      // keep the aggregate behaviour they were written against.
+      getCachedPositionsForDex: jest.fn().mockReturnValue(null),
+      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
       getCachedPositions: jest.fn().mockReturnValue([]),
       updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization

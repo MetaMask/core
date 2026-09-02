@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add SwapBridge failure telemetry schema and quote-fetch classifier for a later emit ([#9947](https://github.com/MetaMask/core/pull/9947))
+  - New exports: `FailurePhase`, `SwapBridgeErrorCode`, and `getQuoteFetchErrorCode` (classifies quote fetch from the code path, not from `error_message`)
+  - New type exports: `HashPresenceData` / `FailureTelemetryData` (optional Mixpanel event fields) and `HashPresenceProperties` / `FailureTelemetryProperties` (required classifier return shape)
+  - Optional `failure_phase` and `error_code` on Quotes Error and Failed event context types
+  - Optional `source_hash_present` and `destination_hash_present` on Failed, Submitted, and Completed event context types
+  - Submit and status classifiers live in `@metamask/bridge-status-controller`
+
 ### Changed
 
 - Bump `@metamask/assets-controller` from `^14.0.2` to `^14.0.3` ([#10042](https://github.com/MetaMask/core/pull/10042))

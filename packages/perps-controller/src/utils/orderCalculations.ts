@@ -1012,7 +1012,19 @@ export function validateOrderPrecision(params: {
       continue;
     }
 
-    if (parseFloat(formatHyperLiquidSize({ size, szDecimals })) <= 0) {
+    // Mirror how the size is actually submitted. A partial TP/SL size is
+    // floored onto the size grid (formatPartialTpslSize) because a reduce-only
+    // trigger must not exceed its position, so checking it with the half-up
+    // formatter accepted sizes in [0.5, 1) increments here and refused them
+    // later — after trading setup had prompted for signatures and written
+    // approvals, and after the pre-cancel sweep had cleared the position's
+    // existing triggers. Flooring here refuses them before any of that.
+    const parsedSize = parseFloat(size);
+    const flooredSize = Number.isFinite(parsedSize)
+      ? floorToSizeDecimals(parsedSize, szDecimals)
+      : parsedSize;
+
+    if (!(flooredSize > 0)) {
       return {
         isValid: false,
         error: PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID,
@@ -1052,6 +1064,14 @@ export function validateOrderPrecision(params: {
  * `'0'`. HyperLiquid reads a zero-sized trigger as covering the whole position,
  * which would silently turn a partial TP/SL into a full close.
  *
+ * The size is floored onto the asset's size grid before formatting. A partial
+ * TP/SL is a reduce-only trigger, so it may never exceed the position it
+ * protects: `formatHyperLiquidSize` rounds half-up, which turns a size sitting
+ * on a half-increment into one the position cannot absorb (0.115 at
+ * `szDecimals: 2` becomes '0.12'), and HyperLiquid rejects that with "Reduce
+ * only order would increase position". Callers clamp to the position or parent
+ * order before calling, so rounding up here would undo their clamp.
+ *
  * @param params - Size parameters
  * @param params.size - The requested partial size
  * @param params.szDecimals - Asset size decimals
@@ -1061,7 +1081,16 @@ export function formatPartialTpslSize(params: {
   size: string | number;
   szDecimals: number;
 }): string {
-  const formatted = formatHyperLiquidSize(params);
+  const { size, szDecimals } = params;
+  const requested = typeof size === 'string' ? parseFloat(size) : size;
+
+  // A non-numeric size cannot be floored; leave it to formatHyperLiquidSize,
+  // which renders it as '0' and is rejected just below.
+  const flooredSize = Number.isFinite(requested)
+    ? floorToSizeDecimals(requested, szDecimals)
+    : requested;
+
+  const formatted = formatHyperLiquidSize({ size: flooredSize, szDecimals });
 
   if (parseFloat(formatted) <= 0) {
     throw new Error(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);

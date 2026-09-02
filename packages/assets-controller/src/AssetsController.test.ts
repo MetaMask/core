@@ -1,3 +1,4 @@
+import { clientControllerSelectors } from '@metamask/client-controller';
 /* eslint-disable jest/unbound-method */
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { ApiPlatformClient } from '@metamask/core-backend';
@@ -10,6 +11,7 @@ import type {
 } from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
 
+import { registerKeyringUnlockMock } from './__fixtures__/MockAssetControllerMessenger.js';
 import {
   AssetsController,
   getDefaultAssetsControllerState,
@@ -110,7 +112,7 @@ async function activateTracking(messenger: RootMessenger): Promise<void> {
     messenger as unknown as {
       publish: (topic: string, payload?: unknown) => void;
     }
-  ).publish('ClientController:stateChange', { isUiOpen: true });
+  ).publish('ClientController:stateChanged', { isUiOpen: true });
   messenger.publish('KeyringController:unlock');
   (messenger.publish as CallableFunction)(
     'AccountTreeController:initialized',
@@ -167,9 +169,11 @@ type WithControllerOptions = {
 type WithControllerCallback<ReturnValue> = ({
   controller,
   messenger,
+  getSelectedAccountsMock,
 }: {
   controller: AssetsController;
   messenger: RootMessenger;
+  getSelectedAccountsMock: jest.Mock<InternalAccount[], []>;
 }) => Promise<ReturnValue> | ReturnValue;
 
 async function withController<ReturnValue>(
@@ -188,7 +192,7 @@ async function withController<ReturnValue>(
     {
       state = {},
       isBasicFunctionality = (): boolean => true,
-      clientControllerState,
+      clientControllerState: initialClientControllerState,
       remoteFeatureFlags = {},
       queryApiClient = createMockQueryApiClient(),
       controllerOptions = {},
@@ -217,9 +221,21 @@ async function withController<ReturnValue>(
   );
 
   // Mock AccountTreeController
+  let isAccountTreeInitialized = false;
+  messenger.registerActionHandler(
+    'AccountTreeController:isInitialized',
+    () => isAccountTreeInitialized,
+  );
+  messenger.subscribe('AccountTreeController:initialized', () => {
+    isAccountTreeInitialized = true;
+  });
+  messenger.subscribe('AccountTreeController:uninitialized', () => {
+    isAccountTreeInitialized = false;
+  });
+  const getSelectedAccountsMock = jest.fn(() => [createMockInternalAccount()]);
   messenger.registerActionHandler(
     'AccountTreeController:getAccountsFromSelectedAccountGroup',
-    () => [createMockInternalAccount()],
+    getSelectedAccountsMock,
   );
 
   // Mock NetworkEnablementController
@@ -253,16 +269,26 @@ async function withController<ReturnValue>(
     provider: {},
   }));
 
-  if (clientControllerState !== undefined) {
-    (
-      messenger as {
-        registerActionHandler: (a: string, h: () => unknown) => void;
-      }
-    ).registerActionHandler(
-      'ClientController:getState',
-      () => clientControllerState,
-    );
-  }
+  let clientControllerState = {
+    isUiOpen: initialClientControllerState?.isUiOpen ?? false,
+  };
+  (
+    messenger as {
+      registerActionHandler: (a: string, h: () => unknown) => void;
+    }
+  ).registerActionHandler(
+    'ClientController:getState',
+    () => clientControllerState,
+  );
+  messenger.subscribe(
+    'ClientController:stateChanged',
+    (open: boolean) => {
+      clientControllerState = { isUiOpen: open };
+    },
+    clientControllerSelectors.selectIsUiOpen,
+  );
+
+  registerKeyringUnlockMock(messenger);
 
   (
     messenger as {
@@ -288,7 +314,7 @@ async function withController<ReturnValue>(
   });
 
   try {
-    return await fn({ controller, messenger });
+    return await fn({ controller, messenger, getSelectedAccountsMock });
   } finally {
     await flushPromises();
     controller.destroy();
@@ -2686,7 +2712,7 @@ describe('AssetsController', () => {
             messenger as unknown as {
               publish: (topic: string, payload?: unknown) => void;
             }
-          ).publish('ClientController:stateChange', { isUiOpen: true });
+          ).publish('ClientController:stateChanged', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
           (messenger.publish as CallableFunction)(
             'AccountTreeController:initialized',
@@ -3027,7 +3053,7 @@ describe('AssetsController', () => {
             messenger as unknown as {
               publish: (topic: string, payload?: unknown) => void;
             }
-          ).publish('ClientController:stateChange', { isUiOpen: true });
+          ).publish('ClientController:stateChanged', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
           (messenger.publish as CallableFunction)(
             'AccountTreeController:initialized',
@@ -3136,7 +3162,7 @@ describe('AssetsController', () => {
             messenger as unknown as {
               publish: (topic: string, payload?: unknown) => void;
             }
-          ).publish('ClientController:stateChange', { isUiOpen: true });
+          ).publish('ClientController:stateChanged', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
           (messenger.publish as CallableFunction)(
             'AccountTreeController:initialized',
@@ -3177,7 +3203,7 @@ describe('AssetsController', () => {
             messenger as unknown as {
               publish: (topic: string, payload?: unknown) => void;
             }
-          ).publish('ClientController:stateChange', { isUiOpen: true });
+          ).publish('ClientController:stateChanged', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
           (messenger.publish as CallableFunction)(
             'AccountTreeController:initialized',
@@ -3387,10 +3413,23 @@ describe('AssetsController', () => {
         namespace: MOCK_ANY_NAMESPACE,
       });
 
+      registerKeyringUnlockMock(messenger);
+
       messenger.registerActionHandler(
         'AccountTreeController:getAccountsFromSelectedAccountGroup',
         () => [createMockInternalAccount()],
       );
+      let isAccountTreeInitialized = false;
+      messenger.registerActionHandler(
+        'AccountTreeController:isInitialized',
+        () => isAccountTreeInitialized,
+      );
+      messenger.subscribe('AccountTreeController:initialized', () => {
+        isAccountTreeInitialized = true;
+      });
+      messenger.subscribe('AccountTreeController:uninitialized', () => {
+        isAccountTreeInitialized = false;
+      });
       messenger.registerActionHandler(
         'NetworkEnablementController:getState',
         () => ({
@@ -3460,7 +3499,7 @@ describe('AssetsController', () => {
           messenger as unknown as {
             publish: (topic: string, payload?: unknown) => void;
           }
-        ).publish('ClientController:stateChange', { isUiOpen: true });
+        ).publish('ClientController:stateChanged', { isUiOpen: true });
         messenger.publish('KeyringController:unlock');
         (messenger.publish as CallableFunction)(
           'AccountTreeController:initialized',
@@ -3503,17 +3542,7 @@ describe('AssetsController', () => {
           .spyOn(controller, 'getAssets')
           .mockResolvedValue({});
 
-        (
-          messenger as unknown as {
-            publish: (topic: string, payload?: unknown) => void;
-          }
-        ).publish('ClientController:stateChange', { isUiOpen: true });
-        messenger.publish('KeyringController:unlock');
-        (messenger.publish as CallableFunction)(
-          'AccountTreeController:initialized',
-          {},
-        );
-        await flushPromises();
+        await activateTracking(messenger);
 
         getAssetsSpy.mockClear();
 
@@ -3555,11 +3584,10 @@ describe('AssetsController', () => {
           messenger as unknown as {
             publish: (topic: string, payload?: unknown) => void;
           }
-        ).publish('ClientController:stateChange', { isUiOpen: true });
+        ).publish('ClientController:stateChanged', { isUiOpen: true });
         messenger.publish('KeyringController:unlock');
         await flushPromises();
 
-        // ATC always publishes this on init, even when the group did not change.
         (messenger.publish as CallableFunction)(
           'AccountTreeController:selectedAccountGroupChange',
           'entropy:mock-keyring-id-1/0',
@@ -3586,17 +3614,7 @@ describe('AssetsController', () => {
           .spyOn(controller, 'getAssets')
           .mockResolvedValue({});
 
-        (
-          messenger as unknown as {
-            publish: (topic: string, payload?: unknown) => void;
-          }
-        ).publish('ClientController:stateChange', { isUiOpen: true });
-        messenger.publish('KeyringController:unlock');
-        (messenger.publish as CallableFunction)(
-          'AccountTreeController:initialized',
-          {},
-        );
-        await flushPromises();
+        await activateTracking(messenger);
 
         getAssetsSpy.mockClear();
 
@@ -3620,10 +3638,22 @@ describe('AssetsController', () => {
       const messenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
       });
+      registerKeyringUnlockMock(messenger);
       messenger.registerActionHandler(
         'AccountTreeController:getAccountsFromSelectedAccountGroup',
         getAccountsMock,
       );
+      let isAccountTreeInitialized = false;
+      messenger.registerActionHandler(
+        'AccountTreeController:isInitialized',
+        () => isAccountTreeInitialized,
+      );
+      messenger.subscribe('AccountTreeController:initialized', () => {
+        isAccountTreeInitialized = true;
+      });
+      messenger.subscribe('AccountTreeController:uninitialized', () => {
+        isAccountTreeInitialized = false;
+      });
       (
         messenger as {
           registerActionHandler: (a: string, h: () => unknown) => void;
@@ -3680,7 +3710,7 @@ describe('AssetsController', () => {
         messenger as unknown as {
           publish: (topic: string, payload?: unknown) => void;
         }
-      ).publish('ClientController:stateChange', { isUiOpen: true });
+      ).publish('ClientController:stateChanged', { isUiOpen: true });
       messenger.publish('KeyringController:unlock');
       await new Promise((resolve) => setTimeout(resolve, 100));
 
