@@ -161,6 +161,28 @@ describe('PreferencesController', () => {
     expect(controller.state.showIncomingTransactions['0x1']).toBe(false);
   });
 
+  it('should set showIncomingTransactions to true when the chain supports Etherscan API (via config-registry)', () => {
+    const {
+      controller,
+      rootMessenger,
+      mockConfigRegistryControllerGetNetworkConfigByCaip2ChainId,
+    } = setupPreferencesController();
+    mockConfigRegistryControllerGetNetworkConfigByCaip2ChainId.mockReturnValue({
+      supportsEtherscanApi: true,
+    });
+
+    rootMessenger.call(
+      'PreferencesController:setEnableNetworkIncomingTransactions',
+      '0x9999',
+      true,
+    );
+
+    expect(controller.state.showIncomingTransactions['0x9999']).toBe(true);
+    expect(
+      mockConfigRegistryControllerGetNetworkConfigByCaip2ChainId,
+    ).toHaveBeenCalledWith('eip155:0x9999');
+  });
+
   it('should set smartTransactionsOptInStatus', () => {
     const { controller, rootMessenger } = setupPreferencesController();
     rootMessenger.call(
@@ -528,7 +550,20 @@ function setupPreferencesController({
 }: {
   options?: Partial<ConstructorParameters<typeof PreferencesController>[0]>;
   messenger?: RootMessenger;
-} = {}): { controller: PreferencesController; rootMessenger: RootMessenger } {
+} = {}): {
+  controller: PreferencesController;
+  rootMessenger: RootMessenger;
+  mockConfigRegistryControllerGetNetworkConfigByCaip2ChainId: jest.Mock;
+} {
+  const mockConfigRegistryControllerGetNetworkConfigByCaip2ChainId = jest
+    .fn()
+    .mockReturnValue({});
+
+  messenger.registerActionHandler(
+    'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+    mockConfigRegistryControllerGetNetworkConfigByCaip2ChainId,
+  );
+
   const preferencesControllerMessenger = new Messenger<
     'PreferencesController',
     AllPreferencesControllerActions,
@@ -541,7 +576,7 @@ function setupPreferencesController({
 
   messenger.delegate({
     messenger: preferencesControllerMessenger,
-    actions: [],
+    actions: ['ConfigRegistryController:getNetworkConfigByCaip2ChainId'],
   });
 
   const controller = new PreferencesController({
@@ -549,5 +584,9 @@ function setupPreferencesController({
     ...options,
   });
 
-  return { controller, rootMessenger: messenger };
+  return {
+    controller,
+    rootMessenger: messenger,
+    mockConfigRegistryControllerGetNetworkConfigByCaip2ChainId,
+  };
 }

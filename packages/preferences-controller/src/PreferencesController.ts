@@ -3,10 +3,17 @@ import type {
   ControllerStateChangeEvent,
   ControllerGetStateAction,
 } from '@metamask/base-controller';
+import type { ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction } from '@metamask/config-registry-controller';
 import type { Messenger } from '@metamask/messenger';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants.js';
 import type { PreferencesControllerMethodActions } from './PreferencesController-method-action-types.js';
+import {
+  Hex,
+  KnownCaipNamespace,
+  parseCaipChainId,
+  toCaipChainId,
+} from '@metamask/utils';
 
 /**
  * A type union of the name for each chain that is supported by Etherscan or
@@ -59,9 +66,7 @@ export type PreferencesState = {
   /**
    * Controls whether incoming transactions are enabled, per-chain (for Etherscan-supported chains)
    */
-  showIncomingTransactions: {
-    [chainId in EtherscanSupportedHexChainId]: boolean;
-  };
+  showIncomingTransactions: Record<Hex, boolean>;
   /**
    * Controls whether test networks are shown in the wallet
    */
@@ -267,11 +272,14 @@ export type PreferencesControllerActions =
   | PreferencesControllerGetStateAction
   | PreferencesControllerMethodActions;
 
+export type AllowedActions =
+  ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction;
+
 export type PreferencesControllerEvents = PreferencesControllerStateChangeEvent;
 
 export type PreferencesControllerMessenger = Messenger<
   typeof name,
-  PreferencesControllerActions,
+  PreferencesControllerActions | AllowedActions,
   PreferencesControllerEvents
 >;
 
@@ -487,10 +495,19 @@ export class PreferencesController extends BaseController<
    * @param isIncomingTransactionNetworkEnable - true to enable incoming transactions
    */
   setEnableNetworkIncomingTransactions(
-    chainId: EtherscanSupportedHexChainId,
+    chainId: Hex,
     isIncomingTransactionNetworkEnable: boolean,
   ): void {
-    if (Object.values(ETHERSCAN_SUPPORTED_CHAIN_IDS).includes(chainId)) {
+    const isEtherscanSupportedChain =
+      this.messenger.call(
+        'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+        toCaipChainId(KnownCaipNamespace.Eip155, chainId),
+      )?.supportsEtherscanApi ??
+      Object.values(ETHERSCAN_SUPPORTED_CHAIN_IDS).includes(
+        chainId as EtherscanSupportedHexChainId,
+      );
+
+    if (isEtherscanSupportedChain) {
       this.update((state) => {
         state.showIncomingTransactions = {
           ...this.state.showIncomingTransactions,
