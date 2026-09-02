@@ -134,6 +134,7 @@ import type {
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
+  SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
   ToggleTestnetResult,
@@ -13555,6 +13556,97 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   subscribeToOrderFills(params: SubscribeOrderFillsParams): () => void {
     return this.#subscriptionService.subscribeToOrderFills(params);
+  }
+
+  /**
+   * Stream TWAP lifecycle updates from the venue's own push channel.
+   *
+   * The venue streams schedule state without slice fills, so each pushed
+   * schedule carries an empty `fills` array. A subscriber that renders fill
+   * history should keep what a prior `getTwapOrders()` read supplied rather
+   * than replacing it from the stream.
+   *
+   * @param params - Subscription parameters including callback and account ID.
+   * @returns A cleanup function to unsubscribe from TWAP updates.
+   */
+  subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
+    return this.#subscriptionService.subscribeToTwapOrders({
+      ...params,
+      adapt: (history) => {
+        const now = Date.now();
+        const ordersById = new Map<string, TwapOrder>();
+        for (const historyEntry of history) {
+          const order = this.#adaptTwapOrder({
+            historyEntry,
+            sliceFills: [],
+            now,
+          });
+          if (!order) {
+            continue;
+          }
+          const existing = ordersById.get(order.orderId);
+          if (!existing || order.lastUpdated >= existing.lastUpdated) {
+            ordersById.set(order.orderId, order);
+          }
+        }
+        const orders = [...ordersById.values()].sort(
+          (left, right) => right.startedAt - left.startedAt,
+        );
+
+        // A streamed terminal schedule must reclaim HIP-3 collateral the same
+        // way a polled read does, or a consumer that replaced polling with
+        // this subscription strands manually transferred collateral. The
+        // listener is synchronous, so this runs detached and logs its own
+        // failures rather than rejecting into the stream.
+        this.#rebalanceStreamedTerminalTwaps(orders, params.accountId);
+
+        return orders;
+      },
+    });
+  }
+
+  /**
+   * Reclaim HIP-3 collateral for terminal schedules seen on the TWAP stream.
+   *
+   * `getTwapOrders()` does this on every read; without the same call here a
+   * consumer that replaced polling with the subscription would strand
+   * manually transferred collateral. Detached on purpose: the stream listener
+   * is synchronous and must not reject.
+   *
+   * @param orders - Schedules from the latest stream push.
+   * @param accountId - Optional CAIP account ID the subscription is scoped to.
+   */
+  #rebalanceStreamedTerminalTwaps(
+    orders: TwapOrder[],
+    accountId?: CaipAccountId,
+  ): void {
+    if (orders.every((order) => order.status === 'active')) {
+      return;
+    }
+
+    // Resolve the address from the push's own scope before detaching. Left
+    // inside the microtask it would resolve at run time, so an account switch
+    // racing a terminal push would key the reclaim to the newly selected
+    // account and silently skip the schedule it was meant to settle.
+    const userAddressPromise =
+      this.#walletService.getUserAddressWithDefault(accountId);
+    // Capture the network with the address, not after awaiting it: a network
+    // toggle while resolution is pending would key the reclaim to the opposite
+    // network and skip the terminal schedule.
+    const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
+
+    (async (): Promise<void> => {
+      const userAddress = await userAddressPromise;
+      await this.#rebalanceTerminalHip3Twaps(orders, {
+        network,
+        userAddress,
+      });
+    })().catch((error) => {
+      this.#deps.debugLogger.log('TWAP stream HIP-3 rebalance failed', {
+        error: ensureError(error, 'HyperLiquidProvider.subscribeToTwapOrders')
+          .message,
+      });
+    });
   }
 
   /**

@@ -5,6 +5,8 @@ import type {
   AllMidsWsEvent,
   WebData3WsEvent,
   UserFillsWsEvent,
+  UserTwapHistoryWsEvent,
+  TwapHistoryResponse,
   ActiveAssetCtxWsEvent,
   ActiveSpotAssetCtxWsEvent,
   BboWsEvent,
@@ -35,10 +37,12 @@ import type {
   OrderFill,
   Order,
   AccountState,
+  TwapOrder,
   SubscribePricesParams,
   SubscribePositionsParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
+  SubscribeTwapOrdersParams,
   SubscribeAccountParams,
   SubscribeOICapsParams,
   SubscribeOrderBookParams,
@@ -72,6 +76,19 @@ import {
 } from '../utils/orderTypes.js';
 import type { HyperLiquidClientService } from './HyperLiquidClientService.js';
 import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
+
+/**
+ * Cap on *terminal* TWAP schedules retained per account from the venue's
+ * history stream. Without it a long-lived session accumulates every schedule
+ * the account has ever run. Active schedules are never evicted: they are what
+ * a subscriber is monitoring, and a long-running one has the oldest
+ * `startedAt` of all.
+ *
+ * Deliberately not shared with the fills cache bound: fills are capped by
+ * event time and have no long-lived active analogue, so the two bounds mean
+ * different things and should be tunable apart.
+ */
+const MAX_RETAINED_TWAP_ORDERS = 100;
 
 /**
  * Per-symbol view of the trigger orders attached to a position, keyed by symbol.
@@ -141,6 +158,12 @@ export class HyperLiquidSubscriptionService {
 
   readonly #orderSubscribers = new Set<(orders: Order[]) => void>();
 
+  // TWAP subscribers keyed by accountId (normalized: undefined -> 'default')
+  readonly #twapOrderSubscribers = new Map<
+    string,
+    Set<(twapOrders: TwapOrder[], isSnapshot?: boolean) => void>
+  >();
+
   readonly #accountSubscribers = new Set<(account: AccountState) => void>();
 
   // Track which subscribers want market data
@@ -196,6 +219,40 @@ export class HyperLiquidSubscriptionService {
 
   // Order fill subscriptions keyed by accountId (normalized: undefined -> 'default')
   readonly #orderFillSubscriptions = new Map<string, ISubscription>();
+
+  // TWAP subscriptions keyed by accountId (normalized: undefined -> 'default')
+  readonly #twapOrderSubscriptions = new Map<string, ISubscription>();
+
+  // In-flight TWAP subscribe calls, so concurrent subscribers share one socket
+  readonly #pendingTwapOrderSubscriptions = new Map<string, Promise<void>>();
+
+  // Retained per-account adapters so a reconnect can re-open TWAP sockets
+  // without a live caller to supply the venue-shape mapping again.
+  readonly #twapOrderAdapters = new Map<
+    string,
+    (history: TwapHistoryResponse) => TwapOrder[]
+  >();
+
+  // Merged TWAP state per account. The venue sends a snapshot then deltas, so
+  // the full set the public callback promises is accumulated here.
+  readonly #cachedTwapOrders = new Map<string, Map<string, TwapOrder>>();
+
+  // Bumped per account by teardown and reconnect so an in-flight open for
+  // that account discards its subscription instead of rehydrating a cleared
+  // map. Keyed rather than global: every other TWAP map is per-account, so a
+  // single scalar would let one account's teardown discard another's open.
+  readonly #twapOrderSubscriptionGenerations = new Map<string, number>();
+
+  #twapOrderGeneration(normalizedAccountId: string): number {
+    return this.#twapOrderSubscriptionGenerations.get(normalizedAccountId) ?? 0;
+  }
+
+  #bumpTwapOrderGeneration(normalizedAccountId: string): void {
+    this.#twapOrderSubscriptionGenerations.set(
+      normalizedAccountId,
+      this.#twapOrderGeneration(normalizedAccountId) + 1,
+    );
+  }
 
   readonly #spotStateSubscriptions = new Map<string, ISubscription>();
 
@@ -499,6 +556,49 @@ export class HyperLiquidSubscriptionService {
         (messageParts.includes('unknown error (no details provided)') ||
           messageParts.includes('undefined')))
     );
+  }
+
+  /**
+   * Retry one account's TWAP subscription after a failed restoration.
+   *
+   * Mirrors `#scheduleRestoreRetry`: a single deferred attempt, skipped while
+   * clearing or when one is already pending for that account.
+   *
+   * @param normalizedAccountId - Account key ('default' when unset).
+   */
+  #scheduleTwapRestoreRetry(normalizedAccountId: string): void {
+    const retryKey = `twapOrders:${normalizedAccountId}`;
+    if (this.#isClearing || this.#restoreRetryTimeouts.has(retryKey)) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      this.#restoreRetryTimeouts.delete(retryKey);
+      const adapt = this.#twapOrderAdapters.get(normalizedAccountId);
+      const subscribers = this.#twapOrderSubscribers.get(normalizedAccountId);
+      if (!adapt || !subscribers || subscribers.size === 0) {
+        return;
+      }
+      const accountId =
+        normalizedAccountId === 'default'
+          ? undefined
+          : (normalizedAccountId as CaipAccountId);
+
+      this.#ensureTwapOrderSubscription(accountId, adapt).catch((error) => {
+        this.#logErrorUnlessClearing(
+          ensureError(
+            error,
+            'HyperLiquidSubscriptionService.restoreSubscriptions.retry',
+          ),
+          this.#getErrorContext('restoreSubscriptions.retry', {
+            accountId: normalizedAccountId,
+            kind: 'twapOrders',
+          }),
+        );
+      });
+    }, 1000);
+
+    this.#restoreRetryTimeouts.set(retryKey, timeoutId);
   }
 
   #scheduleRestoreRetry(dex: string, kind: 'assetCtxs' | 'allMids'): void {
@@ -2897,6 +2997,269 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
+   * Subscribe to venue-native TWAP lifecycle updates.
+   *
+   * HyperLiquid pushes the same `twapHistory` payload the REST read returns,
+   * so the caller supplies the adapter that turns raw history entries into
+   * `TwapOrder`s. That keeps the venue-shape knowledge in the provider and
+   * leaves this service owning transport, fan-out, and teardown only.
+   *
+   * Slice fills are not part of this channel — the venue streams schedule
+   * state, not individual fills — so adapted orders carry the fills the
+   * caller's adapter resolves for them.
+   *
+   * @param params - Subscription parameters including callback and account ID.
+   * @param params.callback - Receives adapted TWAP schedules, newest first.
+   * @param params.accountId - Optional CAIP account ID; defaults to selected.
+   * @param params.adapt - Maps a raw venue history payload to TWAP schedules.
+   * @returns A cleanup function to unsubscribe from TWAP updates.
+   */
+  public subscribeToTwapOrders(
+    params: SubscribeTwapOrdersParams & {
+      adapt: (history: TwapHistoryResponse) => TwapOrder[];
+    },
+  ): () => void {
+    const { callback, accountId, adapt } = params;
+    const normalizedAccountId = accountId ?? 'default';
+    const unsubscribe = this.#createSubscription(
+      this.#twapOrderSubscribers,
+      callback,
+      normalizedAccountId,
+    );
+    this.#twapOrderAdapters.set(normalizedAccountId, adapt);
+
+    // The venue sends its snapshot once per socket, so a subscriber joining an
+    // already-open socket would otherwise see nothing until the next delta —
+    // which may never come once schedules are idle. Replay what the socket has
+    // already accumulated, mirroring the cached-data replay subscribeToOrders
+    // does.
+    const cached = this.#cachedTwapOrders.get(normalizedAccountId);
+    if (cached && cached.size > 0) {
+      callback(
+        [...cached.values()].sort(
+          (left, right) => right.startedAt - left.startedAt,
+        ),
+        true,
+      );
+    }
+
+    this.#ensureTwapOrderSubscription(accountId, adapt).catch((error) => {
+      this.#logErrorUnlessClearing(
+        ensureError(
+          error,
+          'HyperLiquidSubscriptionService.subscribeToTwapOrders',
+        ),
+        this.#getErrorContext('subscribeToTwapOrders'),
+      );
+    });
+
+    return () => {
+      unsubscribe();
+
+      const subscribers = this.#twapOrderSubscribers.get(normalizedAccountId);
+      if (!subscribers || subscribers.size === 0) {
+        const subscription =
+          this.#twapOrderSubscriptions.get(normalizedAccountId);
+        if (subscription) {
+          subscription.unsubscribe().catch((error: Error) => {
+            this.#logErrorUnlessClearing(
+              ensureError(
+                error,
+                'HyperLiquidSubscriptionService.subscribeToTwapOrders',
+              ),
+              this.#getErrorContext('subscribeToTwapOrders.unsubscribe'),
+            );
+          });
+          this.#twapOrderSubscriptions.delete(normalizedAccountId);
+        }
+        // Invalidate any open still in flight for this account: without this
+        // its continuation installs a live socket nobody is listening to.
+        this.#bumpTwapOrderGeneration(normalizedAccountId);
+        this.#pendingTwapOrderSubscriptions.delete(normalizedAccountId);
+        this.#twapOrderAdapters.delete(normalizedAccountId);
+        this.#cachedTwapOrders.delete(normalizedAccountId);
+      }
+    };
+  }
+
+  /**
+   * Ensure one TWAP history subscription is active per accountId, shared
+   * across every callback registered for that account.
+   *
+   * @param accountId - Optional CAIP account ID to subscribe for.
+   * @param adapt - Maps a raw venue history payload to TWAP schedules.
+   * @returns A promise that resolves when the subscription is established.
+   */
+  async #ensureTwapOrderSubscription(
+    accountId: CaipAccountId | undefined,
+    adapt: (history: TwapHistoryResponse) => TwapOrder[],
+  ): Promise<void> {
+    const normalizedAccountId = accountId ?? 'default';
+
+    if (this.#twapOrderSubscriptions.has(normalizedAccountId)) {
+      return;
+    }
+
+    // Another subscriber is already opening this account's socket. Awaiting it
+    // rather than starting a second one is what keeps two near-simultaneous
+    // subscribes on one venue subscription. That open can still discard
+    // itself, and it resolves rather than rejecting when it does, so verify a
+    // subscription actually landed instead of assuming one did.
+    const pending =
+      this.#pendingTwapOrderSubscriptions.get(normalizedAccountId);
+    if (pending) {
+      await pending;
+      if (this.#twapOrderSubscriptions.has(normalizedAccountId)) {
+        return;
+      }
+    }
+
+    // Captured once here, spanning the whole open including the client
+    // handshake. Capturing inside the open would let a bump that lands during
+    // the handshake be adopted as the baseline and silently forgotten.
+    const startGeneration = this.#twapOrderGeneration(normalizedAccountId);
+    const subscriptionPromise = this.#createTwapOrderSubscription(
+      normalizedAccountId,
+      accountId,
+      adapt,
+      startGeneration,
+    );
+    this.#pendingTwapOrderSubscriptions.set(
+      normalizedAccountId,
+      subscriptionPromise,
+    );
+    try {
+      await subscriptionPromise;
+    } finally {
+      // Delete by identity: a reconnect may have cleared the map and installed
+      // a newer open behind this one, which must not be evicted here.
+      if (
+        this.#pendingTwapOrderSubscriptions.get(normalizedAccountId) ===
+        subscriptionPromise
+      ) {
+        this.#pendingTwapOrderSubscriptions.delete(normalizedAccountId);
+      }
+    }
+  }
+
+  /**
+   * Open one TWAP history subscription and register it for teardown.
+   *
+   * @param normalizedAccountId - Map key for this account ('default' when unset).
+   * @param accountId - Optional CAIP account ID to resolve the address from.
+   * @param adapt - Maps a raw venue history payload to TWAP schedules.
+   * @param startGeneration - This account's generation when the open began.
+   * @returns A promise that resolves once the subscription is registered.
+   */
+  async #createTwapOrderSubscription(
+    normalizedAccountId: string,
+    accountId: CaipAccountId | undefined,
+    adapt: (history: TwapHistoryResponse) => TwapOrder[],
+    startGeneration: number,
+  ): Promise<void> {
+    // Bootstrap the client inline rather than recursing: a recursive call
+    // would re-read the generation after the handshake and adopt a bump that
+    // landed during it as its own baseline.
+    let subscriptionClient = this.#clientService.getSubscriptionClient();
+    if (!subscriptionClient) {
+      await this.#clientService.ensureSubscriptionClient(
+        this.#walletService.createWalletAdapter(),
+      );
+      subscriptionClient = this.#clientService.getSubscriptionClient();
+      if (!subscriptionClient) {
+        throw new Error('SubscriptionClient not available');
+      }
+    }
+
+    const userAddress =
+      await this.#walletService.getUserAddressWithDefault(accountId);
+
+    const subscription = await subscriptionClient.userTwapHistory(
+      { user: userAddress },
+      (data: UserTwapHistoryWsEvent) => {
+        // A frame queued before an unsubscribe or reconnect must not mutate
+        // the replacement's cache or reach its subscribers. Registration is
+        // guarded below, but late listener invocations need their own check.
+        if (
+          startGeneration !== this.#twapOrderGeneration(normalizedAccountId)
+        ) {
+          return;
+        }
+        // Only the first message is the full set; later ones carry just the
+        // schedules that changed. Merge by orderId so the callback always
+        // receives the complete list its contract promises.
+        const previous =
+          this.#cachedTwapOrders.get(normalizedAccountId) ??
+          new Map<string, TwapOrder>();
+        const merged = data.isSnapshot
+          ? new Map<string, TwapOrder>()
+          : previous;
+        for (const order of adapt(data.history)) {
+          const existing = merged.get(order.orderId);
+          if (!existing || order.lastUpdated >= existing.lastUpdated) {
+            // This channel carries schedule state without slice fills, so an
+            // empty `fills` here means "not sent", not "none". Carry forward
+            // whatever a prior frame or REST read resolved so a consumer
+            // replacing its state does not lose fill history.
+            const knownFills =
+              order.fills.length > 0
+                ? order.fills
+                : (existing?.fills ?? previous.get(order.orderId)?.fills ?? []);
+            merged.set(order.orderId, { ...order, fills: knownFills });
+          }
+        }
+        // `userTwapHistory` is history, so terminal schedules would otherwise
+        // accumulate for the life of the session. Cap only the terminal ones:
+        // a long-running active schedule has an old `startedAt`, so a cap over
+        // the whole set would evict the very TWAP the user is monitoring in
+        // favour of newer dead ones.
+        const allOrders = [...merged.values()].sort(
+          (left, right) => right.startedAt - left.startedAt,
+        );
+        const activeOrders = allOrders.filter(
+          (order) => order.status === 'active',
+        );
+        const terminalOrders = allOrders
+          .filter((order) => order.status !== 'active')
+          .slice(0, MAX_RETAINED_TWAP_ORDERS);
+        const twapOrders = [...activeOrders, ...terminalOrders].sort(
+          (left, right) => right.startedAt - left.startedAt,
+        );
+        this.#cachedTwapOrders.set(
+          normalizedAccountId,
+          new Map(twapOrders.map((order) => [order.orderId, order])),
+        );
+
+        const subscribers = this.#twapOrderSubscribers.get(normalizedAccountId);
+        if (subscribers) {
+          subscribers.forEach((subscriberCallback) => {
+            subscriberCallback(twapOrders, data.isSnapshot);
+          });
+        }
+      },
+    );
+
+    // Teardown, clearAll, or a reconnect may have run while this open was in
+    // flight. Rehydrating the map here would leave a socket with no
+    // subscribers, or clobber the live replacement — so drop ours instead.
+    // The same applies when a concurrent caller won the race.
+    // The last subscriber may also have left while this open was in flight.
+    // Registering then would leave a socket whose frames reach an empty
+    // subscriber set — the venue keeps streaming and every push is discarded.
+    const subscribers = this.#twapOrderSubscribers.get(normalizedAccountId);
+    if (
+      startGeneration !== this.#twapOrderGeneration(normalizedAccountId) ||
+      this.#twapOrderSubscriptions.has(normalizedAccountId) ||
+      !subscribers ||
+      subscribers.size === 0
+    ) {
+      subscription.unsubscribe().catch(() => undefined);
+      return;
+    }
+    this.#twapOrderSubscriptions.set(normalizedAccountId, subscription);
+  }
+
+  /**
    * Subscribe to live order updates
    * Uses the shared per-DEX subscriptions to avoid duplicate connections
    *
@@ -4589,6 +4952,50 @@ export class HyperLiquidSubscriptionService {
       );
     }
 
+    // Re-establish TWAP subscriptions if there are TWAP subscribers
+    if (this.#twapOrderSubscribers.size > 0) {
+      // Existing subscription references are dead after reconnection. Bump
+      // each account's generation first so a pre-reconnect open still in
+      // flight discards itself instead of occupying the map ahead of its
+      // replacement.
+      for (const normalizedAccountId of new Set([
+        ...this.#twapOrderSubscribers.keys(),
+        ...this.#twapOrderSubscriptions.keys(),
+        ...this.#pendingTwapOrderSubscriptions.keys(),
+      ])) {
+        this.#bumpTwapOrderGeneration(normalizedAccountId);
+      }
+      this.#twapOrderSubscriptions.clear();
+      this.#pendingTwapOrderSubscriptions.clear();
+      // Drop merged state: the fresh socket opens with a new snapshot.
+      this.#cachedTwapOrders.clear();
+
+      // Pair each account with its retained adapter first, so the restore map
+      // has no absent-adapter case to represent.
+      const restorable = Array.from(this.#twapOrderSubscribers.keys()).flatMap(
+        (normalizedAccountId) => {
+          const adapt = this.#twapOrderAdapters.get(normalizedAccountId);
+          return adapt ? [{ normalizedAccountId, adapt }] : [];
+        },
+      );
+      await Promise.all(
+        restorable.map(async ({ normalizedAccountId, adapt }) => {
+          const accountId =
+            normalizedAccountId === 'default'
+              ? undefined
+              : (normalizedAccountId as CaipAccountId);
+          await this.#ensureTwapOrderSubscription(accountId, adapt).catch(
+            () => {
+              // The dead subscription is already cleared, so swallowing this
+              // would leave registered subscribers with no socket and no
+              // further reconnect to recover them. Retry the account instead.
+              this.#scheduleTwapRestoreRetry(normalizedAccountId);
+            },
+          );
+        }),
+      );
+    }
+
     // Re-establish user data subscriptions if there are user data subscribers
     if (
       this.#positionSubscribers.size > 0 ||
@@ -4748,10 +5155,24 @@ export class HyperLiquidSubscriptionService {
     // with WebSocketRequestError - these are expected and should not be logged to Sentry.
     this.#isClearing = true;
 
+    // Bump every TWAP account's generation before anything is cleared, so an
+    // in-flight open discards its subscription instead of rehydrating a
+    // cleared map. Must run first: the subscriber keys are one of the three
+    // sources naming the accounts to invalidate, and they are cleared below.
+    for (const normalizedAccountId of new Set([
+      ...this.#twapOrderSubscribers.keys(),
+      ...this.#twapOrderSubscriptions.keys(),
+      ...this.#pendingTwapOrderSubscriptions.keys(),
+    ])) {
+      this.#bumpTwapOrderGeneration(normalizedAccountId);
+    }
+
     // Clear all local subscriber collections
     this.#priceSubscribers.clear();
     this.#positionSubscribers.clear();
     this.#orderFillSubscribers.clear();
+    this.#twapOrderSubscribers.clear();
+    this.#twapOrderAdapters.clear();
     this.#orderSubscribers.clear();
     this.#accountSubscribers.clear();
     this.#marketDataSubscribers.clear();
@@ -4764,6 +5185,17 @@ export class HyperLiquidSubscriptionService {
       });
     });
     this.#orderFillSubscriptions.clear();
+
+    // Clear TWAP subscriptions; generations were bumped above, before the
+    // subscriber keys naming those accounts were cleared.
+    this.#cachedTwapOrders.clear();
+    this.#twapOrderSubscriptions.forEach((subscription) => {
+      subscription.unsubscribe().catch(() => {
+        // Ignore errors during cleanup
+      });
+    });
+    this.#twapOrderSubscriptions.clear();
+    this.#pendingTwapOrderSubscriptions.clear();
 
     // Clear spotState subscriptions. Bump generation + drop in-flight
     // promises so any racing #ensureSpotStateSubscription continuation

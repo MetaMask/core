@@ -80,6 +80,7 @@ import type {
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
+  SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
   ToggleTestnetResult,
@@ -903,6 +904,43 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return this.#subscriptionMux.subscribeToOrders({
       ...params,
       providers: this.#getActiveProviders(),
+    });
+  }
+
+  /**
+   * Stream TWAP updates from the default provider only.
+   *
+   * Unlike `getTwapOrders`, this does not fan out: HyperLiquid is the sole
+   * venue with a native TWAP push channel today, so a mux would add
+   * multi-provider merge semantics with nothing to merge. Callers needing the
+   * aggregated view across providers keep using `getTwapOrders`.
+   *
+   * @param params - Subscription parameters including callback and account ID.
+   * @returns A cleanup function; a no-op when the default provider has no
+   * native TWAP push channel.
+   */
+  subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
+    const defaultProviderId = this.#defaultProvider;
+    // Read the map directly: #getDefaultProvider throws when the default is
+    // unavailable, and this method's contract is a no-op cleanup, not a throw.
+    const provider = this.#providers.get(defaultProviderId);
+    if (!provider?.subscribeToTwapOrders) {
+      return () => {
+        // No-op: default provider exposes no native TWAP push channel
+      };
+    }
+    return provider.subscribeToTwapOrders({
+      ...params,
+      // Stamp the same way getTwapOrders does, so swapping a poll for this
+      // subscription does not silently drop providerId from every schedule.
+      callback: (twapOrders, isSnapshot) =>
+        params.callback(
+          twapOrders.map((order) => ({
+            ...order,
+            providerId: defaultProviderId,
+          })),
+          isSnapshot,
+        ),
     });
   }
 

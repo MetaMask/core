@@ -126,6 +126,7 @@ import type {
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
+  SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
   SwitchProviderResult,
@@ -1027,6 +1028,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'subscribeToOrders',
   'subscribeToPositions',
   'subscribeToPrices',
+  'subscribeToTwapOrders',
   'suspendChaseOrders',
   'switchProvider',
   'toggleTestnet',
@@ -5709,6 +5711,38 @@ export class PerpsController extends BaseController<
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToOrderFills'),
         this.#getErrorContext('subscribeToOrderFills', {
+          accountId: params.accountId,
+        }),
+      );
+      return () => {
+        // No-op
+      };
+    }
+  }
+
+  /**
+   * Stream TWAP lifecycle updates through the active provider.
+   *
+   * Providers without a native TWAP push channel do not implement this; the
+   * returned no-op cleanup lets a client fall back to polling `getTwapOrders`
+   * without branching on provider identity.
+   *
+   * @param params - Subscription parameters including callback and account ID.
+   * @returns A cleanup function to remove the subscription.
+   */
+  subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
+    const provider = this.getActiveProviderOrNull();
+    if (!provider?.subscribeToTwapOrders) {
+      return () => {
+        // No-op: provider missing or without a native TWAP push channel
+      };
+    }
+    try {
+      return provider.subscribeToTwapOrders(params);
+    } catch (error) {
+      this.#logError(
+        ensureError(error, 'PerpsController.subscribeToTwapOrders'),
+        this.#getErrorContext('subscribeToTwapOrders', {
           accountId: params.accountId,
         }),
       );

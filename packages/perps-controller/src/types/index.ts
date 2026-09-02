@@ -1343,6 +1343,25 @@ export type SubscribeOrdersParams = {
   includeHistory?: boolean; // Optional: include filled/canceled orders
 };
 
+export type SubscribeTwapOrdersParams = {
+  /**
+   * Receives current and terminal TWAP schedules, newest first — the same
+   * shape `getTwapOrders()` returns, so a client can swap a poll for this
+   * subscription without reshaping its state.
+   *
+   * Retention differs from the REST read on purpose: every active schedule is
+   * always delivered, while terminal ones are bounded to the most recent 100
+   * so a long-lived stream cannot accumulate an account's entire history.
+   * Callers needing older terminal schedules should still read
+   * `getTwapOrders()`.
+   *
+   * `isSnapshot` marks the venue's initial full set; later invocations carry
+   * the merged result of a delta.
+   */
+  callback: (twapOrders: TwapOrder[], isSnapshot?: boolean) => void;
+  accountId?: CaipAccountId; // Optional: defaults to selected account
+};
+
 export type SubscribeAccountParams = {
   callback: (account: AccountState | null) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
@@ -1872,6 +1891,11 @@ export type PerpsProvider = {
   cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult>;
   cancelOrders?(params: BatchCancelOrdersParams): Promise<CancelOrdersResult>; // Optional: batch cancel for protocols that support it
   getTwapOrders?(): Promise<TwapOrder[]>;
+  /**
+   * Stream TWAP lifecycle updates. Optional: providers without a native TWAP
+   * push channel omit it, and clients fall back to polling `getTwapOrders`.
+   */
+  subscribeToTwapOrders?(params: SubscribeTwapOrdersParams): () => void;
   getChaseOrders?(): Promise<ChaseOrder[]>;
   suspendChaseOrders?(): Promise<ChaseOrder[]>;
   closePosition(params: ClosePositionParams): Promise<OrderResult>;
