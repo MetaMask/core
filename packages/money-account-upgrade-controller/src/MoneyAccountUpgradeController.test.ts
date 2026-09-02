@@ -446,7 +446,10 @@ describe('MoneyAccountUpgradeController', () => {
 
       await bootstrap();
 
-      expect(order).toStrictEqual(['ensureChainConfigured', 'getServiceDetails']);
+      expect(order).toStrictEqual([
+        'ensureChainConfigured',
+        'getServiceDetails',
+      ]);
       expect(mocks.ensureChainConfigured).toHaveBeenCalledWith(VAULT_CONFIG);
     });
 
@@ -802,7 +805,9 @@ describe('MoneyAccountUpgradeController', () => {
       await bootstrap();
 
       expect(mocks.onBootstrapError).toHaveBeenCalledWith(
-        new Error(`Chain ${MOCK_CHAIN_ID} not found in service details response`),
+        new Error(
+          `Chain ${MOCK_CHAIN_ID} not found in service details response`,
+        ),
       );
     });
 

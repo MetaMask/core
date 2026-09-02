@@ -451,7 +451,9 @@ linkStyle default opacity:0.5
   money_account_upgrade_controller --> delegation_controller;
   money_account_upgrade_controller --> keyring_controller;
   money_account_upgrade_controller --> messenger;
+  money_account_upgrade_controller --> money_account_utils;
   money_account_upgrade_controller --> network_controller;
+  money_account_upgrade_controller --> remote_feature_flag_controller;
   money_account_utils --> transaction_controller;
   multichain_account_service --> accounts_controller;
   multichain_account_service --> base_controller;

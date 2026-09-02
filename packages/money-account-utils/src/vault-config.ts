@@ -1,4 +1,8 @@
-import { isObject, isStrictHexString, isValidHexAddress } from '@metamask/utils';
+import {
+  isObject,
+  isStrictHexString,
+  isValidHexAddress,
+} from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 /**

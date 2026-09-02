@@ -194,7 +194,9 @@ export type MoneyAccountUpgradeControllerHooks = {
    * `NetworkController:findNetworkClientIdByChainId` consumers. Defaults to a
    * no-op.
    */
-  ensureChainConfigured?: (vaultConfig: MoneyAccountVaultConfig) => Promise<void>;
+  ensureChainConfigured?: (
+    vaultConfig: MoneyAccountVaultConfig,
+  ) => Promise<void>;
 
   /**
    * Called when a bootstrap run fails or cannot be scheduled. Receives a
