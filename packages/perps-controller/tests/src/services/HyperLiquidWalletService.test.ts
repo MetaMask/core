@@ -131,8 +131,8 @@ describe('HyperLiquidWalletService', () => {
       getChainId?: () => Promise<number>;
     };
 
-    beforeEach(async () => {
-      walletAdapter = await service.createWalletAdapter();
+    beforeEach(() => {
+      walletAdapter = service.createWalletAdapter();
     });
 
     it('should create wallet adapter with signTypedData method', () => {
@@ -159,7 +159,7 @@ describe('HyperLiquidWalletService', () => {
           mockMessenger,
           { isTestnet: true },
         );
-        const testnetAdapter = await testnetService.createWalletAdapter();
+        const testnetAdapter = testnetService.createWalletAdapter();
 
         expect(testnetAdapter.getChainId).toBeDefined();
         const chainId = await testnetAdapter.getChainId?.();
@@ -271,7 +271,7 @@ describe('HyperLiquidWalletService', () => {
         );
 
         // Need to recreate the adapter after changing the mock
-        const freshAdapter = await service.createWalletAdapter();
+        const freshAdapter = service.createWalletAdapter();
 
         await expect(
           freshAdapter.signTypedData(mockTypedDataParams),
@@ -431,7 +431,7 @@ describe('HyperLiquidWalletService', () => {
     });
 
     it('should throw KEYRING_LOCKED when keyring is locked', async () => {
-      const walletAdapter = await service.createWalletAdapter();
+      const walletAdapter = service.createWalletAdapter();
       (mockMessenger.call as jest.Mock).mockImplementation((action: string) => {
         if (
           action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
@@ -483,7 +483,7 @@ describe('HyperLiquidWalletService', () => {
     });
 
     it('should handle keyring controller initialization errors', async () => {
-      const walletAdapter = await service.createWalletAdapter();
+      const walletAdapter = service.createWalletAdapter();
       (mockMessenger.call as jest.Mock).mockImplementation((action: string) => {
         if (
           action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
@@ -522,7 +522,7 @@ describe('HyperLiquidWalletService', () => {
 
   describe('Integration Scenarios', () => {
     it('should handle full wallet adapter workflow', async () => {
-      const walletAdapter = await service.createWalletAdapter();
+      const walletAdapter = service.createWalletAdapter();
 
       // Get chain ID
       expect(walletAdapter.getChainId).toBeDefined();
@@ -552,7 +552,7 @@ describe('HyperLiquidWalletService', () => {
     });
 
     it('should maintain consistency between wallet adapter and service methods', async () => {
-      const walletAdapter = await service.createWalletAdapter();
+      const walletAdapter = service.createWalletAdapter();
 
       // Get chain ID through wallet adapter
       expect(walletAdapter.getChainId).toBeDefined();
