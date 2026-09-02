@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Infer RPC endpoint types from their URLs when initializing, adding, or updating network configurations.
 - Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
 - Bump `@metamask/eth-json-rpc-middleware` from `^24.0.1` to `^24.0.2` ([#10040](https://github.com/MetaMask/core/pull/10040))
 

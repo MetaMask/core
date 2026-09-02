@@ -97,7 +97,7 @@ import type {
 const debugLog = createModuleLogger(projectLogger, 'NetworkController');
 
 const INFURA_URL_REGEX =
-  /^https:\/\/(?<networkName>[^.]+)\.infura\.io\/v\d+\/(?<apiKey>.+)$/u;
+  /^https:\/\/(?<networkName>[^./]+)\.infura\.io\/v3\/(?<projectId>[^/]+)$/u;
 
 export type Block = {
   baseFeePerGas?: string;
@@ -168,7 +168,7 @@ export type InfuraRpcEndpoint = {
    * `{infuraProjectId}`, which will get replaced with the Infura project ID
    * when the network client is created.
    */
-  url: `https://${InfuraNetworkType}.infura.io/v3/{infuraProjectId}`;
+  url: string;
 };
 
 /**
@@ -277,8 +277,20 @@ export type NetworkConfiguration = {
  */
 export type AddNetworkCustomRpcEndpointFields = Omit<
   CustomRpcEndpoint,
-  'networkClientId'
->;
+  'networkClientId' | 'type'
+> & {
+  /**
+   * The type of the endpoint. If omitted, it is inferred from the URL.
+   */
+  type?: RpcEndpointType;
+};
+
+type AddNetworkInfuraRpcEndpointFields = Omit<InfuraRpcEndpoint, 'type'> & {
+  /**
+   * The type of the endpoint. If omitted, it is inferred from the URL.
+   */
+  type?: RpcEndpointType;
+};
 
 /**
  * A new network configuration that `addNetwork` takes.
@@ -288,7 +300,10 @@ export type AddNetworkCustomRpcEndpointFields = Omit<
  * network clients yet.
  */
 export type AddNetworkFields = Omit<NetworkConfiguration, 'rpcEndpoints'> & {
-  rpcEndpoints: (InfuraRpcEndpoint | AddNetworkCustomRpcEndpointFields)[];
+  rpcEndpoints: (
+    | AddNetworkInfuraRpcEndpointFields
+    | AddNetworkCustomRpcEndpointFields
+  )[];
 };
 
 /**
@@ -299,10 +314,22 @@ export type AddNetworkFields = Omit<NetworkConfiguration, 'rpcEndpoints'> & {
  * assumed that they have not already been added and therefore network clients
  * do not exist for them yet (and hence IDs need to be generated).
  */
-export type UpdateNetworkCustomRpcEndpointFields = Partialize<
-  CustomRpcEndpoint,
-  'networkClientId'
->;
+export type UpdateNetworkCustomRpcEndpointFields = Omit<
+  Partialize<CustomRpcEndpoint, 'networkClientId'>,
+  'type'
+> & {
+  /**
+   * The type of the endpoint. If omitted, it is inferred from the URL.
+   */
+  type?: RpcEndpointType;
+};
+
+type UpdateNetworkInfuraRpcEndpointFields = Omit<InfuraRpcEndpoint, 'type'> & {
+  /**
+   * The type of the endpoint. If omitted, it is inferred from the URL.
+   */
+  type?: RpcEndpointType;
+};
 
 /**
  * An updated representation of an existing network configuration that
@@ -313,8 +340,44 @@ export type UpdateNetworkCustomRpcEndpointFields = Partialize<
  * assumed that they are new and are not represented by network clients yet.
  */
 export type UpdateNetworkFields = Omit<NetworkConfiguration, 'rpcEndpoints'> & {
-  rpcEndpoints: (InfuraRpcEndpoint | UpdateNetworkCustomRpcEndpointFields)[];
+  rpcEndpoints: (
+    | UpdateNetworkInfuraRpcEndpointFields
+    | UpdateNetworkCustomRpcEndpointFields
+  )[];
 };
+
+type RpcEndpointWithOptionalType =
+  | (Omit<InfuraRpcEndpoint, 'type'> & {
+      type?: RpcEndpointType;
+    })
+  | (Omit<CustomRpcEndpoint, 'type'> & {
+      type?: RpcEndpointType;
+    });
+
+type NetworkConfigurationWithOptionalRpcEndpointType = Omit<
+  NetworkConfiguration,
+  'rpcEndpoints'
+> & {
+  rpcEndpoints: RpcEndpointWithOptionalType[];
+};
+
+type NetworkStateWithOptionalRpcEndpointType = Omit<
+  NetworkState,
+  'networkConfigurationsByChainId'
+> & {
+  networkConfigurationsByChainId: Record<
+    Hex,
+    NetworkConfigurationWithOptionalRpcEndpointType
+  >;
+};
+
+function hasRpcEndpointTypes(
+  networkConfiguration: NetworkConfigurationWithOptionalRpcEndpointType,
+): networkConfiguration is NetworkConfiguration {
+  return networkConfiguration.rpcEndpoints.every(
+    (rpcEndpoint) => rpcEndpoint.type !== undefined,
+  );
+}
 
 /**
  * `Object.keys()` is intentionally generic: it returns the keys of an object,
@@ -772,7 +835,7 @@ export type NetworkControllerOptions = {
    * specified, `networkConfigurationsByChainId` will default to a basic set of
    * network configurations (see {@link InfuraNetworkType} for the list).
    */
-  state?: Partial<NetworkState>;
+  state?: Partial<NetworkStateWithOptionalRpcEndpointType>;
   /**
    * A `loglevel` logger object.
    */
@@ -1128,7 +1191,178 @@ function deriveInfuraNetworkNameFromRpcEndpointUrl(
     return match.groups.networkName;
   }
 
+  /* istanbul ignore next -- The URL is matched before this function is called. */
   throw new Error('Could not derive Infura network from RPC endpoint URL');
+}
+
+type RpcEndpointFields = {
+  failoverUrls?: string[];
+  name?: string;
+  networkClientId?: NetworkClientId;
+  type?: RpcEndpointType;
+  url: string;
+};
+
+type InferredRpcEndpoint =
+  | (Omit<InfuraRpcEndpoint, 'type'> & {
+      type: RpcEndpointType.Infura;
+    })
+  | (Omit<CustomRpcEndpoint, 'networkClientId' | 'type'> & {
+      networkClientId?: CustomNetworkClientId;
+      type: RpcEndpointType.Custom;
+    });
+
+function isInfuraRpcEndpoint(
+  rpcEndpointFields: RpcEndpointFields,
+): rpcEndpointFields is Extract<
+  InferredRpcEndpoint,
+  { type: RpcEndpointType.Infura }
+> {
+  return (
+    rpcEndpointFields.type === RpcEndpointType.Infura &&
+    rpcEndpointFields.networkClientId !== undefined
+  );
+}
+
+function isCustomRpcEndpoint(
+  rpcEndpointFields: RpcEndpointFields,
+): rpcEndpointFields is Extract<
+  InferredRpcEndpoint,
+  { type: RpcEndpointType.Custom }
+> {
+  return rpcEndpointFields.type === RpcEndpointType.Custom;
+}
+
+function hasNetworkClientId(
+  rpcEndpoint: InferredRpcEndpoint,
+): rpcEndpoint is RpcEndpoint {
+  return rpcEndpoint.networkClientId !== undefined;
+}
+
+/**
+ * Checks whether an RPC URL is a MetaMask Infura endpoint. The URL may contain
+ * either the placeholder persisted in built-in network configurations or the
+ * controller's Infura project ID.
+ *
+ * @param url - The RPC URL to check.
+ * @param infuraProjectId - The controller's Infura project ID.
+ * @returns Whether the URL is a MetaMask Infura endpoint.
+ */
+function isInfuraEndpointUrl(url: string, infuraProjectId: string): boolean {
+  const projectId = INFURA_URL_REGEX.exec(url)?.groups?.projectId;
+  return projectId === '{infuraProjectId}' || projectId === infuraProjectId;
+}
+
+/**
+ * Infers the type of an RPC endpoint from its URL.
+ *
+ * @param rpcEndpointFields - The RPC endpoint fields.
+ * @param infuraProjectId - The controller's Infura project ID.
+ * @returns The RPC endpoint fields with an inferred type.
+ */
+function inferRpcEndpointType(
+  rpcEndpointFields: RpcEndpointFields,
+  infuraProjectId: string,
+): InferredRpcEndpoint {
+  if (isInfuraEndpointUrl(rpcEndpointFields.url, infuraProjectId)) {
+    if (isInfuraRpcEndpoint(rpcEndpointFields)) {
+      return rpcEndpointFields;
+    }
+
+    return {
+      ...rpcEndpointFields,
+      networkClientId:
+        rpcEndpointFields.networkClientId ??
+        deriveInfuraNetworkNameFromRpcEndpointUrl(rpcEndpointFields.url),
+      type: RpcEndpointType.Infura,
+    };
+  }
+
+  if (isCustomRpcEndpoint(rpcEndpointFields)) {
+    return rpcEndpointFields;
+  }
+
+  return {
+    ...rpcEndpointFields,
+    type: RpcEndpointType.Custom,
+  };
+}
+
+/**
+ * Normalizes the endpoint types in a network configuration.
+ *
+ * @param networkConfiguration - The network configuration to normalize.
+ * @param infuraProjectId - The controller's Infura project ID.
+ * @returns The normalized network configuration.
+ */
+function normalizeNetworkConfiguration(
+  networkConfiguration: NetworkConfigurationWithOptionalRpcEndpointType,
+  infuraProjectId: string,
+): NetworkConfiguration {
+  let hasChanges = false;
+  const rpcEndpoints = networkConfiguration.rpcEndpoints.map((rpcEndpoint) => {
+    const inferredRpcEndpoint = inferRpcEndpointType(
+      rpcEndpoint,
+      infuraProjectId,
+    );
+
+    /* istanbul ignore if -- State endpoint IDs are required by the public state type. */
+    if (!hasNetworkClientId(inferredRpcEndpoint)) {
+      throw new Error(
+        `Network configuration '${networkConfiguration.name}' has an RPC endpoint without a network client ID`,
+      );
+    }
+
+    hasChanges ||= inferredRpcEndpoint !== rpcEndpoint;
+    return inferredRpcEndpoint;
+  });
+
+  if (!hasChanges && hasRpcEndpointTypes(networkConfiguration)) {
+    return networkConfiguration;
+  }
+
+  return {
+    ...networkConfiguration,
+    rpcEndpoints,
+  };
+}
+
+/**
+ * Constructs the initial NetworkController state and infers RPC endpoint
+ * types in any provided network configurations.
+ *
+ * @param state - The desired initial state.
+ * @param infuraProjectId - The controller's Infura project ID.
+ * @returns The complete normalized initial state.
+ */
+function getInitialState(
+  state: NetworkControllerOptions['state'],
+  infuraProjectId: string,
+): NetworkState {
+  const defaultState = getDefaultNetworkControllerState();
+  const networkConfigurationsByChainId =
+    state?.networkConfigurationsByChainId ??
+    defaultState.networkConfigurationsByChainId;
+
+  const normalizedNetworkConfigurationsByChainId = Object.entries(
+    networkConfigurationsByChainId,
+  ).reduce<Record<Hex, NetworkConfiguration>>(
+    (normalizedConfigurations, [chainId, networkConfiguration]) => {
+      const normalizedNetworkConfiguration = normalizeNetworkConfiguration(
+        networkConfiguration,
+        infuraProjectId,
+      );
+      normalizedConfigurations[chainId as Hex] = normalizedNetworkConfiguration;
+      return normalizedConfigurations;
+    },
+    {},
+  );
+
+  return {
+    ...defaultState,
+    ...state,
+    networkConfigurationsByChainId: normalizedNetworkConfigurationsByChainId,
+  };
 }
 
 /**
@@ -1330,16 +1564,14 @@ export class NetworkController extends BaseController<
       getBlockTrackerOptions,
       analyticsOptions,
     } = options;
-    const initialState = {
-      ...getDefaultNetworkControllerState(),
-      ...state,
-    };
+    const initialState = getInitialState(state, infuraProjectId);
     validateInitialState(initialState);
-    const correctedInitialState = correctInitialState(initialState, messenger);
 
     if (!infuraProjectId || typeof infuraProjectId !== 'string') {
       throw new Error('Invalid Infura project ID');
     }
+
+    const correctedInitialState = correctInitialState(initialState, messenger);
 
     super({
       name: controllerName,
@@ -2119,14 +2351,21 @@ export class NetworkController extends BaseController<
    * @see {@link NetworkConfiguration}
    */
   addNetwork(fields: AddNetworkFields): NetworkConfiguration {
-    const { rpcEndpoints: setOfRpcEndpointFields } = fields;
+    const fieldsWithInferredRpcEndpointTypes = {
+      ...fields,
+      rpcEndpoints: fields.rpcEndpoints.map((rpcEndpointFields) =>
+        inferRpcEndpointType(rpcEndpointFields, this.#infuraProjectId),
+      ),
+    };
+    const { rpcEndpoints: setOfRpcEndpointFields } =
+      fieldsWithInferredRpcEndpointTypes;
 
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
     this.#validateNetworkFields({
       mode: 'add',
-      networkFields: fields,
+      networkFields: fieldsWithInferredRpcEndpointTypes,
       autoManagedNetworkClientRegistry,
     });
 
@@ -2148,11 +2387,11 @@ export class NetworkController extends BaseController<
 
     const newNetworkConfiguration =
       this.#determineNetworkConfigurationToPersist({
-        networkFields: fields,
+        networkFields: fieldsWithInferredRpcEndpointTypes,
         networkClientOperations,
       });
     this.#registerNetworkClientsAsNeeded({
-      networkFields: fields,
+      networkFields: fieldsWithInferredRpcEndpointTypes,
       networkClientOperations,
       autoManagedNetworkClientRegistry,
     });
@@ -2160,7 +2399,7 @@ export class NetworkController extends BaseController<
       this.#updateNetworkConfigurations({
         state,
         mode: 'add',
-        networkFields: fields,
+        networkFields: fieldsWithInferredRpcEndpointTypes,
         networkConfigurationToPersist: newNetworkConfiguration,
       });
     });
@@ -2214,15 +2453,21 @@ export class NetworkController extends BaseController<
     }
 
     const existingChainId = chainId;
+    const fieldsWithInferredRpcEndpointTypes = {
+      ...fields,
+      rpcEndpoints: fields.rpcEndpoints.map((rpcEndpointFields) =>
+        inferRpcEndpointType(rpcEndpointFields, this.#infuraProjectId),
+      ),
+    };
     const { chainId: newChainId, rpcEndpoints: setOfNewRpcEndpointFields } =
-      fields;
+      fieldsWithInferredRpcEndpointTypes;
 
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
     this.#validateNetworkFields({
       mode: 'update',
-      networkFields: fields,
+      networkFields: fieldsWithInferredRpcEndpointTypes,
       existingNetworkConfiguration,
       autoManagedNetworkClientRegistry,
     });
@@ -2352,7 +2597,7 @@ export class NetworkController extends BaseController<
 
     const updatedNetworkConfiguration =
       this.#determineNetworkConfigurationToPersist({
-        networkFields: fields,
+        networkFields: fieldsWithInferredRpcEndpointTypes,
         networkClientOperations,
       });
 
@@ -2379,7 +2624,7 @@ export class NetworkController extends BaseController<
     }
 
     this.#registerNetworkClientsAsNeeded({
-      networkFields: fields,
+      networkFields: fieldsWithInferredRpcEndpointTypes,
       networkClientOperations,
       autoManagedNetworkClientRegistry,
     });
@@ -2423,7 +2668,7 @@ export class NetworkController extends BaseController<
           this.#updateNetworkConfigurations({
             state,
             mode: 'update',
-            networkFields: fields,
+            networkFields: fieldsWithInferredRpcEndpointTypes,
             networkConfigurationToPersist: updatedNetworkConfiguration,
             existingNetworkConfiguration,
           });
@@ -2434,7 +2679,7 @@ export class NetworkController extends BaseController<
         this.#updateNetworkConfigurations({
           state,
           mode: 'update',
-          networkFields: fields,
+          networkFields: fieldsWithInferredRpcEndpointTypes,
           networkConfigurationToPersist: updatedNetworkConfiguration,
           existingNetworkConfiguration,
         });
@@ -3196,8 +3441,7 @@ export class NetworkController extends BaseController<
                 type: RpcEndpointType.Infura,
                 networkClientId:
                   registryNetworkConfig.rpcProviders.default.networkClientId,
-                url: registryNetworkConfig.rpcProviders.default
-                  .url as InfuraRpcEndpoint['url'],
+                url: registryNetworkConfig.rpcProviders.default.url,
               }
             : {
                 type: RpcEndpointType.Custom,
