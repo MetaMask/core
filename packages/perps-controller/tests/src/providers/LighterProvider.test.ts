@@ -9036,7 +9036,7 @@ describe('LighterProvider', () => {
       }
       const ids = calls
         .filter((call) => call.function === '_signCreateOrder')
-        .map((call) => call.params[2] as number);
+        .map((call) => call.params[2]);
       expect(ids).toHaveLength(3);
       expect(new Set(ids).size).toBe(3);
       for (const id of ids) {
@@ -9088,7 +9088,7 @@ describe('LighterProvider', () => {
         expect(second.success).toBe(true);
         const ids = calls
           .filter((call) => call.function === '_signCreateOrder')
-          .map((call) => call.params[2] as number);
+          .map((call) => call.params[2]);
         const of = (byte: number): number => {
           const third = byte * 65_536 + byte * 256 + byte;
           return third * 2 ** 24 + third;
@@ -9128,7 +9128,7 @@ describe('LighterProvider', () => {
         expect(result.success).toBe(true);
         const ids = calls
           .filter((call) => call.function === '_signCreateOrder')
-          .map((call) => call.params[2] as number);
+          .map((call) => call.params[2]);
         const third = 0xc0 * 65_536 + 0xc0 * 256 + 0xc0;
         expect(ids).toStrictEqual([third * 2 ** 24 + third]);
         expect(randomSpy).toHaveBeenCalledTimes(2);
