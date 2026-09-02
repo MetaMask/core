@@ -1612,6 +1612,27 @@ describe('HyperLiquidSubscriptionService', () => {
       twapId,
     });
 
+    const statusAwareAdapt = (history: any) =>
+      history.map((entry: any) => ({
+        orderId: String(entry.twapId),
+        symbol: entry.state.coin,
+        side: entry.state.side === 'B' ? 'buy' : 'sell',
+        size: entry.state.sz,
+        executedSize: entry.state.executedSz,
+        remainingSize: '6',
+        executedNotional: entry.state.executedNtl,
+        fillProgressBps: 4000,
+        timeProgressBps: 5000,
+        elapsedTimeMilliseconds: 300_000,
+        durationMinutes: entry.state.minutes,
+        randomize: entry.state.randomize,
+        reduceOnly: entry.state.reduceOnly,
+        status: entry.status.status === 'activated' ? 'active' : 'completed',
+        startedAt: entry.state.timestamp,
+        lastUpdated: entry.state.timestamp,
+        fills: [],
+      }));
+
     const adaptStub = (history: any) =>
       history.map((entry: any) => ({
         orderId: String(entry.twapId),
@@ -1863,6 +1884,61 @@ describe('HyperLiquidSubscriptionService', () => {
 
       // Assert: the retained adapter reopened the socket for this account
       expect(mockSubscriptionClient.userTwapHistory).toHaveBeenCalledTimes(2);
+      unsubscribe();
+    });
+
+    it('retains a long-running active schedule under eviction pressure', async () => {
+      // Arrange: one old active schedule plus enough newer terminal ones to
+      // exceed the retention cap. The active one has the OLDEST startedAt, so
+      // a cap applied across the whole set would evict exactly it.
+      const activeEntry = {
+        ...buildHistoryEntry(1, 'BTC'),
+        state: { ...buildHistoryEntry(1, 'BTC').state, timestamp: 1_000 },
+        status: { status: 'activated' },
+      };
+      const terminalEntries = Array.from({ length: 120 }, (_unused, index) => ({
+        ...buildHistoryEntry(1000 + index, 'ETH'),
+        state: {
+          ...buildHistoryEntry(1000 + index, 'ETH').state,
+          timestamp: 2_000_000 + index,
+        },
+        status: { status: 'finished' },
+      }));
+      mockSubscriptionClient.userTwapHistory.mockImplementation(
+        (params: any, listener: any) => {
+          setTimeout(() => {
+            listener({
+              user: params.user,
+              history: [activeEntry, ...terminalEntries],
+              isSnapshot: true,
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      const callback = jest.fn();
+
+      // Act
+      const unsubscribe = service.subscribeToTwapOrders({
+        callback,
+        adapt: statusAwareAdapt,
+      });
+      await jest.runAllTimersAsync();
+
+      // Assert: the active schedule survives, terminals are capped
+      const [delivered] = callback.mock.calls[callback.mock.calls.length - 1];
+      const activeDelivered = delivered.filter(
+        (order: { status: string }) => order.status === 'active',
+      );
+      expect(activeDelivered).toHaveLength(1);
+      expect(activeDelivered[0].orderId).toBe('1');
+      expect(
+        delivered.filter(
+          (order: { status: string }) => order.status !== 'active',
+        ),
+      ).toHaveLength(100);
       unsubscribe();
     });
 

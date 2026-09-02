@@ -13624,9 +13624,15 @@ export class HyperLiquidProvider implements PerpsProvider {
       return;
     }
 
+    // Resolve the address from the push's own scope before detaching. Left
+    // inside the microtask it would resolve at run time, so an account switch
+    // racing a terminal push would key the reclaim to the newly selected
+    // account and silently skip the schedule it was meant to settle.
+    const userAddressPromise =
+      this.#walletService.getUserAddressWithDefault(accountId);
+
     (async (): Promise<void> => {
-      const userAddress =
-        await this.#walletService.getUserAddressWithDefault(accountId);
+      const userAddress = await userAddressPromise;
       await this.#rebalanceTerminalHip3Twaps(orders, {
         network: this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet',
         userAddress,

@@ -78,9 +78,15 @@ import type { HyperLiquidClientService } from './HyperLiquidClientService.js';
 import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
 
 /**
- * Cap on TWAP schedules retained per account from the venue's history stream,
- * matching the fills cache bound. Without it a long-lived session accumulates
- * every terminal schedule the account has ever run.
+ * Cap on *terminal* TWAP schedules retained per account from the venue's
+ * history stream. Without it a long-lived session accumulates every schedule
+ * the account has ever run. Active schedules are never evicted: they are what
+ * a subscriber is monitoring, and a long-running one has the oldest
+ * `startedAt` of all.
+ *
+ * Deliberately not shared with the fills cache bound: fills are capped by
+ * event time and have no long-lived active analogue, so the two bounds mean
+ * different things and should be tunable apart.
  */
 const MAX_RETAINED_TWAP_ORDERS = 100;
 
@@ -3127,11 +3133,22 @@ export class HyperLiquidSubscriptionService {
           }
         }
         // `userTwapHistory` is history, so terminal schedules would otherwise
-        // accumulate for the life of the session. Bound the retained set the
-        // way the fills cache does, keeping the newest.
-        const twapOrders = [...merged.values()]
-          .sort((left, right) => right.startedAt - left.startedAt)
+        // accumulate for the life of the session. Cap only the terminal ones:
+        // a long-running active schedule has an old `startedAt`, so a cap over
+        // the whole set would evict the very TWAP the user is monitoring in
+        // favour of newer dead ones.
+        const allOrders = [...merged.values()].sort(
+          (left, right) => right.startedAt - left.startedAt,
+        );
+        const activeOrders = allOrders.filter(
+          (order) => order.status === 'active',
+        );
+        const terminalOrders = allOrders
+          .filter((order) => order.status !== 'active')
           .slice(0, MAX_RETAINED_TWAP_ORDERS);
+        const twapOrders = [...activeOrders, ...terminalOrders].sort(
+          (left, right) => right.startedAt - left.startedAt,
+        );
         this.#cachedTwapOrders.set(
           normalizedAccountId,
           new Map(twapOrders.map((order) => [order.orderId, order])),
@@ -5059,6 +5076,18 @@ export class HyperLiquidSubscriptionService {
     // with WebSocketRequestError - these are expected and should not be logged to Sentry.
     this.#isClearing = true;
 
+    // Bump every TWAP account's generation before anything is cleared, so an
+    // in-flight open discards its subscription instead of rehydrating a
+    // cleared map. Must run first: the subscriber keys are one of the three
+    // sources naming the accounts to invalidate, and they are cleared below.
+    for (const normalizedAccountId of new Set([
+      ...this.#twapOrderSubscribers.keys(),
+      ...this.#twapOrderSubscriptions.keys(),
+      ...this.#pendingTwapOrderSubscriptions.keys(),
+    ])) {
+      this.#bumpTwapOrderGeneration(normalizedAccountId);
+    }
+
     // Clear all local subscriber collections
     this.#priceSubscribers.clear();
     this.#positionSubscribers.clear();
@@ -5078,16 +5107,8 @@ export class HyperLiquidSubscriptionService {
     });
     this.#orderFillSubscriptions.clear();
 
-    // Clear TWAP subscriptions. Bump every account's generation first so any
-    // in-flight open discards its subscription rather than rehydrating a
-    // cleared map.
-    for (const normalizedAccountId of new Set([
-      ...this.#twapOrderSubscribers.keys(),
-      ...this.#twapOrderSubscriptions.keys(),
-      ...this.#pendingTwapOrderSubscriptions.keys(),
-    ])) {
-      this.#bumpTwapOrderGeneration(normalizedAccountId);
-    }
+    // Clear TWAP subscriptions; generations were bumped above, before the
+    // subscriber keys naming those accounts were cleared.
     this.#cachedTwapOrders.clear();
     this.#twapOrderSubscriptions.forEach((subscription) => {
       subscription.unsubscribe().catch(() => {
