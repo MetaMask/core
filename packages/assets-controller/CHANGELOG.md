@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `RpcFallbackMiddleware` now re-reads EVM assets tracked in state (`assetsBalance` or `customAssets`) whose balance is empty in the current response, passing them to `RpcDataSource` as `customAssets`, in addition to its existing retry of chains in `response.errors`. Staking vault assets and assets on chains outside the request or the account's supported set are excluded.
   - Balances from chains the RPC read itself failed on are discarded instead of merged, so a transient RPC failure can no longer overwrite a correct upstream balance with the failure stub's native `0` (or, previously, falsely clear the chain's error as "recovered"). The chain's error is kept only when it was already errored upstream.
   - `RpcDataSource.assetsMiddleware` now propagates per-chain fetch errors onto the pipeline response (previously it only used them internally), which is what lets `RpcFallbackMiddleware` identify the failed chains.
+  - The fallback also runs on Accounts API poll updates (`handleAssetsUpdate`), not only in the forced `getAssets` fast pipeline, so a stale amount no longer survives between forced refreshes while the wallet sits open. WebSocket, RPC, and Snap updates are excluded: WebSocket pushes are incremental single-asset updates where absence is not staleness, and RPC/Snap updates must not re-trigger RPC.
 
 ## [14.0.3]
 
