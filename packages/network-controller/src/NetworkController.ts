@@ -37,6 +37,20 @@ import {
 } from '@metamask/remote-feature-flag-controller';
 import { errorCodes } from '@metamask/rpc-errors';
 import {
+  array,
+  boolean,
+  define,
+  enums,
+  literal,
+  number,
+  object,
+  optional,
+  record,
+  string,
+  union,
+} from '@metamask/superstruct';
+import type { Struct } from '@metamask/superstruct';
+import {
   createEventEmitterProxy,
   createSwappableProxy,
 } from '@metamask/swappable-obj-proxy';
@@ -48,6 +62,7 @@ import {
   isStrictHexString,
   numberToHex,
   parseCaipChainId,
+  StrictHexStruct,
 } from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 import type { Draft } from 'immer';
@@ -1273,6 +1288,61 @@ function buildNetworkConfigurationsByNetworkClientId(
   );
 }
 
+const InfuraRpcEndpointUrlStruct =
+  define<`https://${InfuraNetworkType}.infura.io/v3/{infuraProjectId}`>(
+    'infuraRpcEndpointUrl',
+    string,
+  );
+
+const InfuraRpcEndpointStruct = object({
+  failoverUrls: optional(array(string())),
+  name: optional(string()),
+  networkClientId: string(),
+  type: literal(RpcEndpointType.Infura),
+  url: InfuraRpcEndpointUrlStruct,
+});
+
+const CustomRpcEndpointStruct = object({
+  failoverUrls: optional(array(string())),
+  name: optional(string()),
+  networkClientId: string(),
+  type: literal(RpcEndpointType.Custom),
+  url: string(),
+});
+
+const NetworkConfigurationStruct = object({
+  blockExplorerUrls: array(string()),
+  chainId: StrictHexStruct,
+  defaultBlockExplorerUrlIndex: optional(number()),
+  defaultRpcEndpointIndex: number(),
+  name: string(),
+  nativeCurrency: string(),
+  rpcEndpoints: array(
+    union([InfuraRpcEndpointStruct, CustomRpcEndpointStruct]),
+  ),
+  lastUpdatedAt: optional(number()),
+});
+
+const NetworkMetadataStruct = object({
+  EIPS: record(string(), boolean()),
+  status: enums([
+    NetworkStatus.Unknown,
+    NetworkStatus.Available,
+    NetworkStatus.Degraded,
+    NetworkStatus.Unavailable,
+    NetworkStatus.Blocked,
+  ]),
+});
+
+const NetworkStateStruct = object({
+  selectedNetworkClientId: string(),
+  networkConfigurationsByChainId: record(
+    StrictHexStruct,
+    NetworkConfigurationStruct,
+  ),
+  networksMetadata: record(string(), NetworkMetadataStruct),
+});
+
 /**
  * Controller that creates and manages an Ethereum network provider.
  */
@@ -1281,6 +1351,8 @@ export class NetworkController extends BaseController<
   NetworkState,
   NetworkControllerMessenger
 > {
+  static readonly struct: Struct<NetworkState> = NetworkStateStruct;
+
   #ethQuery?: EthQuery;
 
   readonly #infuraProjectId: string;
