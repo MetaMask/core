@@ -18,6 +18,19 @@ This will install the latest version of Foundry things by default.
 
 Try `yarn bin mm-foundryup --help` for more options.
 
+### Retry configuration
+
+Foundry archive downloads retry transient failures with exponential backoff and equal jitter. The retry policy can be
+configured with CLI flags or equivalent environment variables:
+
+| CLI flag                   | Environment variable               | Default | Description                                    |
+| -------------------------- | ---------------------------------- | ------: | ---------------------------------------------- |
+| `--max-attempts`           | `FOUNDRYUP_MAX_ATTEMPTS`           |       5 | Total download attempts, including the first   |
+| `--initial-retry-delay-ms` | `FOUNDRYUP_INITIAL_RETRY_DELAY_MS` |   1,000 | Initial delay before exponential growth, in ms |
+| `--max-retry-delay-ms`     | `FOUNDRYUP_MAX_RETRY_DELAY_MS`     |  30,000 | Maximum delay before applying jitter, in ms    |
+
+Set `--max-attempts 1` to disable retries.
+
 Once you have the binaries installed, you have to figure out how to get to them.
 
 Probably best to just add each as a `package.json` script:
