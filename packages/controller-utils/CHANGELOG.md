@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `startTime` to `TraceRequest` to allow backdating a span's start time ([#9315](https://github.com/MetaMask/core/pull/9315))
 
+### Changed
+
+- Replace `@spruceid/siwe-parser` with `@signinwithethereum/siwe-parser` ^4.2.0 ([#8497](https://github.com/MetaMask/core/pull/8497))
+  - The old package is no longer maintained. The Ethereum Identity Foundation now maintains the successor under the `@signinwithethereum` scope.
+  - The `ParsedMessage` class API is backward compatible.
+  - v4.2.0 relaxes EIP-55 address checksum enforcement: all-lowercase and all-uppercase addresses now parse successfully (with a non-fatal warning on the new `warnings: string[]` field); only mixed-case addresses with an invalid checksum still fail to parse.
+
 ### Deprecated
 
 - Deprecate `createServicePolicy` and related symbols ([#9418](https://github.com/MetaMask/core/pull/9418))

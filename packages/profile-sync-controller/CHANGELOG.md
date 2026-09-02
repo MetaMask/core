@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Derive auth and user-storage message-signing keys natively via SIP-6 from HD keyring seeds instead of calling `@metamask/message-signing-snap` through `SnapController`. `AuthenticationController` and `UserStorageController` now require `KeyringController:withKeyringV2Unsafe` and no longer call `SnapController:handleRequest`. The message-signing snap remains for Portfolio / external origins ([#9824](https://github.com/MetaMask/core/pull/9824))
   - Derive native SIP-6 keys with `@noble/hashes` HMAC-SHA-512 instead of Web Crypto, so auth works on React Native, whose SubtleCrypto cannot HMAC.
 - Resolve HD entropy source IDs from `KeyringController` instead of the message-signing snap (`getBearerToken` primary ID, `performSignIn` SRP enumeration) ([#9794](https://github.com/MetaMask/core/pull/9794))
+- Replace `siwe` with `@signinwithethereum/siwe` ^4.2.0 ([#8497](https://github.com/MetaMask/core/pull/8497))
+  - The old package is no longer maintained by Spruce. The Ethereum Identity Foundation now maintains the successor under the `@signinwithethereum` scope. The `SiweMessage` class API is backward compatible for the usage in this package (`new SiweMessage({...}).prepareMessage()`).
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
 - Add `@metamask/key-tree` and `@noble/curves`; remove unused `@metamask/snaps-controllers`, `@metamask/snaps-sdk`, and `@metamask/snaps-utils` dependencies ([#9824](https://github.com/MetaMask/core/pull/9824))
 
