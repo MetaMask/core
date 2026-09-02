@@ -75,5 +75,40 @@ describe('Balance Utils', () => {
 
       expect(result).toBe(false);
     });
+
+    it('returns false if gas estimate is missing', async () => {
+      const result = await isNativeBalanceSufficientForGas(
+        {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            gas: undefined,
+          },
+        },
+        MESSENGER_MOCK,
+        NETWORK_CLIENT_ID_MOCK,
+      );
+
+      expect(result).toBe(false);
+      expect(rpcRequestMock).not.toHaveBeenCalled();
+    });
+
+    it('returns false if max fee per gas is missing', async () => {
+      const result = await isNativeBalanceSufficientForGas(
+        {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            maxFeePerGas: undefined,
+            gasPrice: undefined,
+          },
+        },
+        MESSENGER_MOCK,
+        NETWORK_CLIENT_ID_MOCK,
+      );
+
+      expect(result).toBe(false);
+      expect(rpcRequestMock).not.toHaveBeenCalled();
+    });
   });
 });
