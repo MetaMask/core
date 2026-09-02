@@ -74,8 +74,8 @@
     "@metamask/profile-sync-controller": "^29.0.0",
     "@metamask/remote-feature-flag-controller": "^6.1.0",
     "@metamask/snaps-controllers": "^19.0.0",
-    "@metamask/transaction-controller": "^69.6.1",
-    "@metamask/utils": "^11.11.0",
+    "@metamask/transaction-controller": "^69.7.0",
+    "@metamask/utils": "^11.12.0",
     "bignumber.js": "^9.1.2",
     "reselect": "^5.1.1",
     "uuid": "^8.3.2"

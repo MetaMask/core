@@ -51,6 +51,7 @@ import type { AccountWalletObject, AccountWalletObjectOf } from './wallet.js';
 export const controllerName = 'AccountTreeController';
 
 const MESSENGER_EXPOSED_METHODS = [
+  'isInitialized',
   'getSelectedAccountGroup',
   'setSelectedAccountGroup',
   'setSelectedAccountGroupByAccountId',
@@ -455,6 +456,16 @@ export class AccountTreeController extends BaseController<
     log('Re-initializing...');
     this.#initialized = false;
     this.init();
+  }
+
+  /**
+   * Whether `init()` has completed and the account tree is ready to consume.
+   * Returns false after `clearState()` until the next successful `init()`.
+   *
+   * @returns True when the controller has been initialized.
+   */
+  isInitialized(): boolean {
+    return this.#initialized;
   }
 
   /**

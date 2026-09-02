@@ -99,6 +99,7 @@ import type {
   GetHistoricalPortfolioParams,
   GetMarketsParams,
   GetOrderCapabilitiesParams,
+  GetScalePriceLadderParams,
   GetOrderFillsParams,
   GetOrdersParams,
   GetOrFetchFillsParams,
@@ -109,6 +110,8 @@ import type {
   InitializeResult,
   PerpsPlatformDependencies,
   PerpsProvider,
+  PerpsProviderType,
+  PerpsScalePriceLadder,
   LiquidationPriceParams,
   LiveDataConfig,
   MaintenanceMarginParams,
@@ -123,6 +126,7 @@ import type {
   ScaleOrderChild,
   PerpsMarketData,
   DirectProviderOrderCapabilities,
+  DirectProviderScalePriceLadderUnavailableReason,
   Position,
   PositionTriggerOrder,
   ReadyToTradeResult,
@@ -132,6 +136,7 @@ import type {
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
+  SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
   ToggleTestnetResult,
@@ -1245,6 +1250,31 @@ const adaptTwapOrderFill = (
   transactionHash: entry.fill.hash,
 });
 
+const normalizeHyperLiquidScalePriceLadder = (params: {
+  minPrice: number;
+  maxPrice: number;
+  count: number;
+  szDecimals: number;
+}): string[] => {
+  const { szDecimals, ...ladderParams } = params;
+  const prices = computeScalePriceLadder(ladderParams).map((price) =>
+    formatHyperLiquidPrice({ price, szDecimals }),
+  );
+  if (new Set(prices).size !== prices.length) {
+    throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+  }
+  return prices;
+};
+
+/** Capability lookup result that carries resolved market metadata when ready. */
+type HyperLiquidOrderCapabilityMarket =
+  | Readonly<{ status: 'ready'; market: MarketInfo }>
+  | Readonly<{
+      status: 'unavailable';
+      providerId?: PerpsProviderType;
+      reason: DirectProviderScalePriceLadderUnavailableReason;
+    }>;
+
 /**
  * HyperLiquid provider implementation
  *
@@ -1534,6 +1564,9 @@ export class HyperLiquidProvider implements PerpsProvider {
       async () => {
         await this.#ensureClientsInitialized();
         const validatedDexs = await this.#getValidatedDexs();
+        if (this.#hip3Enabled && !this.#dexDiscoveryCache.state?.validated) {
+          throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+        }
         return validatedDexs.filter((dex): dex is string => dex !== null);
       },
     );
@@ -1613,15 +1646,62 @@ export class HyperLiquidProvider implements PerpsProvider {
   async getOrderCapabilities(
     params: GetOrderCapabilitiesParams,
   ): Promise<DirectProviderOrderCapabilities> {
-    if (!isValidCapabilitySymbol(params.symbol, { allowProviderRoute: true })) {
+    const result = await this.#getOrderCapabilityMarket(params.symbol);
+    return result.status === 'ready' ? HYPERLIQUID_ORDER_CAPABILITIES : result;
+  }
+
+  /**
+   * Normalize a Scale price ladder with HyperLiquid market precision.
+   *
+   * @param params - Market, ladder bounds, count, and optional provider route.
+   * @returns HyperLiquid-normalized prices or a typed unavailable result.
+   * @throws When the ladder count or normalized range is invalid.
+   */
+  async getScalePriceLadder(
+    params: GetScalePriceLadderParams,
+  ): Promise<PerpsScalePriceLadder> {
+    if (
+      params.providerId !== undefined &&
+      params.providerId !== this.protocolId
+    ) {
+      return {
+        status: 'unavailable',
+        providerId: this.protocolId,
+        reason: 'provider_not_routable',
+      };
+    }
+
+    const result = await this.#getOrderCapabilityMarket(params.symbol);
+    if (result.status === 'unavailable') {
+      return result;
+    }
+
+    const prices = normalizeHyperLiquidScalePriceLadder({
+      minPrice: params.minPrice,
+      maxPrice: params.maxPrice,
+      count: params.count,
+      szDecimals: result.market.szDecimals,
+    });
+
+    return { status: 'ready', providerId: this.protocolId, prices };
+  }
+
+  /**
+   * Resolve fresh market metadata shared by capability and ladder reads.
+   *
+   * @param symbol - Market symbol, including its DEX route when applicable.
+   * @returns The resolved market or a typed unavailable result.
+   */
+  async #getOrderCapabilityMarket(
+    symbol: string,
+  ): Promise<HyperLiquidOrderCapabilityMarket> {
+    if (!isValidCapabilitySymbol(symbol, { allowProviderRoute: true })) {
       return {
         status: 'unavailable',
         providerId: this.protocolId,
         reason: 'invalid_symbol',
       };
     }
-    const { dex } = parseAssetName(params.symbol);
-
     if (this.#isDisconnected) {
       return {
         status: 'unavailable',
@@ -1630,18 +1710,18 @@ export class HyperLiquidProvider implements PerpsProvider {
       };
     }
 
+    const { dex } = parseAssetName(symbol);
     const lifecycleGeneration = this.#lifecycleGeneration;
-
     try {
-      const marketExists = (
-        await this.#getFreshOrderCapabilityMarkets(dex)
-      ).some((market) => market.name === params.symbol);
+      const market = (await this.#getFreshOrderCapabilityMarkets(dex)).find(
+        ({ name }) => name === symbol,
+      );
       this.#assertProviderLifecycleCurrent(
         lifecycleGeneration,
         'Order capability read',
       );
-      return marketExists
-        ? HYPERLIQUID_ORDER_CAPABILITIES
+      return market
+        ? { status: 'ready', market }
         : {
             status: 'unavailable',
             providerId: this.protocolId,
@@ -1649,11 +1729,13 @@ export class HyperLiquidProvider implements PerpsProvider {
           };
     } catch (error) {
       this.#deps.debugLogger.log(
-        'HyperLiquid: Order capabilities unavailable',
+        'HyperLiquid: Order capability market unavailable',
         {
-          symbol: params.symbol,
-          error: ensureError(error, 'HyperLiquidProvider.getOrderCapabilities')
-            .message,
+          symbol,
+          error: ensureError(
+            error,
+            'HyperLiquidProvider.getOrderCapabilityMarket',
+          ).message,
         },
       );
       return {
@@ -2923,6 +3005,43 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Resolve the complete DEX set for a fail-closed operation.
+   *
+   * Unlike ordinary discovery, this uses HTTP and never degrades to main-only
+   * when HIP-3 discovery fails.
+   *
+   * @returns The validated DEX set.
+   */
+  async #getValidatedDexsStrict(): Promise<(string | null)[]> {
+    if (!this.#hip3Enabled) {
+      return [null];
+    }
+
+    if (this.#dexDiscoveryCache.state?.validated) {
+      return this.#dexDiscoveryCache.state.validated;
+    }
+
+    const lifecycleGeneration = this.#lifecycleGeneration;
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+    let allDexs;
+    try {
+      allDexs = await infoClient.perpDexs();
+    } catch {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+
+    if (!Array.isArray(allDexs)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+
+    this.#assertCacheWriteLifecycleCurrent(
+      lifecycleGeneration,
+      'Strict DEX discovery cache write',
+    );
+    return this.#dexDiscoveryCache.update(allDexs).validated;
+  }
+
+  /**
    * Get cached meta response for a DEX, fetching from API if not cached
    * This helper consolidates cache logic to avoid redundant API calls across the provider
    *
@@ -3602,6 +3721,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       enabledDexs,
       this.#allowlistMarkets,
       this.#blocklistMarkets,
+      !this.#hip3Enabled || Boolean(this.#dexDiscoveryCache.state?.validated),
     );
     this.#assertCacheWriteLifecycleCurrent(
       lifecycleGeneration,
@@ -3781,6 +3901,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param baseParams - Base parameters (e.g., { user: '0x...' })
    * @param queryFn - API method to call per DEX
+   * @param resolvedDexs - Optional pre-resolved DEX list.
    * @returns Array of results per DEX with DEX identifier
    * @example
    * ```typescript
@@ -3796,8 +3917,9 @@ export class HyperLiquidProvider implements PerpsProvider {
   >(
     baseParams: TParams,
     queryFn: (params: TParams & { dex?: string }) => Promise<TResult>,
+    resolvedDexs?: (string | null)[],
   ): Promise<DexQueryResponse<TResult>> {
-    const enabledDexs = await this.#getValidatedDexs();
+    const enabledDexs = resolvedDexs ?? (await this.#getValidatedDexs());
 
     const settledResults = await Promise.allSettled(
       enabledDexs.map(async (dex) => {
@@ -4628,8 +4750,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     const { symbol, dexName, positionSize, orderPrice, leverage, isBuy } =
       params;
 
-    // Get existing position to check if we're increasing
-    const positions = await this.getPositions();
+    // Use the same target-DEX freshness policy as position-management actions;
+    // a stale aggregate can over- or under-fund the temporary HIP-3 transfer.
+    const positions = await this.#getPositionsForOperation(dexName);
     const existingPosition = positions.find((pos) => pos.symbol === symbol);
 
     let requiredMarginWithBuffer: number;
@@ -5826,15 +5949,12 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_COUNT_INVALID);
     }
 
-    const prices = computeScalePriceLadder({
+    const prices = normalizeHyperLiquidScalePriceLadder({
       minPrice: parseFloat(scaleMinPrice),
       maxPrice: parseFloat(scaleMaxPrice),
       count: scaleNumOrders,
-    }).map((price) => formatHyperLiquidPrice({ price, szDecimals }));
-
-    if (new Set(prices).size !== prices.length) {
-      throw new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
-    }
+      szDecimals,
+    });
 
     // Throws ORDER_SCALE_SIZE_TOO_SMALL when a rung would round to nothing,
     // which a skew weighted far enough from even can do on its own.
@@ -8577,10 +8697,29 @@ export class HyperLiquidProvider implements PerpsProvider {
         (typeof params.newOrder.slippage === 'number'
           ? Math.round(params.newOrder.slippage * BASIS_POINTS_DIVISOR)
           : undefined);
+      // calculateOrderPriceAndSize formats with formatHyperLiquidSize, which
+      // rounds half-up. On a reduce-only edit that can submit a size above the
+      // one requested, which HyperLiquid rejects with "Reduce only order would
+      // increase position", so floor onto the size grid first. An opening edit
+      // keeps its existing rounding: it has no position ceiling to breach.
+      const requestedSize = parseFloat(params.newOrder.size);
+      const sizeForSubmission =
+        params.newOrder.reduceOnly === true
+          ? floorToSizeDecimals(requestedSize, assetInfo.szDecimals)
+          : requestedSize;
+
+      // Refuse non-numeric and non-positive sizes before formatting or submit.
+      if (!(sizeForSubmission > 0)) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE,
+        };
+      }
+
       const { formattedSize, formattedPrice } = calculateOrderPriceAndSize({
         orderType: params.newOrder.orderType,
         isBuy: params.newOrder.isBuy,
-        finalPositionSize: parseFloat(params.newOrder.size),
+        finalPositionSize: sizeForSubmission,
         currentPrice,
         limitPrice: params.newOrder.price,
         maxSlippageBps: normalizedMaxSlippageBps,
@@ -8922,22 +9061,67 @@ export class HyperLiquidProvider implements PerpsProvider {
   ): Promise<ClosePositionsResult> {
     // Declare outside try block so it's accessible in catch block
     let positionsToClose: Position[] = [];
+    const unavailableResults: ClosePositionsResult['results'] = [];
 
     try {
       // Batch preparation needs trading readiness but not builder approval yet.
       // The provider-owned market policy is resolved from the positions below.
       await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
-      // Get all current positions from cache (avoids 429 rate limiting)
-      const positions = await this.getPositions();
-
-      // Filter positions based on params
-      positionsToClose =
+      // Selected symbols only need the DEXes they belong to. Loading every
+      // market group would refuse a BTC close when an unrelated HIP-3 DEX
+      // cannot be read. closeAll / empty symbols still need a complete
+      // snapshot so a missed DEX cannot be reported as "nothing to close".
+      // Per-DEX loads are independent: a requested xyz outage must not
+      // abort a BTC close in the same symbols list.
+      const requestedSymbols =
         params.closeAll === true ||
-        !params.symbols ||
+        params.symbols === undefined ||
         params.symbols.length === 0
+          ? undefined
+          : params.symbols;
+      let positions: Position[];
+      if (requestedSymbols === undefined) {
+        positions = await this.#getPositionsForOperation();
+      } else {
+        const dexNames = [
+          ...new Set(
+            requestedSymbols.map((symbol) => parseAssetName(symbol).dex ?? ''),
+          ),
+        ];
+        const settled = await Promise.allSettled(
+          dexNames.map((dexName) => this.#getPositionsForOperation(dexName)),
+        );
+        positions = [];
+        settled.forEach((outcome, index) => {
+          if (outcome.status === 'fulfilled') {
+            positions.push(...outcome.value);
+            return;
+          }
+          const message =
+            outcome.reason instanceof Error
+              ? outcome.reason.message
+              : String(outcome.reason);
+          if (message !== PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE) {
+            throw outcome.reason;
+          }
+          const failedDex = dexNames[index];
+          for (const symbol of requestedSymbols) {
+            if ((parseAssetName(symbol).dex ?? '') === failedDex) {
+              unavailableResults.push({
+                symbol,
+                success: false,
+                error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+              });
+            }
+          }
+        });
+      }
+
+      positionsToClose =
+        requestedSymbols === undefined
           ? positions
-          : positions.filter((pos) => params.symbols?.includes(pos.symbol));
+          : positions.filter((pos) => requestedSymbols.includes(pos.symbol));
 
       this.#deps.debugLogger.log('Batch closing positions:', {
         count: positionsToClose.length,
@@ -8946,11 +9130,20 @@ export class HyperLiquidProvider implements PerpsProvider {
       });
 
       if (positionsToClose.length === 0) {
+        if (unavailableResults.length === 0) {
+          return {
+            success: false,
+            successCount: 0,
+            failureCount: 0,
+            results: [],
+          };
+        }
         return {
           success: false,
           successCount: 0,
-          failureCount: 0,
-          results: [],
+          failureCount: unavailableResults.length,
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          results: unavailableResults,
         };
       }
 
@@ -9102,8 +9295,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         return {
           success: false,
           successCount: 0,
-          failureCount: skippedResults.length,
-          results: skippedResults,
+          failureCount: skippedResults.length + unavailableResults.length,
+          results: [...skippedResults, ...unavailableResults],
         };
       }
 
@@ -9136,7 +9329,10 @@ export class HyperLiquidProvider implements PerpsProvider {
           (hasProperty(stat, 'filled') || hasProperty(stat, 'resting')),
       ).length;
       const failureCount =
-        statuses.length - successCount + skippedResults.length;
+        statuses.length -
+        successCount +
+        skippedResults.length +
+        unavailableResults.length;
 
       // Handle HIP-3 margin transfers for successful closes
       if (!this.#useUnifiedAccount) {
@@ -9189,33 +9385,47 @@ export class HyperLiquidProvider implements PerpsProvider {
         success: successCount > 0,
         successCount,
         failureCount,
-        results: positionsToClose.flatMap((position) => {
-          const outcome =
-            submittedResults.get(position.symbol) ??
-            skippedBySymbol.get(position.symbol);
-          return outcome ? [outcome] : [];
-        }),
+        results: [
+          ...positionsToClose.flatMap((position) => {
+            const outcome =
+              submittedResults.get(position.symbol) ??
+              skippedBySymbol.get(position.symbol);
+            return outcome ? [outcome] : [];
+          }),
+          ...unavailableResults,
+        ],
       };
     } catch (error) {
+      const safeError = ensureError(
+        error,
+        'HyperLiquidProvider.closePositions',
+      );
       this.#deps.logger.error(
-        ensureError(error, 'HyperLiquidProvider.closePositions'),
+        safeError,
         this.#getErrorContext('closePositions', {
           positionCount: positionsToClose.length,
         }),
       );
-      // Return all positions as failed
+      // Return all selected positions as failed, including unavailable DEXes.
       return {
         success: false,
         successCount: 0,
-        failureCount: positionsToClose.length,
-        results: positionsToClose.map((position) => ({
-          symbol: position.symbol,
-          success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : PERPS_ERROR_CODES.BATCH_CLOSE_FAILED,
-        })),
+        failureCount: positionsToClose.length + unavailableResults.length,
+        error:
+          error instanceof Error
+            ? safeError.message
+            : PERPS_ERROR_CODES.BATCH_CLOSE_FAILED,
+        results: [
+          ...positionsToClose.map((position) => ({
+            symbol: position.symbol,
+            success: false,
+            error:
+              error instanceof Error
+                ? safeError.message
+                : PERPS_ERROR_CODES.BATCH_CLOSE_FAILED,
+          })),
+          ...unavailableResults,
+        ],
       };
     }
   }
@@ -9277,36 +9487,30 @@ export class HyperLiquidProvider implements PerpsProvider {
       // behind.
       await this.#ensureReady();
 
-      // Use live position (from WebSocket) if available, otherwise fetch via REST
-      // Preferring WebSocket data avoids rate limiting issues with the REST API
-      let fetchedPosition: Position | undefined;
+      // A caller snapshot is only a hint. Use the current-connection DEX slice
+      // when available, otherwise query that DEX over HTTP. If neither source
+      // answers, fail closed: trusting the snapshot would recreate the stale
+      // side/size reduce-only rejection this method is meant to prevent.
+      const currentPositions = await this.#getPositionsForOperation(
+        parseAssetName(symbol).dex ?? '',
+      );
+      const position = currentPositions.find((pos) => pos.symbol === symbol);
 
-      if (livePosition) {
-        this.#deps.debugLogger.log('Using live position from WebSocket', {
-          symbol: livePosition.symbol,
-          size: livePosition.size,
-        });
-      } else {
-        // Fallback: fetch positions via REST API (legacy behavior)
+      if (
+        livePosition &&
+        position &&
+        parseFloat(position.size) !== parseFloat(livePosition.size)
+      ) {
         this.#deps.debugLogger.log(
-          'No live position passed, falling back to REST API fetch',
+          'Stale TP/SL position snapshot: using current position',
+          {
+            symbol,
+            snapshotSize: livePosition.size,
+            liveSize: position.size,
+          },
         );
-        let positions: Position[];
-        try {
-          positions = await this.getPositions({ skipCache: true });
-        } catch (error) {
-          this.#deps.logger.error(
-            ensureError(error, 'HyperLiquidProvider.updatePositionTPSL'),
-            this.#getErrorContext('updatePositionTPSL > getPositions', {
-              symbol,
-            }),
-          );
-          throw error;
-        }
-        fetchedPosition = positions.find((pos) => pos.symbol === symbol);
       }
 
-      const position = livePosition ?? fetchedPosition;
       if (!position) {
         throw new Error(`No position found for ${symbol}`);
       }
@@ -9393,11 +9597,14 @@ export class HyperLiquidProvider implements PerpsProvider {
         dexName,
       });
 
+      // Keep whole-position trigger formatting fail-safe too. Venue positions
+      // are normally grid-aligned, but flooring guarantees a reduce-only child
+      // never exceeds the position if an upstream value is not.
       const fullSize =
         TP_SL_CONFIG.UsePositionBoundTpsl && !isPartialTpsl
           ? '0'
           : formatHyperLiquidSize({
-              size: positionSize,
+              size: floorToSizeDecimals(positionSize, assetInfo.szDecimals),
               szDecimals: assetInfo.szDecimals,
             });
 
@@ -10011,91 +10218,30 @@ export class HyperLiquidProvider implements PerpsProvider {
       // concrete close order after validation.
       await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
-      // Use provided position (from WebSocket) or fetch from cache
-      // This avoids unnecessary API calls and prevents 429 rate limiting
-      let { position } = params;
+      // A caller snapshot is never authoritative for a reduce-only close. Use
+      // the current DEX slice or its HTTP fallback, and fail closed if neither
+      // answers. This keeps the size and side on one freshness contract across
+      // snapshot and snapshot-less callers.
+      const currentPositions = await this.#getPositionsForOperation(
+        parseAssetName(params.symbol).dex ?? '',
+      );
+      const position = currentPositions.find(
+        (pos) => pos.symbol === params.symbol,
+      );
 
-      // Re-validate the caller-supplied snapshot against the freshest WebSocket
-      // position cache. Clients pass a throttled snapshot (~1s old on mobile),
-      // so a concurrent TP/SL fill, a liquidation, or a double-tapped close
-      // leaves the snapshot's side/size larger than (or opposite to) the real
-      // position and HyperLiquid rejects the reduce-only order with "Reduce
-      // only order would increase position". Reading the cache never issues a
-      // REST request, so this does not reintroduce 429 rate limiting.
-      if (position && this.#subscriptionService.isPositionsCacheInitialized()) {
-        // Read the symbol's own DEX slice, not the aggregate. The aggregate is
-        // only rebuilt once every expected DEX has published, so after a
-        // WebSocket reconnect — which resets the initialized-DEX set without
-        // clearing these caches — it can sit frozen at pre-reconnect contents
-        // while the per-DEX slices keep updating. Deciding "this DEX is covered"
-        // from the per-DEX map and then reading the position from the aggregate
-        // mixed a fresh answer with stale data: a close could reuse a stale size,
-        // or throw for a position that is open.
-        const dexPositions = this.#subscriptionService.getCachedPositionsForDex(
-          parseAssetName(params.symbol).dex ?? '',
+      if (
+        params.position &&
+        position &&
+        parseFloat(position.size) !== parseFloat(params.position.size)
+      ) {
+        this.#deps.debugLogger.log(
+          'Stale close position snapshot: using current position',
+          {
+            coin: params.symbol,
+            snapshotSize: params.position.size,
+            liveSize: position.size,
+          },
         );
-        const livePosition = dexPositions?.find(
-          (pos) => pos.symbol === params.symbol,
-        );
-
-        if (livePosition) {
-          if (livePosition.size !== position.size) {
-            this.#deps.debugLogger.log(
-              'Stale close position snapshot: using live WebSocket position',
-              {
-                coin: params.symbol,
-                snapshotSize: position.size,
-                liveSize: livePosition.size,
-              },
-            );
-          }
-
-          position = livePosition;
-        } else if (dexPositions) {
-          // That DEX has published and does not hold this symbol, so the position
-          // is already closed (e.g. a double-tapped close). This is the same read
-          // the lookup above used, so the two can never disagree. Fail here rather
-          // than falling back to REST: the cache is the freshest source, so a REST
-          // lookup can only burn a request that risks 429s and, if it lags, hand
-          // back a position that no longer exists.
-          throw new Error(`No position found for ${params.symbol}`);
-        } else {
-          // The cache holds nothing for this symbol's DEX — a HIP-3 DEX whose
-          // subscription has not published this session — so the symbol's
-          // absence proves nothing. Spend one REST request to get live data
-          // rather than trusting a snapshot the exchange may have moved past.
-          this.#deps.debugLogger.log(
-            'Position cache does not cover this DEX: fetching live positions',
-            { coin: params.symbol },
-          );
-
-          // Query the symbol's own DEX so the outcome carries provenance.
-          // getPositions() fans out across every enabled DEX, flattens the subset
-          // that answered and turns any failure into [], so it cannot distinguish
-          // "this DEX answered and holds nothing" from "this DEX failed or was
-          // never queried" — and those two need opposite decisions.
-          const { answered, positions } = await this.#queryDexPositions(
-            parseAssetName(params.symbol).dex,
-          );
-          const livePositionFromApi = positions.find(
-            (pos) => pos.symbol === params.symbol,
-          );
-
-          if (livePositionFromApi) {
-            position = livePositionFromApi;
-          } else if (answered) {
-            // The DEX answered without this symbol — even with no positions at
-            // all — so it is genuinely closed.
-            throw new Error(`No position found for ${params.symbol}`);
-          }
-          // Otherwise the query failed, so the absence proves nothing: keep the
-          // caller's snapshot rather than block a position that may be closable.
-        }
-      }
-
-      if (!position) {
-        const positions = await this.getPositions();
-        position = positions.find((pos) => pos.symbol === params.symbol);
       }
 
       if (!position) {
@@ -10266,8 +10412,11 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Ensure provider is ready
       await this.#ensureReady();
 
-      // Get current position to determine direction (from cache to avoid 429 rate limiting)
-      const positions = await this.getPositions();
+      // Use the target DEX's current slice or one targeted HTTP read before
+      // deriving the position side.
+      const positions = await this.#getPositionsForOperation(
+        parseAssetName(symbol).dex ?? '',
+      );
       const position = positions.find((pos) => pos.symbol === symbol);
 
       if (!position) {
@@ -10564,18 +10713,111 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Read positions without mixing sources whose relative recency is unknown.
+   *
+   * A symbol-specific caller can use its current-connection DEX slice directly.
+   * The current-epoch slice wins before any REST request because it is the
+   * provider's live subscription source for that exact DEX. If the target DEX
+   * has not published, the caller uses REST instead of a stale aggregate.
+   *
+   * A whole-list caller uses one shallow-copied WebSocket snapshot only when
+   * every configured DEX is current. Otherwise it falls back to REST. No path
+   * mixes sources of unknown relative recency. WebSocket positions include
+   * TP/SL decoration; REST positions do not.
+   *
+   * @param targetDex - DEX for a single-symbol lookup, or undefined for a full
+   * position list.
+   * @returns Positions from one provenance-safe cache/REST path.
+   */
+  async #getPositionsForOperation(targetDex?: string): Promise<Position[]> {
+    if (targetDex !== undefined) {
+      const targetPositions =
+        this.#subscriptionService.getCachedPositionsForDex(targetDex);
+      if (targetPositions !== null) {
+        return [...targetPositions];
+      }
+
+      this.#deps.debugLogger.log(
+        'Target DEX position cache unavailable: fetching REST positions',
+        { dex: targetDex || 'main' },
+      );
+      const { answered, positions } = await this.#queryDexPositions(
+        targetDex || null,
+      );
+      if (!answered) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      }
+      return positions;
+    }
+
+    const cachedPositions =
+      this.#subscriptionService.getFreshPositionsForAllDexs();
+    if (cachedPositions !== null) {
+      return cachedPositions;
+    }
+
+    this.#deps.debugLogger.log(
+      'Position caches incomplete: fetching full REST positions',
+    );
+    return this.#queryAllDexPositionsStrict();
+  }
+
+  /**
+   * Query every enabled DEX over HTTP and reject a partial snapshot.
+   *
+   * A batch action cannot treat the successful subset as complete: doing so
+   * could close one DEX and report success while another live position was
+   * never checked.
+   *
+   * @returns A complete position list across all enabled DEXs.
+   * @throws `PROVIDER_NOT_AVAILABLE` when any expected DEX fails.
+   */
+  async #queryAllDexPositionsStrict(): Promise<Position[]> {
+    await this.#ensureClientsInitialized();
+    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+    const userAddress = await this.#walletService.getUserAddressWithDefault();
+    const enabledDexs = await this.#getValidatedDexsStrict();
+
+    const { results, failedDexs } = await this.#queryUserDataAcrossDexs(
+      { user: userAddress },
+      (userParam) => infoClient.clearinghouseState(userParam),
+      enabledDexs,
+    );
+
+    if (failedDexs.length > 0) {
+      this.#deps.debugLogger.log(
+        'Complete REST position snapshot unavailable',
+        {
+          failedDexs: failedDexs.map(
+            ({ dex, error }) => `${dex ?? 'main'}:${error.message}`,
+          ),
+        },
+      );
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+
+    if (results.some(({ data }) => !Array.isArray(data.assetPositions))) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+
+    return results.flatMap(({ data }) =>
+      data.assetPositions
+        .filter((assetPos) => assetPos.position.szi !== '0')
+        .map((assetPos) => adaptPositionFromSDK(assetPos)),
+    );
+  }
+
+  /**
    * Query one DEX's positions directly, preserving whether that DEX answered.
    *
    * `getPositions()` fans out across every enabled DEX, flattens the subset that
    * answered and converts any thrown error into an empty array, so its result
    * cannot distinguish "this DEX answered and holds no positions" from "this
-   * DEX's request failed or it was never queried". `closePosition` needs that
-   * distinction: the first means the position is closed and the close must fail
-   * before submitting, the second means the absence proves nothing and the
-   * caller's snapshot should stand.
+   * DEX's request failed or it was never queried". Symbol operations need that
+   * distinction: the first means the position is closed, while the second must
+   * fail with `PROVIDER_NOT_AVAILABLE`.
    *
-   * TP/SL enrichment is skipped, as in standalone mode: the close path only reads
-   * size, side and margin.
+   * TP/SL enrichment is skipped because callers only read size, side, and margin.
    *
    * @param dexName - DEX identifier, or null for the main DEX.
    * @returns Whether the DEX answered, and the positions it reported.
@@ -10585,14 +10827,15 @@ export class HyperLiquidProvider implements PerpsProvider {
   ): Promise<{ answered: boolean; positions: Position[] }> {
     try {
       await this.#ensureClientsInitialized();
-      this.#clientService.ensureInitialized();
-
-      const infoClient = this.#clientService.getInfoClient();
+      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
       const userAddress = await this.#walletService.getUserAddressWithDefault();
       const state = await infoClient.clearinghouseState(
         dexName ? { user: userAddress, dex: dexName } : { user: userAddress },
       );
-      const positions = (state.assetPositions ?? [])
+      if (!Array.isArray(state.assetPositions)) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      }
+      const positions = state.assetPositions
         .filter((assetPos) => assetPos.position.szi !== '0')
         .map((assetPos) => adaptPositionFromSDK(assetPos));
 
@@ -10603,14 +10846,14 @@ export class HyperLiquidProvider implements PerpsProvider {
 
       return { answered: true, positions };
     } catch (error) {
-      this.#deps.debugLogger.log(
-        'Target DEX position query failed; its silence proves nothing',
-        {
-          dex: dexName ?? 'main',
-          error: ensureError(error, 'HyperLiquidProvider.queryDexPositions')
-            .message,
-        },
+      const safeError = ensureError(
+        error,
+        'HyperLiquidProvider.queryDexPositions',
       );
+      this.#deps.debugLogger.log('Target DEX position query failed', {
+        dex: dexName ?? 'main',
+        error: safeError.message,
+      });
 
       return { answered: false, positions: [] };
     }
@@ -13319,6 +13562,97 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   subscribeToOrderFills(params: SubscribeOrderFillsParams): () => void {
     return this.#subscriptionService.subscribeToOrderFills(params);
+  }
+
+  /**
+   * Stream TWAP lifecycle updates from the venue's own push channel.
+   *
+   * The venue streams schedule state without slice fills, so each pushed
+   * schedule carries an empty `fills` array. A subscriber that renders fill
+   * history should keep what a prior `getTwapOrders()` read supplied rather
+   * than replacing it from the stream.
+   *
+   * @param params - Subscription parameters including callback and account ID.
+   * @returns A cleanup function to unsubscribe from TWAP updates.
+   */
+  subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
+    return this.#subscriptionService.subscribeToTwapOrders({
+      ...params,
+      adapt: (history) => {
+        const now = Date.now();
+        const ordersById = new Map<string, TwapOrder>();
+        for (const historyEntry of history) {
+          const order = this.#adaptTwapOrder({
+            historyEntry,
+            sliceFills: [],
+            now,
+          });
+          if (!order) {
+            continue;
+          }
+          const existing = ordersById.get(order.orderId);
+          if (!existing || order.lastUpdated >= existing.lastUpdated) {
+            ordersById.set(order.orderId, order);
+          }
+        }
+        const orders = [...ordersById.values()].sort(
+          (left, right) => right.startedAt - left.startedAt,
+        );
+
+        // A streamed terminal schedule must reclaim HIP-3 collateral the same
+        // way a polled read does, or a consumer that replaced polling with
+        // this subscription strands manually transferred collateral. The
+        // listener is synchronous, so this runs detached and logs its own
+        // failures rather than rejecting into the stream.
+        this.#rebalanceStreamedTerminalTwaps(orders, params.accountId);
+
+        return orders;
+      },
+    });
+  }
+
+  /**
+   * Reclaim HIP-3 collateral for terminal schedules seen on the TWAP stream.
+   *
+   * `getTwapOrders()` does this on every read; without the same call here a
+   * consumer that replaced polling with the subscription would strand
+   * manually transferred collateral. Detached on purpose: the stream listener
+   * is synchronous and must not reject.
+   *
+   * @param orders - Schedules from the latest stream push.
+   * @param accountId - Optional CAIP account ID the subscription is scoped to.
+   */
+  #rebalanceStreamedTerminalTwaps(
+    orders: TwapOrder[],
+    accountId?: CaipAccountId,
+  ): void {
+    if (orders.every((order) => order.status === 'active')) {
+      return;
+    }
+
+    // Resolve the address from the push's own scope before detaching. Left
+    // inside the microtask it would resolve at run time, so an account switch
+    // racing a terminal push would key the reclaim to the newly selected
+    // account and silently skip the schedule it was meant to settle.
+    const userAddressPromise =
+      this.#walletService.getUserAddressWithDefault(accountId);
+    // Capture the network with the address, not after awaiting it: a network
+    // toggle while resolution is pending would key the reclaim to the opposite
+    // network and skip the terminal schedule.
+    const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
+
+    (async (): Promise<void> => {
+      const userAddress = await userAddressPromise;
+      await this.#rebalanceTerminalHip3Twaps(orders, {
+        network,
+        userAddress,
+      });
+    })().catch((error) => {
+      this.#deps.debugLogger.log('TWAP stream HIP-3 rebalance failed', {
+        error: ensureError(error, 'HyperLiquidProvider.subscribeToTwapOrders')
+          .message,
+      });
+    });
   }
 
   /**

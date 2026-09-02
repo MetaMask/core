@@ -157,7 +157,7 @@
   },
   "packages/assets-controller/src/AssetsController.ts": {
     "no-restricted-syntax": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/assets-controller/src/data-sources/AccountsApiDataSource.ts": {
@@ -1498,11 +1498,6 @@
   },
   "packages/perps-controller/src/PerpsController.ts": {
     "no-restricted-syntax": {
-      "count": 2
-    }
-  },
-  "packages/perps-controller/src/utils/myxAdapter.ts": {
-    "@typescript-eslint/no-base-to-string": {
       "count": 2
     }
   },
