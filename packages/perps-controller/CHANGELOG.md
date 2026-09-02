@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [15.1.0]
 
-### Uncategorized
-
-- Release 1226.0.0 ([#10046](https://github.com/MetaMask/core/pull/10046))
-- docs(perps-controller): describe package capabilities ([#10018](https://github.com/MetaMask/core/pull/10018))
-
 ### Added
 
 - Add provider-routed Scale price normalization through `PerpsController:getScalePriceLadder`, the optional `PerpsProvider.getScalePriceLadder` hook, and their exported action, parameter, and result types. `DirectProviderScalePriceLadderUnavailableReason` and `ScalePriceLadderUnavailableReason` limit unavailable results to direct-provider and routed failures respectively ([#10021](https://github.com/MetaMask/core/pull/10021), [#10065](https://github.com/MetaMask/core/pull/10065))
