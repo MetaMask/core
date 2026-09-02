@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `refreshAccountChainBalancesFromRpc` to fetch a single asset via RPC and Accounts API, report Sentry mismatches when Accounts API ≠ RPC or state ≠ Accounts API, and merge the RPC balance into state (no-op when basic functionality is off or for staking vault assets) ([#9910](https://github.com/MetaMask/core/pull/9910))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.7.0` ([#10046](https://github.com/MetaMask/core/pull/10046))
