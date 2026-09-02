@@ -3082,6 +3082,13 @@ export class KeyringController<
     }
     this.#keyrings = [];
     this.#unsupportedKeyrings = [];
+
+    // We force this state update since the `AccountsController` is mirroring
+    // the keyrings array in its state (using `InternalAccount`s), and we want to
+    // ensure it's updated after a clear operation too.
+    this.update((state) => {
+      state.keyrings = [];
+    });
   }
 
   /**
