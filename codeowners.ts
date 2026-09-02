@@ -133,6 +133,9 @@ const PACKAGES: Record<string, PackageInfo> = {
   'core-backend': {
     teams: ['@MetaMask/core-platform', '@MetaMask/metamask-assets'],
   },
+  cryptography: {
+    teams: ['@MetaMask/core-platform'],
+  },
   'delegation-controller': {
     teams: ['@MetaMask/delegation'],
   },
@@ -540,6 +543,7 @@ function buildTeamSections(): CodeownersSection[] {
         buildRuleForPackage('composable-controller'),
         buildRuleForPackage('connectivity-controller'),
         buildRuleForPackage('controller-utils'),
+        buildRuleForPackage('cryptography'),
         buildRuleForPackage('eip-5792-middleware'),
         buildRuleForPackage('eip1193-permission-middleware'),
         buildRuleForPackage('eth-block-tracker'),
