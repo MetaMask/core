@@ -449,7 +449,7 @@ const selectSortedBridgeQuotes = createBridgeSelector(
     selectBridgeQuotesWithMetadata,
     (_, { sortOrder }: BridgeQuotesClientParams) => sortOrder,
   ],
-  (quotesWithMetadata, sortOrder): (QuoteResponse & QuoteMetadata)[] => {
+  (quotesWithMetadata, sortOrder): QuoteResponse[] => {
     switch (sortOrder) {
       case SortOrder.ETA_ASC:
         return orderBy(
@@ -458,6 +458,18 @@ const selectSortedBridgeQuotes = createBridgeSelector(
           'asc',
         );
       default:
+        if (
+          quotesWithMetadata.every(
+            (quote) => quote.quote.priceData?.cost?.valueInCurrency,
+          )
+        ) {
+          return orderBy(
+            quotesWithMetadata,
+            ({ quote: { priceData } }) =>
+              Number(priceData?.cost?.valueInCurrency),
+            'asc',
+          );
+        }
         if (
           quotesWithMetadata.every(
             (quote) => quote.quote.priceData?.priceImpact?.amount,
@@ -469,7 +481,8 @@ const selectSortedBridgeQuotes = createBridgeSelector(
               Number(priceData?.priceImpact?.amount),
             'asc',
           );
-        } else if (
+        }
+        if (
           quotesWithMetadata.every(
             (quote) => quote.quote.priceData?.priceImpact?.valueInCurrency,
           )

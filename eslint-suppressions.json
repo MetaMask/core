@@ -157,7 +157,7 @@
   },
   "packages/assets-controller/src/AssetsController.ts": {
     "no-restricted-syntax": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/assets-controller/src/data-sources/AccountsApiDataSource.ts": {
@@ -1501,11 +1501,6 @@
       "count": 2
     }
   },
-  "packages/perps-controller/src/utils/myxAdapter.ts": {
-    "@typescript-eslint/no-base-to-string": {
-      "count": 2
-    }
-  },
   "packages/perps-controller/src/utils/perpsConnectionAttemptContext.ts": {
     "require-atomic-updates": {
       "count": 1
@@ -2073,7 +2068,7 @@
       "count": 4
     },
     "no-restricted-syntax": {
-      "count": 4
+      "count": 3
     }
   },
   "packages/smart-transactions-controller/src/featureFlags/feature-flags.ts": {

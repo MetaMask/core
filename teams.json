@@ -96,5 +96,6 @@
   "metamask/snap-account-service": "team-accounts-framework",
   "metamask/platform-api-docs": "team-core-platform",
   "metamask/smart-transactions-controller": "team-transactions",
-  "metamask/kyc-controller": "team-universal-kyc"
+  "metamask/kyc-controller": "team-universal-kyc",
+  "metamask/cryptography": "team-core-platform"
 }

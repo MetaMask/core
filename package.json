@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1217.0.0",
+  "version": "1228.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -18,6 +18,7 @@
     "build:docs": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run build:docs",
     "build:only-clean": "rimraf -g 'packages/*/dist'",
     "build:types": "tsc --build tsconfig.build.json --verbose",
+    "changelog:merge": "tsx scripts/merge-changelog-conflicts.ts",
     "changelog:update": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:update",
     "changelog:validate": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:validate",
     "codeowners:check": "tsx scripts/manage-codeowners.ts check",
@@ -63,6 +64,7 @@
     "@actions/github": "^9.1.1",
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
+    "@metamask/auto-changelog": "^6.1.0",
     "@metamask/create-release-branch": "^4.2.2",
     "@metamask/eslint-config": "^15.0.0",
     "@metamask/eslint-config-jest": "^15.0.0",

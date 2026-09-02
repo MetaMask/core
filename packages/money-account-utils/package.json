@@ -58,7 +58,7 @@
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/abstract-provider": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
-    "@metamask/transaction-controller": "^69.6.1",
+    "@metamask/transaction-controller": "^69.7.0",
     "@metamask/utils": "^11.11.0"
   },
   "devDependencies": {

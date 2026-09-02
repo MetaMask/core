@@ -547,6 +547,19 @@ describe('lighterAdapter', () => {
       expect(fill.direction).toBe('Close Long');
     });
 
+    it.each([null, false, 'not-a-fee', '1e999'])(
+      'rejects malformed counterparty fee %p while preserving valid nonzero counterparty fees',
+      (makerFee) => {
+        expect(() =>
+          adaptFillFromLighterTrade(
+            { ...REAL_TRADE, takerFee: 0, makerFee },
+            'SOL',
+            28,
+          ),
+        ).toThrow('Invalid Lighter venue data');
+      },
+    );
+
     it.each([
       ['size', { size: '1e999' }],
       ['price', { price: '75oops' }],
@@ -563,6 +576,19 @@ describe('lighterAdapter', () => {
       expect(() => adaptFillFromLighterTrade(REAL_TRADE, 'SOL', 999)).toThrow(
         'Invalid Lighter venue data',
       );
+    });
+
+    it.each([
+      ['wrong maker role type', { isMakerAsk: 1 }],
+      ['null fee', { takerFee: null }],
+      ['unsafe trade id', { tradeId: Number.MAX_SAFE_INTEGER + 1 }],
+      ['negative market id', { marketId: -1 }],
+      ['negative ask id', { askId: -1 }],
+      ['unsafe bid id', { bidId: Number.MAX_SAFE_INTEGER + 1 }],
+    ])('rejects %s at the raw fill boundary', (_field, overrides) => {
+      expect(() =>
+        adaptFillFromLighterTrade({ ...REAL_TRADE, ...overrides }, 'SOL', 28),
+      ).toThrow('Invalid Lighter venue data');
     });
   });
 

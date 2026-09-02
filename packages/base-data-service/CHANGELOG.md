@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Allow `QueryKey` to be not only mutable, but also readonly ([#9445](https://github.com/MetaMask/core/pull/9445))
+  - This allows the `queryKey` argument to `fetchQuery` or `fetchInfiniteQuery` to be extracted to its own variable (as long as `as const` is used to type the query key).
+
 ## [1.0.0]
 
 ### Added

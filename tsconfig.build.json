@@ -95,6 +95,9 @@
       "path": "./packages/core-backend/tsconfig.build.json"
     },
     {
+      "path": "./packages/cryptography/tsconfig.build.json"
+    },
+    {
       "path": "./packages/delegation-controller/tsconfig.build.json"
     },
     {
