@@ -77,6 +77,8 @@ const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
  * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
  * @param args.getBlockTrackerOptions - Factory for constructing block tracker
  * options. See {@link NetworkControllerOptions.getBlockTrackerOptions}.
+ * @param args.getInfuraAuthToken - Returns the token to present as a bearer
+ * credential on requests to a built-in Infura endpoint.
  * @param args.messenger - The network controller messenger.
  * @param args.rpcFailoverMode - The RPC failover mode to apply: `disabled`,
  * `enabled` (divert to the failover URLs when the primary is unavailable), or
@@ -95,6 +97,7 @@ export function createAutoManagedNetworkClient<
     PollingBlockTrackerOptions,
     'provider'
   > => ({}),
+  getInfuraAuthToken,
   messenger,
   rpcFailoverMode: givenRpcFailoverMode,
   logger,
@@ -107,6 +110,7 @@ export function createAutoManagedNetworkClient<
   getBlockTrackerOptions?: (
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
+  getInfuraAuthToken?: () => Promise<string | undefined>;
   messenger: NetworkControllerMessenger;
   rpcFailoverMode: RpcFailoverMode;
   logger?: Logger;
@@ -120,6 +124,7 @@ export function createAutoManagedNetworkClient<
       configuration: networkClientConfiguration,
       getRpcServiceOptions,
       getBlockTrackerOptions,
+      getInfuraAuthToken,
       messenger,
       rpcFailoverMode,
       logger,

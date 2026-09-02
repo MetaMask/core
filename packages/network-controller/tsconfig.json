@@ -15,6 +15,7 @@
     { "path": "../eth-json-rpc-provider" },
     { "path": "../json-rpc-engine" },
     { "path": "../messenger" },
+    { "path": "../profile-sync-controller" },
     { "path": "../remote-feature-flag-controller" }
   ],
   "include": ["../../types", "../../tests", "./src", "./tests"]

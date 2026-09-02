@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
 - Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.8.0` ([#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Delegate the `AuthenticationController:getBearerToken` action to the network controller messenger ([#9927](https://github.com/MetaMask/core/pull/9927))
+  - `NetworkController` uses it to present the MetaMask authentication token on requests to built-in Infura RPC endpoints, for users who have opted in to analytics. `DefaultActions` already included the action.
 
 ## [12.0.2]
 

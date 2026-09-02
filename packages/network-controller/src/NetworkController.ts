@@ -31,6 +31,7 @@ import {
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
 import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
 import {
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerStateChangeEvent,
@@ -742,7 +743,8 @@ type AllowedActions =
   | ConnectivityControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
   | AnalyticsControllerGetStateAction
-  | AnalyticsControllerTrackEventAction;
+  | AnalyticsControllerTrackEventAction
+  | AuthenticationControllerGetBearerTokenAction;
 
 export type NetworkControllerMessenger = Messenger<
   typeof controllerName,
@@ -1304,6 +1306,25 @@ export class NetworkController extends BaseController<
   readonly #getRpcServiceOptions: NetworkControllerOptions['getRpcServiceOptions'];
 
   readonly #getBlockTrackerOptions: NetworkControllerOptions['getBlockTrackerOptions'];
+
+  /**
+   * Returns the MetaMask authentication token to present as a bearer credential
+   * on requests to built-in Infura endpoints.
+   *
+   * Because the token identifies the user, it is only returned when the user has
+   * opted in to analytics. This call throws while the wallet is locked, as well
+   * as in clients whose messenger does not allow
+   * `AuthenticationController:getBearerToken`. In both cases the request is made
+   * without the credential.
+   *
+   * @returns The token, or `undefined` if the user has not opted in to analytics.
+   */
+  readonly #getInfuraAuthToken = async (): Promise<string | undefined> => {
+    if (!this.messenger.call('AnalyticsController:getState').optedIn) {
+      return undefined;
+    }
+    return await this.messenger.call('AuthenticationController:getBearerToken');
+  };
 
   readonly #analyticsOptions: ResolvedNetworkControllerAnalyticsOptions;
 
@@ -2866,6 +2887,7 @@ export class NetworkController extends BaseController<
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
+          getInfuraAuthToken: this.#getInfuraAuthToken,
           messenger: this.messenger,
           rpcFailoverMode: this.#rpcFailoverMode,
           logger: this.#log,
@@ -2885,6 +2907,7 @@ export class NetworkController extends BaseController<
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
+          getInfuraAuthToken: this.#getInfuraAuthToken,
           messenger: this.messenger,
           rpcFailoverMode: this.#rpcFailoverMode,
           logger: this.#log,
@@ -3051,6 +3074,7 @@ export class NetworkController extends BaseController<
               },
               getRpcServiceOptions: this.#getRpcServiceOptions,
               getBlockTrackerOptions: this.#getBlockTrackerOptions,
+              getInfuraAuthToken: this.#getInfuraAuthToken,
               messenger: this.messenger,
               rpcFailoverMode: this.#rpcFailoverMode,
               logger: this.#log,
@@ -3070,6 +3094,7 @@ export class NetworkController extends BaseController<
             },
             getRpcServiceOptions: this.#getRpcServiceOptions,
             getBlockTrackerOptions: this.#getBlockTrackerOptions,
+            getInfuraAuthToken: this.#getInfuraAuthToken,
             messenger: this.messenger,
             rpcFailoverMode: this.#rpcFailoverMode,
             logger: this.#log,
