@@ -163,14 +163,18 @@ export type MoneyAccountUpgradeControllerMessenger = Messenger<
 >;
 
 /**
- * The hooks a client supplies for the parts of the bootstrap that cannot be
- * decided in this package.
+ * These hooks must be provided by the client - they provide functions that required to bootstrap
+ * the controller, which rely on client specific information.
  */
 export type MoneyAccountUpgradeControllerHooks = {
   /**
-   * Whether the Money Account feature is enabled for this client. Called with
-   * the current remote feature flags on every sync and re-checked across the
-   * bootstrap's `await` points; it must re-read any client state it depends
+   * Whether the Money Account feature is enabled for this client.
+   *
+   * The controller will call the function with the current state of
+   * the remote feature flags. It gets caleld on every sync, and re-checked
+   * when the bootstrap `awaits`.
+   *
+   * The isEnabled function should re-read any client state it depends
    * on (e.g. a version-gated flag, a "basic functionality" toggle) rather
    * than caching it. Returning `false` after a successful bootstrap disarms
    * the controller: `upgradeAccount` refuses to run until a later sync
@@ -182,15 +186,14 @@ export type MoneyAccountUpgradeControllerHooks = {
    * An asynchronous client gate checked once per bootstrap run, before any
    * network is added or external service is called — e.g. a fail-closed
    * geolocation check. A run skipped here is forgotten and retried on the
-   * next sync trigger. Defaults to always eligible.
+   * next sync trigger. If the function is not provided we assume the client is eligible.
    */
   isEligible?: () => Promise<boolean>;
 
   /**
    * Ensure the vault chain exists in the client's NetworkController before
-   * the bootstrap validates it. Adding a network is client-specific (featured
-   * network lists, enabled-network bookkeeping), so the controller only
-   * promises to have awaited this before calling
+   * the bootstrap validates it. Adding a network is client-specific, so
+   * the controller awaits this before calling
    * `NetworkController:findNetworkClientIdByChainId` consumers. Defaults to a
    * no-op.
    */
@@ -202,8 +205,7 @@ export type MoneyAccountUpgradeControllerHooks = {
    * Called when a bootstrap run fails or cannot be scheduled. Receives a
    * {@link MissingMoneyAccountVaultConfigError} (once per controller
    * lifetime) when the enable flag is on but `moneyAccountVaultConfig` is
-   * unserved or malformed. The controller never throws out of its
-   * subscriptions; this hook is the only failure signal.
+   * unserved or malformed.
    */
   onBootstrapError?: (error: unknown) => void;
 };
@@ -212,10 +214,9 @@ export type MoneyAccountUpgradeControllerHooks = {
  * Controller that owns the Money Account upgrade sequence and its own
  * bootstrap.
  *
- * After {@link MoneyAccountUpgradeController.init} is called (once, after all
- * controllers are constructed), the controller watches
+ * After {@link MoneyAccountUpgradeController.init} is called, the controller watches
  * `RemoteFeatureFlagController` and `KeyringController` state and bootstraps
- * itself when every gate is open:
+ * itself when:
  *
  * 1. the client's `isEnabled` hook returns `true` for the current flags,
  * 2. the wallet is unlocked with an HD keyring,
@@ -223,12 +224,11 @@ export type MoneyAccountUpgradeControllerHooks = {
  * 4. the `moneyAccountVaultConfig` flag parses.
  *
  * The bootstrap awaits the client's `ensureChainConfigured` hook and then
- * fetches CHOMP service details to arm the upgrade config. Gates 1–2 are
- * re-checked across the `await` points so a lock or an `isEnabled` flip
- * mid-bootstrap cannot still produce an external call; a skipped or failed
- * run is forgotten so the next trigger retries it. The bootstrap re-runs
- * whenever the vault config changes, and `isEnabled` going `false` disarms
- * the controller entirely.
+ * fetches CHOMP service details to get the upgrade config. We recheck points
+ * 1–2 when awaiting in the bootstrap so a lock or an `isEnabled` will stop the process.
+ *
+ * The bootstrap re-runs whenever the vault config changes.
+ * `isEnabled` going `false` disables the controller.
  */
 export class MoneyAccountUpgradeController extends BaseController<
   typeof controllerName,
@@ -329,12 +329,12 @@ export class MoneyAccountUpgradeController extends BaseController<
   }
 
   /**
-   * Re-evaluate the bootstrap gates against live state and schedule a
+   * Re-evaluate the bootstrap checks against live state and schedule a
    * bootstrap run when they are open and the vault config is new. Runs on
-   * every feature-flag and keyring state change; clients with additional
-   * gates read inside their `isEnabled` hook (onboarding, preferences)
-   * should call this when those change too. Never throws: a failure is
-   * reported through `onBootstrapError` and retried on the next trigger.
+   * every feature-flag and keyring state change.
+   *
+   * If sync fails a failure is reported through `onBootstrapError` and retried
+   * on the next trigger.
    */
   sync(): void {
     try {
@@ -508,6 +508,13 @@ export class MoneyAccountUpgradeController extends BaseController<
       throw new Error(
         `No supported tokens found for vedaProtocol on chain ${chainId}`,
       );
+    }
+
+    // A disarm (isEnabled flipping off) or a newer scheduled config during
+    // the CHOMP call supersedes this run: arming now would resurrect a config
+    // the controller just dropped, or briefly shadow the newer one.
+    if (this.#bootstrappedConfig !== vaultConfig) {
+      return;
     }
 
     this.#config = {

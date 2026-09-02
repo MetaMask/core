@@ -55,8 +55,7 @@ export class TerminalUpgradeError extends Error {
 /**
  * Error reported through the `onBootstrapError` hook when the Money Account
  * enable flag is on but the `moneyAccountVaultConfig` flag is unserved or
- * malformed — a flag misconfiguration that silently disables upgrades.
- * Reported once per controller lifetime.
+ * malformed.
  */
 export class MissingMoneyAccountVaultConfigError extends Error {
   constructor() {

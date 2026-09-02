@@ -916,6 +916,28 @@ describe('MoneyAccountUpgradeController', () => {
       ).rejects.toThrow('MoneyAccountUpgradeController is not bootstrapped');
     });
 
+    it('does not re-arm when disarmed while the CHOMP call is in flight', async () => {
+      let resolveServiceDetails: (value?: unknown) => void = () => undefined;
+      const { controller, config, mocks, bootstrap, triggerFlagChange } =
+        setup();
+      mocks.getServiceDetails.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveServiceDetails = resolve;
+          }),
+      );
+      await bootstrap();
+
+      config.isEnabled = false;
+      await triggerFlagChange();
+      resolveServiceDetails(MOCK_SERVICE_DETAILS_RESPONSE);
+      await flushPromises();
+
+      await expect(
+        controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('MoneyAccountUpgradeController is not bootstrapped');
+    });
+
     it('re-bootstraps from scratch after being disarmed', async () => {
       const { config, mocks, bootstrap, triggerFlagChange } = setup();
       await bootstrap();
