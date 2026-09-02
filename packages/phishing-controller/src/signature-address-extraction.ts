@@ -2,11 +2,6 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 const HEX_STRING_REGEX = /^0x[0-9a-fA-F]+$/u;
 const DECIMAL_STRING_REGEX = /^[0-9]+$/u;
-// The address space (2^160), written as a literal (0x1 followed by 40 hex
-// zeros) so the value is not produced with the `**` operator, which some build
-// targets down-compile to `Math.pow` and cannot evaluate on BigInt operands.
-// Values are reduced into this space, as the signer does.
-const ADDRESS_MODULUS = 0x10000000000000000000000000000000000000000n;
 
 // Cap the number of addresses returned for a single signature. A legitimate
 // signature references far fewer; exceeding this is treated as unusual and
@@ -39,8 +34,10 @@ export type ExtractedSignatureAddresses = {
   fields: Record<string, string>;
   /**
    * True when the message could not be fully walked: more distinct addresses
-   * than the cap, or traversal stopped by the depth or work budget. Some
-   * addresses may be unscanned, so the caller should surface a caution.
+   * than the cap, traversal stopped by the depth or work budget, or an
+   * address-bearing type could not be walked (array type with a non-array
+   * value, or struct type with a non-object value). Some addresses may be
+   * unscanned, so the caller should surface a caution.
    */
   overflow: boolean;
 };
@@ -55,53 +52,61 @@ export type ExtractSignatureAddressesOptions = {
   exclude?: string[];
   /**
    * Top-level field names to skip, used to avoid a duplicate scan/alert for a
-   * field already handled elsewhere (e.g. permit `spender`). Only applied to
-   * the primary type, not nested structs.
+   * field already handled elsewhere (e.g. permit `spender`). Names must match
+   * the declared EIP-712 field exactly. Only applied to the primary type
+   * (depth 0), not nested structs.
    */
   excludeFields?: string[];
 };
 
 /**
+ * Encode a non-negative integer as big-endian hex (even length) and take the
+ * leading 20 bytes.
+ *
+ * @param numeric - A non-negative integer.
+ * @returns Canonical lower-case 20-byte address.
+ */
+function leadingTwentyBytesFromInteger(numeric: bigint): string {
+  let digits = numeric.toString(16);
+  if (digits.length % 2 === 1) {
+    digits = `0${digits}`;
+  }
+  return `0x${digits.slice(0, 40).padStart(40, '0')}`;
+}
+
+/**
  * Reduce an `address`-typed value to canonical 20-byte hex.
  *
  * The signer accepts more than canonical hex for an `address` field (hex of any
- * length, or a decimal string) and reduces it into the 20-byte address space,
- * so matching only `0x` + 40 hex would miss an address encoded in another form.
- * Values are reduced the same way the signer does and returned in a single
- * canonical form for de-duping.
+ * length, or a decimal string) and takes the high / leading 20 bytes of the
+ * big-endian encoding (`reallyStrangeAddressToBytes(value).subarray(0, 20)` /
+ * `hexToBytes(value).subarray(0, 20)` in `@metamask/eth-sig-util`), so matching
+ * only `0x` + 40 hex would miss an address encoded in another form.
  *
  * @param value - The raw field value from the message.
  * @returns Canonical lower-case address, or undefined if not address-like.
  */
 function normalizeAddress(value: unknown): string | undefined {
-  let numeric: bigint;
-
-  // The regexes and integer check below only admit values `BigInt` accepts, so
-  // the conversion cannot throw.
   if (typeof value === 'string') {
     const trimmed = value.trim();
-    if (
-      !HEX_STRING_REGEX.test(trimmed) &&
-      !DECIMAL_STRING_REGEX.test(trimmed)
-    ) {
-      return undefined;
+    if (HEX_STRING_REGEX.test(trimmed)) {
+      let digits = trimmed.slice(2);
+      if (digits.length % 2 === 1) {
+        digits = `0${digits}`;
+      }
+      return `0x${digits.slice(0, 40).padStart(40, '0').toLowerCase()}`;
     }
-    numeric = BigInt(trimmed);
-  } else if (
-    typeof value === 'number' &&
-    Number.isInteger(value) &&
-    value >= 0
-  ) {
-    numeric = BigInt(value);
-  } else {
+    if (DECIMAL_STRING_REGEX.test(trimmed)) {
+      return leadingTwentyBytesFromInteger(BigInt(trimmed));
+    }
     return undefined;
   }
 
-  // Reduce into the 20-byte address space, matching how the signer encodes an
-  // `address` field, so non-canonical encodings resolve to the signed address.
-  numeric %= ADDRESS_MODULUS;
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 0) {
+    return leadingTwentyBytesFromInteger(BigInt(value));
+  }
 
-  return `0x${numeric.toString(16).padStart(40, '0')}`;
+  return undefined;
 }
 
 /**
@@ -112,6 +117,10 @@ function normalizeAddress(value: unknown): string | undefined {
  * arrays. Matching on the declared type rather than the field name means custom
  * and unknown message shapes are covered without per-protocol handling.
  *
+ * Type dispatch matches the signer: a custom struct in `types` is walked first
+ * (even if its name looks like `address` or `address[]`), then `address`, then
+ * types whose name ends in `]` as arrays.
+ *
  * `domain` is not traversed; its `verifyingContract` is expected to be scanned
  * separately by the caller.
  *
@@ -119,12 +128,13 @@ function normalizeAddress(value: unknown): string | undefined {
  * @param options - Optional configuration.
  * @param options.exclude - Addresses to skip (e.g. the signer). The zero
  * address is always excluded.
- * @param options.excludeFields - Top-level field names to skip, used to avoid a
- * duplicate scan/alert for a field already handled elsewhere (e.g. permit
- * `spender`). Only applied to the primary type, not nested structs.
+ * @param options.excludeFields - Top-level field names to skip. Names must
+ * match the declared EIP-712 field exactly. Only applied to the primary type
+ * (depth 0), not nested structs.
  * @returns Up to `MAX_SIGNATURE_ADDRESSES` distinct canonical addresses, the
  * field each was found under, and whether the message could not be fully walked
- * (address cap, depth limit, or work budget reached).
+ * (address cap, depth limit, work budget, or an unwalkable address-bearing
+ * value).
  */
 export function extractSignatureAddresses(
   typedData:
@@ -161,15 +171,14 @@ export function extractSignatureAddresses(
     }
   }
 
-  const excludedFields = new Set(
-    (options.excludeFields ?? []).map((field) => field.toLowerCase()),
-  );
+  const excludedFields = new Set(options.excludeFields ?? []);
 
   // Canonical address -> the field name it was first found under.
   const found = new Map<string, string>();
 
   // Set when the message could not be fully walked, so some addresses may be
-  // unscanned: the address cap, the depth limit, or the work budget was hit.
+  // unscanned: the address cap, the depth limit, the work budget, or an
+  // address-bearing type whose value could not be walked.
   let overflow = false;
 
   // Total nodes walked, bounded by MAX_TRAVERSAL_NODES.
@@ -184,6 +193,44 @@ export function extractSignatureAddresses(
     }
     return false;
   };
+
+  /**
+   * Whether `type` can contain `address` values: the `address` primitive, an
+   * array of an address-bearing type, or a custom struct that contains one.
+   *
+   * @param type - The declared EIP-712 type.
+   * @param seen - Types already inspected, to break recursive structs.
+   * @returns True when walking this type can yield addresses.
+   */
+  function isAddressBearing(
+    type: string,
+    seen: Set<string> = new Set(),
+  ): boolean {
+    if (seen.has(type)) {
+      return false;
+    }
+    seen.add(type);
+
+    const structFields = schema[type];
+    if (Array.isArray(structFields)) {
+      return structFields.some(
+        (field) =>
+          Boolean(field) &&
+          typeof field.type === 'string' &&
+          isAddressBearing(field.type, seen),
+      );
+    }
+
+    if (type === 'address') {
+      return true;
+    }
+
+    if (type.endsWith(']')) {
+      return isAddressBearing(type.slice(0, type.lastIndexOf('[')), seen);
+    }
+
+    return false;
+  }
 
   /**
    * Record a candidate address value under a field name, applying exclusions,
@@ -221,6 +268,9 @@ export function extractSignatureAddresses(
     }
     const structFields = schema[structName];
     if (!Array.isArray(structFields) || !value || typeof value !== 'object') {
+      if (Array.isArray(structFields) && isAddressBearing(structName)) {
+        overflow = true;
+      }
       return;
     }
     for (const field of structFields) {
@@ -232,8 +282,9 @@ export function extractSignatureAddresses(
         typeof field.name !== 'string' ||
         typeof field.type !== 'string' ||
         // Field exclusions only apply to the primary type (depth 0), matching
-        // the top-level field a dedicated caller already covers.
-        (depth === 0 && excludedFields.has(field.name.toLowerCase()))
+        // the top-level field a dedicated caller already covers. Names must
+        // match the declared EIP-712 field exactly.
+        (depth === 0 && excludedFields.has(field.name))
       ) {
         continue;
       }
@@ -247,7 +298,11 @@ export function extractSignatureAddresses(
   }
 
   /**
-   * Walk a single field value, handling arrays, `address`, and nested structs.
+   * Walk a single field value, handling custom structs, `address`, and arrays.
+   *
+   * Precedence matches `@metamask/eth-sig-util` `encodeField`: a type present
+   * in the schema is a struct first; otherwise `address`; otherwise a name
+   * ending in `]` is treated as an array (`type.slice(0, lastIndexOf('['))`).
    *
    * @param field - The field name.
    * @param type - The declared EIP-712 type of the field.
@@ -265,17 +320,8 @@ export function extractSignatureAddresses(
       return;
     }
 
-    // Handle one array dimension at a time, e.g. `address[]` or `Type[][]`.
-    const arrayMatch = type.match(/^(.*)\[\d*\]$/u);
-    if (arrayMatch) {
-      if (Array.isArray(value)) {
-        for (const item of value) {
-          if (truncated(depth)) {
-            return;
-          }
-          visitField(field, arrayMatch[1], item, depth + 1);
-        }
-      }
+    if (Array.isArray(schema[type])) {
+      visitStruct(type, value, depth + 1);
       return;
     }
 
@@ -284,9 +330,18 @@ export function extractSignatureAddresses(
       return;
     }
 
-    // Recurse into custom struct types; other primitives carry no address.
-    if (Array.isArray(schema[type])) {
-      visitStruct(type, value, depth + 1);
+    if (type.endsWith(']')) {
+      if (Array.isArray(value)) {
+        const innerType = type.slice(0, type.lastIndexOf('['));
+        for (const item of value) {
+          if (truncated(depth)) {
+            return;
+          }
+          visitField(field, innerType, item, depth + 1);
+        }
+      } else if (isAddressBearing(type)) {
+        overflow = true;
+      }
     }
   }
 

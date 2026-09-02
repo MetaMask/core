@@ -1,3 +1,5 @@
+import { SignTypedDataVersion, TypedDataUtils } from '@metamask/eth-sig-util';
+
 import { extractSignatureAddresses } from './signature-address-extraction.js';
 
 const ADDR_A = '0x1111111111111111111111111111111111111111';
@@ -6,9 +8,6 @@ const ADDR_C = '0x3333333333333333333333333333333333333333';
 const ADDR_D = '0x5555555555555555555555555555555555555555';
 const SIGNER = '0x4444444444444444444444444444444444444444';
 const ZERO = '0x0000000000000000000000000000000000000000';
-
-// 2^160 written as a hex literal (0x1 + 40 zeros) to avoid the `**` operator.
-const ADDRESS_MODULUS = 0x10000000000000000000000000000000000000000n;
 
 const DOMAIN_TYPE = [
   { name: 'name', type: 'string' },
@@ -187,7 +186,7 @@ describe('extractSignatureAddresses', () => {
     expect(addressesOf(data)).toStrictEqual([ADDR_A, ADDR_B]);
   });
 
-  it('ignores an array-typed field whose value is not an array', () => {
+  it('flags overflow when an address-array field value is not an array', () => {
     const data = build(
       'Airdrop',
       {
@@ -197,6 +196,44 @@ describe('extractSignatureAddresses', () => {
         ],
       },
       { recipients: 'not-an-array', to: ADDR_A },
+    );
+    expect(addressesOf(data)).toStrictEqual([ADDR_A]);
+    expect(extractSignatureAddresses(data).overflow).toBe(true);
+  });
+
+  it('does not flag overflow when a non-address array type is not an array', () => {
+    const data = build(
+      'T',
+      {
+        T: [
+          { name: 'amounts', type: 'uint256[]' },
+          { name: 'to', type: 'address' },
+        ],
+      },
+      { amounts: 'not-an-array', to: ADDR_A },
+    );
+    const result = extractSignatureAddresses(data);
+    expect(result.addresses).toStrictEqual([ADDR_A]);
+    expect(result.overflow).toBe(false);
+  });
+
+  it('treats `address[abc]` as an array (signer matches on a trailing `]`)', () => {
+    const data = build(
+      'Airdrop',
+      { Airdrop: [{ name: 'recipients', type: 'address[abc]' }] },
+      { recipients: [ADDR_A, ADDR_B] },
+    );
+    expect(addressesOf(data)).toStrictEqual([ADDR_A, ADDR_B]);
+  });
+
+  it('treats a custom type named `address[]` as a struct (signer schema first)', () => {
+    const data = build(
+      'Mail',
+      {
+        Mail: [{ name: 'wrapper', type: 'address[]' }],
+        'address[]': [{ name: 'to', type: 'address' }],
+      },
+      { wrapper: { to: ADDR_A } },
     );
     expect(addressesOf(data)).toStrictEqual([ADDR_A]);
   });
@@ -291,6 +328,23 @@ describe('extractSignatureAddresses', () => {
     ]);
   });
 
+  it('matches excludeFields exactly (does not collect-skip `Spender` for `spender`)', () => {
+    const data = build(
+      'Permit',
+      {
+        Permit: [
+          { name: 'Spender', type: 'address' },
+          { name: 'to', type: 'address' },
+        ],
+      },
+      { Spender: ADDR_A, to: ADDR_B },
+    );
+    expect(addressesOf(data, { excludeFields: ['spender'] })).toStrictEqual([
+      ADDR_A,
+      ADDR_B,
+    ]);
+  });
+
   it('only excludes fields at the top level', () => {
     const data = build(
       'Order',
@@ -352,11 +406,7 @@ describe('extractSignatureAddresses', () => {
   });
 
   it('normalizes a non-negative integer number value', () => {
-    const data = build(
-      'X',
-      { X: [{ name: 'a', type: 'address' }] },
-      { a: 1 },
-    );
+    const data = build('X', { X: [{ name: 'a', type: 'address' }] }, { a: 1 });
     expect(addressesOf(data)).toStrictEqual([
       '0x0000000000000000000000000000000000000001',
     ]);
@@ -389,16 +439,71 @@ describe('extractSignatureAddresses', () => {
     expect(addressesOf(data)).toStrictEqual([mixed.toLowerCase()]);
   });
 
-  it('reduces an oversized decimal-encoded address to the signed address', () => {
-    // The signer reduces an `address` mod 2^160, so `value + 2^160` signs as
-    // `value`. The extractor must resolve it to the same address.
-    const oversized = (BigInt(ADDR_A) + ADDRESS_MODULUS).toString(10);
+  it('takes the leading 20 bytes of an oversized decimal address (ADDR_A * 256 + 0x42)', () => {
+    // The signer encodes an address as big-endian bytes and keeps the high /
+    // first 20 bytes, so a trailing extra byte is dropped.
+    const oversized = (BigInt(ADDR_A) * 256n + 0x42n).toString(10);
     const data = build(
       'X',
       { X: [{ name: 'a', type: 'address' }] },
       { a: oversized },
     );
     expect(addressesOf(data)).toStrictEqual([ADDR_A]);
+  });
+
+  it('takes the leading 20 bytes of an oversized hex address', () => {
+    const oversizedHex = `0x${ADDR_A.slice(2)}42`;
+    const data = build(
+      'X',
+      { X: [{ name: 'a', type: 'address' }] },
+      { a: oversizedHex },
+    );
+    expect(addressesOf(data)).toStrictEqual([ADDR_A]);
+  });
+
+  it('agrees with eth-sig-util encodeData / eip712Hash on leading-20-byte addresses', () => {
+    const types = {
+      EIP712Domain: DOMAIN_TYPE,
+      Mail: [{ name: 'to', type: 'address' }],
+    };
+    const domain = {
+      name: 't',
+      version: '1',
+      chainId: 1,
+      verifyingContract: ADDR_C,
+    };
+    const oversized = (BigInt(ADDR_A) * 256n + 0x42n).toString(10);
+    const canonical = build('Mail', { Mail: types.Mail }, { to: ADDR_A });
+    const shifted = build('Mail', { Mail: types.Mail }, { to: oversized });
+
+    expect(
+      TypedDataUtils.encodeData(
+        'Mail',
+        { to: oversized },
+        types,
+        SignTypedDataVersion.V4,
+      ),
+    ).toStrictEqual(
+      TypedDataUtils.encodeData(
+        'Mail',
+        { to: ADDR_A },
+        types,
+        SignTypedDataVersion.V4,
+      ),
+    );
+    expect(
+      TypedDataUtils.eip712Hash(
+        { types, primaryType: 'Mail', domain, message: { to: oversized } },
+        SignTypedDataVersion.V4,
+      ),
+    ).toStrictEqual(
+      TypedDataUtils.eip712Hash(
+        { types, primaryType: 'Mail', domain, message: { to: ADDR_A } },
+        SignTypedDataVersion.V4,
+      ),
+    );
+    expect(addressesOf(shifted)).toStrictEqual([ADDR_A]);
+    expect(addressesOf(canonical)).toStrictEqual([ADDR_A]);
   });
 
   it('bounds traversal work for a very large array', () => {
@@ -502,7 +607,7 @@ describe('extractSignatureAddresses', () => {
     });
   });
 
-  it('ignores a struct-typed field whose value is not an object', () => {
+  it('flags overflow when an address-bearing struct field value is not an object', () => {
     const data = build(
       'Order',
       {
@@ -515,6 +620,41 @@ describe('extractSignatureAddresses', () => {
       { inner: 'not-an-object', to: ADDR_A },
     );
     expect(addressesOf(data)).toStrictEqual([ADDR_A]);
+    expect(extractSignatureAddresses(data).overflow).toBe(true);
+  });
+
+  it('does not flag overflow for a cyclic non-address struct whose value is not an object', () => {
+    const data = build(
+      'Order',
+      {
+        Order: [
+          { name: 'inner', type: 'Loop' },
+          { name: 'to', type: 'address' },
+        ],
+        Loop: [{ name: 'next', type: 'Loop' }],
+      },
+      { inner: 'not-an-object', to: ADDR_A },
+    );
+    const result = extractSignatureAddresses(data);
+    expect(result.addresses).toStrictEqual([ADDR_A]);
+    expect(result.overflow).toBe(false);
+  });
+
+  it('does not flag overflow when a non-address struct value is not an object', () => {
+    const data = build(
+      'Order',
+      {
+        Order: [
+          { name: 'inner', type: 'Inner' },
+          { name: 'to', type: 'address' },
+        ],
+        Inner: [{ name: 'amount', type: 'uint256' }],
+      },
+      { inner: 'not-an-object', to: ADDR_A },
+    );
+    const result = extractSignatureAddresses(data);
+    expect(result.addresses).toStrictEqual([ADDR_A]);
+    expect(result.overflow).toBe(false);
   });
 
   it('returns [] for nullish payloads, missing types, or unknown primaryType', () => {
