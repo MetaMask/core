@@ -359,7 +359,7 @@ describe('AssetsController spam cleanup', () => {
         messenger as unknown as {
           publish: (topic: string, payload?: unknown) => void;
         }
-      ).publish('ClientController:stateChange', { isUiOpen: true });
+      ).publish('ClientController:stateChanged', { isUiOpen: true });
       messenger.publish('KeyringController:unlock');
       (messenger.publish as CallableFunction)(
         'AccountTreeController:initialized',

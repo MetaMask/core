@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AccountTreeController:isInitialized` action so consumers can query whether `init()` has completed ([#10059](https://github.com/MetaMask/core/pull/10059))
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^39.1.0` to `^39.1.1` ([#9969](https://github.com/MetaMask/core/pull/9969))
