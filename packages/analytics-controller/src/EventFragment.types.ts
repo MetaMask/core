@@ -57,7 +57,9 @@ export type AnalyticsEventFragment = {
   /**
    * Whether the fragment survives {@link AnalyticsController.init}. Fragments
    * that do not set this are discarded when the controller re-initializes,
-   * since the journey they belonged to cannot be resumed.
+   * since the journey they belonged to cannot be resumed. Even with this set,
+   * a fragment whose {@link lastUpdated} is older than the controller's max
+   * fragment age is discarded on init.
    */
   persist?: boolean;
 
@@ -67,7 +69,8 @@ export type AnalyticsEventFragment = {
   createdAt: number;
 
   /**
-   * `Date.now()` when the fragment was last written to.
+   * `Date.now()` when the fragment was last written to. Used on
+   * {@link AnalyticsController.init} to expire abandoned persisted fragments.
    */
   lastUpdated: number;
 };

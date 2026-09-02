@@ -11,6 +11,7 @@ import { isValidUUIDv4 } from './analyticsControllerStateValidator.js';
 import {
   AnalyticsController,
   AnalyticsPlatformAdapterSetupError,
+  EVENT_FRAGMENT_MAX_AGE,
   getDefaultAnalyticsControllerState,
   analyticsControllerSelectors,
 } from './index.js';
@@ -425,6 +426,7 @@ describe('AnalyticsController', () => {
     });
 
     it('persists eventFragments but excludes them from logs, snapshots, and UI', async () => {
+      const now = Date.now();
       const state: AnalyticsControllerState = {
         ...metadataFixtureState,
         eventFragments: {
@@ -434,8 +436,8 @@ describe('AnalyticsController', () => {
             sensitiveProperties: { eip712_primary_type: 'Permit' },
             successEvent: 'Signature Approved',
             persist: true,
-            createdAt: 1700000000000,
-            lastUpdated: 1700000000000,
+            createdAt: now,
+            lastUpdated: now,
           },
         },
       };
@@ -3010,11 +3012,12 @@ describe('AnalyticsController', () => {
     function buildFragment(
       overrides: Partial<AnalyticsEventFragment> & { id: string },
     ): AnalyticsEventFragment {
+      const now = Date.now();
       return {
         properties: {},
         sensitiveProperties: {},
-        createdAt: 1700000000000,
-        lastUpdated: 1700000000000,
+        createdAt: now,
+        lastUpdated: now,
         ...overrides,
       };
     }
@@ -3699,6 +3702,115 @@ describe('AnalyticsController', () => {
           'signature-1': persisted,
         });
         expect(mockAdapter.track).not.toHaveBeenCalled();
+      });
+
+      it('drops persisted fragments whose lastUpdated is older than EVENT_FRAGMENT_MAX_AGE', async () => {
+        const now = 1_800_000_000_000;
+        jest.spyOn(Date, 'now').mockReturnValue(now);
+        const fresh = buildFragment({
+          id: 'signature-fresh',
+          persist: true,
+          createdAt: now - EVENT_FRAGMENT_MAX_AGE + 1,
+          lastUpdated: now - EVENT_FRAGMENT_MAX_AGE + 1,
+        });
+        const expired = buildFragment({
+          id: 'signature-expired',
+          persist: true,
+          createdAt: now - EVENT_FRAGMENT_MAX_AGE - 1,
+          lastUpdated: now - EVENT_FRAGMENT_MAX_AGE - 1,
+          sensitiveProperties: { eip712_primary_type: 'Permit' },
+        });
+
+        const { controller, mockAdapter } = await setupFragmentController({
+          state: {
+            eventFragments: {
+              'signature-fresh': fresh,
+              'signature-expired': expired,
+            },
+          },
+        });
+
+        expect(controller.state.eventFragments).toStrictEqual({
+          'signature-fresh': fresh,
+        });
+        expect(mockAdapter.track).not.toHaveBeenCalled();
+      });
+
+      it('drops a fragment whose lastUpdated exceeds max age even when createdAt is recent', async () => {
+        const now = 1_800_000_000_000;
+        jest.spyOn(Date, 'now').mockReturnValue(now);
+        const recentlyCreatedButStale = buildFragment({
+          id: 'signature-1',
+          persist: true,
+          createdAt: now,
+          lastUpdated: now - EVENT_FRAGMENT_MAX_AGE - 1,
+        });
+
+        const { controller } = await setupFragmentController({
+          state: {
+            eventFragments: {
+              'signature-1': recentlyCreatedButStale,
+            },
+          },
+        });
+
+        expect(controller.state.eventFragments).toStrictEqual({});
+      });
+
+      it('keeps a fragment replaced during init even when the leftover ID was expired', async () => {
+        let resolveGeolocation!: (value: GeolocationData) => void;
+        const geolocationHandler = jest.fn(
+          () =>
+            new Promise<GeolocationData>((resolve) => {
+              resolveGeolocation = resolve;
+            }),
+        );
+        const mockAdapter = createMockAdapter();
+        const analyticsId = '11111111-2222-4333-8444-555555555555';
+        const now = 1_800_000_000_000;
+        jest.spyOn(Date, 'now').mockReturnValue(now);
+
+        const { controller } = await setupController({
+          state: {
+            optedIn: true,
+            consentDecisionMade: true,
+            analyticsId,
+            eventFragments: {
+              'signature-123': buildFragment({
+                id: 'signature-123',
+                persist: true,
+                createdAt: now - EVENT_FRAGMENT_MAX_AGE - 1,
+                lastUpdated: now - EVENT_FRAGMENT_MAX_AGE - 1,
+                properties: { stale: true },
+              }),
+            },
+          },
+          platformAdapter: mockAdapter,
+          isEventFragmentsEnabled: true,
+          isGeolocationEnabled: true,
+          geolocationHandler,
+          skipInit: true,
+        });
+
+        const initPromise = controller.init();
+
+        controller.createEventFragment({
+          id: 'signature-123',
+          successEvent: 'Signature Approved',
+          properties: { signature_type: 'personal_sign' },
+        });
+
+        resolveGeolocation(buildGeolocationData());
+        await initPromise;
+
+        expect(controller.state.eventFragments).toStrictEqual({
+          'signature-123': expect.objectContaining({
+            id: 'signature-123',
+            successEvent: 'Signature Approved',
+            properties: { signature_type: 'personal_sign' },
+            lastUpdated: now,
+          }),
+        });
       });
 
       it('keeps fragments created while init is in flight and still drops stale non-persistent ones', async () => {

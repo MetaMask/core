@@ -43,6 +43,17 @@ import { analyticsControllerSelectors } from './selectors.js';
  */
 export const controllerName = 'AnalyticsController';
 
+/**
+ * Maximum age of a persisted event fragment, measured from
+ * {@link AnalyticsEventFragment.lastUpdated}.
+ *
+ * Fragments older than this are discarded during {@link AnalyticsController.init}
+ * without emitting a success or failure event. Confirmation journeys that span a
+ * restart are expected to resume within this window; abandoned ones must not keep
+ * `properties` or `sensitiveProperties` in storage indefinitely.
+ */
+export const EVENT_FRAGMENT_MAX_AGE = 24 * 60 * 60 * 1000;
+
 // === STATE ===
 
 /**
@@ -92,7 +103,9 @@ export type AnalyticsControllerState = {
   /**
    * Persisted event fragments ({@link AnalyticsEventFragment}) keyed by
    * fragment ID. Fragments accumulate properties across a user journey and are
-   * removed when the journey is finalized or deleted.
+   * removed when the journey is finalized or deleted. Fragments that set
+   * `persist: true` can survive {@link AnalyticsController.init}, but only
+   * while younger than {@link EVENT_FRAGMENT_MAX_AGE}.
    * This is only used when the event fragments feature is enabled.
    */
   eventFragments?: AnalyticsEventFragments;
@@ -1169,9 +1182,10 @@ export class AnalyticsController extends BaseController<
    * Reconcile persisted event fragments on initialization.
    *
    * A fragment describes a journey that was in progress when the previous
-   * session ended. Only fragments that opted into `persist` can be resumed, so
-   * the rest are discarded. Nothing is emitted: a journey that never reached
-   * its own finalization is not a failure, just an unfinished one.
+   * session ended. Only fragments that opted into `persist` and are younger
+   * than {@link EVENT_FRAGMENT_MAX_AGE} can be resumed, so the rest are
+   * discarded. Nothing is emitted: a journey that never reached its own
+   * finalization is not a failure, just an unfinished one.
    *
    * If the feature is disabled (e.g. a previous session had it enabled), or the
    * consent state no longer allows capture (e.g. the fragments were written
@@ -1181,7 +1195,7 @@ export class AnalyticsController extends BaseController<
    * Non-persistent fragments are dropped only when their ID and `createdAt`
    * match a fragment present at the start of {@link init}. Fragments created
    * or replaced while init is in flight are kept so a slow startup path cannot
-   * discard an in-progress journey.
+   * discard an in-progress journey, as long as they have not expired.
    *
    * @param initEventFragmentSnapshot - Fragment IDs and `createdAt` values
    * present when {@link init} began.
@@ -1200,15 +1214,13 @@ export class AnalyticsController extends BaseController<
       return;
     }
 
-    this.#purgeNonPersistentEventFragments(
-      fragments,
-      initEventFragmentSnapshot,
-    );
+    this.#purgeStaleEventFragments(fragments, initEventFragmentSnapshot);
   }
 
   /**
-   * Drop every persisted fragment that is invalid, did not opt into `persist`,
-   * or was already present with the same `createdAt` when {@link init} began.
+   * Drop every persisted fragment that is invalid, expired, did not opt into
+   * `persist`, or was already present with the same `createdAt` when
+   * {@link init} began.
    *
    * Only called by {@link #reconcileEventFragments}, which guarantees the
    * fragments exist and that the event fragments feature is enabled.
@@ -1217,15 +1229,21 @@ export class AnalyticsController extends BaseController<
    * @param initEventFragmentSnapshot - Fragment IDs and `createdAt` values
    * present when {@link init} began.
    */
-  #purgeNonPersistentEventFragments(
+  #purgeStaleEventFragments(
     currentEventFragments: AnalyticsEventFragments,
     initEventFragmentSnapshot: Map<string, number>,
   ): void {
     const eventFragments: AnalyticsEventFragments = {};
+    const now = Date.now();
 
     for (const [id, fragment] of Object.entries(currentEventFragments)) {
       if (!isAnalyticsEventFragment(fragment) || fragment.id !== id) {
         log('Dropping invalid persisted event fragment', { id });
+        continue;
+      }
+
+      if (now - fragment.lastUpdated > EVENT_FRAGMENT_MAX_AGE) {
+        log('Dropping expired persisted event fragment', { id });
         continue;
       }
 

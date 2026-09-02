@@ -1,6 +1,7 @@
 // Export controller class and state utilities
 export {
   AnalyticsController,
+  EVENT_FRAGMENT_MAX_AGE,
   getDefaultAnalyticsControllerState,
 } from './AnalyticsController.js';
 export type { AnalyticsControllerOptions } from './AnalyticsController.js';
