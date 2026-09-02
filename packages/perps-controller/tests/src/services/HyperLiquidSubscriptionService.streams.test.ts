@@ -6,6 +6,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { CaipAccountId, Hex } from '@metamask/utils';
+import type {
+  TwapHistoryResponse,
+  UserTwapHistoryWsEvent,
+} from '@nktkas/hyperliquid';
 
 import { ABSTRACTION_MODE_REFRESH_THROTTLE_MS } from '../../../src/constants/perpsConfig.js';
 import type { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService.js';
@@ -16,6 +20,7 @@ import type {
   SubscribeOrderFillsParams,
   SubscribePositionsParams,
   SubscribePricesParams,
+  TwapOrder,
 } from '../../../src/types/index.js';
 import {
   adaptAccountStateFromSDK,
@@ -345,34 +350,39 @@ describe('HyperLiquidSubscriptionService', () => {
         }, 0);
         return Promise.resolve(mockSubscription);
       }),
-      userTwapHistory: jest.fn((_params: any, callback: any) => {
-        setTimeout(() => {
-          callback({
-            user: _params.user,
-            history: [
-              {
-                time: 1_700_000_000,
-                state: {
-                  coin: 'BTC',
-                  executedNtl: '400',
-                  executedSz: '4',
-                  minutes: 30,
-                  randomize: false,
-                  reduceOnly: false,
-                  side: 'B',
-                  sz: '10',
-                  timestamp: 1_700_000_000_000,
-                  user: _params.user,
+      userTwapHistory: jest.fn(
+        (
+          _params: { user: `0x${string}` },
+          callback: (event: UserTwapHistoryWsEvent) => void,
+        ) => {
+          setTimeout(() => {
+            callback({
+              user: _params.user,
+              history: [
+                {
+                  time: 1_700_000_000,
+                  state: {
+                    coin: 'BTC',
+                    executedNtl: '400',
+                    executedSz: '4',
+                    minutes: 30,
+                    randomize: false,
+                    reduceOnly: false,
+                    side: 'B',
+                    sz: '10',
+                    timestamp: 1_700_000_000_000,
+                    user: _params.user,
+                  },
+                  status: { status: 'activated' },
+                  twapId: 77,
                 },
-                status: { status: 'activated' },
-                twapId: 77,
-              },
-            ],
-            isSnapshot: true,
-          });
-        }, 0);
-        return Promise.resolve(mockSubscription);
-      }),
+              ],
+              isSnapshot: true,
+            });
+          }, 0);
+          return Promise.resolve(mockSubscription);
+        },
+      ),
       l2Book: jest.fn((_params: any, callback: any) => {
         // Simulate l2Book data
         setTimeout(() => {
@@ -1594,26 +1604,27 @@ describe('HyperLiquidSubscriptionService', () => {
   });
 
   describe('subscribeToTwapOrders', () => {
-    const buildHistoryEntry = (twapId: number, coin: string) => ({
-      time: 1_700_000_000,
-      state: {
-        coin,
-        executedNtl: '400',
-        executedSz: '4',
-        minutes: 30,
-        randomize: false,
-        reduceOnly: false,
-        side: 'B',
-        sz: '10',
-        timestamp: 1_700_000_000_000,
-        user: '0x123',
-      },
-      status: { status: 'activated' },
-      twapId,
-    });
+    const buildHistoryEntry = (twapId: number, coin: string) =>
+      ({
+        time: 1_700_000_000,
+        state: {
+          coin,
+          executedNtl: '400',
+          executedSz: '4',
+          minutes: 30,
+          randomize: false,
+          reduceOnly: false,
+          side: 'B',
+          sz: '10',
+          timestamp: 1_700_000_000_000,
+          user: '0x123',
+        },
+        status: { status: 'activated' },
+        twapId,
+      }) satisfies TwapHistoryResponse[number];
 
-    const statusAwareAdapt = (history: any) =>
-      history.map((entry: any) => ({
+    const statusAwareAdapt = (history: TwapHistoryResponse): TwapOrder[] =>
+      history.map((entry) => ({
         orderId: String(entry.twapId),
         symbol: entry.state.coin,
         side: entry.state.side === 'B' ? 'buy' : 'sell',
@@ -1633,8 +1644,8 @@ describe('HyperLiquidSubscriptionService', () => {
         fills: [],
       }));
 
-    const adaptStub = (history: any) =>
-      history.map((entry: any) => ({
+    const adaptStub = (history: TwapHistoryResponse): TwapOrder[] =>
+      history.map((entry) => ({
         orderId: String(entry.twapId),
         symbol: entry.state.coin,
         side: entry.state.side === 'B' ? 'buy' : 'sell',
@@ -1745,7 +1756,10 @@ describe('HyperLiquidSubscriptionService', () => {
     it('keeps schedules absent from a delta update', async () => {
       // Arrange: snapshot carries two schedules, the delta only mentions one
       mockSubscriptionClient.userTwapHistory.mockImplementation(
-        (_params: any, listener: any) => {
+        (
+          _params: { user: `0x${string}` },
+          listener: (event: UserTwapHistoryWsEvent) => void,
+        ) => {
           setTimeout(() => {
             listener({
               user: _params.user,
@@ -1788,7 +1802,10 @@ describe('HyperLiquidSubscriptionService', () => {
     it('replaces merged state when a fresh snapshot arrives', async () => {
       // Arrange: a snapshot after a delta must not retain the older schedule
       mockSubscriptionClient.userTwapHistory.mockImplementation(
-        (_params: any, listener: any) => {
+        (
+          _params: { user: `0x${string}` },
+          listener: (event: UserTwapHistoryWsEvent) => void,
+        ) => {
           setTimeout(() => {
             listener({
               user: _params.user,
@@ -1905,7 +1922,10 @@ describe('HyperLiquidSubscriptionService', () => {
         status: { status: 'finished' },
       }));
       mockSubscriptionClient.userTwapHistory.mockImplementation(
-        (params: any, listener: any) => {
+        (
+          params: { user: `0x${string}` },
+          listener: (event: UserTwapHistoryWsEvent) => void,
+        ) => {
           setTimeout(() => {
             listener({
               user: params.user,

@@ -13630,11 +13630,15 @@ export class HyperLiquidProvider implements PerpsProvider {
     // account and silently skip the schedule it was meant to settle.
     const userAddressPromise =
       this.#walletService.getUserAddressWithDefault(accountId);
+    // Capture the network with the address, not after awaiting it: a network
+    // toggle while resolution is pending would key the reclaim to the opposite
+    // network and skip the terminal schedule.
+    const network = this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet';
 
     (async (): Promise<void> => {
       const userAddress = await userAddressPromise;
       await this.#rebalanceTerminalHip3Twaps(orders, {
-        network: this.#clientService.isTestnetMode() ? 'testnet' : 'mainnet',
+        network,
         userAddress,
       });
     })().catch((error) => {

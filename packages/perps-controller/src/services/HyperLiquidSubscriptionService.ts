@@ -558,6 +558,49 @@ export class HyperLiquidSubscriptionService {
     );
   }
 
+  /**
+   * Retry one account's TWAP subscription after a failed restoration.
+   *
+   * Mirrors `#scheduleRestoreRetry`: a single deferred attempt, skipped while
+   * clearing or when one is already pending for that account.
+   *
+   * @param normalizedAccountId - Account key ('default' when unset).
+   */
+  #scheduleTwapRestoreRetry(normalizedAccountId: string): void {
+    const retryKey = `twapOrders:${normalizedAccountId}`;
+    if (this.#isClearing || this.#restoreRetryTimeouts.has(retryKey)) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      this.#restoreRetryTimeouts.delete(retryKey);
+      const adapt = this.#twapOrderAdapters.get(normalizedAccountId);
+      const subscribers = this.#twapOrderSubscribers.get(normalizedAccountId);
+      if (!adapt || !subscribers || subscribers.size === 0) {
+        return;
+      }
+      const accountId =
+        normalizedAccountId === 'default'
+          ? undefined
+          : (normalizedAccountId as CaipAccountId);
+
+      this.#ensureTwapOrderSubscription(accountId, adapt).catch((error) => {
+        this.#logErrorUnlessClearing(
+          ensureError(
+            error,
+            'HyperLiquidSubscriptionService.restoreSubscriptions.retry',
+          ),
+          this.#getErrorContext('restoreSubscriptions.retry', {
+            accountId: normalizedAccountId,
+            kind: 'twapOrders',
+          }),
+        );
+      });
+    }, 1000);
+
+    this.#restoreRetryTimeouts.set(retryKey, timeoutId);
+  }
+
   #scheduleRestoreRetry(dex: string, kind: 'assetCtxs' | 'allMids'): void {
     const retryKey = `${kind}:${dex}`;
     if (this.#isClearing || this.#restoreRetryTimeouts.has(retryKey)) {
@@ -2985,6 +3028,21 @@ export class HyperLiquidSubscriptionService {
     );
     this.#twapOrderAdapters.set(normalizedAccountId, adapt);
 
+    // The venue sends its snapshot once per socket, so a subscriber joining an
+    // already-open socket would otherwise see nothing until the next delta —
+    // which may never come once schedules are idle. Replay what the socket has
+    // already accumulated, mirroring the cached-data replay subscribeToOrders
+    // does.
+    const cached = this.#cachedTwapOrders.get(normalizedAccountId);
+    if (cached && cached.size > 0) {
+      callback(
+        [...cached.values()].sort(
+          (left, right) => right.startedAt - left.startedAt,
+        ),
+        true,
+      );
+    }
+
     this.#ensureTwapOrderSubscription(accountId, adapt).catch((error) => {
       this.#logErrorUnlessClearing(
         ensureError(
@@ -3119,17 +3177,35 @@ export class HyperLiquidSubscriptionService {
     const subscription = await subscriptionClient.userTwapHistory(
       { user: userAddress },
       (data: UserTwapHistoryWsEvent) => {
+        // A frame queued before an unsubscribe or reconnect must not mutate
+        // the replacement's cache or reach its subscribers. Registration is
+        // guarded below, but late listener invocations need their own check.
+        if (
+          startGeneration !== this.#twapOrderGeneration(normalizedAccountId)
+        ) {
+          return;
+        }
         // Only the first message is the full set; later ones carry just the
         // schedules that changed. Merge by orderId so the callback always
         // receives the complete list its contract promises.
+        const previous =
+          this.#cachedTwapOrders.get(normalizedAccountId) ??
+          new Map<string, TwapOrder>();
         const merged = data.isSnapshot
           ? new Map<string, TwapOrder>()
-          : (this.#cachedTwapOrders.get(normalizedAccountId) ??
-            new Map<string, TwapOrder>());
+          : previous;
         for (const order of adapt(data.history)) {
           const existing = merged.get(order.orderId);
           if (!existing || order.lastUpdated >= existing.lastUpdated) {
-            merged.set(order.orderId, order);
+            // This channel carries schedule state without slice fills, so an
+            // empty `fills` here means "not sent", not "none". Carry forward
+            // whatever a prior frame or REST read resolved so a consumer
+            // replacing its state does not lose fill history.
+            const knownFills =
+              order.fills.length > 0
+                ? order.fills
+                : (existing?.fills ?? previous.get(order.orderId)?.fills ?? []);
+            merged.set(order.orderId, { ...order, fills: knownFills });
           }
         }
         // `userTwapHistory` is history, so terminal schedules would otherwise
@@ -4910,7 +4986,10 @@ export class HyperLiquidSubscriptionService {
               : (normalizedAccountId as CaipAccountId);
           await this.#ensureTwapOrderSubscription(accountId, adapt).catch(
             () => {
-              // Ignore errors during TWAP subscription restoration
+              // The dead subscription is already cleared, so swallowing this
+              // would leave registered subscribers with no socket and no
+              // further reconnect to recover them. Retry the account instead.
+              this.#scheduleTwapRestoreRetry(normalizedAccountId);
             },
           );
         }),
