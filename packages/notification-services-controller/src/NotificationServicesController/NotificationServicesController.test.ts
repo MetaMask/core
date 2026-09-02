@@ -702,7 +702,7 @@ describe('NotificationServicesController', () => {
         expect(mockEnablePushNotifications).not.toHaveBeenCalled();
       });
 
-      it('subscribes all keyring accounts in the Trigger API when none are subscribed yet', async () => {
+      it('subscribes all keyring accounts in the Trigger API when it returns an empty list', async () => {
         const {
           messenger,
           mockEnablePushNotifications,
@@ -723,10 +723,7 @@ describe('NotificationServicesController', () => {
         });
         const mockTriggerQuery = mockGetOnChainNotificationsConfig({
           status: 200,
-          body: [
-            { address: ADDRESS_1.toLowerCase(), enabled: false },
-            { address: ADDRESS_2.toLowerCase(), enabled: false },
-          ],
+          body: [],
         });
         const mockTriggerUpdate = mockUpdateOnChainNotifications();
         let subscribeBody: unknown;
@@ -838,6 +835,49 @@ describe('NotificationServicesController', () => {
         expect(mockEnablePushNotifications).toHaveBeenCalledWith([
           ADDRESS_1.toLowerCase(),
         ]);
+      });
+
+      it('does not subscribe all accounts when the Trigger API reports them as disabled', async () => {
+        const {
+          messenger,
+          mockEnablePushNotifications,
+          mockDisablePushNotifications,
+          mockKeyringControllerGetState,
+        } = arrangeMocks({
+          configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
+        });
+
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [
+            {
+              accounts: [ADDRESS_1, ADDRESS_2],
+              type: KeyringTypes.hd,
+              metadata: { id: 'srp-1', name: 'SRP 1' },
+            },
+          ],
+        });
+        mockGetOnChainNotificationsConfig({
+          status: 200,
+          body: [
+            { address: ADDRESS_1.toLowerCase(), enabled: false },
+            { address: ADDRESS_2.toLowerCase(), enabled: false },
+          ],
+        });
+        const mockTriggerUpdate = mockUpdateOnChainNotifications();
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+
+        await controller.createOnChainTriggers();
+
+        expect(mockTriggerUpdate.isDone()).toBe(false);
+        await waitFor(() => {
+          expect(mockDisablePushNotifications).toHaveBeenCalled();
+        });
+        expect(mockEnablePushNotifications).not.toHaveBeenCalled();
       });
 
       it('defaults marketing notifications to disabled when no consent is supplied', async () => {

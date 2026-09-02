@@ -252,6 +252,13 @@ export {
   DEFAULT_PRICE_ALERT_PREFERENCES,
 } from '@metamask/authenticated-user-storage';
 
+const filterEnabledAccounts = (
+  triggerConfig: { address: string; enabled: boolean }[],
+): string[] =>
+  triggerConfig
+    .filter((addressConfig) => Boolean(addressConfig.enabled))
+    .map((addressConfig) => addressConfig.address);
+
 /**
  * Returns the subset of `accounts` that has a wallet-activity subscription in
  * the Trigger API, which is the source of truth for the per-address enabled bit.
@@ -280,9 +287,7 @@ const getEnabledAccounts = async (
     return null;
   }
 
-  return triggerConfig
-    .filter((addressConfig) => Boolean(addressConfig.enabled))
-    .map((addressConfig) => addressConfig.address);
+  return filterEnabledAccounts(triggerConfig);
 };
 
 /**
@@ -1056,8 +1061,10 @@ export class NotificationServicesController extends BaseController<
 
       const { accounts } = this.#accounts.listAccounts();
 
-      // 1. Read existing AUS notification preferences. Their absence is what
-      // marks a first-time setup, and they are initialized in step 3.
+      // 1. Read existing AUS notification preferences. A missing blob is
+      // `isMissingAUSConfig` and is initialized in step 3. It is not, on its
+      // own, first-time subscribe — that also needs an empty Trigger API list
+      // (step 2).
       const preferences = await this.messenger.call(
         'AuthenticatedUserStorageService:getNotificationPreferences',
       );
@@ -1067,28 +1074,30 @@ export class NotificationServicesController extends BaseController<
         opts?.productAnnouncementEnabled,
       );
 
-      const isFirstTimeSetup = preferences === null;
+      const isMissingAUSConfig = preferences === null;
 
       const isPushEnabled =
         preferences?.walletActivity.pushNotificationsEnabled ?? true;
 
-      // 2. Subscribe the keyring's accounts on first-time setup only.
+      // 2. Subscribe the keyring's accounts only on first-time setup: no AUS
+      // blob and the Trigger API returned an empty list.
       //
-      // This method also runs on the daily re-subscribe, so the absence of a
-      // preferences blob — not the absence of subscriptions — is what marks a
-      // genuine first-time setup. Keying off "no subscriptions" would re-enable
-      // every account daily for a user who had turned them all off.
+      // This method also runs on the daily re-subscribe. An existing AUS blob
+      // already rules that path out, including when the user has turned every
+      // account off — so we do not treat "no enabled addresses" as "never set
+      // up".
       //
-      // Even at first-time setup, existing subscriptions win: a user upgrading
-      // from a client that never wrote a preferences blob keeps whichever
-      // accounts they had already disabled.
-      let accountsWithNotifications = await getEnabledAccounts(
+      // An empty Trigger API list (not a list of disabled addresses) is what
+      // distinguishes "never subscribed" from "subscribed and then disabled".
+      // A user upgrading from a client that never wrote a preferences blob
+      // therefore keeps whichever accounts they had already disabled.
+      const notificationsApiPreferences = await getNotificationsApiConfigCached(
         bearerToken,
         accounts,
         this.#env,
       );
 
-      if (accountsWithNotifications === null) {
+      if (notificationsApiPreferences === null) {
         // An unreadable subscription list is not an empty one. Subscribing
         // every account here would re-enable ones the user had turned off, and
         // registering push for that guessed list would send activity for them,
@@ -1096,7 +1105,13 @@ export class NotificationServicesController extends BaseController<
         throw new Error('Failed to read wallet-activity subscriptions');
       }
 
-      if (isFirstTimeSetup && accountsWithNotifications.length === 0) {
+      let accountsWithWalletActivityNotificationsEnabled =
+        filterEnabledAccounts(notificationsApiPreferences);
+
+      const isFirstTimeSetup =
+        isMissingAUSConfig && notificationsApiPreferences.length === 0;
+
+      if (isFirstTimeSetup) {
         await updateOnChainNotifications(
           bearerToken,
           accounts.map((address) => ({ address, enabled: true })),
@@ -1104,8 +1119,8 @@ export class NotificationServicesController extends BaseController<
         );
         // Match the lower-case form the Trigger API echoes back, which is what
         // every other path feeding the push API uses.
-        accountsWithNotifications = accounts.map((address) =>
-          address.toLowerCase(),
+        accountsWithWalletActivityNotificationsEnabled = accounts.map(
+          (address) => address.toLowerCase(),
         );
       }
 
@@ -1114,7 +1129,7 @@ export class NotificationServicesController extends BaseController<
       // rather than a first-time setup, so writing it earlier would let a
       // failed subscribe leave the user enabled with no accounts subscribed
       // and no second chance to seed them.
-      if (isFirstTimeSetup) {
+      if (isMissingAUSConfig) {
         await this.messenger.call(
           'AuthenticatedUserStorageService:putNotificationPreferences',
           buildFreshPreferences(
@@ -1128,7 +1143,7 @@ export class NotificationServicesController extends BaseController<
       if (opts.registerPushNotifications ?? true) {
         // Attempt FCM/device registration only; clients must request OS permission separately.
         this.#registerPushNotifications(
-          isPushEnabled ? accountsWithNotifications : [],
+          isPushEnabled ? accountsWithWalletActivityNotificationsEnabled : [],
         ).catch(() => {
           // Do Nothing
         });
