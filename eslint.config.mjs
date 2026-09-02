@@ -81,6 +81,7 @@ const config = createConfig([
       '.platform-api-docs/**',
       '.skills-cache/**',
       '.yarn/**',
+      'lavamoat/',
       'merged-packages/**',
       'packages/wallet-framework-docs/site/build/**',
       'scripts/create-package/package-template/**',

@@ -126,6 +126,13 @@
   "simple-git-hooks": {
     "pre-push": "yarn lint"
   },
+  "devEngines": {
+    "packageManager": {
+      "name": "yarn",
+      "version": ">=4.16.0+sha256.ba05224324578801b9cc98170d64aa50b9a36733b440fb0942306da3fbbdc7d1",
+      "onFail": "error"
+    }
+  },
   "engines": {
     "node": "^18.18 || >=20"
   },
@@ -143,5 +150,9 @@
       "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
       "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false
     }
+  },
+  "scriptsConfig": {
+    "#default": "lavamoat/scripts.strict.json",
+    "skills:postinstall": "lavamoat/scripts.skills.json"
   }
 }

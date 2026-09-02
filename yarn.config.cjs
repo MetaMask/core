@@ -291,6 +291,12 @@ module.exports = defineConfig({
 
         await expectCodeowner(workspace, workspaceBasename);
       }
+
+      expectWorkspaceField(
+        workspace,
+        'scriptsConfig.#default',
+        'lavamoat/scripts.strict.json',
+      );
     }
 
     // All version ranges in `dependencies` and `devDependencies` for the same
