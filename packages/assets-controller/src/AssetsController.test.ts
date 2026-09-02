@@ -2943,6 +2943,7 @@ describe('AssetsController', () => {
           {
             chainIds: ['eip155:42161'],
             forceUpdate: true,
+            bypassServerCache: true,
           },
         );
 
@@ -2968,6 +2969,7 @@ describe('AssetsController', () => {
           {
             chainIds: ['eip155:42161'],
             forceUpdate: true,
+            bypassServerCache: true,
           },
         );
 

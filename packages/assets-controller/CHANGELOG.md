@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `bypassServerCache` option to `getAssets` ([#10068](https://github.com/MetaMask/core/pull/10068))
+  - When true (only meaningful together with `forceUpdate`), the Accounts API request also bypasses the API's server-side 60s cache via a random `bypassServerCache` query param, instead of only the client-side query cache.
+
 ### Changed
 
 - **BREAKING:** `AssetsControllerMessenger` now requires `AccountTreeController:isInitialized`, `ClientController:getState`, and `KeyringController:isUnlocked` so lifecycle checks read controller state on demand instead of mirroring it from events ([#10059](https://github.com/MetaMask/core/pull/10059))
@@ -20,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Run `RpcFallbackMiddleware` on Accounts API poll updates (`handleAssetsUpdate`), not only in the forced `getAssets` fast pipeline, so a stale amount for tokens omitted from poll responses no longer survives between forced refreshes while the wallet sits open ([#10078](https://github.com/MetaMask/core/pull/10078))
   - WebSocket, RPC, and Snap updates are excluded: WebSocket pushes are incremental single-asset updates where absence is not staleness, and RPC/Snap updates must not re-trigger RPC
+- Fix stale balances shown right after a transaction confirms: the post-confirmation refresh now calls `getAssets` with `bypassServerCache: true`, since WebSocket events do not invalidate the Accounts API's server-side cache and a plain refetch within its 60s window returns the pre-transaction snapshot ([#10068](https://github.com/MetaMask/core/pull/10068))
 - Fix stale balances surviving in state when the Accounts API returns no entry for an asset it does not index (or reports an untrusted `0`), which the `merge` update kept as the previous amount ([#10061](https://github.com/MetaMask/core/pull/10061))
   - `RpcFallbackMiddleware` now re-reads EVM assets tracked in state (`assetsBalance` or `customAssets`) whose balance is empty in the current response, passing them to `RpcDataSource` as `customAssets`, in addition to its existing retry of chains in `response.errors`. Staking vault assets and assets on chains outside the request or the account's supported set are excluded.
   - Balances from chains the RPC read itself failed on are discarded instead of merged, so a transient RPC failure can no longer overwrite a correct upstream balance with the failure stub's native `0` (or, previously, falsely clear the chain's error as "recovered"). The chain's error is kept only when it was already errored upstream.

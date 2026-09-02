@@ -1232,6 +1232,8 @@ export class AssetsController extends BaseController<
   /**
    * Force-refresh assets for the account/chain of a transaction, unless the
    * chain is already covered by AccountActivity (real-time WebSocket balances).
+   * Always bypasses the Accounts API's server-side cache so a refresh cannot
+   * be answered with a stale pre-transaction snapshot.
    *
    * @param transactionMeta - The transaction that triggered the refresh.
    */
@@ -1268,6 +1270,7 @@ export class AssetsController extends BaseController<
     this.getAssets([matchedAccount], {
       chainIds: [caipChainId],
       forceUpdate: true,
+      bypassServerCache: true,
     }).catch((error) => {
       log('Failed to refresh assets after transaction event', { error });
     });
@@ -1591,6 +1594,13 @@ export class AssetsController extends BaseController<
       chainIds?: ChainId[];
       assetTypes?: AssetType[];
       forceUpdate?: boolean;
+      /**
+       * Also bypass server-side HTTP caches (e.g. the Accounts API's 60s
+       * cache, via a random `bypassServerCache` query param). Only meaningful
+       * together with `forceUpdate`. Use sparingly — e.g. right after a
+       * transaction confirms, when the API's cached snapshot is known stale.
+       */
+      bypassServerCache?: boolean;
       dataTypes?: DataType[];
       assetsForPriceUpdate?: Caip19AssetId[];
       /** When set to `'merge'`, fetch result is merged with existing state instead of replacing. Use for partial fetches (e.g. newly added chains). */
@@ -1624,6 +1634,7 @@ export class AssetsController extends BaseController<
         dataTypes,
         customAssets: customAssets.length > 0 ? customAssets : undefined,
         forceUpdate: true,
+        bypassServerCache: options?.bypassServerCache,
         assetsForPriceUpdate: options?.assetsForPriceUpdate,
       });
 
