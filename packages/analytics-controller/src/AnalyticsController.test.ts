@@ -3296,6 +3296,24 @@ describe('AnalyticsController', () => {
         });
       });
 
+      it('preserves fragment context when an update omits context', async () => {
+        const { controller } = await setupFragmentController();
+        controller.createEventFragment({
+          id: 'signature-1',
+          context: { referrer: { url: 'https://dapp.test' } },
+        });
+
+        controller.updateEventFragment('signature-1', {
+          properties: { signature_type: 'personal_sign' },
+        });
+
+        expect(
+          controller.state.eventFragments?.['signature-1']?.context,
+        ).toStrictEqual({
+          referrer: { url: 'https://dapp.test' },
+        });
+      });
+
       it('leaves the context unset when neither side has one', async () => {
         const { controller } = await setupFragmentController();
         controller.createEventFragment({ id: 'signature-1' });
@@ -3944,5 +3962,15 @@ describe('AnalyticsController', () => {
         );
       });
     });
+  });
+});
+
+describe('AnalyticsPlatformAdapterSetupError', () => {
+  it('can be constructed without a cause', () => {
+    const error = new AnalyticsPlatformAdapterSetupError('setup failed');
+
+    expect(error.message).toBe('setup failed');
+    expect(error.name).toBe('AnalyticsPlatformAdapterSetupError');
+    expect(error.cause).toBeUndefined();
   });
 });

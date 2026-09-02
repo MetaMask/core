@@ -1186,7 +1186,9 @@ export class AnalyticsController extends BaseController<
    * @param initEventFragmentSnapshot - Fragment IDs and `createdAt` values
    * present when {@link init} began.
    */
-  #reconcileEventFragments(initEventFragmentSnapshot: Map<string, number>): void {
+  #reconcileEventFragments(
+    initEventFragmentSnapshot: Map<string, number>,
+  ): void {
     const fragments = this.state.eventFragments;
 
     if (!fragments) {
