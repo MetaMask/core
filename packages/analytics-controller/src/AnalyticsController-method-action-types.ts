@@ -88,8 +88,10 @@ export type AnalyticsControllerUpsertEventFragmentAction = {
  *
  * @param id - The fragment ID.
  * @param payload - The properties and context to merge in.
- * @throws Error if no fragment has that ID. Use {@link upsertEventFragment}
- * when the fragment may not exist yet.
+ * @throws Error if no fragment has that ID when the call is not ignored.
+ * Use {@link upsertEventFragment} when the fragment may not exist yet.
+ * When the event fragments feature is disabled or the consent state does not
+ * allow capture, the call is a logged no-op and does not throw.
  */
 export type AnalyticsControllerUpdateEventFragmentAction = {
   type: `AnalyticsController:updateEventFragment`;
@@ -131,7 +133,9 @@ export type AnalyticsControllerDeleteEventFragmentAction = {
  * @param options - Finalization options.
  * @param options.abandoned - Whether the journey was abandoned.
  * @param options.context - Context merged over the fragment's own context.
- * @throws Error if no fragment has that ID.
+ * @throws Error if no fragment has that ID when the call is not ignored.
+ * When the event fragments feature is disabled or the consent state does not
+ * allow capture, the call is a logged no-op and does not throw.
  */
 export type AnalyticsControllerFinalizeEventFragmentAction = {
   type: `AnalyticsController:finalizeEventFragment`;
