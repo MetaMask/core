@@ -1210,10 +1210,15 @@ export class AssetsController extends BaseController<
     // Skipped for chains covered by AccountActivity (real-time WS updates).
     // RpcDataSource also listens for transactionConfirmed, but only refreshes
     // chains it owns via an active subscription.
+    // bypassCache defeats the Accounts API's 60s server-side cache, which
+    // WebSocket events do not invalidate — without it the refresh can be
+    // answered with the pre-transaction snapshot.
     this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
       (transactionMeta: TransactionMeta) => {
-        this.#refreshAssetsForTransaction(transactionMeta);
+        this.#refreshAssetsForTransaction(transactionMeta, {
+          bypassCache: true,
+        });
       },
     );
     // Start tracking only after the account tree is fully built. Unlock can
@@ -1234,8 +1239,15 @@ export class AssetsController extends BaseController<
    * chain is already covered by AccountActivity (real-time WebSocket balances).
    *
    * @param transactionMeta - The transaction that triggered the refresh.
+   * @param options - Refresh options.
+   * @param options.bypassCache - Also bypass server-side HTTP caches. Used on
+   * transaction confirmation, where a cached Accounts API response would still
+   * hold the pre-transaction balance.
    */
-  #refreshAssetsForTransaction(transactionMeta: TransactionMeta): void {
+  #refreshAssetsForTransaction(
+    transactionMeta: TransactionMeta,
+    options?: { bypassCache?: boolean },
+  ): void {
     const hexChainId = transactionMeta.chainId;
     if (!hexChainId) {
       return;
@@ -1268,6 +1280,7 @@ export class AssetsController extends BaseController<
     this.getAssets([matchedAccount], {
       chainIds: [caipChainId],
       forceUpdate: true,
+      ...(options?.bypassCache ? { bypassCache: true } : {}),
     }).catch((error) => {
       log('Failed to refresh assets after transaction event', { error });
     });
@@ -1667,6 +1680,13 @@ export class AssetsController extends BaseController<
       chainIds?: ChainId[];
       assetTypes?: AssetType[];
       forceUpdate?: boolean;
+      /**
+       * Also bypass server-side HTTP caches (e.g. the Accounts API's 60s
+       * cache, via a random `cacheBuster` query param). Only meaningful
+       * together with `forceUpdate`. Use sparingly — e.g. right after a
+       * transaction confirms, when the API's cached snapshot is known stale.
+       */
+      bypassCache?: boolean;
       dataTypes?: DataType[];
       assetsForPriceUpdate?: Caip19AssetId[];
       /** When set to `'merge'`, fetch result is merged with existing state instead of replacing. Use for partial fetches (e.g. newly added chains). */
@@ -1700,6 +1720,7 @@ export class AssetsController extends BaseController<
         dataTypes,
         customAssets: customAssets.length > 0 ? customAssets : undefined,
         forceUpdate: true,
+        bypassCache: options?.bypassCache,
         assetsForPriceUpdate: options?.assetsForPriceUpdate,
       });
 

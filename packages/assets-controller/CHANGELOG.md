@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `bypassCache` option to `getAssets`
+  - When true (only meaningful together with `forceUpdate`), the Accounts API request also bypasses the API's server-side 60s cache via a random `cacheBuster` query param, instead of only the client-side query cache.
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.7.0` ([#10046](https://github.com/MetaMask/core/pull/10046))
+
+### Fixed
+
+- Fix stale balances shown right after a transaction confirms: the post-confirmation refresh now calls `getAssets` with `bypassCache: true`, since WebSocket events do not invalidate the Accounts API's server-side cache and a plain refetch within its 60s window returns the pre-transaction snapshot
 
 ## [14.0.3]
 

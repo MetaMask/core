@@ -2846,6 +2846,7 @@ describe('AssetsController', () => {
           {
             chainIds: ['eip155:42161'],
             forceUpdate: true,
+            bypassCache: true,
           },
         );
 

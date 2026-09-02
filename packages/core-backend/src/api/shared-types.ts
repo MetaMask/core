@@ -152,6 +152,14 @@ export type FetchOptions = {
   staleTime?: number;
   /** Custom GC time (ms). */
   gcTime?: number;
+  /**
+   * When true, bypass caching for this request: the client-side query cache is
+   * skipped (stale time defaults to 0) and, on endpoints that support it, a
+   * random `cacheBuster` query param is appended so server-side HTTP caches
+   * (keyed on the full URL) miss. Use sparingly — only when a hard refresh is
+   * required, e.g. right after a transaction confirms.
+   */
+  bypassCache?: boolean;
 } & Partial<
   Omit<
     FetchQueryOptions<unknown, Error, unknown>,
@@ -180,6 +188,7 @@ export function getQueryOptionsOverrides(
   const {
     queryKey: _qk,
     queryFn: _qf,
+    bypassCache: _bc,
     ...rest
   } = options as FetchOptions & {
     queryKey?: unknown;

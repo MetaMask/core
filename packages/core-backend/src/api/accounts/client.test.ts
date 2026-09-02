@@ -179,6 +179,97 @@ describe('AccountsApiClient', () => {
       );
     });
 
+    it('appends a fresh random cacheBuster param on each v5 fetch when bypassCache is true', async () => {
+      const mockResponse: V5BalancesResponse = {
+        count: 0,
+        unprocessedNetworks: [],
+        balances: [],
+      };
+      mockFetch.mockResolvedValue(createMockResponse(mockResponse));
+
+      await client.accounts.fetchV5MultiAccountBalances(
+        ['eip155:1:0x123'],
+        undefined,
+        { bypassCache: true },
+      );
+      await client.accounts.fetchV5MultiAccountBalances(
+        ['eip155:1:0x123'],
+        undefined,
+        { bypassCache: true },
+      );
+
+      // Two network calls prove the client-side query cache was bypassed too.
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      const firstBuster = new URL(
+        mockFetch.mock.calls[0]?.[0] as string,
+      ).searchParams.get('cacheBuster');
+      const secondBuster = new URL(
+        mockFetch.mock.calls[1]?.[0] as string,
+      ).searchParams.get('cacheBuster');
+      expect(firstBuster).toMatch(/^[a-z0-9]{8}$/u);
+      expect(secondBuster).toMatch(/^[a-z0-9]{8}$/u);
+      expect(firstBuster).not.toBe(secondBuster);
+    });
+
+    it('does not append a cacheBuster param to v5 fetches without bypassCache', async () => {
+      const mockResponse: V5BalancesResponse = {
+        count: 0,
+        unprocessedNetworks: [],
+        balances: [],
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      await client.accounts.fetchV5MultiAccountBalances(['eip155:1:0x123']);
+
+      const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
+      expect(calledUrl).not.toContain('cacheBuster');
+    });
+
+    it('appends a fresh random cacheBuster param on each v6 fetch when bypassCache is true', async () => {
+      const mockResponse: V6BalancesResponse = {
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+        balances: [],
+      };
+      mockFetch.mockResolvedValue(createMockResponse(mockResponse));
+
+      await client.accounts.fetchV6MultiAccountBalances(
+        ['eip155:1:0x123'],
+        undefined,
+        { bypassCache: true },
+      );
+      await client.accounts.fetchV6MultiAccountBalances(
+        ['eip155:1:0x123'],
+        undefined,
+        { bypassCache: true },
+      );
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      const firstBuster = new URL(
+        mockFetch.mock.calls[0]?.[0] as string,
+      ).searchParams.get('cacheBuster');
+      const secondBuster = new URL(
+        mockFetch.mock.calls[1]?.[0] as string,
+      ).searchParams.get('cacheBuster');
+      expect(firstBuster).toMatch(/^[a-z0-9]{8}$/u);
+      expect(secondBuster).toMatch(/^[a-z0-9]{8}$/u);
+      expect(firstBuster).not.toBe(secondBuster);
+    });
+
+    it('does not append a cacheBuster param to v6 fetches without bypassCache', async () => {
+      const mockResponse: V6BalancesResponse = {
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+        balances: [],
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      await client.accounts.fetchV6MultiAccountBalances(['eip155:1:0x123']);
+
+      const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
+      expect(calledUrl).not.toContain('cacheBuster');
+    });
+
     it('fetches v2 balances with additional options', async () => {
       const mockResponse: V2BalancesResponse = {
         count: 1,

@@ -43,6 +43,17 @@ import type {
 } from './types.js';
 
 /**
+ * Generate a short random value for the `cacheBuster` query param. The
+ * Accounts API's server-side cache keys on the full URL including query
+ * params, so a unique value forces a cache miss ("hard refresh").
+ *
+ * @returns An 8-character alphanumeric string.
+ */
+function generateCacheBuster(): string {
+  return Math.random().toString(36).slice(2, 10).padEnd(8, '0');
+}
+
+/**
  * Accounts API Client.
  * Provides methods for interacting with the Accounts API.
  */
@@ -454,12 +465,16 @@ export class AccountsApiClient extends BaseApiClient {
               networks: queryOptions?.networks,
               filterMMListTokens: queryOptions?.filterMMListTokens,
               includeStakedAssets: queryOptions?.includeStakedAssets,
+              cacheBuster: options?.bypassCache
+                ? generateCacheBuster()
+                : undefined,
             },
           },
         );
       },
       ...getQueryOptionsOverrides(options),
-      staleTime: options?.staleTime ?? STALE_TIMES.BALANCES,
+      staleTime:
+        options?.staleTime ?? (options?.bypassCache ? 0 : STALE_TIMES.BALANCES),
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
     };
   }
@@ -585,12 +600,16 @@ export class AccountsApiClient extends BaseApiClient {
               vsCurrency: queryOptions?.vsCurrency,
               includeAssetIds: queryOptions?.includeAssetIds,
               excludeAssetIds: queryOptions?.excludeAssetIds,
+              cacheBuster: options?.bypassCache
+                ? generateCacheBuster()
+                : undefined,
             },
           },
         );
       },
       ...getQueryOptionsOverrides(options),
-      staleTime: options?.staleTime ?? STALE_TIMES.BALANCES,
+      staleTime:
+        options?.staleTime ?? (options?.bypassCache ? 0 : STALE_TIMES.BALANCES),
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
     };
   }
