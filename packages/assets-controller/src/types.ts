@@ -350,11 +350,11 @@ export type DataRequest = {
   /**
    * Bypass server-side HTTP caches in addition to the client-side ones that
    * `forceUpdate` already skips. Data sources backed by cached HTTP APIs
-   * (e.g. the Accounts API with its 60s cache) append a random `cacheBuster`
+   * (e.g. the Accounts API with its 60s cache) append a random `bypassServerCache`
    * query param so the server re-reads instead of replaying a stale snapshot.
    * Use sparingly — e.g. right after a transaction confirms.
    */
-  bypassCache?: boolean;
+  bypassServerCache?: boolean;
   /** Hint for polling interval (ms) - used by data sources that implement polling */
   updateInterval?: number;
   /** Specific CAIP-19 asset IDs for price update */

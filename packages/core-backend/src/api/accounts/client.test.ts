@@ -179,7 +179,7 @@ describe('AccountsApiClient', () => {
       );
     });
 
-    it('appends a fresh random cacheBuster param on each v5 fetch when bypassCache is true', async () => {
+    it('appends a fresh random bypassServerCache param on each v5 fetch when bypassServerCache is true', async () => {
       const mockResponse: V5BalancesResponse = {
         count: 0,
         unprocessedNetworks: [],
@@ -190,28 +190,28 @@ describe('AccountsApiClient', () => {
       await client.accounts.fetchV5MultiAccountBalances(
         ['eip155:1:0x123'],
         undefined,
-        { bypassCache: true },
+        { bypassServerCache: true },
       );
       await client.accounts.fetchV5MultiAccountBalances(
         ['eip155:1:0x123'],
         undefined,
-        { bypassCache: true },
+        { bypassServerCache: true },
       );
 
       // Two network calls prove the client-side query cache was bypassed too.
       expect(mockFetch).toHaveBeenCalledTimes(2);
       const firstBuster = new URL(
         mockFetch.mock.calls[0]?.[0] as string,
-      ).searchParams.get('cacheBuster');
+      ).searchParams.get('bypassServerCache');
       const secondBuster = new URL(
         mockFetch.mock.calls[1]?.[0] as string,
-      ).searchParams.get('cacheBuster');
+      ).searchParams.get('bypassServerCache');
       expect(firstBuster).toMatch(/^[a-z0-9]{8}$/u);
       expect(secondBuster).toMatch(/^[a-z0-9]{8}$/u);
       expect(firstBuster).not.toBe(secondBuster);
     });
 
-    it('does not append a cacheBuster param to v5 fetches without bypassCache', async () => {
+    it('does not append a bypassServerCache param to v5 fetches without bypassServerCache', async () => {
       const mockResponse: V5BalancesResponse = {
         count: 0,
         unprocessedNetworks: [],
@@ -222,10 +222,10 @@ describe('AccountsApiClient', () => {
       await client.accounts.fetchV5MultiAccountBalances(['eip155:1:0x123']);
 
       const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
-      expect(calledUrl).not.toContain('cacheBuster');
+      expect(calledUrl).not.toContain('bypassServerCache');
     });
 
-    it('appends a fresh random cacheBuster param on each v6 fetch when bypassCache is true', async () => {
+    it('appends a fresh random bypassServerCache param on each v6 fetch when bypassServerCache is true', async () => {
       const mockResponse: V6BalancesResponse = {
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
@@ -236,27 +236,27 @@ describe('AccountsApiClient', () => {
       await client.accounts.fetchV6MultiAccountBalances(
         ['eip155:1:0x123'],
         undefined,
-        { bypassCache: true },
+        { bypassServerCache: true },
       );
       await client.accounts.fetchV6MultiAccountBalances(
         ['eip155:1:0x123'],
         undefined,
-        { bypassCache: true },
+        { bypassServerCache: true },
       );
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
       const firstBuster = new URL(
         mockFetch.mock.calls[0]?.[0] as string,
-      ).searchParams.get('cacheBuster');
+      ).searchParams.get('bypassServerCache');
       const secondBuster = new URL(
         mockFetch.mock.calls[1]?.[0] as string,
-      ).searchParams.get('cacheBuster');
+      ).searchParams.get('bypassServerCache');
       expect(firstBuster).toMatch(/^[a-z0-9]{8}$/u);
       expect(secondBuster).toMatch(/^[a-z0-9]{8}$/u);
       expect(firstBuster).not.toBe(secondBuster);
     });
 
-    it('does not append a cacheBuster param to v6 fetches without bypassCache', async () => {
+    it('does not append a bypassServerCache param to v6 fetches without bypassServerCache', async () => {
       const mockResponse: V6BalancesResponse = {
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
@@ -267,7 +267,7 @@ describe('AccountsApiClient', () => {
       await client.accounts.fetchV6MultiAccountBalances(['eip155:1:0x123']);
 
       const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
-      expect(calledUrl).not.toContain('cacheBuster');
+      expect(calledUrl).not.toContain('bypassServerCache');
     });
 
     it('fetches v2 balances with additional options', async () => {

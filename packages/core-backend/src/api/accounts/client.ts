@@ -43,13 +43,13 @@ import type {
 } from './types.js';
 
 /**
- * Generate a short random value for the `cacheBuster` query param. The
+ * Generate a short random value for the `bypassServerCache` query param. The
  * Accounts API's server-side cache keys on the full URL including query
  * params, so a unique value forces a cache miss ("hard refresh").
  *
  * @returns An 8-character alphanumeric string.
  */
-function generateCacheBuster(): string {
+function generateBypassServerCache(): string {
   return Math.random().toString(36).slice(2, 10).padEnd(8, '0');
 }
 
@@ -465,8 +465,8 @@ export class AccountsApiClient extends BaseApiClient {
               networks: queryOptions?.networks,
               filterMMListTokens: queryOptions?.filterMMListTokens,
               includeStakedAssets: queryOptions?.includeStakedAssets,
-              cacheBuster: options?.bypassCache
-                ? generateCacheBuster()
+              bypassServerCache: options?.bypassServerCache
+                ? generateBypassServerCache()
                 : undefined,
             },
           },
@@ -474,7 +474,8 @@ export class AccountsApiClient extends BaseApiClient {
       },
       ...getQueryOptionsOverrides(options),
       staleTime:
-        options?.staleTime ?? (options?.bypassCache ? 0 : STALE_TIMES.BALANCES),
+        options?.staleTime ??
+        (options?.bypassServerCache ? 0 : STALE_TIMES.BALANCES),
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
     };
   }
@@ -600,8 +601,8 @@ export class AccountsApiClient extends BaseApiClient {
               vsCurrency: queryOptions?.vsCurrency,
               includeAssetIds: queryOptions?.includeAssetIds,
               excludeAssetIds: queryOptions?.excludeAssetIds,
-              cacheBuster: options?.bypassCache
-                ? generateCacheBuster()
+              bypassServerCache: options?.bypassServerCache
+                ? generateBypassServerCache()
                 : undefined,
             },
           },
@@ -609,7 +610,8 @@ export class AccountsApiClient extends BaseApiClient {
       },
       ...getQueryOptionsOverrides(options),
       staleTime:
-        options?.staleTime ?? (options?.bypassCache ? 0 : STALE_TIMES.BALANCES),
+        options?.staleTime ??
+        (options?.bypassServerCache ? 0 : STALE_TIMES.BALANCES),
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
     };
   }

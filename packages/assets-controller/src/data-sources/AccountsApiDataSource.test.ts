@@ -537,31 +537,31 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
-  it('fetch requests a full cache bypass when request.bypassCache is true', async () => {
+  it('fetch requests a full cache bypass when request.bypassServerCache is true', async () => {
     const { controller, apiClient } = await setupController();
 
     await controller.fetch(
-      createDataRequest({ forceUpdate: true, bypassCache: true }),
+      createDataRequest({ forceUpdate: true, bypassServerCache: true }),
     );
 
     expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
       [`eip155:1:${MOCK_ADDRESS}`],
       undefined,
-      { staleTime: 0, gcTime: 0, bypassCache: true },
+      { staleTime: 0, gcTime: 0, bypassServerCache: true },
     );
 
     controller.destroy();
   });
 
-  it('fetch bypasses caches when bypassCache is set without forceUpdate', async () => {
+  it('fetch bypasses caches when bypassServerCache is set without forceUpdate', async () => {
     const { controller, apiClient } = await setupController();
 
-    await controller.fetch(createDataRequest({ bypassCache: true }));
+    await controller.fetch(createDataRequest({ bypassServerCache: true }));
 
     expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
       [`eip155:1:${MOCK_ADDRESS}`],
       undefined,
-      { staleTime: 0, gcTime: 0, bypassCache: true },
+      { staleTime: 0, gcTime: 0, bypassServerCache: true },
     );
 
     controller.destroy();
