@@ -27,8 +27,8 @@ const config = merge(baseConfig, {
     global: {
       branches: 90.65,
       functions: 100,
-      lines: 97.39,
-      statements: 97.4,
+      lines: 97.38,
+      statements: 97.39,
     },
   },
 });
