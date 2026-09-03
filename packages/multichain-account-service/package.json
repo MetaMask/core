@@ -69,7 +69,7 @@
     "@metamask/messenger": "^2.0.0",
     "@metamask/snap-account-service": "^2.1.2",
     "@metamask/snaps-controllers": "^19.0.0",
-    "@metamask/snaps-sdk": "^11.0.0",
+    "@metamask/snaps-sdk": "^12.0.1",
     "@metamask/snaps-utils": "^12.1.2",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^11.12.0",
