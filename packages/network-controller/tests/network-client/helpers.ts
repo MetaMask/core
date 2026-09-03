@@ -331,6 +331,7 @@ export type MockOptions = {
   customTicker?: string;
   getRpcServiceOptions?: NetworkControllerOptions['getRpcServiceOptions'];
   getBlockTrackerOptions?: NetworkControllerOptions['getBlockTrackerOptions'];
+  getInfuraAuthToken?: () => Promise<string | undefined>;
   expectedHeaders?: Record<string, string>;
   messenger?: RootMessenger;
   networkClientId?: NetworkClientId;
@@ -479,6 +480,9 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers<Type>(
  * that `providerType` is "custom" (default: "ETH").
  * @param options.getRpcServiceOptions - RPC service options factory.
  * @param options.getBlockTrackerOptions - Block tracker options factory.
+ * @param options.getInfuraAuthToken - Returns the token to present as a bearer
+ * credential on requests to the primary endpoint of a built-in Infura network
+ * client.
  * @param options.messenger - The root messenger to use in tests.
  * @param options.networkClientId - The ID of the new network client.
  * @param options.rpcFailoverMode - The RPC failover mode to apply, defaults to
@@ -500,6 +504,7 @@ export async function withNetworkClient<Type>(
       'failoverService' | 'endpointUrl'
     > => ({ fetch, btoa, isOffline: (): boolean => false }),
     getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({}),
+    getInfuraAuthToken,
     messenger = buildRootMessenger(),
     networkClientId = 'some-network-client-id',
     rpcFailoverMode = 'disabled',
@@ -553,6 +558,7 @@ export async function withNetworkClient<Type>(
     configuration: networkClientConfiguration,
     getRpcServiceOptions,
     getBlockTrackerOptions,
+    getInfuraAuthToken,
     messenger: networkControllerMessenger,
     rpcFailoverMode,
   });

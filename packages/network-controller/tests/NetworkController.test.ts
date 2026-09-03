@@ -997,6 +997,62 @@ describe('NetworkController', () => {
     });
   });
 
+  describe('Infura auth token', () => {
+    /**
+     * Builds a controller and returns the `getInfuraAuthToken` function it
+     * hands to the network clients it creates.
+     *
+     * @param options - Options for the root messenger.
+     * @param options.optedIn - Whether the user has opted in to analytics.
+     * @param options.getBearerToken - The `AuthenticationController:getBearerToken` handler.
+     * @returns The `getInfuraAuthToken` function.
+     */
+    async function getInfuraAuthTokenGivenTo({
+      optedIn,
+      getBearerToken,
+    }: {
+      optedIn: boolean;
+      getBearerToken: jest.Mock;
+    }): Promise<() => Promise<string | undefined>> {
+      const createAutoManagedNetworkClientSpy = jest.spyOn(
+        createAutoManagedNetworkClientModule,
+        'createAutoManagedNetworkClient',
+      );
+
+      await withController({ optedIn, getBearerToken }, () => {
+        // The controller creates its network clients on construction.
+      });
+
+      const { getInfuraAuthToken } =
+        createAutoManagedNetworkClientSpy.mock.calls[0][0];
+      assert(getInfuraAuthToken, 'expected getInfuraAuthToken to be given');
+      return getInfuraAuthToken;
+    }
+
+    it('presents the token from AuthenticationController:getBearerToken when the user has opted in to analytics', async () => {
+      const getBearerToken = jest.fn().mockResolvedValue('some-token');
+
+      const getInfuraAuthToken = await getInfuraAuthTokenGivenTo({
+        optedIn: true,
+        getBearerToken,
+      });
+
+      expect(await getInfuraAuthToken()).toBe('some-token');
+    });
+
+    it('withholds the token when the user has not opted in to analytics', async () => {
+      const getBearerToken = jest.fn().mockResolvedValue('some-token');
+
+      const getInfuraAuthToken = await getInfuraAuthTokenGivenTo({
+        optedIn: false,
+        getBearerToken,
+      });
+
+      expect(await getInfuraAuthToken()).toBeUndefined();
+      expect(getBearerToken).not.toHaveBeenCalled();
+    });
+  });
+
   describe('init', () => {
     it('auto-enables networks that are set as auto-enabled in the config registry', async () => {
       const networkConfig = buildMockConfigRegistryControllerNetwork({
@@ -4587,7 +4643,6 @@ describe('NetworkController', () => {
           const getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({
             pollingInterval: 2000,
           });
-
           await withController(
             {
               state:
@@ -4656,6 +4711,7 @@ describe('NetworkController', () => {
                   },
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
+                  getInfuraAuthToken: expect.any(Function),
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
                 },
@@ -4673,6 +4729,7 @@ describe('NetworkController', () => {
                   },
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
+                  getInfuraAuthToken: expect.any(Function),
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
                 },
@@ -4690,6 +4747,7 @@ describe('NetworkController', () => {
                   },
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
+                  getInfuraAuthToken: expect.any(Function),
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
                 },
@@ -6078,6 +6136,7 @@ describe('NetworkController', () => {
                   },
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
+                  getInfuraAuthToken: expect.any(Function),
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
                 });
@@ -6394,6 +6453,7 @@ describe('NetworkController', () => {
                   },
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
+                  getInfuraAuthToken: expect.any(Function),
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
                 });
@@ -6410,6 +6470,7 @@ describe('NetworkController', () => {
                   },
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
+                  getInfuraAuthToken: expect.any(Function),
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
                 });
@@ -7387,6 +7448,7 @@ describe('NetworkController', () => {
                   },
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
+                  getInfuraAuthToken: expect.any(Function),
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
                 });
@@ -8262,6 +8324,7 @@ describe('NetworkController', () => {
                   },
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
+                  getInfuraAuthToken: expect.any(Function),
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
                 },
@@ -8279,6 +8342,7 @@ describe('NetworkController', () => {
                   },
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
+                  getInfuraAuthToken: expect.any(Function),
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
                 },
@@ -9269,6 +9333,7 @@ describe('NetworkController', () => {
                 },
                 getRpcServiceOptions,
                 getBlockTrackerOptions,
+                getInfuraAuthToken: expect.any(Function),
                 messenger: networkControllerMessenger,
                 rpcFailoverMode: 'enabled',
               });
@@ -10430,6 +10495,7 @@ describe('NetworkController', () => {
                   },
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
+                  getInfuraAuthToken: expect.any(Function),
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
                 });
@@ -10446,6 +10512,7 @@ describe('NetworkController', () => {
                   },
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
+                  getInfuraAuthToken: expect.any(Function),
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
                 });
@@ -11114,6 +11181,7 @@ describe('NetworkController', () => {
                   },
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
+                  getInfuraAuthToken: expect.any(Function),
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
                 });
@@ -11128,6 +11196,7 @@ describe('NetworkController', () => {
                   },
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
+                  getInfuraAuthToken: expect.any(Function),
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
                 });
@@ -11811,6 +11880,7 @@ describe('NetworkController', () => {
                   },
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
+                  getInfuraAuthToken: expect.any(Function),
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
                 });
@@ -11827,6 +11897,7 @@ describe('NetworkController', () => {
                   },
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
+                  getInfuraAuthToken: expect.any(Function),
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
                 });
@@ -12514,6 +12585,7 @@ describe('NetworkController', () => {
                 },
                 getRpcServiceOptions,
                 getBlockTrackerOptions,
+                getInfuraAuthToken: expect.any(Function),
                 messenger: networkControllerMessenger,
                 rpcFailoverMode: 'enabled',
               },
@@ -12531,6 +12603,7 @@ describe('NetworkController', () => {
                 },
                 getRpcServiceOptions,
                 getBlockTrackerOptions,
+                getInfuraAuthToken: expect.any(Function),
                 messenger: networkControllerMessenger,
                 rpcFailoverMode: 'enabled',
               },

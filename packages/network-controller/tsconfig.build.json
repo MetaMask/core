@@ -16,6 +16,7 @@
     { "path": "../eth-json-rpc-provider/tsconfig.build.json" },
     { "path": "../json-rpc-engine/tsconfig.build.json" },
     { "path": "../messenger/tsconfig.build.json" },
+    { "path": "../profile-sync-controller/tsconfig.build.json" },
     { "path": "../remote-feature-flag-controller/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"]

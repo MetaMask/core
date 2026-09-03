@@ -101,6 +101,12 @@ export const TESTNET = {
  * @param options.configRegistryNetworkConfigs - The network config that
  * `ConfigRegistryController:getNetworkConfigByCaip2ChainId` returns by default. Defaults to
  * a mock network config for the chain ID `eip155:9999`.
+ * @param options.optedIn - Whether `AnalyticsController:getState` reports the
+ * user as opted in to analytics. Defaults to the analytics controller default
+ * (`false`).
+ * @param options.getBearerToken - The handler registered for
+ * `AuthenticationController:getBearerToken`. Defaults to a Jest mock so tests
+ * can assert on it.
  * @returns The messenger.
  */
 export function buildRootMessenger({
@@ -109,12 +115,16 @@ export function buildRootMessenger({
   analyticsId = '11111111-1111-4111-8111-111111111111',
   trackEvent = jest.fn(),
   configRegistryNetworkConfigs = [buildMockConfigRegistryControllerNetwork()],
+  optedIn = getDefaultAnalyticsControllerState().optedIn,
+  getBearerToken = jest.fn(),
 }: {
   connectivityStatus?: ConnectivityStatus;
   rpcFailoverMode?: RpcFailoverMode;
   analyticsId?: string;
   trackEvent?: jest.Mock;
   configRegistryNetworkConfigs?: RegistryNetworkConfig[];
+  optedIn?: boolean;
+  getBearerToken?: jest.Mock;
 } = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
@@ -142,7 +152,13 @@ export function buildRootMessenger({
   rootMessenger.registerActionHandler('AnalyticsController:getState', () => ({
     ...getDefaultAnalyticsControllerState(),
     analyticsId,
+    optedIn,
   }));
+
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    getBearerToken,
+  );
 
   rootMessenger.registerActionHandler(
     'AnalyticsController:trackEvent',
@@ -205,6 +221,7 @@ export function buildNetworkControllerMessenger(
       'RemoteFeatureFlagController:getState',
       'AnalyticsController:getState',
       'AnalyticsController:trackEvent',
+      'AuthenticationController:getBearerToken',
     ],
     events: [
       'RemoteFeatureFlagController:stateChange',
@@ -741,6 +758,8 @@ type WithControllerOptions = Partial<NetworkControllerOptions> & {
   rpcFailoverMode?: RpcFailoverMode;
   configRegistryNetworkConfigs?: RegistryNetworkConfig[];
   initializeController?: boolean;
+  optedIn?: boolean;
+  getBearerToken?: jest.Mock;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -765,11 +784,15 @@ export async function withController<ReturnValue>(
     rpcFailoverMode,
     initializeController = true,
     configRegistryNetworkConfigs = [buildMockConfigRegistryControllerNetwork()],
+    optedIn,
+    getBearerToken,
     ...controllerOptions
   } = rest;
   const messenger = buildRootMessenger({
     rpcFailoverMode,
     configRegistryNetworkConfigs,
+    optedIn,
+    getBearerToken,
   });
   const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
   const controller = new NetworkController({
