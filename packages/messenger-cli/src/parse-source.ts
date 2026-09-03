@@ -10,11 +10,7 @@ import type {
   SourceFile,
   Type,
 } from 'typescript';
-import typescript from 'typescript';
-
-// Older versions of TypeScript break when importing directly in ESM. This is a
-// temporary workaround
-const {
+import {
   ScriptTarget,
   createProgram,
   createSourceFile,
@@ -32,7 +28,7 @@ const {
   parseJsonConfigFileContent,
   readConfigFile,
   sys,
-} = typescript;
+} from 'typescript';
 
 export type MethodInfo = {
   name: string;
