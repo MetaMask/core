@@ -9,6 +9,7 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 import { TransactionType } from '@metamask/transaction-controller';
 import type { CaipAccountId, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
+import deepEqual from 'fast-deep-equal';
 
 import {
   ACTIVE_SUBSCRIPTION_STATUSES,
@@ -1260,13 +1261,22 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     );
   }
 
+  /**
+   * Compares product entitlement maps without treating object key order as a
+   * change. Insertion-order-sensitive `JSON.stringify` can otherwise treat an
+   * equivalent API payload as different and trigger `performSignOut`.
+   *
+   * @param oldProductEntitlements - Stored product entitlements.
+   * @param newProductEntitlements - Freshly fetched product entitlements.
+   * @returns True if the maps are equal regardless of key order.
+   */
   #areProductEntitlementsEqual(
     oldProductEntitlements?: ProductEntitlements,
     newProductEntitlements?: ProductEntitlements,
   ): boolean {
-    return (
-      JSON.stringify(oldProductEntitlements ?? {}) ===
-      JSON.stringify(newProductEntitlements ?? {})
+    return deepEqual(
+      oldProductEntitlements ?? {},
+      newProductEntitlements ?? {},
     );
   }
 

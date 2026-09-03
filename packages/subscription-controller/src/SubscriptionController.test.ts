@@ -697,6 +697,57 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it('does not sign out when product entitlements differ only by key order', async () => {
+      const productEntitlementsWithReorderedKeys: ProductEntitlements = {
+        [PRODUCT_TYPES.SHIELD]: {
+          entitlements: {
+            [ShieldFeature.ShieldClaim]: true,
+            [ShieldFeature.PrioritySupport]: false,
+          },
+        },
+        [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+          entitlements: {
+            swapFeeWaiver: true,
+            premiumApy: true,
+            predictFreeTx: true,
+            perpsFeeWaiver: false,
+          },
+          plan: 'premium',
+        },
+      };
+
+      expect(JSON.stringify(MOCK_PRODUCT_ENTITLEMENTS)).not.toBe(
+        JSON.stringify(productEntitlementsWithReorderedKeys),
+      );
+
+      await withController(
+        {
+          state: {
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          },
+        },
+        async ({
+          controller,
+          rootMessenger,
+          mockService,
+          mockPerformSignOut,
+        }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: productEntitlementsWithReorderedKeys,
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(mockPerformSignOut).not.toHaveBeenCalled();
+          expect(controller.state.productEntitlements).toBe(
+            MOCK_PRODUCT_ENTITLEMENTS,
+          );
+        },
+      );
+    });
+
     it('should fetch and store subscription successfully', async () => {
       await withController(
         async ({ controller, rootMessenger, mockService }) => {
