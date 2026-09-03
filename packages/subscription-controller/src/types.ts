@@ -180,6 +180,44 @@ export type GetSubscriptionsResponse = {
   rewardAccountId?: CaipAccountId;
 };
 
+/**
+ * Benefits available to a subscription user.
+ */
+export type SwapsBenefitUsage = {
+  feeBips: string | null;
+  capMicroUsd?: number;
+  consumedMicroUsd?: number;
+  remainingMicroUsd: number | null;
+  exhausted: boolean;
+};
+
+export type PerpsBenefitUsage = {
+  builderFeeBips: string | null;
+  builderCode: string | null;
+  capMicroUsd?: number;
+  consumedMicroUsd?: number;
+  remainingMicroUsd: number | null;
+  exhausted: boolean;
+};
+
+export type PredictBenefitUsage = {
+  builderCode: string | null;
+  capTxCount?: number;
+  consumedTxCount?: number;
+  remainingTxCount: number | null;
+  exhausted: boolean;
+};
+
+export type SubscriptionBenefitsResponse = {
+  eligible: boolean;
+  billingPeriodId: string | null;
+  products: {
+    swaps: SwapsBenefitUsage;
+    perps: PerpsBenefitUsage;
+    predict: PredictBenefitUsage;
+  };
+};
+
 export type StartSubscriptionRequest = {
   products: ProductType[];
   isTrialRequested: boolean;

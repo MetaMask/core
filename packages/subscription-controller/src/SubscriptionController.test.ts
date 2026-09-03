@@ -5,6 +5,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { create } from '@metamask/superstruct';
 import {
   TransactionStatus,
   TransactionType,
@@ -22,6 +23,7 @@ import {
   getDefaultSubscriptionControllerState,
   SubscriptionController,
 } from './SubscriptionController.js';
+import { SubscriptionBenefitsResponseStruct } from './SubscriptionService-structs.js';
 import type {
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
@@ -29,6 +31,7 @@ import type {
 } from './SubscriptionController.js';
 import type {
   Subscription,
+  SubscriptionBenefitsResponse,
   PricingResponse,
   ProductPricing,
   PricingCryptoPaymentMethod,
@@ -187,6 +190,58 @@ const MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE = {
   customerId: 'cus_1',
   subscriptions: [] as Subscription[],
   trialedProducts: [] as ProductType[],
+};
+
+const MOCK_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
+  eligible: true,
+  billingPeriodId: 'bp_2026_08_15',
+  products: {
+    swaps: {
+      feeBips: '0',
+      capMicroUsd: 500_000_000,
+      consumedMicroUsd: 100_000_000,
+      remainingMicroUsd: 400_000_000,
+      exhausted: false,
+    },
+    perps: {
+      builderFeeBips: '0',
+      builderCode: '<builder-code>',
+      capMicroUsd: 1_500_000_000,
+      consumedMicroUsd: 500_000_000,
+      remainingMicroUsd: 1_000_000_000,
+      exhausted: false,
+    },
+    predict: {
+      builderCode: '<builder-code>',
+      capTxCount: 3,
+      consumedTxCount: 1,
+      remainingTxCount: 2,
+      exhausted: false,
+    },
+  },
+};
+
+const MOCK_INELIGIBLE_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
+  eligible: false,
+  billingPeriodId: null,
+  products: {
+    swaps: {
+      feeBips: null,
+      remainingMicroUsd: null,
+      exhausted: false,
+    },
+    perps: {
+      builderFeeBips: null,
+      builderCode: null,
+      remainingMicroUsd: null,
+      exhausted: false,
+    },
+    predict: {
+      builderCode: null,
+      remainingTxCount: null,
+      exhausted: false,
+    },
+  },
 };
 
 const MOCK_COHORTS = [
@@ -471,6 +526,23 @@ async function withController<ReturnValue>(
 }
 
 describe('SubscriptionController', () => {
+  describe('SubscriptionBenefitsResponseStruct', () => {
+    it('accepts an eligible benefits response', () => {
+      expect(
+        create(MOCK_BENEFITS_RESPONSE, SubscriptionBenefitsResponseStruct),
+      ).toStrictEqual(MOCK_BENEFITS_RESPONSE);
+    });
+
+    it('accepts an ineligible benefits response', () => {
+      expect(
+        create(
+          MOCK_INELIGIBLE_BENEFITS_RESPONSE,
+          SubscriptionBenefitsResponseStruct,
+        ),
+      ).toStrictEqual(MOCK_INELIGIBLE_BENEFITS_RESPONSE);
+    });
+  });
+
   describe('constructor', () => {
     it('should be able to instantiate with default options', async () => {
       await withController(async ({ controller }) => {
