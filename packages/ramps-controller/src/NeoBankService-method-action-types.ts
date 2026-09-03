@@ -19,6 +19,22 @@ export type NeoBankServiceGetAutorampAction = {
 };
 
 /**
+ * Fetches deposit/transaction records for an autoramp via neobank-proxy
+ * `GET /neobank/autoramps/{autoramp_id}/transactions`.
+ *
+ * Used by the deposit poller to detect status changes (e.g. a payout settling
+ * on Monad). Route + response shape are assumed pending the proxy contract
+ * (onramp-api #1124).
+ *
+ * @param autorampId - MoonPay / Ramp API autoramp id.
+ * @returns Deposit snapshots for controller apply/refresh.
+ */
+export type NeoBankServiceGetAutorampTransactionsAction = {
+  type: `NeoBankService:getAutorampTransactions`;
+  handler: NeoBankService['getAutorampTransactions'];
+};
+
+/**
  * Registers a Pix address via neobank-proxy `POST /neobank/addresses/pix`.
  * Body is forwarded as opaque JSON (MoonPay address schema).
  *
@@ -99,6 +115,7 @@ export type NeoBankServiceGetCustomerByExternalIdAction = {
  */
 export type NeoBankServiceMethodActions =
   | NeoBankServiceGetAutorampAction
+  | NeoBankServiceGetAutorampTransactionsAction
   | NeoBankServiceRegisterPixAddressAction
   | NeoBankServiceGetAutorampQuoteAction
   | NeoBankServiceCreateAutorampAction

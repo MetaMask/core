@@ -5,12 +5,14 @@ import type {
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { Hex } from '@metamask/utils';
 
 import packageJson from '../package.json';
 import type {
   AutorampDepositRailsSummary,
   AutorampRemoteSnapshot,
 } from './autorampAccount.js';
+import type { MoneyAccountDepositRemoteSnapshot } from './moneyAccountDeposit.js';
 import type { NeoBankServiceMethodActions } from './NeoBankService-method-action-types.js';
 import { RAMPS_SDK_VERSION, RampsEnvironment } from './RampsService.js';
 
@@ -41,6 +43,39 @@ export type NeoBankAutorampResponse = {
 };
 
 /**
+ * Raw deposit/transaction payload from the MetaMask Ramp API neo-bank proxy.
+ *
+ * Represents a single payment instance flowing through an autoramp (partner
+ * receives fiat, pays out mUSD on Monad to the Money Account). Field names mirror
+ * the assumed neobank-proxy transactions contract (onramp-api #1124) and may
+ * evolve — keep the mapper tolerant.
+ */
+/* eslint-disable @typescript-eslint/naming-convention -- snake_case proxy wire format */
+export type NeoBankTransactionResponse = {
+  id: string;
+  status: string;
+  autoramp_id?: string;
+  money_account_address?: string;
+  /** Monad payout transaction hash when the payout has settled on-chain. */
+  payout_transaction_hash?: string;
+  /** Alternate nested location for the payout hash, if the proxy nests it. */
+  payout?: {
+    transaction_hash?: string;
+  };
+  amount?: string;
+  currency?: string;
+};
+/* eslint-enable @typescript-eslint/naming-convention */
+
+/**
+ * Envelope returned by the neo-bank transactions endpoint. The proxy may return
+ * a bare array or wrap it under `transactions`; the mapper accepts both.
+ */
+export type NeoBankTransactionsResponse =
+  | NeoBankTransactionResponse[]
+  | { transactions?: NeoBankTransactionResponse[] };
+
+/**
  * Optional headers for neo-bank mutating requests.
  */
 export type NeoBankRequestOptions = {
@@ -61,6 +96,7 @@ export type NeoBankQueryParams = Record<
 
 const MESSENGER_EXPOSED_METHODS = [
   'getAutoramp',
+  'getAutorampTransactions',
   'registerPixAddress',
   'getAutorampQuote',
   'createAutoramp',
@@ -151,6 +187,29 @@ export function mapNeoBankAutorampToRemoteSnapshot(
       response.wallet_address ?? response.recipient_account?.address,
     status: response.status,
     depositRailsSummary,
+  };
+}
+
+/**
+ * Maps a neo-bank proxy transaction response into a local deposit snapshot.
+ *
+ * @param response - Single transaction from the proxy transactions endpoint.
+ * @returns Snapshot consumed by `applyDepositRemoteStatus`.
+ */
+export function mapNeoBankTransactionToRemoteSnapshot(
+  response: NeoBankTransactionResponse,
+): MoneyAccountDepositRemoteSnapshot {
+  const payoutTransactionHash =
+    response.payout_transaction_hash ?? response.payout?.transaction_hash;
+
+  return {
+    id: response.id,
+    autorampId: response.autoramp_id,
+    moneyAccountAddress: response.money_account_address as Hex | undefined,
+    status: response.status,
+    payoutTransactionHash: payoutTransactionHash as Hex | undefined,
+    amount: response.amount,
+    currency: response.currency,
   };
 }
 
@@ -293,6 +352,25 @@ export class NeoBankService {
     return mapNeoBankAutorampToRemoteSnapshot(response);
   }
 
+  #mapTransactionsResponse(
+    response: NeoBankTransactionsResponse,
+  ): MoneyAccountDepositRemoteSnapshot[] {
+    const list = Array.isArray(response) ? response : response?.transactions;
+    if (!Array.isArray(list)) {
+      throw new Error(
+        'Malformed response received from neo-bank transactions API',
+      );
+    }
+    return list.map((item) => {
+      if (!item || typeof item !== 'object' || !item.id || !item.status) {
+        throw new Error(
+          'Malformed response received from neo-bank transactions API',
+        );
+      }
+      return mapNeoBankTransactionToRemoteSnapshot(item);
+    });
+  }
+
   /**
    * Fetches an autoramp account via neobank-proxy
    * `GET /neobank/autoramps/{autoramp_id}` (MoonPay
@@ -306,6 +384,26 @@ export class NeoBankService {
       `autoramps/${encodeURIComponent(autorampId)}`,
     );
     return this.#mapAutorampResponse(response);
+  }
+
+  /**
+   * Fetches deposit/transaction records for an autoramp via neobank-proxy
+   * `GET /neobank/autoramps/{autoramp_id}/transactions`.
+   *
+   * Used by the deposit poller to detect status changes (e.g. a payout settling
+   * on Monad). Route + response shape are assumed pending the proxy contract
+   * (onramp-api #1124).
+   *
+   * @param autorampId - MoonPay / Ramp API autoramp id.
+   * @returns Deposit snapshots for controller apply/refresh.
+   */
+  async getAutorampTransactions(
+    autorampId: string,
+  ): Promise<MoneyAccountDepositRemoteSnapshot[]> {
+    const response = await this.#getJson<NeoBankTransactionsResponse>(
+      `autoramps/${encodeURIComponent(autorampId)}/transactions`,
+    );
+    return this.#mapTransactionsResponse(response);
   }
 
   /**
