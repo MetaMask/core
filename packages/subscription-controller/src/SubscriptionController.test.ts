@@ -563,7 +563,7 @@ describe('SubscriptionController', () => {
       );
     });
 
-    it('preserves product entitlements when an old API response omits them', async () => {
+    it('clears product entitlements when a successful fetch omits them', async () => {
       await withController(
         {
           state: {
@@ -578,9 +578,30 @@ describe('SubscriptionController', () => {
 
           await rootMessenger.call('SubscriptionController:getSubscriptions');
 
-          expect(controller.state.productEntitlements).toStrictEqual(
-            MOCK_PRODUCT_ENTITLEMENTS,
+          expect(controller.state.productEntitlements).toStrictEqual({});
+        },
+      );
+    });
+
+    it('clears product entitlements when subscriptions change and the fetch omits them', async () => {
+      await withController(
+        {
+          state: {
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
           );
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            MOCK_SUBSCRIPTION,
+          ]);
+          expect(controller.state.productEntitlements).toStrictEqual({});
         },
       );
     });

@@ -356,9 +356,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         state.trialedProducts = newTrialedProducts;
         state.lastSubscription = newLastSubscription;
         state.rewardAccountId = newRewardAccountId;
-        if (newProductEntitlements !== undefined) {
-          state.productEntitlements = newProductEntitlements;
-        }
+        // Omitted entitlements are an empty map so selectors fail closed
+        // instead of keeping last-known paid-feature flags.
+        state.productEntitlements = newProductEntitlements ?? {};
       });
       // trigger access token refresh to ensure the user has the latest access token if subscription state change
       this.triggerAccessTokenRefresh();
@@ -1265,9 +1265,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     newProductEntitlements?: ProductEntitlements,
   ): boolean {
     return (
-      newProductEntitlements === undefined ||
-      JSON.stringify(oldProductEntitlements) ===
-        JSON.stringify(newProductEntitlements)
+      JSON.stringify(oldProductEntitlements ?? {}) ===
+      JSON.stringify(newProductEntitlements ?? {})
     );
   }
 
