@@ -194,6 +194,8 @@ const MOCK_PRODUCT_ENTITLEMENTS: ProductEntitlements = {
   [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
     plan: 'premium',
     entitlements: {
+      perpsFeeWaiver: false,
+      predictFreeTx: true,
       premiumApy: true,
       swapFeeWaiver: true,
     },
@@ -540,7 +542,10 @@ describe('SubscriptionController', () => {
             [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
               plan: 'premium',
               entitlements: {
+                perpsFeeWaiver: false,
+                predictFreeTx: false,
                 premiumApy: false,
+                swapFeeWaiver: false,
               },
             },
           };

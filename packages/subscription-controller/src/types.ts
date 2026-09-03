@@ -36,7 +36,16 @@ export const MoneyAccountFeature = {
 export type MoneyAccountFeature =
   (typeof MoneyAccountFeature)[keyof typeof MoneyAccountFeature];
 
-export type MoneyAccountEntitlements = Record<string, boolean>;
+export type MoneyAccountEntitlements = Record<MoneyAccountFeature, boolean>;
+
+export const ShieldFeature = {
+  ShieldClaim: 'shieldClaim',
+  PrioritySupport: 'prioritySupport',
+} as const;
+
+export type ShieldFeature = (typeof ShieldFeature)[keyof typeof ShieldFeature];
+
+export type ShieldEntitlements = Record<ShieldFeature, boolean>;
 
 export type MoneyAccountPlusClaim = {
   plan: string;
@@ -45,9 +54,14 @@ export type MoneyAccountPlusClaim = {
 
 export type ProductEntitlements = {
   [PRODUCT_TYPES.SHIELD]?: {
-    entitlements: Record<string, boolean>;
+    entitlements: ShieldEntitlements;
   };
   [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]?: MoneyAccountPlusClaim;
+};
+
+export type ProductEntitlementFeatureMap = {
+  [PRODUCT_TYPES.SHIELD]: ShieldFeature;
+  [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: MoneyAccountFeature;
 };
 
 /**

@@ -93,7 +93,9 @@ export type {
   ModalType,
   MoneyAccountEntitlements,
   MoneyAccountPlusClaim,
+  ProductEntitlementFeatureMap,
   ProductEntitlements,
+  ShieldEntitlements,
 } from './types.js';
 export {
   CANCEL_TYPES,
@@ -108,10 +110,11 @@ export {
   BALANCE_CATEGORIES,
   MODAL_TYPE,
   MoneyAccountFeature,
+  ShieldFeature,
 } from './types.js';
 export {
+  selectHasProductEntitlements,
   selectHasEntitlement,
-  selectIsMoneyAccountPlusSubscriber,
   selectIsUsageAvailable,
 } from './selectors.js';
 export { SubscriptionServiceError } from './errors.js';

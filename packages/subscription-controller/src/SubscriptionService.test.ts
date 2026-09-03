@@ -388,12 +388,15 @@ describe('SubscriptionService', () => {
           [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
             plan: 'premium',
             entitlements: {
+              perpsFeeWaiver: false,
+              predictFreeTx: true,
               premiumApy: true,
-              futureEntitlement: false,
+              swapFeeWaiver: true,
             },
           },
           [PRODUCT_TYPES.SHIELD]: {
             entitlements: {
+              prioritySupport: false,
               shieldClaim: true,
             },
           },
@@ -425,7 +428,10 @@ describe('SubscriptionService', () => {
                 [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
                   plan: 'premium',
                   entitlements: {
+                    perpsFeeWaiver: false,
+                    predictFreeTx: true,
                     premiumApy: 'yes',
+                    swapFeeWaiver: true,
                   },
                 },
               },
@@ -435,6 +441,30 @@ describe('SubscriptionService', () => {
 
         await expect(service.getSubscriptions()).rejects.toThrow(
           'Expected a value of type `boolean`',
+        );
+      });
+    });
+
+    it('rejects product entitlements with missing required features', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements: {
+                [PRODUCT_TYPES.SHIELD]: {
+                  entitlements: {
+                    shieldClaim: true,
+                  },
+                },
+              },
+            },
+          }),
+        );
+
+        await expect(service.getSubscriptions()).rejects.toThrow(
+          'prioritySupport',
         );
       });
     });
