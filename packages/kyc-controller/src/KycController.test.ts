@@ -1955,7 +1955,7 @@ describe('KycController', () => {
           error: expect.stringContaining('ukyc down'),
         });
         const storedKey = controller.state.idosSessionClientPrivateKey;
-        expect(storedKey).toEqual(expect.any(String));
+        expect(storedKey).toStrictEqual(expect.any(String));
 
         await controller.startSumSub();
 
