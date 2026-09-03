@@ -465,9 +465,9 @@ describe('SubscriptionService', () => {
           }),
         );
 
-        await expect(service.getSubscriptions()).resolves.toMatchObject({
-          productEntitlements,
-        });
+        const result = await service.getSubscriptions();
+
+        expect(result.productEntitlements).toStrictEqual(productEntitlements);
       });
     });
 
@@ -494,9 +494,9 @@ describe('SubscriptionService', () => {
           }),
         );
 
-        await expect(service.getSubscriptions()).resolves.toMatchObject({
-          productEntitlements,
-        });
+        const result = await service.getSubscriptions();
+
+        expect(result.productEntitlements).toStrictEqual(productEntitlements);
       });
     });
 
