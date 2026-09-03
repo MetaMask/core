@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix ESM compatibility for the BIP-39 mnemonic utilities ([#309](https://github.com/MetaMask/utils/pull/309))
+
 ## [11.12.0]
 
 ### Added

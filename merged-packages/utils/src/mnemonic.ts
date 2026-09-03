@@ -1,4 +1,6 @@
-import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
+import * as englishWordlist from '@metamask/scure-bip39/dist/wordlists/english';
+
+const { wordlist } = englishWordlist;
 
 /**
  * Transform a typed array containing mnemonic data to the seed phrase.
