@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Update `createUIQueryClient` to add support for executing mutations ([#9324](https://github.com/MetaMask/core/pull/9324))
-  - Provided an action in your data service uses `BaseDataService.executeMutation` to make the request instead of `fetchQuery`, you can now use `useMutation` in your UI files and pass a reference to the action as the mutation key.
+- Add support for executing mutations by updating `createUIQueryClient` and adding `useMutation` wrapper ([#9324](https://github.com/MetaMask/core/pull/9324))
+  - Provided an action in your data service uses `BaseDataService.executeMutation` to make the request instead of `fetchQuery`, you can now use `useMutation` in your UI files via the UI query client and pass a reference to the action as the mutation key.
+  - Like `fetchQuery` and `fetchInfiniteQuery`, the `useMutation` wrapper disables retries by default and enforces that `mutationKey` matches the same thing that `executeMutation` takes.
 
 ### Changed
 
