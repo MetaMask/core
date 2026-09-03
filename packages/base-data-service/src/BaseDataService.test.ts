@@ -215,6 +215,7 @@ describe('BaseDataService', () => {
       1,
       `ExampleDataService:cacheUpdated`,
       {
+        objectType: 'query',
         type: 'added',
         hash,
         state: expectedState,
@@ -225,6 +226,7 @@ describe('BaseDataService', () => {
       2,
       `ExampleDataService:cacheUpdated:${hash}`,
       {
+        objectType: 'query',
         type: 'added',
         state: expectedState,
       },
@@ -255,6 +257,7 @@ describe('BaseDataService', () => {
       1,
       `ExampleDataService:cacheUpdated`,
       {
+        objectType: 'mutation',
         type: 'added',
         hash,
         state: expectedState,
@@ -265,6 +268,7 @@ describe('BaseDataService', () => {
       2,
       `ExampleDataService:cacheUpdated:${hash}`,
       {
+        objectType: 'mutation',
         type: 'added',
         state: expectedState,
       },
@@ -318,6 +322,7 @@ describe('BaseDataService', () => {
       5,
       `ExampleDataService:cacheUpdated`,
       {
+        objectType: 'query',
         type: 'updated',
         hash,
         state: expectedState,
@@ -328,6 +333,7 @@ describe('BaseDataService', () => {
       6,
       `ExampleDataService:cacheUpdated:${hash}`,
       {
+        objectType: 'query',
         type: 'updated',
         state: expectedState,
       },
@@ -368,6 +374,7 @@ describe('BaseDataService', () => {
       5,
       `ExampleDataService:cacheUpdated`,
       {
+        objectType: 'mutation',
         type: 'updated',
         hash,
         state: expectedState,
@@ -378,6 +385,7 @@ describe('BaseDataService', () => {
       6,
       `ExampleDataService:cacheUpdated:${hash}`,
       {
+        objectType: 'mutation',
         type: 'updated',
         state: expectedState,
       },
@@ -403,6 +411,7 @@ describe('BaseDataService', () => {
       7,
       `ExampleDataService:cacheUpdated`,
       {
+        objectType: 'query',
         type: 'removed',
         hash,
         state: null,
@@ -413,6 +422,7 @@ describe('BaseDataService', () => {
       8,
       `ExampleDataService:cacheUpdated:${hash}`,
       {
+        objectType: 'query',
         type: 'removed',
         state: null,
       },
@@ -435,6 +445,7 @@ describe('BaseDataService', () => {
       7,
       `ExampleDataService:cacheUpdated`,
       {
+        objectType: 'mutation',
         type: 'removed',
         hash,
         state: null,
@@ -445,6 +456,7 @@ describe('BaseDataService', () => {
       7,
       `ExampleDataService:cacheUpdated`,
       {
+        objectType: 'mutation',
         type: 'removed',
         hash,
         state: null,
@@ -455,6 +467,7 @@ describe('BaseDataService', () => {
       8,
       `ExampleDataService:cacheUpdated:${hash}`,
       {
+        objectType: 'mutation',
         type: 'removed',
         state: null,
       },

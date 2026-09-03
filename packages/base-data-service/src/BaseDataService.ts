@@ -80,12 +80,15 @@ export type BaseMessenger<Namespace extends string> = Messenger<
   any
 >;
 
-export type DataServiceGranularCacheUpdatedPayload =
+export type DataServiceGranularCacheUpdatedPayload = {
+  objectType: 'query' | 'mutation';
+} & (
   | { type: 'added' | 'updated'; state: DehydratedState }
   | {
       type: 'removed';
       state: null;
-    };
+    }
+);
 
 export type DataServiceCacheUpdatedPayload =
   DataServiceGranularCacheUpdatedPayload & {
@@ -590,15 +593,16 @@ export class BaseDataService<
       `${this.name}:cacheUpdated` as const,
       {
         type: eventType,
+        objectType,
         hash,
         state,
       } as DataServiceCacheUpdatedPayload,
     );
-
     this.#messenger.publish(
       `${this.name}:cacheUpdated:${hash}` as const,
       {
         type: eventType,
+        objectType,
         state,
       } as DataServiceGranularCacheUpdatedPayload,
     );
