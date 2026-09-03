@@ -21,6 +21,18 @@ export type SubscriptionControllerGetSubscriptionsAction = {
 };
 
 /**
+ * Gets and stores the user's subscription benefits.
+ *
+ * @returns The benefits response.
+ * @throws If the user is not an active Money Account Plus subscriber or is
+ * not eligible for benefits.
+ */
+export type SubscriptionControllerGetBenefitsAction = {
+  type: `SubscriptionController:getBenefits`;
+  handler: SubscriptionController['getBenefits'];
+};
+
+/**
  * Get the subscription by product.
  *
  * @param productType - The product type.
@@ -274,6 +286,7 @@ export type SubscriptionControllerStopAllPollingAction = {
 export type SubscriptionControllerMethodActions =
   | SubscriptionControllerGetPricingAction
   | SubscriptionControllerGetSubscriptionsAction
+  | SubscriptionControllerGetBenefitsAction
   | SubscriptionControllerGetSubscriptionByProductAction
   | SubscriptionControllerGetSubscriptionsEligibilitiesAction
   | SubscriptionControllerCancelSubscriptionAction

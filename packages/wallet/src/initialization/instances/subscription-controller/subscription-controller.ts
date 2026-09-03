@@ -8,6 +8,7 @@ export type { SubscriptionControllerInstanceOptions } from './types.js';
 
 const SUBSCRIPTION_SERVICE_ACTIONS = [
   'SubscriptionService:getSubscriptions',
+  'SubscriptionService:getBenefits',
   'SubscriptionService:cancelSubscription',
   'SubscriptionService:unCancelSubscription',
   'SubscriptionService:startSubscriptionWithCard',

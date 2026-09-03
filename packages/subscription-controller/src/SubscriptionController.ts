@@ -17,10 +17,12 @@ import {
   SubscriptionControllerErrorMessage,
 } from './constants.js';
 import type { SubscriptionControllerMethodActions } from './SubscriptionController-method-action-types.js';
+import { createModuleLogger, projectLogger } from './logger.js';
 import type {
   SubscriptionServiceAssignUserToCohortAction,
   SubscriptionServiceCancelSubscriptionAction,
   SubscriptionServiceGetBillingPortalUrlAction,
+  SubscriptionServiceGetBenefitsAction,
   SubscriptionServiceGetPricingAction,
   SubscriptionServiceGetSubscriptionsAction,
   SubscriptionServiceGetSubscriptionsEligibilitiesAction,
@@ -64,6 +66,8 @@ import type {
   StartSubscriptionResponse,
   CancelSubscriptionRequest,
   PricingCryptoPaymentMethod,
+  SubscriptionBenefitsResponse,
+  SubscriptionBenefitsState,
 } from './types.js';
 import type {
   PricingResponse,
@@ -72,11 +76,14 @@ import type {
   Subscription,
 } from './types.js';
 
+const log = createModuleLogger(projectLogger, controllerName);
+
 export type SubscriptionControllerState = {
   customerId?: string;
   trialedProducts: ProductType[];
   subscriptions: Subscription[];
   pricing?: PricingResponse;
+  benefits?: SubscriptionBenefitsState;
   /** The last subscription that user has subscribed to if any. */
   lastSubscription?: Subscription;
   /** The reward account ID if user has linked rewards to the subscription. */
@@ -102,6 +109,7 @@ export type SubscriptionControllerActions =
 type AllowedActions =
   | SubscriptionServiceGetPricingAction
   | SubscriptionServiceGetSubscriptionsAction
+  | SubscriptionServiceGetBenefitsAction
   | SubscriptionServiceGetSubscriptionsEligibilitiesAction
   | SubscriptionServiceCancelSubscriptionAction
   | SubscriptionServiceUnCancelSubscriptionAction
@@ -209,6 +217,12 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
       includeInDebugSnapshot: true,
       usedInUi: true,
     },
+    benefits: {
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
     lastSelectedPaymentMethod: {
       includeInStateLogs: false,
       persist: true,
@@ -220,6 +234,7 @@ const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState>
 const MESSENGER_EXPOSED_METHODS = [
   'getPricing',
   'getSubscriptions',
+  'getBenefits',
   'getSubscriptionByProduct',
   'getSubscriptionsEligibilities',
   'cancelSubscription',
@@ -346,7 +361,39 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       this.triggerAccessTokenRefresh();
     }
 
+    await this.#refreshBenefitsIfActive();
+
     return newSubscriptions;
+  }
+
+  /**
+   * Gets and stores the user's subscription benefits.
+   *
+   * @returns The benefits response.
+   * @throws If the user is not an active Money Account Plus subscriber or is
+   * not eligible for benefits.
+   */
+  async getBenefits(): Promise<SubscriptionBenefitsResponse> {
+    this.#assertIsActiveMoneyAccountPlusSubscriber();
+
+    const benefits = await this.messenger.call(
+      'SubscriptionService:getBenefits',
+    );
+
+    this.update((state) => {
+      state.benefits = benefits.eligible
+        ? {
+            billingPeriodId: benefits.billingPeriodId,
+            ...benefits.products,
+          }
+        : undefined;
+    });
+
+    if (!benefits.eligible) {
+      throw new Error(SubscriptionControllerErrorMessage.UserNotSubscribed);
+    }
+
+    return benefits;
   }
 
   /**
@@ -392,6 +439,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       );
     });
 
+    await this.#refreshBenefitsIfActive();
+
     this.triggerAccessTokenRefresh();
   }
 
@@ -414,6 +463,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
           : subscription,
       );
     });
+
+    await this.#refreshBenefitsIfActive();
 
     this.triggerAccessTokenRefresh();
   }
@@ -851,6 +902,14 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     await this.getSubscriptions();
   }
 
+  async #refreshBenefitsIfActive(): Promise<void> {
+    try {
+      await this.getBenefits();
+    } catch (error) {
+      log('Failed to refresh subscription benefits', error);
+    }
+  }
+
   /**
    * Calculate total subscription price amount (approval amount) from price info
    * e.g: $8 per month * 12 months min billing cycles = $96
@@ -1014,6 +1073,24 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       ACTIVE_SUBSCRIPTION_STATUSES.includes(subscription.status)
     ) {
       throw new Error(SubscriptionControllerErrorMessage.UserAlreadySubscribed);
+    }
+  }
+
+  #assertIsActiveMoneyAccountPlusSubscriber(): void {
+    const hasActiveMoneyAccountPlusSubscription = this.state.subscriptions.some(
+      (subscription) =>
+        subscription.products.some(
+          (product) => product.name === PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+        ) && ACTIVE_SUBSCRIPTION_STATUSES.includes(subscription.status),
+    );
+
+    if (!hasActiveMoneyAccountPlusSubscription) {
+      if (this.state.benefits) {
+        this.update((state) => {
+          state.benefits = undefined;
+        });
+      }
+      throw new Error(SubscriptionControllerErrorMessage.UserNotSubscribed);
     }
   }
 

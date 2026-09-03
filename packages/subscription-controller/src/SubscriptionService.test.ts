@@ -471,6 +471,114 @@ describe('SubscriptionService', () => {
     });
   });
 
+  describe('getBenefits', () => {
+    it('should fetch eligible benefits successfully', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, getBearerToken, getSessionProfile }) => {
+          fetchMock.mockResolvedValue(
+            createMockResponse({ jsonData: MOCK_BENEFITS_RESPONSE }),
+          );
+
+          const result = await service.getBenefits();
+
+          expect(result).toStrictEqual(MOCK_BENEFITS_RESPONSE);
+          expect(getBearerToken).toHaveBeenCalledTimes(1);
+          expect(getSessionProfile).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should fetch ineligible benefits successfully', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({ jsonData: MOCK_INELIGIBLE_BENEFITS_RESPONSE }),
+        );
+
+        const result = await service.getBenefits();
+
+        expect(result).toStrictEqual(MOCK_INELIGIBLE_BENEFITS_RESPONSE);
+      });
+    });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, captureExceptionMock, testUrl }) => {
+          const networkError = new Error('Network error');
+          fetchMock.mockRejectedValue(networkError);
+
+          const error = await service
+            .getBenefits()
+            .catch((rejection) => rejection);
+
+          expect(error).toBeInstanceOf(SubscriptionServiceError);
+          const serviceError = error as SubscriptionServiceError;
+          expect(serviceError.message).toBe(
+            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetBenefits} (url: ${testUrl}/v1/benefits)`,
+          );
+          expect(serviceError.cause).toBe(networkError);
+          expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should throw SubscriptionServiceError for non-ok responses', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, captureExceptionMock, testUrl }) => {
+          fetchMock.mockResolvedValue(
+            createMockResponse({
+              ok: false,
+              status: 500,
+              jsonData: { message: 'Internal Server Error' },
+            }),
+          );
+
+          const requestPromise = service.getBenefits();
+
+          await expect(requestPromise).rejects.toThrow(
+            SubscriptionServiceError,
+          );
+          await expect(requestPromise).rejects.toThrow(
+            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetBenefits} (url: ${testUrl}/v1/benefits)`,
+          );
+          expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should handle authentication errors', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock }) => {
+          const requestPromise = service.getBenefits();
+
+          await expect(requestPromise).rejects.toThrow(
+            SubscriptionServiceError,
+          );
+          await expect(requestPromise).rejects.toThrow(
+            'Failed to get authorization header. Wallet is locked',
+          );
+          expect(fetchMock).not.toHaveBeenCalled();
+        },
+        {
+          getBearerToken: jest
+            .fn()
+            .mockRejectedValue(new Error('Wallet is locked')),
+        },
+      );
+    });
+
+    it('should reject malformed responses', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: { eligible: true, billingPeriodId: 'bp_2026_08_15' },
+          }),
+        );
+
+        await expect(service.getBenefits()).rejects.toThrow(/products/u);
+      });
+    });
+  });
+
   describe('getSubscriptions', () => {
     it('should fetch subscriptions successfully', async () => {
       await withMockSubscriptionService(

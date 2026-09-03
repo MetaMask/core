@@ -218,6 +218,16 @@ export type SubscriptionBenefitsResponse = {
   };
 };
 
+/**
+ * Benefits state exposed to the UI.
+ */
+export type SubscriptionBenefitsState = {
+  billingPeriodId: string | null;
+  swaps: SwapsBenefitUsage;
+  perps: PerpsBenefitUsage;
+  predict: PredictBenefitUsage;
+};
+
 export type StartSubscriptionRequest = {
   products: ProductType[];
   isTrialRequested: boolean;
@@ -577,6 +587,7 @@ export type SubmitSponsorshipIntentsMethodParams = Pick<
 
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
+  getBenefits(): Promise<SubscriptionBenefitsResponse>;
   cancelSubscription(request: CancelSubscriptionRequest): Promise<Subscription>;
   unCancelSubscription(request: {
     subscriptionId: string;

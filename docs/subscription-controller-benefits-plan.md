@@ -1,6 +1,6 @@
 # SubscriptionController benefits implementation plan
 
-Status: Step 1 updated for the final POST response contract — awaiting review
+Status: Step 5 complete — awaiting review
 
 This plan adds support for fetching and persisting the response from
 `POST /v1/benefits` while keeping the implementation additive and localized.
@@ -20,8 +20,8 @@ left intact.
   both local precondition failures and a valid ineligible API response.
 - The service will treat the ineligible response as valid. It includes
   `eligible: false`, `billingPeriodId: null`, and a required `products` object
-  whose unavailable values are `null` or omitted. The controller will persist
-  that raw response so stale eligible benefits cannot remain, then reject the
+  whose unavailable values are `null` or omitted. The controller will clear
+  persisted benefits so stale eligible benefits cannot remain, then reject the
   public call with `UserNotSubscribed`.
 - Lifecycle-triggered benefit refreshes will be best-effort. A benefits
   transport failure must not make a successful subscription or cancellation
@@ -63,20 +63,21 @@ build pass.
 Files:
 
 - `packages/subscription-controller/src/SubscriptionService.ts`
+- `packages/subscription-controller/src/types.ts`
 - `packages/subscription-controller/src/SubscriptionService-method-action-types.ts`
 
 Substeps:
 
-- [ ] Add `getBenefits()` to `ISubscriptionService`.
-- [ ] Implement the method using the existing authenticated `#fetchJson`
+- [x] Add `getBenefits()` to `ISubscriptionService`.
+- [x] Implement the method using the existing authenticated `#fetchJson`
       helper with the path `benefits`, method `POST`, and an empty `{}` body.
-- [ ] Validate the response with the new Superstruct validator.
-- [ ] Add the method to the service messenger exposure list.
-- [ ] Regenerate the service action types; do not hand-edit generated output.
-- [ ] Add tests for successful eligible and ineligible responses.
-- [ ] Add tests for the exact `/v1/benefits` URL, POST method, empty body, and
+- [x] Validate the response with the new Superstruct validator.
+- [x] Add the method to the service messenger exposure list.
+- [x] Regenerate the service action types; do not hand-edit generated output.
+- [x] Add tests for successful eligible and ineligible responses.
+- [x] Add tests for the exact `/v1/benefits` URL, POST method, empty body, and
       auth headers.
-- [ ] Add coverage for network, non-2xx, authentication, and malformed
+- [x] Add coverage for network, non-2xx, authentication, and malformed
       response errors.
 
 Review checkpoint: calling the service directly performs exactly one
@@ -87,25 +88,29 @@ authenticated request and returns the validated raw response.
 Files:
 
 - `packages/subscription-controller/src/SubscriptionController.ts`
+- `packages/subscription-controller/src/types.ts`
 - `packages/subscription-controller/src/SubscriptionController-method-action-types.ts`
+- `packages/subscription-controller/src/index.ts`
 
 Substeps:
 
-- [ ] Add optional `benefits` state with a default of `undefined`.
-- [ ] Mark the field as persisted in the controller metadata and exclude it
+- [x] Add optional `benefits` state with a default of `undefined`.
+- [x] Mark the field as persisted in the controller metadata and exclude it
       from logs/debug snapshots as appropriate.
-- [ ] Add `#assertIsActiveMoneyAccountPlusSubscriber()` without changing the
+- [x] Add `#assertIsActiveMoneyAccountPlusSubscriber()` without changing the
       behavior of the existing subscription assertion helpers.
-- [ ] Implement `getBenefits()` so the active-subscriber assertion happens
+- [x] Implement `getBenefits()` so the active-subscriber assertion happens
       before the service messenger call.
-- [ ] Ensure users without an active `MONEY_ACCOUNT_PLUS` subscription receive
-      `UserNotSubscribed` and cause zero `SubscriptionService:getBenefits` calls,
-      including users with an active subscription for another product.
-- [ ] Persist the raw response before rejecting the API’s
-      `{ eligible: false }` branch with `UserNotSubscribed`.
-- [ ] Expose the method through the controller messenger list.
-- [ ] Regenerate the controller action types.
-- [ ] Export the new public types and action type from `src/index.ts`.
+- [x] Ensure users without an active `MONEY_ACCOUNT_PLUS` subscription have
+      their benefits state cleared, receive `UserNotSubscribed`, and cause zero
+      `SubscriptionService:getBenefits` calls, including users with an active
+      subscription for another product.
+- [x] Persist the flattened benefits state for eligible responses and clear it
+      before rejecting the API’s `{ eligible: false }` branch with
+      `UserNotSubscribed`.
+- [x] Expose the method through the controller messenger list.
+- [x] Regenerate the controller action types.
+- [x] Export the new public types and action type from `src/index.ts`.
 
 Review checkpoint: direct controller calls have the correct return/state/error
 behavior, including no service call for every non-active status.
@@ -119,11 +124,11 @@ Files:
 
 Substeps:
 
-- [ ] Add `SubscriptionService:getBenefits` to the controller messenger
+- [x] Add `SubscriptionService:getBenefits` to the controller messenger
       delegation list.
-- [ ] Add a wallet-level test proving that
+- [x] Add a wallet-level test proving that
       `SubscriptionController:getBenefits` reaches the service.
-- [ ] Confirm no changes are needed in the subscription-service
+- [x] Confirm no changes are needed in the subscription-service
       initialization, since it already delegates authentication actions.
 
 Review checkpoint: the method works through the production wallet messenger,
@@ -137,29 +142,29 @@ Primary file:
 
 Substeps:
 
-- [ ] Add one small private `#refreshBenefitsIfActive()` helper whose gate
+- [x] Add one small private `#refreshBenefitsIfActive()` helper whose gate
       specifically checks for an active `MONEY_ACCOUNT_PLUS` subscription.
-- [ ] Have it clear local benefits and return without an API call when no
+- [x] Have it clear local benefits and return without an API call when no
       active `MONEY_ACCOUNT_PLUS` subscription remains.
-- [ ] Have it call `getBenefits()` for eligible users and handle lifecycle
+- [x] Have it call `getBenefits()` for eligible users and handle lifecycle
       refresh failures without failing the primary operation.
-- [ ] Invoke it after `getSubscriptions()` applies the latest entitlement
+- [x] Invoke it after `getSubscriptions()` applies the latest entitlement
       state, but only refresh when an active `MONEY_ACCOUNT_PLUS` subscription is
       present. This covers explicit entitlement refreshes and the existing polling
       loop.
-- [ ] Keep the crypto subscribe flow’s existing final `getSubscriptions()`;
+- [x] Keep the crypto subscribe flow’s existing final `getSubscriptions()`;
       the new hook will refresh benefits after a `MONEY_ACCOUNT_PLUS` subscription
       is created, while a Shield-only subscription will not trigger the endpoint.
-- [ ] Invoke it after `cancelSubscription()` and `unCancelSubscription()`
+- [x] Invoke it after `cancelSubscription()` and `unCancelSubscription()`
       update local subscription state, subject to the same
       `MONEY_ACCOUNT_PLUS` gate.
-- [ ] Do not add a separate period timer. The existing polling cycle will
+- [x] Do not add a separate period timer. The existing polling cycle will
       fetch benefits after the backend reports the next period for an active
       `MONEY_ACCOUNT_PLUS` subscription.
-- [ ] Keep card checkout unchanged because it returns before the subscription
+- [x] Keep card checkout unchanged because it returns before the subscription
       is created; the next entitlement refresh will hydrate benefits if the
       resulting subscription is `MONEY_ACCOUNT_PLUS`.
-- [ ] Document and test that a consumer detecting `exhausted: true` can call
+- [x] Document and test that a consumer detecting `exhausted: true` can call
       `getBenefits()` for an explicit refresh. Do not add a speculative
       exhaustion event without an existing producer.
 
