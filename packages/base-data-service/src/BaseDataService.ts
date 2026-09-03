@@ -490,9 +490,10 @@ export class BaseDataService<
     >(this.#queryClient, {
       ...options,
       mutationFn: async (...args) => {
-        // Note that we purposely only use the circuit breaker policy
-        // and not the circuit breaker and retry policies, as we don't want
-        // to retry mutations.
+        // To guard against mutations being retried, we deliberately execute the
+        // mutation function through the circuit breaker policy alone, rather
+        // than through `this.#policy` (which is a combination of both a
+        // circuit breaker policy and retry policy).
         const response = await this.#policy.circuitBreakerPolicy.execute(() =>
           mutationFn(...args),
         );
