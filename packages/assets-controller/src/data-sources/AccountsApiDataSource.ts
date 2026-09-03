@@ -7,6 +7,7 @@ import type {
 import {
   isCaipChainId,
   KnownCaipNamespace,
+  parseCaipAssetType,
   toCaipChainId,
 } from '@metamask/utils';
 
@@ -49,9 +50,9 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 // Allowed actions that AccountsApiDataSource can call. Balances are fetched via
 // ApiPlatformClient directly (no BackendApiClient actions needed); the messenger
-// is used to read the Accounts API v6 balances feature flag and to subscribe to
-// `RemoteFeatureFlagController:stateChange` (see constructor) so migration flag
-// changes refresh the active chains.
+// is used to subscribe to `RemoteFeatureFlagController:stateChange` (see
+// constructor) so migration flag changes refresh the active chains, and to
+// read those flags when listing active chains.
 export type AccountsApiDataSourceAllowedActions =
   RemoteFeatureFlagControllerGetStateAction;
 
@@ -95,7 +96,7 @@ export type AccountsApiDataSourceConfig = {
 export type AccountsApiDataSourceOptions = AccountsApiDataSourceConfig & {
   /**
    * The AssetsController messenger (shared by all data sources). Used to read
-   * the `assetsAccountsApiV6` remote feature flag.
+   * Snaps → AssetsController migration flags and subscribe to flag changes.
    */
   messenger: AssetsControllerMessenger;
   /** ApiPlatformClient for API calls with caching */
@@ -106,6 +107,12 @@ export type AccountsApiDataSourceOptions = AccountsApiDataSourceConfig & {
     chains: ChainId[],
     previousChains: ChainId[],
   ) => void;
+  /**
+   * Whether to use the Accounts API v6 balances endpoint (and `includeAssetIds`).
+   * Injected by AssetsController so the flag is read in one place. Defaults to
+   * `false` (v5). Read on demand, not cached.
+   */
+  isBalanceV6Enabled?: () => boolean;
   state?: Partial<AccountsApiDataSourceState>;
 };
 
@@ -219,6 +226,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
   /** Shared AssetsController messenger, used to read remote feature flags. */
   readonly #messenger: AssetsControllerMessenger;
 
+  /** Injected by AssetsController; `true` when the v6 balances endpoint should be used. */
+  readonly #isBalanceV6Enabled: () => boolean;
+
   /** ApiPlatformClient for cached API calls */
   readonly #apiClient: ApiPlatformClient;
 
@@ -240,6 +250,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
     this.#tokenDetectionEnabled =
       options.tokenDetectionEnabled ?? ((): boolean => true);
     this.#messenger = options.messenger;
+    this.#isBalanceV6Enabled =
+      options.isBalanceV6Enabled ?? ((): boolean => false);
     this.#apiClient = options.queryApiClient;
 
     // The Snaps → AssetsController migration flags gate which migration networks
@@ -275,35 +287,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
       log('Failed to refresh active chains after feature flag change', {
         error,
       });
-    }
-  }
-
-  /**
-   * Whether the Accounts API v6 balances endpoint is enabled, read from the
-   * RemoteFeatureFlagController (`assetsAccountsApiV6`). Read on demand (per
-   * fetch) rather than cached so the value can be toggled at runtime, and behaves
-   * the same across clients (extension, mobile). Defaults to `false` when the
-   * flag is unset or the controller is unavailable.
-   *
-   * The flag is a LaunchDarkly JSON variation shaped `{ value: boolean }` (same
-   * shape as `backendWebSocketConnection`), so the nested `value` is read rather
-   * than treating the flag as a plain boolean.
-   *
-   * @returns `true` when the v6 balances endpoint should be used.
-   */
-  #isBalanceV6Enabled(): boolean {
-    try {
-      const { remoteFeatureFlags } = this.#messenger.call(
-        'RemoteFeatureFlagController:getState',
-      );
-      const flag = remoteFeatureFlags?.assetsAccountsApiV6;
-      return (
-        typeof flag === 'object' &&
-        flag !== null &&
-        Boolean((flag as { value?: unknown }).value)
-      );
-    } catch {
-      return false;
     }
   }
 
@@ -436,11 +419,63 @@ export class AccountsApiDataSource extends AbstractDataSource<
             }
           : undefined;
 
-      // Feature-flagged: v6 endpoint with a fallback to legacy v5. The flag is
-      // read here (not cached) so a runtime toggle can revert v6 -> v5.
-      const { unprocessedNetworks, assetsBalance } = this.#isBalanceV6Enabled()
-        ? await this.#fetchV6Balances(accountIds, fetchOptions, request)
-        : await this.#fetchV5Balances(accountIds, fetchOptions, request);
+      const isV6 = this.#isBalanceV6Enabled();
+      let fetchResult: {
+        unprocessedNetworks: string[];
+        unprocessedIncludeAssetIds: string[];
+        assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>;
+      };
+
+      if (isV6) {
+        // User-pinned assets on the fetched chains, sent to v6 as
+        // `includeAssetIds` so the backend returns them even at zero balance.
+        const includeAssetIds = this.#getIncludeAssetIds(
+          request,
+          chainsToFetch,
+        );
+
+        // User-hidden assets on the fetched chains, sent to v6 as
+        // `excludeAssetIds`. A pin wins over a hide.
+        const excludeAssetIds = this.#getExcludeAssetIds(
+          request,
+          chainsToFetch,
+          includeAssetIds,
+        );
+
+        fetchResult = await this.#fetchV6Balances(
+          accountIds,
+          fetchOptions,
+          request,
+          includeAssetIds,
+          excludeAssetIds,
+        );
+
+        const validUnprocessedAssetIds =
+          fetchResult.unprocessedIncludeAssetIds.filter((assetId) => {
+            try {
+              parseCaipAssetType(assetId as Caip19AssetId);
+              return true;
+            } catch {
+              return false;
+            }
+          });
+        if (validUnprocessedAssetIds.length > 0) {
+          response.unprocessedCustomAssets = [
+            ...(response.unprocessedCustomAssets ?? []),
+            ...(validUnprocessedAssetIds as Caip19AssetId[]),
+          ];
+        }
+        response.updateMode = 'full';
+      } else {
+        fetchResult = await this.#fetchV5Balances(
+          accountIds,
+          fetchOptions,
+          request,
+        );
+        response.updateMode = 'merge';
+      }
+
+      const { unprocessedNetworks, assetsBalance } = fetchResult;
 
       // Handle unprocessed networks - these will be passed to next middleware
       if (unprocessedNetworks.length > 0) {
@@ -455,7 +490,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
       }
 
       response.assetsBalance = assetsBalance;
-      response.updateMode = 'merge';
     } catch (error) {
       log('Fetch FAILED', { error, chains: chainsToFetch });
 
@@ -484,6 +518,87 @@ export class AccountsApiDataSource extends AbstractDataSource<
   }
 
   /**
+   * Collect the pinned EVM assets on the fetched chains to send to the v6
+   * endpoint as `includeAssetIds`; malformed IDs are skipped.
+   *
+   * @param request - The data request (carries `customAssets`).
+   * @param chainsToFetch - Chains being requested this fetch.
+   * @returns Deduplicated asset IDs, or `undefined` when none.
+   */
+  #getIncludeAssetIds(
+    request: DataRequest,
+    chainsToFetch: ChainId[],
+  ): Caip19AssetId[] | undefined {
+    if (!request.customAssets || request.customAssets.length === 0) {
+      return undefined;
+    }
+
+    const chainsToFetchSet = new Set<ChainId>(chainsToFetch);
+    const includeAssetIds = new Set<Caip19AssetId>();
+
+    for (const assetId of request.customAssets) {
+      let chainId: ChainId;
+      try {
+        chainId = parseCaipAssetType(assetId).chainId;
+      } catch {
+        continue;
+      }
+      if (
+        chainId.startsWith(`${KnownCaipNamespace.Eip155}:`) &&
+        chainsToFetchSet.has(chainId)
+      ) {
+        includeAssetIds.add(assetId);
+      }
+    }
+
+    return includeAssetIds.size > 0 ? [...includeAssetIds] : undefined;
+  }
+
+  /**
+   * Collect the hidden EVM assets on the fetched chains to send to the v6
+   * endpoint as `excludeAssetIds`; malformed IDs are skipped and pinned
+   * assets are left out (a pin wins).
+   *
+   * @param request - The data request (carries `excludeAssetIds`).
+   * @param chainsToFetch - Chains being requested this fetch.
+   * @param includeAssetIds - Pinned asset IDs that must not be excluded.
+   * @returns Deduplicated asset IDs, or `undefined` when none.
+   */
+  #getExcludeAssetIds(
+    request: DataRequest,
+    chainsToFetch: ChainId[],
+    includeAssetIds: Caip19AssetId[] | undefined,
+  ): Caip19AssetId[] | undefined {
+    if (!request.excludeAssetIds || request.excludeAssetIds.length === 0) {
+      return undefined;
+    }
+
+    const chainsToFetchSet = new Set<ChainId>(chainsToFetch);
+    const includeSet = new Set<Caip19AssetId>(includeAssetIds ?? []);
+    const excludeAssetIds = new Set<Caip19AssetId>();
+
+    for (const assetId of request.excludeAssetIds) {
+      if (includeSet.has(assetId)) {
+        continue;
+      }
+      let chainId: ChainId;
+      try {
+        chainId = parseCaipAssetType(assetId).chainId;
+      } catch {
+        continue;
+      }
+      if (
+        chainId.startsWith(`${KnownCaipNamespace.Eip155}:`) &&
+        chainsToFetchSet.has(chainId)
+      ) {
+        excludeAssetIds.add(assetId);
+      }
+    }
+
+    return excludeAssetIds.size > 0 ? [...excludeAssetIds] : undefined;
+  }
+
+  /**
    * Fetch balances from the legacy v5 endpoint and process them.
    *
    * @param accountIds - CAIP-10 account IDs to fetch balances for.
@@ -499,6 +614,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
     request: DataRequest,
   ): Promise<{
     unprocessedNetworks: string[];
+    unprocessedIncludeAssetIds: string[];
     assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>;
   }> {
     const apiResponse = await fetchWithTimeout(
@@ -518,6 +634,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
     return {
       unprocessedNetworks: apiResponse.unprocessedNetworks,
+      // v5 has no `includeAssetIds` support.
+      unprocessedIncludeAssetIds: [],
       assetsBalance,
     };
   }
@@ -528,7 +646,10 @@ export class AccountsApiDataSource extends AbstractDataSource<
    * @param accountIds - CAIP-10 account IDs to fetch balances for.
    * @param fetchOptions - Cache/fetch options (e.g. force update settings).
    * @param request - The original data request containing accounts to map.
-   * @returns Unprocessed networks and processed asset balances by account.
+   * @param includeAssetIds - Pinned asset IDs the backend must always return.
+   * @param excludeAssetIds - Hidden asset IDs the backend must drop.
+   * @returns Unprocessed networks, unprocessed pinned assets, and processed
+   * asset balances by account.
    */
   async #fetchV6Balances(
     accountIds: string[],
@@ -536,15 +657,26 @@ export class AccountsApiDataSource extends AbstractDataSource<
       | { staleTime: number; gcTime: number; bypassServerCache?: boolean }
       | undefined,
     request: DataRequest,
+    includeAssetIds: Caip19AssetId[] | undefined,
+    excludeAssetIds: Caip19AssetId[] | undefined,
   ): Promise<{
     unprocessedNetworks: string[];
+    unprocessedIncludeAssetIds: string[];
     assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>;
   }> {
+    const params =
+      includeAssetIds || excludeAssetIds
+        ? {
+            ...(includeAssetIds && { includeAssetIds }),
+            ...(excludeAssetIds && { excludeAssetIds }),
+          }
+        : undefined;
+
     const apiResponse = await fetchWithTimeout(
       () =>
         this.#apiClient.accounts.fetchV6MultiAccountBalances(
           accountIds,
-          undefined,
+          params,
           fetchOptions,
         ),
       this.#fetchTimeoutMs,
@@ -557,6 +689,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
     return {
       unprocessedNetworks: apiResponse.unprocessedNetworks,
+      unprocessedIncludeAssetIds: apiResponse.unprocessedIncludeAssetIds,
       assetsBalance,
     };
   }
@@ -754,6 +887,32 @@ export class AccountsApiDataSource extends AbstractDataSource<
           }
         }
 
+        if (response.updateMode === 'full') {
+          context.response = {
+            ...context.response,
+            updateMode: 'full',
+          };
+        } else if (
+          response.updateMode === 'merge' &&
+          context.response.updateMode !== 'full'
+        ) {
+          context.response = {
+            ...context.response,
+            updateMode: 'merge',
+          };
+        }
+
+        // Forward the asset-axis signal so the RPC fallback recovers these pins.
+        if (
+          response.unprocessedCustomAssets &&
+          response.unprocessedCustomAssets.length > 0
+        ) {
+          context.response.unprocessedCustomAssets = [
+            ...(context.response.unprocessedCustomAssets ?? []),
+            ...response.unprocessedCustomAssets,
+          ];
+        }
+
         // Determine successfully handled chains (exclude unprocessed/error chains)
         const unprocessedChains = new Set(Object.keys(response.errors ?? {}));
         successfullyHandledChains = request.chainIds.filter(
@@ -798,6 +957,36 @@ export class AccountsApiDataSource extends AbstractDataSource<
   // ============================================================================
   // SUBSCRIBE
   // ============================================================================
+
+  /**
+   * Claim EVM pins on assigned chains (sent to v6 as `includeAssetIds`).
+   * v5 has no `includeAssetIds`, so with the v6 flag off nothing is claimed
+   * and pins fall through to RPC.
+   *
+   * @param customAssets - Candidate CAIP-19 asset IDs still unclaimed.
+   * @param assignedChains - Chains assigned to this source in the handoff.
+   * @returns The claimed subset of `customAssets`.
+   */
+  claimCustomAssets(
+    customAssets: Caip19AssetId[],
+    assignedChains: ChainId[],
+  ): Caip19AssetId[] {
+    if (!this.#isBalanceV6Enabled()) {
+      return [];
+    }
+    const assigned = new Set<ChainId>(assignedChains);
+    return customAssets.filter((assetId) => {
+      try {
+        const parsed = parseCaipAssetType(assetId);
+        return (
+          parsed.chain.namespace === KnownCaipNamespace.Eip155 &&
+          assigned.has(parsed.chainId)
+        );
+      } catch {
+        return false;
+      }
+    });
+  }
 
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
     const { request, subscriptionId, isUpdate, skipInitialFetch } =

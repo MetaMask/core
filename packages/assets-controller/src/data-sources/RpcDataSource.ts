@@ -15,11 +15,11 @@ import type {
 import {
   isStrictHexString,
   isCaipChainId,
+  KnownCaipNamespace,
   parseCaipAssetType,
   parseCaipChainId,
   hexToNumber,
   toCaipChainId,
-  KnownCaipNamespace,
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import BigNumberJS from 'bignumber.js';
@@ -145,6 +145,11 @@ export type RpcDataSourceOptions = {
 
   /** Returns the asset type ('native' | 'erc20' | 'spl') for the given CAIP-19 asset ID */
   getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
+  /**
+   * Whether Accounts API v6 pin filtering and asset-scoped polls are enabled.
+   * Injected by AssetsController; defaults to v5 when omitted.
+   */
+  isBalanceV6Enabled?: () => boolean;
 };
 
 /**
@@ -224,6 +229,8 @@ export class RpcDataSource extends AbstractDataSource<
 
   readonly #isOnboarded: () => boolean;
 
+  readonly #isBalanceV6Enabled: () => boolean;
+
   /** Currently active chains */
   #activeChains: ChainId[] = [];
 
@@ -261,6 +268,8 @@ export class RpcDataSource extends AbstractDataSource<
     this.#useExternalService =
       options.useExternalService ?? ((): boolean => true);
     this.#isOnboarded = options.isOnboarded ?? ((): boolean => true);
+    this.#isBalanceV6Enabled =
+      options.isBalanceV6Enabled ?? ((): boolean => false);
 
     const balanceInterval = options.balanceInterval ?? DEFAULT_BALANCE_INTERVAL;
     const detectionInterval =
@@ -1015,6 +1024,12 @@ export class RpcDataSource extends AbstractDataSource<
     const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
     const failedChains: ChainId[] = [];
 
+    // request.customAssets is flat. v6 resolves pin ownership from state so
+    // each account only fetches its own pins; v5 applies the flat list as on main.
+    const customAssetsByAccount = request.customAssets
+      ? this.#getCustomAssetsByAccount()
+      : {};
+
     // Fetch balances for each account and its supported chains (pre-computed in request)
     for (const {
       account,
@@ -1042,29 +1057,23 @@ export class RpcDataSource extends AbstractDataSource<
 
         if (request.customAssets) {
           const existingMetadata = this.#getExistingAssetsMetadata();
-
-          for (const assetId of request.customAssets) {
-            try {
-              const parsed = parseCaipAssetType(assetId);
-              const assetChainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
-              if (
-                assetChainId === chainId &&
-                this.#getAssetType(assetId) === 'erc20'
-              ) {
-                const tokenAddress =
-                  parsed.assetReference.toLowerCase() as Address;
-                const normalizedId = normalizeAssetId(assetId);
-                const decimals = existingMetadata[normalizedId]?.decimals;
-
-                assetsToFetch.push({
-                  assetId,
-                  address: tokenAddress,
-                  decimals,
-                });
-              }
-            } catch {
-              // Skip unparseable asset IDs
-            }
+          if (this.#isBalanceV6Enabled()) {
+            this.#appendRequestCustomErc20sV6(
+              assetsToFetch,
+              request.customAssets,
+              chainId,
+              existingMetadata,
+              new Set(
+                (customAssetsByAccount[accountId] ?? []).map(normalizeAssetId),
+              ),
+            );
+          } else {
+            this.#appendRequestCustomErc20sV5(
+              assetsToFetch,
+              request.customAssets,
+              chainId,
+              existingMetadata,
+            );
           }
         }
 
@@ -1371,6 +1380,37 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   /**
+   * RPC is the terminal claimer on the asset axis: it claims every EVM pin it
+   * has a provider for, even on chains claimed by higher-priority sources.
+   * Pins outside the regular RPC assignment get an asset-scoped poll (see
+   * `subscribe`).
+   *
+   * @param customAssets - Candidate CAIP-19 asset IDs still unclaimed.
+   * @param assignedChains - Chains assigned to RPC; availability fallback
+   * before network state is applied.
+   * @returns The claimed subset of `customAssets`.
+   */
+  claimCustomAssets(
+    customAssets: Caip19AssetId[],
+    assignedChains: ChainId[],
+  ): Caip19AssetId[] {
+    const available = new Set<ChainId>(
+      this.#activeChains.length > 0 ? this.#activeChains : assignedChains,
+    );
+    return customAssets.filter((assetId) => {
+      try {
+        const parsed = parseCaipAssetType(assetId);
+        return (
+          parsed.chain.namespace === KnownCaipNamespace.Eip155 &&
+          available.has(parsed.chainId)
+        );
+      } catch {
+        return false;
+      }
+    });
+  }
+
+  /**
    * Subscribe to updates for the given request.
    * Starts polling through BalanceFetcher and TokenDetector.
    *
@@ -1393,15 +1433,23 @@ export class RpcDataSource extends AbstractDataSource<
           )
         : request.chainIds;
 
+    // Pins claimed on chains outside the regular RPC assignment get an
+    // asset-scoped poll below.
+    const supplementalChains = this.#getSupplementalCustomAssetChains(
+      request,
+      chainsToSubscribe,
+    );
+
     log('Subscribe requested', {
       subscriptionId,
       isUpdate,
       accounts: request.accountsWithSupportedChains.map((a) => a.account.id),
       chainsToSubscribe,
+      supplementalChains,
       activeChainsFallback: this.#activeChains.length === 0,
     });
 
-    if (chainsToSubscribe.length === 0) {
+    if (chainsToSubscribe.length === 0 && supplementalChains.length === 0) {
       log('No active chains to subscribe');
       return;
     }
@@ -1453,8 +1501,6 @@ export class RpcDataSource extends AbstractDataSource<
         const balanceToken = this.#balanceFetcher.startPolling(balanceInput);
         balancePollingTokens.push(balanceToken);
 
-        // Token detection is only relevant for "regular" subscriptions —
-        // a customAssetsOnly subscription should never run detection.
         if (
           request.customAssetsOnly !== true &&
           this.#tokenDetectionEnabled() &&
@@ -1468,6 +1514,53 @@ export class RpcDataSource extends AbstractDataSource<
           const detectionToken =
             this.#tokenDetector.startPolling(detectionInput);
           detectionPollingTokens.push(detectionToken);
+        }
+      }
+    }
+
+    // Asset-scoped polls on chains another source claimed: poll ONLY the
+    // claimed pins to avoid double-polling tracked balances. Pin changes
+    // re-run the subscription pass, which rebuilds these polls.
+    // Asset-scoped polls on chains another source claimed (v6 only).
+    if (this.#isBalanceV6Enabled() && supplementalChains.length > 0) {
+      const supplemental = new Set<ChainId>(supplementalChains);
+      const claimedAssetsByChain = new Map<ChainId, Caip19AssetId[]>();
+      for (const assetId of request.customAssets ?? []) {
+        try {
+          const { chainId } = parseCaipAssetType(assetId);
+          if (supplemental.has(chainId)) {
+            const chainAssets = claimedAssetsByChain.get(chainId) ?? [];
+            chainAssets.push(assetId);
+            claimedAssetsByChain.set(chainId, chainAssets);
+          }
+        } catch {
+          // Skip unparseable asset IDs
+        }
+      }
+      // request.customAssets is flat; ownership comes from controller state.
+      const customAssetsByAccount = this.#getCustomAssetsByAccount();
+      for (const { account } of request.accountsWithSupportedChains) {
+        const pinned = new Set(customAssetsByAccount[account.id] ?? []);
+        if (pinned.size === 0) {
+          continue;
+        }
+        for (const [chainId, chainAssets] of claimedAssetsByChain) {
+          // Sorted so the polling input (the dedupe key) is deterministic.
+          const assetIds = chainAssets
+            .filter((assetId) => pinned.has(assetId))
+            .sort();
+          if (assetIds.length === 0) {
+            continue;
+          }
+          const balanceInput: BalancePollingInput = {
+            chainId: caipChainIdToHex(chainId),
+            accountId: account.id,
+            accountAddress: account.address as Address,
+            assetIds,
+          };
+          balancePollingTokens.push(
+            this.#balanceFetcher.startPolling(balanceInput),
+          );
         }
       }
     }
@@ -1512,6 +1605,143 @@ export class RpcDataSource extends AbstractDataSource<
 
       this.#activeSubscriptions.delete(subscriptionId);
       log('Unsubscribed and stopped polling', { subscriptionId });
+    }
+  }
+
+  /**
+   * Chains needing a supplemental asset-scoped poll: chains of pins not
+   * covered by the regular RPC polling. Only EVM chains RPC can serve;
+   * malformed IDs are skipped.
+   *
+   * @param request - The subscription's data request (carries `customAssets`).
+   * @param chainsToSubscribe - Chains covered by the regular polling loop.
+   * @returns Chains requiring an asset-scoped poll.
+   */
+  #getSupplementalCustomAssetChains(
+    request: DataRequest,
+    chainsToSubscribe: ChainId[],
+  ): ChainId[] {
+    if (!request.customAssets || request.customAssets.length === 0) {
+      return [];
+    }
+
+    const covered = new Set<ChainId>(chainsToSubscribe);
+    const chains = new Set<ChainId>();
+
+    for (const assetId of request.customAssets) {
+      let parsed: ReturnType<typeof parseCaipAssetType>;
+      try {
+        parsed = parseCaipAssetType(assetId);
+      } catch {
+        continue;
+      }
+      const { chainId } = parsed;
+      if (
+        parsed.chain.namespace === KnownCaipNamespace.Eip155 &&
+        !covered.has(chainId) &&
+        (this.#activeChains.length === 0 ||
+          this.#activeChains.includes(chainId))
+      ) {
+        chains.add(chainId);
+      }
+    }
+
+    return [...chains];
+  }
+
+  /**
+   * v5: include every `request.customAssets` ERC-20 on this chain (main behavior).
+   * Delete with the rest of the v5 path when `assetsAccountsApiV6` is the default.
+   *
+   * @param assetsToFetch - Native/custom entries for this account-chain fetch.
+   * @param customAssets - Flat pin list from the data request.
+   * @param chainId - Chain being fetched.
+   * @param existingMetadata - Metadata already in AssetsController state.
+   */
+  #appendRequestCustomErc20sV5(
+    assetsToFetch: AssetFetchEntry[],
+    customAssets: Caip19AssetId[],
+    chainId: ChainId,
+    existingMetadata: Record<Caip19AssetId, AssetMetadata>,
+  ): void {
+    for (const assetId of customAssets) {
+      try {
+        const parsed = parseCaipAssetType(assetId);
+        const assetChainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
+        if (
+          assetChainId === chainId &&
+          this.#getAssetType(assetId) === 'erc20'
+        ) {
+          const tokenAddress = parsed.assetReference.toLowerCase() as Address;
+          const normalizedId = normalizeAssetId(assetId);
+          const decimals = existingMetadata[normalizedId]?.decimals;
+
+          assetsToFetch.push({
+            assetId,
+            address: tokenAddress,
+            decimals,
+          });
+        }
+      } catch {
+        // Skip unparseable asset IDs
+      }
+    }
+  }
+
+  /**
+   * v6: include only pins owned by this account on this chain.
+   *
+   * @param assetsToFetch - Native/custom entries for this account-chain fetch.
+   * @param customAssets - Flat pin list from the data request.
+   * @param chainId - Chain being fetched.
+   * @param existingMetadata - Metadata already in AssetsController state.
+   * @param pinnedByAccount - This account's pins from controller state.
+   */
+  #appendRequestCustomErc20sV6(
+    assetsToFetch: AssetFetchEntry[],
+    customAssets: Caip19AssetId[],
+    chainId: ChainId,
+    existingMetadata: Record<Caip19AssetId, AssetMetadata>,
+    pinnedByAccount: Set<Caip19AssetId>,
+  ): void {
+    for (const assetId of customAssets) {
+      try {
+        const parsed = parseCaipAssetType(assetId);
+        const assetChainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
+        const normalizedId = normalizeAssetId(assetId);
+        if (
+          assetChainId === chainId &&
+          pinnedByAccount.has(normalizedId) &&
+          this.#getAssetType(assetId) === 'erc20'
+        ) {
+          const tokenAddress = parsed.assetReference.toLowerCase() as Address;
+          const decimals = existingMetadata[normalizedId]?.decimals;
+
+          assetsToFetch.push({
+            assetId,
+            address: tokenAddress,
+            decimals,
+          });
+        }
+      } catch {
+        // Skip unparseable asset IDs
+      }
+    }
+  }
+
+  /**
+   * Get per-account pins from AssetsController state — the request's flat
+   * `customAssets` list carries no account association.
+   *
+   * @returns Record of account ID to pinned CAIP-19 asset IDs.
+   */
+  #getCustomAssetsByAccount(): Record<string, Caip19AssetId[]> {
+    try {
+      const state = this.#messenger.call('AssetsController:getState');
+      return (state.customAssets ?? {}) as Record<string, Caip19AssetId[]>;
+    } catch (error) {
+      log('Failed to get customAssets from state', { error });
+      return {};
     }
   }
 

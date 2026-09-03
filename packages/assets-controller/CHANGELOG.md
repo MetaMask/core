@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add an optional `customAssets` option to `AssetsController.getAssets`, used only when `assetsAccountsApiV6` is enabled. It overrides which pinned assets are attached to the fetch (sent as `includeAssetIds` and to RPC). When the flag is off, `getAssets` still attaches every pin of the requested accounts, unscoped, matching the previous v5 request ([#9651](https://github.com/MetaMask/core/pull/9651))
+- Add an optional `isBalanceV6Enabled` getter to `AccountsApiDataSource` and `RpcDataSource`. `AssetsController` injects it so the `assetsAccountsApiV6` flag is read in one place; both default to v5 when the getter is omitted([#9651](https://github.com/MetaMask/core/pull/9651))
+
+### Changed
+
+- When `assetsAccountsApiV6` is enabled, Accounts API fetch and middleware report `updateMode: 'full'` so assets on chains in the snapshot (including custom assets returned via `includeAssetIds`) are replaced; pins left in `unprocessedCustomAssets` after RPC fallback keep their prior balances. The v5 path keeps `updateMode: 'merge'` with `replaceCoveredChainBalances` so custom assets are preserved ([#9651](https://github.com/MetaMask/core/pull/9651))
+- **BREAKING:** Remove the unused `updateMode` option from `AssetsController.getAssets`. Apply mode comes only from `DataResponse.updateMode` (data sources). Remove `'update'` from `AssetsUpdateMode` — it was never produced; use `'merge'` to overlay or `'full'` to replace a covered chain slice ([#9651](https://github.com/MetaMask/core/pull/9651))
+
 ## [15.0.0]
 
 ### Added
