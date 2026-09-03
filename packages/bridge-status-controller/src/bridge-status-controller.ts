@@ -11,9 +11,13 @@ import {
   toQuoteMetadataV1,
   toQuoteResponseV1,
   isQuoteResponseV2,
+  FailurePhase,
   SwapBridgeErrorCode,
 } from '@metamask/bridge-controller';
-import type { QuoteMetadataMigrationPhase } from '@metamask/bridge-controller';
+import type {
+  FailureTelemetryData,
+  QuoteMetadataMigrationPhase,
+} from '@metamask/bridge-controller';
 import {
   isNonEvmChainId,
   StatusTypes,
@@ -1777,6 +1781,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       eventProperties?.location ??
       MetaMetricsSwapsEventSource.Unknown;
 
+    const failedProperties =
+      eventName === UnifiedSwapBridgeEventName.Failed
+        ? (eventProperties as FailureTelemetryData | undefined)
+        : undefined;
+
     const baseProperties = {
       action_type: MetricsActionType.SWAPBRIDGE_V1,
       feature_id: featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
@@ -1798,7 +1807,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       trackMetricsEvent({
         messenger: this.messenger,
         eventName,
-        properties: baseProperties,
+        properties: {
+          ...baseProperties,
+          ...(eventName === UnifiedSwapBridgeEventName.Failed && {
+            failure_phase:
+              failedProperties?.failure_phase ?? FailurePhase.Unknown,
+            error_code:
+              failedProperties?.error_code ?? SwapBridgeErrorCode.Unknown,
+            source_hash_present: failedProperties?.source_hash_present ?? false,
+            destination_hash_present:
+              failedProperties?.destination_hash_present ?? false,
+          }),
+        },
       });
       return;
     }
@@ -1837,10 +1857,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const approvalTxMeta = transactions.find(
       (tx: TransactionMeta) => tx.id === approvalTxId,
     );
-
-    const failedProperties = eventProperties as
-      | RequiredEventContextFromClient[typeof UnifiedSwapBridgeEventName.Failed]
-      | undefined;
 
     const historyHashPresence = getHashPresenceProperties(
       historyItem.status.srcChain.txHash,

@@ -1393,9 +1393,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           error_code: SwapBridgeErrorCode.QuoteFetchFailed,
           ...baseProperties,
         };
-      case UnifiedSwapBridgeEventName.Failed: {
-        const failedClientProperties =
-          propertiesFromClient as RequiredEventContextFromClient[UnifiedSwapBridgeEventName.Failed];
+      case UnifiedSwapBridgeEventName.Failed:
         // Populate the properties that the error occurred before the tx was submitted
         return {
           ...baseProperties,
@@ -1406,16 +1404,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
           ...propertiesFromClient,
-          failure_phase:
-            failedClientProperties.failure_phase ?? FailurePhase.Unknown,
-          error_code:
-            failedClientProperties.error_code ?? SwapBridgeErrorCode.Unknown,
-          source_hash_present:
-            failedClientProperties.source_hash_present ?? false,
-          destination_hash_present:
-            failedClientProperties.destination_hash_present ?? false,
         };
-      }
       case UnifiedSwapBridgeEventName.AllQuotesOpened:
       case UnifiedSwapBridgeEventName.AllQuotesSorted:
       case UnifiedSwapBridgeEventName.QuoteSelected:
