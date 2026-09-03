@@ -2010,6 +2010,9 @@ describe('HyperLiquidProvider', () => {
         mockSubscriptionService.getCachedPositionsForDex = jest
           .fn()
           .mockReturnValue([{ ...position, size: '0.04' }]);
+        const infoClient = mockClientService.getInfoClient();
+        const clearinghouseState = infoClient.clearinghouseState as jest.Mock;
+        clearinghouseState.mockClear();
 
         await provider.updatePositionTPSL({
           symbol: 'BTC',
@@ -2025,6 +2028,7 @@ describe('HyperLiquidProvider', () => {
         // The stop loss carries no explicit size, so it covers the position —
         // the live 0.04, not the snapshot's 0.1.
         expect(request.orders[1].s).toBe('0.04');
+        expect(clearinghouseState).not.toHaveBeenCalled();
       });
 
       it('re-reads the live position while the aggregate flag is still false', async () => {
@@ -2122,10 +2126,33 @@ describe('HyperLiquidProvider', () => {
         });
       });
 
-      it('does not submit TP/SL for a position the current DEX slice reports closed', async () => {
+      it('revalidates a current empty DEX slice before reporting no position', async () => {
         mockSubscriptionService.getCachedPositionsForDex = jest
           .fn()
           .mockReturnValue([]);
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: jest.fn().mockResolvedValue({
+              marginSummary: { totalMarginUsed: '200', accountValue: '10200' },
+              withdrawable: '10000',
+              assetPositions: [
+                {
+                  position: {
+                    coin: 'BTC',
+                    szi: '0.04',
+                    entryPx: '50000',
+                    positionValue: '2000',
+                    unrealizedPnl: '20',
+                    marginUsed: '200',
+                    leverage: { type: 'cross', value: 10 },
+                    liquidationPx: '45000',
+                  },
+                  type: 'oneWay',
+                },
+              ],
+            }),
+          }),
+        );
 
         const result = await provider.updatePositionTPSL({
           symbol: 'BTC',
@@ -2135,15 +2162,92 @@ describe('HyperLiquidProvider', () => {
           position,
         });
 
-        expect(result.success).toBe(false);
-        expect(result.error).toBe(PERPS_ERROR_CODES.POSITION_NOT_FOUND);
+        expect(result.success).toBe(true);
+        expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
+          useHttp: true,
+        });
+        const request = (
+          mockClientService.getExchangeClient().order as jest.Mock
+        ).mock.calls[0][0];
+        expect(request.orders[1].s).toBe('0.04');
+      });
+
+      it('revalidates when the current DEX slice contains only another market', async () => {
+        mockSubscriptionService.getCachedPositionsForDex = jest
+          .fn()
+          .mockReturnValue([{ ...position, symbol: 'ETH' }]);
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: jest.fn().mockResolvedValue({
+              marginSummary: { totalMarginUsed: '200', accountValue: '10200' },
+              withdrawable: '10000',
+              assetPositions: [
+                {
+                  position: {
+                    coin: 'BTC',
+                    szi: '-0.04',
+                    entryPx: '50000',
+                    positionValue: '2000',
+                    unrealizedPnl: '20',
+                    marginUsed: '200',
+                    leverage: { type: 'cross', value: 10 },
+                    liquidationPx: '55000',
+                  },
+                  type: 'oneWay',
+                },
+              ],
+            }),
+          }),
+        );
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '40000',
+          takeProfitSize: '0.04',
+          position,
+        });
+
+        expect(result.success).toBe(true);
+        const request = (
+          mockClientService.getExchangeClient().order as jest.Mock
+        ).mock.calls[0][0];
+        expect(request.orders[0].b).toBe(true);
+      });
+
+      it('reports no position when target-DEX REST confirms the cache miss', async () => {
+        mockSubscriptionService.getCachedPositionsForDex = jest
+          .fn()
+          .mockReturnValue([]);
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: jest.fn().mockResolvedValue({
+              marginSummary: { totalMarginUsed: '0', accountValue: '10000' },
+              withdrawable: '10000',
+              assetPositions: [],
+            }),
+          }),
+        );
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          position,
+        });
+
+        expect(result).toStrictEqual({
+          success: false,
+          error: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+        });
+        expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
+          useHttp: true,
+        });
         expect(
           mockClientService.getExchangeClient().order,
         ).not.toHaveBeenCalled();
       });
 
       it('reports provider unavailable instead of trusting a snapshot when REST fails', async () => {
-        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue(null);
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([]);
         mockClientService.getInfoClient.mockReturnValue(
           createMockInfoClient({
             clearinghouseState: jest

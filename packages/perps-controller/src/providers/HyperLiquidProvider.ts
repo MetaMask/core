@@ -9493,6 +9493,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // side/size reduce-only rejection this method is meant to prevent.
       const currentPositions = await this.#getPositionsForOperation(
         parseAssetName(symbol).dex ?? '',
+        { revalidateMissingSymbol: symbol },
       );
       const position = currentPositions.find((pos) => pos.symbol === symbol);
 
@@ -10717,8 +10718,11 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * A symbol-specific caller can use its current-connection DEX slice directly.
    * The current-epoch slice wins before any REST request because it is the
-   * provider's live subscription source for that exact DEX. If the target DEX
-   * has not published, the caller uses REST instead of a stale aggregate.
+   * provider's live subscription source for that exact DEX. A caller may opt
+   * into one targeted REST revalidation when a required symbol is absent, which
+   * covers the post-fill window before the next WebSocket position update. If
+   * the target DEX has not published, the caller uses REST instead of a stale
+   * aggregate.
    *
    * A whole-list caller uses one shallow-copied WebSocket snapshot only when
    * every configured DEX is current. Otherwise it falls back to REST. No path
@@ -10727,20 +10731,43 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param targetDex - DEX for a single-symbol lookup, or undefined for a full
    * position list.
+   * @param options - Optional lookup behavior for a symbol-specific operation.
+   * @param options.revalidateMissingSymbol - Query the target DEX over REST when
+   * its current WebSocket slice does not contain this symbol.
    * @returns Positions from one provenance-safe cache/REST path.
    */
-  async #getPositionsForOperation(targetDex?: string): Promise<Position[]> {
+  async #getPositionsForOperation(
+    targetDex?: string,
+    options: { revalidateMissingSymbol?: string } = {},
+  ): Promise<Position[]> {
     if (targetDex !== undefined) {
       const targetPositions =
         this.#subscriptionService.getCachedPositionsForDex(targetDex);
-      if (targetPositions !== null) {
-        return [...targetPositions];
+      if (targetPositions === null) {
+        this.#deps.debugLogger.log(
+          'Target DEX position cache unavailable: fetching REST positions',
+          { dex: targetDex || 'main' },
+        );
+      } else {
+        const { revalidateMissingSymbol } = options;
+        const shouldRevalidate =
+          revalidateMissingSymbol !== undefined &&
+          targetPositions.find(
+            (position) => position.symbol === revalidateMissingSymbol,
+          ) === undefined;
+        if (shouldRevalidate) {
+          this.#deps.debugLogger.log(
+            'Target symbol missing from position cache: revalidating REST positions',
+            {
+              dex: targetDex || 'main',
+              symbol: revalidateMissingSymbol,
+            },
+          );
+        } else {
+          return [...targetPositions];
+        }
       }
 
-      this.#deps.debugLogger.log(
-        'Target DEX position cache unavailable: fetching REST positions',
-        { dex: targetDex || 'main' },
-      );
       const { answered, positions } = await this.#queryDexPositions(
         targetDex || null,
       );
