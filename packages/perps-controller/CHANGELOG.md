@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `POSITION_NOT_FOUND` as the provider-neutral error code for operations targeting a position the venue no longer holds ([#10083](https://github.com/MetaMask/core/pull/10083))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.7.0` to `^69.8.0` ([#10080](https://github.com/MetaMask/core/pull/10080))
