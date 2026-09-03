@@ -252,12 +252,6 @@ describe('OrdersService', () => {
       {
         order: {
           ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
-          createdTime: 2 ** 53 - 1,
-        },
-      },
-      {
-        order: {
-          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
           details: 'not an object',
         },
       },

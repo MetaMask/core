@@ -5,6 +5,7 @@ describe('Package exports', () => {
     expect(Object.keys(allExports).sort()).toMatchInlineSnapshot(`
       [
         "InternalProvider",
+        "MockInternalProvider",
         "SafeEventEmitterProvider",
         "providerFromMiddleware",
         "providerFromMiddlewareV2",
