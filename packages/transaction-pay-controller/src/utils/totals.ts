@@ -96,11 +96,21 @@ export function calculateTotals({
     useTargetAmount: isInputBased,
   });
 
+  const includedFees = sumFiat(
+    quotes
+      .filter((quote) => quote.areFeesIncludedInSourceAmount)
+      .map((quote) => ({
+        fiat: getQuoteFeeTotal(quote, 'fiat'),
+        usd: getQuoteFeeTotal(quote, 'usd'),
+      })),
+  );
+
   const totalFiat = new BigNumber(providerFee.fiat)
     .plus(metaMaskFee.fiat)
     .plus(sourceNetworkFeeEstimate.fiat)
     .plus(targetNetworkFee.fiat)
     .plus(sourceAmountFiat)
+    .minus(includedFees.fiat)
     .toString(10);
 
   const totalUsd = new BigNumber(providerFee.usd)
@@ -108,6 +118,7 @@ export function calculateTotals({
     .plus(sourceNetworkFeeEstimate.usd)
     .plus(targetNetworkFee.usd)
     .plus(sourceAmountUsd)
+    .minus(includedFees.usd)
     .toString(10);
 
   const estimatedDuration = Number(
@@ -144,6 +155,17 @@ export function calculateTotals({
       usd: totalUsd,
     },
   };
+}
+
+function getQuoteFeeTotal(
+  quote: TransactionPayQuote<unknown>,
+  currency: keyof FiatValue,
+): string {
+  return new BigNumber(quote.fees.provider[currency])
+    .plus(quote.fees.metaMask[currency])
+    .plus(quote.fees.sourceNetwork.estimate[currency])
+    .plus(quote.fees.targetNetwork[currency])
+    .toString(10);
 }
 
 /**

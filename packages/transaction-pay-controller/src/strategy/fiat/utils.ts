@@ -107,7 +107,7 @@ export async function getRampsQuote({
   messenger: TransactionPayControllerMessenger;
   walletAddress: string;
 }): Promise<RampsQuote> {
-  const quoteRequest = {
+  const quotes = await messenger.call('RampsController:getQuotes', {
     amount: adjustedAmount,
     assetId: buildCaipAssetType(fiatAsset.chainId, fiatAsset.address),
     autoSelectProvider: true,
@@ -115,40 +115,16 @@ export async function getRampsQuote({
     paymentMethods: [fiatPaymentMethod],
     restrictToKnownOrNativeProviders: true,
     walletAddress,
-  };
-  const quotes = await messenger.call(
-    'RampsController:getQuotes',
-    quoteRequest,
-  );
+  });
 
   log('Fetched ramps quotes', {
     quotesCount: quotes.success?.length ?? 0,
   });
 
-  let quote = quotes.success?.[0];
+  const quote = quotes.success?.[0];
 
   if (!quote) {
     throw new Error(errorMessage);
-  }
-
-  const isTransak = quote.provider
-    .replace(/^\/providers\//u, '')
-    .startsWith('transak');
-  if (isTransak) {
-    const feeOnTopQuotes = await messenger.call('RampsController:getQuotes', {
-      ...quoteRequest,
-      autoSelectProvider: false,
-      providers: [quote.provider],
-      isFeeExcludedFromFiat: true,
-      forceRefresh: true,
-    });
-    quote = feeOnTopQuotes.success?.[0];
-    if (!quote) {
-      throw new Error(errorMessage);
-    }
-    if (quote.quote.feeMode?.effective !== 'fee-on-top') {
-      throw new Error('Transak did not return a fee-on-top quote');
-    }
   }
 
   return quote;
@@ -413,125 +389,4 @@ export function extractProviderCode(
   }
 
   return parts.length === 1 ? parts[0] : null;
-}
-
-/**
- * Coerces a quote fee field into a usable non-negative amount.
- *
- * Ramps quotes type their fee fields as `number | string | undefined`, and a
- * provider can report a value we cannot use (missing, `NaN`, or negative).
- * Treating those as zero matches how the rest of the ramps surface reads fee
- * fields (`partnerFees ?? 0` in the client analytics payloads, `extraFee ?? 0`
- * in the aggregator quote list), so quotes stay usable instead of being
- * discarded over a single bad field.
- *
- * @param value - Raw fee value from a ramps quote.
- * @returns The fee as a non-negative finite BigNumber, or zero.
- */
-export function getSafeFee(value: BigNumber.Value | undefined): BigNumber {
-  const fee = new BigNumber(value ?? 0);
-  return fee.isFinite() && fee.isGreaterThanOrEqualTo(0)
-    ? fee
-    : new BigNumber(0);
-}
-
-function getValidatedFee(
-  value: BigNumber.Value | undefined,
-  field: string,
-  strict: boolean,
-): BigNumber {
-  if (value === undefined) {
-    return new BigNumber(0);
-  }
-  const fee = new BigNumber(value);
-  if (fee.isFinite() && fee.isGreaterThanOrEqualTo(0)) {
-    return fee;
-  }
-  if (strict) {
-    throw new Error(`Malformed fee-on-top ${field}`);
-  }
-  return new BigNumber(0);
-}
-
-/**
- * Combined on-ramp provider fee for the `providerFiat` breakdown.
- *
- * Ramps providers handle network gas fees themselves but report them
- * separately as `networkFee` alongside their own `providerFee`. Both are the
- * on-ramp's cost, so they combine into a single bucket. The partner
- * (MetaMask) fee is deliberately excluded, so it cannot be counted twice.
- *
- * @param fiatQuote - The ramps quote containing provider and network fees.
- * @returns Combined on-ramp provider fee.
- */
-export function getRampsProviderFiatFee(fiatQuote: RampsQuote): BigNumber {
-  return getSafeFee(fiatQuote.quote.providerFee).plus(
-    getSafeFee(fiatQuote.quote.networkFee),
-  );
-}
-
-/**
- * Normalized on-ramp fee composition. A valid provider-reported total wins;
- * otherwise the total is derived from the safe component values.
- *
- * @param fiatQuote - Ramps quote containing fee fields.
- * @returns Safe component and total fee values.
- */
-export function getRampsFeeComposition(fiatQuote: RampsQuote): {
-  providerFee: BigNumber;
-  networkFee: BigNumber;
-  extraFee: BigNumber;
-  totalFees: BigNumber;
-} {
-  const strict = fiatQuote.quote.feeMode?.effective === 'fee-on-top';
-  const providerFee = getValidatedFee(
-    fiatQuote.quote.providerFee,
-    'providerFee',
-    strict,
-  );
-  const networkFee = getValidatedFee(
-    fiatQuote.quote.networkFee,
-    'networkFee',
-    strict,
-  );
-  const extraFee = getValidatedFee(
-    fiatQuote.quote.extraFee,
-    'extraFee',
-    strict,
-  );
-  const componentTotal = providerFee.plus(networkFee).plus(extraFee);
-  const rawReportedTotal =
-    fiatQuote.quote.totalFees === undefined
-      ? undefined
-      : new BigNumber(fiatQuote.quote.totalFees);
-  let reportedTotal = componentTotal;
-  if (
-    rawReportedTotal?.isFinite() &&
-    rawReportedTotal.isGreaterThanOrEqualTo(0)
-  ) {
-    reportedTotal = rawReportedTotal;
-  } else if (fiatQuote.quote.totalFees !== undefined && strict) {
-    reportedTotal = getValidatedFee(
-      fiatQuote.quote.totalFees,
-      'totalFees',
-      true,
-    );
-  }
-
-  if (
-    strict &&
-    !reportedTotal
-      .shiftedBy(2)
-      .integerValue()
-      .isEqualTo(componentTotal.shiftedBy(2).integerValue())
-  ) {
-    throw new Error('Malformed fee-on-top fee total');
-  }
-
-  return {
-    providerFee,
-    networkFee,
-    extraFee,
-    totalFees: reportedTotal,
-  };
 }

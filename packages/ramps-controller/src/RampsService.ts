@@ -210,13 +210,6 @@ export type PaymentMethodsResponse = {
  */
 export type QuoteSortBy = 'price' | 'reliability';
 
-export type QuoteFeeMode = 'fee-inclusive' | 'fee-on-top';
-
-export type QuoteFeeModeDetails = {
-  requested: QuoteFeeMode;
-  effective: QuoteFeeMode;
-};
-
 /**
  * Represents crypto translation info for a quote.
  */
@@ -297,14 +290,6 @@ export type Quote = {
      * Provider fees.
      */
     providerFee?: number | string;
-    /**
-     * Partner or other additional fees.
-     */
-    extraFee?: number | string;
-    /**
-     * Requested and provider-effective fee treatment for this quote.
-     */
-    feeMode?: QuoteFeeModeDetails;
     /**
      * Buy URL endpoint that returns the actual provider widget URL.
      *
@@ -456,15 +441,6 @@ export type GetQuotesParams = {
    * The ramp action type. Defaults to 'buy'.
    */
   action?: RampAction;
-  /**
-   * When true, asks the API for quotes whose fees are charged on top of the
-   * requested fiat amount rather than taken out of it, so `amountOut` is what
-   * the requested `amount` buys before fees. Defaults to the existing
-   * fee-inclusive behaviour. The API honours this only for buy quotes with
-   * exactly one provider, because a fee-on-top `amountOut` is not comparable
-   * with a fee-inclusive one.
-   */
-  isFeeExcludedFromFiat?: boolean;
 };
 
 /**
@@ -1405,7 +1381,6 @@ export class RampsService {
    * @param params.redirectUrl - Optional redirect URL after order completion.
    * @param params.providers - Optional provider IDs to filter quotes.
    * @param params.action - The ramp action type. Defaults to 'buy'.
-   * @param params.isFeeExcludedFromFiat - When true, requests fee-on-top quotes.
    * @returns The quotes response containing success, sorted, error, and customActions.
    */
   async getQuotes(params: GetQuotesParams): Promise<QuotesResponse> {
@@ -1441,10 +1416,6 @@ export class RampsService {
     // Add redirect URL if specified
     if (params.redirectUrl) {
       url.searchParams.set('redirectUrl', params.redirectUrl);
-    }
-
-    if (params.isFeeExcludedFromFiat) {
-      url.searchParams.set('isFeeExcludedFromFiat', 'true');
     }
 
     const response = await this.#policy.execute(async () => {

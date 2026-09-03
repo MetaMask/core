@@ -1044,7 +1044,6 @@ describe('TransakService', () => {
         'eip155:1',
         'credit_debit_card',
         '100',
-        true,
       );
       await jest.runAllTimersAsync();
       await flushPromises();
@@ -1054,10 +1053,41 @@ describe('TransakService', () => {
         ...MOCK_BUY_QUOTE,
         requestedAssetId: 'eip155:1/slip44:60',
         requestedChainId: 'eip155:1',
-        feeMode: {
-          requested: 'fee-on-top',
-          effective: 'fee-on-top',
-        },
+      });
+    });
+
+    it('omits fee exclusion for a fee-inclusive quote request', async () => {
+      nockTranslation();
+
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/lookup/quotes')
+        .query(
+          (query) =>
+            query.fiatAmount === '15' &&
+            query.isFeeExcludedFromFiat === undefined &&
+            query.apiKey === MOCK_API_KEY,
+        )
+        .reply(200, { data: { ...MOCK_BUY_QUOTE, fiatAmount: 15 } });
+
+      const { service } = getService();
+
+      const promise = service.getBuyQuote(
+        'USD',
+        'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da',
+        'eip155:143',
+        '/payments/debit-credit-card',
+        '15',
+        false,
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      expect(await promise).toStrictEqual({
+        ...MOCK_BUY_QUOTE,
+        fiatAmount: 15,
+        requestedAssetId:
+          'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da',
+        requestedChainId: 'eip155:143',
       });
     });
 
@@ -1084,7 +1114,6 @@ describe('TransakService', () => {
         // A JS consumer can pass undefined despite the type; it must not
         // become a literal "undefined" query parameter.
         undefined as unknown as string,
-        false,
       );
       await jest.runAllTimersAsync();
       await flushPromises();
@@ -1093,10 +1122,6 @@ describe('TransakService', () => {
         ...MOCK_BUY_QUOTE,
         requestedAssetId: 'eip155:1/slip44:60',
         requestedChainId: 'eip155:1',
-        feeMode: {
-          requested: 'fee-inclusive',
-          effective: 'fee-inclusive',
-        },
       });
     });
 
@@ -1124,122 +1149,6 @@ describe('TransakService', () => {
       await flushPromises();
 
       expect(await promise).toBeDefined();
-    });
-
-    it.each([
-      ['/payments/apple-pay', 'apple_pay'],
-      ['/payments/debit-credit-card', 'credit_debit_card'],
-    ])(
-      'keeps %s distinct in native quote requests',
-      async (method, nativeMethod) => {
-        nock(STAGING_ORDERS_BASE)
-          .get(`${STAGING_PROVIDER_PATH}/native/translate`)
-          .query((query) => query.paymentMethod === nativeMethod)
-          .reply(200, { ...MOCK_TRANSLATION, paymentMethod: nativeMethod });
-        nock(STAGING_TRANSAK_BASE)
-          .get('/api/v2/lookup/quotes')
-          .query((query) => query.paymentMethod === nativeMethod)
-          .reply(200, {
-            data: {
-              ...MOCK_BUY_QUOTE,
-              paymentMethod: nativeMethod,
-              fiatAmount: 15,
-              cryptoAmount: 0.006,
-              totalFee: 0.7,
-              feeBreakdown: [
-                { id: 'transak_fee', value: 0.45 },
-                { id: 'network_fee', value: 0.1 },
-                { id: 'partner_fee', value: 0.15 },
-              ],
-            },
-          });
-        const { service } = getService();
-
-        const promise = service.getBuyQuote(
-          'USD',
-          'eip155:1/slip44:60',
-          'eip155:1',
-          method,
-          '15',
-          true,
-        );
-        await jest.runAllTimersAsync();
-        await flushPromises();
-
-        const quote = await promise;
-        expect(quote).toMatchObject({
-          paymentMethod: nativeMethod,
-          fiatAmount: 15,
-          totalFee: 0.7,
-          feeBreakdown: [
-            { id: 'transak_fee', value: 0.45 },
-            { id: 'network_fee', value: 0.1 },
-            { id: 'partner_fee', value: 0.15 },
-          ],
-        });
-      },
-    );
-
-    it('rejects fee-on-top when response arithmetic is fee-inclusive', async () => {
-      nockTranslation();
-      nock(STAGING_TRANSAK_BASE)
-        .get('/api/v2/lookup/quotes')
-        .query(true)
-        .reply(200, {
-          data: {
-            ...MOCK_BUY_QUOTE,
-            cryptoAmount: 0.038,
-          },
-        });
-      const { service } = getService();
-
-      const promise = service.getBuyQuote(
-        'USD',
-        'eip155:1/slip44:60',
-        'eip155:1',
-        '/payments/debit-credit-card',
-        '100',
-        true,
-      );
-      await jest.runAllTimersAsync();
-      await flushPromises();
-
-      await expect(promise).rejects.toThrow('did not prove fee-on-top');
-    });
-
-    it('accepts a zero-fee quote when principal arithmetic proves fee-on-top', async () => {
-      nockTranslation();
-      nock(STAGING_TRANSAK_BASE)
-        .get('/api/v2/lookup/quotes')
-        .query(true)
-        .reply(200, {
-          data: {
-            ...MOCK_BUY_QUOTE,
-            totalFee: 0,
-            feeBreakdown: [],
-          },
-        });
-      const { service } = getService();
-
-      const promise = service.getBuyQuote(
-        'USD',
-        'eip155:1/slip44:60',
-        'eip155:1',
-        '/payments/debit-credit-card',
-        '100',
-        true,
-      );
-      await jest.runAllTimersAsync();
-      await flushPromises();
-
-      const quote = await promise;
-      expect(quote).toMatchObject({
-        totalFee: 0,
-        feeMode: {
-          requested: 'fee-on-top',
-          effective: 'fee-on-top',
-        },
-      });
     });
 
     it('omits paymentMethod param when translation returns undefined', async () => {
@@ -2113,29 +2022,6 @@ describe('TransakService', () => {
       const parsed = new URL(url);
       expect(parsed.searchParams.get('themeColor')).toBe('037dd6');
       expect(parsed.searchParams.get('customParam')).toBe('value');
-    });
-
-    it('omits the fee-on-top flag unless the caller asks for it', () => {
-      const { service } = getService();
-
-      const defaultUrl = service.generatePaymentWidgetUrl(
-        'ott-token',
-        MOCK_BUY_QUOTE,
-        '0xWALLET',
-      );
-      const feeOnTopUrl = service.generatePaymentWidgetUrl(
-        'ott-token',
-        MOCK_BUY_QUOTE,
-        '0xWALLET',
-        { isFeeExcludedFromFiat: 'true' },
-      );
-
-      expect(
-        new URL(defaultUrl).searchParams.has('isFeeExcludedFromFiat'),
-      ).toBe(false);
-      expect(
-        new URL(feeOnTopUrl).searchParams.get('isFeeExcludedFromFiat'),
-      ).toBe('true');
     });
 
     it('uses the staging widget base URL', () => {

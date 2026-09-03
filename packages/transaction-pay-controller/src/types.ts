@@ -676,6 +676,9 @@ export type TransactionPayQuote<OriginalQuote> = {
   /** Whether fees are subtracted from the destination amount, meaning the input amount is static. */
   isInputBased?: boolean;
 
+  /** Whether the reported fees are already included in the source amount. */
+  areFeesIncludedInSourceAmount?: boolean;
+
   /** Raw quote data returned by the provider. */
   original: OriginalQuote;
 

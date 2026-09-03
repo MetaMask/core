@@ -10,7 +10,6 @@ import packageJson from '../package.json';
 import type { RampsClientIdentity } from './client-identity.js';
 import { addRampsClientIdentityParams } from './client-identity.js';
 import { RAMPS_SDK_VERSION } from './RampsService.js';
-import type { QuoteFeeModeDetails } from './RampsService.js';
 import { TRANSAK_ERROR_CODES } from './transakErrorCodes.js';
 import type { TransakServiceMethodActions } from './TransakService-method-action-types.js';
 
@@ -95,7 +94,6 @@ export type TransakBuyQuote = {
   nonce: number;
   cryptoLiquidityProvider: string;
   notes: { [prop: string]: string | number | boolean | null }[];
-  feeMode: QuoteFeeModeDetails;
   requestedAssetId: string;
   requestedChainId: string;
 };
@@ -399,32 +397,6 @@ function normalizePaymentMethodForTranslation(
     RAMPS_TO_DEPOSIT_PAYMENT_METHOD[paymentMethod] ??
     RAMPS_TO_DEPOSIT_PAYMENT_METHOD[prefixed] ??
     paymentMethod
-  );
-}
-
-function amountsMatchAtCentPrecision(first: number, second: number): boolean {
-  return Math.round(first * 100) === Math.round(second * 100);
-}
-
-function provesFeeOnTop(
-  quote: Omit<
-    TransakBuyQuote,
-    'feeMode' | 'requestedAssetId' | 'requestedChainId'
-  >,
-  requestedPrincipal: string,
-): boolean {
-  const principal = Number(requestedPrincipal);
-  const convertedPrincipal =
-    Number(quote.cryptoAmount) * Number(quote.conversionPrice);
-  const totalFee = Number(quote.totalFee);
-
-  return (
-    Number.isFinite(principal) &&
-    principal > 0 &&
-    Number.isFinite(convertedPrincipal) &&
-    Number.isFinite(totalFee) &&
-    totalFee >= 0 &&
-    amountsMatchAtCentPrecision(convertedPrincipal, principal)
   );
 }
 
@@ -971,26 +943,13 @@ export class TransakService {
     }
 
     const quote = await this.#transakGet<
-      Omit<TransakBuyQuote, 'feeMode' | 'requestedAssetId' | 'requestedChainId'>
+      Omit<TransakBuyQuote, 'requestedAssetId' | 'requestedChainId'>
     >('/api/v2/lookup/quotes', params);
 
-    const feeMode = isFeeExcludedFromFiat ? 'fee-on-top' : 'fee-inclusive';
-    if (isFeeExcludedFromFiat && !provesFeeOnTop(quote, fiatAmount)) {
-      throw new Error(
-        'Transak quote response did not prove fee-on-top arithmetic',
-      );
-    }
     return {
       ...quote,
-      // Transak currently returns display codes only. Retain the stable CAIP
-      // request identifiers so clients can validate which request produced
-      // the response without treating provider display names as identifiers.
       requestedAssetId: genericCryptoCurrency,
       requestedChainId: genericNetwork,
-      feeMode: {
-        requested: feeMode,
-        effective: feeMode,
-      },
     };
   }
 
@@ -1181,11 +1140,7 @@ export class TransakService {
    * @param ottToken - The one-time token for widget authentication.
    * @param quote - The buy quote to pre-fill in the widget.
    * @param walletAddress - The destination wallet address.
-   * @param extraParams - Optional additional URL parameters. Pass
-   * `isFeeExcludedFromFiat: 'true'` only from a flow that was priced
-   * fee-on-top, so the widget charges in the same fee mode as the quote the
-   * user was shown. A flow priced fee-inclusive must leave it unset or the
-   * user is charged more than the amount on screen.
+   * @param extraParams - Optional additional URL parameters.
    * @returns The fully constructed widget URL string.
    */
   generatePaymentWidgetUrl(
@@ -1237,11 +1192,7 @@ export class TransakService {
    * @param quote - The buy quote to pre-fill in the widget.
    * @param walletAddress - The destination wallet address.
    * @param extraParams - Optional additional widget parameters (e.g. theming).
-   * Keys must be on the proxy's allowlist or the request is rejected. Pass
-   * `isFeeExcludedFromFiat: 'true'` only from a flow that was priced
-   * fee-on-top, so the widget charges in the same fee mode as the quote the
-   * user was shown. A flow priced fee-inclusive must leave it unset or the
-   * user is charged more than the amount on screen.
+   * Keys must be on the proxy's allowlist or the request is rejected.
    * @returns The single-use widget URL (expires after 5 minutes).
    */
   async createWidgetUrl(

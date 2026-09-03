@@ -22,7 +22,6 @@ import { buildCaipAssetType, getTokenInfo } from '../../utils/token.js';
 import { MUSD_MONAD_FIAT_ASSET } from './constants.js';
 import type { FiatQuote } from './types.js';
 import {
-  getRampsFeeComposition,
   getRampsQuote,
   getRawSourceAmountFromOrderCryptoAmount,
   resolveSourceAmountRaw,
@@ -188,25 +187,37 @@ function combineDirectMusdFiatQuote({
     cryptoAmount: fiatQuote.quote.amountOut,
     decimals: tokenInfo.decimals,
   });
-  const rampsFees = getRampsFeeComposition(fiatQuote);
-  const rampsProviderFee = rampsFees.providerFee
-    .plus(rampsFees.networkFee)
+  const rampsProviderFee = getSafeFee(fiatQuote.quote.providerFee).toString(10);
+  const rampsNetworkFee = getSafeFee(fiatQuote.quote.networkFee).toString(10);
+  const rampsTotalFee = new BigNumber(rampsProviderFee)
+    .plus(rampsNetworkFee)
     .toString(10);
-  const rampsMetaMaskFee = rampsFees.extraFee.toString(10);
+  const targetAmountFiat = getDirectMusdTargetAmountFiat(fiatQuote);
   const sourceAmountHuman = new BigNumber(sourceAmountRaw)
     .shiftedBy(-tokenInfo.decimals)
     .toString(10);
 
   return {
+    areFeesIncludedInSourceAmount: true,
     dust: { fiat: '0', usd: '0' },
     estimatedDuration: 0,
     fees: {
-      metaMask: { fiat: rampsMetaMaskFee, usd: rampsMetaMaskFee },
+      metaMask: { fiat: '0', usd: '0' },
       provider: { fiat: rampsProviderFee, usd: rampsProviderFee },
-      providerFiat: { fiat: rampsProviderFee, usd: rampsProviderFee },
+      providerFiat: { fiat: rampsTotalFee, usd: rampsTotalFee },
       sourceNetwork: {
-        estimate: { fiat: '0', human: '0', raw: '0', usd: '0' },
-        max: { fiat: '0', human: '0', raw: '0', usd: '0' },
+        estimate: {
+          fiat: rampsNetworkFee,
+          human: '0',
+          raw: '0',
+          usd: rampsNetworkFee,
+        },
+        max: {
+          fiat: rampsNetworkFee,
+          human: '0',
+          raw: '0',
+          usd: rampsNetworkFee,
+        },
       },
       targetNetwork: { fiat: '0', usd: '0' },
     },
@@ -233,6 +244,22 @@ function combineDirectMusdFiatQuote({
       usd: amountFiat,
     },
     strategy: TransactionPayStrategy.Fiat,
-    targetAmount: { fiat: amountFiat, usd: amountFiat },
+    targetAmount: { fiat: targetAmountFiat, usd: targetAmountFiat },
   };
+}
+
+function getDirectMusdTargetAmountFiat(fiatQuote: RampsQuote): string {
+  const amountOutInFiat = new BigNumber(fiatQuote.quote.amountOutInFiat ?? NaN);
+  if (amountOutInFiat.isFinite() && amountOutInFiat.isGreaterThanOrEqualTo(0)) {
+    return amountOutInFiat.toString(10);
+  }
+
+  return new BigNumber(fiatQuote.quote.amountOut).toString(10);
+}
+
+function getSafeFee(value: BigNumber.Value | undefined): BigNumber {
+  const fee = new BigNumber(value ?? 0);
+  return fee.isFinite() && fee.isGreaterThanOrEqualTo(0)
+    ? fee
+    : new BigNumber(0);
 }

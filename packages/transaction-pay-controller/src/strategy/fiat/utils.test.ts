@@ -1,7 +1,4 @@
-import type {
-  Quote as RampsQuote,
-  RampsOrder,
-} from '@metamask/ramps-controller';
+import type { RampsOrder } from '@metamask/ramps-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
@@ -9,7 +6,6 @@ import type { Hex } from '@metamask/utils';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { NATIVE_TOKEN_ADDRESS } from '../../constants.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
-import type { TransactionPayControllerMessenger } from '../../types.js';
 import {
   ETH_MAINNET_FIAT_ASSET,
   FIAT_ASSET_ID_BY_TX_TYPE,
@@ -17,8 +13,6 @@ import {
 import type { TransactionPayFiatAsset } from './constants.js';
 import {
   deriveFiatAssetForFiatPayment,
-  getRampsFeeComposition,
-  getRampsQuote,
   getRawSourceAmountFromOrderCryptoAmount,
   isMoneyAccountDepositTransaction,
   resolveSourceAmountRaw,
@@ -497,178 +491,6 @@ describe('Fiat Utils', () => {
       } as unknown as TransactionMeta;
 
       expect(isMoneyAccountDepositTransaction(transaction)).toBe(false);
-    });
-  });
-
-  describe('getRampsQuote', () => {
-    const RAMPS_QUOTE_MOCK = {
-      provider: '/providers/transak-native-staging',
-      quote: {
-        feeMode: {
-          requested: 'fee-on-top',
-          effective: 'fee-on-top',
-        },
-        amountIn: 15,
-        amountOut: 15,
-        networkFee: 0.05,
-        paymentMethod: '/payments/debit-credit-card',
-        providerFee: 0.25,
-      },
-    } as unknown as RampsQuote;
-
-    /**
-     * Builds a messenger whose `RampsController:getQuotes` handler records the
-     * options it was called with.
-     *
-     * @param quote - Quote returned by the mocked controller.
-     * @returns The messenger and the recording mock.
-     */
-    function getQuotesMessenger(quote: RampsQuote = RAMPS_QUOTE_MOCK): {
-      callMock: jest.Mock;
-      quotesMessenger: TransactionPayControllerMessenger;
-    } {
-      const callMock = jest.fn(() => ({
-        customActions: [],
-        error: [],
-        sorted: [],
-        success: [quote],
-      }));
-
-      return {
-        callMock,
-        quotesMessenger: {
-          call: callMock,
-        } as unknown as TransactionPayControllerMessenger,
-      };
-    }
-
-    it('refreshes a selected Transak quote in fee-on-top mode', async () => {
-      const { callMock, quotesMessenger } = getQuotesMessenger();
-
-      await getRampsQuote({
-        adjustedAmount: 15,
-        fiatAsset: ERC20_FIAT_ASSET_MOCK,
-        fiatPaymentMethod: '/payments/debit-credit-card',
-        messenger: quotesMessenger,
-        walletAddress: WALLET_ADDRESS_MOCK,
-      });
-
-      expect(callMock).toHaveBeenNthCalledWith(
-        1,
-        'RampsController:getQuotes',
-        expect.not.objectContaining({ isFeeExcludedFromFiat: true }),
-      );
-      expect(callMock).toHaveBeenNthCalledWith(
-        2,
-        'RampsController:getQuotes',
-        expect.objectContaining({
-          isFeeExcludedFromFiat: true,
-          providers: ['/providers/transak-native-staging'],
-        }),
-      );
-    });
-
-    it('preserves a fee-inclusive non-Transak quote without refreshing', async () => {
-      const moonPayQuote = {
-        ...RAMPS_QUOTE_MOCK,
-        provider: '/providers/moonpay',
-        quote: {
-          ...RAMPS_QUOTE_MOCK.quote,
-          feeMode: {
-            requested: 'fee-inclusive',
-            effective: 'fee-inclusive',
-          },
-        },
-      } as RampsQuote;
-      const { callMock, quotesMessenger } = getQuotesMessenger(moonPayQuote);
-
-      const result = await getRampsQuote({
-        adjustedAmount: 15,
-        fiatAsset: ERC20_FIAT_ASSET_MOCK,
-        fiatPaymentMethod: '/payments/debit-credit-card',
-        messenger: quotesMessenger,
-        walletAddress: WALLET_ADDRESS_MOCK,
-      });
-
-      expect(result).toBe(moonPayQuote);
-      expect(callMock).toHaveBeenCalledTimes(1);
-    });
-
-    it('rejects a quote whose effective mode is fee-inclusive', async () => {
-      const feeInclusiveQuote = {
-        ...RAMPS_QUOTE_MOCK,
-        quote: {
-          ...RAMPS_QUOTE_MOCK.quote,
-          feeMode: {
-            requested: 'fee-on-top',
-            effective: 'fee-inclusive',
-          },
-        },
-      } as RampsQuote;
-      const { quotesMessenger } = getQuotesMessenger(feeInclusiveQuote);
-
-      await expect(
-        getRampsQuote({
-          adjustedAmount: 15,
-          fiatAsset: ERC20_FIAT_ASSET_MOCK,
-          fiatPaymentMethod: '/payments/debit-credit-card',
-          messenger: quotesMessenger,
-          walletAddress: WALLET_ADDRESS_MOCK,
-        }),
-      ).rejects.toThrow('Transak did not return a fee-on-top quote');
-    });
-  });
-
-  describe('getRampsFeeComposition', () => {
-    it('uses safe components when totalFees is malformed', () => {
-      const quote = {
-        quote: {
-          providerFee: 2,
-          networkFee: '1',
-          extraFee: 0.5,
-          totalFees: 'not-a-number',
-        },
-      } as unknown as RampsQuote;
-
-      const result = getRampsFeeComposition(quote);
-
-      expect(result.providerFee.toString(10)).toBe('2');
-      expect(result.networkFee.toString(10)).toBe('1');
-      expect(result.extraFee.toString(10)).toBe('0.5');
-      expect(result.totalFees.toString(10)).toBe('3.5');
-    });
-
-    it('uses a valid provider-reported totalFees value', () => {
-      const quote = {
-        quote: {
-          providerFee: 2,
-          networkFee: 1,
-          extraFee: 0.5,
-          totalFees: 4,
-        },
-      } as unknown as RampsQuote;
-
-      const result = getRampsFeeComposition(quote);
-
-      expect(result.totalFees.toString(10)).toBe('4');
-    });
-
-    it('rejects malformed fee-on-top components', () => {
-      const quote = {
-        quote: {
-          providerFee: 'not-a-number',
-          networkFee: 1,
-          extraFee: 0.5,
-          feeMode: {
-            requested: 'fee-on-top',
-            effective: 'fee-on-top',
-          },
-        },
-      } as unknown as RampsQuote;
-
-      expect(() => getRampsFeeComposition(quote)).toThrow(
-        'Malformed fee-on-top providerFee',
-      );
     });
   });
 });

@@ -7,10 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+### Changed
 
-- Select a ramps quote in the existing fee-inclusive mode, then refresh only a selected Transak provider in fee-on-top mode for direct mUSD and Relay fiat pay paths. Other providers, including MoonPay and Ramp Network, retain their fee-inclusive MM Pay behavior. ([#9317](https://github.com/MetaMask/core/pull/9317))
-- Compose direct mUSD and Relay fee buckets from ramps `providerFee`, `networkFee`, `extraFee`, and `totalFees` instead of a hardcoded MetaMask fee. Missing fee fields remain zero, malformed fee-inclusive fields fall back safely, and malformed or internally inconsistent fee-on-top data is rejected. ([#9317](https://github.com/MetaMask/core/pull/9317))
+- Keep direct Monad mUSD on-ramp fees visible while treating them as included in the entered fiat total. ([#9317](https://github.com/MetaMask/core/pull/9317))
 
 ## [27.1.0]
 

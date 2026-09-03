@@ -7,12 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Changed
 
-- Add an `isFeeExcludedFromFiat` option to `getQuotes` so callers naming one provider can request quotes whose fees are charged on top of the requested fiat amount rather than taken out of it. Multi-provider and default requests remain fee-inclusive so unlike fee modes are not ranked together. ([#9317](https://github.com/MetaMask/core/pull/9317))
-- Add optional `extraFee` and `feeMode` fields to ramps quotes, including the requested and effective fee mode reported by the ramps API. ([#9317](https://github.com/MetaMask/core/pull/9317))
-- Add an optional sixth `isFeeExcludedFromFiat` argument to `RampsController.transakGetBuyQuote` and `TransakService.getBuyQuote`. Transak native quotes validate fee-on-top principal arithmetic before reporting it as effective, and retain the stable CAIP request identifiers as `requestedAssetId` and `requestedChainId` because the Transak response exposes display codes only. Existing callers remain fee-on-top by default, matching the previous native lookup. MMPay can pass `false` for an accepted fee-inclusive quote. ([#9317](https://github.com/MetaMask/core/pull/9317))
-- Document `isFeeExcludedFromFiat` as a supported `extraParams` key on `createWidgetUrl` and `generatePaymentWidgetUrl`, so a flow priced fee-on-top can make the Transak widget charge in the same fee mode as the quote the user was shown. Neither method sends it by default: a flow priced fee-inclusive that set it would charge the user more than the amount on screen. Requires the ramps API widget-url proxy to allowlist the parameter, otherwise the proxy rejects the session request. ([#9317](https://github.com/MetaMask/core/pull/9317))
+- Add an optional fee-exclusion argument to native Transak buy quotes while preserving fee exclusion as the default. ([#9317](https://github.com/MetaMask/core/pull/9317))
 
 ## [20.2.0]
 
