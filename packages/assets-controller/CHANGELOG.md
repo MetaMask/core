@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Remove lint rule that deprecates use of :stateChange events ([#10090](https://github.com/MetaMask/core/pull/10090))
-
 ### Changed
 
 - Enhance spam asset cleanup to collect candidates from `assetsBalance` and remove swept assets from `assetsPrice` ([#10095](https://github.com/MetaMask/core/pull/10095))
