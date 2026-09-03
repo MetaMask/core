@@ -482,7 +482,7 @@ export function validateControllerState<
     throw validationError;
   } else if (mode === 'lenient' && validationError) {
     const error = new Error(
-      `Validation of "${name}" state failed, but did not block: ${validationError.message}`,
+      `Validation of "${name}" state failed, but did not throw: ${validationError.message}`,
     );
     // @ts-expect-error Current target does not support causes.
     error.cause = validationError;

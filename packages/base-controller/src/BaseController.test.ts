@@ -1245,7 +1245,7 @@ describe('validateControllerState', () => {
     expect(captureException).toHaveBeenCalledWith(
       expect.objectContaining({
         message:
-          'Validation of "FooController" state failed, but did not block: At path: bar -- Expected a number, but received: "bar"',
+          'Validation of "FooController" state failed, but did not throw: At path: bar -- Expected a number, but received: "bar"',
       }),
     );
   });
