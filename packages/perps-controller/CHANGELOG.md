@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `reduce_only` intent to every `Perp Trade Transaction` lifecycle event while preserving canonical `order_type` values ([#10091](https://github.com/MetaMask/core/pull/10091))
 - Add `POSITION_NOT_FOUND` as the provider-neutral error code for operations targeting a position the venue no longer holds ([#10083](https://github.com/MetaMask/core/pull/10083))
 
 ### Changed
