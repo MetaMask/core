@@ -18,10 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
 - Add `fast-deep-equal` `^3.1.3` as a dependency.
 
-### Fixed
-
-- Compare product entitlements without treating object key order as a change, so equivalent payloads no longer trigger a spurious access-token refresh / sign-out.
-
 ## [8.0.1]
 
 ### Changed
