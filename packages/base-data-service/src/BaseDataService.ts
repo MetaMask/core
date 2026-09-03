@@ -466,15 +466,15 @@ export class BaseDataService<
     TData = TDataStruct extends Struct<infer StructType>
       ? StructType
       : TMutationFnData,
-    TError = unknown,
-    TContext = unknown,
+    TError = DefaultError,
+    TOnMutateResult = unknown,
     TMutationKey extends MutationKey = MutationKey,
   >({
     mutationFn,
     responseStruct,
     ...options
   }: OmitKeyof<
-    MutationOptions<TData, TError, Record<never, never>, TContext>,
+    MutationOptions<TData, TError, Record<never, never>, TOnMutateResult>,
     'retry' | 'retryDelay' | 'mutationKey' | 'mutationFn'
   > & {
     mutationKey: TMutationKey;
@@ -486,7 +486,7 @@ export class BaseDataService<
       TData,
       TError,
       Record<never, never>,
-      TContext
+      TOnMutateResult
     >(this.#queryClient, {
       ...options,
       mutationFn: async (...args) => {
