@@ -254,6 +254,7 @@ export class BaseDataService<
       debounce(
         () => {
           this.#persistCache().catch((error) =>
+            /* istanbul ignore next */
             this.#messenger.captureException?.(error),
           );
         },
@@ -535,6 +536,7 @@ export class BaseDataService<
    */
   init(): void {
     this.#loadCache().catch((error) =>
+      /* istanbul ignore next */
       this.#messenger.captureException?.(error),
     );
   }
