@@ -1885,6 +1885,9 @@ describe('KycController', () => {
           expect(bytesToString(mockWrapEncryptionKey.mock.calls[1][2])).toMatch(
             /^[A-Za-z0-9\-_]+$/u,
           );
+          expect(controller.state.idosSessionClientPrivateKey).toBe(
+            toBase64Url(mockWrapEncryptionKey.mock.calls[0][0]),
+          );
           expect(handlers.setAuthorizations).toHaveBeenCalledWith({
             sessionId: 'sid',
             wrappedEncryptionDataKey: { data: 'enc', nonce: 'nonce' },
@@ -1894,6 +1897,75 @@ describe('KycController', () => {
           expect(handlers.createJourney).toHaveBeenCalledTimes(2);
         },
       );
+    });
+
+    it('reuses a stored idosSessionClientPrivateKey instead of generating a new one', async () => {
+      const storedPrivateKey = new Uint8Array(32).fill(7);
+      const storedPrivateKeyB64 = toBase64Url(storedPrivateKey);
+      const storedPublicKeyB64 = toBase64Url(
+        x25519.getPublicKey(storedPrivateKey),
+      );
+      const randomSecretKey = jest.spyOn(x25519.utils, 'randomSecretKey');
+
+      try {
+        await withController(
+          {
+            options: {
+              state: {
+                geoCountry: 'USA',
+                idosSessionClientPrivateKey: storedPrivateKeyB64,
+              },
+            },
+          },
+          async ({ controller, handlers }) => {
+            randomSecretKey.mockClear();
+
+            await controller.startSumSub();
+
+            expect(randomSecretKey).not.toHaveBeenCalled();
+            expect(controller.state.idosSessionClientPrivateKey).toBe(
+              storedPrivateKeyB64,
+            );
+            expect(handlers.createUkycSession).toHaveBeenCalledWith(
+              expect.objectContaining({
+                sessionClientPublicKey: storedPublicKeyB64,
+              }),
+            );
+            expect(
+              areUint8ArraysEqual(
+                mockWrapEncryptionKey.mock.calls[0][0],
+                storedPrivateKey,
+              ),
+            ).toBe(true);
+          },
+        );
+      } finally {
+        randomSecretKey.mockRestore();
+      }
+    });
+
+    it('reuses the idosSessionClientPrivateKey when session creation is retried after a failure', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.createUkycSession.mockRejectedValueOnce(
+          new Error('ukyc down'),
+        );
+
+        const failed = await controller.startSumSub();
+        expect(failed).toMatchObject({
+          error: expect.stringContaining('ukyc down'),
+        });
+        const storedKey = controller.state.idosSessionClientPrivateKey;
+        expect(storedKey).toEqual(expect.any(String));
+
+        await controller.startSumSub();
+
+        expect(controller.state.idosSessionClientPrivateKey).toBe(storedKey);
+        const { sessionClientPublicKey } = handlers.createUkycSession.mock
+          .calls[1][0] as { sessionClientPublicKey: string };
+        expect(sessionClientPublicKey).toBe(
+          toBase64Url(x25519.getPublicKey(base64UrlToBytes(storedKey ?? ''))),
+        );
+      });
     });
 
     it('forwards the resolved geo country as residenceCountry', async () => {
@@ -1997,6 +2069,7 @@ describe('KycController', () => {
         expect(result).toStrictEqual({});
         expect(controller.state.sumsub.status).toBe('idle');
         expect(controller.state.sumsub.sessionId).toBeNull();
+        expect(controller.state.idosSessionClientPrivateKey).toBeNull();
         expect(launcher.launch).not.toHaveBeenCalled();
         expect(handlers.setAuthorizations).not.toHaveBeenCalled();
       });
@@ -2235,6 +2308,7 @@ describe('KycController', () => {
         // The interrupted step must not write stale sub-flow state.
         expect(controller.state.sumsub.status).toBe('idle');
         expect(controller.state.sumsub.sessionId).toBeNull();
+        expect(controller.state.idosSessionClientPrivateKey).toBeNull();
         expect(controller.state.phase).toBe('idle');
       });
     });
@@ -2567,6 +2641,7 @@ describe('KycController', () => {
               moonpaySessionToken: 'tok',
               moonpayAccessToken: 'a',
               activeProduct: 'ramps',
+              idosSessionClientPrivateKey: 'stored-session-key',
               ...VENDOR_TERMS_MOONPAY,
               kycRequiredByProduct: { ramps: true },
             },
@@ -2577,6 +2652,7 @@ describe('KycController', () => {
           expect(controller.state.phase).toBe('idle');
           expect(controller.state.moonpaySessionToken).toBeNull();
           expect(controller.state.moonpayAccessToken).toBeNull();
+          expect(controller.state.idosSessionClientPrivateKey).toBeNull();
           expect(controller.state.activeProduct).toBeNull();
           expect(
             controller.state.vendorDisclaimersAccepted.moonpay?.termsAcceptedAt,
@@ -2632,6 +2708,7 @@ describe('KycController', () => {
               moonpaySessionToken: 'tok',
               moonpayAccessToken: 'a',
               moonpayCustomerId: 'cus-1',
+              idosSessionClientPrivateKey: 'stored-session-key',
               activeVendor: 'iron',
               activeProduct: 'ramps',
               kycRequiredByProduct: { ramps: true },
@@ -3823,6 +3900,8 @@ describe('KycController', () => {
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
+          expect(controller.state.sumsub.sessionId).toBeNull();
+          expect(controller.state.idosSessionClientPrivateKey).toBeNull();
           expect(controller.state.error).toMatch(/Consents session failed/u);
         },
       );
@@ -3881,6 +3960,7 @@ describe('KycController', () => {
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.sumsub.status).toBe('idle');
           expect(controller.state.sumsub.sessionId).toBeNull();
+          expect(controller.state.idosSessionClientPrivateKey).toBeNull();
           expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
           expect(controller.state.error).toMatch(/Consents session failed/u);
           expect(handlers.fetchKycStatus).not.toHaveBeenCalled();

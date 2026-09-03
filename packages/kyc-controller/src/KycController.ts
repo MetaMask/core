@@ -15,7 +15,7 @@ import { x25519 } from '@noble/curves/ed25519';
 
 import { decryptCredentials, generateKeyPair } from './crypto.js';
 import type { EncryptedCredentialsEnvelope, X25519KeyPair } from './crypto.js';
-import { toBase64Url } from './encoding.js';
+import { base64UrlToBytes, toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type {
@@ -201,6 +201,14 @@ export type KycControllerState = {
   /** Resolved ISO 3166-1 alpha-3 country code. */
   geoCountry: string | null;
 
+  /**
+   * Per-session X25519 private key used to wrap UKYC / idOS authorizations
+   * (unpadded base64url). Generated on first session create, reused while the
+   * session is alive (including across cold starts), and cleared when the
+   * session is dropped. Persisted; never logged.
+   */
+  idosSessionClientPrivateKey: string | null;
+
   /** MoonPay session token (not persisted, not logged). */
   moonpaySessionToken: string | null;
   /** MoonPay access token (not persisted, not logged). */
@@ -327,6 +335,12 @@ const kycControllerMetadata = {
     persist: false,
     usedInUi: true,
   },
+  idosSessionClientPrivateKey: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
+    persist: true,
+    usedInUi: false,
+  },
   moonpaySessionToken: {
     includeInDebugSnapshot: false,
     includeInStateLogs: false,
@@ -427,6 +441,7 @@ export function getDefaultKycControllerState(): KycControllerState {
     vendorError: null,
     sessionDisclaimers: null,
     geoCountry: null,
+    idosSessionClientPrivateKey: null,
     moonpaySessionToken: null,
     moonpayAccessToken: null,
     moonpayCustomerId: null,
@@ -1276,7 +1291,7 @@ export class KycController extends BaseController<
         state.sessionDisclaimers = null;
         // Session create ran before recording disclaimers. Drop the leftover
         // UKYC session so a later `startSumSub` cannot skip consent recording.
-        state.sumsub = { ...getDefaultKycControllerState().sumsub };
+        this.#clearUkycSession(state);
         state.error = `Consents session failed: ${String(error)}`;
         state.statusMessage =
           'Consent / verification failed — accept the terms to try again.';
@@ -1521,6 +1536,44 @@ export class KycController extends BaseController<
     state.moonpayCustomerId = null;
     state.moonpaySessionToken = null;
     state.moonpayAccessToken = null;
+  }
+
+  /**
+   * Drops the UKYC / SumSub session and the per-session wrapping key. Used by
+   * {@link reset} and when the consents path fails after creating a session.
+   *
+   * @param state - The state to mutate.
+   */
+  #clearUkycSession(state: KycControllerState): void {
+    state.idosSessionClientPrivateKey = null;
+    state.sumsub = { ...getDefaultKycControllerState().sumsub };
+  }
+
+  /**
+   * Returns the per-session X25519 private key, generating and storing one
+   * when the current flow has none. Returns `null` when a concurrent
+   * {@link reset} superseded the flow before the new key could be written.
+   *
+   * @param generation - Flow generation captured by the caller.
+   * @returns The private key bytes, or `null` if superseded.
+   */
+  #getOrCreateIdosSessionClientPrivateKey(
+    generation: number,
+  ): Uint8Array | null {
+    const existing = this.state.idosSessionClientPrivateKey;
+    if (existing !== null) {
+      return base64UrlToBytes(existing);
+    }
+    const idosSessionClientPrivateKey = x25519.utils.randomSecretKey();
+    const stillCurrent = this.#updateIfCurrent(generation, (state) => {
+      state.idosSessionClientPrivateKey = toBase64Url(
+        idosSessionClientPrivateKey,
+      );
+    });
+    if (!stillCurrent) {
+      return null;
+    }
+    return idosSessionClientPrivateKey;
   }
 
   /**
@@ -1911,8 +1964,9 @@ export class KycController extends BaseController<
   /**
    * Creates a UKYC session, wraps the `data_encryption_key` and
    * `ukyc_capability_token` against the returned encryption schemas, and
-   * submits both via authorizations. Stores `sumsub.sessionId`. Returns `null`
-   * when a `reset()` superseded the flow.
+   * submits both via authorizations. Stores `sumsub.sessionId` and
+   * `idosSessionClientPrivateKey`. Returns `null` when a `reset()` superseded
+   * the flow.
    *
    * @param generation - Flow generation captured by the caller.
    * @returns The created session, or `null` if superseded.
@@ -1926,12 +1980,17 @@ export class KycController extends BaseController<
     const jwtToken = MOCK_JWT_TOKEN;
 
     // Establish a per-session X25519 keypair used to seal both secrets. The
-    // private half stays on the device; the public half is registered on the
-    // session so the server can open later authorizations. Each encryption
-    // schema from session creation supplies the matching server public key.
-    const sessionClientPrivateKey = x25519.utils.randomSecretKey();
+    // private half stays on the device (in state, reused for the life of the
+    // session); the public half is registered on the session so the server
+    // can open later authorizations. Each encryption schema from session
+    // creation supplies the matching server public key.
+    const idosSessionClientPrivateKey =
+      this.#getOrCreateIdosSessionClientPrivateKey(generation);
+    if (!idosSessionClientPrivateKey) {
+      return null;
+    }
     const sessionClientPublicKey = toBase64Url(
-      x25519.getPublicKey(sessionClientPrivateKey),
+      x25519.getPublicKey(idosSessionClientPrivateKey),
     );
     // Residence is the ISO 3166-1 alpha-3 country already resolved for
     // disclaimers / KYC-required; fetch it if this sub-flow started without
@@ -1983,7 +2042,7 @@ export class KycController extends BaseController<
     );
     const clientMaterial = deriveClientMaterial(localUserSecret);
     const wrappedEncryptionDataKey = wrapEncryptionKey(
-      sessionClientPrivateKey,
+      idosSessionClientPrivateKey,
       encryptionDataKey.serverPublicKey.x,
       clientMaterial.dataEncryptionKey,
     );
@@ -1997,7 +2056,7 @@ export class KycController extends BaseController<
       expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
     });
     const wrappedUkycCapabilityToken = wrapEncryptionKey(
-      sessionClientPrivateKey,
+      idosSessionClientPrivateKey,
       capabilityTokenSchema.serverPublicKey.x,
       stringToBytes(encodeStorageAccessTokenForHeader(ukycCapabilityToken)),
     );
@@ -2511,13 +2570,7 @@ export class KycController extends BaseController<
       state.moonpayCustomerId = null;
       state.activeVendor = 'moonpay';
       state.activeProduct = null;
-      state.sumsub = {
-        status: 'idle',
-        result: null,
-        sessionId: null,
-        applicantAccessToken: null,
-        sessionStatus: null,
-      };
+      this.#clearUkycSession(state);
     });
   }
 

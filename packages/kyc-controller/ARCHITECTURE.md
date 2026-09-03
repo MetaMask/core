@@ -181,6 +181,7 @@ classDiagram
         +KycDisclaimer[] vendorDisclaimers
         +string vendorError
         +string geoCountry
+        +string idosSessionClientPrivateKey [persisted, secret]
         +string moonpaySessionToken [secret]
         +string moonpayAccessToken [secret]
         +string moonpayCustomerId
@@ -206,8 +207,9 @@ State metadata highlights (`kycControllerMetadata`):
 
 - **Persisted** (`persist: true`): `vendorDisclaimersAccepted`,
   `providerDisclaimersAccepted`, `idosDisclaimersAccepted`,
-  `kycRequiredByProduct`, `lastCheckedAt`. These survive restarts so the flow
-  can skip already-accepted terms and reuse cached results. Session-scoped
+  `kycRequiredByProduct`, `lastCheckedAt`, `idosSessionClientPrivateKey`. These
+  survive restarts so the flow can skip already-accepted terms, reuse cached
+  results, and keep the UKYC wrapping key for the same session. Session-scoped
   `sessionDisclaimers` and `credentialReusabilityConsentGiven` are in-memory
   only (`persist: false`) and are cleared on `reset()`.
   Acceptance is vendor-scoped: `initialize` (and `createVendorCustomer`) drops
@@ -216,11 +218,16 @@ State metadata highlights (`kycControllerMetadata`):
   vendor switch commits (`createVendorCustomer` succeeds, or the MoonPay
   path proceeds); a failed or reset switch leaves the previous vendor's
   acceptance in place.
-- **Secrets, never persisted / never logged**: `moonpaySessionToken`, `moonpayAccessToken`,
-  `moonpayCustomerId`, `email`, `vendorDisclaimers`, and the whole `sumsub` sub-tree.
-  Switching away from MoonPay (`initialize` / `createVendorCustomer`) drops
-  these MoonPay Check/Auth artifacts immediately so `buildCheckFrameUrl` cannot
-  return a MoonPay URL while `activeVendor` is a consents-path vendor.
+- **Secrets, never logged**: `idosSessionClientPrivateKey` (persisted so wrapping
+  can resume after a cold start), `moonpaySessionToken`, `moonpayAccessToken`,
+  `moonpayCustomerId`, `email`, `vendorDisclaimers`, and the whole `sumsub`
+  sub-tree. Switching away from MoonPay (`initialize` /
+  `createVendorCustomer`) drops these MoonPay Check/Auth artifacts immediately
+  so `buildCheckFrameUrl` cannot return a MoonPay URL while `activeVendor` is
+  a consents-path vendor. `idosSessionClientPrivateKey` is the per-session X25519
+  wrapping key: generated on first UKYC session create, reused while that
+  session exists, and cleared with the session (`reset()`, `clearState()`,
+  consents-path rewind).
 - Additional non-state secrets kept **off** the state object entirely: the
   X25519 private key (`#keypair`) and the Auth-frame client token
   (`#authClientToken`). The auth client token is cleared on the same vendor
