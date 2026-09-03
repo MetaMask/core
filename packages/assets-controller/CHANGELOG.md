@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Exclude assets that have no `assetsInfo` metadata from the aggregated balance selectors ([#10083](https://github.com/MetaMask/core/pull/10083))
+- Exclude assets that have no `assetsInfo` metadata from the aggregated balance selectors ([#10084](https://github.com/MetaMask/core/pull/10084))
   - `getAggregatedBalanceForAccount`, `getAggregatedBalanceForAccountIds`, `calculateBalanceForAllWallets`, and `calculateBalanceChangeForAccountGroup` previously included such assets in `entries` (without `symbol`/`name`/`decimals`) and in fiat totals; a balance now only counts once its metadata is known
 - Run `RpcFallbackMiddleware` on Accounts API poll updates (`handleAssetsUpdate`), not only in the forced `getAssets` fast pipeline, so a stale amount for tokens omitted from poll responses no longer survives between forced refreshes while the wallet sits open ([#10078](https://github.com/MetaMask/core/pull/10078))
   - WebSocket, RPC, and Snap updates are excluded: WebSocket pushes are incremental single-asset updates where absence is not staleness, and RPC/Snap updates must not re-trigger RPC
