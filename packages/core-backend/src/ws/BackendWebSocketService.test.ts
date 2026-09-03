@@ -233,7 +233,6 @@ const getMessenger = (): {
   rootMessenger.delegate({
     actions: ['AuthenticationController:getBearerToken'],
     events: [
-      // eslint-disable-next-line no-restricted-syntax -- AuthenticationController messenger types still expose stateChange
       'AuthenticationController:stateChange',
       'KeyringController:lock',
       'KeyringController:unlock',
