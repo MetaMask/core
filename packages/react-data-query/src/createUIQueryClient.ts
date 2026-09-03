@@ -366,9 +366,9 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
         messenger.subscribe(`${service}:cacheUpdated:${hash}`, cacheListener);
       }
     } else if (event.type === 'observerRemoved' && hasSubscription) {
-      // We can assume that if an observed is removed, it must have first been
-      // added; and that when it was added, the observer count was initialized.
-      // (There's no real way to test the alternative, anyway.)
+      // We can assume that if an observed mutation is removed, it must have
+      // first been added; and that when it was added, the observer count was
+      // initialized. (There's no real way to test the alternative, anyway.)
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const remainingObservers = mutationObserverCounts.get(hash)! - 1;
 
