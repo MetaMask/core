@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Soft deletes use remote tombstones; retention matches contact sync (no remote purge/compaction)
   - Mid-sync local mutations coalesce into a follow-up full sync pass so uploads are not dropped during `performBatchSetStorage`
   - Polling via `getOrder` → `addOrder` stamps `lastUpdatedAt` so status refreshes participate in LWW
+  - Normalize ISO and numeric-string `createdAt` values from Portfolio and older clients to epoch milliseconds
   - Optional `onOrderSyncErroneousSituation` (full sync and incremental push/delete) and `trace` callbacks
 - Export `TERMINAL_ORDER_STATUSES` and `isTerminalOrderStatus()` so consuming clients can share the controller's terminal order status set instead of maintaining duplicate copies. ([#9679](https://github.com/MetaMask/core/pull/9679))
 

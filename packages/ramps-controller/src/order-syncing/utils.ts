@@ -5,6 +5,33 @@ import { USER_STORAGE_VERSION, USER_STORAGE_VERSION_KEY } from './constants.js';
 import type { SyncRampsOrder, UserStorageRampsOrderEntry } from './types.js';
 
 /**
+ * Converts persisted ramps timestamps to epoch milliseconds.
+ *
+ * Portfolio and older clients may persist ISO strings or numeric strings even
+ * though the controller's public order type uses numbers.
+ *
+ * @param value - A timestamp from a local or remote order.
+ * @returns Epoch milliseconds, or zero when the value is invalid.
+ */
+function normalizeCreatedAt(value: unknown): number {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value !== 'string' || value.trim() === '') {
+    return 0;
+  }
+
+  const numericValue = Number(value);
+  if (Number.isFinite(numericValue)) {
+    return numericValue;
+  }
+
+  const parsedValue = Date.parse(value);
+  return Number.isNaN(parsedValue) ? 0 : parsedValue;
+}
+
+/**
  * Creates a unique storage key for a ramps order.
  * Mirrors {@link getInternalOrderCode} without importing the controller module
  * (avoids circular dependencies).
@@ -69,7 +96,10 @@ export function mapRampsOrderToUserStorageEntry(
 
   return {
     [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
-    o: stripPaymentDetailsForRemoteStorage(rampsOrder),
+    o: {
+      ...stripPaymentDetailsForRemoteStorage(rampsOrder),
+      createdAt: normalizeCreatedAt(rampsOrder.createdAt),
+    },
     lu: lastUpdatedAt ?? now,
     ...(deletedAt ? { dt: deletedAt } : {}),
   };
@@ -86,6 +116,7 @@ export function mapUserStorageEntryToRampsOrder(
 ): SyncRampsOrder {
   return {
     ...entry.o,
+    createdAt: normalizeCreatedAt(entry.o.createdAt),
     ...(entry.lu ? { lastUpdatedAt: entry.lu } : {}),
     ...(entry.dt ? { deletedAt: entry.dt } : {}),
   };

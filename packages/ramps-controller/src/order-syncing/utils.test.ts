@@ -142,6 +142,66 @@ describe('order-syncing/utils', () => {
       expect(mapped.lastUpdatedAt).toBeUndefined();
     });
 
+    it('normalizes persisted Portfolio timestamps', () => {
+      const isoEntry: UserStorageRampsOrderEntry = {
+        [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
+        o: createMockOrder({
+          createdAt: '2026-09-03T20:53:56.153Z',
+        } as unknown as Partial<RampsOrder>),
+      };
+      const numericStringEntry: UserStorageRampsOrderEntry = {
+        [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
+        o: createMockOrder({
+          createdAt: '1788468836153',
+        } as unknown as Partial<RampsOrder>),
+      };
+
+      expect({
+        iso: mapUserStorageEntryToRampsOrder(isoEntry).createdAt,
+        numericString:
+          mapUserStorageEntryToRampsOrder(numericStringEntry).createdAt,
+      }).toMatchInlineSnapshot(`
+        {
+          "iso": 1788468836153,
+          "numericString": 1788468836153,
+        }
+      `);
+    });
+
+    it('normalizes runtime timestamps before writing to storage', () => {
+      const entry = mapRampsOrderToUserStorageEntry(
+        createMockOrder({
+          createdAt: '2026-09-03T20:53:56.153Z',
+        } as unknown as Partial<RampsOrder>),
+      );
+
+      expect(entry.o.createdAt).toMatchInlineSnapshot(`1788468836153`);
+    });
+
+    it('replaces invalid persisted timestamps with zero', () => {
+      const mapTimestamp = (createdAt: unknown): number =>
+        mapUserStorageEntryToRampsOrder({
+          [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
+          o: createMockOrder({
+            createdAt,
+          } as unknown as Partial<RampsOrder>),
+        }).createdAt;
+
+      expect({
+        nan: mapTimestamp(Number.NaN),
+        blank: mapTimestamp(''),
+        invalid: mapTimestamp('not-a-date'),
+        missing: mapTimestamp(undefined),
+      }).toMatchInlineSnapshot(`
+        {
+          "blank": 0,
+          "invalid": 0,
+          "missing": 0,
+          "nan": 0,
+        }
+      `);
+    });
+
     it('round-trips a full order with sync metadata', () => {
       const order: SyncRampsOrder = {
         ...createMockOrder(),
