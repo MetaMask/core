@@ -30,6 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Rename `KycController` state field `accessToken` to `moonpayAccessToken` (MoonPay Auth-frame access token; `KycService.checkKycRequired` still accepts an `accessToken` parameter). ([#10062](https://github.com/MetaMask/core/pull/10062))
+- **BREAKING:** Rename `KycController` state field `sessionToken` to `moonpaySessionToken` (MoonPay Check-frame session token; the Check-frame URL query parameter remains `sessionToken`). ([#10062](https://github.com/MetaMask/core/pull/10062))
+- **BREAKING:** Replace persisted `termsAcceptedAt`, `acceptedDisclaimerIds`, and `termsAcceptedVendor` with `vendorDisclaimersAccepted`: a fixed map with `moonpay: { termsAcceptedAt } | null` and `iron: { disclaimerIds } | null` keys (default `{ moonpay: null, iron: null }`). ([#10062](https://github.com/MetaMask/core/pull/10062))
+- **BREAKING:** Rename persisted `idosTncAccepted` to `idosDisclaimersAccepted` and change its type from `boolean | null` to `KycConsentRecord[] | null` (`{ key, version }[]`). `acceptTermsAndStartSession` now takes `idosDisclaimersAccepted: KycConsentRecord[]` instead of `idosTncSigned: boolean`. ([#10062](https://github.com/MetaMask/core/pull/10062))
+- **BREAKING:** Rename persisted `sumsubTncAccepted` to `providerDisclaimersAccepted` (`{ sumsub: KycConsentRecord[] | null }`) and change `acceptTermsAndStartSession` to take `providerDisclaimersAccepted: KycConsentRecord[]` instead of `sumsubTncSigned: boolean`. ([#10062](https://github.com/MetaMask/core/pull/10062))
+- **BREAKING:** Rename `KycController` state field `disclaimers` to `vendorDisclaimers` (vendor T&Cs fetched for the current country) and `disclaimersError` to `vendorError`. ([#10062](https://github.com/MetaMask/core/pull/10062))
 - Add `KycService.fetchDisclaimersCatalog` / `KycService:fetchDisclaimersCatalog` (`GET /disclaimers?country=`, ISO 3166-1 alpha-3) for the pre-session idOS + KYC-provider catalog, plus the `KycDisclaimersCatalog` type (no `credentialReusabilityConsentGiven`). `fetchSessionDisclaimers` remains session-scoped (`GET /sessions/{sessionId}/disclaimers` → `KycSessionDisclaimers`). ([#10011](https://github.com/MetaMask/core/pull/10011))
 - **BREAKING:** Rename `KycService.fetchDisclaimers` / `KycService:fetchDisclaimers` / `KycServiceFetchDisclaimersAction` to `fetchVendorDisclaimers` / `KycService:fetchVendorDisclaimers` / `KycServiceFetchVendorDisclaimersAction`. ([#10011](https://github.com/MetaMask/core/pull/10011))
 - **BREAKING:** Rename `fractalEncryptionBaseUrl` to `idosEnclaveBaseUrl`, `KycService.fetchJwks` / `KycService:fetchJwks` / `KycServiceFetchJwksAction` to `fetchIdosEnclaveJwks` / `KycService:fetchIdosEnclaveJwks` / `KycServiceFetchIdosEnclaveJwksAction`, and related Fractal encryption naming to idOS enclave. ([#10008](https://github.com/MetaMask/core/pull/10008))
@@ -42,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Require `sumsubTncSigned` and `idosTncSigned` on `acceptTermsAndStartSession` for every vendor, so callers explicitly declare T&C2 acceptance. Zero-argument calls and omitted flags fail instead of defaulting to `true`. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Rename `CreateUkycSessionParams.vendorId` to `vendor` for consistency with other service methods. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Bump `@metamask/base-data-service` from `^0.1.3` to `^1.0.0` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Replace `KycController` `console.error` tracing with the `@metamask/utils` debug logger (`createProjectLogger` / `createModuleLogger`), so flow diagnostics are opt-in via `DEBUG=kyc-controller*` instead of always printing to the console. ([#10054](https://github.com/MetaMask/core/pull/10054))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
 
 ### Fixed
 

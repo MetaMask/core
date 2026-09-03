@@ -255,25 +255,34 @@ const KycUserStatusResponseStruct = type({
   errorCode: optional(string()),
 });
 
-const ConsentDocumentStruct = type({
+const CatalogDocumentFields = {
   key: string(),
   version: string(),
   title: string(),
   url: string(),
+} as const;
+
+const CatalogDocumentStruct = type(CatalogDocumentFields);
+
+// Session documents also report whether that version was already consented to.
+const ConsentDocumentStruct = type({
+  ...CatalogDocumentFields,
   consented: boolean(),
 });
 
-const DisclaimersCatalogFields = {
-  idOS: array(ConsentDocumentStruct),
-  kycProvider: array(ConsentDocumentStruct),
-} as const;
-
-/** Global catalog from `GET /disclaimers` (no credential-reuse flag). */
-const GlobalDisclaimersResponseStruct = type(DisclaimersCatalogFields);
+/**
+ * Global catalog from `GET /disclaimers` (no per-document `consented` flag and
+ * no credential-reuse flag).
+ */
+const GlobalDisclaimersResponseStruct = type({
+  idOS: array(CatalogDocumentStruct),
+  kycProvider: array(CatalogDocumentStruct),
+});
 
 /** Session catalog from `GET`/`POST /sessions/{id}/disclaimers`. */
 const SessionDisclaimersResponseStruct = type({
-  ...DisclaimersCatalogFields,
+  idOS: array(ConsentDocumentStruct),
+  kycProvider: array(ConsentDocumentStruct),
   credentialReusabilityConsentGiven: boolean(),
 });
 
@@ -492,7 +501,7 @@ export class KycService extends BaseDataService<
     // Guard nullish/empty geolocation with the documented domain error rather
     // than letting `assert(location, string())` surface a superstruct
     // assertion error (which would change how the failure reads in
-    // `disclaimersError`).
+    // `vendorError`).
     const alpha2 =
       typeof location === 'string' ? location.split('-')[0].toUpperCase() : '';
     if (!alpha2 || alpha2 === 'UNKNOWN') {
@@ -668,10 +677,10 @@ export class KycService extends BaseDataService<
 
   /**
    * Fetches the global idOS + KYC-provider disclaimer catalog
-   * (`GET /disclaimers?country=`). Does not include
-   * `credentialReusabilityConsentGiven` — that is session-scoped via
-   * {@link fetchSessionDisclaimers}. Vendor T&Cs continue to come from
-   * {@link fetchVendorDisclaimers}.
+   * (`GET /disclaimers?country=`). Carries no consent state — per-document
+   * `consented` flags and `credentialReusabilityConsentGiven` are
+   * session-scoped via {@link fetchSessionDisclaimers}. Vendor T&Cs continue to
+   * come from {@link fetchVendorDisclaimers}.
    *
    * @param params - The parameters.
    * @param params.country - ISO 3166-1 alpha-3 country code.

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/perps-controller",
-  "version": "15.0.0",
+  "version": "15.1.0",
   "description": "Controller for perpetual trading functionality in MetaMask",
   "keywords": [
     "Ethereum",
@@ -16,10 +16,7 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "files": [
-    "dist/",
-    "!dist/providers/MYXProvider*",
-    "!dist/services/MYXClientService*",
-    "!dist/services/MYXWalletService*"
+    "dist/"
   ],
   "sideEffects": false,
   "main": "./dist/index.cjs",
@@ -103,14 +100,14 @@
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/messenger": "^2.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/utils": "^11.11.0",
+    "@metamask/utils": "^11.12.0",
     "@nktkas/hyperliquid": "^0.33.1",
     "bignumber.js": "^9.1.2",
     "reselect": "^5.1.1",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/account-tree-controller": "^8.0.0",
+    "@metamask/account-tree-controller": "^8.1.0",
     "@metamask/authenticated-user-storage": "^3.0.2",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/geolocation-controller": "^1.0.0",
@@ -119,7 +116,7 @@
     "@metamask/network-controller": "^36.0.0",
     "@metamask/profile-sync-controller": "^29.0.0",
     "@metamask/remote-feature-flag-controller": "^6.1.0",
-    "@metamask/transaction-controller": "^69.7.0",
+    "@metamask/transaction-controller": "^69.8.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",
     "@types/uuid": "^8.3.0",
@@ -131,9 +128,6 @@
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3",
     "viem": "^2.55.8"
-  },
-  "optionalDependencies": {
-    "@myx-trade/sdk": "^0.1.265"
   },
   "engines": {
     "node": "^18.18 || >=20"
