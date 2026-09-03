@@ -66,7 +66,6 @@ export function wrapUkycSessionAuthorizations(params: {
   encryptionDataKey: UkycEncryptionSchema;
   capabilityTokenSchema: UkycEncryptionSchema;
   localUserSecret: Uint8Array;
-  now?: number;
 }): {
   wrappedEncryptionDataKey: WrappedEncryptionKeyParts;
   wrappedUkycCapabilityToken: WrappedEncryptionKeyParts;
