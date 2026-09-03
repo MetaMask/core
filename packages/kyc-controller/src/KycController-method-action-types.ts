@@ -62,10 +62,12 @@ export type KycControllerLoadDisclaimersAction = {
  * @param params.product - The consuming feature the flow runs for. See
  * {@link initialize} for how the product drives the automatic post
  * authentication continuation.
- * @param params.sumsubTncSigned - Whether Sumsub T&C were accepted (T&C2).
- * Required for every vendor so callers explicitly declare acceptance.
- * @param params.idosTncSigned - Whether idOS T&C were accepted (T&C2).
- * Required for every vendor so callers explicitly declare acceptance.
+ * @param params.providerDisclaimersAccepted - Sumsub disclaimer documents the
+ * customer accepted (`{ key, version }` records). Required for every vendor
+ * so callers explicitly declare acceptance.
+ * @param params.idosDisclaimersAccepted - idOS disclaimer documents the
+ * customer accepted (`{ key, version }` records). Required for every vendor
+ * so callers explicitly declare acceptance.
  * @param params.credentialReusabilityConsentGiven - Whether the customer
  * consented to reuse existing idOS credentials. Used when recording
  * session-scoped disclaimers on the consents path. Defaults to `false`.
@@ -175,8 +177,10 @@ export type KycControllerGetCustomerIdentityAction = {
  * Runs the SumSub document-verification sub-flow end to end:
  *
  * 1. creates a UKYC session, receiving per-secret encryption schemas;
- * 2. verifies each schema's `jwtChain` against the Fractal JWKS and confirms
- * the attested session server public key;
+ * 2. verifies the `encryptionDataKey` schema's `jwtChain` against the
+ * idOS enclave JWKS and the `ukycCapabilityToken` schema's `jwtChain` against
+ * the idOS relay JWKS, then confirms each attested session server public
+ * key;
  * 3. derives the `data_encryption_key` from the wallet's UKYC
  * `local_user_secret` and wraps it for the session server;
  * 4. mints a client-signed, read-only `ukyc_capability_token`, wraps it the

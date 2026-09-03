@@ -441,6 +441,8 @@ describe('HyperLiquidProvider', () => {
       clearAll: jest.fn(),
       isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
       getCachedPositions: jest.fn().mockReturnValue([]),
+      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
+      getCachedPositionsForDex: jest.fn().mockReturnValue(null),
       updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
       setDexMetaCache: jest.fn(),
@@ -1088,6 +1090,50 @@ describe('HyperLiquidProvider', () => {
         }),
       );
       expect(result.success).toBe(true);
+    });
+
+    it('uses HTTP for builder fee reads during a cold-start TP/SL update', async () => {
+      const webSocketMaxBuilderFee = jest
+        .fn()
+        .mockRejectedValue(
+          Object.assign(
+            new Error(
+              'WebSocket connection closed before the request was sent',
+            ),
+            { name: 'WebSocketRequestError' },
+          ),
+        );
+      const httpMaxBuilderFee = jest
+        .fn()
+        .mockResolvedValue(BUILDER_FEE_CONFIG.MaxFeeDecimal);
+      const webSocketInfoClient = createMockInfoClient({
+        maxBuilderFee: webSocketMaxBuilderFee,
+      });
+      const httpInfoClient = createMockInfoClient({
+        maxBuilderFee: httpMaxBuilderFee,
+      });
+      mockClientService.getInfoClient.mockImplementation((options) =>
+        options?.useHttp ? httpInfoClient : webSocketInfoClient,
+      );
+
+      const result = await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '55000',
+        stopLossPrice: '45000',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
+        useHttp: true,
+      });
+      expect(httpMaxBuilderFee).toHaveBeenCalledWith({
+        user: '0x1234567890123456789012345678901234567890',
+        builder: BUILDER_FEE_CONFIG.MainnetBuilder,
+      });
+      expect(webSocketMaxBuilderFee).not.toHaveBeenCalled();
+      expect(mockClientService.getExchangeClient().order).toHaveBeenCalledWith(
+        expect.objectContaining({ grouping: 'positionTpsl' }),
+      );
     });
 
     it('uses a builder approval completed while acquiring the global lock', async () => {

@@ -5,7 +5,7 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import packageJson from '../package.json';
-import { API_BASE_URL, SENTINEL_API_BASE_URL_MAP } from './constants.js';
+import { SENTINEL_API_BASE_URL_MAP } from './constants.js';
 import {
   SmartTransactionMinedTx,
   APIType,
@@ -49,44 +49,46 @@ describe('src/utils.js', () => {
     const ethereumChainIdDec = parseInt(ChainId.mainnet, 16);
     const ethSepoliaChainIdDec = parseInt(ChainId.sepolia, 16);
 
-    it('returns a URL for getting transactions', () => {
+    it('returns a sentinel URL for getting fees', () => {
       expect(utils.getAPIRequestURL(APIType.GET_FEES, ChainId.mainnet)).toBe(
-        `${API_BASE_URL}/networks/${ethereumChainIdDec}/getFees`,
+        `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${ethereumChainIdDec}/getFees`,
       );
     });
 
-    it('returns correct URL for ESTIMATE_GAS', () => {
+    it('returns correct sentinel URL for ESTIMATE_GAS', () => {
       const chainId = '0x1'; // Mainnet in hex
-      const expectedUrl = `${API_BASE_URL}/networks/1/estimateGas`;
+      const expectedUrl = `${SENTINEL_API_BASE_URL_MAP[1]}/v1/networks/1/estimateGas`;
       const result = utils.getAPIRequestURL(APIType.ESTIMATE_GAS, chainId);
       expect(result).toBe(expectedUrl);
     });
 
     it('converts hex chainId to decimal for ESTIMATE_GAS', () => {
       const chainId = '0x89'; // Polygon in hex (137 in decimal)
-      const expectedUrl = `${API_BASE_URL}/networks/137/estimateGas`;
+      const expectedUrl = `${SENTINEL_API_BASE_URL_MAP[137]}/v1/networks/137/estimateGas`;
       const result = utils.getAPIRequestURL(APIType.ESTIMATE_GAS, chainId);
       expect(result).toBe(expectedUrl);
     });
 
-    it('returns a URL for submitting transactions', () => {
+    it('returns a sentinel URL for submitting transactions', () => {
       expect(
         utils.getAPIRequestURL(APIType.SUBMIT_TRANSACTIONS, ChainId.mainnet),
       ).toBe(
-        `${API_BASE_URL}/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+        `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
       );
     });
 
-    it('returns a URL for transaction cancelation', () => {
+    it('returns a sentinel URL for transaction cancellation', () => {
       expect(utils.getAPIRequestURL(APIType.CANCEL, ChainId.mainnet)).toBe(
-        `${API_BASE_URL}/networks/${ethereumChainIdDec}/cancel`,
+        `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${ethereumChainIdDec}/cancel`,
       );
     });
 
-    it('returns a URL for checking a smart transactions status', () => {
+    it('returns a sentinel URL for checking smart transaction status', () => {
       expect(
         utils.getAPIRequestURL(APIType.BATCH_STATUS, ChainId.mainnet),
-      ).toBe(`${API_BASE_URL}/networks/${ethereumChainIdDec}/batchStatus`);
+      ).toBe(
+        `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${ethereumChainIdDec}/batchStatus`,
+      );
     });
 
     it('returns a URL for smart transactions API liveness on ETH Mainnet', () => {
@@ -117,121 +119,12 @@ describe('src/utils.js', () => {
       );
     });
 
-    // Sentinel routing via useSentinel flag
-    describe('GET_FEES sentinel routing', () => {
-      it('returns a sentinel URL when useSentinel is true and chain is in SENTINEL_API_BASE_URL_MAP', () => {
-        expect(
-          utils.getAPIRequestURL(APIType.GET_FEES, ChainId.mainnet, true),
-        ).toBe(
-          `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${ethereumChainIdDec}/getFees`,
-        );
-      });
-
-      it('returns the API_BASE_URL when useSentinel is false', () => {
-        expect(
-          utils.getAPIRequestURL(APIType.GET_FEES, ChainId.mainnet, false),
-        ).toBe(`${API_BASE_URL}/networks/${ethereumChainIdDec}/getFees`);
-      });
-
-      it('returns the API_BASE_URL when useSentinel is true but chain is not in SENTINEL_API_BASE_URL_MAP', () => {
-        const unsupportedChainId = '0x539'; // 1337 — local dev chain, not in map
-        const chainIdDec = parseInt(unsupportedChainId, 16);
-        expect(
-          utils.getAPIRequestURL(APIType.GET_FEES, unsupportedChainId, true),
-        ).toBe(`${API_BASE_URL}/networks/${chainIdDec}/getFees`);
-      });
-    });
-
-    describe('SUBMIT_TRANSACTIONS sentinel routing', () => {
-      it('returns a sentinel URL when useSentinel is true and chain is in SENTINEL_API_BASE_URL_MAP', () => {
-        expect(
-          utils.getAPIRequestURL(
-            APIType.SUBMIT_TRANSACTIONS,
-            ChainId.mainnet,
-            true,
-          ),
-        ).toBe(
-          `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-        );
-      });
-
-      it('returns the API_BASE_URL when useSentinel is false', () => {
-        expect(
-          utils.getAPIRequestURL(
-            APIType.SUBMIT_TRANSACTIONS,
-            ChainId.mainnet,
-            false,
-          ),
-        ).toBe(
-          `${API_BASE_URL}/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-        );
-      });
-
-      it('returns the API_BASE_URL when useSentinel is true but chain is not in SENTINEL_API_BASE_URL_MAP', () => {
-        const unsupportedChainId = '0x539';
-        const chainIdDec = parseInt(unsupportedChainId, 16);
-        expect(
-          utils.getAPIRequestURL(
-            APIType.SUBMIT_TRANSACTIONS,
-            unsupportedChainId,
-            true,
-          ),
-        ).toBe(
-          `${API_BASE_URL}/networks/${chainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-        );
-      });
-    });
-
-    describe('CANCEL sentinel routing', () => {
-      it('returns a sentinel URL when useSentinel is true and chain is in SENTINEL_API_BASE_URL_MAP', () => {
-        expect(
-          utils.getAPIRequestURL(APIType.CANCEL, ChainId.mainnet, true),
-        ).toBe(
-          `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${ethereumChainIdDec}/cancel`,
-        );
-      });
-
-      it('returns the API_BASE_URL when useSentinel is false', () => {
-        expect(
-          utils.getAPIRequestURL(APIType.CANCEL, ChainId.mainnet, false),
-        ).toBe(`${API_BASE_URL}/networks/${ethereumChainIdDec}/cancel`);
-      });
-
-      it('returns the API_BASE_URL when useSentinel is true but chain is not in SENTINEL_API_BASE_URL_MAP', () => {
-        const unsupportedChainId = '0x539';
-        const chainIdDec = parseInt(unsupportedChainId, 16);
-        expect(
-          utils.getAPIRequestURL(APIType.CANCEL, unsupportedChainId, true),
-        ).toBe(`${API_BASE_URL}/networks/${chainIdDec}/cancel`);
-      });
-    });
-
-    describe('BATCH_STATUS sentinel routing', () => {
-      it('returns a sentinel URL when useSentinel is true and chain is in SENTINEL_API_BASE_URL_MAP', () => {
-        expect(
-          utils.getAPIRequestURL(APIType.BATCH_STATUS, ChainId.mainnet, true),
-        ).toBe(
-          `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${ethereumChainIdDec}/batchStatus`,
-        );
-      });
-
-      it('returns the API_BASE_URL when useSentinel is false', () => {
-        expect(
-          utils.getAPIRequestURL(APIType.BATCH_STATUS, ChainId.mainnet, false),
-        ).toBe(`${API_BASE_URL}/networks/${ethereumChainIdDec}/batchStatus`);
-      });
-
-      it('returns the API_BASE_URL when useSentinel is true but chain is not in SENTINEL_API_BASE_URL_MAP', () => {
-        const unsupportedChainId = '0x539';
-        const chainIdDec = parseInt(unsupportedChainId, 16);
-        expect(
-          utils.getAPIRequestURL(
-            APIType.BATCH_STATUS,
-            unsupportedChainId,
-            true,
-          ),
-        ).toBe(`${API_BASE_URL}/networks/${chainIdDec}/batchStatus`);
-      });
+    it('throws when chain is not in SENTINEL_API_BASE_URL_MAP', () => {
+      const unsupportedChainId = '0x539'; // 1337 — local dev chain
+      const chainIdDec = parseInt(unsupportedChainId, 16);
+      expect(() =>
+        utils.getAPIRequestURL(APIType.GET_FEES, unsupportedChainId),
+      ).toThrow(`Chain ${chainIdDec} is not supported`);
     });
   });
 

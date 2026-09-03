@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [69.8.0]
+
+### Added
+
+- Export `getSendRecipients`, which returns user-chosen send payees for a transaction (native `simpleSend` recipients, decoded ERC-20/721/1155 transfer payees including ERC-1155 batch transfers, `swapAndSendRecipient`, and nested batch sends) and omits protocol addresses such as token, Permit2, and router contracts ([#9943](https://github.com/MetaMask/core/pull/9943))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+## [69.7.0]
+
+### Added
+
+- Add transient `batchTransactionCounts` state so clients can track how many TransactionController transactions an active batch requires ([#9897](https://github.com/MetaMask/core/pull/9897))
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
+
 ## [69.6.1]
 
 ### Changed
@@ -2697,7 +2717,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.6.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.8.0...HEAD
+[69.8.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.7.0...@metamask/transaction-controller@69.8.0
+[69.7.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.6.1...@metamask/transaction-controller@69.7.0
 [69.6.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.6.0...@metamask/transaction-controller@69.6.1
 [69.6.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.5.2...@metamask/transaction-controller@69.6.0
 [69.5.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.5.1...@metamask/transaction-controller@69.5.2

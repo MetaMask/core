@@ -1,6 +1,8 @@
 export {
   KycController,
   getDefaultKycControllerState,
+  getDefaultKycProviderDisclaimersAccepted,
+  getDefaultKycVendorDisclaimersAccepted,
   controllerName,
 } from './KycController.js';
 export type {
@@ -42,6 +44,7 @@ export type {
   CreateSessionParams,
   CreateUkycSessionParams,
   EncryptionSchema,
+  FetchDisclaimersCatalogParams,
   FetchSessionDisclaimersParams,
   GetSessionStatusParams,
   VendorCustomerResponse,
@@ -64,8 +67,10 @@ export type {
   KycServiceCreateJourneyAction,
   KycServiceCreateSessionAction,
   KycServiceCreateUkycSessionAction,
-  KycServiceFetchDisclaimersAction,
-  KycServiceFetchJwksAction,
+  KycServiceFetchVendorDisclaimersAction,
+  KycServiceFetchDisclaimersCatalogAction,
+  KycServiceFetchIdosEnclaveJwksAction,
+  KycServiceFetchIdosRelayJwksAction,
   KycServiceFetchKycStatusAction,
   KycServiceFetchSessionDisclaimersAction,
   KycServiceGetGeoCountryAction,
@@ -91,12 +96,15 @@ export type {
 } from './crypto.js';
 
 export type {
+  KycCatalogDocument,
   KycConsentDocument,
   KycConsentRecord,
   KycCustomerIdentity,
   KycDisclaimer,
+  KycDisclaimersCatalog,
   KycPhase,
   KycProduct,
+  KycProviderDisclaimersAccepted,
   KycSessionDisclaimers,
   KycSessionStatus,
   KycSumSubLaunchParams,
@@ -105,6 +113,9 @@ export type {
   KycUserStatus,
   KycUserStatusResponse,
   KycVendor,
+  KycIronVendorDisclaimersAccepted,
+  KycMoonpayVendorDisclaimersAccepted,
+  KycVendorDisclaimersAccepted,
   KycVendorSigning,
 } from './types.js';
 

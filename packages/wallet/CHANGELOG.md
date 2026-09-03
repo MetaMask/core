@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/claims-controller` from `^0.6.0` to `^0.6.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
 - Bump `@metamask/shield-controller` from `^6.0.0` to `^6.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
 - Bump `@metamask/subscription-controller` from `^8.0.0` to `^8.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
+- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.8.0` ([#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
 
 ## [12.0.2]
 

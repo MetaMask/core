@@ -1212,7 +1212,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
 
     return {
-      slippage_limit: quoteRequest.slippage,
+      slippage_limit: quoteRequest.slippage ?? 0,
       swap_type: getSwapTypeFromQuote(quoteRequest),
       custom_slippage: isCustomSlippage(quoteRequest.slippage),
       account_hardware_type: accountHardwareType,
@@ -1361,6 +1361,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
           refresh_count: this.state.quotesRefreshCount,
+          has_sufficient_funds: !quoteRequest.insufficientBal,
           ...inputPrimaryDenominationProperties,
           ...baseProperties,
         };

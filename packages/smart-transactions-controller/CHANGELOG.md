@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.8.0` ([#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+## [26.0.0]
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
+
+### Removed
+
+- **BREAKING:** Remove `API_BASE_URL` export and STX migration feature flags (`stxMigrationGetFees`, `stxMigrationSubmitTransactions`, `stxMigrationCancel`, `stxMigrationBatchStatus`) — all API calls now always route to the sentinel API ([#9996](https://github.com/MetaMask/core/pull/9996))
+
 ## [25.1.1]
 
 ### Changed
@@ -83,7 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.0.0` to `^68.0.1` ([#9177](https://github.com/MetaMask/core/pull/9177))
 - Drop unused dependencies `@ethereumjs/tx`, `@ethereumjs/util`, and `fast-json-patch` ([#9139](https://github.com/MetaMask/core/pull/9139))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@25.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@25.1.1...@metamask/smart-transactions-controller@26.0.0
 [25.1.1]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@25.1.0...@metamask/smart-transactions-controller@25.1.1
 [25.1.0]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@25.0.3...@metamask/smart-transactions-controller@25.1.0
 [25.0.3]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@25.0.2...@metamask/smart-transactions-controller@25.0.3

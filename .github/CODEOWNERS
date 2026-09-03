@@ -63,7 +63,7 @@
 /packages/ramps-controller    @MetaMask/money-movement
 
 ## Networks Team
-/packages/config-registry-controller    @MetaMask/networks
+/packages/config-registry-controller    @MetaMask/networks @MetaMask/emerging-opportunities
 
 ## Engagement Team
 /packages/notification-services-controller    @MetaMask/engagement
@@ -96,6 +96,7 @@
 /packages/composable-controller                   @MetaMask/core-platform
 /packages/connectivity-controller                 @MetaMask/core-platform
 /packages/controller-utils                        @MetaMask/core-platform
+/packages/cryptography                            @MetaMask/core-platform
 /packages/eip-5792-middleware                     @MetaMask/core-platform
 /packages/eip1193-permission-middleware           @MetaMask/core-platform
 /packages/eth-block-tracker                       @MetaMask/core-platform
@@ -137,11 +138,11 @@
 /packages/eth-json-rpc-middleware/src/methods     @MetaMask/confirmations @MetaMask/core-platform
 /packages/eth-json-rpc-middleware/src/wallet.*    @MetaMask/confirmations @MetaMask/core-platform
 /packages/foundryup                               @MetaMask/mobile-platform @MetaMask/extension-platform
-/packages/bitcoin-regtest-up                      @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
-/packages/java-tron-up                            @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
-/packages/local-node-utils                        @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
-/packages/solana-test-validator-up                @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
-/packages/stellar-quickstart-up                   @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
+/packages/bitcoin-regtest-up                      @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities
+/packages/java-tron-up                            @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities
+/packages/local-node-utils                        @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities
+/packages/solana-test-validator-up                @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities
+/packages/stellar-quickstart-up                   @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities
 /packages/keyring-controller                      @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/multichain-network-controller           @MetaMask/core-platform @MetaMask/accounts-engineers @MetaMask/metamask-assets
 /packages/network-controller                      @MetaMask/core-platform @MetaMask/metamask-assets
@@ -201,9 +202,9 @@
 /packages/assets-controller/package.json                       @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/assets-controller/CHANGELOG.md                       @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/assets-controller/tsconfig.*                         @MetaMask/metamask-assets @MetaMask/core-platform
-/packages/config-registry-controller/package.json              @MetaMask/networks @MetaMask/core-platform
-/packages/config-registry-controller/CHANGELOG.md              @MetaMask/networks @MetaMask/core-platform
-/packages/config-registry-controller/tsconfig.*                @MetaMask/networks @MetaMask/core-platform
+/packages/config-registry-controller/package.json              @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
+/packages/config-registry-controller/CHANGELOG.md              @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
+/packages/config-registry-controller/tsconfig.*                @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
 /packages/delegation-controller/package.json                   @MetaMask/delegation @MetaMask/core-platform
 /packages/delegation-controller/CHANGELOG.md                   @MetaMask/delegation @MetaMask/core-platform
 /packages/delegation-controller/tsconfig.*                     @MetaMask/delegation @MetaMask/core-platform
@@ -306,21 +307,21 @@
 /packages/foundryup/package.json                               @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/foundryup/CHANGELOG.md                               @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/foundryup/tsconfig.*                                 @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
-/packages/bitcoin-regtest-up/package.json                      @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
-/packages/bitcoin-regtest-up/CHANGELOG.md                      @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
-/packages/bitcoin-regtest-up/tsconfig.*                        @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
-/packages/java-tron-up/package.json                            @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
-/packages/java-tron-up/CHANGELOG.md                            @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
-/packages/java-tron-up/tsconfig.*                              @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
-/packages/local-node-utils/package.json                        @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
-/packages/local-node-utils/CHANGELOG.md                        @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
-/packages/local-node-utils/tsconfig.*                          @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
-/packages/solana-test-validator-up/package.json                @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
-/packages/solana-test-validator-up/CHANGELOG.md                @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
-/packages/solana-test-validator-up/tsconfig.*                  @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
-/packages/stellar-quickstart-up/package.json                   @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
-/packages/stellar-quickstart-up/CHANGELOG.md                   @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
-/packages/stellar-quickstart-up/tsconfig.*                     @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
+/packages/bitcoin-regtest-up/package.json                      @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
+/packages/bitcoin-regtest-up/CHANGELOG.md                      @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
+/packages/bitcoin-regtest-up/tsconfig.*                        @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
+/packages/java-tron-up/package.json                            @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
+/packages/java-tron-up/CHANGELOG.md                            @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
+/packages/java-tron-up/tsconfig.*                              @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
+/packages/local-node-utils/package.json                        @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
+/packages/local-node-utils/CHANGELOG.md                        @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
+/packages/local-node-utils/tsconfig.*                          @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
+/packages/solana-test-validator-up/package.json                @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
+/packages/solana-test-validator-up/CHANGELOG.md                @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
+/packages/solana-test-validator-up/tsconfig.*                  @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
+/packages/stellar-quickstart-up/package.json                   @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
+/packages/stellar-quickstart-up/CHANGELOG.md                   @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
+/packages/stellar-quickstart-up/tsconfig.*                     @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/emerging-opportunities @MetaMask/core-platform
 /packages/seedless-onboarding-controller/package.json          @MetaMask/web3auth @MetaMask/core-platform
 /packages/seedless-onboarding-controller/CHANGELOG.md          @MetaMask/web3auth @MetaMask/core-platform
 /packages/seedless-onboarding-controller/tsconfig.*            @MetaMask/web3auth @MetaMask/core-platform

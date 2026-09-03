@@ -102,6 +102,15 @@ type AddTransactionBatchRequest = {
   ) => void;
 };
 
+type AddTransactionBatchRequestWithBatchId = Omit<
+  AddTransactionBatchRequest,
+  'request'
+> & {
+  request: Omit<TransactionBatchRequest, 'batchId'> & {
+    batchId: Hex;
+  };
+};
+
 type IsAtomicBatchSupportedRequestInternal = {
   address: Hex;
   chainIds?: Hex[];
@@ -152,21 +161,34 @@ export async function addTransactionBatch(
     throw rpcErrors.internal('Account does not support EIP-7702');
   }
 
-  if (!disable7702 && accountCanUse7702) {
-    try {
-      return await addTransactionBatchWith7702(request);
-    } catch (error: unknown) {
-      const isEIP7702NotSupportedError =
-        error instanceof JsonRpcError &&
-        error.message === 'Chain does not support EIP-7702';
+  const batchId = transactionBatchRequest.batchId ?? generateBatchId();
+  const requestWithBatchId: AddTransactionBatchRequestWithBatchId = {
+    ...request,
+    request: {
+      ...transactionBatchRequest,
+      batchId,
+    },
+  };
 
-      if (!isEIP7702NotSupportedError || (disableHook && disableSequential)) {
-        throw error;
+  try {
+    if (!disable7702 && accountCanUse7702) {
+      try {
+        return await addTransactionBatchWith7702(requestWithBatchId);
+      } catch (error: unknown) {
+        const isEIP7702NotSupportedError =
+          error instanceof JsonRpcError &&
+          error.message === 'Chain does not support EIP-7702';
+
+        if (!isEIP7702NotSupportedError || (disableHook && disableSequential)) {
+          throw error;
+        }
       }
     }
-  }
 
-  return await addTransactionBatchWithHook(request);
+    return await addTransactionBatchWithHook(requestWithBatchId);
+  } finally {
+    wipeBatchTransactionCount(request.update, batchId);
+  }
 }
 
 /**
@@ -342,7 +364,7 @@ function buildBatchAuthorizationList({
  * @returns The batch result object including the batch ID.
  */
 async function addTransactionBatchWith7702(
-  request: AddTransactionBatchRequest,
+  request: AddTransactionBatchRequestWithBatchId,
 ): Promise<TransactionBatchResult> {
   const {
     addTransaction,
@@ -354,7 +376,7 @@ async function addTransactionBatchWith7702(
   const {
     atomic,
     authorizationList: providedAuthorizationList,
-    batchId: batchIdOverride,
+    batchId,
     disableUpgrade,
     from,
     gasFeeToken,
@@ -477,7 +499,7 @@ async function addTransactionBatchWith7702(
 
   log('Adding batch transaction', txParams, networkClientId);
 
-  const batchId = batchIdOverride ?? generateBatchId();
+  setBatchTransactionCount(request.update, batchId, 1);
 
   const securityAlertResponse = securityAlertId
     ? ({ securityAlertId } as SecurityAlertResponse)
@@ -599,7 +621,7 @@ function waitForTransactionStatus(
  * @returns The batch result object including the batch ID.
  */
 async function addTransactionBatchWithHook(
-  request: AddTransactionBatchRequest,
+  request: AddTransactionBatchRequestWithBatchId,
 ): Promise<TransactionBatchResult> {
   const {
     messenger,
@@ -609,7 +631,7 @@ async function addTransactionBatchWithHook(
   } = request;
 
   const {
-    batchId: batchIdOverride,
+    batchId,
     from,
     networkClientId,
     origin,
@@ -656,14 +678,13 @@ async function addTransactionBatchWithHook(
   }
 
   let txBatchMeta: TransactionBatchMeta | undefined;
-  const batchId = batchIdOverride ?? generateBatchId();
-
   const nestedTransactions = requestedTransactions.map((tx) => ({
     ...tx,
     origin,
   }));
 
   const transactionCount = nestedTransactions.length;
+  setBatchTransactionCount(update, batchId, transactionCount);
   const collectHook = new CollectPublishHook(transactionCount);
 
   try {
@@ -949,6 +970,38 @@ function addBatchMetadata(
       ...state.transactionBatches,
       transactionBatchMeta,
     ];
+  });
+}
+
+/**
+ * Set the transaction count for an active batch.
+ *
+ * @param update - The update function to modify the transaction controller state.
+ * @param id - The ID of the transaction batch.
+ * @param count - The number of transactions to sign.
+ */
+function setBatchTransactionCount(
+  update: UpdateStateCallback,
+  id: string,
+  count: number,
+): void {
+  update((state) => {
+    state.batchTransactionCounts[id] = count;
+  });
+}
+
+/**
+ * Wipes the transaction count for a completed batch.
+ *
+ * @param update - The update function to modify the transaction controller state.
+ * @param id - The ID of the transaction batch.
+ */
+function wipeBatchTransactionCount(
+  update: UpdateStateCallback,
+  id: string,
+): void {
+  update((state) => {
+    delete state.batchTransactionCounts[id];
   });
 }
 

@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.6.1` ([#9780](https://github.com/MetaMask/core/pull/9780), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823), [#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.8.0` ([#9780](https://github.com/MetaMask/core/pull/9780), [#10080](https://github.com/MetaMask/core/pull/10080), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823), [#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969), [#10046](https://github.com/MetaMask/core/pull/10046))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
 
 ## [1.1.0]
 

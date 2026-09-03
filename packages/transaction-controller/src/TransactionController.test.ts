@@ -942,6 +942,7 @@ describe('TransactionController', () => {
     it('sets default state', () => {
       const { controller } = setupController();
       expect(controller.state).toStrictEqual({
+        batchTransactionCounts: {},
         methodData: {},
         transactions: [],
         transactionBatches: [],
@@ -8681,6 +8682,7 @@ describe('TransactionController', () => {
         ),
       ).toMatchInlineSnapshot(`
         {
+          "batchTransactionCounts": {},
           "lastFetchedBlockNumbers": {},
           "methodData": {},
           "submitHistory": [],
@@ -8721,6 +8723,7 @@ describe('TransactionController', () => {
         ),
       ).toMatchInlineSnapshot(`
         {
+          "batchTransactionCounts": {},
           "methodData": {},
           "transactionBatches": [],
           "transactions": [],

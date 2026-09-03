@@ -96,6 +96,9 @@
       "path": "./packages/core-backend"
     },
     {
+      "path": "./packages/cryptography"
+    },
+    {
       "path": "./packages/delegation-controller"
     },
     {

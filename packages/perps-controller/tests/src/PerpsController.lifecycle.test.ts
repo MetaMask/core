@@ -14,10 +14,6 @@ import {
 } from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
-jest.mock('@myx-trade/sdk', () => ({
-  MyxClient: jest.fn(),
-  OrderStatusEnum: { Successful: 9 },
-}));
 
 import { PERPS_DISK_CACHE_MARKETS } from '../../src/constants/perpsConfig.js';
 import {
@@ -35,7 +31,6 @@ import type {
 } from '../../src/types/index.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
-jest.mock('../../src/providers/MYXProvider');
 
 // Mock transaction controller utility
 const mockAddTransaction = jest.fn();
@@ -110,6 +105,7 @@ const mockMarketDataServiceInstance = {
   calculateLiquidationPrice: jest.fn(),
   getMaxLeverage: jest.fn(),
   calculateFees: jest.fn().mockResolvedValue({ totalFee: 0 }),
+  previewPositionModify: jest.fn(),
   getAvailableDexs: jest.fn().mockResolvedValue([]),
   getBlockExplorerUrl: jest.fn(),
   getOrderFills: jest.fn(),
@@ -344,16 +340,6 @@ class TestablePerpsController extends PerpsController {
 
   public testHasStandaloneProvider(): boolean {
     return this.hasStandaloneProvider();
-  }
-
-  public testRegisterMYXProvider(
-    MYXProvider: new (opts: Record<string, unknown>) => PerpsProvider,
-  ) {
-    this.registerMYXProvider(MYXProvider as never);
-  }
-
-  public testHandleMYXImportError(error: unknown) {
-    this.handleMYXImportError(error);
   }
 }
 

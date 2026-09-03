@@ -16,3 +16,17 @@ We will offer more guidance here in the future, but in general:
 - Combine like changes from multiple pull requests into a single changelog entry if necessary.
 - Split disparate changes from the same pull request into multiple entries if necessary.
 - Omit reverted changes from the changelog.
+
+## Generating changelog entries for dependency bumps
+
+Recording dependency bumps within package changelogs can be tedious. You can have these entries generated for you instead of writing them by hand:
+
+1. Post a comment on your pull request with the text `@metamaskbot update-changelogs`.
+2. The `Update Changelogs` GitHub action reacts to your comment with a 👍 and kicks off.
+3. After a few minutes you will see a new comment saying either that the changelogs were updated and pushed to your branch, or that no changes were needed. If validation errors remain that the action cannot fix, the comment links to the workflow run so you can see them.
+
+A few things to know:
+
+- This works on any pull request, not just release pull requests. Release pull requests also get this automatically when they are opened.
+- If the action pushes a commit to your branch, remember to pull it locally before you push again.
+- This only works on pull requests opened from a branch in this repo. Pull requests from forks are skipped, so if you are an outside contributor you will need to update changelogs by hand.

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+### Removed
+
+- **BREAKING:** Remove the `myx` key from the `PerpsWatchlistMarkets` type and its validation schema ([#10038](https://github.com/MetaMask/core/pull/10038))
+  - MYX is no longer a supported perps venue. Code that reads or writes `watchlistMarkets.myx` no longer type-checks and should be deleted.
+  - Preference blobs already stored with a `myx` watchlist still validate at runtime: `PerpsWatchlistMarketsSchema` is a superstruct `type()`, which ignores unknown keys.
+
 ## [3.0.2]
 
 ### Changed

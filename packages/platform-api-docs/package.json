@@ -1,6 +1,6 @@
 {
   "name": "@metamask/platform-api-docs",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Produces documentation for the platform API, the set of actions and events available in the clients through the message bus",
   "keywords": [
     "Ethereum",
@@ -47,9 +47,8 @@
     "@docusaurus/types": "^3.10.1",
     "@easyops-cn/docusaurus-search-local": "^0.55.1",
     "@mdx-js/react": "^3.1.1",
-    "@metamask/utils": "^11.11.0",
+    "@metamask/utils": "^11.12.0",
     "execa": "^5.0.0",
-    "glob": "^13.0.6",
     "npm-which": "^3.0.1",
     "prism-react-renderer": "^2.4.1",
     "react": "^19.0.0",
