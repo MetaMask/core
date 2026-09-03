@@ -1,20 +1,19 @@
+export { KycController, controllerName } from './KycController.js';
 export {
-  KycController,
   getDefaultKycControllerState,
   getDefaultKycProviderDisclaimersAccepted,
   getDefaultKycVendorDisclaimersAccepted,
-  controllerName,
-} from './KycController.js';
+} from './KycControllerState.js';
 export type {
   KycControllerActions,
   KycControllerEvents,
   KycControllerGetStateAction,
   KycControllerMessenger,
   KycControllerOptions,
-  KycControllerState,
   KycControllerStateChangeEvent,
   KycControllerStatusChangedEvent,
 } from './KycController.js';
+export type { KycControllerState } from './KycControllerState.js';
 export type {
   KycControllerAcceptTermsAndStartSessionAction,
   KycControllerBuildAuthFrameUrlAction,
