@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/1231.0.0 ([#10088](https://github.com/MetaMask/core/pull/10088))
-
 ### Added
 
 - Add `POSITION_NOT_FOUND` as the provider-neutral error code for operations targeting a position the venue no longer holds ([#10083](https://github.com/MetaMask/core/pull/10083))
