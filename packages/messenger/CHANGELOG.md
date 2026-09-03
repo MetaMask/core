@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Constrain MessengerAdapter to match given data services ([#9475](https://github.com/MetaMask/core/pull/9475))
-- Add lint:tsc package script ([#9652](https://github.com/MetaMask/core/pull/9652))
-- chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
-- refactor: add `.js` import extensions to Core Platform packages ([#9571](https://github.com/MetaMask/core/pull/9571))
-- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
-- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
-
 ### Added
 
 - Add `delegateAll` method for exhaustive delegation with compile-time checking ([#8338](https://github.com/MetaMask/core/pull/8338))
