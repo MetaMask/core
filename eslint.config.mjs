@@ -75,6 +75,7 @@ const config = createConfig([
   {
     ignores: [
       '**/.docusaurus',
+      '**/.lint-tsc-cache',
       '**/coverage/**',
       '**/dist/**',
       '**/docs/**',
