@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional event fragments to `AnalyticsController` (disabled by default via `isEventFragmentsEnabled`), letting clients accumulate analytics properties across a user journey and optionally emit an initial, success, or failure event for it ([#10055](https://github.com/MetaMask/core/pull/10055))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
