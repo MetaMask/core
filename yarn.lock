@@ -5916,7 +5916,7 @@ __metadata:
     "@types/bn.js": "npm:^5.1.5"
     "@types/jest": "npm:^30.0.0"
     "@types/lodash": "npm:^4.14.191"
-    "@types/node": "npm:^16.18.54"
+    "@types/node": "npm:^22.13.14"
     "@types/uuid": "npm:^8.3.0"
     async-mutex: "npm:^0.5.0"
     bitcoin-address-validation: "npm:^2.2.3"
@@ -6529,7 +6529,7 @@ __metadata:
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^30.0.0"
     "@types/lodash": "npm:^4.14.191"
-    "@types/node": "npm:^16.18.54"
+    "@types/node": "npm:^22.13.14"
     "@types/semver": "npm:^7"
     "@typescript-eslint/eslint-plugin": "npm:^8.48.0"
     "@typescript-eslint/parser": "npm:^8.48.0"
@@ -7427,7 +7427,6 @@ __metadata:
     ethereumjs-wallet: "npm:^1.0.1"
     immer: "npm:^9.0.6"
     jest: "npm:^30.4.2"
-    jest-environment-node: "npm:^30.4.1"
     lodash: "npm:^4.17.21"
     ts-jest: "npm:^29.4.11"
     tsx: "npm:^4.20.5"
@@ -7798,7 +7797,6 @@ __metadata:
     "@types/jest": "npm:^30.0.0"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    jest-environment-node: "npm:^30.4.1"
     ts-jest: "npm:^29.4.11"
     tsx: "npm:^4.20.5"
     typedoc: "npm:^0.25.13"
@@ -8189,7 +8187,6 @@ __metadata:
     async-mutex: "npm:^0.5.0"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    jest-environment-node: "npm:^30.4.1"
     ts-jest: "npm:^29.4.11"
     tsx: "npm:^4.20.5"
     typedoc: "npm:^0.25.13"
@@ -8350,7 +8347,7 @@ __metadata:
     "@metamask/utils": "npm:^11.12.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^30.0.0"
-    "@types/node": "npm:^16.18.54"
+    "@types/node": "npm:^22.13.14"
     "@types/npm-which": "npm:^3"
     "@types/react": "npm:^19.0.0"
     "@types/yargs": "npm:^17.0.32"
@@ -8698,7 +8695,6 @@ __metadata:
     async-mutex: "npm:^0.5.0"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^30.4.2"
-    jest-environment-node: "npm:^30.4.1"
     nock: "npm:^13.3.1"
     ts-jest: "npm:^29.4.11"
     tsx: "npm:^4.20.5"
@@ -9201,7 +9197,7 @@ __metadata:
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/bn.js": "npm:^5.1.5"
     "@types/jest": "npm:^30.0.0"
-    "@types/node": "npm:^16.18.54"
+    "@types/node": "npm:^22.13.14"
     async-mutex: "npm:^0.5.0"
     bignumber.js: "npm:^9.1.2"
     bn.js: "npm:^5.2.1"
@@ -11914,19 +11910,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:*, @types/node@npm:22.7.5, @types/node@npm:>=12.12.47, @types/node@npm:>=13.7.0":
+"@types/node@npm:*, @types/node@npm:>=12.12.47, @types/node@npm:>=13.7.0, @types/node@npm:^22.13.14":
+  version: 22.20.1
+  resolution: "@types/node@npm:22.20.1"
+  dependencies:
+    undici-types: "npm:~6.21.0"
+  checksum: 10/0949e49d0383569ebd1222a2f65a9adb9328a6a6dbed459a02cdb37c61147755386c004c4ffbe436de59f5859df1774b1dd6bf168f7aeee46884bb190e0c384f
+  languageName: node
+  linkType: hard
+
+"@types/node@npm:22.7.5":
   version: 22.7.5
   resolution: "@types/node@npm:22.7.5"
   dependencies:
     undici-types: "npm:~6.19.2"
   checksum: 10/e8ba102f8c1aa7623787d625389be68d64e54fcbb76d41f6c2c64e8cf4c9f4a2370e7ef5e5f1732f3c57529d3d26afdcb2edc0101c5e413a79081449825c57ac
-  languageName: node
-  linkType: hard
-
-"@types/node@npm:^16.18.54":
-  version: 16.18.106
-  resolution: "@types/node@npm:16.18.106"
-  checksum: 10/1970719a048bfc56554f8e132e8e5292c197d6e023d334190b0d3817a05a12bfb6537eaa24778ddb695d2073195f0545e5a4b6bcaf81b656994bbca39f349c3b
   languageName: node
   linkType: hard
 
@@ -26886,6 +26884,13 @@ __metadata:
   version: 6.19.8
   resolution: "undici-types@npm:6.19.8"
   checksum: 10/cf0b48ed4fc99baf56584afa91aaffa5010c268b8842f62e02f752df209e3dea138b372a60a963b3b2576ed932f32329ce7ddb9cb5f27a6c83040d8cd74b7a70
+  languageName: node
+  linkType: hard
+
+"undici-types@npm:~6.21.0":
+  version: 6.21.0
+  resolution: "undici-types@npm:6.21.0"
+  checksum: 10/ec8f41aa4359d50f9b59fa61fe3efce3477cc681908c8f84354d8567bb3701fafdddf36ef6bff307024d3feb42c837cf6f670314ba37fc8145e219560e473d14
   languageName: node
   linkType: hard
 

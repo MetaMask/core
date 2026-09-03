@@ -79,7 +79,7 @@
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",
     "@types/lodash": "^4.14.191",
-    "@types/node": "^16.18.54",
+    "@types/node": "^22.13.14",
     "@types/semver": "^7",
     "@typescript-eslint/eslint-plugin": "^8.48.0",
     "@typescript-eslint/parser": "^8.48.0",
@@ -127,7 +127,7 @@
     "pre-push": "yarn lint"
   },
   "engines": {
-    "node": "^18.18 || >=20"
+    "node": "^22.14.0 || ^24"
   },
   "packageManager": "yarn@4.16.0+sha256.ba05224324578801b9cc98170d64aa50b9a36733b440fb0942306da3fbbdc7d1",
   "lavamoat": {
