@@ -533,8 +533,9 @@ describe('extractSignatureAddresses', () => {
         SignTypedDataVersion.V4,
       ),
     );
-    expect(addressesOf(build('Mail', { Mail: types.Mail }, { to: oddShort })))
-      .toStrictEqual(['0x0000000000000000000000000000000000000001']);
+    expect(
+      addressesOf(build('Mail', { Mail: types.Mail }, { to: oddShort })),
+    ).toStrictEqual(['0x0000000000000000000000000000000000000001']);
 
     expect(
       TypedDataUtils.encodeData(
@@ -551,8 +552,9 @@ describe('extractSignatureAddresses', () => {
         SignTypedDataVersion.V4,
       ),
     );
-    expect(addressesOf(build('Mail', { Mail: types.Mail }, { to: odd39 })))
-      .toStrictEqual([oddPadded]);
+    expect(
+      addressesOf(build('Mail', { Mail: types.Mail }, { to: odd39 })),
+    ).toStrictEqual([oddPadded]);
   });
 
   it('does not treat oversized 0x-hex as a signable address (encoder rejects 21 bytes)', () => {
