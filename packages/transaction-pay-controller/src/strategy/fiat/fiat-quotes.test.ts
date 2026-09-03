@@ -76,11 +76,17 @@ const FIAT_ASSET_MOCK: TransactionPayFiatAsset = {
 const FIAT_QUOTE_MOCK: RampsQuote = {
   provider: '/providers/transak-native-staging',
   quote: {
+    feeMode: {
+      requested: 'fee-on-top',
+      effective: 'fee-on-top',
+    },
     amountIn: 20,
     amountOut: 5,
+    extraFee: 0.3,
     networkFee: 0.2,
     paymentMethod: '/payments/debit-credit-card',
     providerFee: 0.5,
+    totalFees: 1,
   },
 };
 
@@ -302,8 +308,8 @@ describe('getFiatQuotes', () => {
         usd: '0.7',
       });
       expect(result[0].fees.metaMask).toStrictEqual({
-        fiat: '0.28',
-        usd: '0.28',
+        fiat: '4.3',
+        usd: '4.3',
       });
       expect(result[0].original).toStrictEqual({
         rampsQuote: FIAT_QUOTE_MOCK,
@@ -665,6 +671,10 @@ describe('getFiatQuotes', () => {
       const quoteWithoutFees: RampsQuote = {
         provider: '/providers/transak-native-staging',
         quote: {
+          feeMode: {
+            requested: 'fee-on-top',
+            effective: 'fee-on-top',
+          },
           amountIn: 20,
           amountOut: 5,
           paymentMethod: '/payments/debit-credit-card',
@@ -822,7 +832,6 @@ describe('getFiatQuotes', () => {
         assetId: MUSD_CAIP_ID_MOCK,
         autoSelectProvider: true,
         fiat: DEFAULT_FIAT_CURRENCY,
-        isFeeExcludedFromFiat: true,
         paymentMethods: ['/payments/debit-credit-card'],
         restrictToKnownOrNativeProviders: true,
         walletAddress: MONEY_ACCOUNT_ADDRESS,

@@ -879,6 +879,44 @@ describe('RampsController', () => {
       );
     });
 
+    it('does not widen fee-on-top quotes when the all-providers flag is enabled', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(NATIVE, 70)],
+        sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          const quotes = await callScopedGetQuotes(messenger, {
+            isFeeExcludedFromFiat: true,
+          });
+
+          expect(quotedProviders).toStrictEqual([NATIVE]);
+          expect(quotes).toStrictEqual(response);
+        },
+      );
+    });
+
     it('does not widen when the flag is missing from remote feature flags', async () => {
       const response: QuotesResponse = {
         success: [appBrowserQuote(NATIVE, 70)],
@@ -11018,13 +11056,20 @@ describe('RampsController', () => {
         nonce: 1,
         cryptoLiquidityProvider: 'provider-1',
         notes: [],
+        requestedAssetId: 'eip155:0/slip44:0',
+        requestedChainId: 'eip155:0',
+        feeMode: {
+          requested: 'fee-inclusive',
+          effective: 'fee-inclusive',
+        },
       };
 
       it('fetches buy quote and updates state on success', async () => {
         await withController(async ({ controller, rootMessenger }) => {
+          const getBuyQuote = jest.fn(async () => mockBuyQuote);
           rootMessenger.registerActionHandler(
             'TransakService:getBuyQuote',
-            async () => mockBuyQuote,
+            getBuyQuote,
           );
           const result = await rootMessenger.call(
             'RampsController:transakGetBuyQuote',
@@ -11033,8 +11078,17 @@ describe('RampsController', () => {
             'bitcoin',
             'credit_debit_card',
             '100',
+            true,
           );
           expect(result).toStrictEqual(mockBuyQuote);
+          expect(getBuyQuote).toHaveBeenCalledWith(
+            'USD',
+            'BTC',
+            'bitcoin',
+            'credit_debit_card',
+            '100',
+            true,
+          );
           expect(controller.state.nativeProviders.transak.buyQuote)
             .toMatchInlineSnapshot(`
             {
@@ -11045,6 +11099,10 @@ describe('RampsController', () => {
                 "cryptoLiquidityProvider": "provider-1",
                 "feeBreakdown": [],
                 "feeDecimal": 0.01,
+                "feeMode": {
+                  "effective": "fee-inclusive",
+                  "requested": "fee-inclusive",
+                },
                 "fiatAmount": 100,
                 "fiatCurrency": "USD",
                 "isBuyOrSell": "BUY",
@@ -11054,6 +11112,8 @@ describe('RampsController', () => {
                 "notes": [],
                 "paymentMethod": "credit_debit_card",
                 "quoteId": "quote-1",
+                "requestedAssetId": "eip155:0/slip44:0",
+                "requestedChainId": "eip155:0",
                 "slippage": 0.5,
                 "totalFee": 1,
               },
@@ -11062,6 +11122,34 @@ describe('RampsController', () => {
               "selected": null,
             }
           `);
+        });
+      });
+
+      it('defaults native quotes to fee-inclusive mode', async () => {
+        await withController(async ({ rootMessenger }) => {
+          const getBuyQuote = jest.fn(async () => mockBuyQuote);
+          rootMessenger.registerActionHandler(
+            'TransakService:getBuyQuote',
+            getBuyQuote,
+          );
+
+          await rootMessenger.call(
+            'RampsController:transakGetBuyQuote',
+            'USD',
+            'BTC',
+            'bitcoin',
+            'credit_debit_card',
+            '100',
+          );
+
+          expect(getBuyQuote).toHaveBeenCalledWith(
+            'USD',
+            'BTC',
+            'bitcoin',
+            'credit_debit_card',
+            '100',
+            false,
+          );
         });
       });
 
@@ -11557,6 +11645,12 @@ describe('RampsController', () => {
         nonce: 1,
         cryptoLiquidityProvider: 'provider-1',
         notes: [],
+        requestedAssetId: 'eip155:0/slip44:0',
+        requestedChainId: 'eip155:0',
+        feeMode: {
+          requested: 'fee-inclusive',
+          effective: 'fee-inclusive',
+        },
       };
 
       it('calls messenger with correct arguments and returns URL', async () => {
@@ -11621,6 +11715,12 @@ describe('RampsController', () => {
         nonce: 1,
         cryptoLiquidityProvider: 'provider-1',
         notes: [],
+        requestedAssetId: 'eip155:0/slip44:0',
+        requestedChainId: 'eip155:0',
+        feeMode: {
+          requested: 'fee-inclusive',
+          effective: 'fee-inclusive',
+        },
       };
 
       it('calls messenger with correct arguments and returns the widget URL', async () => {

@@ -2199,7 +2199,13 @@ export class RampsController extends BaseController<
       wantsAutoSelection
         ? this.#resolveAllProvidersFlag()
         : { enabled: false, allowlist: undefined };
-    const widenToAllProviders = wantsAutoSelection && allProvidersEnabled;
+    // Fee-on-top quotes cannot be ranked against fee-inclusive quotes because
+    // their amountOut values have different meanings. Keep this request on the
+    // single-provider resolver even when all-provider widening is enabled.
+    const widenToAllProviders =
+      wantsAutoSelection &&
+      allProvidersEnabled &&
+      options.isFeeExcludedFromFiat !== true;
 
     let providersToUse: string[];
     let widenedProviderCatalog: Provider[] = this.state.providers.data;
@@ -3261,6 +3267,7 @@ export class RampsController extends BaseController<
    * @param network - The blockchain network identifier.
    * @param paymentMethod - The payment method identifier.
    * @param fiatAmount - The fiat amount as a string.
+   * @param isFeeExcludedFromFiat - Whether Transak charges fees on top.
    * @returns The buy quote with pricing and fee details.
    */
   async transakGetBuyQuote(
@@ -3269,6 +3276,7 @@ export class RampsController extends BaseController<
     network: string,
     paymentMethod: string,
     fiatAmount: string,
+    isFeeExcludedFromFiat = false,
   ): Promise<TransakBuyQuote> {
     this.update((state) => {
       state.nativeProviders.transak.buyQuote.isLoading = true;
@@ -3283,6 +3291,7 @@ export class RampsController extends BaseController<
         network,
         paymentMethod,
         fiatAmount,
+        isFeeExcludedFromFiat,
       );
       this.update((state) => {
         state.nativeProviders.transak.buyQuote.data = quote;

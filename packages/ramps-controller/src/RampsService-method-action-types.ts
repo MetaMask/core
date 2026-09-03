@@ -121,6 +121,7 @@ export type RampsServiceGetPaymentMethodsAction = {
  * @param params.redirectUrl - Optional redirect URL after order completion.
  * @param params.providers - Optional provider IDs to filter quotes.
  * @param params.action - The ramp action type. Defaults to 'buy'.
+ * @param params.isFeeExcludedFromFiat - When true, requests fee-on-top quotes.
  * @returns The quotes response containing success, sorted, error, and customActions.
  */
 export type RampsServiceGetQuotesAction = {

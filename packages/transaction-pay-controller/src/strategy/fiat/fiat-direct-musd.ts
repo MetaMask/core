@@ -22,7 +22,7 @@ import { buildCaipAssetType, getTokenInfo } from '../../utils/token.js';
 import { MUSD_MONAD_FIAT_ASSET } from './constants.js';
 import type { FiatQuote } from './types.js';
 import {
-  getRampsProviderFiatFee,
+  getRampsFeeComposition,
   getRampsQuote,
   getRawSourceAmountFromOrderCryptoAmount,
   resolveSourceAmountRaw,
@@ -188,7 +188,11 @@ function combineDirectMusdFiatQuote({
     cryptoAmount: fiatQuote.quote.amountOut,
     decimals: tokenInfo.decimals,
   });
-  const rampsProviderFee = getRampsProviderFiatFee(fiatQuote).toString(10);
+  const rampsFees = getRampsFeeComposition(fiatQuote);
+  const rampsProviderFee = rampsFees.providerFee
+    .plus(rampsFees.networkFee)
+    .toString(10);
+  const rampsMetaMaskFee = rampsFees.extraFee.toString(10);
   const sourceAmountHuman = new BigNumber(sourceAmountRaw)
     .shiftedBy(-tokenInfo.decimals)
     .toString(10);
@@ -197,12 +201,7 @@ function combineDirectMusdFiatQuote({
     dust: { fiat: '0', usd: '0' },
     estimatedDuration: 0,
     fees: {
-      // The client submits `total - providerFiat`, so any other addend of
-      // `total` inflates the amount sent to the ramp. mUSD carries no partner
-      // fee today, so reporting zero is both accurate and safe. Reading
-      // `extraFee` here belongs with the Relay work that unifies how the two
-      // paths fund the MetaMask fee.
-      metaMask: { fiat: '0', usd: '0' },
+      metaMask: { fiat: rampsMetaMaskFee, usd: rampsMetaMaskFee },
       provider: { fiat: rampsProviderFee, usd: rampsProviderFee },
       providerFiat: { fiat: rampsProviderFee, usd: rampsProviderFee },
       sourceNetwork: {

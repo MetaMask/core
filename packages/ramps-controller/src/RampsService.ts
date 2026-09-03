@@ -210,6 +210,13 @@ export type PaymentMethodsResponse = {
  */
 export type QuoteSortBy = 'price' | 'reliability';
 
+export type QuoteFeeMode = 'fee-inclusive' | 'fee-on-top';
+
+export type QuoteFeeModeDetails = {
+  requested: QuoteFeeMode;
+  effective: QuoteFeeMode;
+};
+
 /**
  * Represents crypto translation info for a quote.
  */
@@ -290,6 +297,14 @@ export type Quote = {
      * Provider fees.
      */
     providerFee?: number | string;
+    /**
+     * Partner or other additional fees.
+     */
+    extraFee?: number | string;
+    /**
+     * Requested and provider-effective fee treatment for this quote.
+     */
+    feeMode?: QuoteFeeModeDetails;
     /**
      * Buy URL endpoint that returns the actual provider widget URL.
      *

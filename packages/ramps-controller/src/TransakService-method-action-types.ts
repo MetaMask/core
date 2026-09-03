@@ -86,7 +86,11 @@ export type TransakServiceRequestOttAction = {
  * @param ottToken - The one-time token for widget authentication.
  * @param quote - The buy quote to pre-fill in the widget.
  * @param walletAddress - The destination wallet address.
- * @param extraParams - Optional additional URL parameters.
+ * @param extraParams - Optional additional URL parameters. Pass
+ * `isFeeExcludedFromFiat: 'true'` only from a flow that was priced
+ * fee-on-top, so the widget charges in the same fee mode as the quote the
+ * user was shown. A flow priced fee-inclusive must leave it unset or the
+ * user is charged more than the amount on screen.
  * @returns The fully constructed widget URL string.
  */
 export type TransakServiceGeneratePaymentWidgetUrlAction = {
@@ -107,7 +111,11 @@ export type TransakServiceGeneratePaymentWidgetUrlAction = {
  * @param quote - The buy quote to pre-fill in the widget.
  * @param walletAddress - The destination wallet address.
  * @param extraParams - Optional additional widget parameters (e.g. theming).
- * Keys must be on the proxy's allowlist or the request is rejected.
+ * Keys must be on the proxy's allowlist or the request is rejected. Pass
+ * `isFeeExcludedFromFiat: 'true'` only from a flow that was priced
+ * fee-on-top, so the widget charges in the same fee mode as the quote the
+ * user was shown. A flow priced fee-inclusive must leave it unset or the
+ * user is charged more than the amount on screen.
  * @returns The single-use widget URL (expires after 5 minutes).
  */
 export type TransakServiceCreateWidgetUrlAction = {

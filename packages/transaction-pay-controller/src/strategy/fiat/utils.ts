@@ -107,30 +107,48 @@ export async function getRampsQuote({
   messenger: TransactionPayControllerMessenger;
   walletAddress: string;
 }): Promise<RampsQuote> {
-  const quotes = await messenger.call('RampsController:getQuotes', {
+  const quoteRequest = {
     amount: adjustedAmount,
     assetId: buildCaipAssetType(fiatAsset.chainId, fiatAsset.address),
     autoSelectProvider: true,
     fiat: DEFAULT_FIAT_CURRENCY,
-    // Both callers need `adjustedAmount` to arrive in full, with the ramp's fee
-    // charged on top: the direct mUSD path because it is the amount the user
-    // entered, the Relay path because it is the user's amount plus the relay
-    // fees the crypto leg has to fund. A fee-inclusive quote reports
-    // `amountOut` as what is left after the ramp's fee, which is short on both.
-    isFeeExcludedFromFiat: true,
     paymentMethods: [fiatPaymentMethod],
     restrictToKnownOrNativeProviders: true,
     walletAddress,
-  });
+  };
+  const quotes = await messenger.call(
+    'RampsController:getQuotes',
+    quoteRequest,
+  );
 
   log('Fetched ramps quotes', {
     quotesCount: quotes.success?.length ?? 0,
   });
 
-  const quote = quotes.success?.[0];
+  let quote = quotes.success?.[0];
 
   if (!quote) {
     throw new Error(errorMessage);
+  }
+
+  const isTransak = quote.provider
+    .replace(/^\/providers\//u, '')
+    .startsWith('transak');
+  if (isTransak) {
+    const feeOnTopQuotes = await messenger.call('RampsController:getQuotes', {
+      ...quoteRequest,
+      autoSelectProvider: false,
+      providers: [quote.provider],
+      isFeeExcludedFromFiat: true,
+      forceRefresh: true,
+    });
+    quote = feeOnTopQuotes.success?.[0];
+    if (!quote) {
+      throw new Error(errorMessage);
+    }
+    if (quote.quote.feeMode?.effective !== 'fee-on-top') {
+      throw new Error('Transak did not return a fee-on-top quote');
+    }
   }
 
   return quote;
@@ -417,6 +435,24 @@ export function getSafeFee(value: BigNumber.Value | undefined): BigNumber {
     : new BigNumber(0);
 }
 
+function getValidatedFee(
+  value: BigNumber.Value | undefined,
+  field: string,
+  strict: boolean,
+): BigNumber {
+  if (value === undefined) {
+    return new BigNumber(0);
+  }
+  const fee = new BigNumber(value);
+  if (fee.isFinite() && fee.isGreaterThanOrEqualTo(0)) {
+    return fee;
+  }
+  if (strict) {
+    throw new Error(`Malformed fee-on-top ${field}`);
+  }
+  return new BigNumber(0);
+}
+
 /**
  * Combined on-ramp provider fee for the `providerFiat` breakdown.
  *
@@ -434,3 +470,68 @@ export function getRampsProviderFiatFee(fiatQuote: RampsQuote): BigNumber {
   );
 }
 
+/**
+ * Normalized on-ramp fee composition. A valid provider-reported total wins;
+ * otherwise the total is derived from the safe component values.
+ *
+ * @param fiatQuote - Ramps quote containing fee fields.
+ * @returns Safe component and total fee values.
+ */
+export function getRampsFeeComposition(fiatQuote: RampsQuote): {
+  providerFee: BigNumber;
+  networkFee: BigNumber;
+  extraFee: BigNumber;
+  totalFees: BigNumber;
+} {
+  const strict = fiatQuote.quote.feeMode?.effective === 'fee-on-top';
+  const providerFee = getValidatedFee(
+    fiatQuote.quote.providerFee,
+    'providerFee',
+    strict,
+  );
+  const networkFee = getValidatedFee(
+    fiatQuote.quote.networkFee,
+    'networkFee',
+    strict,
+  );
+  const extraFee = getValidatedFee(
+    fiatQuote.quote.extraFee,
+    'extraFee',
+    strict,
+  );
+  const componentTotal = providerFee.plus(networkFee).plus(extraFee);
+  const rawReportedTotal =
+    fiatQuote.quote.totalFees === undefined
+      ? undefined
+      : new BigNumber(fiatQuote.quote.totalFees);
+  let reportedTotal = componentTotal;
+  if (
+    rawReportedTotal?.isFinite() &&
+    rawReportedTotal.isGreaterThanOrEqualTo(0)
+  ) {
+    reportedTotal = rawReportedTotal;
+  } else if (fiatQuote.quote.totalFees !== undefined && strict) {
+    reportedTotal = getValidatedFee(
+      fiatQuote.quote.totalFees,
+      'totalFees',
+      true,
+    );
+  }
+
+  if (
+    strict &&
+    !reportedTotal
+      .shiftedBy(2)
+      .integerValue()
+      .isEqualTo(componentTotal.shiftedBy(2).integerValue())
+  ) {
+    throw new Error('Malformed fee-on-top fee total');
+  }
+
+  return {
+    providerFee,
+    networkFee,
+    extraFee,
+    totalFees: reportedTotal,
+  };
+}

@@ -91,6 +91,8 @@ export type {
   PaymentMethod,
   PaymentMethodsResponse,
   Quote,
+  QuoteFeeMode,
+  QuoteFeeModeDetails,
   QuoteError,
   QuoteSortBy,
   QuoteSortOrder,

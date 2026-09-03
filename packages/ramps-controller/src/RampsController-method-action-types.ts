@@ -294,6 +294,12 @@ export type RampsControllerSetSelectedPaymentMethodAction = {
  * @param options.action - The ramp action type. Defaults to 'buy'.
  * @param options.forceRefresh - Whether to bypass cache.
  * @param options.ttl - Custom TTL for this request.
+ * @param options.isFeeExcludedFromFiat - When true, requests quotes whose
+ * fees are charged on top of `amount` rather than taken out of it, so
+ * `amountOut` is what `amount` buys before fees. The ramps API honours it
+ * only when the request names exactly one provider, because a fee-on-top
+ * `amountOut` cannot be ranked against fee-inclusive ones. Defaults to the
+ * existing fee-inclusive behaviour.
  * @returns The quotes response containing success, sorted, error, and customActions.
  */
 export type RampsControllerGetQuotesAction = {
@@ -504,6 +510,7 @@ export type RampsControllerTransakGetUserDetailsAction = {
  * @param network - The blockchain network identifier.
  * @param paymentMethod - The payment method identifier.
  * @param fiatAmount - The fiat amount as a string.
+ * @param isFeeExcludedFromFiat - Whether Transak charges fees on top.
  * @returns The buy quote with pricing and fee details.
  */
 export type RampsControllerTransakGetBuyQuoteAction = {

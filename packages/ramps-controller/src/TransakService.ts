@@ -10,6 +10,7 @@ import packageJson from '../package.json';
 import type { RampsClientIdentity } from './client-identity.js';
 import { addRampsClientIdentityParams } from './client-identity.js';
 import { RAMPS_SDK_VERSION } from './RampsService.js';
+import type { QuoteFeeModeDetails } from './RampsService.js';
 import { TRANSAK_ERROR_CODES } from './transakErrorCodes.js';
 import type { TransakServiceMethodActions } from './TransakService-method-action-types.js';
 
@@ -94,6 +95,9 @@ export type TransakBuyQuote = {
   nonce: number;
   cryptoLiquidityProvider: string;
   notes: { [prop: string]: string | number | boolean | null }[];
+  feeMode: QuoteFeeModeDetails;
+  requestedAssetId: string;
+  requestedChainId: string;
 };
 
 export type TransakKycRequirement = {
@@ -395,6 +399,32 @@ function normalizePaymentMethodForTranslation(
     RAMPS_TO_DEPOSIT_PAYMENT_METHOD[paymentMethod] ??
     RAMPS_TO_DEPOSIT_PAYMENT_METHOD[prefixed] ??
     paymentMethod
+  );
+}
+
+function amountsMatchAtCentPrecision(first: number, second: number): boolean {
+  return Math.round(first * 100) === Math.round(second * 100);
+}
+
+function provesFeeOnTop(
+  quote: Omit<
+    TransakBuyQuote,
+    'feeMode' | 'requestedAssetId' | 'requestedChainId'
+  >,
+  requestedPrincipal: string,
+): boolean {
+  const principal = Number(requestedPrincipal);
+  const convertedPrincipal =
+    Number(quote.cryptoAmount) * Number(quote.conversionPrice);
+  const totalFee = Number(quote.totalFee);
+
+  return (
+    Number.isFinite(principal) &&
+    principal > 0 &&
+    Number.isFinite(convertedPrincipal) &&
+    Number.isFinite(totalFee) &&
+    totalFee >= 0 &&
+    amountsMatchAtCentPrecision(convertedPrincipal, principal)
   );
 }
 
@@ -910,6 +940,7 @@ export class TransakService {
     genericNetwork: string,
     genericPaymentMethod: string,
     fiatAmount: string,
+    isFeeExcludedFromFiat = false,
   ): Promise<TransakBuyQuote> {
     const normalizedPaymentMethod = normalizePaymentMethodForTranslation(
       genericPaymentMethod || undefined,
@@ -929,14 +960,38 @@ export class TransakService {
       isBuyOrSell: 'BUY',
       network: translation.network,
       fiatAmount,
-      isFeeExcludedFromFiat: 'true',
     };
+
+    if (isFeeExcludedFromFiat) {
+      params.isFeeExcludedFromFiat = 'true';
+    }
 
     if (translation.paymentMethod) {
       params.paymentMethod = translation.paymentMethod;
     }
 
-    return this.#transakGet<TransakBuyQuote>('/api/v2/lookup/quotes', params);
+    const quote = await this.#transakGet<
+      Omit<TransakBuyQuote, 'feeMode' | 'requestedAssetId' | 'requestedChainId'>
+    >('/api/v2/lookup/quotes', params);
+
+    const feeMode = isFeeExcludedFromFiat ? 'fee-on-top' : 'fee-inclusive';
+    if (isFeeExcludedFromFiat && !provesFeeOnTop(quote, fiatAmount)) {
+      throw new Error(
+        'Transak quote response did not prove fee-on-top arithmetic',
+      );
+    }
+    return {
+      ...quote,
+      // Transak currently returns display codes only. Retain the stable CAIP
+      // request identifiers so clients can validate which request produced
+      // the response without treating provider display names as identifiers.
+      requestedAssetId: genericCryptoCurrency,
+      requestedChainId: genericNetwork,
+      feeMode: {
+        requested: feeMode,
+        effective: feeMode,
+      },
+    };
   }
 
   async getKycRequirement(quoteId: string): Promise<TransakKycRequirement> {
