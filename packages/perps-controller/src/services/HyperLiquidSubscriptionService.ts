@@ -5,6 +5,8 @@ import type {
   AllMidsWsEvent,
   WebData3WsEvent,
   UserFillsWsEvent,
+  UserTwapHistoryWsEvent,
+  TwapHistoryResponse,
   ActiveAssetCtxWsEvent,
   ActiveSpotAssetCtxWsEvent,
   BboWsEvent,
@@ -26,7 +28,6 @@ import {
 import type {
   SpotClearinghouseStateResponse,
   HyperLiquidAbstractionMode,
-  UserAbstractionResponse,
 } from '../types/hyperliquid-types.js';
 import { hyperLiquidModeFoldsSpot } from '../types/hyperliquid-types.js';
 import { WebSocketConnectionState } from '../types/index.js';
@@ -36,10 +37,12 @@ import type {
   OrderFill,
   Order,
   AccountState,
+  TwapOrder,
   SubscribePricesParams,
   SubscribePositionsParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
+  SubscribeTwapOrdersParams,
   SubscribeAccountParams,
   SubscribeOICapsParams,
   SubscribeOrderBookParams,
@@ -69,9 +72,23 @@ import {
 import {
   buildPositionTriggerOrderFromOrder,
   hashTriggerOrders,
+  resolvePositionTriggerSummaryPrice,
 } from '../utils/orderTypes.js';
 import type { HyperLiquidClientService } from './HyperLiquidClientService.js';
 import type { HyperLiquidWalletService } from './HyperLiquidWalletService.js';
+
+/**
+ * Cap on *terminal* TWAP schedules retained per account from the venue's
+ * history stream. Without it a long-lived session accumulates every schedule
+ * the account has ever run. Active schedules are never evicted: they are what
+ * a subscriber is monitoring, and a long-running one has the oldest
+ * `startedAt` of all.
+ *
+ * Deliberately not shared with the fills cache bound: fills are capped by
+ * event time and have no long-lived active analogue, so the two bounds mean
+ * different things and should be tunable apart.
+ */
+const MAX_RETAINED_TWAP_ORDERS = 100;
 
 /**
  * Per-symbol view of the trigger orders attached to a position, keyed by symbol.
@@ -106,6 +123,8 @@ export class HyperLiquidSubscriptionService {
   // Max market-vs-oracle price deviation before a market is reported untradable
   readonly #priceDeviationLimit: number;
 
+  readonly #discoverEnabledDexs?: () => Promise<string[]>;
+
   #discoveredDexNames: string[] = []; // DEX order for mapping webData3 perpDexStates indices
 
   // DEX discovery synchronization - allows subscriptions to wait for HIP-3 DEX discovery
@@ -116,6 +135,10 @@ export class HyperLiquidSubscriptionService {
   // Track DEXs for synchronized position notifications
   // Ensures all DEXs send initial data before notifying subscribers
   #expectedDexs: Set<string> = new Set();
+
+  // DEXs the current configuration requires for a complete position snapshot.
+  // Unlike #expectedDexs, subscription failures do not remove entries here.
+  #positionSnapshotDexs: Set<string> = new Set();
 
   #initializedDexs: Set<string> = new Set();
 
@@ -134,6 +157,12 @@ export class HyperLiquidSubscriptionService {
   >();
 
   readonly #orderSubscribers = new Set<(orders: Order[]) => void>();
+
+  // TWAP subscribers keyed by accountId (normalized: undefined -> 'default')
+  readonly #twapOrderSubscribers = new Map<
+    string,
+    Set<(twapOrders: TwapOrder[], isSnapshot?: boolean) => void>
+  >();
 
   readonly #accountSubscribers = new Set<(account: AccountState) => void>();
 
@@ -191,6 +220,40 @@ export class HyperLiquidSubscriptionService {
   // Order fill subscriptions keyed by accountId (normalized: undefined -> 'default')
   readonly #orderFillSubscriptions = new Map<string, ISubscription>();
 
+  // TWAP subscriptions keyed by accountId (normalized: undefined -> 'default')
+  readonly #twapOrderSubscriptions = new Map<string, ISubscription>();
+
+  // In-flight TWAP subscribe calls, so concurrent subscribers share one socket
+  readonly #pendingTwapOrderSubscriptions = new Map<string, Promise<void>>();
+
+  // Retained per-account adapters so a reconnect can re-open TWAP sockets
+  // without a live caller to supply the venue-shape mapping again.
+  readonly #twapOrderAdapters = new Map<
+    string,
+    (history: TwapHistoryResponse) => TwapOrder[]
+  >();
+
+  // Merged TWAP state per account. The venue sends a snapshot then deltas, so
+  // the full set the public callback promises is accumulated here.
+  readonly #cachedTwapOrders = new Map<string, Map<string, TwapOrder>>();
+
+  // Bumped per account by teardown and reconnect so an in-flight open for
+  // that account discards its subscription instead of rehydrating a cleared
+  // map. Keyed rather than global: every other TWAP map is per-account, so a
+  // single scalar would let one account's teardown discard another's open.
+  readonly #twapOrderSubscriptionGenerations = new Map<string, number>();
+
+  #twapOrderGeneration(normalizedAccountId: string): number {
+    return this.#twapOrderSubscriptionGenerations.get(normalizedAccountId) ?? 0;
+  }
+
+  #bumpTwapOrderGeneration(normalizedAccountId: string): void {
+    this.#twapOrderSubscriptionGenerations.set(
+      normalizedAccountId,
+      this.#twapOrderGeneration(normalizedAccountId) + 1,
+    );
+  }
+
   readonly #spotStateSubscriptions = new Map<string, ISubscription>();
 
   readonly #spotStateSubscriptionPromises = new Map<string, Promise<void>>();
@@ -219,6 +282,22 @@ export class HyperLiquidSubscriptionService {
 
   // Multi-DEX data caches
   readonly #dexPositionsCache = new Map<string, Position[]>(); // Per-DEX positions
+
+  // Connection epoch that produced each DEX's cached positions.
+  //
+  // `#dexPositionsCache` is not cleared on resubscribe, so its keys outlive a
+  // reconnect and say nothing about freshness. `#initializedDexs` is reset, but
+  // the openOrders handler also adds to it while only re-decorating already
+  // cached positions with TP/SL — it never delivers size or side — so a DEX can
+  // be "initialized" with pre-reconnect position data.
+  //
+  // Stamping each slice with the epoch of the `clearinghouseState` payload that
+  // produced it makes staleness self-evident: the getters compare against the
+  // live epoch, so a slice from a previous connection stops matching without any
+  // explicit invalidation step to place at the right lifecycle point. That also
+  // covers SDK-internal automatic reconnects, which fire no callback here, and
+  // leaves a same-epoch webData3 retry untouched because the epoch has not moved.
+  readonly #dexPositionsEpoch = new Map<string, number>();
 
   readonly #dexOrdersCache = new Map<string, Order[]>(); // Per-DEX orders
 
@@ -385,6 +464,7 @@ export class HyperLiquidSubscriptionService {
     allowlistMarkets?: string[],
     blocklistMarkets?: string[],
     priceDeviationLimit?: number,
+    discoverEnabledDexs?: () => Promise<string[]>,
   ) {
     this.#clientService = clientService;
     this.#walletService = walletService;
@@ -396,6 +476,7 @@ export class HyperLiquidSubscriptionService {
     this.#blocklistMarkets = blocklistMarkets ?? [];
     this.#priceDeviationLimit =
       priceDeviationLimit ?? HYPERLIQUID_CONFIG.OraclePriceDeviationLimit;
+    this.#discoverEnabledDexs = discoverEnabledDexs;
   }
 
   /**
@@ -475,6 +556,49 @@ export class HyperLiquidSubscriptionService {
         (messageParts.includes('unknown error (no details provided)') ||
           messageParts.includes('undefined')))
     );
+  }
+
+  /**
+   * Retry one account's TWAP subscription after a failed restoration.
+   *
+   * Mirrors `#scheduleRestoreRetry`: a single deferred attempt, skipped while
+   * clearing or when one is already pending for that account.
+   *
+   * @param normalizedAccountId - Account key ('default' when unset).
+   */
+  #scheduleTwapRestoreRetry(normalizedAccountId: string): void {
+    const retryKey = `twapOrders:${normalizedAccountId}`;
+    if (this.#isClearing || this.#restoreRetryTimeouts.has(retryKey)) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      this.#restoreRetryTimeouts.delete(retryKey);
+      const adapt = this.#twapOrderAdapters.get(normalizedAccountId);
+      const subscribers = this.#twapOrderSubscribers.get(normalizedAccountId);
+      if (!adapt || !subscribers || subscribers.size === 0) {
+        return;
+      }
+      const accountId =
+        normalizedAccountId === 'default'
+          ? undefined
+          : (normalizedAccountId as CaipAccountId);
+
+      this.#ensureTwapOrderSubscription(accountId, adapt).catch((error) => {
+        this.#logErrorUnlessClearing(
+          ensureError(
+            error,
+            'HyperLiquidSubscriptionService.restoreSubscriptions.retry',
+          ),
+          this.#getErrorContext('restoreSubscriptions.retry', {
+            accountId: normalizedAccountId,
+            kind: 'twapOrders',
+          }),
+        );
+      });
+    }, 1000);
+
+    this.#restoreRetryTimeouts.set(retryKey, timeoutId);
   }
 
   #scheduleRestoreRetry(dex: string, kind: 'assetCtxs' | 'allMids'): void {
@@ -628,11 +752,12 @@ export class HyperLiquidSubscriptionService {
    * This allows subscriptions to wait for DEX discovery before creating per-DEX subscriptions.
    *
    * @param timeoutMs - The maximum time in milliseconds to wait for DEX discovery.
+   * @returns Whether discovery completed before the timeout.
    */
-  async #waitForDexDiscovery(timeoutMs: number = 5000): Promise<void> {
+  async #waitForDexDiscovery(timeoutMs: number = 5000): Promise<boolean> {
     // Already have DEXs, no need to wait
     if (this.#enabledDexs.length > 0) {
-      return;
+      return true;
     }
 
     // Create promise if not exists
@@ -641,6 +766,16 @@ export class HyperLiquidSubscriptionService {
         this.#dexDiscoveryResolver = resolve;
       });
     }
+
+    const discovery = this.#discoverEnabledDexs
+      ? this.#discoverEnabledDexs()
+          .then((enabledDexs) => {
+            this.#enabledDexs = enabledDexs;
+            this.#discoveredDexNames = enabledDexs;
+            return undefined;
+          })
+          .catch(() => this.#dexDiscoveryPromise ?? Promise.resolve())
+      : this.#dexDiscoveryPromise;
 
     // Wait with timeout
     let timeoutId: NodeJS.Timeout | undefined;
@@ -652,11 +787,13 @@ export class HyperLiquidSubscriptionService {
     });
 
     try {
-      await Promise.race([this.#dexDiscoveryPromise, timeoutPromise]);
+      await Promise.race([discovery, timeoutPromise]);
+      return true;
     } catch {
       this.#deps.debugLogger.log(
         'DEX discovery wait timed out, proceeding with main DEX only',
       );
+      return false;
     } finally {
       if (timeoutId) {
         clearTimeout(timeoutId);
@@ -673,12 +810,14 @@ export class HyperLiquidSubscriptionService {
    * @param enabledDexs - The array of enabled DEX identifiers.
    * @param allowlistMarkets - The array of allowed market patterns.
    * @param blocklistMarkets - The array of blocked market patterns.
+   * @param dexDiscoveryComplete - Whether the DEX list came from a valid discovery response.
    */
   public async updateFeatureFlags(
     hip3Enabled: boolean,
     enabledDexs: string[],
     allowlistMarkets: string[],
     blocklistMarkets: string[],
+    dexDiscoveryComplete: boolean = true,
   ): Promise<void> {
     const previousEnabledDexs = [...this.#enabledDexs];
     const previousAllowlistMarkets = [...this.#allowlistMarkets];
@@ -690,6 +829,16 @@ export class HyperLiquidSubscriptionService {
     this.#allowlistMarkets = allowlistMarkets;
     this.#blocklistMarkets = blocklistMarkets;
     this.#discoveredDexNames = enabledDexs; // Store DEX order for webData3 index mapping
+
+    // A complete position snapshot must follow the current configuration, not
+    // the DEX set that happened to exist when subscriptions first started. Add
+    // new DEXs before creating their subscriptions so all-DEX reads fail closed
+    // until each one publishes on the current connection. Removing or disabling
+    // a DEX removes it from the required set immediately.
+    this.#positionSnapshotDexs =
+      hip3Enabled && !dexDiscoveryComplete
+        ? new Set()
+        : new Set(hip3Enabled ? ['', ...enabledDexs] : ['']);
 
     // Resolve any pending DEX discovery wait now that DEXs are available
     if (this.#dexDiscoveryResolver && enabledDexs.length > 0) {
@@ -1169,8 +1318,16 @@ export class HyperLiquidSubscriptionService {
 
       return {
         ...position,
-        takeProfitPrice: tpsl.takeProfitPrice ?? undefined,
-        stopLossPrice: tpsl.stopLossPrice ?? undefined,
+        // The scanned prices only ever come from position-bound triggers, so a
+        // lone quantity-scoped trigger has to be read off the array instead.
+        takeProfitPrice: resolvePositionTriggerSummaryPrice({
+          triggerOrders: takeProfitOrders,
+          scannedPrice: tpsl.takeProfitPrice,
+        }),
+        stopLossPrice: resolvePositionTriggerSummaryPrice({
+          triggerOrders: stopLossOrders,
+          scannedPrice: tpsl.stopLossPrice,
+        }),
         // Counts come from the same arrays as the REST path, so both transports
         // report one definition. Orders whose placement type the exchange did
         // not name (HyperLiquid's ambiguous 'Trigger') are absent from both,
@@ -1472,7 +1629,7 @@ export class HyperLiquidSubscriptionService {
       // independent of the spot generation, and the post-fetch path below
       // correctly handles the generation-changed case (seal + re-aggregate
       // instead of overwriting WS spot).
-      const infoClient = this.#clientService.getInfoClient();
+      const infoClient = this.#clientService.getInfoClient({ useHttp: true });
       const lowerUserAddress = userAddress.toLowerCase();
       // Fetch spot state + abstraction mode in parallel — mode decides
       // whether the spot fold applies in addSpotBalanceToAccountState.
@@ -1893,11 +2050,12 @@ export class HyperLiquidSubscriptionService {
 
     // Wait for DEX discovery if HIP-3 is enabled but DEXs haven't been discovered yet
     // This ensures HIP-3 subscriptions are created together with main DEX
+    let dexDiscoveryComplete = true;
     if (this.#hip3Enabled && this.#enabledDexs.length === 0) {
       this.#deps.debugLogger.log(
         'Waiting for DEX discovery before creating subscriptions...',
       );
-      await this.#waitForDexDiscovery();
+      dexDiscoveryComplete = await this.#waitForDexDiscovery();
       this.#deps.debugLogger.log(
         'DEX discovery complete, proceeding with subscriptions',
         {
@@ -1924,7 +2082,17 @@ export class HyperLiquidSubscriptionService {
       // Track expected DEXs for synchronized notifications
       // Clear previous tracking and set new expected DEXs
       this.#expectedDexs = new Set(dexsToSubscribe);
+      this.#positionSnapshotDexs = dexDiscoveryComplete
+        ? new Set(dexsToSubscribe)
+        : new Set();
       this.#initializedDexs = new Set();
+      // Position freshness needs no reset here, or anywhere else on this path:
+      // each slice carries the connection epoch that produced it, so one from a
+      // previous connection stops matching on its own. That is what makes a
+      // webData3-only retry safe — this method also runs as one (its early
+      // return above keys on #webData3Subscriptions alone), and the per-DEX
+      // clearinghouseState subscriptions stay live and do not republish on this
+      // webData3-only retry, so a reset would erase freshness they still feed.
 
       // Set up individual subscriptions for each DEX
       const subscriptionPromises: Promise<void>[] = [];
@@ -2127,56 +2295,83 @@ export class HyperLiquidSubscriptionService {
           dex: dexName || undefined, // Empty string -> undefined for main DEX
         },
         (data: ClearinghouseStateWsEvent) => {
+          // Automatic reconnect reuses this client. Replacing the transport
+          // creates a new one, and a queued payload from the retired client
+          // must not stamp stale size or side with the new connection epoch.
+          if (
+            this.#clientService.getSubscriptionClient() !== subscriptionClient
+          ) {
+            this.#deps.debugLogger.log(
+              'Ignoring clearinghouseState update from a replaced subscription client',
+              { dex: data.dex || 'main' },
+            );
+            return;
+          }
+
           const cacheKey = data.dex || '';
 
-          // Update caches and notify subscribers if we have positions/account subscribers
+          // Keep authoritative slices current for as long as the subscription
+          // exists. Order-only subscribers keep this subscription alive too.
+          // Process positions from clearinghouse state
+          const positions = data.clearinghouseState.assetPositions
+            .filter((assetPos) => assetPos.position.szi !== '0')
+            .map((assetPos) => adaptPositionFromSDK(assetPos));
+
+          // Get cached orders to preserve TP/SL data (prevents flickering)
+          // Orders are cached by openOrders subscription
+          const cachedOrders = this.#dexOrdersCache.get(cacheKey) ?? [];
+
+          // Re-extract TP/SL from cached orders for the new positions
+          // This ensures TP/SL data persists across clearinghouseState updates
+          // Default the trigger arrays so "no triggers" and "not streamed yet"
+          // look the same to consumers as they do on the REST path.
+          let positionsWithTPSL: Position[] = positions.map((position) => ({
+            ...position,
+            takeProfitOrders: position.takeProfitOrders ?? [],
+            stopLossOrders: position.stopLossOrders ?? [],
+          }));
+          if (cachedOrders.length > 0) {
+            const { tpslMap, tpslCountMap, triggerOrderMap } =
+              this.#extractTPSLFromOrders([], positions, cachedOrders);
+
+            positionsWithTPSL = this.#mergeTPSLIntoPositions(
+              positions,
+              tpslMap,
+              tpslCountMap,
+              triggerOrderMap,
+            );
+          }
+
+          // Update account state
+          const accountState: AccountState = adaptAccountStateFromSDK(
+            data.clearinghouseState,
+          );
+
+          // Update caches
+          this.#dexPositionsCache.set(cacheKey, positionsWithTPSL);
+          this.#dexAccountCache.set(cacheKey, accountState);
+
+          // Mark this DEX as initialized (has sent first data)
+          this.#initializedDexs.add(cacheKey);
+
+          // Stamp at delivery, not subscription creation. The SDK keeps this
+          // listener across automatic reconnects, so a captured creation
+          // epoch would reject every legitimate payload after the first
+          // reconnect. Delivery is synchronous from the raw socket `message`
+          // event through the SDK listener; the raw `close` event that retires
+          // the epoch cannot interleave with this callback. Only this
+          // clearinghouseState path stamps because openOrders carries no
+          // authoritative size or side.
+          this.#dexPositionsEpoch.set(
+            cacheKey,
+            this.#clientService.getConnectionEpoch(),
+          );
+
           if (
             this.#positionSubscriberCount > 0 ||
             this.#accountSubscriberCount > 0
           ) {
-            // Process positions from clearinghouse state
-            const positions = data.clearinghouseState.assetPositions
-              .filter((assetPos) => assetPos.position.szi !== '0')
-              .map((assetPos) => adaptPositionFromSDK(assetPos));
-
-            // Get cached orders to preserve TP/SL data (prevents flickering)
-            // Orders are cached by openOrders subscription
-            const cachedOrders = this.#dexOrdersCache.get(cacheKey) ?? [];
-
-            // Re-extract TP/SL from cached orders for the new positions
-            // This ensures TP/SL data persists across clearinghouseState updates
-            // Default the trigger arrays so "no triggers" and "not streamed yet"
-            // look the same to consumers as they do on the REST path.
-            let positionsWithTPSL: Position[] = positions.map((position) => ({
-              ...position,
-              takeProfitOrders: position.takeProfitOrders ?? [],
-              stopLossOrders: position.stopLossOrders ?? [],
-            }));
-            if (cachedOrders.length > 0) {
-              const { tpslMap, tpslCountMap, triggerOrderMap } =
-                this.#extractTPSLFromOrders([], positions, cachedOrders);
-
-              positionsWithTPSL = this.#mergeTPSLIntoPositions(
-                positions,
-                tpslMap,
-                tpslCountMap,
-                triggerOrderMap,
-              );
-            }
-
-            // Update account state
-            const accountState: AccountState = adaptAccountStateFromSDK(
-              data.clearinghouseState,
-            );
-
-            // Update caches
-            this.#dexPositionsCache.set(cacheKey, positionsWithTPSL);
-            this.#dexAccountCache.set(cacheKey, accountState);
-
-            // Mark this DEX as initialized (has sent first data)
-            this.#initializedDexs.add(cacheKey);
-
-            // Trigger aggregation and notify subscribers
+            // Aggregate only when a consumer needs positions/account updates.
             this.#aggregateAndNotifySubscribers();
           }
         },
@@ -2526,7 +2721,9 @@ export class HyperLiquidSubscriptionService {
 
       // Clear DEX tracking for synchronized notifications
       this.#expectedDexs.clear();
+      this.#positionSnapshotDexs.clear();
       this.#initializedDexs.clear();
+      this.#dexPositionsEpoch.clear();
 
       // Clear aggregated caches
       this.#cachedPositions = null;
@@ -2800,6 +2997,269 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
+   * Subscribe to venue-native TWAP lifecycle updates.
+   *
+   * HyperLiquid pushes the same `twapHistory` payload the REST read returns,
+   * so the caller supplies the adapter that turns raw history entries into
+   * `TwapOrder`s. That keeps the venue-shape knowledge in the provider and
+   * leaves this service owning transport, fan-out, and teardown only.
+   *
+   * Slice fills are not part of this channel — the venue streams schedule
+   * state, not individual fills — so adapted orders carry the fills the
+   * caller's adapter resolves for them.
+   *
+   * @param params - Subscription parameters including callback and account ID.
+   * @param params.callback - Receives adapted TWAP schedules, newest first.
+   * @param params.accountId - Optional CAIP account ID; defaults to selected.
+   * @param params.adapt - Maps a raw venue history payload to TWAP schedules.
+   * @returns A cleanup function to unsubscribe from TWAP updates.
+   */
+  public subscribeToTwapOrders(
+    params: SubscribeTwapOrdersParams & {
+      adapt: (history: TwapHistoryResponse) => TwapOrder[];
+    },
+  ): () => void {
+    const { callback, accountId, adapt } = params;
+    const normalizedAccountId = accountId ?? 'default';
+    const unsubscribe = this.#createSubscription(
+      this.#twapOrderSubscribers,
+      callback,
+      normalizedAccountId,
+    );
+    this.#twapOrderAdapters.set(normalizedAccountId, adapt);
+
+    // The venue sends its snapshot once per socket, so a subscriber joining an
+    // already-open socket would otherwise see nothing until the next delta —
+    // which may never come once schedules are idle. Replay what the socket has
+    // already accumulated, mirroring the cached-data replay subscribeToOrders
+    // does.
+    const cached = this.#cachedTwapOrders.get(normalizedAccountId);
+    if (cached && cached.size > 0) {
+      callback(
+        [...cached.values()].sort(
+          (left, right) => right.startedAt - left.startedAt,
+        ),
+        true,
+      );
+    }
+
+    this.#ensureTwapOrderSubscription(accountId, adapt).catch((error) => {
+      this.#logErrorUnlessClearing(
+        ensureError(
+          error,
+          'HyperLiquidSubscriptionService.subscribeToTwapOrders',
+        ),
+        this.#getErrorContext('subscribeToTwapOrders'),
+      );
+    });
+
+    return () => {
+      unsubscribe();
+
+      const subscribers = this.#twapOrderSubscribers.get(normalizedAccountId);
+      if (!subscribers || subscribers.size === 0) {
+        const subscription =
+          this.#twapOrderSubscriptions.get(normalizedAccountId);
+        if (subscription) {
+          subscription.unsubscribe().catch((error: Error) => {
+            this.#logErrorUnlessClearing(
+              ensureError(
+                error,
+                'HyperLiquidSubscriptionService.subscribeToTwapOrders',
+              ),
+              this.#getErrorContext('subscribeToTwapOrders.unsubscribe'),
+            );
+          });
+          this.#twapOrderSubscriptions.delete(normalizedAccountId);
+        }
+        // Invalidate any open still in flight for this account: without this
+        // its continuation installs a live socket nobody is listening to.
+        this.#bumpTwapOrderGeneration(normalizedAccountId);
+        this.#pendingTwapOrderSubscriptions.delete(normalizedAccountId);
+        this.#twapOrderAdapters.delete(normalizedAccountId);
+        this.#cachedTwapOrders.delete(normalizedAccountId);
+      }
+    };
+  }
+
+  /**
+   * Ensure one TWAP history subscription is active per accountId, shared
+   * across every callback registered for that account.
+   *
+   * @param accountId - Optional CAIP account ID to subscribe for.
+   * @param adapt - Maps a raw venue history payload to TWAP schedules.
+   * @returns A promise that resolves when the subscription is established.
+   */
+  async #ensureTwapOrderSubscription(
+    accountId: CaipAccountId | undefined,
+    adapt: (history: TwapHistoryResponse) => TwapOrder[],
+  ): Promise<void> {
+    const normalizedAccountId = accountId ?? 'default';
+
+    if (this.#twapOrderSubscriptions.has(normalizedAccountId)) {
+      return;
+    }
+
+    // Another subscriber is already opening this account's socket. Awaiting it
+    // rather than starting a second one is what keeps two near-simultaneous
+    // subscribes on one venue subscription. That open can still discard
+    // itself, and it resolves rather than rejecting when it does, so verify a
+    // subscription actually landed instead of assuming one did.
+    const pending =
+      this.#pendingTwapOrderSubscriptions.get(normalizedAccountId);
+    if (pending) {
+      await pending;
+      if (this.#twapOrderSubscriptions.has(normalizedAccountId)) {
+        return;
+      }
+    }
+
+    // Captured once here, spanning the whole open including the client
+    // handshake. Capturing inside the open would let a bump that lands during
+    // the handshake be adopted as the baseline and silently forgotten.
+    const startGeneration = this.#twapOrderGeneration(normalizedAccountId);
+    const subscriptionPromise = this.#createTwapOrderSubscription(
+      normalizedAccountId,
+      accountId,
+      adapt,
+      startGeneration,
+    );
+    this.#pendingTwapOrderSubscriptions.set(
+      normalizedAccountId,
+      subscriptionPromise,
+    );
+    try {
+      await subscriptionPromise;
+    } finally {
+      // Delete by identity: a reconnect may have cleared the map and installed
+      // a newer open behind this one, which must not be evicted here.
+      if (
+        this.#pendingTwapOrderSubscriptions.get(normalizedAccountId) ===
+        subscriptionPromise
+      ) {
+        this.#pendingTwapOrderSubscriptions.delete(normalizedAccountId);
+      }
+    }
+  }
+
+  /**
+   * Open one TWAP history subscription and register it for teardown.
+   *
+   * @param normalizedAccountId - Map key for this account ('default' when unset).
+   * @param accountId - Optional CAIP account ID to resolve the address from.
+   * @param adapt - Maps a raw venue history payload to TWAP schedules.
+   * @param startGeneration - This account's generation when the open began.
+   * @returns A promise that resolves once the subscription is registered.
+   */
+  async #createTwapOrderSubscription(
+    normalizedAccountId: string,
+    accountId: CaipAccountId | undefined,
+    adapt: (history: TwapHistoryResponse) => TwapOrder[],
+    startGeneration: number,
+  ): Promise<void> {
+    // Bootstrap the client inline rather than recursing: a recursive call
+    // would re-read the generation after the handshake and adopt a bump that
+    // landed during it as its own baseline.
+    let subscriptionClient = this.#clientService.getSubscriptionClient();
+    if (!subscriptionClient) {
+      await this.#clientService.ensureSubscriptionClient(
+        this.#walletService.createWalletAdapter(),
+      );
+      subscriptionClient = this.#clientService.getSubscriptionClient();
+      if (!subscriptionClient) {
+        throw new Error('SubscriptionClient not available');
+      }
+    }
+
+    const userAddress =
+      await this.#walletService.getUserAddressWithDefault(accountId);
+
+    const subscription = await subscriptionClient.userTwapHistory(
+      { user: userAddress },
+      (data: UserTwapHistoryWsEvent) => {
+        // A frame queued before an unsubscribe or reconnect must not mutate
+        // the replacement's cache or reach its subscribers. Registration is
+        // guarded below, but late listener invocations need their own check.
+        if (
+          startGeneration !== this.#twapOrderGeneration(normalizedAccountId)
+        ) {
+          return;
+        }
+        // Only the first message is the full set; later ones carry just the
+        // schedules that changed. Merge by orderId so the callback always
+        // receives the complete list its contract promises.
+        const previous =
+          this.#cachedTwapOrders.get(normalizedAccountId) ??
+          new Map<string, TwapOrder>();
+        const merged = data.isSnapshot
+          ? new Map<string, TwapOrder>()
+          : previous;
+        for (const order of adapt(data.history)) {
+          const existing = merged.get(order.orderId);
+          if (!existing || order.lastUpdated >= existing.lastUpdated) {
+            // This channel carries schedule state without slice fills, so an
+            // empty `fills` here means "not sent", not "none". Carry forward
+            // whatever a prior frame or REST read resolved so a consumer
+            // replacing its state does not lose fill history.
+            const knownFills =
+              order.fills.length > 0
+                ? order.fills
+                : (existing?.fills ?? previous.get(order.orderId)?.fills ?? []);
+            merged.set(order.orderId, { ...order, fills: knownFills });
+          }
+        }
+        // `userTwapHistory` is history, so terminal schedules would otherwise
+        // accumulate for the life of the session. Cap only the terminal ones:
+        // a long-running active schedule has an old `startedAt`, so a cap over
+        // the whole set would evict the very TWAP the user is monitoring in
+        // favour of newer dead ones.
+        const allOrders = [...merged.values()].sort(
+          (left, right) => right.startedAt - left.startedAt,
+        );
+        const activeOrders = allOrders.filter(
+          (order) => order.status === 'active',
+        );
+        const terminalOrders = allOrders
+          .filter((order) => order.status !== 'active')
+          .slice(0, MAX_RETAINED_TWAP_ORDERS);
+        const twapOrders = [...activeOrders, ...terminalOrders].sort(
+          (left, right) => right.startedAt - left.startedAt,
+        );
+        this.#cachedTwapOrders.set(
+          normalizedAccountId,
+          new Map(twapOrders.map((order) => [order.orderId, order])),
+        );
+
+        const subscribers = this.#twapOrderSubscribers.get(normalizedAccountId);
+        if (subscribers) {
+          subscribers.forEach((subscriberCallback) => {
+            subscriberCallback(twapOrders, data.isSnapshot);
+          });
+        }
+      },
+    );
+
+    // Teardown, clearAll, or a reconnect may have run while this open was in
+    // flight. Rehydrating the map here would leave a socket with no
+    // subscribers, or clobber the live replacement — so drop ours instead.
+    // The same applies when a concurrent caller won the race.
+    // The last subscriber may also have left while this open was in flight.
+    // Registering then would leave a socket whose frames reach an empty
+    // subscriber set — the venue keeps streaming and every push is discarded.
+    const subscribers = this.#twapOrderSubscribers.get(normalizedAccountId);
+    if (
+      startGeneration !== this.#twapOrderGeneration(normalizedAccountId) ||
+      this.#twapOrderSubscriptions.has(normalizedAccountId) ||
+      !subscribers ||
+      subscribers.size === 0
+    ) {
+      subscription.unsubscribe().catch(() => undefined);
+      return;
+    }
+    this.#twapOrderSubscriptions.set(normalizedAccountId, subscription);
+  }
+
+  /**
    * Subscribe to live order updates
    * Uses the shared per-DEX subscriptions to avoid duplicate connections
    *
@@ -2910,12 +3370,42 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
-   * Get the cached positions for one DEX, or null when that DEX has published
-   * none this session.
+   * Get one complete position snapshot from current-connection DEX slices.
    *
-   * A DEX only enters this map once its `clearinghouseState` subscription has
-   * published, so `null` means the absence of a symbol proves nothing about
-   * whether a position exists there.
+   * Unlike the aggregate cache, this checks connection-epoch freshness for
+   * every configured position DEX. The check and copy are synchronous, so a reconnect
+   * cannot interleave between proving completeness and reading the slices.
+   *
+   * @returns A shallow-copied complete snapshot, or null until every configured
+   * DEX is current.
+   */
+  public getFreshPositionsForAllDexs(): Position[] | null {
+    if (
+      this.#positionSnapshotDexs.size === 0 ||
+      !Array.from(this.#positionSnapshotDexs).every((dexName) =>
+        this.#isPositionDexFresh(dexName),
+      )
+    ) {
+      return null;
+    }
+
+    const snapshot: Position[] = [];
+    for (const dexName of this.#positionSnapshotDexs) {
+      const positions = this.#dexPositionsCache.get(dexName);
+      if (!positions) {
+        return null;
+      }
+      snapshot.push(...positions);
+    }
+    return snapshot;
+  }
+
+  /**
+   * Get the live positions for one DEX, or null when that DEX has not published
+   * authoritative positions on the current connection.
+   *
+   * `null` means the absence of a symbol proves nothing about whether a
+   * position exists there.
    *
    * Prefer this over `getCachedPositions()` when a decision depends on whether a
    * specific symbol is absent. The aggregate is only rebuilt once *every*
@@ -2926,11 +3416,42 @@ export class HyperLiquidSubscriptionService {
    * reading the symbol from the aggregate would mix a fresh answer with stale
    * data.
    *
+   * Only a DEX that has published `clearinghouseState` on the CURRENT
+   * connection answers non-null. The underlying cache is not cleared on
+   * resubscribe, so a key surviving from before a reconnect would otherwise
+   * hand back pre-reconnect sizes as though they were live.
+   *
    * @param dexName - DEX identifier, or '' for the main DEX.
-   * @returns That DEX's cached positions, or null if it has not published.
+   * @returns That DEX's live positions, or null if it has not published on this
+   * connection.
    */
   public getCachedPositionsForDex(dexName: string): Position[] | null {
+    if (!this.#isPositionDexFresh(dexName)) {
+      return null;
+    }
     return this.#dexPositionsCache.get(dexName) ?? null;
+  }
+
+  /**
+   * Whether a DEX's cached positions are safe to read as live right now.
+   *
+   * The slice must have been produced by the connection that is still current.
+   * A reconnect — manual or SDK-internal — retires the epoch, so a slice cached
+   * before it stops matching here without needing to be cleared anywhere. That
+   * covers the window in which trading stays HTTP-capable while the socket is
+   * down, during which a close built from positions that stopped updating would
+   * be rejected by the exchange.
+   *
+   * @param dexName - DEX identifier, or '' for the main DEX.
+   * @returns True when that DEX's slice was published on the live connection.
+   */
+  #isPositionDexFresh(dexName: string): boolean {
+    const stampedEpoch = this.#dexPositionsEpoch.get(dexName);
+    if (stampedEpoch === undefined) {
+      return false;
+    }
+
+    return stampedEpoch === this.#clientService.getConnectionEpoch();
   }
 
   /**
@@ -4431,6 +4952,50 @@ export class HyperLiquidSubscriptionService {
       );
     }
 
+    // Re-establish TWAP subscriptions if there are TWAP subscribers
+    if (this.#twapOrderSubscribers.size > 0) {
+      // Existing subscription references are dead after reconnection. Bump
+      // each account's generation first so a pre-reconnect open still in
+      // flight discards itself instead of occupying the map ahead of its
+      // replacement.
+      for (const normalizedAccountId of new Set([
+        ...this.#twapOrderSubscribers.keys(),
+        ...this.#twapOrderSubscriptions.keys(),
+        ...this.#pendingTwapOrderSubscriptions.keys(),
+      ])) {
+        this.#bumpTwapOrderGeneration(normalizedAccountId);
+      }
+      this.#twapOrderSubscriptions.clear();
+      this.#pendingTwapOrderSubscriptions.clear();
+      // Drop merged state: the fresh socket opens with a new snapshot.
+      this.#cachedTwapOrders.clear();
+
+      // Pair each account with its retained adapter first, so the restore map
+      // has no absent-adapter case to represent.
+      const restorable = Array.from(this.#twapOrderSubscribers.keys()).flatMap(
+        (normalizedAccountId) => {
+          const adapt = this.#twapOrderAdapters.get(normalizedAccountId);
+          return adapt ? [{ normalizedAccountId, adapt }] : [];
+        },
+      );
+      await Promise.all(
+        restorable.map(async ({ normalizedAccountId, adapt }) => {
+          const accountId =
+            normalizedAccountId === 'default'
+              ? undefined
+              : (normalizedAccountId as CaipAccountId);
+          await this.#ensureTwapOrderSubscription(accountId, adapt).catch(
+            () => {
+              // The dead subscription is already cleared, so swallowing this
+              // would leave registered subscribers with no socket and no
+              // further reconnect to recover them. Retry the account instead.
+              this.#scheduleTwapRestoreRetry(normalizedAccountId);
+            },
+          );
+        }),
+      );
+    }
+
     // Re-establish user data subscriptions if there are user data subscribers
     if (
       this.#positionSubscribers.size > 0 ||
@@ -4590,10 +5155,24 @@ export class HyperLiquidSubscriptionService {
     // with WebSocketRequestError - these are expected and should not be logged to Sentry.
     this.#isClearing = true;
 
+    // Bump every TWAP account's generation before anything is cleared, so an
+    // in-flight open discards its subscription instead of rehydrating a
+    // cleared map. Must run first: the subscriber keys are one of the three
+    // sources naming the accounts to invalidate, and they are cleared below.
+    for (const normalizedAccountId of new Set([
+      ...this.#twapOrderSubscribers.keys(),
+      ...this.#twapOrderSubscriptions.keys(),
+      ...this.#pendingTwapOrderSubscriptions.keys(),
+    ])) {
+      this.#bumpTwapOrderGeneration(normalizedAccountId);
+    }
+
     // Clear all local subscriber collections
     this.#priceSubscribers.clear();
     this.#positionSubscribers.clear();
     this.#orderFillSubscribers.clear();
+    this.#twapOrderSubscribers.clear();
+    this.#twapOrderAdapters.clear();
     this.#orderSubscribers.clear();
     this.#accountSubscribers.clear();
     this.#marketDataSubscribers.clear();
@@ -4606,6 +5185,17 @@ export class HyperLiquidSubscriptionService {
       });
     });
     this.#orderFillSubscriptions.clear();
+
+    // Clear TWAP subscriptions; generations were bumped above, before the
+    // subscriber keys naming those accounts were cleared.
+    this.#cachedTwapOrders.clear();
+    this.#twapOrderSubscriptions.forEach((subscription) => {
+      subscription.unsubscribe().catch(() => {
+        // Ignore errors during cleanup
+      });
+    });
+    this.#twapOrderSubscriptions.clear();
+    this.#pendingTwapOrderSubscriptions.clear();
 
     // Clear spotState subscriptions. Bump generation + drop in-flight
     // promises so any racing #ensureSpotStateSubscription continuation
@@ -4655,6 +5245,7 @@ export class HyperLiquidSubscriptionService {
     this.#dexPositionsCache.clear();
     this.#dexOrdersCache.clear();
     this.#dexAccountCache.clear();
+    this.#dexPositionsEpoch.clear();
     this.#cachedSpotState = null;
     this.#cachedSpotStateUserAddress = null;
     this.#abstractionModeByUser.clear();

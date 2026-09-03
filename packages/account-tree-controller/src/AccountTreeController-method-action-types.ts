@@ -29,6 +29,17 @@ export type AccountTreeControllerReinitAction = {
 };
 
 /**
+ * Whether `init()` has completed and the account tree is ready to consume.
+ * Returns false after `clearState()` until the next successful `init()`.
+ *
+ * @returns True when the controller has been initialized.
+ */
+export type AccountTreeControllerIsInitializedAction = {
+  type: `AccountTreeController:isInitialized`;
+  handler: AccountTreeController['isInitialized'];
+};
+
+/**
  * Gets the account wallet object from its ID.
  *
  * @param walletId - Account wallet ID.
@@ -234,11 +245,50 @@ export type AccountTreeControllerSyncWithUserStorageAtLeastOnceAction = {
 };
 
 /**
+ * Produces a versioned snapshot of the current wallet and group state.
+ *
+ * When `options.includeSecrets` is `true`, `options.password` is required
+ * and verified against the vault before any secret is read. Without
+ * `includeSecrets`, only metadata (names, pinned, hidden) is exported and
+ * no password is needed.
+ *
+ * @param options - Export options.
+ * @returns A promise resolving to an `AccountTreeSnapshot`.
+ * @throws If the vault is locked or the password is incorrect.
+ */
+export type AccountTreeControllerExportStateAction = {
+  type: `AccountTreeController:exportState`;
+  handler: AccountTreeController['exportState'];
+};
+
+/**
+ * Applies a validated snapshot to the current state.
+ *
+ * Accepts an {@link AccountTreeSnapshot} only — untrusted wire data must be
+ * parsed with {@link AccountTreeSnapshot.deserialize} first. Callers may
+ * filter the snapshot with {@link AccountTreeSnapshot.filterWallets},
+ * {@link AccountTreeSnapshot.filterGroups}, or
+ * {@link AccountTreeSnapshot.filterAllGroups} before importing.
+ *
+ * New mnemonic wallets are imported via `MultichainAccountService` and new
+ * private-key accounts via `KeyringController`. Metadata (name, pinned,
+ * hidden) is applied to all existing and newly created wallets / groups.
+ *
+ * @param snapshot - The validated snapshot to import.
+ * @returns A promise that resolves when the import is complete.
+ */
+export type AccountTreeControllerImportStateAction = {
+  type: `AccountTreeController:importState`;
+  handler: AccountTreeController['importState'];
+};
+
+/**
  * Union of all AccountTreeController action types.
  */
 export type AccountTreeControllerMethodActions =
   | AccountTreeControllerInitAction
   | AccountTreeControllerReinitAction
+  | AccountTreeControllerIsInitializedAction
   | AccountTreeControllerGetAccountWalletObjectAction
   | AccountTreeControllerGetAccountWalletObjectsAction
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
@@ -254,4 +304,6 @@ export type AccountTreeControllerMethodActions =
   | AccountTreeControllerSetAccountGroupHiddenAction
   | AccountTreeControllerClearStateAction
   | AccountTreeControllerSyncWithUserStorageAction
-  | AccountTreeControllerSyncWithUserStorageAtLeastOnceAction;
+  | AccountTreeControllerSyncWithUserStorageAtLeastOnceAction
+  | AccountTreeControllerExportStateAction
+  | AccountTreeControllerImportStateAction;

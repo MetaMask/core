@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-status-controller",
-  "version": "75.0.0",
+  "version": "75.4.0",
   "description": "Manages bridge-related status fetching functionality for MetaMask",
   "keywords": [
     "Ethereum",
@@ -54,20 +54,20 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^39.1.0",
+    "@metamask/accounts-controller": "^39.1.1",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/bridge-controller": "^79.1.0",
+    "@metamask/bridge-controller": "^80.1.1",
     "@metamask/controller-utils": "^12.3.0",
-    "@metamask/gas-fee-controller": "^26.3.1",
+    "@metamask/gas-fee-controller": "^26.3.2",
     "@metamask/keyring-controller": "^27.1.1",
     "@metamask/messenger": "^2.0.0",
-    "@metamask/network-controller": "^35.0.1",
+    "@metamask/network-controller": "^36.0.0",
     "@metamask/polling-controller": "^16.0.9",
     "@metamask/profile-sync-controller": "^29.0.0",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^69.5.2",
-    "@metamask/utils": "^11.11.0",
+    "@metamask/transaction-controller": "^69.8.0",
+    "@metamask/utils": "^11.12.0",
     "bignumber.js": "^9.1.2",
     "uuid": "^8.3.2"
   },

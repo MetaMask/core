@@ -1,5 +1,6 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { TokensControllerState } from '@metamask/assets-controllers';
+import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { Hex } from '@metamask/utils';
 import {
   getChecksumAddress,
@@ -9,6 +10,8 @@ import {
 } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
+import { divideIntoBatches } from '../data-sources/evm-rpc-services/utils/batch.js';
+import { DEFAULT_TRACKED_ASSETS_BY_CHAIN } from '../defaults.js';
 import { createModuleLogger, projectLogger } from '../logger.js';
 import type {
   AccountId,
@@ -16,6 +19,7 @@ import type {
   FungibleAssetMetadata,
   AssetsControllerStateInternal,
 } from '../types.js';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout.js';
 
 /**
  * TEMPORARY MODULE — remove in a future release.
@@ -583,4 +587,264 @@ function addCustomAssetAddition(
     queued.push(assetId);
   }
   additions[accountId] = queued;
+}
+
+const cleanupLog = createModuleLogger(projectLogger, 'cleanSpamAssets');
+
+/**
+ * TEMPORARY — feature flag for unlock spam cleanup
+ *
+ * @param remoteFeatureFlags - RemoteFeatureFlag state.
+ * @returns `true` only when the flag explicitly enables the cleanup.
+ */
+export function isUnlockCleanupEnabled(remoteFeatureFlags: unknown): boolean {
+  if (!isObject(remoteFeatureFlags)) {
+    return false;
+  }
+
+  const flag = remoteFeatureFlags.assetsUnifyState;
+  return (
+    isObject(flag) &&
+    hasProperty(flag, 'useUnlockCleanup') &&
+    flag.useUnlockCleanup === true
+  );
+}
+
+const FETCH_TIMEOUT_MS = 15_000;
+const DEFAULT_OCCURRENCE_FLOOR = 3;
+
+/** The slices of Token API surface the cleanup uses. */
+export type SpamTokensApiClient = Pick<ApiPlatformClient, 'tokens' | 'token'>;
+
+export type CleanSpamAssetsState = Pick<
+  AssetsControllerStateInternal,
+  'assetsInfo' | 'assetsBalance' | 'assetsPrice' | 'customAssets'
+>;
+
+export type CleanSpamAssetsOptions = {
+  state: CleanSpamAssetsState;
+  apiClient: SpamTokensApiClient;
+  captureException?: (error: Error) => void;
+};
+
+/**
+ * Cleanup of Spam Assets.
+ * The state can be persisted with spam tokens through boundary faults (API loosened, WS passing in spam)
+ *
+ * @param options - Input params.
+ * @param options.state - Current controller state (read-only).
+ * @param options.apiClient - Token API client.
+ * @param options.captureException - Optional reporter for failures.
+ * @returns Updated or original controller state
+ */
+export async function cleanSpamAssets({
+  state,
+  apiClient,
+  captureException,
+}: CleanSpamAssetsOptions): Promise<{
+  spamAssetIds: Caip19AssetId[];
+  applyPatch: typeof applyCleanupPatch;
+} | null> {
+  const candidates = collectSpamCleanupCandidates(state);
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  try {
+    const floors = await fetchSuggestedOccurrenceFloors(apiClient);
+    const spamAssetIds: Caip19AssetId[] = [];
+
+    for (const batch of divideIntoBatches(candidates, {
+      batchSize: 50,
+    })) {
+      const belowFloorAssetIds = await findBelowFloorAssetIds(
+        batch,
+        floors,
+        apiClient,
+      ).catch(() => []);
+      if (belowFloorAssetIds.length > 0) {
+        cleanupLog('Classified a batch of assets as spam', {
+          batchSize: batch.length,
+          spamCount: belowFloorAssetIds.length,
+        });
+        spamAssetIds.push(...belowFloorAssetIds);
+      }
+    }
+
+    if (spamAssetIds.length === 0) {
+      return null;
+    }
+
+    return { spamAssetIds, applyPatch: applyCleanupPatch };
+  } catch (error) {
+    // API calls failed, cleanup not performed. Will be retried when next invoked.
+    cleanupLog(
+      'Spam cleanup failed; leaving remaining assets untouched',
+      error,
+    );
+    captureException?.(
+      new Error(
+        `AssetsController: assetsInfo spam cleanup failed: ${getErrorMessage(
+          error,
+        )}`,
+      ),
+    );
+    return null;
+  }
+}
+
+/**
+ * Collect the assets eligible for cleanup:
+ * - ERC-20 token
+ * - Not in excluded list
+ * - Not a custom asset
+ * - On Account API covered chains
+ *
+ * @param state - Current controller state.
+ * @param state.assetsInfo - Tracked asset metadata, keyed by CAIP-19 ID.
+ * @param state.assetsBalance - Per-account balances, keyed by CAIP-19 ID.
+ * @param state.customAssets - Per-account custom asset IDs.
+ * @returns Candidate asset IDs, one per asset whatever casing it is held in.
+ */
+function collectSpamCleanupCandidates({
+  assetsInfo,
+  assetsBalance,
+  customAssets,
+}: Pick<
+  CleanSpamAssetsState,
+  'assetsInfo' | 'assetsBalance' | 'customAssets'
+>): Caip19AssetId[] {
+  const customAssetIds = new Set(
+    Object.values(customAssets)
+      .flat()
+      .map((assetId) => assetId.toLowerCase()),
+  );
+
+  const excludedAssets = [...DEFAULT_TRACKED_ASSETS_BY_CHAIN.values()]
+    .flat()
+    .map((a) => a.toLowerCase());
+
+  const trackedAssetIds = new Map<string, Caip19AssetId>();
+  const assetInfoAssetIds = Object.keys(assetsInfo) as Caip19AssetId[];
+  const balanceAssetIds = Object.values(assetsBalance).flatMap((balances) =>
+    Object.keys(balances),
+  ) as Caip19AssetId[];
+  for (const assetId of [...assetInfoAssetIds, ...balanceAssetIds]) {
+    const lowerId = assetId.toLowerCase();
+    if (!trackedAssetIds.has(lowerId)) {
+      trackedAssetIds.set(lowerId, assetId);
+    }
+  }
+
+  return [...trackedAssetIds.values()].filter((assetId) => {
+    const lowerId = assetId.toLowerCase();
+    const [chainId, asset] = lowerId.split('/');
+
+    const isERC20 = Boolean(asset?.startsWith('erc20:'));
+    const isNotExcluded = !excludedAssets.includes(lowerId);
+    const isNotCustomAsset = !customAssetIds.has(lowerId);
+    const isOnAccountAPICoveredChain =
+      ACCOUNT_API_SUPPORTED_CHAIN_IDS.has(chainId);
+
+    return (
+      isERC20 && isNotExcluded && isNotCustomAsset && isOnAccountAPICoveredChain
+    );
+  });
+}
+
+/**
+ * Fetch and filter assets by occurrence floor.
+ * If fetch fails, error is propagated (fail-close, cleanup not performed)
+ *
+ * @param assetIds - A single batch of candidate asset IDs.
+ * @param floors - Suggested occurrence floors keyed by decimal chain ID.
+ * @param apiClient - Token API client.
+ * @returns The subset of `assetIds` that falls below its chain's floor.
+ */
+async function findBelowFloorAssetIds(
+  assetIds: Caip19AssetId[],
+  floors: Record<string, number>,
+  apiClient: SpamTokensApiClient,
+): Promise<Caip19AssetId[]> {
+  try {
+    const assets = await fetchWithTimeout(
+      () =>
+        apiClient.tokens.fetchV3Assets(
+          assetIds,
+          { includeOccurrences: true },
+          { staleTime: 0, gcTime: 0 },
+        ),
+      FETCH_TIMEOUT_MS,
+    );
+
+    const occurrencesByLowerId = new Map(
+      assets.map((asset) => [asset.assetId.toLowerCase(), asset.occurrences]),
+    );
+
+    return assetIds.filter((assetId) => {
+      const chainReference = assetId.split(':')[1]?.split('/')[0] ?? '';
+      const floor = floors[chainReference] ?? DEFAULT_OCCURRENCE_FLOOR;
+      return (occurrencesByLowerId.get(assetId.toLowerCase()) ?? 0) < floor;
+    });
+  } catch (error) {
+    cleanupLog('Failed to fetch assets', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch per-chain suggested occurrence floors.
+ * If fetch fails, error is propagated (fail-close, cleanup not performed)
+ *
+ * @param apiClient - Token API client.
+ * @returns Map of decimal chain ID to suggested floor.
+ */
+async function fetchSuggestedOccurrenceFloors(
+  apiClient: SpamTokensApiClient,
+): Promise<Record<string, number>> {
+  try {
+    return await fetchWithTimeout(
+      () =>
+        apiClient.token.fetchV1SuggestedOccurrenceFloors({
+          staleTime: 0,
+          gcTime: 0,
+        }),
+      FETCH_TIMEOUT_MS,
+    );
+  } catch (error) {
+    cleanupLog('Failed to fetch suggested occurrence floors', error);
+    throw error;
+  }
+}
+
+function applyCleanupPatch(
+  state: Pick<
+    CleanSpamAssetsState,
+    'assetsInfo' | 'assetsBalance' | 'assetsPrice'
+  >,
+  patch: {
+    spamAssetIds: Caip19AssetId[];
+  },
+): void {
+  const { spamAssetIds } = patch;
+
+  const spam = new Set(spamAssetIds.map((assetId) => assetId.toLowerCase()));
+  if (spam.size === 0) {
+    return;
+  }
+  const isSpam = (assetId: string): boolean => spam.has(assetId.toLowerCase());
+
+  for (const assetId of Object.keys(state.assetsInfo).filter(isSpam)) {
+    delete state.assetsInfo[assetId as Caip19AssetId];
+  }
+  for (const balances of Object.values(state.assetsBalance)) {
+    for (const assetId of Object.keys(balances).filter(isSpam)) {
+      delete balances[assetId as Caip19AssetId];
+    }
+  }
+  for (const assetId of Object.keys(state.assetsPrice).filter(isSpam)) {
+    delete state.assetsPrice[assetId as Caip19AssetId];
+  }
+
+  cleanupLog('Removed spam assets', { count: spam.size });
 }

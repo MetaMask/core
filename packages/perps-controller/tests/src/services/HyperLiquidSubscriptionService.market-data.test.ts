@@ -472,6 +472,7 @@ describe('HyperLiquidSubscriptionService', () => {
       isTestnetMode: jest.fn(() => false),
       ensureTransportReady: jest.fn().mockResolvedValue(undefined),
       getConnectionState: jest.fn(() => 'connected'),
+      getConnectionEpoch: jest.fn(() => 1),
     } as any;
 
     // Mock wallet service
@@ -803,6 +804,91 @@ describe('HyperLiquidSubscriptionService', () => {
           takeProfitPrice: '55000',
           takeProfitCount: 1,
           stopLossCount: 0,
+        }),
+      ]);
+
+      unsubscribe();
+    });
+
+    it('reports a lone partial take profit as the position take profit price', async () => {
+      const mockCallback = jest.fn();
+
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: any, callback: any) => {
+          setTimeout(() => {
+            callback({
+              dex: _params.dex || '',
+              clearinghouseState: {
+                assetPositions: [
+                  {
+                    position: { szi: '1.0', coin: 'BTC' },
+                    coin: 'BTC',
+                  },
+                ],
+                marginSummary: {
+                  accountValue: '10000',
+                  totalMarginUsed: '500',
+                },
+                withdrawable: '9500',
+              },
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      // A quantity-scoped take profit is placed with 'na' grouping, so it is a
+      // standalone reduce-only trigger and never reaches the position-bound scan.
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (_params: any, callback: any) => {
+          setTimeout(() => {
+            callback({
+              dex: _params.dex || '',
+              orders: [
+                {
+                  oid: 321,
+                  coin: 'BTC',
+                  side: 'S',
+                  sz: '0.4',
+                  triggerPx: '55000',
+                  orderType: 'Take Profit Limit',
+                  reduceOnly: true,
+                  isPositionTpsl: false,
+                  limitPx: '55000',
+                  origSz: '0.4',
+                  timestamp: Date.now(),
+                  isTrigger: true,
+                  triggerCondition: '',
+                  children: [],
+                  tif: null,
+                  cloid: null,
+                },
+              ],
+            });
+          }, 5);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const unsubscribe = service.subscribeToPositions({
+        callback: mockCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      expect(mockCallback).toHaveBeenCalledWith([
+        expect.objectContaining({
+          symbol: 'BTC',
+          takeProfitPrice: '55000',
+          takeProfitCount: 1,
+          stopLossCount: 0,
+          takeProfitOrders: [
+            expect.objectContaining({ orderId: '321', isPartial: true }),
+          ],
         }),
       ]);
 

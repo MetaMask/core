@@ -942,6 +942,7 @@ describe('TransactionController', () => {
     it('sets default state', () => {
       const { controller } = setupController();
       expect(controller.state).toStrictEqual({
+        batchTransactionCounts: {},
         methodData: {},
         transactions: [],
         transactionBatches: [],
@@ -2709,6 +2710,30 @@ describe('TransactionController', () => {
           },
           tokenBalanceChanges: [],
         });
+      });
+
+      it('passes the transaction meta to the isSimulationEnabled callback', async () => {
+        const isSimulationEnabled = jest.fn().mockReturnValue(true);
+
+        const { controller } = setupController({
+          options: { isSimulationEnabled },
+        });
+
+        const { transactionMeta } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(isSimulationEnabled).toHaveBeenCalledWith(
+          expect.objectContaining({ id: transactionMeta.id }),
+        );
       });
 
       it('unless approval not required', async () => {
@@ -8657,6 +8682,7 @@ describe('TransactionController', () => {
         ),
       ).toMatchInlineSnapshot(`
         {
+          "batchTransactionCounts": {},
           "lastFetchedBlockNumbers": {},
           "methodData": {},
           "submitHistory": [],
@@ -8697,6 +8723,7 @@ describe('TransactionController', () => {
         ),
       ).toMatchInlineSnapshot(`
         {
+          "batchTransactionCounts": {},
           "methodData": {},
           "transactionBatches": [],
           "transactions": [],

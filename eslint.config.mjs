@@ -7,25 +7,6 @@ import node from 'eslint-plugin-n';
 const NODE_LTS_VERSION = 22;
 
 /**
- * Arguments to the `no-restricted` syntax rule that advises use of
- * `${Controller}:stateChanged` instead of `:stateChange`.
- */
-const NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS = [
-  {
-    selector:
-      'CallExpression[callee.property.name="subscribe"] > Literal[value=/^.+:stateChange$/]',
-    message:
-      "Subscribing to ':stateChange' events is deprecated. Use ':stateChanged' instead.",
-  },
-  {
-    selector:
-      'CallExpression[callee.property.name="delegate"] Property[key.name="events"] ArrayExpression > Literal[value=/^.+:stateChange$/]',
-    message:
-      "Delegating ':stateChange' events is deprecated. Use ':stateChanged' instead.",
-  },
-];
-
-/**
  * Arguments to the `no-restricted-syntax` rule that prevents messsenger actions
  * from being called in constructors.
  */
@@ -75,6 +56,7 @@ const config = createConfig([
   {
     ignores: [
       '**/.docusaurus',
+      '**/.tsc-lint-cache',
       '**/coverage/**',
       '**/dist/**',
       '**/docs/**',
@@ -159,17 +141,6 @@ const config = createConfig([
       // do not work very well.
       'jsdoc/check-tag-names': 'off',
       'jsdoc/require-jsdoc': 'off',
-
-      // Add custom rule for deprecating `${Controller}:stateChange` in favor of
-      // `:stateChanged`.
-      'no-restricted-syntax': [
-        'error',
-        ...collectExistingRuleOptions('no-restricted-syntax', [
-          base,
-          typescript,
-        ]),
-        ...NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS,
-      ],
     },
   },
   {
@@ -252,7 +223,6 @@ const config = createConfig([
           base,
           typescript,
         ]),
-        ...NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS,
         ...NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_SELECTOR_OBJECTS,
       ],
     },
@@ -268,7 +238,6 @@ const config = createConfig([
           base,
           typescript,
         ]),
-        ...NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS,
         ...NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_SELECTOR_OBJECTS,
         {
           selector:
@@ -315,6 +284,15 @@ const config = createConfig([
     },
   },
   {
+    // The UKYC test-token minter is a dev-only Node CLI, so it may use Node
+    // builtins and globals unlike the platform-agnostic package source.
+    files: ['packages/kyc-controller/scripts/**/*.ts'],
+    rules: {
+      'import-x/no-nodejs-modules': 'off',
+      'no-restricted-globals': 'off',
+    },
+  },
+  {
     files: [
       'packages/wallet-cli/src/**/*.test.{js,ts}',
       'packages/wallet-cli/tests/**/*.{js,ts}',
@@ -349,7 +327,6 @@ const config = createConfig([
       'packages/assets-controllers/src/TokenRatesController.ts',
       'packages/assets-controllers/src/TokensController.ts',
       'packages/controller-utils/src/siwe.ts',
-      'packages/ens-controller/src/EnsController.ts',
       'packages/gas-fee-controller/src/GasFeeController.ts',
       'packages/logging-controller/src/LoggingController.ts',
       'packages/message-manager/src/AbstractMessageManager.ts',

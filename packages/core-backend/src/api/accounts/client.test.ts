@@ -179,6 +179,97 @@ describe('AccountsApiClient', () => {
       );
     });
 
+    it('appends a fresh random bypassServerCache param on each v5 fetch when bypassServerCache is true', async () => {
+      const mockResponse: V5BalancesResponse = {
+        count: 0,
+        unprocessedNetworks: [],
+        balances: [],
+      };
+      mockFetch.mockResolvedValue(createMockResponse(mockResponse));
+
+      await client.accounts.fetchV5MultiAccountBalances(
+        ['eip155:1:0x123'],
+        undefined,
+        { bypassServerCache: true },
+      );
+      await client.accounts.fetchV5MultiAccountBalances(
+        ['eip155:1:0x123'],
+        undefined,
+        { bypassServerCache: true },
+      );
+
+      // Two network calls prove the client-side query cache was bypassed too.
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      const firstBuster = new URL(
+        mockFetch.mock.calls[0]?.[0] as string,
+      ).searchParams.get('bypassServerCache');
+      const secondBuster = new URL(
+        mockFetch.mock.calls[1]?.[0] as string,
+      ).searchParams.get('bypassServerCache');
+      expect(firstBuster).toMatch(/^[a-z0-9]{8}$/u);
+      expect(secondBuster).toMatch(/^[a-z0-9]{8}$/u);
+      expect(firstBuster).not.toBe(secondBuster);
+    });
+
+    it('does not append a bypassServerCache param to v5 fetches without bypassServerCache', async () => {
+      const mockResponse: V5BalancesResponse = {
+        count: 0,
+        unprocessedNetworks: [],
+        balances: [],
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      await client.accounts.fetchV5MultiAccountBalances(['eip155:1:0x123']);
+
+      const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
+      expect(calledUrl).not.toContain('bypassServerCache');
+    });
+
+    it('appends a fresh random bypassServerCache param on each v6 fetch when bypassServerCache is true', async () => {
+      const mockResponse: V6BalancesResponse = {
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+        balances: [],
+      };
+      mockFetch.mockResolvedValue(createMockResponse(mockResponse));
+
+      await client.accounts.fetchV6MultiAccountBalances(
+        ['eip155:1:0x123'],
+        undefined,
+        { bypassServerCache: true },
+      );
+      await client.accounts.fetchV6MultiAccountBalances(
+        ['eip155:1:0x123'],
+        undefined,
+        { bypassServerCache: true },
+      );
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      const firstBuster = new URL(
+        mockFetch.mock.calls[0]?.[0] as string,
+      ).searchParams.get('bypassServerCache');
+      const secondBuster = new URL(
+        mockFetch.mock.calls[1]?.[0] as string,
+      ).searchParams.get('bypassServerCache');
+      expect(firstBuster).toMatch(/^[a-z0-9]{8}$/u);
+      expect(secondBuster).toMatch(/^[a-z0-9]{8}$/u);
+      expect(firstBuster).not.toBe(secondBuster);
+    });
+
+    it('does not append a bypassServerCache param to v6 fetches without bypassServerCache', async () => {
+      const mockResponse: V6BalancesResponse = {
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+        balances: [],
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      await client.accounts.fetchV6MultiAccountBalances(['eip155:1:0x123']);
+
+      const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
+      expect(calledUrl).not.toContain('bypassServerCache');
+    });
+
     it('fetches v2 balances with additional options', async () => {
       const mockResponse: V2BalancesResponse = {
         count: 1,
@@ -257,52 +348,52 @@ describe('AccountsApiClient', () => {
       const mockResponse: V6BalancesResponse = {
         unprocessedNetworks: ['eip155:1329'],
         unprocessedIncludeAssetIds: ['eip155:1/erc20:0xabc'],
-        accounts: [
+        balances: [
           {
             accountId: 'eip155:1:0x123',
-            balances: [
-              {
-                category: 'token',
-                assetId: 'eip155:1/erc20:0xc02aaa39',
-                name: 'Wrapped Ether',
-                symbol: 'WETH',
-                decimals: 18,
-                balance: '0.283549083429656057',
-                price: '2119.66',
-              },
-              {
-                category: 'token',
-                assetId:
-                  'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
-                name: 'USD Coin',
-                symbol: 'USDC',
-                decimals: 7,
-                balance: '10.5',
-                metadata: {
-                  limit: '9223372036854775807',
-                  authorized: true,
-                },
-              },
-              {
-                category: 'defi',
-                assetId: 'eip155:1/erc20:0x4fef9d74',
-                name: 'MetaMask Swaps',
-                symbol: 'MMS',
-                decimals: 18,
-                balance: '1.0',
-                metadata: {
-                  protocolId: 'metamask',
-                  productName: 'MetaMask Swaps',
-                  groupId: 'group-1',
-                  description: 'MetaMask Swaps on ethereum',
-                  protocolUrl: 'https://metamask.io/',
-                  protocolIconUrl: 'https://example.com/icon.jpg',
-                  positionType: 'deposit',
-                  poolAddress: '0x4fef9d741011476750a243ac70b9789a63dd47df',
-                },
-              },
-            ],
-            processingDefiPositions: false,
+            object: 'token',
+            type: 'erc20',
+            assetId: 'eip155:1/erc20:0xc02aaa39',
+            name: 'Wrapped Ether',
+            symbol: 'WETH',
+            decimals: 18,
+            balance: '0.283549083429656057',
+            price: '2119.66',
+          },
+          {
+            accountId: 'eip155:1:0x123',
+            object: 'token',
+            type: 'erc20',
+            assetId:
+              'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+            name: 'USD Coin',
+            symbol: 'USDC',
+            decimals: 7,
+            balance: '10.5',
+            metadata: {
+              limit: '9223372036854775807',
+              authorized: true,
+            },
+          },
+          {
+            accountId: 'eip155:1:0x123',
+            object: 'defi',
+            type: 'erc20',
+            assetId: 'eip155:1/erc20:0x4fef9d74',
+            name: 'MetaMask Swaps',
+            symbol: 'MMS',
+            decimals: 18,
+            balance: '1.0',
+            metadata: {
+              protocolId: 'metamask',
+              productName: 'MetaMask Swaps',
+              groupId: 'group-1',
+              description: 'MetaMask Swaps on ethereum',
+              protocolUrl: 'https://metamask.io/',
+              protocolIconUrl: 'https://example.com/icon.jpg',
+              positionType: 'deposit',
+              poolAddress: '0x4fef9d741011476750a243ac70b9789a63dd47df',
+            },
           },
         ],
       };
@@ -332,7 +423,7 @@ describe('AccountsApiClient', () => {
       expect(result).toStrictEqual({
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
-        accounts: [],
+        balances: [],
       });
       expect(mockFetch).not.toHaveBeenCalled();
     });
@@ -995,7 +1086,7 @@ describe('AccountsApiClient', () => {
       expect(result).toStrictEqual({
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
-        accounts: [],
+        balances: [],
       });
       expect(mockFetch).not.toHaveBeenCalled();
     });

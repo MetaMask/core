@@ -7,9 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.1.0]
+
+### Added
+
+- Add `AccountTreeController:isInitialized` action so consumers can query whether `init()` has completed ([#10059](https://github.com/MetaMask/core/pull/10059))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.1.0` to `^39.1.1` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+## [8.0.0]
+
+### Added
+
+- **BREAKING:** Add `:{import,export}State` ([#9663](https://github.com/MetaMask/core/pull/9663), [#9826](https://github.com/MetaMask/core/pull/9826), [#9863](https://github.com/MetaMask/core/pull/9863), [#9864](https://github.com/MetaMask/core/pull/9864), [#9883](https://github.com/MetaMask/core/pull/9883))
+  - The following actions must be registered on the controller's messenger: `MultichainAccountService:createMultichainAccountWallet`, `KeyringController:with{Controller,KeyringV2,KeyringV2Unsafe}`.
+  - This can be used to serialize/deserialize the entire account-tree state (metadata + secrets if needed).
+  - The `password` is required whenever secrets are requested.
+  - The payload is versionned and hard-coded to version 1 for now.
+- Add `AccountTreeController:initialized` event, emitted at the end of `init()` when the account tree is fully built and ready to consume ([#9880](https://github.com/MetaMask/core/pull/9880))
+- Add `AccountTreeController:uninitialized` event, emitted at the end of `clearState()` when the account tree has been torn down ([#9880](https://github.com/MetaMask/core/pull/9880))
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^39.0.7` to `^39.1.0` ([#9807](https://github.com/MetaMask/core/pull/9807))
+- Bump `@metamask/multichain-account-service` from `^13.0.1` to `^13.0.2` ([#9886](https://github.com/MetaMask/core/pull/9886))
+
+### Fixed
+
+- `clearState` now resets internal mappings and resets selected account group through `:selectedAccountGroupChange` ([#9825](https://github.com/MetaMask/core/pull/9825))
+  - Consumers are (and were already) expected to handle `''` for `:selectedAccountGroupChange` (which can happens during onboarding, and now, during wallet resets).
 
 ## [7.6.1]
 
@@ -652,7 +681,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.6.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@8.0.0...@metamask/account-tree-controller@8.1.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.6.1...@metamask/account-tree-controller@8.0.0
 [7.6.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.6.0...@metamask/account-tree-controller@7.6.1
 [7.6.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.5.5...@metamask/account-tree-controller@7.6.0
 [7.5.5]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.5.4...@metamask/account-tree-controller@7.5.5

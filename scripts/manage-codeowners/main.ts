@@ -90,7 +90,7 @@ function generateCodeownersFileContent(): string {
     const lines: string[] = [];
 
     // This is useful to discriminate the union.
-    // eslint-disable-next-line no-restricted-syntax
+
     if ('title' in section) {
       lines.push(`## ${section.title}`);
     }

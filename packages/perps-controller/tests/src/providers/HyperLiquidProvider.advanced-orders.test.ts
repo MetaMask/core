@@ -281,10 +281,18 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
-  order: jest.fn().mockResolvedValue({
-    status: 'ok',
-    response: { data: { statuses: [{ resting: { oid: 123 } }] } },
-  }),
+  order: jest.fn().mockImplementation((request: { orders: unknown[] }) =>
+    Promise.resolve({
+      status: 'ok',
+      response: {
+        data: {
+          statuses: request.orders.map((_order, index) => ({
+            resting: { oid: 123 + index },
+          })),
+        },
+      },
+    }),
+  ),
   modify: jest.fn().mockResolvedValue({
     status: 'ok',
     response: { data: { statuses: [{ resting: { oid: '123' } }] } },
@@ -438,6 +446,8 @@ describe('HyperLiquidProvider', () => {
       clearAll: jest.fn(),
       isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
       getCachedPositions: jest.fn().mockReturnValue([]),
+      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
+      getCachedPositionsForDex: jest.fn().mockReturnValue(null),
       updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
       setDexMetaCache: jest.fn(),
@@ -1335,6 +1345,118 @@ describe('HyperLiquidProvider', () => {
         mockClientService.getExchangeClient().modify,
       ).not.toHaveBeenCalled();
     });
+
+    // Regression coverage for the editOrder half of TAT-3252. The submitted
+    // size is formatted with formatHyperLiquidSize, which rounds half-up, so a
+    // reduce-only edit could be sent above the size the caller asked to keep —
+    // the same "Reduce only order would increase position" rejection the close
+    // and TP/SL paths were hardened against.
+    describe('reduce-only size formatting', () => {
+      /**
+       * Read the size submitted to the venue's modify action.
+       * @returns The formatted size string.
+       */
+      const getModifiedSize = () =>
+        (mockClientService.getExchangeClient().modify as jest.Mock).mock
+          .calls[0][0].order.s;
+
+      it('rounds a reduce-only edit size down to the size grid', async () => {
+        // BTC is szDecimals 3 here, so 0.1155 rounds half-up to '0.116' —
+        // one increment above the position the edit is meant to reduce.
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: false,
+            size: '0.1155',
+            orderType: 'limit',
+            price: '51000',
+            reduceOnly: true,
+          },
+        });
+
+        expect(result.success).toBe(true);
+        expect(getModifiedSize()).toBe('0.115');
+      });
+
+      it('leaves a non-reduce-only edit size on its existing rounding', async () => {
+        // An opening order has no position ceiling to breach, so rounding it
+        // down would shrink an order the caller asked for.
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1155',
+            orderType: 'limit',
+            price: '49000',
+          },
+        });
+
+        expect(result.success).toBe(true);
+        expect(getModifiedSize()).toBe('0.116');
+      });
+
+      it('refuses a reduce-only edit smaller than one size increment', async () => {
+        // Flooring 0.0004 at szDecimals 3 yields 0, and a zero-size modify is
+        // rejected by the venue rather than being a no-op.
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: false,
+            size: '0.0004',
+            orderType: 'limit',
+            price: '51000',
+            reduceOnly: true,
+          },
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+        expect(
+          mockClientService.getExchangeClient().modify,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('refuses a non-numeric edit size', async () => {
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: 'abc',
+            orderType: 'limit',
+            price: '51000',
+          },
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SIZE_POSITIVE);
+        expect(
+          mockClientService.getExchangeClient().modify,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('keeps a grid-aligned reduce-only edit size intact', async () => {
+        // 0.123 * 1000 === 122.99999999999999, so a naive truncation would
+        // drop a whole increment.
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: false,
+            size: '0.123',
+            orderType: 'limit',
+            price: '51000',
+            reduceOnly: true,
+          },
+        });
+
+        expect(result.success).toBe(true);
+        expect(getModifiedSize()).toBe('0.123');
+      });
+    });
   });
 
   describe('Advanced orders in open-orders state', () => {
@@ -1684,8 +1806,76 @@ describe('HyperLiquidProvider', () => {
           reduceOnly: true,
         },
       ]);
-      // The scalar summary field stays position-bound-only, which is exactly why
-      // the array exists.
+      // A lone trigger is the position's take profit whether or not it is
+      // position-bound, so the scalar summary field reports its price.
+      expect(position?.takeProfitPrice).toBe('60000');
+      expect(position?.takeProfitCount).toBe(1);
+    });
+
+    it('leaves the summary price unset when two partial take profits share the position', async () => {
+      const partialTakeProfit = (oid: number, triggerPx: string) => ({
+        coin: 'BTC',
+        side: 'A',
+        limitPx: triggerPx,
+        sz: '0.04',
+        origSz: '0.04',
+        oid,
+        timestamp: 1_700_000_000_000,
+        triggerCondition: `Price above ${triggerPx}`,
+        isTrigger: true,
+        triggerPx,
+        children: [],
+        isPositionTpsl: false,
+        reduceOnly: true,
+        orderType: 'Take Profit Limit',
+      });
+
+      mockClientService.getInfoClient.mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: jest.fn().mockResolvedValue({
+            marginSummary: { totalMarginUsed: '500', accountValue: '10500' },
+            crossMarginSummary: {
+              totalMarginUsed: '500',
+              accountValue: '10500',
+            },
+            withdrawable: '9500',
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.1',
+                  entryPx: '50000',
+                  positionValue: '5000',
+                  unrealizedPnl: '100',
+                  marginUsed: '500',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '45000',
+                  maxLeverage: 50,
+                  returnOnEquity: '20',
+                  cumFunding: {
+                    allTime: '10',
+                    sinceOpen: '5',
+                    sinceChange: '2',
+                  },
+                },
+                type: 'oneWay',
+              },
+            ],
+          }),
+          frontendOpenOrders: jest
+            .fn()
+            .mockResolvedValue([
+              partialTakeProfit(701, '60000'),
+              partialTakeProfit(702, '62000'),
+            ]),
+        }) as unknown as ReturnType<typeof mockClientService.getInfoClient>,
+      );
+
+      const positions = await provider.getPositions({ skipCache: true });
+      const position = positions.find((pos) => pos.symbol === 'BTC');
+
+      // No single price describes two triggers; the count is what a client shows.
+      expect(position?.takeProfitCount).toBe(2);
       expect(position?.takeProfitPrice).toBeUndefined();
     });
   });
@@ -1760,6 +1950,223 @@ describe('HyperLiquidProvider', () => {
       expect(request.orders[0].s).toBe('0.04');
       // The stop loss without an explicit size covers the full position size
       expect(request.orders[1].s).toBe('0.1');
+    });
+
+    // TAT-3252: a partial TP/SL is a reduce-only trigger, so its size may never
+    // exceed the position it protects, and the position it is measured against
+    // must be the live one rather than the caller's throttled snapshot.
+    // Otherwise HyperLiquid rejects the order with "Order 0: Reduce only order
+    // would increase position".
+    describe('reduce-only safety', () => {
+      it('floors a partial size onto the size grid instead of rounding it up', async () => {
+        // BTC is szDecimals 3 here, so 0.1155 rounds half-up to '0.116' —
+        // more than the 0.1155 the caller asked to cover.
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+          { ...position, size: '0.1155' },
+        ]);
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.1155',
+          position: { ...position, size: '0.1155' },
+        });
+
+        const request = (
+          mockClientService.getExchangeClient().order as jest.Mock
+        ).mock.calls[0][0];
+        expect(request.orders[0].r).toBe(true);
+        expect(parseFloat(request.orders[0].s)).toBeLessThanOrEqual(0.1155);
+        expect(request.orders[0].s).toBe('0.115');
+      });
+
+      it('floors a whole-position TP/SL size onto the size grid', async () => {
+        // Position-bound TP/SL sends size '0', so the formatted whole-position
+        // size is only reachable alongside a partial trigger.
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
+          { ...position, size: '0.1155' },
+        ]);
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.01',
+          stopLossPrice: '45000',
+          position: { ...position, size: '0.1155' },
+        });
+
+        const request = (
+          mockClientService.getExchangeClient().order as jest.Mock
+        ).mock.calls[0][0];
+        // The stop loss carries no size of its own, so it covers the position.
+        expect(parseFloat(request.orders[1].s)).toBeLessThanOrEqual(0.1155);
+        expect(request.orders[1].s).toBe('0.115');
+      });
+
+      it('re-reads the live position when the caller snapshot is stale', async () => {
+        // The snapshot says 0.1 but a concurrent fill left only 0.04 open. A
+        // whole-position stop loss must cover the live size, not the snapshot.
+        mockSubscriptionService.isPositionsCacheInitialized.mockReturnValue(
+          true,
+        );
+        mockSubscriptionService.getCachedPositionsForDex = jest
+          .fn()
+          .mockReturnValue([{ ...position, size: '0.04' }]);
+
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.04',
+          stopLossPrice: '45000',
+          position,
+        });
+
+        const request = (
+          mockClientService.getExchangeClient().order as jest.Mock
+        ).mock.calls[0][0];
+        // The stop loss carries no explicit size, so it covers the position —
+        // the live 0.04, not the snapshot's 0.1.
+        expect(request.orders[1].s).toBe('0.04');
+      });
+
+      it('re-reads the live position while the aggregate flag is still false', async () => {
+        // isPositionsCacheInitialized() only flips once EVERY expected DEX has
+        // published, so during a staggered start or reconnect it reads false
+        // while this symbol's own slice is already live. Gating revalidation on
+        // it suppressed the fresher answer and built the trigger from the stale
+        // snapshot — the reduce-only rejection this revalidation exists to stop.
+        mockSubscriptionService.isPositionsCacheInitialized.mockReturnValue(
+          false,
+        );
+        mockSubscriptionService.getCachedPositionsForDex = jest
+          .fn()
+          .mockReturnValue([{ ...position, size: '0.04' }]);
+
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.04',
+          stopLossPrice: '45000',
+          position,
+        });
+
+        const request = (
+          mockClientService.getExchangeClient().order as jest.Mock
+        ).mock.calls[0][0];
+        expect(request.orders[1].s).toBe('0.04');
+      });
+
+      it('takes the trigger side from the live position when the snapshot flipped', async () => {
+        // The snapshot is long but the position is now short. A trigger built
+        // from the stale side would sit on the wrong side of the position and
+        // increase it rather than reduce it.
+        mockSubscriptionService.isPositionsCacheInitialized.mockReturnValue(
+          true,
+        );
+        mockSubscriptionService.getCachedPositionsForDex = jest
+          .fn()
+          .mockReturnValue([{ ...position, size: '-0.1' }]);
+
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '40000',
+          takeProfitSize: '0.04',
+          position,
+        });
+
+        const request = (
+          mockClientService.getExchangeClient().order as jest.Mock
+        ).mock.calls[0][0];
+        // Closing a short buys, so the reduce-only trigger is a buy.
+        expect(request.orders[0].b).toBe(true);
+      });
+
+      it('uses the target-DEX REST position when the WebSocket slice is unavailable', async () => {
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue(null);
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: jest.fn().mockResolvedValue({
+              marginSummary: { totalMarginUsed: '200', accountValue: '10200' },
+              withdrawable: '10000',
+              assetPositions: [
+                {
+                  position: {
+                    coin: 'BTC',
+                    szi: '0.04',
+                    entryPx: '50000',
+                    positionValue: '2000',
+                    unrealizedPnl: '20',
+                    marginUsed: '200',
+                    leverage: { type: 'cross', value: 10 },
+                    liquidationPx: '45000',
+                  },
+                  type: 'oneWay',
+                },
+              ],
+            }),
+          }),
+        );
+
+        await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.04',
+          stopLossPrice: '45000',
+          position,
+        });
+
+        const request = (
+          mockClientService.getExchangeClient().order as jest.Mock
+        ).mock.calls[0][0];
+        expect(request.orders[1].s).toBe('0.04');
+        expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
+          useHttp: true,
+        });
+      });
+
+      it('does not submit TP/SL for a position the current DEX slice reports closed', async () => {
+        mockSubscriptionService.getCachedPositionsForDex = jest
+          .fn()
+          .mockReturnValue([]);
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.04',
+          stopLossPrice: '45000',
+          position,
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBe(PERPS_ERROR_CODES.POSITION_NOT_FOUND);
+        expect(
+          mockClientService.getExchangeClient().order,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('reports provider unavailable instead of trusting a snapshot when REST fails', async () => {
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue(null);
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({
+            clearinghouseState: jest
+              .fn()
+              .mockRejectedValue(new Error('REST unavailable')),
+          }),
+        );
+
+        const result = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          takeProfitSize: '0.04',
+          position,
+        });
+
+        expect(result).toStrictEqual({
+          success: false,
+          error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+        });
+        expect(
+          mockClientService.getExchangeClient().order,
+        ).not.toHaveBeenCalled();
+      });
     });
 
     it('cancels standalone partial triggers but never another order TP/SL child', async () => {
@@ -1969,6 +2376,13 @@ describe('HyperLiquidProvider', () => {
     it.each([
       ['a size larger than the position', '0.5'],
       ['a size that rounds to zero', '0.0004'],
+      // The pre-side-effect check formatted half-up while the size that is
+      // actually submitted is floored, so a size in [0.5, 1) increments passed
+      // validation and was only refused after trading setup and the pre-cancel
+      // sweep had already run. 0.0007 at szDecimals 3 rounds up to '0.001' but
+      // floors to 0.
+      ['a size below one full increment', '0.0007'],
+      ['a size on exactly half an increment', '0.0005'],
       ['a non-positive size', '0'],
     ])(
       'rejects %s without running trading setup',
@@ -1992,6 +2406,15 @@ describe('HyperLiquidProvider', () => {
         expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_TPSL_SIZE_INVALID);
         expect(
           mockClientService.getExchangeClient().setReferrer,
+        ).not.toHaveBeenCalled();
+        expect(
+          mockClientService.getExchangeClient().approveBuilderFee,
+        ).not.toHaveBeenCalled();
+        // The pre-cancel sweep is the costly one: it clears the position's
+        // existing triggers, so a refusal after it runs leaves the position
+        // unprotected with nothing put back.
+        expect(
+          mockClientService.getExchangeClient().cancel,
         ).not.toHaveBeenCalled();
       },
     );

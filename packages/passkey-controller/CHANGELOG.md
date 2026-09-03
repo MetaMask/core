@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+## [3.1.0]
+
+### Added
+
+- Added new util, `getAAGUIDFromRegistrationResponse` to read the authenticator AAGUID from a `navigator.credentials.create()` result. ([#9951](https://github.com/MetaMask/core/pull/9951))
+
+### Changed
+
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
 
 ## [3.0.0]
@@ -106,7 +116,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Registration verification requires the credential `id`/`rawId` to match the credential id in authenticator data; vault wrapping key derivation uses that verified credential id so enrollment keys align with the stored credential.
 - Registration options request attestation conveyance `'none'` so clients are not asked for direct attestation formats the verifier does not implement (`none` and self-attested `packed` only).
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@3.1.0...HEAD
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@3.0.0...@metamask/passkey-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@2.1.0...@metamask/passkey-controller@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@2.0.1...@metamask/passkey-controller@2.1.0
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@2.0.0...@metamask/passkey-controller@2.0.1

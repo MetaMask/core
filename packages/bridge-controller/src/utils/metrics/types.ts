@@ -16,6 +16,8 @@ import type {
   MetricsActionType,
   MetricsSwapType,
   PollingStatus,
+  FailurePhase,
+  SwapBridgeErrorCode,
 } from './constants.js';
 
 /**
@@ -46,7 +48,7 @@ export type AccountHardwareType =
   | null;
 
 export type RequestMetadata = {
-  slippage_limit?: number; // undefined === auto
+  slippage_limit: number; // 0 === auto when no numeric limit is available
   custom_slippage: boolean;
   usd_amount_source: number; // Use quoteResponse when available
   stx_enabled: boolean;
@@ -81,6 +83,24 @@ export type TxStatusData = {
   source_transaction?: StatusTypes;
   destination_transaction?: StatusTypes;
 };
+
+export type HashPresenceData = {
+  source_hash_present?: boolean;
+  destination_hash_present?: boolean;
+};
+
+export type FailureTelemetryData = HashPresenceData & {
+  failure_phase?: FailurePhase;
+  error_code?: SwapBridgeErrorCode;
+};
+
+/**
+ * Classifier return shape. Event context types use the optional `*Data`
+ * variants above because Mixpanel fields are additive.
+ */
+export type HashPresenceProperties = Required<HashPresenceData>;
+
+export type FailureTelemetryProperties = Required<FailureTelemetryData>;
 
 export type InputPrimaryDenominationData = {
   input_primary_denomination?: InputPrimaryDenomination;
@@ -221,6 +241,7 @@ type RequiredEventContextFromClientBase = {
     token_symbol_source: RequestParams['token_symbol_source'];
     token_symbol_destination: RequestParams['token_symbol_destination'];
     token_security_type_destination: RequestParams['token_security_type_destination'];
+    custom_slippage?: RequestMetadata['custom_slippage'];
   } & InputPrimaryDenominationData;
   [UnifiedSwapBridgeEventName.QuotesReceived]: TradeData &
     Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> &
@@ -232,6 +253,8 @@ type RequiredEventContextFromClientBase = {
       usd_balance_source?: number;
       has_sufficient_gas_for_quote?: boolean | null;
       usd_amount_source: number;
+      custom_slippage?: RequestMetadata['custom_slippage'];
+      slippage_limit?: RequestMetadata['slippage_limit'];
     };
   [UnifiedSwapBridgeEventName.QuotesError]: Pick<
     RequestMetadata,
@@ -239,7 +262,8 @@ type RequiredEventContextFromClientBase = {
   > & {
     token_symbol_source: RequestParams['token_symbol_source'];
     token_symbol_destination: RequestParams['token_symbol_destination'];
-  } & Pick<RequestMetadata, 'security_warnings'>;
+  } & Pick<RequestMetadata, 'security_warnings'> &
+    Pick<FailureTelemetryData, 'failure_phase' | 'error_code'>;
   // Emitted by BridgeStatusController
   [UnifiedSwapBridgeEventName.Submitted]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
@@ -256,7 +280,8 @@ type RequiredEventContextFromClientBase = {
     > & {
       action_type: MetricsActionType;
       batch_id?: string;
-    } & InputPrimaryDenominationData;
+    } & InputPrimaryDenominationData &
+    HashPresenceData;
   [UnifiedSwapBridgeEventName.Completed]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
     Omit<RequestMetadata, 'security_warnings'> &
@@ -270,7 +295,8 @@ type RequiredEventContextFromClientBase = {
       action_type: MetricsActionType;
       batch_id?: string;
       transaction_internal_id?: string;
-    } & InputPrimaryDenominationData;
+    } & InputPrimaryDenominationData &
+    HashPresenceData;
   [UnifiedSwapBridgeEventName.Failed]: (
     | // Tx failed before confirmation
       (Pick<
@@ -299,7 +325,7 @@ type RequiredEventContextFromClientBase = {
     Pick<QuoteFetchData, 'price_impact'> & {
       error_message: string;
       batch_id?: string;
-    };
+    } & FailureTelemetryData;
   [UnifiedSwapBridgeEventName.PollingStatusUpdated]: {
     polling_status: PollingStatus;
     retry_attempts: number;
@@ -401,6 +427,7 @@ export type EventPropertiesFromControllerState = {
     QuoteFetchData &
     TradeData & {
       refresh_count: number; // starts from 0
+      has_sufficient_funds: boolean;
     } & InputPrimaryDenominationData;
   [UnifiedSwapBridgeEventName.QuotesError]: RequestParams &
     RequestMetadata & {

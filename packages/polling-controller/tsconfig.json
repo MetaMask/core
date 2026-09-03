@@ -9,9 +9,6 @@
       "path": "../base-controller"
     },
     {
-      "path": "../network-controller"
-    },
-    {
       "path": "../messenger"
     }
   ],

@@ -101,28 +101,6 @@ export type MarketInsightsReport = {
   metadata?: AIResponseMetadata[];
 };
 
-/**
- * A cached market insights entry.
- */
-export type MarketInsightsEntry = {
-  /** Asset identifier — either a CAIP-19 ID (e.g. "eip155:1/slip44:60") or a perps market symbol (e.g. "ETH") */
-  assetIdentifier: string;
-  /** Timestamp when the entry was fetched */
-  fetchedAt: number;
-  /** The market insights report data */
-  data: MarketInsightsReport;
-};
-
-/**
- * A cached market overview entry.
- */
-export type MarketOverviewEntry = {
-  /** Timestamp when the entry was fetched */
-  fetchedAt: number;
-  /** The market overview data */
-  data: MarketOverview;
-};
-
 // ---------------------------------------------------------------------------
 // Market Overview types (non-asset-specific)
 // ---------------------------------------------------------------------------
@@ -219,10 +197,11 @@ export type MarketOverviewFrontPage = {
 // Controller state
 // ---------------------------------------------------------------------------
 
-export type AiDigestControllerState = {
-  marketInsights: Record<string, MarketInsightsEntry>;
-  marketOverview: MarketOverviewEntry | null;
-};
+/**
+ * AiDigestController has no persisted cache. Digest freshness is owned by
+ * clients (e.g. React Query).
+ */
+export type AiDigestControllerState = Record<string, never>;
 
 // ---------------------------------------------------------------------------
 // Service interface

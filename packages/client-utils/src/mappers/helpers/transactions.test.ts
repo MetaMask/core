@@ -353,7 +353,7 @@ describe('transaction helpers', () => {
       ]);
     });
 
-    it('keeps the nativeAssetSymbol on fees when it cannot be mapped to an assetId', () => {
+    it('falls back to the zero-address native assetId when the chain is unknown and the symbol has no slip44', () => {
       expect(
         getLocalTransactionFees({
           nativeAssetSymbol: 'NOTACOIN',
@@ -373,6 +373,8 @@ describe('transaction helpers', () => {
           decimals: 18,
           assetType: 'native',
           symbol: 'NOTACOIN',
+          assetId:
+            'eip155:999999991/erc20:0x0000000000000000000000000000000000000000',
         },
       ]);
     });

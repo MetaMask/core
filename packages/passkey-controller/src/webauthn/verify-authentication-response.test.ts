@@ -1,4 +1,10 @@
+import { encodeCBOR } from '@levischuck/tiny-cbor';
+import { concatBytes } from '@metamask/utils';
+import { p256 } from '@noble/curves/p256';
+import { sha256 } from '@noble/hashes/sha2';
+
 import { bytesToBase64URL, base64URLToBytes } from '../utils/encoding.js';
+import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants.js';
 import { decodeClientDataJSON } from './decode-client-data-json.js';
 import type { PasskeyAuthenticationResponse } from './types.js';
 import { verifyAuthenticationResponse } from './verify-authentication-response.js';
@@ -58,6 +64,59 @@ const authenticatorFirstTimeUsed = {
 const assertionChallenge = decodeClientDataJSON(
   assertionResponse.response.clientDataJSON,
 ).challenge;
+
+/**
+ * Re-signs the assertion fixture's authenticator data over the given client
+ * data, using a freshly generated ES256 credential.
+ *
+ * Needed whenever a test alters `clientDataJSON`, since the fixture signature
+ * covers `authenticatorData || SHA-256(clientDataJSON)` and would otherwise no
+ * longer verify.
+ *
+ * @param clientData - Client data to serialize and sign over.
+ * @returns The signed assertion and the credential that signed it.
+ */
+function buildSignedAssertion(clientData: Record<string, unknown>): {
+  response: PasskeyAuthenticationResponse;
+  credential: { id: string; publicKey: Uint8Array; counter: number };
+} {
+  const privateKey = p256.utils.randomPrivateKey();
+  const publicKeyRaw = p256.getPublicKey(privateKey, false);
+  const coseKey = new Map<number, number | Uint8Array>();
+  coseKey.set(COSEKEYS.Kty, COSEKTY.EC2);
+  coseKey.set(COSEKEYS.Alg, COSEALG.ES256);
+  coseKey.set(COSEKEYS.Crv, COSECRV.P256);
+  coseKey.set(COSEKEYS.X, publicKeyRaw.slice(1, 33));
+  coseKey.set(COSEKEYS.Y, publicKeyRaw.slice(33, 65));
+
+  const { authenticatorData } = assertionResponse.response;
+  const clientDataJSON = bytesToBase64URL(
+    new TextEncoder().encode(JSON.stringify(clientData)),
+  );
+  const signatureBase = concatBytes([
+    base64URLToBytes(authenticatorData),
+    sha256(base64URLToBytes(clientDataJSON)),
+  ]);
+  const signature = p256
+    .sign(sha256(signatureBase), privateKey)
+    .toDERRawBytes();
+
+  return {
+    response: {
+      ...assertionResponse,
+      response: {
+        authenticatorData,
+        clientDataJSON,
+        signature: bytesToBase64URL(signature),
+      },
+    },
+    credential: {
+      id: assertionResponse.id,
+      publicKey: encodeCBOR(coseKey),
+      counter: credential.counter,
+    },
+  };
+}
 
 const assertionFirstTimeUsedChallenge = decodeClientDataJSON(
   assertionFirstTimeUsedResponse.response.clientDataJSON,
@@ -436,4 +495,24 @@ describe('verifyAuthenticationResponse', () => {
       }),
     ).rejects.toThrow('Unexpected tokenBinding status');
   });
+
+  it.each(['present', 'supported', 'not-supported'])(
+    'verifies an assertion whose tokenBinding status is %s',
+    async (status) => {
+      const signedAssertion = buildSignedAssertion({
+        ...decodeClientDataJSON(assertionResponse.response.clientDataJSON),
+        tokenBinding: { status },
+      });
+
+      const verification = await verifyAuthenticationResponse({
+        response: signedAssertion.response,
+        expectedChallenge: assertionChallenge,
+        expectedOrigin: EXPECTED_ORIGIN,
+        expectedRPIDs: [EXPECTED_RP_ID],
+        credential: signedAssertion.credential,
+      });
+
+      expect(verification.verified).toBe(true);
+    },
+  );
 });

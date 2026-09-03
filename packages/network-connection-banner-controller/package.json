@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-connection-banner-controller",
-  "version": "0.1.2",
+  "version": "0.2.1",
   "description": "Decides when and how to surface the network connection banner based on RPC endpoint health",
   "keywords": [
     "Ethereum",
@@ -60,9 +60,9 @@
     "@metamask/connectivity-controller": "^0.3.0",
     "@metamask/keyring-controller": "^27.1.1",
     "@metamask/messenger": "^2.0.0",
-    "@metamask/network-controller": "^35.0.1",
-    "@metamask/network-enablement-controller": "^6.0.3",
-    "@metamask/utils": "^11.11.0",
+    "@metamask/network-controller": "^36.0.0",
+    "@metamask/network-enablement-controller": "^6.0.5",
+    "@metamask/utils": "^11.12.0",
     "reselect": "^5.1.1"
   },
   "devDependencies": {

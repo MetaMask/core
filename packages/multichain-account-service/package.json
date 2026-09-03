@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-account-service",
-  "version": "13.0.1",
+  "version": "13.0.2",
   "description": "Service to manage multichain accounts",
   "keywords": [
     "Ethereum",
@@ -57,7 +57,7 @@
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
     "@metamask/account-api": "^2.0.0",
-    "@metamask/accounts-controller": "^39.1.0",
+    "@metamask/accounts-controller": "^39.1.1",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/eth-snap-keyring": "^24.0.0",
     "@metamask/key-tree": "^10.1.1",
@@ -72,7 +72,7 @@
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/utils": "^11.11.0",
+    "@metamask/utils": "^11.12.0",
     "async-mutex": "^0.5.0",
     "lodash": "^4.17.21"
   },

@@ -7,9 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.0]
+
 ### Changed
 
+- **BREAKING:** `getNotificationsApiConfigCached` now returns `null` when the Trigger API could not be read, and an empty array only when the API reported that no address is subscribed ([#9985](https://github.com/MetaMask/core/pull/9985))
+  - Previously both cases returned an empty array, so callers could not tell "the user has nothing enabled" from "we failed to ask", and acting on the guess re-subscribed or unregistered addresses behind the user.
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/authenticated-user-storage` from `^3.0.1` to `^3.0.2` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+### Fixed
+
+- **BREAKING:** Wallet-activity addresses are once again sourced from the keyring and the Trigger API instead of Authenticated User Storage, which stops users receiving notifications for addresses they do not hold ([#9985](https://github.com/MetaMask/core/pull/9985))
+  - Authenticated User Storage is keyed by canonical profile ID, which profile pairing shares across every SRP belonging to the same user, so an address list stored there pooled the addresses of unrelated SRPs and delivered each installation the union of all of them. Addresses are keyring-scoped and cannot live in profile-scoped storage.
+  - `checkAccountsPresence`, `fetchAndUpdateMetamaskNotifications` and `enablePushNotifications` now take the candidate addresses from the keyring and read the per-address enabled bit from the Trigger API. An installation can therefore only ever ask about addresses it holds.
+  - `enableAccounts` and `disableAccounts` now write subscriptions to the Trigger API. The endpoint is a per-address upsert, so two installations authenticating as the same profile no longer clobber each other's subscriptions.
+  - `createOnChainTriggers` no longer writes addresses into `walletActivity.accounts`; it writes an empty list. It subscribes the keyring's accounts only when initializing preferences for the first time and the Trigger API has no subscriptions yet, so the daily re-subscribe can no longer re-enable accounts the user turned off.
+  - The user-level `walletActivity.inAppNotificationsEnabled` and `walletActivity.pushNotificationsEnabled` toggles are still read from Authenticated User Storage. They contain no addresses, so they remain correct to share across a paired profile. An unreadable preferences blob is treated as both toggles enabled, so a storage outage no longer empties the notification list.
+- Unregister the device from push notifications when no account has notifications enabled ([#9985](https://github.com/MetaMask/core/pull/9985))
+  - The push API rejects a registration with no addresses, and that request is what performs the delete-and-reinsert of the device's links, so the rejection left the previous links in place and push kept arriving after a user disabled every account.
+- `enableAccounts` and `disableAccounts` now reject when the Trigger API rejects the subscription change, instead of reporting success and caching a state the server never applied ([#9985](https://github.com/MetaMask/core/pull/9985))
+  - A 4xx/5xx response was treated as success, so the settings UI showed the new toggle position and push links were added or removed for a subscription that did not change.
+- A failed Trigger API config read no longer re-enables accounts or unregisters the device ([#9985](https://github.com/MetaMask/core/pull/9985))
+  - `createOnChainTriggers` now fails instead of reading a failed config query as "no subscriptions yet", which could subscribe every keyring account for a user who had turned them off, and it writes the preferences blob only after those subscriptions are in place so a failed run can still be retried as a first-time setup.
+  - `enablePushNotifications` leaves the device's existing push links alone rather than unregistering it, and `checkAccountsPresence` rejects rather than reporting every account as disabled.
 
 ## [26.0.1]
 
@@ -855,7 +877,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@26.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@27.0.0...HEAD
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@26.0.1...@metamask/notification-services-controller@27.0.0
 [26.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@26.0.0...@metamask/notification-services-controller@26.0.1
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@25.0.0...@metamask/notification-services-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.3.0...@metamask/notification-services-controller@25.0.0

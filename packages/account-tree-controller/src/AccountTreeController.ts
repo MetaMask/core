@@ -36,6 +36,10 @@ import type { Rule } from './rule.js';
 import { EntropyRule } from './rules/entropy.js';
 import { KeyringRule } from './rules/keyring.js';
 import { SnapRule } from './rules/snap.js';
+import { exportState } from './state/export.js';
+import { importState } from './state/import.js';
+import type { ExportStateOptions } from './state/payload.js';
+import type { AccountTreeSnapshot } from './state/snapshot.js';
 import type {
   AccountTreeControllerConfig,
   AccountTreeControllerInternalBackupAndSyncConfig,
@@ -47,6 +51,7 @@ import type { AccountWalletObject, AccountWalletObjectOf } from './wallet.js';
 export const controllerName = 'AccountTreeController';
 
 const MESSENGER_EXPOSED_METHODS = [
+  'isInitialized',
   'getSelectedAccountGroup',
   'setSelectedAccountGroup',
   'setSelectedAccountGroupByAccountId',
@@ -65,6 +70,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'syncWithUserStorageAtLeastOnce',
   'init',
   'reinit',
+  'exportState',
+  'importState',
 ] as const;
 
 const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
@@ -434,8 +441,9 @@ export class AccountTreeController extends BaseController<
       previousSelectedAccountGroup,
     );
 
-    log('Initialized!');
     this.#initialized = true;
+    log('Initialized!');
+    this.messenger.publish(`${controllerName}:initialized`, this.state);
   }
 
   /**
@@ -448,6 +456,16 @@ export class AccountTreeController extends BaseController<
     log('Re-initializing...');
     this.#initialized = false;
     this.init();
+  }
+
+  /**
+   * Whether `init()` has completed and the account tree is ready to consume.
+   * Returns false after `clearState()` until the next successful `init()`.
+   *
+   * @returns True when the controller has been initialized.
+   */
+  isInitialized(): boolean {
+    return this.#initialized;
   }
 
   /**
@@ -1813,6 +1831,8 @@ export class AccountTreeController extends BaseController<
   clearState(): void {
     log('Clearing state');
 
+    const previousSelectedAccountGroup = this.state.selectedAccountGroup;
+
     this.update(() => {
       return {
         ...getDefaultAccountTreeControllerState(),
@@ -1820,8 +1840,22 @@ export class AccountTreeController extends BaseController<
     });
     this.#backupAndSyncService.clearState();
 
+    // Clear in-memory reverse-lookup Maps so stale data is not accessible
+    // between this call and the next init().
+    this.#accountIdToContext.clear();
+    this.#groupIdToWalletId.clear();
+
+    // Notify subscribers that the selected group has been cleared,
+    // mirroring what #setSelectedAccountGroup does on normal transitions.
+    this.messenger.publish(
+      `${controllerName}:selectedAccountGroupChange`,
+      '',
+      previousSelectedAccountGroup,
+    );
+
     // So we know we have to call `init` again.
     this.#initialized = false;
+    this.messenger.publish(`${controllerName}:uninitialized`);
   }
 
   /**
@@ -1853,6 +1887,60 @@ export class AccountTreeController extends BaseController<
    */
   async syncWithUserStorageAtLeastOnce(): Promise<void> {
     return this.#backupAndSyncService.performFullSyncAtLeastOnce();
+  }
+
+  /**
+   * Produces a versioned snapshot of the current wallet and group state.
+   *
+   * When `options.includeSecrets` is `true`, `options.password` is required
+   * and verified against the vault before any secret is read. Without
+   * `includeSecrets`, only metadata (names, pinned, hidden) is exported and
+   * no password is needed.
+   *
+   * @param options - Export options.
+   * @returns A promise resolving to an `AccountTreeSnapshot`.
+   * @throws If the vault is locked or the password is incorrect.
+   */
+  async exportState(
+    options?: ExportStateOptions,
+  ): Promise<AccountTreeSnapshot> {
+    return exportState(
+      { getState: () => this.state, messenger: this.messenger },
+      options,
+    );
+  }
+
+  /**
+   * Applies a validated snapshot to the current state.
+   *
+   * Accepts an {@link AccountTreeSnapshot} only — untrusted wire data must be
+   * parsed with {@link AccountTreeSnapshot.deserialize} first. Callers may
+   * filter the snapshot with {@link AccountTreeSnapshot.filterWallets},
+   * {@link AccountTreeSnapshot.filterGroups}, or
+   * {@link AccountTreeSnapshot.filterAllGroups} before importing.
+   *
+   * New mnemonic wallets are imported via `MultichainAccountService` and new
+   * private-key accounts via `KeyringController`. Metadata (name, pinned,
+   * hidden) is applied to all existing and newly created wallets / groups.
+   *
+   * @param snapshot - The validated snapshot to import.
+   * @returns A promise that resolves when the import is complete.
+   */
+  async importState(snapshot: AccountTreeSnapshot): Promise<void> {
+    return importState(
+      {
+        getState: () => this.state,
+        messenger: this.messenger,
+        setWalletName: (id, name) => this.setAccountWalletName(id, name),
+        setAccountGroupName: (id, name) =>
+          this.setAccountGroupName(id, name, true),
+        setAccountGroupPinned: (id, pinned) =>
+          this.setAccountGroupPinned(id, pinned),
+        setAccountGroupHidden: (id, hidden) =>
+          this.setAccountGroupHidden(id, hidden),
+      },
+      snapshot,
+    );
   }
 
   /**

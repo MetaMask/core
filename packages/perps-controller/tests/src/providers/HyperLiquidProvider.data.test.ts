@@ -437,6 +437,10 @@ describe('HyperLiquidProvider', () => {
       subscribeToOrderFills: jest.fn().mockReturnValue(jest.fn()), // Returns function directly
       clearAll: jest.fn(),
       isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
+      // Per-DEX position slices. Default to "nothing published", so these tests
+      // keep the aggregate behaviour they were written against.
+      getCachedPositionsForDex: jest.fn().mockReturnValue(null),
+      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
       getCachedPositions: jest.fn().mockReturnValue([]),
       updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
@@ -838,6 +842,87 @@ describe('HyperLiquidProvider', () => {
       expect(markets).toEqual([]);
     });
 
+    it('keeps HIP-3 asset contexts aligned after allowlist filtering', async () => {
+      const mainMeta = {
+        universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+      };
+      const mainAssetCtx = {
+        funding: '0.0001',
+        openInterest: '1000',
+        prevDayPx: '49000',
+        dayNtlVlm: '1000000',
+        markPx: '50000',
+        midPx: '50000',
+        oraclePx: '50000',
+      };
+      const ioMeta = {
+        collateralToken: 0,
+        universe: [
+          { name: 'io:PREIPO', szDecimals: 3, maxLeverage: 3 },
+          { name: 'io:ANTH', szDecimals: 3, maxLeverage: 3 },
+        ],
+      };
+      const ioAssetCtxs = [
+        {
+          funding: '0.0002',
+          openInterest: '10',
+          prevDayPx: '100',
+          dayNtlVlm: '100',
+          markPx: '100',
+          midPx: '100',
+          oraclePx: '100',
+        },
+        {
+          funding: '0.000000059',
+          openInterest: '1766.312',
+          prevDayPx: '1998.2',
+          dayNtlVlm: '10536801.2081',
+          markPx: '2009.3',
+          midPx: '2010.1',
+          oraclePx: '2009.3',
+        },
+      ];
+      const mockInfoClient = createMockInfoClient({
+        perpDexs: jest
+          .fn()
+          .mockResolvedValue([null, { name: 'io', url: 'https://io.example' }]),
+        metaAndAssetCtxs: jest
+          .fn()
+          .mockImplementation((params?: { dex?: string }) =>
+            params?.dex === 'io'
+              ? Promise.resolve([ioMeta, ioAssetCtxs])
+              : Promise.resolve([mainMeta, [mainAssetCtx]]),
+          ),
+        allMids: jest.fn().mockImplementation((params?: { dex?: string }) =>
+          params?.dex === 'io'
+            ? Promise.resolve({
+                'io:PREIPO': '100',
+                'io:ANTH': '2010.1',
+              })
+            : Promise.resolve({ BTC: '50000' }),
+        ),
+      });
+      mockClientService.getInfoClient = jest
+        .fn()
+        .mockReturnValue(mockInfoClient);
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['io:ANTH'],
+      });
+
+      const markets = await hip3Provider.getMarketDataWithPrices();
+
+      expect(markets).toEqual([
+        expect.objectContaining({ symbol: 'BTC' }),
+        expect.objectContaining({
+          symbol: 'io:ANTH',
+          volume: '$10536801',
+          openInterest: '$3550464',
+          fundingRate: 0.000000059,
+        }),
+      ]);
+    });
+
     it('handles data retrieval errors gracefully', async () => {
       (
         mockClientService.getInfoClient().clearinghouseState as jest.Mock
@@ -985,8 +1070,18 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.toggleTestnet();
 
       expect(result.success).toBe(true);
+      expect(mockClientService.disconnect).toHaveBeenCalledTimes(1);
       expect(mockClientService.setTestnetMode).toHaveBeenCalled();
       expect(mockWalletService.setTestnetMode).toHaveBeenCalled();
+      expect(mockClientService.initialize).toHaveBeenCalledTimes(1);
+      expect(
+        mockClientService.disconnect.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        mockClientService.setTestnetMode.mock.invocationCallOrder[0],
+      );
+      expect(
+        mockClientService.setTestnetMode.mock.invocationCallOrder[0],
+      ).toBeLessThan(mockClientService.initialize.mock.invocationCallOrder[0]);
     });
 
     it('toggleTestnet succeeds even when called concurrently with initialization', async () => {
@@ -1362,7 +1457,7 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.closePosition(closeParams);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('No position found for BTC');
+      expect(result.error).toBe(PERPS_ERROR_CODES.POSITION_NOT_FOUND);
     });
   });
 });

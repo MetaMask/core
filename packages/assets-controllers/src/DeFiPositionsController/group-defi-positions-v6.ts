@@ -156,13 +156,13 @@ function getDefiTokenImageUrl(assetId: CaipAssetType): string | undefined {
  * Returns whether a balance row is a DeFi position carrying protocol metadata.
  *
  * @param balance - A balance row from the v6 API.
- * @returns True when the row is a `category: defi` row with protocol metadata.
+ * @returns True when the row is an `object: defi` row with protocol metadata.
  */
 function isDefiBalanceWithMetadata(
   balance: V6BalanceItem,
 ): balance is DefiBalanceWithMetadata {
   return (
-    balance.category === 'defi' &&
+    balance.object === 'defi' &&
     balance.metadata !== undefined &&
     (balance.metadata as Partial<V6BalanceMetadata>).protocolId !== undefined
   );
@@ -280,8 +280,9 @@ function toAccountMatchKey(caipAccountId: string): string {
  * positions keyed by internal account ID, each mapping to a flat list of
  * protocol groups. Every group carries its own `chainId` (so the client can
  * filter without a nested chain map) plus both the DeFi-tab summary and the
- * details-page sections. Accounts present in the response but with no DeFi
- * positions are included with an empty list so stale data is cleared.
+ * details-page sections. When the request-account map is provided, every
+ * requested account is included with an empty list so stale data is cleared
+ * even when the flat response contains no rows for that account.
  *
  * When `internalAccountIdByCaip` is provided, response account IDs are matched
  * to internal MetaMask account IDs via namespace + address (ignoring chain
@@ -306,77 +307,82 @@ export function groupDeFiPositionsV6(
       )
     : undefined;
 
-  // Accumulate groups per resolved internal account ID. The v6 response returns
-  // a separate entry per chain (e.g. `eip155:1:<addr>`, `eip155:137:<addr>`),
-  // and several of them can resolve to the same internal account ID, so we must
-  // merge across all of them rather than overwrite per response account.
+  // Accumulate groups per resolved internal account ID. The v6 response rows
+  // carry per-chain account IDs (e.g. `eip155:1:<addr>`,
+  // `eip155:137:<addr>`), and several can resolve to the same internal account
+  // ID, so merge across all of them.
   const groupsByAccountKey = new Map<
     string,
     Map<string, DeFiProtocolPositionGroup>
-  >();
+  >(
+    internalAccountIdByCaip
+      ? [...new Set(internalAccountIdByCaip.values())].map((accountId) => [
+          accountId,
+          new Map<string, DeFiProtocolPositionGroup>(),
+        ])
+      : [],
+  );
 
-  for (const account of response.accounts) {
+  for (const balance of response.balances) {
     const accountId = internalAccountIdByMatchKey
-      ? internalAccountIdByMatchKey.get(toAccountMatchKey(account.accountId))
-      : account.accountId;
+      ? internalAccountIdByMatchKey.get(toAccountMatchKey(balance.accountId))
+      : balance.accountId;
     if (accountId === undefined) {
       continue;
     }
 
-    // Seed every queried account so accounts that no longer hold positions
-    // overwrite (clear) any previously stored data.
     let groupsByKey = groupsByAccountKey.get(accountId);
     if (!groupsByKey) {
       groupsByKey = new Map<string, DeFiProtocolPositionGroup>();
       groupsByAccountKey.set(accountId, groupsByKey);
     }
 
-    for (const balance of account.balances) {
-      if (!isDefiBalanceWithMetadata(balance)) {
-        continue;
-      }
-
-      const position = toUnderlyingPosition(balance);
-      const { protocolId, productName, protocolIconUrl } = balance.metadata;
-      const groupKey = `${position.chainId}#${protocolId}`;
-
-      let group = groupsByKey.get(groupKey);
-      if (!group) {
-        group = {
-          protocolId,
-          productName,
-          protocolIconUrl,
-          chainId: position.chainId,
-          marketValue: 0,
-          iconGroup: [],
-          sections: [],
-        };
-        groupsByKey.set(groupKey, group);
-      }
-
-      if (position.marketValue !== undefined) {
-        group.marketValue +=
-          position.marketValue * getMarketValueSign(position.positionType);
-      }
-
-      if (!group.iconGroup.some((item) => item.symbol === position.symbol)) {
-        group.iconGroup.push({
-          symbol: position.symbol,
-          avatarValue: position.tokenImage,
-        });
-      }
-
-      // Sections are keyed by productName; distinct groupIds under the same
-      // product remain available on each underlying position.
-      let section = group.sections.find(
-        (item) => item.productName === productName,
-      );
-      if (!section) {
-        section = { productName, positions: [] };
-        group.sections.push(section);
-      }
-      section.positions.push(position);
+    if (!isDefiBalanceWithMetadata(balance)) {
+      continue;
     }
+
+    const position = toUnderlyingPosition(balance);
+    const { protocolId, productName, protocolIconUrl } = balance.metadata;
+    const groupKey = `${position.chainId}#${protocolId}`;
+
+    let group = groupsByKey.get(groupKey);
+    if (!group) {
+      group = {
+        protocolId,
+        productName,
+        // Upstream may omit the icon; keep a string so clients do not need
+        // optional handling on the stored group shape.
+        protocolIconUrl: protocolIconUrl ?? '',
+        chainId: position.chainId,
+        marketValue: 0,
+        iconGroup: [],
+        sections: [],
+      };
+      groupsByKey.set(groupKey, group);
+    }
+
+    if (position.marketValue !== undefined) {
+      group.marketValue +=
+        position.marketValue * getMarketValueSign(position.positionType);
+    }
+
+    if (!group.iconGroup.some((item) => item.symbol === position.symbol)) {
+      group.iconGroup.push({
+        symbol: position.symbol,
+        avatarValue: position.tokenImage,
+      });
+    }
+
+    // Sections are keyed by productName; distinct groupIds under the same
+    // product remain available on each underlying position.
+    let section = group.sections.find(
+      (item) => item.productName === productName,
+    );
+    if (!section) {
+      section = { productName, positions: [] };
+      group.sections.push(section);
+    }
+    section.positions.push(position);
   }
 
   const result: DeFiPositionsByAccount = {};

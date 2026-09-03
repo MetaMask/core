@@ -1,5 +1,17 @@
 import { Messenger } from '@metamask/messenger';
-import { CaipAssetId, Duration, inMilliseconds, Json } from '@metamask/utils';
+import {
+  StorageServiceGetItemAction,
+  StorageServiceRemoveItemAction,
+  StorageServiceSetItemAction,
+} from '@metamask/storage-service';
+import { object, number, string, array } from '@metamask/superstruct';
+import {
+  CaipAssetType,
+  CaipAssetTypeStruct,
+  Duration,
+  inMilliseconds,
+  Json,
+} from '@metamask/utils';
 import { ConstantBackoff } from 'cockatiel';
 
 import {
@@ -15,7 +27,10 @@ export const serviceName = 'ExampleDataService';
 
 export type ExampleDataServiceActions =
   | ExampleDataServiceMethodActions
-  | DataServiceInvalidateQueriesAction<typeof serviceName>;
+  | DataServiceInvalidateQueriesAction<typeof serviceName>
+  | StorageServiceGetItemAction
+  | StorageServiceSetItemAction
+  | StorageServiceRemoveItemAction;
 
 export type ExampleDataServiceEvents =
   | DataServiceCacheUpdatedEvent<typeof serviceName>
@@ -28,11 +43,20 @@ export type ExampleMessenger = Messenger<
 >;
 
 export type GetAssetsResponse = {
-  assetId: CaipAssetId;
+  assetId: CaipAssetType;
   decimals: number;
   name: string;
   symbol: string;
-};
+}[];
+
+const GetAssetsResponseStruct = array(
+  object({
+    assetId: CaipAssetTypeStruct,
+    decimals: number(),
+    name: string(),
+    symbol: string(),
+  }),
+);
 
 export type GetActivityResponse = {
   data: Json[];
@@ -49,7 +73,8 @@ export type PageParam =
   | {
       before: string;
     }
-  | { after: string };
+  | { after: string }
+  | null;
 
 const MESSENGER_EXPOSED_METHODS = ['getAssets', 'getActivity'] as const;
 
@@ -101,7 +126,8 @@ export class ExampleDataService extends BaseDataService<
         return response.json();
       },
       staleTime: inMilliseconds(1, Duration.Day),
-      cacheTime: inMilliseconds(1, Duration.Day),
+      gcTime: inMilliseconds(1, Duration.Day),
+      responseStruct: GetAssetsResponseStruct,
     });
   }
 
@@ -109,18 +135,19 @@ export class ExampleDataService extends BaseDataService<
     address: string,
     page?: PageParam,
   ): Promise<GetActivityResponse> {
-    return this.fetchInfiniteQuery<GetActivityResponse>(
+    return this.fetchInfiniteQuery(
       {
         queryKey: [`${this.name}:getActivity`, address],
+        initialPageParam: null as PageParam,
         queryFn: async ({ pageParam }) => {
           const caipAddress = `eip155:0:${address.toLowerCase()}`;
           const url = new URL(
             `${this.#accountsBaseUrl}/v4/multiaccount/transactions?limit=3&accountAddresses=${caipAddress}`,
           );
 
-          if (pageParam?.after) {
+          if (pageParam && 'after' in pageParam) {
             url.searchParams.set('after', pageParam.after);
-          } else if (pageParam?.before) {
+          } else if (pageParam && 'before' in pageParam) {
             url.searchParams.set('before', pageParam.before);
           }
 
@@ -135,11 +162,9 @@ export class ExampleDataService extends BaseDataService<
           return response.json();
         },
         getPreviousPageParam: ({ pageInfo }) =>
-          pageInfo.hasPreviousPage
-            ? { before: pageInfo.startCursor }
-            : undefined,
+          pageInfo.hasPreviousPage ? { before: pageInfo.startCursor } : null,
         getNextPageParam: ({ pageInfo }) =>
-          pageInfo.hasNextPage ? { after: pageInfo.endCursor } : undefined,
+          pageInfo.hasNextPage ? { after: pageInfo.endCursor } : null,
         staleTime: inMilliseconds(5, Duration.Minute),
       },
       page,

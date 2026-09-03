@@ -22,7 +22,7 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import {
-  getEffectiveRecipient,
+  getSendRecipients,
   TransactionStatus,
 } from '@metamask/transaction-controller';
 import type { Patch } from 'immer';
@@ -71,7 +71,7 @@ import {
   splitCacheHits,
   resolveChainName,
   getPathnameFromUrl,
-  isAddressScanSupportedChain,
+  getAddressScanSupportedChain,
   isApprovalSupportedChain,
   isTokenScanSupportedChain,
 } from './utils.js';
@@ -619,7 +619,6 @@ export class PhishingController extends BaseController<
 
   #subscribeToAddressBookControllerStateChange(): void {
     this.messenger.subscribe(
-      // eslint-disable-next-line no-restricted-syntax
       'AddressBookController:stateChange',
       this.#addressBookControllerStateChangeHandler,
     );
@@ -627,7 +626,6 @@ export class PhishingController extends BaseController<
 
   #subscribeToTransactionControllerStateChange(): void {
     this.messenger.subscribe(
-      // eslint-disable-next-line no-restricted-syntax
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
     );
@@ -962,18 +960,11 @@ export class PhishingController extends BaseController<
       return [];
     }
 
-    const transactionRecipient = this.#normalizeAddress(
-      getEffectiveRecipient(transaction),
-    );
-    const swapAndSendRecipient = this.#normalizeAddress(
-      transaction.swapAndSendRecipient,
-    );
-
     return Array.from(
       new Set(
-        [transactionRecipient, swapAndSendRecipient].filter(
-          (address): address is string => Boolean(address),
-        ),
+        getSendRecipients(transaction)
+          .map((address) => this.#normalizeAddress(address))
+          .filter((address): address is string => Boolean(address)),
       ),
     );
   }
@@ -1471,9 +1462,9 @@ export class PhishingController extends BaseController<
 
     const normalizedChainId = chainId.toLowerCase();
     const normalizedAddress = address.toLowerCase();
-    const chain = resolveChainName(normalizedChainId);
+    const chain = getAddressScanSupportedChain(normalizedChainId);
 
-    if (!chain || !isAddressScanSupportedChain(chain)) {
+    if (!chain) {
       return {
         result_type: AddressScanResultType.ErrorResult,
         label: '',

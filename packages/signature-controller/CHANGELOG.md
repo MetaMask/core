@@ -9,9 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
-- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.1.0` ([#9791](https://github.com/MetaMask/core/pull/9791), [#9807](https://github.com/MetaMask/core/pull/9807))
+- Bump `@metamask/eth-sig-util` from `^8.2.0` to `^9.0.0` ([#9999](https://github.com/MetaMask/core/pull/9999))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+## [39.2.10]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^35.0.0` to `^36.0.0` ([#9758](https://github.com/MetaMask/core/pull/9758), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/accounts-controller` from `^39.0.6` to `^39.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791), [#9807](https://github.com/MetaMask/core/pull/9807), [#9969](https://github.com/MetaMask/core/pull/9969))
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
+- Bump `@metamask/logging-controller` from `^8.0.2` to `^9.0.0` ([#9844](https://github.com/MetaMask/core/pull/9844))
+- Bump `@metamask/gator-permissions-controller` from `^5.0.1` to `^5.0.2` ([#9969](https://github.com/MetaMask/core/pull/9969))
 
 ## [39.2.9]
 
@@ -828,7 +837,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.9...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.10...HEAD
+[39.2.10]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.9...@metamask/signature-controller@39.2.10
 [39.2.9]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.8...@metamask/signature-controller@39.2.9
 [39.2.8]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.7...@metamask/signature-controller@39.2.8
 [39.2.7]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.6...@metamask/signature-controller@39.2.7

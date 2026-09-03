@@ -1,24 +1,42 @@
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import type {
   PerpsProvider,
   PerpsProviderType,
+  OrderParams,
   Position,
   MarketInfo,
   Order,
+  ChaseOrder,
+  TwapOrder,
+  FeeCalculationParams,
 } from '../../../src/types/index.js';
 import { WebSocketConnectionState } from '../../../src/types/index.js';
+import { STRATEGY_ORDER_TYPES } from '../../../src/utils/orderTypes.js';
 /* eslint-disable */
 import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
 // Create a comprehensive mock provider
-const createMockProvider = (providerId: string): jest.Mocked<PerpsProvider> => {
+const createMockProvider = (
+  providerId: PerpsProviderType,
+): jest.Mocked<PerpsProvider> => {
   const mockProvider: jest.Mocked<PerpsProvider> = {
     protocolId: providerId,
 
     // Asset routes
     getDepositRoutes: jest.fn().mockReturnValue([]),
     getWithdrawalRoutes: jest.fn().mockReturnValue([]),
+    getOrderCapabilities: jest.fn().mockResolvedValue({
+      status: 'ready',
+      providerId,
+      supportedStrategies: [],
+    }),
+    getScalePriceLadder: jest.fn().mockResolvedValue({
+      status: 'ready',
+      providerId,
+      prices: ['100', '150', '200'],
+    }),
 
     // Read operations
     getPositions: jest.fn().mockResolvedValue([]),
@@ -43,6 +61,9 @@ const createMockProvider = (providerId: string): jest.Mocked<PerpsProvider> => {
     }),
     getUserNonFundingLedgerUpdates: jest.fn().mockResolvedValue([]),
     getUserHistory: jest.fn().mockResolvedValue([]),
+    getTwapOrders: jest.fn().mockResolvedValue([]),
+    getChaseOrders: jest.fn().mockResolvedValue([]),
+    suspendChaseOrders: jest.fn().mockResolvedValue([]),
     getCurrentAccountId: jest
       .fn()
       .mockResolvedValue(
@@ -85,6 +106,7 @@ const createMockProvider = (providerId: string): jest.Mocked<PerpsProvider> => {
     calculateMaintenanceMargin: jest.fn().mockResolvedValue(0.05),
     getMaxLeverage: jest.fn().mockResolvedValue(50),
     calculateFees: jest.fn().mockResolvedValue({ feeRate: 0.001 }),
+    previewPositionModify: jest.fn().mockResolvedValue({ status: 'none' }),
 
     // Subscriptions
     subscribeToPrices: jest.fn().mockReturnValue(() => undefined),
@@ -99,6 +121,8 @@ const createMockProvider = (providerId: string): jest.Mocked<PerpsProvider> => {
     // Configuration
     setLiveDataConfig: jest.fn(),
     setUserFeeDiscount: jest.fn(),
+    setUserFeeResolution: jest.fn(),
+    approveSubscriptionBuilderFee: jest.fn().mockResolvedValue(true),
 
     // Lifecycle
     toggleTestnet: jest
@@ -164,29 +188,113 @@ const createMockOrder = (orderId: string, symbol: string): Order =>
 
 describe('AggregatedPerpsProvider', () => {
   let aggregatedProvider: AggregatedPerpsProvider;
+  let routedProvider: PerpsProvider;
   let mockHLProvider: jest.Mocked<PerpsProvider>;
-  let mockMYXProvider: jest.Mocked<PerpsProvider>;
+  let mockLighterProvider: jest.Mocked<PerpsProvider>;
   let mockInfrastructure: ReturnType<typeof createMockInfrastructure>;
 
   beforeEach(() => {
     mockHLProvider = createMockProvider('hyperliquid');
-    mockMYXProvider = createMockProvider('myx');
+    mockLighterProvider = createMockProvider('lighter');
     mockInfrastructure = createMockInfrastructure();
 
     aggregatedProvider = new AggregatedPerpsProvider({
       providers: new Map([
         ['hyperliquid', mockHLProvider],
-        ['myx', mockMYXProvider],
+        ['lighter', mockLighterProvider],
       ]),
       defaultProvider: 'hyperliquid',
       infrastructure: mockInfrastructure,
+    });
+    routedProvider = aggregatedProvider;
+  });
+
+  describe('durable-settlement surfacing', () => {
+    const pending = {
+      symbol: 'BTC',
+      settlementKey: '0xabc:28:7:BTC',
+      recordedAt: 5,
+      reason: 'why',
+      priorIntent: 'replace' as const,
+      survivingOrderIds: ['9'],
+      actionNeeded: 'set a new TP/SL',
+    };
+    const outcome = {
+      recoveryId: '42:abcd',
+      kind: 13,
+      intent: 'withdraw:25',
+      txHash: 'abcd',
+      outcome: 'succeeded' as const,
+      evidence: 'tx-status:3',
+    };
+
+    it('aggregates recoveries and outcomes from providers implementing the contract', async () => {
+      const durable = {
+        ...mockLighterProvider,
+        getPendingManualRecoveries: jest.fn().mockResolvedValue([pending]),
+        getRecoveredDispatches: jest.fn().mockResolvedValue([outcome]),
+        acknowledgeRecoveredDispatch: jest.fn().mockResolvedValue(undefined),
+      } as unknown as PerpsProvider;
+      const aggregated = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', mockHLProvider],
+          ['lighter', durable],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+      // The non-durable provider contributes empty lists, never an error.
+      expect(await aggregated.getPendingManualRecoveries()).toStrictEqual([
+        pending,
+      ]);
+      expect(await aggregated.getRecoveredDispatches()).toStrictEqual([
+        outcome,
+      ]);
+      await aggregated.acknowledgeRecoveredDispatch('42:abcd');
+      expect(
+        (durable as unknown as { acknowledgeRecoveredDispatch: jest.Mock })
+          .acknowledgeRecoveredDispatch,
+      ).toHaveBeenCalledWith('42:abcd');
+    });
+
+    it('propagates storage errors and unknown-id refusals instead of hiding them', async () => {
+      const durable = {
+        ...mockLighterProvider,
+        getPendingManualRecoveries: jest
+          .fn()
+          .mockRejectedValue(new Error('manual-recovery index is corrupt')),
+        getRecoveredDispatches: jest.fn().mockResolvedValue([]),
+        acknowledgeRecoveredDispatch: jest
+          .fn()
+          .mockRejectedValue(new Error('No pending recovered')),
+      } as unknown as PerpsProvider;
+      const aggregated = new AggregatedPerpsProvider({
+        providers: new Map([
+          ['hyperliquid', mockHLProvider],
+          ['lighter', durable],
+        ]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+      await expect(aggregated.getPendingManualRecoveries()).rejects.toThrow(
+        'corrupt',
+      );
+      await expect(
+        aggregated.acknowledgeRecoveredDispatch('42:zzzz'),
+      ).rejects.toThrow('No pending recovered');
+    });
+
+    it('acknowledgment throws when no provider implements the contract', async () => {
+      await expect(
+        aggregatedProvider.acknowledgeRecoveredDispatch('42:abcd'),
+      ).rejects.toThrow('No perps provider has recovered dispatches');
     });
   });
 
   describe('constructor', () => {
     it('initializes with provided providers', () => {
       expect(aggregatedProvider.getProviderIds()).toContain('hyperliquid');
-      expect(aggregatedProvider.getProviderIds()).toContain('myx');
+      expect(aggregatedProvider.getProviderIds()).toContain('lighter');
     });
 
     it('has protocolId set to "aggregated"', () => {
@@ -199,7 +307,7 @@ describe('AggregatedPerpsProvider', () => {
       mockHLProvider.getPositions.mockResolvedValue([
         createMockPosition('BTC', '0.1'),
       ]);
-      mockMYXProvider.getPositions.mockResolvedValue([
+      mockLighterProvider.getPositions.mockResolvedValue([
         createMockPosition('ETH', '1.0'),
       ]);
 
@@ -210,7 +318,7 @@ describe('AggregatedPerpsProvider', () => {
         expect.objectContaining({ symbol: 'BTC', providerId: 'hyperliquid' }),
       );
       expect(positions).toContainEqual(
-        expect.objectContaining({ symbol: 'ETH', providerId: 'myx' }),
+        expect.objectContaining({ symbol: 'ETH', providerId: 'lighter' }),
       );
     });
 
@@ -228,7 +336,7 @@ describe('AggregatedPerpsProvider', () => {
       mockHLProvider.getPositions.mockResolvedValue([
         createMockPosition('BTC', '0.1'),
       ]);
-      mockMYXProvider.getPositions.mockRejectedValue(
+      mockLighterProvider.getPositions.mockRejectedValue(
         new Error('Provider unavailable'),
       );
 
@@ -241,7 +349,7 @@ describe('AggregatedPerpsProvider', () => {
 
     it('returns empty array when all providers fail', async () => {
       mockHLProvider.getPositions.mockRejectedValue(new Error('Error 1'));
-      mockMYXProvider.getPositions.mockRejectedValue(new Error('Error 2'));
+      mockLighterProvider.getPositions.mockRejectedValue(new Error('Error 2'));
 
       const positions = await aggregatedProvider.getPositions();
 
@@ -252,7 +360,9 @@ describe('AggregatedPerpsProvider', () => {
   describe('Read Operations - getMarkets', () => {
     it('aggregates markets from all providers', async () => {
       mockHLProvider.getMarkets.mockResolvedValue([createMockMarket('BTC')]);
-      mockMYXProvider.getMarkets.mockResolvedValue([createMockMarket('ETH')]);
+      mockLighterProvider.getMarkets.mockResolvedValue([
+        createMockMarket('ETH'),
+      ]);
 
       const markets = await aggregatedProvider.getMarkets();
 
@@ -261,13 +371,15 @@ describe('AggregatedPerpsProvider', () => {
         expect.objectContaining({ name: 'BTC', providerId: 'hyperliquid' }),
       );
       expect(markets).toContainEqual(
-        expect.objectContaining({ name: 'ETH', providerId: 'myx' }),
+        expect.objectContaining({ name: 'ETH', providerId: 'lighter' }),
       );
     });
 
     it('keeps same market from different providers', async () => {
       mockHLProvider.getMarkets.mockResolvedValue([createMockMarket('BTC')]);
-      mockMYXProvider.getMarkets.mockResolvedValue([createMockMarket('BTC')]);
+      mockLighterProvider.getMarkets.mockResolvedValue([
+        createMockMarket('BTC'),
+      ]);
 
       const markets = await aggregatedProvider.getMarkets();
 
@@ -281,8 +393,8 @@ describe('AggregatedPerpsProvider', () => {
       mockHLProvider.getOrders.mockResolvedValue([
         createMockOrder('hl-order', 'BTC'),
       ]);
-      mockMYXProvider.getOrders.mockResolvedValue([
-        createMockOrder('myx-order', 'ETH'),
+      mockLighterProvider.getOrders.mockResolvedValue([
+        createMockOrder('lighter-order', 'ETH'),
       ]);
 
       const orders = await aggregatedProvider.getOrders();
@@ -295,7 +407,10 @@ describe('AggregatedPerpsProvider', () => {
         }),
       );
       expect(orders).toContainEqual(
-        expect.objectContaining({ orderId: 'myx-order', providerId: 'myx' }),
+        expect.objectContaining({
+          orderId: 'lighter-order',
+          providerId: 'lighter',
+        }),
       );
     });
   });
@@ -331,7 +446,7 @@ describe('AggregatedPerpsProvider', () => {
           volume: '1000000',
         },
       ]);
-      mockMYXProvider.getMarketDataWithPrices.mockResolvedValue([
+      mockLighterProvider.getMarketDataWithPrices.mockResolvedValue([
         {
           symbol: 'ETH',
           name: 'Ethereum',
@@ -350,7 +465,7 @@ describe('AggregatedPerpsProvider', () => {
         expect.objectContaining({ symbol: 'BTC', providerId: 'hyperliquid' }),
       );
       expect(result).toContainEqual(
-        expect.objectContaining({ symbol: 'ETH', providerId: 'myx' }),
+        expect.objectContaining({ symbol: 'ETH', providerId: 'lighter' }),
       );
     });
   });
@@ -371,7 +486,7 @@ describe('AggregatedPerpsProvider', () => {
           timestamp: Date.now(),
         },
       ]);
-      mockMYXProvider.getOrderFills.mockResolvedValue([
+      mockLighterProvider.getOrderFills.mockResolvedValue([
         {
           orderId: '2',
           symbol: 'ETH',
@@ -400,7 +515,7 @@ describe('AggregatedPerpsProvider', () => {
       mockHLProvider.getOpenOrders.mockResolvedValue([
         createMockOrder('1', 'BTC'),
       ]);
-      mockMYXProvider.getOpenOrders.mockResolvedValue([
+      mockLighterProvider.getOpenOrders.mockResolvedValue([
         createMockOrder('2', 'ETH'),
       ]);
 
@@ -418,7 +533,7 @@ describe('AggregatedPerpsProvider', () => {
       mockHLProvider.getFunding.mockResolvedValue([
         { symbol: 'BTC', amountUsd: '10', rate: '0.01', timestamp: Date.now() },
       ]);
-      mockMYXProvider.getFunding.mockResolvedValue([
+      mockLighterProvider.getFunding.mockResolvedValue([
         { symbol: 'ETH', amountUsd: '5', rate: '0.02', timestamp: Date.now() },
       ]);
 
@@ -428,7 +543,146 @@ describe('AggregatedPerpsProvider', () => {
     });
   });
 
+  describe('TWAP lifecycle operations', () => {
+    const twapOrder: TwapOrder = {
+      orderId: '987',
+      symbol: 'ETH',
+      side: 'buy',
+      size: '1',
+      executedSize: '0.4',
+      remainingSize: '0.6',
+      executedNotional: '1200',
+      averagePrice: '3000',
+      fillProgressBps: 4000,
+      timeProgressBps: 5000,
+      elapsedTimeMilliseconds: 300_000,
+      durationMinutes: 10,
+      randomize: true,
+      reduceOnly: false,
+      status: 'active',
+      startedAt: 1,
+      lastUpdated: 2,
+      fills: [],
+    };
+
+    it('aggregates TWAP records with their provider IDs', async () => {
+      mockHLProvider.getTwapOrders?.mockResolvedValue([twapOrder]);
+
+      expect(await aggregatedProvider.getTwapOrders()).toContainEqual({
+        ...twapOrder,
+        providerId: 'hyperliquid',
+      });
+    });
+  });
+
+  describe('Chase lifecycle operations', () => {
+    const chaseOrder: ChaseOrder = {
+      handle: 'chase-1',
+      symbol: 'ETH',
+      side: 'buy',
+      originalSize: '1',
+      remainingSize: '1',
+      arrivalPrice: '3000',
+      restingPrice: '3000',
+      restingOrderId: '55',
+      distanceChasedBps: 0,
+      repricings: 0,
+      startedAt: 1,
+      status: 'active',
+    };
+
+    it('aggregates Chase snapshots with their provider IDs', async () => {
+      mockHLProvider.getChaseOrders?.mockResolvedValue([chaseOrder]);
+
+      await expect(aggregatedProvider.getChaseOrders()).resolves.toContainEqual(
+        { ...chaseOrder, providerId: 'hyperliquid' },
+      );
+    });
+
+    it('retains successful Chase snapshots when another provider fails', async () => {
+      mockHLProvider.getChaseOrders?.mockResolvedValue([chaseOrder]);
+      mockLighterProvider.getChaseOrders?.mockRejectedValue(
+        new Error('snapshot failed'),
+      );
+
+      await expect(aggregatedProvider.getChaseOrders()).resolves.toStrictEqual([
+        { ...chaseOrder, providerId: 'hyperliquid' },
+      ]);
+    });
+
+    it('suspends every provider and retains provider IDs', async () => {
+      const backgrounded = {
+        ...chaseOrder,
+        status: 'backgrounded' as const,
+      };
+      mockHLProvider.suspendChaseOrders?.mockResolvedValue([backgrounded]);
+
+      await expect(
+        aggregatedProvider.suspendChaseOrders(),
+      ).resolves.toContainEqual({
+        ...backgrounded,
+        providerId: 'hyperliquid',
+      });
+    });
+
+    it('waits for every suspension attempt before rejecting a provider failure', async () => {
+      const backgrounded = {
+        ...chaseOrder,
+        status: 'backgrounded' as const,
+      };
+      let resolveHyperLiquid: (orders: ChaseOrder[]) => void = () => undefined;
+      const hyperLiquidSuspension = new Promise<ChaseOrder[]>((resolve) => {
+        resolveHyperLiquid = resolve;
+      });
+      let hyperLiquidCompleted = false;
+      mockHLProvider.suspendChaseOrders?.mockImplementation(async () => {
+        const orders = await hyperLiquidSuspension;
+        hyperLiquidCompleted = true;
+        return orders;
+      });
+      const providerFailure = new Error('suspension failed');
+      mockLighterProvider.suspendChaseOrders?.mockRejectedValue(
+        providerFailure,
+      );
+
+      const suspension = aggregatedProvider.suspendChaseOrders();
+      let aggregateSettled = false;
+      void suspension.then(
+        () => {
+          aggregateSettled = true;
+        },
+        () => {
+          aggregateSettled = true;
+        },
+      );
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(aggregateSettled).toBe(false);
+      resolveHyperLiquid([backgrounded]);
+      await expect(suspension).rejects.toMatchObject({
+        name: 'ChaseOrderSuspensionError',
+        message: 'Failed to suspend Chase orders for: lighter',
+        suspendedOrders: [{ ...backgrounded, providerId: 'hyperliquid' }],
+        failures: [{ providerId: 'lighter', reason: providerFailure }],
+      });
+      expect(hyperLiquidCompleted).toBe(true);
+    });
+  });
+
   describe('Write Operations - placeOrder', () => {
+    it('accepts an ordinary order held as the routed parameter type', async () => {
+      const params: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      };
+
+      await aggregatedProvider.placeOrder(params);
+
+      expect(mockHLProvider.placeOrder).toHaveBeenCalledWith(params);
+    });
+
     it('routes to default provider when no providerId specified', async () => {
       await aggregatedProvider.placeOrder({
         symbol: 'BTC',
@@ -438,7 +692,7 @@ describe('AggregatedPerpsProvider', () => {
       });
 
       expect(mockHLProvider.placeOrder).toHaveBeenCalled();
-      expect(mockMYXProvider.placeOrder).not.toHaveBeenCalled();
+      expect(mockLighterProvider.placeOrder).not.toHaveBeenCalled();
     });
 
     it('routes to specified provider when providerId is provided', async () => {
@@ -447,17 +701,35 @@ describe('AggregatedPerpsProvider', () => {
         isBuy: true,
         size: '0.1',
         orderType: 'market',
-        providerId: 'myx',
+        providerId: 'lighter',
       });
 
-      expect(mockMYXProvider.placeOrder).toHaveBeenCalled();
+      expect(mockLighterProvider.placeOrder).toHaveBeenCalled();
       expect(mockHLProvider.placeOrder).not.toHaveBeenCalled();
     });
 
+    it.each(STRATEGY_ORDER_TYPES)(
+      'routes a %s order to Lighter when explicitly requested',
+      async (orderType) => {
+        const params = {
+          symbol: 'RHEA',
+          isBuy: true,
+          size: '0.1',
+          orderType,
+          providerId: 'lighter',
+        } as const;
+
+        await routedProvider.placeOrder(params);
+
+        expect(mockLighterProvider.placeOrder).toHaveBeenCalledWith(params);
+        expect(mockHLProvider.placeOrder).not.toHaveBeenCalled();
+      },
+    );
+
     it('injects providerId into result', async () => {
-      mockMYXProvider.placeOrder.mockResolvedValue({
+      mockLighterProvider.placeOrder.mockResolvedValue({
         success: true,
-        orderId: 'myx-order-123',
+        orderId: 'lighter-order-123',
       });
 
       const result = await aggregatedProvider.placeOrder({
@@ -465,43 +737,110 @@ describe('AggregatedPerpsProvider', () => {
         isBuy: true,
         size: '0.1',
         orderType: 'market',
-        providerId: 'myx',
+        providerId: 'lighter',
       });
 
-      expect(result.providerId).toBe('myx');
-      expect(result.orderId).toBe('myx-order-123');
+      expect(result.providerId).toBe('lighter');
+      expect(result.orderId).toBe('lighter-order-123');
     });
 
-    it('falls back to default when specified provider not found', async () => {
-      await aggregatedProvider.placeOrder({
-        symbol: 'BTC',
-        isBuy: true,
-        size: '0.1',
-        orderType: 'market',
-        // @ts-expect-error Testing fallback behavior with invalid provider
-        providerId: 'unknown-provider',
-      });
+    it('rejects an unregistered explicit provider for an ordinary order', async () => {
+      aggregatedProvider.removeProvider('lighter');
 
-      // Should fall back to default (hyperliquid)
-      expect(mockHLProvider.placeOrder).toHaveBeenCalled();
+      await expect(
+        aggregatedProvider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          providerId: 'lighter',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+
+      expect(mockHLProvider.placeOrder).not.toHaveBeenCalled();
+      expect(mockLighterProvider.placeOrder).not.toHaveBeenCalled();
     });
+
+    it.each(STRATEGY_ORDER_TYPES)(
+      'rejects an unregistered explicit provider for a %s order',
+      async (orderType) => {
+        aggregatedProvider.removeProvider('lighter');
+
+        await expect(
+          routedProvider.placeOrder({
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType,
+            providerId: 'lighter',
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+        expect(mockHLProvider.placeOrder).not.toHaveBeenCalled();
+        expect(mockLighterProvider.placeOrder).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(STRATEGY_ORDER_TYPES)(
+      'routes a %s order without providerId to the default provider',
+      async (orderType) => {
+        const params = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType,
+        };
+
+        await routedProvider.placeOrder(params);
+
+        expect(mockHLProvider.placeOrder).toHaveBeenCalledWith(params);
+        expect(mockLighterProvider.placeOrder).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('Write Operations - cancelOrder', () => {
+    it('accepts an ordinary cancel held as the routed parameter type', async () => {
+      const params: CancelOrderParams = {
+        orderId: 'order-123',
+        symbol: 'BTC',
+      };
+
+      await aggregatedProvider.cancelOrder(params);
+
+      expect(mockHLProvider.cancelOrder).toHaveBeenCalledWith(params);
+    });
+
     it('routes to specified provider', async () => {
       await aggregatedProvider.cancelOrder({
         orderId: 'order-123',
         symbol: 'BTC',
-        providerId: 'myx',
+        providerId: 'lighter',
       });
 
-      expect(mockMYXProvider.cancelOrder).toHaveBeenCalledWith(
+      expect(mockLighterProvider.cancelOrder).toHaveBeenCalledWith(
         expect.objectContaining({ orderId: 'order-123' }),
       );
     });
 
+    it.each(STRATEGY_ORDER_TYPES)(
+      'routes a %s cancel to Lighter when explicitly requested',
+      async (orderType) => {
+        const params = {
+          orderId: 'strategy-123',
+          symbol: 'RHEA',
+          orderType,
+          providerId: 'lighter',
+        } as const;
+
+        await routedProvider.cancelOrder(params);
+
+        expect(mockLighterProvider.cancelOrder).toHaveBeenCalledWith(params);
+        expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+      },
+    );
+
     it('injects providerId into result', async () => {
-      mockMYXProvider.cancelOrder.mockResolvedValue({
+      mockLighterProvider.cancelOrder.mockResolvedValue({
         success: true,
         orderId: 'order-123',
       });
@@ -509,21 +848,71 @@ describe('AggregatedPerpsProvider', () => {
       const result = await aggregatedProvider.cancelOrder({
         orderId: 'order-123',
         symbol: 'BTC',
-        providerId: 'myx',
+        providerId: 'lighter',
       });
 
-      expect(result.providerId).toBe('myx');
+      expect(result.providerId).toBe('lighter');
     });
+
+    it('rejects an unregistered explicit provider for an ordinary cancel', async () => {
+      aggregatedProvider.removeProvider('lighter');
+
+      await expect(
+        aggregatedProvider.cancelOrder({
+          orderId: 'order-123',
+          symbol: 'BTC',
+          orderType: 'limit',
+          providerId: 'lighter',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+
+      expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+      expect(mockLighterProvider.cancelOrder).not.toHaveBeenCalled();
+    });
+
+    it.each(STRATEGY_ORDER_TYPES)(
+      'rejects an unregistered explicit provider for a %s cancel',
+      async (orderType) => {
+        aggregatedProvider.removeProvider('lighter');
+
+        await expect(
+          routedProvider.cancelOrder({
+            orderId: 'strategy-123',
+            symbol: 'BTC',
+            orderType,
+            providerId: 'lighter',
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+        expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
+        expect(mockLighterProvider.cancelOrder).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(STRATEGY_ORDER_TYPES)(
+      'routes a %s cancel without providerId to the default provider',
+      async (orderType) => {
+        const params = {
+          orderId: 'strategy-123',
+          symbol: 'BTC',
+          orderType,
+        };
+
+        await routedProvider.cancelOrder(params);
+
+        expect(mockHLProvider.cancelOrder).toHaveBeenCalledWith(params);
+        expect(mockLighterProvider.cancelOrder).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('Write Operations - closePosition', () => {
     it('routes to specified provider', async () => {
       await aggregatedProvider.closePosition({
         symbol: 'BTC',
-        providerId: 'myx',
+        providerId: 'lighter',
       });
 
-      expect(mockMYXProvider.closePosition).toHaveBeenCalled();
+      expect(mockLighterProvider.closePosition).toHaveBeenCalled();
     });
   });
 
@@ -534,11 +923,83 @@ describe('AggregatedPerpsProvider', () => {
         isBuy: true,
         size: '0.1',
         orderType: 'market',
-        providerId: 'myx',
+        providerId: 'lighter',
       });
 
-      expect(mockMYXProvider.validateOrder).toHaveBeenCalled();
+      expect(mockLighterProvider.validateOrder).toHaveBeenCalled();
     });
+
+    it.each(STRATEGY_ORDER_TYPES)(
+      'routes %s validation to Lighter when explicitly requested',
+      async (orderType) => {
+        const params = {
+          symbol: 'RHEA',
+          isBuy: true,
+          size: '0.1',
+          orderType,
+          providerId: 'lighter',
+        } as const;
+
+        await routedProvider.validateOrder(params);
+
+        expect(mockLighterProvider.validateOrder).toHaveBeenCalledWith(params);
+        expect(mockHLProvider.validateOrder).not.toHaveBeenCalled();
+      },
+    );
+
+    it('rejects an unregistered provider during ordinary validation', async () => {
+      aggregatedProvider.removeProvider('lighter');
+      const params: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        providerId: 'lighter',
+      };
+
+      await expect(aggregatedProvider.validateOrder(params)).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_NOT_FOUND,
+      );
+
+      expect(mockHLProvider.validateOrder).not.toHaveBeenCalled();
+      expect(mockLighterProvider.validateOrder).not.toHaveBeenCalled();
+    });
+
+    it.each(STRATEGY_ORDER_TYPES)(
+      'rejects an unregistered explicit provider for %s validation',
+      async (orderType) => {
+        aggregatedProvider.removeProvider('lighter');
+
+        await expect(
+          routedProvider.validateOrder({
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType,
+            providerId: 'lighter',
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+        expect(mockHLProvider.validateOrder).not.toHaveBeenCalled();
+        expect(mockLighterProvider.validateOrder).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(STRATEGY_ORDER_TYPES)(
+      'routes %s validation without providerId to the default provider',
+      async (orderType) => {
+        const params = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType,
+        };
+
+        await routedProvider.validateOrder(params);
+
+        expect(mockHLProvider.validateOrder).toHaveBeenCalledWith(params);
+        expect(mockLighterProvider.validateOrder).not.toHaveBeenCalled();
+      },
+    );
 
     it('uses default provider for validateDeposit', async () => {
       await aggregatedProvider.validateDeposit({
@@ -550,21 +1011,23 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('routes validateClosePosition to specified provider', async () => {
-      const params = { symbol: 'BTC', providerId: 'myx' as const };
+      const params = { symbol: 'BTC', providerId: 'lighter' as const };
 
       await aggregatedProvider.validateClosePosition(params);
 
-      expect(mockMYXProvider.validateClosePosition).toHaveBeenCalledWith(
+      expect(mockLighterProvider.validateClosePosition).toHaveBeenCalledWith(
         params,
       );
     });
 
     it('routes validateWithdrawal to specified provider', async () => {
-      const params = { amount: '100', providerId: 'myx' as const };
+      const params = { amount: '100', providerId: 'lighter' as const };
 
       await aggregatedProvider.validateWithdrawal(params);
 
-      expect(mockMYXProvider.validateWithdrawal).toHaveBeenCalledWith(params);
+      expect(mockLighterProvider.validateWithdrawal).toHaveBeenCalledWith(
+        params,
+      );
     });
   });
 
@@ -580,7 +1043,7 @@ describe('AggregatedPerpsProvider', () => {
       const result = await aggregatedProvider.disconnect();
 
       expect(mockHLProvider.disconnect).toHaveBeenCalled();
-      expect(mockMYXProvider.disconnect).toHaveBeenCalled();
+      expect(mockLighterProvider.disconnect).toHaveBeenCalled();
       expect(result.success).toBe(true);
     });
 
@@ -617,7 +1080,7 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.setLiveDataConfig).toHaveBeenCalledWith({
         priceThrottleMs: 1000,
       });
-      expect(mockMYXProvider.setLiveDataConfig).toHaveBeenCalledWith({
+      expect(mockLighterProvider.setLiveDataConfig).toHaveBeenCalledWith({
         priceThrottleMs: 1000,
       });
     });
@@ -626,31 +1089,63 @@ describe('AggregatedPerpsProvider', () => {
       aggregatedProvider.setUserFeeDiscount(1000);
 
       expect(mockHLProvider.setUserFeeDiscount).toHaveBeenCalledWith(1000);
-      expect(mockMYXProvider.setUserFeeDiscount).toHaveBeenCalledWith(1000);
+      expect(mockLighterProvider.setUserFeeDiscount).toHaveBeenCalledWith(1000);
+    });
+
+    it('preserves the fee source for providers that support full resolutions', () => {
+      const resolution = {
+        feeBips: 0,
+        discountBips: 10000,
+        source: 'subscription' as const,
+        subscription: { eligible: true, reason: 'eligible' as const },
+      };
+      mockLighterProvider.setUserFeeResolution = undefined;
+
+      aggregatedProvider.setUserFeeResolution(resolution);
+
+      expect(mockHLProvider.setUserFeeResolution).toHaveBeenCalledWith(
+        resolution,
+      );
+      expect(mockLighterProvider.setUserFeeDiscount).toHaveBeenCalledWith(
+        10000,
+      );
+    });
+
+    it('delegates subscription builder approval to the default provider', async () => {
+      await expect(
+        aggregatedProvider.approveSubscriptionBuilderFee(),
+      ).resolves.toBe(true);
+
+      expect(
+        mockHLProvider.approveSubscriptionBuilderFee,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        mockLighterProvider.approveSubscriptionBuilderFee,
+      ).not.toHaveBeenCalled();
     });
   });
 
   describe('Provider Management', () => {
     it('adds new provider', () => {
-      // Using 'myx' as an existing valid provider type for this test
+      // Using 'lighter' as an existing valid provider type for this test
       // (simulating adding a duplicate or re-adding after removal)
-      const newProvider = createMockProvider('myx');
-      aggregatedProvider.addProvider('myx', newProvider);
+      const newProvider = createMockProvider('lighter');
+      aggregatedProvider.addProvider('lighter', newProvider);
 
-      expect(aggregatedProvider.hasProvider('myx')).toBe(true);
-      expect(aggregatedProvider.getProviderIds()).toContain('myx');
+      expect(aggregatedProvider.hasProvider('lighter')).toBe(true);
+      expect(aggregatedProvider.getProviderIds()).toContain('lighter');
     });
 
     it('removes provider', () => {
-      const removed = aggregatedProvider.removeProvider('myx');
+      const removed = aggregatedProvider.removeProvider('lighter');
 
       expect(removed).toBe(true);
-      expect(aggregatedProvider.hasProvider('myx')).toBe(false);
+      expect(aggregatedProvider.hasProvider('lighter')).toBe(false);
     });
 
     it('returns false when removing non-existent provider', () => {
-      // @ts-expect-error Testing error handling with invalid provider type
-      const removed = aggregatedProvider.removeProvider('non-existent');
+      aggregatedProvider.removeProvider('lighter');
+      const removed = aggregatedProvider.removeProvider('lighter');
 
       expect(removed).toBe(false);
     });
@@ -681,10 +1176,39 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.calculateLiquidationPrice).toHaveBeenCalled();
     });
 
+    it('routes calculateLiquidationPrice to the selected position provider', async () => {
+      mockLighterProvider.calculateLiquidationPrice.mockResolvedValue('12345');
+
+      const result = await aggregatedProvider.calculateLiquidationPrice({
+        entryPrice: 50000,
+        leverage: 10,
+        direction: 'long',
+        providerId: 'lighter',
+      });
+
+      expect(result).toBe('12345');
+      expect(
+        mockLighterProvider.calculateLiquidationPrice,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ providerId: 'lighter' }),
+      );
+      expect(mockHLProvider.calculateLiquidationPrice).not.toHaveBeenCalled();
+    });
+
     it('delegates getMaxLeverage to default provider', async () => {
       await aggregatedProvider.getMaxLeverage('BTC');
 
       expect(mockHLProvider.getMaxLeverage).toHaveBeenCalledWith('BTC');
+    });
+
+    it('routes getMaxLeverage to the selected market provider', async () => {
+      mockLighterProvider.getMaxLeverage.mockResolvedValue(17);
+
+      const result = await aggregatedProvider.getMaxLeverage('BTC', 'lighter');
+
+      expect(result).toBe(17);
+      expect(mockLighterProvider.getMaxLeverage).toHaveBeenCalledWith('BTC');
+      expect(mockHLProvider.getMaxLeverage).not.toHaveBeenCalled();
     });
 
     it('delegates calculateMaintenanceMargin to default provider', async () => {
@@ -699,6 +1223,24 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.calculateMaintenanceMargin).toHaveBeenCalled();
     });
 
+    it('routes calculateMaintenanceMargin to the selected position provider', async () => {
+      mockLighterProvider.calculateMaintenanceMargin.mockResolvedValue(0.012);
+
+      const result = await aggregatedProvider.calculateMaintenanceMargin({
+        asset: 'BTC',
+        positionSize: 1,
+        providerId: 'lighter',
+      });
+
+      expect(result).toBe(0.012);
+      expect(
+        mockLighterProvider.calculateMaintenanceMargin,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ providerId: 'lighter' }),
+      );
+      expect(mockHLProvider.calculateMaintenanceMargin).not.toHaveBeenCalled();
+    });
+
     it('delegates calculateFees to default provider', async () => {
       mockHLProvider.calculateFees.mockResolvedValue({ feeRate: 0.001 });
 
@@ -709,6 +1251,420 @@ describe('AggregatedPerpsProvider', () => {
 
       expect(result).toEqual({ feeRate: 0.001 });
       expect(mockHLProvider.calculateFees).toHaveBeenCalled();
+    });
+
+    it('delegates previewPositionModify to default provider', async () => {
+      mockHLProvider.previewPositionModify.mockResolvedValue({
+        status: 'none',
+      });
+
+      const params = {
+        position: createMockPosition('BTC', '1'),
+        direction: 'long' as const,
+        size: '0.1',
+        price: '50000',
+        leverage: 10,
+      };
+
+      await aggregatedProvider.previewPositionModify(params);
+
+      expect(mockHLProvider.previewPositionModify).toHaveBeenCalledWith(params);
+    });
+
+    it('routes previewPositionModify to an explicit provider', async () => {
+      mockLighterProvider.previewPositionModify.mockResolvedValue({
+        status: 'unsupported',
+        reason: 'provider',
+      });
+
+      const params = {
+        position: createMockPosition('RHEA', '1'),
+        direction: 'long' as const,
+        size: '0.1',
+        price: '1',
+        leverage: 5,
+        providerId: 'lighter' as const,
+      };
+
+      await expect(
+        aggregatedProvider.previewPositionModify(params),
+      ).resolves.toStrictEqual({
+        status: 'unsupported',
+        reason: 'provider',
+      });
+      expect(mockLighterProvider.previewPositionModify).toHaveBeenCalledWith(
+        params,
+      );
+      expect(mockHLProvider.previewPositionModify).not.toHaveBeenCalled();
+    });
+
+    it('routes previewPositionModify from position.providerId', async () => {
+      mockLighterProvider.previewPositionModify.mockResolvedValue({
+        status: 'unsupported',
+        reason: 'provider',
+      });
+
+      const params = {
+        position: {
+          ...createMockPosition('RHEA', '1'),
+          providerId: 'lighter' as const,
+        },
+        direction: 'long' as const,
+        size: '0.1',
+        price: '1',
+        leverage: 5,
+      };
+
+      await expect(
+        aggregatedProvider.previewPositionModify(params),
+      ).resolves.toStrictEqual({
+        status: 'unsupported',
+        reason: 'provider',
+      });
+      expect(mockLighterProvider.previewPositionModify).toHaveBeenCalledWith(
+        params,
+      );
+      expect(mockHLProvider.previewPositionModify).not.toHaveBeenCalled();
+    });
+
+    it('rejects an unregistered previewPositionModify route', async () => {
+      aggregatedProvider.removeProvider('lighter');
+
+      await expect(
+        aggregatedProvider.previewPositionModify({
+          position: createMockPosition('BTC', '1'),
+          direction: 'long',
+          size: '0.1',
+          price: '50000',
+          leverage: 10,
+          providerId: 'lighter',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+
+      expect(mockHLProvider.previewPositionModify).not.toHaveBeenCalled();
+      expect(mockLighterProvider.previewPositionModify).not.toHaveBeenCalled();
+    });
+
+    it('accepts an ordinary fee request held as the routed parameter type', async () => {
+      const params: FeeCalculationParams = {
+        orderType: 'market',
+        symbol: 'BTC',
+      };
+
+      await aggregatedProvider.calculateFees(params);
+
+      expect(mockHLProvider.calculateFees).toHaveBeenCalledWith(params);
+    });
+
+    it('routes calculateFees to an explicit provider', async () => {
+      mockLighterProvider.calculateFees.mockResolvedValue({ feeRate: 0.002 });
+
+      await expect(
+        routedProvider.calculateFees({
+          orderType: 'market',
+          symbol: 'RHEA',
+          providerId: 'lighter',
+        }),
+      ).resolves.toEqual({ feeRate: 0.002 });
+      expect(mockLighterProvider.calculateFees).toHaveBeenCalledWith({
+        orderType: 'market',
+        symbol: 'RHEA',
+        providerId: 'lighter',
+      });
+      expect(mockHLProvider.calculateFees).not.toHaveBeenCalled();
+    });
+
+    it('rejects an unregistered ordinary fee route', async () => {
+      mockHLProvider.calculateFees.mockResolvedValue({ feeRate: 0.001 });
+      aggregatedProvider.removeProvider('lighter');
+
+      await expect(
+        routedProvider.calculateFees({
+          orderType: 'market',
+          symbol: 'BTC',
+          providerId: 'lighter',
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+
+      expect(mockHLProvider.calculateFees).not.toHaveBeenCalled();
+      expect(mockLighterProvider.calculateFees).not.toHaveBeenCalled();
+    });
+
+    it.each(STRATEGY_ORDER_TYPES)(
+      'routes a %s fee quote without providerId to the default provider',
+      async (orderType) => {
+        const params = {
+          orderType,
+          symbol: 'BTC',
+        };
+
+        await routedProvider.calculateFees(params);
+
+        expect(mockHLProvider.calculateFees).toHaveBeenCalledWith(params);
+        expect(mockLighterProvider.calculateFees).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(STRATEGY_ORDER_TYPES)(
+      'routes a %s fee quote to its explicit provider',
+      async (orderType) => {
+        mockLighterProvider.calculateFees.mockRejectedValueOnce(
+          new Error(PERPS_ERROR_CODES.ORDER_STRATEGY_MARKET_UNSUPPORTED),
+        );
+
+        await expect(
+          aggregatedProvider.calculateFees({
+            orderType,
+            symbol: 'RHEA',
+            providerId: 'lighter',
+          }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_STRATEGY_MARKET_UNSUPPORTED);
+        expect(mockLighterProvider.calculateFees).toHaveBeenCalledWith({
+          orderType,
+          symbol: 'RHEA',
+          providerId: 'lighter',
+        });
+        expect(mockHLProvider.calculateFees).not.toHaveBeenCalled();
+      },
+    );
+
+    it('gets order capabilities from the default provider', async () => {
+      const capabilities = Object.freeze({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: Object.freeze(['twap', 'scale', 'chase']),
+      });
+      mockHLProvider.getOrderCapabilities.mockResolvedValue(capabilities);
+
+      await expect(
+        aggregatedProvider.getOrderCapabilities({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual(capabilities);
+      expect(mockHLProvider.getOrderCapabilities).toHaveBeenCalledWith({
+        symbol: 'BTC',
+        providerId: 'hyperliquid',
+      });
+    });
+
+    it('gets order capabilities from an explicit provider route', async () => {
+      mockLighterProvider.getOrderCapabilities.mockResolvedValue({
+        status: 'ready',
+        providerId: 'lighter',
+        supportedStrategies: [],
+      });
+
+      await expect(
+        aggregatedProvider.getOrderCapabilities({
+          symbol: 'BTC',
+          providerId: 'lighter',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'ready',
+        providerId: 'lighter',
+        supportedStrategies: [],
+      });
+      expect(mockLighterProvider.getOrderCapabilities).toHaveBeenCalledWith({
+        symbol: 'BTC',
+        providerId: 'lighter',
+      });
+    });
+
+    it('rejects capabilities attributed to a different provider', async () => {
+      mockLighterProvider.getOrderCapabilities.mockResolvedValue({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        supportedStrategies: [],
+      });
+
+      await expect(
+        aggregatedProvider.getOrderCapabilities({
+          symbol: 'BTC',
+          providerId: 'lighter',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'provider_not_routable',
+      });
+    });
+
+    it('attaches the route when unavailable capabilities omit provider identity', async () => {
+      mockLighterProvider.getOrderCapabilities.mockResolvedValue({
+        status: 'unavailable',
+        reason: 'market_not_found',
+      });
+
+      await expect(
+        aggregatedProvider.getOrderCapabilities({
+          symbol: 'BTC',
+          providerId: 'lighter',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'market_not_found',
+      });
+    });
+
+    it('reports an explicit provider route that is not registered', async () => {
+      const providerWithoutLighter = new AggregatedPerpsProvider({
+        providers: new Map([['hyperliquid', mockHLProvider]]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+
+      await expect(
+        providerWithoutLighter.getOrderCapabilities({
+          symbol: 'BTC',
+          providerId: 'lighter',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'provider_not_found',
+      });
+      expect(mockHLProvider.getOrderCapabilities).not.toHaveBeenCalled();
+    });
+
+    it('reports unavailable when the routed provider omits the optional hook', async () => {
+      mockHLProvider.getOrderCapabilities = undefined;
+
+      await expect(
+        aggregatedProvider.getOrderCapabilities({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'not_implemented',
+      });
+    });
+
+    it('reports unavailable when the routed capability read throws', async () => {
+      mockHLProvider.getOrderCapabilities.mockRejectedValueOnce(
+        new Error('offline'),
+      );
+
+      await expect(
+        aggregatedProvider.getOrderCapabilities({ symbol: 'BTC' }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_unavailable',
+      });
+      expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+        '[AggregatedPerpsProvider] Order capabilities unavailable',
+        { providerId: 'hyperliquid', error: 'offline' },
+      );
+    });
+  });
+
+  describe('Scale price ladder', () => {
+    const params = {
+      symbol: 'BTC',
+      minPrice: 100,
+      maxPrice: 200,
+      count: 3,
+    };
+
+    it('uses the default provider when providerId is omitted', async () => {
+      await expect(
+        aggregatedProvider.getScalePriceLadder(params),
+      ).resolves.toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        prices: ['100', '150', '200'],
+      });
+      expect(mockHLProvider.getScalePriceLadder).toHaveBeenCalledWith({
+        ...params,
+        providerId: 'hyperliquid',
+      });
+      expect(mockLighterProvider.getScalePriceLadder).not.toHaveBeenCalled();
+    });
+
+    it('routes an explicit providerId', async () => {
+      mockLighterProvider.getScalePriceLadder.mockResolvedValueOnce({
+        status: 'ready',
+        providerId: 'lighter',
+        prices: ['100', '125', '150'],
+      });
+
+      await expect(
+        aggregatedProvider.getScalePriceLadder({
+          ...params,
+          providerId: 'lighter',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'ready',
+        providerId: 'lighter',
+        prices: ['100', '125', '150'],
+      });
+      expect(mockLighterProvider.getScalePriceLadder).toHaveBeenCalledWith({
+        ...params,
+        providerId: 'lighter',
+      });
+      expect(mockHLProvider.getScalePriceLadder).not.toHaveBeenCalled();
+    });
+
+    it('reports a provider that does not implement ladder normalization', async () => {
+      mockLighterProvider.getScalePriceLadder = undefined;
+
+      await expect(
+        aggregatedProvider.getScalePriceLadder({
+          ...params,
+          providerId: 'lighter',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'not_implemented',
+      });
+    });
+
+    it('reports an explicit provider route that is not registered', async () => {
+      const providerWithoutLighterLadder = new AggregatedPerpsProvider({
+        providers: new Map([['hyperliquid', mockHLProvider]]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+
+      await expect(
+        providerWithoutLighterLadder.getScalePriceLadder({
+          ...params,
+          providerId: 'lighter',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'provider_not_found',
+      });
+      expect(mockHLProvider.getScalePriceLadder).not.toHaveBeenCalled();
+    });
+
+    it('rejects a ladder attributed to another provider', async () => {
+      mockLighterProvider.getScalePriceLadder.mockResolvedValueOnce({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        prices: ['100', '150', '200'],
+      });
+
+      await expect(
+        aggregatedProvider.getScalePriceLadder({
+          ...params,
+          providerId: 'lighter',
+        }),
+      ).resolves.toStrictEqual({
+        status: 'unavailable',
+        providerId: 'lighter',
+        reason: 'provider_not_routable',
+      });
+    });
+
+    it('preserves provider validation errors', async () => {
+      mockHLProvider.getScalePriceLadder.mockRejectedValueOnce(
+        new Error(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID),
+      );
+
+      await expect(
+        aggregatedProvider.getScalePriceLadder(params),
+      ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
     });
   });
 
@@ -721,7 +1677,7 @@ describe('AggregatedPerpsProvider', () => {
       });
 
       expect(mockHLProvider.subscribeToPrices).toHaveBeenCalled();
-      expect(mockMYXProvider.subscribeToPrices).toHaveBeenCalled();
+      expect(mockLighterProvider.subscribeToPrices).toHaveBeenCalled();
     });
 
     it('delegates account subscription to default provider', () => {

@@ -160,38 +160,6 @@ function findExplicitIdMatch(
 }
 
 /**
- * Returns a copy of `flags` with `metaMetricsIds` removed from every
- * threshold entry. Used before persisting raw flags to state so that
- * MetaMetrics IDs are never written to state logs or debug snapshots.
- *
- * @param flags - The raw feature flags object from the API.
- * @returns A new object with the same structure but without any
- * `metaMetricsIds` fields inside threshold entry arrays.
- */
-function redactMetaMetricsIds(flags: FeatureFlags): FeatureFlags {
-  const result: FeatureFlags = {};
-  for (const [name, value] of Object.entries(flags)) {
-    if (!Array.isArray(value)) {
-      result[name] = value;
-      continue;
-    }
-    result[name] = value.map((entry) => {
-      if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
-        return entry;
-      }
-      const entryRecord = entry as Record<string, Json>;
-      if (entryRecord.metaMetricsIds === undefined) {
-        return entry;
-      }
-      const copy: Record<string, Json> = { ...entryRecord };
-      delete copy.metaMetricsIds;
-      return copy as Json;
-    });
-  }
-  return result;
-}
-
-/**
  * The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags.
  * It fetches feature flags from a remote API, caches them, and provides methods to access
  * and manage these flags. The controller ensures that feature flags are refreshed based on
@@ -212,11 +180,15 @@ export class RemoteFeatureFlagController extends BaseController<
 
   readonly #getMetaMetricsId: () => string;
 
+  readonly #getCanonicalProfileId: () => string;
+
+  readonly #metaMetricsFlags: ReadonlySet<string>;
+
   readonly #clientVersion: SemVerVersion;
 
   readonly #defaultFeatureFlags: FeatureFlags;
 
-  #processedRemoteFeatureFlags: FeatureFlags = {};
+  #processedRemoteFeatureFlags: FeatureFlags;
 
   /**
    * Constructs a new RemoteFeatureFlagController instance.
@@ -228,6 +200,8 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param options.fetchInterval - The interval in milliseconds before cached flags expire. Defaults to 1 day.
    * @param options.disabled - Determines if the controller should be disabled initially. Defaults to false.
    * @param options.getMetaMetricsId - Returns metaMetricsId.
+   * @param options.getCanonicalProfileId - Returns the canonical profile identifier used for threshold flags by default. Must return an empty string, rather than throwing, when the identifier is unavailable.
+   * @param options.metaMetricsFlags - Names of feature flags that should use MetaMetrics ID for threshold assignment.
    * @param options.clientVersion - The current client version for version-based feature flag filtering. Must be a valid 3-part SemVer version string.
    * @param options.prevClientVersion - The previous client version for feature flag cache invalidation.
    * @param options.defaultFeatureFlags - Client-side default feature flags used as the lowest-precedence layer under processed remote flags and local overrides. Not persisted.
@@ -239,6 +213,8 @@ export class RemoteFeatureFlagController extends BaseController<
     fetchInterval = DEFAULT_CACHE_DURATION,
     disabled = false,
     getMetaMetricsId,
+    getCanonicalProfileId,
+    metaMetricsFlags = [],
     clientVersion,
     prevClientVersion,
     defaultFeatureFlags = {},
@@ -247,6 +223,8 @@ export class RemoteFeatureFlagController extends BaseController<
     state?: Partial<RemoteFeatureFlagControllerState>;
     clientConfigApiService: AbstractClientConfigApiService;
     getMetaMetricsId: () => string;
+    getCanonicalProfileId: () => string;
+    metaMetricsFlags?: readonly string[];
     fetchInterval?: number;
     disabled?: boolean;
     clientVersion: string;
@@ -268,30 +246,12 @@ export class RemoteFeatureFlagController extends BaseController<
       isValidSemVerVersion(prevClientVersion) &&
       prevClientVersion !== clientVersion;
 
-    const localOverrides = initialState.localOverrides ?? {};
-
-    // Rebuild the processed remote layer from last session's effective flags by
-    // stripping local overrides.
-    const processedRemoteFeatureFlags = {
-      ...initialState.remoteFeatureFlags,
-    };
-    for (const [flagName, overrideValue] of Object.entries(localOverrides)) {
-      if (processedRemoteFeatureFlags[flagName] === overrideValue) {
-        delete processedRemoteFeatureFlags[flagName];
-      }
-    }
-
     super({
       name: controllerName,
       metadata: remoteFeatureFlagControllerMetadata,
       messenger,
       state: {
         ...initialState,
-        remoteFeatureFlags: {
-          ...defaultFeatureFlags,
-          ...processedRemoteFeatureFlags,
-          ...localOverrides,
-        },
         cacheTimestamp: hasClientVersionChanged
           ? 0
           : initialState.cacheTimestamp,
@@ -299,11 +259,17 @@ export class RemoteFeatureFlagController extends BaseController<
     });
 
     this.#defaultFeatureFlags = defaultFeatureFlags;
-    this.#processedRemoteFeatureFlags = processedRemoteFeatureFlags;
+    // Last session's effective flags stand in for the remote layer until
+    // `init` re-derives it from the persisted raw flags, or a fetch replaces
+    // it. Overrides are layered on top rather than subtracted out, so a remote
+    // flag that happens to share an override's value is not lost.
+    this.#processedRemoteFeatureFlags = initialState.remoteFeatureFlags;
     this.#fetchInterval = fetchInterval;
     this.#disabled = disabled;
     this.#clientConfigApiService = clientConfigApiService;
     this.#getMetaMetricsId = getMetaMetricsId;
+    this.#getCanonicalProfileId = getCanonicalProfileId;
+    this.#metaMetricsFlags = new Set(metaMetricsFlags);
     this.#clientVersion = clientVersion;
 
     this.messenger.registerMethodActionHandlers(
@@ -316,17 +282,23 @@ export class RemoteFeatureFlagController extends BaseController<
    * Computes effective feature flags with precedence:
    * defaults < processed remote < local overrides.
    *
-   * @param processedRemote - The processed remote feature flags.
-   * @param localOverrides - Local overrides. Defaults to current state overrides.
+   * @param options - The layers to merge. Each defaults to the current layer.
+   * @param options.processedRemoteFeatureFlags - The processed remote feature
+   * flags. Defaults to the currently resolved remote layer.
+   * @param options.localOverrides - Local overrides. Defaults to current state
+   * overrides.
    * @returns The effective feature flags.
    */
-  #getEffectiveFeatureFlags(
-    processedRemote: FeatureFlags,
-    localOverrides: FeatureFlags = this.state.localOverrides ?? {},
-  ): FeatureFlags {
+  #getEffectiveFeatureFlags({
+    processedRemoteFeatureFlags = this.#processedRemoteFeatureFlags,
+    localOverrides = this.state.localOverrides,
+  }: {
+    processedRemoteFeatureFlags?: FeatureFlags;
+    localOverrides?: FeatureFlags;
+  } = {}): FeatureFlags {
     return {
       ...this.#defaultFeatureFlags,
-      ...processedRemote,
+      ...processedRemoteFeatureFlags,
       ...localOverrides,
     };
   }
@@ -344,10 +316,12 @@ export class RemoteFeatureFlagController extends BaseController<
    * Retrieves the remote feature flags, fetching from the API if necessary.
    * Uses caching to prevent redundant API calls and handles concurrent fetches.
    *
+   * @param force - When `true`, fetch even if the cache has not expired.
+   * Defaults to `false`. Has no effect when the controller is disabled.
    * @returns A promise that resolves to the current set of feature flags.
    */
-  async updateRemoteFeatureFlags(): Promise<void> {
-    if (this.#disabled || !this.#isCacheExpired()) {
+  async updateRemoteFeatureFlags(force = false): Promise<void> {
+    if (this.#disabled || (!force && !this.#isCacheExpired())) {
       return;
     }
 
@@ -371,59 +345,61 @@ export class RemoteFeatureFlagController extends BaseController<
   }
 
   /**
+   * Computes the effective feature flags, re-deriving the remote layer from the
+   * raw flags already in state. Threshold selection needs to await a hash and
+   * so cannot run in the constructor, which is why this cannot be part of
+   * construction. Clients must call this once after constructing the
+   * controller.
+   *
+   * When there are no persisted raw flags, as on a fresh install or for state
+   * persisted before raw flags were stored, the previous session's flags stand
+   * in for the remote layer so that nothing is lost.
+   */
+  async init(): Promise<void> {
+    const { rawRemoteFeatureFlags } = this.state;
+    const hasRawRemoteFeatureFlags =
+      rawRemoteFeatureFlags && Object.keys(rawRemoteFeatureFlags).length > 0;
+
+    const resolved = hasRawRemoteFeatureFlags
+      ? await this.#processRemoteFeatureFlags(rawRemoteFeatureFlags)
+      : undefined;
+
+    this.#processedRemoteFeatureFlags =
+      resolved?.processedFlags ?? this.state.remoteFeatureFlags;
+
+    this.update(() => {
+      return {
+        ...this.state,
+        remoteFeatureFlags: this.#getEffectiveFeatureFlags(),
+        ...(resolved && {
+          thresholdCache: resolved.thresholdCache,
+          featureFlagThresholdGroups: resolved.featureFlagThresholdGroups,
+        }),
+      };
+    });
+  }
+
+  /**
    * Updates the controller's state with new feature flags and resets the cache timestamp.
    *
    * @param remoteFeatureFlags - The new feature flags to cache.
    */
   async #updateCache(remoteFeatureFlags: FeatureFlags): Promise<void> {
-    const {
-      processedFlags,
-      thresholdCacheUpdates,
-      featureFlagThresholdGroupUpdates,
-    } = await this.#processRemoteFeatureFlags(remoteFeatureFlags);
+    const resolved = await this.#processRemoteFeatureFlags(remoteFeatureFlags);
 
-    const metaMetricsId = this.#getMetaMetricsId();
-    const currentFlagNames = Object.keys(remoteFeatureFlags);
-
-    // Build updated threshold cache
-    const updatedThresholdCache = { ...(this.state.thresholdCache ?? {}) };
-
-    // Apply new thresholds
-    for (const [cacheKey, threshold] of Object.entries(thresholdCacheUpdates)) {
-      updatedThresholdCache[cacheKey] = threshold;
-    }
-
-    // Clean up stale entries
-    for (const cacheKey of Object.keys(updatedThresholdCache)) {
-      const [cachedMetaMetricsId, ...cachedFlagNameParts] = cacheKey.split(':');
-      const cachedFlagName = cachedFlagNameParts.join(':');
-      if (
-        cachedMetaMetricsId === metaMetricsId &&
-        !currentFlagNames.includes(cachedFlagName)
-      ) {
-        delete updatedThresholdCache[cacheKey];
-      }
-    }
-
-    // Strip metaMetricsIds from processed flags so they never appear in
-    // remoteFeatureFlags state or #processedRemoteFeatureFlags.  Arrays that
-    // were preserved as-is (e.g. when metaMetricsId is missing) would
-    // otherwise leak explicit-targeting IDs into diagnostics.
-    const redactedProcessedFlags = redactMetaMetricsIds(processedFlags);
+    this.#processedRemoteFeatureFlags = resolved.processedFlags;
 
     // Single state update with all changes batched together
-    this.#processedRemoteFeatureFlags = redactedProcessedFlags;
-
     this.update(() => {
       return {
         ...this.state,
-        remoteFeatureFlags: this.#getEffectiveFeatureFlags(
-          redactedProcessedFlags,
-        ),
-        rawRemoteFeatureFlags: redactMetaMetricsIds(remoteFeatureFlags),
+        remoteFeatureFlags: this.#getEffectiveFeatureFlags({
+          processedRemoteFeatureFlags: resolved.processedFlags,
+        }),
+        rawRemoteFeatureFlags: remoteFeatureFlags,
         cacheTimestamp: Date.now(),
-        thresholdCache: updatedThresholdCache,
-        featureFlagThresholdGroups: featureFlagThresholdGroupUpdates,
+        thresholdCache: resolved.thresholdCache,
+        featureFlagThresholdGroups: resolved.featureFlagThresholdGroups,
       };
     });
   }
@@ -442,15 +418,39 @@ export class RemoteFeatureFlagController extends BaseController<
     return getVersionData(flagValue, this.#clientVersion);
   }
 
+  /**
+   * Selects the identifier used to bucket a threshold flag. Flags named in
+   * `metaMetricsFlags` segment by MetaMetrics ID; all others segment by
+   * canonical profile ID.
+   *
+   * @param featureFlagName - The name of the feature flag being processed.
+   * @returns The segmentation identifier, which may be empty when unavailable.
+   */
+  #getSegmentationId(featureFlagName: string): string {
+    if (this.#metaMetricsFlags.has(featureFlagName)) {
+      return this.#getMetaMetricsId();
+    }
+    return this.#getCanonicalProfileId();
+  }
+
+  /**
+   * Resolves raw feature flags into the values that apply to this client and
+   * user, selecting version and threshold entries and reconciling the
+   * threshold cache against the flags the server currently serves.
+   *
+   * @param remoteFeatureFlags - The unprocessed feature flags.
+   * @returns The processed flags, the updated threshold cache, and the
+   * selected threshold group names.
+   */
   async #processRemoteFeatureFlags(remoteFeatureFlags: FeatureFlags): Promise<{
     processedFlags: FeatureFlags;
-    thresholdCacheUpdates: Record<string, number>;
-    featureFlagThresholdGroupUpdates: Record<string, string>;
+    thresholdCache: Record<string, number>;
+    featureFlagThresholdGroups: Record<string, string>;
   }> {
     const processedFlags: FeatureFlags = {};
     const metaMetricsId = this.#getMetaMetricsId();
     const thresholdCacheUpdates: Record<string, number> = {};
-    const featureFlagThresholdGroupUpdates: Record<string, string> = {};
+    const featureFlagThresholdGroups: Record<string, string> = {};
 
     for (const [
       remoteFeatureFlagName,
@@ -475,34 +475,34 @@ export class RemoteFeatureFlagController extends BaseController<
           continue;
         }
 
-        // Skip threshold processing if metaMetricsId is not available
-        if (!metaMetricsId) {
-          // Preserve array as-is when user hasn't opted into MetaMetrics
-          processedFlags[remoteFeatureFlagName] = processedValue;
-          continue;
-        }
-
         // Explicit-ID matching: check before hash-based threshold, bypasses cache
         const normalizedMetaMetricsId = metaMetricsId.trim().toLowerCase();
-        const explicitMatch = findExplicitIdMatch(
-          processedValue,
-          normalizedMetaMetricsId,
-        );
+        const explicitMatch = normalizedMetaMetricsId
+          ? findExplicitIdMatch(processedValue, normalizedMetaMetricsId)
+          : undefined;
 
         if (explicitMatch) {
           processedValue = explicitMatch.value;
           if (explicitMatch.name) {
-            featureFlagThresholdGroupUpdates[remoteFeatureFlagName] =
+            featureFlagThresholdGroups[remoteFeatureFlagName] =
               explicitMatch.name;
           }
         } else {
+          const segmentationId = this.#getSegmentationId(remoteFeatureFlagName);
+
+          if (!segmentationId) {
+            processedFlags[remoteFeatureFlagName] = processedValue;
+            continue;
+          }
+
           // Fall back to hash-based threshold selection with cache
-          const cacheKey = `${metaMetricsId}:${remoteFeatureFlagName}` as const;
+          const cacheKey =
+            `${segmentationId}:${remoteFeatureFlagName}` as const;
           let thresholdValue = this.state.thresholdCache?.[cacheKey];
 
           if (thresholdValue === undefined) {
             thresholdValue = await calculateThresholdForFlag(
-              metaMetricsId,
+              segmentationId,
               remoteFeatureFlagName,
             );
 
@@ -524,7 +524,7 @@ export class RemoteFeatureFlagController extends BaseController<
           if (selectedGroup) {
             processedValue = selectedGroup.value;
             if (selectedGroup.name) {
-              featureFlagThresholdGroupUpdates[remoteFeatureFlagName] =
+              featureFlagThresholdGroups[remoteFeatureFlagName] =
                 selectedGroup.name;
             }
           }
@@ -534,10 +534,32 @@ export class RemoteFeatureFlagController extends BaseController<
       processedFlags[remoteFeatureFlagName] = processedValue;
     }
 
+    const thresholdCache = {
+      ...this.state.thresholdCache,
+      ...thresholdCacheUpdates,
+    };
+
+    // Drop cached thresholds for flags this user is no longer served, under
+    // either identifier they may have been bucketed by.
+    const canonicalProfileId = this.#getCanonicalProfileId();
+    const currentFlagNames = Object.keys(remoteFeatureFlags);
+    for (const cacheKey of Object.keys(thresholdCache)) {
+      const [cachedSegmentationId, ...cachedFlagNameParts] =
+        cacheKey.split(':');
+      const cachedFlagName = cachedFlagNameParts.join(':');
+      if (
+        (cachedSegmentationId === metaMetricsId ||
+          cachedSegmentationId === canonicalProfileId) &&
+        !currentFlagNames.includes(cachedFlagName)
+      ) {
+        delete thresholdCache[cacheKey];
+      }
+    }
+
     return {
       processedFlags,
-      thresholdCacheUpdates,
-      featureFlagThresholdGroupUpdates,
+      thresholdCache,
+      featureFlagThresholdGroups,
     };
   }
 
@@ -571,10 +593,7 @@ export class RemoteFeatureFlagController extends BaseController<
       return {
         ...this.state,
         localOverrides,
-        remoteFeatureFlags: this.#getEffectiveFeatureFlags(
-          this.#processedRemoteFeatureFlags,
-          localOverrides,
-        ),
+        remoteFeatureFlags: this.#getEffectiveFeatureFlags({ localOverrides }),
       };
     });
   }
@@ -592,10 +611,9 @@ export class RemoteFeatureFlagController extends BaseController<
       return {
         ...this.state,
         localOverrides: newLocalOverrides,
-        remoteFeatureFlags: this.#getEffectiveFeatureFlags(
-          this.#processedRemoteFeatureFlags,
-          newLocalOverrides,
-        ),
+        remoteFeatureFlags: this.#getEffectiveFeatureFlags({
+          localOverrides: newLocalOverrides,
+        }),
       };
     });
   }
@@ -608,10 +626,9 @@ export class RemoteFeatureFlagController extends BaseController<
       return {
         ...this.state,
         localOverrides: {},
-        remoteFeatureFlags: this.#getEffectiveFeatureFlags(
-          this.#processedRemoteFeatureFlags,
-          {},
-        ),
+        remoteFeatureFlags: this.#getEffectiveFeatureFlags({
+          localOverrides: {},
+        }),
       };
     });
   }

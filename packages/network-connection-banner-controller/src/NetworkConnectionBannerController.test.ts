@@ -1837,13 +1837,13 @@ async function withController<ReturnValue>(
       'ConnectivityController:getState',
     ],
     events: [
-      // eslint-disable-next-line no-restricted-syntax -- awaiting upstream :stateChanged migration
       'NetworkController:stateChange',
-      // eslint-disable-next-line no-restricted-syntax -- awaiting upstream :stateChanged migration
+
       'NetworkEnablementController:stateChange',
-      // eslint-disable-next-line no-restricted-syntax -- awaiting upstream :stateChanged migration
+
       'ConnectivityController:stateChange',
-      'ClientController:stateChanged',
+
+      'ClientController:stateChange',
       'KeyringController:unlock',
       'KeyringController:lock',
     ],
@@ -1857,7 +1857,7 @@ async function withController<ReturnValue>(
   });
 
   const setUiOpen = (isUiOpen: boolean): void => {
-    rootMessenger.publish('ClientController:stateChanged', { isUiOpen }, []);
+    rootMessenger.publish('ClientController:stateChange', { isUiOpen }, []);
   };
   const setKeyringUnlocked = (isUnlocked: boolean): void => {
     rootMessenger.publish(
