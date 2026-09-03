@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Revalidate HyperLiquid positions over HTTP before reporting a WebSocket cache miss during a TP/SL update.
+- Revalidate HyperLiquid positions over HTTP before reporting a WebSocket cache miss during a TP/SL update ([#10101](https://github.com/MetaMask/core/pull/10101)).
 
 ## [16.0.0]
 
