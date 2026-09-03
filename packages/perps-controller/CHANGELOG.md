@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/1231.0.0 ([#10088](https://github.com/MetaMask/core/pull/10088))
+
 ### Added
 
 - Add `reduce_only` intent to every `Perp Trade Transaction` lifecycle event while preserving canonical `order_type` values ([#10091](https://github.com/MetaMask/core/pull/10091))
