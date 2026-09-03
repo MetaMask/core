@@ -1,0 +1,66 @@
+{
+  "extends": ["./tsconfig.json", "../../tsconfig.packages.lint.json"],
+  "compilerOptions": {
+    "outDir": "./.tsc-lint-cache",
+    "tsBuildInfoFile": "./.tsc-lint-cache/tsconfig.tsbuildinfo"
+  },
+  "references": [
+    {
+      "path": "../messenger/tsconfig.lint.json"
+    },
+    {
+      "path": "../account-tree-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../accounts-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../assets-controllers/tsconfig.lint.json"
+    },
+    {
+      "path": "../base-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../client-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../config-registry-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../controller-utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../core-backend/tsconfig.lint.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../network-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../network-enablement-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../permission-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../phishing-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../polling-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../preferences-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../remote-feature-flag-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../transaction-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../utils/tsconfig.lint.json"
+    }
+  ]
+}

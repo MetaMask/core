@@ -1,0 +1,30 @@
+{
+  "extends": ["./tsconfig.json", "../../tsconfig.packages.lint.json"],
+  "compilerOptions": {
+    "outDir": "./.tsc-lint-cache",
+    "tsBuildInfoFile": "./.tsc-lint-cache/tsconfig.tsbuildinfo"
+  },
+  "references": [
+    {
+      "path": "../messenger/tsconfig.lint.json"
+    },
+    {
+      "path": "../accounts-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../base-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../controller-utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../snap-account-service/tsconfig.lint.json"
+    },
+    {
+      "path": "../utils/tsconfig.lint.json"
+    }
+  ]
+}

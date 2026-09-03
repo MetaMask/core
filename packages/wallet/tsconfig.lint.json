@@ -1,0 +1,69 @@
+{
+  "extends": ["./tsconfig.json", "../../tsconfig.packages.lint.json"],
+  "compilerOptions": {
+    "outDir": "./.tsc-lint-cache",
+    "tsBuildInfoFile": "./.tsc-lint-cache/tsconfig.tsbuildinfo"
+  },
+  "references": [
+    {
+      "path": "../messenger/tsconfig.lint.json"
+    },
+    {
+      "path": "../storage-service/tsconfig.lint.json"
+    },
+    {
+      "path": "../accounts-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../address-book-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../approval-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../base-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../claims-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../config-registry-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../connectivity-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../controller-utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../gas-fee-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../network-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../passkey-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../remote-feature-flag-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../seedless-onboarding-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../shield-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../subscription-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../transaction-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../utils/tsconfig.lint.json"
+    }
+  ]
+}

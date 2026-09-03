@@ -29,7 +29,7 @@
     "docs:platform-api:build": "yarn workspace @metamask/platform-api-docs cli ../.. --build --project-label Core",
     "docs:platform-api:dev": "yarn workspace @metamask/platform-api-docs cli ../.. --dev --project-label Core",
     "docs:platform-api:serve": "yarn workspace @metamask/platform-api-docs cli ../.. --serve --project-label Core",
-    "lint": "yarn lint:tsc && yarn lint:eslint && echo && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams && yarn messenger-action-types:check && yarn readme-content:check && yarn lint:tsconfigs:all && yarn codeowners:check",
+    "lint": "yarn lint:eslint && echo && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams && yarn messenger-action-types:check && yarn readme-content:check && yarn lint:tsconfigs:all && yarn codeowners:check",
     "lint:dependencies": "knip --config knip.config.mts --dependencies && yarn dedupe --check",
     "lint:dependencies:fix": "knip --config knip.config.mts --dependencies && yarn dedupe",
     "lint:eslint": "yarn build:only-clean && NODE_OPTIONS='--max-old-space-size=10240' yarn eslint",
