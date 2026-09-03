@@ -342,9 +342,15 @@ export type DataRequest = {
    * When true, the data source should poll only the user's `customAssets`
    * for the requested chains and skip refreshing the regular tracked
    * balances. Used by the AssetsController to issue a supplemental RPC
-   * subscription on chains that another data source is already covering.
+   * subscription on chains that another data source is already covering
+   * (Accounts API v5 path). Ignored when Accounts API v6 is enabled.
    */
   customAssetsOnly?: boolean;
+  /**
+   * User-hidden CAIP-19 asset IDs, sent to the Accounts API v6 endpoint as
+   * `excludeAssetIds` so they are dropped from the response.
+   */
+  excludeAssetIds?: Caip19AssetId[];
   /** Force fresh fetch, bypass cache */
   forceUpdate?: boolean;
   /**
@@ -371,8 +377,14 @@ export type DataResponse = {
   assetsPrice?: Record<Caip19AssetId, AssetPrice>;
   /** Balance data per account */
   assetsBalance?: Record<AccountId, Record<Caip19AssetId, AssetBalance>>;
-  /** Errors encountered, keyed by chain ID */
+  /** Errors encountered, keyed by chain ID (chain-axis fallback + telemetry) */
   errors?: Record<ChainId, string>;
+  /**
+   * Pinned asset IDs the source could not resolve (asset-axis fallback).
+   * Unlike `errors` the chain succeeded — only these assets still need a
+   * downstream (RPC) fetch.
+   */
+  unprocessedCustomAssets?: Caip19AssetId[];
   /** Detected assets (assets that do not have metadata) */
   detectedAssets?: Record<AccountId, Caip19AssetId[]>;
   /**
@@ -384,8 +396,8 @@ export type DataResponse = {
    * When set with `updateMode: 'merge'`, balances on chains present in
    * `assetsBalance` replace the prior chain slice (stale tokens on those chains
    * are dropped). Custom assets on covered chains are preserved. Used for
-   * `getAssets({ forceUpdate: true })` so unlock/startup reflects the API snapshot
-   * without switching to `updateMode: 'full'`.
+   * Accounts API v5 `getAssets({ forceUpdate: true })`. Accounts API v6 uses
+   * `updateMode: 'full'` instead.
    */
   replaceCoveredChainBalances?: boolean;
 };
@@ -393,20 +405,18 @@ export type DataResponse = {
 /**
  * Type of {@link DataResponse.updateMode}: how the controller applies the response to state.
  *
- * - **full**: Response is the full set for the scope. Assets in state but not in the
- *   response are cleared (except custom assets). Use for initial fetch or full refresh.
- * - **merge**: By default only assets present in the response are updated;
- *   nothing is removed. When {@link DataResponse.replaceCoveredChainBalances}
- *   is true, balances on chains present in the response replace the prior chain
- *   slice (stale tokens on those chains are dropped; custom assets preserved).
- *   Metadata and prices from the response are applied. Use for event-driven updates.
- * - **update**: Balance-only overlay — incoming balance amounts are patched in place;
- *   existing balances, metadata, and prices are never removed or overwritten.
- *   Missing metadata and prices from the response are seeded so RPC-only chains
- *   can render on first fetch. Use for force refresh when the API may return a
- *   partial chain snapshot.
+ * - **full**: Response is the full set for covered chains (those present in
+ *   `assetsBalance`). Assets in state on those chains but not in the response
+ *   are cleared, including custom assets (Accounts API v6 returns pins via
+ *   `includeAssetIds`). The only exception is {@link DataResponse.unprocessedCustomAssets}
+ *   that RPC fallback also could not recover — those prior balances are kept
+ *   until a later successful fetch. Use for Accounts API v6 snapshots.
+ * - **merge**: Only assets present in the response are updated; nothing is
+ *   removed, unless {@link DataResponse.replaceCoveredChainBalances} is set
+ *   (Accounts API v5 force refresh). Metadata and prices from the response
+ *   are applied. Use for event-driven updates and Accounts API v5.
  */
-export type AssetsUpdateMode = 'full' | 'merge' | 'update';
+export type AssetsUpdateMode = 'full' | 'merge';
 
 // ============================================================================
 // DATA SOURCE <-> CONTROLLER (DIRECT CALLS, NO MESSENGER PER SOURCE)
