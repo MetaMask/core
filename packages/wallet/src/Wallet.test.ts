@@ -227,6 +227,30 @@ describe('Wallet', () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
+  it('logs controller state validation errors and continues', async () => {
+    const captureException = jest.fn();
+    const messenger = new Messenger({ namespace: 'Root', captureException });
+    const wallet = new Wallet({
+      messenger,
+      state: {
+        NetworkController: {
+          foo: 'bar',
+        },
+      },
+      instanceOptions: getInstanceOptions(),
+    });
+
+    expect(wallet.state.NetworkController).toStrictEqual(
+      expect.objectContaining({ foo: 'bar' }),
+    );
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message:
+          'Validation of "NetworkController" state failed, but did not throw: At path: selectedNetworkClientId -- Expected a string, but received: undefined',
+      }),
+    );
+  });
+
   describe('AccountsController', () => {
     it('tracks accounts created via KeyringController', async () => {
       const wallet = await setupWallet();
