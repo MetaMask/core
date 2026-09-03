@@ -1,7 +1,7 @@
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
 import { BN } from 'bn.js';
-import { isEqual } from 'lodash';
+import { isEqual } from 'lodash-es';
 
 import { createModuleLogger, projectLogger } from '../logger.js';
 import { TransactionContainerType, TransactionStatus } from '../types.js';

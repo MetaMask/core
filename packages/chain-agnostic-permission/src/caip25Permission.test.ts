@@ -8,7 +8,7 @@ import type {
   PermissionSpecificationConstraint,
   CaveatSpecificationConstraint,
 } from '@metamask/permission-controller';
-import { pick } from 'lodash';
+import { pick } from 'lodash-es';
 
 import type { Caip25CaveatValue } from './caip25Permission.js';
 import {

@@ -1,9 +1,11 @@
 import { toChecksumAddress } from '@ethereumjs/util';
 import { parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
-import type { MemoizedFunction } from 'lodash';
-import memoize from 'lodash/memoize';
+import { memoize } from 'lodash-es';
 
 import type { Caip19AssetId } from '../types.js';
+
+// Not exported by `lodash-es`.
+type MemoizedFunction = Omit<ReturnType<typeof memoize>, never>;
 
 /**
  * Normalizes a CAIP-19 asset ID by checksumming EVM addresses.

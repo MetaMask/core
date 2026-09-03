@@ -29,7 +29,7 @@ import type {
   InterestResponse,
   PositionResponse,
   RateHistoryResponse,
-} from './response.types';
+} from './response.types.js';
 import {
   HistoryResponseStruct,
   InterestResponseStruct,

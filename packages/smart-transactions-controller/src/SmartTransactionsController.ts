@@ -34,7 +34,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
-import cloneDeep from 'lodash/cloneDeep';
+import { cloneDeep } from 'lodash-es';
 
 import {
   DEFAULT_DISABLED_SMART_TRANSACTIONS_FEATURE_FLAGS,

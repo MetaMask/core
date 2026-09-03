@@ -125,7 +125,7 @@ const config = createConfig([
     extends: [nodejs],
   },
   {
-    files: ['**/*.{js,cjs}'],
+    files: ['**/*.cjs'],
     languageOptions: {
       sourceType: 'script',
       ecmaVersion: 2020,
@@ -181,6 +181,10 @@ const config = createConfig([
       'jest/no-alias-methods': 'error',
       'jest/no-commented-out-tests': 'error',
       'jest/no-disabled-tests': 'error',
+
+      // `import { jest } from '@jest/globals'` is required in ESM test files
+      // and intentionally shadows the Jest-injected global.
+      '@typescript-eslint/no-shadow': ['error', { allow: ['jest'] }],
     },
     settings: {
       node: {
@@ -221,14 +225,14 @@ const config = createConfig([
     },
   },
   {
-    files: ['**/jest.environment.js'],
+    files: ['**/jest.environment.cjs'],
     rules: {
       // These files run under Node, and thus `require(...)` is expected.
       'n/global-require': 'off',
     },
   },
   {
-    files: ['**/*.mjs'],
+    files: ['**/*.js', '**/*.mjs'],
     languageOptions: {
       sourceType: 'module',
     },

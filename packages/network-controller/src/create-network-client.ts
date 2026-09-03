@@ -173,6 +173,9 @@ export function createNetworkClient({
   if (configuration.type === NetworkClientType.Infura) {
     rpcApiMiddleware = asV2Middleware(
       createInfuraMiddleware({
+        // TODO: This was introduced by the ESM refactor for unknown reasons and
+        // should be investigated further.
+        // @ts-expect-error: Type mismatch.
         rpcService: rpcServiceChain,
         options: {
           source: 'metamask',

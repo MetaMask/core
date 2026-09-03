@@ -12,11 +12,12 @@
     "packages/*"
   ],
   "files": [],
+  "type": "module",
   "scripts": {
-    "build": "yarn ts-bridge --project tsconfig.build.json --verbose",
+    "build": "yarn tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
     "build:docs": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run build:docs",
-    "build:only-clean": "rimraf -g 'packages/*/dist'",
+    "build:only-clean": "rimraf -g 'packages/*/dist' 'packages/*/tsconfig.build.tsbuildinfo'",
     "build:types": "tsc --build tsconfig.build.json --verbose",
     "changelog:merge": "tsx scripts/merge-changelog-conflicts.ts",
     "changelog:update": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:update",
@@ -54,7 +55,7 @@
     "test": "yarn test:scripts --silent --collectCoverage=false --reporters=jest-silent-reporter && yarn test:scripts:shell && yarn test:packages",
     "test:clean": "yarn workspaces foreach --all --parallel --verbose run test:clean && yarn test",
     "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
-    "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.js --silent",
+    "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.cjs --silent",
     "test:scripts:shell": "node_modules/bats/bin/bats scripts/*.bats",
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
     "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
@@ -62,6 +63,7 @@
   "devDependencies": {
     "@actions/core": "^3.0.1",
     "@actions/github": "^9.1.1",
+    "@jest/globals": "^30.4.1",
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^6.1.0",
@@ -76,7 +78,6 @@
     "@metamask/network-controller": "^36.0.0",
     "@metamask/skills": "^0.1.0",
     "@metamask/utils": "^11.12.0",
-    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",
     "@types/lodash": "^4.14.191",
     "@types/node": "^22.13.14",
@@ -111,6 +112,7 @@
     "rimraf": "^5.0.5",
     "semver": "^7.6.3",
     "simple-git-hooks": "^2.8.0",
+    "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typescript": "~5.3.3",
     "typescript-eslint": "^8.48.0",

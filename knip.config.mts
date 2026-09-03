@@ -7,7 +7,7 @@ const config: KnipConfig = {
         'scripts/**/*.{ts,js,sh}',
         'tests/**/*.ts',
         '*.config.{js,cjs,mjs,ts}',
-        '.prettierrc.js',
+        '.prettierrc.cjs',
       ],
       project: ['scripts/**/*.ts', 'tests/**/*.ts', '*.{js,cjs,mjs,ts}'],
       ignore: ['scripts/create-package/package-template/**'],
@@ -41,7 +41,7 @@ const config: KnipConfig = {
       ignoreDependencies: [
         '@metamask/controller-utils',
         '@metamask/keyring-internal-api',
-        'lodash',
+        'lodash-es',
       ],
     },
     'packages/analytics-data-regulation-controller': {
@@ -66,7 +66,7 @@ const config: KnipConfig = {
       ignoreDependencies: [
         '@metamask/gas-fee-controller',
         '@metamask/remote-feature-flag-controller',
-        'lodash',
+        'lodash-es',
         'nock',
       ],
     },
@@ -127,7 +127,7 @@ const config: KnipConfig = {
       ignoreDependencies: [
         '@metamask/base-controller',
         '@metamask/superstruct',
-        'lodash',
+        'lodash-es',
       ],
     },
     'packages/multichain-network-controller': {
@@ -183,10 +183,10 @@ const config: KnipConfig = {
       ignoreDependencies: ['cockatiel', 'nock'],
     },
     'packages/selected-network-controller': {
-      ignoreDependencies: ['immer', 'lodash', 'nock'],
+      ignoreDependencies: ['immer', 'lodash-es', 'nock'],
     },
     'packages/signature-controller': {
-      ignoreDependencies: ['lodash'],
+      ignoreDependencies: ['lodash-es'],
     },
     'packages/snap-account-service': {
       ignoreDependencies: [

@@ -31,7 +31,7 @@ import {
   hydrate,
 } from '@tanstack/query-core';
 import deepEqual from 'fast-deep-equal';
-import { debounce, DebouncedFunc } from 'lodash';
+import { debounce, DebouncedFunc } from 'lodash-es';
 
 import {
   createServicePolicy,

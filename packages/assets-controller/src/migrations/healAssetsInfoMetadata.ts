@@ -8,7 +8,7 @@ import {
   hasProperty,
   isObject,
 } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import { divideIntoBatches } from '../data-sources/evm-rpc-services/utils/batch.js';
 import { DEFAULT_TRACKED_ASSETS_BY_CHAIN } from '../defaults.js';

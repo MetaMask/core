@@ -26,7 +26,7 @@
    * uncompiled source code for packages that live in this repo.
    *
    * NOTE: This must be synchronized with the `moduleNameMapper` option in
-   * `jest.config.packages.js`.
+   * `jest.config.packages.cjs`.
    *
    * NOTE 2: This is not necessary when copying this package to `packages/`.
    */

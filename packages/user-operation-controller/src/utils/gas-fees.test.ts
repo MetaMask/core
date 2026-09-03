@@ -3,7 +3,7 @@ import type { GasFeeState } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 import { UserFeeLevel } from '@metamask/transaction-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import type { UpdateGasFeesRequest } from './gas-fees.js';
 import { updateGasFees } from './gas-fees.js';
