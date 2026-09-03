@@ -174,9 +174,6 @@
       "path": "./packages/money-account-controller"
     },
     {
-      "path": "./packages/money-account-subscription-controller"
-    },
-    {
       "path": "./packages/money-account-upgrade-controller"
     },
     {

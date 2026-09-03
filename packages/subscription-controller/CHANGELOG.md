@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add product-scoped entitlements to `SubscriptionController` state and export Money Account Plus entitlement selectors ([#10017](https://github.com/MetaMask/core/pull/10017))
+
 ## [8.0.1]
 
 ### Changed

@@ -91,6 +91,9 @@ export type {
   AssignCohortRequest,
   GetSubscriptionsEligibilitiesRequest,
   ModalType,
+  MoneyAccountEntitlements,
+  MoneyAccountPlusClaim,
+  ProductEntitlements,
 } from './types.js';
 export {
   CANCEL_TYPES,
@@ -104,7 +107,13 @@ export {
   COHORT_NAMES,
   BALANCE_CATEGORIES,
   MODAL_TYPE,
+  MoneyAccountFeature,
 } from './types.js';
+export {
+  selectHasEntitlement,
+  selectIsMoneyAccountPlusSubscriber,
+  selectIsUsageAvailable,
+} from './selectors.js';
 export { SubscriptionServiceError } from './errors.js';
 export {
   Env,

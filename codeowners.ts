@@ -362,9 +362,6 @@ const PACKAGES: Record<string, PackageInfo> = {
     teams: ['@MetaMask/web3auth'],
     initializationPath: 'subscription-controller',
   },
-  'money-account-subscription-controller': {
-    teams: ['@MetaMask/web3auth'],
-  },
   'subscription-service': {
     teams: ['@MetaMask/web3auth'],
     initializationPath: 'subscription-service',
@@ -575,7 +572,6 @@ function buildTeamSections(): CodeownersSection[] {
         buildRuleForPackage('passkey-controller'),
         buildRuleForPackage('shield-controller'),
         buildRuleForPackage('subscription-controller'),
-        buildRuleForPackage('money-account-subscription-controller'),
         buildRuleForPackage('claims-controller'),
       ],
     },
@@ -710,7 +706,6 @@ function buildPackageReleaseSection(): CodeownersSection {
     'shield-controller',
     'network-enablement-controller',
     'subscription-controller',
-    'money-account-subscription-controller',
     'core-backend',
     'claims-controller',
     'ai-controllers',

@@ -94,7 +94,6 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/money-account-api-data-service`](packages/money-account-api-data-service)
 - [`@metamask/money-account-balance-service`](packages/money-account-balance-service)
 - [`@metamask/money-account-controller`](packages/money-account-controller)
-- [`@metamask/money-account-subscription-controller`](packages/money-account-subscription-controller)
 - [`@metamask/money-account-upgrade-controller`](packages/money-account-upgrade-controller)
 - [`@metamask/money-account-utils`](packages/money-account-utils)
 - [`@metamask/multichain-account-service`](packages/multichain-account-service)
@@ -201,7 +200,6 @@ linkStyle default opacity:0.5
   money_account_api_data_service(["@metamask/money-account-api-data-service"]);
   money_account_balance_service(["@metamask/money-account-balance-service"]);
   money_account_controller(["@metamask/money-account-controller"]);
-  money_account_subscription_controller(["@metamask/money-account-subscription-controller"]);
   money_account_upgrade_controller(["@metamask/money-account-upgrade-controller"]);
   money_account_utils(["@metamask/money-account-utils"]);
   multichain_account_service(["@metamask/multichain-account-service"]);
@@ -445,11 +443,6 @@ linkStyle default opacity:0.5
   money_account_controller --> base_controller;
   money_account_controller --> keyring_controller;
   money_account_controller --> messenger;
-  money_account_subscription_controller --> base_controller;
-  money_account_subscription_controller --> messenger;
-  money_account_subscription_controller --> polling_controller;
-  money_account_subscription_controller --> profile_sync_controller;
-  money_account_subscription_controller --> subscription_controller;
   money_account_upgrade_controller --> authenticated_user_storage;
   money_account_upgrade_controller --> base_controller;
   money_account_upgrade_controller --> chomp_api_service;

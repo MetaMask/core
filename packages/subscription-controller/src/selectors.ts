@@ -1,19 +1,22 @@
-import type {
-  MoneyAccountFeature,
-  MoneyAccountSubscriptionControllerState,
-} from './types.js';
+import type { SubscriptionControllerState } from './SubscriptionController.js';
+import type { MoneyAccountFeature } from './types.js';
+import { PRODUCT_TYPES } from './types.js';
 
-export function selectIsActiveSubscriber(
-  state: MoneyAccountSubscriptionControllerState,
+export function selectIsMoneyAccountPlusSubscriber(
+  state: SubscriptionControllerState,
 ): boolean {
-  return state.isSubscriber;
+  return Boolean(state.productEntitlements?.[PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]);
 }
 
 export function selectHasEntitlement(
-  state: MoneyAccountSubscriptionControllerState,
+  state: SubscriptionControllerState,
   feature: MoneyAccountFeature,
 ): boolean {
-  return Boolean(state.entitlements?.[feature]);
+  return Boolean(
+    state.productEntitlements?.[PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]?.entitlements[
+      feature
+    ],
+  );
 }
 
 /**
@@ -21,12 +24,12 @@ export function selectHasEntitlement(
  * metered-cap exhaustion into the entitlement flag. Keeping this selector
  * separate gives consumers a stable API if explicit usage claims are added.
  *
- * @param state - The Money Account subscription controller state.
+ * @param state - The subscription controller state.
  * @param feature - The feature whose usage availability is queried.
  * @returns Whether usage is currently available for the feature.
  */
 export function selectIsUsageAvailable(
-  state: MoneyAccountSubscriptionControllerState,
+  state: SubscriptionControllerState,
   feature: MoneyAccountFeature,
 ): boolean {
   return selectHasEntitlement(state, feature);

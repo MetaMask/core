@@ -40,6 +40,7 @@ import type {
   CachedLastSelectedPaymentMethod,
   SubmitSponsorshipIntentsMethodParams,
   ProductType,
+  ProductEntitlements,
   RecurringInterval,
 } from './types.js';
 import {
@@ -187,6 +188,16 @@ const MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE = {
   customerId: 'cus_1',
   subscriptions: [] as Subscription[],
   trialedProducts: [] as ProductType[],
+};
+
+const MOCK_PRODUCT_ENTITLEMENTS: ProductEntitlements = {
+  [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+    plan: 'premium',
+    entitlements: {
+      premiumApy: true,
+      swapFeeWaiver: true,
+    },
+  },
 };
 
 const MOCK_COHORTS = [
@@ -499,6 +510,97 @@ describe('SubscriptionController', () => {
   });
 
   describe('getSubscriptions', () => {
+    it('stores product entitlements', async () => {
+      await withController(
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.productEntitlements).toStrictEqual(
+            MOCK_PRODUCT_ENTITLEMENTS,
+          );
+        },
+      );
+    });
+
+    it('updates state when only product entitlements change', async () => {
+      await withController(
+        {
+          state: {
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          const productEntitlements = {
+            [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+              plan: 'premium',
+              entitlements: {
+                premiumApy: false,
+              },
+            },
+          };
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements,
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.productEntitlements).toStrictEqual(
+            productEntitlements,
+          );
+        },
+      );
+    });
+
+    it('preserves product entitlements when an old API response omits them', async () => {
+      await withController(
+        {
+          state: {
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.productEntitlements).toStrictEqual(
+            MOCK_PRODUCT_ENTITLEMENTS,
+          );
+        },
+      );
+    });
+
+    it('does not update state when product entitlements are unchanged', async () => {
+      await withController(
+        {
+          state: {
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          },
+        },
+        async ({ rootMessenger, mockService, mockPerformSignOut }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: { ...MOCK_PRODUCT_ENTITLEMENTS },
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(mockPerformSignOut).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('should fetch and store subscription successfully', async () => {
       await withController(
         async ({ controller, rootMessenger, mockService }) => {

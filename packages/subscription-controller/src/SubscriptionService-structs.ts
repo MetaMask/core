@@ -8,6 +8,7 @@ import {
   number,
   object,
   optional,
+  record,
   string,
   type,
   union,
@@ -28,6 +29,20 @@ import type { TokenPaymentInfo } from './types.js';
 
 const ProductTypeStruct = enums(Object.values(PRODUCT_TYPES));
 const CryptoAuthMethodStruct = enums(Object.values(CRYPTO_AUTH_METHODS));
+const EntitlementsStruct = record(string(), boolean());
+const ProductEntitlementsStruct = type({
+  [PRODUCT_TYPES.SHIELD]: optional(
+    type({
+      entitlements: EntitlementsStruct,
+    }),
+  ),
+  [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: optional(
+    type({
+      plan: string(),
+      entitlements: EntitlementsStruct,
+    }),
+  ),
+});
 const RecurringIntervalStruct = enums(Object.values(RECURRING_INTERVALS));
 const SubscriptionStatusStruct = enums(Object.values(SUBSCRIPTION_STATUSES));
 const CancelTypeStruct = enums(Object.values(CANCEL_TYPES));
@@ -90,6 +105,7 @@ export const GetSubscriptionsResponseStruct = type({
   customerId: optional(string()),
   subscriptions: array(SubscriptionStruct),
   trialedProducts: array(ProductTypeStruct),
+  productEntitlements: optional(ProductEntitlementsStruct),
   lastSubscription: optional(SubscriptionStruct),
   rewardAccountId: optional(CaipAccountIdStruct),
 });

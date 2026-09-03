@@ -382,6 +382,63 @@ describe('SubscriptionService', () => {
   });
 
   describe('getSubscriptions', () => {
+    it('returns product entitlements from the subscriptions response', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        const productEntitlements = {
+          [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+            plan: 'premium',
+            entitlements: {
+              premiumApy: true,
+              futureEntitlement: false,
+            },
+          },
+          [PRODUCT_TYPES.SHIELD]: {
+            entitlements: {
+              shieldClaim: true,
+            },
+          },
+        };
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements,
+            },
+          }),
+        );
+
+        const result = await service.getSubscriptions();
+
+        expect(result.productEntitlements).toStrictEqual(productEntitlements);
+      });
+    });
+
+    it('rejects malformed product entitlements', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements: {
+                [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+                  plan: 'premium',
+                  entitlements: {
+                    premiumApy: 'yes',
+                  },
+                },
+              },
+            },
+          }),
+        );
+
+        await expect(service.getSubscriptions()).rejects.toThrow(
+          'Expected a value of type `boolean`',
+        );
+      });
+    });
+
     it('should fetch subscriptions successfully', async () => {
       await withMockSubscriptionService(
         async ({ service, fetchMock, getBearerToken, getSessionProfile }) => {

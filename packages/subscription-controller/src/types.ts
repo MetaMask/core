@@ -26,6 +26,30 @@ export const PRODUCT_TYPES = {
 
 export type ProductType = (typeof PRODUCT_TYPES)[keyof typeof PRODUCT_TYPES];
 
+export const MoneyAccountFeature = {
+  SwapFeeWaiver: 'swapFeeWaiver',
+  PerpsFeeWaiver: 'perpsFeeWaiver',
+  PredictFreeTx: 'predictFreeTx',
+  PremiumApy: 'premiumApy',
+} as const;
+
+export type MoneyAccountFeature =
+  (typeof MoneyAccountFeature)[keyof typeof MoneyAccountFeature];
+
+export type MoneyAccountEntitlements = Record<string, boolean>;
+
+export type MoneyAccountPlusClaim = {
+  plan: string;
+  entitlements: MoneyAccountEntitlements;
+};
+
+export type ProductEntitlements = {
+  [PRODUCT_TYPES.SHIELD]?: {
+    entitlements: Record<string, boolean>;
+  };
+  [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]?: MoneyAccountPlusClaim;
+};
+
 /**
  * How a crypto subscription is authorized.
  *
@@ -174,6 +198,7 @@ export type GetSubscriptionsResponse = {
   customerId?: string;
   subscriptions: Subscription[];
   trialedProducts: ProductType[];
+  productEntitlements?: ProductEntitlements;
   /** The last subscription that user has subscribed to if any. */
   lastSubscription?: Subscription;
   /** The reward account ID if user has linked rewards to the subscription. */

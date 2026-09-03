@@ -65,7 +65,6 @@
   "metamask/seedless-onboarding-controller": "team-onboarding",
   "metamask/shield-controller": "team-shield",
   "metamask/subscription-controller": "team-shield",
-  "metamask/money-account-subscription-controller": "team-shield",
   "metamask/claims-controller": "team-shield",
   "metamask/announcement-controller": "team-core-extension-ux,team-mobile-ux",
   "metamask/client-utils": "team-core-extension-ux,team-mobile-ux",
