@@ -1794,7 +1794,8 @@ export class KycController extends BaseController<
     // authorizes later storage reads without granting write or delete access.
     const ukycCapabilityToken = signStorageAccessToken({
       material: clientMaterial,
-      operations: ['read'],
+      // TODO: Confirm with idOS when this can be switched back to read and a separate token is sent for write
+      operations: ['read', 'write'],
       expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
     });
     const wrappedUkycCapabilityToken = wrapEncryptionKey(
