@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Link a capability to its source rather than to the build output compiled from it, where both are available
+- Link a capability to its source rather than to the build output compiled from it, where both are available ([#10085](https://github.com/MetaMask/core/pull/10085))
 
 ## [0.1.0]
 
