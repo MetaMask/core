@@ -58,8 +58,6 @@ import {
   clearMoonPaySession,
   MoonPayFrameHandler,
 } from './vendors/MoonPayFrameHandler.js';
-import { signStorageAccessToken } from './ukyc/storageAccessToken.js';
-import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
 
 export type { KycControllerState } from './KycControllerState.js';
 
@@ -737,7 +735,7 @@ export class KycController extends BaseController<
       }
 
       if (created.vendorProcessing) {
-        await this.#refreshUserStatusSoft();
+        await this.#tryRefreshKycStatus();
         this.#updateIfCurrent(generation, (state) => {
           state.phase = 'done';
           state.statusMessage = VENDOR_PROCESSING_MESSAGE;
@@ -770,9 +768,9 @@ export class KycController extends BaseController<
         );
       }
       // After SumSub, refresh user-keyed status for the Money toast and start
-      // polling while still pending. Soft-fail: toast refresh must not rewind
-      // the consent / SumSub outcome.
-      await this.#refreshUserStatusSoft();
+      // polling while still pending. The toast refresh must not rewind the
+      // consent / SumSub outcome, so its failure is swallowed.
+      await this.#tryRefreshKycStatus();
       this.#updateIfCurrent(generation, (state) => {
         if (state.phase !== 'error' && state.phase !== 'done') {
           state.phase = 'done';
@@ -1932,10 +1930,10 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Refreshes user-keyed KYC status for toast surfaces without rewinding the
-   * current flow when the request fails.
+   * Calls {@link refreshKycStatus} for toast surfaces, logging rather than
+   * rethrowing so a failed refresh does not rewind the current flow.
    */
-  async #refreshUserStatusSoft(): Promise<void> {
+  async #tryRefreshKycStatus(): Promise<void> {
     try {
       await this.refreshKycStatus();
     } catch (statusError) {
