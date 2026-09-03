@@ -202,7 +202,8 @@ classDiagram
 > `T | null` in the source; `Record` is `Partial<Record<KycProduct, boolean>>`.
 > Types are simplified above for diagram readability.
 
-State metadata highlights (`kycControllerMetadata`):
+State metadata highlights (`kycControllerMetadata`, defined alongside the state
+type and default-state factories in `src/KycControllerState.ts`):
 
 - **Persisted** (`persist: true`): `vendorDisclaimersAccepted`,
   `providerDisclaimersAccepted`, `idosDisclaimersAccepted`,
@@ -693,8 +694,12 @@ graph LR
 | File                                 | Responsibility                                                      |
 | ------------------------------------ | ------------------------------------------------------------------- |
 | `src/KycController.ts`               | Stateful orchestrator, phase machine.                               |
+| `src/KycControllerState.ts`          | State type, persistence metadata, and default-state factories.      |
 | `src/vendors/MoonPayFrameHandler.ts` | MoonPay Check/Auth protocol, URLs, and ephemeral frame credentials. |
 | `src/KycService.ts`                  | Stateless UKYC HTTP client + superstruct validation.                |
+| `src/consents.ts`                    | Consent-record shaping, conflict/error predicates, vendor routing.  |
+| `src/vendorDisclaimerAcceptance.ts`  | Vendor-scoped terms acceptance records.                             |
+| `src/ukyc/`                          | UKYC crypto protocol: key derivation, JWT chains, token wrapping.   |
 | `src/crypto.ts`                      | X25519 ECDH + AES-256-GCM credential decryption.                    |
 | `src/selectors.ts`                   | Memoized selectors over controller state.                           |
 | `src/types.ts`                       | `KycPhase`, `KycProduct`, `KycSumSubLauncher`, etc.                 |
