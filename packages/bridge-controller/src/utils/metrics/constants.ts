@@ -113,6 +113,7 @@ export enum MetricsSwapType {
 export enum FailurePhase {
   Quote = 'quote',
   Broadcast = 'broadcast',
+  Approval = 'approval',
   SourceExecution = 'source_execution',
   DestinationExecution = 'destination_execution',
   Poll = 'poll',

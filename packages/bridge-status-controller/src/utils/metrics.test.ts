@@ -1334,6 +1334,30 @@ describe('metrics utils', () => {
         }),
       ).toBe(FailurePhase.Poll);
     });
+
+    it('returns approval when no hash exists but an approval tx was expected', () => {
+      expect(
+        getStatusFailurePhase(
+          {
+            source_hash_present: false,
+            destination_hash_present: false,
+          },
+          true,
+        ),
+      ).toBe(FailurePhase.Approval);
+    });
+
+    it('does not return approval when a source hash exists, even if approval was expected', () => {
+      expect(
+        getStatusFailurePhase(
+          {
+            source_hash_present: true,
+            destination_hash_present: false,
+          },
+          true,
+        ),
+      ).toBe(FailurePhase.SourceExecution);
+    });
   });
 
   describe('promoteFailurePhase', () => {
@@ -1417,6 +1441,28 @@ describe('metrics utils', () => {
         error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
         source_hash_present: true,
         destination_hash_present: true,
+      });
+    });
+
+    it('returns approval when no hash exists but an approval tx was expected', () => {
+      expect(
+        getFailurePropertiesFromHistory(undefined, undefined, true),
+      ).toStrictEqual({
+        failure_phase: FailurePhase.Approval,
+        error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
+        source_hash_present: false,
+        destination_hash_present: false,
+      });
+    });
+
+    it('falls back to poll when no hash exists and no approval was expected', () => {
+      expect(
+        getFailurePropertiesFromHistory(undefined, undefined, false),
+      ).toStrictEqual({
+        failure_phase: FailurePhase.Poll,
+        error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
+        source_hash_present: false,
+        destination_hash_present: false,
       });
     });
   });

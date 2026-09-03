@@ -81,19 +81,28 @@ export const getHashPresenceProperties = (
 };
 
 /**
- * Prefer destination_execution over source_execution over poll.
+ * Prefer destination_execution over source_execution over approval over poll.
+ *
+ * `approval` is returned when no source/destination hash exists but the history
+ * item expected an approval tx — i.e. the approval failed before the source tx
+ * was submitted. Otherwise the no-hash fallback is `poll`.
  *
  * @param hashPresence - Hash presence at emit time.
+ * @param hasApproval - Whether the bridge history item expected an approval tx.
  * @returns The Mixpanel `failure_phase` for a status/polling Failed event.
  */
 export const getStatusFailurePhase = (
   hashPresence: HashPresenceProperties,
+  hasApproval = false,
 ): FailurePhase => {
   if (hashPresence.destination_hash_present) {
     return FailurePhase.DestinationExecution;
   }
   if (hashPresence.source_hash_present) {
     return FailurePhase.SourceExecution;
+  }
+  if (hasApproval) {
+    return FailurePhase.Approval;
   }
   return FailurePhase.Poll;
 };
@@ -149,16 +158,20 @@ export const getBroadcastFailureProperties = (
  *
  * @param sourceHash - Source tx hash from history if known.
  * @param destinationHash - Destination tx hash from history if known.
+ * @param hasApproval - Whether the history item expected an approval tx. When
+ * true and no source/destination hash exists, the phase is `approval` rather
+ * than `poll` (the approval failed before the source tx was submitted).
  * @returns Phase, error code, and hash-presence flags.
  */
 export const getFailurePropertiesFromHistory = (
   sourceHash?: string | null,
   destinationHash?: string | null,
+  hasApproval = false,
 ): FailureTelemetryProperties => {
   const hashPresence = getHashPresenceProperties(sourceHash, destinationHash);
   return {
     ...hashPresence,
-    failure_phase: getStatusFailurePhase(hashPresence),
+    failure_phase: getStatusFailurePhase(hashPresence, hasApproval),
     error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
   };
 };
