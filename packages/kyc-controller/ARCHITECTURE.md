@@ -22,27 +22,29 @@ This document explains:
 
 The package is built around a few deliberate constraints:
 
-| Principle                                                   | How it shows up in the code                                                                                                                                                                          |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Vendor-neutral surface**                                  | Consumers deal with `KycProduct` (`'ramps' \| 'card' \| 'money'`) and a phase machine. Identity vendor is a parameterized `KycVendor` (`initialize({ vendor })`), not vendor-branded public methods. |
-| **Platform-agnostic core**                                  | No React, no `Buffer`/`atob`, no native SDK imports. Crypto uses `@noble/*` + `@scure/base`. WebView/iframe presentation and the SumSub SDK are **injected** by each client.                         |
-| **Controller owns orchestration; clients own presentation** | `KycController` owns all state, HTTP orchestration, crypto and the frame protocol. Clients only render frames, forward raw messages, and present the SumSub SDK.                                     |
-| **Stateless service**                                       | `KycService` performs HTTP only; it holds no state and derives auth/geolocation from other controllers via the messenger.                                                                            |
-| **Everything through the messenger**                        | Both classes register their public methods as messenger actions, and reach external capabilities (auth token, geolocation) via delegated actions.                                                    |
+| Principle                                                   | How it shows up in the code                                                                                                                                                                                    |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Vendor-neutral surface**                                  | Consumers deal with `KycProduct` (`'ramps' \| 'card' \| 'money'`) and a phase machine. Identity vendor is a parameterized `KycVendor` (`initialize({ vendor })`), not vendor-branded public methods.           |
+| **Platform-agnostic core**                                  | No React, no `Buffer`/`atob`, no native SDK imports. Crypto uses `@noble/*` + `@scure/base`. WebView/iframe presentation and the SumSub SDK are **injected** by each client.                                   |
+| **Controller owns orchestration; clients own presentation** | `KycController` owns all state, HTTP orchestration and crypto, and delegates the vendor frame protocol to `MoonPayFrameHandler`. Clients only render frames, forward raw messages, and present the SumSub SDK. |
+| **Stateless service**                                       | `KycService` performs HTTP only; it holds no state and derives auth/geolocation from other controllers via the messenger.                                                                                      |
+| **Everything through the messenger**                        | Both classes register their public methods as messenger actions, and reach external capabilities (auth token, geolocation) via delegated actions.                                                              |
 
 ---
 
 ### 2. Component overview
 
 The package splits cleanly into a **stateful orchestrator** (`KycController`), a
-**stateless HTTP client** (`KycService`), and supporting modules (crypto,
+**stateless HTTP client** (`KycService`), a **vendor frame protocol handler**
+(`MoonPayFrameHandler`), and supporting modules (state, consents, crypto,
 selectors, types).
 
 ```mermaid
 graph TB
     subgraph pkg["@metamask/kyc-controller"]
         direction TB
-        Controller["KycController<br/><i>(BaseController)</i><br/>state + orchestration + frame protocol"]
+        Controller["KycController<br/><i>(BaseController)</i><br/>state + orchestration"]
+        FrameHandler["vendors/MoonPayFrameHandler.ts<br/>MoonPay Check/Auth frame protocol"]
         Service["KycService<br/><i>(stateless)</i><br/>HTTP + response validation"]
         Crypto["crypto.ts<br/>X25519 ECDH + AES-256-GCM"]
         Selectors["selectors.ts<br/>memoized reselect selectors"]
@@ -64,10 +66,11 @@ graph TB
         SumSubSDK["SumSub SDK<br/>(native / web)"]
     end
 
-    Controller -->|"decryptCredentials()"| Crypto
     Controller -->|"messenger.call(KycService:*)"| Service
     Controller -.->|"injected launcher"| SumSubSDK
-    Controller -->|"builds frame URLs<br/>handles frame messages"| Frames
+    Controller -->|"delegates frame protocol"| FrameHandler
+    FrameHandler -->|"decryptCredentials()"| Crypto
+    FrameHandler -->|"builds frame URLs<br/>handles frame messages"| Frames
 
     Service -->|"createServicePolicy / HttpError"| CU
     Service -->|"messenger.call(GeolocationController:getGeolocation)"| Geo
@@ -84,8 +87,9 @@ graph TB
 
 - Extends `BaseController<'KycController', KycControllerState, KycControllerMessenger>`.
 - Holds **all flow state** (see [§3](#3-state-shape)).
-- Owns an ephemeral **X25519 keypair** (`#keypair`) generated at construction —
-  never persisted, used only for the frame key exchange.
+- Delegates the MoonPay Check/Auth frame protocol to `MoonPayFrameHandler`,
+  which owns the ephemeral **X25519 keypair** (`#frameKeypair`) minted when a
+  MoonPay flow starts — never persisted, used only for the frame key exchange.
 - Registers its public methods as messenger actions via
   `registerMethodActionHandlers`.
 - Calls `KycService` exclusively **through the messenger** (`KycService:*`
@@ -222,10 +226,10 @@ type and default-state factories in `src/KycControllerState.ts`):
   Switching away from MoonPay (`initialize` / `createVendorCustomer`) drops
   these MoonPay Check/Auth artifacts immediately so `buildCheckFrameUrl` cannot
   return a MoonPay URL while `activeVendor` is a consents-path vendor.
-- Additional non-state secrets kept **off** the state object entirely: the
-  X25519 private key (`#keypair`) and the Auth-frame client token
-  (`#authClientToken`). The auth client token is cleared on the same vendor
-  switch.
+- Additional non-state secrets kept **off** the state object entirely, held by
+  `MoonPayFrameHandler`: the X25519 private key (`#frameKeypair`) and the
+  Auth-frame client token (`#authClientToken`). The auth client token is cleared
+  on the same vendor switch.
 
 ---
 
