@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING:** Remove `AiDigestController` and related messenger/state exports. Digest fetch/validate lives on `AiDigestService`; clients construct the service and own freshness (e.g. React Query).
+  - Removed `AiDigestController`, `getDefaultAiDigestControllerState`, `aiDigestControllerName`, `AiDigestControllerState`, and controller action/event/messenger types.
+  - `AiDigestService.searchDigest` and `fetchFrontPageItem` now throw on an empty identifier (previously the controller).
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
