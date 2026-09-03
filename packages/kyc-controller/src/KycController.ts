@@ -58,6 +58,8 @@ import {
   clearMoonPaySession,
   MoonPayFrameHandler,
 } from './vendors/MoonPayFrameHandler.js';
+import { signStorageAccessToken } from './ukyc/storageAccessToken.js';
+import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
 
 export type { KycControllerState } from './KycControllerState.js';
 
@@ -1328,6 +1330,7 @@ export class KycController extends BaseController<
         capabilityTokenSchema,
         localUserSecret,
       });
+
     if (this.#generation !== generation) {
       return null;
     }

@@ -71,25 +71,28 @@ export function wrapUkycSessionAuthorizations(params: {
   wrappedEncryptionDataKey: WrappedEncryptionKeyParts;
   wrappedUkycCapabilityToken: WrappedEncryptionKeyParts;
 } {
-  const now = params.now ?? Date.now();
-  const clientMaterial = deriveClientMaterial(params.localUserSecret);
+  const {
+    sessionClientPrivateKey,
+    encryptionDataKey,
+    capabilityTokenSchema,
+    localUserSecret,
+  } = params;
+  const clientMaterial = deriveClientMaterial(localUserSecret);
+
   const wrappedEncryptionDataKey = wrapEncryptionKey(
-    params.sessionClientPrivateKey,
-    params.encryptionDataKey.serverPublicKey.x,
+    sessionClientPrivateKey,
+    encryptionDataKey.serverPublicKey.x,
     clientMaterial.dataEncryptionKey,
   );
-
-  // Only the client holds the signing key derived from `local_user_secret`,
-  // so only the client can mint the token; scoping it to `read` means it
-  // authorizes later storage reads without granting write or delete access.
   const ukycCapabilityToken = signStorageAccessToken({
     material: clientMaterial,
-    operations: ['read'],
-    expiresAt: new Date(now + UKYC_CAPABILITY_TOKEN_TTL_MS),
+    // TODO: Confirm with idOS when this can be switched back to read and a separate token is sent for write
+    operations: ['read', 'write'],
+    expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
   });
   const wrappedUkycCapabilityToken = wrapEncryptionKey(
-    params.sessionClientPrivateKey,
-    params.capabilityTokenSchema.serverPublicKey.x,
+    sessionClientPrivateKey,
+    capabilityTokenSchema.serverPublicKey.x,
     stringToBytes(encodeStorageAccessTokenForHeader(ukycCapabilityToken)),
   );
 
