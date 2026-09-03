@@ -940,7 +940,7 @@ export class TransakService {
     genericNetwork: string,
     genericPaymentMethod: string,
     fiatAmount: string,
-    isFeeExcludedFromFiat = false,
+    isFeeExcludedFromFiat = true,
   ): Promise<TransakBuyQuote> {
     const normalizedPaymentMethod = normalizePaymentMethodForTranslation(
       genericPaymentMethod || undefined,

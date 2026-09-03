@@ -11125,7 +11125,7 @@ describe('RampsController', () => {
         });
       });
 
-      it('defaults native quotes to fee-inclusive mode', async () => {
+      it('defaults native quotes to fee-on-top mode', async () => {
         await withController(async ({ rootMessenger }) => {
           const getBuyQuote = jest.fn(async () => mockBuyQuote);
           rootMessenger.registerActionHandler(
@@ -11148,7 +11148,7 @@ describe('RampsController', () => {
             'bitcoin',
             'credit_debit_card',
             '100',
-            false,
+            true,
           );
         });
       });

@@ -3268,6 +3268,8 @@ export class RampsController extends BaseController<
    * @param paymentMethod - The payment method identifier.
    * @param fiatAmount - The fiat amount as a string.
    * @param isFeeExcludedFromFiat - Whether Transak charges fees on top.
+   * Defaults to true so existing UB2 callers keep the previous native lookup.
+   * MMPay passes false only for an accepted fee-inclusive quote.
    * @returns The buy quote with pricing and fee details.
    */
   async transakGetBuyQuote(
@@ -3276,7 +3278,7 @@ export class RampsController extends BaseController<
     network: string,
     paymentMethod: string,
     fiatAmount: string,
-    isFeeExcludedFromFiat = false,
+    isFeeExcludedFromFiat = true,
   ): Promise<TransakBuyQuote> {
     this.update((state) => {
       state.nativeProviders.transak.buyQuote.isLoading = true;

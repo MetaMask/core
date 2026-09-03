@@ -1084,6 +1084,7 @@ describe('TransakService', () => {
         // A JS consumer can pass undefined despite the type; it must not
         // become a literal "undefined" query parameter.
         undefined as unknown as string,
+        false,
       );
       await jest.runAllTimersAsync();
       await flushPromises();
