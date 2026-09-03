@@ -462,8 +462,8 @@ export class BaseDataService<
     // content type as arguments (i.e. `Struct` is contravariant in its content type).
     // The only way to get around that it to use `any`.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    TStruct extends Struct<any> | undefined = undefined,
-    TData = TStruct extends Struct<infer StructType>
+    TDataStruct extends Struct<any> | undefined = undefined,
+    TData = TDataStruct extends Struct<infer StructType>
       ? StructType
       : TMutationFnData,
     TError = unknown,
@@ -479,7 +479,7 @@ export class BaseDataService<
   > & {
     mutationKey: TMutationKey;
     mutationFn: MutationFunction<TMutationFnData, Record<never, never>>;
-    responseStruct?: TStruct;
+    responseStruct?: TDataStruct;
   }): Promise<TData> {
     const mutationCache = this.#queryClient.getMutationCache();
     const mutation = mutationCache.build<
