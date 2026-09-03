@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+
 ### Added
 
 - Add `bypassServerCache` option to `getAssets` ([#10068](https://github.com/MetaMask/core/pull/10068))
@@ -21,9 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Revert to `selectedAccountGroupChange` for account-group switches; snap accounts added mid-session are picked up on restart ([#10059](https://github.com/MetaMask/core/pull/10059))
 - Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.8.0` ([#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/account-tree-controller` from `^8.0.0` to `^8.1.0` ([#10088](https://github.com/MetaMask/core/pull/10088))
 
 ### Fixed
 
+- Exclude assets that have no `assetsInfo` metadata from the aggregated balance selectors ([#10084](https://github.com/MetaMask/core/pull/10084))
+  - `getAggregatedBalanceForAccount`, `getAggregatedBalanceForAccountIds`, `calculateBalanceForAllWallets`, and `calculateBalanceChangeForAccountGroup` previously included such assets in `entries` (without `symbol`/`name`/`decimals`) and in fiat totals; a balance now only counts once its metadata is known
 - Run `RpcFallbackMiddleware` on Accounts API poll updates (`handleAssetsUpdate`), not only in the forced `getAssets` fast pipeline, so a stale amount for tokens omitted from poll responses no longer survives between forced refreshes while the wallet sits open ([#10078](https://github.com/MetaMask/core/pull/10078))
   - WebSocket, RPC, and Snap updates are excluded: WebSocket pushes are incremental single-asset updates where absence is not staleness, and RPC/Snap updates must not re-trigger RPC
 - Fix stale balances shown right after a transaction confirms: the post-confirmation refresh now calls `getAssets` with `bypassServerCache: true`, since WebSocket events do not invalidate the Accounts API's server-side cache and a plain refetch within its 60s window returns the pre-transaction snapshot ([#10068](https://github.com/MetaMask/core/pull/10068))
@@ -988,7 +993,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.3...@metamask/assets-controller@15.0.0
 [14.0.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.2...@metamask/assets-controller@14.0.3
 [14.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.1...@metamask/assets-controller@14.0.2
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.0...@metamask/assets-controller@14.0.1

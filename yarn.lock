@@ -5571,7 +5571,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/account-tree-controller@npm:^8.0.0, @metamask/account-tree-controller@workspace:packages/account-tree-controller":
+"@metamask/account-tree-controller@npm:^8.1.0, @metamask/account-tree-controller@workspace:packages/account-tree-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/account-tree-controller@workspace:packages/account-tree-controller"
   dependencies:
@@ -5702,7 +5702,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/analytics-controller@npm:^2.0.0, @metamask/analytics-controller@workspace:packages/analytics-controller":
+"@metamask/analytics-controller@npm:^2.1.0, @metamask/analytics-controller@workspace:packages/analytics-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/analytics-controller@workspace:packages/analytics-controller"
   dependencies:
@@ -5815,14 +5815,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/assets-controller@npm:^14.0.3, @metamask/assets-controller@workspace:packages/assets-controller":
+"@metamask/assets-controller@npm:^15.0.0, @metamask/assets-controller@workspace:packages/assets-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controller@workspace:packages/assets-controller"
   dependencies:
     "@ethereumjs/util": "npm:^9.1.0"
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/account-tree-controller": "npm:^8.0.0"
+    "@metamask/account-tree-controller": "npm:^8.1.0"
     "@metamask/accounts-controller": "npm:^39.1.1"
     "@metamask/assets-controllers": "npm:^111.1.3"
     "@metamask/auto-changelog": "npm:^6.1.0"
@@ -5878,7 +5878,7 @@ __metadata:
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/abi-utils": "npm:^2.0.3"
     "@metamask/account-api": "npm:^2.0.0"
-    "@metamask/account-tree-controller": "npm:^8.0.0"
+    "@metamask/account-tree-controller": "npm:^8.1.0"
     "@metamask/accounts-controller": "npm:^39.1.1"
     "@metamask/approval-controller": "npm:^9.0.2"
     "@metamask/auto-changelog": "npm:^6.1.0"
@@ -6100,7 +6100,7 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/accounts-controller": "npm:^39.1.1"
-    "@metamask/assets-controller": "npm:^14.0.3"
+    "@metamask/assets-controller": "npm:^15.0.0"
     "@metamask/assets-controllers": "npm:^111.1.3"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
@@ -6481,7 +6481,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/core-backend@workspace:packages/core-backend"
   dependencies:
-    "@metamask/account-tree-controller": "npm:^8.0.0"
+    "@metamask/account-tree-controller": "npm:^8.1.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/controller-utils": "npm:^12.3.0"
     "@metamask/keyring-controller": "npm:^27.1.1"
@@ -6662,7 +6662,7 @@ __metadata:
   dependencies:
     "@ethersproject/bignumber": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/account-tree-controller": "npm:^8.0.0"
+    "@metamask/account-tree-controller": "npm:^8.1.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/controller-utils": "npm:^12.3.0"
@@ -8026,7 +8026,7 @@ __metadata:
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
     "@json-rpc-specification/meta-schema": "npm:^1.0.6"
-    "@metamask/analytics-controller": "npm:^2.0.0"
+    "@metamask/analytics-controller": "npm:^2.1.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/config-registry-controller": "npm:^3.1.0"
@@ -8274,7 +8274,7 @@ __metadata:
   resolution: "@metamask/perps-controller@workspace:packages/perps-controller"
   dependencies:
     "@metamask/abi-utils": "npm:^2.0.3"
-    "@metamask/account-tree-controller": "npm:^8.0.0"
+    "@metamask/account-tree-controller": "npm:^8.1.0"
     "@metamask/authenticated-user-storage": "npm:^3.0.2"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
@@ -9233,7 +9233,7 @@ __metadata:
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/assets-controller": "npm:^14.0.3"
+    "@metamask/assets-controller": "npm:^15.0.0"
     "@metamask/assets-controllers": "npm:^111.1.3"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
@@ -9344,7 +9344,7 @@ __metadata:
   dependencies:
     "@inquirer/confirm": "npm:^6.0.11"
     "@inquirer/password": "npm:^5.1.1"
-    "@metamask/analytics-controller": "npm:^2.0.0"
+    "@metamask/analytics-controller": "npm:^2.1.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/config-registry-controller": "npm:^3.1.0"

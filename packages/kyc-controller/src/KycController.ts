@@ -408,11 +408,7 @@ export class KycController extends BaseController<
         state.email = params.email;
       }
       state.activeVendor = vendor;
-      // MoonPay Check/Auth artifacts must not survive a switch to another
-      // vendor: leftover `moonpaySessionToken` would keep `buildCheckFrameUrl` alive,
-      // leftover access/auth tokens would keep Auth / KYC calls bound to
-      // MoonPay, and leftover `moonpayCustomerId` would make
-      // `getCustomerIdentity` report a MoonPay id under the wrong vendor.
+      // MoonPay Check/Auth artifacts must not survive a switch to another vendor
       if (vendor !== 'moonpay') {
         clearMoonPaySession(state);
       }

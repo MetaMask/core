@@ -207,7 +207,6 @@ export function buildNetworkControllerMessenger(
       'AnalyticsController:trackEvent',
     ],
     events: [
-      // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
       'ConfigRegistryController:stateChanged',
     ],

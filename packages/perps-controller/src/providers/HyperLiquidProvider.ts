@@ -9512,7 +9512,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       if (!position) {
-        throw new Error(`No position found for ${symbol}`);
+        throw new Error(PERPS_ERROR_CODES.POSITION_NOT_FOUND);
       }
 
       const positionSize = Math.abs(parseFloat(position.size));
@@ -10245,7 +10245,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       if (!position) {
-        throw new Error(`No position found for ${params.symbol}`);
+        throw new Error(PERPS_ERROR_CODES.POSITION_NOT_FOUND);
       }
 
       const positionSize = parseFloat(position.size);
@@ -10420,7 +10420,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       const position = positions.find((pos) => pos.symbol === symbol);
 
       if (!position) {
-        throw new Error(`No position found for ${symbol}`);
+        throw new Error(PERPS_ERROR_CODES.POSITION_NOT_FOUND);
       }
 
       // Determine position direction
