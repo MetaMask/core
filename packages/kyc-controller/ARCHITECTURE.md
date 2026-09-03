@@ -690,16 +690,16 @@ graph LR
 
 ### Appendix — key source files
 
-| File                                      | Responsibility                                                    |
-| ----------------------------------------- | ----------------------------------------------------------------- |
-| `src/KycController.ts`                     | Stateful orchestrator, phase machine.                            |
-| `src/vendors/MoonPayFrameHandler.ts`      | MoonPay Check/Auth protocol, URLs, and ephemeral frame credentials. |
-| `src/KycService.ts`    | Stateless UKYC HTTP client + superstruct validation.  |
-| `src/crypto.ts`        | X25519 ECDH + AES-256-GCM credential decryption.      |
-| `src/selectors.ts`     | Memoized selectors over controller state.             |
-| `src/types.ts`         | `KycPhase`, `KycProduct`, `KycSumSubLauncher`, etc.   |
-| `src/countryCodes.ts`  | ISO alpha-2 → alpha-3 mapping.                        |
-| `src/index.ts`         | Public exports (no barrel wildcards).                 |
+| File                                 | Responsibility                                                      |
+| ------------------------------------ | ------------------------------------------------------------------- |
+| `src/KycController.ts`               | Stateful orchestrator, phase machine.                               |
+| `src/vendors/MoonPayFrameHandler.ts` | MoonPay Check/Auth protocol, URLs, and ephemeral frame credentials. |
+| `src/KycService.ts`                  | Stateless UKYC HTTP client + superstruct validation.                |
+| `src/crypto.ts`                      | X25519 ECDH + AES-256-GCM credential decryption.                    |
+| `src/selectors.ts`                   | Memoized selectors over controller state.                           |
+| `src/types.ts`                       | `KycPhase`, `KycProduct`, `KycSumSubLauncher`, etc.                 |
+| `src/countryCodes.ts`                | ISO alpha-2 → alpha-3 mapping.                                      |
+| `src/index.ts`                       | Public exports (no barrel wildcards).                               |
 
 Reference client (metamask-mobile):
 
