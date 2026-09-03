@@ -37,10 +37,6 @@ import type {
   KycVendor,
   KycVendorDisclaimersAccepted,
 } from './types.js';
-import {
-  clearMoonPaySession,
-  MoonPayFrameHandler,
-} from './vendors/MoonPayFrameHandler.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
 import { verifyJwtChain } from './ukyc/jwtChain.js';
 import type { Jwk } from './ukyc/jwtChain.js';
@@ -57,6 +53,10 @@ import {
   ironDisclaimerIds,
   recordVendorDisclaimerAcceptance,
 } from './vendorDisclaimerAcceptance.js';
+import {
+  clearMoonPaySession,
+  MoonPayFrameHandler,
+} from './vendors/MoonPayFrameHandler.js';
 
 // === GENERAL ===
 

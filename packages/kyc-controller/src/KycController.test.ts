@@ -14,8 +14,6 @@ import {
   KycController,
 } from './KycController.js';
 import type { KycControllerMessenger } from './KycController.js';
-import { MoonPayFrameHandler } from './vendors/MoonPayFrameHandler.js';
-import type { MoonPayFrameHandlerOptions } from './vendors/MoonPayFrameHandler.js';
 import type {
   KycConsentRecord,
   KycDisclaimer,
@@ -24,6 +22,8 @@ import type {
 } from './types.js';
 import { verifyJwtChain } from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
+import { MoonPayFrameHandler } from './vendors/MoonPayFrameHandler.js';
+import type { MoonPayFrameHandlerOptions } from './vendors/MoonPayFrameHandler.js';
 
 // `verifyJwtChain` (JWKS attestation) and `wrapEncryptionKey` (X25519 sealing)
 // need a real signed chain / valid keys, so they are stubbed here; the rest of

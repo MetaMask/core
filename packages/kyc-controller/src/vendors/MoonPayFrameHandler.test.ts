@@ -4,12 +4,12 @@ import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha2';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 
+import type { KycPhase, KycVendor } from '../types.js';
 import {
   clearMoonPaySession,
   MoonPayFrameHandler,
 } from './MoonPayFrameHandler.js';
 import type { MoonPayFrameHandlerOptions } from './MoonPayFrameHandler.js';
-import type { KycPhase, KycVendor } from '../types.js';
 
 type FrameState = {
   activeVendor: KycVendor;
