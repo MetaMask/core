@@ -25,9 +25,16 @@ export function AbstractPollingControllerBaseMixin<
     extends Base
     implements IPollingController<PollingInput>
   {
-    readonly #pollingTokenSets: Map<PollingTokenSetId, Set<string>> = new Map();
+    // These fields are public (rather than using `#`) so that declaration
+    // emission can describe them. Private/protected members on the class
+    // returned by an exported mixin function trigger TS4094, and giving the
+    // mixin an explicit return type to work around that breaks consumers
+    // that supply the base class's own type arguments via
+    // `SomeMixin()<Name, State, Messenger>`. The leading underscore signals
+    // "internal, do not use" without needing true privacy.
+    readonly _pollingTokenSets: Map<PollingTokenSetId, Set<string>> = new Map();
 
-    readonly #callbacks: Map<
+    readonly _callbacks: Map<
       PollingTokenSetId,
       Set<(input: PollingInput) => void>
     > = new Map();
@@ -42,9 +49,9 @@ export function AbstractPollingControllerBaseMixin<
       const pollToken = random();
       const key = getKey(input);
       const pollingTokenSet =
-        this.#pollingTokenSets.get(key) ?? new Set<string>();
+        this._pollingTokenSets.get(key) ?? new Set<string>();
       pollingTokenSet.add(pollToken);
-      this.#pollingTokenSets.set(key, pollingTokenSet);
+      this._pollingTokenSets.set(key, pollingTokenSet);
 
       if (pollingTokenSet.size === 1) {
         this._startPolling(input);
@@ -54,7 +61,7 @@ export function AbstractPollingControllerBaseMixin<
     }
 
     stopAllPolling() {
-      this.#pollingTokenSets.forEach((tokenSet, _key) => {
+      this._pollingTokenSets.forEach((tokenSet, _key) => {
         tokenSet.forEach((token) => {
           this.stopPollingByPollingToken(token);
         });
@@ -67,7 +74,7 @@ export function AbstractPollingControllerBaseMixin<
       }
 
       let keyToDelete: PollingTokenSetId | null = null;
-      for (const [key, tokenSet] of this.#pollingTokenSets) {
+      for (const [key, tokenSet] of this._pollingTokenSets) {
         if (tokenSet.delete(pollingToken)) {
           if (tokenSet.size === 0) {
             keyToDelete = key;
@@ -78,8 +85,8 @@ export function AbstractPollingControllerBaseMixin<
 
       if (keyToDelete) {
         this._stopPollingByPollingTokenSetId(keyToDelete);
-        this.#pollingTokenSets.delete(keyToDelete);
-        const callbacks = this.#callbacks.get(keyToDelete);
+        this._pollingTokenSets.delete(keyToDelete);
+        const callbacks = this._callbacks.get(keyToDelete);
         if (callbacks) {
           for (const callback of callbacks) {
             callback(JSON.parse(keyToDelete));
@@ -94,9 +101,9 @@ export function AbstractPollingControllerBaseMixin<
       callback: (input: PollingInput) => void,
     ) {
       const key = getKey(input);
-      const callbacks = this.#callbacks.get(key) ?? new Set<typeof callback>();
+      const callbacks = this._callbacks.get(key) ?? new Set<typeof callback>();
       callbacks.add(callback);
-      this.#callbacks.set(key, callbacks);
+      this._callbacks.set(key, callbacks);
     }
   }
   return AbstractPollingControllerBase;

@@ -1,15 +1,24 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
-    { "path": "../base-data-service" },
-    { "path": "../controller-utils" },
-    { "path": "../messenger" },
-    { "path": "../money-account-api-data-service" },
-    { "path": "../network-controller" },
-    { "path": "../remote-feature-flag-controller" }
+    {
+      "path": "../base-data-service"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../money-account-api-data-service"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    }
   ],
   "include": ["../../types", "./src"]
 }

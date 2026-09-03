@@ -10,7 +10,6 @@
    */
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
     "lib": ["ES2020"],

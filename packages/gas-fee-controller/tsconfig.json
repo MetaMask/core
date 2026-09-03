@@ -1,14 +1,21 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
-    { "path": "../base-controller" },
-    { "path": "../controller-utils" },
-    { "path": "../messenger" },
-    { "path": "../network-controller" },
-    { "path": "../polling-controller" }
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../polling-controller"
+    }
   ],
   "include": ["../../types", "./src"]
 }

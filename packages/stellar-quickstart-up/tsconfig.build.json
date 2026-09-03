@@ -1,9 +1,9 @@
 {
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "types": ["node"]
   },
   "references": [],
   "include": ["../../types", "./src"]

@@ -213,12 +213,14 @@ export class SubjectMetadataController extends BaseController<
           .values()
           .next().value;
 
-      this.#subjectsWithoutPermissionsEncounteredSinceStartup.delete(
-        cachedOrigin,
-      );
+      if (cachedOrigin) {
+        this.#subjectsWithoutPermissionsEncounteredSinceStartup.delete(
+          cachedOrigin,
+        );
 
-      if (!this.#subjectHasPermissions(cachedOrigin)) {
-        originToForget = cachedOrigin;
+        if (!this.#subjectHasPermissions(cachedOrigin)) {
+          originToForget = cachedOrigin;
+        }
       }
     }
 

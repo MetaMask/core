@@ -13,13 +13,13 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { AccountWalletEntropyObject } from 'src/wallet';
 
 import {
   getAccountTreeControllerMessenger,
   getRootMessenger,
 } from '../../tests/mockMessenger.js';
 import type { AccountGroupObjectOf } from '../group.js';
+import type { AccountWalletEntropyObject } from '../wallet.js';
 import { EntropyRule } from './entropy.js';
 
 const ETH_EOA_METHODS = [

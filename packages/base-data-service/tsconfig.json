@@ -1,8 +1,12 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
-  "references": [{ "path": "../messenger" }, { "path": "../storage-service" }],
+  "references": [
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../storage-service"
+    }
+  ],
   "include": ["../../types", "./src", "./tests"]
 }

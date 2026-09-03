@@ -207,6 +207,7 @@ module.exports = {
           module: 'CommonJS',
           moduleResolution: 'Node',
           verbatimModuleSyntax: false,
+          ignoreDeprecations: '6.0',
         },
       },
     ],

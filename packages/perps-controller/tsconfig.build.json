@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "outDir": "./dist",

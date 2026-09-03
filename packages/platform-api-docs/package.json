@@ -66,12 +66,13 @@
     "@types/npm-which": "^3",
     "@types/react": "^19.0.0",
     "@types/yargs": "^17.0.32",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
     "rimraf": "^5.0.5",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
-    "typescript": "~5.3.3"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {
     "node": "^22.14.0 || ^24"
