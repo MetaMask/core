@@ -40,7 +40,7 @@ import type {
 import {
   clearMoonPaySession,
   MoonPayFrameHandler,
-} from './moonpay/MoonPayFrameHandler.js';
+} from './vendors/MoonPayFrameHandler.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
 import { verifyJwtChain } from './ukyc/jwtChain.js';
 import type { Jwk } from './ukyc/jwtChain.js';
