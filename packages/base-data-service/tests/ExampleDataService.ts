@@ -95,6 +95,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAssets',
   'getActivity',
   'addFollower',
+  'createDataDeletionTask',
 ] as const;
 
 export class ExampleDataService extends BaseDataService<

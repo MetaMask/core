@@ -20,10 +20,16 @@ export type ExampleDataServiceAddFollowerAction = {
   handler: ExampleDataService['addFollower'];
 };
 
+export type ExampleDataServiceCreateDataDeletionTaskAction = {
+  type: `ExampleDataService:createDataDeletionTask`;
+  handler: ExampleDataService['createDataDeletionTask'];
+};
+
 /**
  * Union of all ExampleDataService action types.
  */
 export type ExampleDataServiceMethodActions =
   | ExampleDataServiceGetAssetsAction
   | ExampleDataServiceGetActivityAction
-  | ExampleDataServiceAddFollowerAction;
+  | ExampleDataServiceAddFollowerAction
+  | ExampleDataServiceCreateDataDeletionTaskAction;
