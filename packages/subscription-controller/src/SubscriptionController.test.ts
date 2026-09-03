@@ -49,6 +49,7 @@ import {
   PAYMENT_TYPES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
+  ShieldFeature,
   SUBSCRIPTION_STATUSES,
   SubscriptionUserEvent,
 } from './types.js';
@@ -198,6 +199,12 @@ const MOCK_PRODUCT_ENTITLEMENTS: ProductEntitlements = {
       predictFreeTx: true,
       premiumApy: true,
       swapFeeWaiver: true,
+    },
+  },
+  [PRODUCT_TYPES.SHIELD]: {
+    entitlements: {
+      [ShieldFeature.PrioritySupport]: false,
+      [ShieldFeature.ShieldClaim]: true,
     },
   },
 };
@@ -559,6 +566,69 @@ describe('SubscriptionController', () => {
           expect(controller.state.productEntitlements).toStrictEqual(
             productEntitlements,
           );
+        },
+      );
+    });
+
+    it('stores Shield entitlements when Money Account entitlements are absent', async () => {
+      await withController(
+        async ({ controller, rootMessenger, mockService }) => {
+          const productEntitlements = {
+            [PRODUCT_TYPES.SHIELD]:
+              MOCK_PRODUCT_ENTITLEMENTS[PRODUCT_TYPES.SHIELD],
+          };
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements,
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.productEntitlements).toStrictEqual(
+            productEntitlements,
+          );
+        },
+      );
+    });
+
+    it('stores Money Account entitlements when Shield entitlements are absent', async () => {
+      await withController(
+        async ({ controller, rootMessenger, mockService }) => {
+          const productEntitlements = {
+            [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]:
+              MOCK_PRODUCT_ENTITLEMENTS[PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+          };
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements,
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.productEntitlements).toStrictEqual(
+            productEntitlements,
+          );
+        },
+      );
+    });
+
+    it('clears product entitlements when a successful fetch returns an empty map', async () => {
+      await withController(
+        {
+          state: {
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: {},
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.productEntitlements).toStrictEqual({});
         },
       );
     });
@@ -3123,6 +3193,25 @@ describe('SubscriptionController', () => {
           }
         `);
       });
+    });
+
+    it('persists Shield and Money Account product entitlements', async () => {
+      await withController(
+        {
+          state: {
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          },
+        },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'persist',
+            ).productEntitlements,
+          ).toStrictEqual(MOCK_PRODUCT_ENTITLEMENTS);
+        },
+      );
     });
 
     it('exposes expected state to UI', async () => {

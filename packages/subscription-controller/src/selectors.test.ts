@@ -139,12 +139,82 @@ describe('subscription selectors', () => {
     ).toBe(false);
   });
 
-  it('rejects features from another product at compile time', () => {
-    const state = getDefaultSubscriptionControllerState();
+  it('fails closed when product entitlements are an empty map', () => {
+    const state: SubscriptionControllerState = {
+      ...getDefaultSubscriptionControllerState(),
+      productEntitlements: {},
+    };
 
     expect(
       selectHasEntitlement(
         state,
+        PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+        MoneyAccountFeature.PremiumApy,
+      ),
+    ).toBe(false);
+    expect(
+      selectHasEntitlement(
+        state,
+        PRODUCT_TYPES.SHIELD,
+        ShieldFeature.ShieldClaim,
+      ),
+    ).toBe(false);
+  });
+
+  it('fails closed for a product that is absent when another product is present', () => {
+    const shieldOnly: SubscriptionControllerState = {
+      ...getDefaultSubscriptionControllerState(),
+      productEntitlements: {
+        [PRODUCT_TYPES.SHIELD]:
+          STATE_WITH_PRODUCT_ENTITLEMENTS.productEntitlements?.[
+            PRODUCT_TYPES.SHIELD
+          ],
+      },
+    };
+    const moneyAccountOnly: SubscriptionControllerState = {
+      ...getDefaultSubscriptionControllerState(),
+      productEntitlements: {
+        [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]:
+          STATE_WITH_PRODUCT_ENTITLEMENTS.productEntitlements?.[
+            PRODUCT_TYPES.MONEY_ACCOUNT_PLUS
+          ],
+      },
+    };
+
+    expect(
+      selectHasEntitlement(
+        shieldOnly,
+        PRODUCT_TYPES.SHIELD,
+        ShieldFeature.ShieldClaim,
+      ),
+    ).toBe(true);
+    expect(
+      selectHasEntitlement(
+        shieldOnly,
+        PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+        MoneyAccountFeature.PremiumApy,
+      ),
+    ).toBe(false);
+    expect(
+      selectHasEntitlement(
+        moneyAccountOnly,
+        PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+        MoneyAccountFeature.PremiumApy,
+      ),
+    ).toBe(true);
+    expect(
+      selectHasEntitlement(
+        moneyAccountOnly,
+        PRODUCT_TYPES.SHIELD,
+        ShieldFeature.ShieldClaim,
+      ),
+    ).toBe(false);
+  });
+
+  it('does not treat another product enabled feature as an entitlement', () => {
+    expect(
+      selectHasEntitlement(
+        STATE_WITH_PRODUCT_ENTITLEMENTS,
         PRODUCT_TYPES.SHIELD,
         // @ts-expect-error Money Account feature is invalid for Shield.
         MoneyAccountFeature.PremiumApy,
@@ -153,7 +223,7 @@ describe('subscription selectors', () => {
 
     expect(
       selectHasEntitlement(
-        state,
+        STATE_WITH_PRODUCT_ENTITLEMENTS,
         PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
         // @ts-expect-error Shield feature is invalid for Money Account Plus.
         ShieldFeature.ShieldClaim,

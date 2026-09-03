@@ -445,6 +445,61 @@ describe('SubscriptionService', () => {
       });
     });
 
+    it('accepts Shield product entitlements when Money Account is absent', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        const productEntitlements = {
+          [PRODUCT_TYPES.SHIELD]: {
+            entitlements: {
+              prioritySupport: false,
+              shieldClaim: true,
+            },
+          },
+        };
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements,
+            },
+          }),
+        );
+
+        await expect(service.getSubscriptions()).resolves.toMatchObject({
+          productEntitlements,
+        });
+      });
+    });
+
+    it('accepts Money Account product entitlements when Shield is absent', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        const productEntitlements = {
+          [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+            plan: 'premium',
+            entitlements: {
+              perpsFeeWaiver: false,
+              predictFreeTx: true,
+              premiumApy: true,
+              swapFeeWaiver: true,
+            },
+          },
+        };
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements,
+            },
+          }),
+        );
+
+        await expect(service.getSubscriptions()).resolves.toMatchObject({
+          productEntitlements,
+        });
+      });
+    });
+
     it('rejects product entitlements with missing required features', async () => {
       await withMockSubscriptionService(async ({ service, fetchMock }) => {
         fetchMock.mockResolvedValue(
@@ -465,6 +520,57 @@ describe('SubscriptionService', () => {
 
         await expect(service.getSubscriptions()).rejects.toThrow(
           'prioritySupport',
+        );
+      });
+    });
+
+    it('rejects Money Account entitlements with a missing plan', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements: {
+                [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+                  entitlements: {
+                    perpsFeeWaiver: false,
+                    predictFreeTx: true,
+                    premiumApy: true,
+                    swapFeeWaiver: true,
+                  },
+                },
+              },
+            },
+          }),
+        );
+
+        await expect(service.getSubscriptions()).rejects.toThrow('plan');
+      });
+    });
+
+    it('rejects Money Account entitlements with missing required features', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements: {
+                [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+                  plan: 'premium',
+                  entitlements: {
+                    premiumApy: true,
+                    swapFeeWaiver: true,
+                  },
+                },
+              },
+            },
+          }),
+        );
+
+        await expect(service.getSubscriptions()).rejects.toThrow(
+          'perpsFeeWaiver',
         );
       });
     });
