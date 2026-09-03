@@ -24,7 +24,7 @@ import type {
   KeyringControllerGetStateAction,
   KeyringControllerSignEip7702AuthorizationAction,
   KeyringControllerSignPersonalMessageAction,
-  KeyringControllerState,
+  KeyringControllerStateChangeEvent,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import {
@@ -39,7 +39,7 @@ import type {
 import type {
   FeatureFlags,
   RemoteFeatureFlagControllerGetStateAction,
-  RemoteFeatureFlagControllerState,
+  RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
 import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
@@ -150,11 +150,8 @@ export type MoneyAccountUpgradeControllerEvents =
   MoneyAccountUpgradeControllerStateChangedEvent;
 
 type AllowedEvents =
-  | ControllerStateChangedEvent<'KeyringController', KeyringControllerState>
-  | ControllerStateChangedEvent<
-      'RemoteFeatureFlagController',
-      RemoteFeatureFlagControllerState
-    >;
+  | KeyringControllerStateChangeEvent
+  | RemoteFeatureFlagControllerStateChangeEvent;
 
 export type MoneyAccountUpgradeControllerMessenger = Messenger<
   typeof controllerName,
@@ -319,10 +316,12 @@ export class MoneyAccountUpgradeController extends BaseController<
     }
     this.#initialized = true;
 
-    this.messenger.subscribe('RemoteFeatureFlagController:stateChanged', () =>
+    // eslint-disable-next-line no-restricted-syntax
+    this.messenger.subscribe('RemoteFeatureFlagController:stateChange', () =>
       this.sync(),
     );
-    this.messenger.subscribe('KeyringController:stateChanged', () =>
+    // eslint-disable-next-line no-restricted-syntax
+    this.messenger.subscribe('KeyringController:stateChange', () =>
       this.sync(),
     );
     this.sync();

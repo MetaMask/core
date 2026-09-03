@@ -326,8 +326,10 @@ function setup({
       'RemoteFeatureFlagController:getState',
     ],
     events: [
-      'KeyringController:stateChanged',
-      'RemoteFeatureFlagController:stateChanged',
+      // eslint-disable-next-line no-restricted-syntax
+      'KeyringController:stateChange',
+      // eslint-disable-next-line no-restricted-syntax
+      'RemoteFeatureFlagController:stateChange',
     ],
     messenger,
   });
@@ -352,7 +354,7 @@ function setup({
 
   const triggerFlagChange = async (): Promise<void> => {
     rootMessenger.publish(
-      'RemoteFeatureFlagController:stateChanged',
+      'RemoteFeatureFlagController:stateChange',
       {} as RemoteFeatureFlagControllerState,
       [],
     );
@@ -361,7 +363,7 @@ function setup({
 
   const triggerKeyringChange = async (): Promise<void> => {
     rootMessenger.publish(
-      'KeyringController:stateChanged',
+      'KeyringController:stateChange',
       {} as KeyringControllerState,
       [],
     );
