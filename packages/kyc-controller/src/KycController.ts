@@ -13,8 +13,6 @@ import type { Json } from '@metamask/utils';
 import { stringToBytes } from '@metamask/utils';
 import { x25519 } from '@noble/curves/ed25519';
 
-import { decryptCredentials, generateKeyPair } from './crypto.js';
-import type { EncryptedCredentialsEnvelope, X25519KeyPair } from './crypto.js';
 import { toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
@@ -55,15 +53,14 @@ import {
   ironDisclaimerIds,
   recordVendorDisclaimerAcceptance,
 } from './vendorDisclaimerAcceptance.js';
+import {
+  clearMoonPaySession,
+  MoonPayFrameHandler,
+} from './vendors/MoonPayFrameHandler.js';
 
 // === GENERAL ===
 
 export const controllerName = 'KycController';
-
-const FRAMES_BASE_URL = 'https://blocks.moonpay.com/platform/v1';
-const CHANNEL_CHECK = 'ch_1';
-const CHANNEL_AUTH = 'ch_2';
-const CHANNEL_RESET = 'ch_reset';
 
 // Placeholder credentials for the SumSub sub-flow. These are demo values that
 // must be replaced with real UKYC-issued material before production use.
@@ -666,33 +663,14 @@ export type KycControllerOptions = {
   userStatusPollIntervalMs?: number;
 };
 
-/**
- * The shape of a message posted by a Check/Auth frame.
- */
-type FrameMessage = {
-  meta?: { channelId?: string };
-  kind?: string;
-  payload?: {
-    status?:
-      | 'active'
-      | 'connectionRequired'
-      | 'termsAcceptanceRequired'
-      | 'pending'
-      | 'unavailable'
-      | 'failed';
-    credentials?: EncryptedCredentialsEnvelope | string;
-    customer?: { id?: string };
-  };
-};
-
 // === CONTROLLER DEFINITION ===
 
 /**
  * `KycController` orchestrates the vendor-backed KYC / identity-verification
  * flow (MoonPay identity + SumSub documents) behind a vendor-neutral, per
- * product surface used by ramps and card. It owns all state, HTTP
- * orchestration (via `KycService`), crypto, and the frame message protocol;
- * platform-specific presentation (WebView/iframe, SumSub SDK) is injected.
+ * product surface used by ramps and card. It owns all state and HTTP
+ * orchestration (via `KycService`), while vendor protocol handling and
+ * platform-specific presentation (WebView/iframe, SumSub SDK) are delegated.
  */
 export class KycController extends BaseController<
   typeof controllerName,
@@ -701,11 +679,8 @@ export class KycController extends BaseController<
 > {
   readonly #sumsubLauncher: KycSumSubLauncher;
 
-  /** MoonPay Check/Auth frame X25519 keypair (never persisted). */
-  #moonpayFrameKeypair: X25519KeyPair | null = null;
-
-  /** Auth-frame client token, kept out of state. */
-  #authClientToken: string | null = null;
+  /** MoonPay-specific frame protocol and non-persisted credentials. */
+  readonly #moonPayFrames: MoonPayFrameHandler;
 
   /**
    * Monotonic flow generation. Incremented by {@link reset} and
@@ -777,6 +752,14 @@ export class KycController extends BaseController<
     this.#sumsubLauncher = sumsubLauncher;
     this.#sessionStatusPollIntervalMs = sessionStatusPollIntervalMs;
     this.#userStatusPollIntervalMs = userStatusPollIntervalMs;
+    this.#moonPayFrames = new MoonPayFrameHandler({
+      getState: (): KycControllerState => this.state,
+      update: (updater): void => this.#applyUpdate(updater),
+      fail: (message): void => this.#fail(message),
+      onAuthenticated: async (): Promise<void> =>
+        this.#continueAfterAuthentication(),
+      requireTermsReacceptance: (): void => this.#requireTermsReacceptance(),
+    });
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -843,16 +826,16 @@ export class KycController extends BaseController<
     const vendor = params?.vendor ?? 'moonpay';
 
     if (IN_PROGRESS_PHASES.includes(this.state.phase)) {
-      if (vendor === 'moonpay' && !this.#moonpayFrameKeypair) {
-        this.#moonpayFrameKeypair = generateKeyPair();
+      if (vendor === 'moonpay') {
+        this.#moonPayFrames.ensureKeypair();
       }
       return;
     }
 
     if (vendor === 'moonpay') {
-      this.#moonpayFrameKeypair = generateKeyPair();
+      this.#moonPayFrames.startFlow();
     } else {
-      this.#moonpayFrameKeypair = null;
+      this.#moonPayFrames.clear();
     }
 
     // `initialize` starts a fresh flow, so `activeProduct` is always reset to
@@ -864,14 +847,9 @@ export class KycController extends BaseController<
         state.email = params.email;
       }
       state.activeVendor = vendor;
-      // MoonPay Check/Auth artifacts must not survive a switch to another
-      // vendor: leftover `moonpaySessionToken` would keep `buildCheckFrameUrl` alive,
-      // leftover `moonpayAccessToken` / `#authClientToken` would keep Auth / KYC
-      // calls bound to MoonPay, and leftover `moonpayCustomerId` would make
-      // `getCustomerIdentity` report a MoonPay id under the wrong vendor.
+      // MoonPay Check/Auth artifacts must not survive a switch to another vendor
       if (vendor !== 'moonpay') {
-        this.#authClientToken = null;
-        this.#clearMoonPaySession(state);
+        clearMoonPaySession(state);
       }
       state.activeProduct = params?.product ?? null;
     });
@@ -997,9 +975,8 @@ export class KycController extends BaseController<
       // after this request succeeds.
       state.activeVendor = params.vendor;
       if (params.vendor !== 'moonpay') {
-        this.#authClientToken = null;
-        this.#moonpayFrameKeypair = null;
-        this.#clearMoonPaySession(state);
+        this.#moonPayFrames.clear();
+        clearMoonPaySession(state);
       }
     });
     const generation = this.#generation;
@@ -1166,7 +1143,7 @@ export class KycController extends BaseController<
       state.sumsub.result = null;
       state.sumsub.sessionStatus = null;
       // Consents-path vendors have no MoonPay session/access tokens.
-      this.#clearMoonPaySession(state);
+      clearMoonPaySession(state);
     });
 
     try {
@@ -1430,7 +1407,7 @@ export class KycController extends BaseController<
     // the now-idle controller (failure). The synchronous update below runs
     // before any `await`, so it needs no guard.
     const generation = this.#generation;
-    this.#authClientToken = null;
+    this.#moonPayFrames.clearAuthentication();
     this.#applyUpdate((state) => {
       state.error = null;
       state.phase = 'session';
@@ -1510,20 +1487,6 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Drops MoonPay Check/Auth artifacts from the draft. Used when switching
-   * away from MoonPay (and again when the consents path starts) so leftover
-   * tokens cannot keep `buildCheckFrameUrl` / `buildAuthFrameUrl` alive for
-   * a consents-path vendor.
-   *
-   * @param state - The state to mutate.
-   */
-  #clearMoonPaySession(state: KycControllerState): void {
-    state.moonpayCustomerId = null;
-    state.moonpaySessionToken = null;
-    state.moonpayAccessToken = null;
-  }
-
-  /**
    * Handles a message posted by a Check/Auth frame and advances the flow.
    *
    * The transport-agnostic caller (WebView on mobile, iframe on web) forwards
@@ -1536,144 +1499,7 @@ export class KycController extends BaseController<
   async handleFrameMessage(params: {
     message: unknown;
   }): Promise<{ reply?: unknown }> {
-    const payload = params.message as FrameMessage | undefined;
-
-    if (!payload) {
-      return {};
-    }
-
-    if (payload.kind === 'handshake') {
-      const channelId = payload.meta?.channelId;
-      return { reply: { version: 2, meta: { channelId }, kind: 'ack' } };
-    }
-
-    if (payload.kind !== 'complete') {
-      return {};
-    }
-
-    const channelId = payload.meta?.channelId;
-
-    // Only honor a Check/Auth `complete` for the MoonPay frame the flow is
-    // currently waiting on. This drops stale or duplicate messages — e.g. a
-    // late post after `reset()` (phase `idle`), after the flow already
-    // advanced past this frame, or after a vendor switch — so they cannot
-    // resurrect tokens, rewind `phase`, or recapture `moonpayCustomerId` on a
-    // controller that has moved on. Frame messages are external input and,
-    // unlike the async steps, are not covered by the `#generation` guard.
-    let expectedPhase: KycPhase | null = null;
-    if (channelId === CHANNEL_CHECK) {
-      expectedPhase = 'check';
-    } else if (channelId === CHANNEL_AUTH) {
-      expectedPhase = 'auth';
-    }
-    if (
-      !expectedPhase ||
-      this.state.phase !== expectedPhase ||
-      this.state.activeVendor !== 'moonpay'
-    ) {
-      return {};
-    }
-
-    const status = payload.payload?.status;
-    const credsEnvelope = payload.payload?.credentials;
-
-    const customerId = payload.payload?.customer?.id ?? null;
-    if (customerId) {
-      this.#applyUpdate((state) => {
-        state.moonpayCustomerId = customerId;
-      });
-    }
-
-    if (!status) {
-      return {};
-    }
-
-    let accessToken: string | undefined;
-    let clientToken: string | undefined;
-    if (credsEnvelope && this.#moonpayFrameKeypair) {
-      try {
-        const { credentials } = decryptCredentials(
-          credsEnvelope,
-          this.#moonpayFrameKeypair.privateKey,
-        );
-        accessToken = credentials.accessToken;
-        clientToken = credentials.clientToken;
-      } catch (error) {
-        this.#fail(`Failed to decrypt frame credentials: ${String(error)}`);
-        return {};
-      }
-    }
-
-    if (channelId === CHANNEL_CHECK) {
-      await this.#handleCheckOutcome(status, accessToken, clientToken);
-      return {};
-    }
-
-    // channelId === CHANNEL_AUTH, guaranteed by the expectedPhase guard above.
-    await this.#handleAuthOutcome(status, accessToken);
-    return {};
-  }
-
-  /**
-   * Applies a Check-frame outcome.
-   *
-   * @param status - The frame status.
-   * @param accessToken - The decrypted access token, if any.
-   * @param clientToken - The decrypted client token, if any.
-   */
-  async #handleCheckOutcome(
-    status: NonNullable<FrameMessage['payload']>['status'],
-    accessToken?: string,
-    clientToken?: string,
-  ): Promise<void> {
-    if (status === 'active' && accessToken) {
-      this.#applyUpdate((state) => {
-        state.moonpayAccessToken = accessToken;
-        state.phase = 'form';
-        state.statusMessage = 'Already authenticated. Review to submit.';
-      });
-      await this.#continueAfterAuthentication();
-      return;
-    }
-    if (status === 'connectionRequired' && clientToken) {
-      this.#authClientToken = clientToken;
-      this.#applyUpdate((state) => {
-        state.phase = 'auth';
-        state.statusMessage = 'Verify your email via OTP in the Auth frame.';
-      });
-      return;
-    }
-    if (status === 'termsAcceptanceRequired') {
-      this.#requireTermsReacceptance();
-      return;
-    }
-    this.#fail(`Check frame returned status: ${status}`);
-  }
-
-  /**
-   * Applies an Auth-frame outcome.
-   *
-   * @param status - The frame status.
-   * @param accessToken - The decrypted access token, if any.
-   */
-  async #handleAuthOutcome(
-    status: NonNullable<FrameMessage['payload']>['status'],
-    accessToken?: string,
-  ): Promise<void> {
-    if (status === 'active' && accessToken) {
-      this.#applyUpdate((state) => {
-        state.moonpayAccessToken = accessToken;
-        state.phase = 'form';
-        state.statusMessage = 'Authenticated. Review to submit.';
-      });
-      await this.#continueAfterAuthentication();
-      return;
-    }
-    if (status === 'termsAcceptanceRequired') {
-      this.#requireTermsReacceptance();
-      return;
-    }
-    this.#fail(`Auth frame returned status: ${status}`);
+    return await this.#moonPayFrames.handleMessage(params.message);
   }
 
   /**
@@ -1735,19 +1561,7 @@ export class KycController extends BaseController<
    * @returns The Check-frame URL or `null`.
    */
   buildCheckFrameUrl(): string | null {
-    if (
-      this.state.activeVendor !== 'moonpay' ||
-      !this.state.moonpaySessionToken ||
-      !this.#moonpayFrameKeypair
-    ) {
-      return null;
-    }
-    const url = new URL(`${FRAMES_BASE_URL}/check-connection`);
-    url.searchParams.set('sessionToken', this.state.moonpaySessionToken);
-    url.searchParams.set('publicKey', this.#moonpayFrameKeypair.publicKeyHex);
-    url.searchParams.set('channelId', CHANNEL_CHECK);
-    url.searchParams.set('skipKyc', 'true');
-    return url.toString();
+    return this.#moonPayFrames.buildCheckFrameUrl();
   }
 
   /**
@@ -1756,18 +1570,7 @@ export class KycController extends BaseController<
    * @returns The Auth-frame URL or `null`.
    */
   buildAuthFrameUrl(): string | null {
-    if (
-      this.state.activeVendor !== 'moonpay' ||
-      !this.#authClientToken ||
-      !this.#moonpayFrameKeypair
-    ) {
-      return null;
-    }
-    const url = new URL(`${FRAMES_BASE_URL}/auth`);
-    url.searchParams.set('clientToken', this.#authClientToken);
-    url.searchParams.set('publicKey', this.#moonpayFrameKeypair.publicKeyHex);
-    url.searchParams.set('channelId', CHANNEL_AUTH);
-    return url.toString();
+    return this.#moonPayFrames.buildAuthFrameUrl();
   }
 
   /**
@@ -1776,9 +1579,7 @@ export class KycController extends BaseController<
    * @returns The Reset-frame URL.
    */
   buildResetFrameUrl(): string {
-    const url = new URL(`${FRAMES_BASE_URL}/reset`);
-    url.searchParams.set('channelId', CHANNEL_RESET);
-    return url.toString();
+    return this.#moonPayFrames.buildResetFrameUrl();
   }
 
   /**
@@ -2506,9 +2307,7 @@ export class KycController extends BaseController<
       state.vendorError = null;
       state.sessionDisclaimers = null;
       state.credentialReusabilityConsentGiven = null;
-      state.moonpaySessionToken = null;
-      state.moonpayAccessToken = null;
-      state.moonpayCustomerId = null;
+      clearMoonPaySession(state);
       state.activeVendor = 'moonpay';
       state.activeProduct = null;
       state.sumsub = {
@@ -2537,13 +2336,14 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Tears down everything that lives outside state: drops the auth-frame
-   * client token, stops both polling loops, and bumps the flow generation so
-   * async steps started earlier discard their results instead of writing them
-   * onto the controller. Shared by {@link reset} and {@link clearState}.
+   * Tears down everything that lives outside state: drops the MoonPay frame
+   * keypair and auth client token, stops both polling loops, and bumps the flow
+   * generation so async steps started earlier discard their results instead
+   * of writing them onto the controller. Shared by {@link reset} and
+   * {@link clearState}.
    */
   #cancelPendingSession(): void {
-    this.#authClientToken = null;
+    this.#moonPayFrames.clear();
     this.#stopPolling();
     this.#stopUserStatusPolling();
     this.#generation += 1;
