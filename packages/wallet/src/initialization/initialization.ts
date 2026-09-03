@@ -47,7 +47,13 @@ export function initialize(options: InitializeOptions): DefaultInstances {
 
     const instanceState =
       rawState && reference?.struct
-        ? validateControllerState(name, reference as never, rawState, 'lenient')
+        ? validateControllerState(
+            name,
+            reference as never,
+            rawState,
+            'lenient',
+            messenger.captureException,
+          )
         : rawState;
 
     const instanceMessenger = config.getMessenger(messenger);
