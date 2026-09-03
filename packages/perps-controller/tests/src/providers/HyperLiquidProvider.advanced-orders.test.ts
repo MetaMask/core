@@ -2136,7 +2136,7 @@ describe('HyperLiquidProvider', () => {
         });
 
         expect(result.success).toBe(false);
-        expect(result.error).toContain('No position found for BTC');
+        expect(result.error).toBe(PERPS_ERROR_CODES.POSITION_NOT_FOUND);
         expect(
           mockClientService.getExchangeClient().order,
         ).not.toHaveBeenCalled();
