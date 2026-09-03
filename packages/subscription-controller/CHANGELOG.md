@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add product-scoped entitlements to `SubscriptionController` state and export type-safe product entitlement selectors for Money Account Plus and Shield ([#10017](https://github.com/MetaMask/core/pull/10017))
+- Add `selectIsActiveSubscriber` to check whether a product has an active, trialing, or provisional subscription. ([#10017](https://github.com/MetaMask/core/pull/10017))
+- Add product-scoped entitlements to `SubscriptionController` state and export type-safe `selectHasEntitlement` and `selectIsUsageAvailable` selectors for Money Account Plus and Shield ([#10017](https://github.com/MetaMask/core/pull/10017))
 
 ### Changed
 

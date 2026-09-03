@@ -113,8 +113,8 @@ export {
   ShieldFeature,
 } from './types.js';
 export {
-  selectHasProductEntitlements,
   selectHasEntitlement,
+  selectIsActiveSubscriber,
   selectIsUsageAvailable,
 } from './selectors.js';
 export { SubscriptionServiceError } from './errors.js';
