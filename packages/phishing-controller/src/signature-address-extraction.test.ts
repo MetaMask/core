@@ -506,6 +506,78 @@ describe('extractSignatureAddresses', () => {
     expect(addressesOf(canonical)).toStrictEqual([ADDR_A]);
   });
 
+  it('agrees with eth-sig-util on odd-length 0x-hex (isStrictHexString is true)', () => {
+    // Odd-length 0x-hex is still isStrictHexString in @metamask/utils, so the
+    // signer hexToBytes-pads the nibble and takes 20 bytes — same as we do.
+    // It does not fall through to reallyStrangeAddressToBytes.
+    const types = {
+      EIP712Domain: DOMAIN_TYPE,
+      Mail: [{ name: 'to', type: 'address' }],
+    };
+    const oddShort = '0x1';
+    const oddPadded = '0x0111111111111111111111111111111111111111';
+    const odd39 = `0x${'1'.repeat(39)}`;
+
+    expect(
+      TypedDataUtils.encodeData(
+        'Mail',
+        { to: oddShort },
+        types,
+        SignTypedDataVersion.V4,
+      ),
+    ).toStrictEqual(
+      TypedDataUtils.encodeData(
+        'Mail',
+        { to: '0x0000000000000000000000000000000000000001' },
+        types,
+        SignTypedDataVersion.V4,
+      ),
+    );
+    expect(addressesOf(build('Mail', { Mail: types.Mail }, { to: oddShort })))
+      .toStrictEqual(['0x0000000000000000000000000000000000000001']);
+
+    expect(
+      TypedDataUtils.encodeData(
+        'Mail',
+        { to: odd39 },
+        types,
+        SignTypedDataVersion.V4,
+      ),
+    ).toStrictEqual(
+      TypedDataUtils.encodeData(
+        'Mail',
+        { to: oddPadded },
+        types,
+        SignTypedDataVersion.V4,
+      ),
+    );
+    expect(addressesOf(build('Mail', { Mail: types.Mail }, { to: odd39 })))
+      .toStrictEqual([oddPadded]);
+  });
+
+  it('does not treat oversized 0x-hex as a signable address (encoder rejects 21 bytes)', () => {
+    const types = {
+      EIP712Domain: DOMAIN_TYPE,
+      Mail: [{ name: 'to', type: 'address' }],
+    };
+    const oversizedHex = `0x${ADDR_A.slice(2)}42`;
+
+    expect(() =>
+      TypedDataUtils.encodeData(
+        'Mail',
+        { to: oversizedHex },
+        types,
+        SignTypedDataVersion.V4,
+      ),
+    ).toThrow(/21 bytes/u);
+
+    // We still collect the leading 20 bytes. That is an extra scan of a value
+    // that cannot be signed, not a signed-but-unscanned address.
+    expect(
+      addressesOf(build('Mail', { Mail: types.Mail }, { to: oversizedHex })),
+    ).toStrictEqual([ADDR_A]);
+  });
+
   it('bounds traversal work for a very large array', () => {
     const huge = Array.from({ length: 100000 }, () => ADDR_A);
     const data = build(
