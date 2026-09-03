@@ -9,11 +9,9 @@ import { areUint8ArraysEqual, bytesToString } from '@metamask/utils';
 import { x25519 } from '@noble/curves/ed25519';
 
 import { base64UrlToBytes, toBase64Url } from './encoding.js';
-import {
-  getDefaultKycControllerState,
-  KycController,
-} from './KycController.js';
+import { KycController } from './KycController.js';
 import type { KycControllerMessenger } from './KycController.js';
+import { getDefaultKycControllerState } from './KycControllerState.js';
 import type {
   KycConsentRecord,
   KycDisclaimer,

@@ -1,7 +1,6 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -10,43 +9,45 @@ import type {
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller/user-storage';
 import type { Json } from '@metamask/utils';
-import { stringToBytes } from '@metamask/utils';
 import { x25519 } from '@noble/curves/ed25519';
 
+import {
+  acceptedCategoryStillMissing,
+  consentRecordsFromAcceptedList,
+  isAcceptedCategoryEmpty,
+  isConsentConflictError,
+  isSessionAlreadyCompletedError,
+  isValidConsentRecordList,
+  usesConsentsFlow,
+} from './consents.js';
 import { toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
+import {
+  getDefaultKycControllerState,
+  getDefaultKycProviderDisclaimersAccepted,
+  getDefaultKycVendorDisclaimersAccepted,
+  kycControllerMetadata,
+} from './KycControllerState.js';
+import type { KycControllerState } from './KycControllerState.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
-import type {
-  CreateUkycSessionParams,
-  EncryptionSchema,
-} from './KycService.js';
+import type { CreateUkycSessionParams } from './KycService.js';
 import { controllerLog } from './logger.js';
 import type {
-  KycConsentDocument,
   KycConsentRecord,
   KycCustomerIdentity,
-  KycDisclaimer,
   KycPhase,
   KycProduct,
-  KycProviderDisclaimersAccepted,
-  KycSessionDisclaimers,
   KycSessionStatus,
   KycSumSubLauncher,
-  KycSumSubStatus,
   KycUserStatus,
   KycVendor,
-  KycVendorDisclaimersAccepted,
 } from './types.js';
-import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
-import { verifyJwtChain } from './ukyc/jwtChain.js';
-import type { Jwk } from './ukyc/jwtChain.js';
 import { getOrCreateLocalUserSecret } from './ukyc/localUserSecret.js';
 import type { UkycLocalUserSecretStore } from './ukyc/localUserSecret.js';
 import {
-  encodeStorageAccessTokenForHeader,
-  signStorageAccessToken,
-} from './ukyc/storageAccessToken.js';
-import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
+  assertAttestedServerPublicKey,
+  wrapUkycSessionAuthorizations,
+} from './ukyc/sessionAuthorizations.js';
 import {
   clearVendorDisclaimerAcceptance,
   hasVendorDisclaimerAcceptance,
@@ -58,6 +59,8 @@ import {
   MoonPayFrameHandler,
 } from './vendors/MoonPayFrameHandler.js';
 
+export type { KycControllerState } from './KycControllerState.js';
+
 // === GENERAL ===
 
 export const controllerName = 'KycController';
@@ -65,12 +68,6 @@ export const controllerName = 'KycController';
 // Placeholder credentials for the SumSub sub-flow. These are demo values that
 // must be replaced with real UKYC-issued material before production use.
 const MOCK_JWT_TOKEN = 'mock-jwt-token';
-
-// Lifetime of the read-only `ukyc_capability_token` minted when creating a
-// UKYC session. The storage-and-auth spec requires the token's `expires_at` to
-// cover the KYC session's expected lifetime — including the provider journey —
-// rather than a fixed short window, so this is a session-scoped window.
-const UKYC_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
 
 // The SumSub SDK status that signals the applicant finished the flow
 // successfully. Any other resolution (abandonment, failure, or a non-success
@@ -131,445 +128,9 @@ const SUCCESSFUL_SESSION_STATUSES: ReadonlySet<string> = new Set([
 const VENDOR_PROCESSING_MESSAGE =
   'Your KYC has been submitted and is being processed by the vendor.';
 
-// UKYC / relay error indicating the applicant already finished KYC. Mapped to
-// the simplified `completed` user status for the Money toast surface.
-const SESSION_NOT_IN_VALID_STATE = 'session_not_in_valid_state';
-
 // How often to refresh the user-keyed `GET /kyc/status` while the simplified
 // status is still `pending`. Overridable via the constructor.
 const DEFAULT_USER_STATUS_POLL_INTERVAL_MS = 15_000;
-
-// === STATE ===
-
-/**
- * Describes the shape of the state object for {@link KycController}.
- */
-export type KycControllerState = {
-  /** Current phase of the identity flow. */
-  phase: KycPhase;
-  /** Human-readable status message for the current phase. */
-  statusMessage: string;
-  /** The current error message, or `null`. */
-  error: string | null;
-
-  /** Email associated with the session (sourced from the account). */
-  email: string | null;
-
-  /**
-   * Persisted vendor-disclaimer acceptance (T&C1) with fixed `moonpay` and
-   * `iron` keys. MoonPay stores only `termsAcceptedAt`; Iron stores
-   * `disclaimerIds`.
-   */
-  vendorDisclaimersAccepted: KycVendorDisclaimersAccepted;
-  /**
-   * KYC-provider disclaimer documents the customer accepted during the last
-   * terms acceptance (persisted `{ key, version }` records under `sumsub`).
-   * Consents-path vendors require this when resuming a session. `null` for
-   * acceptance recorded before this field existed (treated as requiring
-   * reacceptance).
-   */
-  providerDisclaimersAccepted: KycProviderDisclaimersAccepted;
-  /**
-   * idOS disclaimer documents the customer accepted during the last terms
-   * acceptance (persisted `{ key, version }` records). Consents-path vendors
-   * require this when resuming a session. `null` for acceptance recorded
-   * before this field existed (treated as requiring reacceptance).
-   */
-  idosDisclaimersAccepted: KycConsentRecord[] | null;
-  /**
-   * Whether the customer consented to reuse existing idOS credentials
-   * during this session. Applied when recording session-scoped disclaimers.
-   * Not persisted: a new UKYC session must collect reuse consent again.
-   * `null` when never set (treated as `false`).
-   */
-  credentialReusabilityConsentGiven: boolean | null;
-
-  /** Vendor disclaimers fetched for the current country. */
-  vendorDisclaimers: KycDisclaimer[];
-  /** Error encountered while loading vendor disclaimers, or `null`. */
-  vendorError: string | null;
-  /**
-   * idOS / KYC-provider disclaimer catalog from `GET /disclaimers` or
-   * `GET /sessions/{sessionId}/disclaimers`. `null` until the catalog has
-   * been fetched (typically after a UKYC session exists).
-   */
-  sessionDisclaimers: KycSessionDisclaimers | null;
-
-  /** Resolved ISO 3166-1 alpha-3 country code. */
-  geoCountry: string | null;
-
-  /** MoonPay session token (not persisted, not logged). */
-  moonpaySessionToken: string | null;
-  /** MoonPay access token (not persisted, not logged). */
-  moonpayAccessToken: string | null;
-  /** Vendor customer id, used for the SumSub hand-off. */
-  moonpayCustomerId: string | null;
-
-  /**
-   * The identity vendor driving the current flow. Captured at `initialize`.
-   * Defaults to `moonpay` when omitted so existing ramps/card callers keep
-   * the Check/Auth frame path. Non-MoonPay vendors skip those frames.
-   */
-  activeVendor: KycVendor;
-
-  /**
-   * The product the current flow is running for. Captured at `initialize`
-   * (or `acceptTermsAndStartSession`) and used to automatically run the
-   * KYC-required check once authentication completes. `null` outside a
-   * product-scoped flow (in which case the flow stops at `form` and the
-   * consumer drives the check manually).
-   */
-  activeProduct: KycProduct | null;
-
-  /** Cached "is KYC required" result per product (persisted). */
-  kycRequiredByProduct: Partial<Record<KycProduct, boolean>>;
-  /** ISO-8601 timestamp of the last KYC-required check (persisted). */
-  lastCheckedAt: string | null;
-
-  /**
-   * User-keyed simplified KYC status from `GET /kyc/status` (persisted so the
-   * Money toast can render across cold starts). `null` until the first
-   * successful `refreshKycStatus`.
-   */
-  userStatus: KycUserStatus | null;
-  /** Optional SumSub session id for the retryable error path. */
-  userStatusSumsubSessionId: string | null;
-  /** Optional machine-readable error code for terminal / EDD UX. */
-  userStatusErrorCode: string | null;
-
-  /** SumSub document-verification sub-flow state. */
-  sumsub: {
-    status: KycSumSubStatus;
-    result: Json | null;
-    sessionId: string | null;
-    applicantAccessToken: string | null;
-    /**
-     * The latest UKYC session status, populated while polling after the SDK
-     * completes. `null` until the first successful poll.
-     */
-    sessionStatus: KycSessionStatus | null;
-  };
-};
-
-const kycControllerMetadata = {
-  phase: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: false,
-    usedInUi: true,
-  },
-  statusMessage: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: false,
-    usedInUi: true,
-  },
-  error: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: false,
-    usedInUi: true,
-  },
-  email: {
-    includeInDebugSnapshot: false,
-    includeInStateLogs: false,
-    persist: false,
-    usedInUi: false,
-  },
-  vendorDisclaimersAccepted: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: false,
-  },
-  providerDisclaimersAccepted: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: false,
-  },
-  idosDisclaimersAccepted: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: false,
-  },
-  credentialReusabilityConsentGiven: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: false,
-    usedInUi: false,
-  },
-  vendorDisclaimers: {
-    includeInDebugSnapshot: false,
-    includeInStateLogs: false,
-    persist: false,
-    usedInUi: true,
-  },
-  vendorError: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: false,
-    usedInUi: true,
-  },
-  sessionDisclaimers: {
-    includeInDebugSnapshot: false,
-    includeInStateLogs: false,
-    persist: false,
-    usedInUi: true,
-  },
-  geoCountry: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: false,
-    usedInUi: true,
-  },
-  moonpaySessionToken: {
-    includeInDebugSnapshot: false,
-    includeInStateLogs: false,
-    persist: false,
-    usedInUi: false,
-  },
-  moonpayAccessToken: {
-    includeInDebugSnapshot: false,
-    includeInStateLogs: false,
-    persist: false,
-    usedInUi: false,
-  },
-  moonpayCustomerId: {
-    includeInDebugSnapshot: false,
-    includeInStateLogs: false,
-    persist: false,
-    usedInUi: false,
-  },
-  activeVendor: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: false,
-    usedInUi: true,
-  },
-  activeProduct: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: false,
-    usedInUi: true,
-  },
-  kycRequiredByProduct: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: true,
-  },
-  lastCheckedAt: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: false,
-  },
-  userStatus: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: true,
-  },
-  userStatusSumsubSessionId: {
-    includeInDebugSnapshot: false,
-    includeInStateLogs: false,
-    persist: true,
-    usedInUi: true,
-  },
-  userStatusErrorCode: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: true,
-  },
-  sumsub: {
-    includeInDebugSnapshot: false,
-    includeInStateLogs: false,
-    persist: false,
-    usedInUi: true,
-  },
-} satisfies StateMetadata<KycControllerState>;
-
-/**
- * Constructs the default {@link KycVendorDisclaimersAccepted} value.
- *
- * @returns The default vendor-disclaimer acceptance map.
- */
-export function getDefaultKycVendorDisclaimersAccepted(): KycVendorDisclaimersAccepted {
-  return { moonpay: null, iron: null };
-}
-
-export function getDefaultKycProviderDisclaimersAccepted(): KycProviderDisclaimersAccepted {
-  return { sumsub: null };
-}
-
-/**
- * Constructs the default {@link KycController} state.
- *
- * @returns The default state.
- */
-export function getDefaultKycControllerState(): KycControllerState {
-  return {
-    phase: 'idle',
-    statusMessage: '',
-    error: null,
-    email: null,
-    vendorDisclaimersAccepted: getDefaultKycVendorDisclaimersAccepted(),
-    providerDisclaimersAccepted: getDefaultKycProviderDisclaimersAccepted(),
-    idosDisclaimersAccepted: null,
-    credentialReusabilityConsentGiven: null,
-    vendorDisclaimers: [],
-    vendorError: null,
-    sessionDisclaimers: null,
-    geoCountry: null,
-    moonpaySessionToken: null,
-    moonpayAccessToken: null,
-    moonpayCustomerId: null,
-    activeVendor: 'moonpay',
-    activeProduct: null,
-    kycRequiredByProduct: {},
-    lastCheckedAt: null,
-    userStatus: null,
-    userStatusSumsubSessionId: null,
-    userStatusErrorCode: null,
-    sumsub: {
-      status: 'idle',
-      result: null,
-      sessionId: null,
-      applicantAccessToken: null,
-      sessionStatus: null,
-    },
-  };
-}
-
-/**
- * Whether an error indicates the applicant already finished KYC — the UKYC /
- * relay `session_not_in_valid_state` signal — which the controller maps to the
- * simplified `completed` user status.
- *
- * @param error - The caught error.
- * @returns `true` when the error carries the `session_not_in_valid_state`
- * marker.
- */
-function isSessionAlreadyCompletedError(error: unknown): boolean {
-  return String(error).includes(SESSION_NOT_IN_VALID_STATE);
-}
-
-/**
- * Whether recording session disclaimers failed because those document
- * versions were already consented for the session (`409 Conflict`).
- *
- * @param error - The caught error.
- * @returns `true` when the error is an HTTP 409.
- */
-function isConsentConflictError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    typeof (error as { httpStatus?: unknown }).httpStatus === 'number' &&
-    (error as { httpStatus: number }).httpStatus === 409
-  );
-}
-
-/**
- *
- * @param value - The value to validate.
- * @returns `true` when `value` is a valid consent record list.
- */
-function isValidConsentRecordList(value: unknown): value is KycConsentRecord[] {
-  return (
-    Array.isArray(value) &&
-    value.every(
-      (item) =>
-        typeof item === 'object' &&
-        item !== null &&
-        typeof (item as KycConsentRecord).key === 'string' &&
-        typeof (item as KycConsentRecord).version === 'string',
-    )
-  );
-}
-
-/**
- * Maps accepted disclaimer records onto unconsented catalog documents.
- *
- * @param documents - Catalog documents for one consent category.
- * @param accepted - Accepted `{ key, version }` records from the caller.
- * @returns Consent records to POST, omitting already-consented documents.
- */
-function consentRecordsFromAcceptedList(
-  documents: KycConsentDocument[],
-  accepted: KycConsentRecord[],
-): KycConsentRecord[] {
-  if (accepted.length === 0) {
-    return [];
-  }
-  const acceptedKeys = new Set(
-    accepted.map((record) => `${record.key}:${record.version}`),
-  );
-  return documents
-    .filter(
-      (document) =>
-        !document.consented &&
-        acceptedKeys.has(`${document.key}:${document.version}`),
-    )
-    .map(({ key, version }) => ({ key, version }));
-}
-
-/**
- * Whether accepted disclaimers reference a missing catalog category.
- *
- * @param documents - Catalog documents for one consent category.
- * @param accepted - Accepted `{ key, version }` records from the caller.
- * @returns `true` when the caller accepted docs but the catalog is empty.
- */
-function isAcceptedCategoryEmpty(
-  documents: KycConsentDocument[],
-  accepted: KycConsentRecord[],
-): boolean {
-  return accepted.length > 0 && documents.length === 0;
-}
-
-/**
- * Whether accepted disclaimers are still missing consent after a 409 re-GET:
- * empty catalog or any accepted document still unconsented.
- *
- * @param documents - Latest catalog documents for one consent category.
- * @param accepted - Accepted `{ key, version }` records from the caller.
- * @returns `true` when accepted documents are not fully consented.
- */
-function acceptedCategoryStillMissing(
-  documents: KycConsentDocument[],
-  accepted: KycConsentRecord[],
-): boolean {
-  if (accepted.length === 0) {
-    return false;
-  }
-  if (documents.length === 0) {
-    return true;
-  }
-  const acceptedKeys = new Set(
-    accepted.map((record) => `${record.key}:${record.version}`),
-  );
-  const relevant = documents.filter((document) =>
-    acceptedKeys.has(`${document.key}:${document.version}`),
-  );
-  return (
-    relevant.length === 0 || relevant.some((document) => !document.consented)
-  );
-}
-
-/**
- * Vendors other than MoonPay skip Check/Auth frames and use the empty-shell
- * customer + consents path instead.
- *
- * @param vendor - The identity vendor for the current flow.
- * @returns `true` when the vendor uses the consents session path.
- */
-function usesConsentsFlow(vendor: KycVendor): boolean {
-  return vendor !== 'moonpay';
-}
 
 // === MESSENGER ===
 
@@ -1178,11 +739,7 @@ export class KycController extends BaseController<
       }
 
       if (created.vendorProcessing) {
-        try {
-          await this.refreshKycStatus();
-        } catch (statusError) {
-          controllerLog('KYC status refresh failed:', statusError);
-        }
+        await this.#refreshUserStatusSoft();
         this.#updateIfCurrent(generation, (state) => {
           state.phase = 'done';
           state.statusMessage = VENDOR_PROCESSING_MESSAGE;
@@ -1217,11 +774,7 @@ export class KycController extends BaseController<
       // After SumSub, refresh user-keyed status for the Money toast and start
       // polling while still pending. Soft-fail: toast refresh must not rewind
       // the consent / SumSub outcome.
-      try {
-        await this.refreshKycStatus();
-      } catch (statusError) {
-        controllerLog('KYC status refresh failed:', statusError);
-      }
+      await this.#refreshUserStatusSoft();
       this.#updateIfCurrent(generation, (state) => {
         if (state.phase !== 'error' && state.phase !== 'done') {
           state.phase = 'done';
@@ -1230,21 +783,7 @@ export class KycController extends BaseController<
       });
     } catch (error) {
       if (isSessionAlreadyCompletedError(error)) {
-        if (this.#generation !== generation) {
-          return;
-        }
-        this.#applyUserStatus({
-          status: 'completed',
-          sumsubSessionId: null,
-          errorCode: null,
-        });
-        this.#updateIfCurrent(generation, (state) => {
-          state.sumsub.status = 'complete';
-          state.sumsub.result = { alreadyCompleted: true };
-          state.statusMessage = 'KYC already completed.';
-          state.phase = 'done';
-          state.error = null;
-        });
+        this.#markAlreadyCompleted(generation);
         return;
       }
       controllerLog('Consents session failed:', error);
@@ -1777,8 +1316,8 @@ export class KycController extends BaseController<
         this.messenger.call('KycService:fetchIdosEnclaveJwks'),
         this.messenger.call('KycService:fetchIdosRelayJwks'),
       ]);
-    this.#assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
-    this.#assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+    assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
+    assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
 
     // Derive the data_encryption_key from the local_user_secret, mint a
     // read-only capability token, and wrap both for the session server. Only
@@ -1786,26 +1325,13 @@ export class KycController extends BaseController<
     const localUserSecret = await getOrCreateLocalUserSecret(
       this.#localUserSecretStore(),
     );
-    const clientMaterial = deriveClientMaterial(localUserSecret);
-    const wrappedEncryptionDataKey = wrapEncryptionKey(
-      sessionClientPrivateKey,
-      encryptionDataKey.serverPublicKey.x,
-      clientMaterial.dataEncryptionKey,
-    );
-
-    // Only the client holds the signing key derived from `local_user_secret`,
-    // so only the client can mint the token; scoping it to `read` means it
-    // authorizes later storage reads without granting write or delete access.
-    const ukycCapabilityToken = signStorageAccessToken({
-      material: clientMaterial,
-      operations: ['read'],
-      expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
-    });
-    const wrappedUkycCapabilityToken = wrapEncryptionKey(
-      sessionClientPrivateKey,
-      capabilityTokenSchema.serverPublicKey.x,
-      stringToBytes(encodeStorageAccessTokenForHeader(ukycCapabilityToken)),
-    );
+    const { wrappedEncryptionDataKey, wrappedUkycCapabilityToken } =
+      wrapUkycSessionAuthorizations({
+        sessionClientPrivateKey,
+        encryptionDataKey,
+        capabilityTokenSchema,
+        localUserSecret,
+      });
     if (this.#generation !== generation) {
       return null;
     }
@@ -2005,21 +1531,7 @@ export class KycController extends BaseController<
         // A reset() may have landed while `launch` was in flight; forcing
         // `completed` (and publishing `statusChanged`) on an idle controller
         // would resurrect a flow the consumer already tore down.
-        if (this.#generation !== generation) {
-          return { alreadyCompleted: true };
-        }
-        this.#applyUserStatus({
-          status: 'completed',
-          sumsubSessionId: null,
-          errorCode: null,
-        });
-        this.#updateIfCurrent(generation, (state) => {
-          state.sumsub.status = 'complete';
-          state.sumsub.result = { alreadyCompleted: true };
-          state.statusMessage = 'KYC already completed.';
-          state.phase = 'done';
-          state.error = null;
-        });
+        this.#markAlreadyCompleted(generation);
         return { alreadyCompleted: true };
       }
       const result = { error: String(error) };
@@ -2397,20 +1909,38 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Confirms that an encryption schema's `serverPublicKey.x` matches the
-   * `sessionServerPublicKeyX` attested inside its verified `jwtChain`. Rejects
-   * a key that was swapped out-of-band after the chain was signed.
+   * Maps the UKYC `session_not_in_valid_state` signal onto simplified
+   * `completed` status. No-op when a `reset()` superseded `generation`.
    *
-   * @param keys - The issuer JWKS used to verify the chain (idOS enclave for
-   * `encryptionDataKey`, idOS relay for `ukycCapabilityToken`).
-   * @param schema - The encryption schema returned by session creation.
+   * @param generation - Flow generation captured by the caller.
    */
-  #assertAttestedServerPublicKey(keys: Jwk[], schema: EncryptionSchema): void {
-    const jwtChainPayload = verifyJwtChain(keys, schema.jwtChain);
-    if (jwtChainPayload.sessionServerPublicKeyX !== schema.serverPublicKey.x) {
-      throw new Error(
-        'sessionServerPublicKey does not match the verified jwtChain payload (sessionServerPublicKeyX).',
-      );
+  #markAlreadyCompleted(generation: number): void {
+    if (this.#generation !== generation) {
+      return;
+    }
+    this.#applyUserStatus({
+      status: 'completed',
+      sumsubSessionId: null,
+      errorCode: null,
+    });
+    this.#updateIfCurrent(generation, (state) => {
+      state.sumsub.status = 'complete';
+      state.sumsub.result = { alreadyCompleted: true };
+      state.statusMessage = 'KYC already completed.';
+      state.phase = 'done';
+      state.error = null;
+    });
+  }
+
+  /**
+   * Refreshes user-keyed KYC status for toast surfaces without rewinding the
+   * current flow when the request fails.
+   */
+  async #refreshUserStatusSoft(): Promise<void> {
+    try {
+      await this.refreshKycStatus();
+    } catch (statusError) {
+      controllerLog('KYC status refresh failed:', statusError);
     }
   }
 
