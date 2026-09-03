@@ -110,7 +110,7 @@ export function createMockAssetControllerMessenger(options?: {
       // AccountsApiDataSource
       'RemoteFeatureFlagController:getState',
     ],
-    /* eslint-disable no-restricted-syntax */
+
     events: [
       // AssetsController
       'AccountTreeController:selectedAccountGroupChange',
@@ -139,7 +139,6 @@ export function createMockAssetControllerMessenger(options?: {
       // AccountsApiDataSource
       'RemoteFeatureFlagController:stateChange',
     ],
-    /* eslint-enable no-restricted-syntax */
   });
 
   return {
