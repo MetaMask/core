@@ -65,7 +65,9 @@ export class AccountTreeSnapshot {
       (wallet) => wallet.type === AccountWalletPayloadType.Mnemonic,
     );
     return entry as
-      | (AccountTreeSnapshotWallet & { type: AccountWalletPayloadType.Mnemonic })
+      | (AccountTreeSnapshotWallet & {
+          type: AccountWalletPayloadType.Mnemonic;
+        })
       | undefined;
   }
 

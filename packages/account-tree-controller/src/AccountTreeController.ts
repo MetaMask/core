@@ -1927,10 +1927,11 @@ export class AccountTreeController extends BaseController<
    * @returns A promise that resolves when the import is complete.
    */
   async importState(snapshot: AccountTreeSnapshot): Promise<void> {
-    if (this.#hasCompletedOnboarding() && snapshot.getPrimaryWallet() === undefined) {
-      throw new Error(
-        'AccountTreeSnapshot has no primary wallet',
-      );
+    if (
+      this.#hasCompletedOnboarding() &&
+      snapshot.getPrimaryWallet() === undefined
+    ) {
+      throw new Error('AccountTreeSnapshot has no primary wallet');
     }
 
     return importState(

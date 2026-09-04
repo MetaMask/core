@@ -4835,9 +4835,7 @@ describe('AccountTreeController', () => {
 
       await expect(
         controller.importState(noPrimaryWalletSnapshot),
-      ).rejects.toThrow(
-        'AccountTreeSnapshot has no primary wallet',
-      );
+      ).rejects.toThrow('AccountTreeSnapshot has no primary wallet');
     });
   });
 

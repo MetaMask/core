@@ -17,7 +17,8 @@ const MOCK_PRIVATE_KEY_PAYLOAD_ID = toWalletPayloadId(
   AccountWalletPayloadType.PrivateKey,
 );
 
-const MOCK_SECONDARY_MNEMONIC_PAYLOAD_ID = toWalletPayloadId('entropy-source-2');
+const MOCK_SECONDARY_MNEMONIC_PAYLOAD_ID =
+  toWalletPayloadId('entropy-source-2');
 
 const MOCK_MNEMONIC_WALLET: AccountWalletMnemonicPayload = {
   id: MOCK_MNEMONIC_PAYLOAD_ID,
@@ -59,7 +60,10 @@ const MOCK_PRIVATE_KEY_WALLET: AccountWalletPrivateKeyPayload = {
   groups: [
     {
       id: toGroupPayloadId(MOCK_PRIVATE_KEY_PAYLOAD_ID, '0xdeadbeef'),
-      value: { privateKey: [0xde, 0xad, 0xbe, 0xef], encoding: AccountWalletPrivateKeyEncoding.Hexadecimal },
+      value: {
+        privateKey: [0xde, 0xad, 0xbe, 0xef],
+        encoding: AccountWalletPrivateKeyEncoding.Hexadecimal,
+      },
       metadata: { name: 'Imported 1', pinned: false, hidden: true },
     },
   ],
@@ -459,7 +463,6 @@ describe('AccountTreeSnapshot', () => {
       expect(wallets[1]?.metadata.name).toBe('Imported Accounts');
       expect(wallets[1]?.groups[0]?.metadata.name).toBe('Imported 1');
     });
-
   });
 
   describe('stripPrimaryWallet', () => {
@@ -513,14 +516,13 @@ describe('AccountTreeSnapshot', () => {
       ]);
       const stripped = snapshot.stripMetadata();
       const { wallets } = stripped.serialize();
-      expect(
-        (wallets[0] as typeof MOCK_MNEMONIC_WALLET).value,
-      ).toStrictEqual(MOCK_MNEMONIC_WALLET.value);
+      expect((wallets[0] as typeof MOCK_MNEMONIC_WALLET).value).toStrictEqual(
+        MOCK_MNEMONIC_WALLET.value,
+      );
       expect(
         (wallets[1] as typeof MOCK_PRIVATE_KEY_WALLET).groups[0]?.value,
       ).toStrictEqual(MOCK_PRIVATE_KEY_WALLET.groups[0]?.value);
     });
-
   });
 
   describe('getPrimaryWallet', () => {
