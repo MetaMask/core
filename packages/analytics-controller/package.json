@@ -60,13 +60,13 @@
     "@metamask/messenger": "^2.0.0",
     "@metamask/utils": "^11.12.0",
     "lodash": "^4.17.21",
-    "uuid": "^8.3.2"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",
-    "@types/uuid": "^8.3.0",
+    "@types/uuid": "^9.0.8",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
     "ts-jest": "^29.4.11",

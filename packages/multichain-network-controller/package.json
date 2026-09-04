@@ -73,7 +73,7 @@
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",
     "@types/lodash": "^4.14.191",
-    "@types/uuid": "^8.3.0",
+    "@types/uuid": "^9.0.8",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
     "jest": "^30.4.2",
