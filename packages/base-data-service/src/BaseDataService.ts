@@ -256,9 +256,9 @@ export class BaseDataService<
       this.#persistenceConfig &&
       debounce(
         () => {
-          this.#persistCache().catch((error) =>
+          this.#persistCache().catch(
             /* istanbul ignore next */
-            this.#messenger.captureException?.(error),
+            (error) => this.#messenger.captureException?.(error),
           );
         },
         this.#persistenceConfig.writeDelay ??
@@ -539,9 +539,9 @@ export class BaseDataService<
    * Initialize the service, rehydrating the cache with persisted data if possible.
    */
   init(): void {
-    this.#loadCache().catch((error) =>
+    this.#loadCache().catch(
       /* istanbul ignore next */
-      this.#messenger.captureException?.(error),
+      (error) => this.#messenger.captureException?.(error),
     );
   }
 
