@@ -210,8 +210,6 @@ export class ExampleDataService extends BaseDataService<
         });
 
         if (!response.ok) {
-          // NOTE: Can't use HttpError from controller-utils due to lint:tsc not
-          // being fully rolled out across the monorepo.
           throw new Error(
             `Mutation failed with status code: ${response.status}.`,
           );
@@ -251,8 +249,6 @@ export class ExampleDataService extends BaseDataService<
         });
 
         if (!response.ok) {
-          // NOTE: Can't use HttpError from controller-utils due to lint:tsc not
-          // being fully rolled out across the monorepo.
           throw new Error(
             `Creating data deletion task failed with status '${response.status}'`,
           );
