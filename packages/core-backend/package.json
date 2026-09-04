@@ -65,7 +65,7 @@
     "@tanstack/query-core": "^5.62.16",
     "async-mutex": "^0.5.0",
     "cockatiel": "^3.1.2",
-    "uuid": "^8.3.2"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",

@@ -92,7 +92,7 @@
     "@metamask/utils": "^11.12.0",
     "@tanstack/query-core": "^5.62.16",
     "@types/bn.js": "^5.1.5",
-    "@types/uuid": "^8.3.0",
+    "@types/uuid": "^9.0.8",
     "async-mutex": "^0.5.0",
     "bitcoin-address-validation": "^2.2.3",
     "bn.js": "^5.2.1",
@@ -101,7 +101,7 @@
     "multiformats": "^9.9.0",
     "reselect": "^5.1.1",
     "single-call-balance-checker-abi": "^1.0.0",
-    "uuid": "^8.3.2"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",

@@ -64,9 +64,9 @@
     "@metamask/polling-controller": "^16.0.9",
     "@metamask/utils": "^11.12.0",
     "@types/bn.js": "^5.1.5",
-    "@types/uuid": "^8.3.0",
+    "@types/uuid": "^9.0.8",
     "bn.js": "^5.2.1",
-    "uuid": "^8.3.2"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
