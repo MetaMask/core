@@ -147,7 +147,8 @@ function getMessenger(
       'AccountTreeController:accountGroupCreated',
       'AccountTreeController:accountGroupUpdated',
       'AccountTreeController:accountGroupRemoved',
-      'AccountsController:stateChanged',
+      'AccountsController:accountsAdded',
+      'AccountsController:accountsRemoved',
     ],
   });
   return messenger;
@@ -265,21 +266,38 @@ function buildAccountsState(
 }
 
 /**
- * Publishes an `AccountsController:stateChanged` event on the root messenger,
- * rebuilding the service's Snap-ownership cache from the given accounts.
+ * Publishes an `AccountsController:accountsAdded` event on the root messenger,
+ * adding the given accounts to the service's Snap-ownership cache.
  *
  * @param rootMessenger - The root messenger.
- * @param accounts - The accounts to include in the new state.
+ * @param accounts - The accounts that were added.
  */
-function publishAccountsStateChange(
+function publishAccountsAdded(
   rootMessenger: RootMessenger,
   accounts: { id: string; snapId?: string }[],
 ): void {
   rootMessenger.publish(
-    'AccountsController:stateChanged',
-    buildAccountsState(accounts),
-    [],
+    'AccountsController:accountsAdded',
+    accounts.map(({ id, snapId }) => ({
+      id,
+      metadata: snapId ? { snap: { id: snapId } } : {},
+    })),
   );
+}
+
+/**
+ * Publishes an `AccountsController:accountsRemoved` event on the root
+ * messenger, removing the given account IDs from the service's Snap-ownership
+ * cache.
+ *
+ * @param rootMessenger - The root messenger.
+ * @param accountIds - The IDs of the accounts that were removed.
+ */
+function publishAccountsRemoved(
+  rootMessenger: RootMessenger,
+  accountIds: string[],
+): void {
+  rootMessenger.publish('AccountsController:accountsRemoved', accountIds);
 }
 
 /**
@@ -1360,7 +1378,7 @@ describe('SnapAccountService', () => {
       expect(listener).not.toHaveBeenCalled();
     });
 
-    it('picks up ownership changes from AccountsController:stateChanged', async () => {
+    it('picks up added/removed accounts from AccountsController:accountsAdded and :accountsRemoved', async () => {
       // Initially the Snap does not own the account, so the update is dropped.
       const { service, rootMessenger } = await setup({
         accounts: [
@@ -1388,9 +1406,9 @@ describe('SnapAccountService', () => {
       expect(result).toBeNull();
       expect(listener).not.toHaveBeenCalled();
 
-      // The account is now transferred to this Snap — the cache rebuilds on
-      // stateChanged and the next update is forwarded.
-      publishAccountsStateChange(rootMessenger, [
+      // The account is added for this Snap — the cache picks it up from
+      // `accountsAdded` and the next update is forwarded.
+      publishAccountsAdded(rootMessenger, [
         { id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string },
       ]);
 
@@ -1405,6 +1423,18 @@ describe('SnapAccountService', () => {
           [MOCK_ACCOUNT_ID]: payload.balances[MOCK_ACCOUNT_ID],
         },
       });
+
+      // The account is removed — the cache drops it and the next update is
+      // dropped again (fail closed).
+      publishAccountsRemoved(rootMessenger, [MOCK_ACCOUNT_ID]);
+
+      listener.mockClear();
+      result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
+        method: KeyringEvent.AccountBalancesUpdated,
+        params: payload,
+      } as unknown as SnapMessage);
+      expect(result).toBeNull();
+      expect(listener).not.toHaveBeenCalled();
     });
   });
 

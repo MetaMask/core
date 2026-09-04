@@ -1,5 +1,7 @@
 import { AccountGroupId } from '@metamask/account-api';
 import type {
+  AccountsControllerAccountsAddedEvent,
+  AccountsControllerAccountsRemovedEvent,
   AccountsControllerGetStateAction,
   AccountsControllerState,
 } from '@metamask/accounts-controller';
@@ -93,7 +95,6 @@ import type {
   AccountTreeControllerAccountGroupCreatedEvent,
   AccountTreeControllerAccountGroupUpdatedEvent,
   AccountTreeControllerAccountGroupRemovedEvent,
-  AccountsControllerStateChangedEvent,
   AccountGroupObject,
 } from './types.js';
 
@@ -191,7 +192,8 @@ type AllowedEvents =
   | AccountTreeControllerAccountGroupCreatedEvent
   | AccountTreeControllerAccountGroupUpdatedEvent
   | AccountTreeControllerAccountGroupRemovedEvent
-  | AccountsControllerStateChangedEvent;
+  | AccountsControllerAccountsAddedEvent
+  | AccountsControllerAccountsRemovedEvent;
 
 /**
  * The messenger which is restricted to actions and events accessed by
@@ -321,9 +323,15 @@ export class SnapAccountService {
     // `#ensureAccountSnapCache`) rather than in the constructor, so that this
     // service does not force clients to instantiate `AccountsController`
     // before it. This keeps the account data update event path synchronous —
-    // the cache is a plain `Map` read.
-    this.#messenger.subscribe('AccountsController:stateChanged', (state) =>
-      this.#rebuildAccountSnapCache(state),
+    // the cache is a plain `Map` read. The granular `accountsAdded` /
+    // `accountsRemoved` events (batch-compatible) update the cache
+    // incrementally instead of rebuilding it from full state on every change.
+    this.#messenger.subscribe('AccountsController:accountsAdded', (accounts) =>
+      this.#addAccountsToCache(accounts),
+    );
+    this.#messenger.subscribe(
+      'AccountsController:accountsRemoved',
+      (accountIds) => this.#removeAccountsFromCache(accountIds),
     );
 
     this.#messenger.subscribe(
@@ -878,8 +886,9 @@ export class SnapAccountService {
    * one Snap forge transactions, balances, or asset-list entries for accounts
    * owned by another Snap (or for accounts that do not exist at all).
    *
-   * The cache is rebuilt lazily on first use and on every
-   * `AccountsController:stateChanged`, so the lookup here is a synchronous
+   * The cache is built lazily on first use from `AccountsController:getState`
+   * and kept in sync incrementally via `AccountsController:accountsAdded` /
+   * `AccountsController:accountsRemoved`, so the lookup here is a synchronous
    * `Map` read — preserving synchronous event handling and avoiding a
    * per-event keyring round-trip on a path that fires frequently.
    *
@@ -961,7 +970,6 @@ export class SnapAccountService {
    * Filters an account-keyed map from a Snap's account data update event down
    * to the entries whose account ID is owned by the Snap.
    *
-   *
    * @param snapId - ID of the Snap that emitted the event.
    * @param event - The account data update event being filtered.
    * @param entries - The account-keyed map to filter.
@@ -989,6 +997,10 @@ export class SnapAccountService {
   /**
    * Rebuilds the Snap-ownership cache from `AccountsController` state.
    *
+   * Used for lazy initialization on first use; subsequent updates are applied
+   * incrementally by {@link SnapAccountService.#addAccountsToCache} and
+   * {@link SnapAccountService.#removeAccountsFromCache}.
+   *
    * @param state - The current `AccountsController` state.
    */
   #rebuildAccountSnapCache(state: AccountsControllerState): void {
@@ -1001,6 +1013,35 @@ export class SnapAccountService {
     }
     this.#accountSnapIds = cache;
     this.#accountSnapCacheInitialized = true;
+  }
+
+  /**
+   * Adds the given accounts to the Snap-ownership cache.
+   *
+   * @param accounts - The accounts that were added.
+   */
+  #addAccountsToCache(
+    accounts: AccountsControllerAccountsAddedEvent['payload'][0],
+  ): void {
+    for (const account of accounts) {
+      const snapId = account.metadata?.snap?.id;
+      if (snapId) {
+        this.#accountSnapIds.set(account.id, snapId as SnapId);
+      }
+    }
+  }
+
+  /**
+   * Removes the given account IDs from the Snap-ownership cache.
+   *
+   * @param accountIds - The IDs of the accounts that were removed.
+   */
+  #removeAccountsFromCache(
+    accountIds: AccountsControllerAccountsRemovedEvent['payload'][0],
+  ): void {
+    for (const accountId of accountIds) {
+      this.#accountSnapIds.delete(accountId);
+    }
   }
 
   /**
