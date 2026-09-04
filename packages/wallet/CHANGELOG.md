@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Remove lint rule that deprecates use of :stateChange events ([#10090](https://github.com/MetaMask/core/pull/10090))
-- feat(transaction-controller): expose active batch transaction counts ([#9897](https://github.com/MetaMask/core/pull/9897))
-
 ### Changed
 
 - Bump `@metamask/claims-controller` from `^0.6.0` to `^0.6.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
