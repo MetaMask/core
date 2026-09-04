@@ -769,7 +769,6 @@ describe('KycService', () => {
           version: '1',
           title: 'idOS ToS',
           url: 'https://idos.example/tos',
-          consented: false,
         },
       ],
       kycProvider: [
@@ -778,7 +777,6 @@ describe('KycService', () => {
           version: '1',
           title: 'SumSub ToS',
           url: 'https://sumsub.example/tos',
-          consented: false,
         },
       ],
     };
@@ -890,6 +888,30 @@ describe('KycService', () => {
       nock(MOCK_API_URL)
         .get('/sessions/sid-1/disclaimers')
         .reply(200, documents);
+      const { service } = getService();
+
+      await expect(
+        service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+      ).rejects.toThrow(
+        /Malformed response received from session disclaimers API/u,
+      );
+    });
+
+    it('throws when a session document omits consented', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/sid-1/disclaimers')
+        .reply(200, {
+          idOS: [
+            {
+              key: 'idos-tos',
+              version: '1',
+              title: 'idOS ToS',
+              url: 'https://idos.example/tos',
+            },
+          ],
+          kycProvider: [],
+          credentialReusabilityConsentGiven: false,
+        });
       const { service } = getService();
 
       await expect(

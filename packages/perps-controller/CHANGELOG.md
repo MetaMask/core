@@ -7,8 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Revalidate HyperLiquid positions over HTTP before reporting a WebSocket cache miss during a TP/SL update ([#10101](https://github.com/MetaMask/core/pull/10101)).
+  - A current DEX slice is stamped with the connection epoch, which proves it belongs to the live subscription but not that it has caught up with the most recent fill. `updatePositionTPSL` therefore treated the post-fill window, where the position exists on the venue but has not yet been published, as identical to a position that was closed, and returned `POSITION_NOT_FOUND` without making a request.
+  - Only `updatePositionTPSL` opts in. `closePosition`, `closePositions` and the margin operations keep failing closed on a cache miss, because they act on a position the user is looking at: an unpublished position is not rendered, so those flows cannot reach the post-fill window. TP/SL attachment is the one path a client fires automatically within milliseconds of placing an order, with no human in the loop. Keeping the opt-in narrow also keeps the added REST traffic off the batch paths.
+  - A cache hit still returns the WebSocket slice untouched, so a stale size on a symbol that is present is resolved exactly as before, and the reduce-only sizing guarantees added in [#10037](https://github.com/MetaMask/core/pull/10037) are unaffected.
+
+## [16.0.0]
+
+### Added
+
+- Add `reduce_only` intent to every `Perp Trade Transaction` lifecycle event while preserving canonical `order_type` values ([#10091](https://github.com/MetaMask/core/pull/10091))
+- Add `POSITION_NOT_FOUND` as the provider-neutral error code for operations targeting a position the venue no longer holds ([#10083](https://github.com/MetaMask/core/pull/10083))
+
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^69.7.0` to `^69.8.0` ([#10080](https://github.com/MetaMask/core/pull/10080))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
 
 ### Removed
@@ -858,7 +873,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@15.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.0.0...HEAD
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@15.1.0...@metamask/perps-controller@16.0.0
 [15.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@15.0.0...@metamask/perps-controller@15.1.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@14.0.0...@metamask/perps-controller@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@13.1.0...@metamask/perps-controller@14.0.0

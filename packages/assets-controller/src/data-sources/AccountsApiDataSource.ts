@@ -248,7 +248,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
     // react to remote feature flag changes so newly-enabled chains are picked up
     // (and disabled ones dropped) without waiting for the periodic refresh.
     this.#messenger.subscribe(
-      // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
       // Promise result intentionally not awaited
       // eslint-disable-next-line @typescript-eslint/no-misused-promises

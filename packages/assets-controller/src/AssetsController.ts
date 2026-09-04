@@ -1307,7 +1307,10 @@ export class AssetsController extends BaseController<
 
       this.update((state) => {
         result.applyPatch(
-          state as Pick<AssetsControllerState, 'assetsInfo' | 'assetsBalance'>,
+          state as Pick<
+            AssetsControllerState,
+            'assetsInfo' | 'assetsBalance' | 'assetsPrice'
+          >,
           {
             spamAssetIds: result.spamAssetIds,
           },
@@ -3912,6 +3915,7 @@ export class AssetsController extends BaseController<
           sourceId === 'AccountActivityDataSource' &&
           this.#isBasicFunctionality();
 
+        const shouldRunRpcFallback = sourceId === 'AccountsApiDataSource';
         const enrichmentSources: AssetsDataSource[] = [
           ...(shouldGraduateCustomAssets
             ? [this.#customAssetGraduationMiddleware]
@@ -3925,6 +3929,7 @@ export class AssetsController extends BaseController<
                 },
               ]
             : []),
+          ...(shouldRunRpcFallback ? [this.#rpcFallbackMiddleware] : []),
           this.#detectionMiddleware,
         ];
         if (this.#isBasicFunctionality()) {

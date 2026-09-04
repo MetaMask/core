@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [80.2.0]
+
 ### Added
 
 - Add SwapBridge failure telemetry schema and quote-fetch classifier for a later emit ([#9947](https://github.com/MetaMask/core/pull/9947))
@@ -15,11 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Optional `failure_phase` and `error_code` on Quotes Error and Failed event context types
   - Optional `source_hash_present` and `destination_hash_present` on Failed, Submitted, and Completed event context types
   - Submit and status classifiers live in `@metamask/bridge-status-controller`
+- Add `recurring_buy` and `limit_order` FeatureIds ([#10096](https://github.com/MetaMask/core/pull/10096))
 
 ### Changed
 
-- Bump `@metamask/assets-controller` from `^14.0.2` to `^14.0.3` ([#10042](https://github.com/MetaMask/core/pull/10042))
-- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.7.0` ([#10046](https://github.com/MetaMask/core/pull/10046))
+- Bump `@metamask/assets-controller` from `^14.0.2` to `^15.0.0` ([#10042](https://github.com/MetaMask/core/pull/10042), [#10088](https://github.com/MetaMask/core/pull/10088))
+- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.8.0` ([#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
 
 ## [80.1.1]
@@ -1986,7 +1989,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.2.0...HEAD
+[80.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.1.1...@metamask/bridge-controller@80.2.0
 [80.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.1.0...@metamask/bridge-controller@80.1.1
 [80.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.0.0...@metamask/bridge-controller@80.1.0
 [80.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.3.1...@metamask/bridge-controller@80.0.0

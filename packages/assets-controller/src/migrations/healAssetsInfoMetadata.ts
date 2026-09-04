@@ -618,7 +618,7 @@ export type SpamTokensApiClient = Pick<ApiPlatformClient, 'tokens' | 'token'>;
 
 export type CleanSpamAssetsState = Pick<
   AssetsControllerStateInternal,
-  'assetsInfo' | 'assetsBalance' | 'customAssets'
+  'assetsInfo' | 'assetsBalance' | 'assetsPrice' | 'customAssets'
 >;
 
 export type CleanSpamAssetsOptions = {
@@ -702,13 +702,18 @@ export async function cleanSpamAssets({
  *
  * @param state - Current controller state.
  * @param state.assetsInfo - Tracked asset metadata, keyed by CAIP-19 ID.
+ * @param state.assetsBalance - Per-account balances, keyed by CAIP-19 ID.
  * @param state.customAssets - Per-account custom asset IDs.
- * @returns Candidate asset IDs.
+ * @returns Candidate asset IDs, one per asset whatever casing it is held in.
  */
 function collectSpamCleanupCandidates({
   assetsInfo,
+  assetsBalance,
   customAssets,
-}: Pick<CleanSpamAssetsState, 'assetsInfo' | 'customAssets'>): Caip19AssetId[] {
+}: Pick<
+  CleanSpamAssetsState,
+  'assetsInfo' | 'assetsBalance' | 'customAssets'
+>): Caip19AssetId[] {
   const customAssetIds = new Set(
     Object.values(customAssets)
       .flat()
@@ -719,7 +724,19 @@ function collectSpamCleanupCandidates({
     .flat()
     .map((a) => a.toLowerCase());
 
-  return (Object.keys(assetsInfo) as Caip19AssetId[]).filter((assetId) => {
+  const trackedAssetIds = new Map<string, Caip19AssetId>();
+  const assetInfoAssetIds = Object.keys(assetsInfo) as Caip19AssetId[];
+  const balanceAssetIds = Object.values(assetsBalance).flatMap((balances) =>
+    Object.keys(balances),
+  ) as Caip19AssetId[];
+  for (const assetId of [...assetInfoAssetIds, ...balanceAssetIds]) {
+    const lowerId = assetId.toLowerCase();
+    if (!trackedAssetIds.has(lowerId)) {
+      trackedAssetIds.set(lowerId, assetId);
+    }
+  }
+
+  return [...trackedAssetIds.values()].filter((assetId) => {
     const lowerId = assetId.toLowerCase();
     const [chainId, asset] = lowerId.split('/');
 
@@ -801,7 +818,10 @@ async function fetchSuggestedOccurrenceFloors(
 }
 
 function applyCleanupPatch(
-  state: Pick<CleanSpamAssetsState, 'assetsInfo' | 'assetsBalance'>,
+  state: Pick<
+    CleanSpamAssetsState,
+    'assetsInfo' | 'assetsBalance' | 'assetsPrice'
+  >,
   patch: {
     spamAssetIds: Caip19AssetId[];
   },
@@ -821,6 +841,9 @@ function applyCleanupPatch(
     for (const assetId of Object.keys(balances).filter(isSpam)) {
       delete balances[assetId as Caip19AssetId];
     }
+  }
+  for (const assetId of Object.keys(state.assetsPrice).filter(isSpam)) {
+    delete state.assetsPrice[assetId as Caip19AssetId];
   }
 
   cleanupLog('Removed spam assets', { count: spam.size });

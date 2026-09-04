@@ -4,7 +4,6 @@ import type {
   NotificationPreferences,
   PerpsPreference,
   SocialAIPreference,
-  WalletActivityAccount,
 } from '@metamask/authenticated-user-storage';
 import {
   DEFAULT_AGENTIC_CLI_PREFERENCES,
@@ -29,7 +28,6 @@ import type {
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
-import type { Hex } from '@metamask/utils';
 import { assert } from '@metamask/utils';
 import { debounce } from 'lodash';
 import log from 'loglevel';
@@ -51,6 +49,7 @@ import {
   getAPINotifications,
   getNotificationsApiConfigCached,
   markNotificationsAsRead,
+  updateOnChainNotifications,
 } from './services/api-notifications.js';
 import { getFeatureAnnouncementNotifications } from './services/feature-announcements.js';
 import { createPerpOrderNotification } from './services/perp-notifications.js';
@@ -254,79 +253,60 @@ export {
 } from '@metamask/authenticated-user-storage';
 
 /**
- * Builds wallet-activity preferences from the keyring's current accounts.
+ * Returns the subset of `accounts` that has a wallet-activity subscription in
+ * the Trigger API, which is the source of truth for the per-address enabled bit.
  *
- * @param accounts - The keyring accounts to build wallet-activity entries for.
- * @returns An array of wallet-activity account entries (lower-cased addresses).
- */
-const buildWalletActivityAccounts = (
-  accounts: { address: string; enabled: boolean }[],
-): WalletActivityAccount[] =>
-  accounts.map(({ address, enabled }) => {
-    const lowercased = address.toLowerCase();
-    return {
-      address: lowercased as Hex,
-      enabled,
-    };
-  });
-
-/**
- * Builds wallet-activity initialization from the Trigger API. If Trigger has no
- * enabled entries for the current keyring accounts, this is a first-time
- * notification setup and all current accounts should start enabled.
+ * The address universe is always supplied by the caller from the keyring, so the
+ * result cannot contain an address this installation does not hold.
  *
- * @param bearerToken - JWT used to query Trigger API.
- * @param accounts - The keyring accounts to initialize.
+ * @param bearerToken - JWT used to query the Trigger API.
+ * @param accounts - The keyring accounts to check.
  * @param env - The environment to use for the Trigger API call.
- * @returns Wallet-activity account initialization entries.
+ * @returns The enabled addresses, as returned by the Trigger API, or `null` if
+ * the Trigger API could not be read.
  */
-const buildWalletActivityAccountsFromTriggerConfig = async (
+const getEnabledAccounts = async (
   bearerToken: string,
   accounts: string[],
   env: ENV,
-): Promise<{ address: string; enabled: boolean }[]> => {
+): Promise<string[] | null> => {
   const triggerConfig = await getNotificationsApiConfigCached(
     bearerToken,
     accounts,
     env,
   );
-  const triggerConfigByAddress = new Map(
-    triggerConfig.map(({ address, enabled }) => [
-      address.toLowerCase(),
-      enabled,
-    ]),
-  );
-  const hasEnabledTriggerAccount = accounts.some(
-    (address) => triggerConfigByAddress.get(address.toLowerCase()) === true,
-  );
 
-  return accounts.map((address) => ({
-    address,
-    enabled: hasEnabledTriggerAccount
-      ? (triggerConfigByAddress.get(address.toLowerCase()) ?? false)
-      : true,
-  }));
+  if (triggerConfig === null) {
+    return null;
+  }
+
+  return triggerConfig
+    .filter((addressConfig) => Boolean(addressConfig.enabled))
+    .map((addressConfig) => addressConfig.address);
 };
 
 /**
  * Builds a fresh `NotificationPreferences` blob using hardcoded defaults for
- * Perps, Social AI, and Agentic CLI, the supplied wallet-activity accounts and
- * the user's marketing/product-announcement flags.
+ * Perps, Social AI, and Agentic CLI and the user's marketing/product-announcement
+ * flags.
  *
- * @param walletActivityAccounts - The wallet-activity account config to initialize.
+ * `walletActivity.accounts` is deliberately left empty. Addresses are scoped to a
+ * keyring, but this blob is keyed by canonical profile ID, which pairing shares
+ * across every SRP belonging to the same user — so storing them here pools the
+ * addresses of unrelated SRPs. Subscriptions live in the Trigger API instead.
+ *
  * @param hasMarketingConsent - Whether marketing push notifications should be enabled.
  * @param productAnnouncementEnabled - Whether marketing in-app notifications should be enabled.
  * @returns A complete `NotificationPreferences` object.
  */
 const buildFreshPreferences = (
-  walletActivityAccounts: { address: string; enabled: boolean }[],
   hasMarketingConsent: boolean,
   productAnnouncementEnabled: boolean,
 ): NotificationPreferences => ({
   walletActivity: {
     inAppNotificationsEnabled: true,
     pushNotificationsEnabled: true,
-    accounts: buildWalletActivityAccounts(walletActivityAccounts),
+    accounts: [],
   },
   marketing: {
     inAppNotificationsEnabled: productAnnouncementEnabled,
@@ -829,69 +809,45 @@ export class NotificationServicesController extends BaseController<
   }
 
   /**
-   * Updates the `walletActivity.accounts` entries in the user's
-   * notification-preferences blob in {@link AuthenticatedUserStorageService}.
+   * Reads the global wallet-activity push toggle from
+   * {@link AuthenticatedUserStorageService}.
    *
-   * `putNotificationPreferences` replaces the entire blob, so we read the
-   * current preferences, merge the supplied updates into
-   * `walletActivity.accounts`, and write the result back. This helper is only
-   * meant to be used for incremental updates (enable/disable individual
-   * accounts) after the preferences blob has already been initialized via
-   * {@link createOnChainTriggers}; callers should not rely on it to perform
-   * first-time initialization.
+   * Only the channel boolean is read. It is a user-level setting that contains
+   * no addresses, so sharing it across a paired profile is correct. The address
+   * list in the same blob is deliberately ignored — see
+   * {@link buildFreshPreferences}.
    *
-   * @param updates - Addresses to register, each with the desired `enabled` flag
+   * A missing or unreadable blob counts as enabled, matching the API's "every
+   * toggle is on unless stated otherwise" default, so that a storage outage does
+   * not silently stop notifications.
+   *
+   * @returns Whether wallet-activity push notifications are enabled.
    */
-  async #registerWalletActivityAddresses(
-    updates: { address: string; enabled: boolean }[],
-  ): Promise<void> {
-    if (updates.length === 0) {
-      return;
-    }
-
-    const currentPreferences = await this.messenger
+  async #isWalletActivityPushEnabled(): Promise<boolean> {
+    const preferences = await this.messenger
       .call('AuthenticatedUserStorageService:getNotificationPreferences')
-      .catch((error) => {
-        log.error(
-          'Failed to get notification preferences. Re-initializing them instead.',
-          error,
-        );
-        // TODO: return null once validation error captured
-        // return null;
-        throw error;
-      });
+      .catch(() => null);
 
-    if (!currentPreferences) {
-      log.warn(
-        'Preferences blob not yet initialized; run `createOnChainTriggers` first.',
-      );
+    return preferences?.walletActivity.pushNotificationsEnabled ?? true;
+  }
+
+  /**
+   * Registers this device for push notifications on the given addresses.
+   *
+   * An empty list cannot be sent: the push API rejects a registration with no
+   * addresses, and because that request is what performs the delete-and-reinsert
+   * of the device's links, a rejection leaves the previous links in place and
+   * push keeps arriving. So "no addresses" has to mean unregistering the device.
+   *
+   * @param addresses - The addresses to receive push notifications for.
+   */
+  async #registerPushNotifications(addresses: string[]): Promise<void> {
+    if (addresses.length === 0) {
+      await this.#pushNotifications.disablePushNotifications();
       return;
     }
 
-    const accountsByAddress = new Map(
-      currentPreferences.walletActivity.accounts.map((account) => [
-        account.address.toLowerCase(),
-        { ...account, address: account.address.toLowerCase() as Hex },
-      ]),
-    );
-    for (const update of updates) {
-      const address = update.address.toLowerCase() as Hex;
-      accountsByAddress.set(address, { address, enabled: update.enabled });
-    }
-
-    const nextPreferences: NotificationPreferences = {
-      ...currentPreferences,
-      walletActivity: {
-        ...currentPreferences.walletActivity,
-        accounts: [...accountsByAddress.values()],
-      },
-    };
-
-    await this.messenger.call(
-      'AuthenticatedUserStorageService:putNotificationPreferences',
-      nextPreferences,
-      this.#featureAnnouncementEnv.platform,
-    );
+    await this.#pushNotifications.enablePushNotifications(addresses);
   }
 
   /**
@@ -978,15 +934,27 @@ export class NotificationServicesController extends BaseController<
    */
   public async enablePushNotifications(): Promise<void> {
     try {
-      const preferences = await this.messenger.call(
-        'AuthenticatedUserStorageService:getNotificationPreferences',
-      );
-      const enabledAddresses = (preferences?.walletActivity.accounts ?? [])
-        .filter((account) => account.enabled)
-        .map((account) => account.address);
-      if (enabledAddresses.length > 0) {
-        await this.#pushNotifications.enablePushNotifications(enabledAddresses);
+      if (!(await this.#isWalletActivityPushEnabled())) {
+        await this.#pushNotifications.disablePushNotifications();
+        return;
       }
+
+      const { bearerToken } = await this.#getBearerToken();
+      const { accounts } = this.#accounts.listAccounts();
+      const enabledAddresses = await getEnabledAccounts(
+        bearerToken,
+        accounts,
+        this.#env,
+      );
+
+      if (enabledAddresses === null) {
+        // "No addresses" unregisters the device, so an unreadable subscription
+        // list must not be treated as an empty one: leave the existing links
+        // alone until we can read the real state.
+        return;
+      }
+
+      await this.#registerPushNotifications(enabledAddresses);
     } catch {
       // Do nothing, failing silently.
     }
@@ -1005,13 +973,23 @@ export class NotificationServicesController extends BaseController<
     try {
       this.#setIsCheckingAccountsPresence(true);
 
-      const preferences = await this.messenger.call(
-        'AuthenticatedUserStorageService:getNotificationPreferences',
+      const { bearerToken } = await this.#getBearerToken();
+      const triggerConfig = await getNotificationsApiConfigCached(
+        bearerToken,
+        accounts,
+        this.#env,
       );
+
+      if (triggerConfig === null) {
+        // Reporting every account as disabled would misrepresent the user's
+        // settings, so surface the failure instead.
+        throw new Error('Failed to read wallet-activity subscriptions');
+      }
+
       const enabledByAddress = new Map(
-        (preferences?.walletActivity.accounts ?? []).map((account) => [
-          account.address.toLowerCase(),
-          account.enabled,
+        triggerConfig.map((addressConfig) => [
+          addressConfig.address.toLowerCase(),
+          Boolean(addressConfig.enabled),
         ]),
       );
 
@@ -1078,7 +1056,8 @@ export class NotificationServicesController extends BaseController<
 
       const { accounts } = this.#accounts.listAccounts();
 
-      // 1. Read existing AUS notification preferences and initialize only if absent.
+      // 1. Read existing AUS notification preferences. Their absence is what
+      // marks a first-time setup, and they are initialized in step 3.
       const preferences = await this.messenger.call(
         'AuthenticatedUserStorageService:getNotificationPreferences',
       );
@@ -1087,45 +1066,72 @@ export class NotificationServicesController extends BaseController<
       const productAnnouncementEnabled = Boolean(
         opts?.productAnnouncementEnabled,
       );
-      let nextPreferences: NotificationPreferences | undefined;
 
-      if (preferences === null) {
-        const walletActivityAccounts =
-          await buildWalletActivityAccountsFromTriggerConfig(
-            bearerToken,
-            accounts,
-            this.#env,
-          );
+      const isFirstTimeSetup = preferences === null;
 
-        nextPreferences = buildFreshPreferences(
-          walletActivityAccounts,
-          hasMarketingConsent,
-          productAnnouncementEnabled,
+      const isPushEnabled =
+        preferences?.walletActivity.pushNotificationsEnabled ?? true;
+
+      // 2. Subscribe the keyring's accounts on first-time setup only.
+      //
+      // This method also runs on the daily re-subscribe, so the absence of a
+      // preferences blob — not the absence of subscriptions — is what marks a
+      // genuine first-time setup. Keying off "no subscriptions" would re-enable
+      // every account daily for a user who had turned them all off.
+      //
+      // Even at first-time setup, existing subscriptions win: a user upgrading
+      // from a client that never wrote a preferences blob keeps whichever
+      // accounts they had already disabled.
+      let accountsWithNotifications = await getEnabledAccounts(
+        bearerToken,
+        accounts,
+        this.#env,
+      );
+
+      if (accountsWithNotifications === null) {
+        // An unreadable subscription list is not an empty one. Subscribing
+        // every account here would re-enable ones the user had turned off, and
+        // registering push for that guessed list would send activity for them,
+        // so fail and let the caller retry.
+        throw new Error('Failed to read wallet-activity subscriptions');
+      }
+
+      if (isFirstTimeSetup && accountsWithNotifications.length === 0) {
+        await updateOnChainNotifications(
+          bearerToken,
+          accounts.map((address) => ({ address, enabled: true })),
+          this.#env,
+        );
+        // Match the lower-case form the Trigger API echoes back, which is what
+        // every other path feeding the push API uses.
+        accountsWithNotifications = accounts.map((address) =>
+          address.toLowerCase(),
         );
       }
 
-      if (nextPreferences) {
+      // 3. Initialize the preferences blob, only once the subscriptions above
+      // are in place. Its existence is what makes the next run a re-subscribe
+      // rather than a first-time setup, so writing it earlier would let a
+      // failed subscribe leave the user enabled with no accounts subscribed
+      // and no second chance to seed them.
+      if (isFirstTimeSetup) {
         await this.messenger.call(
           'AuthenticatedUserStorageService:putNotificationPreferences',
-          nextPreferences,
+          buildFreshPreferences(
+            hasMarketingConsent,
+            productAnnouncementEnabled,
+          ),
           this.#featureAnnouncementEnv.platform,
         );
       }
 
-      const effectivePreferences = nextPreferences ?? preferences;
-      const accountsWithNotifications = (
-        effectivePreferences?.walletActivity.accounts ?? []
-      )
-        .filter((account) => account.enabled)
-        .map((account) => account.address);
-
       if (opts.registerPushNotifications ?? true) {
         // Attempt FCM/device registration only; clients must request OS permission separately.
-        this.#pushNotifications
-          .enablePushNotifications(accountsWithNotifications)
-          .catch(() => {
-            // Do Nothing
-          });
+        this.#registerPushNotifications(
+          isPushEnabled ? accountsWithNotifications : [],
+        ).catch(() => {
+          // Do Nothing
+        });
       }
 
       // Update the state of the controller
@@ -1221,11 +1227,12 @@ export class NotificationServicesController extends BaseController<
   public async disableAccounts(accounts: string[]): Promise<void> {
     try {
       this.#updateUpdatingAccountsState(accounts);
-      // Sign-in gate.
-      await this.#getBearerToken();
+      const { bearerToken } = await this.#getBearerToken();
 
-      await this.#registerWalletActivityAddresses(
+      await updateOnChainNotifications(
+        bearerToken,
         accounts.map((address) => ({ address, enabled: false })),
+        this.#env,
       );
 
       await this.#pushNotifications.deletePushNotificationLinks(accounts);
@@ -1255,10 +1262,11 @@ export class NotificationServicesController extends BaseController<
     try {
       this.#updateUpdatingAccountsState(accounts);
 
-      // Sign-in gate.
-      await this.#getBearerToken();
-      await this.#registerWalletActivityAddresses(
+      const { bearerToken } = await this.#getBearerToken();
+      await updateOnChainNotifications(
+        bearerToken,
         accounts.map((address) => ({ address, enabled: true })),
+        this.#env,
       );
 
       await this.#pushNotifications.addPushNotificationLinks(accounts);
@@ -1307,22 +1315,31 @@ export class NotificationServicesController extends BaseController<
 
       // Raw On Chain Notifications
       const rawOnChainNotifications: NormalisedAPINotification[] = [];
-      if (isGlobalNotifsEnabled) {
+      const isWalletActivityInAppEnabled =
+        notificationPreferences?.walletActivity.inAppNotificationsEnabled ??
+        true;
+      if (isGlobalNotifsEnabled && isWalletActivityInAppEnabled) {
         try {
           const { bearerToken } = await this.#getBearerToken();
-          const addressesWithNotifications = (
-            notificationPreferences?.walletActivity.accounts ?? []
-          )
-            .filter((account) => account.enabled)
-            .map((account) => account.address);
-          const notifications = await getAPINotifications(
+          // Addresses come from the keyring, so this installation can only ever
+          // ask for activity on accounts it actually holds. The Trigger API
+          // narrows that to the ones the user has enabled.
+          const { accounts } = this.#accounts.listAccounts();
+          const addressesWithNotifications = await getEnabledAccounts(
             bearerToken,
-            addressesWithNotifications,
-            this.#locale(),
-            this.#featureAnnouncementEnv.platform,
+            accounts,
             this.#env,
-          ).catch(() => []);
-          rawOnChainNotifications.push(...notifications);
+          );
+          if (addressesWithNotifications !== null) {
+            const notifications = await getAPINotifications(
+              bearerToken,
+              addressesWithNotifications,
+              this.#locale(),
+              this.#featureAnnouncementEnv.platform,
+              this.#env,
+            ).catch(() => []);
+            rawOnChainNotifications.push(...notifications);
+          }
         } catch {
           // Do nothing
         }
