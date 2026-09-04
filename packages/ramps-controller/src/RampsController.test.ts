@@ -13,6 +13,7 @@ import * as path from 'path';
 
 import { AutorampStatus } from './autorampAccount.js';
 import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
+import { NeobankOnboardingStage } from './neobank-onboarding.js';
 import type {
   RampsControllerMessenger,
   RampsControllerState,
@@ -160,6 +161,11 @@ describe('RampsController', () => {
                 },
               },
             },
+            "neobank": {
+              "lastError": null,
+              "lastHydratedAt": null,
+              "stage": null,
+            },
             "orders": [],
             "paymentMethods": {
               "data": [],
@@ -236,6 +242,11 @@ describe('RampsController', () => {
                   "selected": null,
                 },
               },
+            },
+            "neobank": {
+              "lastError": null,
+              "lastHydratedAt": null,
+              "stage": null,
             },
             "orders": [],
             "paymentMethods": {
@@ -2270,6 +2281,11 @@ describe('RampsController', () => {
                 },
               },
             },
+            "neobank": {
+              "lastError": null,
+              "lastHydratedAt": null,
+              "stage": null,
+            },
             "orders": [],
             "paymentMethods": {
               "data": [],
@@ -2314,6 +2330,11 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "neobank": {
+              "lastError": null,
+              "lastHydratedAt": null,
+              "stage": null,
+            },
             "orders": [],
             "paymentMethods": {
               "data": [],
@@ -2351,6 +2372,11 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           {
             "autoramps": [],
+            "neobank": {
+              "lastError": null,
+              "lastHydratedAt": null,
+              "stage": null,
+            },
             "orders": [],
             "providerAutoSelected": false,
             "userRegion": null,
@@ -2398,6 +2424,11 @@ describe('RampsController', () => {
                   "selected": null,
                 },
               },
+            },
+            "neobank": {
+              "lastError": null,
+              "lastHydratedAt": null,
+              "stage": null,
             },
             "orders": [],
             "paymentMethods": {
@@ -9826,6 +9857,385 @@ describe('RampsController', () => {
         expect(afterBlank.customerId).toBe('cust-1');
         expect(afterBlank.walletAddress).toBe('0xabc');
       });
+    });
+  });
+
+  describe('hydrateNeobankStore', () => {
+    const defaultKycState = {
+      phase: 'idle' as const,
+      statusMessage: '',
+      error: null,
+      email: null,
+      vendorDisclaimersAccepted: { moonpay: null, iron: null },
+      providerDisclaimersAccepted: { sumsub: null },
+      idosDisclaimersAccepted: null,
+      credentialReusabilityConsentGiven: null,
+      vendorDisclaimers: [],
+      vendorError: null,
+      sessionDisclaimers: null,
+      geoCountry: null,
+      moonpaySessionToken: null,
+      moonpayAccessToken: null,
+      moonpayCustomerId: null,
+      activeVendor: 'iron' as const,
+      activeProduct: 'money' as const,
+      kycRequiredByProduct: {},
+      lastCheckedAt: null,
+      userStatus: null,
+      userStatusSumsubSessionId: null,
+      userStatusErrorCode: null,
+      sumsub: {
+        status: 'idle' as const,
+        result: null,
+        sessionId: null,
+        applicantAccessToken: null,
+        sessionStatus: null,
+      },
+    };
+
+    type HydrateHandlers = {
+      refreshKycStatus: jest.Mock;
+      getState: jest.Mock;
+      getCustomerIdentity: jest.Mock;
+      getSessionProfile: jest.Mock;
+      getCustomerByExternalId: jest.Mock;
+      getWalletRegistrationStatus: jest.Mock;
+      getAutoramp: jest.Mock;
+    };
+
+    /**
+     * Registers KYC + NeoBank handlers used by hydrateNeobankStore.
+     *
+     * @param rootMessenger - Root messenger for the controller under test.
+     * @param kycState - KYC controller state returned by getState.
+     * @returns Handler mocks for per-test overrides.
+     */
+    function registerHydrateHandlers(
+      rootMessenger: RootMessenger,
+      kycState: typeof defaultKycState = defaultKycState,
+    ): HydrateHandlers {
+      const handlers: HydrateHandlers = {
+        refreshKycStatus: jest.fn().mockResolvedValue({
+          status: kycState.userStatus ?? 'not-started',
+          sumsubSessionId: null,
+          errorCode: null,
+        }),
+        getState: jest.fn().mockReturnValue(kycState),
+        getCustomerIdentity: jest.fn().mockReturnValue(null),
+        getSessionProfile: jest.fn().mockResolvedValue({
+          identifierId: 'id-1',
+          profileId: 'profile-1',
+          metaMetricsId: 'mm-1',
+          canonicalProfileId: 'canonical-1',
+        }),
+        getCustomerByExternalId: jest
+          .fn()
+          .mockResolvedValue({ id: 'iron-customer-1' }),
+        getWalletRegistrationStatus: jest
+          .fn()
+          .mockResolvedValue({ type: 'absent' }),
+        getAutoramp: jest.fn(),
+      };
+      rootMessenger.registerActionHandler(
+        'KycController:refreshKycStatus',
+        handlers.refreshKycStatus,
+      );
+      rootMessenger.registerActionHandler(
+        'KycController:getState',
+        handlers.getState,
+      );
+      rootMessenger.registerActionHandler(
+        'KycController:getCustomerIdentity',
+        handlers.getCustomerIdentity,
+      );
+      rootMessenger.registerActionHandler(
+        'AuthenticationController:getSessionProfile',
+        handlers.getSessionProfile,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:getCustomerByExternalId',
+        handlers.getCustomerByExternalId,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:getWalletRegistrationStatus',
+        handlers.getWalletRegistrationStatus,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:getAutoramp',
+        handlers.getAutoramp,
+      );
+      return handlers;
+    }
+
+    it('returns NoUser and persists neobank state when KYC has no identity', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerHydrateHandlers(rootMessenger);
+
+        const stage = await controller.hydrateNeobankStore({
+          walletAddress: '0xabc',
+        });
+
+        expect(stage).toBe(NeobankOnboardingStage.NoUser);
+        expect(controller.state.neobank.stage).toBe(
+          NeobankOnboardingStage.NoUser,
+        );
+        expect(controller.state.neobank.lastHydratedAt).toEqual(
+          expect.any(String),
+        );
+        expect(controller.state.neobank.lastError).toBeNull();
+      });
+    });
+
+    it('returns LookupFailed when KYC refresh fails with no local signal', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerHydrateHandlers(rootMessenger);
+        handlers.refreshKycStatus.mockRejectedValue(new Error('network down'));
+
+        const stage = await controller.hydrateNeobankStore({
+          walletAddress: '0xabc',
+        });
+
+        expect(stage).toBe(NeobankOnboardingStage.LookupFailed);
+        expect(controller.state.neobank.lastError).toMatch(/network down/u);
+      });
+    });
+
+    it('returns WalletNotSigned after completed KYC when registration is absent', async () => {
+      const completedKyc = {
+        ...defaultKycState,
+        phase: 'done' as const,
+        userStatus: 'completed' as const,
+        email: 'user@example.com',
+        vendorDisclaimersAccepted: {
+          moonpay: null,
+          iron: { disclaimerIds: ['d1'] },
+        },
+        providerDisclaimersAccepted: {
+          sumsub: [{ key: 'sumsub', version: '1' }],
+        },
+        idosDisclaimersAccepted: [{ key: 'idos', version: '1' }],
+        sumsub: {
+          ...defaultKycState.sumsub,
+          status: 'complete' as const,
+        },
+      };
+
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerHydrateHandlers(rootMessenger, completedKyc);
+        handlers.refreshKycStatus.mockResolvedValue({
+          status: 'completed',
+          sumsubSessionId: null,
+          errorCode: null,
+        });
+
+        const stage = await controller.hydrateNeobankStore({
+          walletAddress: '0xabc',
+        });
+
+        expect(handlers.getWalletRegistrationStatus).toHaveBeenCalledWith({
+          customerId: 'iron-customer-1',
+          address: '0xabc',
+        });
+        expect(stage).toBe(NeobankOnboardingStage.WalletNotSigned);
+      });
+    });
+
+    it('returns AutorampCreated when wallet is registered and autoramp is Approved', async () => {
+      const completedKyc = {
+        ...defaultKycState,
+        phase: 'done' as const,
+        userStatus: 'completed' as const,
+        email: 'user@example.com',
+        vendorDisclaimersAccepted: {
+          moonpay: null,
+          iron: { disclaimerIds: ['d1'] },
+        },
+        providerDisclaimersAccepted: {
+          sumsub: [{ key: 'sumsub', version: '1' }],
+        },
+        idosDisclaimersAccepted: [{ key: 'idos', version: '1' }],
+        sumsub: {
+          ...defaultKycState.sumsub,
+          status: 'complete' as const,
+        },
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              autoramps: [
+                {
+                  id: 'ar-1',
+                  customerId: 'iron-customer-1',
+                  walletAddress: '0xAbC',
+                  status: AutorampStatus.Approved,
+                  lastSeenStatus: AutorampStatus.Approved,
+                  updatedAt: 1,
+                },
+              ],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const handlers = registerHydrateHandlers(rootMessenger, completedKyc);
+          handlers.refreshKycStatus.mockResolvedValue({
+            status: 'completed',
+            sumsubSessionId: null,
+            errorCode: null,
+          });
+          handlers.getWalletRegistrationStatus.mockResolvedValue({
+            type: 'active',
+            registration: {
+              id: 'w1',
+              address: '0xabc',
+              blockchain: 'Monad',
+              disabled: false,
+              isSelf: true,
+            },
+          });
+          handlers.getAutoramp.mockResolvedValue({
+            id: 'ar-1',
+            customerId: 'iron-customer-1',
+            walletAddress: '0xAbC',
+            status: AutorampStatus.Approved,
+          });
+
+          const stage = await controller.hydrateNeobankStore({
+            walletAddress: '0xabc',
+          });
+
+          expect(stage).toBe(NeobankOnboardingStage.AutorampCreated);
+          expect(controller.state.neobank.stage).toBe(
+            NeobankOnboardingStage.AutorampCreated,
+          );
+        },
+      );
+    });
+
+    it('is idempotent when called twice with the same signals', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerHydrateHandlers(rootMessenger);
+
+        const first = await controller.hydrateNeobankStore({
+          walletAddress: '0xabc',
+        });
+        const second = await controller.hydrateNeobankStore({
+          walletAddress: '0xabc',
+        });
+
+        expect(first).toBe(NeobankOnboardingStage.NoUser);
+        expect(second).toBe(NeobankOnboardingStage.NoUser);
+      });
+    });
+
+    it('returns LookupFailed when customer resolution fails after KYC complete', async () => {
+      const completedKyc = {
+        ...defaultKycState,
+        phase: 'done' as const,
+        userStatus: 'completed' as const,
+        email: 'user@example.com',
+        vendorDisclaimersAccepted: {
+          moonpay: null,
+          iron: { disclaimerIds: ['d1'] },
+        },
+        providerDisclaimersAccepted: {
+          sumsub: [{ key: 'sumsub', version: '1' }],
+        },
+        idosDisclaimersAccepted: [{ key: 'idos', version: '1' }],
+        sumsub: {
+          ...defaultKycState.sumsub,
+          status: 'complete' as const,
+        },
+      };
+
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerHydrateHandlers(rootMessenger, completedKyc);
+        handlers.refreshKycStatus.mockResolvedValue({
+          status: 'completed',
+          sumsubSessionId: null,
+          errorCode: null,
+        });
+        handlers.getSessionProfile.mockResolvedValue({
+          identifierId: 'id-1',
+          profileId: '',
+          metaMetricsId: 'mm-1',
+        });
+
+        const stage = await controller.hydrateNeobankStore({
+          walletAddress: '0xabc',
+        });
+
+        expect(stage).toBe(NeobankOnboardingStage.LookupFailed);
+        expect(controller.state.neobank.lastError).toMatch(
+          /Cannot resolve MoonPay customer id/u,
+        );
+      });
+    });
+
+    it('still derives autoramp stage when refreshAutoramps fails', async () => {
+      const completedKyc = {
+        ...defaultKycState,
+        phase: 'done' as const,
+        userStatus: 'completed' as const,
+        email: 'user@example.com',
+        vendorDisclaimersAccepted: {
+          moonpay: null,
+          iron: { disclaimerIds: ['d1'] },
+        },
+        providerDisclaimersAccepted: {
+          sumsub: [{ key: 'sumsub', version: '1' }],
+        },
+        idosDisclaimersAccepted: [{ key: 'idos', version: '1' }],
+        sumsub: {
+          ...defaultKycState.sumsub,
+          status: 'complete' as const,
+        },
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              autoramps: [
+                {
+                  id: 'ar-1',
+                  customerId: 'iron-customer-1',
+                  walletAddress: '0xabc',
+                  status: AutorampStatus.Authorized,
+                  lastSeenStatus: AutorampStatus.Authorized,
+                  updatedAt: 1,
+                },
+              ],
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const handlers = registerHydrateHandlers(rootMessenger, completedKyc);
+          handlers.refreshKycStatus.mockResolvedValue({
+            status: 'completed',
+            sumsubSessionId: null,
+            errorCode: null,
+          });
+          handlers.getWalletRegistrationStatus.mockResolvedValue({
+            type: 'active',
+            registration: {
+              id: 'w1',
+              address: '0xabc',
+              blockchain: 'Monad',
+              disabled: false,
+              isSelf: true,
+            },
+          });
+          handlers.getAutoramp.mockRejectedValue(new Error('autoramp down'));
+
+          const stage = await controller.hydrateNeobankStore({
+            walletAddress: '0xabc',
+          });
+
+          expect(stage).toBe(NeobankOnboardingStage.AutorampPending);
+        },
+      );
     });
   });
 

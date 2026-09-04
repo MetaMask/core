@@ -38,6 +38,7 @@ export type {
   RampsControllerCreateAutorampAction,
   RampsControllerRemoveAutorampAction,
   RampsControllerRegisterMoneyAccountWalletAction,
+  RampsControllerHydrateNeobankStoreAction,
   RampsControllerMarkAutorampAsNotifiedAction,
   RampsControllerApplyAutorampStatusFromPushAction,
   RampsControllerRefreshAutorampAction,
@@ -82,6 +83,18 @@ export {
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
   RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS,
 } from './RampsController.js';
+export type {
+  NeobankOnboardingDerivationInput,
+  NeobankState,
+} from './neobank-onboarding.js';
+export {
+  NeobankOnboardingStage,
+  deriveNeobankOnboardingStage,
+  getDefaultNeobankState,
+  isAutorampCreatedStatus,
+  isAutorampPendingStatus,
+  summarizeAutorampsForWallet,
+} from './neobank-onboarding.js';
 export type {
   RampsServiceActions,
   RampsServiceEvents,

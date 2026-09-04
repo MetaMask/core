@@ -387,6 +387,25 @@ export type RampsControllerMarkAutorampAsNotifiedAction = {
 };
 
 /**
+ * Refreshes authoritative Money Account / NeoBank onboarding signals and
+ * writes a single Mobile-routable stage to `state.neobank`.
+ *
+ * Safe to call twice. Does **not** navigate and does **not** auto-submit
+ * wallet registration or autoramp creation (see TRAM-3924). Clients must not
+ * persist UKYC `sessionId` or re-register; this method is lookup-then-derive
+ * only.
+ *
+ * @param params - Hydration parameters.
+ * @param params.walletAddress - Money Account wallet address used for
+ * registration / autoramp checks after KYC is complete.
+ * @returns The derived {@link NeobankOnboardingStage}.
+ */
+export type RampsControllerHydrateNeobankStoreAction = {
+  type: `RampsController:hydrateNeobankStore`;
+  handler: RampsController['hydrateNeobankStore'];
+};
+
+/**
  * Applies a remote autoramp snapshot from a websocket / webhook push.
  *
  * @param remote - Remote autoramp snapshot.
@@ -837,6 +856,7 @@ export type RampsControllerMethodActions =
   | RampsControllerRegisterMoneyAccountWalletAction
   | RampsControllerRemoveAutorampAction
   | RampsControllerMarkAutorampAsNotifiedAction
+  | RampsControllerHydrateNeobankStoreAction
   | RampsControllerApplyAutorampStatusFromPushAction
   | RampsControllerRefreshAutorampAction
   | RampsControllerRefreshAutorampsAction

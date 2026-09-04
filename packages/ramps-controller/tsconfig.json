@@ -9,6 +9,12 @@
       "path": "../base-controller"
     },
     {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../kyc-controller"
+    },
+    {
       "path": "../messenger"
     },
     {
@@ -16,9 +22,6 @@
     },
     {
       "path": "../remote-feature-flag-controller"
-    },
-    {
-      "path": "../controller-utils"
     }
   ],
   "include": ["../../types", "./src"]

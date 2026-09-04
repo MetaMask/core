@@ -5,6 +5,12 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { BrokenCircuitError } from '@metamask/controller-utils';
+import type {
+  KycControllerGetCustomerIdentityAction,
+  KycControllerGetStateAction,
+  KycControllerRefreshKycStatusAction,
+  KycControllerState,
+} from '@metamask/kyc-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
@@ -34,6 +40,14 @@ import type {
   NeoBankServiceRegisterSelfHostedWalletAction,
 } from './NeoBankService-method-action-types.js';
 import type { NeoBankServiceActions } from './NeoBankService.js';
+import type { NeobankState } from './neobank-onboarding.js';
+import {
+  NeobankOnboardingStage,
+  deriveNeobankOnboardingStage,
+  getDefaultNeobankState,
+  summarizeAutorampsForWallet,
+} from './neobank-onboarding.js';
+import type { NeobankOnboardingDerivationInput } from './neobank-onboarding.js';
 import {
   PENDING_ORDER_STATUSES,
   TERMINAL_ORDER_STATUSES,
@@ -223,12 +237,45 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
  * identity from Profile Sync, and `KeyringController:signPersonalMessage` signs
  * the EIP-191 ownership proof for Money Account self-hosted wallet
  * registration; both are only exercised by the autoramp paths.
+ * `KycController:*` actions power {@link RampsController.hydrateNeobankStore}.
  */
 export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'AuthenticationController:getSessionProfile',
   'KeyringController:signPersonalMessage',
+  'KycController:getCustomerIdentity',
+  'KycController:getState',
+  'KycController:refreshKycStatus',
   'RemoteFeatureFlagController:getState',
 ] as const;
+
+/**
+ * Whether persisted vendor T&C1 acceptance exists for the active vendor.
+ *
+ * @param state - KYC controller state.
+ * @returns Whether vendor terms are accepted.
+ */
+function hasKycVendorTerms(state: KycControllerState): boolean {
+  if (state.activeVendor === 'moonpay') {
+    return Boolean(state.vendorDisclaimersAccepted.moonpay?.termsAcceptedAt);
+  }
+  if (state.activeVendor === 'iron') {
+    return Boolean(state.vendorDisclaimersAccepted.iron?.disclaimerIds.length);
+  }
+  return false;
+}
+
+/**
+ * Whether SumSub + idOS T&C2 were accepted as a batch.
+ *
+ * @param state - KYC controller state.
+ * @returns Whether provider terms are accepted.
+ */
+function hasKycProviderTerms(state: KycControllerState): boolean {
+  return (
+    state.providerDisclaimersAccepted.sumsub !== null &&
+    state.idosDisclaimersAccepted !== null
+  );
+}
 
 /**
  * Structural type for the keyring controller's `signPersonalMessage` messenger
@@ -528,6 +575,13 @@ export type RampsControllerState = {
    */
   autoramps: AutorampAccount[];
   /**
+   * Money Account / NeoBank onboarding stage derived by
+   * {@link RampsController.hydrateNeobankStore}. Mobile reads `stage` to route
+   * after cold start or missed KYC events. Persist so a failed hydrate can still
+   * surface the last known stage.
+   */
+  neobank: NeobankState;
+  /**
    * Whether the currently selected provider was auto-selected by the system
    * (no order history, no Transak) rather than chosen by the user or derived
    * from order history. When true, the UI should silently switch providers on
@@ -589,6 +643,12 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   autoramps: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  neobank: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -661,6 +721,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     },
     orders: [],
     autoramps: [],
+    neobank: getDefaultNeobankState(),
     providerAutoSelected: false,
   };
 }
@@ -792,7 +853,10 @@ type AllowedActions =
   | NeoBankServiceGetWalletRegistrationStatusAction
   | NeoBankServiceRegisterSelfHostedWalletAction
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
-  | KeyringControllerSignPersonalMessageAction;
+  | KeyringControllerSignPersonalMessageAction
+  | KycControllerGetCustomerIdentityAction
+  | KycControllerGetStateAction
+  | KycControllerRefreshKycStatusAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -987,6 +1051,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'createAutoramp',
   'removeAutoramp',
   'registerMoneyAccountWallet',
+  'hydrateNeobankStore',
   'markAutorampAsNotified',
   'applyAutorampStatusFromPush',
   'refreshAutoramp',
@@ -3246,6 +3311,130 @@ export class RampsController extends BaseController<
         state.autoramps[idx] = notified as Draft<AutorampAccount>;
       }
     });
+  }
+
+  /**
+   * Refreshes authoritative Money Account / NeoBank onboarding signals and
+   * writes a single Mobile-routable stage to `state.neobank`.
+   *
+   * Safe to call twice. Does **not** navigate and does **not** auto-submit
+   * wallet registration or autoramp creation (see TRAM-3924). Clients must not
+   * persist UKYC `sessionId` or re-register; this method is lookup-then-derive
+   * only.
+   *
+   * @param params - Hydration parameters.
+   * @param params.walletAddress - Money Account wallet address used for
+   * registration / autoramp checks after KYC is complete.
+   * @returns The derived {@link NeobankOnboardingStage}.
+   */
+  async hydrateNeobankStore({
+    walletAddress,
+  }: {
+    walletAddress: string;
+  }): Promise<NeobankOnboardingStage> {
+    let refreshError: string | null = null;
+    try {
+      await this.messenger.call('KycController:refreshKycStatus');
+    } catch (error) {
+      refreshError = String(error);
+    }
+
+    const kycState = this.messenger.call('KycController:getState');
+    const identity = this.messenger.call('KycController:getCustomerIdentity');
+    const hasVendorTerms = hasKycVendorTerms(kycState);
+    const hasProviderTerms = hasKycProviderTerms(kycState);
+    const hasCustomerIdentity = Boolean(
+      identity?.id || kycState.email || kycState.userStatus !== null,
+    );
+
+    const kycInput: NeobankOnboardingDerivationInput['kyc'] = {
+      phase: kycState.phase,
+      userStatus: kycState.userStatus,
+      sumsubStatus: kycState.sumsub.status,
+      hasCustomerIdentity,
+      hasVendorTerms,
+      hasProviderTerms,
+    };
+
+    // A refresh failure with no local KYC signal is not "no user" — Mobile
+    // should retry rather than restart onboarding.
+    if (
+      refreshError &&
+      !hasVendorTerms &&
+      !hasProviderTerms &&
+      kycState.userStatus === null &&
+      !hasCustomerIdentity
+    ) {
+      return this.#commitNeobankStage(
+        NeobankOnboardingStage.LookupFailed,
+        refreshError,
+      );
+    }
+
+    let wallet: NeobankOnboardingDerivationInput['wallet'] = {
+      status: 'skipped',
+    };
+    let autoramp: NeobankOnboardingDerivationInput['autoramp'] = {
+      status: 'skipped',
+    };
+
+    if (kycState.userStatus === 'completed') {
+      try {
+        const customerId = await this.resolveAutorampCustomerId();
+        const registration = await this.messenger.call(
+          'NeoBankService:getWalletRegistrationStatus',
+          { customerId, address: walletAddress },
+        );
+        wallet = { status: 'resolved', registration };
+        try {
+          await this.refreshAutoramps();
+        } catch {
+          // Keep the local autoramp cursor; summarize whatever we have.
+        }
+        autoramp = summarizeAutorampsForWallet(
+          this.state.autoramps,
+          walletAddress,
+        );
+      } catch (error) {
+        wallet = {
+          status: 'lookupUnavailable',
+          message: String(error),
+        };
+        refreshError = refreshError ?? String(error);
+      }
+    }
+
+    const stage = deriveNeobankOnboardingStage({
+      kyc: kycInput,
+      wallet,
+      autoramp,
+    });
+    return this.#commitNeobankStage(
+      stage,
+      stage === NeobankOnboardingStage.LookupFailed ? refreshError : null,
+    );
+  }
+
+  /**
+   * Writes the NeoBank onboarding stage into controller state.
+   *
+   * @param stage - Derived stage.
+   * @param lastError - Optional error message for lookup failures.
+   * @returns The same stage.
+   */
+  #commitNeobankStage(
+    stage: NeobankOnboardingStage,
+    lastError: string | null,
+  ): NeobankOnboardingStage {
+    this.update((state) => {
+      state.neobank = {
+        stage,
+        lastHydratedAt: new Date().toISOString(),
+        lastError:
+          stage === NeobankOnboardingStage.LookupFailed ? lastError : null,
+      };
+    });
+    return stage;
   }
 
   /**
