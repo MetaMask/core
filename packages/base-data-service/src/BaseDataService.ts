@@ -458,11 +458,11 @@ export class BaseDataService<
    */
   protected async executeMutation<
     TMutationFnData extends Json,
-    // We have to use `Struct<any>` here, as using `Struct<TMutationFnData>`
-    // (or even `Struct<unknown>`) would reject a more concrete, "real world" struct.
-    // The reason is that `Struct` is an object type with methods that take its
-    // content type as arguments (i.e. `Struct` is contravariant in its content type).
-    // The only way to get around that it to use `any`.
+    // We have to use `Struct<any>` here, as using `Struct<InputResponse>` (or
+    // even `Struct<unknown>`) would reject a more concrete, "real world" struct.
+    // The reason is that `Struct` is an object type with methods whose signatures
+    // feature the struct's content type, making `Struct` contravariant in its
+    // content type. The only way to get around this is to use `any`.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     TDataStruct extends Struct<any> | undefined = undefined,
     TData = TDataStruct extends Struct<infer StructType>
@@ -499,19 +499,11 @@ export class BaseDataService<
         const response = await this.#policy.circuitBreakerPolicy.execute(() =>
           mutationFn(...args),
         );
-        const data = responseStruct
-          ? processMutationResponse(
-              options.mutationKey,
-              response,
-              responseStruct,
-            )
-          : response;
-        // Type assertion: `TData` is a conditional default that resolves to the
-        // struct's decoded type when a struct is provided and `TMutationFnData`
-        // otherwise, which mirrors the two branches above. TypeScript cannot
-        // relate a value to an unresolved conditional type parameter, so we
-        // assert the correspondence that this method's own generics guarantee.
-        return data as unknown as TData;
+        return processMutationResponse(
+          options.mutationKey,
+          response,
+          responseStruct,
+        );
       },
     });
     // We purposely pass an empty set of variables because this method is
