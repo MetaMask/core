@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `prepareTransactionForApproval` and its request, result, sponsorship, signing, and signing-mode types to normalize transaction sponsorship and external-signing metadata from account and publication-path capabilities without mutating the input ([#10109](https://github.com/MetaMask/core/pull/10109))
+  - The helper rejects required sponsored flows when sponsorship is not opted out and no valid sponsored publication path is available
+
 ## [69.8.0]
 
 ### Added
