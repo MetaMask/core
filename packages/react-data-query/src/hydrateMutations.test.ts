@@ -3,45 +3,60 @@ import {
   Mutation,
   MutationState,
   QueryClient,
+  MutationCacheNotifyEvent,
 } from '@tanstack/query-core';
+import assert from 'assert';
 
 import { hydrateMutations } from './hydrateMutations.js';
 
-type MutationCacheAction = {
-  type: string;
-  [key: string]: unknown;
-};
+const EXAMPLE_MUTATION_KEY = ['ExampleDataService:addFollower', '1'];
+const EXAMPLE_GLOBAL_ID = 'global-id';
 
-const MUTATION_KEY = ['ExampleDataService:addFollower', '1'];
+type NotifyEventMutationUpdated = Extract<
+  MutationCacheNotifyEvent,
+  { type: 'updated' }
+>;
 
 describe('hydrateMutations', () => {
   it('updates the mutation whose `globalId` matches the dehydrated mutation', () => {
-    const client = new QueryClient();
-    buildUiMutation(client, { globalId: 'global-id-1' });
+    const globalId = EXAMPLE_GLOBAL_ID;
+    const { queryClient } = createQueryClientWithMutation({
+      mutationKey: EXAMPLE_MUTATION_KEY,
+      globalId,
+    });
+    const dehydratedMutationState = {
+      status: 'success' as const,
+      data: 'result',
+    };
 
     hydrateMutations(
-      client,
-      createDehydratedState({
-        globalId: 'global-id-1',
-        state: createMutationState({ status: 'success', data: 'result' }),
+      queryClient,
+      createDehydratedStateWithMutation({
+        mutationKey: EXAMPLE_MUTATION_KEY,
+        globalId,
+        state: createMutationState(dehydratedMutationState),
       }),
     );
 
-    const mutation = client.getMutationCache().find({
-      mutationKey: MUTATION_KEY,
+    const mutation = queryClient.getMutationCache().find({
+      mutationKey: EXAMPLE_MUTATION_KEY,
     });
-    expect(mutation?.state.status).toBe('success');
-    expect(mutation?.state.data).toBe('result');
+    assert(mutation);
+    expect(mutation.state.status).toBe(dehydratedMutationState.status);
+    expect(mutation.state.data).toBe(dehydratedMutationState.data);
   });
 
   it('leaves untouched a mutation whose `globalId` does not match', () => {
-    const client = new QueryClient();
-    const mutation = buildUiMutation(client, { globalId: 'global-id-1' });
+    const { queryClient, mutation } = createQueryClientWithMutation({
+      mutationKey: EXAMPLE_MUTATION_KEY,
+      globalId: 'some-global-id',
+    });
     const stateBefore = mutation.state;
 
     hydrateMutations(
-      client,
-      createDehydratedState({
+      queryClient,
+      createDehydratedStateWithMutation({
+        mutationKey: EXAMPLE_MUTATION_KEY,
         globalId: 'a-different-global-id',
         state: createMutationState({ status: 'success', data: 'result' }),
       }),
@@ -50,47 +65,59 @@ describe('hydrateMutations', () => {
     expect(mutation.state).toBe(stateBefore);
   });
 
-  it('ignores dehydrated mutations that carry no `globalId`', () => {
-    const client = new QueryClient();
-    const mutation = buildUiMutation(client, { globalId: 'global-id-1' });
+  it('ignores dehydrated mutations that have no `globalId`', () => {
+    const { queryClient, mutation } = createQueryClientWithMutation({
+      mutationKey: EXAMPLE_MUTATION_KEY,
+      globalId: EXAMPLE_GLOBAL_ID,
+    });
     const stateBefore = mutation.state;
 
-    hydrateMutations(client, {
-      queries: [],
-      mutations: [
-        {
-          mutationKey: MUTATION_KEY,
-          state: createMutationState({ status: 'success', data: 'result' }),
-        },
-      ],
-    });
+    hydrateMutations(
+      queryClient,
+      createDehydratedStateWithMutation({
+        mutationKey: EXAMPLE_MUTATION_KEY,
+        globalId: undefined,
+        state: createMutationState({ status: 'success', data: 'result' }),
+      }),
+    );
 
     expect(mutation.state).toBe(stateBefore);
   });
 
-  it('ignores dehydrated mutations that carry a non-string `globalId`', () => {
-    const client = new QueryClient();
-    const mutation = buildUiMutation(client, { globalId: 'global-id-1' });
+  it('ignores dehydrated mutations that have a non-string `globalId`', () => {
+    const { queryClient, mutation } = createQueryClientWithMutation({
+      mutationKey: EXAMPLE_MUTATION_KEY,
+      globalId: EXAMPLE_GLOBAL_ID,
+    });
     const stateBefore = mutation.state;
 
-    hydrateMutations(client, {
-      queries: [],
-      mutations: [
-        {
-          mutationKey: MUTATION_KEY,
-          meta: { globalId: 42 },
-          state: createMutationState({ status: 'success', data: 'result' }),
-        },
-      ],
-    });
+    hydrateMutations(
+      queryClient,
+      createDehydratedStateWithMutation({
+        mutationKey: EXAMPLE_MUTATION_KEY,
+        globalId: 42,
+        state: createMutationState({ status: 'success', data: 'result' }),
+      }),
+    );
 
     expect(mutation.state).toBe(stateBefore);
   });
 
   it('notifies subscribers with a `success` action when the mutation succeeded', () => {
-    const actions = captureNotifyActions('global-id-1', {
-      status: 'success',
-      data: 'result',
+    const { queryClient } = createQueryClientWithMutation({
+      mutationKey: EXAMPLE_MUTATION_KEY,
+      globalId: EXAMPLE_GLOBAL_ID,
+    });
+
+    const actions = capturingMutationCacheActions(queryClient, () => {
+      hydrateMutations(
+        queryClient,
+        createDehydratedStateWithMutation({
+          mutationKey: EXAMPLE_MUTATION_KEY,
+          globalId: EXAMPLE_GLOBAL_ID,
+          state: createMutationState({ status: 'success', data: 'result' }),
+        }),
+      );
     });
 
     expect(actions).toContainEqual({ type: 'success', data: 'result' });
@@ -99,20 +126,45 @@ describe('hydrateMutations', () => {
   it('notifies subscribers with an `error` action when the mutation failed', () => {
     const error = new Error('boom');
 
-    const actions = captureNotifyActions('global-id-1', {
-      status: 'error',
-      error,
+    const { queryClient } = createQueryClientWithMutation({
+      mutationKey: EXAMPLE_MUTATION_KEY,
+      globalId: EXAMPLE_GLOBAL_ID,
+    });
+
+    const actions = capturingMutationCacheActions(queryClient, () => {
+      hydrateMutations(
+        queryClient,
+        createDehydratedStateWithMutation({
+          mutationKey: EXAMPLE_MUTATION_KEY,
+          globalId: EXAMPLE_GLOBAL_ID,
+          state: createMutationState({ status: 'error', error }),
+        }),
+      );
     });
 
     expect(actions).toContainEqual({ type: 'error', error });
   });
 
   it('notifies subscribers with a `pending` action while the mutation is pending', () => {
-    const actions = captureNotifyActions('global-id-1', {
-      status: 'pending',
-      variables: { followerId: '1' },
-      context: { previous: null },
-      isPaused: true,
+    const { queryClient } = createQueryClientWithMutation({
+      mutationKey: EXAMPLE_MUTATION_KEY,
+      globalId: EXAMPLE_GLOBAL_ID,
+    });
+
+    const actions = capturingMutationCacheActions(queryClient, () => {
+      hydrateMutations(
+        queryClient,
+        createDehydratedStateWithMutation({
+          mutationKey: EXAMPLE_MUTATION_KEY,
+          globalId: EXAMPLE_GLOBAL_ID,
+          state: createMutationState({
+            status: 'pending',
+            variables: { followerId: '1' },
+            context: { previous: null },
+            isPaused: true,
+          }),
+        }),
+      );
     });
 
     expect(actions).toContainEqual({
@@ -124,8 +176,22 @@ describe('hydrateMutations', () => {
   });
 
   it('notifies subscribers with a `continue` action when the mutation is idle', () => {
-    const actions = captureNotifyActions('global-id-1', {
-      status: 'idle',
+    const { queryClient } = createQueryClientWithMutation({
+      mutationKey: EXAMPLE_MUTATION_KEY,
+      globalId: EXAMPLE_GLOBAL_ID,
+    });
+
+    const actions = capturingMutationCacheActions(queryClient, () => {
+      hydrateMutations(
+        queryClient,
+        createDehydratedStateWithMutation({
+          mutationKey: EXAMPLE_MUTATION_KEY,
+          globalId: EXAMPLE_GLOBAL_ID,
+          state: createMutationState({
+            status: 'idle',
+          }),
+        }),
+      );
     });
 
     expect(actions).toContainEqual({ type: 'continue' });
@@ -133,45 +199,57 @@ describe('hydrateMutations', () => {
 });
 
 /**
- * Build a mutation in a client's mutation cache, tagged with a `globalId`, to
- * stand in for a mutation the UI query client created.
+ * Create a query queryClient that is prepopulated with a mutation. The mutation is
+ * tagged with a `globalId` to stand in for a mutation the UI query queryClient
+ * created.
  *
- * @param client - The client whose cache the mutation is built in.
- * @param options - The options.
- * @param options.globalId - The `globalId` to tag the mutation with.
- * @returns The built mutation.
+ * @param args - The arguments.
+ * @param args.mutationKey - The key to assign to the mutation.
+ * @param args.globalId - The `globalId` to tag the mutation with.
+ * @returns The query queryClient.
  */
-function buildUiMutation(
-  client: QueryClient,
-  { globalId }: { globalId: string },
-): Mutation {
-  return client.getMutationCache().build(client, {
-    mutationKey: MUTATION_KEY,
+function createQueryClientWithMutation({
+  mutationKey,
+  globalId,
+}: {
+  mutationKey: string[];
+  globalId: string;
+}): {
+  queryClient: QueryClient;
+  mutation: Mutation<unknown, unknown, unknown, unknown>;
+} {
+  const queryClient = new QueryClient();
+  const mutation = queryClient.getMutationCache().build(queryClient, {
+    mutationKey,
     meta: { globalId },
   });
+  return { queryClient, mutation };
 }
 
 /**
- * Build a dehydrated mutation cache carrying a single mutation for the shared
- * mutation key, tagged with a `globalId`.
+ * Construct a dehydrated mutation cache containing a single mutation for the
+ * shared mutation key, tagged with a `globalId`.
  *
  * @param options - The options.
+ * @param options.mutationKey - The key to assign to the dehydrated mutation.
  * @param options.globalId - The `globalId` to tag the dehydrated mutation with.
  * @param options.state - The state of the dehydrated mutation.
  * @returns The dehydrated state.
  */
-function createDehydratedState({
+function createDehydratedStateWithMutation({
+  mutationKey,
   globalId,
   state,
 }: {
-  globalId: string;
+  mutationKey: string[];
+  globalId?: unknown;
   state: MutationState;
 }): DehydratedState {
   return {
     queries: [],
     mutations: [
       {
-        mutationKey: MUTATION_KEY,
+        mutationKey,
         meta: { globalId },
         state,
       },
@@ -202,34 +280,25 @@ function createMutationState(overrides: Partial<MutationState>): MutationState {
 }
 
 /**
- * Hydrate a UI mutation with a service mutation of a given state and collect the
- * actions that the mutation cache notifies its subscribers with.
+ * Executes a function that presumably operates on a query client, collecting
+ * the actions that its mutation cache produces when there are updates.
  *
- * @param globalId - The `globalId` shared by the UI and service mutations.
- * @param stateOverrides - The state fields to give the service mutation.
- * @returns The captured notify actions.
+ * @param queryClient - The query client.
+ * @param fn - The function to call.
+ * @returns The captured mutation cache actions.
  */
-function captureNotifyActions(
-  globalId: string,
-  stateOverrides: Partial<MutationState>,
-): MutationCacheAction[] {
-  const client = new QueryClient();
-  buildUiMutation(client, { globalId });
-
-  const actions: MutationCacheAction[] = [];
-  client.getMutationCache().subscribe((event) => {
+function capturingMutationCacheActions(
+  queryClient: QueryClient,
+  fn: () => void,
+): NotifyEventMutationUpdated['action'][] {
+  const actions: NotifyEventMutationUpdated['action'][] = [];
+  queryClient.getMutationCache().subscribe((event) => {
     if (event.type === 'updated') {
       actions.push(event.action);
     }
   });
 
-  hydrateMutations(
-    client,
-    createDehydratedState({
-      globalId,
-      state: createMutationState(stateOverrides),
-    }),
-  );
+  fn();
 
   return actions;
 }

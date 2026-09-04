@@ -5,12 +5,12 @@ import {
 } from '@tanstack/query-core';
 
 /**
- * Read the `globalId` correlation token from a mutation's `meta`.
+ * Get the `globalId` of a mutation by reading its `meta` data.
  *
- * The UI query client generates a `globalId` for each mutation it creates and
- * threads it through the data service, which stores it on its own mutation's
- * `meta`. Because TanStack's `MutationMeta` is an open record, the value reads
- * as `unknown`, so we narrow it to a string here.
+ * Each mutation that is routed from the UI query client to a data service is
+ * assigned a `globalId` through the mutation's `meta` property. However, the
+ * `meta` property is optional and untyped, so reading this property back
+ * requires some validation.
  *
  * @param meta - The mutation `meta`, if any.
  * @returns The `globalId` if present and a string, otherwise undefined.
@@ -23,32 +23,24 @@ export function readGlobalId(
 }
 
 /**
- * Load a dehydrated mutation cache into a query client.
+ * Load dehydrated mutations into the given query client.
  *
- * TanStack Query's own `hydrate` matches dehydrated queries against the cache
- * by hash and updates them in place, but it always inserts a brand-new mutation
- * for every dehydrated mutation. Because data services emit a cache update on
- * every `added`/`updated` mutation event, calling `hydrate` directly would
- * append a fresh mutation to each subscribed query client on every event, so
- * the cache would grow without bound, and a found mutation could be stale.
+ * TanStack Query's `hydrate` function works well for queries: it ensures that
+ * incoming queries remain deduplicated as it hydrates them (using the query key
+ * hash as a filter). But mutations don't need to be deduplicated, and so
+ * `hydrate` follows a different process, opting to load incoming mutations as
+ * new entries each time it is called.
  *
- * This behavior for `hydrate` makes sense because TanStack treats queries and
- * mutations differently. Queries are deduplicated: two attempts for the same
- * query using the same query key show up once in the query cache. But mutations
- * are discrete events/attempts, and `mutationKey` is used by observers to find
- * mutations, not enforce uniqueness.
- *
- * Because a mutation key is not unique, it cannot on its own tell us which UI
- * mutation a service cache update belongs to: multiple mutations may share a
- * key, and a mutation created with a custom `mutationFn` may reuse a key
- * without ever going through a data service. To correlate the two caches, the
- * UI query client tags each mutation it creates with a unique `globalId` and
- * threads it through the data service, which echoes it back on the mutation's
- * `meta`. This function updates the exact UI mutation carrying that `globalId`,
- * and ignores mutations that carry none.
+ * This does not well for what we want to achieve, which is to be able to
+ * synchronize queries and mutations between a data service query client service
+ * and a UI query client. To accomplish this, we assume that mutations which
+ * originated on the UI side have been tagged with a custom UUID (stored as
+ * `globalId` in its `meta`). This allows us to keep mutations with the same
+ * UUID on both sides and thus sychronize them effectively.
  *
  * @param client - The UI query client whose mutation cache should be hydrated.
- * @param dehydratedState - The dehydrated state emitted by the data service.
+ * @param dehydratedState - The dehydrated state emitted by a data service's
+ * `:cacheUpdated` event.
  */
 export function hydrateMutations(
   client: QueryClient,
@@ -61,10 +53,9 @@ export function hydrateMutations(
 
     const globalId = readGlobalId(meta);
 
-    // A data service only publishes cache updates for mutations that have a
-    // `mutationKey`, and only mutations that originated in the UI query client
-    // carry a `globalId`. Without both, we cannot correlate the update with a
-    // UI mutation, so we skip it.
+    // Although TanStack Query does not require mutations to have mutation keys,
+    // all mutations created through data services or the UI query client *must*
+    // have one. They must also have a global ID.
     if (!mutationKey || !globalId) {
       continue;
     }
@@ -91,10 +82,12 @@ export function hydrateMutations(
 }
 
 /**
- * Build the `notify` action that describes a mutation's current state.
+ * When publishing an `update` event through the mutation cache we must supply
+ * an action. This function derives an appropriate action from a dehydrated
+ * mutation's state.
  *
- * @param state - The synced mutation state.
- * @returns The action describing the state.
+ * @param state - The state of a dehydrated mutation.
+ * @returns The mutation cache action describing the state.
  */
 function deriveMutationAction(
   state: MutationState,
