@@ -25,8 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - An `onBootstrapError` hook that throws is contained: the failed bootstrap is still forgotten and retried on the next trigger, and the throw does not escape `init()` or `sync()`
 - Add `@metamask/money-account-utils` and `@metamask/remote-feature-flag-controller` as dependencies ([#10072](https://github.com/MetaMask/core/pull/10072))
 - Bump `@metamask/authenticated-user-storage` from `^3.0.1` to `^3.0.2` ([#9972](https://github.com/MetaMask/core/pull/9972))
-- Bump `@metamask/chomp-api-service` from `^4.0.0` to `^4.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/chomp-api-service` from `^4.0.0` to `^4.0.2` ([#9972](https://github.com/MetaMask/core/pull/9972), [#10105](https://github.com/MetaMask/core/pull/10105))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/money-account-utils` from `^1.1.0` to `^1.2.0` ([#10105](https://github.com/MetaMask/core/pull/10105))
 
 ## [3.0.2]
 
