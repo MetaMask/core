@@ -14,6 +14,7 @@ import {
   inMilliseconds,
 } from '@metamask/utils';
 import {
+  hashKey,
   InfiniteData,
   InfiniteQueryObserver,
   // MutationObserver is part of the Web API and is therefore a global
@@ -22,6 +23,7 @@ import {
   QueryClientConfig,
   QueryObserver,
 } from '@tanstack/query-core';
+import assert from 'assert';
 import { ReplyBody } from 'nock';
 
 import {
@@ -316,41 +318,116 @@ describe('createUIQueryClient', () => {
     service.destroy();
   });
 
-  it('does not accumulate duplicate mutations in the cache when the service emits cache updates', async () => {
-    const { clientA, clientB, service } = createClients();
+  it('assigns each mutation a distinct `globalId` so concurrent mutations sharing a key stay independent', async () => {
+    const { clientA: client, service } = createClients();
 
     mockAddFollowerRequest();
     mockAddFollowerRequest();
 
     const observerA = new TanStackQueryMutationObserver<AddFollowerResponse>(
-      clientA,
-      {
-        mutationKey: addFollowerMutationKey,
-      },
+      client,
+      { mutationKey: addFollowerMutationKey },
     );
     const observerB = new TanStackQueryMutationObserver<AddFollowerResponse>(
-      clientB,
-      {
-        mutationKey: addFollowerMutationKey,
-      },
+      client,
+      { mutationKey: addFollowerMutationKey },
     );
 
-    await observerA.mutate();
-    await observerB.mutate();
+    await Promise.all([observerA.mutate(), observerB.mutate()]);
 
-    expect(
-      clientA
-        .getMutationCache()
-        .findAll({ mutationKey: addFollowerMutationKey }),
-    ).toHaveLength(1);
-    expect(
-      clientB
-        .getMutationCache()
-        .findAll({ mutationKey: addFollowerMutationKey }),
-    ).toHaveLength(1);
+    const globalMutationIds = client
+      .getMutationCache()
+      .findAll({ mutationKey: addFollowerMutationKey })
+      .map((mutation) => mutation.meta?.globalId);
+
+    expect(globalMutationIds).toHaveLength(2);
+    expect(globalMutationIds[0]).toBeDefined();
+    expect(globalMutationIds[1]).toBeDefined();
+    expect(globalMutationIds[0]).not.toBe(globalMutationIds[1]);
 
     observerA.reset();
     observerB.reset();
+    service.destroy();
+  });
+
+  it('ignores :cacheUpdated events whose referenced mutation carries no `globalId`', async () => {
+    const { clientA: client, messenger, service } = createClients();
+
+    mockAddFollowerRequest();
+
+    const observer = new TanStackQueryMutationObserver<AddFollowerResponse>(
+      client,
+      { mutationKey: addFollowerMutationKey },
+    );
+
+    await observer.mutate();
+
+    const mutationFromUi = client
+      .getMutationCache()
+      .find({ mutationKey: addFollowerMutationKey });
+    assert(mutationFromUi);
+    const stateBeforeCacheUpdated = mutationFromUi.state;
+    const dehydratedMutationFromDataService = {
+      mutationKey: addFollowerMutationKey,
+      state: {
+        context: undefined,
+        data: { followed: [] },
+        error: null,
+        failureCount: 0,
+        failureReason: null,
+        isPaused: false,
+        status: 'success' as const,
+        submittedAt: 0,
+        variables: undefined,
+      },
+    };
+
+    const hash = hashKey(addFollowerMutationKey);
+    messenger.publish(`ExampleDataService:cacheUpdated:${hash}`, {
+      objectType: 'mutation',
+      type: 'updated',
+      state: {
+        queries: [],
+        mutations: [dehydratedMutationFromDataService],
+      },
+    });
+
+    const mutationFromUi2 = client
+      .getMutationCache()
+      .find({ mutationKey: addFollowerMutationKey });
+    assert(mutationFromUi2);
+    expect(mutationFromUi2.state).toBe(stateBeforeCacheUpdated);
+
+    observer.reset();
+    service.destroy();
+  });
+
+  it('preserves mutations that share a mutation key with an action on the data service but were not actually routed through the data service', async () => {
+    const { clientA: client, service } = createClients();
+
+    mockAddFollowerRequest();
+
+    const serviceObserver =
+      new TanStackQueryMutationObserver<AddFollowerResponse>(client, {
+        mutationKey: addFollowerMutationKey,
+      });
+    await serviceObserver.mutate();
+
+    const customObserver = new TanStackQueryMutationObserver<string>(client, {
+      mutationKey: addFollowerMutationKey,
+      mutationFn: async (): Promise<string> => 'custom-result',
+    });
+    await customObserver.mutate();
+
+    const mutations = client
+      .getMutationCache()
+      .findAll({ mutationKey: addFollowerMutationKey });
+
+    expect(mutations).toHaveLength(2);
+    expect(mutations[1].state.data).toBe('custom-result');
+
+    customObserver.reset();
+    serviceObserver.reset();
     service.destroy();
   });
 
@@ -438,6 +515,9 @@ describe('createUIQueryClient', () => {
     observerB.reset();
     service.destroy();
   });
+
+  // TODO: Add test for pending
+  // TODO: Add test for continue
 
   it('fetches queries using observers in the same client', async () => {
     const { clientA, service } = createClients();

@@ -197,9 +197,13 @@ export class ExampleDataService extends BaseDataService<
     );
   }
 
-  async addFollower(followerId: string): Promise<AddFollowerResponse> {
+  async addFollower(
+    followerId: string,
+    globalId?: string,
+  ): Promise<AddFollowerResponse> {
     return this.executeMutation({
       mutationKey: [`${this.name}:addFollower`, followerId],
+      globalId,
       mutationFn: async () => {
         const url = new URL(`${this.#socialBaseUrl}/api/v1/users/me/follows`);
 
@@ -225,6 +229,7 @@ export class ExampleDataService extends BaseDataService<
   async createDataDeletionTask(
     analyticsId: string,
     segmentSourceId: string,
+    globalId?: string,
   ): Promise<{
     status: 'ok' | 'error';
     regulateId: string;
@@ -235,6 +240,7 @@ export class ExampleDataService extends BaseDataService<
         analyticsId,
         segmentSourceId,
       ],
+      globalId,
       mutationFn: async () => {
         const url = `${this.#segmentRegulationsUrl}/regulations/sources/${segmentSourceId}`;
 

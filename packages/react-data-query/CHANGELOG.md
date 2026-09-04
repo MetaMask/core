@@ -12,9 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for executing mutations by updating `createUIQueryClient` and adding `useMutation` wrapper ([#9324](https://github.com/MetaMask/core/pull/9324))
   - Provided an action in your data service uses `BaseDataService.executeMutation` to make the request instead of `fetchQuery`, you can now use `useMutation` in your UI files via the UI query client and pass a reference to the action as the mutation key.
   - Like `fetchQuery` and `fetchInfiniteQuery`, the `useMutation` wrapper disables retries by default and enforces that `mutationKey` matches the same thing that `executeMutation` takes.
+  - `createUIQueryClient` now tags each mutation it creates with a unique `globalId` (stored on the mutation's `meta`) and passes it to the data service action as the trailing argument. It uses this `globalId` to update the exact UI mutation that a `:cacheUpdated` event corresponds to, so mutations sharing a `mutationKey` no longer clobber one another, and mutations that use a custom `mutationFn` are left untouched.
 
 ### Changed
 
+- Add `uuid` `^8.3.2` as a dependency ([#9324](https://github.com/MetaMask/core/pull/9324))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
 
 ## [1.0.0]

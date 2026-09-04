@@ -15,6 +15,7 @@ import {
   DehydratedState,
   MutationState,
 } from '@tanstack/query-core';
+import { v4 as uuidV4 } from 'uuid';
 
 import { createModuleLogger, projectLogger } from './loggers.js';
 
@@ -65,6 +66,24 @@ type MessengerAdapter<DataServiceName extends string> = {
 };
 
 /**
+ * Read the `globalId` correlation token from a mutation's `meta`.
+ *
+ * The UI query client generates a `globalId` for each mutation it creates and
+ * threads it through the data service, which stores it on its own mutation's
+ * `meta`. Because TanStack's `MutationMeta` is an open record, the value reads
+ * as `unknown`, so we narrow it to a string here.
+ *
+ * @param meta - The mutation `meta`, if any.
+ * @returns The `globalId` if present and a string, otherwise undefined.
+ */
+function readGlobalId(
+  meta: Record<string, unknown> | undefined,
+): string | undefined {
+  const globalId = meta?.globalId;
+  return typeof globalId === 'string' ? globalId : undefined;
+}
+
+/**
  * Load a dehydrated mutation cache into a query client.
  *
  * TanStack Query's own `hydrate` matches dehydrated queries against the cache
@@ -80,13 +99,14 @@ type MessengerAdapter<DataServiceName extends string> = {
  * are discrete events/attempts, and `mutationKey` is used by observers to find
  * mutations, not enforce uniqueness.
  *
- * However, our situation is a bit unusual: we're using a mutation key as a
- * stable shared identity between the service-side and UI-side caches (more
- * query-like), which is exactly the case `hydrate` doesn't support.
- *
- * Instead of appending new mutations to the query client, this function reuses
- * the mutation that already exists for a given key, updating its state to match
- * the service.
+ * Because a mutation key is not unique, it cannot on its own tell us which UI
+ * mutation a service cache update belongs to: multiple mutations may share a
+ * key, and a mutation created with a custom `mutationFn` may reuse a key
+ * without ever going through a data service. To correlate the two caches, the
+ * UI query client tags each mutation it creates with a unique `globalId` and
+ * threads it through the data service, which echoes it back on the mutation's
+ * `meta`. This function updates the exact UI mutation carrying that `globalId`,
+ * and ignores mutations that carry none.
  *
  * @param client - The UI query client whose mutation cache should be hydrated.
  * @param dehydratedState - The dehydrated state emitted by the data service.
@@ -98,16 +118,22 @@ function hydrateMutations(
   const mutationCache = client.getMutationCache();
 
   for (const dehydratedMutation of dehydratedState.mutations) {
-    const { mutationKey, state } = dehydratedMutation;
+    const { mutationKey, state, meta } = dehydratedMutation;
+
+    const globalId = readGlobalId(meta);
 
     // A data service only publishes cache updates for mutations that have a
-    // `mutationKey`, so we can disregard the case in which the key is not set.
-    // istanbul ignore next
-    if (!mutationKey) {
+    // `mutationKey`, and only mutations that originated in the UI query client
+    // carry a `globalId`. Without both, we cannot correlate the update with a
+    // UI mutation, so we skip it.
+    if (!mutationKey || !globalId) {
       continue;
     }
 
-    const existingMutation = mutationCache.find({ mutationKey });
+    const existingMutation = mutationCache.find({
+      mutationKey,
+      predicate: (mutation) => readGlobalId(mutation.meta) === globalId,
+    });
 
     // A UI query client only subscribes to a mutation key's cache updates after
     // it has built a mutation for that key, so there is always a matching
@@ -433,25 +459,41 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
     options?: Options,
   ): Options => {
     const defaultedOptions = originalDefaultMutationOptions(options);
-    defaultedOptions.mutationFn ??= async (): Promise<unknown> => {
-      const { mutationKey } = defaultedOptions;
 
-      assert(
-        mutationKey !== undefined,
-        "You must pass a `mutationKey` that calls an action on the messenger provided to `createUIQueryClient`, e.g. `mutationKey: ['ExampleDataService:createOrder', ...]`.",
-      );
+    // Only mutations that fall back to the data-service default `mutationFn`
+    // need a `globalId` to correlate the UI and service caches. A mutation with
+    // a custom `mutationFn` never reaches a data service, so we leave it alone.
+    if (defaultedOptions.mutationFn === undefined) {
+      // Generate the `globalId` once and memoize it on `meta` so it stays
+      // stable across the mutation's lifetime and can be matched against
+      // incoming cache updates.
+      const globalId = readGlobalId(defaultedOptions.meta) ?? uuidV4();
+      defaultedOptions.meta = { ...defaultedOptions.meta, globalId };
 
-      const [action, ...params] = mutationKey;
+      defaultedOptions.mutationFn = async (): Promise<unknown> => {
+        const { mutationKey } = defaultedOptions;
 
-      assert(
-        typeof action === 'string' && isRecognizedDataServiceAction(action),
-        "You must pass a `mutationKey` that calls an action on the messenger provided to `createUIQueryClient`, e.g. `mutationKey: ['ExampleDataService:createOrder', ...]`.",
-      );
+        assert(
+          mutationKey !== undefined,
+          "You must pass a `mutationKey` that calls an action on the messenger provided to `createUIQueryClient`, e.g. `mutationKey: ['ExampleDataService:createOrder', ...]`.",
+        );
 
-      log(`Detected mutation request, calling action: "${action}"`);
+        const [action, ...params] = mutationKey;
 
-      return await messenger.call(action, ...(params as Json[]));
-    };
+        assert(
+          typeof action === 'string' && isRecognizedDataServiceAction(action),
+          "You must pass a `mutationKey` that calls an action on the messenger provided to `createUIQueryClient`, e.g. `mutationKey: ['ExampleDataService:createOrder', ...]`.",
+        );
+
+        log(`Detected mutation request, calling action: "${action}"`);
+
+        // The `globalId` is passed as the trailing action argument. Each data
+        // service mutation method forwards it into `executeMutation`, which
+        // echoes it back on the service-side mutation's `meta`.
+        return await messenger.call(action, ...(params as Json[]), globalId);
+      };
+    }
+
     return defaultedOptions;
   };
 
