@@ -325,6 +325,20 @@ export type RampsControllerRemoveOrderAction = {
 };
 
 /**
+ * Bidirectionally syncs V2 ramps orders with User Storage.
+ * Hosts should call this on unlock / when ramps syncing is enabled.
+ *
+ * Overlapping calls are coalesced into the in-flight worker. After the worker
+ * settles, this method loops when `#orderSyncQueued` is still set so a
+ * request that arrived between the worker's last loop check and promise
+ * resolution is not dropped.
+ */
+export type RampsControllerSyncOrdersWithUserStorageAction = {
+  type: `RampsController:syncOrdersWithUserStorage`;
+  handler: RampsController['syncOrdersWithUserStorage'];
+};
+
+/**
  * Adds or updates a local autoramp last-seen cursor (e.g. after create).
  *
  * @param accountOrInput - Full account or create fields.
@@ -832,6 +846,7 @@ export type RampsControllerMethodActions =
   | RampsControllerGetQuotesAction
   | RampsControllerAddOrderAction
   | RampsControllerRemoveOrderAction
+  | RampsControllerSyncOrdersWithUserStorageAction
   | RampsControllerAddAutorampAction
   | RampsControllerCreateAutorampAction
   | RampsControllerRegisterMoneyAccountWalletAction

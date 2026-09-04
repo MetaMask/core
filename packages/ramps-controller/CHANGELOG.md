@@ -12,6 +12,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `NeoBankService` for MetaMask Ramp API neo-bank-proxy endpoints under the `/neobank` prefix on the Ramp API host, including messenger actions for `getAutoramp`, `registerPixAddress`, `getAutorampQuote`, `createAutoramp`, `getAutorampQuoteForAutoramp`, `attachAutorampQuote`, `getCustomerByExternalId`, `getMoonpayCustomerId`, `getWalletRegistrationStatus`, and `registerSelfHostedWallet`. Mutating POSTs do not retry (to avoid duplicate Pix/autoramp creates without a stable `Idempotency-Key`); GETs still retry 429/5xx/network errors. Optional `Idempotency-Key` is forwarded when callers supply one. Also exports `mapNeoBankAutorampToRemoteSnapshot`, `AutorampRemoteSnapshot`, and wallet-registration HTTP types (`WalletRegistrationError`, `RegistrationStatus`, `RegistrationOutcome`). ([#10031](https://github.com/MetaMask/core/pull/10031))
 
 - Add `RampsController` autoramp last-seen cursor and Money Account wallet registration: persisted `autoramps` state, `createAutoramp` / `refreshAutoramp(s)` / `applyAutorampStatusFromPush`, `registerMoneyAccountWallet`, and `RampsController:autorampStatusChanged`. MoonPay remains the source of truth; hosts should call `refreshAutoramps` on resume to catch webhooks missed while the app was closed. Hosts must delegate `RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS` (`AuthenticationController:getSessionProfile`, `KeyringController:signPersonalMessage`, `RemoteFeatureFlagController:getState`) plus the NeoBank actions listed in `RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS`. ([#10032](https://github.com/MetaMask/core/pull/10032))
+- Add V2 ramps order syncing with User Storage ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - Synchronize orders across clients for the same SRP using timestamp-based last-write-wins conflict resolution, soft-delete tombstones, and incremental add/update/delete pushes
+  - Feature key: `rampsOrders`; hosts call `RampsController:syncOrdersWithUserStorage` on unlock when Backup & Sync + ramps syncing are enabled
+  - Persist optional `lastUpdatedAt` on local `RampsOrder` entries for LWW (not returned by the V2 API)
+  - Strip `paymentDetails` from remote payloads (PII stays local-only)
+  - Soft deletes use remote tombstones; retention matches contact sync (no remote purge/compaction)
+  - Mid-sync local mutations coalesce into a follow-up full sync pass so uploads are not dropped during `performBatchSetStorage`
+  - Polling via `getOrder` → `addOrder` stamps `lastUpdatedAt` so status refreshes participate in LWW
+  - Normalize ISO and numeric-string `createdAt` values from Portfolio and older clients to epoch milliseconds
+  - Optional `onOrderSyncErroneousSituation` (full sync and incremental push/delete) and `trace` callbacks
+- Export `TERMINAL_ORDER_STATUSES` and `isTerminalOrderStatus()` so consuming clients can share the controller's terminal order status set instead of maintaining duplicate copies. ([#9679](https://github.com/MetaMask/core/pull/9679))
+
+### Changed
+
+- **BREAKING:** `RampsControllerMessenger` now requires these actions to be delegated for order syncing ([#9474](https://github.com/MetaMask/core/pull/9474)):
+  - `UserStorageController:getState`
+  - `UserStorageController:performGetStorageAllFeatureEntries`
+  - `UserStorageController:performBatchSetStorage`
+  - `AuthenticationController:isSignedIn`
 
 ## [20.2.0]
 
