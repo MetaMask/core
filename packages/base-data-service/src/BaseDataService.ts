@@ -553,8 +553,8 @@ export class BaseDataService<
     this.#debouncedPersist?.cancel();
     this.#queryCacheUnsubscribe();
     this.#mutationCacheUnsubscribe();
-    // `QueryClient.clear()` clears both caches, but `MutationCache.clear()` only
-    // drops its references to mutations without clearing their pending
+    // `QueryClient.clear()` clears both caches, but `MutationCache.clear()`
+    // only drops its references to mutations without clearing their pending
     // garbage-collection timers. We destroy each mutation first so those timers
     // are cleared and do not keep the process alive.
     for (const mutation of this.#queryClient.getMutationCache().getAll()) {
