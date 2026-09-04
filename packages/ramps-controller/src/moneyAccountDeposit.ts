@@ -8,27 +8,39 @@
  * single autoramp can produce many deposits over time, each with its own status
  * lifecycle, payout transaction hash, and notification bookkeeping.
  *
- * NOTE: The status values below mirror the partner (Iron) transaction lifecycle
- * and are assumed pending confirmation of the neo-bank proxy transactions
- * contract. Keep {@link normalizeDepositStatus} tolerant of unknown values.
+ * NOTE: The status values below mirror MoonPay Enterprise's
+ * `AutorampTransactionStatus` as surfaced by the neobank-proxy (onramp-api PR
+ * #1124, raw MoonPay). TRAM-3925 will introduce a mobile-safe DTO that may
+ * rename these fields, so keep {@link normalizeDepositStatus} tolerant of
+ * unknown values.
  */
 
 import type { Hex } from '@metamask/utils';
 
 /**
  * Deposit/transaction lifecycle statuses from the neo-bank proxy.
+ *
+ * These are MoonPay Enterprise's `AutorampTransactionStatus` values: three
+ * in-progress states followed by five terminal outcomes (one success, four
+ * failure/rejection).
  */
 export enum MoneyAccountDepositStatus {
-  /** Created / awaiting partner processing. */
-  Pending = 'Pending',
-  /** Partner is processing the fiat leg. */
-  Processing = 'Processing',
+  /** Partner is reviewing the received funds (first in-progress state). */
+  FundsReviewInProgress = 'FundsReviewInProgress',
+  /** Received fiat is being converted to crypto. */
+  ConversionInProgress = 'ConversionInProgress',
+  /** Crypto payout is being sent on-chain. */
+  PayoutInProgress = 'PayoutInProgress',
   /** Payout settled on Monad; `payoutTransactionHash` is available. */
   Completed = 'Completed',
   /** Terminal failure. */
   Failed = 'Failed',
-  /** Cancelled before completion. */
-  Cancelled = 'Cancelled',
+  /** Rejected by AML screening. */
+  RejectedAml = 'RejectedAml',
+  /** Rejected by fraud screening. */
+  RejectedFraud = 'RejectedFraud',
+  /** Rejected for being under the minimum amount. */
+  RejectedMinAmount = 'RejectedMinAmount',
 }
 
 /**
@@ -56,7 +68,7 @@ export type MoneyAccountDeposit = {
   currency?: string;
   /**
    * Status observed before the most recent remote apply.
-   * Used for transition UX / analytics (e.g. Processing to Completed).
+   * Used for transition UX / analytics (e.g. PayoutInProgress to Completed).
    */
   lastSeenStatus: MoneyAccountDepositStatus;
   /**
@@ -107,16 +119,23 @@ export const TERMINAL_DEPOSIT_STATUSES: ReadonlySet<MoneyAccountDepositStatus> =
   new Set([
     MoneyAccountDepositStatus.Completed,
     MoneyAccountDepositStatus.Failed,
-    MoneyAccountDepositStatus.Cancelled,
+    MoneyAccountDepositStatus.RejectedAml,
+    MoneyAccountDepositStatus.RejectedFraud,
+    MoneyAccountDepositStatus.RejectedMinAmount,
   ]);
 
 /**
- * Statuses that commonly warrant user-visible transition UX (toast / banner).
+ * Statuses that warrant user-visible transition UX (toast / banner). Every
+ * terminal outcome is notable: a landed deposit (`Completed`) or a
+ * failure/rejection the user should be told about.
  */
 export const NOTABLE_DEPOSIT_STATUSES: ReadonlySet<MoneyAccountDepositStatus> =
   new Set([
     MoneyAccountDepositStatus.Completed,
     MoneyAccountDepositStatus.Failed,
+    MoneyAccountDepositStatus.RejectedAml,
+    MoneyAccountDepositStatus.RejectedFraud,
+    MoneyAccountDepositStatus.RejectedMinAmount,
   ]);
 
 /**
@@ -133,7 +152,12 @@ export function isTerminalDepositStatus(
 
 /**
  * Normalize a remote status string into {@link MoneyAccountDepositStatus}.
- * Unknown values fall back to {@link MoneyAccountDepositStatus.Pending}.
+ *
+ * Unknown values fall back to a non-terminal in-progress status
+ * ({@link MoneyAccountDepositStatus.FundsReviewInProgress}) so an unrecognized
+ * status keeps polling instead of being mistaken for a terminal outcome and
+ * firing a bogus notification. Unknown-status handling is best-effort until the
+ * mobile-safe DTO (TRAM-3925) pins the wire values.
  *
  * @param status - Remote status string.
  * @returns A known {@link MoneyAccountDepositStatus}.
@@ -148,7 +172,7 @@ export function normalizeDepositStatus(
   ) {
     return status as MoneyAccountDepositStatus;
   }
-  return MoneyAccountDepositStatus.Pending;
+  return MoneyAccountDepositStatus.FundsReviewInProgress;
 }
 
 /**
@@ -157,7 +181,7 @@ export function normalizeDepositStatus(
  * @param input - Deposit fields.
  * @param input.id - Proxy deposit/transaction id.
  * @param input.moneyAccountAddress - Destination Money Account address.
- * @param input.status - Current deposit status (defaults to Pending).
+ * @param input.status - Current deposit status (defaults to FundsReviewInProgress).
  * @param input.autorampId - Owning autoramp id, when known.
  * @param input.payoutTransactionHash - Monad payout hash, when settled.
  * @param input.amount - Optional payout amount for display.
@@ -176,7 +200,7 @@ export function createMoneyAccountDeposit(input: {
   updatedAt?: number;
 }): MoneyAccountDeposit {
   const status = normalizeDepositStatus(
-    input.status ?? MoneyAccountDepositStatus.Pending,
+    input.status ?? MoneyAccountDepositStatus.FundsReviewInProgress,
   );
   return {
     id: input.id,

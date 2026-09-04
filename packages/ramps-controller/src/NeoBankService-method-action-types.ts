@@ -20,11 +20,11 @@ export type NeoBankServiceGetAutorampAction = {
 
 /**
  * Fetches deposit/transaction records for an autoramp via neobank-proxy
- * `GET /neobank/autoramps/{autoramp_id}/transactions`.
+ * `GET /neobank/autoramp-transactions?autoramp_id={autoramp_id}` (MoonPay
+ * `GET /api/autoramp-transactions`, response is a MoonPay `PagedList`).
  *
  * Used by the deposit poller to detect status changes (e.g. a payout settling
- * on Monad). Route + response shape are assumed pending the proxy contract
- * (onramp-api #1124).
+ * on Monad). Route + response shape track onramp-api PR #1124.
  *
  * @param autorampId - MoonPay / Ramp API autoramp id.
  * @returns Deposit snapshots for controller apply/refresh.

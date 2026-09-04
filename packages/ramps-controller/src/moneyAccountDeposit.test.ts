@@ -23,15 +23,18 @@ describe('moneyAccountDeposit', () => {
       expect(normalizeDepositStatus(MoneyAccountDepositStatus.Completed)).toBe(
         MoneyAccountDepositStatus.Completed,
       );
-      expect(normalizeDepositStatus('Processing')).toBe(
-        MoneyAccountDepositStatus.Processing,
-      );
+      expect(
+        normalizeDepositStatus(MoneyAccountDepositStatus.PayoutInProgress),
+      ).toBe(MoneyAccountDepositStatus.PayoutInProgress);
     });
 
-    it('falls back to Pending for unknown values', () => {
-      expect(normalizeDepositStatus('Nope')).toBe(
-        MoneyAccountDepositStatus.Pending,
-      );
+    it('maps an unknown status to a non-terminal in-progress value', () => {
+      const normalized = normalizeDepositStatus('Nope');
+
+      expect(normalized).toBe(MoneyAccountDepositStatus.FundsReviewInProgress);
+      // Unknown statuses must never look terminal (that would fire a bogus
+      // notification and stop polling early).
+      expect(isTerminalDepositStatus(normalized)).toBe(false);
     });
   });
 
@@ -43,20 +46,28 @@ describe('moneyAccountDeposit', () => {
       expect(isTerminalDepositStatus(MoneyAccountDepositStatus.Failed)).toBe(
         true,
       );
-      expect(isTerminalDepositStatus(MoneyAccountDepositStatus.Cancelled)).toBe(
-        true,
-      );
-      expect(isTerminalDepositStatus(MoneyAccountDepositStatus.Pending)).toBe(
-        false,
-      );
       expect(
-        isTerminalDepositStatus(MoneyAccountDepositStatus.Processing),
+        isTerminalDepositStatus(MoneyAccountDepositStatus.RejectedAml),
+      ).toBe(true);
+      expect(
+        isTerminalDepositStatus(MoneyAccountDepositStatus.RejectedFraud),
+      ).toBe(true);
+      expect(
+        isTerminalDepositStatus(MoneyAccountDepositStatus.RejectedMinAmount),
+      ).toBe(true);
+      expect(
+        isTerminalDepositStatus(
+          MoneyAccountDepositStatus.FundsReviewInProgress,
+        ),
+      ).toBe(false);
+      expect(
+        isTerminalDepositStatus(MoneyAccountDepositStatus.PayoutInProgress),
       ).toBe(false);
     });
   });
 
   describe('createMoneyAccountDeposit', () => {
-    it('defaults status to Pending and mirrors lastSeenStatus', () => {
+    it('defaults status to FundsReviewInProgress and mirrors lastSeenStatus', () => {
       const deposit = createMoneyAccountDeposit({
         id: 'dep-1',
         moneyAccountAddress: MONEY_ACCOUNT,
@@ -67,11 +78,11 @@ describe('moneyAccountDeposit', () => {
         id: 'dep-1',
         autorampId: undefined,
         moneyAccountAddress: MONEY_ACCOUNT,
-        status: MoneyAccountDepositStatus.Pending,
+        status: MoneyAccountDepositStatus.FundsReviewInProgress,
         payoutTransactionHash: undefined,
         amount: undefined,
         currency: undefined,
-        lastSeenStatus: MoneyAccountDepositStatus.Pending,
+        lastSeenStatus: MoneyAccountDepositStatus.FundsReviewInProgress,
         updatedAt: 1000,
       });
     });
@@ -103,7 +114,7 @@ describe('moneyAccountDeposit', () => {
       id: 'dep-1',
       moneyAccountAddress: MONEY_ACCOUNT,
       autorampId: 'ar-1',
-      status: MoneyAccountDepositStatus.Processing,
+      status: MoneyAccountDepositStatus.PayoutInProgress,
       updatedAt: 1,
     });
 
@@ -112,14 +123,16 @@ describe('moneyAccountDeposit', () => {
         id: 'dep-1',
         autorampId: 'ar-1',
         moneyAccountAddress: MONEY_ACCOUNT,
-        status: MoneyAccountDepositStatus.Pending,
+        status: MoneyAccountDepositStatus.PayoutInProgress,
       };
 
       const result = applyDepositRemoteStatus(null, remote);
 
       expect(result.statusChanged).toBe(false);
       expect(result.shouldNotify).toBe(false);
-      expect(result.deposit.status).toBe(MoneyAccountDepositStatus.Pending);
+      expect(result.deposit.status).toBe(
+        MoneyAccountDepositStatus.PayoutInProgress,
+      );
       expect(result.deposit.autorampId).toBe('ar-1');
     });
 
@@ -133,22 +146,37 @@ describe('moneyAccountDeposit', () => {
       const result = applyDepositRemoteStatus(baseLocal, remote);
 
       expect(result).toMatchObject({
-        previousStatus: MoneyAccountDepositStatus.Processing,
+        previousStatus: MoneyAccountDepositStatus.PayoutInProgress,
         statusChanged: true,
         shouldNotify: true,
       } satisfies Partial<ApplyDepositRemoteStatusResult>);
       expect(result.deposit.status).toBe(MoneyAccountDepositStatus.Completed);
       expect(result.deposit.lastSeenStatus).toBe(
-        MoneyAccountDepositStatus.Processing,
+        MoneyAccountDepositStatus.PayoutInProgress,
       );
       expect(result.deposit.payoutTransactionHash).toBe(PAYOUT_HASH);
+    });
+
+    it('treats a Rejected transition as terminal and notable', () => {
+      expect(
+        isTerminalDepositStatus(MoneyAccountDepositStatus.RejectedAml),
+      ).toBe(true);
+
+      const result = applyDepositRemoteStatus(baseLocal, {
+        id: 'dep-1',
+        status: MoneyAccountDepositStatus.RejectedAml,
+      });
+
+      expect(result.statusChanged).toBe(true);
+      expect(result.shouldNotify).toBe(true);
+      expect(result.deposit.status).toBe(MoneyAccountDepositStatus.RejectedAml);
     });
 
     it('does not notify again when already notified for that status', () => {
       const local = markDepositNotified({
         ...baseLocal,
         status: MoneyAccountDepositStatus.Completed,
-        lastSeenStatus: MoneyAccountDepositStatus.Processing,
+        lastSeenStatus: MoneyAccountDepositStatus.PayoutInProgress,
         notifiedForStatus: MoneyAccountDepositStatus.Completed,
       });
 
@@ -165,13 +193,13 @@ describe('moneyAccountDeposit', () => {
       const local = createMoneyAccountDeposit({
         id: 'dep-1',
         moneyAccountAddress: MONEY_ACCOUNT,
-        status: MoneyAccountDepositStatus.Pending,
+        status: MoneyAccountDepositStatus.FundsReviewInProgress,
         updatedAt: 1,
       });
 
       const result = applyDepositRemoteStatus(local, {
         id: 'dep-1',
-        status: MoneyAccountDepositStatus.Processing,
+        status: MoneyAccountDepositStatus.PayoutInProgress,
       });
 
       expect(result.statusChanged).toBe(true);
@@ -214,7 +242,7 @@ describe('moneyAccountDeposit', () => {
     it('reports changed for a newly created record', () => {
       const result = applyDepositRemoteStatus(null, {
         id: 'dep-1',
-        status: MoneyAccountDepositStatus.Pending,
+        status: MoneyAccountDepositStatus.PayoutInProgress,
       });
 
       expect(result.changed).toBe(true);
@@ -223,7 +251,7 @@ describe('moneyAccountDeposit', () => {
     it('reports not-changed and returns the untouched local when nothing changed', () => {
       const result = applyDepositRemoteStatus(baseLocal, {
         id: 'dep-1',
-        status: MoneyAccountDepositStatus.Processing,
+        status: MoneyAccountDepositStatus.PayoutInProgress,
       });
 
       expect(result.changed).toBe(false);
@@ -236,7 +264,7 @@ describe('moneyAccountDeposit', () => {
     it('reports changed when only a field changes without a status change', () => {
       const result = applyDepositRemoteStatus(baseLocal, {
         id: 'dep-1',
-        status: MoneyAccountDepositStatus.Processing,
+        status: MoneyAccountDepositStatus.PayoutInProgress,
         payoutTransactionHash: PAYOUT_HASH,
       });
 

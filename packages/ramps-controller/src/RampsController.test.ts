@@ -10665,7 +10665,7 @@ describe('RampsController', () => {
             {
               id: 'dep-1',
               autorampId: 'ar-1',
-              status: MoneyAccountDepositStatus.Pending,
+              status: MoneyAccountDepositStatus.PayoutInProgress,
             },
           ],
         );
@@ -10676,7 +10676,7 @@ describe('RampsController', () => {
         expect(controller.state.deposits).toHaveLength(1);
         expect(controller.state.deposits[0]).toMatchObject({
           id: 'dep-1',
-          status: MoneyAccountDepositStatus.Pending,
+          status: MoneyAccountDepositStatus.PayoutInProgress,
         });
 
         rootMessenger.call('RampsController:stopDepositPolling');
@@ -10690,7 +10690,7 @@ describe('RampsController', () => {
         const getTransactions = jest
           .fn()
           .mockResolvedValueOnce([
-            { id: 'dep-1', status: MoneyAccountDepositStatus.Processing },
+            { id: 'dep-1', status: MoneyAccountDepositStatus.PayoutInProgress },
           ])
           .mockResolvedValue([
             {
@@ -10722,7 +10722,7 @@ describe('RampsController', () => {
 
         expect(events).toHaveLength(1);
         expect(events[0]).toMatchObject({
-          previousStatus: MoneyAccountDepositStatus.Processing,
+          previousStatus: MoneyAccountDepositStatus.PayoutInProgress,
           shouldNotify: true,
         });
         expect(controller.state.deposits[0]).toMatchObject({
@@ -11004,7 +11004,7 @@ describe('RampsController', () => {
           {
             id: 'dep-1',
             autorampId: 'ar-1',
-            status: MoneyAccountDepositStatus.Pending,
+            status: MoneyAccountDepositStatus.PayoutInProgress,
           },
         ]);
         rootMessenger.registerActionHandler(
@@ -11016,7 +11016,7 @@ describe('RampsController', () => {
         await jest.advanceTimersByTimeAsync(0);
         expect(getTransactions).toHaveBeenCalledTimes(1);
 
-        // Route cancelled, but the Pending deposit must keep being tracked.
+        // Route cancelled, but the in-flight deposit must keep being tracked.
         controller.applyAutorampStatusFromPush({
           id: 'ar-1',
           customerId: 'cust-1',
@@ -11025,6 +11025,40 @@ describe('RampsController', () => {
         await jest.advanceTimersByTimeAsync(30_000);
 
         expect(getTransactions).toHaveBeenCalledTimes(2);
+        rootMessenger.call('RampsController:stopDepositPolling');
+      });
+    });
+
+    it('treats a Rejected deposit as terminal and stops polling once the route is terminal', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller, 'ar-1');
+        const getTransactions = jest.fn().mockResolvedValue([
+          {
+            id: 'dep-1',
+            autorampId: 'ar-1',
+            status: MoneyAccountDepositStatus.RejectedAml,
+          },
+        ]);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          getTransactions,
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        await jest.advanceTimersByTimeAsync(0);
+        expect(getTransactions).toHaveBeenCalledTimes(1);
+
+        // Route cancelled and the only deposit is terminal (RejectedAml), so
+        // the autoramp drops out of the poll set: no further fetch. A Rejected
+        // status must count as terminal (the contract fix under test).
+        controller.applyAutorampStatusFromPush({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          status: AutorampStatus.Cancelled,
+        });
+        await jest.advanceTimersByTimeAsync(30_000);
+
+        expect(getTransactions).toHaveBeenCalledTimes(1);
         rootMessenger.call('RampsController:stopDepositPolling');
       });
     });
@@ -11100,7 +11134,7 @@ describe('RampsController', () => {
         const getTransactions = jest
           .fn()
           .mockResolvedValue([
-            { id: 'dep-1', status: MoneyAccountDepositStatus.Pending },
+            { id: 'dep-1', status: MoneyAccountDepositStatus.PayoutInProgress },
           ]);
         rootMessenger.registerActionHandler(
           'NeoBankService:getAutorampTransactions',
