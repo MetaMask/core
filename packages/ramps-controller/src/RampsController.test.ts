@@ -10795,6 +10795,31 @@ describe('RampsController', () => {
       });
     });
 
+    it('refreshDeposits skips when a poll is already in flight', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller);
+        let resolveFirst: (value: unknown[]) => void = () => undefined;
+        const firstCall = new Promise<unknown[]>((resolve) => {
+          resolveFirst = resolve;
+        });
+        const getTransactions = jest
+          .fn()
+          .mockReturnValueOnce(firstCall)
+          .mockResolvedValue([]);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          getTransactions,
+        );
+
+        const inFlight = controller.refreshDeposits(); // sets the guard, awaits handler
+        await controller.refreshDeposits(); // guarded: returns immediately
+        expect(getTransactions).toHaveBeenCalledTimes(1);
+
+        resolveFirst([]);
+        await inFlight;
+      });
+    });
+
     it('refreshDeposits applies snapshots without a running timer', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         addApprovedAutoramp(controller);
@@ -11066,6 +11091,75 @@ describe('RampsController', () => {
 
         rootMessenger.call('RampsController:removeDeposit', 'dep-1');
         expect(controller.state.deposits).toStrictEqual([]);
+      });
+    });
+
+    it('backfills the owning autoramp id when the proxy omits it, and keeps polling after the route goes terminal', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller, 'ar-1');
+        const getTransactions = jest
+          .fn()
+          .mockResolvedValue([
+            { id: 'dep-1', status: MoneyAccountDepositStatus.Pending },
+          ]);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          getTransactions,
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        await jest.advanceTimersByTimeAsync(0);
+
+        // autorampId came from the query key, not the (omitted) proxy field.
+        expect(controller.state.deposits[0]?.autorampId).toBe('ar-1');
+        expect(getTransactions).toHaveBeenCalledTimes(1);
+
+        // Route cancelled: the in-flight deposit keeps being polled via its
+        // backfilled autoramp id.
+        controller.applyAutorampStatusFromPush({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          status: AutorampStatus.Cancelled,
+        });
+        await jest.advanceTimersByTimeAsync(30_000);
+        expect(getTransactions).toHaveBeenCalledTimes(2);
+
+        rootMessenger.call('RampsController:stopDepositPolling');
+      });
+    });
+
+    it('does not fire stateChange or bump updatedAt on an unchanged repeat poll', async () => {
+      await withController(async ({ controller, rootMessenger, messenger }) => {
+        addApprovedAutoramp(controller);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          async () => [
+            {
+              id: 'dep-1',
+              autorampId: 'ar-1',
+              status: MoneyAccountDepositStatus.Completed,
+            },
+          ],
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        await jest.advanceTimersByTimeAsync(0); // first poll: create (writes)
+        const updatedAtAfterCreate = controller.state.deposits[0]?.updatedAt;
+
+        let stateChanges = 0;
+        messenger.subscribe('RampsController:stateChange', () => {
+          stateChanges += 1;
+        });
+
+        await jest.advanceTimersByTimeAsync(30_000); // unchanged
+        await jest.advanceTimersByTimeAsync(30_000); // unchanged
+
+        expect(stateChanges).toBe(0);
+        expect(controller.state.deposits[0]?.updatedAt).toBe(
+          updatedAtAfterCreate,
+        );
+
+        rootMessenger.call('RampsController:stopDepositPolling');
       });
     });
   });

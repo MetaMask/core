@@ -91,6 +91,13 @@ export type ApplyDepositRemoteStatusResult = {
   statusChanged: boolean;
   /** True when status changed and UI has not yet notified for the new status. */
   shouldNotify: boolean;
+  /**
+   * True when the snapshot produced a materially different record (new record,
+   * status change, or any field change). When false the returned `deposit` is
+   * the unchanged local record, so callers can skip a redundant state write and
+   * avoid churning `updatedAt` / `stateChange` on every poll.
+   */
+  changed: boolean;
 };
 
 /**
@@ -198,6 +205,9 @@ export function applyDepositRemoteStatus(
 ): ApplyDepositRemoteStatusResult {
   const remoteStatus = normalizeDepositStatus(remote.status);
 
+  // First observation: record the deposit for display but report no status
+  // transition (there is no prior local state to have changed from), so a
+  // deposit first seen already-terminal is stored without firing a notification.
   if (!local) {
     const deposit = createMoneyAccountDeposit({
       id: remote.id,
@@ -213,6 +223,7 @@ export function applyDepositRemoteStatus(
       previousStatus: remoteStatus,
       statusChanged: false,
       shouldNotify: false,
+      changed: true,
     };
   }
 
@@ -223,17 +234,44 @@ export function applyDepositRemoteStatus(
     local.notifiedForStatus !== remoteStatus &&
     NOTABLE_DEPOSIT_STATUSES.has(remoteStatus);
 
+  // Merge fields, never nulling out a value already observed.
+  const autorampId = remote.autorampId ?? local.autorampId;
+  const moneyAccountAddress =
+    remote.moneyAccountAddress ?? local.moneyAccountAddress;
+  const payoutTransactionHash =
+    remote.payoutTransactionHash ?? local.payoutTransactionHash;
+  const amount = remote.amount ?? local.amount;
+  const currency = remote.currency ?? local.currency;
+
+  const changed =
+    statusChanged ||
+    autorampId !== local.autorampId ||
+    moneyAccountAddress !== local.moneyAccountAddress ||
+    payoutTransactionHash !== local.payoutTransactionHash ||
+    amount !== local.amount ||
+    currency !== local.currency;
+
+  // Nothing material changed: return the untouched local record so the caller
+  // can skip a redundant write (avoids per-poll `updatedAt` / stateChange churn).
+  if (!changed) {
+    return {
+      deposit: local,
+      previousStatus,
+      statusChanged: false,
+      shouldNotify: false,
+      changed: false,
+    };
+  }
+
   const deposit: MoneyAccountDeposit = {
     ...local,
     id: remote.id,
-    autorampId: remote.autorampId ?? local.autorampId,
-    moneyAccountAddress: remote.moneyAccountAddress ?? local.moneyAccountAddress,
+    autorampId,
+    moneyAccountAddress,
     status: remoteStatus,
-    // Never null out a payout hash once observed.
-    payoutTransactionHash:
-      remote.payoutTransactionHash ?? local.payoutTransactionHash,
-    amount: remote.amount ?? local.amount,
-    currency: remote.currency ?? local.currency,
+    payoutTransactionHash,
+    amount,
+    currency,
     lastSeenStatus: previousStatus,
     updatedAt: Date.now(),
   };
@@ -243,6 +281,7 @@ export function applyDepositRemoteStatus(
     previousStatus,
     statusChanged,
     shouldNotify,
+    changed: true,
   };
 }
 

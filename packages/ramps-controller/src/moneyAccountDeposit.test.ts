@@ -49,9 +49,9 @@ describe('moneyAccountDeposit', () => {
       expect(isTerminalDepositStatus(MoneyAccountDepositStatus.Pending)).toBe(
         false,
       );
-      expect(isTerminalDepositStatus(MoneyAccountDepositStatus.Processing)).toBe(
-        false,
-      );
+      expect(
+        isTerminalDepositStatus(MoneyAccountDepositStatus.Processing),
+      ).toBe(false);
     });
   });
 
@@ -209,6 +209,40 @@ describe('moneyAccountDeposit', () => {
       });
 
       expect(result.deposit.moneyAccountAddress).toBe(MONEY_ACCOUNT);
+    });
+
+    it('reports changed for a newly created record', () => {
+      const result = applyDepositRemoteStatus(null, {
+        id: 'dep-1',
+        status: MoneyAccountDepositStatus.Pending,
+      });
+
+      expect(result.changed).toBe(true);
+    });
+
+    it('reports not-changed and returns the untouched local when nothing changed', () => {
+      const result = applyDepositRemoteStatus(baseLocal, {
+        id: 'dep-1',
+        status: MoneyAccountDepositStatus.Processing,
+      });
+
+      expect(result.changed).toBe(false);
+      expect(result.statusChanged).toBe(false);
+      // Same reference + untouched updatedAt: caller can skip the write.
+      expect(result.deposit).toBe(baseLocal);
+      expect(result.deposit.updatedAt).toBe(baseLocal.updatedAt);
+    });
+
+    it('reports changed when only a field changes without a status change', () => {
+      const result = applyDepositRemoteStatus(baseLocal, {
+        id: 'dep-1',
+        status: MoneyAccountDepositStatus.Processing,
+        payoutTransactionHash: PAYOUT_HASH,
+      });
+
+      expect(result.statusChanged).toBe(false);
+      expect(result.changed).toBe(true);
+      expect(result.deposit.payoutTransactionHash).toBe(PAYOUT_HASH);
     });
   });
 

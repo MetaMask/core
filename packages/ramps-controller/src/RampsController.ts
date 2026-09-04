@@ -3437,11 +3437,19 @@ export class RampsController extends BaseController<
    * action is taken.
    */
   async refreshDeposits(): Promise<void> {
-    await Promise.allSettled(
-      this.#autorampsToPollForDeposits().map(async (autoramp) =>
-        this.#refreshAutorampDeposits(autoramp.id),
-      ),
-    );
+    if (this.#isPollingDeposits) {
+      return;
+    }
+    this.#isPollingDeposits = true;
+    try {
+      await Promise.allSettled(
+        this.#autorampsToPollForDeposits().map(async (autoramp) =>
+          this.#refreshAutorampDeposits(autoramp.id),
+        ),
+      );
+    } finally {
+      this.#isPollingDeposits = false;
+    }
   }
 
   /**
@@ -3458,7 +3466,12 @@ export class RampsController extends BaseController<
       );
 
       for (const remote of remotes) {
-        this.#applyDepositRemoteSnapshot(remote);
+        // Backfill the owning autoramp id from the query key when the proxy
+        // omits it, so the deposit stays pollable once its route goes terminal.
+        this.#applyDepositRemoteSnapshot({
+          ...remote,
+          autorampId: remote.autorampId ?? autorampId,
+        });
       }
 
       const meta = this.#depositPollingMeta.get(autorampId) ?? {
@@ -3494,16 +3507,21 @@ export class RampsController extends BaseController<
       this.state.deposits.find((deposit) => deposit.id === remote.id) ?? null;
     const result = applyDepositRemoteStatus(local, remote);
 
-    this.update((state) => {
-      const idx = state.deposits.findIndex(
-        (deposit) => deposit.id === result.deposit.id,
-      );
-      if (idx === -1) {
-        state.deposits.push(result.deposit as Draft<MoneyAccountDeposit>);
-      } else {
-        state.deposits[idx] = result.deposit as Draft<MoneyAccountDeposit>;
-      }
-    });
+    // Only write when the snapshot is new or materially changed, so an
+    // unchanged deposit does not churn `updatedAt` / `stateChange` on every
+    // 30s poll for the life of its (long-lived) autoramp.
+    if (result.changed) {
+      this.update((state) => {
+        const idx = state.deposits.findIndex(
+          (deposit) => deposit.id === result.deposit.id,
+        );
+        if (idx === -1) {
+          state.deposits.push(result.deposit as Draft<MoneyAccountDeposit>);
+        } else {
+          state.deposits[idx] = result.deposit as Draft<MoneyAccountDeposit>;
+        }
+      });
+    }
 
     if (result.statusChanged) {
       this.messenger.publish('RampsController:depositStatusChanged', {
@@ -3546,8 +3564,11 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Removes a local deposit record by id. Lets consumers prune settled or stale
-   * deposits so the persisted `deposits` array does not grow without bound.
+   * Removes a local deposit record by id. Useful for pruning deposits under a
+   * completed or cancelled autoramp that is no longer polled. Note: a deposit
+   * under an actively polled (`Approved`) autoramp is a live mirror of the
+   * proxy, so removing it here only sticks once its autoramp is no longer
+   * pollable; otherwise the next poll re-syncs it.
    *
    * @param depositId - Proxy deposit/transaction id.
    */

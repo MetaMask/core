@@ -448,8 +448,11 @@ export type RampsControllerMarkDepositAsNotifiedAction = {
 };
 
 /**
- * Removes a local deposit record by id. Lets consumers prune settled or stale
- * deposits so the persisted `deposits` array does not grow without bound.
+ * Removes a local deposit record by id. Useful for pruning deposits under a
+ * completed or cancelled autoramp that is no longer polled. Note: a deposit
+ * under an actively polled (`Approved`) autoramp is a live mirror of the
+ * proxy, so removing it here only sticks once its autoramp is no longer
+ * pollable; otherwise the next poll re-syncs it.
  *
  * @param depositId - Proxy deposit/transaction id.
  */
