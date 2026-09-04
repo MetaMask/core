@@ -6616,7 +6616,7 @@ __metadata:
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-unit": "npm:^0.3.0"
     "@metamask/utils": "npm:^11.11.0"
-    "@signinwithethereum/siwe-parser": "npm:^4.2.0"
+    "@signinwithethereum/siwe-parser": "npm:^4.2.1"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/bn.js": "npm:^5.1.5"
     "@types/jest": "npm:^30.0.0"
@@ -8630,7 +8630,7 @@ __metadata:
     "@noble/ciphers": "npm:^1.3.0"
     "@noble/curves": "npm:^1.9.2"
     "@noble/hashes": "npm:^1.8.0"
-    "@signinwithethereum/siwe": "npm:^4.2.0"
+    "@signinwithethereum/siwe-parser": "npm:^4.2.1"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^30.0.0"
     deepmerge: "npm:^4.2.2"
@@ -11112,30 +11112,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@signinwithethereum/siwe-parser@npm:^4.2.0":
-  version: 4.2.0
-  resolution: "@signinwithethereum/siwe-parser@npm:4.2.0"
+"@signinwithethereum/siwe-parser@npm:^4.2.1":
+  version: 4.2.1
+  resolution: "@signinwithethereum/siwe-parser@npm:4.2.1"
   dependencies:
     "@noble/hashes": "npm:^1.7.0"
     apg-js: "npm:^4.4.0"
-  checksum: 10/641e7b0424723a0138dcbe50a94d5c48b3cf144dc668a6c134d8e3ed5271792f87c5920c8d042af6cd7fa4d84e0a2add68f2c7e1eae03391752a145fadd9c403
-  languageName: node
-  linkType: hard
-
-"@signinwithethereum/siwe@npm:^4.2.0":
-  version: 4.2.0
-  resolution: "@signinwithethereum/siwe@npm:4.2.0"
-  dependencies:
-    "@signinwithethereum/siwe-parser": "npm:^4.2.0"
-  peerDependencies:
-    ethers: ^5.7.0 || ^6.13.0
-    viem: ^2.7.0
-  peerDependenciesMeta:
-    ethers:
-      optional: true
-    viem:
-      optional: true
-  checksum: 10/26c9faca9c6f482fecf0a845a749b700b849691247f23afaf5dc701e61b3669dc0ff3ba297f12f3d548181e86412c6bdd876af3e316ac2f7400087ce7048c29f
+  checksum: 10/be730de6513c9dd9ec255f4d3c25f93a8b99bcbe941236270c1d788ab6c8accd1e1d1838110fcad6b17d88ca22c2f174a9ce1900ffeaefb6001ec698b23a5d2c
   languageName: node
   linkType: hard
 
