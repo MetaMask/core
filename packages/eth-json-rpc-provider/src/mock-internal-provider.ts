@@ -13,9 +13,7 @@ import type {
   JsonRpcResponse,
   JsonRpcVersion2,
 } from '@metamask/utils';
-// We're not using Node-specific code.
-// eslint-disable-next-line import-x/no-nodejs-modules
-import { inspect, isDeepStrictEqual } from 'util';
+import { isEqual } from 'lodash';
 
 import { InternalProvider } from './internal-provider.js';
 
@@ -200,7 +198,7 @@ export class MockInternalProvider extends InternalProvider<Context> {
       return (
         stub.request.method === req.method &&
         (!hasProperty(stub.request, 'params') ||
-          isDeepStrictEqual(stub.request.params, req.params))
+          isEqual(stub.request.params, req.params))
       );
     });
 
@@ -209,16 +207,13 @@ export class MockInternalProvider extends InternalProvider<Context> {
         return (
           stub.request.method === req.method &&
           (!hasProperty(stub.request, 'params') ||
-            isDeepStrictEqual(stub.request.params, req.params))
+            isEqual(stub.request.params, req.params))
         );
       });
-      let message = `Could not find any stubs matching: ${inspect(req, {
-        depth: null,
-      })}`;
+      let message = `Could not find any stubs matching: ${JSON.stringify(req)}`;
       if (matchingCalledStubs.length > 0) {
-        message += `\n\nIt appears the following stubs were defined, but have been called already:\n\n${inspect(
+        message += `\n\nIt appears the following stubs were defined, but have been called already:\n\n${JSON.stringify(
           matchingCalledStubs,
-          { depth: null },
         )}`;
       }
 
