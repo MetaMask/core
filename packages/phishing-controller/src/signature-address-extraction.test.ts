@@ -619,7 +619,7 @@ describe('extractSignatureAddresses', () => {
   });
 
   describe('maxAddresses', () => {
-    const permitBatch = (tokenCount: number) =>
+    const permitBatch = (tokenCount: number): TypedDataFixture =>
       build(
         'PermitBatch',
         {
@@ -723,14 +723,14 @@ describe('extractSignatureAddresses', () => {
     });
 
     it('returns the resolved cap for an unwalkable payload', () => {
-      expect(extractSignatureAddresses(null, { maxAddresses: 25 })).toStrictEqual(
-        {
-          addresses: [],
-          fields: {},
-          overflow: false,
-          maxAddresses: 25,
-        },
-      );
+      expect(
+        extractSignatureAddresses(null, { maxAddresses: 25 }),
+      ).toStrictEqual({
+        addresses: [],
+        fields: {},
+        overflow: false,
+        maxAddresses: 25,
+      });
     });
   });
 
