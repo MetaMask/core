@@ -16,7 +16,7 @@ jobs:
         uses: MetaMask/github-tools/.github/actions/check-changelog@v1
         with:
           base-branch: ${{ github.event.pull_request.base.ref }}
-          head-ref: ${{ github.head_ref }}
+          head-ref: refs/pull/${{ github.event.pull_request.number }}/head
           labels: ${{ toJSON(github.event.pull_request.labels) }}
           pr-number: ${{ github.event.pull_request.number }}
           repo: ${{ github.repository }}
