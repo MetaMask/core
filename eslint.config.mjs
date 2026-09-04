@@ -59,7 +59,7 @@ const config = createConfig([
       '**/.tsc-lint-cache',
       '**/coverage/**',
       '**/dist/**',
-      '**/docs/**',
+      '**/api-docs/**',
       '.platform-api-docs/**',
       '.skills-cache/**',
       '.yarn/**',
