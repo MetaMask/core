@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `getBenefits` to fetch and persist Money Account Plus subscription benefits.
+- Add `getBenefits` to fetch and persist Money Account Plus subscription benefits. ([#10103](https://github.com/MetaMask/core/pull/10103))
   - New persisted `SubscriptionControllerState.benefits` field and `SubscriptionController:getBenefits` messenger action.
   - Requires an active `MONEY_ACCOUNT_PLUS` subscription; otherwise throws `UserNotSubscribed` without calling the service.
   - Lifecycle refreshes after entitlement polling, crypto subscribe, cancel, and uncancel are best-effort and do not fail the primary operation.
