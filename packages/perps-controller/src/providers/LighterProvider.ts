@@ -204,6 +204,18 @@ const deriveLighterMaxLeverage = (
   return maxLeverage;
 };
 
+const isInactiveMarketWithoutUsableRiskMetadata = (market: {
+  status: string;
+  minInitialMarginFraction?: number;
+  maintenanceMarginFraction?: number;
+}): boolean =>
+  // Lighter retains inactive rows for historical identity but can zero their
+  // trading constraints. They are valid venue records, not usable markets.
+  market.status === 'inactive' &&
+  (market.minInitialMarginFraction === undefined ||
+    market.minInitialMarginFraction === 0 ||
+    market.maintenanceMarginFraction === 0);
+
 const adaptLighterTransferDelta = (
   entry: LighterTransferHistoryItem,
 ): RawLedgerUpdate['delta'] => {
@@ -4702,9 +4714,14 @@ export class LighterProvider implements PerpsProvider {
       await this.#ensureMarketMargins();
       return markets
         .filter((market) => market.marketType === 'perp')
-        .map((market) => {
+        .flatMap((market) => {
           const margins = this.#marginBySymbol.get(market.symbol);
           if (!margins) {
+            // #ensureMarketMargins deliberately omits inactive rows whose
+            // retired risk metadata cannot produce a canonical MarketInfo.
+            if (market.status === 'inactive') {
+              return [];
+            }
             throw new Error(
               `${LIGHTER_DATA_INTEGRITY_PREFIX} missing authoritative leverage for ${market.symbol}`,
             );
@@ -4724,7 +4741,7 @@ export class LighterProvider implements PerpsProvider {
               adapted.minimumOrderSize = oneTickUsd;
             }
           }
-          return adapted;
+          return [adapted];
         });
     } catch (caughtError) {
       const wrappedError = ensureError(
@@ -4750,6 +4767,7 @@ export class LighterProvider implements PerpsProvider {
       const response = await this.#clientService.getOrderBookDetails();
       return response.orderBookDetails
         .filter((detail) => detail.marketType === 'perp')
+        .filter((detail) => !isInactiveMarketWithoutUsableRiskMetadata(detail))
         .map((detail) =>
           adaptMarketDataFromLighter(detail, this.#deps.marketDataFormatters),
         );
@@ -7396,6 +7414,9 @@ export class LighterProvider implements PerpsProvider {
           // The timestamp only advances on success.
           const fresh = new Map<string, LighterMarginMetadata>();
           for (const detail of details.orderBookDetails) {
+            if (isInactiveMarketWithoutUsableRiskMetadata(detail)) {
+              continue;
+            }
             if (detail.minInitialMarginFraction !== undefined) {
               deriveLighterMaxLeverage(
                 detail.minInitialMarginFraction,
