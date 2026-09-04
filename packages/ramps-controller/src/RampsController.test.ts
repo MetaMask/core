@@ -13,6 +13,7 @@ import * as path from 'path';
 
 import { AutorampStatus } from './autorampAccount.js';
 import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
+import { MoneyAccountDepositStatus } from './moneyAccountDeposit.js';
 import type {
   RampsControllerMessenger,
   RampsControllerState,
@@ -137,6 +138,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "deposits": [],
             "nativeProviders": {
               "transak": {
                 "buyQuote": {
@@ -214,6 +216,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "deposits": [],
             "nativeProviders": {
               "transak": {
                 "buyQuote": {
@@ -2247,6 +2250,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "deposits": [],
             "nativeProviders": {
               "transak": {
                 "buyQuote": {
@@ -2314,6 +2318,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "deposits": [],
             "orders": [],
             "paymentMethods": {
               "data": [],
@@ -2351,6 +2356,7 @@ describe('RampsController', () => {
         ).toMatchInlineSnapshot(`
           {
             "autoramps": [],
+            "deposits": [],
             "orders": [],
             "providerAutoSelected": false,
             "userRegion": null,
@@ -2376,6 +2382,7 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "deposits": [],
             "nativeProviders": {
               "transak": {
                 "buyQuote": {
@@ -10624,6 +10631,569 @@ describe('RampsController', () => {
         );
 
         expect(order).toStrictEqual(mockOrder);
+      });
+    });
+  });
+
+  describe('deposit polling', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    const addApprovedAutoramp = (
+      controller: RampsController,
+      id = 'ar-1',
+    ): void => {
+      controller.addAutoramp({
+        id,
+        customerId: 'cust-1',
+        walletAddress: '0xabc',
+        status: AutorampStatus.Approved,
+      });
+    };
+
+    it('startDepositPolling fetches transactions for active autoramps and upserts deposits', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          async () => [
+            {
+              id: 'dep-1',
+              autorampId: 'ar-1',
+              status: MoneyAccountDepositStatus.PayoutInProgress,
+            },
+          ],
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        await jest.advanceTimersByTimeAsync(0);
+
+        expect(controller.state.deposits).toHaveLength(1);
+        expect(controller.state.deposits[0]).toMatchObject({
+          id: 'dep-1',
+          status: MoneyAccountDepositStatus.PayoutInProgress,
+        });
+
+        rootMessenger.call('RampsController:stopDepositPolling');
+      });
+    });
+
+    it('publishes depositStatusChanged with shouldNotify on a notable transition', async () => {
+      await withController(async ({ controller, rootMessenger, messenger }) => {
+        addApprovedAutoramp(controller);
+
+        const getTransactions = jest
+          .fn()
+          .mockResolvedValueOnce([
+            { id: 'dep-1', status: MoneyAccountDepositStatus.PayoutInProgress },
+          ])
+          .mockResolvedValue([
+            {
+              id: 'dep-1',
+              status: MoneyAccountDepositStatus.Completed,
+              payoutTransactionHash: '0xpayout',
+            },
+          ]);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          getTransactions,
+        );
+
+        const events: unknown[] = [];
+        messenger.subscribe(
+          'RampsController:depositStatusChanged',
+          (payload) => {
+            events.push(payload);
+          },
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        // Immediate poll seeds the deposit as Processing (no event on create).
+        await jest.advanceTimersByTimeAsync(0);
+        expect(events).toHaveLength(0);
+
+        // Next interval observes Completed -> notable transition -> event.
+        await jest.advanceTimersByTimeAsync(30_000);
+
+        expect(events).toHaveLength(1);
+        expect(events[0]).toMatchObject({
+          previousStatus: MoneyAccountDepositStatus.PayoutInProgress,
+          shouldNotify: true,
+        });
+        expect(controller.state.deposits[0]).toMatchObject({
+          status: MoneyAccountDepositStatus.Completed,
+          payoutTransactionHash: '0xpayout',
+        });
+
+        rootMessenger.call('RampsController:stopDepositPolling');
+      });
+    });
+
+    it('does not poll terminal autoramps', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        controller.addAutoramp({
+          id: 'ar-terminal',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Cancelled,
+        });
+        addApprovedAutoramp(controller, 'ar-active');
+
+        const getTransactions = jest.fn().mockResolvedValue([]);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          getTransactions,
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        await jest.advanceTimersByTimeAsync(0);
+
+        expect(getTransactions).toHaveBeenCalledTimes(1);
+        expect(getTransactions).toHaveBeenCalledWith('ar-active');
+
+        rootMessenger.call('RampsController:stopDepositPolling');
+      });
+    });
+
+    it('startDepositPolling is idempotent', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller);
+        const getTransactions = jest.fn().mockResolvedValue([]);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          getTransactions,
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        rootMessenger.call('RampsController:startDepositPolling');
+        await jest.advanceTimersByTimeAsync(0);
+
+        // Only one immediate poll despite two starts.
+        expect(getTransactions).toHaveBeenCalledTimes(1);
+
+        rootMessenger.call('RampsController:stopDepositPolling');
+      });
+    });
+
+    it('destroy stops deposit polling', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          async () => [],
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        controller.destroy();
+
+        expect(controller.state.deposits).toStrictEqual([]);
+      });
+    });
+
+    it('refreshDeposits skips when a poll is already in flight', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller);
+        let resolveFirst: (value: unknown[]) => void = () => undefined;
+        const firstCall = new Promise<unknown[]>((resolve) => {
+          resolveFirst = resolve;
+        });
+        const getTransactions = jest
+          .fn()
+          .mockReturnValueOnce(firstCall)
+          .mockResolvedValue([]);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          getTransactions,
+        );
+
+        const inFlight = controller.refreshDeposits(); // sets the guard, awaits handler
+        await controller.refreshDeposits(); // guarded: returns immediately
+        expect(getTransactions).toHaveBeenCalledTimes(1);
+
+        resolveFirst([]);
+        await inFlight;
+      });
+    });
+
+    it('refreshDeposits applies snapshots without a running timer', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          async () => [
+            { id: 'dep-1', status: MoneyAccountDepositStatus.Completed },
+          ],
+        );
+
+        await controller.refreshDeposits();
+
+        expect(controller.state.deposits[0]).toMatchObject({
+          id: 'dep-1',
+          status: MoneyAccountDepositStatus.Completed,
+        });
+      });
+    });
+
+    it('keeps polling despite a transaction fetch failure', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          async () => {
+            throw new Error('network');
+          },
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        await jest.advanceTimersByTimeAsync(0);
+
+        expect(controller.state.deposits).toStrictEqual([]);
+
+        rootMessenger.call('RampsController:stopDepositPolling');
+      });
+    });
+
+    it('does not start an overlapping poll while one is in flight', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller);
+        let resolveFirst: (value: unknown[]) => void = () => undefined;
+        const firstCall = new Promise<unknown[]>((resolve) => {
+          resolveFirst = resolve;
+        });
+        const getTransactions = jest
+          .fn()
+          .mockReturnValueOnce(firstCall)
+          .mockResolvedValue([]);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          getTransactions,
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        // Interval fires while the first poll is still awaiting the handler.
+        await jest.advanceTimersByTimeAsync(30_000);
+        expect(getTransactions).toHaveBeenCalledTimes(1);
+
+        resolveFirst([]);
+        await jest.advanceTimersByTimeAsync(0);
+        rootMessenger.call('RampsController:stopDepositPolling');
+      });
+    });
+
+    it('drops poll bookkeeping for autoramps that become terminal', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller, 'ar-1');
+        const getTransactions = jest.fn().mockResolvedValue([]);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          getTransactions,
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        await jest.advanceTimersByTimeAsync(0);
+        expect(getTransactions).toHaveBeenCalledTimes(1);
+
+        // Autoramp turns terminal: the next cycle prunes its meta and skips it.
+        controller.applyAutorampStatusFromPush({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          status: AutorampStatus.Cancelled,
+        });
+        await jest.advanceTimersByTimeAsync(30_000);
+
+        expect(getTransactions).toHaveBeenCalledTimes(1);
+        rootMessenger.call('RampsController:stopDepositPolling');
+      });
+    });
+
+    it('backs off polling an autoramp after repeated failures', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller);
+        const getTransactions = jest
+          .fn()
+          .mockRejectedValue(new Error('network'));
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          getTransactions,
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        await jest.advanceTimersByTimeAsync(0); // errorCount 1 @ t0
+        await jest.advanceTimersByTimeAsync(30_000); // backoff 30s met -> errorCount 2 @ t30
+        await jest.advanceTimersByTimeAsync(30_000); // backoff 60s not met -> skipped
+
+        expect(getTransactions).toHaveBeenCalledTimes(2);
+        rootMessenger.call('RampsController:stopDepositPolling');
+      });
+    });
+
+    it('does not re-emit depositStatusChanged when a repeat poll is unchanged', async () => {
+      await withController(async ({ controller, rootMessenger, messenger }) => {
+        addApprovedAutoramp(controller);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          async () => [
+            { id: 'dep-1', status: MoneyAccountDepositStatus.Completed },
+          ],
+        );
+
+        const events: unknown[] = [];
+        messenger.subscribe(
+          'RampsController:depositStatusChanged',
+          (payload) => {
+            events.push(payload);
+          },
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        await jest.advanceTimersByTimeAsync(0); // first observation: create, no event
+        await jest.advanceTimersByTimeAsync(30_000); // same Completed again
+        await jest.advanceTimersByTimeAsync(30_000); // and again
+
+        expect(events).toHaveLength(0);
+        rootMessenger.call('RampsController:stopDepositPolling');
+      });
+    });
+
+    it('takes no on-chain action even when a payout hash settles (emit-only)', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          async () => [
+            {
+              id: 'dep-1',
+              status: MoneyAccountDepositStatus.Completed,
+              payoutTransactionHash: '0xpayout',
+            },
+          ],
+        );
+        const addTransactionBatch = jest.fn();
+        const submitVaultDeposit = jest.fn();
+        rootMessenger.registerActionHandler(
+          'TransactionController:addTransactionBatch',
+          addTransactionBatch,
+        );
+        rootMessenger.registerActionHandler(
+          'TransactionPayController:submitMoneyAccountVaultDeposit',
+          submitVaultDeposit,
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        await jest.advanceTimersByTimeAsync(0);
+        await jest.advanceTimersByTimeAsync(30_000);
+
+        expect(addTransactionBatch).not.toHaveBeenCalled();
+        expect(submitVaultDeposit).not.toHaveBeenCalled();
+        expect(controller.state.deposits[0]?.payoutTransactionHash).toBe(
+          '0xpayout',
+        );
+        rootMessenger.call('RampsController:stopDepositPolling');
+      });
+    });
+
+    it('keeps polling a terminal autoramp that still has an in-flight deposit', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller, 'ar-1');
+        const getTransactions = jest.fn().mockResolvedValue([
+          {
+            id: 'dep-1',
+            autorampId: 'ar-1',
+            status: MoneyAccountDepositStatus.PayoutInProgress,
+          },
+        ]);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          getTransactions,
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        await jest.advanceTimersByTimeAsync(0);
+        expect(getTransactions).toHaveBeenCalledTimes(1);
+
+        // Route cancelled, but the in-flight deposit must keep being tracked.
+        controller.applyAutorampStatusFromPush({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          status: AutorampStatus.Cancelled,
+        });
+        await jest.advanceTimersByTimeAsync(30_000);
+
+        expect(getTransactions).toHaveBeenCalledTimes(2);
+        rootMessenger.call('RampsController:stopDepositPolling');
+      });
+    });
+
+    it('treats a Rejected deposit as terminal and stops polling once the route is terminal', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller, 'ar-1');
+        const getTransactions = jest.fn().mockResolvedValue([
+          {
+            id: 'dep-1',
+            autorampId: 'ar-1',
+            status: MoneyAccountDepositStatus.RejectedAml,
+          },
+        ]);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          getTransactions,
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        await jest.advanceTimersByTimeAsync(0);
+        expect(getTransactions).toHaveBeenCalledTimes(1);
+
+        // Route cancelled and the only deposit is terminal (RejectedAml), so
+        // the autoramp drops out of the poll set: no further fetch. A Rejected
+        // status must count as terminal (the contract fix under test).
+        controller.applyAutorampStatusFromPush({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          status: AutorampStatus.Cancelled,
+        });
+        await jest.advanceTimersByTimeAsync(30_000);
+
+        expect(getTransactions).toHaveBeenCalledTimes(1);
+        rootMessenger.call('RampsController:stopDepositPolling');
+      });
+    });
+
+    it('does not poll autoramps that are not yet Approved', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        controller.addAutoramp({
+          id: 'ar-pending',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Authorized,
+        });
+        const getTransactions = jest.fn().mockResolvedValue([]);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          getTransactions,
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        await jest.advanceTimersByTimeAsync(0);
+
+        expect(getTransactions).not.toHaveBeenCalled();
+        rootMessenger.call('RampsController:stopDepositPolling');
+      });
+    });
+
+    it('markDepositAsNotified records the notified status', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          async () => [
+            { id: 'dep-1', status: MoneyAccountDepositStatus.Completed },
+          ],
+        );
+
+        await controller.refreshDeposits();
+        expect(controller.state.deposits[0]?.notifiedForStatus).toBeUndefined();
+
+        rootMessenger.call('RampsController:markDepositAsNotified', 'dep-1');
+        expect(controller.state.deposits[0]?.notifiedForStatus).toBe(
+          MoneyAccountDepositStatus.Completed,
+        );
+
+        // No-op for an unknown deposit id.
+        expect(() =>
+          rootMessenger.call('RampsController:markDepositAsNotified', 'nope'),
+        ).not.toThrow();
+      });
+    });
+
+    it('removeDeposit prunes a deposit from state', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          async () => [
+            { id: 'dep-1', status: MoneyAccountDepositStatus.Completed },
+          ],
+        );
+
+        await controller.refreshDeposits();
+        expect(controller.state.deposits).toHaveLength(1);
+
+        rootMessenger.call('RampsController:removeDeposit', 'dep-1');
+        expect(controller.state.deposits).toStrictEqual([]);
+      });
+    });
+
+    it('backfills the owning autoramp id when the proxy omits it, and keeps polling after the route goes terminal', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        addApprovedAutoramp(controller, 'ar-1');
+        const getTransactions = jest
+          .fn()
+          .mockResolvedValue([
+            { id: 'dep-1', status: MoneyAccountDepositStatus.PayoutInProgress },
+          ]);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          getTransactions,
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        await jest.advanceTimersByTimeAsync(0);
+
+        // autorampId came from the query key, not the (omitted) proxy field.
+        expect(controller.state.deposits[0]?.autorampId).toBe('ar-1');
+        expect(getTransactions).toHaveBeenCalledTimes(1);
+
+        // Route cancelled: the in-flight deposit keeps being polled via its
+        // backfilled autoramp id.
+        controller.applyAutorampStatusFromPush({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          status: AutorampStatus.Cancelled,
+        });
+        await jest.advanceTimersByTimeAsync(30_000);
+        expect(getTransactions).toHaveBeenCalledTimes(2);
+
+        rootMessenger.call('RampsController:stopDepositPolling');
+      });
+    });
+
+    it('does not fire stateChange or bump updatedAt on an unchanged repeat poll', async () => {
+      await withController(async ({ controller, rootMessenger, messenger }) => {
+        addApprovedAutoramp(controller);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:getAutorampTransactions',
+          async () => [
+            {
+              id: 'dep-1',
+              autorampId: 'ar-1',
+              status: MoneyAccountDepositStatus.Completed,
+            },
+          ],
+        );
+
+        rootMessenger.call('RampsController:startDepositPolling');
+        await jest.advanceTimersByTimeAsync(0); // first poll: create (writes)
+        const updatedAtAfterCreate = controller.state.deposits[0]?.updatedAt;
+
+        let stateChanges = 0;
+        messenger.subscribe('RampsController:stateChange', () => {
+          stateChanges += 1;
+        });
+
+        await jest.advanceTimersByTimeAsync(30_000); // unchanged
+        await jest.advanceTimersByTimeAsync(30_000); // unchanged
+
+        expect(stateChanges).toBe(0);
+        expect(controller.state.deposits[0]?.updatedAt).toBe(
+          updatedAtAfterCreate,
+        );
+
+        rootMessenger.call('RampsController:stopDepositPolling');
       });
     });
   });

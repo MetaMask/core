@@ -6,6 +6,7 @@ import nock, { cleanAll } from 'nock';
 
 import {
   mapNeoBankAutorampToRemoteSnapshot,
+  mapNeoBankTransactionToRemoteSnapshot,
   NeoBankService,
 } from './NeoBankService.js';
 import type { NeoBankServiceMessenger } from './NeoBankService.js';
@@ -133,6 +134,153 @@ describe('NeoBankService', () => {
       ).toMatchObject({
         depositRailsSummary: { ready: false },
       });
+    });
+  });
+
+  describe('mapNeoBankTransactionToRemoteSnapshot', () => {
+    it('maps the confirmed Iron transaction fields (nested payout hash) into a deposit snapshot', () => {
+      expect(
+        mapNeoBankTransactionToRemoteSnapshot({
+          id: 'dep-1',
+          autoramp_id: 'ar-1',
+          status: 'Completed',
+          payout_crypto_transaction: { transaction_hash: '0xpayout' },
+        }),
+      ).toStrictEqual({
+        id: 'dep-1',
+        autorampId: 'ar-1',
+        status: 'Completed',
+        payoutTransactionHash: '0xpayout',
+      });
+    });
+
+    it('falls back to a flat transaction_hash (webhook / proxy-fixture shape)', () => {
+      expect(
+        mapNeoBankTransactionToRemoteSnapshot({
+          id: 'dep-1',
+          status: 'Completed',
+          transaction_hash: '0xflat',
+        }),
+      ).toMatchObject({ payoutTransactionHash: '0xflat' });
+    });
+
+    it('leaves the payout hash undefined when the proxy omits it', () => {
+      expect(
+        mapNeoBankTransactionToRemoteSnapshot({
+          id: 'dep-1',
+          status: 'PayoutInProgress',
+        }),
+      ).toMatchObject({ payoutTransactionHash: undefined });
+    });
+  });
+
+  describe('getAutorampTransactions', () => {
+    it('fetches /neobank/autoramp-transactions?autoramp_id={id} and maps an Iron PagedList (items) envelope', async () => {
+      const scope = nock(STAGING_BASE)
+        .get(/\/neobank\/autoramp-transactions\?.*autoramp_id=ar-1/u)
+        .matchHeader('Authorization', 'Bearer test-token')
+        .reply(200, {
+          items: [
+            {
+              id: 'dep-1',
+              autoramp_id: 'ar-1',
+              status: 'Completed',
+              payout_crypto_transaction: { transaction_hash: '0xpayout' },
+            },
+          ],
+          cursor: null,
+          prev_cursor: null,
+        });
+
+      const service = createService();
+      const snapshots = await service.getAutorampTransactions('ar-1');
+
+      expect(scope.isDone()).toBe(true);
+      expect(snapshots).toStrictEqual([
+        {
+          id: 'dep-1',
+          autorampId: 'ar-1',
+          status: 'Completed',
+          payoutTransactionHash: '0xpayout',
+        },
+      ]);
+    });
+
+    it('accepts the proxy PR transitional { data } envelope as a fallback', async () => {
+      nock(STAGING_BASE)
+        .get(/\/neobank\/autoramp-transactions/u)
+        .reply(200, {
+          data: [{ id: 'dep-1', status: 'PayoutInProgress' }],
+          next_cursor: null,
+        });
+
+      const service = createService();
+      const snapshots = await service.getAutorampTransactions('ar-1');
+
+      expect(snapshots).toHaveLength(1);
+      expect(snapshots[0]).toMatchObject({
+        id: 'dep-1',
+        status: 'PayoutInProgress',
+      });
+    });
+
+    it('accepts a bare array body as a defensive fallback', async () => {
+      nock(STAGING_BASE)
+        .get(/\/neobank\/autoramp-transactions/u)
+        .reply(200, [{ id: 'dep-1', status: 'PayoutInProgress' }]);
+
+      const service = createService();
+      const snapshots = await service.getAutorampTransactions('ar-1');
+
+      expect(snapshots).toHaveLength(1);
+      expect(snapshots[0]).toMatchObject({
+        id: 'dep-1',
+        status: 'PayoutInProgress',
+      });
+    });
+
+    it('throws HttpError when the proxy returns a non-2xx status', async () => {
+      nock(STAGING_BASE)
+        .get(/\/neobank\/autoramp-transactions/u)
+        .reply(500);
+
+      const service = createService();
+      await expect(service.getAutorampTransactions('ar-1')).rejects.toThrow(
+        /failed with status '500'/u,
+      );
+    });
+
+    it('throws when the response body is not a transaction list', async () => {
+      nock(STAGING_BASE)
+        .get(/\/neobank\/autoramp-transactions/u)
+        .reply(200, { nope: true });
+
+      const service = createService();
+      await expect(service.getAutorampTransactions('ar-1')).rejects.toThrow(
+        'Malformed response received from neo-bank transactions API',
+      );
+    });
+
+    it('throws when an item is missing an id', async () => {
+      nock(STAGING_BASE)
+        .get(/\/neobank\/autoramp-transactions/u)
+        .reply(200, { items: [{ status: 'PayoutInProgress' }] });
+
+      const service = createService();
+      await expect(service.getAutorampTransactions('ar-1')).rejects.toThrow(
+        'Malformed response received from neo-bank transactions API',
+      );
+    });
+
+    it('throws when an item is missing a status', async () => {
+      nock(STAGING_BASE)
+        .get(/\/neobank\/autoramp-transactions/u)
+        .reply(200, { items: [{ id: 'dep-1' }] });
+
+      const service = createService();
+      await expect(service.getAutorampTransactions('ar-1')).rejects.toThrow(
+        'Malformed response received from neo-bank transactions API',
+      );
     });
   });
 
