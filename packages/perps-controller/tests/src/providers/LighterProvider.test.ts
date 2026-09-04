@@ -1063,6 +1063,127 @@ describe('LighterProvider', () => {
       expect(data[0].symbol).toBe('BTC');
     });
 
+    it('omits inactive markets without usable risk metadata while preserving active markets', async () => {
+      const built = buildProvider();
+      const inactiveMarket = {
+        ...BTC_MARKET,
+        symbol: 'MKR',
+        marketId: 28,
+        status: 'inactive',
+        minBaseAmount: '0.0000',
+        minQuoteAmount: '0.000000',
+      };
+      const activeDetail = {
+        ...BTC_MARKET,
+        lastTradePrice: 100000,
+        dailyTradesCount: 10,
+        dailyBaseTokenVolume: 1,
+        dailyQuoteTokenVolume: 100000,
+        dailyPriceLow: 99000,
+        dailyPriceHigh: 101000,
+        dailyPriceChange: 1,
+        openInterest: 1000000,
+        dailyChart: {},
+        minInitialMarginFraction: 200,
+        maintenanceMarginFraction: 120,
+      };
+      built.clientInstance.getOrderBooks.mockResolvedValue([
+        BTC_MARKET,
+        inactiveMarket,
+      ]);
+      built.clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          activeDetail,
+          {
+            ...activeDetail,
+            ...inactiveMarket,
+            defaultInitialMarginFraction: 0,
+            minInitialMarginFraction: 0,
+            maintenanceMarginFraction: 0,
+          },
+        ],
+      });
+
+      const markets = await built.provider.getMarkets();
+      const marketData = await built.provider.getMarketDataWithPrices();
+
+      expect(markets.map((market) => market.name)).toStrictEqual(['BTC']);
+      expect(marketData.map((market) => market.symbol)).toStrictEqual(['BTC']);
+    });
+
+    it('preserves inactive markets when their risk metadata remains usable', async () => {
+      const built = buildProvider();
+      const inactiveMarket = {
+        ...BTC_MARKET,
+        symbol: 'MKR',
+        marketId: 28,
+        status: 'inactive',
+      };
+      built.clientInstance.getOrderBooks.mockResolvedValue([inactiveMarket]);
+      built.clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...inactiveMarket,
+            lastTradePrice: 2500,
+            dailyTradesCount: 0,
+            dailyBaseTokenVolume: 0,
+            dailyQuoteTokenVolume: 0,
+            dailyPriceLow: 2500,
+            dailyPriceHigh: 2500,
+            dailyPriceChange: 0,
+            openInterest: 0,
+            dailyChart: {},
+            minInitialMarginFraction: 500,
+            maintenanceMarginFraction: 250,
+          },
+        ],
+      });
+
+      const markets = await built.provider.getMarkets();
+      const marketData = await built.provider.getMarketDataWithPrices();
+
+      expect(markets).toHaveLength(1);
+      expect(markets[0]).toMatchObject({
+        name: 'MKR',
+        isDelisted: true,
+        maxLeverage: 20,
+      });
+      expect(marketData.map((market) => market.symbol)).toStrictEqual(['MKR']);
+    });
+
+    it('continues to reject zero risk metadata for active markets', async () => {
+      const built = buildProvider();
+      built.clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 100000,
+            dailyTradesCount: 10,
+            dailyBaseTokenVolume: 1,
+            dailyQuoteTokenVolume: 100000,
+            dailyPriceLow: 99000,
+            dailyPriceHigh: 101000,
+            dailyPriceChange: 1,
+            openInterest: 1000000,
+            dailyChart: {},
+            defaultInitialMarginFraction: 0,
+            minInitialMarginFraction: 0,
+            maintenanceMarginFraction: 0,
+          },
+        ],
+      });
+
+      await expect(built.provider.getMarkets()).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
+      await expect(built.provider.getMarketDataWithPrices()).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
+    });
+
     it('does not publish market metadata without verified per-market leverage', async () => {
       const markets = buildProvider();
       markets.clientInstance.getOrderBookDetails.mockResolvedValue({
@@ -1155,6 +1276,68 @@ describe('LighterProvider', () => {
         size: '0.1',
         providerId: 'lighter',
       });
+    });
+
+    it('preserves retired-market positions when risk metadata is zeroed', async () => {
+      const built = buildProvider();
+      const inactiveMarket = {
+        ...BTC_MARKET,
+        symbol: 'MKR',
+        marketId: 28,
+        status: 'inactive',
+        minBaseAmount: '0.0000',
+        minQuoteAmount: '0.000000',
+      };
+      built.clientInstance.getOrderBooks.mockResolvedValue([
+        BTC_MARKET,
+        inactiveMarket,
+      ]);
+      built.clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 100000,
+            minInitialMarginFraction: 200,
+            maintenanceMarginFraction: 120,
+          },
+          {
+            ...inactiveMarket,
+            lastTradePrice: 0,
+            minInitialMarginFraction: 0,
+            maintenanceMarginFraction: 0,
+          },
+        ],
+      });
+      built.clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [
+              ...(ACCOUNT.positions ?? []),
+              {
+                ...ACCOUNT.positions?.[0],
+                marketId: 28,
+                symbol: 'MKR',
+                initialMarginFraction: '10',
+              },
+            ],
+          },
+        ],
+      });
+      await built.provider.initialize();
+
+      const positions = await built.provider.getPositions();
+
+      expect(positions).toStrictEqual([
+        expect.objectContaining({ symbol: 'BTC', maxLeverage: 50 }),
+        expect.objectContaining({
+          symbol: 'MKR',
+          leverage: expect.objectContaining({ value: 10 }),
+          maxLeverage: 10,
+        }),
+      ]);
     });
 
     it('surfaces margin metadata transport failures from position reads', async () => {
