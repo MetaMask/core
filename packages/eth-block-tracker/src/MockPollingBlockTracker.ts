@@ -1,23 +1,31 @@
-import { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import type {
   ContextConstraint,
   MiddlewareContext,
 } from '@metamask/json-rpc-engine/v2';
 
+import { PollingBlockTracker } from './PollingBlockTracker.js';
+
 /**
  * Acts like a PollingBlockTracker, but doesn't start the polling loop or
  * make any requests.
  */
-export class FakeBlockTracker<
+export class MockPollingBlockTracker<
   Context extends ContextConstraint = MiddlewareContext,
 > extends PollingBlockTracker<Context> {
-  #latestBlockNumber = '0x0';
+  latestBlockNumber: Hex;
 
-  constructor({ provider }: { provider: InternalProvider<Context> }) {
-    super({
-      provider,
-    });
+  constructor({
+    provider,
+    latestBlockNumber = '0x0',
+  }: {
+    provider: InternalProvider<Context>;
+    latestBlockNumber?: Hex;
+  }) {
+    super({ provider });
+
+    this.latestBlockNumber = latestBlockNumber;
+
     // Don't start the polling loop
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,20 +34,11 @@ export class FakeBlockTracker<
     };
   }
 
-  /**
-   * Sets the number of the block that the block tracker will always return.
-   *
-   * @param latestBlockNumber - The block number to use.
-   */
-  mockLatestBlockNumber(latestBlockNumber: string): void {
-    this.#latestBlockNumber = latestBlockNumber;
-  }
-
   override async getLatestBlock(): Promise<string> {
-    return this.#latestBlockNumber;
+    return this.latestBlockNumber;
   }
 
   override async checkForLatestBlock(): Promise<string> {
-    return this.#latestBlockNumber;
+    return this.latestBlockNumber;
   }
 }
