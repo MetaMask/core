@@ -17,10 +17,10 @@ preview-build-message.txt
 
 examples/*/coverage
 examples/*/dist
-examples/*/docs
+examples/*/api-docs
 packages/*/coverage
 packages/*/dist
-packages/*/docs
+packages/*/api-docs
 scripts/coverage
 
 # yarn v3 (w/o zero-install)
