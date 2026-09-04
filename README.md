@@ -259,8 +259,6 @@ linkStyle default opacity:0.5
   address_book_controller --> base_controller;
   address_book_controller --> controller_utils;
   address_book_controller --> messenger;
-  ai_controllers --> base_controller;
-  ai_controllers --> messenger;
   analytics_controller --> base_controller;
   analytics_controller --> geolocation_controller;
   analytics_controller --> messenger;
