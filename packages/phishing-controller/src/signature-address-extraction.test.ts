@@ -1,6 +1,10 @@
 import { SignTypedDataVersion, TypedDataUtils } from '@metamask/eth-sig-util';
 
-import { extractSignatureAddresses } from './signature-address-extraction.js';
+import {
+  DEFAULT_MAX_SIGNATURE_ADDRESSES,
+  MAX_SIGNATURE_ADDRESSES_CEILING,
+  extractSignatureAddresses,
+} from './signature-address-extraction.js';
 
 const ADDR_A = '0x1111111111111111111111111111111111111111';
 const ADDR_B = '0x2222222222222222222222222222222222222222';
@@ -609,8 +613,125 @@ describe('extractSignatureAddresses', () => {
       { recipients: nAddresses(15) },
     );
     const result = extractSignatureAddresses(data);
-    expect(result.addresses).toHaveLength(10);
+    expect(result.addresses).toHaveLength(DEFAULT_MAX_SIGNATURE_ADDRESSES);
     expect(result.overflow).toBe(true);
+    expect(result.maxAddresses).toBe(DEFAULT_MAX_SIGNATURE_ADDRESSES);
+  });
+
+  describe('maxAddresses', () => {
+    const permitBatch = (tokenCount: number) =>
+      build(
+        'PermitBatch',
+        {
+          PermitBatch: [
+            { name: 'details', type: 'PermitDetails[]' },
+            { name: 'spender', type: 'address' },
+            { name: 'sigDeadline', type: 'uint256' },
+          ],
+          PermitDetails: [
+            { name: 'token', type: 'address' },
+            { name: 'amount', type: 'uint160' },
+          ],
+        },
+        {
+          details: nAddresses(tokenCount).map((token) => ({
+            token,
+            amount: '1',
+          })),
+          spender: ADDR_D,
+          sigDeadline: '1',
+        },
+      );
+
+    it('honors a caller override below the ceiling', () => {
+      const data = build(
+        'Airdrop',
+        { Airdrop: [{ name: 'recipients', type: 'address[]' }] },
+        { recipients: nAddresses(20) },
+      );
+      const result = extractSignatureAddresses(data, { maxAddresses: 20 });
+      expect(result.addresses).toHaveLength(20);
+      expect(result.overflow).toBe(false);
+      expect(result.maxAddresses).toBe(20);
+    });
+
+    it('clamps an override above the ceiling', () => {
+      const data = build(
+        'Airdrop',
+        { Airdrop: [{ name: 'recipients', type: 'address[]' }] },
+        { recipients: nAddresses(MAX_SIGNATURE_ADDRESSES_CEILING + 5) },
+      );
+      const result = extractSignatureAddresses(data, { maxAddresses: 100 });
+      expect(result.addresses).toHaveLength(MAX_SIGNATURE_ADDRESSES_CEILING);
+      expect(result.overflow).toBe(true);
+      expect(result.maxAddresses).toBe(MAX_SIGNATURE_ADDRESSES_CEILING);
+    });
+
+    it('uses the default for non-finite or sub-one values', () => {
+      const data = build(
+        'Airdrop',
+        { Airdrop: [{ name: 'recipients', type: 'address[]' }] },
+        { recipients: nAddresses(15) },
+      );
+      for (const maxAddresses of [
+        NaN,
+        Infinity,
+        -1,
+        0,
+        0.4,
+        '20' as unknown as number,
+      ]) {
+        const result = extractSignatureAddresses(data, { maxAddresses });
+        expect(result.addresses).toHaveLength(DEFAULT_MAX_SIGNATURE_ADDRESSES);
+        expect(result.overflow).toBe(true);
+        expect(result.maxAddresses).toBe(DEFAULT_MAX_SIGNATURE_ADDRESSES);
+      }
+    });
+
+    it('floors a fractional override', () => {
+      const data = build(
+        'Airdrop',
+        { Airdrop: [{ name: 'recipients', type: 'address[]' }] },
+        { recipients: nAddresses(15) },
+      );
+      const result = extractSignatureAddresses(data, { maxAddresses: 12.9 });
+      expect(result.addresses).toHaveLength(12);
+      expect(result.overflow).toBe(true);
+      expect(result.maxAddresses).toBe(12);
+    });
+
+    it('does not overflow a 10-token PermitBatch when spender is excluded', () => {
+      const result = extractSignatureAddresses(permitBatch(10), {
+        excludeFields: ['spender'],
+      });
+      expect(result.addresses).toHaveLength(10);
+      expect(result.overflow).toBe(false);
+    });
+
+    it('overflows an 11-token PermitBatch when spender is excluded', () => {
+      const result = extractSignatureAddresses(permitBatch(11), {
+        excludeFields: ['spender'],
+      });
+      expect(result.addresses).toHaveLength(10);
+      expect(result.overflow).toBe(true);
+    });
+
+    it('overflows a 10-token PermitBatch when spender is not excluded', () => {
+      const result = extractSignatureAddresses(permitBatch(10));
+      expect(result.addresses).toHaveLength(10);
+      expect(result.overflow).toBe(true);
+    });
+
+    it('returns the resolved cap for an unwalkable payload', () => {
+      expect(extractSignatureAddresses(null, { maxAddresses: 25 })).toStrictEqual(
+        {
+          addresses: [],
+          fields: {},
+          overflow: false,
+          maxAddresses: 25,
+        },
+      );
+    });
   });
 
   it('flags overflow when the work budget truncates the walk', () => {
@@ -678,6 +799,7 @@ describe('extractSignatureAddresses', () => {
       addresses: [ADDR_A],
       fields: { [ADDR_A]: 'to' },
       overflow: false,
+      maxAddresses: DEFAULT_MAX_SIGNATURE_ADDRESSES,
     });
   });
 

@@ -3,10 +3,9 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const HEX_STRING_REGEX = /^0x[0-9a-fA-F]+$/u;
 const DECIMAL_STRING_REGEX = /^[0-9]+$/u;
 
-// Cap the number of addresses returned for a single signature. A legitimate
-// signature references far fewer; exceeding this is treated as unusual and
-// surfaced to the caller (via `overflow`) rather than scanned in full.
-const MAX_SIGNATURE_ADDRESSES = 10;
+export const DEFAULT_MAX_SIGNATURE_ADDRESSES = 10;
+
+export const MAX_SIGNATURE_ADDRESSES_CEILING = 50;
 
 // Limit recursion depth when walking nested types.
 const MAX_TRAVERSAL_DEPTH = 12;
@@ -24,7 +23,7 @@ type Eip712Types = Record<string, Eip712Field[]>;
  */
 export type ExtractedSignatureAddresses = {
   /**
-   * Distinct canonical addresses to scan, capped at `MAX_SIGNATURE_ADDRESSES`.
+   * Distinct canonical addresses to scan, capped at the effective `maxAddresses`.
    */
   addresses: string[];
   /**
@@ -40,6 +39,10 @@ export type ExtractedSignatureAddresses = {
    * unscanned, so the caller should surface a caution.
    */
   overflow: boolean;
+  /**
+   * Effective address cap after applying the default and ceiling.
+   */
+  maxAddresses: number;
 };
 
 /**
@@ -57,7 +60,24 @@ export type ExtractSignatureAddressesOptions = {
    * (depth 0), not nested structs.
    */
   excludeFields?: string[];
+  /**
+   * Distinct-address cap for this call. Defaults to
+   * {@link DEFAULT_MAX_SIGNATURE_ADDRESSES}. Clamped to
+   * {@link MAX_SIGNATURE_ADDRESSES_CEILING}. Invalid values use the default.
+   */
+  maxAddresses?: number;
 };
+
+function resolveMaxAddresses(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_MAX_SIGNATURE_ADDRESSES;
+  }
+  const floored = Math.floor(value);
+  if (floored < 1) {
+    return DEFAULT_MAX_SIGNATURE_ADDRESSES;
+  }
+  return Math.min(floored, MAX_SIGNATURE_ADDRESSES_CEILING);
+}
 
 /**
  * Encode a non-negative integer as big-endian hex (even length) and take the
@@ -131,10 +151,12 @@ function normalizeAddress(value: unknown): string | undefined {
  * @param options.excludeFields - Top-level field names to skip. Names must
  * match the declared EIP-712 field exactly. Only applied to the primary type
  * (depth 0), not nested structs.
- * @returns Up to `MAX_SIGNATURE_ADDRESSES` distinct canonical addresses, the
- * field each was found under, and whether the message could not be fully walked
- * (address cap, depth limit, work budget, or an unwalkable address-bearing
- * value).
+ * @param options.maxAddresses - Distinct-address cap. Defaults to
+ * {@link DEFAULT_MAX_SIGNATURE_ADDRESSES} and is clamped to
+ * {@link MAX_SIGNATURE_ADDRESSES_CEILING}.
+ * @returns Up to `maxAddresses` distinct canonical addresses, the field each
+ * was found under, whether the message could not be fully walked, and the
+ * effective cap.
  */
 export function extractSignatureAddresses(
   typedData:
@@ -143,6 +165,7 @@ export function extractSignatureAddresses(
     | undefined,
   options: ExtractSignatureAddressesOptions = {},
 ): ExtractedSignatureAddresses {
+  const maxAddresses = resolveMaxAddresses(options.maxAddresses);
   const types = typedData?.types as Eip712Types | undefined;
   const primaryType = typedData?.primaryType as string | undefined;
   const { message } = typedData ?? {};
@@ -155,7 +178,7 @@ export function extractSignatureAddresses(
     !message ||
     typeof message !== 'object'
   ) {
-    return { addresses: [], fields: {}, overflow: false };
+    return { addresses: [], fields: {}, overflow: false, maxAddresses };
   }
 
   // Narrowed alias so the hoisted helpers below see a defined `types`.
@@ -244,7 +267,7 @@ export function extractSignatureAddresses(
     if (!address || excluded.has(address) || found.has(address)) {
       return;
     }
-    if (found.size >= MAX_SIGNATURE_ADDRESSES) {
+    if (found.size >= maxAddresses) {
       overflow = true;
       return;
     }
@@ -351,5 +374,6 @@ export function extractSignatureAddresses(
     addresses: Array.from(found.keys()),
     fields: Object.fromEntries(found),
     overflow,
+    maxAddresses,
   };
 }

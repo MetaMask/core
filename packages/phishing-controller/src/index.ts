@@ -38,7 +38,11 @@ export {
   isAddressScanSupportedChainId,
   isPhishingDetectionPathBasedHostname,
 } from './utils.js';
-export { extractSignatureAddresses } from './signature-address-extraction.js';
+export {
+  extractSignatureAddresses,
+  DEFAULT_MAX_SIGNATURE_ADDRESSES,
+  MAX_SIGNATURE_ADDRESSES_CEILING,
+} from './signature-address-extraction.js';
 export type {
   ExtractedSignatureAddresses,
   ExtractSignatureAddressesOptions,

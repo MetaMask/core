@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Walks the `types` schema from `primaryType`, matching fields by declared type (`address`/`address[]`, including nested structs and arrays) rather than by field name, so custom and unknown message shapes are covered without per-protocol handling.
   - Normalizes non-canonical `address` encodings (variable-length hex and decimal strings) into canonical lower-case 20-byte hex by taking the leading 20 bytes of the signer-compatible big-endian encoding, and de-duplicates case-insensitively.
   - Excludes the zero address, a caller-provided `exclude` list (e.g. the signer), and caller-provided top-level `excludeFields`.
-  - Bounds work with a distinct-address cap (10), a traversal depth limit, and a node budget, reporting `overflow` when the message could not be fully walked.
+  - Bounds work with a distinct-address cap (default 10, caller-overridable via `maxAddresses`, hard ceiling 50), a traversal depth limit, and a node budget, reporting `overflow` when the message could not be fully walked. Exports `DEFAULT_MAX_SIGNATURE_ADDRESSES` and `MAX_SIGNATURE_ADDRESSES_CEILING`.
   - Returns the field name each address was found under so callers can attribute alerts.
 
 ## [17.4.1]
