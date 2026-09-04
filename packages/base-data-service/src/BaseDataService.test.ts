@@ -275,48 +275,6 @@ describe('BaseDataService', () => {
     );
   });
 
-  it('includes the `globalId` in the mutation meta of `:cacheUpdated` payloads when one is passed', async () => {
-    mockAddFollowerRequest();
-    const messenger = createServiceMessenger();
-    const service = new ExampleDataService(messenger);
-    const publishSpy = jest.spyOn(messenger, 'publish');
-
-    await service.addFollower('1', 'global-id-1');
-
-    const hash = hashKey(['ExampleDataService:addFollower', '1']);
-    expect(publishSpy).toHaveBeenCalledWith(
-      `ExampleDataService:cacheUpdated:${hash}`,
-      expect.objectContaining({
-        state: expect.objectContaining({
-          mutations: [
-            expect.objectContaining({
-              meta: { globalId: 'global-id-1' },
-            }),
-          ],
-        }),
-      }),
-    );
-  });
-
-  it('omits `globalId` from the mutation meta of `:cacheUpdated` payloads when none is passed', async () => {
-    mockAddFollowerRequest();
-    const messenger = createServiceMessenger();
-    const service = new ExampleDataService(messenger);
-    const publishSpy = jest.spyOn(messenger, 'publish');
-
-    await service.addFollower('1');
-
-    const hash = hashKey(['ExampleDataService:addFollower', '1']);
-    expect(publishSpy).toHaveBeenCalledWith(
-      `ExampleDataService:cacheUpdated:${hash}`,
-      expect.objectContaining({
-        state: expect.objectContaining({
-          mutations: [expect.not.objectContaining({ meta: expect.anything() })],
-        }),
-      }),
-    );
-  });
-
   it('emits `:cacheUpdated` events when query cache is updated', async () => {
     const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
@@ -513,6 +471,29 @@ describe('BaseDataService', () => {
         type: 'removed',
         state: null,
       },
+    );
+  });
+
+  it('includes the provided `globalId` for a mutation in `:cacheUpdated` payloads', async () => {
+    mockAddFollowerRequest();
+    const messenger = createServiceMessenger();
+    const service = new ExampleDataService(messenger);
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    await service.addFollower('1', 'global-id');
+
+    const hash = hashKey(['ExampleDataService:addFollower', '1']);
+    expect(publishSpy).toHaveBeenCalledWith(
+      `ExampleDataService:cacheUpdated:${hash}`,
+      expect.objectContaining({
+        state: expect.objectContaining({
+          mutations: [
+            expect.objectContaining({
+              meta: { globalId: 'global-id' },
+            }),
+          ],
+        }),
+      }),
     );
   });
 
