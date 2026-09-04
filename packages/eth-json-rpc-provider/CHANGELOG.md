@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `MockInternalProvider`, which can be substituted for `InternalProvider` in tests, while providing the ability to assert requests and inject canned responses ([#10099](https://github.com/MetaMask/core/pull/10099))
+  - Also add `MockInternalProviderStub` type
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.12.0` ([#9074](https://github.com/MetaMask/core/pull/9074), [#10076](https://github.com/MetaMask/core/pull/10076))
