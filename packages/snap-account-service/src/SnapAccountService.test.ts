@@ -1265,6 +1265,9 @@ describe('SnapAccountService', () => {
     // data for accounts owned by another Snap (or for accounts that do not
     // exist at all).
     const MOCK_UNOWNED_ACCOUNT_ID = '00000000-0000-4000-8000-000000000002';
+    // An account ID that has no Snap owner. Updates for this ID must be
+    // stripped too — it is owned by nobody.
+    const MOCK_NO_SNAP_ACCOUNT_ID = '00000000-0000-4000-8000-000000000003';
 
     it.each([
       [
@@ -1317,6 +1320,9 @@ describe('SnapAccountService', () => {
               id: MOCK_UNOWNED_ACCOUNT_ID,
               snapId: MOCK_OTHER_SNAP_ID as string,
             },
+            // An account with no Snap owner must be skipped when building the
+            // cache (it is owned by nobody).
+            { id: MOCK_NO_SNAP_ACCOUNT_ID },
           ],
         });
         const listener = jest.fn();
@@ -1349,34 +1355,56 @@ describe('SnapAccountService', () => {
       },
     );
 
-    it('drops the whole update when no reported account is owned by the Snap (fail closed)', async () => {
-      const { service, rootMessenger } = await setup({
-        accounts: [
-          { id: MOCK_ACCOUNT_ID, snapId: MOCK_OTHER_SNAP_ID as string },
-        ],
-      });
-      const listener = jest.fn();
-      rootMessenger.subscribe(
-        'SnapAccountService:accountBalancesUpdated',
-        listener,
-      );
-
-      const payload = {
-        balances: {
-          [MOCK_ACCOUNT_ID]: {
-            'eip155:1/slip44:60': { amount: '1', unit: 'ETH' },
+    it.each([
+      [
+        KeyringEvent.AccountBalancesUpdated,
+        'SnapAccountService:accountBalancesUpdated' as const,
+        {
+          balances: {
+            [MOCK_ACCOUNT_ID]: {
+              'eip155:1/slip44:60': { amount: '1', unit: 'ETH' },
+            },
           },
-        },
-      } satisfies AccountBalancesUpdatedEventPayload;
+        } satisfies AccountBalancesUpdatedEventPayload,
+      ],
+      [
+        KeyringEvent.AccountAssetListUpdated,
+        'SnapAccountService:accountAssetListUpdated' as const,
+        {
+          assets: {
+            [MOCK_ACCOUNT_ID]: { added: ['eip155:1/slip44:60'], removed: [] },
+          },
+        } satisfies AccountAssetListUpdatedEventPayload,
+      ],
+      [
+        KeyringEvent.AccountTransactionsUpdated,
+        'SnapAccountService:accountTransactionsUpdated' as const,
+        {
+          transactions: {
+            [MOCK_ACCOUNT_ID]: [],
+          },
+        } satisfies AccountTransactionsUpdatedEventPayload,
+      ],
+    ] as const)(
+      'drops the whole %s update when no reported account is owned by the Snap (fail closed)',
+      async (method, event, payload) => {
+        const { service, rootMessenger } = await setup({
+          accounts: [
+            { id: MOCK_ACCOUNT_ID, snapId: MOCK_OTHER_SNAP_ID as string },
+          ],
+        });
+        const listener = jest.fn();
+        rootMessenger.subscribe(event, listener);
 
-      const result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
-        method: KeyringEvent.AccountBalancesUpdated,
-        params: payload,
-      } as unknown as SnapMessage);
+        const result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
+          method,
+          params: payload,
+        } as unknown as SnapMessage);
 
-      expect(result).toBeNull();
-      expect(listener).not.toHaveBeenCalled();
-    });
+        expect(result).toBeNull();
+        expect(listener).not.toHaveBeenCalled();
+      },
+    );
 
     it('picks up added/removed accounts from AccountsController:accountsAdded and :accountsRemoved', async () => {
       // Initially the Snap does not own the account, so the update is dropped.
@@ -1407,9 +1435,12 @@ describe('SnapAccountService', () => {
       expect(listener).not.toHaveBeenCalled();
 
       // The account is added for this Snap — the cache picks it up from
-      // `accountsAdded` and the next update is forwarded.
+      // `accountsAdded` and the next update is forwarded. A no-Snap account
+      // is included to verify such accounts are skipped when updating the
+      // cache incrementally.
       publishAccountsAdded(rootMessenger, [
         { id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string },
+        { id: MOCK_NO_SNAP_ACCOUNT_ID },
       ]);
 
       result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
