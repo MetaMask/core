@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - When `assetsAccountsApiV6` is enabled, Accounts API fetch and middleware report `updateMode: 'full'` so assets on chains in the snapshot (including custom assets returned via `includeAssetIds`) are replaced; pins left in `unprocessedCustomAssets` after RPC fallback keep their prior balances. The v5 path keeps `updateMode: 'merge'` with `replaceCoveredChainBalances` so custom assets are preserved ([#9651](https://github.com/MetaMask/core/pull/9651))
+- When `assetsAccountsApiV6` is enabled, the `getAssets` force-update fast pipeline runs `RpcFallbackMiddleware` after Accounts API so `unprocessedIncludeAssetIds` are recovered on RPC before state is committed (same as poll enrichment). Chains that still have unresolved pins are also kept on the slow RPC lane.
 - **BREAKING:** Remove the unused `updateMode` option from `AssetsController.getAssets`. Apply mode comes only from `DataResponse.updateMode` (data sources). Remove `'update'` from `AssetsUpdateMode` — it was never produced; use `'merge'` to overlay or `'full'` to replace a covered chain slice ([#9651](https://github.com/MetaMask/core/pull/9651))
 
 ## [15.0.0]

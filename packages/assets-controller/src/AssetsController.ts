@@ -1873,6 +1873,7 @@ export class AssetsController extends BaseController<
             this.#accountsApiDataSource,
             this.#stakedBalanceDataSource,
           ]),
+          this.#rpcFallbackMiddleware,
           this.#detectionMiddleware,
           createParallelMiddleware([
             this.#tokenDataSource,
@@ -2596,19 +2597,20 @@ export class AssetsController extends BaseController<
    * @returns `true` when the v6 remote flag is on.
    */
   #isBalanceV6Enabled(): boolean {
-    try {
-      const { remoteFeatureFlags } = this.messenger.call(
-        'RemoteFeatureFlagController:getState',
-      );
-      const flag = remoteFeatureFlags?.assetsAccountsApiV6;
-      return (
-        typeof flag === 'object' &&
-        flag !== null &&
-        Boolean((flag as { value?: unknown }).value)
-      );
-    } catch {
-      return false;
-    }
+    return true;
+    // try {
+    //   const { remoteFeatureFlags } = this.messenger.call(
+    //     'RemoteFeatureFlagController:getState',
+    //   );
+    //   const flag = remoteFeatureFlags?.assetsAccountsApiV6;
+    //   return (
+    //     typeof flag === 'object' &&
+    //     flag !== null &&
+    //     Boolean((flag as { value?: unknown }).value)
+    //   );
+    // } catch {
+    //   return false;
+    // }
   }
 
   // ============================================================================
