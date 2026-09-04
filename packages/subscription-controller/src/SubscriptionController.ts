@@ -9,6 +9,7 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 import { TransactionType } from '@metamask/transaction-controller';
 import type { CaipAccountId, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
+import deepEqual from 'fast-deep-equal';
 
 import {
   ACTIVE_SUBSCRIPTION_STATUSES,
@@ -68,6 +69,7 @@ import type {
 import type {
   PricingResponse,
   ProductType,
+  ProductEntitlements,
   StartSubscriptionRequest,
   Subscription,
 } from './types.js';
@@ -76,6 +78,7 @@ export type SubscriptionControllerState = {
   customerId?: string;
   trialedProducts: ProductType[];
   subscriptions: Subscription[];
+  productEntitlements?: ProductEntitlements;
   pricing?: PricingResponse;
   /** The last subscription that user has subscribed to if any. */
   lastSubscription?: Subscription;
@@ -174,6 +177,12 @@ export function getDefaultSubscriptionControllerState(): SubscriptionControllerS
 const subscriptionControllerMetadata: StateMetadata<SubscriptionControllerState> =
   {
     subscriptions: {
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
+    productEntitlements: {
       includeInStateLogs: false,
       persist: true,
       includeInDebugSnapshot: false,
@@ -298,6 +307,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     const currentCustomerId = this.state.customerId;
     const currentLastSubscription = this.state.lastSubscription;
     const currentRewardAccountId = this.state.rewardAccountId;
+    const currentProductEntitlements = this.state.productEntitlements;
 
     const {
       customerId: newCustomerId,
@@ -305,6 +315,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       trialedProducts: newTrialedProducts,
       lastSubscription: newLastSubscription,
       rewardAccountId: newRewardAccountId,
+      productEntitlements: newProductEntitlements,
     } = await this.messenger.call('SubscriptionService:getSubscriptions');
 
     // check if the new subscriptions are different from the current subscriptions
@@ -326,6 +337,10 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     const areCustomerIdsEqual = currentCustomerId === newCustomerId;
     const areRewardAccountIdsEqual =
       currentRewardAccountId === newRewardAccountId;
+    const areProductEntitlementsEqual = this.#areProductEntitlementsEqual(
+      currentProductEntitlements,
+      newProductEntitlements,
+    );
     // only update the state if the subscriptions or trialed products are different
     // this prevents unnecessary state updates events, easier for the clients to handle
     if (
@@ -333,7 +348,8 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       !isLastSubscriptionEqual ||
       !areTrialedProductsEqual ||
       !areCustomerIdsEqual ||
-      !areRewardAccountIdsEqual
+      !areRewardAccountIdsEqual ||
+      !areProductEntitlementsEqual
     ) {
       this.update((state) => {
         state.subscriptions = newSubscriptions;
@@ -341,6 +357,9 @@ export class SubscriptionController extends StaticIntervalPollingController()<
         state.trialedProducts = newTrialedProducts;
         state.lastSubscription = newLastSubscription;
         state.rewardAccountId = newRewardAccountId;
+        // Omitted entitlements are an empty map so selectors fail closed
+        // instead of keeping last-known paid-feature flags.
+        state.productEntitlements = newProductEntitlements ?? {};
       });
       // trigger access token refresh to ensure the user has the latest access token if subscription state change
       this.triggerAccessTokenRefresh();
@@ -1239,6 +1258,25 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       oldTrialedProducts.every((product) =>
         newTrialedProducts?.includes(product),
       )
+    );
+  }
+
+  /**
+   * Compares product entitlement maps without treating object key order as a
+   * change. Insertion-order-sensitive `JSON.stringify` can otherwise treat an
+   * equivalent API payload as different and trigger `performSignOut`.
+   *
+   * @param oldProductEntitlements - Stored product entitlements.
+   * @param newProductEntitlements - Freshly fetched product entitlements.
+   * @returns True if the maps are equal regardless of key order.
+   */
+  #areProductEntitlementsEqual(
+    oldProductEntitlements?: ProductEntitlements,
+    newProductEntitlements?: ProductEntitlements,
+  ): boolean {
+    return deepEqual(
+      oldProductEntitlements ?? {},
+      newProductEntitlements ?? {},
     );
   }
 

@@ -22,12 +22,37 @@ import {
   PAYMENT_TYPES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
+  MoneyAccountFeature,
+  ShieldFeature,
   SUBSCRIPTION_STATUSES,
 } from './types.js';
 import type { TokenPaymentInfo } from './types.js';
 
 const ProductTypeStruct = enums(Object.values(PRODUCT_TYPES));
 const CryptoAuthMethodStruct = enums(Object.values(CRYPTO_AUTH_METHODS));
+const ShieldEntitlementsStruct = type({
+  [ShieldFeature.ShieldClaim]: boolean(),
+  [ShieldFeature.PrioritySupport]: boolean(),
+});
+const MoneyAccountEntitlementsStruct = type({
+  [MoneyAccountFeature.SwapFeeWaiver]: boolean(),
+  [MoneyAccountFeature.PerpsFeeWaiver]: boolean(),
+  [MoneyAccountFeature.PredictFreeTx]: boolean(),
+  [MoneyAccountFeature.PremiumApy]: boolean(),
+});
+const ProductEntitlementsStruct = type({
+  [PRODUCT_TYPES.SHIELD]: optional(
+    type({
+      entitlements: ShieldEntitlementsStruct,
+    }),
+  ),
+  [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: optional(
+    type({
+      plan: string(),
+      entitlements: MoneyAccountEntitlementsStruct,
+    }),
+  ),
+});
 const RecurringIntervalStruct = enums(Object.values(RECURRING_INTERVALS));
 const SubscriptionStatusStruct = enums(Object.values(SUBSCRIPTION_STATUSES));
 const CancelTypeStruct = enums(Object.values(CANCEL_TYPES));
@@ -90,6 +115,7 @@ export const GetSubscriptionsResponseStruct = type({
   customerId: optional(string()),
   subscriptions: array(SubscriptionStruct),
   trialedProducts: array(ProductTypeStruct),
+  productEntitlements: optional(ProductEntitlementsStruct),
   lastSubscription: optional(SubscriptionStruct),
   rewardAccountId: optional(CaipAccountIdStruct),
 });

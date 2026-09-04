@@ -40,6 +40,7 @@ import type {
   CachedLastSelectedPaymentMethod,
   SubmitSponsorshipIntentsMethodParams,
   ProductType,
+  ProductEntitlements,
   RecurringInterval,
 } from './types.js';
 import {
@@ -48,6 +49,7 @@ import {
   PAYMENT_TYPES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
+  ShieldFeature,
   SUBSCRIPTION_STATUSES,
   SubscriptionUserEvent,
 } from './types.js';
@@ -187,6 +189,24 @@ const MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE = {
   customerId: 'cus_1',
   subscriptions: [] as Subscription[],
   trialedProducts: [] as ProductType[],
+};
+
+const MOCK_PRODUCT_ENTITLEMENTS: ProductEntitlements = {
+  [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+    plan: 'premium',
+    entitlements: {
+      perpsFeeWaiver: false,
+      predictFreeTx: true,
+      premiumApy: true,
+      swapFeeWaiver: true,
+    },
+  },
+  [PRODUCT_TYPES.SHIELD]: {
+    entitlements: {
+      [ShieldFeature.PrioritySupport]: false,
+      [ShieldFeature.ShieldClaim]: true,
+    },
+  },
 };
 
 const MOCK_COHORTS = [
@@ -499,6 +519,235 @@ describe('SubscriptionController', () => {
   });
 
   describe('getSubscriptions', () => {
+    it('stores product entitlements', async () => {
+      await withController(
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.productEntitlements).toStrictEqual(
+            MOCK_PRODUCT_ENTITLEMENTS,
+          );
+        },
+      );
+    });
+
+    it('updates state when only product entitlements change', async () => {
+      await withController(
+        {
+          state: {
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          const productEntitlements = {
+            [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+              plan: 'premium',
+              entitlements: {
+                perpsFeeWaiver: false,
+                predictFreeTx: false,
+                premiumApy: false,
+                swapFeeWaiver: false,
+              },
+            },
+          };
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements,
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.productEntitlements).toStrictEqual(
+            productEntitlements,
+          );
+        },
+      );
+    });
+
+    it('stores Shield entitlements when Money Account entitlements are absent', async () => {
+      await withController(
+        async ({ controller, rootMessenger, mockService }) => {
+          const productEntitlements = {
+            [PRODUCT_TYPES.SHIELD]:
+              MOCK_PRODUCT_ENTITLEMENTS[PRODUCT_TYPES.SHIELD],
+          };
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements,
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.productEntitlements).toStrictEqual(
+            productEntitlements,
+          );
+        },
+      );
+    });
+
+    it('stores Money Account entitlements when Shield entitlements are absent', async () => {
+      await withController(
+        async ({ controller, rootMessenger, mockService }) => {
+          const productEntitlements = {
+            [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]:
+              MOCK_PRODUCT_ENTITLEMENTS[PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+          };
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements,
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.productEntitlements).toStrictEqual(
+            productEntitlements,
+          );
+        },
+      );
+    });
+
+    it('clears product entitlements when a successful fetch returns an empty map', async () => {
+      await withController(
+        {
+          state: {
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: {},
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.productEntitlements).toStrictEqual({});
+        },
+      );
+    });
+
+    it('clears product entitlements when a successful fetch omits them', async () => {
+      await withController(
+        {
+          state: {
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.productEntitlements).toStrictEqual({});
+        },
+      );
+    });
+
+    it('clears product entitlements when subscriptions change and the fetch omits them', async () => {
+      await withController(
+        {
+          state: {
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            MOCK_SUBSCRIPTION,
+          ]);
+          expect(controller.state.productEntitlements).toStrictEqual({});
+        },
+      );
+    });
+
+    it('does not update state when product entitlements are unchanged', async () => {
+      await withController(
+        {
+          state: {
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          },
+        },
+        async ({ rootMessenger, mockService, mockPerformSignOut }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: { ...MOCK_PRODUCT_ENTITLEMENTS },
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(mockPerformSignOut).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not sign out when product entitlements differ only by key order', async () => {
+      const productEntitlementsWithReorderedKeys: ProductEntitlements = {
+        [PRODUCT_TYPES.SHIELD]: {
+          entitlements: {
+            [ShieldFeature.ShieldClaim]: true,
+            [ShieldFeature.PrioritySupport]: false,
+          },
+        },
+        [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+          entitlements: {
+            swapFeeWaiver: true,
+            premiumApy: true,
+            predictFreeTx: true,
+            perpsFeeWaiver: false,
+          },
+          plan: 'premium',
+        },
+      };
+
+      expect(JSON.stringify(MOCK_PRODUCT_ENTITLEMENTS)).not.toBe(
+        JSON.stringify(productEntitlementsWithReorderedKeys),
+      );
+
+      await withController(
+        {
+          state: {
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          },
+        },
+        async ({
+          controller,
+          rootMessenger,
+          mockService,
+          mockPerformSignOut,
+        }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            ...MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE,
+            productEntitlements: productEntitlementsWithReorderedKeys,
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(mockPerformSignOut).not.toHaveBeenCalled();
+          expect(controller.state.productEntitlements).toBe(
+            MOCK_PRODUCT_ENTITLEMENTS,
+          );
+        },
+      );
+    });
+
     it('should fetch and store subscription successfully', async () => {
       await withController(
         async ({ controller, rootMessenger, mockService }) => {
@@ -2995,6 +3244,25 @@ describe('SubscriptionController', () => {
           }
         `);
       });
+    });
+
+    it('persists Shield and Money Account product entitlements', async () => {
+      await withController(
+        {
+          state: {
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
+          },
+        },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'persist',
+            ).productEntitlements,
+          ).toStrictEqual(MOCK_PRODUCT_ENTITLEMENTS);
+        },
+      );
     });
 
     it('exposes expected state to UI', async () => {
