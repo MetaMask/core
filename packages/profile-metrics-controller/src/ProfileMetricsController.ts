@@ -12,6 +12,7 @@ import type {
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -22,7 +23,7 @@ import { Mutex } from 'async-mutex';
 import type { ProfileMetricsControllerMethodActions } from './ProfileMetricsController-method-action-types.js';
 import type { ProfileMetricsServiceMethodActions } from './ProfileMetricsService-method-action-types.js';
 import type {
-  AccountOwnershipProof,
+  AccountSource,
   AccountWithScopes,
 } from './ProfileMetricsService.js';
 import type { ProofOfOwnershipServiceMethodActions } from './ProofOfOwnershipService-method-action-types.js';
@@ -47,6 +48,15 @@ export const DEFAULT_INITIAL_DELAY_DURATION = inMilliseconds(
 );
 
 /**
+ * The sync queue key for accounts that are not backed by a mnemonic (hardware,
+ * imported private key, and non-mnemonic Snap accounts). These are submitted
+ * without an entropy source ID, which the AuthenticationController resolves
+ * to the primary SRP. The value is `String(null)` so that queues persisted by
+ * earlier versions keep draining.
+ */
+const NON_MNEMONIC_QUEUE_KEY = 'null';
+
+/**
  * Describes the shape of the state object for {@link ProfileMetricsController}.
  */
 export type ProfileMetricsControllerState = {
@@ -56,10 +66,10 @@ export type ProfileMetricsControllerState = {
    */
   initialEnqueueCompleted: boolean;
   /**
-   * The queue of accounts to be synced.
+   * The queue of accounts to be synced, with canonical addresses.
    * Each key is an entropy source ID, and each value is an array of account
    * addresses associated with that entropy source. Accounts with no entropy
-   * source ID are grouped under the key "null".
+   * source ID are grouped under {@link NON_MNEMONIC_QUEUE_KEY}.
    */
   syncQueue: Record<string, AccountWithScopes[]>;
   /**
@@ -74,6 +84,18 @@ export type ProfileMetricsControllerState = {
    * first poll already attaches proofs.
    */
   proofBackfillEnqueued: boolean;
+  /**
+   * Whether known accounts have been re-enqueued once so that they are
+   * reported with canonical addresses and, for non-mnemonic accounts, an
+   * account source. Set on the first unlock after upgrading; fresh installs
+   * flip this on their initial sync.
+   */
+  accountSourceBackfillEnqueued: boolean;
+  /**
+   * Canonical addresses that have already been reported. Enqueuing one of
+   * these again is a no-op.
+   */
+  reportedAccounts: string[];
 };
 
 /**
@@ -104,6 +126,18 @@ const profileMetricsControllerMetadata = {
     includeInStateLogs: true,
     usedInUi: false,
   },
+  accountSourceBackfillEnqueued: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: false,
+  },
+  reportedAccounts: {
+    persist: true,
+    includeInDebugSnapshot: false,
+    includeInStateLogs: true,
+    usedInUi: false,
+  },
 } satisfies StateMetadata<ProfileMetricsControllerState>;
 
 /**
@@ -119,6 +153,8 @@ export function getDefaultProfileMetricsControllerState(): ProfileMetricsControl
     initialEnqueueCompleted: false,
     syncQueue: {},
     proofBackfillEnqueued: false,
+    accountSourceBackfillEnqueued: false,
+    reportedAccounts: [],
   };
 }
 
@@ -297,10 +333,14 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
   /**
    * Execute a single poll to sync user profile data.
    *
-   * The queued accounts are sent to the ProfileMetricsService, each with
-   * a proof of ownership when one can be produced (see {@link #attachProofs}),
-   * and the sync queue is cleared. This operation is mutexed to prevent
-   * concurrent executions.
+   * Each batch of queued accounts is sent to the ProfileMetricsService and
+   * then dropped from the sync queue, with its addresses recorded as
+   * reported. Mnemonic batches are attributed to their own entropy source
+   * and carry proofs of ownership when one can be produced (see
+   * {@link #attachProofs}); the non-mnemonic batch is submitted without an
+   * entropy source ID (resolved to the primary SRP downstream) and never
+   * carries proofs. This operation is mutexed to prevent concurrent
+   * executions.
    *
    * @returns A promise that resolves when the poll is complete.
    */
@@ -313,34 +353,40 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
       if (!this.#isInitialDelayComplete()) {
         return;
       }
-      const fullAccountsByAddress = this.#getFullAccountsByAddress();
-      for (const [entropySourceId, accounts] of Object.entries(
-        this.state.syncQueue,
-      )) {
-        const normalizedEntropySourceId =
-          entropySourceId === 'null' ? null : entropySourceId;
-        // Skip proof-of-ownership for accounts without an entropy source
-        const accountsWithProofs =
-          normalizedEntropySourceId === null
-            ? accounts
-            : await this.#attachProofs(
-                accounts,
-                fullAccountsByAddress,
-                normalizedEntropySourceId,
-              );
+      const batches = Object.entries(this.state.syncQueue);
+      if (batches.length === 0) {
+        return;
+      }
+      const proofCandidates = this.#getProofCandidatesByAddress();
+      for (const [queueKey, accounts] of batches) {
+        const entropySourceId =
+          queueKey === NON_MNEMONIC_QUEUE_KEY ? null : queueKey;
         try {
+          const accountsToSubmit =
+            entropySourceId === null
+              ? accounts
+              : await this.#attachProofs(
+                  accounts,
+                  proofCandidates,
+                  entropySourceId,
+                );
           await this.messenger.call('ProfileMetricsService:submitMetrics', {
             metametricsId: this.#getMetaMetricsId(),
-            entropySourceId: normalizedEntropySourceId,
-            accounts: accountsWithProofs,
+            entropySourceId,
+            accounts: accountsToSubmit,
           });
           this.update((state) => {
-            delete state.syncQueue[entropySourceId];
+            for (const { address } of accountsToSubmit) {
+              if (!state.reportedAccounts.includes(address)) {
+                state.reportedAccounts.push(address);
+              }
+            }
+            delete state.syncQueue[queueKey];
           });
         } catch (error) {
           // We want to log the error but continue processing other batches.
           console.error(
-            `Failed to submit profile metrics for entropy source ID ${entropySourceId}:`,
+            `Failed to submit profile metrics for sync queue key ${queueKey}:`,
             error,
           );
         }
@@ -350,60 +396,30 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
 
   /**
    * Attach a proof of ownership to each account in a single entropy-source
-   * batch when possible, canonicalizing the address along the way.
+   * batch when possible.
    *
-   * Per-account failures (unknown namespace, snap missing the
-   * `signProofOfOwnership` method, snap rejection) and whole-batch nonce
-   * failures are caught and downgraded to "submit without a proof" so the
-   * batch still goes through and the proof is retried on the next poll.
+   * Per-account failures (snap missing the `signProofOfOwnership` method,
+   * snap rejection) and whole-batch nonce failures are caught and
+   * downgraded to "submit without a proof" so the batch still goes through
+   * and the proof is retried on the next poll.
    *
    * @param accounts - The queued accounts for a single batch.
-   * @param fullAccountsByAddress - Live `InternalAccount` lookup keyed by address.
-   * @param entropySourceId - The entropy source ID for this batch. Callers
-   * are expected to short-circuit before invoking this method when the
-   * batch has no entropy source; see `_executePoll` for why.
+   * @param proofCandidates - Live accounts that can produce a proof, keyed by
+   * canonical address (see {@link #getProofCandidatesByAddress}).
+   * @param entropySourceId - The entropy source ID for this batch.
    * @returns The accounts with `proof` populated where signing succeeded.
    */
   async #attachProofs(
     accounts: AccountWithScopes[],
-    fullAccountsByAddress: Map<string, InternalAccount>,
+    proofCandidates: Map<string, InternalAccount>,
     entropySourceId: string,
   ): Promise<AccountWithScopes[]> {
-    const candidates = new Map<
-      string,
-      { account: InternalAccount; canonicalAddress: string }
-    >();
-    const identifiers = new Set<string>();
-    for (const queued of accounts) {
-      const fullAccount = fullAccountsByAddress.get(queued.address);
-      if (!fullAccount) {
-        continue;
-      }
-      try {
-        const [scope] = fullAccount.scopes;
-        if (!scope) {
-          throw new Error(`Scope not found for account ${fullAccount.id}`);
-        }
-        const { namespace } = parseCaipChainId(scope);
-        const canonicalAddress = canonicalizeAddress(
-          fullAccount.address,
-          namespace,
-        );
-        candidates.set(queued.address, {
-          account: fullAccount,
-          canonicalAddress,
-        });
-        identifiers.add(canonicalAddress);
-      } catch (error) {
-        // Unsupported namespaces are an expected pass-through; anything
-        // else is logged so a new namespace doesn't go unnoticed.
-        if (!(error instanceof ProofUnsupportedNamespaceError)) {
-          console.error(`Skipping proof for account ${fullAccount.id}:`, error);
-        }
-      }
-    }
-
-    if (candidates.size === 0) {
+    const identifiers = new Set(
+      accounts
+        .map(({ address }) => address)
+        .filter((address) => proofCandidates.has(address)),
+    );
+    if (identifiers.size === 0) {
       return accounts;
     }
 
@@ -422,61 +438,59 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
 
     return await Promise.all(
       accounts.map(async (queued): Promise<AccountWithScopes> => {
-        const candidate = candidates.get(queued.address);
-        if (!candidate) {
+        const account = proofCandidates.get(queued.address);
+        const nonce = nonces[queued.address];
+        if (!account || !nonce) {
           return queued;
         }
-        const nonce = nonces[candidate.canonicalAddress];
-        if (!nonce) {
-          return { ...queued, address: candidate.canonicalAddress };
-        }
-        let proof: AccountOwnershipProof;
         try {
-          proof = await this.messenger.call('ProofOfOwnershipService:sign', {
-            account: candidate.account,
-            nonce,
-          });
+          const proof = await this.messenger.call(
+            'ProofOfOwnershipService:sign',
+            { account, nonce },
+          );
+          return { ...queued, proof };
         } catch (error) {
           console.error(
-            `Failed to sign proof of ownership for account ${candidate.account.id}:`,
+            `Failed to sign proof of ownership for account ${account.id}:`,
             error,
           );
-          return { ...queued, address: candidate.canonicalAddress };
+          return queued;
         }
-        return {
-          address: candidate.canonicalAddress,
-          scopes: queued.scopes,
-          proof,
-        };
       }),
     );
   }
 
   /**
-   * Snapshot the live `InternalAccount` map keyed by address for the
-   * current poll.
+   * Snapshot the live accounts keyed by canonical address, so they can be
+   * matched against queued accounts when signing proofs of ownership.
+   * Accounts whose namespace has no canonical form cannot produce a proof
+   * and are left out.
    *
-   * @returns A map of address → `InternalAccount`.
+   * @returns A map of canonical address → `InternalAccount`.
    */
-  #getFullAccountsByAddress(): Map<string, InternalAccount> {
-    const byAddress = new Map<string, InternalAccount>();
-    const accountsState = this.messenger.call('AccountsController:getState');
-    for (const account of Object.values(
-      accountsState.internalAccounts.accounts,
-    )) {
-      byAddress.set(account.address, account);
+  #getProofCandidatesByAddress(): Map<string, InternalAccount> {
+    const candidates = new Map<string, InternalAccount>();
+    const { accounts } = this.messenger.call(
+      'AccountsController:getState',
+    ).internalAccounts;
+    for (const account of Object.values(accounts)) {
+      const canonicalAddress = getCanonicalAddress(account);
+      if (canonicalAddress) {
+        candidates.set(canonicalAddress, account);
+      }
     }
-    return byAddress;
+    return candidates;
   }
 
   /**
    * Enqueue all currently-known accounts onto the sync queue if needed.
-   * Single entry point covering both the fresh-install first sync and
-   * the one-time proof-of-ownership backfill for users upgrading.
+   * Single entry point covering the fresh-install first sync and the
+   * one-time backfills for users upgrading (proofs of ownership, then
+   * canonical addresses and account sources).
    *
    * Bails for opted-out users (the poll wouldn't drain the queue
-   * anyway), and bails once both bootstrap steps have already run.
-   * Otherwise enqueues all known accounts and flips both flags so this
+   * anyway), and bails once every bootstrap step has already run.
+   * Otherwise enqueues all known accounts and flips every flag so this
    * becomes a permanent no-op for the lifetime of the install.
    */
   async #enqueueAccountsIfNeeded(): Promise<void> {
@@ -486,28 +500,26 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
       }
       if (
         this.state.initialEnqueueCompleted &&
-        this.state.proofBackfillEnqueued
+        this.state.proofBackfillEnqueued &&
+        this.state.accountSourceBackfillEnqueued
       ) {
         return;
       }
-      const groupedAccounts = groupAccountsByEntropySourceId(
-        Object.values(
-          this.messenger.call('AccountsController:getState').internalAccounts
-            .accounts,
-        ),
-      );
+      const { accounts } = this.messenger.call(
+        'AccountsController:getState',
+      ).internalAccounts;
       this.update((state) => {
         // Replace the queue rather than append. `AccountsController` is
-        // the source of truth and the queue is otherwise kept in sync
-        // with it via the `accountAdded` / `accountRemoved` subscriptions,
-        // so assigning here avoids duplicating entries that survived from
-        // a prior session or were pushed earlier in this same unlock
-        // cycle. Duplicates would matter because nonces are single-use:
-        // letting one through causes `#attachProofs` to sign and submit
-        // twice with the same nonce.
-        state.syncQueue = groupedAccounts;
+        // the source of truth, so this drops stale entries that survived
+        // from a prior session and re-derives each account's canonical
+        // address and source.
+        state.syncQueue = {};
+        for (const account of Object.values(accounts)) {
+          enqueueAccount(state, account);
+        }
         state.initialEnqueueCompleted = true;
         state.proofBackfillEnqueued = true;
+        state.accountSourceBackfillEnqueued = true;
       });
     });
   }
@@ -535,21 +547,15 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
   }
 
   /**
-   * Queue the given account to be synced at the next poll.
+   * Queue the given account to be synced at the next poll, unless it has
+   * already been reported or queued.
    *
    * @param account - The account to sync.
    */
   async #addAccountToQueue(account: InternalAccount): Promise<void> {
     await this.#mutex.runExclusive(async () => {
       this.update((state) => {
-        const entropySourceId = getAccountEntropySourceId(account) ?? 'null';
-        if (!state.syncQueue[entropySourceId]) {
-          state.syncQueue[entropySourceId] = [];
-        }
-        state.syncQueue[entropySourceId].push({
-          address: account.address,
-          scopes: account.scopes,
-        });
+        enqueueAccount(state, account);
       });
     });
   }
@@ -596,25 +602,103 @@ function getAccountEntropySourceId(account: InternalAccount): string | null {
 }
 
 /**
- * Groups accounts by their entropy source ID.
+ * Derive the reporting source of an account that is not backed by a mnemonic,
+ * from its keyring type.
  *
- * @param accounts - The accounts to group.
- * @returns An object where each key is an entropy source ID and each value is
- * an array of account addresses associated with that entropy source ID.
+ * @param account - The account to classify.
+ * @returns The account source, or undefined for mnemonic-backed accounts
+ * (which are attributed to their entropy source instead) and for
+ * unrecognized keyring types.
  */
-function groupAccountsByEntropySourceId(
-  accounts: InternalAccount[],
-): Record<string, AccountWithScopes[]> {
-  return accounts.reduce(
-    (result: Record<string, AccountWithScopes[]>, account) => {
-      const entropySourceId = getAccountEntropySourceId(account);
-      const key = entropySourceId ?? 'null';
-      if (!result[key]) {
-        result[key] = [];
-      }
-      result[key].push({ address: account.address, scopes: account.scopes });
-      return result;
-    },
-    {},
-  );
+function getAccountSource(account: InternalAccount): AccountSource | undefined {
+  if (getAccountEntropySourceId(account) !== null) {
+    return undefined;
+  }
+  switch (account.metadata.keyring.type) {
+    case KeyringTypes.simple:
+      return 'imported';
+    case KeyringTypes.snap:
+      return 'snap';
+    case KeyringTypes.qr:
+    case KeyringTypes.trezor:
+    case KeyringTypes.oneKey:
+    case KeyringTypes.ledger:
+    case KeyringTypes.lattice:
+      return 'hardware';
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Retrieves the canonical address of the given account, as expected by the
+ * auth API (see {@link canonicalizeAddress}).
+ *
+ * @param account - The account whose address to canonicalize.
+ * @returns The canonical address, or undefined when the account's namespace
+ * has no canonical form (in which case it cannot produce a proof of
+ * ownership either).
+ */
+function getCanonicalAddress(account: InternalAccount): string | undefined {
+  try {
+    const [scope] = account.scopes;
+    if (!scope) {
+      throw new Error(`Scope not found for account ${account.id}`);
+    }
+    return canonicalizeAddress(
+      account.address,
+      parseCaipChainId(scope).namespace,
+    );
+  } catch (error) {
+    // Unsupported namespaces are an expected pass-through; anything
+    // else is logged so a new namespace doesn't go unnoticed.
+    if (!(error instanceof ProofUnsupportedNamespaceError)) {
+      console.error(
+        `Failed to canonicalize address for account ${account.id}:`,
+        error,
+      );
+    }
+    return undefined;
+  }
+}
+
+/**
+ * Convert an internal account to the payload stored in the sync queue and
+ * submitted to the ProfileMetricsService.
+ *
+ * @param account - The internal account.
+ * @returns The queued account, with a canonical address and, for
+ * non-mnemonic accounts, a source.
+ */
+function toQueuedAccount(account: InternalAccount): AccountWithScopes {
+  const source = getAccountSource(account);
+  return {
+    address: getCanonicalAddress(account) ?? account.address,
+    scopes: account.scopes,
+    ...(source ? { source } : {}),
+  };
+}
+
+/**
+ * Push the given account onto the sync queue held in `state`, unless its
+ * canonical address has already been reported or is already queued.
+ *
+ * @param state - The controller state to mutate.
+ * @param account - The account to enqueue.
+ */
+function enqueueAccount(
+  state: ProfileMetricsControllerState,
+  account: InternalAccount,
+): void {
+  const queuedAccount = toQueuedAccount(account);
+  const isKnown =
+    state.reportedAccounts.includes(queuedAccount.address) ||
+    Object.values(state.syncQueue).some((batch) =>
+      batch.some(({ address }) => address === queuedAccount.address),
+    );
+  if (isKnown) {
+    return;
+  }
+  const queueKey = getAccountEntropySourceId(account) ?? NON_MNEMONIC_QUEUE_KEY;
+  (state.syncQueue[queueKey] ??= []).push(queuedAccount);
 }

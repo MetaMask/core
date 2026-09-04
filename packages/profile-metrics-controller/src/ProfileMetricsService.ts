@@ -63,12 +63,19 @@ export type AccountOwnershipProof = {
 };
 
 /**
- * An account address along with its associated scopes and an optional
- * ownership proof.
+ * The source of an account that is not derived from an SRP.
+ */
+export type AccountSource = 'hardware' | 'imported' | 'snap';
+
+/**
+ * An account address along with its associated scopes, an optional source
+ * for accounts that are not derived from an SRP, and an optional ownership
+ * proof.
  */
 export type AccountWithScopes = {
   address: string;
   scopes: `${string}:${string}`[];
+  source?: AccountSource;
   proof?: AccountOwnershipProof;
 };
 
