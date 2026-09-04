@@ -471,7 +471,7 @@ function mockWithKeyringV2Unsafe(
  * @param args - The arguments to this function.
  * @param args.snapIsReady - Initial value of `SnapController.isReady`.
  * @param args.runnableSnaps - Snaps returned by `SnapController:getRunnableSnaps`.
- * @param args.accounts - Initial accounts
+ * @param args.accounts - Initial accounts.
  * @param args.config - Optional service config.
  * @param args.captureException - Optional method to capture exceptions in Sentry.
  * @returns The new service, root messenger, service messenger, and mocks.

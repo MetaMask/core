@@ -320,7 +320,7 @@ export class SnapAccountService {
 
     // Keep the Snap-ownership cache in sync as accounts are added/removed.
     // The initial cache is built lazily on first use (see
-    // `#ensureAccountSnapCache`) rather than in the constructor, so that this
+    // `#initAccountSnapCache`) rather than in the constructor, so that this
     // service does not force clients to instantiate `AccountsController`
     // before it. This keeps the account data update event path synchronous —
     // the cache is a plain `Map` read. The granular `accountsAdded` /
@@ -980,7 +980,7 @@ export class SnapAccountService {
     event: AccountDataUpdatedKeyringEvent,
     entries: Record<string, Value>,
   ): Record<string, Value> {
-    this.#ensureAccountSnapCache();
+    this.#initAccountSnapCache();
     const filtered: Record<string, Value> = {};
     for (const [accountId, value] of Object.entries(entries)) {
       if (this.#accountSnapIds.get(accountId) === snapId) {
@@ -1047,7 +1047,7 @@ export class SnapAccountService {
   /**
    * Lazily builds the Snap-ownership cache on first use.
    */
-  #ensureAccountSnapCache(): void {
+  #initAccountSnapCache(): void {
     if (!this.#accountSnapCacheInitialized) {
       this.#rebuildAccountSnapCache(
         this.#messenger.call('AccountsController:getState'),
