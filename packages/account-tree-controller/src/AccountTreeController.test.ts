@@ -4829,7 +4829,7 @@ describe('AccountTreeController', () => {
       controller.init();
 
       const noPrimaryWalletSnapshot = {
-        getPrimaryWallet: () => undefined,
+        hasPrimaryWallet: () => false,
         serialize: () => ({ version: 1, wallets: [] }),
       } as Parameters<AccountTreeController['importState']>[0];
 

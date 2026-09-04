@@ -41,34 +41,36 @@ export class AccountTreeSnapshot {
 
   readonly #idMap: IdMap | undefined;
 
+  // Set to true by stripPrimaryWallet(). getPrimaryWallet() returns undefined
+  // regardless of remaining entries so the guard in importState fires correctly
+  // even when secondary mnemonic wallets are still present in the snapshot.
+  readonly #primaryWalletStripped: boolean;
+
   /**
    * @param entries - Wallet entries in the snapshot.
    * @param idMap - Optional local ↔ payload ID map from export.
+   * @param primaryWalletStripped - Internal flag; set by {@link stripPrimaryWallet}.
    */
-  constructor(entries: AccountTreeWalletEntry[], idMap?: IdMap) {
+  constructor(entries: AccountTreeWalletEntry[], idMap?: IdMap, primaryWalletStripped = false) {
     this.#entries = deepFreeze(structuredClone(entries));
     this.#idMap = idMap;
+    this.#primaryWalletStripped = primaryWalletStripped;
   }
 
   /**
-   * Returns the primary (first mnemonic) wallet entry, or `undefined` if none
-   * is present in the snapshot.
+   * Whether the primary (first mnemonic) wallet is present in this snapshot.
    *
-   * Use this to detect whether the primary SRP is included before passing the
-   * snapshot to {@link AccountTreeController.importState}. When `undefined`,
-   * the controller will reject the snapshot if mnemonic wallets already exist.
+   * `false` when the snapshot has no mnemonic wallets, or when it was derived
+   * via {@link stripPrimaryWallet}. {@link AccountTreeController.importState}
+   * rejects a snapshot where this is `false` if mnemonic wallets already exist.
    */
-  getPrimaryWallet():
-    | (AccountTreeSnapshotWallet & { type: AccountWalletPayloadType.Mnemonic })
-    | undefined {
-    const entry = this.#entries.find(
+  hasPrimaryWallet(): boolean {
+    if (this.#primaryWalletStripped) {
+      return false;
+    }
+    return this.#entries.some(
       (wallet) => wallet.type === AccountWalletPayloadType.Mnemonic,
     );
-    return entry as
-      | (AccountTreeSnapshotWallet & {
-          type: AccountWalletPayloadType.Mnemonic;
-        })
-      | undefined;
   }
 
   /**
@@ -88,7 +90,7 @@ export class AccountTreeSnapshot {
       predicate(entry as AccountTreeSnapshotWallet),
     );
 
-    return new AccountTreeSnapshot(filteredEntries, this.#idMap);
+    return new AccountTreeSnapshot(filteredEntries, this.#idMap, this.#primaryWalletStripped);
   }
 
   /**
@@ -143,7 +145,7 @@ export class AccountTreeSnapshot {
       };
     }
 
-    return new AccountTreeSnapshot(filteredEntries, this.#idMap);
+    return new AccountTreeSnapshot(filteredEntries, this.#idMap, this.#primaryWalletStripped);
   }
 
   /**
@@ -191,7 +193,7 @@ export class AccountTreeSnapshot {
       }
     }
 
-    return new AccountTreeSnapshot(filteredEntries, this.#idMap);
+    return new AccountTreeSnapshot(filteredEntries, this.#idMap, this.#primaryWalletStripped);
   }
 
   /**
@@ -220,7 +222,7 @@ export class AccountTreeSnapshot {
         ),
       } as AccountWalletPrivateKeyPayload;
     });
-    return new AccountTreeSnapshot(entries, this.#idMap);
+    return new AccountTreeSnapshot(entries, this.#idMap, this.#primaryWalletStripped);
   }
 
   /**
@@ -250,7 +252,7 @@ export class AccountTreeSnapshot {
       }
       return true;
     });
-    return new AccountTreeSnapshot(entries, this.#idMap);
+    return new AccountTreeSnapshot(entries, this.#idMap, true);
   }
 
   /**
@@ -275,7 +277,7 @@ export class AccountTreeSnapshot {
         }),
       } as AccountTreeWalletEntry;
     });
-    return new AccountTreeSnapshot(entries, this.#idMap);
+    return new AccountTreeSnapshot(entries, this.#idMap, this.#primaryWalletStripped);
   }
 
   /**
