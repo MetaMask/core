@@ -30,9 +30,10 @@ import {
   getPreConfirmationPropertiesFromQuote,
   getHashPresenceProperties,
   getStatusFailurePhase,
-  getStatusFailureTelemetry,
+  getFailurePropertiesFromHistory,
   getSubmitErrorCode,
-  getSubmitFailureTelemetry,
+  getBroadcastFailureProperties,
+  promoteFailurePhase,
 } from './metrics.js';
 
 describe('metrics utils', () => {
@@ -1176,6 +1177,10 @@ describe('metrics utils', () => {
         usd_actual_return: 0,
         usd_actual_gas: 0,
         action_type: MetricsActionType.SWAPBRIDGE_V1,
+        source_hash_present: false,
+        destination_hash_present: false,
+        failure_phase: FailurePhase.Broadcast,
+        error_code: SwapBridgeErrorCode.MissingErrorObject,
       });
     });
 
@@ -1193,6 +1198,24 @@ describe('metrics utils', () => {
       );
       expect(result.error_message).toBe('Transaction failed. Error message');
       expect(result.source_transaction).toBe('FAILED');
+      expect(result.failure_phase).toBe(FailurePhase.Broadcast);
+      expect(result.error_code).toBe(SwapBridgeErrorCode.Unknown);
+    });
+
+    it('sets source_execution when the failed tx has a hash', () => {
+      const failedWithHash: TransactionMeta = {
+        ...mockTransactionMeta,
+        status: TransactionStatus.failed,
+        hash: '0xabc',
+        error: {
+          message: 'reverted',
+          name: 'Error',
+        } as TransactionError,
+      };
+      const result = getEVMTxPropertiesFromTransactionMeta(failedWithHash);
+      expect(result.source_hash_present).toBe(true);
+      expect(result.failure_phase).toBe(FailurePhase.SourceExecution);
+      expect(result.error_code).toBe(SwapBridgeErrorCode.Unknown);
     });
 
     it('should handle missing token symbols', () => {
@@ -1311,19 +1334,90 @@ describe('metrics utils', () => {
         }),
       ).toBe(FailurePhase.Poll);
     });
+
+    it('returns approval when no hash exists but an approval tx was expected', () => {
+      expect(
+        getStatusFailurePhase(
+          {
+            source_hash_present: false,
+            destination_hash_present: false,
+          },
+          true,
+        ),
+      ).toBe(FailurePhase.Approval);
+    });
+
+    it('does not return approval when a source hash exists, even if approval was expected', () => {
+      expect(
+        getStatusFailurePhase(
+          {
+            source_hash_present: true,
+            destination_hash_present: false,
+          },
+          true,
+        ),
+      ).toBe(FailurePhase.SourceExecution);
+    });
   });
 
-  describe('getSubmitFailureTelemetry', () => {
-    it('uses broadcast for submit failures with no hash', () => {
-      expect(getSubmitFailureTelemetry(new Error('snap failed'))).toStrictEqual(
-        {
-          failure_phase: FailurePhase.Broadcast,
-          error_code: SwapBridgeErrorCode.Unknown,
+  describe('promoteFailurePhase', () => {
+    it('keeps broadcast when no hashes are present', () => {
+      expect(
+        promoteFailurePhase(FailurePhase.Broadcast, {
           source_hash_present: false,
           destination_hash_present: false,
-        },
-      );
-      expect(getSubmitFailureTelemetry({ code: 4001 })).toStrictEqual({
+        }),
+      ).toBe(FailurePhase.Broadcast);
+    });
+
+    it('promotes broadcast or poll to source_execution when a source hash is present', () => {
+      expect(
+        promoteFailurePhase(FailurePhase.Broadcast, {
+          source_hash_present: true,
+          destination_hash_present: false,
+        }),
+      ).toBe(FailurePhase.SourceExecution);
+      expect(
+        promoteFailurePhase(FailurePhase.Poll, {
+          source_hash_present: true,
+          destination_hash_present: false,
+        }),
+      ).toBe(FailurePhase.SourceExecution);
+      expect(
+        promoteFailurePhase(FailurePhase.Unknown, {
+          source_hash_present: true,
+          destination_hash_present: false,
+        }),
+      ).toBe(FailurePhase.SourceExecution);
+    });
+
+    it('promotes to destination_execution when a dest hash is present', () => {
+      expect(
+        promoteFailurePhase(FailurePhase.SourceExecution, {
+          source_hash_present: true,
+          destination_hash_present: true,
+        }),
+      ).toBe(FailurePhase.DestinationExecution);
+      expect(
+        promoteFailurePhase(FailurePhase.Broadcast, {
+          source_hash_present: false,
+          destination_hash_present: true,
+        }),
+      ).toBe(FailurePhase.DestinationExecution);
+    });
+  });
+
+  describe('getBroadcastFailureProperties', () => {
+    it('uses broadcast for submit failures with no hash', () => {
+      expect(
+        getBroadcastFailureProperties(new Error('snap failed')),
+      ).toStrictEqual({
+        failure_phase: FailurePhase.Broadcast,
+        error_code: SwapBridgeErrorCode.Unknown,
+        source_hash_present: false,
+        destination_hash_present: false,
+      });
+      expect(getBroadcastFailureProperties({ code: 4001 })).toStrictEqual({
         failure_phase: FailurePhase.Broadcast,
         error_code: SwapBridgeErrorCode.NonErrorRejection,
         source_hash_present: false,
@@ -1332,19 +1426,43 @@ describe('metrics utils', () => {
     });
   });
 
-  describe('getStatusFailureTelemetry', () => {
+  describe('getFailurePropertiesFromHistory', () => {
     it('uses status_failed_without_reason and phase from hashes', () => {
-      expect(getStatusFailureTelemetry('0xsrc', undefined)).toStrictEqual({
-        failure_phase: FailurePhase.SourceExecution,
-        error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
-        source_hash_present: true,
-        destination_hash_present: false,
-      });
-      expect(getStatusFailureTelemetry('0xsrc', '0xdest')).toStrictEqual({
+      expect(getFailurePropertiesFromHistory('0xsrc', undefined)).toStrictEqual(
+        {
+          failure_phase: FailurePhase.SourceExecution,
+          error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
+          source_hash_present: true,
+          destination_hash_present: false,
+        },
+      );
+      expect(getFailurePropertiesFromHistory('0xsrc', '0xdest')).toStrictEqual({
         failure_phase: FailurePhase.DestinationExecution,
         error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
         source_hash_present: true,
         destination_hash_present: true,
+      });
+    });
+
+    it('returns approval when no hash exists but an approval tx was expected', () => {
+      expect(
+        getFailurePropertiesFromHistory(undefined, undefined, true),
+      ).toStrictEqual({
+        failure_phase: FailurePhase.Approval,
+        error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
+        source_hash_present: false,
+        destination_hash_present: false,
+      });
+    });
+
+    it('falls back to poll when no hash exists and no approval was expected', () => {
+      expect(
+        getFailurePropertiesFromHistory(undefined, undefined, false),
+      ).toStrictEqual({
+        failure_phase: FailurePhase.Poll,
+        error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
+        source_hash_present: false,
+        destination_hash_present: false,
       });
     });
   });

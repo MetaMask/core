@@ -1778,6 +1778,19 @@ describe('BridgeStatusController', () => {
         // Assertions
         expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
+        const failedCall = messengerCallSpy.mock.calls.find(
+          ([action, eventName]) =>
+            action === 'BridgeController:trackUnifiedSwapBridgeEvent' &&
+            eventName === UnifiedSwapBridgeEventName.Failed,
+        );
+        expect(failedCall?.[2]).toStrictEqual(
+          expect.objectContaining({
+            failure_phase: 'source_execution',
+            error_code: 'status_failed_without_reason',
+            source_hash_present: true,
+            destination_hash_present: false,
+          }),
+        );
         expect(messengerPublishSpy).not.toHaveBeenCalledWith(
           'BridgeStatusController:destinationTransactionCompleted',
         );
@@ -5004,7 +5017,10 @@ describe('BridgeStatusController', () => {
                 "chain_id_destination": "eip155:42161",
                 "chain_id_source": "eip155:42161",
                 "custom_slippage": false,
+                "destination_hash_present": false,
+                "error_code": "unknown",
                 "error_message": "Failed to submit cross-chain swap batch transaction: unknown account in trade data",
+                "failure_phase": "broadcast",
                 "feature_id": "unified_swap_bridge",
                 "gas_included": false,
                 "gas_included_7702": false,
@@ -5014,6 +5030,7 @@ describe('BridgeStatusController', () => {
                 "provider": "lifi_across",
                 "quoted_time_minutes": 0,
                 "slippage_limit": 0,
+                "source_hash_present": false,
                 "stx_enabled": true,
                 "swap_type": "single_chain",
                 "token_address_destination": "eip155:10/slip44:60",
@@ -5093,7 +5110,10 @@ describe('BridgeStatusController', () => {
                 "chain_id_destination": "eip155:42161",
                 "chain_id_source": "eip155:42161",
                 "custom_slippage": false,
+                "destination_hash_present": false,
+                "error_code": "unknown",
                 "error_message": "Failed to update cross-chain swap transaction batch: tradeMeta not found",
+                "failure_phase": "broadcast",
                 "feature_id": "unified_swap_bridge",
                 "gas_included": false,
                 "gas_included_7702": false,
@@ -5103,6 +5123,7 @@ describe('BridgeStatusController', () => {
                 "provider": "lifi_across",
                 "quoted_time_minutes": 0,
                 "slippage_limit": 0,
+                "source_hash_present": false,
                 "stx_enabled": true,
                 "swap_type": "single_chain",
                 "token_address_destination": "eip155:10/slip44:60",
@@ -5686,7 +5707,10 @@ describe('BridgeStatusController', () => {
               "chain_id_destination": "eip155:42161",
               "chain_id_source": "eip155:42161",
               "custom_slippage": false,
+              "destination_hash_present": false,
+              "error_code": "unknown",
               "error_message": "Transaction failed. tx-error",
+              "failure_phase": "broadcast",
               "feature_id": "unified_swap_bridge",
               "gas_included": false,
               "gas_included_7702": false,
@@ -5699,6 +5723,7 @@ describe('BridgeStatusController', () => {
               "quoted_vs_used_gas_ratio": 0,
               "security_warnings": [],
               "slippage_limit": 0,
+              "source_hash_present": false,
               "source_transaction": "FAILED",
               "stx_enabled": false,
               "swap_type": "crosschain",
@@ -5874,8 +5899,11 @@ describe('BridgeStatusController', () => {
                 "chain_id_destination": "eip155:42161",
                 "chain_id_source": "eip155:42161",
                 "custom_slippage": true,
+                "destination_hash_present": false,
                 "destination_transaction": "FAILED",
+                "error_code": "unknown",
                 "error_message": "Transaction failed. tx-error",
+                "failure_phase": "source_execution",
                 "feature_id": "quick_buy_follow_trading",
                 "gas_included": false,
                 "gas_included_7702": false,
@@ -5888,6 +5916,7 @@ describe('BridgeStatusController', () => {
                 "quoted_vs_used_gas_ratio": 0,
                 "security_warnings": [],
                 "slippage_limit": 0,
+                "source_hash_present": true,
                 "source_transaction": "COMPLETE",
                 "stx_enabled": false,
                 "swap_type": "single_chain",
@@ -5952,8 +5981,11 @@ describe('BridgeStatusController', () => {
                 "chain_id_destination": "eip155:42161",
                 "chain_id_source": "eip155:42161",
                 "custom_slippage": true,
+                "destination_hash_present": false,
                 "destination_transaction": "FAILED",
+                "error_code": "unknown",
                 "error_message": "Transaction failed. tx-error",
+                "failure_phase": "source_execution",
                 "feature_id": "quick_buy_explore",
                 "gas_included": false,
                 "gas_included_7702": false,
@@ -5966,6 +5998,7 @@ describe('BridgeStatusController', () => {
                 "quoted_vs_used_gas_ratio": 0,
                 "security_warnings": [],
                 "slippage_limit": 0,
+                "source_hash_present": true,
                 "source_transaction": "COMPLETE",
                 "stx_enabled": false,
                 "swap_type": "single_chain",

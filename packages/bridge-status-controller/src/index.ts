@@ -56,7 +56,7 @@ export {
 export {
   getHashPresenceProperties,
   getStatusFailurePhase,
-  getStatusFailureTelemetry,
+  getFailurePropertiesFromHistory,
   getSubmitErrorCode,
-  getSubmitFailureTelemetry,
+  getBroadcastFailureProperties,
 } from './utils/metrics.js';

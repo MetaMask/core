@@ -11,8 +11,13 @@ import {
   toQuoteMetadataV1,
   toQuoteResponseV1,
   isQuoteResponseV2,
+  FailurePhase,
+  SwapBridgeErrorCode,
 } from '@metamask/bridge-controller';
-import type { QuoteMetadataMigrationPhase } from '@metamask/bridge-controller';
+import type {
+  FailureTelemetryData,
+  QuoteMetadataMigrationPhase,
+} from '@metamask/bridge-controller';
 import {
   isNonEvmChainId,
   StatusTypes,
@@ -96,6 +101,10 @@ import {
   getEVMTxPropertiesFromTransactionMeta,
   getTxStatusesFromHistory,
   getPreConfirmationPropertiesFromQuote,
+  getHashPresenceProperties,
+  getBroadcastFailureProperties,
+  getFailurePropertiesFromHistory,
+  promoteFailurePhase,
 } from './utils/metrics.js';
 import { getSelectedChainId } from './utils/network.js';
 import {
@@ -1538,6 +1547,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         undefined,
         {
           ...preConfirmationProperties,
+          source_hash_present: false,
+          destination_hash_present: false,
           ...(inputPrimaryDenomination && {
             input_primary_denomination: inputPrimaryDenomination,
           }),
@@ -1595,6 +1606,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         {
           error_message: (error as Error)?.message,
           ...preConfirmationProperties,
+          ...getBroadcastFailureProperties(error),
         },
       );
       throw error;
@@ -1769,6 +1781,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       eventProperties?.location ??
       MetaMetricsSwapsEventSource.Unknown;
 
+    const failedProperties =
+      eventName === UnifiedSwapBridgeEventName.Failed
+        ? (eventProperties as FailureTelemetryData | undefined)
+        : undefined;
+
     const baseProperties = {
       action_type: MetricsActionType.SWAPBRIDGE_V1,
       feature_id: featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
@@ -1790,7 +1807,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       trackMetricsEvent({
         messenger: this.messenger,
         eventName,
-        properties: baseProperties,
+        properties: {
+          ...baseProperties,
+          ...(eventName === UnifiedSwapBridgeEventName.Failed && {
+            failure_phase:
+              failedProperties?.failure_phase ?? FailurePhase.Unknown,
+            error_code:
+              failedProperties?.error_code ?? SwapBridgeErrorCode.Unknown,
+            source_hash_present: failedProperties?.source_hash_present ?? false,
+            destination_hash_present:
+              failedProperties?.destination_hash_present ?? false,
+          }),
+        },
       });
       return;
     }
@@ -1830,6 +1858,34 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       (tx: TransactionMeta) => tx.id === approvalTxId,
     );
 
+    const historyHashPresence = getHashPresenceProperties(
+      historyItem.status.srcChain.txHash,
+      historyItem.status.destChain?.txHash,
+    );
+
+    const failurePropertiesFromHistory = getFailurePropertiesFromHistory(
+      historyItem.status.srcChain.txHash,
+      historyItem.status.destChain?.txHash,
+      Boolean(historyItem.approvalTxId) || historyItem.hasApprovalTx,
+    );
+    const failedHashPresence = {
+      source_hash_present:
+        historyHashPresence.source_hash_present ||
+        Boolean(failedProperties?.source_hash_present),
+      destination_hash_present:
+        historyHashPresence.destination_hash_present ||
+        Boolean(failedProperties?.destination_hash_present),
+    };
+    const failedPhase = promoteFailurePhase(
+      failedProperties?.failure_phase ??
+        failurePropertiesFromHistory.failure_phase,
+      failedHashPresence,
+    );
+    const failedErrorCode =
+      failedProperties?.failure_phase === undefined
+        ? failurePropertiesFromHistory.error_code
+        : (failedProperties.error_code ?? SwapBridgeErrorCode.Unknown);
+
     const requiredEventProperties = {
       ...baseProperties,
       ...requestParamProperties,
@@ -1839,6 +1895,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ...getFinalizedTxProperties(historyItem, txMeta, approvalTxMeta),
       ...getPriceImpactFromQuote(quote),
       ...(eventName === UnifiedSwapBridgeEventName.Completed && {
+        ...historyHashPresence,
         ...(!isNonEvmChainId(historyItem.quote.srcChainId) &&
           historyItem.txMetaId && {
             transaction_internal_id: historyItem.txMetaId,
@@ -1846,6 +1903,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         ...(historyItem.inputPrimaryDenomination && {
           input_primary_denomination: historyItem.inputPrimaryDenomination,
         }),
+      }),
+      ...(eventName === UnifiedSwapBridgeEventName.Failed && {
+        ...failurePropertiesFromHistory,
+        ...failedHashPresence,
+        failure_phase: failedPhase,
+        error_code: failedErrorCode,
       }),
     };
 
