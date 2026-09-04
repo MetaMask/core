@@ -124,6 +124,7 @@ import type {
 } from '../types/index.js';
 import type {
   LighterApiOrder,
+  LighterApiPosition,
   LighterAuthConfig,
   LighterTxLookupResponse,
   LighterTransferHistoryItem,
@@ -203,6 +204,18 @@ const deriveLighterMaxLeverage = (
   }
   return maxLeverage;
 };
+
+const isInactiveMarketWithoutUsableRiskMetadata = (market: {
+  status: string;
+  minInitialMarginFraction?: number;
+  maintenanceMarginFraction?: number;
+}): boolean =>
+  // Lighter retains inactive rows for historical identity but can zero their
+  // trading constraints. They are valid venue records, not usable markets.
+  market.status === 'inactive' &&
+  (market.minInitialMarginFraction === undefined ||
+    market.minInitialMarginFraction === 0 ||
+    market.maintenanceMarginFraction === 0);
 
 const adaptLighterTransferDelta = (
   entry: LighterTransferHistoryItem,
@@ -4702,9 +4715,14 @@ export class LighterProvider implements PerpsProvider {
       await this.#ensureMarketMargins();
       return markets
         .filter((market) => market.marketType === 'perp')
-        .map((market) => {
+        .flatMap((market) => {
           const margins = this.#marginBySymbol.get(market.symbol);
           if (!margins) {
+            // #ensureMarketMargins deliberately omits inactive rows whose
+            // retired risk metadata cannot produce a canonical MarketInfo.
+            if (market.status === 'inactive') {
+              return [];
+            }
             throw new Error(
               `${LIGHTER_DATA_INTEGRITY_PREFIX} missing authoritative leverage for ${market.symbol}`,
             );
@@ -4724,7 +4742,7 @@ export class LighterProvider implements PerpsProvider {
               adapted.minimumOrderSize = oneTickUsd;
             }
           }
-          return adapted;
+          return [adapted];
         });
     } catch (caughtError) {
       const wrappedError = ensureError(
@@ -4750,6 +4768,7 @@ export class LighterProvider implements PerpsProvider {
       const response = await this.#clientService.getOrderBookDetails();
       return response.orderBookDetails
         .filter((detail) => detail.marketType === 'perp')
+        .filter((detail) => !isInactiveMarketWithoutUsableRiskMetadata(detail))
         .map((detail) =>
           adaptMarketDataFromLighter(detail, this.#deps.marketDataFormatters),
         );
@@ -4802,7 +4821,7 @@ export class LighterProvider implements PerpsProvider {
         .map((position) =>
           adaptPositionFromLighter(
             position,
-            this.#maxLeverageForMarketId(position.marketId),
+            this.#maxLeverageForPosition(position),
           ),
         )
         .filter((position) => parseFloat(position.size) !== 0);
@@ -7316,23 +7335,40 @@ export class LighterProvider implements PerpsProvider {
   /**
    * Synchronous per-market max leverage from the authoritative margin cache.
    *
-   * @param marketId - Numeric Lighter market id.
+   * Inactive markets cannot increase exposure. When Lighter has retired their
+   * risk metadata, the position's current leverage is therefore the highest
+   * leverage that can be reported without inventing a tradable venue limit.
+   *
+   * @param position - Position carrying the market id and current margin.
    * @returns Max leverage for the market.
    * @throws If the market identity or margin metadata is unavailable.
    */
-  readonly #maxLeverageForMarketId = (marketId: number): number => {
+  readonly #maxLeverageForPosition = (
+    position: Pick<LighterApiPosition, 'marketId' | 'initialMarginFraction'>,
+  ): number => {
+    const { marketId } = position;
     const symbol = this.#marketsById.get(marketId)?.symbol;
     const metadata =
       (symbol ? this.#marginBySymbol.get(symbol) : undefined) ??
       [...this.#marginBySymbol.values()].find(
         (entry) => entry.marketId === marketId,
       );
-    if (!metadata) {
-      throw new Error(
-        `${LIGHTER_DATA_INTEGRITY_PREFIX} margin metadata unavailable for market ${marketId}`,
-      );
+    if (metadata) {
+      return deriveLighterMaxLeverage(metadata.minInitial, marketId);
     }
-    return deriveLighterMaxLeverage(metadata.minInitial, marketId);
+    if (this.#marketsById.get(marketId)?.status === 'inactive') {
+      const marginFraction = parseStrictDecimal(position.initialMarginFraction);
+      const currentLeverage =
+        marginFraction !== null && marginFraction > 0
+          ? Math.round(100 / marginFraction)
+          : 0;
+      if (Number.isSafeInteger(currentLeverage) && currentLeverage > 0) {
+        return currentLeverage;
+      }
+    }
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} margin metadata unavailable for market ${marketId}`,
+    );
   };
 
   /**
@@ -7396,6 +7432,9 @@ export class LighterProvider implements PerpsProvider {
           // The timestamp only advances on success.
           const fresh = new Map<string, LighterMarginMetadata>();
           for (const detail of details.orderBookDetails) {
+            if (isInactiveMarketWithoutUsableRiskMetadata(detail)) {
+              continue;
+            }
             if (detail.minInitialMarginFraction !== undefined) {
               deriveLighterMaxLeverage(
                 detail.minInitialMarginFraction,
@@ -7867,7 +7906,7 @@ export class LighterProvider implements PerpsProvider {
       for (const [marketId, position] of Object.entries(message.positions)) {
         const adapted = adaptPositionFromLighter(
           position,
-          this.#maxLeverageForMarketId(position.marketId),
+          this.#maxLeverageForPosition(position),
         );
         if (parseFloat(adapted.size) === 0) {
           nextPositions.delete(Number(marketId));

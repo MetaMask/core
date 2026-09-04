@@ -10,6 +10,7 @@ export type {
 export type {
   SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetSubscriptionsAction,
+  SubscriptionControllerGetBenefitsAction,
   SubscriptionControllerGetSubscriptionByProductAction,
   SubscriptionControllerGetSubscriptionsEligibilitiesAction,
   SubscriptionControllerCancelSubscriptionAction,
@@ -39,6 +40,11 @@ export {
 export type {
   SubscriptionApiError,
   Subscription,
+  PerpsBenefitUsage,
+  PredictBenefitUsage,
+  SubscriptionBenefitsResponse,
+  SubscriptionBenefitsState,
+  SwapsBenefitUsage,
   AuthUtils,
   CancelSubscriptionRequest,
   CancelType,
@@ -127,6 +133,7 @@ export {
 } from './SubscriptionService.js';
 export type {
   SubscriptionServiceGetSubscriptionsAction,
+  SubscriptionServiceGetBenefitsAction,
   SubscriptionServiceCancelSubscriptionAction,
   SubscriptionServiceUnCancelSubscriptionAction,
   SubscriptionServiceStartSubscriptionWithCardAction,
