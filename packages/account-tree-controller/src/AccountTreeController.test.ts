@@ -4819,6 +4819,24 @@ describe('AccountTreeController', () => {
       await messenger.call('AccountTreeController:importState', mockSnapshot);
       expect(spy).toHaveBeenCalledWith(mockSnapshot);
     });
+
+    it('throws when a snapshot with no primary wallet is imported after onboarding is complete', async () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const noPrimaryWalletSnapshot = {
+        hasPrimaryWallet: () => false,
+        serialize: () => ({ version: 1, wallets: [] }),
+      } as Parameters<AccountTreeController['importState']>[0];
+
+      await expect(
+        controller.importState(noPrimaryWalletSnapshot),
+      ).rejects.toThrow('AccountTreeSnapshot has no primary wallet');
+    });
   });
 
   describe('Event Emissions', () => {
