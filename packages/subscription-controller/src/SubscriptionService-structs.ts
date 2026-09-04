@@ -94,6 +94,41 @@ export const GetSubscriptionsResponseStruct = type({
   rewardAccountId: optional(CaipAccountIdStruct),
 });
 
+const SwapsBenefitUsageStruct = type({
+  feeBips: nullable(string()),
+  capMicroUsd: optional(number()),
+  consumedMicroUsd: optional(number()),
+  remainingMicroUsd: nullable(number()),
+  exhausted: boolean(),
+});
+
+const PerpsBenefitUsageStruct = type({
+  builderFeeBips: nullable(string()),
+  builderCode: nullable(string()),
+  capMicroUsd: optional(number()),
+  consumedMicroUsd: optional(number()),
+  remainingMicroUsd: nullable(number()),
+  exhausted: boolean(),
+});
+
+const PredictBenefitUsageStruct = type({
+  builderCode: nullable(string()),
+  capTxCount: optional(number()),
+  consumedTxCount: optional(number()),
+  remainingTxCount: nullable(number()),
+  exhausted: boolean(),
+});
+
+export const SubscriptionBenefitsResponseStruct = type({
+  eligible: boolean(),
+  billingPeriodId: nullable(string()),
+  products: type({
+    swaps: SwapsBenefitUsageStruct,
+    perps: PerpsBenefitUsageStruct,
+    predict: PredictBenefitUsageStruct,
+  }),
+});
+
 export const StartSubscriptionResponseStruct = type({
   checkoutSessionUrl: string(),
 });
