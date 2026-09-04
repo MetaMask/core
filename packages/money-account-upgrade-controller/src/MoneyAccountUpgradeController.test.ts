@@ -326,9 +326,7 @@ function setup({
       'RemoteFeatureFlagController:getState',
     ],
     events: [
-      // eslint-disable-next-line no-restricted-syntax
       'KeyringController:stateChange',
-      // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
     ],
     messenger,

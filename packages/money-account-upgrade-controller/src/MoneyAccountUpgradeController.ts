@@ -316,11 +316,9 @@ export class MoneyAccountUpgradeController extends BaseController<
     }
     this.#initialized = true;
 
-    // eslint-disable-next-line no-restricted-syntax
     this.messenger.subscribe('RemoteFeatureFlagController:stateChange', () =>
       this.sync(),
     );
-    // eslint-disable-next-line no-restricted-syntax
     this.messenger.subscribe('KeyringController:stateChange', () =>
       this.sync(),
     );
