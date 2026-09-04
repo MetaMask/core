@@ -1801,7 +1801,7 @@ describe('AssetsController', () => {
         );
       });
 
-      it('routes chains carrying unprocessed pinned assets (unprocessedCustomAssets) to the slow-pipeline RPC fetch', async () => {
+      it('falls back to RPC on the force-update fast path for unprocessed include asset ids', async () => {
         const customToken =
           'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
 
@@ -1826,9 +1826,9 @@ describe('AssetsController', () => {
           },
         } as unknown as ApiPlatformClient;
 
-        const rpcRequestChainIds: ChainId[][] = [];
+        const rpcRequestCustomAssets: (Caip19AssetId[] | undefined)[] = [];
         const rpcMiddleware = jest.fn(async (ctx, next) => {
-          rpcRequestChainIds.push(ctx.request.chainIds);
+          rpcRequestCustomAssets.push(ctx.request.customAssets);
           return next(ctx);
         });
         const rpcMiddlewareGetter = jest
@@ -1850,22 +1850,21 @@ describe('AssetsController', () => {
 
             await controller.addCustomAsset(MOCK_ACCOUNT_ID, customToken);
 
+            rpcMiddleware.mockClear();
             await controller.getAssets([createMockInternalAccount()], {
               chainIds: ['eip155:1'],
               forceUpdate: true,
             });
-
-            // Slow pipeline is fire-and-forget; let it run.
-            await flushPromises();
           },
         );
 
-        // The chain of the unresolved pin (eip155:1) — a chain AccountsApi
-        // handled and did NOT flag as errored — is still routed to RPC in the
-        // slow pipeline so the pin gets fetched.
+        // RpcFallbackMiddleware runs in the awaited fast lane, scoped to the
+        // pins Accounts API listed in unprocessedIncludeAssetIds.
         expect(rpcMiddleware).toHaveBeenCalled();
         expect(
-          rpcRequestChainIds.some((chains) => chains.includes('eip155:1')),
+          rpcRequestCustomAssets.some((customAssets) =>
+            customAssets?.includes(customToken),
+          ),
         ).toBe(true);
 
         rpcMiddlewareGetter.mockRestore();
