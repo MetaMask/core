@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+## [39.1.1]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^35.0.1` to `^36.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+
 ## [39.1.0]
 
 ### Added
@@ -883,7 +893,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.1.1...HEAD
+[39.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.1.0...@metamask/accounts-controller@39.1.1
 [39.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.7...@metamask/accounts-controller@39.1.0
 [39.0.7]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.6...@metamask/accounts-controller@39.0.7
 [39.0.6]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.5...@metamask/accounts-controller@39.0.6

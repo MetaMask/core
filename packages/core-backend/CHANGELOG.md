@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `bypassServerCache` option to `FetchOptions` ([#10068](https://github.com/MetaMask/core/pull/10068))
+  - When true, the v5/v6 multi-account balances requests skip the client-side query cache (stale time defaults to 0) and append a random `bypassServerCache` query param so the Accounts API's server-side cache (keyed on the full URL) misses. Intended for hard refreshes only, e.g. right after a transaction confirms.
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+## [9.0.0]
+
 ### Changed
 
 - **BREAKING:** Align the Accounts API v6 balance response types with the flat `/v6/multiaccount/balances` response: `V6BalancesResponse.accounts` is replaced by `balances`, `V6BalanceItem` now includes `accountId`, `object`, and `type`, `V6BalanceMetadata.protocolIconUrl` is optional, `processingDefiPositions` is now an optional response-level array of CAIP-10 account IDs, and `V6AccountBalancesEntry` is removed ([#9911](https://github.com/MetaMask/core/pull/9911))
@@ -395,7 +407,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.2...@metamask/core-backend@9.0.0
 [8.1.2]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.1...@metamask/core-backend@8.1.2
 [8.1.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.0...@metamask/core-backend@8.1.1
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.0.0...@metamask/core-backend@8.1.0

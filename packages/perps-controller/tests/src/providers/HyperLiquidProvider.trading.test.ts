@@ -301,10 +301,18 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
-  order: jest.fn().mockResolvedValue({
-    status: 'ok',
-    response: { data: { statuses: [{ resting: { oid: 123 } }] } },
-  }),
+  order: jest.fn().mockImplementation((request: { orders: unknown[] }) =>
+    Promise.resolve({
+      status: 'ok',
+      response: {
+        data: {
+          statuses: request.orders.map((_order, index) => ({
+            resting: { oid: 123 + index },
+          })),
+        },
+      },
+    }),
+  ),
   modify: jest.fn().mockResolvedValue({
     status: 'ok',
     response: { data: { statuses: [{ resting: { oid: '123' } }] } },
@@ -457,7 +465,13 @@ describe('HyperLiquidProvider', () => {
       subscribeToOrderFills: jest.fn().mockReturnValue(jest.fn()), // Returns function directly
       clearAll: jest.fn(),
       isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
-      getCachedPositions: jest.fn().mockReturnValue([]),
+      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
+      // Production starts with no aggregate. Use null here so tests that do not
+      // opt into a cache fixture keep the real cold-start REST path.
+      getCachedPositions: jest.fn().mockReturnValue(null),
+      // Per-DEX position slices. Default to "nothing published", so a test that
+      // does not opt in keeps the aggregate behaviour it was written against.
+      getCachedPositionsForDex: jest.fn().mockReturnValue(null),
       updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
       setDexMetaCache: jest.fn(),
@@ -1287,6 +1301,7 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('closes a position successfully', async () => {
+      const exchangeClient = mockClientService.getExchangeClient();
       const closeParams: ClosePositionParams = {
         symbol: 'BTC',
         orderType: 'market',
@@ -1295,6 +1310,10 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.closePosition(closeParams);
 
       expect(result.success).toBe(true);
+      expect(exchangeClient.order.mock.calls[0][0].builder).toStrictEqual({
+        b: BUILDER_FEE_CONFIG.MainnetBuilder,
+        f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+      });
     });
 
     it('repairs missing HIP-3 asset IDs during closePosition after degraded discovery', async () => {
@@ -1308,6 +1327,46 @@ describe('HyperLiquidProvider', () => {
         response: { data: { statuses: [{ resting: { oid: 123 } }] } },
       });
       const mockInfoClient = createMockInfoClient({
+        clearinghouseState: jest
+          .fn()
+          .mockImplementation((params?: { dex?: string }) =>
+            Promise.resolve({
+              marginSummary: {
+                totalMarginUsed: '100',
+                accountValue: '10100',
+              },
+              withdrawable: '10000',
+              assetPositions:
+                params?.dex === 'xyz'
+                  ? [
+                      {
+                        position: {
+                          coin: 'xyz:STOCK1',
+                          szi: '10',
+                          entryPx: '95',
+                          positionValue: '1000',
+                          unrealizedPnl: '50',
+                          marginUsed: '100',
+                          leverage: { type: 'isolated', value: 5 },
+                          liquidationPx: '70',
+                          maxLeverage: 20,
+                          returnOnEquity: '10',
+                          cumFunding: {
+                            allTime: '0',
+                            sinceOpen: '0',
+                            sinceChange: '0',
+                          },
+                        },
+                        type: 'oneWay',
+                      },
+                    ]
+                  : [],
+              crossMarginSummary: {
+                accountValue: '10100',
+                totalMarginUsed: '100',
+              },
+            }),
+          ),
         perpDexs: jest
           .fn()
           .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
@@ -2411,9 +2470,54 @@ describe('HyperLiquidProvider', () => {
       expect(getSubmittedOrder()).toMatchObject({ s: '0.098', r: true });
     });
 
-    it('uses the caller snapshot verbatim when the WebSocket cache is not initialized', async () => {
-      // The 429-avoiding shortcut: no cache, no REST call, snapshot is authoritative
-      const getPositionsSpy = jest.spyOn(provider, 'getPositions');
+    it('revalidates against a live slice while the aggregate flag is still false', async () => {
+      // isPositionsCacheInitialized() only flips once EVERY expected DEX has
+      // published, so during a staggered start or reconnect it reads false while
+      // this symbol's own slice is already live. Gating revalidation on it
+      // suppressed the fresher answer and submitted the stale snapshot size.
+      mockSubscriptionService.isPositionsCacheInitialized = jest
+        .fn()
+        .mockReturnValue(false);
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockImplementation((dexName: string) =>
+          dexName === '' ? [createPositionSnapshot({ size: '0.03' })] : null,
+        );
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+        position: createPositionSnapshot({ size: '0.1' }),
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.03', r: true });
+    });
+
+    it('uses the target-DEX REST position when the WebSocket slice is unavailable', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: jest.fn().mockResolvedValue({
+            marginSummary: { totalMarginUsed: '200', accountValue: '10200' },
+            withdrawable: '10000',
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '0.04',
+                  entryPx: '50000',
+                  positionValue: '2000',
+                  unrealizedPnl: '20',
+                  marginUsed: '200',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '45000',
+                },
+                type: 'oneWay',
+              },
+            ],
+          }),
+        }),
+      );
 
       const result = await provider.closePosition({
         symbol: 'BTC',
@@ -2422,8 +2526,10 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(getSubmittedOrder()).toMatchObject({ s: '0.07', r: true });
-      expect(getPositionsSpy).not.toHaveBeenCalled();
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.04', r: true });
+      expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
+        useHttp: true,
+      });
     });
 
     it('fetches live positions for a symbol whose DEX the cache does not cover', async () => {
@@ -2662,9 +2768,7 @@ describe('HyperLiquidProvider', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('keeps the caller snapshot when the target DEX query fails', async () => {
-      // A rate-limited or erroring clearinghouseState proves nothing about the
-      // symbol, so the snapshot must stand rather than block a closable position
+    it('reports provider unavailable when the target DEX query fails', async () => {
       primePositionsCache([], []);
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
@@ -2681,14 +2785,16 @@ describe('HyperLiquidProvider', () => {
         position: createPositionSnapshot({ size: '0.07' }),
       });
 
-      expect(result.success).toBe(true);
-      expect(getSubmittedOrder()).toMatchObject({ s: '0.07', r: true });
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      });
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
     });
 
-    it('keeps the snapshot when the HIP-3 target DEX query fails', async () => {
-      // The target DEX is queried directly now, so a failing xyz request is
-      // reported as unanswered no matter what the main DEX holds — blocking the
-      // close on that would strand the position.
+    it('reports provider unavailable when the HIP-3 target DEX query fails', async () => {
       primePositionsCache([], []);
       const hip3Provider = createTestProvider({
         hip3Enabled: true,
@@ -2804,12 +2910,11 @@ describe('HyperLiquidProvider', () => {
         }),
       });
 
-      expect(result.success).toBe(true);
-      expect(mockOrder).toHaveBeenCalledWith(
-        expect.objectContaining({
-          orders: [expect.objectContaining({ s: '10', r: true })],
-        }),
-      );
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      });
+      expect(mockOrder).not.toHaveBeenCalled();
     });
 
     it('keeps the clamp when a partial close also carries usdAmount', async () => {
@@ -2961,6 +3066,235 @@ describe('HyperLiquidProvider', () => {
       ).not.toHaveBeenCalled();
     });
 
+    // Regression coverage for TAT-3873 ("No position found on close and TP/SL"),
+    // close half. A snapshot-less lookup used the aggregate cache, so a position
+    // opened after reconnect could be reported missing while its own DEX slice
+    // already held the live position.
+    it('closes a position the frozen aggregate omits when no snapshot is supplied', async () => {
+      const infoClient = mockClientService.getInfoClient();
+      mockSubscriptionService.isPositionsCacheInitialized = jest
+        .fn()
+        .mockReturnValue(true);
+      // Frozen aggregate: never saw the position opened after the reconnect
+      mockSubscriptionService.getCachedPositions = jest
+        .fn()
+        .mockReturnValue([]);
+      // Fresh per-DEX slice holds it
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockImplementation((dexName: string) =>
+          dexName === '' ? [createPositionSnapshot({ size: '0.06' })] : null,
+        );
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({ s: '0.06', r: true });
+      expect(infoClient.clearinghouseState).not.toHaveBeenCalled();
+    });
+
+    it('uses target-DEX REST when no current slice exists', async () => {
+      const infoClient = mockClientService.getInfoClient();
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockReturnValue(null);
+      mockSubscriptionService.getCachedPositions = jest
+        .fn()
+        .mockReturnValue([createPositionSnapshot({ size: '-0.08' })]);
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+      });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrder()).toMatchObject({
+        b: false,
+        s: '0.1',
+        r: true,
+      });
+      expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
+        useHttp: true,
+      });
+      expect(infoClient.clearinghouseState).toHaveBeenCalled();
+    });
+
+    it('does not report a position closed when its target-DEX REST query fails', async () => {
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockReturnValue(null);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: jest
+            .fn()
+            .mockRejectedValue(new Error('REST unavailable')),
+        }),
+      );
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      });
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('still reports no position when both the aggregate and the fresh slice agree it is gone', async () => {
+      // The guard must keep failing closed: a genuinely closed position must
+      // not be turned into an order by the refresh above.
+      mockSubscriptionService.isPositionsCacheInitialized = jest
+        .fn()
+        .mockReturnValue(true);
+      mockSubscriptionService.getCachedPositions = jest
+        .fn()
+        .mockReturnValue([]);
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockImplementation((dexName: string) => (dexName === '' ? [] : null));
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('No position found for BTC');
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('closes a HIP-3 position the frozen aggregate has never seen', async () => {
+      // The aggregate has never seen this DEX at all, so a sweep derived from
+      // the aggregate's own symbols would not consult the xyz slice and the
+      // close would fail with "No position found" for an open position.
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        useUnifiedAccount: true,
+        initialAssetMapping: [
+          ['BTC', 0],
+          ['xyz:STOCK1', 110000],
+        ],
+      });
+      mockSubscriptionService.isPositionsCacheInitialized = jest
+        .fn()
+        .mockReturnValue(true);
+      mockSubscriptionService.getCachedPositions = jest
+        .fn()
+        .mockReturnValue([]);
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockImplementation((dexName: string) =>
+          dexName === 'xyz'
+            ? [
+                createPositionSnapshot({
+                  symbol: 'xyz:STOCK1',
+                  size: '8',
+                  marginUsed: '100',
+                }),
+              ]
+            : [],
+        );
+      const mockOrder = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: [{ filled: {} }] } },
+      });
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          perpDexs: jest
+            .fn()
+            .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+          meta: jest.fn().mockImplementation((params?: { dex?: string }) =>
+            params?.dex === 'xyz'
+              ? Promise.resolve({
+                  universe: [
+                    { name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 },
+                  ],
+                  collateralToken: 0,
+                })
+              : Promise.resolve({
+                  universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+                }),
+          ),
+          // buildAssetMapping populates the meta cache from here, and that
+          // cache wins over meta() on the close path.
+          metaAndAssetCtxs: jest
+            .fn()
+            .mockImplementation((params?: { dex?: string }) =>
+              params?.dex === 'xyz'
+                ? Promise.resolve([
+                    {
+                      universe: [
+                        { name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 },
+                      ],
+                      collateralToken: 0,
+                    },
+                    [
+                      {
+                        funding: '0.0001',
+                        openInterest: '100',
+                        prevDayPx: '95',
+                        dayNtlVlm: '10000',
+                        markPx: '100',
+                        midPx: '100',
+                        oraclePx: '100',
+                      },
+                    ],
+                  ])
+                : Promise.resolve([
+                    {
+                      universe: [
+                        { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+                      ],
+                    },
+                    [
+                      {
+                        funding: '0.0001',
+                        openInterest: '1000',
+                        prevDayPx: '49000',
+                        dayNtlVlm: '1000000',
+                        markPx: '50000',
+                        midPx: '50000',
+                        oraclePx: '50000',
+                      },
+                    ],
+                  ]),
+            ),
+          allMids: jest
+            .fn()
+            .mockImplementation((params?: { dex?: string }) =>
+              params?.dex === 'xyz'
+                ? Promise.resolve({ 'xyz:STOCK1': '100' })
+                : Promise.resolve({ BTC: '50000' }),
+            ),
+        }),
+      );
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(createMockExchangeClient({ order: mockOrder }));
+
+      const result = await hip3Provider.closePosition({
+        symbol: 'xyz:STOCK1',
+        orderType: 'market',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockOrder.mock.calls[0][0].orders[0]).toMatchObject({
+        s: '8',
+        r: true,
+      });
+    });
+
     it('keeps a grid-aligned close size intact despite floating point error', async () => {
       // 0.123 * 1000 === 122.99999999999999, so a naive truncation would drop a
       // whole increment and leave dust behind.
@@ -2974,6 +3308,906 @@ describe('HyperLiquidProvider', () => {
 
       expect(result.success).toBe(true);
       expect(getSubmittedOrder()).toMatchObject({ s: '0.123', r: true });
+    });
+  });
+
+  // Regression coverage for the batch half of TAT-3252. closePosition moved to
+  // the per-DEX slices, but closePositions kept reading the aggregate through
+  // getPositions(), so the same reconnect window that produced a stale size or
+  // a spurious "already closed" on a single close still reached the batch path.
+  describe('closePositions reduce-only safety', () => {
+    /**
+     * Build a position of the shape the WebSocket caches hold.
+     * @param overrides - Fields to override on the default BTC long.
+     * @returns A cached position.
+     */
+    const createCachedPosition = (overrides: Partial<Position> = {}) => ({
+      symbol: 'BTC',
+      size: '0.1',
+      entryPrice: '50000',
+      positionValue: '5000',
+      unrealizedPnl: '100',
+      marginUsed: '500',
+      leverage: { type: 'cross' as const, value: 10 },
+      liquidationPrice: '45000',
+      maxLeverage: 50,
+      returnOnEquity: '20',
+      cumulativeFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+      takeProfitCount: 0,
+      stopLossCount: 0,
+      ...overrides,
+    });
+
+    /**
+     * Reproduce the post-reconnect window: the aggregate is frozen at its
+     * pre-reconnect contents while the per-DEX slices keep updating.
+     * @param aggregate - Positions the frozen aggregate still reports.
+     * @param perDex - Positions the fresh main-DEX slice reports.
+     */
+    const primeFrozenAggregate = (
+      aggregate: Position[] | null,
+      perDex: Position[],
+    ) => {
+      mockSubscriptionService.isPositionsCacheInitialized = jest
+        .fn()
+        .mockReturnValue(true);
+      mockSubscriptionService.getCachedPositions = jest
+        .fn()
+        .mockReturnValue(aggregate);
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
+        .fn()
+        .mockReturnValue(perDex);
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockImplementation((dexName: string) =>
+          dexName === '' ? perDex : null,
+        );
+    };
+
+    /**
+     * Read the orders submitted by the batch close.
+     * @returns The submitted SDK orders.
+     */
+    const getSubmittedOrders = () =>
+      (mockClientService.getExchangeClient().order as jest.Mock).mock
+        .calls[0][0].orders;
+
+    beforeEach(() => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          meta: jest.fn().mockResolvedValue({
+            universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+          }),
+          allMids: jest.fn().mockResolvedValue({ BTC: '50000' }),
+        }),
+      );
+      mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+        createMockExchangeClient({
+          order: jest.fn().mockResolvedValue({
+            status: 'ok',
+            response: { data: { statuses: [{ filled: {} }] } },
+          }),
+        }),
+      );
+    });
+
+    it('closes the live per-DEX size, not the frozen aggregate size', async () => {
+      // Aggregate still says 0.1 BTC; the fresh slice says a TP/SL fill left
+      // 0.03. Submitting 0.1 reduce-only is rejected as increasing the position.
+      primeFrozenAggregate(
+        [createCachedPosition({ size: '0.1' })],
+        [createCachedPosition({ size: '0.03' })],
+      );
+
+      const result = await provider.closePositions({ closeAll: true });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrders()).toMatchObject([{ s: '0.03', r: true }]);
+    });
+
+    it('closes on the live per-DEX side when the aggregate side is stale', async () => {
+      // Aggregate says long, the fresh slice says the position flipped short.
+      // Selling to close a short increases it.
+      primeFrozenAggregate(
+        [createCachedPosition({ size: '0.1' })],
+        [createCachedPosition({ size: '-0.05' })],
+      );
+
+      const result = await provider.closePositions({ closeAll: true });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrders()).toMatchObject([
+        { b: true, s: '0.05', r: true },
+      ]);
+    });
+
+    it('closes a position present only in the fresh per-DEX slice', async () => {
+      // Opposite direction: the position opened after the reconnect, so the
+      // frozen aggregate has never seen it and the batch silently skipped it.
+      primeFrozenAggregate([], [createCachedPosition({ size: '0.05' })]);
+
+      const result = await provider.closePositions({ closeAll: true });
+
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(1);
+      expect(getSubmittedOrders()).toMatchObject([{ s: '0.05', r: true }]);
+    });
+
+    it('does not submit an order for a position the fresh slice reports closed', async () => {
+      // The aggregate still lists BTC, but its own DEX has republished without
+      // it, so the position is gone and the reduce-only order must not be sent.
+      primeFrozenAggregate([createCachedPosition({ size: '0.1' })], []);
+
+      const result = await provider.closePositions({ closeAll: true });
+
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+      expect(result.successCount).toBe(0);
+    });
+
+    it('closes a HIP-3 position the frozen aggregate has never seen', async () => {
+      // A position opened on a HIP-3 DEX after the reconnect: the aggregate has
+      // never seen that DEX, so a sweep derived from the aggregate's own symbols
+      // would skip it entirely and the batch would silently leave it open.
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        useUnifiedAccount: true,
+        initialAssetMapping: [
+          ['BTC', 0],
+          ['xyz:STOCK1', 110000],
+        ],
+      });
+      mockSubscriptionService.isPositionsCacheInitialized = jest
+        .fn()
+        .mockReturnValue(true);
+      mockSubscriptionService.getCachedPositions = jest
+        .fn()
+        .mockReturnValue([]);
+      const freshHip3Positions = [
+        createCachedPosition({
+          symbol: 'xyz:STOCK1',
+          size: '8',
+          marginUsed: '100',
+        }),
+      ];
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
+        .fn()
+        .mockReturnValue(freshHip3Positions);
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockImplementation((dexName: string) =>
+          dexName === 'xyz' ? freshHip3Positions : [],
+        );
+      const mockOrder = jest.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: [{ filled: {} }] } },
+      });
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          perpDexs: jest
+            .fn()
+            .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+          meta: jest.fn().mockImplementation((params?: { dex?: string }) =>
+            params?.dex === 'xyz'
+              ? Promise.resolve({
+                  universe: [
+                    { name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 },
+                  ],
+                  collateralToken: 0,
+                })
+              : Promise.resolve({
+                  universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+                }),
+          ),
+          // buildAssetMapping populates the meta cache from here, and that
+          // cache wins over meta() on the close path.
+          metaAndAssetCtxs: jest
+            .fn()
+            .mockImplementation((params?: { dex?: string }) =>
+              params?.dex === 'xyz'
+                ? Promise.resolve([
+                    {
+                      universe: [
+                        { name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 },
+                      ],
+                      collateralToken: 0,
+                    },
+                    [
+                      {
+                        funding: '0.0001',
+                        openInterest: '100',
+                        prevDayPx: '95',
+                        dayNtlVlm: '10000',
+                        markPx: '100',
+                        midPx: '100',
+                        oraclePx: '100',
+                      },
+                    ],
+                  ])
+                : Promise.resolve([
+                    {
+                      universe: [
+                        { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+                      ],
+                    },
+                    [
+                      {
+                        funding: '0.0001',
+                        openInterest: '1000',
+                        prevDayPx: '49000',
+                        dayNtlVlm: '1000000',
+                        markPx: '50000',
+                        midPx: '50000',
+                        oraclePx: '50000',
+                      },
+                    ],
+                  ]),
+            ),
+          allMids: jest
+            .fn()
+            .mockImplementation((params?: { dex?: string }) =>
+              params?.dex === 'xyz'
+                ? Promise.resolve({ 'xyz:STOCK1': '100' })
+                : Promise.resolve({ BTC: '50000' }),
+            ),
+        }),
+      );
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(createMockExchangeClient({ order: mockOrder }));
+
+      const result = await hip3Provider.closePositions({ closeAll: true });
+
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(1);
+      expect(mockOrder.mock.calls[0][0].orders[0]).toMatchObject({
+        s: '8',
+        r: true,
+      });
+    });
+
+    it('uses REST while another expected DEX has not initialized', async () => {
+      // A partial set of current slices cannot safely merge with the frozen
+      // aggregate. Fetch the complete list over REST instead.
+      mockSubscriptionService.isPositionsCacheInitialized = jest
+        .fn()
+        .mockReturnValue(false);
+      // The aggregate still carries a pre-reconnect size
+      mockSubscriptionService.getCachedPositions = jest
+        .fn()
+        .mockReturnValue([createCachedPosition({ size: '0.1' })]);
+      // The main DEX has published: its slice is live even though the
+      // aggregate has not been rebuilt yet
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
+        .fn()
+        .mockReturnValue(null);
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockImplementation((dexName: string) =>
+          dexName === '' ? [createCachedPosition({ size: '0.03' })] : null,
+        );
+
+      const result = await provider.closePositions({ closeAll: true });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrders()).toMatchObject([
+        { s: '0.1', r: true },
+        { s: '1.5', r: true },
+      ]);
+    });
+
+    it('does not replace a fresh REST result with an older WebSocket slice', async () => {
+      // closeAll cannot treat a single live DEX slice as a complete snapshot.
+      // REST is the only remaining complete source, even if one DEX has already
+      // published a current-epoch slice.
+      primeFrozenAggregate(null, [createCachedPosition({ size: '0.03' })]);
+      mockSubscriptionService.isPositionsCacheInitialized = jest
+        .fn()
+        .mockReturnValue(false);
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
+        .fn()
+        .mockReturnValue(null);
+      const infoClient = mockClientService.getInfoClient();
+
+      const result = await provider.closePositions({ closeAll: true });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrders()).toMatchObject([
+        { s: '0.1', r: true },
+        { s: '1.5', r: true },
+      ]);
+      expect(infoClient.clearinghouseState).toHaveBeenCalled();
+    });
+
+    it('uses REST when the expected DEX slices are incomplete', async () => {
+      // A DEX that has not published this session makes the aggregate's
+      // completeness unknown, so the whole batch must come from REST.
+      mockSubscriptionService.isPositionsCacheInitialized = jest
+        .fn()
+        .mockReturnValue(true);
+      mockSubscriptionService.getCachedPositions = jest
+        .fn()
+        .mockReturnValue([createCachedPosition({ size: '0.08' })]);
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockReturnValue(null);
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
+        .fn()
+        .mockReturnValue(null);
+      const infoClient = mockClientService.getInfoClient();
+
+      const result = await provider.closePositions({ closeAll: true });
+
+      expect(result.success).toBe(true);
+      expect(getSubmittedOrders()).toMatchObject([
+        { s: '0.1', r: true },
+        { s: '1.5', r: true },
+      ]);
+      expect(infoClient.clearinghouseState).toHaveBeenCalled();
+    });
+
+    it('rejects a partial all-DEX REST snapshot', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
+        .fn()
+        .mockReturnValue(null);
+      const clearinghouseState = jest
+        .fn()
+        .mockImplementation((params?: { dex?: string }) =>
+          params?.dex === 'xyz'
+            ? Promise.reject(new Error('xyz unavailable'))
+            : Promise.resolve({
+                assetPositions: [
+                  {
+                    position: {
+                      coin: 'BTC',
+                      szi: '0.1',
+                      entryPx: '50000',
+                      positionValue: '5000',
+                      unrealizedPnl: '100',
+                      marginUsed: '500',
+                      leverage: { type: 'cross', value: 10 },
+                      liquidationPx: '45000',
+                      maxLeverage: 50,
+                      returnOnEquity: '20',
+                      cumFunding: {
+                        allTime: '10',
+                        sinceOpen: '5',
+                        sinceChange: '2',
+                      },
+                    },
+                    type: 'oneWay',
+                  },
+                ],
+                marginSummary: {
+                  totalMarginUsed: '500',
+                  accountValue: '10500',
+                },
+                withdrawable: '9500',
+              }),
+        );
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          perpDexs: jest
+            .fn()
+            .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+          clearinghouseState,
+        }),
+      );
+
+      const result = await hip3Provider.closePositions({ closeAll: true });
+
+      expect(result).toMatchObject({
+        success: false,
+        successCount: 0,
+        failureCount: 0,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      });
+      expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
+        useHttp: true,
+      });
+      expect(clearinghouseState).toHaveBeenCalledTimes(2);
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('closes a selected BTC position when loading xyz positions fails', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
+        .fn()
+        .mockReturnValue(null);
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockReturnValue(null);
+      const clearinghouseState = jest
+        .fn()
+        .mockImplementation((params?: { dex?: string }) =>
+          params?.dex === 'xyz'
+            ? Promise.reject(new Error('xyz unavailable'))
+            : Promise.resolve({
+                assetPositions: [
+                  {
+                    position: {
+                      coin: 'BTC',
+                      szi: '0.1',
+                      entryPx: '50000',
+                      positionValue: '5000',
+                      unrealizedPnl: '100',
+                      marginUsed: '500',
+                      leverage: { type: 'cross', value: 10 },
+                      liquidationPx: '45000',
+                      maxLeverage: 50,
+                      returnOnEquity: '20',
+                      cumFunding: {
+                        allTime: '10',
+                        sinceOpen: '5',
+                        sinceChange: '2',
+                      },
+                    },
+                    type: 'oneWay',
+                  },
+                ],
+                marginSummary: {
+                  totalMarginUsed: '500',
+                  accountValue: '10500',
+                },
+                withdrawable: '9500',
+              }),
+        );
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          perpDexs: jest
+            .fn()
+            .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+          clearinghouseState,
+          meta: jest.fn().mockResolvedValue({
+            universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+          }),
+          allMids: jest.fn().mockResolvedValue({ BTC: '50000' }),
+        }),
+      );
+
+      const result = await hip3Provider.closePositions({ symbols: ['BTC'] });
+
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(1);
+      expect(getSubmittedOrders()).toMatchObject([{ s: '0.1', r: true }]);
+      expect(clearinghouseState).toHaveBeenCalledTimes(1);
+      expect(clearinghouseState).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user: '0x1234567890123456789012345678901234567890',
+        }),
+      );
+      expect(clearinghouseState).not.toHaveBeenCalledWith(
+        expect.objectContaining({ dex: 'xyz' }),
+      );
+    });
+
+    it('closes selected BTC when a requested xyz DEX load fails', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
+        .fn()
+        .mockReturnValue(null);
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockReturnValue(null);
+      const clearinghouseState = jest
+        .fn()
+        .mockImplementation((params?: { dex?: string }) =>
+          params?.dex === 'xyz'
+            ? Promise.reject(new Error('xyz unavailable'))
+            : Promise.resolve({
+                assetPositions: [
+                  {
+                    position: {
+                      coin: 'BTC',
+                      szi: '0.1',
+                      entryPx: '50000',
+                      positionValue: '5000',
+                      unrealizedPnl: '100',
+                      marginUsed: '500',
+                      leverage: { type: 'cross', value: 10 },
+                      liquidationPx: '45000',
+                      maxLeverage: 50,
+                      returnOnEquity: '20',
+                      cumFunding: {
+                        allTime: '10',
+                        sinceOpen: '5',
+                        sinceChange: '2',
+                      },
+                    },
+                    type: 'oneWay',
+                  },
+                ],
+                marginSummary: {
+                  totalMarginUsed: '500',
+                  accountValue: '10500',
+                },
+                withdrawable: '9500',
+              }),
+        );
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          perpDexs: jest
+            .fn()
+            .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+          clearinghouseState,
+          meta: jest.fn().mockResolvedValue({
+            universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+          }),
+          allMids: jest.fn().mockResolvedValue({ BTC: '50000' }),
+        }),
+      );
+
+      const result = await hip3Provider.closePositions({
+        symbols: ['BTC', 'xyz:STOCK1'],
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(1);
+      expect(result.results).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ symbol: 'BTC', success: true }),
+          expect.objectContaining({
+            symbol: 'xyz:STOCK1',
+            success: false,
+            error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          }),
+        ]),
+      );
+      expect(getSubmittedOrders()).toMatchObject([{ s: '0.1', r: true }]);
+      expect(clearinghouseState).toHaveBeenCalledWith(
+        expect.objectContaining({ dex: 'xyz' }),
+      );
+    });
+
+    it('preserves unavailable symbols when batch submission fails', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockImplementation((dexName: string) =>
+          dexName === '' ? [createCachedPosition()] : null,
+        );
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: jest
+            .fn()
+            .mockRejectedValue(new Error('xyz unavailable')),
+        }),
+      );
+      mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+        createMockExchangeClient({
+          order: jest.fn().mockRejectedValue(new Error('batch failed')),
+        }),
+      );
+
+      const result = await hip3Provider.closePositions({
+        symbols: ['BTC', 'xyz:STOCK1'],
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        successCount: 0,
+        failureCount: 2,
+        error: 'batch failed',
+        results: [
+          { symbol: 'BTC', success: false, error: 'batch failed' },
+          {
+            symbol: 'xyz:STOCK1',
+            success: false,
+            error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          },
+        ],
+      });
+    });
+
+    it('rejects a main-only REST snapshot when HIP-3 DEX discovery fails', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
+        .fn()
+        .mockReturnValue(null);
+      const clearinghouseState = jest.fn().mockResolvedValue({
+        assetPositions: [],
+        marginSummary: { totalMarginUsed: '0', accountValue: '10000' },
+        withdrawable: '10000',
+      });
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          perpDexs: jest.fn().mockRejectedValue(new Error('DEX unavailable')),
+          clearinghouseState,
+        }),
+      );
+
+      const result = await hip3Provider.closePositions({ closeAll: true });
+
+      expect(result).toStrictEqual({
+        success: false,
+        successCount: 0,
+        failureCount: 0,
+        results: [],
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      });
+      expect(mockSubscriptionService.updateFeatureFlags).toHaveBeenCalledWith(
+        true,
+        [],
+        ['xyz:*'],
+        [],
+        false,
+      );
+      expect(clearinghouseState).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rejects a malformed all-DEX REST position response', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      mockSubscriptionService.getFreshPositionsForAllDexs = jest
+        .fn()
+        .mockReturnValue(null);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          perpDexs: jest
+            .fn()
+            .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+          clearinghouseState: jest
+            .fn()
+            .mockImplementation((params?: { dex?: string }) =>
+              params?.dex === 'xyz'
+                ? Promise.resolve({})
+                : Promise.resolve({ assetPositions: [] }),
+            ),
+        }),
+      );
+
+      const result = await hip3Provider.closePositions({ closeAll: true });
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      });
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateMargin position freshness', () => {
+    const createCachedPosition = (
+      overrides: Partial<Position> = {},
+    ): Position =>
+      ({
+        symbol: 'BTC',
+        size: '0.1',
+        entryPrice: '50000',
+        positionValue: '5000',
+        unrealizedPnl: '100',
+        marginUsed: '500',
+        leverage: { type: 'isolated', value: 10, rawUsd: '500' },
+        liquidationPrice: '45000',
+        maxLeverage: 50,
+        returnOnEquity: '20',
+        cumulativeFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+        takeProfitCount: 0,
+        stopLossCount: 0,
+        ...overrides,
+      }) as Position;
+
+    const primeFrozenAggregate = (
+      aggregate: Position[],
+      perDex: Position[] | null,
+      dexName = '',
+    ) => {
+      mockSubscriptionService.isPositionsCacheInitialized = jest
+        .fn()
+        .mockReturnValue(true);
+      mockSubscriptionService.getCachedPositions = jest
+        .fn()
+        .mockReturnValue(aggregate);
+      mockSubscriptionService.getCachedPositionsForDex = jest
+        .fn()
+        .mockImplementation((requestedDex: string) =>
+          requestedDex === dexName ? perDex : null,
+        );
+    };
+
+    let updateIsolatedMargin: jest.Mock;
+
+    beforeEach(() => {
+      updateIsolatedMargin = jest.fn().mockResolvedValue({ status: 'ok' });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(createMockExchangeClient({ updateIsolatedMargin }));
+    });
+
+    it('uses the live per-DEX side instead of the frozen aggregate side', async () => {
+      const infoClient = mockClientService.getInfoClient();
+      primeFrozenAggregate(
+        [createCachedPosition({ size: '0.1' })],
+        [createCachedPosition({ size: '-0.05' })],
+      );
+
+      const result = await provider.updateMargin({
+        symbol: 'BTC',
+        amount: '-1',
+      });
+
+      expect(result).toStrictEqual({ success: true });
+      expect(updateIsolatedMargin).toHaveBeenCalledWith({
+        asset: 0,
+        isBuy: false,
+        ntli: -1_000_000,
+      });
+      expect(infoClient.clearinghouseState).not.toHaveBeenCalled();
+    });
+
+    it('finds a position present only in the live per-DEX slice', async () => {
+      primeFrozenAggregate([], [createCachedPosition({ size: '-0.05' })]);
+
+      const result = await provider.updateMargin({
+        symbol: 'BTC',
+        amount: '-1',
+      });
+
+      expect(result).toStrictEqual({ success: true });
+      expect(updateIsolatedMargin).toHaveBeenCalledWith(
+        expect.objectContaining({ isBuy: false }),
+      );
+    });
+
+    it('does not update a position the live per-DEX slice reports closed', async () => {
+      primeFrozenAggregate([createCachedPosition()], []);
+
+      const result = await provider.updateMargin({
+        symbol: 'BTC',
+        amount: '-1',
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: 'No position found for BTC',
+      });
+      expect(updateIsolatedMargin).not.toHaveBeenCalled();
+    });
+
+    it('uses REST when the target DEX has not republished', async () => {
+      const infoClient = mockClientService.getInfoClient();
+      primeFrozenAggregate([createCachedPosition({ size: '-0.05' })], null);
+
+      const result = await provider.updateMargin({
+        symbol: 'BTC',
+        amount: '-1',
+      });
+
+      expect(result).toStrictEqual({ success: true });
+      expect(updateIsolatedMargin).toHaveBeenCalledWith(
+        expect.objectContaining({ isBuy: true }),
+      );
+      expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
+        useHttp: true,
+      });
+      expect(infoClient.clearinghouseState).toHaveBeenCalled();
+    });
+
+    it('reports provider unavailable when the target-DEX REST query fails', async () => {
+      primeFrozenAggregate([], null);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: jest
+            .fn()
+            .mockRejectedValue(new Error('REST unavailable')),
+        }),
+      );
+
+      const result = await provider.updateMargin({
+        symbol: 'BTC',
+        amount: '-1',
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      });
+      expect(updateIsolatedMargin).not.toHaveBeenCalled();
+    });
+
+    it('uses the current HIP-3 slice without a REST lookup', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        initialAssetMapping: [['xyz:STOCK1', 110000]],
+      });
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          perpDexs: jest
+            .fn()
+            .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+          meta: jest.fn().mockImplementation((params?: { dex?: string }) =>
+            params?.dex === 'xyz'
+              ? Promise.resolve({
+                  universe: [
+                    { name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 },
+                  ],
+                  collateralToken: 0,
+                })
+              : Promise.resolve({
+                  universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+                }),
+          ),
+          metaAndAssetCtxs: jest
+            .fn()
+            .mockImplementation((params?: { dex?: string }) =>
+              params?.dex === 'xyz'
+                ? Promise.resolve([
+                    {
+                      universe: [
+                        {
+                          name: 'xyz:STOCK1',
+                          szDecimals: 2,
+                          maxLeverage: 20,
+                        },
+                      ],
+                      collateralToken: 0,
+                    },
+                    [],
+                  ])
+                : Promise.resolve([
+                    {
+                      universe: [
+                        { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+                      ],
+                    },
+                    [],
+                  ]),
+            ),
+        }),
+      );
+      const infoClient = mockClientService.getInfoClient();
+      primeFrozenAggregate(
+        [],
+        [
+          createCachedPosition({
+            symbol: 'xyz:STOCK1',
+            size: '-8',
+          }),
+        ],
+        'xyz',
+      );
+
+      const result = await hip3Provider.updateMargin({
+        symbol: 'xyz:STOCK1',
+        amount: '-1',
+      });
+
+      expect(result).toStrictEqual({ success: true });
+      expect(updateIsolatedMargin).toHaveBeenCalledWith({
+        asset: 110000,
+        isBuy: false,
+        ntli: -1_000_000,
+      });
+      expect(infoClient.clearinghouseState).not.toHaveBeenCalled();
     });
   });
 
@@ -2992,6 +4226,7 @@ describe('HyperLiquidProvider', () => {
         mockClientService.getExchangeClient = jest.fn().mockReturnValue(
           createMockExchangeClient({
             cancel: jest.fn().mockResolvedValue({
+              status: 'ok',
               response: {
                 data: {
                   statuses: ['success', 'success'],
@@ -3037,6 +4272,7 @@ describe('HyperLiquidProvider', () => {
         mockClientService.getExchangeClient = jest.fn().mockReturnValue(
           createMockExchangeClient({
             cancel: jest.fn().mockResolvedValue({
+              status: 'ok',
               response: {
                 data: {
                   statuses: ['success', { error: 'multi-sig required' }],
@@ -3057,6 +4293,35 @@ describe('HyperLiquidProvider', () => {
         expect(result.results[1].error).toBe(
           PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
         );
+      });
+
+      it('rejects a non-ok batch response even when its statuses say success', async () => {
+        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+          createMockExchangeClient({
+            cancel: jest.fn().mockResolvedValue({
+              status: 'err',
+              response: { data: { statuses: ['success'] } },
+            }),
+          }),
+        );
+
+        const result = await provider.cancelOrders([
+          { orderId: '123', symbol: 'BTC' },
+        ]);
+
+        expect(result).toStrictEqual({
+          success: false,
+          successCount: 0,
+          failureCount: 1,
+          results: [
+            {
+              orderId: '123',
+              symbol: 'BTC',
+              success: false,
+              error: PERPS_ERROR_CODES.BATCH_CANCEL_FAILED,
+            },
+          ],
+        });
       });
 
       it('maps recognized batch cancel rejections to a standardized code', async () => {
@@ -3155,17 +4420,18 @@ describe('HyperLiquidProvider', () => {
           }),
         );
 
-        mockClientService.getExchangeClient = jest.fn().mockReturnValue(
-          createMockExchangeClient({
-            order: jest.fn().mockResolvedValue({
-              response: {
-                data: {
-                  statuses: [{ filled: {} }, { filled: {} }],
-                },
+        const exchangeClient = createMockExchangeClient({
+          order: jest.fn().mockResolvedValue({
+            response: {
+              data: {
+                statuses: [{ filled: {} }, { filled: {} }],
               },
-            }),
+            },
           }),
-        );
+        });
+        mockClientService.getExchangeClient = jest
+          .fn()
+          .mockReturnValue(exchangeClient);
 
         const result = await provider.closePositions({ closeAll: true });
 
@@ -3175,6 +4441,10 @@ describe('HyperLiquidProvider', () => {
         expect(result.results).toHaveLength(2);
         expect(result.results[0].symbol).toBe('BTC');
         expect(result.results[1].symbol).toBe('ETH');
+        expect(exchangeClient.order.mock.calls[0][0].builder).toStrictEqual({
+          b: BUILDER_FEE_CONFIG.MainnetBuilder,
+          f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+        });
       });
 
       it('rounds each reduce-only close size down to the size grid', async () => {

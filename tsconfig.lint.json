@@ -18,6 +18,9 @@
       "path": "./packages/base-controller/tsconfig.lint.json"
     },
     {
+      "path": "./packages/base-data-service/tsconfig.lint.json"
+    },
+    {
       "path": "./packages/build-utils/tsconfig.lint.json"
     },
     {
@@ -43,6 +46,9 @@
     },
     {
       "path": "./packages/rate-limit-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/react-data-query/tsconfig.lint.json"
     },
     {
       "path": "./packages/stellar-quickstart-up/tsconfig.lint.json"

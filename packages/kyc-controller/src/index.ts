@@ -11,6 +11,7 @@ export type {
   KycControllerOptions,
   KycControllerState,
   KycControllerStateChangeEvent,
+  KycControllerStatusChangedEvent,
 } from './KycController.js';
 export type {
   KycControllerAcceptTermsAndStartSessionAction,
@@ -19,11 +20,15 @@ export type {
   KycControllerBuildResetFrameUrlAction,
   KycControllerCheckKycRequiredAction,
   KycControllerClearSavedTermsAction,
+  KycControllerClearStateAction,
+  KycControllerCreateVendorCustomerAction,
+  KycControllerGetCustomerIdentityAction,
   KycControllerGetKycStatusAction,
   KycControllerGetSessionStatusAction,
   KycControllerHandleFrameMessageAction,
   KycControllerInitializeAction,
   KycControllerLoadDisclaimersAction,
+  KycControllerRefreshKycStatusAction,
   KycControllerResetAction,
   KycControllerStartSumSubAction,
 } from './KycController-method-action-types.js';
@@ -31,11 +36,16 @@ export type {
 export { KycService, serviceName } from './KycService.js';
 export type {
   ApplicantAccessTokenResponse,
+  CapabilityAuthorization,
   CheckKycRequiredParams,
+  CreateVendorCustomerParams,
   CreateSessionParams,
   CreateUkycSessionParams,
+  EncryptionSchema,
+  FetchDisclaimersCatalogParams,
+  FetchSessionDisclaimersParams,
   GetSessionStatusParams,
-  GetWrappingKeyParams,
+  VendorCustomerResponse,
   JwksResponse,
   KycServiceActions,
   KycServiceCacheUpdatedEvent,
@@ -44,20 +54,28 @@ export type {
   KycServiceInvalidateQueriesAction,
   KycServiceMessenger,
   KycServiceOptions,
+  SetAuthorizationsParams,
+  SubmitSessionDisclaimersParams,
+  SubmitVendorDisclaimersParams,
   UkycSessionResponse,
-  WrappedEncryptionKey,
-  WrappingKeyResponse,
 } from './KycService.js';
 export type {
   KycServiceCheckKycRequiredAction,
+  KycServiceCreateVendorCustomerAction,
   KycServiceCreateJourneyAction,
   KycServiceCreateSessionAction,
   KycServiceCreateUkycSessionAction,
-  KycServiceFetchDisclaimersAction,
-  KycServiceFetchJwksAction,
+  KycServiceFetchVendorDisclaimersAction,
+  KycServiceFetchDisclaimersCatalogAction,
+  KycServiceFetchIdosEnclaveJwksAction,
+  KycServiceFetchIdosRelayJwksAction,
+  KycServiceFetchKycStatusAction,
+  KycServiceFetchSessionDisclaimersAction,
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
-  KycServiceGetWrappingKeyAction,
+  KycServiceSetAuthorizationsAction,
+  KycServiceSubmitSessionDisclaimersAction,
+  KycServiceSubmitVendorDisclaimersAction,
 } from './KycService-method-action-types.js';
 
 export {
@@ -76,14 +94,22 @@ export type {
 } from './crypto.js';
 
 export type {
+  KycConsentDocument,
+  KycConsentRecord,
+  KycCustomerIdentity,
   KycDisclaimer,
+  KycDisclaimersCatalog,
   KycPhase,
   KycProduct,
+  KycSessionDisclaimers,
   KycSessionStatus,
   KycSumSubLaunchParams,
   KycSumSubLauncher,
   KycSumSubStatus,
+  KycUserStatus,
+  KycUserStatusResponse,
   KycVendor,
+  KycVendorSigning,
 } from './types.js';
 
 // UKYC storage-access-token utilities. Exported so a signed capability token can

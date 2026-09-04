@@ -1,8 +1,8 @@
 import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerInitializedEvent,
+  AccountTreeControllerIsInitializedAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
-  AccountTreeControllerStateChangeEvent,
   AccountTreeControllerUninitializedEvent,
 } from '@metamask/account-tree-controller';
 import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
@@ -12,7 +12,10 @@ import type {
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
-import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
+import type {
+  ClientControllerGetStateAction,
+  ClientControllerStateChangeEvent,
+} from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
 import type { ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction } from '@metamask/config-registry-controller';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
@@ -23,6 +26,7 @@ import type {
   SupportedCurrency,
 } from '@metamask/core-backend';
 import type {
+  KeyringControllerIsUnlockedAction,
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
@@ -116,7 +120,11 @@ import {
 } from './middlewares/ParallelMiddleware.js';
 import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware.js';
 import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
-import { tempHealAssetsInfoMetadata } from './migrations/healAssetsInfoMetadata.js';
+import {
+  cleanSpamAssets,
+  isUnlockCleanupEnabled,
+  tempHealAssetsInfoMetadata,
+} from './migrations/healAssetsInfoMetadata.js';
 import type {
   AccountId,
   AssetPreferences,
@@ -328,6 +336,9 @@ type AllowedActions =
   // AssetsController
   | AccountsControllerGetSelectedAccountAction
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
+  | AccountTreeControllerIsInitializedAction
+  | ClientControllerGetStateAction
+  | KeyringControllerIsUnlockedAction
   // RpcDataSource
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
@@ -344,9 +355,8 @@ type AllowedActions =
   | RemoteFeatureFlagControllerGetStateAction;
 
 type AllowedEvents =
-  // AssetsController
+  // AssetsController — account tree lifecycle and group switches
   | AccountTreeControllerSelectedAccountGroupChangeEvent
-  | AccountTreeControllerStateChangeEvent
   | AccountTreeControllerInitializedEvent
   | AccountTreeControllerUninitializedEvent
   | ClientControllerStateChangeEvent
@@ -743,18 +753,6 @@ export class AssetsController extends BaseController<
     });
   }
 
-  /** Whether the client (UI) is open. Combined with #keyringUnlocked for #updateActive. */
-  #uiOpen = false;
-
-  /** Whether the keyring is unlocked. Combined with #uiOpen for #updateActive. */
-  #keyringUnlocked = false;
-
-  /**
-   * Whether `AccountTreeController` has finished `init()`. Unlock / UI-open
-   * alone must not start fetches — the tree can still be mid-build.
-   */
-  #accountTreeInitialized = false;
-
   readonly #controllerMutex = new Mutex();
 
   /** Serializes account-switch fetch + subscribe to prevent overlapping races. */
@@ -770,13 +768,6 @@ export class AssetsController extends BaseController<
 
   /** Currently enabled chains from NetworkEnablementController */
   #enabledChains: Set<ChainId> = new Set();
-
-  /**
-   * Snapshot of account IDs that were active when the last subscription/fetch
-   * cycle ran. Used by #handleAccountTreeStateChange to skip redundant
-   * re-subscriptions when the account set hasn't actually changed.
-   */
-  #lastKnownAccountIds: ReadonlySet<string> = new Set();
 
   /**
    * Get the currently selected accounts from AccountTreeController.
@@ -799,6 +790,35 @@ export class AssetsController extends BaseController<
       return [selectedAccount];
     }
     return [];
+  }
+
+  /**
+   * Whether `AccountTreeController.init()` has completed and the tree is ready.
+   *
+   * @returns True when the account tree has been initialized.
+   */
+  #isAccountTreeInitialized(): boolean {
+    return this.messenger.call('AccountTreeController:isInitialized');
+  }
+
+  /**
+   * Whether the client (UI) is open, read from ClientController state.
+   *
+   * @returns True when the UI is open.
+   */
+  #isUiOpen(): boolean {
+    return clientControllerSelectors.selectIsUiOpen(
+      this.messenger.call('ClientController:getState'),
+    );
+  }
+
+  /**
+   * Whether the keyring is unlocked, read from KeyringController.
+   *
+   * @returns True when the wallet vault is unlocked.
+   */
+  #isKeyringUnlocked(): boolean {
+    return this.messenger.call('KeyringController:isUnlocked');
   }
 
   readonly #accountActivityDataSource: AccountActivityDataSource;
@@ -1110,7 +1130,6 @@ export class AssetsController extends BaseController<
   }
 
   #subscribeToEvents(): void {
-    // Subscribe to account group changes (when user switches between account groups like Account 1 -> Account 2)
     this.messenger.subscribe(
       'AccountTreeController:selectedAccountGroupChange',
       (groupId, previousGroupId) => {
@@ -1120,12 +1139,11 @@ export class AssetsController extends BaseController<
       },
     );
 
-    // Catch post-init tree mutations that change the selected account set
-    // (e.g. a snap account added to the current group) without changing
-    // the selected group id. Intermediate `:stateChange` events during
-    // `AccountTreeController.init()` are ignored until `:initialized`.
-    this.messenger.subscribe('AccountTreeController:stateChange', () => {
-      this.#handleAccountTreeStateChange();
+    this.messenger.subscribe('AccountTreeController:initialized', () => {
+      this.#updateActive();
+    });
+    this.messenger.subscribe('AccountTreeController:uninitialized', () => {
+      this.#updateActive();
     });
 
     // Subscribe to network enablement changes (only enabledNetworkMap)
@@ -1172,59 +1190,71 @@ export class AssetsController extends BaseController<
     // Client + Keyring lifecycle: only run when UI is open AND keyring is unlocked
     this.messenger.subscribe(
       'ClientController:stateChange',
-      (isUiOpen: boolean) => {
-        this.#uiOpen = isUiOpen;
+      () => {
         this.#updateActive();
       },
       clientControllerSelectors.selectIsUiOpen,
     );
-    this.messenger.subscribe('KeyringController:unlock', () => {
-      this.#keyringUnlocked = true;
+
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    this.messenger.subscribe('KeyringController:unlock', async () => {
+      await this.#runSpamCleanup().catch(() => {
+        /* Do nothing */
+      });
       this.#updateActive();
     });
     this.messenger.subscribe('KeyringController:lock', () => {
-      this.#keyringUnlocked = false;
       this.#updateActive();
     });
 
-    // Subscribe to unapproved transactions - TXs that need confirmation
-    // Ensures that balances for the account making transaction are updated (e.g. for gas estimations)
+    // Subscribe to unapproved transactions - TXs that need confirmation.
+    // Ensures balances for the account making the transaction are updated
+    // (e.g. for gas estimations), except on AccountActivity-active chains.
     this.messenger.subscribe(
       'TransactionController:unapprovedTransactionAdded',
       (transactionMeta: TransactionMeta) => {
-        this.#onUnapprovedTransactionAdded(transactionMeta);
+        this.#refreshAssetsForTransaction(transactionMeta);
       },
     );
 
     // Post-tx refresh via the full fetch pipeline (Accounts API + RPC fallback).
+    // Skipped for chains covered by AccountActivity (real-time WS updates).
     // RpcDataSource also listens for transactionConfirmed, but only refreshes
     // chains it owns via an active subscription.
     this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
       (transactionMeta: TransactionMeta) => {
-        this.#onTransactionConfirmed(transactionMeta);
+        this.#refreshAssetsForTransaction(transactionMeta);
       },
     );
-    // Start tracking only after the account tree is fully built. Unlock can
-    // happen before `AccountTreeController.init()`, and `:stateChange` fires
-    // for intermediate mutations during that build.
-    this.messenger.subscribe('AccountTreeController:initialized', () => {
-      this.#accountTreeInitialized = true;
-      this.#updateActive();
-    });
-    this.messenger.subscribe('AccountTreeController:uninitialized', () => {
-      this.#accountTreeInitialized = false;
-      this.#updateActive();
-    });
   }
 
-  #onUnapprovedTransactionAdded(transactionMeta: TransactionMeta): void {
+  /**
+   * Force-refresh assets for the account/chain of a transaction, unless the
+   * chain is already covered by AccountActivity (real-time WebSocket balances).
+   * Always bypasses the Accounts API's server-side cache so a refresh cannot
+   * be answered with a stale pre-transaction snapshot.
+   *
+   * @param transactionMeta - The transaction that triggered the refresh.
+   */
+  #refreshAssetsForTransaction(transactionMeta: TransactionMeta): void {
     const hexChainId = transactionMeta.chainId;
     if (!hexChainId) {
       return;
     }
 
     const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
+
+    // AccountActivity pushes live balance updates for its active chains; a
+    // force getAssets would be redundant and can race the WebSocket path.
+    if (
+      this.#accountActivityDataSource
+        .getActiveChainsSync()
+        .includes(caipChainId)
+    ) {
+      return;
+    }
+
     const fromAddress = transactionMeta.txParams.from?.toLowerCase();
     if (!fromAddress) {
       return;
@@ -1240,38 +1270,52 @@ export class AssetsController extends BaseController<
     this.getAssets([matchedAccount], {
       chainIds: [caipChainId],
       forceUpdate: true,
+      bypassServerCache: true,
     }).catch((error) => {
-      log('Failed to refresh assets after unapproved transaction added', {
-        error,
+      log('Failed to refresh assets after transaction event', { error });
+    });
+  }
+
+  async #runSpamCleanup(): Promise<void> {
+    try {
+      const shouldRun =
+        this.#isKeyringUnlocked() &&
+        this.#isBasicFunctionality() &&
+        isUnlockCleanupEnabled(
+          this.messenger.call('RemoteFeatureFlagController:getState')
+            ?.remoteFeatureFlags,
+        );
+      if (!shouldRun) {
+        return;
+      }
+    } catch (error) {
+      log('Failed to start spam cleanup', { error });
+      return;
+    }
+
+    try {
+      const originalState = this.state;
+      const result = await cleanSpamAssets({
+        state: originalState,
+        apiClient: this.#queryApiClient,
+        captureException: this.#captureException,
       });
-    });
-  }
 
-  #onTransactionConfirmed(transactionMeta: TransactionMeta): void {
-    const hexChainId = transactionMeta.chainId;
-    if (!hexChainId) {
-      return;
+      if (!result) {
+        return;
+      }
+
+      this.update((state) => {
+        result.applyPatch(
+          state as Pick<AssetsControllerState, 'assetsInfo' | 'assetsBalance'>,
+          {
+            spamAssetIds: result.spamAssetIds,
+          },
+        );
+      });
+    } catch (error) {
+      log('Failed to run spam cleanup', { error });
     }
-
-    const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
-    const fromAddress = transactionMeta.txParams.from?.toLowerCase();
-    if (!fromAddress) {
-      return;
-    }
-
-    const matchedAccount = this.#getSelectedAccounts().find(
-      (account) => account.address.toLowerCase() === fromAddress,
-    );
-    if (!matchedAccount) {
-      return;
-    }
-
-    this.getAssets([matchedAccount], {
-      chainIds: [caipChainId],
-      forceUpdate: true,
-    }).catch((error) => {
-      log('Failed to refresh assets after transaction confirmed', { error });
-    });
   }
 
   /**
@@ -1281,89 +1325,13 @@ export class AssetsController extends BaseController<
    */
   #updateActive(): void {
     const shouldRun =
-      this.#uiOpen && this.#keyringUnlocked && this.#accountTreeInitialized;
+      this.#isUiOpen() &&
+      this.#isKeyringUnlocked() &&
+      this.#isAccountTreeInitialized();
     if (shouldRun) {
       this.#start();
     } else {
       this.#stop();
-    }
-  }
-
-  /**
-   * Handle AccountTreeController state changes after the tree is initialized.
-   * Re-subscribe only when the set of selected accounts has actually changed
-   * (e.g. a snap account was added after initial startup). Intermediate
-   * `:stateChange` events during `init()` are ignored — startup is driven by
-   * `:initialized` instead, so we do not fetch on every tree mutation.
-   */
-  #handleAccountTreeStateChange(): void {
-    const shouldRun =
-      this.#uiOpen &&
-      this.#keyringUnlocked &&
-      this.#accountTreeInitialized &&
-      this.#activeSubscriptions.size > 0;
-    if (!shouldRun) {
-      return;
-    }
-    const accounts = this.#getSelectedAccounts();
-    const currentIds = new Set(accounts.map((a) => a.id));
-
-    const accountsChanged =
-      currentIds.size !== this.#lastKnownAccountIds.size ||
-      [...currentIds].some((id) => !this.#lastKnownAccountIds.has(id));
-
-    if (!accountsChanged) {
-      return;
-    }
-
-    const hasOverlap = [...currentIds].some((id) =>
-      this.#lastKnownAccountIds.has(id),
-    );
-    if (!hasOverlap && this.#lastKnownAccountIds.size > 0) {
-      return;
-    }
-
-    log('Account tree changed with new accounts, re-subscribing', {
-      previousCount: this.#lastKnownAccountIds.size,
-      currentCount: currentIds.size,
-    });
-
-    const newAccounts = accounts.filter(
-      (account) => !this.#lastKnownAccountIds.has(account.id),
-    );
-
-    this.#lastKnownAccountIds = currentIds;
-    this.#ensureNativeBalancesDefaultZero();
-    this.#ensureDefaultTrackedAssetsSeeded();
-    this.#runAccountTreeRefresh(accounts, newAccounts).catch((error) => {
-      log('Failed to refresh assets after tree change', error);
-    });
-  }
-
-  async #runAccountTreeRefresh(
-    accounts: InternalAccount[],
-    newAccounts: InternalAccount[] = [],
-  ): Promise<void> {
-    const releaseLock = await this.#accountRefreshMutex.acquire();
-    try {
-      await this.getAssets(accounts, {
-        chainIds: [...this.#enabledChains],
-        forceUpdate: true,
-      });
-      this.#subscribeAssets({ skipInitialFetch: true });
-      if (newAccounts.length > 0) {
-        await this.getAssets(newAccounts, {
-          chainIds: [...this.#enabledChains],
-          forceUpdate: true,
-        });
-      }
-      this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
-    } catch (error) {
-      log('Failed to fetch assets after tree change', error);
-      this.#subscribeAssets({ skipInitialFetch: true });
-      this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
-    } finally {
-      releaseLock();
     }
   }
 
@@ -1426,7 +1394,7 @@ export class AssetsController extends BaseController<
     activeChains: ChainId[],
     previousChains: ChainId[],
   ): void {
-    if (!this.#uiOpen || !this.#keyringUnlocked || !this.#isEnabled()) {
+    if (!this.#isUiOpen() || !this.#isKeyringUnlocked() || !this.#isEnabled()) {
       return;
     }
     log('Data source active chains changed', {
@@ -1626,6 +1594,13 @@ export class AssetsController extends BaseController<
       chainIds?: ChainId[];
       assetTypes?: AssetType[];
       forceUpdate?: boolean;
+      /**
+       * Also bypass server-side HTTP caches (e.g. the Accounts API's 60s
+       * cache, via a random `bypassServerCache` query param). Only meaningful
+       * together with `forceUpdate`. Use sparingly — e.g. right after a
+       * transaction confirms, when the API's cached snapshot is known stale.
+       */
+      bypassServerCache?: boolean;
       dataTypes?: DataType[];
       assetsForPriceUpdate?: Caip19AssetId[];
       /** When set to `'merge'`, fetch result is merged with existing state instead of replacing. Use for partial fetches (e.g. newly added chains). */
@@ -1659,6 +1634,7 @@ export class AssetsController extends BaseController<
         dataTypes,
         customAssets: customAssets.length > 0 ? customAssets : undefined,
         forceUpdate: true,
+        bypassServerCache: options?.bypassServerCache,
         assetsForPriceUpdate: options?.assetsForPriceUpdate,
       });
 
@@ -3111,7 +3087,6 @@ export class AssetsController extends BaseController<
       enabledChainCount: chainIds.length,
     });
 
-    this.#lastKnownAccountIds = new Set(accounts.map((a) => a.id));
     this.#runStartupRefresh(accounts).catch((error) => {
       log('Failed to start asset tracking', error);
     });
@@ -3129,7 +3104,6 @@ export class AssetsController extends BaseController<
 
     this.#firstInitFetchReported = false;
     this.#stateSizeReported = false;
-    this.#lastKnownAccountIds = new Set();
 
     // Stop price subscription first (uses direct messenger call)
     this.unsubscribeAssetsPrice();
@@ -3612,7 +3586,6 @@ export class AssetsController extends BaseController<
     groupId: string,
     previousGroupId: string = '',
   ): Promise<void> {
-    // The selected account group can be empty during onboarding or wallet reset.
     if (!groupId) {
       return;
     }
@@ -3637,8 +3610,6 @@ export class AssetsController extends BaseController<
       previousGroupId,
     });
 
-    this.#lastKnownAccountIds = new Set(accounts.map((a) => a.id));
-
     const releaseLock = await this.#accountRefreshMutex.acquire();
     try {
       if (accounts.length > 0) {
@@ -3650,8 +3621,6 @@ export class AssetsController extends BaseController<
 
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
-      // Subscribe after seed so the price poll sees natives / defaults.
-      // Balances were just force-fetched — skip AccountsApi's subscribe-time poll.
       this.#subscribeAssets({ skipInitialFetch: true });
       this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } finally {
@@ -3788,7 +3757,7 @@ export class AssetsController extends BaseController<
    * @param networkState - NetworkController state after the switch.
    */
   async #handleNetworkDidChange(networkState: NetworkState): Promise<void> {
-    if (!this.#uiOpen || !this.#keyringUnlocked || !this.#isEnabled()) {
+    if (!this.#isUiOpen() || !this.#isKeyringUnlocked() || !this.#isEnabled()) {
       return;
     }
 

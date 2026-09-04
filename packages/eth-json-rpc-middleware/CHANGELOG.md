@@ -9,7 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+## [24.0.2]
+
+### Changed
+
+- Bump `@metamask/eth-sig-util` from `^8.2.0` to `^9.0.0` ([#9999](https://github.com/MetaMask/core/pull/9999))
+
+### Fixed
+
+- Allow `null` values for optional fields in `eth_sendTransaction` / `eth_signTransaction` params ([#10039](https://github.com/MetaMask/core/pull/10039))
+  - Fields like `maxFeePerGas`, `maxPriorityFeePerGas`, `gasPrice`, `gas`, `value`, `data`, `to`, `nonce`, `chainId`, `type`, `gasLimit`, `accessList`, and `authorizationList` now accept `null` in addition to `undefined`, which is how some dApps signal an absent value in JSON
+
+## [24.0.1]
+
+### Changed
+
 - Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
+
+### Fixed
+
+- Accept numeric values for quantity fields in `eth_sendTransaction` / `eth_signTransaction` params ([#9967](https://github.com/MetaMask/core/pull/9967))
+  - `chainId` (top-level and in `authorizationList` entries) and `authorizationList` `nonce` / `yParity` now accept both hex strings and numbers, matching the other quantity fields (`gas`, `value`, `nonce`, etc.) and restoring pre-`24.0.0` behavior
 
 ## [24.0.0]
 
@@ -111,7 +133,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See [`MetaMask/eth-json-rpc-middleware`](https://github.com/MetaMask/eth-json-rpc-middleware/blob/main/CHANGELOG.md)
     for the original changelog.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.2...HEAD
+[24.0.2]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.1...@metamask/eth-json-rpc-middleware@24.0.2
+[24.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.0...@metamask/eth-json-rpc-middleware@24.0.1
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.3...@metamask/eth-json-rpc-middleware@24.0.0
 [23.1.3]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.2...@metamask/eth-json-rpc-middleware@23.1.3
 [23.1.2]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.1...@metamask/eth-json-rpc-middleware@23.1.2

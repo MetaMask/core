@@ -438,6 +438,8 @@ describe('HyperLiquidProvider', () => {
       clearAll: jest.fn(),
       isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
       getCachedPositions: jest.fn().mockReturnValue([]),
+      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
+      getCachedPositionsForDex: jest.fn().mockReturnValue(null),
       updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
       setDexMetaCache: jest.fn(),
@@ -534,6 +536,88 @@ describe('HyperLiquidProvider', () => {
       expect(result).toEqual([]);
     });
 
+    it('preserves history when an order is missing runtime-required fields', async () => {
+      mockClientService.fetchHistoricalOrders = jest.fn().mockResolvedValue([
+        {
+          order: {
+            oid: 123,
+            coin: 'BTC',
+            side: 'A',
+            sz: '0.5',
+            origSz: '1.0',
+            limitPx: '50000',
+            orderType: 'Limit',
+            reduceOnly: false,
+            isTrigger: false,
+          },
+          status: 'filled',
+          statusTimestamp: 1640995200000,
+        },
+        {
+          order: {
+            oid: undefined,
+            coin: 'ETH',
+            side: 'B',
+            sz: '0.1',
+            origSz: '0.1',
+            limitPx: '',
+            orderType: undefined,
+            reduceOnly: false,
+            isTrigger: false,
+          },
+          status: 'open',
+          statusTimestamp: 1640995300000,
+        },
+      ]);
+
+      const result = await provider.getOrders();
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toMatchObject({
+        orderId: '123',
+        orderType: 'limit',
+      });
+      expect(result[1]).toMatchObject({
+        orderId: '',
+        orderType: 'market',
+      });
+    });
+
+    it.each([
+      ['Limit', 'limit'],
+      ['Market', 'market'],
+      ['Stop Limit', 'limit'],
+      ['Stop Market', 'market'],
+      ['Take Profit Limit', 'limit'],
+      ['Take Profit Market', 'market'],
+      ['Unexpected Limit', 'market'],
+    ])(
+      'maps the exact historical order type %s to %s',
+      async (orderType, expected) => {
+        mockClientService.fetchHistoricalOrders = jest.fn().mockResolvedValue([
+          {
+            order: {
+              oid: 123,
+              coin: 'BTC',
+              side: 'B',
+              sz: '0.1',
+              origSz: '0.1',
+              limitPx: '50000',
+              orderType,
+              reduceOnly: false,
+              isTrigger: false,
+            },
+            status: 'open',
+            statusTimestamp: 1640995200000,
+          },
+        ]);
+
+        const result = await provider.getOrders();
+
+        expect(result[0].orderType).toBe(expected);
+      },
+    );
+
     it('properly transform getOrders with reduceOnly and isTrigger fields', async () => {
       const historicalOrdersData = [
         {
@@ -559,6 +643,7 @@ describe('HyperLiquidProvider', () => {
             sz: '0.0',
             origSz: '2.0',
             limitPx: '3500',
+            triggerPx: '3450',
             orderType: 'Take Profit Limit',
             reduceOnly: true,
             isTrigger: true,
@@ -574,12 +659,29 @@ describe('HyperLiquidProvider', () => {
             sz: '0.1',
             origSz: '0.1',
             limitPx: '45000',
+            triggerPx: '45500',
             orderType: 'Stop Market',
             reduceOnly: true,
             isTrigger: true,
           },
           status: 'triggered',
           statusTimestamp: 1640995400000,
+        },
+        {
+          order: {
+            oid: 126,
+            coin: 'ETH',
+            side: 'B',
+            sz: '0.0',
+            origSz: '1.0',
+            limitPx: '3600',
+            triggerPx: '',
+            orderType: 'Market',
+            reduceOnly: false,
+            isTrigger: false,
+          },
+          status: 'filled',
+          statusTimestamp: 1640995500000,
         },
       ];
       mockClientService.getInfoClient = jest.fn().mockReturnValue({
@@ -596,7 +698,7 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.getOrders();
 
-      expect(result).toHaveLength(3);
+      expect(result).toHaveLength(4);
 
       // Check first order - regular limit order (not closing)
       expect(result[0]).toMatchObject({
@@ -622,7 +724,13 @@ describe('HyperLiquidProvider', () => {
         size: '0.0',
         originalSize: '2.0',
         price: '3500',
+        triggerPrice: '3450',
+        triggerOrderType: 'take_profit_limit',
+        filledSize: '2',
+        remainingSize: '0',
         status: 'filled',
+        timestamp: 1640995300000,
+        lastUpdated: 1640995300000,
         detailedOrderType: 'Take Profit Limit',
         reduceOnly: true,
         isTrigger: true,
@@ -637,11 +745,38 @@ describe('HyperLiquidProvider', () => {
         size: '0.1',
         originalSize: '0.1',
         price: '45000',
+        triggerPrice: '45500',
+        triggerOrderType: 'stop_market',
+        filledSize: '0',
+        remainingSize: '0.1',
         status: 'triggered',
+        timestamp: 1640995400000,
+        lastUpdated: 1640995400000,
         detailedOrderType: 'Stop Market',
         reduceOnly: true,
         isTrigger: true,
       });
+
+      // Check fourth order - regular market order with a slippage-cap price
+      expect(result[3]).toMatchObject({
+        orderId: '126',
+        symbol: 'ETH',
+        side: 'buy',
+        orderType: 'market',
+        size: '0.0',
+        originalSize: '1.0',
+        price: '3600',
+        filledSize: '1',
+        remainingSize: '0',
+        status: 'filled',
+        timestamp: 1640995500000,
+        lastUpdated: 1640995500000,
+        detailedOrderType: 'Market',
+        reduceOnly: false,
+        isTrigger: false,
+      });
+      expect(result[3].triggerPrice).toBeUndefined();
+      expect(result[3].triggerOrderType).toBeUndefined();
     });
 
     it('properly transform getOpenOrders with reduceOnly and isTrigger fields', async () => {

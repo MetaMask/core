@@ -21,10 +21,6 @@ import {
 } from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
-jest.mock('@myx-trade/sdk', () => ({
-  MyxClient: jest.fn(),
-  OrderStatusEnum: { Successful: 9 },
-}));
 
 import {
   PERPS_EVENT_PROPERTY,
@@ -40,8 +36,6 @@ import {
   getDefaultPerpsControllerState,
   InitializationState,
   PerpsMode,
-  firstNonEmpty,
-  resolveMyxAuthConfig,
 } from '../../src/PerpsController.js';
 import type { PerpsControllerState } from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
@@ -57,7 +51,6 @@ import type {
 import { PerpsAnalyticsEvent } from '../../src/types/index.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
-jest.mock('../../src/providers/MYXProvider');
 
 // Mock transaction controller utility
 const mockAddTransaction = jest.fn();
@@ -139,6 +132,7 @@ const mockMarketDataServiceInstance = {
   calculateLiquidationPrice: jest.fn(),
   getMaxLeverage: jest.fn(),
   calculateFees: jest.fn().mockResolvedValue({ totalFee: 0 }),
+  previewPositionModify: jest.fn(),
   getAvailableDexs: jest.fn().mockResolvedValue([]),
   getBlockExplorerUrl: jest.fn(),
   getOrderFills: jest.fn(),
@@ -373,16 +367,6 @@ class TestablePerpsController extends PerpsController {
 
   public testHasStandaloneProvider(): boolean {
     return this.hasStandaloneProvider();
-  }
-
-  public testRegisterMYXProvider(
-    MYXProvider: new (opts: Record<string, unknown>) => PerpsProvider,
-  ) {
-    this.registerMYXProvider(MYXProvider as never);
-  }
-
-  public testHandleMYXImportError(error: unknown) {
-    this.handleMYXImportError(error);
   }
 }
 
@@ -633,13 +617,9 @@ describe('PerpsController', () => {
       await controller.init();
       const initialTestnetState = controller.state.isTestnet;
 
-      // Make init set state to Failed (mimics performInitialization catching an error)
-      jest.spyOn(controller, 'init').mockImplementationOnce(async () => {
-        controller.testUpdate((state) => {
-          state.initializationState = InitializationState.Failed;
-          state.initializationError = 'Network toggle init failed';
-        });
-      });
+      mockProvider.disconnect.mockRejectedValue(
+        new Error('Network toggle init failed'),
+      );
 
       const result = await controller.toggleTestnet();
 
@@ -648,24 +628,16 @@ describe('PerpsController', () => {
       // isTestnet should be rolled back to its original value
       expect(result.isTestnet).toBe(initialTestnetState);
       expect(controller.state.isTestnet).toBe(initialTestnetState);
-
-      jest.restoreAllMocks();
     });
 
     it('clears isReinitializing flag after init failure', async () => {
       await controller.init();
 
-      jest.spyOn(controller, 'init').mockImplementationOnce(async () => {
-        controller.testUpdate((state) => {
-          state.initializationState = InitializationState.Failed;
-        });
-      });
+      mockProvider.disconnect.mockRejectedValue(new Error('Init failed'));
 
       await controller.toggleTestnet();
 
       expect(controller.isCurrentlyReinitializing()).toBe(false);
-
-      jest.restoreAllMocks();
     });
   });
 
@@ -1130,6 +1102,7 @@ describe('PerpsController', () => {
         limitPrice: '45000',
         orderType: 'limit' as const,
         reduceOnly: true,
+        direction: 'short' as const,
       };
 
       controller.savePendingTradeConfiguration('BTC', config);
@@ -1137,6 +1110,20 @@ describe('PerpsController', () => {
       const result = controller.getPendingTradeConfiguration('BTC');
       expect(result).toEqual(config);
       expect(controller.getSelectedOrderType()).toBe('limit');
+    });
+
+    it('restores a short direction from a pending trade configuration', () => {
+      controller.savePendingTradeConfiguration('BTC', {
+        amount: '100',
+        direction: 'short',
+      });
+
+      const result = controller.getPendingTradeConfiguration('BTC');
+
+      expect(result).toEqual({
+        amount: '100',
+        direction: 'short',
+      });
     });
 
     it('returns undefined for non-existent pending configuration', () => {
