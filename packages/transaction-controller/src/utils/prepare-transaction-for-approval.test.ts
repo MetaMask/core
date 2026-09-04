@@ -3,41 +3,41 @@ import { cloneDeep } from 'lodash';
 import type { TransactionMeta } from '../types.js';
 import { TransactionStatus } from '../types.js';
 import type {
+  PrepareTransactionForApprovalResult,
   TransactionApprovalSigningMode,
   TransactionApprovalSponsorshipFacts,
 } from './prepare-transaction-for-approval.js';
 import { prepareTransactionForApproval } from './prepare-transaction-for-approval.js';
 
-type TruthTableRow = [
+type SponsorshipFactsRow = [
   available: boolean,
   supported: boolean,
   optedOut: boolean,
   required: boolean,
   externalSigningSupported: boolean,
-  expectedSponsorship: boolean,
-  expectedSigningMode: TransactionApprovalSigningMode | 'error',
 ];
 
-const TRUTH_TABLE: TruthTableRow[] = [
+type SuccessfulTruthTableRow = [
+  ...SponsorshipFactsRow,
+  expectedSponsorship: boolean,
+  expectedSigningMode: TransactionApprovalSigningMode,
+];
+
+const SUCCESSFUL_TRUTH_TABLE: SuccessfulTruthTableRow[] = [
   [false, false, false, false, false, false, 'local'],
   [false, false, false, false, true, false, 'local'],
-  [false, false, false, true, false, false, 'error'],
-  [false, false, false, true, true, false, 'error'],
   [false, false, true, false, false, false, 'local'],
   [false, false, true, false, true, false, 'local'],
   [false, false, true, true, false, false, 'local'],
   [false, false, true, true, true, false, 'local'],
   [false, true, false, false, false, false, 'local'],
   [false, true, false, false, true, false, 'local'],
-  [false, true, false, true, false, false, 'error'],
-  [false, true, false, true, true, false, 'error'],
   [false, true, true, false, false, false, 'local'],
   [false, true, true, false, true, false, 'local'],
   [false, true, true, true, false, false, 'local'],
   [false, true, true, true, true, false, 'local'],
   [true, false, false, false, false, false, 'local'],
   [true, false, false, false, true, false, 'local'],
-  [true, false, false, true, false, false, 'error'],
   [true, false, false, true, true, true, 'external'],
   [true, false, true, false, false, false, 'local'],
   [true, false, true, false, true, false, 'local'],
@@ -51,6 +51,14 @@ const TRUTH_TABLE: TruthTableRow[] = [
   [true, true, true, false, true, false, 'local'],
   [true, true, true, true, false, false, 'local'],
   [true, true, true, true, true, false, 'local'],
+];
+
+const ERROR_TRUTH_TABLE: SponsorshipFactsRow[] = [
+  [false, false, false, true, false],
+  [false, false, false, true, true],
+  [false, true, false, true, false],
+  [false, true, false, true, true],
+  [true, false, false, true, false],
 ];
 
 const TRANSACTION_META: TransactionMeta = {
@@ -75,7 +83,7 @@ function prepare(
   transactionMeta: TransactionMeta,
   sponsorship: TransactionApprovalSponsorshipFacts,
   externalSigningSupported: boolean,
-) {
+): PrepareTransactionForApprovalResult {
   return prepareTransactionForApproval({
     signing: { externalSigningSupported },
     sponsorship,
@@ -84,7 +92,7 @@ function prepare(
 }
 
 describe('prepareTransactionForApproval', () => {
-  it.each(TRUTH_TABLE)(
+  it.each(SUCCESSFUL_TRUTH_TABLE)(
     'normalizes available=%s supported=%s optedOut=%s required=%s externalSigningSupported=%s',
     (
       available,
@@ -95,21 +103,13 @@ describe('prepareTransactionForApproval', () => {
       expectedSponsorship,
       expectedSigningMode,
     ) => {
-      const prepareTransaction = () =>
-        prepare(
-          TRANSACTION_META,
-          { available, supported, optedOut, required },
-          externalSigningSupported,
-        );
+      const result = prepare(
+        TRANSACTION_META,
+        { available, supported, optedOut, required },
+        externalSigningSupported,
+      );
 
-      if (expectedSigningMode === 'error') {
-        expect(prepareTransaction).toThrow(
-          'Required transaction sponsorship is unavailable',
-        );
-        return;
-      }
-
-      expect(prepareTransaction()).toStrictEqual({
+      expect(result).toStrictEqual({
         decisions: {
           signingMode: expectedSigningMode,
           sponsorshipEnabled: expectedSponsorship,
@@ -120,6 +120,22 @@ describe('prepareTransactionForApproval', () => {
           isGasFeeSponsored: expectedSponsorship,
         },
       });
+    },
+  );
+
+  it.each(ERROR_TRUTH_TABLE)(
+    'rejects unavailable required sponsorship with available=%s supported=%s optedOut=%s required=%s externalSigningSupported=%s',
+    (available, supported, optedOut, required, externalSigningSupported) => {
+      const prepareTransaction = (): PrepareTransactionForApprovalResult =>
+        prepare(
+          TRANSACTION_META,
+          { available, supported, optedOut, required },
+          externalSigningSupported,
+        );
+
+      expect(prepareTransaction).toThrow(
+        'Required transaction sponsorship is unavailable',
+      );
     },
   );
 

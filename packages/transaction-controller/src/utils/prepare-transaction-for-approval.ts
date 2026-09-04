@@ -77,6 +77,9 @@ export type PrepareTransactionForApprovalResult = {
  * token, removing the nonce, and selecting external signing at publication.
  *
  * @param request - Transaction metadata and normalized preparation facts.
+ * @param request.signing - Signing facts for the selected publication path.
+ * @param request.sponsorship - Sponsorship facts determined by the caller.
+ * @param request.transactionMeta - Transaction metadata to prepare.
  * @returns Prepared transaction metadata and the resulting decisions.
  * @throws If sponsorship is required but no sponsored publication path is available.
  */
