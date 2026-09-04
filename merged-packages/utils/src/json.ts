@@ -55,7 +55,7 @@ export type Json =
 export type ObjectOptional<Schema extends Record<string, unknown>> = {
   [Key in keyof Schema as Schema[Key] extends ExactOptionalGuard
     ? Key
-    : never]?: Schema[Key] extends ExactOptionalGuard & infer Original
+    : never]?: Schema[Key] extends ExactOptionalGuard & (infer Original)
     ? Original
     : never;
 } & {
@@ -699,8 +699,8 @@ export function getJsonRpcIdValidator(options?: JsonRpcValidatorOptions) {
   const isValidJsonRpcId = (id: unknown): id is JsonRpcId => {
     return Boolean(
       (typeof id === 'number' && (permitFractions || Number.isInteger(id))) ||
-        (typeof id === 'string' && (permitEmptyString || id.length > 0)) ||
-        (permitNull && id === null),
+      (typeof id === 'string' && (permitEmptyString || id.length > 0)) ||
+      (permitNull && id === null),
     );
   };
 

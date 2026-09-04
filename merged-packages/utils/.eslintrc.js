@@ -3,6 +3,12 @@ module.exports = {
 
   extends: ['@metamask/eslint-config'],
 
+  rules: {
+    // Handled by Oxfmt.
+    'prettier/prettier': 'off',
+    'import/order': 'off',
+  },
+
   overrides: [
     {
       files: ['*.ts'],
