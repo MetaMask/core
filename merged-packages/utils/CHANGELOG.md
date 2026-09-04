@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/scure-bip39` from `^2.0.3` to `^2.1.1` ([#311](https://github.com/MetaMask/utils/pull/311))
+- Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#311](https://github.com/MetaMask/utils/pull/311))
+- Bump `@noble/hashes` from `^1.3.1` to `^1.8.0` ([#311](https://github.com/MetaMask/utils/pull/311))
+- Bump `@scure/base` from `^1.1.3` to `^1.2.6` ([#311](https://github.com/MetaMask/utils/pull/311))
+- Bump `semver` from `^7.5.4` to `^7.6.3` ([#311](https://github.com/MetaMask/utils/pull/311))
+
 ## [11.12.1]
 
 ### Fixed

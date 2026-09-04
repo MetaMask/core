@@ -3,14 +3,15 @@
     "esModuleInterop": true,
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
-    "lib": ["ES2020", "dom"],
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
+    "isolatedModules": true,
+    "lib": ["ES2020", "DOM"],
+    "module": "Node16",
+    "moduleResolution": "Node16",
     "noEmit": true,
     "noErrorTruncation": true,
     "noUncheckedIndexedAccess": true,
     "strict": true,
-    "target": "es2020"
+    "target": "ES2020"
   },
   "exclude": ["./dist/**/*"]
 }
