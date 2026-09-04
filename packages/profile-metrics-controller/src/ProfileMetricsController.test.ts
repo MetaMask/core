@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -26,11 +27,13 @@ import { ProofUnsupportedNamespaceError } from './utils/canonicalize.js';
  *
  * @param address - The address of the mock account.
  * @param withEntropy - Whether to include entropy information in the account options. Defaults to true.
+ * @param keyringType - The keyring type for the account.
  * @returns A mock InternalAccount object.
  */
 function createMockAccount(
   address: string,
   withEntropy = true,
+  keyringType: string = 'Test Keyring',
 ): InternalAccount {
   return {
     id: `id-${address}`,
@@ -50,7 +53,7 @@ function createMockAccount(
     type: 'any:account',
     metadata: {
       keyring: {
-        type: 'Test Keyring',
+        type: keyringType,
       },
       name: `Account ${address}`,
       importTime: 1713153716,
@@ -97,7 +100,7 @@ describe('ProfileMetricsController', () => {
             async ({ controller, rootMessenger, registerAccounts }) => {
               registerAccounts([
                 createMockAccount('0xAccount1'),
-                createMockAccount('0xAccount2', false),
+                createMockAccount('0xAccount2', false, KeyringTypes.simple),
               ]);
 
               rootMessenger.publish('KeyringController:unlock');
@@ -109,11 +112,39 @@ describe('ProfileMetricsController', () => {
               // enqueue — accounts are queued with proofs in mind from
               // the very first poll.
               expect(controller.state.proofBackfillEnqueued).toBe(true);
+              expect(controller.state.accountSourceBackfillEnqueued).toBe(true);
               expect(controller.state.syncQueue).toStrictEqual({
                 'entropy-0xAccount1': [
                   { address: '0xAccount1', scopes: ['eip155:1'] },
                 ],
-                null: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
+                null: [
+                  {
+                    address: '0xAccount2',
+                    scopes: ['eip155:1'],
+                    source: 'imported',
+                  },
+                ],
+              });
+            },
+          );
+        });
+
+        it('enqueues canonical addresses', async () => {
+          const checksummedAddress =
+            '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+          await withController(
+            async ({ controller, rootMessenger, registerAccounts }) => {
+              registerAccounts([
+                createMockAccount(checksummedAddress.toLowerCase()),
+              ]);
+
+              rootMessenger.publish('KeyringController:unlock');
+              await Promise.resolve();
+
+              expect(controller.state.syncQueue).toStrictEqual({
+                [`entropy-${checksummedAddress.toLowerCase()}`]: [
+                  { address: checksummedAddress, scopes: ['eip155:1'] },
+                ],
               });
             },
           );
@@ -134,6 +165,64 @@ describe('ProfileMetricsController', () => {
             },
           );
         });
+
+        it('does not re-enqueue accounts that were already reported', async () => {
+          await withController(
+            {
+              options: {
+                state: { reportedAccounts: ['0xAccount1'] },
+              },
+            },
+            async ({ controller, rootMessenger, registerAccounts }) => {
+              registerAccounts([
+                createMockAccount('0xAccount1'),
+                createMockAccount('0xAccount2'),
+              ]);
+
+              rootMessenger.publish('KeyringController:unlock');
+              await Promise.resolve();
+
+              expect(controller.state.syncQueue).toStrictEqual({
+                'entropy-0xAccount2': [
+                  { address: '0xAccount2', scopes: ['eip155:1'] },
+                ],
+              });
+            },
+          );
+        });
+
+        it('groups all non-mnemonic accounts into a single batch, each tagged with its source', async () => {
+          await withController(
+            async ({ controller, rootMessenger, registerAccounts }) => {
+              registerAccounts([
+                createMockAccount('0xHardware', false, KeyringTypes.ledger),
+                createMockAccount('0xImported', false, KeyringTypes.simple),
+                createMockAccount('0xSnap', false, KeyringTypes.snap),
+                createMockAccount('0xUnknown', false, 'Custom Keyring'),
+              ]);
+
+              rootMessenger.publish('KeyringController:unlock');
+              await Promise.resolve();
+
+              expect(controller.state.syncQueue).toStrictEqual({
+                null: [
+                  {
+                    address: '0xHardware',
+                    scopes: ['eip155:1'],
+                    source: 'hardware',
+                  },
+                  {
+                    address: '0xImported',
+                    scopes: ['eip155:1'],
+                    source: 'imported',
+                  },
+                  { address: '0xSnap', scopes: ['eip155:1'], source: 'snap' },
+                  { address: '0xUnknown', scopes: ['eip155:1'] },
+                ],
+              });
+            },
+          );
+        });
       });
 
       describe('when `initialEnqueueCompleted` is true', () => {
@@ -147,6 +236,8 @@ describe('ProfileMetricsController', () => {
                   state: {
                     initialEnqueueCompleted: true,
                     proofBackfillEnqueued: true,
+                    accountSourceBackfillEnqueued: true,
+                    reportedAccounts: ['0xAccount1', '0xAccount2'],
                   },
                 },
               },
@@ -260,7 +351,7 @@ describe('ProfileMetricsController', () => {
         });
       });
 
-      describe('when `proofBackfillEnqueued` is true', () => {
+      describe('when all backfills are complete', () => {
         it('does not re-enqueue accounts on subsequent unlocks', async () => {
           await withController(
             {
@@ -269,6 +360,8 @@ describe('ProfileMetricsController', () => {
                 state: {
                   initialEnqueueCompleted: true,
                   proofBackfillEnqueued: true,
+                  accountSourceBackfillEnqueued: true,
+                  reportedAccounts: ['0xAccount1'],
                 },
               },
             },
@@ -367,6 +460,224 @@ describe('ProfileMetricsController', () => {
 
                 expect(controller.state.syncQueue).toStrictEqual({
                   null: [{ address: '0xNewAccount', scopes: ['eip155:1'] }],
+                });
+              },
+            );
+          });
+
+          it.each([
+            { keyringType: KeyringTypes.qr, source: 'hardware' },
+            { keyringType: KeyringTypes.trezor, source: 'hardware' },
+            { keyringType: KeyringTypes.oneKey, source: 'hardware' },
+            { keyringType: KeyringTypes.ledger, source: 'hardware' },
+            { keyringType: KeyringTypes.lattice, source: 'hardware' },
+            { keyringType: KeyringTypes.simple, source: 'imported' },
+            { keyringType: KeyringTypes.snap, source: 'snap' },
+          ] as const)(
+            'adds the new `$keyringType` account to the sync queue under `null` tagged with the `$source` source',
+            async ({ keyringType, source }) => {
+              await withController(
+                { options: { assertUserOptedIn: () => assertUserOptedIn } },
+                async ({ controller, rootMessenger }) => {
+                  const newAccount = createMockAccount(
+                    '0xNewAccount',
+                    false,
+                    keyringType,
+                  );
+
+                  rootMessenger.publish(
+                    'AccountsController:accountAdded',
+                    newAccount,
+                  );
+                  await Promise.resolve();
+
+                  expect(controller.state.syncQueue).toStrictEqual({
+                    null: [
+                      {
+                        address: '0xNewAccount',
+                        scopes: ['eip155:1'],
+                        source,
+                      },
+                    ],
+                  });
+                },
+              );
+            },
+          );
+
+          it('does not tag a mnemonic-backed Snap account with a source', async () => {
+            await withController(
+              { options: { assertUserOptedIn: () => assertUserOptedIn } },
+              async ({ controller, rootMessenger }) => {
+                rootMessenger.publish(
+                  'AccountsController:accountAdded',
+                  createMockAccount('0xNewAccount', true, KeyringTypes.snap),
+                );
+                await Promise.resolve();
+
+                expect(controller.state.syncQueue).toStrictEqual({
+                  'entropy-0xNewAccount': [
+                    { address: '0xNewAccount', scopes: ['eip155:1'] },
+                  ],
+                });
+              },
+            );
+          });
+
+          it('adds the new account to the sync queue with its canonical address', async () => {
+            const checksummedAddress =
+              '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+            await withController(
+              { options: { assertUserOptedIn: () => assertUserOptedIn } },
+              async ({ controller, rootMessenger }) => {
+                rootMessenger.publish(
+                  'AccountsController:accountAdded',
+                  createMockAccount(checksummedAddress.toLowerCase(), false),
+                );
+                await Promise.resolve();
+
+                expect(controller.state.syncQueue).toStrictEqual({
+                  null: [{ address: checksummedAddress, scopes: ['eip155:1'] }],
+                });
+              },
+            );
+          });
+
+          it('adds the new account to the sync queue as-is and logs when its address cannot be canonicalized', async () => {
+            const consoleErrorSpy = jest
+              .spyOn(console, 'error')
+              .mockImplementation();
+            await withController(
+              { options: { assertUserOptedIn: () => assertUserOptedIn } },
+              async ({ controller, rootMessenger }) => {
+                rootMessenger.publish('AccountsController:accountAdded', {
+                  ...createMockAccount('0xNewAccount'),
+                  scopes: [],
+                });
+                await Promise.resolve();
+
+                expect(controller.state.syncQueue).toStrictEqual({
+                  'entropy-0xNewAccount': [
+                    { address: '0xNewAccount', scopes: [] },
+                  ],
+                });
+                expect(consoleErrorSpy).toHaveBeenCalledWith(
+                  'Failed to canonicalize address for account id-0xNewAccount:',
+                  new Error('Scope not found for account id-0xNewAccount'),
+                );
+              },
+            );
+          });
+
+          it('adds the new account to the sync queue as-is without logging when its namespace is unsupported', async () => {
+            const consoleErrorSpy = jest
+              .spyOn(console, 'error')
+              .mockImplementation();
+            await withController(
+              { options: { assertUserOptedIn: () => assertUserOptedIn } },
+              async ({ controller, rootMessenger }) => {
+                rootMessenger.publish('AccountsController:accountAdded', {
+                  ...createMockAccount('cosmos1abc'),
+                  scopes: ['cosmos:cosmoshub-4'],
+                });
+                await Promise.resolve();
+
+                expect(controller.state.syncQueue).toStrictEqual({
+                  'entropy-cosmos1abc': [
+                    { address: 'cosmos1abc', scopes: ['cosmos:cosmoshub-4'] },
+                  ],
+                });
+                expect(consoleErrorSpy).not.toHaveBeenCalled();
+              },
+            );
+          });
+
+          it('does not enqueue an account whose canonical address has already been reported', async () => {
+            const checksummedAddress =
+              '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+            await withController(
+              {
+                options: {
+                  assertUserOptedIn: () => assertUserOptedIn,
+                  state: { reportedAccounts: [checksummedAddress] },
+                },
+              },
+              async ({ controller, rootMessenger }) => {
+                rootMessenger.publish(
+                  'AccountsController:accountAdded',
+                  createMockAccount(checksummedAddress.toLowerCase()),
+                );
+                await Promise.resolve();
+
+                expect(controller.state.syncQueue).toStrictEqual({});
+              },
+            );
+          });
+
+          it('does not enqueue an account that is already queued', async () => {
+            await withController(
+              {
+                options: {
+                  assertUserOptedIn: () => assertUserOptedIn,
+                  state: {
+                    syncQueue: {
+                      existing: [
+                        {
+                          address: '0xNewAccount',
+                          scopes: ['eip155:1'],
+                        },
+                      ],
+                    },
+                  },
+                },
+              },
+              async ({ controller, rootMessenger }) => {
+                rootMessenger.publish(
+                  'AccountsController:accountAdded',
+                  createMockAccount('0xNewAccount'),
+                );
+                await Promise.resolve();
+
+                expect(controller.state.syncQueue).toStrictEqual({
+                  existing: [
+                    {
+                      address: '0xNewAccount',
+                      scopes: ['eip155:1'],
+                    },
+                  ],
+                });
+              },
+            );
+          });
+
+          it('appends distinct accounts to an existing batch', async () => {
+            await withController(
+              {
+                options: {
+                  assertUserOptedIn: () => assertUserOptedIn,
+                  state: {
+                    syncQueue: {
+                      null: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+                    },
+                  },
+                },
+              },
+              async ({ controller, rootMessenger }) => {
+                rootMessenger.publish(
+                  'AccountsController:accountAdded',
+                  createMockAccount('0xAccount2', false, KeyringTypes.simple),
+                );
+                await Promise.resolve();
+
+                expect(controller.state.syncQueue).toStrictEqual({
+                  null: [
+                    { address: '0xAccount1', scopes: ['eip155:1'] },
+                    {
+                      address: '0xAccount2',
+                      scopes: ['eip155:1'],
+                      source: 'imported',
+                    },
+                  ],
                 });
               },
             );
@@ -561,6 +872,24 @@ describe('ProfileMetricsController', () => {
       });
 
       describe('when the initial delay period has ended', () => {
+        it('does not read accounts or submit anything when the sync queue is empty', async () => {
+          await withController(
+            {
+              options: {
+                state: { initialDelayEndTimestamp: 0 },
+              },
+            },
+            async ({ controller, messenger, mockSubmitMetrics }) => {
+              const callSpy = jest.spyOn(messenger, 'call');
+
+              await controller._executePoll();
+
+              expect(callSpy).not.toHaveBeenCalled();
+              expect(mockSubmitMetrics).not.toHaveBeenCalled();
+            },
+          );
+        });
+
         it('processes the sync queue on each poll', async () => {
           const accounts: Record<string, AccountWithScopes[]> = {
             id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
@@ -660,8 +989,11 @@ describe('ProfileMetricsController', () => {
               expect(controller.state.syncQueue).toStrictEqual({
                 id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
               });
+              expect(controller.state.reportedAccounts).toStrictEqual([
+                '0xAccount2',
+              ]);
               expect(consoleErrorSpy).toHaveBeenCalledWith(
-                'Failed to submit profile metrics for entropy source ID id1:',
+                'Failed to submit profile metrics for sync queue key id1:',
                 expect.any(Error),
               );
             },
@@ -669,12 +1001,12 @@ describe('ProfileMetricsController', () => {
         });
 
         describe('proof of ownership wiring', () => {
-          it('fetches nonces and signs proofs for queued accounts, submitting canonical addresses', async () => {
+          it('fetches nonces and signs proofs for queued accounts, matching them against live accounts by canonical address', async () => {
             const checksummedAddress =
               '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
             const lowercased = checksummedAddress.toLowerCase();
             const accounts: Record<string, AccountWithScopes[]> = {
-              id1: [{ address: lowercased, scopes: ['eip155:1'] }],
+              id1: [{ address: checksummedAddress, scopes: ['eip155:1'] }],
             };
             await withController(
               {
@@ -725,10 +1057,20 @@ describe('ProfileMetricsController', () => {
             );
           });
 
-          it('skips proof-of-ownership entirely for accounts with no entropy source', async () => {
+          it('submits the non-mnemonic batch without an entropy source ID or proofs and records its accounts as reported', async () => {
             const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
             const accounts: Record<string, AccountWithScopes[]> = {
-              null: [{ address: address.toLowerCase(), scopes: ['eip155:1'] }],
+              null: [
+                { address, scopes: ['eip155:1'], source: 'hardware' },
+                {
+                  address: '0xImported',
+                  scopes: ['eip155:1'],
+                  source: 'imported',
+                },
+                { address: '0xSnap', scopes: ['eip155:1'], source: 'snap' },
+                // Persisted by a version that did not tag sources.
+                { address: '0xLegacy', scopes: ['eip155:1'] },
+              ],
             };
             await withController(
               {
@@ -745,7 +1087,7 @@ describe('ProfileMetricsController', () => {
                 registerAccounts,
               }) => {
                 registerAccounts([
-                  createMockAccount(address.toLowerCase(), false),
+                  createMockAccount(address, false, KeyringTypes.ledger),
                 ]);
 
                 await controller._executePoll();
@@ -755,22 +1097,49 @@ describe('ProfileMetricsController', () => {
                 expect(mockSubmitMetrics).toHaveBeenCalledWith({
                   metametricsId: getMetaMetricsId(),
                   entropySourceId: null,
-                  accounts: [
-                    { address: address.toLowerCase(), scopes: ['eip155:1'] },
-                  ],
+                  accounts: accounts.null,
                 });
                 expect(controller.state.syncQueue).toStrictEqual({});
+                expect(controller.state.reportedAccounts).toStrictEqual([
+                  address,
+                  '0xImported',
+                  '0xSnap',
+                  '0xLegacy',
+                ]);
               },
             );
           });
 
-          it('canonicalizes mixed-case bech32 Bitcoin addresses to lowercase before fetching the nonce', async () => {
+          it('does not record the same reported address twice', async () => {
+            await withController(
+              {
+                options: {
+                  state: {
+                    syncQueue: {
+                      id1: [{ address: '0xAccount1', scopes: ['eip155:1'] }],
+                    },
+                    reportedAccounts: ['0xAccount1'],
+                    initialDelayEndTimestamp: 0,
+                  },
+                },
+              },
+              async ({ controller }) => {
+                await controller._executePoll();
+
+                expect(controller.state.reportedAccounts).toStrictEqual([
+                  '0xAccount1',
+                ]);
+              },
+            );
+          });
+
+          it('matches queued bech32 Bitcoin addresses against the lowercased live account address before fetching the nonce', async () => {
             const mixedCase = 'BC1QAR0SRRR7XFKVY5L643LYDNW9RE59GTZZWF5MDQ';
             const canonical = mixedCase.toLowerCase();
             const accounts: Record<string, AccountWithScopes[]> = {
               id1: [
                 {
-                  address: mixedCase,
+                  address: canonical,
                   scopes: ['bip122:000000000019d6689c085ae165831e93'],
                 },
               ],
@@ -816,13 +1185,13 @@ describe('ProfileMetricsController', () => {
             );
           });
 
-          it('de-duplicates identifiers when the same canonical address is queued twice', async () => {
+          it('de-duplicates identifiers when the same address is queued twice', async () => {
             const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
             const lowercased = address.toLowerCase();
             const accounts: Record<string, AccountWithScopes[]> = {
               id1: [
-                { address: lowercased, scopes: ['eip155:1'] },
-                { address: lowercased, scopes: ['eip155:1'] },
+                { address, scopes: ['eip155:1'] },
+                { address, scopes: ['eip155:1'] },
               ],
             };
             await withController(
@@ -944,7 +1313,7 @@ describe('ProfileMetricsController', () => {
                   }),
                 );
                 expect(consoleErrorSpy).toHaveBeenCalledWith(
-                  `Skipping proof for account id-${address}:`,
+                  `Failed to canonicalize address for account id-${address}:`,
                   expect.any(Error),
                 );
               },
@@ -989,10 +1358,10 @@ describe('ProfileMetricsController', () => {
             );
           });
 
-          it('submits canonicalized accounts without proofs and logs when fetchNonces rejects', async () => {
+          it('submits accounts without proofs and logs when fetchNonces rejects', async () => {
             const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
             const accounts: Record<string, AccountWithScopes[]> = {
-              id1: [{ address: address.toLowerCase(), scopes: ['eip155:1'] }],
+              id1: [{ address, scopes: ['eip155:1'] }],
             };
             await withController(
               {
@@ -1037,7 +1406,7 @@ describe('ProfileMetricsController', () => {
           it('submits the account without proof when the nonce response omits its identifier', async () => {
             const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
             const accounts: Record<string, AccountWithScopes[]> = {
-              id1: [{ address: address.toLowerCase(), scopes: ['eip155:1'] }],
+              id1: [{ address, scopes: ['eip155:1'] }],
             };
             await withController(
               {
@@ -1074,8 +1443,8 @@ describe('ProfileMetricsController', () => {
             const badLower = badAddress.toLowerCase();
             const accounts: Record<string, AccountWithScopes[]> = {
               id1: [
-                { address: goodLower, scopes: ['eip155:1'] },
-                { address: badLower, scopes: ['eip155:1'] },
+                { address: goodAddress, scopes: ['eip155:1'] },
+                { address: badAddress, scopes: ['eip155:1'] },
               ],
             };
             await withController(
@@ -1134,7 +1503,7 @@ describe('ProfileMetricsController', () => {
           it('keeps the batch in the queue when submitMetrics fails after proofs have been signed', async () => {
             const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
             const accounts: Record<string, AccountWithScopes[]> = {
-              id1: [{ address: address.toLowerCase(), scopes: ['eip155:1'] }],
+              id1: [{ address, scopes: ['eip155:1'] }],
             };
             await withController(
               {
@@ -1169,8 +1538,8 @@ describe('ProfileMetricsController', () => {
             const address1 = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
             const address2 = '0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359';
             const accounts: Record<string, AccountWithScopes[]> = {
-              id1: [{ address: address1.toLowerCase(), scopes: ['eip155:1'] }],
-              id2: [{ address: address2.toLowerCase(), scopes: ['eip155:1'] }],
+              id1: [{ address: address1, scopes: ['eip155:1'] }],
+              id2: [{ address: address2, scopes: ['eip155:1'] }],
             };
             await withController(
               {
@@ -1216,7 +1585,7 @@ describe('ProfileMetricsController', () => {
             const cosmosAddress = 'cosmos1abc';
             const accounts: Record<string, AccountWithScopes[]> = {
               id1: [
-                { address: evmAddress.toLowerCase(), scopes: ['eip155:1'] },
+                { address: evmAddress, scopes: ['eip155:1'] },
                 { address: cosmosAddress, scopes: ['cosmos:cosmoshub-4'] },
               ],
             };
@@ -1275,7 +1644,7 @@ describe('ProfileMetricsController', () => {
           it('submits the account as-is when its live scopes list is empty', async () => {
             const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
             const accounts: Record<string, AccountWithScopes[]> = {
-              id1: [{ address: address.toLowerCase(), scopes: ['eip155:1'] }],
+              id1: [{ address, scopes: ['eip155:1'] }],
             };
             await withController(
               {
@@ -1296,7 +1665,7 @@ describe('ProfileMetricsController', () => {
                   .mockImplementation();
                 registerAccounts([
                   {
-                    ...createMockAccount(address.toLowerCase()),
+                    ...createMockAccount(address),
                     scopes: [],
                   },
                 ]);
@@ -1308,17 +1677,15 @@ describe('ProfileMetricsController', () => {
                   expect.objectContaining({
                     accounts: [
                       {
-                        address: address.toLowerCase(),
+                        address,
                         scopes: ['eip155:1'],
                       },
                     ],
                   }),
                 );
                 expect(consoleErrorSpy).toHaveBeenCalledWith(
-                  `Skipping proof for account id-${address.toLowerCase()}:`,
-                  new Error(
-                    `Scope not found for account id-${address.toLowerCase()}`,
-                  ),
+                  `Failed to canonicalize address for account id-${address}:`,
+                  new Error(`Scope not found for account id-${address}`),
                 );
               },
             );
@@ -1376,6 +1743,7 @@ describe('ProfileMetricsController', () => {
             ),
           ).toMatchInlineSnapshot(`
             {
+              "accountSourceBackfillEnqueued": false,
               "initialDelayEndTimestamp": 10,
               "initialEnqueueCompleted": false,
               "proofBackfillEnqueued": false,
@@ -1397,9 +1765,11 @@ describe('ProfileMetricsController', () => {
             ),
           ).toMatchInlineSnapshot(`
             {
+              "accountSourceBackfillEnqueued": false,
               "initialDelayEndTimestamp": 10,
               "initialEnqueueCompleted": false,
               "proofBackfillEnqueued": false,
+              "reportedAccounts": [],
               "syncQueue": {},
             }
           `);
@@ -1419,9 +1789,11 @@ describe('ProfileMetricsController', () => {
             ),
           ).toMatchInlineSnapshot(`
             {
+              "accountSourceBackfillEnqueued": false,
               "initialDelayEndTimestamp": 10,
               "initialEnqueueCompleted": false,
               "proofBackfillEnqueued": false,
+              "reportedAccounts": [],
               "syncQueue": {},
             }
           `);
@@ -1590,7 +1962,6 @@ async function withController<ReturnValue>(
       ]),
     ),
   }));
-
   const messenger = getMessenger(rootMessenger);
   const controller = new ProfileMetricsController({
     messenger,

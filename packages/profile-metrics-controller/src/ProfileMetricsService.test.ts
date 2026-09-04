@@ -369,7 +369,7 @@ describe('ProfileMetricsService', () => {
       expect(submitMetricsResponse).toBeUndefined();
     });
 
-    it('serializes the optional proof field for each account that has one and omits it for those that do not', async () => {
+    it('serializes the optional proof and source fields for each account that has them and omits them for those that do not', async () => {
       const mockFetch = jest.fn().mockResolvedValue(
         // eslint-disable-next-line no-restricted-globals
         new Response(JSON.stringify({ data: { success: true } }), {
@@ -389,7 +389,11 @@ describe('ProfileMetricsService', () => {
         createMockRequest({
           accounts: [
             { address: '0xAccountWithProof', scopes: ['eip155:1'], proof },
-            { address: '0xAccountWithoutProof', scopes: ['eip155:1'] },
+            {
+              address: '0xImportedAccount',
+              scopes: ['eip155:1'],
+              source: 'imported',
+            },
           ],
         }),
       );
@@ -397,8 +401,13 @@ describe('ProfileMetricsService', () => {
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       expect(body.accounts).toStrictEqual([
         { address: '0xAccountWithProof', scopes: ['eip155:1'], proof },
-        { address: '0xAccountWithoutProof', scopes: ['eip155:1'] },
+        {
+          address: '0xImportedAccount',
+          scopes: ['eip155:1'],
+          source: 'imported',
+        },
       ]);
+      expect(body.accounts[0]).not.toHaveProperty('source');
       expect(body.accounts[1]).not.toHaveProperty('proof');
     });
   });
