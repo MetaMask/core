@@ -43,7 +43,7 @@ import {
   enums,
   literal,
   number,
-  object,
+  object as superstructObject,
   optional,
   record,
   string,
@@ -1294,7 +1294,7 @@ const InfuraRpcEndpointUrlStruct =
     string,
   );
 
-const InfuraRpcEndpointStruct = object({
+const InfuraRpcEndpointStruct = superstructObject({
   failoverUrls: optional(array(string())),
   name: optional(string()),
   networkClientId: string(),
@@ -1302,7 +1302,7 @@ const InfuraRpcEndpointStruct = object({
   url: InfuraRpcEndpointUrlStruct,
 });
 
-const CustomRpcEndpointStruct = object({
+const CustomRpcEndpointStruct = superstructObject({
   failoverUrls: optional(array(string())),
   name: optional(string()),
   networkClientId: string(),
@@ -1310,7 +1310,7 @@ const CustomRpcEndpointStruct = object({
   url: string(),
 });
 
-const NetworkConfigurationStruct = object({
+const NetworkConfigurationStruct = superstructObject({
   blockExplorerUrls: array(string()),
   chainId: StrictHexStruct,
   defaultBlockExplorerUrlIndex: optional(number()),
@@ -1323,7 +1323,7 @@ const NetworkConfigurationStruct = object({
   lastUpdatedAt: optional(number()),
 });
 
-const NetworkMetadataStruct = object({
+const NetworkMetadataStruct = superstructObject({
   EIPS: record(string(), boolean()),
   status: enums([
     NetworkStatus.Unknown,
@@ -1334,7 +1334,7 @@ const NetworkMetadataStruct = object({
   ]),
 });
 
-const NetworkStateStruct = object({
+const NetworkStateStruct = superstructObject({
   selectedNetworkClientId: string(),
   networkConfigurationsByChainId: record(
     StrictHexStruct,
