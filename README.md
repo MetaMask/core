@@ -613,6 +613,7 @@ linkStyle default opacity:0.5
   smart_transactions_controller --> remote_feature_flag_controller;
   smart_transactions_controller --> transaction_controller;
   smart_transactions_controller --> json_rpc_engine;
+  snap_account_service --> accounts_controller;
   snap_account_service --> keyring_controller;
   snap_account_service --> messenger;
   social_controllers --> base_controller;
