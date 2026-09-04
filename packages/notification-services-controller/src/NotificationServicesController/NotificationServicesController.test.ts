@@ -1100,12 +1100,8 @@ describe('NotificationServicesController', () => {
         expect(mockEnablePushNotifications).not.toHaveBeenCalled();
       });
 
-      it('does not register push notifications when the wallet-activity push toggle is off', async () => {
-        const {
-          messenger,
-          mockDisablePushNotifications,
-          mockEnablePushNotifications,
-        } = arrangeMocks({
+      it('ignores the legacy wallet-activity push toggle when registering push notifications', async () => {
+        const { messenger, mockEnablePushNotifications } = arrangeMocks({
           configurePrefs: (mock) =>
             mock.mockResolvedValueOnce(
               mockPreferences({
@@ -1127,9 +1123,8 @@ describe('NotificationServicesController', () => {
         await controller.createOnChainTriggers();
 
         await waitFor(() => {
-          expect(mockDisablePushNotifications).toHaveBeenCalled();
+          expect(mockEnablePushNotifications).toHaveBeenCalled();
         });
-        expect(mockEnablePushNotifications).not.toHaveBeenCalled();
       });
 
       it('preserves user preferences when re-subscribing using enableMetamaskNotifications', async () => {
@@ -1468,7 +1463,7 @@ describe('NotificationServicesController', () => {
       expect(mocks.mockFeatureAnnouncementsAPI.isDone()).toBe(false);
     });
 
-    it('should not fetch wallet notifications if AUS wallet-activity in-app notifications are disabled', async () => {
+    it('ignores the legacy wallet-activity in-app toggle when fetching wallet notifications', async () => {
       const { messenger, ...mocks } = arrangeMocks();
       mocks.mockGetNotificationPreferences.mockResolvedValue(
         mockPreferences({
@@ -1491,8 +1486,8 @@ describe('NotificationServicesController', () => {
         result.filter(
           (notification) => notification.type === TRIGGER_TYPES.ETH_SENT,
         ),
-      ).toHaveLength(0);
-      expect(mocks.mockOnChainNotificationsAPI.isDone()).toBe(false);
+      ).toHaveLength(1);
+      expect(mocks.mockOnChainNotificationsAPI.isDone()).toBe(true);
 
       // The wallet-activity toggle must not affect other notification types.
       expect(mocks.mockFeatureAnnouncementsAPI.isDone()).toBe(true);
@@ -2002,7 +1997,7 @@ describe('NotificationServicesController', () => {
       await controller.enablePushNotifications();
 
       // Assert
-      expect(mockGetConfig).toHaveBeenCalled();
+      expect(mockGetConfig).not.toHaveBeenCalled();
       expect(mockEnablePushNotifications).toHaveBeenCalledWith([
         ADDRESS_1.toLowerCase(),
       ]);
@@ -2059,7 +2054,7 @@ describe('NotificationServicesController', () => {
       expect(mockEnablePushNotifications).not.toHaveBeenCalled();
     });
 
-    it('unregisters the device when the wallet-activity push toggle is off', async () => {
+    it('ignores the legacy wallet-activity push toggle and uses Trigger API subscriptions', async () => {
       const {
         messenger,
         mockGetConfig,
@@ -2076,6 +2071,10 @@ describe('NotificationServicesController', () => {
           },
         }),
       );
+      mockGetOnChainNotificationsConfig({
+        status: 200,
+        body: [{ address: ADDRESS_1.toLowerCase(), enabled: true }],
+      });
       const controller = new NotificationServicesController({
         messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
@@ -2084,8 +2083,11 @@ describe('NotificationServicesController', () => {
 
       await controller.enablePushNotifications();
 
-      expect(mockDisablePushNotifications).toHaveBeenCalled();
-      expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+      expect(mockGetConfig).not.toHaveBeenCalled();
+      expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+      expect(mockEnablePushNotifications).toHaveBeenCalledWith([
+        ADDRESS_1.toLowerCase(),
+      ]);
     });
 
     it('handles errors gracefully when fetching the bearer token fails', async () => {
