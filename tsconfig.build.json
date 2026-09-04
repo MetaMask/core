@@ -95,6 +95,9 @@
       "path": "./packages/core-backend/tsconfig.build.json"
     },
     {
+      "path": "./packages/cryptography/tsconfig.build.json"
+    },
+    {
       "path": "./packages/delegation-controller/tsconfig.build.json"
     },
     {
@@ -164,10 +167,10 @@
       "path": "./packages/money-account-api-data-service/tsconfig.build.json"
     },
     {
-      "path": "./packages/money-account-balance-service/tsconfig.build.json"
+      "path": "./packages/money-account-api-data-service/tsconfig.build.json"
     },
     {
-      "path": "./packages/money-account-api-data-service/tsconfig.build.json"
+      "path": "./packages/money-account-balance-service/tsconfig.build.json"
     },
     {
       "path": "./packages/money-account-controller/tsconfig.build.json"

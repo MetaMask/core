@@ -3,6 +3,7 @@ import { KnownCaipNamespace, getChecksumAddress } from '@metamask/utils';
 import { getDefaultTrackedAssetsForChain } from '../defaults.js';
 import type {
   AssetMetadata,
+  AssetPrice,
   AssetsControllerStateInternal,
   Caip19AssetId,
   ChainId,
@@ -238,6 +239,31 @@ export const SPAM_WALLET_ASSETS_INFO = buildAssetsInfo([
   ...SPAM_ASSET_IDS,
 ]);
 
+/**
+ * Prices are persisted next to the assets they belong to, so the airdrop spam
+ * carries quotes of its own into state.
+ */
+export const SPAM_WALLET_PRICES: Record<Caip19AssetId, AssetPrice> = {
+  [MAINNET_USDT]: {
+    assetPriceType: 'fungible',
+    price: 1.0002,
+    lastUpdated: 1_756_200_000_000,
+    usdPrice: 1.0002,
+  },
+  [MAINNET_SPAM]: {
+    assetPriceType: 'fungible',
+    price: 0.00000031,
+    lastUpdated: 1_756_200_000_000,
+    usdPrice: 0.00000031,
+  },
+  [OPTIMISM_SPAM]: {
+    assetPriceType: 'fungible',
+    price: 0.0000117,
+    lastUpdated: 1_756_200_000_000,
+    usdPrice: 0.0000117,
+  },
+};
+
 export const SPAM_WALLET_BALANCES = {
   [ACCOUNT_ONE_ID]: {
     [MAINNET_NATIVE]: { amount: '1204500000000000000' },
@@ -267,14 +293,7 @@ export function buildSpamWalletState(
   return {
     assetsInfo: { ...SPAM_WALLET_ASSETS_INFO },
     assetsBalance: structuredClone(SPAM_WALLET_BALANCES),
-    assetsPrice: {
-      [MAINNET_USDT]: {
-        assetPriceType: 'fungible',
-        price: 1.0002,
-        lastUpdated: 1_756_200_000_000,
-        usdPrice: 1.0002,
-      },
-    },
+    assetsPrice: structuredClone(SPAM_WALLET_PRICES),
     customAssets: { [ACCOUNT_TWO_ID]: [ARBITRUM_GMX] },
     assetPreferences: { [OPTIMISM_VELO]: { hidden: true } },
     selectedCurrency: 'usd',

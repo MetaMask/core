@@ -656,6 +656,7 @@ describe('TradingService', () => {
         PerpsAnalyticsEvent.TradeTransaction,
         expect.objectContaining({
           status: 'failed',
+          reduce_only: false,
         }),
       );
     });
@@ -1002,6 +1003,7 @@ describe('TradingService', () => {
           size: '0.2',
           orderType: 'limit',
           price: '51000',
+          reduceOnly: true,
         },
       };
       const mockOrderResult: OrderResult = {
@@ -1024,6 +1026,7 @@ describe('TradingService', () => {
         PerpsAnalyticsEvent.TradeTransaction,
         expect.objectContaining({
           status: 'executed',
+          reduce_only: true,
         }),
       );
     });
@@ -1059,6 +1062,7 @@ describe('TradingService', () => {
         PerpsAnalyticsEvent.TradeTransaction,
         expect.objectContaining({
           status: 'failed',
+          reduce_only: false,
         }),
       );
     });
@@ -2842,7 +2846,8 @@ describe('TradingService', () => {
             symbol: 'BTC',
             isBuy: true,
             size: '0.1',
-            orderType: 'market',
+            orderType: 'stop_market',
+            reduceOnly: true,
           },
           context: mockContext,
           reportOrderToDataLake: mockReportOrderToDataLake,
@@ -2850,7 +2855,20 @@ describe('TradingService', () => {
 
         expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
           PerpsAnalyticsEvent.TradeTransaction,
-          expect.objectContaining({ status: 'submitted', asset: 'BTC' }),
+          expect.objectContaining({
+            status: 'submitted',
+            asset: 'BTC',
+            order_type: 'stop_market',
+            reduce_only: true,
+          }),
+        );
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1],
+        ).toEqual(
+          expect.objectContaining({
+            order_type: 'stop_market',
+            reduce_only: true,
+          }),
         );
       });
 
@@ -2926,7 +2944,12 @@ describe('TradingService', () => {
 
         expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
           PerpsAnalyticsEvent.TradeTransaction,
-          expect.objectContaining({ status: 'submitted', asset: 'BTC' }),
+          expect.objectContaining({
+            status: 'submitted',
+            asset: 'BTC',
+            order_type: 'market',
+            reduce_only: false,
+          }),
         );
       });
 
@@ -2949,6 +2972,7 @@ describe('TradingService', () => {
             status: 'failed',
             asset: 'BTC',
             error_message: 'insufficient margin',
+            reduce_only: false,
           }),
         );
       });
@@ -3156,6 +3180,7 @@ describe('TradingService', () => {
             isBuy: true,
             size: '10',
             orderType: 'market',
+            reduceOnly: true,
           },
           context: mockContext,
           reportOrderToDataLake: mockReportOrderToDataLake,
@@ -3173,12 +3198,13 @@ describe('TradingService', () => {
             order_size: 10,
             amount_filled: 4,
             remaining_amount: 6,
+            reduce_only: true,
           }),
         );
         // The terminal executed event still fires alongside it.
         expect(
-          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed'),
-        ).toBeDefined();
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1],
+        ).toEqual(expect.objectContaining({ reduce_only: true }));
       });
 
       it('does not count rejected Scale rungs as remaining fill exposure', async () => {

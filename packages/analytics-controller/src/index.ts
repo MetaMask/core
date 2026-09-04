@@ -1,6 +1,7 @@
 // Export controller class and state utilities
 export {
   AnalyticsController,
+  EVENT_FRAGMENT_MAX_AGE,
   getDefaultAnalyticsControllerState,
 } from './AnalyticsController.js';
 export type { AnalyticsControllerOptions } from './AnalyticsController.js';
@@ -20,6 +21,16 @@ export type {
   AnalyticsPlatformAdapter,
   AnalyticsTrackingEvent,
 } from './AnalyticsPlatformAdapter.types';
+
+// Export event fragment types
+export type {
+  AnalyticsEventFragment,
+  AnalyticsEventFragmentFinalizeOptions,
+  AnalyticsEventFragmentOptions,
+  AnalyticsEventFragmentPayload,
+  AnalyticsEventFragments,
+  ReadonlyAnalyticsEventFragment,
+} from './EventFragment.types.js';
 
 // Export state types
 export type {
@@ -52,5 +63,11 @@ export type {
   AnalyticsControllerOptInAction,
   AnalyticsControllerOptOutAction,
   AnalyticsControllerResetConsentDecisionAction,
+  AnalyticsControllerCreateEventFragmentAction,
+  AnalyticsControllerUpsertEventFragmentAction,
+  AnalyticsControllerUpdateEventFragmentAction,
+  AnalyticsControllerGetEventFragmentByIdAction,
+  AnalyticsControllerDeleteEventFragmentAction,
+  AnalyticsControllerFinalizeEventFragmentAction,
   AnalyticsControllerMethodActions,
 } from './AnalyticsController-method-action-types.js';

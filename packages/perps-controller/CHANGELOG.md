@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Revalidate HyperLiquid positions over HTTP before reporting a WebSocket cache miss during a TP/SL update ([#10101](https://github.com/MetaMask/core/pull/10101)).
+  - A current DEX slice is stamped with the connection epoch, which proves it belongs to the live subscription but not that it has caught up with the most recent fill. `updatePositionTPSL` therefore treated the post-fill window, where the position exists on the venue but has not yet been published, as identical to a position that was closed, and returned `POSITION_NOT_FOUND` without making a request.
+  - Only `updatePositionTPSL` opts in. `closePosition`, `closePositions` and the margin operations keep failing closed on a cache miss, because they act on a position the user is looking at: an unpublished position is not rendered, so those flows cannot reach the post-fill window. TP/SL attachment is the one path a client fires automatically within milliseconds of placing an order, with no human in the loop. Keeping the opt-in narrow also keeps the added REST traffic off the batch paths.
+  - A cache hit still returns the WebSocket slice untouched, so a stale size on a symbol that is present is resolved exactly as before, and the reduce-only sizing guarantees added in [#10037](https://github.com/MetaMask/core/pull/10037) are unaffected.
+
+## [16.0.0]
+
+### Added
+
+- Add `reduce_only` intent to every `Perp Trade Transaction` lifecycle event while preserving canonical `order_type` values ([#10091](https://github.com/MetaMask/core/pull/10091))
+- Add `POSITION_NOT_FOUND` as the provider-neutral error code for operations targeting a position the venue no longer holds ([#10083](https://github.com/MetaMask/core/pull/10083))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.7.0` to `^69.8.0` ([#10080](https://github.com/MetaMask/core/pull/10080))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+### Removed
+
+- **BREAKING:** Remove all MYX protocol support ([#10038](https://github.com/MetaMask/core/pull/10038))
+  - `PerpsProviderType` is now `'hyperliquid' | 'lighter'`. Drop any `'myx'` case from exhaustive switches, and stop passing `activeProvider: 'myx'` or `providerId: 'myx'`.
+  - Removes the `MYXCredentials` type and the `providerCredentials.myx` option from `PerpsControllerOptions`, all `MYX_*` exports (chain ids, endpoints, decimals, fees, asset configs), the `getMYXChainId` / `getMYXHttpEndpoint` helpers, the `fromMYX*` / `toMYX*` converters, the MYX-only `USDT_BNB_TESTNET` / `USDT_BNB_MAINNET` addresses, and `PROVIDER_CONFIG.MYX_TESTNET_ONLY`.
+  - No migration is required for stored client state: an `activeProvider` value naming a removed venue falls back to `'hyperliquid'` and is rewritten on next launch.
+  - The `perpsMyxProviderEnabled` remote feature flag and the `MM_PERPS_MYX_PROVIDER_ENABLED` env override are no longer read; clients can retire both.
+  - HyperLiquid and Lighter behavior is unchanged.
+
+## [15.1.0]
+
+### Added
+
+- Add provider-routed Scale price normalization through `PerpsController:getScalePriceLadder`, the optional `PerpsProvider.getScalePriceLadder` hook, and their exported action, parameter, and result types. `DirectProviderScalePriceLadderUnavailableReason` and `ScalePriceLadderUnavailableReason` limit unavailable results to direct-provider and routed failures respectively ([#10021](https://github.com/MetaMask/core/pull/10021), [#10065](https://github.com/MetaMask/core/pull/10065))
+- Add an optional batch-level `error` to `ClosePositionsResult` for an operation-level close failure, including cases that also populate per-position results ([#10037](https://github.com/MetaMask/core/pull/10037))
+- Add `PerpsController.subscribeToTwapOrders` and the optional `PerpsProvider.subscribeToTwapOrders` hook for streaming TWAP updates, implemented for HyperLiquid ([#10056](https://github.com/MetaMask/core/pull/10056))
+
+### Fixed
+
+- Prevent stale HyperLiquid positions from driving TP/SL, close, batch-close, margin-update, and HIP-3 margin calculations ([#10037](https://github.com/MetaMask/core/pull/10037))
+  - Symbol operations use the current DEX slice or an HTTP read. Batch operations require a complete current WebSocket or REST snapshot. Partial reads fail with `PROVIDER_NOT_AVAILABLE`; REST and WebSocket data are never merged.
+  - Selected-symbol `closePositions` loads only the market groups those symbols belong to. A complete all-DEX snapshot is required only for `closeAll` or an empty `symbols` list. A `PROVIDER_NOT_AVAILABLE` failure on one requested DEX does not abort closes on the others; those symbols are reported as per-position failures.
+  - A delayed `clearinghouseState` payload from a replaced subscription client is ignored so it cannot stamp stale size or side with the new connection epoch.
+- Floor TP/SL and reduce-only edit sizes to the venue size grid instead of rounding above the position ([#10037](https://github.com/MetaMask/core/pull/10037))
+  - Sub-increment sizes fail before side effects with `ORDER_TPSL_SIZE_INVALID` or `ORDER_SIZE_POSITIVE`.
+
 ## [15.0.0]
 
 ### Added
@@ -828,7 +873,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@15.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.0.0...HEAD
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@15.1.0...@metamask/perps-controller@16.0.0
+[15.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@15.0.0...@metamask/perps-controller@15.1.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@14.0.0...@metamask/perps-controller@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@13.1.0...@metamask/perps-controller@14.0.0
 [13.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@13.0.0...@metamask/perps-controller@13.1.0

@@ -1,4 +1,5 @@
 import type { AnalyticsControllerState } from './AnalyticsController.js';
+import type { AnalyticsEventFragment } from './EventFragment.types.js';
 import { analyticsControllerSelectors } from './selectors.js';
 
 describe('analyticsControllerSelectors', () => {
@@ -88,6 +89,95 @@ describe('analyticsControllerSelectors', () => {
         analyticsControllerSelectors.selectConsentDecisionMade(state);
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('event fragment selectors', () => {
+    const fragment: AnalyticsEventFragment = {
+      id: 'signature-1',
+      properties: { signature_type: 'personal_sign' },
+      sensitiveProperties: {},
+      successEvent: 'Signature Approved',
+      createdAt: 1700000000000,
+      lastUpdated: 1700000000000,
+    };
+
+    const stateWithFragment: AnalyticsControllerState = {
+      optedIn: true,
+      analyticsId: defaultAnalyticsId,
+      eventFragments: { 'signature-1': fragment },
+    };
+
+    const stateWithoutFragments: AnalyticsControllerState = {
+      optedIn: true,
+      analyticsId: defaultAnalyticsId,
+    };
+
+    describe('selectEventFragments', () => {
+      it('returns the fragments from state', () => {
+        const result =
+          analyticsControllerSelectors.selectEventFragments(stateWithFragment);
+
+        expect(result).toStrictEqual({ 'signature-1': fragment });
+      });
+
+      it('returns an empty record when the field is absent', () => {
+        const result = analyticsControllerSelectors.selectEventFragments(
+          stateWithoutFragments,
+        );
+
+        expect(result).toStrictEqual({});
+      });
+
+      it('returns the same empty record on repeated reads', () => {
+        const first = analyticsControllerSelectors.selectEventFragments(
+          stateWithoutFragments,
+        );
+        const second = analyticsControllerSelectors.selectEventFragments(
+          stateWithoutFragments,
+        );
+
+        expect(first).toBe(second);
+      });
+
+      it('does not allow mutating the empty fallback record', () => {
+        const result = analyticsControllerSelectors.selectEventFragments(
+          stateWithoutFragments,
+        );
+
+        expect(() => {
+          result['signature-1'] = fragment;
+        }).toThrow('Cannot add property');
+      });
+    });
+
+    describe('selectEventFragmentById', () => {
+      it('returns the matching fragment', () => {
+        const result = analyticsControllerSelectors.selectEventFragmentById(
+          stateWithFragment,
+          'signature-1',
+        );
+
+        expect(result).toStrictEqual(fragment);
+      });
+
+      it('returns undefined for an unknown ID', () => {
+        const result = analyticsControllerSelectors.selectEventFragmentById(
+          stateWithFragment,
+          'missing',
+        );
+
+        expect(result).toBeUndefined();
+      });
+
+      it('returns undefined when the field is absent', () => {
+        const result = analyticsControllerSelectors.selectEventFragmentById(
+          stateWithoutFragments,
+          'signature-1',
+        );
+
+        expect(result).toBeUndefined();
+      });
     });
   });
 });

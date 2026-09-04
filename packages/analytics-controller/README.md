@@ -16,11 +16,12 @@ The AnalyticsController provides a unified interface for tracking analytics even
 
 ## State
 
-| Field         | Type      | Description                                   | Persisted |
-| ------------- | --------- | --------------------------------------------- | --------- |
-| `analyticsId` | `string`  | UUIDv4 identifier (client platform-generated) | Yes       |
-| `optedIn`     | `boolean` | User opt-in status                            | Yes       |
-| `eventQueue`  | `object`  | Optional persisted delivery queue             | Yes       |
+| Field            | Type      | Description                                   | Persisted |
+| ---------------- | --------- | --------------------------------------------- | --------- |
+| `analyticsId`    | `string`  | UUIDv4 identifier (client platform-generated) | Yes       |
+| `optedIn`        | `boolean` | User opt-in status                            | Yes       |
+| `eventQueue`     | `object`  | Optional persisted delivery queue             | Yes       |
+| `eventFragments` | `object`  | Optional in-progress event fragments          | Yes       |
 
 ### Client Platform Responsibilities
 
@@ -45,6 +46,46 @@ When `isEventQueuePersistenceEnabled` is enabled in the constructor, each final 
 This feature is disabled by default. Client platforms that already rely on SDK-level persistence, such as MetaMask Mobile through `@segment/analytics-react-native`'s `storePersistor` option, should leave it disabled.
 
 Platforms without SDK-level persistence, such as MetaMask Extension, can enable it to replay queued payloads after restart. The queue stores the final adapter calls, so anonymous event splitting persists the identified and anonymous payloads separately.
+
+## Event Fragments
+
+When `isEventFragmentsEnabled` is enabled in the constructor, clients can accumulate analytics properties across a user journey instead of re-deriving them for every event in that journey.
+
+A fragment is a persisted bag of `properties` and `sensitiveProperties` that any part of the client can contribute to while the journey is in progress. It supports two shapes, and the difference is only which event names it declares:
+
+- **Funnel.** Declare `initialEvent`, `successEvent` and `failureEvent`. The initial event is emitted as soon as the fragment is created, and `finalizeEventFragment` emits the success event, or the failure event when called with `{ abandoned: true }`. A signature request is the canonical example: the request, approval and rejection events all carry the properties that the confirmation UI attached while the user was deciding.
+- **Property bag.** Declare no event names. Nothing is ever emitted. The client reads the fragment back with `getEventFragmentById` at the moment it emits its own event and merges the accumulated properties in. A transaction confirmation is the canonical example.
+
+```ts
+controller.createEventFragment({
+  id: `signature-${requestId}`,
+  initialEvent: 'Signature Requested',
+  successEvent: 'Signature Approved',
+  failureEvent: 'Signature Rejected',
+  properties: { signature_type: 'personal_sign' },
+  context: { referrer: { url: origin } },
+  persist: true,
+});
+
+// Any number of contributors, at any later point.
+controller.updateEventFragment(`signature-${requestId}`, {
+  properties: { alert_triggered_count: 1 },
+});
+
+// Emits 'Signature Approved' with every accumulated property, then discards
+// the fragment. Pass `{ abandoned: true }` to emit 'Signature Rejected'.
+controller.finalizeEventFragment(`signature-${requestId}`);
+```
+
+Use `upsertEventFragment` when a contributor cannot know whether the journey has been started yet. It merges into an existing fragment, or creates a property bag when none exists.
+
+Emission goes through `trackEvent`, so consent gating, anonymous event splitting, the pre-consent queue and geolocation enrichment all apply to a fragment's events exactly as they do to a direct call.
+
+The consent gate also applies to accumulation, not just to emission, so a fragment never stores data for an event that could not be delivered. A fragment only holds data while the user is opted in, or while they are still undecided and `isPreConsentQueueEnabled` is holding their events until they decide. In any other consent state, and in particular after an explicit opt-out, every fragment method is a logged no-op.
+
+Fragments are removed when they are finalized, deleted, or when the user opts out. `resetConsentDecision` keeps them only while the now-undecided user can still accumulate them. On `init`, any fragment that did not set `persist: true` is discarded, since the journey it belonged to cannot be resumed. Persistent fragments that have not been written to for longer than `EVENT_FRAGMENT_MAX_AGE` (24 hours, measured from `lastUpdated`) are also discarded, so abandoned journeys cannot keep `properties` or `sensitiveProperties` in storage indefinitely. All fragments are discarded when the consent state no longer allows accumulation. Nothing is emitted for a discarded fragment: a journey that never reached its own finalization is unfinished, not failed.
+
+This feature is disabled by default. When disabled, every fragment method is a logged no-op and no fragment is written to state.
 
 ## Lifecycle Hooks
 
