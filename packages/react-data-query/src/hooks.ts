@@ -1,7 +1,14 @@
-import { QueryKey } from '@metamask/base-data-service';
+/**
+ * @file
+ * We provide re-exports of the underlying TanStack Query hooks with narrower types,
+ * removing `staleTime` and `queryFn` which aren't useful when using data services.
+ */
+
+import { QueryKey, MutationKey } from '@metamask/base-data-service';
 import {
-  useQuery as useQueryTanStack,
-  useInfiniteQuery as useInfiniteQueryTanStack,
+  useQuery as useQueryFromTanStack,
+  useInfiniteQuery as useInfiniteQueryFromTanStack,
+  useMutation as useMutationFromTanStack,
   OmitKeyof,
   UseQueryOptions,
   InitialDataFunction,
@@ -11,15 +18,16 @@ import {
   UseInfiniteQueryResult,
   DefaultError,
   InfiniteData,
+  UseMutationOptions,
+  UseMutationResult,
 } from '@tanstack/react-query';
-
-/**
- * We provide re-exports of the underlying TanStack Query hooks with narrower types,
- * removing `staleTime` and `queryFn` which aren't useful when using data services.
- */
 
 const DATA_SERVICE_QUERY_DEFAULTS = {
   staleTime: 0,
+  retry: false,
+};
+
+const DATA_SERVICE_MUTATION_DEFAULTS = {
   retry: false,
 };
 
@@ -46,7 +54,7 @@ export function useQuery<
       | NonUndefinedGuard<TQueryFnData>;
   },
 ): UseQueryResult<TData, TError> {
-  return useQueryTanStack({ ...DATA_SERVICE_QUERY_DEFAULTS, ...options });
+  return useQueryFromTanStack({ ...DATA_SERVICE_QUERY_DEFAULTS, ...options });
 }
 
 /**
@@ -68,8 +76,35 @@ export function useInfiniteQuery<
     'staleTime' | 'queryFn'
   >,
 ): UseInfiniteQueryResult<TData, TError> {
-  return useInfiniteQueryTanStack({
+  return useInfiniteQueryFromTanStack({
     ...DATA_SERVICE_QUERY_DEFAULTS,
+    ...options,
+  });
+}
+
+/**
+ * Execute a mutation through a data service.
+ *
+ * @param options - The mutation options. Keep in mind that `mutationFn` is not supported
+ * when executing mutations through data services.
+ * @returns The result of the mutation.
+ */
+export function useMutation<
+  TData = unknown,
+  TError = DefaultError,
+  TVariables = void,
+  TOnMutateResult = unknown,
+  TMutationKey extends MutationKey = MutationKey,
+>(
+  options: OmitKeyof<
+    UseMutationOptions<TData, TError, TVariables, TOnMutateResult>,
+    'mutationKey' | 'mutationFn'
+  > & {
+    mutationKey: TMutationKey;
+  },
+): UseMutationResult<TData, TError, TVariables, TOnMutateResult> {
+  return useMutationFromTanStack({
+    ...DATA_SERVICE_MUTATION_DEFAULTS,
     ...options,
   });
 }

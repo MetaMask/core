@@ -56,7 +56,8 @@
     "@metamask/base-data-service": "^1.0.0",
     "@metamask/utils": "^11.12.0",
     "@tanstack/query-core": "^5.62.16",
-    "@tanstack/react-query": "^5.62.16"
+    "@tanstack/react-query": "^5.62.16",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
@@ -65,6 +66,7 @@
     "@types/jest": "^30.0.0",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
+    "nock": "^13.3.1",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",

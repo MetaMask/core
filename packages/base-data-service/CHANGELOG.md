@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `executeMutation` protected method to `BaseDataService` to allow for making server-state-mutating requests ([#9324](https://github.com/MetaMask/core/pull/9324))
+  - These kinds of requests are never retried, unlike queries.
+  - To use this, create a method in your data service class which takes whatever arguments you need, plus a optional final argument called `globalId`; then call `executeMutation` with a `mutationKey`, `globalId`, and `mutationFn`. See `ExampleDataService` in this package for an example.
+  - A `MutationKey` type is also available.
+- The payload for `:cacheUpdated` and `:cacheUpdated:${hash}` events now includes an `objectType` property, which is either "query" or "mutation" ([#9324](https://github.com/MetaMask/core/pull/9324))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))

@@ -22,6 +22,7 @@ export type {
   DataServiceCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedEvent,
   QueryKey,
+  MutationKey,
   PersistenceConfiguration,
 } from './BaseDataService.js';
 export { BaseDataService } from './BaseDataService.js';
