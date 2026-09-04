@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+
 ### Added
 
 - Add a public `sync()` method that re-evaluates the bootstrap gates against live state, for clients whose `isEnabled` hook reads client-only signals (onboarding, preferences) that should also re-trigger the bootstrap ([#10072](https://github.com/MetaMask/core/pull/10072))
@@ -23,8 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - An `onBootstrapError` hook that throws is contained: the failed bootstrap is still forgotten and retried on the next trigger, and the throw does not escape `init()` or `sync()`
 - Add `@metamask/money-account-utils` and `@metamask/remote-feature-flag-controller` as dependencies ([#10072](https://github.com/MetaMask/core/pull/10072))
 - Bump `@metamask/authenticated-user-storage` from `^3.0.1` to `^3.0.2` ([#9972](https://github.com/MetaMask/core/pull/9972))
-- Bump `@metamask/chomp-api-service` from `^4.0.0` to `^4.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/chomp-api-service` from `^4.0.0` to `^4.0.2` ([#9972](https://github.com/MetaMask/core/pull/9972), [#10105](https://github.com/MetaMask/core/pull/10105))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/money-account-utils` from `^1.1.0` to `^1.2.0` ([#10105](https://github.com/MetaMask/core/pull/10105))
 
 ## [3.0.2]
 
@@ -193,7 +196,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MoneyAccountUpgradeController` with `upgradeAccount` method ([#8426](https://github.com/MetaMask/core/pull/8426))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.2...@metamask/money-account-upgrade-controller@4.0.0
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.1...@metamask/money-account-upgrade-controller@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.0...@metamask/money-account-upgrade-controller@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.2.1...@metamask/money-account-upgrade-controller@3.0.0
