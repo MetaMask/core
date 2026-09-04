@@ -6,8 +6,10 @@ import type {
   AccountTreeSnapshotWallet,
   AccountTreeWalletEntry,
   AccountWalletMnemonicGroupEntry,
+  AccountWalletMnemonicPayload,
   AccountWalletPayloadId,
   AccountWalletPrivateKeyGroupEntry,
+  AccountWalletPrivateKeyPayload,
 } from './payload.js';
 import {
   AccountWalletPayloadType,
@@ -46,6 +48,25 @@ export class AccountTreeSnapshot {
   constructor(entries: AccountTreeWalletEntry[], idMap?: IdMap) {
     this.#entries = deepFreeze(structuredClone(entries));
     this.#idMap = idMap;
+  }
+
+  /**
+   * Returns the primary (first mnemonic) wallet entry, or `undefined` if none
+   * is present in the snapshot.
+   *
+   * Use this to detect whether the primary SRP is included before passing the
+   * snapshot to {@link AccountTreeController.importState}. When `undefined`,
+   * the controller will reject the snapshot if mnemonic wallets already exist.
+   */
+  getPrimaryWallet():
+    | (AccountTreeSnapshotWallet & { type: AccountWalletPayloadType.Mnemonic })
+    | undefined {
+    const entry = this.#entries.find(
+      (wallet) => wallet.type === AccountWalletPayloadType.Mnemonic,
+    );
+    return entry as
+      | (AccountTreeSnapshotWallet & { type: AccountWalletPayloadType.Mnemonic })
+      | undefined;
   }
 
   /**
@@ -169,6 +190,90 @@ export class AccountTreeSnapshot {
     }
 
     return new AccountTreeSnapshot(filteredEntries, this.#idMap);
+  }
+
+  /**
+   * Returns a new snapshot with all secret material removed — mnemonic
+   * {@link AccountWalletMnemonicPayload.value | values} and private-key group
+   * {@link AccountWalletPrivateKeyGroupEntry.value | values} are omitted.
+   * Wallet and group metadata (names, pin, hidden) are preserved.
+   *
+   * Use this to produce a **metadata-only** view for Phase C of the QR sync
+   * provisioning flow, where secrets are already in the vault and only layout
+   * information needs to be applied.
+   *
+   * @returns A secrets-stripped snapshot.
+   */
+  stripSecrets(): AccountTreeSnapshot {
+    const entries = this.#entries.map((wallet): AccountTreeWalletEntry => {
+      if (wallet.type === AccountWalletPayloadType.Mnemonic) {
+        const { value: _value, ...rest } = wallet;
+        return rest as AccountWalletMnemonicPayload;
+      }
+      return {
+        ...wallet,
+        groups: wallet.groups.map(
+          ({ value: _value, ...group }): AccountWalletPrivateKeyGroupEntry =>
+            group as AccountWalletPrivateKeyGroupEntry,
+        ),
+      } as AccountWalletPrivateKeyPayload;
+    });
+    return new AccountTreeSnapshot(entries, this.#idMap);
+  }
+
+  /**
+   * Returns a new snapshot with the primary (first mnemonic) wallet removed.
+   *
+   * The primary wallet is identified positionally — the first
+   * {@link AccountWalletPayloadType.Mnemonic} entry in the wallet list. All
+   * remaining wallets (secondary mnemonics, private-key wallets) are preserved.
+   *
+   * Removing the primary wallet makes the snapshot safe to pass to
+   * {@link AccountTreeController.importState} during initial onboarding, where
+   * the primary SRP has already been imported manually and only secondary
+   * secrets need to be added. The controller detects that no primary wallet is
+   * present via {@link getPrimaryWallet} and rejects the import post-onboarding.
+   *
+   * @returns A new snapshot without the primary wallet.
+   */
+  stripPrimaryWallet(): AccountTreeSnapshot {
+    let primaryRemoved = false;
+    const entries = this.#entries.filter((wallet) => {
+      if (
+        wallet.type === AccountWalletPayloadType.Mnemonic &&
+        !primaryRemoved
+      ) {
+        primaryRemoved = true;
+        return false;
+      }
+      return true;
+    });
+    return new AccountTreeSnapshot(entries, this.#idMap);
+  }
+
+  /**
+   * Returns a new snapshot with all metadata reset to defaults — wallet names
+   * are cleared and group metadata (`name`, `pinned`, `hidden`) is reset.
+   * Secret values are preserved.
+   *
+   * Use this alongside {@link stripPrimaryWallet} for Phase B of the QR sync
+   * provisioning flow, where only secondary secrets need to be imported and
+   * metadata will be applied later in Phase C.
+   *
+   * @returns A metadata-stripped snapshot.
+   */
+  stripMetadata(): AccountTreeSnapshot {
+    const entries = this.#entries.map((wallet): AccountTreeWalletEntry => {
+      const { metadata: _walletMetadata, ...walletRest } = wallet;
+      return {
+        ...walletRest,
+        groups: wallet.groups.map((group) => {
+          const { metadata: _groupMetadata, ...groupRest } = group;
+          return groupRest as typeof group;
+        }),
+      } as AccountTreeWalletEntry;
+    });
+    return new AccountTreeSnapshot(entries, this.#idMap);
   }
 
   /**

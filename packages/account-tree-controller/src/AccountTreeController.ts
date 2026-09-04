@@ -1927,6 +1927,12 @@ export class AccountTreeController extends BaseController<
    * @returns A promise that resolves when the import is complete.
    */
   async importState(snapshot: AccountTreeSnapshot): Promise<void> {
+    if (this.#hasCompletedOnboarding() && snapshot.getPrimaryWallet() === undefined) {
+      throw new Error(
+        'AccountTreeSnapshot has no primary wallet',
+      );
+    }
+
     return importState(
       {
         getState: () => this.state,
@@ -1940,6 +1946,17 @@ export class AccountTreeController extends BaseController<
           this.setAccountGroupHidden(id, hidden),
       },
       snapshot,
+    );
+  }
+
+  /**
+   * Checks if the onboarding process has been completed (i.e., if there are any mnemonic wallets).
+   *
+   * @returns `true` if the onboarding process has been completed, `false` otherwise.
+   */
+  #hasCompletedOnboarding(): boolean {
+    return Object.values(this.state.accountTree.wallets).some(
+      (wallet) => wallet.type === AccountWalletType.Entropy,
     );
   }
 
