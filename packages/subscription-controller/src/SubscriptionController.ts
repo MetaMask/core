@@ -415,6 +415,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       'SubscriptionService:getBenefits',
     );
 
+    // The subscription may have become inactive while the benefits request
+    // was in flight. Re-check before persisting the response so stale
+    // benefits cannot be restored after entitlement ends.
+    this.#assertIsActiveMoneyAccountPlusSubscriber();
+
     this.update((state) => {
       state.benefits = benefits.eligible
         ? {

@@ -115,7 +115,6 @@ describe('subscriptionController', () => {
       messenger,
       actions: [
         'SubscriptionService:getSubscriptions',
-        'SubscriptionService:getBenefits',
         'SubscriptionService:cancelSubscription',
         'SubscriptionService:unCancelSubscription',
         'SubscriptionService:startSubscriptionWithCard',
@@ -190,120 +189,6 @@ describe('subscriptionController', () => {
     await rootMessenger.call('SubscriptionController:getSubscriptions');
 
     expect(fetchFunction).toHaveBeenCalled();
-  });
-
-  it('calls SubscriptionService:getBenefits through the controller messenger', async () => {
-    const rootMessenger = getRootMessenger();
-    registerActionHandler(
-      rootMessenger,
-      'AuthenticationController',
-      'AuthenticationController:getBearerToken',
-      async () => 'test-bearer-token',
-    );
-    registerActionHandler(
-      rootMessenger,
-      'AuthenticationController',
-      'AuthenticationController:getSessionProfile',
-      async () => ({
-        profileId: 'profile-1',
-        canonicalProfileId: 'canonical-profile-1',
-        metaMetricsId: 'metametrics-1',
-      }),
-    );
-    registerActionHandler(
-      rootMessenger,
-      'AuthenticationController',
-      'AuthenticationController:performSignOut',
-      jest.fn(),
-    );
-
-    const serviceMessenger = subscriptionService.getMessenger(rootMessenger);
-    const fetchFunction = jest.fn(
-      async () =>
-        new globalThis.Response(
-          JSON.stringify({
-            eligible: true,
-            billingPeriodId: 'bp_1',
-            products: {
-              swaps: {
-                feeBips: '0',
-                capMicroUsd: 100,
-                consumedMicroUsd: 0,
-                remainingMicroUsd: 100,
-                exhausted: false,
-              },
-              perps: {
-                builderFeeBips: '0',
-                builderCode: 'builder-code',
-                capMicroUsd: 100,
-                consumedMicroUsd: 0,
-                remainingMicroUsd: 100,
-                exhausted: false,
-              },
-              predict: {
-                builderCode: 'builder-code',
-                capTxCount: 3,
-                consumedTxCount: 0,
-                remainingTxCount: 3,
-                exhausted: false,
-              },
-            },
-          }),
-          { status: 200 },
-        ),
-    );
-
-    subscriptionService.init({
-      state: undefined,
-      messenger: serviceMessenger,
-      options: {
-        fetchFunction,
-      },
-    });
-
-    const controllerMessenger =
-      subscriptionController.getMessenger(rootMessenger);
-    subscriptionController.init({
-      state: {
-        subscriptions: [
-          {
-            id: 'sub_money_account',
-            products: [
-              {
-                name: 'money_account_plus',
-                currency: 'usd',
-                unitAmount: 499,
-                unitDecimals: 2,
-              },
-            ],
-            currentPeriodStart: '2024-01-01T00:00:00Z',
-            currentPeriodEnd: '2024-02-01T00:00:00Z',
-            status: 'active',
-            interval: 'month',
-            paymentMethod: {
-              type: 'card',
-              card: {
-                brand: 'visa',
-                displayBrand: 'visa',
-                last4: '1234',
-              },
-            },
-            isEligibleForSupport: true,
-            cancelType: 'allowed_at_period_end',
-          },
-        ],
-        trialedProducts: [],
-      },
-      messenger: controllerMessenger,
-      options: {},
-    });
-
-    await rootMessenger.call('SubscriptionController:getBenefits');
-
-    expect(fetchFunction).toHaveBeenCalledWith(
-      SUBSCRIPTION_URL(Env.PRD, 'benefits'),
-      expect.objectContaining({ method: 'POST' }),
-    );
   });
 
   it('exposes its actions through the root messenger', () => {

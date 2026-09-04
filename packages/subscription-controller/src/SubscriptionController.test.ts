@@ -627,6 +627,53 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it('should not restore benefits when the subscription becomes inactive while the request is pending', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            benefits: MOCK_BENEFITS_STATE,
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          let resolveBenefits!: (
+            benefits: SubscriptionBenefitsResponse,
+          ) => void;
+          const benefitsRequest = new Promise<SubscriptionBenefitsResponse>(
+            (resolve) => {
+              resolveBenefits = resolve;
+            },
+          );
+          mockService.getBenefits.mockReturnValue(benefitsRequest);
+
+          const getBenefitsPromise = rootMessenger.call(
+            'SubscriptionController:getBenefits',
+          );
+
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [
+              {
+                ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+                status: SUBSCRIPTION_STATUSES.canceled,
+              },
+            ],
+            trialedProducts: [],
+          });
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.benefits).toBeUndefined();
+
+          resolveBenefits(MOCK_BENEFITS_RESPONSE);
+
+          await expect(getBenefitsPromise).rejects.toThrow(
+            SubscriptionControllerErrorMessage.UserNotSubscribed,
+          );
+          expect(controller.state.benefits).toBeUndefined();
+        },
+      );
+    });
+
     it.each([
       SUBSCRIPTION_STATUSES.trialing,
       SUBSCRIPTION_STATUSES.provisional,
