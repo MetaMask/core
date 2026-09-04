@@ -423,6 +423,60 @@ export type RampsControllerRefreshAutorampsAction = {
 };
 
 /**
+ * Refreshes Money Account deposit/transaction records for the pollable
+ * autoramps from the neo-bank proxy, applying any status changes to local
+ * state and emitting `depositStatusChanged`. Intended for app load / unlock
+ * catch-up, and reused as the deposit poll worker. Emit-only: no on-chain
+ * action is taken.
+ */
+export type RampsControllerRefreshDepositsAction = {
+  type: `RampsController:refreshDeposits`;
+  handler: RampsController['refreshDeposits'];
+};
+
+/**
+ * Marks that the UI has already notified for the deposit's current status,
+ * so a later transition back into the same notable status does not re-notify.
+ * Consumers call this after surfacing a `depositStatusChanged` with
+ * `shouldNotify: true`.
+ *
+ * @param depositId - Proxy deposit/transaction id.
+ */
+export type RampsControllerMarkDepositAsNotifiedAction = {
+  type: `RampsController:markDepositAsNotified`;
+  handler: RampsController['markDepositAsNotified'];
+};
+
+/**
+ * Removes a local deposit record by id. Lets consumers prune settled or stale
+ * deposits so the persisted `deposits` array does not grow without bound.
+ *
+ * @param depositId - Proxy deposit/transaction id.
+ */
+export type RampsControllerRemoveDepositAction = {
+  type: `RampsController:removeDeposit`;
+  handler: RampsController['removeDeposit'];
+};
+
+/**
+ * Starts polling Money Account deposits for active autoramps at a fixed
+ * interval. Emit-only: publishes `depositStatusChanged` on transitions and
+ * takes no on-chain action (vault sweeping is owned by the backend).
+ */
+export type RampsControllerStartDepositPollingAction = {
+  type: `RampsController:startDepositPolling`;
+  handler: RampsController['startDepositPolling'];
+};
+
+/**
+ * Stops deposit polling and clears the interval.
+ */
+export type RampsControllerStopDepositPollingAction = {
+  type: `RampsController:stopDepositPolling`;
+  handler: RampsController['stopDepositPolling'];
+};
+
+/**
  * Starts polling all pending V2 orders at a fixed interval.
  * Each poll cycle iterates orders with non-terminal statuses,
  * respects pollingSecondsMinimum and backoff from error count.
@@ -840,6 +894,11 @@ export type RampsControllerMethodActions =
   | RampsControllerApplyAutorampStatusFromPushAction
   | RampsControllerRefreshAutorampAction
   | RampsControllerRefreshAutorampsAction
+  | RampsControllerRefreshDepositsAction
+  | RampsControllerMarkDepositAsNotifiedAction
+  | RampsControllerRemoveDepositAction
+  | RampsControllerStartDepositPollingAction
+  | RampsControllerStopDepositPollingAction
   | RampsControllerStartOrderPollingAction
   | RampsControllerStopOrderPollingAction
   | RampsControllerGetBuyWidgetDataAction

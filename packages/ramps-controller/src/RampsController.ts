@@ -18,6 +18,7 @@ import type {
 } from './autorampAccount.js';
 import {
   applyAutorampRemoteStatus,
+  AutorampStatus,
   createAutorampAccount,
   markAutorampNotified,
 } from './autorampAccount.js';
@@ -27,8 +28,18 @@ import {
   normalizeHeadlessProviderId,
 } from './featureFlags.js';
 import type {
+  MoneyAccountDeposit,
+  MoneyAccountDepositRemoteSnapshot,
+} from './moneyAccountDeposit.js';
+import {
+  applyDepositRemoteStatus,
+  isTerminalDepositStatus,
+  markDepositNotified,
+} from './moneyAccountDeposit.js';
+import type {
   NeoBankServiceCreateAutorampAction,
   NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetAutorampTransactionsAction,
   NeoBankServiceGetCustomerByExternalIdAction,
   NeoBankServiceGetWalletRegistrationStatusAction,
   NeoBankServiceRegisterSelfHostedWalletAction,
@@ -206,6 +217,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
   'TransakService:cancelAllActiveOrders',
   'TransakService:getActiveOrders',
   'NeoBankService:getAutoramp',
+  'NeoBankService:getAutorampTransactions',
   'NeoBankService:createAutoramp',
   'NeoBankService:getCustomerByExternalId',
   'NeoBankService:getWalletRegistrationStatus',
@@ -528,6 +540,13 @@ export type RampsControllerState = {
    */
   autoramps: AutorampAccount[];
   /**
+   * Money Account deposit/payout transactions observed via polling, separate
+   * from {@link AutorampAccount} standing routes. A thin local clone of the
+   * partner transactions used to detect status changes and emit notifications;
+   * persisted for cross-restart dedupe.
+   */
+  deposits: MoneyAccountDeposit[];
+  /**
    * Whether the currently selected provider was auto-selected by the system
    * (no order history, no Transak) rather than chosen by the user or derived
    * from order history. When true, the UI should silently switch providers on
@@ -589,6 +608,12 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   autoramps: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  deposits: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -661,6 +686,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     },
     orders: [],
     autoramps: [],
+    deposits: [],
     providerAutoSelected: false,
   };
 }
@@ -787,6 +813,7 @@ type AllowedActions =
   | TransakServiceCancelAllActiveOrdersAction
   | TransakServiceGetActiveOrdersAction
   | NeoBankServiceGetAutorampAction
+  | NeoBankServiceGetAutorampTransactionsAction
   | NeoBankServiceCreateAutorampAction
   | NeoBankServiceGetCustomerByExternalIdAction
   | NeoBankServiceGetWalletRegistrationStatusAction
@@ -828,12 +855,29 @@ export type RampsControllerAutorampStatusChangedEvent = {
 };
 
 /**
+ * Published when a Money Account deposit/payout transaction status transitions.
+ * Consumed by mobile's init layer for notifications (toast / account refresh);
+ * `shouldNotify` is true only for a notable transition not yet surfaced.
+ */
+export type RampsControllerDepositStatusChangedEvent = {
+  type: `${typeof controllerName}:depositStatusChanged`;
+  payload: [
+    {
+      deposit: MoneyAccountDeposit;
+      previousStatus: MoneyAccountDeposit['status'];
+      shouldNotify: boolean;
+    },
+  ];
+};
+
+/**
  * Events that {@link RampsControllerMessenger} exposes to other consumers.
  */
 export type RampsControllerEvents =
   | RampsControllerStateChangeEvent
   | RampsControllerOrderStatusChangedEvent
-  | RampsControllerAutorampStatusChangedEvent;
+  | RampsControllerAutorampStatusChangedEvent
+  | RampsControllerDepositStatusChangedEvent;
 
 /**
  * Events from other messengers that {@link RampsController} subscribes to.
@@ -993,6 +1037,11 @@ const MESSENGER_EXPOSED_METHODS = [
   'refreshAutoramps',
   'startOrderPolling',
   'stopOrderPolling',
+  'refreshDeposits',
+  'markDepositAsNotified',
+  'removeDeposit',
+  'startDepositPolling',
+  'stopDepositPolling',
   'getBuyWidgetData',
   'addPrecreatedOrder',
   'getOrder',
@@ -1106,6 +1155,13 @@ export class RampsController extends BaseController<
   #orderPollingTimer: ReturnType<typeof setInterval> | null = null;
 
   #isPolling = false;
+
+  /** Deposit poll bookkeeping (last fetch time + error count), keyed by autoramp id. */
+  readonly #depositPollingMeta: Map<string, OrderPollingMetadata> = new Map();
+
+  #depositPollingTimer: ReturnType<typeof setInterval> | null = null;
+
+  #isPollingDeposits = false;
 
   #initPromise: Promise<void> | null = null;
 
@@ -3350,6 +3406,231 @@ export class RampsController extends BaseController<
   }
 
   /**
+   * Autoramps to poll for deposits: those that are Approved (deposit-ready)
+   * plus any autoramp that still has a non-terminal deposit locally, so an
+   * in-flight deposit keeps being tracked even if its route later goes
+   * terminal. Pre-Approved autoramps are skipped since they cannot yet have
+   * deposits.
+   *
+   * @returns Autoramps that should be polled for deposits.
+   */
+  #autorampsToPollForDeposits(): AutorampAccount[] {
+    const autorampIdsWithPendingDeposits = new Set(
+      this.state.deposits
+        .filter((deposit) => !isTerminalDepositStatus(deposit.status))
+        .map((deposit) => deposit.autorampId)
+        .filter((id): id is string => id !== undefined),
+    );
+
+    return this.state.autoramps.filter(
+      (autoramp) =>
+        autoramp.status === AutorampStatus.Approved ||
+        autorampIdsWithPendingDeposits.has(autoramp.id),
+    );
+  }
+
+  /**
+   * Refreshes Money Account deposit/transaction records for the pollable
+   * autoramps from the neo-bank proxy, applying any status changes to local
+   * state and emitting `depositStatusChanged`. Intended for app load / unlock
+   * catch-up, and reused as the deposit poll worker. Emit-only: no on-chain
+   * action is taken.
+   */
+  async refreshDeposits(): Promise<void> {
+    await Promise.allSettled(
+      this.#autorampsToPollForDeposits().map(async (autoramp) =>
+        this.#refreshAutorampDeposits(autoramp.id),
+      ),
+    );
+  }
+
+  /**
+   * Fetches the deposits for one autoramp and applies each snapshot to state.
+   * Updates per-autoramp poll bookkeeping (error backoff) and never throws.
+   *
+   * @param autorampId - Autoramp whose deposits to refresh.
+   */
+  async #refreshAutorampDeposits(autorampId: string): Promise<void> {
+    try {
+      const remotes = await this.messenger.call(
+        'NeoBankService:getAutorampTransactions',
+        autorampId,
+      );
+
+      for (const remote of remotes) {
+        this.#applyDepositRemoteSnapshot(remote);
+      }
+
+      const meta = this.#depositPollingMeta.get(autorampId) ?? {
+        lastTimeFetched: 0,
+        errorCount: 0,
+      };
+      meta.errorCount = 0;
+      meta.lastTimeFetched = Date.now();
+      this.#depositPollingMeta.set(autorampId, meta);
+    } catch {
+      const meta = this.#depositPollingMeta.get(autorampId) ?? {
+        lastTimeFetched: 0,
+        errorCount: 0,
+      };
+      meta.errorCount = Math.min(meta.errorCount + 1, MAX_ERROR_COUNT);
+      meta.lastTimeFetched = Date.now();
+      this.#depositPollingMeta.set(autorampId, meta);
+    }
+  }
+
+  /**
+   * Applies a remote deposit snapshot onto local state (upsert), publishing
+   * `depositStatusChanged` when the status transitions. Shared by catch-up and
+   * poll paths.
+   *
+   * @param remote - Remote deposit snapshot from the proxy.
+   * @returns The upserted local deposit.
+   */
+  #applyDepositRemoteSnapshot(
+    remote: MoneyAccountDepositRemoteSnapshot,
+  ): MoneyAccountDeposit {
+    const local =
+      this.state.deposits.find((deposit) => deposit.id === remote.id) ?? null;
+    const result = applyDepositRemoteStatus(local, remote);
+
+    this.update((state) => {
+      const idx = state.deposits.findIndex(
+        (deposit) => deposit.id === result.deposit.id,
+      );
+      if (idx === -1) {
+        state.deposits.push(result.deposit as Draft<MoneyAccountDeposit>);
+      } else {
+        state.deposits[idx] = result.deposit as Draft<MoneyAccountDeposit>;
+      }
+    });
+
+    if (result.statusChanged) {
+      this.messenger.publish('RampsController:depositStatusChanged', {
+        deposit: result.deposit,
+        previousStatus: result.previousStatus,
+        shouldNotify: result.shouldNotify,
+      });
+    }
+
+    return (
+      this.state.deposits.find((deposit) => deposit.id === result.deposit.id) ??
+      result.deposit
+    );
+  }
+
+  /**
+   * Marks that the UI has already notified for the deposit's current status,
+   * so a later transition back into the same notable status does not re-notify.
+   * Consumers call this after surfacing a `depositStatusChanged` with
+   * `shouldNotify: true`.
+   *
+   * @param depositId - Proxy deposit/transaction id.
+   */
+  markDepositAsNotified(depositId: string): void {
+    const existing = this.state.deposits.find(
+      (deposit) => deposit.id === depositId,
+    );
+    if (!existing) {
+      return;
+    }
+    const notified = markDepositNotified(existing);
+    this.update((state) => {
+      const idx = state.deposits.findIndex(
+        (deposit) => deposit.id === depositId,
+      );
+      if (idx !== -1) {
+        state.deposits[idx] = notified as Draft<MoneyAccountDeposit>;
+      }
+    });
+  }
+
+  /**
+   * Removes a local deposit record by id. Lets consumers prune settled or stale
+   * deposits so the persisted `deposits` array does not grow without bound.
+   *
+   * @param depositId - Proxy deposit/transaction id.
+   */
+  removeDeposit(depositId: string): void {
+    this.update((state) => {
+      state.deposits = state.deposits.filter(
+        (deposit) => deposit.id !== depositId,
+      );
+    });
+  }
+
+  /**
+   * Starts polling Money Account deposits for active autoramps at a fixed
+   * interval. Emit-only: publishes `depositStatusChanged` on transitions and
+   * takes no on-chain action (vault sweeping is owned by the backend).
+   */
+  startDepositPolling(): void {
+    if (this.#depositPollingTimer) {
+      return;
+    }
+
+    this.#depositPollingTimer = setInterval(() => {
+      this.#pollPendingDeposits().catch(() => undefined);
+    }, DEFAULT_POLLING_INTERVAL_MS);
+
+    this.#pollPendingDeposits().catch(() => undefined);
+  }
+
+  /**
+   * Stops deposit polling and clears the interval.
+   */
+  stopDepositPolling(): void {
+    if (this.#depositPollingTimer) {
+      clearInterval(this.#depositPollingTimer);
+      this.#depositPollingTimer = null;
+    }
+  }
+
+  async #pollPendingDeposits(): Promise<void> {
+    if (this.#isPollingDeposits) {
+      return;
+    }
+    this.#isPollingDeposits = true;
+    try {
+      const autoramps = this.#autorampsToPollForDeposits();
+      const activeIds = new Set(autoramps.map((autoramp) => autoramp.id));
+
+      // Drop backoff bookkeeping for autoramps that are no longer polled.
+      for (const id of this.#depositPollingMeta.keys()) {
+        if (!activeIds.has(id)) {
+          this.#depositPollingMeta.delete(id);
+        }
+      }
+
+      const now = Date.now();
+
+      await Promise.allSettled(
+        autoramps.map(async (autoramp) => {
+          const meta = this.#depositPollingMeta.get(autoramp.id);
+
+          // errorCount === 1 yields a backoff equal to the interval (no extra
+          // wait); exponential backoff begins at the 2nd consecutive error.
+          // Kept identical to the order poller (#pollPendingOrders) on purpose.
+          if (meta && meta.errorCount > 0) {
+            const backoffMs = Math.min(
+              DEFAULT_POLLING_INTERVAL_MS * Math.pow(2, meta.errorCount - 1),
+              5 * 60 * 1000,
+            );
+
+            if (now - meta.lastTimeFetched < backoffMs) {
+              return;
+            }
+          }
+
+          await this.#refreshAutorampDeposits(autoramp.id);
+        }),
+      );
+    } finally {
+      this.#isPollingDeposits = false;
+    }
+  }
+
+  /**
    * Refreshes a single order via the V2 API and updates it in state.
    * Publishes orderStatusChanged if the status transitioned.
    *
@@ -3483,6 +3764,7 @@ export class RampsController extends BaseController<
    */
   override destroy(): void {
     this.stopOrderPolling();
+    this.stopDepositPolling();
     super.destroy();
   }
 

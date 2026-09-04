@@ -7,6 +7,7 @@ export type {
   RampsControllerStateChangeEvent,
   RampsControllerOrderStatusChangedEvent,
   RampsControllerAutorampStatusChangedEvent,
+  RampsControllerDepositStatusChangedEvent,
   RampsControllerOptions,
   PaymentMethodsForContextResponse,
   UserRegion,
@@ -44,6 +45,11 @@ export type {
   RampsControllerRefreshAutorampsAction,
   RampsControllerStartOrderPollingAction,
   RampsControllerStopOrderPollingAction,
+  RampsControllerRefreshDepositsAction,
+  RampsControllerMarkDepositAsNotifiedAction,
+  RampsControllerRemoveDepositAction,
+  RampsControllerStartDepositPollingAction,
+  RampsControllerStopDepositPollingAction,
   RampsControllerGetBuyWidgetDataAction,
   RampsControllerAddPrecreatedOrderAction,
   RampsControllerGetOrderAction,
@@ -264,10 +270,27 @@ export type {
   AutorampRemoteSnapshot,
 } from './autoramp-types.js';
 export type {
+  MoneyAccountDeposit,
+  MoneyAccountDepositRemoteSnapshot,
+  ApplyDepositRemoteStatusResult,
+} from './moneyAccountDeposit.js';
+export {
+  MoneyAccountDepositStatus,
+  TERMINAL_DEPOSIT_STATUSES,
+  NOTABLE_DEPOSIT_STATUSES,
+  isTerminalDepositStatus,
+  normalizeDepositStatus,
+  createMoneyAccountDeposit,
+  applyDepositRemoteStatus,
+  markDepositNotified,
+} from './moneyAccountDeposit.js';
+export type {
   NeoBankServiceActions,
   NeoBankServiceEvents,
   NeoBankServiceMessenger,
   NeoBankAutorampResponse,
+  NeoBankTransactionResponse,
+  NeoBankTransactionsResponse,
   NeoBankRequestOptions,
   NeoBankQueryParams,
   GetWalletRegistrationStatusParams,
@@ -275,6 +298,7 @@ export type {
 } from './NeoBankService.js';
 export type {
   NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetAutorampTransactionsAction,
   NeoBankServiceRegisterPixAddressAction,
   NeoBankServiceGetAutorampQuoteAction,
   NeoBankServiceCreateAutorampAction,
@@ -289,6 +313,7 @@ export {
   NeoBankService,
   serviceName as neoBankServiceName,
   mapNeoBankAutorampToRemoteSnapshot,
+  mapNeoBankTransactionToRemoteSnapshot,
 } from './NeoBankService.js';
 export type {
   Blockchain,
