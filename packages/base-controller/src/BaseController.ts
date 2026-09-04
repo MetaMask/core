@@ -451,9 +451,11 @@ export function deriveStateFromMetadata<
 export type ValidatableController<
   Controller,
   ControllerState extends StateConstraint,
-> = (new (...args: any[]) => Controller) & {
-  struct: Struct<ControllerState>;
-};
+> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (new (...args: any[]) => Controller) & {
+    struct: Struct<ControllerState>;
+  };
 
 /**
  * Validate the state of a controller against its struct. Returning the optionally coerced state if valid and otherwise throwing.

@@ -60,6 +60,7 @@ export type InitializationConfiguration<Instance, InstanceMessenger> = {
   ): InstanceMessenger;
 } & (InstanceState<Instance> extends StateConstraint
   ? {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       reference: (new (...args: any[]) => Instance) &
         Partial<ValidatableController<Instance, InstanceState<Instance>>>;
     }

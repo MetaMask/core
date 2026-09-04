@@ -1211,7 +1211,7 @@ describe('validateControllerState', () => {
   class FooController extends BaseController<
     'FooController',
     FooControllerState,
-    any
+    never
   > {
     static readonly struct: Struct<FooControllerState> =
       FooControllerStateStruct;
