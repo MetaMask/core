@@ -62,6 +62,7 @@
   "metamask/wallet": "team-core-platform",
   "metamask/wallet-cli": "team-core-platform",
   "metamask/passkey-controller": "team-onboarding",
+  "metamask/mfa-recovery-controller": "team-onboarding",
   "metamask/seedless-onboarding-controller": "team-onboarding",
   "metamask/shield-controller": "team-shield",
   "metamask/subscription-controller": "team-shield",

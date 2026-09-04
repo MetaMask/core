@@ -124,6 +124,7 @@
 ## Web3Auth Team
 /packages/seedless-onboarding-controller    @MetaMask/web3auth
 /packages/passkey-controller                @MetaMask/web3auth
+/packages/mfa-recovery-controller           @MetaMask/web3auth
 /packages/shield-controller                 @MetaMask/web3auth
 /packages/subscription-controller           @MetaMask/web3auth
 /packages/claims-controller                 @MetaMask/web3auth
@@ -232,6 +233,9 @@
 /packages/passkey-controller/package.json                      @MetaMask/web3auth @MetaMask/core-platform
 /packages/passkey-controller/CHANGELOG.md                      @MetaMask/web3auth @MetaMask/core-platform
 /packages/passkey-controller/tsconfig.*                        @MetaMask/web3auth @MetaMask/core-platform
+/packages/mfa-recovery-controller/package.json                 @MetaMask/web3auth @MetaMask/core-platform
+/packages/mfa-recovery-controller/CHANGELOG.md                 @MetaMask/web3auth @MetaMask/core-platform
+/packages/mfa-recovery-controller/tsconfig.*                   @MetaMask/web3auth @MetaMask/core-platform
 /packages/logging-controller/package.json                      @MetaMask/confirmations @MetaMask/core-platform
 /packages/logging-controller/CHANGELOG.md                      @MetaMask/confirmations @MetaMask/core-platform
 /packages/logging-controller/tsconfig.*                        @MetaMask/confirmations @MetaMask/core-platform

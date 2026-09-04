@@ -165,6 +165,9 @@
       "path": "./packages/messenger-cli"
     },
     {
+      "path": "./packages/mfa-recovery-controller"
+    },
+    {
       "path": "./packages/money-account-api-data-service"
     },
     {
