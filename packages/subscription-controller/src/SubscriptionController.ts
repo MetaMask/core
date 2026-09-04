@@ -16,8 +16,8 @@ import {
   DEFAULT_POLLING_INTERVAL,
   SubscriptionControllerErrorMessage,
 } from './constants.js';
-import type { SubscriptionControllerMethodActions } from './SubscriptionController-method-action-types.js';
 import { createModuleLogger, projectLogger } from './logger.js';
+import type { SubscriptionControllerMethodActions } from './SubscriptionController-method-action-types.js';
 import type {
   SubscriptionServiceAssignUserToCohortAction,
   SubscriptionServiceCancelSubscriptionAction,

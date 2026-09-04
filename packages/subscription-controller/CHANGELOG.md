@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getBenefits` to fetch and persist Money Account Plus subscription benefits.
+  - New persisted `SubscriptionControllerState.benefits` field and `SubscriptionController:getBenefits` messenger action.
+  - Requires an active `MONEY_ACCOUNT_PLUS` subscription; otherwise throws `UserNotSubscribed` without calling the service.
+  - Lifecycle refreshes after entitlement polling, crypto subscribe, cancel, and uncancel are best-effort and do not fail the primary operation.
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.8.0` ([#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080))

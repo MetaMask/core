@@ -23,12 +23,12 @@ import {
   getDefaultSubscriptionControllerState,
   SubscriptionController,
 } from './SubscriptionController.js';
-import { SubscriptionBenefitsResponseStruct } from './SubscriptionService-structs.js';
 import type {
   SubscriptionControllerMessenger,
   SubscriptionControllerOptions,
   SubscriptionControllerState,
 } from './SubscriptionController.js';
+import { SubscriptionBenefitsResponseStruct } from './SubscriptionService-structs.js';
 import type {
   Subscription,
   SubscriptionBenefitsResponse,
@@ -599,9 +599,7 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller }) => {
-          expect(controller.state.benefits).toStrictEqual(
-            MOCK_BENEFITS_STATE,
-          );
+          expect(controller.state.benefits).toStrictEqual(MOCK_BENEFITS_STATE);
         },
       );
     });
@@ -623,15 +621,52 @@ describe('SubscriptionController', () => {
           );
 
           expect(result).toStrictEqual(MOCK_BENEFITS_RESPONSE);
-          expect(controller.state.benefits).toStrictEqual(
-            MOCK_BENEFITS_STATE,
-          );
+          expect(controller.state.benefits).toStrictEqual(MOCK_BENEFITS_STATE);
           expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
         },
       );
     });
 
-    it('should store exhausted benefits after an explicit refresh', async () => {
+    it.each([
+      SUBSCRIPTION_STATUSES.trialing,
+      SUBSCRIPTION_STATUSES.provisional,
+    ])(
+      'should fetch benefits for a Money Account Plus subscription with active status %s',
+      async (status) => {
+        await withController(
+          {
+            state: {
+              subscriptions: [{ ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION, status }],
+            },
+          },
+          async ({ controller, rootMessenger, mockService }) => {
+            mockService.getBenefits.mockResolvedValue(MOCK_BENEFITS_RESPONSE);
+
+            await rootMessenger.call('SubscriptionController:getBenefits');
+
+            expect(controller.state.benefits).toStrictEqual(
+              MOCK_BENEFITS_STATE,
+            );
+            expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
+          },
+        );
+      },
+    );
+
+    it('should store exhausted benefits and refresh them through the public method', async () => {
+      const exhaustedResponse: SubscriptionBenefitsResponse = {
+        ...MOCK_BENEFITS_RESPONSE,
+        products: {
+          ...MOCK_BENEFITS_RESPONSE.products,
+          swaps: {
+            ...MOCK_BENEFITS_RESPONSE.products.swaps,
+            consumedMicroUsd: 500_000_000,
+            remainingMicroUsd: 0,
+            exhausted: true,
+          },
+        },
+      };
+
       await withController(
         {
           state: {
@@ -639,18 +674,9 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller, rootMessenger, mockService }) => {
-          mockService.getBenefits.mockResolvedValue({
-            ...MOCK_BENEFITS_RESPONSE,
-            products: {
-              ...MOCK_BENEFITS_RESPONSE.products,
-              swaps: {
-                ...MOCK_BENEFITS_RESPONSE.products.swaps,
-                consumedMicroUsd: 500_000_000,
-                remainingMicroUsd: 0,
-                exhausted: true,
-              },
-            },
-          });
+          mockService.getBenefits
+            .mockResolvedValueOnce(exhaustedResponse)
+            .mockResolvedValue(MOCK_BENEFITS_RESPONSE);
 
           await rootMessenger.call('SubscriptionController:getBenefits');
 
@@ -660,6 +686,11 @@ describe('SubscriptionController', () => {
             remainingMicroUsd: 0,
             exhausted: true,
           });
+
+          await rootMessenger.call('SubscriptionController:getBenefits');
+
+          expect(controller.state.benefits).toStrictEqual(MOCK_BENEFITS_STATE);
+          expect(mockService.getBenefits).toHaveBeenCalledTimes(2);
         },
       );
     });
@@ -1284,6 +1315,112 @@ describe('SubscriptionController', () => {
         },
       );
     });
+
+    it('should refresh benefits after fetching an active Money Account Plus subscription', async () => {
+      await withController(
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            trialedProducts: [],
+          });
+          mockService.getBenefits.mockResolvedValue(MOCK_BENEFITS_RESPONSE);
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.benefits).toStrictEqual(MOCK_BENEFITS_STATE);
+          expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should not call the benefits service for an active Shield-only subscription and should clear stale benefits', async () => {
+      await withController(
+        {
+          state: {
+            benefits: MOCK_BENEFITS_STATE,
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            MOCK_SUBSCRIPTION,
+          ]);
+          expect(controller.state.benefits).toBeUndefined();
+          expect(mockService.getBenefits).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should still persist a new Money Account Plus subscription when the benefits refresh fails', async () => {
+      await withController(
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            trialedProducts: [],
+          });
+          mockService.getBenefits.mockRejectedValue(
+            new SubscriptionServiceError('Failed to get benefits'),
+          );
+
+          expect(
+            await rootMessenger.call('SubscriptionController:getSubscriptions'),
+          ).toStrictEqual([MOCK_MONEY_ACCOUNT_SUBSCRIPTION]);
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+          ]);
+          expect(controller.state.benefits).toBeUndefined();
+          expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should refresh benefits when polling reports a new Money Account Plus billing period', async () => {
+      const nextPeriodSubscription: Subscription = {
+        ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+        currentPeriodStart: '2024-02-01T00:00:00Z',
+        currentPeriodEnd: '2024-03-01T00:00:00Z',
+      };
+      const nextPeriodBenefits: SubscriptionBenefitsResponse = {
+        ...MOCK_BENEFITS_RESPONSE,
+        billingPeriodId: 'bp_2024_02_01',
+      };
+
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            benefits: MOCK_BENEFITS_STATE,
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [nextPeriodSubscription],
+            trialedProducts: [],
+          });
+          mockService.getBenefits.mockResolvedValue(nextPeriodBenefits);
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            nextPeriodSubscription,
+          ]);
+          expect(controller.state.benefits).toStrictEqual({
+            billingPeriodId: nextPeriodBenefits.billingPeriodId,
+            ...nextPeriodBenefits.products,
+          });
+          expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
   });
 
   describe('cancelSubscription', () => {
@@ -1387,6 +1524,75 @@ describe('SubscriptionController', () => {
         },
       );
     });
+
+    it('should clear benefits without calling the benefits service after cancelling Money Account Plus', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            benefits: MOCK_BENEFITS_STATE,
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.cancelSubscription.mockResolvedValue({
+            ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+            status: SUBSCRIPTION_STATUSES.canceled,
+          });
+
+          await rootMessenger.call(
+            'SubscriptionController:cancelSubscription',
+            {
+              subscriptionId: MOCK_MONEY_ACCOUNT_SUBSCRIPTION.id,
+            },
+          );
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            {
+              ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+              status: SUBSCRIPTION_STATUSES.canceled,
+            },
+          ]);
+          expect(controller.state.benefits).toBeUndefined();
+          expect(mockService.getBenefits).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should keep the cancelled subscription when a remaining Money Account Plus benefits refresh fails', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION, MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            benefits: MOCK_BENEFITS_STATE,
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.cancelSubscription.mockResolvedValue({
+            ...MOCK_SUBSCRIPTION,
+            status: SUBSCRIPTION_STATUSES.canceled,
+          });
+          mockService.getBenefits.mockRejectedValue(
+            new SubscriptionServiceError('Failed to get benefits'),
+          );
+
+          expect(
+            await rootMessenger.call(
+              'SubscriptionController:cancelSubscription',
+              {
+                subscriptionId: MOCK_SUBSCRIPTION.id,
+              },
+            ),
+          ).toBeUndefined();
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            { ...MOCK_SUBSCRIPTION, status: SUBSCRIPTION_STATUSES.canceled },
+            MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+          ]);
+          expect(controller.state.benefits).toStrictEqual(MOCK_BENEFITS_STATE);
+          expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
   });
 
   describe('unCancelSubscription', () => {
@@ -1487,6 +1693,78 @@ describe('SubscriptionController', () => {
             subscriptionId: 'sub_123456789',
           });
           expect(mockService.unCancelSubscription).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should refresh benefits after uncancelling a Money Account Plus subscription', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [
+              {
+                ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+                status: SUBSCRIPTION_STATUSES.canceled,
+              },
+            ],
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.unCancelSubscription.mockResolvedValue(
+            MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+          );
+          mockService.getBenefits.mockResolvedValue(MOCK_BENEFITS_RESPONSE);
+
+          await rootMessenger.call(
+            'SubscriptionController:unCancelSubscription',
+            {
+              subscriptionId: MOCK_MONEY_ACCOUNT_SUBSCRIPTION.id,
+            },
+          );
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+          ]);
+          expect(controller.state.benefits).toStrictEqual(MOCK_BENEFITS_STATE);
+          expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should keep the uncancelled Money Account Plus subscription when the benefits refresh fails', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [
+              {
+                ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+                status: SUBSCRIPTION_STATUSES.canceled,
+              },
+            ],
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.unCancelSubscription.mockResolvedValue(
+            MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+          );
+          mockService.getBenefits.mockRejectedValue(
+            new SubscriptionServiceError('Failed to get benefits'),
+          );
+
+          expect(
+            await rootMessenger.call(
+              'SubscriptionController:unCancelSubscription',
+              {
+                subscriptionId: MOCK_MONEY_ACCOUNT_SUBSCRIPTION.id,
+              },
+            ),
+          ).toBeUndefined();
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+          ]);
+          expect(controller.state.benefits).toBeUndefined();
+          expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -1898,6 +2176,7 @@ describe('SubscriptionController', () => {
             request,
           );
           expect(mockService.getSubscriptions).toHaveBeenCalledTimes(2);
+          expect(mockService.getBenefits).not.toHaveBeenCalled();
         },
       );
     });
@@ -1978,6 +2257,7 @@ describe('SubscriptionController', () => {
               subscriptions: [moneyAccountSubscription],
               trialedProducts: [],
             });
+          mockService.getBenefits.mockResolvedValue(MOCK_BENEFITS_RESPONSE);
 
           const triggerAccessTokenRefreshSpy = jest.spyOn(
             controller,
@@ -1990,6 +2270,8 @@ describe('SubscriptionController', () => {
           );
 
           expect(mockService.getSubscriptions).toHaveBeenCalledTimes(2);
+          expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
+          expect(controller.state.benefits).toStrictEqual(MOCK_BENEFITS_STATE);
           expect(
             rootMessenger.call(
               'SubscriptionController:getSubscriptionByProduct',
@@ -1997,6 +2279,62 @@ describe('SubscriptionController', () => {
             ),
           ).toStrictEqual(moneyAccountSubscription);
           expect(triggerAccessTokenRefreshSpy).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should keep a successful Money Account crypto start when the benefits refresh fails', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [],
+            pricing: {
+              products: [MOCK_MONEY_ACCOUNT_PRODUCT_PRICE],
+              paymentMethods: [],
+            },
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.startSubscriptionWithCrypto.mockResolvedValue({
+            subscriptionId: MOCK_MONEY_ACCOUNT_SUBSCRIPTION.id,
+            status: SUBSCRIPTION_STATUSES.active,
+          });
+          mockService.getSubscriptions
+            .mockResolvedValueOnce(MOCK_EMPTY_GET_SUBSCRIPTIONS_RESPONSE)
+            .mockResolvedValue({
+              customerId: 'cus_1',
+              subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+              trialedProducts: [],
+            });
+          mockService.getBenefits.mockRejectedValue(
+            new SubscriptionServiceError('Failed to get benefits'),
+          );
+
+          expect(
+            await rootMessenger.call(
+              'SubscriptionController:startSubscriptionWithCrypto',
+              {
+                products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+                isTrialRequested: false,
+                recurringInterval: RECURRING_INTERVALS.month,
+                billingCycles: 12,
+                chainId: '0x8f',
+                payerAddress: '0x0000000000000000000000000000000000000001',
+                tokenSymbol: 'pvmUSD',
+                cryptoAuthMethod: 'delegation',
+                delegationHash: '0xabc',
+              },
+            ),
+          ).toStrictEqual({
+            subscriptionId: MOCK_MONEY_ACCOUNT_SUBSCRIPTION.id,
+            status: SUBSCRIPTION_STATUSES.active,
+          });
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+          ]);
+          expect(controller.state.benefits).toBeUndefined();
+          expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -2495,6 +2833,30 @@ describe('SubscriptionController', () => {
         await jestAdvanceTime({ duration: 0 });
         expect(triggerAccessTokenRefreshSpy).toHaveBeenCalledTimes(1);
       });
+    });
+
+    it('should refresh benefits when polling an active Money Account Plus subscription', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+          },
+        },
+        async ({ controller, mockService }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            trialedProducts: [],
+          });
+          mockService.getBenefits.mockResolvedValue(MOCK_BENEFITS_RESPONSE);
+
+          controller.startPolling({});
+          await jestAdvanceTime({ duration: 0 });
+
+          expect(controller.state.benefits).toStrictEqual(MOCK_BENEFITS_STATE);
+          expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
+        },
+      );
     });
   });
 

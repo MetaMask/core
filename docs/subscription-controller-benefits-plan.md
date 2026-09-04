@@ -1,6 +1,6 @@
 # SubscriptionController benefits implementation plan
 
-Status: Step 5 complete — awaiting review
+Status: Step 7 complete — ready for review
 
 This plan adds support for fetching and persisting the response from
 `POST /v1/benefits` while keeping the implementation additive and localized.
@@ -180,23 +180,23 @@ File:
 
 Substeps:
 
-- [ ] Verify default and supplied benefits state.
-- [ ] Verify `clearState()` removes persisted benefits.
-- [ ] Verify successful fetch stores and returns eligible benefits.
-- [ ] Verify API ineligibility clears stale eligible data and throws
+- [x] Verify default and supplied benefits state.
+- [x] Verify `clearState()` removes persisted benefits.
+- [x] Verify successful fetch stores and returns eligible benefits.
+- [x] Verify API ineligibility clears stale eligible data and throws
       `UserNotSubscribed`.
-- [ ] Parameterize inactive-status cases and assert that the service mock is
+- [x] Parameterize inactive-status cases and assert that the service mock is
       never called.
-- [ ] Assert that an active subscription for a different product, including
+- [x] Assert that an active subscription for a different product, including
       Shield, does not satisfy the gate or call the service.
-- [ ] Verify refresh after a successful `MONEY_ACCOUNT_PLUS` crypto
+- [x] Verify refresh after a successful `MONEY_ACCOUNT_PLUS` crypto
       subscription.
-- [ ] Verify refresh after `MONEY_ACCOUNT_PLUS` cancellation and uncancellation.
-- [ ] Verify polling/entitlement refresh re-fetches benefits.
-- [ ] Verify a changed subscription period is covered by the polling refresh.
-- [ ] Verify exhausted product fields are stored and can be refreshed through
+- [x] Verify refresh after `MONEY_ACCOUNT_PLUS` cancellation and uncancellation.
+- [x] Verify polling/entitlement refresh re-fetches benefits.
+- [x] Verify a changed subscription period is covered by the polling refresh.
+- [x] Verify exhausted product fields are stored and can be refreshed through
       the public method.
-- [ ] Verify a benefits request failure does not undo the primary subscription
+- [x] Verify a benefits request failure does not undo the primary subscription
       or cancellation result when triggered internally.
 
 Review checkpoint: all requested lifecycle behaviors are covered by observable
@@ -210,13 +210,13 @@ Files:
 
 Substeps:
 
-- [ ] Add an `Unreleased` entry describing the new public benefits method,
+- [x] Add an `Unreleased` entry describing the new public benefits method,
       persisted state, and active-subscriber guard.
-- [ ] Run the subscription-controller tests.
-- [ ] Run the wallet subscription-controller test.
-- [ ] Build the affected package(s) to verify generated declarations.
-- [ ] Run lint/type checks for edited files.
-- [ ] Run `yarn changelog:validate`.
+- [x] Run the subscription-controller tests.
+- [x] Run the wallet subscription-controller test.
+- [x] Build the affected package(s) to verify generated declarations.
+- [x] Run lint/type checks for edited files.
+- [x] Run `yarn changelog:validate`.
 
 Review checkpoint: tests, declarations, linting, and changelog validation pass.
 
