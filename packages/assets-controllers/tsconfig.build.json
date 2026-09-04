@@ -65,6 +65,9 @@
     },
     {
       "path": "../eth-json-rpc-provider/tsconfig.build.json"
+    },
+    {
+      "path": "../eth-block-tracker/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"],

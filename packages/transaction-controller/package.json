@@ -88,7 +88,7 @@
     "@babel/runtime": "^7.23.9",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/connectivity-controller": "^0.3.0",
-    "@metamask/eth-block-tracker": "^15.0.0",
+    "@metamask/eth-block-tracker": "^15.0.1",
     "@metamask/eth-json-rpc-provider": "^6.0.1",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@ts-bridge/cli": "^0.6.4",
