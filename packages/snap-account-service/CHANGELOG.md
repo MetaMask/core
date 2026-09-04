@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `SnapAccountService` now reads `AccountsController` state to filter account data update events by Snap ownership ([#8916](https://github.com/MetaMask/core/pull/8916)).
+- **BREAKING:** `SnapAccountService` now reads `AccountsController` state to filter account data update events by Snap ownership ([#10057](https://github.com/MetaMask/core/pull/10057)).
     - Filter account data update events (`notify:accountTransactionsUpdated`, `notify:accountBalancesUpdated`, and `notify:accountAssetListUpdated`) to the accounts that the originating Snap actually owns before republishing them
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
 
