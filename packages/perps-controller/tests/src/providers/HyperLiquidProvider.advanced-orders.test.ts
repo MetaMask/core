@@ -2246,6 +2246,58 @@ describe('HyperLiquidProvider', () => {
         ).not.toHaveBeenCalled();
       });
 
+      it('stops revalidating once the slice publishes the filled position', async () => {
+        // The post-fill window is transient: the first update runs before the
+        // subscription publishes the new position and pays for one HTTP read,
+        // and the next one must be served from the slice alone. Asserting the
+        // second call makes no request is what keeps this fix from becoming
+        // steady REST traffic on a hot path.
+        mockSubscriptionService.getCachedPositionsForDex = jest
+          .fn()
+          .mockReturnValueOnce([])
+          .mockReturnValue([{ ...position, size: '0.04' }]);
+        const clearinghouseState = jest.fn().mockResolvedValue({
+          marginSummary: { totalMarginUsed: '200', accountValue: '10200' },
+          withdrawable: '10000',
+          assetPositions: [
+            {
+              position: {
+                coin: 'BTC',
+                szi: '0.04',
+                entryPx: '50000',
+                positionValue: '2000',
+                unrealizedPnl: '20',
+                marginUsed: '200',
+                leverage: { type: 'cross', value: 10 },
+                liquidationPx: '45000',
+              },
+              type: 'oneWay',
+            },
+          ],
+        });
+        mockClientService.getInfoClient.mockReturnValue(
+          createMockInfoClient({ clearinghouseState }),
+        );
+
+        const duringWindow = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          position,
+        });
+        const revalidationCalls = clearinghouseState.mock.calls.length;
+
+        const afterWindow = await provider.updatePositionTPSL({
+          symbol: 'BTC',
+          takeProfitPrice: '60000',
+          position,
+        });
+
+        expect(duringWindow.success).toBe(true);
+        expect(revalidationCalls).toBe(1);
+        expect(afterWindow.success).toBe(true);
+        expect(clearinghouseState).toHaveBeenCalledTimes(1);
+      });
+
       it('reports provider unavailable instead of trusting a snapshot when REST fails', async () => {
         mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([]);
         mockClientService.getInfoClient.mockReturnValue(
