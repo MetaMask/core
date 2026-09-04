@@ -1,5 +1,5 @@
 {
-  "name": "PACKAGE_NAME",
+  "name": "@metamask/package-template",
   "version": "0.0.0",
   "description": "PACKAGE_DESCRIPTION",
   "keywords": [
@@ -42,8 +42,10 @@
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh PACKAGE_NAME",
-    "changelog:validate": "../../scripts/validate-changelog.sh PACKAGE_NAME",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/package-template",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/package-template",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
@@ -65,6 +67,6 @@
     "typescript": "~5.3.3"
   },
   "engines": {
-    "node": "NODE_VERSIONS"
+    "node": "^18.18 || >=20"
   }
 }

@@ -9,7 +9,8 @@
   },
   "workspaces": [
     "examples/*",
-    "packages/*"
+    "packages/*",
+    "scripts/create-package/package-template"
   ],
   "files": [],
   "scripts": {

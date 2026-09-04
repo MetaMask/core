@@ -4,11 +4,11 @@ PACKAGE_DESCRIPTION
 
 ## Installation
 
-`yarn add PACKAGE_NAME`
+`yarn add @metamask/package-template`
 
 or
 
-`npm install PACKAGE_NAME`
+`npm install @metamask/package-template`
 
 ## Contributing
 
