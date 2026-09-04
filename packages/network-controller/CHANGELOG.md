@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/eth-json-rpc-middleware` from `^24.0.1` to `^24.0.2` ([#10040](https://github.com/MetaMask/core/pull/10040))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
 - Bump `@metamask/analytics-controller` from `^2.0.0` to `^2.1.0` ([#10092](https://github.com/MetaMask/core/pull/10092))
+- Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
 
 ## [36.0.0]
 
