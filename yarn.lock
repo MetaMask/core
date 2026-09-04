@@ -7526,7 +7526,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/kyc-controller@workspace:packages/kyc-controller":
+"@metamask/kyc-controller@workspace:^, @metamask/kyc-controller@workspace:packages/kyc-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/kyc-controller@workspace:packages/kyc-controller"
   dependencies:
@@ -8531,6 +8531,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/controller-utils": "npm:^12.3.0"
+    "@metamask/kyc-controller": "workspace:^"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/profile-sync-controller": "npm:^29.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^6.1.0"
