@@ -1278,6 +1278,68 @@ describe('LighterProvider', () => {
       });
     });
 
+    it('preserves retired-market positions when risk metadata is zeroed', async () => {
+      const built = buildProvider();
+      const inactiveMarket = {
+        ...BTC_MARKET,
+        symbol: 'MKR',
+        marketId: 28,
+        status: 'inactive',
+        minBaseAmount: '0.0000',
+        minQuoteAmount: '0.000000',
+      };
+      built.clientInstance.getOrderBooks.mockResolvedValue([
+        BTC_MARKET,
+        inactiveMarket,
+      ]);
+      built.clientInstance.getOrderBookDetails.mockResolvedValue({
+        code: 200,
+        orderBookDetails: [
+          {
+            ...BTC_MARKET,
+            lastTradePrice: 100000,
+            minInitialMarginFraction: 200,
+            maintenanceMarginFraction: 120,
+          },
+          {
+            ...inactiveMarket,
+            lastTradePrice: 0,
+            minInitialMarginFraction: 0,
+            maintenanceMarginFraction: 0,
+          },
+        ],
+      });
+      built.clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [
+              ...(ACCOUNT.positions ?? []),
+              {
+                ...ACCOUNT.positions?.[0],
+                marketId: 28,
+                symbol: 'MKR',
+                initialMarginFraction: '10',
+              },
+            ],
+          },
+        ],
+      });
+      await built.provider.initialize();
+
+      const positions = await built.provider.getPositions();
+
+      expect(positions).toStrictEqual([
+        expect.objectContaining({ symbol: 'BTC', maxLeverage: 50 }),
+        expect.objectContaining({
+          symbol: 'MKR',
+          leverage: expect.objectContaining({ value: 10 }),
+          maxLeverage: 10,
+        }),
+      ]);
+    });
+
     it('surfaces margin metadata transport failures from position reads', async () => {
       const { provider, clientInstance } = buildProvider();
       clientInstance.getOrderBookDetails.mockRejectedValue(
