@@ -291,9 +291,8 @@ export class BaseDataService<
       .subscribe((event) => {
         log('Mutation cache event emitted', event);
         if (
-          event.mutation &&
           ['added', 'updated', 'removed'].includes(event.type) &&
-          event.mutation.options.mutationKey !== undefined
+          event.mutation?.options.mutationKey !== undefined
         ) {
           const mutationHash = hashKey(event.mutation.options.mutationKey);
           this.#publishCacheUpdate(
