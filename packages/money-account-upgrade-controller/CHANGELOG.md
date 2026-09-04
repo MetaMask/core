@@ -7,8 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add a public `sync()` method that re-evaluates the bootstrap gates against live state, for clients whose `isEnabled` hook reads client-only signals (onboarding, preferences) that should also re-trigger the bootstrap ([#10072](https://github.com/MetaMask/core/pull/10072))
+- Add `MissingMoneyAccountVaultConfigError`, reported through the `onBootstrapError` hook (once per controller lifetime) when the enable flag is on but `moneyAccountVaultConfig` is unserved or malformed ([#10072](https://github.com/MetaMask/core/pull/10072))
+
 ### Changed
 
+- **BREAKING:** The controller now owns its bootstrap: it subscribes to `RemoteFeatureFlagController:stateChanged` and `KeyringController:stateChanged`, gates on an unlocked wallet with an HD keyring, parses the `moneyAccountVaultConfig` remote feature flag, and runs a serialized bootstrap that re-checks its gates across `await` points and re-runs when the vault config changes ([#10072](https://github.com/MetaMask/core/pull/10072))
+  - `init()` is now the no-argument lifecycle entry point (subscribe and first sync), to be called once after all controllers and services the messenger reaches are constructed. The former `init({ chainId, boringVaultAddress })` config-arming routine is internal and reads the chain id and boring vault from the flag; clients that called it must remove that orchestration.
+  - The constructor requires a `hooks` option carrying the client-specific parts of the bootstrap: `isEnabled(remoteFeatureFlags)` (required — version-gated flag evaluation depends on the client version, and clients may add gates such as a basic-functionality toggle), plus optional `isEligible()` (an async pre-bootstrap gate, e.g. fail-closed geolocation), `ensureChainConfigured(vaultConfig)` (client-specific network adding), and `onBootstrapError(error)`.
+  - The messenger must now allow the `RemoteFeatureFlagController:getState` and `KeyringController:getState` actions and the `RemoteFeatureFlagController:stateChanged` and `KeyringController:stateChanged` events.
+- **BREAKING:** `upgradeAccount()` now waits for the in-flight bootstrap chain to settle (including runs scheduled while waiting) instead of throwing, and throws a new not-bootstrapped error message when no bootstrap has armed a config or the wallet is locked. Scheduling a bootstrap for a changed vault config — or `isEnabled` flipping off — disarms the previous config, so an upgrade can never sign against a superseded vault, including after a failed re-bootstrap ([#10072](https://github.com/MetaMask/core/pull/10072))
+  - The armed config is re-checked before every step; if it is disarmed or superseded while the sequence is running, `upgradeAccount()` throws an upgrade-aborted error before the next step signs anything and records nothing
+  - An `onBootstrapError` hook that throws is contained: the failed bootstrap is still forgotten and retried on the next trigger, and the throw does not escape `init()` or `sync()`
+- Add `@metamask/money-account-utils` and `@metamask/remote-feature-flag-controller` as dependencies ([#10072](https://github.com/MetaMask/core/pull/10072))
 - Bump `@metamask/authenticated-user-storage` from `^3.0.1` to `^3.0.2` ([#9972](https://github.com/MetaMask/core/pull/9972))
 - Bump `@metamask/chomp-api-service` from `^4.0.0` to `^4.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
