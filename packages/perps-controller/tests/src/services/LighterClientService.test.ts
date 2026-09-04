@@ -342,7 +342,6 @@ describe('LighterClientService', () => {
       ['negative size', { size: '-0.1' }],
       ['zero price', { price: '0' }],
       ['negative position magnitude', { taker_position_size_before: '-0.1' }],
-      ['missing account pnl', { ask_account_pnl: undefined }],
       ['missing maker role', { is_maker_ask: undefined }],
       [
         'missing position sign context',
@@ -359,6 +358,28 @@ describe('LighterClientService', () => {
       await expect(
         buildService().getTrades(28, 'auth-token', { limit: 50 }),
       ).rejects.toThrow('Invalid Lighter venue data');
+    });
+
+    it('accepts omitted account pnl fields for later participant-side validation', async () => {
+      const {
+        ask_account_pnl: _askPnl,
+        bid_account_pnl: _bidPnl,
+        ...trade
+      } = VALID_TRADE_WIRE;
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          trades: [trade],
+        }),
+      );
+
+      const response = await buildService().getTrades(28, 'auth-token', {
+        limit: 50,
+      });
+
+      expect(response.trades).toHaveLength(1);
+      expect(response.trades[0]).not.toHaveProperty('askAccountPnl');
+      expect(response.trades[0]).not.toHaveProperty('bidAccountPnl');
     });
   });
 
@@ -573,6 +594,49 @@ describe('LighterClientService', () => {
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining('/api/v1/accountsByL1Address?l1_address=0xabc'),
         expect.anything(),
+      );
+    });
+
+    it('accepts sparse account-discovery balances without weakening full account reads', async () => {
+      const discoveryAccount = {
+        code: 0,
+        account_type: 0,
+        index: 629696,
+        l1_address: '0xabc',
+        cancel_all_time: 0,
+        total_order_count: 0,
+        pending_order_count: 0,
+        status: 0,
+        collateral: '5.000000',
+        available_balance: '',
+      };
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({
+          code: 200,
+          l1_address: '0xabc',
+          sub_accounts: [discoveryAccount],
+        }),
+      );
+      const service = buildService(false);
+
+      const discovered = await service.getAccountsByL1Address('0xabc');
+      expect(discovered).toStrictEqual(
+        expect.objectContaining({
+          subAccounts: [
+            expect.objectContaining({
+              accountType: 0,
+              index: 629696,
+              l1Address: '0xabc',
+            }),
+          ],
+        }),
+      );
+
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({ code: 200, accounts: [discoveryAccount] }),
+      );
+      await expect(service.getAccountByIndex(629696)).rejects.toThrow(
+        'Invalid Lighter venue data',
       );
     });
 
