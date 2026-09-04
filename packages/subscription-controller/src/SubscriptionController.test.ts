@@ -770,6 +770,21 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it('should reject without updating state when benefits are already undefined', async () => {
+      await withController(
+        async ({ controller, rootMessenger, mockService }) => {
+          await expect(
+            rootMessenger.call('SubscriptionController:getBenefits'),
+          ).rejects.toThrow(
+            SubscriptionControllerErrorMessage.UserNotSubscribed,
+          );
+
+          expect(controller.state.benefits).toBeUndefined();
+          expect(mockService.getBenefits).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('should clear benefits state', async () => {
       await withController(
         {
@@ -2204,6 +2219,55 @@ describe('SubscriptionController', () => {
         expect(mockService.startSubscriptionWithCrypto).not.toHaveBeenCalled();
         expect(mockService.getSubscriptions).not.toHaveBeenCalled();
       });
+    });
+
+    it('should fetch benefits once when starting another crypto subscription while Money Account Plus is active', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+          },
+        },
+        async ({ rootMessenger, mockService }) => {
+          mockService.startSubscriptionWithCrypto.mockResolvedValue({
+            subscriptionId: MOCK_SUBSCRIPTION.id,
+            status: SUBSCRIPTION_STATUSES.active,
+          });
+          mockService.getSubscriptions
+            .mockResolvedValueOnce({
+              customerId: 'cus_1',
+              subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+              trialedProducts: [],
+            })
+            .mockResolvedValue({
+              customerId: 'cus_1',
+              subscriptions: [
+                MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+                MOCK_SUBSCRIPTION,
+              ],
+              trialedProducts: [],
+            });
+          mockService.getBenefits.mockResolvedValue(MOCK_BENEFITS_RESPONSE);
+
+          await rootMessenger.call(
+            'SubscriptionController:startSubscriptionWithCrypto',
+            {
+              products: [PRODUCT_TYPES.SHIELD],
+              isTrialRequested: false,
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 3,
+              chainId: '0x1',
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              tokenSymbol: 'USDC',
+              rawTransaction: '0xdeadbeef',
+            },
+          );
+
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(2);
+          expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
+        },
+      );
     });
 
     it('should refresh subscriptions after a successful Money Account crypto start', async () => {

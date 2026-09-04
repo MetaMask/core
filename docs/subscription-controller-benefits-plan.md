@@ -1,6 +1,6 @@
 # SubscriptionController benefits implementation plan
 
-Status: Step 7 complete — ready for review
+Status: All deferred refactors complete — ready for review
 
 This plan adds support for fetching and persisting the response from
 `POST /v1/benefits` while keeping the implementation additive and localized.
@@ -224,13 +224,15 @@ Review checkpoint: tests, declarations, linting, and changelog validation pass.
 
 These should be separate follow-up changes after the feature is working:
 
-- [ ] Deduplicate benefit requests caused by nested
+- [x] Deduplicate benefit requests caused by nested
       `getSubscriptions()` calls during subscription flows.
-- [ ] Add in-flight request deduplication or throttling if polling causes too
-      many `/v1/benefits` requests.
-- [ ] Consolidate the active-subscriber predicate with existing subscription
+- [x] Rely on `SubscriptionService`/`BaseDataService` in-flight request
+      deduplication so concurrent `getBenefits` calls share one `/v1/benefits`
+      request without duplicating the promise cache in the controller. Polling
+      still refreshes after requests settle.
+- [x] Consolidate the active-subscriber predicate with existing subscription
       assertion helpers where doing so does not change their semantics.
-- [ ] Extract subscription-state comparison/update logic if the new lifecycle
-      hook makes `getSubscriptions()` difficult to review.
-- [ ] Extract shared benefit product fields if additional benefit products are
-      introduced.
+- [x] Extract subscription-state comparison/update logic so the lifecycle
+      refresh hook remains separate from subscription-state reconciliation.
+- [x] Extract shared benefit product fields into a shared product map so
+      response and persisted state stay aligned when products are added.

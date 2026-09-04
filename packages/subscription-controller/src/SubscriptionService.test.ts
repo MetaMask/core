@@ -15,12 +15,12 @@ import {
 } from './constants.js';
 import * as constants from './constants.js';
 import { SubscriptionServiceError } from './errors.js';
+import { SubscriptionBenefitsResponseStruct } from './SubscriptionService-structs.js';
 import {
   serviceName,
   SUBSCRIPTION_URL,
   SubscriptionService,
 } from './SubscriptionService.js';
-import { SubscriptionBenefitsResponseStruct } from './SubscriptionService-structs.js';
 import type { SubscriptionServiceMessenger } from './SubscriptionService.js';
 import type {
   StartSubscriptionRequest,

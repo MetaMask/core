@@ -208,24 +208,23 @@ export type PredictBenefitUsage = {
   exhausted: boolean;
 };
 
+type SubscriptionBenefitsProducts = {
+  swaps: SwapsBenefitUsage;
+  perps: PerpsBenefitUsage;
+  predict: PredictBenefitUsage;
+};
+
 export type SubscriptionBenefitsResponse = {
   eligible: boolean;
   billingPeriodId: string | null;
-  products: {
-    swaps: SwapsBenefitUsage;
-    perps: PerpsBenefitUsage;
-    predict: PredictBenefitUsage;
-  };
+  products: SubscriptionBenefitsProducts;
 };
 
 /**
  * Benefits state exposed to the UI.
  */
-export type SubscriptionBenefitsState = {
+export type SubscriptionBenefitsState = SubscriptionBenefitsProducts & {
   billingPeriodId: string | null;
-  swaps: SwapsBenefitUsage;
-  perps: PerpsBenefitUsage;
-  predict: PredictBenefitUsage;
 };
 
 export type StartSubscriptionRequest = {
