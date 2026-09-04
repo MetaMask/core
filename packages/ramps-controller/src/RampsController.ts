@@ -3143,10 +3143,16 @@ export class RampsController extends BaseController<
    */
   async syncOrdersWithUserStorage(): Promise<void> {
     this.#orderSyncQueued = true;
+    let syncError: Error | undefined;
 
     while (this.#orderSyncQueued || this.#orderSyncPromise) {
       if (this.#orderSyncPromise) {
-        await this.#orderSyncPromise;
+        try {
+          await this.#orderSyncPromise;
+        } catch (error) {
+          syncError ??=
+            error instanceof Error ? error : new Error(String(error));
+        }
         continue;
       }
 
@@ -3172,9 +3178,15 @@ export class RampsController extends BaseController<
 
       try {
         await this.#orderSyncPromise;
+      } catch (error) {
+        syncError ??= error instanceof Error ? error : new Error(String(error));
       } finally {
         this.#orderSyncPromise = null;
       }
+    }
+
+    if (syncError) {
+      throw syncError;
     }
   }
 

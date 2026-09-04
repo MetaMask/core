@@ -372,6 +372,28 @@ describe('RampsController order syncing', () => {
     expect(performGetStorageAllFeatureEntries).toHaveBeenCalledTimes(2);
   });
 
+  it('drains a queued local mutation after a failed sync pass', async () => {
+    const { controller, performGetStorageAllFeatureEntries } =
+      setupControllerWithOrderSyncingMocks();
+    let rejectFirstFetch: (error: Error) => void = () => undefined;
+    performGetStorageAllFeatureEntries
+      .mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectFirstFetch = reject;
+          }),
+      )
+      .mockResolvedValue([]);
+
+    const syncPromise = controller.syncOrdersWithUserStorage();
+    await new Promise((resolve) => setImmediate(resolve));
+    controller.addOrder(createMockOrder({ providerOrderId: 'queued-order' }));
+    rejectFirstFetch(new Error('first sync failed'));
+
+    await expect(syncPromise).rejects.toThrow('first sync failed');
+    expect(performGetStorageAllFeatureEntries).toHaveBeenCalledTimes(2);
+  });
+
   it('handles sync requests that arrive after worker checks flag but before completion', async () => {
     const { controller, performGetStorageAllFeatureEntries } =
       setupControllerWithOrderSyncingMocks();
