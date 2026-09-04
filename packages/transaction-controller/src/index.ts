@@ -144,6 +144,14 @@ export { hasTransactionType } from './utils/transaction-type.js';
 export { getEffectiveRecipient, getSendRecipients } from './utils/recipient.js';
 export { CHAIN_IDS } from './constants.js';
 export { HARDFORK } from './utils/prepare.js';
+export { prepareTransactionForApproval } from './utils/prepare-transaction-for-approval.js';
+export type {
+  PrepareTransactionForApprovalRequest,
+  PrepareTransactionForApprovalResult,
+  TransactionApprovalSigningFacts,
+  TransactionApprovalSigningMode,
+  TransactionApprovalSponsorshipFacts,
+} from './utils/prepare-transaction-for-approval.js';
 export { getAccountAddressRelationship } from './api/accounts-api.js';
 export type {
   GetAccountAddressRelationshipRequest,
