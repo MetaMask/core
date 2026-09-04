@@ -1,6 +1,7 @@
 /* eslint-disable jest/no-export */
 import type { MockAnyNamespace } from '@metamask/messenger';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import { number, object, string, Struct } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
 import type { Draft, Patch } from 'immer';
 
@@ -12,7 +13,11 @@ import type {
   ControllerStateChangedEvent,
   StatePropertyMetadata,
 } from './BaseController.js';
-import { BaseController, deriveStateFromMetadata } from './BaseController.js';
+import {
+  BaseController,
+  deriveStateFromMetadata,
+  validateControllerState,
+} from './BaseController.js';
 
 export const countControllerName = 'CountController';
 
@@ -1189,5 +1194,70 @@ describe('deriveStateFromMetadata', () => {
         new Error(`No metadata found for 'extraState'`),
       );
     });
+  });
+});
+
+describe('validateControllerState', () => {
+  type FooControllerState = {
+    foo: string;
+    bar: number;
+  };
+
+  const FooControllerStateStruct = object({
+    foo: string(),
+    bar: number(),
+  });
+
+  class FooController extends BaseController<
+    'FooController',
+    FooControllerState,
+    never
+  > {
+    static readonly struct: Struct<FooControllerState> =
+      FooControllerStateStruct;
+  }
+
+  it('returns the validated state', () => {
+    const state = { foo: 'foo', bar: 1 };
+    expect(
+      validateControllerState('FooController', FooController, state, 'strict'),
+    ).toStrictEqual(state);
+
+    expect(
+      validateControllerState('FooController', FooController, state, 'lenient'),
+    ).toStrictEqual(state);
+  });
+
+  it('captures warning and returns in lenient mode', () => {
+    const captureException = jest.fn();
+    const state = { foo: 'foo', bar: 'bar' };
+
+    expect(
+      validateControllerState(
+        'FooController',
+        FooController,
+        state,
+        'lenient',
+        captureException,
+      ),
+    ).toStrictEqual(state);
+
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message:
+          'Validation of "FooController" state failed, but did not throw: At path: bar -- Expected a number, but received: "bar"',
+      }),
+    );
+  });
+
+  it('throws for invalid state in strict mode', () => {
+    expect(() =>
+      validateControllerState(
+        'FooController',
+        FooController,
+        { foo: 'foo', bar: 'bar' },
+        'strict',
+      ),
+    ).toThrow('At path: bar -- Expected a number, but received: "bar"');
   });
 });

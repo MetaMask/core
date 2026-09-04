@@ -11,6 +11,7 @@ export const shieldController: InitializationConfiguration<
   ShieldControllerMessenger
 > = {
   name: 'ShieldController',
+  reference: ShieldController,
   init: ({ state, messenger, options }) =>
     new ShieldController({
       messenger,

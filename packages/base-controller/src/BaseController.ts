@@ -5,6 +5,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { Struct, validate } from '@metamask/superstruct';
 import type { Json, PublicInterface } from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
@@ -445,4 +446,53 @@ export function deriveStateFromMetadata<
       return derivedState;
     }
   }, {} as never);
+}
+
+export type ValidatableController<
+  Controller,
+  ControllerState extends StateConstraint,
+> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (new (...args: any[]) => Controller) & {
+    struct: Struct<ControllerState>;
+  };
+
+/**
+ * Validate the state of a controller against its struct. Returning the optionally coerced state if valid and otherwise throwing.
+ *
+ * Note that if the `mode` is lenient, validation errors are logged and not thrown.
+ *
+ * @param name - The name of the controller.
+ * @param controller - The static controller.
+ * @param state - The state of the controller.
+ * @param mode - The validation mode.
+ * @param captureException - A utility function for reporting an error to Sentry.
+ * @returns The validated controller state.
+ */
+export function validateControllerState<
+  ControllerState extends StateConstraint,
+>(
+  name: string,
+  controller: ValidatableController<unknown, ControllerState>,
+  state: unknown,
+  mode: 'strict' | 'lenient',
+  captureException?: (error: Error) => void,
+): ControllerState {
+  const [validationError, result] = validate(state, controller.struct);
+
+  if (mode === 'strict' && validationError) {
+    throw validationError;
+  } else if (mode === 'lenient' && validationError) {
+    const error = new Error(
+      `Validation of "${name}" state failed, but did not throw: ${validationError.message}`,
+    );
+    // @ts-expect-error Current target does not support causes.
+    error.cause = validationError;
+
+    captureException?.(error);
+    console.warn(error);
+    return state as ControllerState;
+  }
+
+  return result as ControllerState;
 }
