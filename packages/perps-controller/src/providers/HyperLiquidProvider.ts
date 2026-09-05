@@ -1233,6 +1233,37 @@ const resolveTwapOrderStatus = (
   }
 };
 
+/**
+ * Decide whether a newly adapted schedule replaces the one already collapsed
+ * under the same order id.
+ *
+ * The venue reports one lifecycle as several history entries — an activation
+ * plus a terminal record — and `lastUpdated` folds in slice fills that every
+ * entry sharing a `twapId` receives. A schedule whose final fill completed it
+ * therefore derives the same `lastUpdated` on both entries, because that fill
+ * outranks each entry's own whole-second timestamp. Ordering on `lastUpdated`
+ * alone admits that tie, letting the activation overwrite the terminal record
+ * so the schedule reads as live long after it ended. Terminality decides
+ * first, and an equal `lastUpdated` keeps the entry already collapsed.
+ *
+ * @param candidate - Schedule adapted from the current history entry.
+ * @param existing - Schedule already collapsed under this order id.
+ * @returns True when the candidate replaces the existing schedule.
+ */
+const supersedesCollapsedTwapOrder = (
+  candidate: TwapOrder,
+  existing: TwapOrder,
+): boolean => {
+  const candidateIsTerminal =
+    candidate.status !== PerpsTwapLifecycleStatus.Active;
+  const existingIsTerminal =
+    existing.status !== PerpsTwapLifecycleStatus.Active;
+  if (candidateIsTerminal !== existingIsTerminal) {
+    return candidateIsTerminal;
+  }
+  return candidate.lastUpdated > existing.lastUpdated;
+};
+
 const adaptTwapOrderFill = (
   entry: HyperLiquidTwapSliceFillEntry,
 ): TwapOrderFill => ({
@@ -7672,7 +7703,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       const existing = ordersById.get(order.orderId);
-      if (!existing || order.lastUpdated >= existing.lastUpdated) {
+      if (!existing || supersedesCollapsedTwapOrder(order, existing)) {
         ordersById.set(order.orderId, order);
       }
     }
@@ -13618,7 +13649,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             continue;
           }
           const existing = ordersById.get(order.orderId);
-          if (!existing || order.lastUpdated >= existing.lastUpdated) {
+          if (!existing || supersedesCollapsedTwapOrder(order, existing)) {
             ordersById.set(order.orderId, order);
           }
         }
