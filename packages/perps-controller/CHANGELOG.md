@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep the terminal HyperLiquid TWAP record when a completing fill ties `lastUpdated` with the activation, so a finished schedule is no longer reported as live. ([#10122](https://github.com/MetaMask/core/pull/10122))
+  - The venue reports one lifecycle as several `twapHistory` entries, an activation plus a terminal record, and slice fills are looked up by `twapId` so every entry of a schedule receives the same fills. `entry.time` is a whole-second value, so when the final fill is what completed the schedule its millisecond timestamp outranks both entries' own timestamps and both derive an identical `lastUpdated`.
+  - Collapsing entries with `>=` admitted that tie. The venue returns the terminal record first, so the activation was iterated last and overwrote it, `resolveTwapOrderStatus` mapped `activated` to `Active`, and the schedule stayed listed as live carrying the activation's zero executed size while offering a cancel the venue can no longer act on. Schedules that were `terminated` stop seconds after their last fill, never tie, and were unaffected.
+  - Terminality is now decided before timestamps, and `lastUpdated` is compared strictly so an equal value keeps the record already collapsed. Termination is still only ever taken from venue status and never inferred from elapsed time, so collateral cannot be reclaimed from a live TWAP. Both the polled read and the subscription adapter are corrected.
 - Handle zero minimum order amounts and margin fractions reported by Lighter for inactive markets by omitting unusable retired rows, while keeping valid delisted metadata and active market values strict. ([#10110](https://github.com/MetaMask/core/pull/10110))
 
 ## [16.1.0]
