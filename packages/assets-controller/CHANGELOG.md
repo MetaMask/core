@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^69.8.0` to `^69.8.1` ([#10124](https://github.com/MetaMask/core/pull/10124))
 - Enhance spam asset cleanup to collect candidates from `assetsBalance` and remove swept assets from `assetsPrice` ([#10095](https://github.com/MetaMask/core/pull/10095))
 
+### Fixed
+
+- Filter asset IDs by supported networks before calling the Price API v3 spot-prices endpoint. Prevent HTTP 400 errors ([#XXX](XXX))
+
 ## [15.0.0]
 
 ### Added

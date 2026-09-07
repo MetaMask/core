@@ -1,4 +1,5 @@
 import type {
+  PriceSupportedNetworksResponse,
   SupportedCurrency,
   V3SpotPricesResponse,
 } from '@metamask/core-backend';
@@ -253,12 +254,23 @@ export class PriceDataSource {
         return next(ctx);
       }
 
+      // Filter to only assets from networks the Price API supports
+      const supportedNetworks = await this.#getSupportedNetworks();
+      const supportedAssetIds = this.#filterAssetsByNetwork(
+        priceableAssetIds,
+        supportedNetworks,
+      );
+
+      if (supportedAssetIds.length === 0) {
+        return next(ctx);
+      }
+
       if (request.forceUpdate) {
-        this.#deduper.invalidateKeys(priceableAssetIds);
+        this.#deduper.invalidateKeys(supportedAssetIds);
       }
 
       try {
-        const spotPrices = await this.#fetchSpotPrices(priceableAssetIds);
+        const spotPrices = await this.#fetchSpotPrices(supportedAssetIds);
         response.assetsPrice = {
           ...(response.assetsPrice ?? {}),
           ...spotPrices,
@@ -466,6 +478,56 @@ export class PriceDataSource {
     }
   }
 
+  /**
+   * Gets the supported networks from the Price API.
+   * Caching is handled by ApiPlatformClient.
+   *
+   * @returns Set of supported chain IDs in CAIP-2 format. Fails open (empty
+   * set) on error so callers can decide whether to proceed.
+   */
+  async #getSupportedNetworks(): Promise<Set<string>> {
+    try {
+      const response = await fetchWithTimeout(
+        (): Promise<PriceSupportedNetworksResponse> =>
+          this.#apiClient.prices.fetchPriceV2SupportedNetworks(),
+        this.#fetchTimeoutMs,
+      );
+
+      const allNetworks = [...response.fullSupport, ...response.partialSupport];
+      return new Set(allNetworks);
+    } catch (error) {
+      log('Failed to fetch price supported networks', { error });
+      return new Set();
+    }
+  }
+
+  /**
+   * Filters asset IDs to only include those from supported networks.
+   *
+   * @param assetIds - Array of CAIP-19 asset IDs.
+   * @param supportedNetworks - Set of supported CAIP-2 chain IDs.
+   * @returns Array of asset IDs from supported networks. When
+   * `supportedNetworks` is empty (fetch failed), returns all asset IDs
+   * (fail open) to preserve existing behaviour.
+   */
+  #filterAssetsByNetwork(
+    assetIds: Caip19AssetId[],
+    supportedNetworks: Set<string>,
+  ): Caip19AssetId[] {
+    if (supportedNetworks.size === 0) {
+      return assetIds;
+    }
+    return assetIds.filter((assetId) => {
+      try {
+        const parsed = parseCaipAssetType(assetId);
+        const chainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
+        return supportedNetworks.has(chainId);
+      } catch {
+        return false;
+      }
+    });
+  }
+
   // ============================================================================
   // FETCH
   // ============================================================================
@@ -491,7 +553,18 @@ export class PriceDataSource {
     );
 
     // Filter out non-priceable assets (e.g., Tron bandwidth/energy resources)
-    const assetIds = rawAssetIds.filter(isPriceableAsset);
+    const priceableAssetIds = rawAssetIds.filter(isPriceableAsset);
+
+    if (priceableAssetIds.length === 0) {
+      return response;
+    }
+
+    // Filter to only assets from networks the Price API supports
+    const supportedNetworks = await this.#getSupportedNetworks();
+    const assetIds = this.#filterAssetsByNetwork(
+      priceableAssetIds,
+      supportedNetworks,
+    );
 
     if (assetIds.length === 0) {
       return response;
