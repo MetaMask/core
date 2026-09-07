@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `#start()` re-entrancy so a second unlock/init/state-change trigger can't run a duplicate startup asset refresh while the first one is still in flight ([#10125](https://github.com/MetaMask/core/pull/10125))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.8.0` to `^69.8.1` ([#10124](https://github.com/MetaMask/core/pull/10124))
