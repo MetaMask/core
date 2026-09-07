@@ -17,9 +17,6 @@ const MOCK_PRIVATE_KEY_PAYLOAD_ID = toWalletPayloadId(
   AccountWalletPayloadType.PrivateKey,
 );
 
-const MOCK_SECONDARY_MNEMONIC_PAYLOAD_ID =
-  toWalletPayloadId('entropy-source-2');
-
 const MOCK_MNEMONIC_WALLET: AccountWalletMnemonicPayload = {
   id: MOCK_MNEMONIC_PAYLOAD_ID,
   type: AccountWalletPayloadType.Mnemonic,
@@ -35,20 +32,6 @@ const MOCK_MNEMONIC_WALLET: AccountWalletMnemonicPayload = {
       id: toGroupPayloadId(MOCK_MNEMONIC_PAYLOAD_ID, 1),
       groupIndex: 1,
       metadata: { name: 'Account 2', pinned: true, hidden: false },
-    },
-  ],
-};
-
-const MOCK_SECONDARY_MNEMONIC_WALLET: AccountWalletMnemonicPayload = {
-  id: MOCK_SECONDARY_MNEMONIC_PAYLOAD_ID,
-  type: AccountWalletPayloadType.Mnemonic,
-  value: [5, 6, 7, 8],
-  metadata: { name: 'Wallet 2' },
-  groups: [
-    {
-      id: toGroupPayloadId(MOCK_SECONDARY_MNEMONIC_PAYLOAD_ID, 0),
-      groupIndex: 0,
-      metadata: { name: 'Account 3', pinned: false, hidden: false },
     },
   ],
 };
