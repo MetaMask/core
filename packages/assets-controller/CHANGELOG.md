@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^69.8.0` to `^69.9.0` ([#10124](https://github.com/MetaMask/core/pull/10124))
+- Bump `@metamask/transaction-controller` from `^69.8.0` to `^69.8.1` ([#10124](https://github.com/MetaMask/core/pull/10124))
 - Enhance spam asset cleanup to collect candidates from `assetsBalance` and remove swept assets from `assetsPrice` ([#10095](https://github.com/MetaMask/core/pull/10095))
 
 ## [15.0.0]
