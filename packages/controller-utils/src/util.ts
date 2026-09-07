@@ -486,9 +486,9 @@ export async function fetchWithErrorHandling({
   let result;
   try {
     if (timeout) {
-      result = Promise.race([
-        await handleFetch(url, options),
-        new Promise<Response>((_resolve, reject) =>
+      result = await Promise.race([
+        handleFetch(url, options),
+        new Promise<never>((_resolve, reject) =>
           setTimeout(() => {
             reject(TIMEOUT_ERROR);
           }, timeout),
