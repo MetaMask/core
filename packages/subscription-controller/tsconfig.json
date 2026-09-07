@@ -5,26 +5,39 @@
   },
   "references": [
     {
+      "path": "../authenticated-user-storage"
+    },
+    {
       "path": "../base-controller"
     },
     {
-      "path": "../messenger"
+      "path": "../base-data-service"
     },
     {
-      "path": "../profile-sync-controller"
-    },
-    {
-      "path": "../polling-controller"
-    },
-    {
-      "path": "../transaction-controller"
+      "path": "../chomp-api-service"
     },
     {
       "path": "../controller-utils"
     },
     {
-      "path": "../base-data-service"
+      "path": "../delegation-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../polling-controller"
+    },
+    {
+      "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../transaction-controller"
     }
   ],
-  "include": ["../../types", "./src", "./tests"]
+  "include": [
+    "../../types",
+    "./src",
+    "./tests"
+  ]
 }

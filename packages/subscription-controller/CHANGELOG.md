@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `SubscriptionDelegationService` for Money Account Plus subscription-payment delegation setup.
+  - New messenger action `SubscriptionDelegationService:prepareDelegation` orchestrates periodic caveat construction, signing, CHOMP verification, Authenticated User Storage persistence, and CHOMP intent registration.
+  - Returns a verified `delegationHash` with `disposition: 'created' | 'reused'` for `SubscriptionController.startSubscriptionWithCrypto`; the controller does not depend on this service.
+  - Construct with immutable, chain-scoped `SubscriptionDelegationConfig` (CHOMP delegate address); Delegation Framework enforcers are resolved from `@metamask/delegation-deployments`.
+  - Only Money Account Plus is supported; Shield continues to use ERC-20 approval.
+
 - Add `getBenefits` to fetch and persist Money Account Plus subscription benefits. ([#10103](https://github.com/MetaMask/core/pull/10103))
   - New persisted `SubscriptionControllerState.benefits` field and `SubscriptionController:getBenefits` messenger action.
   - Requires an active `MONEY_ACCOUNT_PLUS` subscription; otherwise throws `UserNotSubscribed` without calling the service.

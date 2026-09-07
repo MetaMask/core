@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Accept `'subscription-payment'` as a CHOMP intent / delegation metadata type alongside `'cash-deposit'` and `'cash-withdrawal'`.
+  - Adds exported `ChompIntentType` alias covering all three values.
+  - Response structs for create-intents, get-intents-by-address, and service-details now accept the new type.
+
 ## [4.0.2]
 
 ### Changed

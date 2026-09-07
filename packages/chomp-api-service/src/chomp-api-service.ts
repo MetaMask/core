@@ -193,6 +193,12 @@ const VerifyDelegationResponseStruct = type({
   errors: optional(array(string())),
 });
 
+const ChompIntentTypeStruct = enums([
+  'cash-deposit',
+  'cash-withdrawal',
+  'subscription-payment',
+]);
+
 const SendIntentResponseArrayStruct = array(
   type({
     delegationHash: StrictHexStruct,
@@ -200,7 +206,7 @@ const SendIntentResponseArrayStruct = array(
       allowance: StrictHexStruct,
       tokenSymbol: string(),
       tokenAddress: StrictHexStruct,
-      type: enums(['cash-deposit', 'cash-withdrawal']),
+      type: ChompIntentTypeStruct,
     }),
     createdAt: string(),
   }),
@@ -216,7 +222,7 @@ const IntentEntryArrayStruct = array(
       allowance: StrictHexStruct,
       tokenAddress: StrictHexStruct,
       tokenSymbol: string(),
-      type: enums(['cash-deposit', 'cash-withdrawal']),
+      type: ChompIntentTypeStruct,
     }),
   }),
 );
@@ -233,7 +239,7 @@ const ServiceDetailsProtocolStruct = type({
     }),
   ),
   adapterAddress: StrictHexStruct,
-  intentTypes: array(enums(['cash-deposit', 'cash-withdrawal'])),
+  intentTypes: array(ChompIntentTypeStruct),
 });
 
 const ServiceDetailsResponseStruct = type({

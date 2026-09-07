@@ -69,6 +69,19 @@ export enum SubscriptionServiceErrorMessage {
   FailedToGetBillingPortalUrl = 'Failed to get billing portal url',
 }
 
+export enum SubscriptionDelegationServiceErrorMessage {
+  InvalidAmount = 'Subscription delegation amount must be a non-negative integer',
+  InvalidDecimals = 'Subscription delegation decimals must be a non-negative integer',
+  LossyAmountScale = 'Subscription delegation amount cannot be scaled to token decimals without remainder',
+  UnsupportedRecurringInterval = 'Unsupported subscription recurring interval',
+  UnsupportedProduct = 'Subscription delegation is only supported for Money Account Plus',
+  ChainIdMismatch = 'Subscription delegation request chainId does not match the configured chainId',
+  DelegationContractsNotFound = 'Subscription delegation contracts were not found for the configured chain',
+  ChompRejectedDelegation = 'CHOMP rejected the subscription delegation',
+  ChompMissingDelegationHash = 'CHOMP verify response did not include a delegation hash',
+  ChompDelegationHashMismatch = 'CHOMP verify response delegation hash does not match the locally computed hash',
+}
+
 export const DEFAULT_POLLING_INTERVAL = 5 * 60 * 1_000; // 5 minutes
 
 export const ACTIVE_SUBSCRIPTION_STATUSES = [

@@ -520,6 +520,47 @@ describe('ChompApiService', () => {
         'At path: 0.delegationHash -- Expected a string',
       );
     });
+
+    it('accepts subscription-payment intent metadata type', async () => {
+      const subscriptionIntentParams = [
+        {
+          account: '0xabc' as const,
+          delegationHash: '0xdef' as const,
+          chainId: '0x1' as const,
+          metadata: {
+            allowance: '0xff' as const,
+            tokenSymbol: 'pvmUSD',
+            tokenAddress: '0x123' as const,
+            type: 'subscription-payment' as const,
+          },
+        },
+      ];
+      const subscriptionIntentResponse = [
+        {
+          delegationHash: '0xdef',
+          metadata: {
+            allowance: '0xff',
+            tokenSymbol: 'pvmUSD',
+            tokenAddress: '0x123',
+            type: 'subscription-payment',
+          },
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ];
+
+      nock(BASE_URL)
+        .post('/v1/intent', subscriptionIntentParams)
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .reply(201, subscriptionIntentResponse);
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'ChompApiService:createIntents',
+        subscriptionIntentParams,
+      );
+
+      expect(result).toStrictEqual(subscriptionIntentResponse);
+    });
   });
 
   describe('getIntentsByAddress', () => {
