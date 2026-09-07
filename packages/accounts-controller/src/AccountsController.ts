@@ -420,8 +420,12 @@ export class AccountsController extends BaseController<
       throw new Error(`Invalid CAIP-2 chain ID: ${String(chainId)}`);
     }
 
-    return accounts.filter((account) =>
-      isScopeEqualToAny(chainId, account.scopes),
+    return accounts.filter(
+      (account) =>
+        // A legacy or partially-migrated account can be persisted without a
+        // `scopes` field, so guard against a non-array value before matching.
+        Array.isArray(account.scopes) &&
+        isScopeEqualToAny(chainId, account.scopes),
     );
   }
 
