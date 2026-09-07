@@ -13,6 +13,7 @@ import {
   BASE_SPAM,
   BASE_USDC,
   MAINNET_NATIVE,
+  MAINNET_SPAM,
   MAINNET_USDT,
   MONAD_WMON,
   OPTIMISM_SPAM,
@@ -21,6 +22,7 @@ import {
   SEI_USDCN,
   SPAM_ASSET_IDS,
   SPAM_WALLET_ASSETS_INFO,
+  SPAM_WALLET_PRICES,
   SURVIVING_ASSET_IDS,
   SWEEPABLE_ASSET_IDS,
   buildAssetsInfo,
@@ -838,6 +840,10 @@ describe('cleanSpamAssets', () => {
         Object.keys(balances),
       ),
     ).toStrictEqual(expect.not.arrayContaining(lowercasedSpamAssetIds));
+    // Prices were written under the checksummed IDs the wallet never adopted.
+    expect(nextState.assetsPrice).toStrictEqual({
+      [MAINNET_USDT]: SPAM_WALLET_PRICES[MAINNET_USDT],
+    });
   });
 
   it('sweeps a wallet whose EVM asset IDs were never checksummed when the API answers in checksummed IDs', async () => {
@@ -885,6 +891,11 @@ describe('cleanSpamAssets', () => {
     const { scope: assetsScope } = mockV3Assets();
     const state = buildSpamWalletState({
       assetsInfo: buildAssetsInfo(OUT_OF_SCOPE_ASSET_IDS),
+      assetsBalance: {
+        [ACCOUNT_ONE_ID]: Object.fromEntries(
+          OUT_OF_SCOPE_ASSET_IDS.map((assetId) => [assetId, { amount: '1' }]),
+        ),
+      },
     });
 
     const nextState = await runCleanup(state);
@@ -899,6 +910,13 @@ describe('cleanSpamAssets', () => {
     mockV3Assets();
     const state = buildSpamWalletState({
       assetsInfo: buildAssetsInfo([MAINNET_USDT, OPTIMISM_USDC, BASE_USDC]),
+      assetsBalance: {
+        [ACCOUNT_ONE_ID]: {
+          [MAINNET_USDT]: { amount: '2500000000' },
+          [OPTIMISM_USDC]: { amount: '148230000' },
+          [BASE_USDC]: { amount: '9900000' },
+        },
+      },
     });
 
     const nextState = await runCleanup(state);
@@ -928,6 +946,75 @@ describe('cleanSpamAssets', () => {
     expect(nextState.customAssets).toStrictEqual(state.customAssets);
   });
 
+  it('sweeps a spam token that is only left in balances', async () => {
+    // Balances can outlive the `assetsInfo` entry they were tracked under, so
+    // the sweep has to consider them in their own right.
+    mockSuggestedOccurrenceFloors();
+    const { requestedBatches } = mockV3Assets();
+    const state = buildSpamWalletState({
+      assetsInfo: buildAssetsInfo([MAINNET_USDT]),
+    });
+
+    const nextState = await runCleanup(state);
+
+    expect([...requestedBatches[0]].sort()).toStrictEqual(
+      [
+        MAINNET_USDT,
+        MAINNET_SPAM,
+        OPTIMISM_USDC,
+        OPTIMISM_SPAM,
+        BASE_SPAM,
+        BASE_FARTCOIN,
+        SEI_USDCN,
+      ].sort(),
+    );
+    expect(nextState.assetsBalance).toStrictEqual({
+      [ACCOUNT_ONE_ID]: {
+        [MAINNET_NATIVE]: { amount: '1204500000000000000' },
+        [MAINNET_USDT]: { amount: '2500000000' },
+        [OPTIMISM_USDC]: { amount: '148230000' },
+        [SEI_USDCN]: { amount: '74500000' },
+      },
+      [ACCOUNT_TWO_ID]: {
+        [BASE_FARTCOIN]: { amount: '1200000000000000000000' },
+        [ARBITRUM_GMX]: { amount: '3400000000000000000' },
+      },
+    });
+  });
+
+  it('asks about an asset held under two casings only once', async () => {
+    mockSuggestedOccurrenceFloors();
+    const { requestedBatches } = mockV3Assets();
+    const state = buildSpamWalletState({
+      assetsInfo: buildAssetsInfo([MAINNET_SPAM]),
+      assetsBalance: {
+        [ACCOUNT_ONE_ID]: {
+          [MAINNET_SPAM.toLowerCase() as Caip19AssetId]: {
+            amount: '5000000000000000000000',
+          },
+        },
+      },
+    });
+
+    const nextState = await runCleanup(state);
+
+    expect(requestedBatches[0]).toHaveLength(1);
+    expect(nextState.assetsInfo).toStrictEqual({});
+    expect(nextState.assetsBalance[ACCOUNT_ONE_ID]).toStrictEqual({});
+  });
+
+  it('drops the persisted prices of the assets it sweeps', async () => {
+    mockSuggestedOccurrenceFloors();
+    mockV3Assets();
+    const state = buildSpamWalletState();
+
+    const nextState = await runCleanup(state);
+
+    expect(nextState.assetsPrice).toStrictEqual({
+      [MAINNET_USDT]: SPAM_WALLET_PRICES[MAINNET_USDT],
+    });
+  });
+
   it('does not mutate the state it was given', async () => {
     mockSuggestedOccurrenceFloors();
     mockV3Assets();
@@ -945,6 +1032,7 @@ describe('cleanSpamAssets', () => {
     const { requestedBatches } = mockV3Assets({ times: 2 });
     const state = buildSpamWalletState({
       assetsInfo: buildAssetsInfo([MAINNET_USDT]),
+      assetsBalance: {},
     });
     const apiClient = createTestApiClient();
 

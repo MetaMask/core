@@ -241,6 +241,13 @@ function mergeBalancesIntoMap(args: {
       continue;
     }
 
+    // Balances without a matching `assetsInfo` entry are not renderable
+    // (no symbol/name/decimals), so they are excluded from aggregation.
+    const meta = metadata[typedAssetId];
+    if (!meta) {
+      continue;
+    }
+
     const info = getAssetInfo(assetInfoCache, typedAssetId);
     if (!isChainEnabledByMap(enabledNetworkMap, info.chainId)) {
       continue;
@@ -248,7 +255,6 @@ function mergeBalancesIntoMap(args: {
 
     const amountStr = getAmountFromBalance(accountBalances[typedAssetId]);
     const amountBn = toBigNumberOrZero(amountStr);
-    const meta = metadata[typedAssetId];
     if (amountBn.isZero()) {
       continue; // skip zeros early to reduce map pressure
     }
@@ -261,9 +267,9 @@ function mergeBalancesIntoMap(args: {
 
     out.set(typedAssetId, {
       amount: amountBn,
-      decimals: meta?.decimals,
-      symbol: meta?.symbol,
-      name: meta?.name,
+      decimals: meta.decimals,
+      symbol: meta.symbol,
+      name: meta.name,
     });
   }
 }

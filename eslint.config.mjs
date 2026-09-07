@@ -7,25 +7,6 @@ import node from 'eslint-plugin-n';
 const NODE_LTS_VERSION = 22;
 
 /**
- * Arguments to the `no-restricted` syntax rule that advises use of
- * `${Controller}:stateChanged` instead of `:stateChange`.
- */
-const NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS = [
-  {
-    selector:
-      'CallExpression[callee.property.name="subscribe"] > Literal[value=/^.+:stateChange$/]',
-    message:
-      "Subscribing to ':stateChange' events is deprecated. Use ':stateChanged' instead.",
-  },
-  {
-    selector:
-      'CallExpression[callee.property.name="delegate"] Property[key.name="events"] ArrayExpression > Literal[value=/^.+:stateChange$/]',
-    message:
-      "Delegating ':stateChange' events is deprecated. Use ':stateChanged' instead.",
-  },
-];
-
-/**
  * Arguments to the `no-restricted-syntax` rule that prevents messsenger actions
  * from being called in constructors.
  */
@@ -75,9 +56,10 @@ const config = createConfig([
   {
     ignores: [
       '**/.docusaurus',
+      '**/.tsc-lint-cache',
       '**/coverage/**',
       '**/dist/**',
-      '**/docs/**',
+      '**/api-docs/**',
       '.platform-api-docs/**',
       '.skills-cache/**',
       '.yarn/**',
@@ -159,17 +141,6 @@ const config = createConfig([
       // do not work very well.
       'jsdoc/check-tag-names': 'off',
       'jsdoc/require-jsdoc': 'off',
-
-      // Add custom rule for deprecating `${Controller}:stateChange` in favor of
-      // `:stateChanged`.
-      'no-restricted-syntax': [
-        'error',
-        ...collectExistingRuleOptions('no-restricted-syntax', [
-          base,
-          typescript,
-        ]),
-        ...NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS,
-      ],
     },
   },
   {
@@ -252,7 +223,6 @@ const config = createConfig([
           base,
           typescript,
         ]),
-        ...NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS,
         ...NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_SELECTOR_OBJECTS,
       ],
     },
@@ -268,7 +238,6 @@ const config = createConfig([
           base,
           typescript,
         ]),
-        ...NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS,
         ...NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_SELECTOR_OBJECTS,
         {
           selector:
@@ -366,7 +335,6 @@ const config = createConfig([
       'packages/permission-log-controller/src/PermissionLogController.ts',
       'packages/phishing-controller/src/PhishingController.ts',
       'packages/rate-limit-controller/src/RateLimitController.ts',
-      'tests/fake-provider.ts',
       'tests/mock-network.ts',
     ],
     rules: {

@@ -198,12 +198,10 @@ The TokenBalancesController implements intelligent polling that adapts based on 
 To prevent excessive HTTP calls during unstable connections:
 
 1. **Accumulation Window**: 5 seconds
-
    - All status changes within this window are accumulated
    - Latest status wins for each chain
 
 2. **Jitter Addition**: Random delay (0 to default interval)
-
    - Prevents synchronized requests across multiple instances
    - Reduces backend load spikes
 

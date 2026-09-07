@@ -145,10 +145,8 @@ export class ExampleDataService extends BaseDataService<
             `${this.#accountsBaseUrl}/v4/multiaccount/transactions?limit=3&accountAddresses=${caipAddress}`,
           );
 
-          // eslint-disable-next-line no-restricted-syntax
           if (pageParam && 'after' in pageParam) {
             url.searchParams.set('after', pageParam.after);
-            // eslint-disable-next-line no-restricted-syntax
           } else if (pageParam && 'before' in pageParam) {
             url.searchParams.set('before', pageParam.before);
           }

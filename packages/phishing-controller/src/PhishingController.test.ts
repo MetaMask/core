@@ -139,9 +139,8 @@ function setupMessenger(options: SetupMessengerOptions = {}): {
       'TransactionController:getState',
     ],
     events: [
-      // eslint-disable-next-line no-restricted-syntax
       'AddressBookController:stateChange',
-      // eslint-disable-next-line no-restricted-syntax
+
       'TransactionController:stateChange',
     ],
     messenger,

@@ -1,11 +1,10 @@
-import { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import type {
   JsonRpcMiddleware,
   MiddlewareContext,
   ResultConstraint,
 } from '@metamask/json-rpc-engine/v2';
-import type { Provider } from '@metamask/network-controller';
+import { hasProperty } from '@metamask/utils';
 import type {
   Json,
   JsonRpcId,
@@ -14,10 +13,12 @@ import type {
   JsonRpcResponse,
   JsonRpcVersion2,
 } from '@metamask/utils';
-import { inspect, isDeepStrictEqual } from 'util';
+import { isEqual } from 'lodash';
+
+import { InternalProvider } from './internal-provider.js';
 
 // Store this in case it gets stubbed later
-const originalSetTimeout = global.setTimeout;
+const originalSetTimeout = setTimeout;
 
 /**
  * A JSON-RPC request conforming to the EIP-1193 specification.
@@ -34,7 +35,7 @@ type Eip1193Request<Params extends JsonRpcParams> = {
  */
 // TODO: Replace `any` with type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type FakeProviderResponse = { result: any } | { error: string };
+export type MockInternalProviderResponse = { result: any } | { error: string };
 
 /**
  * An object that allows specifying the behavior of a specific invocation of
@@ -66,7 +67,7 @@ export type FakeProviderResponse = { result: any } | { error: string };
  * when the promise is initiated but before it is resolved). You can pass an
  * (async) function for this option to do this.
  */
-export type FakeProviderStub = {
+export type MockInternalProviderStub = {
   request: {
     method: string;
     // TODO: Replace `any` with type
@@ -78,7 +79,7 @@ export type FakeProviderStub = {
   beforeCompleting?: () => void | Promise<void>;
 } & (
   | {
-      response: FakeProviderResponse;
+      response: MockInternalProviderResponse;
     }
   | {
       error: unknown;
@@ -89,13 +90,13 @@ export type FakeProviderStub = {
 );
 
 /**
- * The set of options that the FakeProvider constructor takes.
+ * The set of options that the MockInternalProvider constructor takes.
  *
  * @property stubs - A set of objects that allow specifying the behavior
  * of specific invocations of `request` matching a `method`.
  */
-type FakeProviderEngineOptions = {
-  stubs?: FakeProviderStub[];
+type MockInternalProviderEngineOptions = {
+  stubs?: MockInternalProviderStub[];
 };
 
 type Context = MiddlewareContext<
@@ -118,15 +119,12 @@ type Middleware = JsonRpcMiddleware<
 // NOTE: We shouldn't need to extend from the "real" provider here, but
 // we'd need a `InternalProvider` _interface_ and that doesn't exist (at
 // least not yet).
-export class FakeProvider
-  extends InternalProvider<Context>
-  implements Provider
-{
-  calledStubs: FakeProviderStub[];
+export class MockInternalProvider extends InternalProvider<Context> {
+  calledStubs: MockInternalProviderStub[];
 
-  readonly #originalStubs: FakeProviderStub[];
+  readonly #originalStubs: MockInternalProviderStub[];
 
-  readonly #stubs: FakeProviderStub[];
+  readonly #stubs: MockInternalProviderStub[];
 
   /**
    * Makes a new instance of the fake provider.
@@ -135,12 +133,14 @@ export class FakeProvider
    * @param options.stubs - A set of objects that allow specifying the behavior
    * of specific invocations of `request` matching a `method`.
    */
-  constructor({ stubs = [] }: FakeProviderEngineOptions = {}) {
+  constructor({ stubs = [] }: MockInternalProviderEngineOptions = {}) {
     super({
       engine: JsonRpcEngineV2.create<Middleware>({
         middleware: [
           (): never => {
-            throw new Error('FakeProvider received unstubbed method call');
+            throw new Error(
+              'MockInternalProvider received unstubbed method call',
+            );
           },
         ],
       }),
@@ -168,7 +168,7 @@ export class FakeProvider
 
   sendAsync = <Params extends JsonRpcParams>(
     payload: Eip1193Request<Params>,
-    // TODO: Replace `any` with type
+    // This is copied from the implementation for InternalProvider.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
   ): void => {
@@ -177,7 +177,7 @@ export class FakeProvider
 
   send = <Params extends JsonRpcParams>(
     req: Eip1193Request<Params>,
-    // TODO: Replace `any` with type
+    // This is copied from the implementation for InternalProvider.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
   ): void => {
@@ -186,7 +186,7 @@ export class FakeProvider
 
   #handleSend<Params extends JsonRpcParams>(
     req: Eip1193Request<Params>,
-    // TODO: Replace `any` with type
+    // This is copied from the implementation for InternalProvider.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
   ): void {
@@ -197,8 +197,8 @@ export class FakeProvider
     const index = this.#stubs.findIndex((stub) => {
       return (
         stub.request.method === req.method &&
-        (!('params' in stub.request) ||
-          isDeepStrictEqual(stub.request.params, req.params))
+        (!hasProperty(stub.request, 'params') ||
+          isEqual(stub.request.params, req.params))
       );
     });
 
@@ -206,23 +206,22 @@ export class FakeProvider
       const matchingCalledStubs = this.calledStubs.filter((stub) => {
         return (
           stub.request.method === req.method &&
-          (!('params' in stub.request) ||
-            isDeepStrictEqual(stub.request.params, req.params))
+          (!hasProperty(stub.request, 'params') ||
+            isEqual(stub.request.params, req.params))
         );
       });
-      let message = `Could not find any stubs matching: ${inspect(req, {
-        depth: null,
-      })}`;
+      let message = `Could not find any stubs matching: ${JSON.stringify(req)}`;
       if (matchingCalledStubs.length > 0) {
-        message += `\n\nIt appears the following stubs were defined, but have been called already:\n\n${inspect(
+        message += `\n\nIt appears the following stubs were defined, but have been called already:\n\n${JSON.stringify(
           matchingCalledStubs,
-          { depth: null },
         )}`;
       }
 
       throw new Error(message);
     } else {
-      const stub = this.#stubs[index];
+      // We just verified that we can find this index.
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const stub = this.#stubs[index]!;
 
       if (stub.discardAfterMatching !== false) {
         this.#stubs.splice(index, 1);
@@ -245,22 +244,30 @@ export class FakeProvider
   }
 
   async #handleRequest(
-    stub: FakeProviderStub,
+    stub: MockInternalProviderStub,
     callback: (error: unknown, response?: JsonRpcResponse) => void,
   ): Promise<void> {
     if (stub.beforeCompleting) {
       await stub.beforeCompleting();
     }
 
+    // We need to narrow the type.
+    // eslint-disable-next-line no-restricted-syntax
     if ('implementation' in stub) {
       stub.implementation();
+      // We need to narrow the type.
+      // eslint-disable-next-line no-restricted-syntax
     } else if ('response' in stub) {
+      // We need to narrow the type.
+      // eslint-disable-next-line no-restricted-syntax
       if ('result' in stub.response) {
         return callback(null, {
           jsonrpc: '2.0',
           id: 1,
           result: stub.response.result,
         });
+        // We need to narrow the type.
+        // eslint-disable-next-line no-restricted-syntax
       } else if ('error' in stub.response) {
         return callback(null, {
           jsonrpc: '2.0',
@@ -271,6 +278,8 @@ export class FakeProvider
           },
         });
       }
+      // We need to narrow the type.
+      // eslint-disable-next-line no-restricted-syntax
     } else if ('error' in stub) {
       return callback(stub.error);
     }

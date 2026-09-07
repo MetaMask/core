@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `selectIsActiveSubscriber` to check whether a product has an active, trialing, or provisional subscription. ([#10017](https://github.com/MetaMask/core/pull/10017))
 - Add product-scoped entitlements to `SubscriptionController` state and export type-safe `selectHasEntitlement` and `selectIsUsageAvailable` selectors for Money Account Plus and Shield ([#10017](https://github.com/MetaMask/core/pull/10017))
+- Add `getBenefits` to fetch and persist Money Account Plus subscription benefits. ([#10103](https://github.com/MetaMask/core/pull/10103))
+  - New persisted `SubscriptionControllerState.benefits` field and `SubscriptionController:getBenefits` messenger action.
+  - Requires an active `MONEY_ACCOUNT_PLUS` subscription; otherwise throws `UserNotSubscribed` without calling the service.
+  - Lifecycle refreshes after entitlement polling, crypto subscribe, cancel, and uncancel are best-effort and do not fail the primary operation.
 
 ### Changed
 

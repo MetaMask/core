@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0]
+
+### Added
+
+- Add Money Account vault-config helpers, shared by the upgrade controller and clients ([#10072](https://github.com/MetaMask/core/pull/10072))
+  - `getMoneyAccountVaultConfig` and `parseMoneyAccountVaultConfig` read and validate the `moneyAccountVaultConfig` remote feature flag into a `MoneyAccountVaultConfig` whose chain id and addresses are known-good `Hex`; `underlyingToken` is optional so flags deployed before that field existed still parse
+  - `areMoneyAccountVaultConfigsEqual` compares configs field by field so consumers keyed on the config (bootstraps, caches) can detect changes
+  - `MONEY_ACCOUNT_VAULT_CONFIG_FLAG_NAME` names the flag
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.4.0` to `^69.8.0` ([#9780](https://github.com/MetaMask/core/pull/9780), [#10080](https://github.com/MetaMask/core/pull/10080), [#9798](https://github.com/MetaMask/core/pull/9798), [#9823](https://github.com/MetaMask/core/pull/9823), [#9960](https://github.com/MetaMask/core/pull/9960), [#9969](https://github.com/MetaMask/core/pull/9969), [#10046](https://github.com/MetaMask/core/pull/10046))
@@ -38,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Guards: `isMusdToken`, `isMusdTokenOnChain`, `isMusdOnMoneyAccountChain`
 - Add `getTokenDisplaySymbol`, ported from MetaMask Mobile, which canonicalises the registry symbol of the mUSD token to its branded casing (`MUSD` → `mUSD`) and passes all other symbols through unchanged ([#9397](https://github.com/MetaMask/core/pull/9397))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@1.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@1.2.0...HEAD
+[1.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@1.1.0...@metamask/money-account-utils@1.2.0
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@1.0.0...@metamask/money-account-utils@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/money-account-utils@1.0.0

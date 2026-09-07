@@ -606,7 +606,7 @@ function waitForTransactionStatus(
     };
 
     messenger.subscribe(
-      'TransactionController:stateChange', // eslint-disable-line no-restricted-syntax
+      'TransactionController:stateChange',
       handler,
       (state: TransactionControllerState) =>
         state.transactions.find((tx) => tx.id === transactionId),

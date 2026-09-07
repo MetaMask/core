@@ -10,6 +10,8 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
+import type { MockInternalProviderStub } from '@metamask/eth-json-rpc-provider';
+import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import assert from 'assert';
@@ -19,8 +21,6 @@ import { inspect, isDeepStrictEqual, promisify } from 'util';
 import { v4 as uuidV4 } from 'uuid';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
-import type { FakeProviderStub } from '../../../tests/fake-provider.js';
-import { FakeProvider } from '../../../tests/fake-provider.js';
 import { NetworkStatus } from '../src/constants.js';
 import * as createAutoManagedNetworkClientModule from '../src/create-auto-managed-network-client.js';
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client.js';
@@ -16893,7 +16893,7 @@ function buildFakeClient(
  * default.
  * @returns The object.
  */
-function buildFakeProvider(stubs: FakeProviderStub[] = []): Provider {
+function buildFakeProvider(stubs: MockInternalProviderStub[] = []): Provider {
   const completeStubs = stubs.slice();
   if (!stubs.some((stub) => stub.request.method === 'eth_getBlockByNumber')) {
     completeStubs.unshift({
@@ -16902,7 +16902,7 @@ function buildFakeProvider(stubs: FakeProviderStub[] = []): Provider {
       discardAfterMatching: false,
     });
   }
-  return new FakeProvider({ stubs: completeStubs });
+  return new MockInternalProvider({ stubs: completeStubs });
 }
 
 /**
@@ -16931,7 +16931,7 @@ async function setFakeProvider(
     stubs = [],
     stubLookupNetworkWhileSetting = false,
   }: {
-    stubs?: FakeProviderStub[];
+    stubs?: MockInternalProviderStub[];
     stubLookupNetworkWhileSetting?: boolean;
   } = {},
 ): Promise<void> {

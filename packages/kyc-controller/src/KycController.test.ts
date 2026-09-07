@@ -6,11 +6,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import { areUint8ArraysEqual, bytesToString } from '@metamask/utils';
-import { gcm } from '@noble/ciphers/aes';
 import { x25519 } from '@noble/curves/ed25519';
-import { hkdf } from '@noble/hashes/hkdf';
-import { sha256 } from '@noble/hashes/sha2';
-import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 
 import { base64UrlToBytes, toBase64Url } from './encoding.js';
 import {
@@ -26,6 +22,8 @@ import type {
 } from './types.js';
 import { verifyJwtChain } from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
+import { MoonPayFrameHandler } from './vendors/MoonPayFrameHandler.js';
+import type { MoonPayFrameHandlerOptions } from './vendors/MoonPayFrameHandler.js';
 
 // `verifyJwtChain` (JWKS attestation) and `wrapEncryptionKey` (X25519 sealing)
 // need a real signed chain / valid keys, so they are stubbed here; the rest of
@@ -47,6 +45,17 @@ jest.mock('./ukyc/wrapEncryptionKey', () => {
     wrapEncryptionKey: jest.fn(),
   };
 });
+jest.mock('./vendors/MoonPayFrameHandler', () => {
+  const actual = jest.requireActual('./vendors/MoonPayFrameHandler');
+  return {
+    ...actual,
+    MoonPayFrameHandler: jest.fn(),
+  };
+});
+
+const MockMoonPayFrameHandler = MoonPayFrameHandler as jest.MockedClass<
+  typeof MoonPayFrameHandler
+>;
 
 const mockVerifyJwtChain = verifyJwtChain as jest.MockedFunction<
   typeof verifyJwtChain
@@ -119,66 +128,43 @@ const VENDOR_TERMS_IRON_D1 = {
   },
 };
 
-/**
- * Builds an encrypted envelope for a recipient's X25519 public key.
- *
- * @param publicKey - The recipient's public key bytes.
- * @param credentials - The plaintext credentials to encrypt.
- * @returns The encrypted envelope.
- */
-function makeEnvelope(
-  publicKey: Uint8Array,
-  credentials: Record<string, unknown>,
-): { ephemeralPublicKey: string; iv: string; ciphertext: string } {
-  const ephemeralPrivate = x25519.utils.randomSecretKey();
-  const ephemeralPublic = x25519.getPublicKey(ephemeralPrivate);
-  const shared = x25519.getSharedSecret(ephemeralPrivate, publicKey);
-  const key = hkdf(sha256, shared, undefined, undefined, 32);
-  const iv = new Uint8Array(12).fill(7);
-  const ciphertext = gcm(key, iv).encrypt(
-    utf8ToBytes(JSON.stringify(credentials)),
-  );
-  return {
-    ephemeralPublicKey: bytesToHex(ephemeralPublic),
-    iv: bytesToHex(iv),
-    ciphertext: bytesToHex(ciphertext),
-  };
-}
+type MockMoonPayFrames = {
+  options: MoonPayFrameHandlerOptions;
+  startFlow: jest.Mock;
+  ensureKeypair: jest.Mock;
+  clear: jest.Mock;
+  clearAuthentication: jest.Mock;
+  handleMessage: jest.Mock;
+  buildCheckFrameUrl: jest.Mock;
+  buildAuthFrameUrl: jest.Mock;
+  buildResetFrameUrl: jest.Mock;
+};
 
 /**
- * Extracts the controller's ephemeral public key from the Check-frame URL and
- * builds a decryptable credentials envelope for it.
+ * Builds a mocked {@link MoonPayFrameHandler} that records constructor options
+ * so tests can invoke the controller callbacks it receives.
  *
- * @param controller - The controller under test (must have a session token).
- * @param credentials - The plaintext credentials to encrypt.
- * @returns The encrypted envelope.
+ * @param options - The options the controller passes into the handler.
+ * @returns The mock instance.
  */
-async function envelopeFor(
-  controller: KycController,
-  credentials: Record<string, unknown>,
-): Promise<{ ephemeralPublicKey: string; iv: string; ciphertext: string }> {
-  let url = controller.buildCheckFrameUrl();
-  if (!url) {
-    const inProgressPhases: KycController['state']['phase'][] = [
-      'session',
-      'check',
-      'auth',
-      'form',
-      'submit',
-    ];
-    if (!inProgressPhases.includes(controller.state.phase)) {
-      throw new Error(
-        'Controller needs a MoonPay frame keypair; call initialize({ vendor: "moonpay" }) first',
-      );
-    }
-    await controller.initialize({ vendor: 'moonpay' });
-    url = controller.buildCheckFrameUrl();
-  }
-  if (!url) {
-    throw new Error('Could not build Check frame URL for envelope');
-  }
-  const publicKeyHex = new URL(url).searchParams.get('publicKey') as string;
-  return makeEnvelope(hexToBytes(publicKeyHex), credentials);
+function createMockMoonPayFrames(
+  options: MoonPayFrameHandlerOptions,
+): MockMoonPayFrames {
+  return {
+    options,
+    startFlow: jest.fn(),
+    ensureKeypair: jest.fn(),
+    clear: jest.fn(),
+    clearAuthentication: jest.fn(),
+    handleMessage: jest.fn().mockResolvedValue({}),
+    buildCheckFrameUrl: jest.fn().mockReturnValue(null),
+    buildAuthFrameUrl: jest.fn().mockReturnValue(null),
+    buildResetFrameUrl: jest
+      .fn()
+      .mockReturnValue(
+        'https://blocks.moonpay.com/platform/v1/reset?channelId=ch_reset',
+      ),
+  };
 }
 
 describe('KycController', () => {
@@ -295,7 +281,7 @@ describe('KycController', () => {
             },
           },
         },
-        async ({ controller, handlers }) => {
+        async ({ controller, handlers, moonPayFrames }) => {
           await controller.initialize({
             email: 'other@b.co',
             product: 'card',
@@ -314,6 +300,28 @@ describe('KycController', () => {
           expect(controller.state.email).toBe('a@b.co');
           expect(controller.state.activeVendor).toBe('moonpay');
           expect(controller.state.moonpayCustomerId).toBe('cust-1');
+          expect(moonPayFrames.startFlow).not.toHaveBeenCalled();
+          expect(moonPayFrames.clear).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('ensures a MoonPay frame keypair when re-initialized mid-flow', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              phase: 'check',
+              moonpaySessionToken: 'live-session',
+              activeVendor: 'moonpay',
+            },
+          },
+        },
+        async ({ controller, moonPayFrames }) => {
+          await controller.initialize({ vendor: 'moonpay' });
+
+          expect(moonPayFrames.ensureKeypair).toHaveBeenCalled();
+          expect(moonPayFrames.startFlow).not.toHaveBeenCalled();
         },
       );
     });
@@ -593,34 +601,18 @@ describe('KycController', () => {
             },
           },
         },
-        async ({ controller, handlers }) => {
+        async ({ controller, handlers, moonPayFrames }) => {
           handlers.createSession.mockResolvedValue({
             sessionToken: 'new-session',
           });
 
-          // Establish an auth-frame client token from a prior authentication.
-          const envelope = await envelopeFor(controller, {
-            clientToken: 'old-client',
-          });
-          await controller.handleFrameMessage({
-            message: {
-              kind: 'complete',
-              meta: { channelId: 'ch_1' },
-              payload: { status: 'connectionRequired', credentials: envelope },
-            },
-          });
-          expect(controller.buildAuthFrameUrl()).toContain(
-            'clientToken=old-client',
-          );
-
-          // Creating a new session must invalidate the carried-over auth.
           await controller.acceptTermsAndStartSession({
             providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
+          expect(moonPayFrames.clearAuthentication).toHaveBeenCalled();
           expect(controller.state.moonpayAccessToken).toBeNull();
-          expect(controller.buildAuthFrameUrl()).toBeNull();
           expect(controller.state.moonpaySessionToken).toBe('new-session');
         },
       );
@@ -658,16 +650,11 @@ describe('KycController', () => {
           // must already be gone so no Check frame URL can be built for it.
           expect(controller.state.phase).toBe('session');
           expect(controller.state.moonpaySessionToken).toBeNull();
-          expect(controller.buildCheckFrameUrl()).toBeNull();
 
           releaseSession({ sessionToken: 'new-session' });
           await pending;
 
           expect(controller.state.moonpaySessionToken).toBe('new-session');
-          await controller.initialize({ vendor: 'moonpay' });
-          expect(controller.buildCheckFrameUrl()).toContain(
-            'sessionToken=new-session',
-          );
         },
       );
     });
@@ -698,7 +685,6 @@ describe('KycController', () => {
           // A failed creation must not leave the old session token behind, so
           // the Check frame cannot be built against an invalid session.
           expect(controller.state.moonpaySessionToken).toBeNull();
-          expect(controller.buildCheckFrameUrl()).toBeNull();
         },
       );
     });
@@ -880,282 +866,19 @@ describe('KycController', () => {
   });
 
   describe('handleFrameMessage', () => {
-    it('acks a handshake', async () => {
-      await withController(async ({ controller }) => {
-        const result = await controller.handleFrameMessage({
-          message: { kind: 'handshake', meta: { channelId: 'ch_1' } },
+    it('forwards the raw message to MoonPayFrameHandler', async () => {
+      await withController(async ({ controller, moonPayFrames }) => {
+        moonPayFrames.handleMessage.mockResolvedValue({
+          reply: { version: 2, meta: { channelId: 'ch_1' }, kind: 'ack' },
         });
+        const message = { kind: 'handshake', meta: { channelId: 'ch_1' } };
+
+        const result = await controller.handleFrameMessage({ message });
+
+        expect(moonPayFrames.handleMessage).toHaveBeenCalledWith(message);
         expect(result).toStrictEqual({
           reply: { version: 2, meta: { channelId: 'ch_1' }, kind: 'ack' },
         });
-      });
-    });
-
-    it('ignores undefined and non-complete messages', async () => {
-      await withController(async ({ controller }) => {
-        expect(
-          await controller.handleFrameMessage({ message: undefined }),
-        ).toStrictEqual({});
-        expect(
-          await controller.handleFrameMessage({ message: { kind: 'other' } }),
-        ).toStrictEqual({});
-      });
-    });
-
-    it('captures the customer id and ignores a status-less complete message', async () => {
-      await withController(
-        { options: { state: { phase: 'check' } } },
-        async ({ controller }) => {
-          const result = await controller.handleFrameMessage({
-            message: {
-              kind: 'complete',
-              meta: { channelId: 'ch_1' },
-              payload: { customer: { id: 'cust-1' } },
-            },
-          });
-          expect(result).toStrictEqual({});
-          expect(controller.state.moonpayCustomerId).toBe('cust-1');
-        },
-      );
-    });
-
-    it('ignores messages on an unknown channel', async () => {
-      await withController(async ({ controller }) => {
-        const result = await controller.handleFrameMessage({
-          message: {
-            kind: 'complete',
-            meta: { channelId: 'ch_unknown' },
-            payload: { status: 'active' },
-          },
-        });
-        expect(result).toStrictEqual({});
-      });
-    });
-
-    it('ignores a stale completion for a frame the flow is no longer waiting on', async () => {
-      // Phase `done` (e.g. after a completed flow or a `reset()` that returns
-      // to an idle phase) means the Check frame is no longer active; a late or
-      // duplicate `ch_1` completion must not resurrect tokens or rewind phase.
-      await withController(
-        { options: { state: { phase: 'done', moonpaySessionToken: 'tok' } } },
-        async ({ controller }) => {
-          const result = await controller.handleFrameMessage({
-            message: {
-              kind: 'complete',
-              meta: { channelId: 'ch_1' },
-              payload: {
-                status: 'active',
-                credentials: 'not-used',
-                customer: { id: 'cust-late' },
-              },
-            },
-          });
-          expect(result).toStrictEqual({});
-          expect(controller.state.phase).toBe('done');
-          expect(controller.state.moonpayAccessToken).toBeNull();
-          expect(controller.state.moonpayCustomerId).toBeNull();
-        },
-      );
-    });
-
-    it('ignores a Check complete when the active vendor is not MoonPay', async () => {
-      await withController(
-        {
-          options: {
-            state: {
-              phase: 'check',
-              activeVendor: 'iron',
-              moonpaySessionToken: 'tok',
-            },
-          },
-        },
-        async ({ controller }) => {
-          const result = await controller.handleFrameMessage({
-            message: {
-              kind: 'complete',
-              meta: { channelId: 'ch_1' },
-              payload: {
-                status: 'active',
-                credentials: 'not-decryptable',
-                customer: { id: 'cust-late' },
-              },
-            },
-          });
-
-          expect(result).toStrictEqual({});
-          expect(controller.state.phase).toBe('check');
-          expect(controller.state.moonpayAccessToken).toBeNull();
-          expect(controller.state.moonpayCustomerId).toBeNull();
-          expect(controller.getCustomerIdentity()).toBeNull();
-        },
-      );
-    });
-
-    it('fails when credential decryption throws', async () => {
-      await withController(
-        { options: { state: { phase: 'check', moonpaySessionToken: 'tok' } } },
-        async ({ controller }) => {
-          await controller.initialize({ vendor: 'moonpay' });
-          await controller.handleFrameMessage({
-            message: {
-              kind: 'complete',
-              meta: { channelId: 'ch_1' },
-              payload: { status: 'active', credentials: 'not-decryptable' },
-            },
-          });
-          expect(controller.state.phase).toBe('error');
-          expect(controller.state.error).toMatch(/Failed to decrypt/u);
-        },
-      );
-    });
-
-    describe('check frame', () => {
-      it('moves to form on an active status with an access token', async () => {
-        await withController(
-          {
-            options: { state: { phase: 'check', moonpaySessionToken: 'tok' } },
-          },
-          async ({ controller }) => {
-            const envelope = await envelopeFor(controller, {
-              accessToken: 'access-1',
-            });
-            await controller.handleFrameMessage({
-              message: {
-                kind: 'complete',
-                meta: { channelId: 'ch_1' },
-                payload: { status: 'active', credentials: envelope },
-              },
-            });
-            expect(controller.state.phase).toBe('form');
-            expect(controller.state.moonpayAccessToken).toBe('access-1');
-          },
-        );
-      });
-
-      it('moves to auth on connectionRequired and enables the auth frame URL', async () => {
-        await withController(
-          {
-            options: { state: { phase: 'check', moonpaySessionToken: 'tok' } },
-          },
-          async ({ controller }) => {
-            const envelope = await envelopeFor(controller, {
-              clientToken: 'client-1',
-            });
-            await controller.handleFrameMessage({
-              message: {
-                kind: 'complete',
-                meta: { channelId: 'ch_1' },
-                payload: {
-                  status: 'connectionRequired',
-                  credentials: envelope,
-                },
-              },
-            });
-            expect(controller.state.phase).toBe('auth');
-            expect(controller.buildAuthFrameUrl()).toContain(
-              'clientToken=client-1',
-            );
-          },
-        );
-      });
-
-      it('requires re-acceptance on termsAcceptanceRequired', async () => {
-        await withController(
-          {
-            options: {
-              state: {
-                phase: 'check',
-                moonpaySessionToken: 'tok',
-                ...VENDOR_TERMS_MOONPAY,
-              },
-            },
-          },
-          async ({ controller }) => {
-            await controller.handleFrameMessage({
-              message: {
-                kind: 'complete',
-                meta: { channelId: 'ch_1' },
-                payload: { status: 'termsAcceptanceRequired' },
-              },
-            });
-            expect(controller.state.phase).toBe('terms');
-            expect(
-              controller.state.vendorDisclaimersAccepted.moonpay,
-            ).toBeNull();
-          },
-        );
-      });
-
-      it('fails on an unexpected status', async () => {
-        await withController(
-          {
-            options: { state: { phase: 'check', moonpaySessionToken: 'tok' } },
-          },
-          async ({ controller }) => {
-            await controller.handleFrameMessage({
-              message: {
-                kind: 'complete',
-                meta: { channelId: 'ch_1' },
-                payload: { status: 'failed' },
-              },
-            });
-            expect(controller.state.phase).toBe('error');
-          },
-        );
-      });
-    });
-
-    describe('auth frame', () => {
-      it('moves to form on an active status with an access token', async () => {
-        await withController(
-          { options: { state: { phase: 'auth', moonpaySessionToken: 'tok' } } },
-          async ({ controller }) => {
-            const envelope = await envelopeFor(controller, {
-              accessToken: 'access-2',
-            });
-            await controller.handleFrameMessage({
-              message: {
-                kind: 'complete',
-                meta: { channelId: 'ch_2' },
-                payload: { status: 'active', credentials: envelope },
-              },
-            });
-            expect(controller.state.phase).toBe('form');
-            expect(controller.state.moonpayAccessToken).toBe('access-2');
-          },
-        );
-      });
-
-      it('requires re-acceptance on termsAcceptanceRequired', async () => {
-        await withController(
-          { options: { state: { phase: 'auth' } } },
-          async ({ controller }) => {
-            await controller.handleFrameMessage({
-              message: {
-                kind: 'complete',
-                meta: { channelId: 'ch_2' },
-                payload: { status: 'termsAcceptanceRequired' },
-              },
-            });
-            expect(controller.state.phase).toBe('terms');
-          },
-        );
-      });
-
-      it('fails on an unexpected status', async () => {
-        await withController(
-          { options: { state: { phase: 'auth' } } },
-          async ({ controller }) => {
-            await controller.handleFrameMessage({
-              message: {
-                kind: 'complete',
-                meta: { channelId: 'ch_2' },
-                payload: { status: 'unavailable' },
-              },
-            });
-            expect(controller.state.phase).toBe('error');
-          },
-        );
       });
     });
   });
@@ -1166,26 +889,15 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              phase: 'check',
-              moonpaySessionToken: 'tok',
+              phase: 'form',
+              moonpayAccessToken: 'access-1',
               geoCountry: 'USA',
             },
           },
         },
-        async ({ controller, handlers }) => {
-          const envelope = await envelopeFor(controller, {
-            accessToken: 'access-1',
-          });
+        async ({ handlers, moonPayFrames }) => {
+          await moonPayFrames.options.onAuthenticated();
 
-          await controller.handleFrameMessage({
-            message: {
-              kind: 'complete',
-              meta: { channelId: 'ch_1' },
-              payload: { status: 'active', credentials: envelope },
-            },
-          });
-
-          expect(controller.state.phase).toBe('form');
           expect(handlers.checkKycRequired).not.toHaveBeenCalled();
         },
       );
@@ -1196,26 +908,17 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              phase: 'check',
-              moonpaySessionToken: 'tok',
+              phase: 'form',
+              moonpayAccessToken: 'access-1',
               activeProduct: 'ramps',
               geoCountry: 'USA',
             },
           },
         },
-        async ({ controller, handlers, launcher }) => {
+        async ({ controller, handlers, launcher, moonPayFrames }) => {
           handlers.checkKycRequired.mockResolvedValue({ kycRequired: false });
-          const envelope = await envelopeFor(controller, {
-            accessToken: 'access-1',
-          });
 
-          await controller.handleFrameMessage({
-            message: {
-              kind: 'complete',
-              meta: { channelId: 'ch_1' },
-              payload: { status: 'active', credentials: envelope },
-            },
-          });
+          await moonPayFrames.options.onAuthenticated();
 
           expect(handlers.checkKycRequired).toHaveBeenCalledWith({
             accessToken: 'access-1',
@@ -1229,35 +932,26 @@ describe('KycController', () => {
       );
     });
 
-    it('auto-chains into document verification when KYC is required (via the auth frame)', async () => {
+    it('auto-chains into document verification when KYC is required', async () => {
       await withController(
         {
           options: {
             state: {
-              phase: 'auth',
-              moonpaySessionToken: 'tok',
+              phase: 'form',
+              moonpayAccessToken: 'access-2',
               activeProduct: 'card',
               geoCountry: 'FRA',
             },
           },
         },
-        async ({ controller, handlers, launcher }) => {
+        async ({ controller, handlers, launcher, moonPayFrames }) => {
           handlers.checkKycRequired.mockResolvedValue({ kycRequired: true });
           launcher.launch.mockImplementation(async ({ onStatusChange }) => {
             onStatusChange?.('InProgress', 'Completed');
             return { ok: true };
           });
-          const envelope = await envelopeFor(controller, {
-            accessToken: 'access-2',
-          });
 
-          await controller.handleFrameMessage({
-            message: {
-              kind: 'complete',
-              meta: { channelId: 'ch_2' },
-              payload: { status: 'active', credentials: envelope },
-            },
-          });
+          await moonPayFrames.options.onAuthenticated();
 
           expect(controller.state.kycRequiredByProduct.card).toBe(true);
           expect(launcher.launch).toHaveBeenCalledTimes(1);
@@ -1271,81 +965,20 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              phase: 'check',
-              moonpaySessionToken: 'tok',
+              phase: 'form',
+              moonpayAccessToken: 'access-1',
               activeProduct: 'ramps',
               geoCountry: 'USA',
             },
           },
         },
-        async ({ controller, handlers, launcher }) => {
+        async ({ controller, handlers, launcher, moonPayFrames }) => {
           handlers.checkKycRequired.mockResolvedValue({ kycRequired: true });
           launcher.isAvailable.mockReturnValue(false);
-          const envelope = await envelopeFor(controller, {
-            accessToken: 'access-1',
-          });
 
-          const result = await controller.handleFrameMessage({
-            message: {
-              kind: 'complete',
-              meta: { channelId: 'ch_1' },
-              payload: { status: 'active', credentials: envelope },
-            },
-          });
+          await moonPayFrames.options.onAuthenticated();
 
-          expect(result).toStrictEqual({});
           expect(controller.state.sumsub.status).toBe('failed');
-        },
-      );
-    });
-
-    it('ignores a duplicate completion while a prior continuation is in flight', async () => {
-      await withController(
-        {
-          options: {
-            state: {
-              phase: 'auth',
-              moonpaySessionToken: 'tok',
-              activeProduct: 'card',
-              geoCountry: 'FRA',
-            },
-          },
-        },
-        async ({ controller, handlers, launcher }) => {
-          // Hold the KYC-required check open so the first continuation is still
-          // in flight when the second (duplicate) completion arrives. The first
-          // completion moves `phase` to `form` synchronously, so the duplicate
-          // is dropped by the frame-phase guard before it can re-run the check.
-          let releaseCheck: (value: { kycRequired: boolean }) => void = () => {
-            // no-op placeholder until the deferred promise is wired up
-          };
-          handlers.checkKycRequired.mockReturnValue(
-            new Promise<{ kycRequired: boolean }>((resolve) => {
-              releaseCheck = resolve;
-            }),
-          );
-          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
-            onStatusChange?.('InProgress', 'Completed');
-            return { ok: true };
-          });
-          const envelope = await envelopeFor(controller, {
-            accessToken: 'access-1',
-          });
-          const message = {
-            kind: 'complete',
-            meta: { channelId: 'ch_2' },
-            payload: { status: 'active', credentials: envelope },
-          };
-
-          const first = controller.handleFrameMessage({ message });
-          const second = controller.handleFrameMessage({ message });
-
-          releaseCheck({ kycRequired: true });
-          await Promise.all([first, second]);
-
-          expect(handlers.checkKycRequired).toHaveBeenCalledTimes(1);
-          expect(launcher.launch).toHaveBeenCalledTimes(1);
-          expect(controller.state.sumsub.status).toBe('complete');
         },
       );
     });
@@ -1355,35 +988,16 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              phase: 'check',
+              phase: 'form',
               email: 'a@b.co',
-              moonpaySessionToken: 'tok',
+              moonpayAccessToken: 'access-1',
               activeProduct: 'ramps',
               geoCountry: 'USA',
-              // Persisted terms so a post-reset `initialize` auto-recreates the
-              // session (reaching phase `check`) for the second completion.
               ...VENDOR_TERMS_MOONPAY,
             },
           },
         },
-        async ({ controller, handlers }) => {
-          const envelope1 = await envelopeFor(controller, {
-            accessToken: 'access-1',
-          });
-          const messageFor = (
-            credentials: unknown,
-          ): {
-            kind: string;
-            meta: { channelId: string };
-            payload: { status: string; credentials: unknown };
-          } => ({
-            kind: 'complete',
-            meta: { channelId: 'ch_1' },
-            payload: { status: 'active', credentials },
-          });
-
-          // Hold the first continuation open so a reset can land while it is
-          // still in flight.
+        async ({ controller, handlers, moonPayFrames }) => {
           let releaseCheck: (value: { kycRequired: boolean }) => void = () => {
             // no-op placeholder until the deferred promise is wired up
           };
@@ -1393,32 +1007,22 @@ describe('KycController', () => {
             }),
           );
 
-          const first = controller.handleFrameMessage({
-            message: messageFor(envelope1),
-          });
+          const first = moonPayFrames.options.onAuthenticated();
 
-          // Reset while the continuation is awaiting the check. Its result is
-          // discarded by the generation guard (the check belongs to the
-          // superseded generation) rather than written onto the idle flow.
           controller.reset();
           releaseCheck({ kycRequired: false });
           await first;
 
-          // Re-establish a product-scoped flow (auto-creates a session and
-          // returns to phase `check`) and confirm the next completion continues
-          // again rather than being blocked forever by a stuck guard.
           handlers.fetchVendorDisclaimers.mockResolvedValue([
             { id: '1', display_name: 'T', url: 'u' },
           ]);
           handlers.createSession.mockResolvedValue({ sessionToken: 'tok-2' });
           await controller.initialize({ product: 'ramps' });
-          const envelope2 = await envelopeFor(controller, {
-            accessToken: 'access-2',
+          moonPayFrames.options.update((state) => {
+            state.moonpayAccessToken = 'access-2';
           });
           handlers.checkKycRequired.mockResolvedValue({ kycRequired: false });
-          await controller.handleFrameMessage({
-            message: messageFor(envelope2),
-          });
+          await moonPayFrames.options.onAuthenticated();
 
           expect(handlers.checkKycRequired).toHaveBeenCalledTimes(2);
         },
@@ -1430,26 +1034,17 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              phase: 'check',
-              moonpaySessionToken: 'tok',
+              phase: 'form',
+              moonpayAccessToken: 'access-1',
               activeProduct: 'ramps',
               geoCountry: 'USA',
             },
           },
         },
-        async ({ controller, handlers, launcher }) => {
+        async ({ controller, handlers, launcher, moonPayFrames }) => {
           handlers.checkKycRequired.mockRejectedValue(new Error('down'));
-          const envelope = await envelopeFor(controller, {
-            accessToken: 'access-1',
-          });
 
-          await controller.handleFrameMessage({
-            message: {
-              kind: 'complete',
-              meta: { channelId: 'ch_1' },
-              payload: { status: 'active', credentials: envelope },
-            },
-          });
+          await moonPayFrames.options.onAuthenticated();
 
           expect(controller.state.phase).toBe('error');
           expect(launcher.launch).not.toHaveBeenCalled();
@@ -1459,47 +1054,60 @@ describe('KycController', () => {
   });
 
   describe('frame URL builders', () => {
-    it('returns null for the check frame without a session', async () => {
-      await withController(({ controller }) => {
-        expect(controller.buildCheckFrameUrl()).toBeNull();
+    it('delegates Check/Auth/Reset URL construction to MoonPayFrameHandler', async () => {
+      await withController(({ controller, moonPayFrames }) => {
+        moonPayFrames.buildCheckFrameUrl.mockReturnValue(
+          'https://example.test/check',
+        );
+        moonPayFrames.buildAuthFrameUrl.mockReturnValue(
+          'https://example.test/auth',
+        );
+
+        expect(controller.buildCheckFrameUrl()).toBe(
+          'https://example.test/check',
+        );
+        expect(controller.buildAuthFrameUrl()).toBe(
+          'https://example.test/auth',
+        );
+        expect(controller.buildResetFrameUrl()).toContain('channelId=ch_reset');
+        expect(moonPayFrames.buildCheckFrameUrl).toHaveBeenCalled();
+        expect(moonPayFrames.buildAuthFrameUrl).toHaveBeenCalled();
+        expect(moonPayFrames.buildResetFrameUrl).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('MoonPay frame handler callbacks', () => {
+    it('provides the current controller state to the handler', async () => {
+      await withController(({ controller, moonPayFrames }) => {
+        expect(moonPayFrames.options.getState()).toBe(controller.state);
       });
     });
 
-    it('builds the check frame URL with a session', async () => {
-      await withController(
-        { options: { state: { moonpaySessionToken: 'tok' } } },
-        async ({ controller }) => {
-          await controller.initialize({ vendor: 'moonpay' });
-          const url = controller.buildCheckFrameUrl() as string;
-          expect(url).toContain('sessionToken=tok');
-          expect(url).toContain('channelId=ch_1');
-          expect(url).toContain('skipKyc=true');
-        },
-      );
-    });
-
-    it('returns null for the check frame when the active vendor is not MoonPay', async () => {
+    it('invalidates terms when the handler requests re-acceptance', async () => {
       await withController(
         {
           options: {
-            state: { moonpaySessionToken: 'tok', activeVendor: 'iron' },
+            state: { phase: 'check', ...VENDOR_TERMS_MOONPAY },
           },
         },
-        ({ controller }) => {
-          expect(controller.buildCheckFrameUrl()).toBeNull();
+        ({ controller, moonPayFrames }) => {
+          moonPayFrames.options.requireTermsReacceptance();
+
+          expect(controller.state.phase).toBe('terms');
+          expect(controller.state.vendorDisclaimersAccepted.moonpay).toBeNull();
         },
       );
     });
 
-    it('returns null for the auth frame without a client token', async () => {
-      await withController(({ controller }) => {
-        expect(controller.buildAuthFrameUrl()).toBeNull();
-      });
-    });
+    it('records an error when the handler reports a failure', async () => {
+      await withController(({ controller, moonPayFrames }) => {
+        moonPayFrames.options.fail('Check frame returned status: failed');
 
-    it('builds the reset frame URL', async () => {
-      await withController(({ controller }) => {
-        expect(controller.buildResetFrameUrl()).toContain('channelId=ch_reset');
+        expect(controller.state.phase).toBe('error');
+        expect(controller.state.error).toBe(
+          'Check frame returned status: failed',
+        );
       });
     });
   });
@@ -1679,13 +1287,13 @@ describe('KycController', () => {
             },
           },
         },
-        async ({ controller }) => {
+        async ({ controller, moonPayFrames }) => {
           await controller.initialize({ vendor: 'iron' });
 
           expect(controller.state.moonpayCustomerId).toBeNull();
           expect(controller.state.moonpaySessionToken).toBeNull();
           expect(controller.state.moonpayAccessToken).toBeNull();
-          expect(controller.buildCheckFrameUrl()).toBeNull();
+          expect(moonPayFrames.clear).toHaveBeenCalled();
           expect(controller.getCustomerIdentity()).toBeNull();
         },
       );
@@ -1703,13 +1311,13 @@ describe('KycController', () => {
             },
           },
         },
-        async ({ controller }) => {
+        async ({ controller, moonPayFrames }) => {
           await controller.initialize({ vendor: 'moonpay' });
 
           expect(controller.state.moonpayCustomerId).toBe('cust-1');
           expect(controller.state.moonpaySessionToken).toBe('tok');
           expect(controller.state.moonpayAccessToken).toBe('access-1');
-          expect(controller.buildCheckFrameUrl()).toContain('sessionToken=tok');
+          expect(moonPayFrames.startFlow).toHaveBeenCalled();
         },
       );
     });
@@ -1726,7 +1334,7 @@ describe('KycController', () => {
             },
           },
         },
-        async ({ controller }) => {
+        async ({ controller, moonPayFrames }) => {
           await controller.createVendorCustomer({
             vendor: 'iron',
             email: 'a@b.co',
@@ -1735,7 +1343,7 @@ describe('KycController', () => {
           expect(controller.state.moonpayCustomerId).toBeNull();
           expect(controller.state.moonpaySessionToken).toBeNull();
           expect(controller.state.moonpayAccessToken).toBeNull();
-          expect(controller.buildCheckFrameUrl()).toBeNull();
+          expect(moonPayFrames.clear).toHaveBeenCalled();
           expect(controller.getCustomerIdentity()).toBeNull();
         },
       );
@@ -2682,28 +2290,11 @@ describe('KycController', () => {
     });
 
     it('drops the auth-frame client token', async () => {
-      await withController(
-        { options: { state: { phase: 'check', moonpaySessionToken: 'tok' } } },
-        async ({ controller }) => {
-          const envelope = await envelopeFor(controller, {
-            clientToken: 'client-1',
-          });
-          await controller.handleFrameMessage({
-            message: {
-              kind: 'complete',
-              meta: { channelId: 'ch_1' },
-              payload: { status: 'connectionRequired', credentials: envelope },
-            },
-          });
-          expect(controller.buildAuthFrameUrl()).toContain(
-            'clientToken=client-1',
-          );
+      await withController(async ({ controller, moonPayFrames }) => {
+        controller.clearState();
 
-          controller.clearState();
-
-          expect(controller.buildAuthFrameUrl()).toBeNull();
-        },
-      );
+        expect(moonPayFrames.clear).toHaveBeenCalled();
+      });
     });
 
     it('stops session-status polling', async () => {
@@ -4928,6 +4519,7 @@ type WithControllerCallback<ReturnValue> = (payload: {
   rootMessenger: RootMessenger;
   handlers: ServiceHandlers;
   launcher: Launcher;
+  moonPayFrames: MockMoonPayFrames;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -5162,11 +4754,29 @@ function withController<ReturnValue>(
     launch: jest.fn().mockResolvedValue({ ok: true }),
   };
 
+  let moonPayFrames: MockMoonPayFrames | undefined;
+  MockMoonPayFrameHandler.mockImplementation(
+    (handlerOptions: MoonPayFrameHandlerOptions) => {
+      moonPayFrames = createMockMoonPayFrames(handlerOptions);
+      return moonPayFrames as unknown as MoonPayFrameHandler;
+    },
+  );
+
   const controller = new KycController({
     messenger,
     sumsubLauncher: launcher as unknown as KycSumSubLauncher,
     ...options,
   });
 
-  return testFunction({ controller, rootMessenger, handlers, launcher });
+  if (!moonPayFrames) {
+    throw new Error('MoonPayFrameHandler mock was not constructed');
+  }
+
+  return testFunction({
+    controller,
+    rootMessenger,
+    handlers,
+    launcher,
+    moonPayFrames,
+  });
 }

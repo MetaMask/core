@@ -25,6 +25,14 @@ import type {
   AnalyticsUserTraits,
   AnalyticsTrackingEvent,
 } from './AnalyticsPlatformAdapter.types';
+import type {
+  AnalyticsEventFragment,
+  AnalyticsEventFragmentFinalizeOptions,
+  AnalyticsEventFragmentOptions,
+  AnalyticsEventFragmentPayload,
+  AnalyticsEventFragments,
+  ReadonlyAnalyticsEventFragment,
+} from './EventFragment.types.js';
 import { analyticsControllerSelectors } from './selectors.js';
 
 // === GENERAL ===
@@ -35,6 +43,17 @@ import { analyticsControllerSelectors } from './selectors.js';
  * when composed with other controllers.
  */
 export const controllerName = 'AnalyticsController';
+
+/**
+ * Maximum age of a persisted event fragment, measured from
+ * {@link AnalyticsEventFragment.lastUpdated}.
+ *
+ * Fragments older than this are discarded during {@link AnalyticsController.init}
+ * without emitting a success or failure event. Confirmation journeys that span a
+ * restart are expected to resume within this window; abandoned ones must not keep
+ * `properties` or `sensitiveProperties` in storage indefinitely.
+ */
+export const EVENT_FRAGMENT_MAX_AGE = 24 * 60 * 60 * 1000;
 
 // === STATE ===
 
@@ -81,6 +100,16 @@ export type AnalyticsControllerState = {
    * This is only used when the pre-consent queue is enabled.
    */
   preConsentEventQueue?: Record<string, Json>;
+
+  /**
+   * Persisted event fragments ({@link AnalyticsEventFragment}) keyed by
+   * fragment ID. Fragments accumulate properties across a user journey and are
+   * removed when the journey is finalized or deleted. Fragments that set
+   * `persist: true` can survive {@link AnalyticsController.init}, but only
+   * while younger than {@link EVENT_FRAGMENT_MAX_AGE}.
+   * This is only used when the event fragments feature is enabled.
+   */
+  eventFragments?: AnalyticsEventFragments;
 };
 
 /**
@@ -206,6 +235,12 @@ const analyticsControllerMetadata = {
     includeInDebugSnapshot: false,
     usedInUi: false,
   },
+  eventFragments: {
+    includeInStateLogs: false,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
+  },
 } satisfies StateMetadata<AnalyticsControllerState>;
 
 // === MESSENGER ===
@@ -217,6 +252,12 @@ const MESSENGER_EXPOSED_METHODS = [
   'optIn',
   'optOut',
   'resetConsentDecision',
+  'createEventFragment',
+  'upsertEventFragment',
+  'updateEventFragment',
+  'getEventFragmentById',
+  'deleteEventFragment',
+  'finalizeEventFragment',
 ] as const;
 
 /**
@@ -330,6 +371,19 @@ export type AnalyticsControllerOptions = {
    * @default false
    */
   isGeolocationEnabled?: boolean;
+
+  /**
+   * Whether the event fragments feature is enabled.
+   *
+   * When enabled, clients can accumulate analytics properties across a user
+   * journey with {@link AnalyticsController.createEventFragment} and friends,
+   * as long as the consent state allows analytics to be captured. When
+   * disabled, every fragment method is a logged no-op and no fragment is ever
+   * written to state.
+   *
+   * @default false
+   */
+  isEventFragmentsEnabled?: boolean;
 };
 
 /**
@@ -423,6 +477,85 @@ function isAnalyticsQueuedEvent(value: unknown): value is AnalyticsQueuedEvent {
 }
 
 /**
+ * Returns whether a value is a valid persisted event fragment.
+ *
+ * @param value - The value to check.
+ * @returns True if the value is an event fragment.
+ */
+function isAnalyticsEventFragment(
+  value: unknown,
+): value is AnalyticsEventFragment {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === 'string' &&
+    typeof value.createdAt === 'number' &&
+    typeof value.lastUpdated === 'number' &&
+    isRecord(value.properties) &&
+    isRecord(value.sensitiveProperties) &&
+    (value.initialEvent === undefined ||
+      typeof value.initialEvent === 'string') &&
+    (value.successEvent === undefined ||
+      typeof value.successEvent === 'string') &&
+    (value.failureEvent === undefined ||
+      typeof value.failureEvent === 'string') &&
+    (value.context === undefined || isRecord(value.context)) &&
+    (value.persist === undefined || typeof value.persist === 'boolean')
+  );
+}
+
+/**
+ * Merges a payload into an event fragment.
+ *
+ * `properties`, `sensitiveProperties` and `context` are merged one level deep,
+ * so a key written twice is replaced rather than combined. This keeps array
+ * values predictable: writing a shorter array replaces the longer one instead
+ * of leaving stale trailing entries behind.
+ *
+ * @param fragment - The fragment to merge into.
+ * @param payload - The payload to merge.
+ * @returns A new fragment with the payload applied.
+ */
+function mergeEventFragment(
+  fragment: AnalyticsEventFragment,
+  payload: AnalyticsEventFragmentPayload,
+): AnalyticsEventFragment {
+  const context = mergeEventFragmentContext(fragment.context, payload.context);
+
+  return {
+    ...fragment,
+    properties: { ...fragment.properties, ...(payload.properties ?? {}) },
+    sensitiveProperties: {
+      ...fragment.sensitiveProperties,
+      ...(payload.sensitiveProperties ?? {}),
+    },
+    ...(context === undefined ? {} : { context }),
+    lastUpdated: Date.now(),
+  };
+}
+
+/**
+ * Merges two optional analytics contexts, preserving `undefined` when neither
+ * side has one so an empty context is never sent.
+ *
+ * @param base - The context to merge into.
+ * @param override - The context whose fields win.
+ * @returns The merged context, or `undefined` when both sides are unset.
+ */
+function mergeEventFragmentContext(
+  base: AnalyticsContext | undefined,
+  override: AnalyticsContext | undefined,
+): AnalyticsContext | undefined {
+  if (base === undefined && override === undefined) {
+    return undefined;
+  }
+
+  return { ...(base ?? {}), ...(override ?? {}) };
+}
+
+/**
  * The AnalyticsController manages analytics tracking across platforms (Mobile/Extension).
  * It provides a unified interface for tracking events, identifying users, and managing
  * analytics preferences while delegating platform-specific implementation to an
@@ -449,6 +582,8 @@ export class AnalyticsController extends BaseController<
   readonly #isPreConsentQueueEnabled: boolean;
 
   readonly #isGeolocationEnabled: boolean;
+
+  readonly #isEventFragmentsEnabled: boolean;
 
   /**
    * The in-flight (or settled) initialization promise. Set on the first
@@ -477,6 +612,7 @@ export class AnalyticsController extends BaseController<
    * @param options.isEventQueuePersistenceEnabled - Whether analytics event queue persistence is enabled
    * @param options.isPreConsentQueueEnabled - Whether the pre-consent event queue is enabled
    * @param options.isGeolocationEnabled - Whether geolocation enrichment is enabled
+   * @param options.isEventFragmentsEnabled - Whether the event fragments feature is enabled
    * @throws Error if state.analyticsId is missing or not a valid UUIDv4
    * @remarks After construction, call {@link AnalyticsController.init} to complete initialization.
    */
@@ -488,6 +624,7 @@ export class AnalyticsController extends BaseController<
     isEventQueuePersistenceEnabled = false,
     isPreConsentQueueEnabled = false,
     isGeolocationEnabled = false,
+    isEventFragmentsEnabled = false,
   }: AnalyticsControllerOptions) {
     const initialState: AnalyticsControllerState = {
       ...getDefaultAnalyticsControllerState(),
@@ -510,6 +647,7 @@ export class AnalyticsController extends BaseController<
     this.#isEventQueuePersistenceEnabled = isEventQueuePersistenceEnabled;
     this.#isPreConsentQueueEnabled = isPreConsentQueueEnabled;
     this.#isGeolocationEnabled = isGeolocationEnabled;
+    this.#isEventFragmentsEnabled = isEventFragmentsEnabled;
     this.#platformAdapter = platformAdapter;
     this.#initPromise = undefined;
     this.#locationResolvePromise = undefined;
@@ -527,6 +665,7 @@ export class AnalyticsController extends BaseController<
       eventQueuePersistenceEnabled: this.#isEventQueuePersistenceEnabled,
       preConsentQueueEnabled: this.#isPreConsentQueueEnabled,
       geolocationEnabled: this.#isGeolocationEnabled,
+      eventFragmentsEnabled: this.#isEventFragmentsEnabled,
     });
   }
 
@@ -563,6 +702,22 @@ export class AnalyticsController extends BaseController<
    * and pre-consent events.
    */
   async #performInit(): Promise<void> {
+    // Snapshot fragment IDs and createdAt before any awaited init work so
+    // reconciliation can tell previous-session leftovers from fragments
+    // created or replaced while init runs.
+    const initEventFragmentSnapshot = new Map<string, number>();
+    for (const [id, fragment] of Object.entries(
+      this.state.eventFragments ?? {},
+    )) {
+      if (
+        isAnalyticsEventFragment(fragment) &&
+        fragment.id === id &&
+        typeof fragment.createdAt === 'number'
+      ) {
+        initEventFragmentSnapshot.set(id, fragment.createdAt);
+      }
+    }
+
     // Resolve geolocation only when the user is already opted in; for undecided
     // or opted-out users it is deferred to {@link optIn}. Awaited so that an
     // already-opted-in session has location available before events replay.
@@ -579,6 +734,7 @@ export class AnalyticsController extends BaseController<
 
     this.#replayQueuedEvents();
     this.#reconcilePreConsentEvents();
+    this.#reconcileEventFragments(initEventFragmentSnapshot);
   }
 
   /**
@@ -1024,6 +1180,249 @@ export class AnalyticsController extends BaseController<
   }
 
   /**
+   * Reconcile persisted event fragments on initialization.
+   *
+   * A fragment describes a journey that was in progress when the previous
+   * session ended. Only fragments that opted into `persist` and are younger
+   * than {@link EVENT_FRAGMENT_MAX_AGE} can be resumed, so the rest are
+   * discarded. Nothing is emitted: a journey that never reached its own
+   * finalization is not a failure, just an unfinished one.
+   *
+   * If the feature is disabled (e.g. a previous session had it enabled), or the
+   * consent state no longer allows capture (e.g. the fragments were written
+   * before the user opted out), every persisted fragment is dropped so none of
+   * them can linger.
+   *
+   * Non-persistent fragments are dropped only when their ID and `createdAt`
+   * match a fragment present at the start of {@link init}. Fragments created
+   * or replaced while init is in flight are kept so a slow startup path cannot
+   * discard an in-progress journey, as long as they have not expired.
+   *
+   * @param initEventFragmentSnapshot - Fragment IDs and `createdAt` values
+   * present when {@link init} began.
+   */
+  #reconcileEventFragments(
+    initEventFragmentSnapshot: Map<string, number>,
+  ): void {
+    const fragments = this.state.eventFragments;
+
+    if (!fragments) {
+      return;
+    }
+
+    if (!this.#isEventFragmentsEnabled || !this.#isAnalyticsCaptureAllowed()) {
+      this.#clearEventFragments();
+      return;
+    }
+
+    this.#purgeStaleEventFragments(fragments, initEventFragmentSnapshot);
+  }
+
+  /**
+   * Drop every persisted fragment that is invalid, expired, did not opt into
+   * `persist`, or was already present with the same `createdAt` when
+   * {@link init} began.
+   *
+   * Only called by {@link #reconcileEventFragments}, which guarantees the
+   * fragments exist and that the event fragments feature is enabled.
+   *
+   * @param currentEventFragments - The persisted fragments to filter.
+   * @param initEventFragmentSnapshot - Fragment IDs and `createdAt` values
+   * present when {@link init} began.
+   */
+  #purgeStaleEventFragments(
+    currentEventFragments: AnalyticsEventFragments,
+    initEventFragmentSnapshot: Map<string, number>,
+  ): void {
+    const eventFragments: AnalyticsEventFragments = {};
+    const now = Date.now();
+
+    for (const [id, fragment] of Object.entries(currentEventFragments)) {
+      if (!isAnalyticsEventFragment(fragment) || fragment.id !== id) {
+        log('Dropping invalid persisted event fragment', { id });
+        continue;
+      }
+
+      if (now - fragment.lastUpdated > EVENT_FRAGMENT_MAX_AGE) {
+        log('Dropping expired persisted event fragment', { id });
+        continue;
+      }
+
+      const snapshotCreatedAt = initEventFragmentSnapshot.get(id);
+
+      if (
+        fragment.persist === true ||
+        snapshotCreatedAt === undefined ||
+        fragment.createdAt !== snapshotCreatedAt
+      ) {
+        eventFragments[id] = fragment;
+      }
+    }
+
+    if (
+      Object.keys(eventFragments).length ===
+      Object.keys(currentEventFragments).length
+    ) {
+      return;
+    }
+
+    this.update((state) => {
+      state.eventFragments = eventFragments as never;
+    });
+  }
+
+  /**
+   * Read an event fragment from state without the feature guard.
+   *
+   * @param id - The fragment ID.
+   * @returns The fragment, or `undefined` when no fragment has that ID.
+   */
+  #getEventFragment(id: string): AnalyticsEventFragment | undefined {
+    return this.state.eventFragments?.[id];
+  }
+
+  /**
+   * Write an event fragment to state, replacing any fragment with the same ID.
+   *
+   * @param fragment - The fragment to store.
+   */
+  #setEventFragment(fragment: AnalyticsEventFragment): void {
+    const eventFragments: AnalyticsEventFragments = {
+      ...this.state.eventFragments,
+      [fragment.id]: fragment,
+    };
+
+    this.update((state) => {
+      state.eventFragments = eventFragments as never;
+    });
+  }
+
+  /**
+   * Remove an event fragment from state.
+   *
+   * @param id - The fragment ID.
+   */
+  #removeEventFragment(id: string): void {
+    const currentEventFragments = this.state.eventFragments;
+
+    if (
+      !currentEventFragments ||
+      !Object.prototype.hasOwnProperty.call(currentEventFragments, id)
+    ) {
+      return;
+    }
+
+    const { [id]: _deletedFragment, ...eventFragments } = currentEventFragments;
+
+    this.update((state) => {
+      state.eventFragments = eventFragments as never;
+    });
+  }
+
+  /**
+   * Clear all event fragments.
+   */
+  #clearEventFragments(): void {
+    if (
+      !this.state.eventFragments ||
+      Object.keys(this.state.eventFragments).length === 0
+    ) {
+      return;
+    }
+
+    this.update((state) => {
+      state.eventFragments = {} as never;
+    });
+  }
+
+  /**
+   * Returns whether an event fragment call should be ignored, either because
+   * the feature is disabled or because the consent state does not allow
+   * capture. The ignored call is logged so a missing `isEventFragmentsEnabled`
+   * or an unexpected consent state is diagnosable rather than silent.
+   *
+   * Consent is checked on every call, not just on the ones that emit, so a
+   * fragment never accumulates data for an event that could not be delivered.
+   *
+   * @param method - The name of the method that was called.
+   * @returns True when the call should be ignored.
+   */
+  #shouldIgnoreEventFragmentCall(method: string): boolean {
+    if (!this.#isEventFragmentsEnabled) {
+      log(
+        'Ignoring event fragment call because the event fragments feature is disabled',
+        { method },
+      );
+
+      return true;
+    }
+
+    if (!this.#isAnalyticsCaptureAllowed()) {
+      log(
+        'Ignoring event fragment call because the consent state does not allow capturing analytics',
+        { method },
+      );
+
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Emit one of an event fragment's events, carrying the properties the
+   * fragment has accumulated.
+   *
+   * Delivery goes through {@link trackEvent}, so consent gating, the anonymous
+   * payload split, the pre-consent queue and geolocation enrichment all apply.
+   *
+   * @param fragment - The fragment supplying the properties.
+   * @param name - The name of the event to emit.
+   * @param context - The context to send with the event.
+   */
+  #emitEventFragment(
+    fragment: AnalyticsEventFragment,
+    name: string,
+    context: AnalyticsContext | undefined,
+  ): void {
+    const properties = { ...fragment.properties };
+    const sensitiveProperties = { ...fragment.sensitiveProperties };
+
+    this.trackEvent(
+      {
+        name,
+        properties,
+        sensitiveProperties,
+        saveDataRecording: false,
+        hasProperties:
+          Object.keys(properties).length > 0 ||
+          Object.keys(sensitiveProperties).length > 0,
+      },
+      context,
+    );
+  }
+
+  /**
+   * Returns whether the current consent state allows analytics data to be
+   * captured, either for immediate delivery or to be held until the user
+   * decides.
+   *
+   * Capture is allowed once the user has opted in, and also while they are
+   * undecided if the pre-consent queue is enabled: what is captured then is
+   * replayed when they opt in (see {@link optIn}) and discarded if they opt out
+   * (see {@link optOut}). An explicit opt-out never allows capture.
+   *
+   * @returns True when analytics data may be captured.
+   */
+  #isAnalyticsCaptureAllowed(): boolean {
+    if (analyticsControllerSelectors.selectEnabled(this.state)) {
+      return true;
+    }
+
+    return this.#isPreConsentQueueEnabled && !this.state.consentDecisionMade;
+  }
+
+  /**
    * Track an analytics event.
    *
    * Events are only tracked if analytics is enabled.
@@ -1032,16 +1431,11 @@ export class AnalyticsController extends BaseController<
    * @param context - Optional platform-specific context forwarded to the platform adapter.
    */
   trackEvent(event: AnalyticsTrackingEvent, context?: AnalyticsContext): void {
-    if (!analyticsControllerSelectors.selectEnabled(this.state)) {
-      // While the user is undecided, fall through so the event is processed and
-      // captured in the pre-consent queue (see #sendOrQueueTrackEvent) to be
-      // replayed if they later opt in. Otherwise (opted out, or pre-consent
-      // queue disabled) drop it.
-      const shouldQueuePreConsent =
-        this.#isPreConsentQueueEnabled && !this.state.consentDecisionMade;
-      if (!shouldQueuePreConsent) {
-        return;
-      }
+    // An event captured while the user is still undecided is held in the
+    // pre-consent queue (see #sendOrQueueTrackEvent) instead of being
+    // delivered, and replayed if they later opt in.
+    if (!this.#isAnalyticsCaptureAllowed()) {
+      return;
     }
 
     // if event does not have properties, send event without properties
@@ -1133,6 +1527,204 @@ export class AnalyticsController extends BaseController<
   }
 
   /**
+   * Create an event fragment.
+   *
+   * A fragment accumulates properties across a user journey so that several
+   * parts of a client can contribute to the same set of events without
+   * re-deriving them. Declaring `successEvent` and `failureEvent` turns the
+   * fragment into a funnel that {@link finalizeEventFragment} closes. Declaring
+   * none of the event names makes it a pure property bag that the client reads
+   * back with {@link getEventFragmentById} when it emits its own events.
+   *
+   * Any existing fragment with the same ID is replaced, so a new journey never
+   * inherits properties from a stale one.
+   *
+   * Nothing is created unless the user is opted in, or undecided with the
+   * pre-consent queue enabled, so an opted-out user accumulates no fragment
+   * data.
+   *
+   * @param options - The fragment definition. An ID is generated when one is
+   * not supplied.
+   * @returns A read-only copy of the created fragment, or `undefined` when the
+   * event fragments feature is disabled or the consent state does not allow
+   * capture. Mutating the returned object does not change controller state.
+   * Use {@link updateEventFragment} or {@link upsertEventFragment} to write.
+   */
+  createEventFragment(
+    options: AnalyticsEventFragmentOptions = {},
+  ): ReadonlyAnalyticsEventFragment | undefined {
+    if (this.#shouldIgnoreEventFragmentCall('createEventFragment')) {
+      return undefined;
+    }
+
+    const now = Date.now();
+
+    const fragment: AnalyticsEventFragment = {
+      id: options.id ?? uuid(),
+      properties: { ...(options.properties ?? {}) },
+      sensitiveProperties: { ...(options.sensitiveProperties ?? {}) },
+      createdAt: now,
+      lastUpdated: now,
+      ...(options.initialEvent === undefined
+        ? {}
+        : { initialEvent: options.initialEvent }),
+      ...(options.successEvent === undefined
+        ? {}
+        : { successEvent: options.successEvent }),
+      ...(options.failureEvent === undefined
+        ? {}
+        : { failureEvent: options.failureEvent }),
+      ...(options.context === undefined
+        ? {}
+        : { context: { ...options.context } }),
+      ...(options.persist === undefined ? {} : { persist: options.persist }),
+    };
+
+    this.#setEventFragment(fragment);
+
+    if (fragment.initialEvent) {
+      this.#emitEventFragment(
+        fragment,
+        fragment.initialEvent,
+        fragment.context,
+      );
+    }
+
+    return cloneDeep(fragment);
+  }
+
+  /**
+   * Write to an event fragment, creating a property bag if none exists.
+   *
+   * This is the ergonomic entry point for contributors that do not know
+   * whether the journey has been started yet, and it avoids the read then
+   * write race a caller would otherwise have to implement itself.
+   *
+   * @param id - The fragment ID.
+   * @param payload - The properties and context to merge in.
+   */
+  upsertEventFragment(
+    id: string,
+    payload: AnalyticsEventFragmentPayload = {},
+  ): void {
+    if (this.#shouldIgnoreEventFragmentCall('upsertEventFragment')) {
+      return;
+    }
+
+    const fragment = this.#getEventFragment(id);
+
+    if (!fragment) {
+      this.createEventFragment({ id, ...payload });
+      return;
+    }
+
+    this.#setEventFragment(mergeEventFragment(fragment, payload));
+  }
+
+  /**
+   * Write to an existing event fragment.
+   *
+   * @param id - The fragment ID.
+   * @param payload - The properties and context to merge in.
+   * @throws Error if no fragment has that ID when the call is not ignored.
+   * Use {@link upsertEventFragment} when the fragment may not exist yet.
+   * When the event fragments feature is disabled or the consent state does not
+   * allow capture, the call is a logged no-op and does not throw.
+   */
+  updateEventFragment(
+    id: string,
+    payload: AnalyticsEventFragmentPayload = {},
+  ): void {
+    if (this.#shouldIgnoreEventFragmentCall('updateEventFragment')) {
+      return;
+    }
+
+    const fragment = this.#getEventFragment(id);
+
+    if (!fragment) {
+      throw new Error(`Event fragment with id ${id} does not exist.`);
+    }
+
+    this.#setEventFragment(mergeEventFragment(fragment, payload));
+  }
+
+  /**
+   * Read an event fragment.
+   *
+   * @param id - The fragment ID.
+   * @returns A read-only copy of the fragment, or `undefined` when no fragment
+   * has that ID, the event fragments feature is disabled, or the consent state
+   * does not allow capture. Mutating the returned object does not change
+   * controller state. Use {@link updateEventFragment} or
+   * {@link upsertEventFragment} to write.
+   */
+  getEventFragmentById(id: string): ReadonlyAnalyticsEventFragment | undefined {
+    if (this.#shouldIgnoreEventFragmentCall('getEventFragmentById')) {
+      return undefined;
+    }
+
+    const fragment = this.#getEventFragment(id);
+
+    return fragment === undefined ? undefined : cloneDeep(fragment);
+  }
+
+  /**
+   * Discard an event fragment without emitting anything.
+   *
+   * @param id - The fragment ID.
+   */
+  deleteEventFragment(id: string): void {
+    if (this.#shouldIgnoreEventFragmentCall('deleteEventFragment')) {
+      return;
+    }
+
+    this.#removeEventFragment(id);
+  }
+
+  /**
+   * Close an event fragment, emitting its closing event and discarding it.
+   *
+   * The event emitted is `failureEvent` when the journey was abandoned and
+   * `successEvent` otherwise. A fragment that does not declare the relevant
+   * event name is discarded silently, which is what makes a pure property bag
+   * possible.
+   *
+   * @param id - The fragment ID.
+   * @param options - Finalization options.
+   * @param options.abandoned - Whether the journey was abandoned.
+   * @param options.context - Context merged over the fragment's own context.
+   * @throws Error if no fragment has that ID when the call is not ignored.
+   * When the event fragments feature is disabled or the consent state does not
+   * allow capture, the call is a logged no-op and does not throw.
+   */
+  finalizeEventFragment(
+    id: string,
+    { abandoned = false, context }: AnalyticsEventFragmentFinalizeOptions = {},
+  ): void {
+    if (this.#shouldIgnoreEventFragmentCall('finalizeEventFragment')) {
+      return;
+    }
+
+    const fragment = this.#getEventFragment(id);
+
+    if (!fragment) {
+      throw new Error(`Event fragment with id ${id} does not exist.`);
+    }
+
+    const eventName = abandoned ? fragment.failureEvent : fragment.successEvent;
+
+    if (eventName) {
+      this.#emitEventFragment(
+        fragment,
+        eventName,
+        mergeEventFragmentContext(fragment.context, context),
+      );
+    }
+
+    this.#removeEventFragment(id);
+  }
+
+  /**
    * Opt in to analytics.
    *
    * Records that a consent decision has been made and replays any events that
@@ -1165,7 +1757,8 @@ export class AnalyticsController extends BaseController<
    * Opt out of analytics.
    *
    * Records that a consent decision has been made and discards any persisted
-   * events so nothing captured before the decision is ever delivered.
+   * events and in-progress event fragments so nothing captured before the
+   * decision is ever delivered.
    */
   optOut(): void {
     this.update((state) => {
@@ -1175,6 +1768,7 @@ export class AnalyticsController extends BaseController<
 
     this.#clearQueuedEvents();
     this.#clearPreConsentEvents();
+    this.#clearEventFragments();
   }
 
   /**
@@ -1184,6 +1778,10 @@ export class AnalyticsController extends BaseController<
    * preference and discards the delivery queue, but preserves any pre-consent
    * events so they can still be replayed if the user opts in again. The user is
    * treated as undecided again.
+   *
+   * In-progress event fragments are kept only while the undecided user can
+   * still accumulate them, and discarded otherwise, so no fragment outlives the
+   * consent state that allowed it.
    */
   resetConsentDecision(): void {
     this.update((state) => {
@@ -1192,5 +1790,9 @@ export class AnalyticsController extends BaseController<
     });
 
     this.#clearQueuedEvents();
+
+    if (!this.#isAnalyticsCaptureAllowed()) {
+      this.#clearEventFragments();
+    }
   }
 }

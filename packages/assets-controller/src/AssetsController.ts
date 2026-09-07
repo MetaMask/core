@@ -1307,7 +1307,10 @@ export class AssetsController extends BaseController<
 
       this.update((state) => {
         result.applyPatch(
-          state as Pick<AssetsControllerState, 'assetsInfo' | 'assetsBalance'>,
+          state as Pick<
+            AssetsControllerState,
+            'assetsInfo' | 'assetsBalance' | 'assetsPrice'
+          >,
           {
             spamAssetIds: result.spamAssetIds,
           },
