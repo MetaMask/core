@@ -956,6 +956,7 @@ describe('KycController', () => {
           expect(controller.state.kycRequiredByProduct.card).toBe(true);
           expect(launcher.launch).toHaveBeenCalledTimes(1);
           expect(controller.state.sumsub.status).toBe('complete');
+          expect(handlers.fetchKycStatus).toHaveBeenCalled();
         },
       );
     });
@@ -2016,6 +2017,81 @@ describe('KycController', () => {
         expect(controller.state.sumsub.result).toBeNull();
         expect(controller.state.phase).toBe('idle');
       });
+    });
+
+    it('pauses user-status polling while the SDK is open and resumes after it closes', async () => {
+      jest.useFakeTimers();
+      try {
+        await withController(
+          { options: { userStatusPollIntervalMs: 1000 } },
+          async ({ controller, handlers, launcher }) => {
+            handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
+            await controller.refreshKycStatus();
+            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(1);
+
+            let releaseLaunch: (value: { ok: boolean }) => void = () =>
+              undefined;
+            launcher.launch.mockReturnValue(
+              new Promise((resolve) => {
+                releaseLaunch = resolve;
+              }),
+            );
+
+            const pending = controller.startSumSub();
+            while (launcher.launch.mock.calls.length === 0) {
+              await Promise.resolve();
+            }
+            handlers.fetchKycStatus.mockClear();
+            await jest.advanceTimersByTimeAsync(3000);
+            expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+
+            releaseLaunch({ ok: false });
+            await pending;
+
+            expect(handlers.fetchKycStatus).toHaveBeenCalled();
+            handlers.fetchKycStatus.mockClear();
+            await jest.advanceTimersByTimeAsync(1000);
+            expect(handlers.fetchKycStatus).toHaveBeenCalled();
+          },
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('does not resume user-status polling when reset() lands during launch', async () => {
+      jest.useFakeTimers();
+      try {
+        await withController(
+          { options: { userStatusPollIntervalMs: 1000 } },
+          async ({ controller, handlers, launcher }) => {
+            handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
+            await controller.refreshKycStatus();
+
+            let releaseLaunch: (value: { ok: boolean }) => void = () =>
+              undefined;
+            launcher.launch.mockReturnValue(
+              new Promise((resolve) => {
+                releaseLaunch = resolve;
+              }),
+            );
+
+            const pending = controller.startSumSub();
+            while (launcher.launch.mock.calls.length === 0) {
+              await Promise.resolve();
+            }
+            controller.reset();
+            releaseLaunch({ ok: true });
+            await pending;
+            handlers.fetchKycStatus.mockClear();
+            await jest.advanceTimersByTimeAsync(3000);
+
+            expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+          },
+        );
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 
@@ -3583,7 +3659,9 @@ describe('KycController', () => {
             // The spent session is still dropped.
             expect(controller.state.sumsub.sessionId).toBeNull();
             expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
-            expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+            // User-status polling resumes from startSumSub, but abandon is not
+            // a verification decision so phase stays on terms.
+            expect(controller.state.userStatus).not.toBe('completed');
           },
         );
       },
