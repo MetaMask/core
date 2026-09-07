@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Wire `SubscriptionDelegationService` into the default wallet initialization.
+- Wire `SubscriptionDelegationService` into the default wallet initialization. ([#10130](https://github.com/MetaMask/core/pull/10130))
   - Stateless orchestrator for Money Account Plus subscription-payment delegation setup via `SubscriptionDelegationService:prepareDelegation`.
   - Delegates `AuthenticatedUserStorageService:listDelegations`, `AuthenticatedUserStorageService:createDelegation`, `ChompApiService:verifyDelegation`, `ChompApiService:createIntents`, `ChompApiService:getIntentsByAddress`, `ChompApiService:getServiceDetails`, `DelegationController:signDelegation`, and `RemoteFeatureFlagController:getState` from the wallet root messenger.
   - Hosts must register `AuthenticatedUserStorageService`, `ChompApiService`, and `DelegationController` on the supplied root messenger before calling `prepareDelegation`; `RemoteFeatureFlagController` is already initialized by default.
