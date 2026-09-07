@@ -190,6 +190,28 @@ describe('SamplePetnamesController', () => {
         },
       );
     });
+
+    it('publishes state changes through the messenger', async () => {
+      await withController(({ controller, controllerMessenger }) => {
+        const stateChangeListener = jest.fn();
+        controllerMessenger.subscribe(
+          // eslint-disable-next-line no-restricted-syntax
+          'SamplePetnamesController:stateChange',
+          stateChangeListener,
+        );
+
+        controller.assignPetname('0x1', '0xAAAAAA', 'Account 1');
+
+        expect(stateChangeListener).toHaveBeenCalledTimes(1);
+        expect(stateChangeListener.mock.calls[0][0]).toStrictEqual({
+          namesByChainIdAndAddress: {
+            '0x1': {
+              '0xaaaaaa': 'Account 1',
+            },
+          },
+        });
+      });
+    });
   });
 
   describe('metadata', () => {

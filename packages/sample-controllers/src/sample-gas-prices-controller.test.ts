@@ -335,6 +335,28 @@ describe('SampleGasPricesController', () => {
         });
       });
     });
+
+    it('calls the gas prices service through the messenger', async () => {
+      await withController(async ({ controller, rootMessenger, messenger }) => {
+        const chainId = '0x42';
+        rootMessenger.registerActionHandler(
+          'SampleGasPricesService:fetchGasPrices',
+          async () => ({
+            low: 5,
+            average: 10,
+            high: 15,
+          }),
+        );
+        const messengerCall = jest.spyOn(messenger, 'call');
+
+        await controller.updateGasPrices({ chainId });
+
+        expect(messengerCall).toHaveBeenCalledWith(
+          'SampleGasPricesService:fetchGasPrices',
+          chainId,
+        );
+      });
+    });
   });
 
   describe('metadata', () => {
