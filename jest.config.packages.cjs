@@ -87,6 +87,7 @@ module.exports = {
       '<rootDir>/../json-rpc-engine/src/v2/index.ts',
     ],
     '^@metamask/utils/node$': require.resolve('@metamask/utils/node'),
+    '^@metamask/utils$': require.resolve('@metamask/utils'),
     '^@metamask/(.+)$': [
       '<rootDir>/../$1/src',
       // Some @metamask/* packages we are referencing aren't in this monorepo,

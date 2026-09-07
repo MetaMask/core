@@ -59,7 +59,7 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/profile-sync-controller": "^32.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/utils": "^11.12.0",
+    "@metamask/utils": "^12.0.0",
     "@noble/ciphers": "^1.3.0",
     "@noble/curves": "^1.9.2",
     "@noble/hashes": "^1.8.0",

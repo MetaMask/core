@@ -76,7 +76,7 @@
     "@metamask/eslint-config-typescript": "^15.0.0",
     "@metamask/network-controller": "^37.0.0",
     "@metamask/skills": "^0.1.0",
-    "@metamask/utils": "^11.12.0",
+    "@metamask/utils": "^12.0.0",
     "@types/jest": "^30.0.0",
     "@types/lodash": "^4.17.20",
     "@types/node": "^22.13.14",
