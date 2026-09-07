@@ -733,7 +733,7 @@ describe('AssetsController', () => {
 
       await withController(
         {
-          remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+          remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
           await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
@@ -1404,7 +1404,7 @@ describe('AssetsController', () => {
       await withController(
         {
           queryApiClient,
-          remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+          remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
           await flushPromises();
@@ -1448,7 +1448,7 @@ describe('AssetsController', () => {
       await withController(
         {
           queryApiClient,
-          remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+          remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
           await flushPromises();
@@ -1499,7 +1499,7 @@ describe('AssetsController', () => {
       await withController(
         {
           queryApiClient,
-          remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+          remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
           await flushPromises();
@@ -1595,7 +1595,7 @@ describe('AssetsController', () => {
 
       await withController(
         {
-          remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+          remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
           await controller.addCustomAsset(MOCK_ACCOUNT_ID, mainnetToken);
@@ -1641,7 +1641,7 @@ describe('AssetsController', () => {
 
       await withController(
         {
-          remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+          remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
           await controller.addCustomAsset(MOCK_ACCOUNT_ID, pinnedToken);
@@ -1684,7 +1684,7 @@ describe('AssetsController', () => {
 
       await withController(
         {
-          remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+          remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
           await controller.getAssets([createMockInternalAccount()], {
@@ -1722,7 +1722,7 @@ describe('AssetsController', () => {
 
       await withController(
         {
-          remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+          remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
           await controller.getAssets([createMockInternalAccount()], {
@@ -1769,7 +1769,7 @@ describe('AssetsController', () => {
       await withController(
         {
           queryApiClient,
-          remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+          remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
           await flushPromises();
@@ -1787,6 +1787,51 @@ describe('AssetsController', () => {
               excludeAssetIds: expect.arrayContaining([hiddenToken]),
             }),
             expect.anything(),
+          );
+        },
+      );
+    });
+
+    it('forwards bypassServerCache on Accounts API v6 force updates', async () => {
+      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+        accounts: [],
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+      });
+
+      const queryApiClient = {
+        ...createMockQueryApiClient(),
+        accounts: {
+          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+            fullSupport: [1],
+            partialSupport: [],
+          }),
+          fetchV6MultiAccountBalances,
+          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+            balances: [],
+            unprocessedNetworks: [],
+          }),
+        },
+      } as unknown as ApiPlatformClient;
+
+      await withController(
+        {
+          queryApiClient,
+          remoteFeatureFlags: { assetsAccountsApiV6: true },
+        },
+        async ({ controller }) => {
+          await flushPromises();
+
+          await controller.getAssets([createMockInternalAccount()], {
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+            bypassServerCache: true,
+          });
+
+          expect(fetchV6MultiAccountBalances).toHaveBeenCalledWith(
+            expect.any(Array),
+            undefined,
+            expect.objectContaining({ bypassServerCache: true }),
           );
         },
       );
@@ -1911,7 +1956,7 @@ describe('AssetsController', () => {
         await withController(
           {
             queryApiClient,
-            remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+            remoteFeatureFlags: { assetsAccountsApiV6: true },
           },
           async ({ controller }) => {
             await flushPromises();
@@ -2442,7 +2487,7 @@ describe('AssetsController', () => {
       };
 
       await withController(
-        { remoteFeatureFlags: { assetsAccountsApiV6: { value: true } } },
+        { remoteFeatureFlags: { assetsAccountsApiV6: true } },
         async ({ controller }) => {
           rpcMiddlewareGetter.mockClear();
 
@@ -2483,7 +2528,7 @@ describe('AssetsController', () => {
       };
 
       await withController(
-        { remoteFeatureFlags: { assetsAccountsApiV6: { value: true } } },
+        { remoteFeatureFlags: { assetsAccountsApiV6: true } },
         async ({ controller }) => {
           rpcMiddlewareGetter.mockClear();
 
@@ -2714,7 +2759,7 @@ describe('AssetsController', () => {
         .mockResolvedValue(undefined);
 
       await withController(
-        { remoteFeatureFlags: { assetsAccountsApiV6: { value: true } } },
+        { remoteFeatureFlags: { assetsAccountsApiV6: true } },
         async ({ controller }) => {
           await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
 
@@ -3896,7 +3941,7 @@ describe('AssetsController', () => {
         {
           clientControllerState: { isUiOpen: true },
           queryApiClient,
-          remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+          remoteFeatureFlags: { assetsAccountsApiV6: true },
           state: {
             assetsBalance: {
               [MOCK_ACCOUNT_ID]: {

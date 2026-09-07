@@ -4,7 +4,7 @@ This branch keeps the previous balance behavior and the new Accounts API v6
 behavior side by side behind the `assetsAccountsApiV6` remote feature flag.
 
 - Flag off, missing, or unreadable: use the legacy **v5** path.
-- `assetsAccountsApiV6: { value: true }`: use the new **v6** path.
+- `assetsAccountsApiV6: true`: use the new **v6** path.
 
 The flag is read only in `AssetsController.#isBalanceV6Enabled()` and injected
 into `AccountsApiDataSource`, `RpcFallbackMiddleware`, and `RpcDataSource`.

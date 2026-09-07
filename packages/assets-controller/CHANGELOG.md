@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - When `assetsAccountsApiV6` is enabled, the `getAssets` force-update fast pipeline runs `RpcFallbackMiddleware` after Accounts API so `unprocessedIncludeAssetIds` are recovered on RPC before state is committed (same as poll enrichment). Chains that still have unresolved pins are also kept on the slow RPC lane.
 - **BREAKING:** Remove the unused `updateMode` option from `AssetsController.getAssets`. Apply mode comes only from `DataResponse.updateMode` (data sources). Remove `'update'` from `AssetsUpdateMode` — it was never produced; use `'merge'` to overlay or `'full'` to replace a covered chain slice ([#9651](https://github.com/MetaMask/core/pull/9651))
 
+### Fixed
+
+- Treat `assetsAccountsApiV6` as enabled when it is `true` ([#9651](https://github.com/MetaMask/core/pull/9651))
+
 ## [16.0.0]
 
 ### Changed

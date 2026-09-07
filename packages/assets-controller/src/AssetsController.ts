@@ -1746,6 +1746,7 @@ export class AssetsController extends BaseController<
    * @param requestOptions.assetTypes - Asset types to fetch.
    * @param requestOptions.dataTypes - Data types to fetch.
    * @param requestOptions.forceUpdate - Always `true` to bypass caches.
+   * @param requestOptions.bypassServerCache - Also bypass server-side HTTP caches.
    * @param requestOptions.assetsForPriceUpdate - Assets to refresh prices for.
    * @returns The v5 data request.
    */
@@ -1756,6 +1757,7 @@ export class AssetsController extends BaseController<
       assetTypes: AssetType[];
       dataTypes: DataType[];
       forceUpdate: true;
+      bypassServerCache?: boolean;
       assetsForPriceUpdate?: Caip19AssetId[];
     },
   ): DataRequest {
@@ -1780,6 +1782,7 @@ export class AssetsController extends BaseController<
    * @param requestOptions.assetTypes - Asset types to fetch.
    * @param requestOptions.dataTypes - Data types to fetch.
    * @param requestOptions.forceUpdate - Always `true` to bypass caches.
+   * @param requestOptions.bypassServerCache - Also bypass server-side HTTP caches.
    * @param requestOptions.assetsForPriceUpdate - Assets to refresh prices for.
    * @param requestOptions.customAssetsOverride - Pinned assets to use instead of the stored custom assets.
    * @returns The v6 data request.
@@ -1791,6 +1794,7 @@ export class AssetsController extends BaseController<
       assetTypes: AssetType[];
       dataTypes: DataType[];
       forceUpdate: true;
+      bypassServerCache?: boolean;
       assetsForPriceUpdate?: Caip19AssetId[];
       customAssetsOverride?: Caip19AssetId[];
     },
@@ -1820,6 +1824,7 @@ export class AssetsController extends BaseController<
       assetTypes: requestOptions.assetTypes,
       dataTypes: requestOptions.dataTypes,
       forceUpdate: requestOptions.forceUpdate,
+      bypassServerCache: requestOptions.bypassServerCache,
       assetsForPriceUpdate: requestOptions.assetsForPriceUpdate,
       customAssets: customAssets.length > 0 ? customAssets : undefined,
       excludeAssetIds: hiddenAssets.length > 0 ? hiddenAssets : undefined,
@@ -2627,23 +2632,20 @@ export class AssetsController extends BaseController<
    * Whether Accounts API v6 (and the v6 custom-asset path) is enabled.
    * Injected into AccountsApiDataSource and RpcFallbackMiddleware.
    *
+   * `RemoteFeatureFlagController` resolves a threshold-scoped flag to the
+   * selected group's `value`, so processed state is a boolean.
+   *
    * @returns `true` when the v6 remote flag is on.
    */
   #isBalanceV6Enabled(): boolean {
-    return true;
-    // try {
-    //   const { remoteFeatureFlags } = this.messenger.call(
-    //     'RemoteFeatureFlagController:getState',
-    //   );
-    //   const flag = remoteFeatureFlags?.assetsAccountsApiV6;
-    //   return (
-    //     typeof flag === 'object' &&
-    //     flag !== null &&
-    //     Boolean((flag as { value?: unknown }).value)
-    //   );
-    // } catch {
-    //   return false;
-    // }
+    try {
+      const { remoteFeatureFlags } = this.messenger.call(
+        'RemoteFeatureFlagController:getState',
+      );
+      return remoteFeatureFlags?.assetsAccountsApiV6 === true;
+    } catch {
+      return false;
+    }
   }
 
   // ============================================================================
