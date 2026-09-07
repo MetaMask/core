@@ -14,7 +14,7 @@ export enum MonorepoFiles {
 export enum Placeholders {
   CurrentYear = 'CURRENT_YEAR',
   NodeVersions = 'NODE_VERSIONS',
-  PackageName = 'PACKAGE_NAME',
+  PackageName = '@metamask/package-template',
   PackageDescription = 'PACKAGE_DESCRIPTION',
   PackageDirectoryName = 'PACKAGE_DIRECTORY_NAME',
 }

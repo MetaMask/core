@@ -83,6 +83,9 @@ module.exports = defineConfig({
       const isPrivate =
         hasProperty(workspace.manifest, 'private') &&
         workspace.manifest.private === true;
+      const isTemplate =
+        workspace.manifest.name === '@metamask/package-template';
+
       const dependenciesByIdentAndType = getDependenciesByIdentAndType(
         Yarn.dependencies({ workspace }),
       );
@@ -110,11 +113,19 @@ module.exports = defineConfig({
         expectWorkspaceField(workspace, 'keywords', ['Ethereum', 'MetaMask']);
 
         // All non-root packages must have a homepage URL that includes its name.
-        expectWorkspaceField(
-          workspace,
-          'homepage',
-          `${repositoryUri}/tree/main/packages/${workspaceBasename}#readme`,
-        );
+        if (isTemplate) {
+          expectWorkspaceField(
+            workspace,
+            'homepage',
+            `${repositoryUri}/tree/main/packages/PACKAGE_DIRECTORY_NAME#readme`,
+          );
+        } else {
+          expectWorkspaceField(
+            workspace,
+            'homepage',
+            `${repositoryUri}/tree/main/packages/${workspaceBasename}#readme`,
+          );
+        }
 
         // All non-root packages must have a URL for reporting bugs that points
         // to the Issues page for the repository.
@@ -289,7 +300,9 @@ module.exports = defineConfig({
         // All non-root packages must have a valid README.md file.
         await expectReadme(workspace, workspaceBasename, isPrivate);
 
-        await expectCodeowner(workspace, workspaceBasename);
+        if (!isTemplate) {
+          await expectCodeowner(workspace, workspaceBasename);
+        }
       }
     }
 
