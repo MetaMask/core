@@ -159,7 +159,7 @@ type AllowedActions =
   | KeyringControllerWithKeyringV2UnsafeAction
   | SeedlessOnboardingControllerGetStateAction;
 
-type AllowedEvents = KeyringControllerLockEvent | KeyringControllerUnlockEvent;
+type AllowedEvents = never;
 
 // Messenger
 export type AuthenticationControllerMessenger = Messenger<
@@ -185,27 +185,10 @@ export class AuthenticationController extends BaseController<
     env: Env.PRD,
   };
 
-  #isUnlocked = false;
-
   // Bumped by `requestProfilePairing`. `performSignIn` snapshots this
   // before its first await; if it changes mid-flight we must NOT clear
   // `needsProfilePairing` (the rearm signal wins).
   #profilePairingRequestEpoch = 0;
-
-  readonly #keyringController = {
-    setupLockedStateSubscriptions: () => {
-      const { isUnlocked } = this.messenger.call('KeyringController:getState');
-      this.#isUnlocked = isUnlocked;
-
-      this.messenger.subscribe('KeyringController:unlock', () => {
-        this.#isUnlocked = true;
-      });
-
-      this.messenger.subscribe('KeyringController:lock', () => {
-        this.#isUnlocked = false;
-      });
-    },
-  };
 
   constructor({
     messenger,
@@ -261,8 +244,6 @@ export class AuthenticationController extends BaseController<
       },
     );
 
-    this.#keyringController.setupLockedStateSubscriptions();
-
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
@@ -301,7 +282,8 @@ export class AuthenticationController extends BaseController<
   }
 
   #assertIsUnlocked(methodName: string): void {
-    if (!this.#isUnlocked) {
+    const { isUnlocked } = this.messenger.call('KeyringController:getState');
+    if (!isUnlocked) {
       throw new Error(`${methodName} - unable to proceed, wallet is locked`);
     }
   }
