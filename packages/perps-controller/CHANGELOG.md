@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Handle zero minimum order amounts and margin fractions reported by Lighter for inactive markets by omitting unusable retired rows, while keeping valid delisted metadata and active market values strict. ([#10110](https://github.com/MetaMask/core/pull/10110))
+
 ## [16.1.0]
 
 ### Fixed

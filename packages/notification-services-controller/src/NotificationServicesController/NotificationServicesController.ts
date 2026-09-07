@@ -287,13 +287,14 @@ const getEnabledAccounts = async (
 
 /**
  * Builds a fresh `NotificationPreferences` blob using hardcoded defaults for
- * Perps, Social AI, and Agentic CLI and the user's marketing/product-announcement
- * flags.
+ * Perps, Social AI, and Agentic CLI and the user's
+ * marketing/product-announcement flags.
  *
- * `walletActivity.accounts` is deliberately left empty. Addresses are scoped to a
- * keyring, but this blob is keyed by canonical profile ID, which pairing shares
- * across every SRP belonging to the same user — so storing them here pools the
- * addresses of unrelated SRPs. Subscriptions live in the Trigger API instead.
+ * `walletActivity` is written only because the blob schema requires the field;
+ * nothing reads it back. Both channels are always on, and subscriptions are
+ * held per address by the Trigger API rather than here — addresses are scoped
+ * to a keyring, but this blob is keyed by canonical profile ID, which pairing
+ * shares across every SRP belonging to the same user.
  *
  * @param hasMarketingConsent - Whether marketing push notifications should be enabled.
  * @param productAnnouncementEnabled - Whether marketing in-app notifications should be enabled.
@@ -809,29 +810,6 @@ export class NotificationServicesController extends BaseController<
   }
 
   /**
-   * Reads the global wallet-activity push toggle from
-   * {@link AuthenticatedUserStorageService}.
-   *
-   * Only the channel boolean is read. It is a user-level setting that contains
-   * no addresses, so sharing it across a paired profile is correct. The address
-   * list in the same blob is deliberately ignored — see
-   * {@link buildFreshPreferences}.
-   *
-   * A missing or unreadable blob counts as enabled, matching the API's "every
-   * toggle is on unless stated otherwise" default, so that a storage outage does
-   * not silently stop notifications.
-   *
-   * @returns Whether wallet-activity push notifications are enabled.
-   */
-  async #isWalletActivityPushEnabled(): Promise<boolean> {
-    const preferences = await this.messenger
-      .call('AuthenticatedUserStorageService:getNotificationPreferences')
-      .catch(() => null);
-
-    return preferences?.walletActivity.pushNotificationsEnabled ?? true;
-  }
-
-  /**
    * Registers this device for push notifications on the given addresses.
    *
    * An empty list cannot be sent: the push API rejects a registration with no
@@ -934,11 +912,6 @@ export class NotificationServicesController extends BaseController<
    */
   public async enablePushNotifications(): Promise<void> {
     try {
-      if (!(await this.#isWalletActivityPushEnabled())) {
-        await this.#pushNotifications.disablePushNotifications();
-        return;
-      }
-
       const { bearerToken } = await this.#getBearerToken();
       const { accounts } = this.#accounts.listAccounts();
       const enabledAddresses = await getEnabledAccounts(
@@ -1069,9 +1042,6 @@ export class NotificationServicesController extends BaseController<
 
       const isFirstTimeSetup = preferences === null;
 
-      const isPushEnabled =
-        preferences?.walletActivity.pushNotificationsEnabled ?? true;
-
       // 2. Subscribe the keyring's accounts on first-time setup only.
       //
       // This method also runs on the daily re-subscribe, so the absence of a
@@ -1127,9 +1097,7 @@ export class NotificationServicesController extends BaseController<
 
       if (opts.registerPushNotifications ?? true) {
         // Attempt FCM/device registration only; clients must request OS permission separately.
-        this.#registerPushNotifications(
-          isPushEnabled ? accountsWithNotifications : [],
-        ).catch(() => {
+        this.#registerPushNotifications(accountsWithNotifications).catch(() => {
           // Do Nothing
         });
       }
@@ -1315,10 +1283,7 @@ export class NotificationServicesController extends BaseController<
 
       // Raw On Chain Notifications
       const rawOnChainNotifications: NormalisedAPINotification[] = [];
-      const isWalletActivityInAppEnabled =
-        notificationPreferences?.walletActivity.inAppNotificationsEnabled ??
-        true;
-      if (isGlobalNotifsEnabled && isWalletActivityInAppEnabled) {
+      if (isGlobalNotifsEnabled) {
         try {
           const { bearerToken } = await this.#getBearerToken();
           // Addresses come from the keyring, so this installation can only ever
