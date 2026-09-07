@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AccountTreeSnapshot:strip{Metadata,Secrets}` support ([#10112](https://github.com/MetaMask/core/pull/10112))
+  - This can be used to mutate the snapshot before calling `:importState` and ease custom flow integration where secrets and metadata would be imported in 2-steps.
+
 ## [8.1.0]
 
 ### Added
