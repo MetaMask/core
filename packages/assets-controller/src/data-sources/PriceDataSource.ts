@@ -477,7 +477,11 @@ export class PriceDataSource {
     }
   }
 
-  /** Price API supported CAIP-2 networks; empty on error. */
+  /**
+   * Price API supported networks.
+   *
+   * @returns CAIP-2 chain IDs; empty on error.
+   */
   async #getSupportedNetworks(): Promise<Set<string>> {
     try {
       const response = await fetchWithTimeout(

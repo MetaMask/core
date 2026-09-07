@@ -1125,11 +1125,15 @@ describe('PriceDataSource', () => {
       const next = jest.fn().mockResolvedValue(undefined);
 
       const context1 = createMiddlewareContext({
-        request: createDataRequest({ assetsForPriceUpdate: [MOCK_TOKEN_ASSET] }),
+        request: createDataRequest({
+          assetsForPriceUpdate: [MOCK_TOKEN_ASSET],
+        }),
         response: {},
       });
       const context2 = createMiddlewareContext({
-        request: createDataRequest({ assetsForPriceUpdate: [MOCK_TOKEN_ASSET] }),
+        request: createDataRequest({
+          assetsForPriceUpdate: [MOCK_TOKEN_ASSET],
+        }),
         response: {},
       });
 
