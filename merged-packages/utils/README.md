@@ -65,3 +65,42 @@ The project follows the same release process as the other libraries in the MetaM
    - Be very careful to use a clean local environment to publish the release, and follow exactly the same steps used during CI.
    - Use `npm publish --dry-run` to examine the release contents to ensure the correct files are included. Compare to previous releases if necessary (e.g. using `https://unpkg.com/browse/[package name]@[package version]/`).
    - Once you are confident the release contents are correct, publish the release using `npm publish`.
+
+### Testing changes in other projects using preview builds
+
+If you are working on a pull request and want to test changes in another project before you publish them, you can create a _preview build_ and then configure your project to use it.
+
+#### Creating a preview build
+
+1. Within your pull request, post a comment with the text `@metamaskbot publish-preview`. This starts the `publish-preview` GitHub action, which will create a preview build and publish it to NPM.
+2. After a few minutes, the action should complete and you will see a new comment. Note two things:
+   - The name is scoped to `@metamask-previews` instead of `@metamask`.
+   - The ID of the last commit in the branch is appended to the version, e.g. `1.2.3-preview-e2df9b4` instead of `1.2.3`.
+
+#### Using a preview build
+
+To use a preview build within a project, you need to override the resolution logic for your package manager so that the "production" version of that package is replaced with the preview version. Here's how you do that:
+
+1. Open `package.json` in the project and locate the entry for this package in `dependencies`.
+2. Locate the section responsible for resolution overrides (or create it if it doesn't exist). If you're using Yarn, this is `resolutions`; if you're using NPM or any other package manager, this is `overrides`.
+3. Add a line to this section that mirrors the dependency entry on the left-hand side and points to the preview version on the right-hand side. Note the exact format of the left-hand side will differ based on which version of Yarn or NPM you are using. For example:
+   - For Yarn Modern, you will add something like this to `resolutions`:
+     ```
+     "@metamask/utils@^1.2.3": "npm:@metamask-previews/utils@1.2.3-preview-abcdefg"
+     ```
+   - For Yarn Classic, you will add something like this to `resolutions`:
+     ```
+     "@metamask/utils": "npm:@metamask-previews/utils@1.2.3-preview-abcdefg"
+     ```
+   - For NPM, you will add something like this to `overrides`:
+     ```
+     "@metamask/utils": "npm:@metamask-previews/utils@1.2.3-preview-abcdefg"
+     ```
+4. Run `yarn install`.
+
+#### Updating a preview build
+
+If you make more changes to your pull request and want to create a new preview build:
+
+1. Post another `@metamaskbot` comment on the pull request and wait for the response.
+2. Update the version of the preview build in your project's `package.json`. Make sure to re-run `yarn install`!
