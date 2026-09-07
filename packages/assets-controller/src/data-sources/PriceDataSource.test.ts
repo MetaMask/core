@@ -1104,8 +1104,6 @@ describe('PriceDataSource', () => {
   });
 
   it('coalesces parallel fetches for the same asset into a single API call', async () => {
-    jest.useRealTimers();
-
     let resolveApi: ((value: Record<string, unknown>) => void) | undefined;
     const apiPromise = new Promise<Record<string, unknown>>((resolve) => {
       resolveApi = resolve;
@@ -1117,44 +1115,43 @@ describe('PriceDataSource', () => {
       },
     });
 
-    try {
-      apiClient.prices.fetchV3SpotPrices.mockReturnValue(apiPromise);
+    // Make the API call hang until we resolve manually
+    apiClient.prices.fetchV3SpotPrices.mockReturnValue(apiPromise);
 
-      const next = jest.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
 
-      const context1 = createMiddlewareContext({
-        request: createDataRequest({
-          assetsForPriceUpdate: [MOCK_TOKEN_ASSET],
-        }),
-        response: {},
-      });
-      const context2 = createMiddlewareContext({
-        request: createDataRequest({
-          assetsForPriceUpdate: [MOCK_TOKEN_ASSET],
-        }),
-        response: {},
-      });
+    // Fire two parallel middleware calls for the same asset
+    const context1 = createMiddlewareContext({
+      request: createDataRequest({ assetsForPriceUpdate: [MOCK_TOKEN_ASSET] }),
+      response: {},
+    });
+    const context2 = createMiddlewareContext({
+      request: createDataRequest({ assetsForPriceUpdate: [MOCK_TOKEN_ASSET] }),
+      response: {},
+    });
 
-      const promise1 = controller.assetsMiddleware(context1, next);
-      const promise2 = controller.assetsMiddleware(context2, next);
+    const promise1 = controller.assetsMiddleware(context1, next);
+    const promise2 = controller.assetsMiddleware(context2, next);
 
-      await waitFor(() => {
-        expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
-      });
+    // Only ONE API call should have been made (second call joins inflight)
+    await jest.advanceTimersByTimeAsync(10000);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
-      expect(resolveApi).toBeDefined();
-      if (resolveApi) {
-        resolveApi({ [MOCK_TOKEN_ASSET]: createMockPriceData(1.0) });
-      }
-      await Promise.all([promise1, promise2]);
-
-      expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
-      expect(context1.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeDefined();
-      expect(context2.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeDefined();
-    } finally {
-      controller.destroy();
-      jest.useFakeTimers();
+    // Resolve the API
+    expect(resolveApi).toBeDefined();
+    if (resolveApi) {
+      resolveApi({ [MOCK_TOKEN_ASSET]: createMockPriceData(1.0) });
     }
+    await Promise.all([promise1, promise2]);
+
+    // Still only one API call total
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+
+    // Both contexts received the price
+    expect(context1.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeDefined();
+    expect(context2.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeDefined();
+
+    controller.destroy();
   });
 
   it('freshness is per-asset — stale assets are fetched while fresh ones are skipped', async () => {
