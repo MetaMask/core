@@ -16,7 +16,11 @@ import type {
   AssetsControllerStateInternal,
 } from '../types.js';
 import { DedupingBatchFetcher } from '../utils/dedupingBatchFetcher.js';
-import { fetchWithTimeout, normalizeAssetId } from '../utils/index.js';
+import {
+  fetchWithTimeout,
+  normalizeAssetId,
+  safeNormalizeAssetId,
+} from '../utils/index.js';
 import type { SubscriptionRequest } from './AbstractDataSource.js';
 import { reduceInBatchesSerially } from './evm-rpc-services/index.js';
 
@@ -110,6 +114,50 @@ type SpotPriceMarketData = Omit<
 >;
 
 /**
+ * Deduper cache/inflight key: the currency a price was requested in, prefixed
+ * onto the asset ID. Without this, a currency switch racing an in-flight
+ * fetch for the same asset ID can join a promise fetched under the previous
+ * currency (see {@link makeDeduperKey}).
+ */
+type PriceDeduperKey = `${SupportedCurrency}:${Caip19AssetId}`;
+
+/**
+ * Build a currency-scoped deduper key so requests for the same asset under
+ * different currencies never collide in the deduper's per-key cache/inflight
+ * maps — a currency switch always produces a key the deduper has never seen,
+ * so it can never join a promise fetched under the previous currency.
+ *
+ * @param currency - The currency the price is requested in.
+ * @param assetId - The CAIP-19 asset ID.
+ * @returns The composite deduper key.
+ */
+function makeDeduperKey(
+  currency: SupportedCurrency,
+  assetId: Caip19AssetId,
+): PriceDeduperKey {
+  return `${currency}:${assetId}`;
+}
+
+/**
+ * Split a composite deduper key back into its currency and asset ID. Splits
+ * on the first colon only — currency codes never contain one, and CAIP-19
+ * asset IDs always do.
+ *
+ * @param key - The composite deduper key.
+ * @returns The currency and asset ID that made up the key.
+ */
+function parseDeduperKey(key: PriceDeduperKey): {
+  currency: SupportedCurrency;
+  assetId: Caip19AssetId;
+} {
+  const separatorIndex = key.indexOf(':');
+  return {
+    currency: key.slice(0, separatorIndex) as SupportedCurrency,
+    assetId: key.slice(separatorIndex + 1) as Caip19AssetId,
+  };
+}
+
+/**
  * Type guard to check if market data has a valid price
  *
  * @param data - The data to check.
@@ -159,7 +207,7 @@ export class PriceDataSource {
    * overlapping triggers (middleware + subscription poll) don't issue duplicate
    * API requests.
    */
-  readonly #deduper: DedupingBatchFetcher<Caip19AssetId, FungibleAssetPrice>;
+  readonly #deduper: DedupingBatchFetcher<PriceDeduperKey, FungibleAssetPrice>;
 
   /** Active subscriptions by ID */
   readonly #activeSubscriptions: Map<
@@ -179,9 +227,9 @@ export class PriceDataSource {
     this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
     this.#deduper = new DedupingBatchFetcher({
       fetchBatch: (
-        assetIds,
-      ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> =>
-        this.#executeBatchFetch(assetIds),
+        keys,
+      ): Promise<Record<PriceDeduperKey, FungibleAssetPrice>> =>
+        this.#executeBatchFetch(keys),
       freshnessTtlMs: options.priceFreshnessTtlMs ?? this.#pollInterval,
     });
   }
@@ -254,7 +302,12 @@ export class PriceDataSource {
       }
 
       if (request.forceUpdate) {
-        this.#deduper.invalidateKeys(priceableAssetIds);
+        const currentCurrency = this.#getSelectedCurrency();
+        this.#deduper.invalidateKeys(
+          priceableAssetIds.map((assetId) =>
+            makeDeduperKey(currentCurrency, safeNormalizeAssetId(assetId)),
+          ),
+        );
       }
 
       try {
@@ -325,18 +378,65 @@ export class PriceDataSource {
   }
 
   /**
-   * Execute the actual batched API call for a set of asset IDs and return
+   * Execute the actual batched API call for a set of deduper keys and return
    * parsed price results. Used as the `fetchBatch` callback for the deduper,
    * so it does NOT check freshness or inflight state — that is handled by
    * {@link DedupingBatchFetcher}.
    *
-   * @param assetIds - Asset IDs to fetch (already filtered/deduplicated).
-   * @returns Parsed prices keyed by CAIP-19 asset ID.
+   * Every key in one call shares the same currency (they all originate from a
+   * single {@link #fetchSpotPrices} call, which snapshots the currency once)
+   * — so the currency is decoded from the keys themselves rather than
+   * re-reading {@link #getSelectedCurrency}, which could have moved on to a
+   * different currency by the time this async callback actually runs.
+   *
+   * The returned record is keyed by the *requested* deduper key (asset ID
+   * normalized the same way the caller's key was), not by whatever casing the
+   * Price API's response happens to use — otherwise a caller joining this
+   * fetch as an inflight promise looks up its own (normalized) key against a
+   * differently-cased response key and gets nothing back.
+   *
+   * Asset IDs from response bodies are treated as untrusted: normalization
+   * uses {@link safeNormalizeAssetId}, which cannot throw, so one
+   * unexpected/malformed key in a large batch response can't discard every
+   * other (valid) asset's price in the same batch.
+   *
+   * If the currently-selected currency has moved on from the currency this
+   * batch was fetched under by the time it settles (a currency switch raced
+   * this fetch), the result is discarded entirely rather than returned —
+   * closing the race one step earlier than deduper-key isolation alone does:
+   * key isolation stops a *new* request from joining a stale-currency
+   * fetch, but a slow stale-currency fetch that was already independently
+   * in flight would otherwise still complete normally and let its
+   * now-superseded values reach the caller (and, from there, state).
+   *
+   * @param keys - Deduper keys to fetch (already filtered/deduplicated).
+   * @returns Parsed prices keyed by the same deduper key that was requested,
+   * or an empty record if the batch's currency is no longer selected.
    */
   async #executeBatchFetch(
-    assetIds: Caip19AssetId[],
-  ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> {
-    const selectedCurrency = this.#getSelectedCurrency();
+    keys: PriceDeduperKey[],
+  ): Promise<Record<PriceDeduperKey, FungibleAssetPrice>> {
+    if (keys.length === 0) {
+      return {};
+    }
+
+    // All keys in one batch share a currency (see doc comment above).
+    const { currency: selectedCurrency } = parseDeduperKey(keys[0]);
+    const assetIdToKey = new Map<Caip19AssetId, PriceDeduperKey>();
+    for (const key of keys) {
+      const { currency, assetId } = parseDeduperKey(key);
+      if (currency !== selectedCurrency) {
+        // Should be unreachable: #fetchSpotPrices only ever builds keys for
+        // one currency per call. Guard against it anyway rather than fetch
+        // some assets under the wrong currency if this invariant is ever
+        // broken by a future change.
+        throw new Error(
+          `PriceDataSource: batch contains mixed currencies (${selectedCurrency} and ${currency})`,
+        );
+      }
+      assetIdToKey.set(assetId, key);
+    }
+    const assetIds = [...assetIdToKey.keys()];
 
     type BatchResult = {
       selectedCurrencyPrices: V3SpotPricesResponse;
@@ -356,14 +456,42 @@ export class PriceDataSource {
       initialResult: [],
     });
 
+    if (this.#getSelectedCurrency() !== selectedCurrency) {
+      // The currency changed while this batch was in flight. Its values are
+      // for a currency nobody is displaying anymore — discard rather than
+      // let them flow into the caller (and from there, state) mislabeled
+      // under a currency they were never fetched in.
+      return {};
+    }
+
     const fetchedAt = Date.now();
-    const prices: Record<Caip19AssetId, FungibleAssetPrice> = {};
+    const prices: Record<PriceDeduperKey, FungibleAssetPrice> = {};
 
     for (const { selectedCurrencyPrices, usdPrices } of batchResults) {
-      for (const [assetId, marketData] of Object.entries(
+      // Index the USD companion response by normalized asset ID too — the
+      // two responses come from separate API calls, and nothing guarantees
+      // they use identical casing for the same asset.
+      const normalizedUsdPrices = new Map<Caip19AssetId, unknown>();
+      for (const [rawAssetId, marketData] of Object.entries(usdPrices)) {
+        normalizedUsdPrices.set(
+          safeNormalizeAssetId(rawAssetId as Caip19AssetId),
+          marketData,
+        );
+      }
+
+      for (const [rawAssetId, marketData] of Object.entries(
         selectedCurrencyPrices,
       )) {
-        const usdMarketData = usdPrices[assetId];
+        // The Price API's response key casing does not necessarily match the
+        // requested (normalized) casing — normalize it back so the result is
+        // keyed the same way the request was. Untrusted input: falls back to
+        // the raw ID (which then simply won't match anything in
+        // `assetIdToKey`) rather than throwing and discarding the rest of
+        // the batch.
+        const normalizedAssetId = safeNormalizeAssetId(
+          rawAssetId as Caip19AssetId,
+        );
+        const usdMarketData = normalizedUsdPrices.get(normalizedAssetId);
 
         if (
           !isValidMarketData(marketData) ||
@@ -372,7 +500,13 @@ export class PriceDataSource {
           continue;
         }
 
-        prices[assetId as Caip19AssetId] = {
+        const key = assetIdToKey.get(normalizedAssetId);
+        if (key === undefined) {
+          // Response contains an asset we didn't ask for; ignore it.
+          continue;
+        }
+
+        prices[key] = {
           ...marketData,
           assetPriceType: 'fungible',
           usdPrice: usdMarketData.price,
@@ -386,16 +520,43 @@ export class PriceDataSource {
 
   /**
    * Fetch spot prices for all provided asset IDs, deduplicating via the
-   * deduper (freshness TTL + per-asset inflight coalescing).
+   * deduper (freshness TTL + per-asset, per-currency inflight coalescing).
+   *
+   * Both the deduper key and the returned record are built from the
+   * normalized asset ID, even if the caller passed an unnormalized one —
+   * so (a) two callers that mean the same real-world asset but formatted the
+   * address differently (e.g. one checksummed, one lowercase) join the same
+   * cache/inflight entry instead of silently missing each other, and (b) the
+   * result is keyed the same way state (`assetsPrice`) is, which is always
+   * normalized (see `AssetsController`'s response normalization).
    *
    * @param assetIds - Array of CAIP-19 asset IDs.
-   * @returns Spot prices response (only contains entries for assets that were
-   * actually fetched or joined from inflight).
+   * @returns Spot prices response, keyed by the *normalized* asset ID —
+   * only contains entries for assets that were actually fetched or joined
+   * from inflight.
    */
   async #fetchSpotPrices(
     assetIds: Caip19AssetId[],
   ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> {
-    return this.#deduper.fetch(assetIds);
+    const currency = this.#getSelectedCurrency();
+    const keyToAssetId = new Map<PriceDeduperKey, Caip19AssetId>();
+    const keys = assetIds.map((assetId) => {
+      const normalizedAssetId = safeNormalizeAssetId(assetId);
+      const key = makeDeduperKey(currency, normalizedAssetId);
+      keyToAssetId.set(key, normalizedAssetId);
+      return key;
+    });
+
+    const results = await this.#deduper.fetch(keys);
+
+    const prices: Record<Caip19AssetId, FungibleAssetPrice> = {};
+    for (const [key, price] of Object.entries(results)) {
+      const assetId = keyToAssetId.get(key as PriceDeduperKey);
+      if (assetId !== undefined) {
+        prices[assetId] = price;
+      }
+    }
+    return prices;
   }
 
   /**
