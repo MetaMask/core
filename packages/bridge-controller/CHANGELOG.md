@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.8.0` to `^69.8.1` ([#10124](https://github.com/MetaMask/core/pull/10124))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.1.0` to `^6.1.1` ([#10129](https://github.com/MetaMask/core/pull/10129))
 
 ## [80.2.0]
 
