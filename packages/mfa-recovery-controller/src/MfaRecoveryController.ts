@@ -265,6 +265,7 @@ export class MfaRecoveryController extends BaseController<
     await this.#runRecoveryMutation({
       operation: 'register',
       payload: {
+        epoch: 0,
         recoverySecret: bytesToSecretHex(recoverySecret),
         identifiers,
       },
@@ -277,15 +278,20 @@ export class MfaRecoveryController extends BaseController<
    *
    * @param identifier - Currently registered identifier used to authorize.
    * @param recoverySecret - New secret.
+   * @param epoch - Current recovery version, used as `expectedVersion`.
    */
   async updateRecoverySecret(
     identifier: Identifier,
     recoverySecret: Uint8Array,
+    epoch: number,
   ): Promise<void> {
     this.#assertKnownIdentifierTypes([identifier]);
     await this.#runRecoveryMutation({
       operation: 'updateRecoverySecret',
-      payload: { recoverySecret: bytesToSecretHex(recoverySecret) },
+      payload: {
+        epoch,
+        recoverySecret: bytesToSecretHex(recoverySecret),
+      },
       identifier,
     });
   }
@@ -295,10 +301,12 @@ export class MfaRecoveryController extends BaseController<
    *
    * @param identifier - Currently registered identifier used to authorize.
    * @param identifiers - New non-empty identifier set.
+   * @param epoch - Current recovery version, used as `expectedVersion`.
    */
   async updateIdentifiers(
     identifier: Identifier,
     identifiers: Identifier[],
+    epoch: number,
   ): Promise<void> {
     this.#assertKnownIdentifierTypes([identifier, ...identifiers]);
     if (identifiers.length === 0) {
@@ -309,7 +317,7 @@ export class MfaRecoveryController extends BaseController<
     }
     await this.#runRecoveryMutation({
       operation: 'updateIdentifiers',
-      payload: { identifiers },
+      payload: { epoch, identifiers },
       identifier,
     });
   }
@@ -396,11 +404,7 @@ export class MfaRecoveryController extends BaseController<
       const profileId = await this.#authProvider.getAuthenticatedProfileId();
       const targets = await this.#requireAllEscrows(configured);
       const audiences = [...this.#escrowIds];
-      const currentVersion = await this.#resolveCurrentRecoveryVersion({
-        operation,
-        profileId,
-        targets,
-      });
+      const currentVersion = this.#resolveCurrentRecoveryVersion(payload);
       const payloadHash = await hash(payload);
       const mutation = await this.#createMutation({
         id: randomId(),
@@ -419,20 +423,17 @@ export class MfaRecoveryController extends BaseController<
         identifier,
       });
 
-      const authControllerToken = await this.#authorizeMutation(
-        mutation,
-        payload,
-      );
-      const pending: WritingPendingOperation = {
-        phase: 'writing',
-        mutation,
-        authControllerToken,
-        payload,
-        identifier,
-        receipts: [],
-      };
-      await this.#persistPending(pending);
-      await this.#replicateMutation({ escrows: targets, pending });
+      await this.#replicateMutation({
+        escrows: targets,
+        pending: {
+          phase: 'writing',
+          mutation,
+          authControllerToken: await this.#authorizeMutation(mutation, payload),
+          payload,
+          identifier,
+          receipts: [],
+        },
+      });
     });
   }
 
@@ -478,21 +479,19 @@ export class MfaRecoveryController extends BaseController<
     }
     if (saved.phase === 'authorizing') {
       const availableEscrows = await this.#requireAllEscrows(escrows);
-      const pending: WritingPendingOperation = {
-        phase: 'writing',
-        mutation: saved.mutation,
-        authControllerToken: await this.#authorizeMutation(
-          saved.mutation,
-          saved.payload,
-        ),
-        payload: saved.payload,
-        identifier: saved.identifier,
-        receipts: [],
-      };
-      await this.#persistPending(pending);
       await this.#replicateMutation({
         escrows: availableEscrows,
-        pending,
+        pending: {
+          phase: 'writing',
+          mutation: saved.mutation,
+          authControllerToken: await this.#authorizeMutation(
+            saved.mutation,
+            saved.payload,
+          ),
+          payload: saved.payload,
+          identifier: saved.identifier,
+          receipts: [],
+        },
         availabilityChecked: true,
       });
       return;
@@ -550,9 +549,6 @@ export class MfaRecoveryController extends BaseController<
       refreshedToken === pending.authControllerToken
         ? pending
         : { ...pending, authControllerToken: refreshedToken };
-    if (effectivePending !== pending) {
-      await this.#persistPending(effectivePending);
-    }
     const authorizations =
       mutation.operation === 'register'
         ? undefined
@@ -570,6 +566,7 @@ export class MfaRecoveryController extends BaseController<
         'identifier_auth_failed',
       );
     }
+    await this.#persistPending(effectivePending);
     const results = await Promise.allSettled(
       availableTargets.map((escrow, index) =>
         escrow.applyMutation(
@@ -700,50 +697,11 @@ export class MfaRecoveryController extends BaseController<
     }));
   }
 
-  async #resolveCurrentRecoveryVersion({
-    operation,
-    profileId,
-    targets,
-  }: {
-    operation: Mutation['operation'];
-    profileId: string;
-    targets: RecoveryEscrowProvider[];
-  }): Promise<number> {
-    const metadatas = await Promise.all(
-      targets.map((escrow) => escrow.getRecoveryMetadata(profileId)),
-    );
-    if (operation === 'register') {
-      if (metadatas.some((metadata) => metadata !== null)) {
-        throw new MfaRecoveryError(
-          'Profile is already registered',
-          'already_registered',
-        );
-      }
-      return 0;
+  #resolveCurrentRecoveryVersion(payload: MutationPayload): number {
+    if (!Number.isInteger(payload.epoch) || payload.epoch < 0) {
+      throw new MfaRecoveryError('Invalid epoch', 'invalid_epoch');
     }
-    const present = metadatas.filter(
-      (metadata): metadata is NonNullable<typeof metadata> => metadata !== null,
-    );
-    if (present.length !== metadatas.length) {
-      throw new MfaRecoveryError(
-        'Recovery record missing at a configured escrow',
-        'missing_record',
-      );
-    }
-    const selected = present[0];
-    if (
-      !present.every(
-        (metadata) =>
-          metadata.version === selected.version &&
-          metadata.lastMutationId === selected.lastMutationId,
-      )
-    ) {
-      throw new MfaRecoveryError(
-        'Escrows disagree on recovery version',
-        'version_divergence',
-      );
-    }
-    return selected.version;
+    return payload.epoch;
   }
 
   async #getAvailableEscrows(): Promise<RecoveryEscrowProvider[]> {

@@ -89,15 +89,18 @@ export type MutationReceipt = {
 };
 
 export type RegisterPayload = {
+  epoch: number;
   recoverySecret: string;
   identifiers: Identifier[];
 };
 
 export type UpdateRecoverySecretPayload = {
+  epoch: number;
   recoverySecret: string;
 };
 
 export type UpdateIdentifiersPayload = {
+  epoch: number;
   identifiers: Identifier[];
 };
 
@@ -137,11 +140,6 @@ export type RecoveryPhase = 'idle' | PendingOperation['phase'];
  * persistence and serialization preserve it without binary coercion.
  */
 export type EncryptedPendingOperation = string;
-
-export type RecoveryRecordMetadata = {
-  version: number;
-  lastMutationId: string;
-};
 
 export type RecoverySecretResponse = {
   recoverySecret: Uint8Array;
@@ -187,9 +185,6 @@ export type RecoveryEscrowProvider = {
     challengeId: string,
     response: unknown,
   ) => Promise<EscrowIdentifierGrant>;
-  getRecoveryMetadata: (
-    profileId: string,
-  ) => Promise<RecoveryRecordMetadata | null>;
   getSecret: (
     authorization: IdentifierAuthorization,
     requestId: string,

@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Require `RecoveryEscrowProvider.verifyReceipt` to receive the expected escrow id so receipt verification is explicitly bound to the configured escrow target
+- **BREAKING:** Require `RecoveryEscrowProvider.verifyReceipt` to receive the expected escrow id so receipt verification is explicitly bound to the configured escrow target- **BREAKING:** Bind mutation version allocation to payload `epoch` on `register`, `updateRecoverySecret`, and `updateIdentifiers`, and remove unauthenticated `RecoveryEscrowProvider.getRecoveryMetadata` lookups
 - Expose controller state updates through the non-deprecated `MfaRecoveryController:stateChanged` messenger event
 - Retry only escrows without persisted mutation receipts and validate persisted mutation state before resuming it
 
@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Clear fully acknowledged pending mutations without checking unavailable acknowledged escrows
 - Persist valid receipts from concurrent escrow writes before reporting an invalid receipt response
-- Reject malformed persisted mutation state before authorization or escrow writes
+- Persist `writing` mutation state before the first escrow write so ambiguous
+  failures remain resumable while identifier-auth failures remain abortable
 
 [Unreleased]: https://github.com/MetaMask/core/

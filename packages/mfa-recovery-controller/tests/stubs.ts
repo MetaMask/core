@@ -23,7 +23,6 @@ import type {
   RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
-  RecoveryRecordMetadata,
   RecoverySecretResponse,
   RegisterPayload,
   UpdateIdentifiersPayload,
@@ -223,9 +222,15 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     return grant;
   }
 
+  /**
+   * Test helper: inspect a replica's version without going through getSecret.
+   *
+   * @param profileId - Profile id.
+   * @returns Version metadata, or `null` if unregistered.
+   */
   async getRecoveryMetadata(
     profileId: string,
-  ): Promise<RecoveryRecordMetadata | null> {
+  ): Promise<{ version: number; lastMutationId: string } | null> {
     const record = this.#records.get(profileId);
     if (record === undefined) {
       return null;

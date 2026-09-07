@@ -83,6 +83,9 @@ export async function assertValidPendingOperation(
     getIdentifierAuthMode(pending.identifier.type);
   }
 
+  if (payload.epoch !== mutation.expectedVersion) {
+    throwInvalidPendingOperation();
+  }
   if ((await hash(payload)) !== mutation.payloadHash) {
     throw new MfaRecoveryError(
       'Pending payload does not match mutation',
@@ -140,9 +143,14 @@ function isMutationPayload(
   if (!isRecord(payload)) {
     return false;
   }
+  if (!isNonNegativeInteger(payload.epoch)) {
+    return false;
+  }
   if (operation === 'updateRecoverySecret') {
     return (
-      Object.keys(payload).every((key) => key === 'recoverySecret') &&
+      Object.keys(payload).every(
+        (key) => key === 'epoch' || key === 'recoverySecret',
+      ) &&
       typeof (payload as UpdateRecoverySecretPayload).recoverySecret ===
         'string'
     );
@@ -151,16 +159,21 @@ function isMutationPayload(
   return (
     Object.keys(payload).every((key) =>
       operation === 'register'
-        ? key === 'recoverySecret' || key === 'identifiers'
-        : key === 'identifiers',
+        ? key === 'epoch' || key === 'recoverySecret' || key === 'identifiers'
+        : key === 'epoch' || key === 'identifiers',
     ) &&
     (operation === 'register'
-      ? typeof (payload as RegisterPayload).recoverySecret === 'string'
+      ? payload.epoch === 0 &&
+        typeof (payload as RegisterPayload).recoverySecret === 'string'
       : true) &&
     Array.isArray(identifiers) &&
     identifiers.length > 0 &&
     identifiers.every(isIdentifier)
   );
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 
 function isIdentifier(value: unknown): value is Identifier {
@@ -191,6 +204,7 @@ function isAuthControllerToken(value: unknown): value is AuthControllerToken {
     typeof value.signature === 'string'
   );
 }
+
 
 function isMutationReceiptArray(value: unknown): value is MutationReceipt[] {
   if (!Array.isArray(value)) {

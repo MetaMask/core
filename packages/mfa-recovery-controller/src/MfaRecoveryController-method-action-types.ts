@@ -21,6 +21,7 @@ export type MfaRecoveryControllerRegisterAction = {
  *
  * @param identifier - Currently registered identifier used to authorize.
  * @param recoverySecret - New secret.
+ * @param epoch - Current recovery version, used as `expectedVersion`.
  */
 export type MfaRecoveryControllerUpdateRecoverySecretAction = {
   type: `MfaRecoveryController:updateRecoverySecret`;
@@ -32,6 +33,7 @@ export type MfaRecoveryControllerUpdateRecoverySecretAction = {
  *
  * @param identifier - Currently registered identifier used to authorize.
  * @param identifiers - New non-empty identifier set.
+ * @param epoch - Current recovery version, used as `expectedVersion`.
  */
 export type MfaRecoveryControllerUpdateIdentifiersAction = {
   type: `MfaRecoveryController:updateIdentifiers`;
