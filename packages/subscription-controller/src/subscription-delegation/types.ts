@@ -21,7 +21,6 @@ export const SUBSCRIPTION_PAYMENT_DELEGATION_TYPE = 'subscription-payment';
 export type PrepareSubscriptionDelegationRequest = {
   product: typeof PRODUCT_TYPES.MONEY_ACCOUNT_PLUS;
   recurringInterval: RecurringInterval;
-  chainId: Hex;
   payerAddress: Hex;
   tokenAddress: Hex;
   tokenSymbol: string;
@@ -45,17 +44,4 @@ export type PreparedSubscriptionDelegation = {
 export type SubscriptionDelegationEnforcers = {
   valueLte: Hex;
   erc20TokenPeriodTransfer: Hex;
-};
-
-/**
- * Immutable, chain-scoped CHOMP subscription-payment configuration supplied
- * at service construction (mirrors Money Account upgrade config).
- *
- * Wallet supplies the CHOMP delegate. The service resolves Delegation
- * Framework enforcers for {@link chainId} from
- * `@metamask/delegation-deployments`.
- */
-export type SubscriptionDelegationConfig = {
-  chainId: Hex;
-  delegateAddress: Hex;
 };

@@ -26,10 +26,16 @@
       "path": "../messenger"
     },
     {
+      "path": "../money-account-utils"
+    },
+    {
       "path": "../polling-controller"
     },
     {
       "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
     },
     {
       "path": "../transaction-controller"

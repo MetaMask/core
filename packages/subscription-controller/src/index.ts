@@ -164,6 +164,5 @@ export type { SubscriptionDelegationServicePrepareDelegationAction } from './sub
 export type {
   PrepareSubscriptionDelegationRequest,
   PreparedSubscriptionDelegation,
-  SubscriptionDelegationConfig,
 } from './subscription-delegation/types.js';
 export { SUBSCRIPTION_PAYMENT_DELEGATION_TYPE } from './subscription-delegation/types.js';

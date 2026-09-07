@@ -1,3 +1,4 @@
+import type { ServiceDetailsResponse } from '@metamask/chomp-api-service';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 import {
@@ -18,10 +19,7 @@ import {
   serviceName,
 } from './SubscriptionDelegationService.js';
 import type { SubscriptionDelegationServiceMessenger } from './SubscriptionDelegationService.js';
-import type {
-  PrepareSubscriptionDelegationRequest,
-  SubscriptionDelegationConfig,
-} from './types.js';
+import type { PrepareSubscriptionDelegationRequest } from './types.js';
 import { SUBSCRIPTION_PAYMENT_DELEGATION_TYPE } from './types.js';
 
 const TOKEN = '0x3333333333333333333333333333333333333333' as Hex;
@@ -34,15 +32,31 @@ const {
   ERC20PeriodTransferEnforcer: PERIOD,
 } = DELEGATOR_CONTRACTS['1.3.0'][1];
 
-const CONFIG: SubscriptionDelegationConfig = {
+const MONEY_ACCOUNT_VAULT_CONFIG = {
   chainId: CHAIN_ID,
-  delegateAddress: DELEGATE,
+  boringVault: '0x1111111111111111111111111111111111111111',
+  tellerAddress: '0x2222222222222222222222222222222222222222',
+  accountantAddress: '0x6666666666666666666666666666666666666666',
+  lensAddress: '0x7777777777777777777777777777777777777777',
+};
+
+const REMOTE_FEATURE_FLAGS: Record<string, unknown> = {
+  moneyAccountVaultConfig: MONEY_ACCOUNT_VAULT_CONFIG,
+};
+
+const SERVICE_DETAILS: ServiceDetailsResponse = {
+  auth: { message: 'CHOMP Authentication' },
+  chains: {
+    [CHAIN_ID]: {
+      autoDepositDelegate: DELEGATE,
+      protocol: {},
+    },
+  },
 };
 
 const REQUEST: PrepareSubscriptionDelegationRequest = {
   product: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
   recurringInterval: RECURRING_INTERVALS.month,
-  chainId: CHAIN_ID,
   payerAddress: PAYER,
   tokenAddress: TOKEN,
   tokenSymbol: 'pvmUSD',
@@ -66,6 +80,8 @@ type Mocks = {
   verifyDelegation: jest.Mock;
   getIntentsByAddress: jest.Mock;
   createIntents: jest.Mock;
+  getRemoteFeatureFlagState: jest.Mock;
+  getServiceDetails: jest.Mock;
 };
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -74,7 +90,8 @@ function setup(
     listDelegations?: unknown[];
     intents?: unknown[];
     verify?: { valid: boolean; delegationHash?: Hex; errors?: string[] };
-    config?: SubscriptionDelegationConfig;
+    remoteFeatureFlags?: Record<string, unknown>;
+    serviceDetails?: ServiceDetailsResponse;
   } = {},
 ) {
   const mocks: Mocks = {
@@ -95,6 +112,13 @@ function setup(
       }),
     getIntentsByAddress: jest.fn().mockResolvedValue(options.intents ?? []),
     createIntents: jest.fn().mockResolvedValue([]),
+    getRemoteFeatureFlagState: jest.fn().mockReturnValue({
+      remoteFeatureFlags: options.remoteFeatureFlags ?? REMOTE_FEATURE_FLAGS,
+      cacheTimestamp: 0,
+    }),
+    getServiceDetails: jest
+      .fn()
+      .mockResolvedValue(options.serviceDetails ?? SERVICE_DETAILS),
   };
 
   type AllowedActions =
@@ -121,6 +145,14 @@ function setup(
     | {
         type: 'ChompApiService:createIntents';
         handler: Mocks['createIntents'];
+      }
+    | {
+        type: 'RemoteFeatureFlagController:getState';
+        handler: Mocks['getRemoteFeatureFlagState'];
+      }
+    | {
+        type: 'ChompApiService:getServiceDetails';
+        handler: Mocks['getServiceDetails'];
       };
 
   const rootMessenger = new Messenger<
@@ -157,6 +189,14 @@ function setup(
     'ChompApiService:createIntents',
     mocks.createIntents,
   );
+  rootMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    mocks.getRemoteFeatureFlagState,
+  );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:getServiceDetails',
+    mocks.getServiceDetails,
+  );
 
   const messenger: SubscriptionDelegationServiceMessenger = new Messenger({
     namespace: serviceName,
@@ -172,13 +212,14 @@ function setup(
       'ChompApiService:verifyDelegation',
       'ChompApiService:getIntentsByAddress',
       'ChompApiService:createIntents',
+      'RemoteFeatureFlagController:getState',
+      'ChompApiService:getServiceDetails',
     ],
     events: [],
   });
 
   const service = new SubscriptionDelegationService({
     messenger,
-    config: options.config ?? CONFIG,
   });
 
   return { service, rootMessenger, mocks };
@@ -240,29 +281,16 @@ function expectNoSideEffects(mocks: Mocks): void {
 }
 
 describe('SubscriptionDelegationService', () => {
-  describe('constructor', () => {
-    it('throws when Delegation Framework contracts are unavailable for the configured chain', () => {
-      expect(() =>
-        setup({
-          config: {
-            chainId: '0xffffffff',
-            delegateAddress: DELEGATE,
-          },
-        }),
-      ).toThrow(
-        `${SubscriptionDelegationServiceErrorMessage.DelegationContractsNotFound}: 0xffffffff`,
-      );
-    });
-  });
-
   describe('prepareDelegation', () => {
-    it('creates, verifies, persists, and registers a new delegation using config', async () => {
+    it('creates, verifies, persists, and registers using feature flag and CHOMP config', async () => {
       const { service, mocks } = setup();
 
       const result = await service.prepareDelegation(REQUEST);
 
       expect(result.disposition).toBe('created');
       expect(result.delegationHash).toMatch(/^0x[0-9a-fA-F]{64}$/u);
+      expect(mocks.getRemoteFeatureFlagState).toHaveBeenCalledTimes(1);
+      expect(mocks.getServiceDetails).toHaveBeenCalledWith([CHAIN_ID]);
       expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
       expect(mocks.signDelegation).toHaveBeenCalledWith({
         delegation: expect.objectContaining({
@@ -420,33 +448,57 @@ describe('SubscriptionDelegationService', () => {
       await expect(service.prepareDelegation(shieldRequest)).rejects.toThrow(
         SubscriptionDelegationServiceErrorMessage.UnsupportedProduct,
       );
+      expect(mocks.getRemoteFeatureFlagState).not.toHaveBeenCalled();
+      expect(mocks.getServiceDetails).not.toHaveBeenCalled();
       expectNoSideEffects(mocks);
     });
 
-    it('rejects a chainId that does not match config before any side effects', async () => {
-      const { service, mocks } = setup();
+    it.each([
+      ['missing', {}],
+      ['malformed', { moneyAccountVaultConfig: { chainId: 'invalid' } }],
+    ])(
+      'rejects %s Money Account vault config before CHOMP or delegation calls',
+      async (_condition, remoteFeatureFlags) => {
+        const { service, mocks } = setup({ remoteFeatureFlags });
 
-      await expect(
-        service.prepareDelegation({
-          ...REQUEST,
-          chainId: '0x89',
-        }),
-      ).rejects.toThrow(
-        SubscriptionDelegationServiceErrorMessage.ChainIdMismatch,
-      );
-      expectNoSideEffects(mocks);
-    });
+        await expect(service.prepareDelegation(REQUEST)).rejects.toThrow(
+          SubscriptionDelegationServiceErrorMessage.MissingMoneyAccountVaultConfig,
+        );
+        expect(mocks.getServiceDetails).not.toHaveBeenCalled();
+        expectNoSideEffects(mocks);
+      },
+    );
 
-    it('accepts a matching chainId case-insensitively', async () => {
-      const { service, mocks } = setup();
-
-      const result = await service.prepareDelegation({
-        ...REQUEST,
-        chainId: '0X1' as Hex,
+    it('rejects when Delegation Framework contracts are unavailable for the feature-flag chain', async () => {
+      const { service, mocks } = setup({
+        remoteFeatureFlags: {
+          moneyAccountVaultConfig: {
+            ...MONEY_ACCOUNT_VAULT_CONFIG,
+            chainId: '0xffffffff',
+          },
+        },
       });
 
-      expect(result.disposition).toBe('created');
-      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+      await expect(service.prepareDelegation(REQUEST)).rejects.toThrow(
+        `${SubscriptionDelegationServiceErrorMessage.DelegationContractsNotFound}: 0xffffffff`,
+      );
+      expect(mocks.getServiceDetails).not.toHaveBeenCalled();
+      expectNoSideEffects(mocks);
+    });
+
+    it('rejects when CHOMP service details omit the feature-flag chain', async () => {
+      const { service, mocks } = setup({
+        serviceDetails: {
+          auth: { message: 'CHOMP Authentication' },
+          chains: {},
+        },
+      });
+
+      await expect(service.prepareDelegation(REQUEST)).rejects.toThrow(
+        `${SubscriptionDelegationServiceErrorMessage.ChompChainNotFound}: ${CHAIN_ID}`,
+      );
+      expect(mocks.getServiceDetails).toHaveBeenCalledWith([CHAIN_ID]);
+      expectNoSideEffects(mocks);
     });
   });
 });

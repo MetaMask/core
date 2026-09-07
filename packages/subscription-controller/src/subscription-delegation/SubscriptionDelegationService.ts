@@ -5,12 +5,15 @@ import type {
 import type {
   ChompApiServiceCreateIntentsAction,
   ChompApiServiceGetIntentsByAddressAction,
+  ChompApiServiceGetServiceDetailsAction,
   ChompApiServiceVerifyDelegationAction,
 } from '@metamask/chomp-api-service';
 import type { DelegationControllerSignDelegationAction } from '@metamask/delegation-controller';
 import { hashDelegation } from '@metamask/delegation-core';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type { Messenger } from '@metamask/messenger';
+import { getMoneyAccountVaultConfig } from '@metamask/money-account-utils';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import { add0x, hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
@@ -26,7 +29,6 @@ import {
 import type {
   PrepareSubscriptionDelegationRequest,
   PreparedSubscriptionDelegation,
-  SubscriptionDelegationConfig,
   SubscriptionDelegationEnforcers,
 } from './types.js';
 import { SUBSCRIPTION_PAYMENT_DELEGATION_TYPE } from './types.js';
@@ -75,7 +77,9 @@ type AllowedActions =
   | ChompApiServiceVerifyDelegationAction
   | ChompApiServiceCreateIntentsAction
   | ChompApiServiceGetIntentsByAddressAction
-  | DelegationControllerSignDelegationAction;
+  | ChompApiServiceGetServiceDetailsAction
+  | DelegationControllerSignDelegationAction
+  | RemoteFeatureFlagControllerGetStateAction;
 
 /**
  * Events that {@link SubscriptionDelegationService} exposes to other consumers.
@@ -99,11 +103,6 @@ export type SubscriptionDelegationServiceMessenger = Messenger<
  */
 export type SubscriptionDelegationServiceOptions = {
   messenger: SubscriptionDelegationServiceMessenger;
-  /**
-   * Immutable, chain-scoped CHOMP delegate configuration for Money Account
-   * Plus subscription-payment delegations.
-   */
-  config: SubscriptionDelegationConfig;
 };
 
 type SubscriptionIntentParams = {
@@ -115,6 +114,12 @@ type SubscriptionIntentParams = {
   tokenAddress: Hex;
 };
 
+type ResolvedSubscriptionDelegationConfig = {
+  chainId: Hex;
+  delegateAddress: Hex;
+  enforcers: SubscriptionDelegationEnforcers;
+};
+
 /**
  * Stateless orchestrator for subscription-payment delegation setup.
  *
@@ -122,9 +127,9 @@ type SubscriptionIntentParams = {
  * Authenticated User Storage → register CHOMP intent. Returns a verified
  * `delegationHash` for `SubscriptionController.startSubscriptionWithCrypto`.
  *
- * The CHOMP delegate comes from constructor
- * {@link SubscriptionDelegationConfig}; Delegation Framework enforcers are
- * resolved from `@metamask/delegation-deployments` for the configured chain.
+ * Each call resolves the Money Account chain from remote feature flags, the
+ * delegate from CHOMP service details, and Delegation Framework enforcers
+ * from `@metamask/delegation-deployments`.
  *
  * Does not own subscription state; `SubscriptionController` does not depend on
  * this service. Only Money Account Plus is supported.
@@ -134,14 +139,8 @@ export class SubscriptionDelegationService {
 
   readonly #messenger: SubscriptionDelegationServiceMessenger;
 
-  readonly #config: SubscriptionDelegationConfig;
-
-  readonly #enforcers: SubscriptionDelegationEnforcers;
-
   constructor(options: SubscriptionDelegationServiceOptions) {
     this.#messenger = options.messenger;
-    this.#config = options.config;
-    this.#enforcers = resolveEnforcers(this.#config.chainId);
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -168,9 +167,8 @@ export class SubscriptionDelegationService {
       );
     }
 
-    if (!equalsIgnoreCase(request.chainId, this.#config.chainId)) {
-      throw new Error(SubscriptionDelegationServiceErrorMessage.ChainIdMismatch);
-    }
+    const { chainId, delegateAddress, enforcers } =
+      await this.#resolveConfiguration();
 
     const periodAmount = calculatePeriodAmount({
       unitAmount: request.unitAmount,
@@ -181,12 +179,12 @@ export class SubscriptionDelegationService {
 
     const matches = makeMatchesSubscriptionDelegation({
       delegatorAddress: request.payerAddress,
-      delegateAddress: this.#config.delegateAddress,
-      chainId: request.chainId,
+      delegateAddress,
+      chainId,
       tokenAddress: request.tokenAddress,
       periodAmount,
       periodDuration,
-      enforcers: this.#enforcers,
+      enforcers,
     });
 
     const existingDelegations = await this.#messenger.call(
@@ -196,7 +194,7 @@ export class SubscriptionDelegationService {
     if (reusable) {
       await this.#ensureIntent({
         account: request.payerAddress,
-        chainId: request.chainId,
+        chainId,
         delegationHash: reusable.metadata.delegationHash,
         allowance: reusable.metadata.allowance,
         tokenSymbol: reusable.metadata.tokenSymbol,
@@ -210,9 +208,9 @@ export class SubscriptionDelegationService {
 
     const startDate = Math.floor(Date.now() / 1000);
     const unsigned = buildUnsignedSubscriptionDelegation({
-      delegateAddress: this.#config.delegateAddress,
+      delegateAddress,
       delegatorAddress: request.payerAddress,
-      enforcers: this.#enforcers,
+      enforcers,
       tokenAddress: request.tokenAddress,
       periodAmount,
       periodDuration,
@@ -221,7 +219,7 @@ export class SubscriptionDelegationService {
 
     const signature = (await this.#messenger.call(
       'DelegationController:signDelegation',
-      { delegation: unsigned, chainId: request.chainId },
+      { delegation: unsigned, chainId },
     )) as Hex;
 
     const signedDelegation = { ...unsigned, signature };
@@ -230,7 +228,7 @@ export class SubscriptionDelegationService {
       'ChompApiService:verifyDelegation',
       {
         signedDelegation,
-        chainId: request.chainId,
+        chainId,
       },
     );
 
@@ -267,7 +265,7 @@ export class SubscriptionDelegationService {
         signedDelegation,
         metadata: {
           delegationHash,
-          chainIdHex: request.chainId,
+          chainIdHex: chainId,
           allowance,
           tokenSymbol: request.tokenSymbol,
           tokenAddress: request.tokenAddress,
@@ -278,7 +276,7 @@ export class SubscriptionDelegationService {
 
     await this.#createIntent({
       account: request.payerAddress,
-      chainId: request.chainId,
+      chainId,
       delegationHash,
       allowance,
       tokenSymbol: request.tokenSymbol,
@@ -288,6 +286,39 @@ export class SubscriptionDelegationService {
     return {
       delegationHash,
       disposition: 'created',
+    };
+  }
+
+  async #resolveConfiguration(): Promise<ResolvedSubscriptionDelegationConfig> {
+    const { remoteFeatureFlags } = this.#messenger.call(
+      'RemoteFeatureFlagController:getState',
+    );
+    const vaultConfig = getMoneyAccountVaultConfig(remoteFeatureFlags);
+    if (!vaultConfig) {
+      throw new Error(
+        SubscriptionDelegationServiceErrorMessage.MissingMoneyAccountVaultConfig,
+      );
+    }
+
+    const { chainId } = vaultConfig;
+    const enforcers = resolveEnforcers(chainId);
+    const { chains } = await this.#messenger.call(
+      'ChompApiService:getServiceDetails',
+      [chainId],
+    );
+    const chain = chains[chainId];
+    if (!chain) {
+      throw new Error(
+        `${SubscriptionDelegationServiceErrorMessage.ChompChainNotFound}: ${chainId}`,
+      );
+    }
+
+    // TODO(SUB-911/SUB-914): Use the subscription-payment delegate once CHOMP
+    // exposes one instead of reusing the Money Account auto-deposit delegate.
+    return {
+      chainId,
+      delegateAddress: chain.autoDepositDelegate,
+      enforcers,
     };
   }
 
