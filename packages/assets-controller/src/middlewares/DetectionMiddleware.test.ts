@@ -409,6 +409,42 @@ describe('DetectionMiddleware', () => {
     expect(next).toHaveBeenCalledWith(context);
   });
 
+  it('queues assetsForPriceUpdate for a staked position even when a stale price exists under the vault asset ID itself', async () => {
+    // Regression test: before staking positions were priced via their native
+    // asset alias, a price entry could exist directly under the vault's own
+    // asset ID (from an old poll, or persisted pre-fix state). Checking
+    // presence against only that raw key would suppress queuing a re-fetch
+    // forever, since the vault key never gets a fresh write to age it out —
+    // presence must be checked against the RESOLVED (native) key instead.
+    const MAINNET_STAKING_VAULT =
+      'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df' as Caip19AssetId;
+    const context = createMiddlewareContext(
+      {
+        response: {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MAINNET_STAKING_VAULT]: { amount: '2' },
+            },
+          },
+        },
+      },
+      [MAINNET_STAKING_VAULT],
+      // A stale price is recorded directly under the vault's own asset ID —
+      // the native asset (eip155:1/slip44:60) has no price entry at all.
+      [MAINNET_STAKING_VAULT],
+    );
+    const { middleware } = setupController();
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+    await middleware.assetsMiddleware(context, next);
+
+    expect(context.response.detectedAssets).toBeUndefined();
+    expect(context.request.assetsForPriceUpdate).toStrictEqual([
+      normalizeAssetId(MAINNET_STAKING_VAULT),
+    ]);
+    expect(next).toHaveBeenCalledWith(context);
+  });
+
   it('queues assetsForPriceUpdate for known balance assets that still lack a price', async () => {
     const { middleware } = setupController();
     // Asset already has metadata (known / seeded) but no price yet.

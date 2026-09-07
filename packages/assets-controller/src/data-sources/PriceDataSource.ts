@@ -18,7 +18,11 @@ import type {
 import { DedupingBatchFetcher } from '../utils/dedupingBatchFetcher.js';
 import { fetchWithTimeout, normalizeAssetId } from '../utils/index.js';
 import type { SubscriptionRequest } from './AbstractDataSource.js';
-import { reduceInBatchesSerially } from './evm-rpc-services/index.js';
+import {
+  isStakingContractAssetId,
+  reduceInBatchesSerially,
+} from './evm-rpc-services/index.js';
+import { resolvePriceLookupAssetId } from './evm-rpc-services/utils/index.js';
 
 // ============================================================================
 // CONSTANTS
@@ -100,6 +104,13 @@ const NON_PRICEABLE_ASSET_PATTERNS = [
  * @returns True if the asset has market price data.
  */
 export function isPriceableAsset(assetId: Caip19AssetId): boolean {
+  // Staking vault contracts aren't real priced tokens — the Price API always
+  // returns null for them — so requesting them wastes a batch slot for a
+  // guaranteed miss. Their fiat value is derived from the chain's native
+  // currency instead (see `getNativeAssetIdForStakedAsset`).
+  if (isStakingContractAssetId(assetId)) {
+    return false;
+  }
   return !NON_PRICEABLE_ASSET_PATTERNS.some((pattern) => pattern.test(assetId));
 }
 
@@ -232,11 +243,20 @@ export class PriceDataSource {
             (queuedId) =>
               queuedId === assetId || queuedId === normalizedAssetId,
           );
-          if (
-            statePrices[assetId] === undefined &&
-            statePrices[normalizedAssetId] === undefined &&
-            !alreadyQueued
-          ) {
+          // For a staking asset, only the RESOLVED (native) key's presence
+          // is authoritative — a price recorded under the raw vault key is
+          // stale/foreign noise (e.g. left over from before this alias
+          // existed) and must never count as "already priced", since the
+          // vault's own key never gets a fresh write to age it out.
+          const priceLookupAssetId = resolvePriceLookupAssetId(
+            normalizedAssetId,
+          ) as Caip19AssetId;
+          const isStakedPosition = priceLookupAssetId !== normalizedAssetId;
+          const alreadyHasPrice = isStakedPosition
+            ? statePrices[priceLookupAssetId] !== undefined
+            : statePrices[normalizedAssetId] !== undefined ||
+              statePrices[assetId] !== undefined;
+          if (!alreadyHasPrice && !alreadyQueued) {
             assetIds.add(normalizedAssetId);
           }
         }
@@ -246,8 +266,18 @@ export class PriceDataSource {
         return next(ctx);
       }
 
-      // Filter to only priceable assets
-      const priceableAssetIds = [...assetIds].filter(isPriceableAsset);
+      // Staking-vault positions have no price of their own — request their
+      // chain's native asset instead so the fetch that actually satisfies
+      // their price is guaranteed to happen, not merely not-dropped.
+      // Dedupe afterwards since multiple staking assets can map to the same
+      // native asset.
+      const priceableAssetIds = [
+        ...new Set(
+          [...assetIds]
+            .map((id) => resolvePriceLookupAssetId(id))
+            .filter(isPriceableAsset),
+        ),
+      ] as Caip19AssetId[];
 
       if (priceableAssetIds.length === 0) {
         return next(ctx);
@@ -490,8 +520,16 @@ export class PriceDataSource {
       getAssetsState,
     );
 
-    // Filter out non-priceable assets (e.g., Tron bandwidth/energy resources)
-    const assetIds = rawAssetIds.filter(isPriceableAsset);
+    // Filter out non-priceable assets (e.g., Tron bandwidth/energy resources).
+    // Staking-vault positions are mapped to their chain's native asset first
+    // so the fetch that actually satisfies their price is guaranteed to run.
+    const assetIds = [
+      ...new Set(
+        rawAssetIds
+          .map((id) => resolvePriceLookupAssetId(id))
+          .filter(isPriceableAsset),
+      ),
+    ] as Caip19AssetId[];
 
     if (assetIds.length === 0) {
       return response;

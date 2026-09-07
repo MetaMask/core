@@ -42,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Balances from chains the RPC read itself failed on are discarded instead of merged, so a transient RPC failure can no longer overwrite a correct upstream balance with the failure stub's native `0` (or, previously, falsely clear the chain's error as "recovered"). The chain's error is kept only when it was already errored upstream.
   - `RpcDataSource.assetsMiddleware` now propagates per-chain fetch errors onto the pipeline response (previously it only used them internally), which is what lets `RpcFallbackMiddleware` identify the failed chains.
 
+### Fixed
+
+- Price a staked position at parity with its chain's native currency instead of `$0`, in both the aggregated-balance selectors and the public asset getters (`getAccountAssetByID`, `getAccountAssetsByIDs`, `getAccountAssetsByScope`, `getAssets`, `getAssetsPrice`); price-refresh queuing (`assetsMiddleware`'s detected-asset queuing, `DetectionMiddleware`, and the force-refresh path) no longer lets a stale price recorded under the staking-vault's own asset ID suppress fetching the correct native price ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+
 ## [14.0.3]
 
 ### Changed
