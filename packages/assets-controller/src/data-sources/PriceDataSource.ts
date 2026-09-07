@@ -254,7 +254,6 @@ export class PriceDataSource {
         return next(ctx);
       }
 
-      // Filter to only assets from networks the Price API supports
       const supportedNetworks = await this.#getSupportedNetworks();
       const supportedAssetIds = this.#filterAssetsByNetwork(
         priceableAssetIds,
@@ -551,7 +550,6 @@ export class PriceDataSource {
       return response;
     }
 
-    // Filter to only assets from networks the Price API supports
     const supportedNetworks = await this.#getSupportedNetworks();
     const assetIds = this.#filterAssetsByNetwork(
       priceableAssetIds,
