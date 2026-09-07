@@ -1792,6 +1792,51 @@ describe('AssetsController', () => {
       );
     });
 
+    it('forwards bypassServerCache on Accounts API v6 force updates', async () => {
+      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+        accounts: [],
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+      });
+
+      const queryApiClient = {
+        ...createMockQueryApiClient(),
+        accounts: {
+          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+            fullSupport: [1],
+            partialSupport: [],
+          }),
+          fetchV6MultiAccountBalances,
+          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+            balances: [],
+            unprocessedNetworks: [],
+          }),
+        },
+      } as unknown as ApiPlatformClient;
+
+      await withController(
+        {
+          queryApiClient,
+          remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        },
+        async ({ controller }) => {
+          await flushPromises();
+
+          await controller.getAssets([createMockInternalAccount()], {
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+            bypassServerCache: true,
+          });
+
+          expect(fetchV6MultiAccountBalances).toHaveBeenCalledWith(
+            expect.any(Array),
+            undefined,
+            expect.objectContaining({ bypassServerCache: true }),
+          );
+        },
+      );
+    });
+
     describe('pipeline splitting', () => {
       it('returns from getAssets before background pipelines complete', async () => {
         // Spy on handleAssetsUpdate to count how many times state is written.
