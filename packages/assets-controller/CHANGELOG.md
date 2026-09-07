@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix `#start()` re-entrancy so a second unlock/init/state-change trigger can't run a duplicate startup asset refresh while the first one is still in flight ([#10125](https://github.com/MetaMask/core/pull/10125))
+- Fix `#start()` re-entrancy so a second unlock/init/state-change trigger can't run a duplicate startup asset refresh while the first one is still in flight ([#10131](https://github.com/MetaMask/core/pull/10131))
 
 ### Changed
 
