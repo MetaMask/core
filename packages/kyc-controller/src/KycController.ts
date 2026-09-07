@@ -32,6 +32,7 @@ import type {
   KycSessionDisclaimers,
   KycSessionStatus,
   KycSumSubLauncher,
+  KycSumSubSdkStatus,
   KycSumSubStatus,
   KycUserStatus,
   KycVendor,
@@ -72,10 +73,47 @@ const MOCK_JWT_TOKEN = 'mock-jwt-token';
 // rather than a fixed short window, so this is a session-scoped window.
 const UKYC_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
 
-// The SumSub SDK status that signals the applicant finished the flow
-// successfully. Any other resolution (abandonment, failure, or a non-success
-// outcome) must not be recorded as `complete`.
-const SUMSUB_COMPLETED_STATUS = 'Completed';
+// SumSub statuses that mean the applicant submitted (see `KycSumSubSdkStatus`
+// for what each one reports). `Completed` covers launchers that normalize the
+// platform status before forwarding it. Every other status means no submission
+// happened and must not be recorded as a completed verification.
+const SUMSUB_COMPLETED_STATUSES: ReadonlySet<string> =
+  new Set<KycSumSubSdkStatus>([
+    'Completed',
+    'Pending',
+    'Approved',
+    'ActionCompleted',
+  ]);
+
+// The only status meaning the SDK could not run, rather than reporting how far
+// the applicant got before closing it.
+const SUMSUB_FAILED_STATUS: KycSumSubSdkStatus = 'Failed';
+
+const SUMSUB_ABANDONED_MESSAGE =
+  'Identity verification was not finished — accept the terms to try again.';
+
+/**
+ * Checks whether a SumSub status means the applicant submitted the flow.
+ *
+ * @param status - Status from a launcher callback or launch result.
+ * @returns Whether the applicant completed every required SDK step.
+ */
+function isSumSubFlowCompleted(status: unknown): boolean {
+  return typeof status === 'string' && SUMSUB_COMPLETED_STATUSES.has(status);
+}
+
+/**
+ * Checks whether the SDK failed to run, as opposed to the applicant closing it
+ * early. Only the former is worth reporting as an error.
+ *
+ * @param result - The result the launcher resolved with.
+ * @returns Whether the SDK failed to run.
+ */
+function isSumSubLaunchFailure(result: Record<string, unknown>): boolean {
+  return (
+    result.status === SUMSUB_FAILED_STATUS || typeof result.error === 'string'
+  );
+}
 
 // Phases that represent an active vendor-session flow (tokens issued and/or
 // Check/Auth frames in progress). A repeat `initialize` while in one of these
@@ -1193,12 +1231,20 @@ export class KycController extends BaseController<
       if (this.#generation !== generation) {
         return;
       }
-      // `startSumSub` records `sumsub.status = 'failed'` for thrown steps,
-      // an SDK close without Completed, *and* a terminal UKYC rejection
-      // after the SDK reported Completed. Only rewind when there is no
-      // session-status decision yet (abandonment / thrown step). A
-      // Completed-then-rejected poll writes `sessionStatus` and is a
-      // finished flow: refresh user status and land on `done`.
+      // The applicant closed the SDK without submitting. Nothing failed, so
+      // rewind with `error` unset and let consumers offer a retry.
+      if (this.state.sumsub.status === 'abandoned') {
+        await this.#rewindConsentsFlow({
+          error: null,
+          statusMessage: SUMSUB_ABANDONED_MESSAGE,
+          keepSumSubStatus: 'abandoned',
+        });
+        return;
+      }
+      // `startSumSub` records `failed` for thrown steps, an SDK that could not
+      // run, *and* a terminal UKYC rejection after a submission. Only the first
+      // two rewind. A rejection writes `sessionStatus` and is a finished flow:
+      // refresh user status and land on `done`.
       if (
         this.state.sumsub.status === 'failed' &&
         this.state.sumsub.sessionStatus === null
@@ -1207,7 +1253,7 @@ export class KycController extends BaseController<
         throw new Error(
           typeof sumsubError === 'string'
             ? sumsubError
-            : 'SumSub verification did not complete.',
+            : 'SumSub verification could not run.',
         );
       }
       // After SumSub, refresh user-keyed status for the Money toast and start
@@ -1247,20 +1293,51 @@ export class KycController extends BaseController<
       if (this.#generation !== generation) {
         return;
       }
-      this.#applyUpdate((state) => {
-        this.#clearAcceptedTerms(state);
-        state.activeProduct = null;
-        state.sessionDisclaimers = null;
-        // Session create ran before recording disclaimers. Drop the leftover
-        // UKYC session so a later `startSumSub` cannot skip consent recording.
-        state.sumsub = { ...getDefaultKycControllerState().sumsub };
-        state.error = `Consents session failed: ${String(error)}`;
-        state.statusMessage =
-          'Consent / verification failed — accept the terms to try again.';
-        state.phase = 'terms';
+      await this.#rewindConsentsFlow({
+        error: `Consents session failed: ${String(error)}`,
+        statusMessage:
+          'Consent / verification failed — accept the terms to try again.',
       });
-      await this.loadDisclaimers();
     }
+  }
+
+  /**
+   * Returns the consents path to the terms phase after a SumSub sub-flow that
+   * produced no verification decision, and reloads the disclaimers the next
+   * attempt has to re-accept.
+   *
+   * @param options - Rewind options.
+   * @param options.error - Message for `error`, or `null` when the rewind is a
+   * normal outcome rather than a failure.
+   * @param options.statusMessage - Message for `statusMessage`.
+   * @param options.keepSumSubStatus - Sub-flow status to survive the rewind,
+   * for an outcome consumers still need once the call resolves. Defaults to the
+   * reset `idle`.
+   */
+  async #rewindConsentsFlow({
+    error,
+    statusMessage,
+    keepSumSubStatus,
+  }: {
+    error: string | null;
+    statusMessage: string;
+    keepSumSubStatus?: KycSumSubStatus;
+  }): Promise<void> {
+    this.#applyUpdate((state) => {
+      this.#clearAcceptedTerms(state);
+      state.activeProduct = null;
+      state.sessionDisclaimers = null;
+      // Session create ran before recording disclaimers. Drop the leftover
+      // UKYC session so a later `startSumSub` cannot skip consent recording.
+      state.sumsub = { ...getDefaultKycControllerState().sumsub };
+      if (keepSumSubStatus) {
+        state.sumsub.status = keepSumSubStatus;
+      }
+      state.error = error;
+      state.statusMessage = statusMessage;
+      state.phase = 'terms';
+    });
+    await this.loadDisclaimers();
   }
 
   /**
@@ -1867,6 +1944,11 @@ export class KycController extends BaseController<
   }): Promise<Record<string, unknown>> {
     // A new sub-flow supersedes any polling still running from a prior run.
     this.#stopPolling();
+    // Paused for the whole sub-flow: a tick landing while the SDK is on screen
+    // publishes `statusChanged`, pulling consumers (and their signing prompts)
+    // in front of a flow the applicant has not finished. The `refreshKycStatus`
+    // every caller runs afterwards restarts it.
+    this.#stopUserStatusPolling();
 
     if (!this.#sumsubLauncher.isAvailable()) {
       const error = 'SumSub SDK is not available in this runtime.';
@@ -1960,23 +2042,36 @@ export class KycController extends BaseController<
           return refreshed.applicantAccessToken;
         },
         onStatusChange: (_prev, next) => {
-          if (next === SUMSUB_COMPLETED_STATUS) {
+          if (isSumSubFlowCompleted(next)) {
             reachedCompletion = true;
           }
           this.#updateIfCurrent(generation, (state) => {
-            state.sumsub.status =
-              next === SUMSUB_COMPLETED_STATUS ? 'complete' : 'inProgress';
+            state.sumsub.status = isSumSubFlowCompleted(next)
+              ? 'complete'
+              : 'inProgress';
           });
         },
         locale: params?.locale ?? 'en',
         debug: params?.debug ?? false,
       });
 
-      // A resolved `launch` alone is not the final outcome: only a SDK-reported
-      // completion is worth polling for a verification decision. Anything else
-      // (abandonment, non-success) is `failed` and must not be polled.
+      // Some native SDKs resolve with their final status without first
+      // delivering the corresponding state-change callback.
+      reachedCompletion ||= isSumSubFlowCompleted(result.status);
+
+      // A resolved `launch` alone is not the final outcome: only a submission
+      // is worth polling for a decision. Without one, the SDK status is the
+      // only way to tell a failure from an applicant who closed the SDK early
+      // — the UKYC session leaves its initial state as soon as the journey is
+      // created, so it cannot stand in for "the applicant finished".
+      let settledStatus: KycSumSubStatus = 'abandoned';
+      if (reachedCompletion) {
+        settledStatus = 'polling';
+      } else if (isSumSubLaunchFailure(result)) {
+        settledStatus = 'failed';
+      }
       const applied = this.#updateIfCurrent(generation, (state) => {
-        state.sumsub.status = reachedCompletion ? 'polling' : 'failed';
+        state.sumsub.status = settledStatus;
         state.sumsub.result = result as Json;
       });
 

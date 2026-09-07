@@ -1798,11 +1798,40 @@ describe('KycController', () => {
       });
     });
 
-    it('marks failed when launch resolves without a Completed status', async () => {
+    it.each(['Pending', 'Approved'])(
+      'treats the SumSub %s status as a completed applicant flow',
+      async (completedStatus) => {
+        await withController(async ({ controller, launcher }) => {
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            onStatusChange?.('Incomplete', completedStatus);
+            return { ok: true, status: completedStatus };
+          });
+
+          await controller.startSumSub();
+
+          expect(controller.state.sumsub.status).toBe('complete');
+        });
+      },
+    );
+
+    it('uses the resolved SDK status when its final transition was not delivered', async () => {
       await withController(async ({ controller, launcher }) => {
+        launcher.launch.mockResolvedValue({
+          ok: true,
+          status: 'Pending',
+        });
+
+        await controller.startSumSub();
+
+        expect(controller.state.sumsub.status).toBe('complete');
+      });
+    });
+
+    it('marks abandoned when launch resolves without a completed status', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
         launcher.launch.mockImplementation(async ({ onStatusChange }) => {
-          // The applicant abandons the flow: the SDK reports progress but never
-          // a Completed status, yet `launch` still resolves.
+          // The applicant abandons the flow: the SDK reports progress but
+          // never a completed status, yet `launch` still resolves.
           onStatusChange?.('idle', 'InProgress');
           return { ok: false };
         });
@@ -1810,8 +1839,58 @@ describe('KycController', () => {
         const result = await controller.startSumSub();
 
         expect(result).toStrictEqual({ ok: false });
-        expect(controller.state.sumsub.status).toBe('failed');
+        expect(controller.state.sumsub.status).toBe('abandoned');
         expect(controller.state.sumsub.result).toStrictEqual({ ok: false });
+        // No decision was reached, so consents-path callers still rewind.
+        expect(controller.state.sumsub.sessionStatus).toBeNull();
+        expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+      });
+    });
+
+    it.each(['Initial', 'Incomplete', 'Ready'])(
+      'marks abandoned when the applicant stops short and the SDK reports %s',
+      async (unfinishedStatus) => {
+        await withController(async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            onStatusChange?.('Ready', unfinishedStatus);
+            return { success: false, status: unfinishedStatus };
+          });
+
+          await controller.startSumSub();
+
+          expect(controller.state.sumsub.status).toBe('abandoned');
+          // The UKYC session leaves its initial state as soon as the journey is
+          // created, so it must not be consulted to second-guess the SDK.
+          expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+        });
+      },
+    );
+
+    it.each([
+      ['the Failed status', { success: false, status: 'Failed' }],
+      ['an error message', { success: false, error: 'token rejected' }],
+    ])('marks failed when the SDK reports %s', async (_label, launchResult) => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        // The SDK could not run — a real failure, not a change of mind.
+        launcher.launch.mockResolvedValue(launchResult);
+
+        await controller.startSumSub();
+
+        expect(controller.state.sumsub.status).toBe('failed');
+        expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+      });
+    });
+
+    it('treats the SumSub ActionCompleted status as a completed applicant flow', async () => {
+      await withController(async ({ controller, launcher }) => {
+        launcher.launch.mockResolvedValue({
+          success: true,
+          status: 'ActionCompleted',
+        });
+
+        await controller.startSumSub();
+
+        expect(controller.state.sumsub.status).toBe('complete');
       });
     });
 
@@ -1984,12 +2063,12 @@ describe('KycController', () => {
     it('does not poll when the SDK did not report completion', async () => {
       await withController(async ({ controller, handlers, launcher }) => {
         // The applicant abandons the flow: `launch` resolves without ever
-        // reporting a Completed status.
+        // reporting a completed status.
         launcher.launch.mockResolvedValue({ ok: false });
 
         await controller.startSumSub();
 
-        expect(controller.state.sumsub.status).toBe('failed');
+        expect(controller.state.sumsub.status).toBe('abandoned');
         expect(handlers.getSessionStatus).not.toHaveBeenCalled();
       });
     });
@@ -3445,7 +3524,49 @@ describe('KycController', () => {
       );
     });
 
-    it('returns to terms when SumSub closes without completion during the Iron session', async () => {
+    it.each([
+      ['reported by the SDK', { ok: false, status: 'Initial' }],
+      ['withheld by the SDK', { ok: false }],
+    ])(
+      'returns to terms without an error when the applicant abandons SumSub %s during the Iron session',
+      async (_label, launchResult) => {
+        await withController(
+          {
+            options: {
+              state: {
+                activeVendor: 'iron',
+                vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              },
+            },
+          },
+          async ({ controller, handlers, launcher }) => {
+            // The applicant closes the SDK before submitting anything.
+            launcher.launch.mockResolvedValue(launchResult);
+            handlers.fetchVendorDisclaimers.mockResolvedValue([]);
+
+            await controller.acceptTermsAndStartSession({
+              email: 'a@b.co',
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            });
+
+            expect(controller.state.phase).toBe('terms');
+            // Nothing went wrong, so there is no error for consumers to report.
+            expect(controller.state.error).toBeNull();
+            expect(controller.state.sumsub.status).toBe('abandoned');
+            expect(controller.state.statusMessage).toMatch(
+              /was not finished/iu,
+            );
+            // The spent session is still dropped.
+            expect(controller.state.sumsub.sessionId).toBeNull();
+            expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
+            expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+          },
+        );
+      },
+    );
+
+    it('returns to terms with an error when SumSub itself fails during the Iron session', async () => {
       await withController(
         {
           options: {
@@ -3456,10 +3577,9 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers, launcher }) => {
-          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
-            // Applicant abandons: launch resolves without a Completed status.
-            onStatusChange?.('idle', 'InProgress');
-            return { ok: false };
+          launcher.launch.mockResolvedValue({
+            success: false,
+            status: 'Failed',
           });
           handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
@@ -3471,10 +3591,47 @@ describe('KycController', () => {
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.sumsub.status).toBe('idle');
-          expect(controller.state.sumsub.sessionId).toBeNull();
-          expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
-          expect(controller.state.error).toMatch(/Consents session failed/u);
-          expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+          expect(controller.state.error).toMatch(
+            /Consents session failed.*could not run/u,
+          );
+        },
+      );
+    });
+
+    it('reaches the done phase when the native SDK reports a Pending submission', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+            userStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          // The native SDK reports `Pending` — documents in, review awaited —
+          // rather than the launcher-normalized `Completed`.
+          launcher.launch.mockResolvedValue({
+            success: true,
+            status: 'Pending',
+          });
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+          handlers.fetchKycStatus.mockResolvedValue({ status: 'completed' });
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
+
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+          });
+
+          expect(controller.state.phase).toBe('done');
+          expect(controller.state.error).toBeNull();
+          expect(controller.state.sumsub.status).toBe('complete');
+          expect(controller.state.userStatus).toBe('completed');
         },
       );
     });
