@@ -426,19 +426,20 @@ export class AccountsApiDataSource extends AbstractDataSource<
       };
 
       if (isV6) {
-        // User-pinned assets on the fetched chains, sent to v6 as
-        // `includeAssetIds` so the backend returns them even at zero balance.
-        const includeAssetIds = this.#getIncludeAssetIds(
+        // User-hidden assets on the fetched chains, sent to v6 as
+        // `excludeAssetIds`.
+        const excludeAssetIds = this.#getExcludeAssetIds(
           request,
           chainsToFetch,
         );
 
-        // User-hidden assets on the fetched chains, sent to v6 as
-        // `excludeAssetIds`. A pin wins over a hide.
-        const excludeAssetIds = this.#getExcludeAssetIds(
+        // User-pinned assets on the fetched chains, sent to v6 as
+        // `includeAssetIds` so the backend returns them even at zero balance.
+        // A hide wins over a pin, so hidden assets are never fetched.
+        const includeAssetIds = this.#getIncludeAssetIds(
           request,
           chainsToFetch,
-          includeAssetIds,
+          excludeAssetIds,
         );
 
         fetchResult = await this.#fetchV6Balances(
@@ -518,24 +519,31 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
   /**
    * Collect the pinned EVM assets on the fetched chains to send to the v6
-   * endpoint as `includeAssetIds`; malformed IDs are skipped.
+   * endpoint as `includeAssetIds`; malformed IDs are skipped and hidden
+   * assets are left out (a hide wins).
    *
    * @param request - The data request (carries `customAssets`).
    * @param chainsToFetch - Chains being requested this fetch.
+   * @param excludeAssetIds - Hidden asset IDs that must not be included.
    * @returns Deduplicated asset IDs, or `undefined` when none.
    */
   #getIncludeAssetIds(
     request: DataRequest,
     chainsToFetch: ChainId[],
+    excludeAssetIds: Caip19AssetId[] | undefined,
   ): Caip19AssetId[] | undefined {
     if (!request.customAssets || request.customAssets.length === 0) {
       return undefined;
     }
 
     const chainsToFetchSet = new Set<ChainId>(chainsToFetch);
+    const excludeSet = new Set<Caip19AssetId>(excludeAssetIds ?? []);
     const includeAssetIds = new Set<Caip19AssetId>();
 
     for (const assetId of request.customAssets) {
+      if (excludeSet.has(assetId)) {
+        continue;
+      }
       let chainId: ChainId;
       try {
         chainId = parseCaipAssetType(assetId).chainId;
@@ -555,31 +563,24 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
   /**
    * Collect the hidden EVM assets on the fetched chains to send to the v6
-   * endpoint as `excludeAssetIds`; malformed IDs are skipped and pinned
-   * assets are left out (a pin wins).
+   * endpoint as `excludeAssetIds`; malformed IDs are skipped.
    *
    * @param request - The data request (carries `excludeAssetIds`).
    * @param chainsToFetch - Chains being requested this fetch.
-   * @param includeAssetIds - Pinned asset IDs that must not be excluded.
    * @returns Deduplicated asset IDs, or `undefined` when none.
    */
   #getExcludeAssetIds(
     request: DataRequest,
     chainsToFetch: ChainId[],
-    includeAssetIds: Caip19AssetId[] | undefined,
   ): Caip19AssetId[] | undefined {
     if (!request.excludeAssetIds || request.excludeAssetIds.length === 0) {
       return undefined;
     }
 
     const chainsToFetchSet = new Set<ChainId>(chainsToFetch);
-    const includeSet = new Set<Caip19AssetId>(includeAssetIds ?? []);
     const excludeAssetIds = new Set<Caip19AssetId>();
 
     for (const assetId of request.excludeAssetIds) {
-      if (includeSet.has(assetId)) {
-        continue;
-      }
       let chainId: ChainId;
       try {
         chainId = parseCaipAssetType(assetId).chainId;

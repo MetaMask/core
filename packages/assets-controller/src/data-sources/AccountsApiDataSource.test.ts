@@ -1161,7 +1161,7 @@ describe('AccountsApiDataSource', () => {
       controller.destroy();
     });
 
-    it('lets a pinned asset win when it also appears in the hidden list', async () => {
+    it('lets a hidden asset win when it also appears in the pinned list', async () => {
       const { controller, apiClient } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
       });
@@ -1176,12 +1176,12 @@ describe('AccountsApiDataSource', () => {
         }),
       );
 
-      // The asset is pinned, so it is included and never excluded.
+      // The asset is hidden, so it is excluded and never included.
       expect(
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledWith(
         [`eip155:1:${MOCK_ADDRESS}`],
-        { includeAssetIds: [token] },
+        { excludeAssetIds: [token] },
         undefined,
       );
 

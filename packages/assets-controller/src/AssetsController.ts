@@ -109,6 +109,7 @@ import {
   DEFAULT_TRACKED_ASSETS_BY_CHAIN,
   buildDefaultAssetsInfo,
   getDefaultAssetMetadata,
+  getDefaultTrackedAssetsForChain,
 } from './defaults.js';
 import { AssetsDataSourceError } from './errors.js';
 import { projectLogger, createModuleLogger } from './logger.js';
@@ -1760,7 +1761,7 @@ export class AssetsController extends BaseController<
   ): DataRequest {
     const customAssets: Caip19AssetId[] = [];
     for (const account of accounts) {
-      customAssets.push(...this.getCustomAssets(account.id));
+      customAssets.push(...this.#getVisibleCustomAssets(account.id));
     }
 
     return this.#buildDataRequest(accounts, chainIds, {
@@ -1803,7 +1804,8 @@ export class AssetsController extends BaseController<
       try {
         const normalizedAssetId = normalizeAssetId(assetId);
         if (
-          requestedChains.has(parseCaipAssetType(normalizedAssetId).chainId)
+          requestedChains.has(parseCaipAssetType(normalizedAssetId).chainId) &&
+          !this.state.assetPreferences[normalizedAssetId]?.hidden
         ) {
           customAssetsSet.add(normalizedAssetId);
         }
@@ -2607,6 +2609,21 @@ export class AssetsController extends BaseController<
   }
 
   /**
+   * An account's pins minus the ones the user has hidden. A hide wins over a
+   * pin on requests, so a hidden asset is never fetched; the pin stays in
+   * `customAssets` to record that the token was imported, and unhiding it
+   * restores the pin on the next subscription.
+   *
+   * @param accountId - The account whose pins should be collected.
+   * @returns The account's pinned asset IDs that are not hidden.
+   */
+  #getVisibleCustomAssets(accountId: AccountId): Caip19AssetId[] {
+    return this.getCustomAssets(accountId).filter(
+      (assetId) => !this.state.assetPreferences[assetId]?.hidden,
+    );
+  }
+
+  /**
    * Whether Accounts API v6 (and the v6 custom-asset path) is enabled.
    * Injected into AccountsApiDataSource and RpcFallbackMiddleware.
    *
@@ -2908,6 +2925,25 @@ export class AssetsController extends BaseController<
   }
 
   /**
+   * Returns the controller-managed default tracked asset IDs (e.g. mUSD) for
+   * the chains this account supports (account scopes ∩ enabled chains).
+   * Non-EVM accounts resolve to an empty list because every chain in the
+   * defaults registry is EVM today.
+   *
+   * @param account - The account (scopes determine which chains apply).
+   * @returns Array of default tracked asset IDs across the supported chains.
+   */
+  #getDefaultTrackedAssetIdsForAccount(
+    account: InternalAccount,
+  ): Caip19AssetId[] {
+    const ids: Caip19AssetId[] = [];
+    for (const chainId of this.#getEnabledChainsForAccount(account)) {
+      ids.push(...getDefaultTrackedAssetsForChain(chainId));
+    }
+    return ids;
+  }
+
+  /**
    * Chains for the post-commit slow pipeline (Snap + RPC). Excludes chains the
    * fast Accounts API path already handled without error so stale RPC data cannot
    * overwrite fresh API zeros (e.g. after max send).
@@ -3185,6 +3221,22 @@ export class AssetsController extends BaseController<
               }
             }
 
+            // Default tracked assets (mUSD) are controller-managed and, like
+            // natives, must render at zero balance. An authoritative
+            // chain-slice replace omits them whenever the account holds none,
+            // so re-assert them here — otherwise a force refresh (e.g. the
+            // "Refresh list" action) would drop mUSD from the token list.
+            const defaultTrackedAssetIdsForAccount = account
+              ? this.#getDefaultTrackedAssetIdsForAccount(account)
+              : [];
+            for (const defaultAssetId of defaultTrackedAssetIdsForAccount) {
+              if (
+                !Object.prototype.hasOwnProperty.call(effective, defaultAssetId)
+              ) {
+                effective[defaultAssetId] = { amount: '0' } as AssetBalance;
+              }
+            }
+
             for (const [assetId, balance] of Object.entries(effective)) {
               const previousBalance = previousBalances[
                 assetId as Caip19AssetId
@@ -3205,11 +3257,14 @@ export class AssetsController extends BaseController<
               );
               effective[assetId] = { ...balance, amount: newAmount };
               const oldAmount = previousBalance?.amount;
-              const isNewDefaultNativeZero =
+              const isNewSeededZero =
                 oldAmount === undefined &&
                 newAmount === '0' &&
-                nativeAssetIdsForAccount.includes(assetId as Caip19AssetId);
-              if (oldAmount !== newAmount && !isNewDefaultNativeZero) {
+                (nativeAssetIdsForAccount.includes(assetId as Caip19AssetId) ||
+                  defaultTrackedAssetIdsForAccount.includes(
+                    assetId as Caip19AssetId,
+                  ));
+              if (oldAmount !== newAmount && !isNewSeededZero) {
                 changedBalances.push({
                   accountId,
                   assetId,
@@ -3677,7 +3732,7 @@ export class AssetsController extends BaseController<
     const remainingChains = new Set(chainToAccounts.keys());
     const remainingCustomAssets = new Set<Caip19AssetId>();
     for (const account of accounts) {
-      for (const assetId of this.getCustomAssets(account.id)) {
+      for (const assetId of this.#getVisibleCustomAssets(account.id)) {
         try {
           if (remainingChains.has(parseCaipAssetType(assetId).chainId)) {
             remainingCustomAssets.add(assetId);
@@ -3777,9 +3832,17 @@ export class AssetsController extends BaseController<
     const rpc = this.#rpcDataSource;
     const supplementalKey = `ds:${rpc.getName()}:custom`;
 
+    const visibleCustomAssetsByAccount: Record<string, Caip19AssetId[]> = {};
+    for (const account of accounts) {
+      const visibleCustomAssets = this.#getVisibleCustomAssets(account.id);
+      if (visibleCustomAssets.length > 0) {
+        visibleCustomAssetsByAccount[account.id] = visibleCustomAssets;
+      }
+    }
+
     const decision = pickRpcCustomAssetsSupplement({
       accountIds: accounts.map((account) => account.id),
-      customAssetsByAccount: this.state.customAssets,
+      customAssetsByAccount: visibleCustomAssetsByAccount,
       rpcAssignedChains,
       rpcAvailableChains: new Set(rpc.getActiveChainsSync()),
       enabledChains: new Set(chainToAccounts.keys()),

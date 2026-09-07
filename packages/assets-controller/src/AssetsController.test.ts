@@ -27,7 +27,10 @@ import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
 import { PriceDataSource } from './data-sources/PriceDataSource.js';
 import { RpcDataSource } from './data-sources/RpcDataSource.js';
 import { TokenDataSource } from './data-sources/TokenDataSource.js';
-import { buildDefaultAssetsInfo } from './defaults.js';
+import {
+  buildDefaultAssetsInfo,
+  getDefaultTrackedAssetsForChain,
+} from './defaults.js';
 import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
 import type {
   Caip19AssetId,
@@ -102,6 +105,10 @@ const MOCK_ASSET_ID =
 const MOCK_ASSET_ID_LOWERCASE =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
 const MOCK_NATIVE_ASSET_ID = 'eip155:1/slip44:60' as Caip19AssetId;
+/** mUSD on mainnet — a controller-managed default tracked asset. */
+const [MOCK_DEFAULT_TRACKED_ASSET_ID] = getDefaultTrackedAssetsForChain(
+  'eip155:1' as ChainId,
+);
 
 /**
  * Activate asset tracking by marking the UI open, the keyring unlocked, and
@@ -1460,6 +1467,67 @@ describe('AssetsController', () => {
             }),
             expect.anything(),
           );
+        },
+      );
+    });
+
+    it('stops forwarding a pinned custom asset as includeAssetIds once it is hidden', async () => {
+      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+        accounts: [],
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+      });
+
+      const queryApiClient = {
+        ...createMockQueryApiClient(),
+        accounts: {
+          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+            fullSupport: [1],
+            partialSupport: [],
+          }),
+          fetchV6MultiAccountBalances,
+          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+            balances: [],
+            unprocessedNetworks: [],
+          }),
+        },
+      } as unknown as ApiPlatformClient;
+
+      const customToken =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      await withController(
+        {
+          queryApiClient,
+          remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        },
+        async ({ controller }) => {
+          await flushPromises();
+
+          await controller.addCustomAsset(MOCK_ACCOUNT_ID, customToken);
+          controller.hideAsset(customToken);
+
+          // The pin is preserved so the import is remembered.
+          expect(controller.getCustomAssets(MOCK_ACCOUNT_ID)).toContain(
+            customToken,
+          );
+
+          fetchV6MultiAccountBalances.mockClear();
+          await controller.getAssets([createMockInternalAccount()], {
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+          });
+
+          expect(fetchV6MultiAccountBalances).toHaveBeenCalledWith(
+            expect.any(Array),
+            expect.objectContaining({
+              excludeAssetIds: expect.arrayContaining([customToken]),
+            }),
+            expect.anything(),
+          );
+          for (const [, params] of fetchV6MultiAccountBalances.mock.calls) {
+            expect(params?.includeAssetIds ?? []).not.toContain(customToken);
+          }
         },
       );
     });
@@ -3089,6 +3157,70 @@ describe('AssetsController', () => {
             MOCK_NATIVE_ASSET_ID
           ],
         ).toStrictEqual({ amount: '2' });
+      });
+    });
+
+    it('keeps default tracked assets at zero when a full update omits them', async () => {
+      // Regression: a force refresh (e.g. "Refresh list") replaces the chain
+      // slice, so mUSD was dropped from the token list for accounts holding
+      // none. Default tracked assets are re-asserted just like natives.
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_DEFAULT_TRACKED_ASSET_ID]: { amount: '0' },
+            [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'full',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+            MOCK_DEFAULT_TRACKED_ASSET_ID
+          ],
+        ).toStrictEqual({ amount: '0' });
+      });
+    });
+
+    it('does not overwrite a default tracked asset balance returned by a full update', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_DEFAULT_TRACKED_ASSET_ID]: { amount: '5' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'full',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_DEFAULT_TRACKED_ASSET_ID]: { amount: '7' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+            MOCK_DEFAULT_TRACKED_ASSET_ID
+          ],
+        ).toStrictEqual({ amount: '7' });
       });
     });
 
