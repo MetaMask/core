@@ -479,11 +479,9 @@ export class PriceDataSource {
   }
 
   /**
-   * Gets the supported networks from the Price API.
-   * Caching is handled by ApiPlatformClient.
+   * Price API supported CAIP-2 networks; empty on error.
    *
-   * @returns Set of supported chain IDs in CAIP-2 format. Fails open (empty
-   * set) on error so callers can decide whether to proceed.
+   * @returns Supported chain IDs.
    */
   async #getSupportedNetworks(): Promise<Set<string>> {
     try {
@@ -502,13 +500,11 @@ export class PriceDataSource {
   }
 
   /**
-   * Filters asset IDs to only include those from supported networks.
+   * Keeps asset IDs whose chain is in `supportedNetworks`.
    *
-   * @param assetIds - Array of CAIP-19 asset IDs.
-   * @param supportedNetworks - Set of supported CAIP-2 chain IDs.
-   * @returns Array of asset IDs from supported networks. When
-   * `supportedNetworks` is empty (fetch failed), returns all asset IDs
-   * (fail open) to preserve existing behaviour.
+   * @param assetIds - CAIP-19 asset IDs.
+   * @param supportedNetworks - Supported CAIP-2 chain IDs.
+   * @returns Matching IDs, or all IDs if the set is empty.
    */
   #filterAssetsByNetwork(
     assetIds: Caip19AssetId[],
