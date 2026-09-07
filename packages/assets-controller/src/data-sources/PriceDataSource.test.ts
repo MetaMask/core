@@ -1,7 +1,6 @@
 import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { waitFor } from '../__fixtures__/test-utils.js';
 import type {
   ChainId,
   DataRequest,
