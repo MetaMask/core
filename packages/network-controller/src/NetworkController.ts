@@ -1427,7 +1427,6 @@ export class NetworkController extends BaseController<
     );
 
     this.messenger.subscribe(
-      // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
       (rpcFailoverMode) => {
         this.#updateRpcFailover(rpcFailoverMode);

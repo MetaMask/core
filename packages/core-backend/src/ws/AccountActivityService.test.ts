@@ -142,7 +142,7 @@ const getMessenger = (): {
     events: [
       'AccountTreeController:selectedAccountGroupChange',
       'BackendWebSocketService:connectionStateChanged',
-      // eslint-disable-next-line no-restricted-syntax
+
       'RemoteFeatureFlagController:stateChange',
     ],
     messenger,

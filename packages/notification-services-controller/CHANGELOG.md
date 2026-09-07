@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.1]
+
+### Fixed
+
+- Wallet-activity notifications are no longer suppressed by the `walletActivity.inAppNotificationsEnabled` and `walletActivity.pushNotificationsEnabled` toggles in Authenticated User Storage ([#10113](https://github.com/MetaMask/core/pull/10113))
+  - Both channels are now always enabled and delivery is controlled exclusively by each address's Trigger API subscription, so a stored `false` can no longer leave a subscribed address without notifications. Clients no longer expose a way to change these toggles, which made a stored `false` unrecoverable.
+  - `enablePushNotifications` no longer unregisters the device when the stored push toggle is off, `createOnChainTriggers` no longer registers an empty address list for the same reason, and `fetchAndUpdateMetamaskNotifications` no longer skips the on-chain fetch when the stored in-app toggle is off.
+  - The fields are still written when initializing a fresh preferences blob, because the Authenticated User Storage schema requires them. Nothing reads them back.
+
 ## [27.0.0]
 
 ### Changed
@@ -877,7 +886,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@27.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@27.0.1...HEAD
+[27.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@27.0.0...@metamask/notification-services-controller@27.0.1
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@26.0.1...@metamask/notification-services-controller@27.0.0
 [26.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@26.0.0...@metamask/notification-services-controller@26.0.1
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@25.0.0...@metamask/notification-services-controller@26.0.0
