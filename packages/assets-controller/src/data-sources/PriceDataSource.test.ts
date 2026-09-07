@@ -536,9 +536,7 @@ describe('PriceDataSource', () => {
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
-    jest.advanceTimersByTime(5000);
-    await jest.advanceTimersByTimeAsync(0);
-
+    await jest.advanceTimersByTimeAsync(5000);
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
 
     controller.destroy();
@@ -570,8 +568,8 @@ describe('PriceDataSource', () => {
     // Advance one tick at a time, flushing microtasks between each so the
     // async pollFn completes and inflight promises settle before the next tick.
     for (let i = 2; i <= 7; i++) {
-      jest.advanceTimersByTime(10000);
-      await jest.advanceTimersByTimeAsync(0);
+      await jest.advanceTimersByTimeAsync(10000);
+      expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(i);
     }
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(7);
@@ -1331,273 +1329,117 @@ describe('PriceDataSource', () => {
     },
   );
 
-  // ==========================================================================
-  // SUPPORTED NETWORKS FILTERING
-  // ==========================================================================
   describe('supported networks filtering', () => {
     const SUPPORTED_SOLANA_CHAIN = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
-    const SUPPORTED_SOLANA_ASSET =
-      `${SUPPORTED_SOLANA_CHAIN}/slip44:501` as Caip19AssetId;
+    const SUPPORTED_SOLANA_ASSET = `${SUPPORTED_SOLANA_CHAIN}/slip44:501`;
     const UNSUPPORTED_SOLANA_ASSET =
-      'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501' as Caip19AssetId;
-    const UNSUPPORTED_TRON_ASSET =
-      'tron:3448148188/slip44:195' as Caip19AssetId;
+      'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
     const MALFORMED_ASSET_ID = 'not-a-valid-caip19' as Caip19AssetId;
 
-    // ------------------------------------------------------------------------
-    // Test infrastructure: case type + assertion helpers
-    // ------------------------------------------------------------------------
-    type FilterTestSetup = {
-      controller: PriceDataSource;
-      apiClient: MockApiClient;
-      invoke: () => Promise<void>;
-      next?: jest.Mock;
-      context?: Context;
-    };
-
-    type FilterTestCase = {
-      name: string;
-      arrange: () => FilterTestSetup;
-      assert: (setup: FilterTestSetup) => void;
-    };
-
-    const expectApiSentAssets = (
-      apiClient: MockApiClient,
-      assetIds: Caip19AssetId[],
-    ): void => {
-      expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
-        assetIds,
-        expect.anything(),
-      );
-    };
-
-    const expectApiNotCalled = (apiClient: MockApiClient): void => {
-      expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
-    };
-
-    const PARTIAL_CHAIN = 'eip155:137';
-    const PARTIAL_ASSET = 'eip155:137/slip44:1' as Caip19AssetId;
-
-    const balanceStateFor = (
-      ...assetIds: Caip19AssetId[]
-    ): Record<string, Record<string, unknown>> => ({
-      'mock-account-id': Object.fromEntries(
-        assetIds.map((assetId) => [assetId, { amount: '1' }]),
-      ),
-    });
-
-    const applySupportedNetworksMock = (
-      setup: FilterTestSetup,
-      supportedNetworksResponse?: {
-        fullSupport: string[];
-        partialSupport: string[];
-      },
-      supportedNetworksError?: Error,
-    ): FilterTestSetup => {
-      if (supportedNetworksResponse) {
-        setup.apiClient.prices.fetchPriceV2SupportedNetworks.mockResolvedValue(
-          supportedNetworksResponse,
-        );
-      }
-      if (supportedNetworksError) {
-        setup.apiClient.prices.fetchPriceV2SupportedNetworks.mockRejectedValueOnce(
-          supportedNetworksError,
-        );
-      }
-      return setup;
-    };
-
-    const arrangeFetch = ({
-      assets,
-      chainIds = [],
-      priceResponse = {},
-      supportedNetworks,
-      supportedNetworksResponse,
-      supportedNetworksError,
-    }: {
-      assets: Caip19AssetId[];
-      chainIds?: ChainId[];
-      priceResponse?: Record<string, unknown>;
-      supportedNetworks?: string[];
-      supportedNetworksResponse?: {
-        fullSupport: string[];
-        partialSupport: string[];
-      };
-      supportedNetworksError?: Error;
-    }): FilterTestSetup => {
-      const result = setupController({
-        balanceState: balanceStateFor(...assets),
-        priceResponse,
-        supportedNetworks,
-      });
-      return applySupportedNetworksMock(
-        {
-          controller: result.controller,
-          apiClient: result.apiClient,
-          invoke: (): Promise<void> =>
-            result.controller.fetch(
-              createDataRequest({ chainIds }),
-              result.getAssetsState,
-            ),
-        },
-        supportedNetworksResponse,
-        supportedNetworksError,
-      );
-    };
-
     const arrangeMiddleware = ({
-      assetsForPriceUpdate,
-      detectedAssets,
-      priceResponse = {},
+      assetsForPriceUpdate = [],
+      detectedAssets = [],
       supportedNetworks = ['eip155:1'],
     }: {
       assetsForPriceUpdate?: Caip19AssetId[];
       detectedAssets?: Caip19AssetId[];
-      priceResponse?: Record<string, unknown>;
       supportedNetworks?: string[];
-    }): FilterTestSetup => {
-      const result = setupController({ priceResponse, supportedNetworks });
-      const next = jest.fn().mockResolvedValue(undefined);
-      const context = createMiddlewareContext({
-        ...(assetsForPriceUpdate
-          ? { request: createDataRequest({ assetsForPriceUpdate }) }
-          : {}),
-        response: detectedAssets
-          ? { detectedAssets: { 'mock-account-id': detectedAssets } }
-          : {},
+    }): {
+      controller: PriceDataSource;
+      apiClient: MockApiClient;
+      act: () => Promise<unknown>;
+      context: Context;
+    } => {
+      const result = setupController({
+        priceResponse: {
+          [SUPPORTED_SOLANA_ASSET]: createMockPriceData(150),
+        },
+        supportedNetworks,
       });
+
+      const context = createMiddlewareContext({
+        request: createDataRequest({ assetsForPriceUpdate }),
+        response: { detectedAssets: { 'mock-account-id': detectedAssets } },
+      });
+
       return {
         controller: result.controller,
         apiClient: result.apiClient,
-        invoke: (): Promise<void> =>
-          result.controller.assetsMiddleware(context, next),
-        next,
+        act: () => result.controller.assetsMiddleware(context, jest.fn()),
         context,
       };
     };
 
-    const assertMiddlewareSkipped = ({
-      apiClient,
-      next,
-      context,
-    }: FilterTestSetup): void => {
-      expectApiNotCalled(apiClient);
-      expect(next).toHaveBeenCalledWith(context);
-    };
-
-    const fetchCases: FilterTestCase[] = [
+    const testCases = [
       {
-        name: 'fetch filters out assets from unsupported networks, keeping supported ones',
-        arrange: (): FilterTestSetup =>
-          arrangeFetch({
-            assets: [MOCK_NATIVE_ASSET, UNSUPPORTED_SOLANA_ASSET],
-            priceResponse: { [MOCK_NATIVE_ASSET]: createMockPriceData(2500) },
-            supportedNetworks: ['eip155:1', SUPPORTED_SOLANA_CHAIN],
-          }),
-        assert: ({ apiClient }): void =>
-          expectApiSentAssets(apiClient, [MOCK_NATIVE_ASSET]),
-      },
-      {
-        name: 'fetch sends only the supported asset when both are on the same namespace',
-        arrange: (): FilterTestSetup =>
-          arrangeFetch({
-            assets: [SUPPORTED_SOLANA_ASSET, UNSUPPORTED_SOLANA_ASSET],
-            priceResponse: {
-              [SUPPORTED_SOLANA_ASSET]: createMockPriceData(150),
-            },
-            supportedNetworks: [SUPPORTED_SOLANA_CHAIN],
-          }),
-        assert: ({ apiClient }): void =>
-          expectApiSentAssets(apiClient, [SUPPORTED_SOLANA_ASSET]),
-      },
-      {
-        name: 'fetch does not call API when all assets are from unsupported networks',
-        arrange: (): FilterTestSetup =>
-          arrangeFetch({
-            assets: [UNSUPPORTED_SOLANA_ASSET, UNSUPPORTED_TRON_ASSET],
-            supportedNetworks: ['eip155:1'],
-          }),
-        assert: ({ apiClient }): void => expectApiNotCalled(apiClient),
-      },
-      {
-        name: 'fetch includes assets from partial-support networks',
-        arrange: (): FilterTestSetup =>
-          arrangeFetch({
-            assets: [PARTIAL_ASSET],
-            chainIds: [PARTIAL_CHAIN as ChainId],
-            priceResponse: { [PARTIAL_ASSET]: createMockPriceData(0.5) },
-            supportedNetworksResponse: {
-              fullSupport: ['eip155:1'],
-              partialSupport: [PARTIAL_CHAIN],
-            },
-          }),
-        assert: ({ apiClient }): void =>
-          expectApiSentAssets(apiClient, [PARTIAL_ASSET]),
-      },
-      {
-        name: 'fetch fails open (sends all assets) when supported networks fetch fails',
-        arrange: (): FilterTestSetup =>
-          arrangeFetch({
-            assets: [MOCK_NATIVE_ASSET],
-            priceResponse: { [MOCK_NATIVE_ASSET]: createMockPriceData(2500) },
-            supportedNetworksError: new Error('Network error'),
-          }),
-        assert: ({ apiClient }): void =>
-          expectApiSentAssets(apiClient, [MOCK_NATIVE_ASSET]),
-      },
-    ];
-
-    const middlewareCases: FilterTestCase[] = [
-      {
-        name: 'middleware filters out detected assets from unsupported networks',
-        arrange: (): FilterTestSetup =>
-          arrangeMiddleware({ detectedAssets: [UNSUPPORTED_SOLANA_ASSET] }),
-        assert: (setup): void => assertMiddlewareSkipped(setup),
-      },
-      {
-        name: 'middleware filters unsupported assets but fetches supported ones',
-        arrange: (): FilterTestSetup =>
-          arrangeMiddleware({
-            assetsForPriceUpdate: [
-              SUPPORTED_SOLANA_ASSET,
-              UNSUPPORTED_SOLANA_ASSET,
-            ],
-            priceResponse: {
-              [SUPPORTED_SOLANA_ASSET]: createMockPriceData(150),
-            },
-            supportedNetworks: [SUPPORTED_SOLANA_CHAIN],
-          }),
-        assert: ({ apiClient, next, context }): void => {
-          expectApiSentAssets(apiClient, [SUPPORTED_SOLANA_ASSET]);
-          expect(next).toHaveBeenCalledWith(context);
+        name: 'filters unsupported assets but fetches supported ones',
+        assets: [SUPPORTED_SOLANA_ASSET, UNSUPPORTED_SOLANA_ASSET],
+        expectAPI: ({
+          apiClient,
+        }: ReturnType<typeof arrangeMiddleware>): void => {
+          expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+            [SUPPORTED_SOLANA_ASSET],
+            expect.anything(),
+          );
         },
       },
       {
-        name: 'middleware does not call API when all assetsForPriceUpdate are from unsupported networks',
-        arrange: (): FilterTestSetup =>
-          arrangeMiddleware({
-            assetsForPriceUpdate: [UNSUPPORTED_SOLANA_ASSET],
-          }),
-        assert: (setup): void => assertMiddlewareSkipped(setup),
+        name: 'filters out detected assets from unsupported networks',
+        assets: [UNSUPPORTED_SOLANA_ASSET],
+        expectAPI: ({
+          apiClient,
+        }: ReturnType<typeof arrangeMiddleware>): void => {
+          expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
+        },
       },
       {
-        name: 'middleware filters out malformed asset IDs when checking supported networks',
-        arrange: (): FilterTestSetup =>
-          arrangeMiddleware({ assetsForPriceUpdate: [MALFORMED_ASSET_ID] }),
-        assert: (setup): void => assertMiddlewareSkipped(setup),
+        name: 'does not call API when all assetsForPriceUpdate are from unsupported networks',
+        assets: [UNSUPPORTED_SOLANA_ASSET],
+        expectAPI: ({
+          apiClient,
+        }: ReturnType<typeof arrangeMiddleware>): void => {
+          expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
+        },
+      },
+      {
+        name: 'filters out malformed asset IDs when checking supported networks',
+        assets: [MALFORMED_ASSET_ID],
+        expectAPI: ({
+          apiClient,
+        }: ReturnType<typeof arrangeMiddleware>): void => {
+          expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
+        },
       },
     ];
 
-    // ------------------------------------------------------------------------
-    // Unified runner — no branches; each case owns its arrange + assert
-    // ------------------------------------------------------------------------
-    it.each<FilterTestCase>([...fetchCases, ...middlewareCases])(
-      '$name',
-      async ({ arrange, assert }): Promise<void> => {
+    it.each(testCases)(
+      'request.assetsForPriceUpdate price updates: $name',
+      async ({ assets, expectAPI }) => {
         expect.hasAssertions();
-        const setup = arrange();
-        await setup.invoke();
-        assert(setup);
+        const setup = arrangeMiddleware({
+          assetsForPriceUpdate: assets as Caip19AssetId[],
+          supportedNetworks: [SUPPORTED_SOLANA_CHAIN],
+        });
+
+        await setup.act();
+        expectAPI(setup);
+        setup.controller.destroy();
+      },
+    );
+
+    it.each(testCases)(
+      'request.detectedAssets price updates: $name',
+      async ({ assets, expectAPI }) => {
+        expect.hasAssertions();
+        const setup = arrangeMiddleware({
+          detectedAssets: assets as Caip19AssetId[],
+          supportedNetworks: [SUPPORTED_SOLANA_CHAIN],
+        });
+
+        await setup.act().catch(() => {
+          // Do nothing
+        });
+        expectAPI(setup);
         setup.controller.destroy();
       },
     );

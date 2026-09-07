@@ -17,7 +17,7 @@ import type {
   AssetsControllerStateInternal,
 } from '../types.js';
 import { DedupingBatchFetcher } from '../utils/dedupingBatchFetcher.js';
-import { fetchWithTimeout, normalizeAssetId } from '../utils/index.js';
+import { fetchWithTimeout, safeNormalizeAssetId } from '../utils/index.js';
 import type { SubscriptionRequest } from './AbstractDataSource.js';
 import { reduceInBatchesSerially } from './evm-rpc-services/index.js';
 
@@ -228,7 +228,7 @@ export class PriceDataSource {
         response.detectedAssets ?? {},
       )) {
         for (const assetId of detectedAccountAssets) {
-          const normalizedAssetId = normalizeAssetId(assetId);
+          const normalizedAssetId = safeNormalizeAssetId(assetId);
           const alreadyQueued = request.assetsForPriceUpdate?.some(
             (queuedId) =>
               queuedId === assetId || queuedId === normalizedAssetId,
