@@ -34,6 +34,10 @@ export const TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT = (
   env: ENV = 'prd',
 ): string => `${TRIGGER_API(env)}/api/v2/notifications/query`;
 
+// Creates/updates account notification subscriptions for each account provided
+export const TRIGGER_API_NOTIFICATIONS_ENDPOINT = (env: ENV = 'prd'): string =>
+  `${TRIGGER_API(env)}/api/v2/notifications`;
+
 // Lists notifications for each address provided
 export const NOTIFICATION_API_LIST_ENDPOINT = (env: ENV = 'prd'): string =>
   `${NOTIFICATION_API(env)}/api/v4/notifications`;
@@ -51,13 +55,16 @@ export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = (
  * @param env - the environment to use for the API call
  * NOTE the API will return addresses config with false if they have not been created before.
  * NOTE this is cached for 1s to prevent multiple update calls
- * @returns object of notification config, or null if missing
+ * @returns the config for each requested address, or `null` if the config could
+ * not be read. An empty array means the API answered and no address is
+ * subscribed; callers must not read a failure as "nothing is enabled", since
+ * acting on that would re-subscribe or unregister addresses behind the user.
  */
 export async function getNotificationsApiConfigCached(
   bearerToken: string,
   addresses: string[],
   env: ENV = 'prd',
-): Promise<{ address: string; enabled: boolean }[]> {
+): Promise<{ address: string; enabled: boolean }[] | null> {
   if (addresses.length === 0) {
     return [];
   }
@@ -72,7 +79,7 @@ export async function getNotificationsApiConfigCached(
   type RequestBody = { address: string }[];
   type Response = { address: string; enabled: boolean }[];
   const body: RequestBody = normalizedAddresses.map((address) => ({ address }));
-  const apiResponse = await makeApiCall(
+  const result = await makeApiCall(
     bearerToken,
     TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(env),
     'POST',
@@ -81,13 +88,62 @@ export async function getNotificationsApiConfigCached(
     .then<Response | null>((response) => (response.ok ? response.json() : null))
     .catch(() => null);
 
-  const result = apiResponse ?? [];
+  if (result === null) {
+    return null;
+  }
 
   if (result.length > 0) {
     notificationsConfigCache.set(result);
   }
 
   return result;
+}
+
+/**
+ * Creates or removes wallet-activity subscriptions for the given addresses.
+ *
+ * The endpoint is a per-address upsert-or-delete batch rather than a full
+ * replace, so two installations authenticating as the same profile do not
+ * clobber each other's subscriptions.
+ *
+ * @param bearerToken - jwt
+ * @param addresses - addresses to subscribe (`enabled: true`) or unsubscribe (`enabled: false`)
+ * @param env - the environment to use for the API call
+ * @throws if the request could not be made or the API rejected it, so callers
+ * do not report a subscription change the server never applied.
+ */
+export async function updateOnChainNotifications(
+  bearerToken: string,
+  addresses: { address: string; enabled: boolean }[],
+  env: ENV = 'prd',
+): Promise<void> {
+  if (addresses.length === 0) {
+    return;
+  }
+
+  const normalizedAddresses = addresses.map((item) => ({
+    ...item,
+    address: item.address.toLowerCase(),
+  }));
+
+  type RequestBody = { address: string; enabled: boolean }[];
+  const body: RequestBody = normalizedAddresses;
+  const response = await makeApiCall(
+    bearerToken,
+    TRIGGER_API_NOTIFICATIONS_ENDPOINT(env),
+    'POST',
+    body,
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to update on-chain notifications: ${response.status}`,
+    );
+  }
+
+  // Seeded only once the server has accepted the change: the settings UI reads
+  // this back for the whole TTL, so a rejected write must not look applied.
+  notificationsConfigCache.set(normalizedAddresses);
 }
 
 /**

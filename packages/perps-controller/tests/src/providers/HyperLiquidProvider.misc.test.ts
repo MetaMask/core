@@ -438,6 +438,8 @@ describe('HyperLiquidProvider', () => {
       clearAll: jest.fn(),
       isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
       getCachedPositions: jest.fn().mockReturnValue([]),
+      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
+      getCachedPositionsForDex: jest.fn().mockReturnValue(null),
       updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
       setDexMetaCache: jest.fn(),

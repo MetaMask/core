@@ -13,6 +13,7 @@ import {
   convertHexToDecimal,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
+import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -30,7 +31,6 @@ import type { Patch } from 'immer';
 import nock from 'nock';
 import { v1 as uuidV1 } from 'uuid';
 
-import { FakeProvider } from '../../../tests/fake-provider.js';
 import { createMockInternalAccount } from '../../accounts-controller/tests/mocks.js';
 import {
   buildCustomNetworkClientConfiguration,
@@ -4202,7 +4202,7 @@ async function withController<ReturnValue>(
     // assumption. But we have to do this due to a bug in TokensController
     // where the provider can possibly be `undefined` if `networkClientId` is
     // not specified.
-    provider: new FakeProvider(),
+    provider: new MockInternalProvider(),
     messenger: tokensControllerMessenger,
     tokenListService,
     ...options,

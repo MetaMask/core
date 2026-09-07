@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `selectIsActiveSubscriber` to check whether a product has an active, trialing, or provisional subscription. ([#10017](https://github.com/MetaMask/core/pull/10017))
+- Add product-scoped entitlements to `SubscriptionController` state and export type-safe `selectHasEntitlement` and `selectIsUsageAvailable` selectors for Money Account Plus and Shield ([#10017](https://github.com/MetaMask/core/pull/10017))
+- Add `getBenefits` to fetch and persist Money Account Plus subscription benefits. ([#10103](https://github.com/MetaMask/core/pull/10103))
+  - New persisted `SubscriptionControllerState.benefits` field and `SubscriptionController:getBenefits` messenger action.
+  - Requires an active `MONEY_ACCOUNT_PLUS` subscription; otherwise throws `UserNotSubscribed` without calling the service.
+  - Lifecycle refreshes after entitlement polling, crypto subscribe, cancel, and uncancel are best-effort and do not fail the primary operation.
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.7.0` ([#10046](https://github.com/MetaMask/core/pull/10046))
+- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.8.1` ([#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080), [#10124](https://github.com/MetaMask/core/pull/10124))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Add `fast-deep-equal` `^3.1.3` as a dependency.
 
 ## [8.0.1]
 

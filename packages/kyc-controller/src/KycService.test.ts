@@ -607,6 +607,25 @@ describe('KycService', () => {
         /Malformed response received from vendor customers API/u,
       );
     });
+
+    it('sends one request per call when two calls overlap', async () => {
+      const scope = nock(MOCK_API_URL)
+        .post('/vendors/iron/customers', { email: 'a@b.co' })
+        .times(2)
+        .reply(200, {
+          id: 'iron-1',
+          email: 'a@b.co',
+          status: 'SigningsRequired',
+        });
+      const { service } = getService();
+
+      await Promise.all([
+        service.createVendorCustomer({ vendor: 'iron', email: 'a@b.co' }),
+        service.createVendorCustomer({ vendor: 'iron', email: 'a@b.co' }),
+      ]);
+
+      expect(scope.isDone()).toBe(true);
+    });
   });
 
   describe('submitVendorDisclaimers', () => {
@@ -750,7 +769,6 @@ describe('KycService', () => {
           version: '1',
           title: 'idOS ToS',
           url: 'https://idos.example/tos',
-          consented: false,
         },
       ],
       kycProvider: [
@@ -759,7 +777,6 @@ describe('KycService', () => {
           version: '1',
           title: 'SumSub ToS',
           url: 'https://sumsub.example/tos',
-          consented: false,
         },
       ],
     };
@@ -871,6 +888,30 @@ describe('KycService', () => {
       nock(MOCK_API_URL)
         .get('/sessions/sid-1/disclaimers')
         .reply(200, documents);
+      const { service } = getService();
+
+      await expect(
+        service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+      ).rejects.toThrow(
+        /Malformed response received from session disclaimers API/u,
+      );
+    });
+
+    it('throws when a session document omits consented', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/sid-1/disclaimers')
+        .reply(200, {
+          idOS: [
+            {
+              key: 'idos-tos',
+              version: '1',
+              title: 'idOS ToS',
+              url: 'https://idos.example/tos',
+            },
+          ],
+          kycProvider: [],
+          credentialReusabilityConsentGiven: false,
+        });
       const { service } = getService();
 
       await expect(

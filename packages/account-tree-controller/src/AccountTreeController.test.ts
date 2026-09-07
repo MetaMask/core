@@ -498,6 +498,65 @@ describe('AccountTreeController', () => {
     jest.resetAllMocks();
   });
 
+  describe('isInitialized', () => {
+    it('returns false before init', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      expect(controller.isInitialized()).toBe(false);
+    });
+
+    it('returns true after init', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      expect(controller.isInitialized()).toBe(true);
+    });
+
+    it('returns false after clearState until init is called again', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+      controller.clearState();
+
+      expect(controller.isInitialized()).toBe(false);
+    });
+
+    it('returns true after reinit', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+      controller.reinit();
+
+      expect(controller.isInitialized()).toBe(true);
+    });
+
+    it('is exposed via AccountTreeController:isInitialized', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      expect(messenger.call('AccountTreeController:isInitialized')).toBe(false);
+
+      controller.init();
+
+      expect(messenger.call('AccountTreeController:isInitialized')).toBe(true);
+    });
+  });
+
   describe('init', () => {
     it('groups accounts by entropy source, then snapId, then wallet type', () => {
       const { controller, messenger } = setup({

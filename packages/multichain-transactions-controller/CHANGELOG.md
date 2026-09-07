@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^39.0.7` to `^39.1.1` ([#9807](https://github.com/MetaMask/core/pull/9807), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
 
 ## [7.1.2]
 

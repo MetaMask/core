@@ -16,6 +16,16 @@ export type SubscriptionServiceGetSubscriptionsAction = {
 };
 
 /**
+ * Fetches the user's subscription benefits.
+ *
+ * @returns The benefits response.
+ */
+export type SubscriptionServiceGetBenefitsAction = {
+  type: `SubscriptionService:getBenefits`;
+  handler: SubscriptionService['getBenefits'];
+};
+
+/**
  * Cancels a subscription.
  *
  * @param params - The cancel subscription request.
@@ -169,6 +179,7 @@ export type SubscriptionServiceGetBillingPortalUrlAction = {
  */
 export type SubscriptionServiceMethodActions =
   | SubscriptionServiceGetSubscriptionsAction
+  | SubscriptionServiceGetBenefitsAction
   | SubscriptionServiceCancelSubscriptionAction
   | SubscriptionServiceUnCancelSubscriptionAction
   | SubscriptionServiceStartSubscriptionWithCardAction

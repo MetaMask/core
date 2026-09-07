@@ -99,6 +99,18 @@ export type PerpsControllerGetOrderCapabilitiesAction = {
 };
 
 /**
+ * Build a Scale price ladder using the active provider's venue rules.
+ *
+ * @param params - Market, ladder bounds, count, and optional explicit route.
+ * @returns Provider-normalized prices or a typed unavailable result.
+ * @throws When the provider cannot normalize the requested ladder.
+ */
+export type PerpsControllerGetScalePriceLadderAction = {
+  type: `PerpsController:getScalePriceLadder`;
+  handler: PerpsController['getScalePriceLadder'];
+};
+
+/**
  * Place a new order
  * Thin delegation to TradingService
  *
@@ -797,6 +809,21 @@ export type PerpsControllerSubscribeToOrderFillsAction = {
 };
 
 /**
+ * Stream TWAP lifecycle updates through the active provider.
+ *
+ * Providers without a native TWAP push channel do not implement this; the
+ * returned no-op cleanup lets a client fall back to polling `getTwapOrders`
+ * without branching on provider identity.
+ *
+ * @param params - Subscription parameters including callback and account ID.
+ * @returns A cleanup function to remove the subscription.
+ */
+export type PerpsControllerSubscribeToTwapOrdersAction = {
+  type: `PerpsController:subscribeToTwapOrders`;
+  handler: PerpsController['subscribeToTwapOrders'];
+};
+
+/**
  * Subscribe to live order updates
  *
  * @param params - The operation parameters.
@@ -1328,6 +1355,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetActiveProviderAction
   | PerpsControllerGetActiveProviderOrNullAction
   | PerpsControllerGetOrderCapabilitiesAction
+  | PerpsControllerGetScalePriceLadderAction
   | PerpsControllerPlaceOrderAction
   | PerpsControllerEditOrderAction
   | PerpsControllerCancelOrderAction
@@ -1386,6 +1414,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSubscribeToPricesAction
   | PerpsControllerSubscribeToPositionsAction
   | PerpsControllerSubscribeToOrderFillsAction
+  | PerpsControllerSubscribeToTwapOrdersAction
   | PerpsControllerSubscribeToOrdersAction
   | PerpsControllerSubscribeToAccountAction
   | PerpsControllerSubscribeToOrderBookAction

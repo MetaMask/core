@@ -60,7 +60,7 @@
     "@metamask/base-controller": "^9.1.0",
     "@metamask/keyring-controller": "^27.1.1",
     "@metamask/messenger": "^2.0.0",
-    "@metamask/utils": "^11.11.0",
+    "@metamask/utils": "^11.12.0",
     "@noble/ciphers": "^1.3.0",
     "@noble/curves": "^1.9.2",
     "@noble/hashes": "^1.8.0",

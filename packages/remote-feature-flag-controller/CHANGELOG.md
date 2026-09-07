@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+### Fixed
+
+- Keep the previously selected value for a threshold feature flag when the segmentation identifier is unavailable, instead of exposing the unresolved threshold array ([#10123](https://github.com/MetaMask/core/pull/10123))
+  - `getMetaMetricsId` and `getCanonicalProfileId` may legitimately return an empty string, as they do when `init` runs before whatever backs them is ready. Previously `init` would then replace resolved threshold values with the raw arrays, flipping those flags for the end user until the next fetch. Flags with no previously selected value, as on a fresh install, still fall back to the raw array.
+
 ## [6.1.0]
 
 ### Added

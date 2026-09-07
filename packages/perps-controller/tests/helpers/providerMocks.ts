@@ -25,6 +25,11 @@ export const createMockHyperLiquidProvider =
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
       }),
+      getScalePriceLadder: jest.fn().mockResolvedValue({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        prices: ['100', '150', '200'],
+      }),
       placeOrder: jest.fn(),
       editOrder: jest.fn(),
       cancelOrder: jest.fn(),

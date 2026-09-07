@@ -13,7 +13,7 @@ import type {
   TypeNode,
   TypeReferenceNode,
 } from 'ts-morph';
-import { Node as NodeGuards, Project, ts } from 'ts-morph';
+import { Node as NodeGuards } from 'ts-morph';
 
 import type {
   MessengerCapabilityPacket,
@@ -928,32 +928,6 @@ function tryToExtractFromCapabilityTypeConstructor(
 // ---------------------------------------------------------------------------
 // Public entry points
 // ---------------------------------------------------------------------------
-
-/**
- * Create a ts-morph Project configured for messenger-docs extraction. The
- * caller should add every source file that may be referenced (directly or
- * transitively) before calling {@link extractFromSourceFile}, so the type
- * checker can resolve cross-file references.
- *
- * @returns A new ts-morph Project.
- */
-export function createExtractionProject(): Project {
-  return new Project({
-    compilerOptions: {
-      allowJs: false,
-      noEmit: true,
-      // Match the project's permissive defaults — we just need symbol
-      // resolution, not full typechecking.
-      strict: false,
-      skipLibCheck: true,
-      // Explicit module options so cross-file symbol resolution works
-      // regardless of the host process's tsconfig.
-      target: ts.ScriptTarget.ESNext,
-      module: ts.ModuleKind.ESNext,
-      moduleResolution: ts.ModuleResolutionKind.NodeJs,
-    },
-  });
-}
 
 /**
  * Extract information (action/event type string, handler/payload arguments and

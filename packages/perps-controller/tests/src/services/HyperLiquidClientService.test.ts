@@ -1529,6 +1529,116 @@ describe('HyperLiquidClientService', () => {
       );
     });
 
+    describe('connection epoch', () => {
+      /**
+       * Fire the raw socket close handler the service registered.
+       */
+      const fireSocketClose = () => {
+        const closeHandler = mockSocket.addEventListener.mock.calls.find(
+          (call: [string, (...args: unknown[]) => unknown]) =>
+            call[0] === 'close',
+        )?.[1] as (event: Event) => void;
+
+        expect(closeHandler).toBeDefined();
+        closeHandler({} as Event);
+      };
+
+      it('registers a close listener on the WebSocket transport', () => {
+        service.initialize(mockWallet);
+
+        // Attached once at transport creation. rews listeners survive
+        // reconnections, so this observes every later close — including the
+        // SDK's own automatic reconnects, which fire no other callback.
+        expect(mockSocket.addEventListener).toHaveBeenCalledWith(
+          'close',
+          expect.any(Function),
+        );
+      });
+
+      it('starts at a non-zero epoch so an unstamped default never matches', () => {
+        service.initialize(mockWallet);
+
+        expect(service.getConnectionEpoch()).toBeGreaterThan(0);
+      });
+
+      it('advances the epoch on every raw socket close', () => {
+        service.initialize(mockWallet);
+        const initial = service.getConnectionEpoch();
+
+        fireSocketClose();
+        const afterFirst = service.getConnectionEpoch();
+        expect(afterFirst).not.toBe(initial);
+
+        // An SDK automatic reconnect can close more than once; each retires the
+        // previous epoch rather than toggling between two values.
+        fireSocketClose();
+        expect(service.getConnectionEpoch()).not.toBe(afterFirst);
+        expect(service.getConnectionEpoch()).not.toBe(initial);
+      });
+
+      it('does not advance the epoch while the socket stays open', () => {
+        service.initialize(mockWallet);
+        const initial = service.getConnectionEpoch();
+
+        // No close event: a webData3 retry or any other same-connection work
+        // must leave cached per-connection data valid.
+        expect(service.getConnectionEpoch()).toBe(initial);
+      });
+
+      it('retires the epoch when the transport is discarded, without waiting for close', async () => {
+        // Teardown is asynchronous: the socket's own close may arrive long
+        // after the transport is gone, or never. Discarding the transport must
+        // retire the epoch by itself, or data cached against the dead
+        // connection would keep reading as live.
+        service.initialize(mockWallet);
+        const initial = service.getConnectionEpoch();
+
+        await service.disconnect();
+
+        expect(service.getConnectionEpoch()).not.toBe(initial);
+      });
+
+      it('ignores a delayed close from a transport that has been replaced', async () => {
+        // The close listener is bound to the transport it was attached to. A
+        // retired transport can still emit close after teardown; acting on it
+        // would retire the CURRENT connection's epoch and discard live
+        // positions for a connection that is perfectly healthy.
+        await service.initialize(mockWallet);
+
+        // Capture the first transport's close handler, then discard it.
+        const staleCloseHandler = mockSocket.addEventListener.mock.calls.find(
+          (call: [string, (...args: unknown[]) => unknown]) =>
+            call[0] === 'close',
+        )?.[1] as (event: Event) => void;
+        expect(staleCloseHandler).toBeDefined();
+
+        await service.disconnect();
+
+        // Production creates a NEW transport on reconnect; the shared mock
+        // returns a singleton, which would make the stale handler
+        // indistinguishable from the live one.
+        const replacementSocket = {
+          addEventListener: jest.fn(),
+          removeEventListener: jest.fn(),
+        };
+        const { WebSocketTransport } = require('@nktkas/hyperliquid');
+        (WebSocketTransport as jest.Mock).mockImplementationOnce(() => ({
+          url: 'ws://mock-2',
+          close: jest.fn().mockResolvedValue(undefined),
+          ready: jest.fn().mockResolvedValue(undefined),
+          socket: replacementSocket,
+        }));
+
+        await service.initialize(mockWallet);
+        const currentEpoch = service.getConnectionEpoch();
+
+        // The dead transport's socket finally reports its close
+        staleCloseHandler({} as Event);
+
+        expect(service.getConnectionEpoch()).toBe(currentEpoch);
+      });
+    });
+
     it('calls terminate callback when terminate event is fired', () => {
       const terminateCallback = jest.fn();
       service.initialize(mockWallet);

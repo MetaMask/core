@@ -136,6 +136,13 @@ export type ApiPlatformClientOptions = {
   clientVersion?: string;
   /** Function to get bearer token for authenticated requests */
   getBearerToken?: () => Promise<string | undefined>;
+  /**
+   * Max time (ms) to wait for `getBearerToken` before sending the request
+   * unauthenticated. The token keeps resolving in the background and is used by
+   * later requests. Set to `0` to always wait for the token.
+   * Defaults to {@link DEFAULT_AUTH_TOKEN_TIMEOUT}.
+   */
+  authTokenTimeout?: number;
   /** Optional custom QueryClient instance */
   queryClient?: QueryClient;
 };
@@ -152,6 +159,14 @@ export type FetchOptions = {
   staleTime?: number;
   /** Custom GC time (ms). */
   gcTime?: number;
+  /**
+   * When true, bypass caching for this request: the client-side query cache is
+   * skipped (stale time defaults to 0) and, on endpoints that support it, a
+   * random `bypassServerCache` query param is appended so server-side HTTP caches
+   * (keyed on the full URL) miss. Use sparingly — only when a hard refresh is
+   * required, e.g. right after a transaction confirms.
+   */
+  bypassServerCache?: boolean;
 } & Partial<
   Omit<
     FetchQueryOptions<unknown, Error, unknown>,
@@ -180,6 +195,7 @@ export function getQueryOptionsOverrides(
   const {
     queryKey: _qk,
     queryFn: _qf,
+    bypassServerCache: _bc,
     ...rest
   } = options as FetchOptions & {
     queryKey?: unknown;
@@ -202,7 +218,6 @@ export const API_URLS = {
 
 /** Stale times for different data types (ms) */
 export const STALE_TIMES = {
-  AUTH_TOKEN: 5 * 60 * 1000, // 5 minutes - cache the auth token
   PRICES: 30 * 1000, // 30 seconds
   BALANCES: 60 * 1000, // 1 minute
   NETWORKS: 10 * 60 * 1000, // 10 minutes
@@ -214,6 +229,12 @@ export const STALE_TIMES = {
   TRANSACTIONS: 30 * 1000, // 30 seconds
   DEFAULT: 30 * 1000, // 30 seconds
 } as const;
+
+/**
+ * Default max time (ms) to wait for the bearer token before falling back to an
+ * unauthenticated request.
+ */
+export const DEFAULT_AUTH_TOKEN_TIMEOUT = 500;
 
 /** Garbage collection times (ms) */
 export const GC_TIMES = {

@@ -505,6 +505,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
       subscribeToOrderFills: jest.fn().mockReturnValue(jest.fn()), // Returns function directly
       clearAll: jest.fn(),
       isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
+      getCachedPositionsForDex: jest.fn().mockReturnValue(null),
+      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
       getCachedPositions: jest.fn().mockReturnValue([]),
       updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
@@ -3026,6 +3028,42 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(
         submitted.orders.map((order: { p: string }) => order.p),
       ).toStrictEqual(['2000', '2500', '3000']);
+    });
+
+    it('submits the provider preview prices for fractional bounds', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+      });
+      const { symbol } = baseOrder;
+      const minPrice = 12.341;
+      const maxPrice = 12.381;
+      const count = 3;
+      const preview = await provider.getScalePriceLadder({
+        symbol,
+        minPrice,
+        maxPrice,
+        count,
+      });
+      if (preview.status !== 'ready') {
+        throw new Error('Expected Scale price ladder preview to be ready');
+      }
+      expect(preview.prices).toStrictEqual(['12.34', '12.36', '12.38']);
+
+      await provider.placeOrder({
+        ...baseOrder,
+        symbol,
+        currentPrice: 12.36,
+        usdAmount: '300',
+        orderType: 'scale',
+        scaleMinPrice: minPrice.toString(),
+        scaleMaxPrice: maxPrice.toString(),
+        scaleNumOrders: count,
+      } satisfies OrderParams);
+
+      const submitted = exchangeClient.order.mock.calls[0][0];
+      expect(
+        submitted.orders.map((order: { p: string }) => order.p),
+      ).toStrictEqual(preview.prices);
     });
 
     it('splits the size across the rungs so the total is preserved', async () => {
@@ -7194,6 +7232,66 @@ describe('HyperLiquidProvider - strategy order types', () => {
         status: 'unavailable',
         providerId: 'hyperliquid',
         reason: 'provider_unavailable',
+      });
+    });
+  });
+
+  describe('Scale price ladder preview', () => {
+    const params = {
+      symbol: 'BTC',
+      minPrice: 1234.567,
+      maxPrice: 1234.767,
+      count: 3,
+    };
+
+    it('normalizes every rung with provider-owned market precision', async () => {
+      const { infoClient } = useStrategyClients();
+
+      expect(await provider.getScalePriceLadder(params)).toStrictEqual({
+        status: 'ready',
+        providerId: 'hyperliquid',
+        prices: ['1234.6', '1234.7', '1234.8'],
+      });
+      expect(infoClient.meta).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects rungs that collapse to duplicate provider prices', async () => {
+      useStrategyClients();
+
+      await expect(
+        provider.getScalePriceLadder({
+          ...params,
+          minPrice: 100.123456,
+          maxPrice: 100.123457,
+        }),
+      ).rejects.toThrow(PERPS_ERROR_CODES.ORDER_SCALE_RANGE_INVALID);
+    });
+
+    it('reports a route owned by another provider', async () => {
+      const { infoClient } = useStrategyClients();
+
+      expect(
+        await provider.getScalePriceLadder({
+          ...params,
+          providerId: 'lighter',
+        }),
+      ).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'provider_not_routable',
+      });
+      expect(infoClient.meta).not.toHaveBeenCalled();
+    });
+
+    it('reports an unknown market', async () => {
+      useStrategyClients();
+
+      expect(
+        await provider.getScalePriceLadder({ ...params, symbol: 'DOGE' }),
+      ).toStrictEqual({
+        status: 'unavailable',
+        providerId: 'hyperliquid',
+        reason: 'market_not_found',
       });
     });
   });

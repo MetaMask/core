@@ -105,3 +105,28 @@ export enum MetricsSwapType {
   SINGLE = 'single_chain',
   CROSSCHAIN = 'crosschain',
 }
+
+/**
+ * When a SwapBridge attempt failed. Derived from the failing code path plus
+ * hash presence — never from `error_message` text.
+ */
+export enum FailurePhase {
+  Quote = 'quote',
+  Broadcast = 'broadcast',
+  SourceExecution = 'source_execution',
+  DestinationExecution = 'destination_execution',
+  Poll = 'poll',
+  Unknown = 'unknown',
+}
+
+/**
+ * Stable Mixpanel reason for a SwapBridge failure. Independent of free-text
+ * `error_message`.
+ */
+export enum SwapBridgeErrorCode {
+  QuoteFetchFailed = 'quote_fetch_failed',
+  MissingErrorObject = 'missing_error_object',
+  NonErrorRejection = 'non_error_rejection',
+  StatusFailedWithoutReason = 'status_failed_without_reason',
+  Unknown = 'unknown',
+}

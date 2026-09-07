@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Unlike `delegate`, this method requires all external actions and events to be listed, producing a TypeScript error showing exactly which items are missing.
 - Add `MessengerNamespace` utility type to extract the namespace from a Messenger type ([#8338](https://github.com/MetaMask/core/pull/8338))
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
 ### Fixed
 
 - Defer re-entrant publishes of the same event so subscribers no longer receive a stale payload ([#9840](https://github.com/MetaMask/core/pull/9840))

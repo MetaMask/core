@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `startTime` to `TraceRequest` to allow backdating a span's start time ([#9315](https://github.com/MetaMask/core/pull/9315))
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
 ### Deprecated
 
 - Deprecate `createServicePolicy` and related symbols ([#9418](https://github.com/MetaMask/core/pull/9418))
