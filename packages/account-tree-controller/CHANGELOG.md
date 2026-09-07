@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `AccountTreeSnapshot:strip{Metadata,Secrets}` support ([#10112](https://github.com/MetaMask/core/pull/10112))
   - This can be used to mutate the snapshot before calling `:importState` and ease custom flow integration where secrets and metadata would be imported in 2-steps.
 
+### Changed
+
+- **BREAKING:** `metadata` is now optional on `AccountWalletPayloadMetadata`, `AccountWalletGroupPayloadMetadata`, and all wallet/group payload entry types ([#10112](https://github.com/MetaMask/core/pull/10112))
+  - Consumers reading `metadata` from a snapshot or payload must now guard against `undefined` (e.g. after calling `AccountTreeSnapshot.stripMetadata()`).
+
 ## [8.1.0]
 
 ### Added
