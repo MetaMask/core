@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Prevent same-chain Relay source transactions from inheriting gas sponsorship when the paying account does not support EIP-7702.
+- Prevent same-chain Relay source transactions from inheriting gas sponsorship when the paying account does not support EIP-7702 ([#10126](https://github.com/MetaMask/core/pull/10126))
 
 ## [27.1.1]
 
