@@ -1,6 +1,7 @@
 import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import { waitFor } from '../__fixtures__/test-utils.js';
 import type {
   ChainId,
   DataRequest,
@@ -9,7 +10,6 @@ import type {
   AssetsControllerStateInternal,
 } from '../types.js';
 import { normalizeAssetId } from '../utils/index.js';
-import { waitFor } from '../__fixtures__/test-utils.js';
 import type { PriceDataSourceOptions } from './PriceDataSource.js';
 import { PriceDataSource } from './PriceDataSource.js';
 
