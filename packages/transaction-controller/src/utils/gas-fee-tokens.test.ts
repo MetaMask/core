@@ -411,10 +411,20 @@ describe('Gas Fee Tokens Utils', () => {
       request.transaction.isGasFeeTokenIgnoredIfBalance = true;
       request.transaction.selectedGasFeeToken = TOKEN_ADDRESS_1_MOCK;
       request.transaction.gasFeeTokens = [];
+      request.transaction.isExternalSign = true;
+
+      jest.mocked(request.fetchGasFeeTokens).mockResolvedValueOnce([]);
 
       await expect(checkGasFeeTokenBeforePublish(request)).rejects.toThrow(
         'Gas fee token not found and insufficient native balance',
       );
+
+      jest
+        .mocked(request.updateTransaction)
+        .mock.calls[0][1](request.transaction);
+
+      expect(request.transaction.isExternalSign).toBe(false);
+      expect(request.transaction.gasFeeTokens).toStrictEqual([]);
     });
 
     it('updates gas fee tokens', async () => {
