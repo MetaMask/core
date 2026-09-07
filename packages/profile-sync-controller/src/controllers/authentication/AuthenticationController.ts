@@ -520,13 +520,11 @@ export class AuthenticationController extends BaseController<
    * canonical owner of the social identifier.
    */
   async #trySocialPairing(primaryAccessToken?: string): Promise<void> {
-    if (!this.#config.isSocialPairingEnabled()) {
-      return;
-    }
-    if (this.state.needsSocialPairing === false) {
-      return;
-    }
-    if (!primaryAccessToken) {
+    if (
+      !this.#config.isSocialPairingEnabled() ||
+      this.state.needsSocialPairing === false ||
+      !primaryAccessToken
+    ) {
       return;
     }
 
@@ -544,6 +542,9 @@ export class AuthenticationController extends BaseController<
       return;
     }
 
+    // `SRP` here does not describe the vault: it is the mapping's "no social
+    // identity" result, returned when there is no seedless vault or the
+    // provider is unrecognised. In both cases there is nothing to pair.
     const identifierType = this.#identifierTypeFromSeedlessState(seedlessState);
     if (identifierType === 'SRP') {
       const { vault, authConnection } = seedlessState;
@@ -556,6 +557,13 @@ export class AuthenticationController extends BaseController<
       return;
     }
 
+    // Email policy follows the API contract: GOOGLE requires `email` (400
+    // without it), APPLE accepts it optionally, TELEGRAM must not send it
+    // (clients store a display name in `socialLoginEmail` for Telegram).
+    // Clients request the `email` scope for Google, so a missing value is a
+    // defensive case rather than an expected one; returning here leaves
+    // `needsSocialPairing` set so the next sign-in retries instead of
+    // sending a request that would fail.
     const { socialLoginEmail } = seedlessState;
     let email: string | undefined;
     if (identifierType === 'GOOGLE') {

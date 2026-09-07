@@ -16,7 +16,7 @@ export enum AuthType {
  * Orthogonal to {@link SrpLoginTag}: a secondary entropy source can still be
  * `GOOGLE` / `APPLE` / `TELEGRAM` if it is social-backed.
  */
-export type LoginIdentifierType = 'SRP' | 'GOOGLE' | 'APPLE' | 'TELEGRAM';
+export type LoginIdentifierType = 'SRP' | SocialIdentifierType;
 
 /**
  * Social identifier types accepted by `POST /api/v2/profile/pair/identifier`.
