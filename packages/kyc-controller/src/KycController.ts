@@ -75,14 +75,19 @@ const UKYC_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
 
 // SumSub statuses that mean the applicant submitted (see `KycSumSubSdkStatus`
 // for what each one reports). `Completed` covers launchers that normalize the
-// platform status before forwarding it. Every other status means no submission
-// happened and must not be recorded as a completed verification.
+// platform status before forwarding it. Review decisions (`Approved`,
+// `FinallyRejected`, `TemporarilyDeclined`) are post-submission outcomes: the
+// applicant finished the SDK, so UKYC is polled for the authoritative
+// decision. Pre-submission statuses (`Ready`, `Initial`, `Incomplete`) must
+// not be recorded as a completed verification.
 const SUMSUB_COMPLETED_STATUSES: ReadonlySet<string> =
   new Set<KycSumSubSdkStatus>([
     'Completed',
     'Pending',
     'Approved',
     'ActionCompleted',
+    'FinallyRejected',
+    'TemporarilyDeclined',
   ]);
 
 // The only status meaning the SDK could not run, rather than reporting how far
@@ -96,7 +101,7 @@ const SUMSUB_ABANDONED_MESSAGE =
  * Checks whether a SumSub status means the applicant submitted the flow.
  *
  * @param status - Status from a launcher callback or launch result.
- * @returns Whether the applicant completed every required SDK step.
+ * @returns Whether the applicant submitted, including a review decision.
  */
 function isSumSubFlowCompleted(status: unknown): boolean {
   return typeof status === 'string' && SUMSUB_COMPLETED_STATUSES.has(status);

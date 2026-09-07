@@ -1894,6 +1894,29 @@ describe('KycController', () => {
       });
     });
 
+    it.each(['FinallyRejected', 'TemporarilyDeclined'])(
+      'polls UKYC after the SumSub %s review decision instead of treating it as abandoned',
+      async (reviewStatus) => {
+        await withController(async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockResolvedValue({
+            success: true,
+            status: reviewStatus,
+          });
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('rejected'),
+          );
+
+          await controller.startSumSub();
+
+          expect(handlers.getSessionStatus).toHaveBeenCalled();
+          expect(controller.state.sumsub.status).toBe('failed');
+          expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+            sessionStatus('rejected'),
+          );
+        });
+      },
+    );
+
     it('marks failed and returns the error when a step throws', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.createUkycSession.mockRejectedValue(new Error('ukyc down'));
@@ -3677,6 +3700,43 @@ describe('KycController', () => {
           expect(handlers.fetchKycStatus).toHaveBeenCalled();
           expect(controller.state.userStatus).toBe('terminal-failure');
           controller.reset();
+        },
+      );
+    });
+
+    it('finishes as done when the native SDK reports FinallyRejected', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+            userStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockResolvedValue({
+            success: true,
+            status: 'FinallyRejected',
+          });
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('rejected'),
+          );
+          handlers.fetchKycStatus.mockResolvedValue({
+            status: 'terminal-failure',
+          });
+
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+          });
+
+          expect(controller.state.phase).toBe('done');
+          expect(controller.state.sumsub.status).toBe('failed');
+          expect(controller.state.error).toBeNull();
+          expect(controller.state.userStatus).toBe('terminal-failure');
         },
       );
     });
