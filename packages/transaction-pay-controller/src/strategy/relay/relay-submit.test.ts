@@ -155,6 +155,7 @@ describe('Relay Submit Utils', () => {
     getDelegationTransactionMock,
     findNetworkClientIdByChainIdMock,
     getPaymentOverrideDataMock,
+    getKeyringControllerStateMock,
     messenger,
   } = getMessengerMock();
 
@@ -176,6 +177,17 @@ describe('Relay Submit Utils', () => {
     jest.resetAllMocks();
 
     successfulFetchMock = jest.spyOn(global, 'fetch');
+
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'HD Key Tree',
+          accounts: [FROM_MOCK],
+          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+        },
+      ],
+    });
 
     getRelayPollingIntervalMock.mockReturnValue(1);
     getRelayPollingTimeoutMock.mockReturnValue(undefined);
@@ -255,6 +267,8 @@ describe('Relay Submit Utils', () => {
     });
 
     it('passes sponsored gas options when parent sponsorship applies to same-chain quote', async () => {
+      request.transaction.txParams.from =
+        '0x1234567890123456789012345678901234567892';
       request.transaction.chainId = CHAIN_ID_MOCK;
       request.transaction.isGasFeeSponsored = true;
       request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
@@ -269,6 +283,70 @@ describe('Relay Submit Utils', () => {
         }),
       );
     });
+
+    it.each([1, 2])(
+      'does not sponsor %i source calls when the payer is unsupported despite a supported parent',
+      async (callCount) => {
+        const parentFrom = '0x1234567890123456789012345678901234567892';
+        getKeyringControllerStateMock.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: 'HD Key Tree',
+              accounts: [parentFrom],
+              metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+            },
+            {
+              type: 'Ledger Hardware',
+              accounts: [FROM_MOCK],
+              metadata: { id: 'ledger-keyring', name: 'Ledger Hardware' },
+            },
+          ],
+        });
+        request.transaction.txParams.from = parentFrom;
+        request.transaction.chainId = CHAIN_ID_MOCK;
+        request.transaction.isGasFeeSponsored = true;
+        request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
+        request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+        if (callCount === 2) {
+          request.quotes[0].original.steps[0].items.push(
+            cloneDeep(request.quotes[0].original.steps[0].items[0]),
+          );
+        }
+
+        await submitRelayQuotes(request);
+
+        const singleArgs = [
+          expect.objectContaining({
+            from: FROM_MOCK,
+            gas: '0x5208',
+          }),
+          expect.objectContaining({
+            isGasFeeSponsored: false,
+            gasFeeToken: undefined,
+          }),
+        ];
+        const batchArgs = [
+          expect.objectContaining({
+            from: FROM_MOCK,
+            isGasFeeSponsored: false,
+            gasFeeToken: undefined,
+            gasLimit7702: undefined,
+            disable7702: true,
+            disableSequential: false,
+          }),
+        ];
+        const submitMock =
+          callCount === 1 ? addTransactionMock : addTransactionBatchMock;
+        const otherSubmitMock =
+          callCount === 1 ? addTransactionBatchMock : addTransactionMock;
+
+        expect(submitMock).toHaveBeenCalledWith(
+          ...(callCount === 1 ? singleArgs : batchArgs),
+        );
+        expect(otherSubmitMock).not.toHaveBeenCalled();
+      },
+    );
 
     it('uses predictRelayDeposit type when parent transaction is predictDeposit', async () => {
       request.transaction = {
