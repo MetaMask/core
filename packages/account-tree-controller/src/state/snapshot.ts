@@ -6,10 +6,8 @@ import type {
   AccountTreeSnapshotWallet,
   AccountTreeWalletEntry,
   AccountWalletMnemonicGroupEntry,
-  AccountWalletMnemonicPayload,
   AccountWalletPayloadId,
   AccountWalletPrivateKeyGroupEntry,
-  AccountWalletPrivateKeyPayload,
 } from './payload.js';
 import {
   AccountWalletPayloadType,
@@ -188,15 +186,15 @@ export class AccountTreeSnapshot {
     const entries = this.#entries.map((wallet): AccountTreeWalletEntry => {
       if (wallet.type === AccountWalletPayloadType.Mnemonic) {
         const { value: _value, ...rest } = wallet;
-        return rest as AccountWalletMnemonicPayload;
+        return rest;
       }
       return {
         ...wallet,
         groups: wallet.groups.map(
           ({ value: _value, ...group }): AccountWalletPrivateKeyGroupEntry =>
-            group as AccountWalletPrivateKeyGroupEntry,
+            group,
         ),
-      } as AccountWalletPrivateKeyPayload;
+      };
     });
     return new AccountTreeSnapshot(entries, this.#idMap);
   }
@@ -220,7 +218,7 @@ export class AccountTreeSnapshot {
           const { metadata: _groupMetadata, ...groupRest } = group;
           return groupRest as typeof group;
         }),
-      } as AccountTreeWalletEntry;
+      } as AccountTreeWalletEntry; // Looks like the compiler is not able to infer this correctly, but we just remove the `metadata` field out of any entry.
     });
     return new AccountTreeSnapshot(entries, this.#idMap);
   }
