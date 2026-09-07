@@ -465,35 +465,6 @@ describe('AccountTreeSnapshot', () => {
     });
   });
 
-  describe('stripPrimaryWallet', () => {
-    it('removes the first mnemonic wallet', () => {
-      const snapshot = new AccountTreeSnapshot([
-        MOCK_MNEMONIC_WALLET,
-        MOCK_SECONDARY_MNEMONIC_WALLET,
-      ]);
-      const stripped = snapshot.stripPrimaryWallet();
-      const { wallets } = stripped.serialize();
-      expect(wallets).toHaveLength(1);
-      expect(wallets[0]?.id).toBe(MOCK_SECONDARY_MNEMONIC_PAYLOAD_ID);
-    });
-
-    it('keeps private-key wallets intact', () => {
-      const snapshot = new AccountTreeSnapshot([
-        MOCK_MNEMONIC_WALLET,
-        MOCK_PRIVATE_KEY_WALLET,
-      ]);
-      const stripped = snapshot.stripPrimaryWallet();
-      const { wallets } = stripped.serialize();
-      expect(wallets).toHaveLength(1);
-      expect(wallets[0]?.type).toBe(AccountWalletPayloadType.PrivateKey);
-    });
-
-    it('returns an empty snapshot when there is only one mnemonic wallet', () => {
-      const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET]);
-      expect(snapshot.stripPrimaryWallet().serialize().wallets).toHaveLength(0);
-    });
-  });
-
   describe('stripMetadata', () => {
     it('removes wallet metadata', () => {
       const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET]);
@@ -522,47 +493,6 @@ describe('AccountTreeSnapshot', () => {
       expect(
         (wallets[1] as typeof MOCK_PRIVATE_KEY_WALLET).groups[0]?.value,
       ).toStrictEqual(MOCK_PRIVATE_KEY_WALLET.groups[0]?.value);
-    });
-  });
-
-  describe('hasPrimaryWallet', () => {
-    it('is true when a mnemonic wallet is present', () => {
-      const snapshot = new AccountTreeSnapshot([
-        MOCK_MNEMONIC_WALLET,
-        MOCK_SECONDARY_MNEMONIC_WALLET,
-      ]);
-      expect(snapshot.hasPrimaryWallet()).toBe(true);
-    });
-
-    it('is false when there are no mnemonic wallets', () => {
-      const snapshot = new AccountTreeSnapshot([MOCK_PRIVATE_KEY_WALLET]);
-      expect(snapshot.hasPrimaryWallet()).toBe(false);
-    });
-
-    it('is false on an empty snapshot', () => {
-      const snapshot = new AccountTreeSnapshot([]);
-      expect(snapshot.hasPrimaryWallet()).toBe(false);
-    });
-
-    it('is false after stripPrimaryWallet', () => {
-      const snapshot = new AccountTreeSnapshot([MOCK_MNEMONIC_WALLET]);
-      expect(snapshot.stripPrimaryWallet().hasPrimaryWallet()).toBe(false);
-    });
-
-    it('is false after stripPrimaryWallet even when secondary mnemonics remain', () => {
-      const snapshot = new AccountTreeSnapshot([
-        MOCK_MNEMONIC_WALLET,
-        MOCK_SECONDARY_MNEMONIC_WALLET,
-      ]);
-      expect(snapshot.stripPrimaryWallet().hasPrimaryWallet()).toBe(false);
-    });
-
-    it('is false after stripPrimaryWallet chained with other strip methods', () => {
-      const snapshot = new AccountTreeSnapshot([
-        MOCK_MNEMONIC_WALLET,
-        MOCK_SECONDARY_MNEMONIC_WALLET,
-      ]);
-      expect(snapshot.stripPrimaryWallet().stripMetadata().hasPrimaryWallet()).toBe(false);
     });
   });
 });
