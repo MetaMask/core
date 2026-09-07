@@ -329,12 +329,14 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     const currentCustomerId = this.state.customerId;
     const currentLastSubscription = this.state.lastSubscription;
     const currentRewardAccountId = this.state.rewardAccountId;
+    const currentProductEntitlements = this.state.productEntitlements;
     const currentSubscriptionState: GetSubscriptionsResponse = {
       customerId: currentCustomerId,
       subscriptions: currentSubscriptions,
       trialedProducts: currentTrialedProducts,
       lastSubscription: currentLastSubscription,
       rewardAccountId: currentRewardAccountId,
+      productEntitlements: currentProductEntitlements,
     };
 
     const newSubscriptionState = await this.messenger.call(
