@@ -1,9 +1,9 @@
+import type { DelegationResponse } from '@metamask/authenticated-user-storage';
 import {
   createERC20TokenPeriodTransferTerms,
   createValueLteTerms,
   ROOT_AUTHORITY,
 } from '@metamask/delegation-core';
-import type { DelegationResponse } from '@metamask/authenticated-user-storage';
 import type { Hex } from '@metamask/utils';
 
 import {

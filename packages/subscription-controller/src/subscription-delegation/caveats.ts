@@ -1,9 +1,9 @@
+import type { SignedDelegation } from '@metamask/authenticated-user-storage';
 import {
   ROOT_AUTHORITY,
   createERC20TokenPeriodTransferTerms,
   createValueLteTerms,
 } from '@metamask/delegation-core';
-import type { SignedDelegation } from '@metamask/authenticated-user-storage';
 import { bytesToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 

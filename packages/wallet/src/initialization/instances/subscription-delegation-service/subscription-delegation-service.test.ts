@@ -26,9 +26,8 @@ describe('subscriptionDelegationService', () => {
   });
 
   it('initializes a SubscriptionDelegationService', () => {
-    const messenger = subscriptionDelegationService.getMessenger(
-      getRootMessenger(),
-    );
+    const messenger =
+      subscriptionDelegationService.getMessenger(getRootMessenger());
 
     const instance = subscriptionDelegationService.init({
       state: undefined,

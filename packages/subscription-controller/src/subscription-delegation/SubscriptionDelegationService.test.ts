@@ -1,6 +1,4 @@
 import type { ServiceDetailsResponse } from '@metamask/chomp-api-service';
-import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type { MockAnyNamespace } from '@metamask/messenger';
 import {
   createERC20TokenPeriodTransferTerms,
   createValueLteTerms,
@@ -8,11 +6,12 @@ import {
   ROOT_AUTHORITY,
 } from '@metamask/delegation-core';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
-import { PRODUCT_TYPES, RECURRING_INTERVALS } from '../types.js';
 import { SubscriptionDelegationServiceErrorMessage } from '../constants.js';
-
+import { PRODUCT_TYPES, RECURRING_INTERVALS } from '../types.js';
 import { calculatePeriodAmount, getPeriodDuration } from './amount.js';
 import {
   SubscriptionDelegationService,
@@ -27,10 +26,8 @@ const DELEGATE = '0x4444444444444444444444444444444444444444' as Hex;
 const PAYER = '0x5555555555555555555555555555555555555555' as Hex;
 const CHAIN_ID = '0x1' as Hex;
 const SIGNATURE: Hex = `0x${'ab'.repeat(65)}`;
-const {
-  ValueLteEnforcer: VALUE_LTE,
-  ERC20PeriodTransferEnforcer: PERIOD,
-} = DELEGATOR_CONTRACTS['1.3.0'][1];
+const { ValueLteEnforcer: VALUE_LTE, ERC20PeriodTransferEnforcer: PERIOD } =
+  DELEGATOR_CONTRACTS['1.3.0'][1];
 
 const MONEY_ACCOUNT_VAULT_CONFIG = {
   chainId: CHAIN_ID,

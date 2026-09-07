@@ -41,9 +41,5 @@
       "path": "../transaction-controller"
     }
   ],
-  "include": [
-    "../../types",
-    "./src",
-    "./tests"
-  ]
+  "include": ["../../types", "./src", "./tests"]
 }

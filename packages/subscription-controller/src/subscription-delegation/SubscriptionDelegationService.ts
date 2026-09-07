@@ -19,13 +19,13 @@ import type { Hex } from '@metamask/utils';
 
 import { SubscriptionDelegationServiceErrorMessage } from '../constants.js';
 import { PRODUCT_TYPES } from '../types.js';
-import type { SubscriptionDelegationServiceMethodActions } from './SubscriptionDelegationService-method-action-types.js';
 import { calculatePeriodAmount, getPeriodDuration } from './amount.js';
 import { buildUnsignedSubscriptionDelegation } from './caveats.js';
 import {
   equalsIgnoreCase,
   makeMatchesSubscriptionDelegation,
 } from './fingerprint.js';
+import type { SubscriptionDelegationServiceMethodActions } from './SubscriptionDelegationService-method-action-types.js';
 import type {
   PrepareSubscriptionDelegationRequest,
   PreparedSubscriptionDelegation,
@@ -47,10 +47,7 @@ function resolveEnforcers(chainId: Hex): SubscriptionDelegationEnforcers {
   const contracts =
     DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION]?.[hexToNumber(chainId)];
 
-  if (
-    !contracts?.ValueLteEnforcer ||
-    !contracts.ERC20PeriodTransferEnforcer
-  ) {
+  if (!contracts?.ValueLteEnforcer || !contracts.ERC20PeriodTransferEnforcer) {
     throw new Error(
       `${SubscriptionDelegationServiceErrorMessage.DelegationContractsNotFound}: ${chainId}`,
     );

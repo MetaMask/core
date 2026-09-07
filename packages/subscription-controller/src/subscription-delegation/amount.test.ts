@@ -1,6 +1,5 @@
 import { SubscriptionDelegationServiceErrorMessage } from '../constants.js';
 import { RECURRING_INTERVALS } from '../types.js';
-
 import { calculatePeriodAmount, getPeriodDuration } from './amount.js';
 
 describe('calculatePeriodAmount', () => {
