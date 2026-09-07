@@ -19,6 +19,27 @@ export enum AuthType {
 export type LoginIdentifierType = 'SRP' | 'GOOGLE' | 'APPLE' | 'TELEGRAM';
 
 /**
+ * Social identifier types accepted by `POST /api/v2/profile/pair/identifier`.
+ * Telegram uses the same Web3Auth access token as Google/Apple; do not send
+ * `email` for Telegram (clients store a display name there, not an address).
+ */
+export type SocialIdentifierType = 'GOOGLE' | 'APPLE' | 'TELEGRAM';
+
+/**
+ * Parameters for attaching a Google/Apple/Telegram identifier to an
+ * existing profile.
+ */
+export type PairSocialIdentifierParams = {
+  identifierType: SocialIdentifierType;
+  socialJwt: string;
+  /**
+   * Required by the API for `GOOGLE`. Optional for `APPLE`. Omit for
+   * `TELEGRAM`.
+   */
+  email?: string;
+};
+
+/**
  * Tag appended to the SRP login `raw_message` so the auth server can
  * distinguish primary vs secondary SRPs.
  *
