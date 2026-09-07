@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
 - Bump `@metamask/account-tree-controller` from `^8.0.0` to `^8.1.0` ([#10088](https://github.com/MetaMask/core/pull/10088))
 
+### Fixed
+
+- Add the missing Georgian lari (`gel`) entry to `MAP_CAIP_CURRENCIES` ([#10064](https://github.com/MetaMask/core/pull/10064))
+
 ## [111.1.3]
 
 ### Changed
