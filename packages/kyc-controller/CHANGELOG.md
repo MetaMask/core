@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/base-data-service` from `^0.1.3` to `^1.0.0` ([#9972](https://github.com/MetaMask/core/pull/9972))
 - Replace `KycController` `console.error` tracing with the `@metamask/utils` debug logger (`createProjectLogger` / `createModuleLogger`), so flow diagnostics are opt-in via `DEBUG=kyc-controller*` instead of always printing to the console. ([#10054](https://github.com/MetaMask/core/pull/10054))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Split `KycController.ts` into focused modules, leaving it as the orchestrator and phase machine. The state type, persistence metadata, and default-state factories move to `KycControllerState.ts`; consent-record shaping and the conflict/completion error predicates move to `consents.ts`; UKYC attestation and capability-token wrapping move to `ukyc/sessionAuthorizations.ts`. This is an internal reorganization only — every export remains available from the package root under the same name. ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
 
 ### Fixed
 

@@ -1,4 +1,4 @@
-import { getDefaultKycControllerState } from './KycController.js';
+import { getDefaultKycControllerState } from './KycControllerState.js';
 import {
   selectIsKycRequiredForProduct,
   selectKycPhase,

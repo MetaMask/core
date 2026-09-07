@@ -1,6 +1,6 @@
 import { createSelector } from 'reselect';
 
-import type { KycControllerState } from './KycController.js';
+import type { KycControllerState } from './KycControllerState.js';
 import type { KycProduct } from './types.js';
 
 const selectKycRequiredByProduct = (
