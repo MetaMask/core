@@ -3483,6 +3483,53 @@ describe('NftController', () => {
         tokenURI,
       });
     });
+
+    it('should restore isCurrentlyOwned when re-adding an NFT that was previously flagged as not currently owned', async () => {
+      const tokenURI = 'https://url/';
+      const mockGetERC721TokenURI = jest.fn().mockResolvedValue(tokenURI);
+      const { nftController } = setupController({
+        getERC721TokenURI: mockGetERC721TokenURI,
+        options: {
+          state: {
+            allNfts: {
+              [OWNER_ACCOUNT.address]: {
+                [ChainId.mainnet]: [
+                  {
+                    address: '0x01',
+                    chainId: convertHexToDecimal(ChainId.mainnet),
+                    description: 'description',
+                    image: 'url',
+                    name: 'name',
+                    tokenId: '1234',
+                    standard: ERC721,
+                    favorite: false,
+                    isCurrentlyOwned: false,
+                    tokenURI,
+                  },
+                ],
+              },
+            },
+          },
+        },
+      });
+
+      jest.spyOn(nftController, 'isNftOwner').mockResolvedValue(true);
+
+      nock('https://url')
+        .get('/')
+        .reply(200, {
+          name: 'name',
+          image: 'url',
+          description: 'description',
+        })
+        .persist();
+      await nftController.addNftVerifyOwnership('0x01', '1234', 'mainnet');
+
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0]
+          .isCurrentlyOwned,
+      ).toBe(true);
+    });
   });
 
   describe('removeNft', () => {
