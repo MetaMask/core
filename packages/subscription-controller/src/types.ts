@@ -26,6 +26,44 @@ export const PRODUCT_TYPES = {
 
 export type ProductType = (typeof PRODUCT_TYPES)[keyof typeof PRODUCT_TYPES];
 
+export const MoneyAccountFeature = {
+  SwapFeeWaiver: 'swapFeeWaiver',
+  PerpsFeeWaiver: 'perpsFeeWaiver',
+  PredictFreeTx: 'predictFreeTx',
+  PremiumApy: 'premiumApy',
+} as const;
+
+export type MoneyAccountFeature =
+  (typeof MoneyAccountFeature)[keyof typeof MoneyAccountFeature];
+
+export type MoneyAccountEntitlements = Record<MoneyAccountFeature, boolean>;
+
+export const ShieldFeature = {
+  ShieldClaim: 'shieldClaim',
+  PrioritySupport: 'prioritySupport',
+} as const;
+
+export type ShieldFeature = (typeof ShieldFeature)[keyof typeof ShieldFeature];
+
+export type ShieldEntitlements = Record<ShieldFeature, boolean>;
+
+export type MoneyAccountPlusClaim = {
+  plan: string;
+  entitlements: MoneyAccountEntitlements;
+};
+
+export type ProductEntitlements = {
+  [PRODUCT_TYPES.SHIELD]?: {
+    entitlements: ShieldEntitlements;
+  };
+  [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]?: MoneyAccountPlusClaim;
+};
+
+export type ProductEntitlementFeatureMap = {
+  [PRODUCT_TYPES.SHIELD]: ShieldFeature;
+  [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: MoneyAccountFeature;
+};
+
 /**
  * How a crypto subscription is authorized.
  *
@@ -174,6 +212,7 @@ export type GetSubscriptionsResponse = {
   customerId?: string;
   subscriptions: Subscription[];
   trialedProducts: ProductType[];
+  productEntitlements?: ProductEntitlements;
   /** The last subscription that user has subscribed to if any. */
   lastSubscription?: Subscription;
   /** The reward account ID if user has linked rewards to the subscription. */
