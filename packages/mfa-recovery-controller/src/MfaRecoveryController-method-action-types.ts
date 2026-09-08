@@ -42,10 +42,11 @@ export type MfaRecoveryControllerUpdateIdentifiersAction = {
 
 /**
  * Reads the recovery secret from available escrows and returns the highest
- * consistent version.
+ * consistent version. `epoch` is the current recovery version and is required
+ * by later mutations.
  *
  * @param identifier - Identifier used to authorize the read.
- * @returns Recovered secret bytes.
+ * @returns Recovered secret bytes and the selected epoch.
  */
 export type MfaRecoveryControllerGetRecoverySecretAction = {
   type: `MfaRecoveryController:getRecoverySecret`;

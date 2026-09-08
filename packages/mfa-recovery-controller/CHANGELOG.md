@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Require `RecoveryEscrowProvider.verifyReceipt` to receive the expected escrow id so receipt verification is explicitly bound to the configured escrow target- **BREAKING:** Bind mutation version allocation to payload `epoch` on `register`, `updateRecoverySecret`, and `updateIdentifiers`, and remove unauthenticated `RecoveryEscrowProvider.getRecoveryMetadata` lookups
+- **BREAKING:** Return `{ recoverySecret, epoch }` from `getRecoverySecret` so clients can pass the selected version into later mutations
+- **BREAKING:** Require `RecoveryEscrowProvider.verifyReceipt` to receive the expected escrow id so receipt verification is explicitly bound to the configured escrow target
+- **BREAKING:** Bind mutation version allocation to payload `epoch` on `register`, `updateRecoverySecret`, and `updateIdentifiers`, and remove unauthenticated `RecoveryEscrowProvider.getRecoveryMetadata` lookups
 - Expose controller state updates through the non-deprecated `MfaRecoveryController:stateChanged` messenger event
 - Retry only escrows without persisted mutation receipts and validate persisted mutation state before resuming it
 

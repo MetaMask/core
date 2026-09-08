@@ -148,6 +148,14 @@ export type RecoverySecretResponse = {
 };
 
 /**
+ * Recovery secret plus the version to use as `epoch` on later mutations.
+ */
+export type RecoveredSecret = {
+  recoverySecret: Uint8Array;
+  epoch: number;
+};
+
+/**
  * Authenticates the MetaMask profile and issues request-bound attestations.
  */
 export type RecoveryAuthProvider = {

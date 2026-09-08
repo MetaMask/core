@@ -38,6 +38,7 @@ import type {
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
   RecoveryPhase,
+  RecoveredSecret,
   RegisterPayload,
   UpdateIdentifiersPayload,
   WritingPendingOperation,
@@ -57,6 +58,7 @@ export type {
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
   RecoveryPhase,
+  RecoveredSecret,
 } from './types.js';
 
 const CONTROLLER_NAME = 'MfaRecoveryController';
@@ -324,12 +326,13 @@ export class MfaRecoveryController extends BaseController<
 
   /**
    * Reads the recovery secret from available escrows and returns the highest
-   * consistent version.
+   * consistent version. `epoch` is the current recovery version and is required
+   * by later mutations.
    *
    * @param identifier - Identifier used to authorize the read.
-   * @returns Recovered secret bytes.
+   * @returns Recovered secret bytes and the selected epoch.
    */
-  async getRecoverySecret(identifier: Identifier): Promise<Uint8Array> {
+  async getRecoverySecret(identifier: Identifier): Promise<RecoveredSecret> {
     return await this.#withLock(async () => {
       this.#assertKnownIdentifierTypes([identifier]);
       const requestId = randomId();
@@ -355,7 +358,11 @@ export class MfaRecoveryController extends BaseController<
           ...(await escrow.getSecret(authorization, requestId)),
         })),
       );
-      return selectHighestConsistentVersion(results).recoverySecret;
+      const selected = selectHighestConsistentVersion(results);
+      return {
+        recoverySecret: selected.recoverySecret,
+        epoch: selected.version,
+      };
     });
   }
 

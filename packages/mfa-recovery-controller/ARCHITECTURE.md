@@ -120,7 +120,10 @@ escrows that do not already have a stored receipt.
 
 ## Read sequence (`getRecoverySecret`)
 
-Reads tolerate down replicas. They do **not** repair pending writes.
+Reads tolerate down replicas. They do **not** repair pending writes. The
+selected replica version is returned as `epoch` so a later
+`updateRecoverySecret` / `updateIdentifiers` can be formed without a locally
+stored version.
 
 ```mermaid
 sequenceDiagram
@@ -140,7 +143,7 @@ sequenceDiagram
   else none succeeded
     M-->>C: No escrow returned a recovery secret
   else
-    M-->>C: secret bytes
+    M-->>C: secret bytes + epoch
   end
 ```
 

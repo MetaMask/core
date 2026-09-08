@@ -158,7 +158,7 @@ describe('MfaRecoveryController', () => {
         expect(verifyReceipt.mock.calls[0][2]).toBe('escrow-a');
 
         const recovered = await controller.getRecoverySecret(PASSKEY);
-        expect(bytesToHex(recovered)).toBe(bytesToHex(SECRET));
+        expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET));
       });
     });
 
@@ -188,20 +188,41 @@ describe('MfaRecoveryController', () => {
     it('rejects a second registration for the same profile', async () => {
       await withController(async ({ controller }) => {
         await controller.register(SECRET, [PASSKEY]);
-        await expect(controller.register(SECRET, [PASSKEY])).rejects.toBeInstanceOf(
-          MutationRepairPendingError,
-        );
+        await expect(
+          controller.register(SECRET, [PASSKEY]),
+        ).rejects.toBeInstanceOf(MutationRepairPendingError);
       });
     });
   });
 
   describe('getRecoverySecret', () => {
+    it('returns the selected epoch so a later update can be formed', async () => {
+      await withController(async ({ controller }) => {
+        await controller.register(SECRET, [PASSKEY]);
+        const recovered = await controller.getRecoverySecret(PASSKEY);
+
+        expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET));
+        expect(recovered.epoch).toBe(REGISTERED_EPOCH);
+
+        await controller.updateRecoverySecret(
+          PASSKEY,
+          SECRET_2,
+          recovered.epoch,
+        );
+        const afterUpdate = await controller.getRecoverySecret(PASSKEY);
+        expect(bytesToHex(afterUpdate.recoverySecret)).toBe(
+          bytesToHex(SECRET_2),
+        );
+        expect(afterUpdate.epoch).toBe(REGISTERED_EPOCH + 1);
+      });
+    });
+
     it('returns the highest consistent version when one escrow is down', async () => {
       await withController(async ({ controller, escrowB }) => {
         await controller.register(SECRET, [PASSKEY]);
         escrowB.available = false;
         const recovered = await controller.getRecoverySecret(PASSKEY);
-        expect(bytesToHex(recovered)).toBe(bytesToHex(SECRET));
+        expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET));
       });
     });
 
@@ -214,7 +235,7 @@ describe('MfaRecoveryController', () => {
 
         const recovered = await controller.getRecoverySecret(PASSKEY);
 
-        expect(bytesToHex(recovered)).toBe(bytesToHex(SECRET));
+        expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET));
       });
     });
 
@@ -227,7 +248,7 @@ describe('MfaRecoveryController', () => {
 
         const recovered = await controller.getRecoverySecret(PASSKEY);
 
-        expect(bytesToHex(recovered)).toBe(bytesToHex(SECRET));
+        expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET));
       });
     });
 
@@ -240,7 +261,7 @@ describe('MfaRecoveryController', () => {
 
         const recovered = await controller.getRecoverySecret(EMAIL);
 
-        expect(bytesToHex(recovered)).toBe(bytesToHex(SECRET));
+        expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET));
       });
     });
 
@@ -253,7 +274,7 @@ describe('MfaRecoveryController', () => {
 
         const recovered = await controller.getRecoverySecret(EMAIL);
 
-        expect(bytesToHex(recovered)).toBe(bytesToHex(SECRET));
+        expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET));
       });
     });
 
@@ -316,9 +337,13 @@ describe('MfaRecoveryController', () => {
     it('replaces the secret at every escrow', async () => {
       await withController(async ({ controller }) => {
         await controller.register(SECRET, [PASSKEY]);
-        await controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH);
+        await controller.updateRecoverySecret(
+          PASSKEY,
+          SECRET_2,
+          REGISTERED_EPOCH,
+        );
         const recovered = await controller.getRecoverySecret(PASSKEY);
-        expect(bytesToHex(recovered)).toBe(bytesToHex(SECRET_2));
+        expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET_2));
       });
     });
 
@@ -390,7 +415,11 @@ describe('MfaRecoveryController', () => {
           throw new Error('apply failed');
         });
 
-        const mutation = controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH);
+        const mutation = controller.updateRecoverySecret(
+          PASSKEY,
+          SECRET_2,
+          REGISTERED_EPOCH,
+        );
         await applyStarted;
 
         expect(
@@ -445,7 +474,7 @@ describe('MfaRecoveryController', () => {
         await controller.register(SECRET, [PASSKEY, EMAIL]);
         await controller.updateIdentifiers(EMAIL, [EMAIL], REGISTERED_EPOCH);
         const recovered = await controller.getRecoverySecret(EMAIL);
-        expect(bytesToHex(recovered)).toBe(bytesToHex(SECRET));
+        expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET));
       });
     });
 
@@ -454,9 +483,7 @@ describe('MfaRecoveryController', () => {
         await controller.register(SECRET, [PASSKEY]);
         await expect(
           controller.updateIdentifiers(PASSKEY, [], REGISTERED_EPOCH),
-        ).rejects.toThrow(
-          'Identifier list must be non-empty',
-        );
+        ).rejects.toThrow('Identifier list must be non-empty');
       });
     });
   });
@@ -474,7 +501,7 @@ describe('MfaRecoveryController', () => {
         await controller.resume();
         expect(await controller.getPhase()).toBe('idle');
         const recovered = await controller.getRecoverySecret(PASSKEY);
-        expect(bytesToHex(recovered)).toBe(bytesToHex(SECRET_2));
+        expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET_2));
       });
     });
 
@@ -491,9 +518,11 @@ describe('MfaRecoveryController', () => {
         await controller.resume();
 
         expect(await controller.getPhase()).toBe('idle');
-        expect(bytesToHex(await controller.getRecoverySecret(PASSKEY))).toBe(
-          bytesToHex(SECRET_2),
-        );
+        expect(
+          bytesToHex(
+            (await controller.getRecoverySecret(PASSKEY)).recoverySecret,
+          ),
+        ).toBe(bytesToHex(SECRET_2));
       });
     });
 
@@ -610,9 +639,11 @@ describe('MfaRecoveryController', () => {
         });
         await controller.resume();
         expect(await controller.getPhase()).toBe('idle');
-        expect(bytesToHex(await controller.getRecoverySecret(PASSKEY))).toBe(
-          bytesToHex(SECRET),
-        );
+        expect(
+          bytesToHex(
+            (await controller.getRecoverySecret(PASSKEY)).recoverySecret,
+          ),
+        ).toBe(bytesToHex(SECRET));
       });
     });
 
@@ -651,9 +682,9 @@ describe('MfaRecoveryController', () => {
         await resumed.resume();
 
         expect(await resumed.getPhase()).toBe('idle');
-        expect(bytesToHex(await resumed.getRecoverySecret(EMAIL))).toBe(
-          bytesToHex(SECRET),
-        );
+        expect(
+          bytesToHex((await resumed.getRecoverySecret(EMAIL)).recoverySecret),
+        ).toBe(bytesToHex(SECRET));
       });
     });
 

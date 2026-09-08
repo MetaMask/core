@@ -39,4 +39,5 @@ export type {
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
   RecoveryPhase,
+  RecoveredSecret,
 } from './types.js';
