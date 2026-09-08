@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [20.3.0]
 
-### Uncategorized
-
-- Preserve api-docs/ (not docs/) for Typedoc-generated directories ([#10114](https://github.com/MetaMask/core/pull/10114))
-
 ### Added
 
 - Add `NeoBankService` for MetaMask Ramp API neo-bank-proxy endpoints under the `/neobank` prefix on the Ramp API host, including messenger actions for `getAutoramp`, `registerPixAddress`, `getAutorampQuote`, `createAutoramp`, `getAutorampQuoteForAutoramp`, `attachAutorampQuote`, `getCustomerByExternalId`, `getMoonpayCustomerId`, `getWalletRegistrationStatus`, and `registerSelfHostedWallet`. Mutating POSTs do not retry (to avoid duplicate Pix/autoramp creates without a stable `Idempotency-Key`); GETs still retry 429/5xx/network errors. Optional `Idempotency-Key` is forwarded when callers supply one. Also exports `mapNeoBankAutorampToRemoteSnapshot`, `AutorampRemoteSnapshot`, and wallet-registration HTTP types (`WalletRegistrationError`, `RegistrationStatus`, `RegistrationOutcome`). ([#10031](https://github.com/MetaMask/core/pull/10031))

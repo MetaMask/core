@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [30.0.0]
 
-### Uncategorized
-
-- Preserve api-docs/ (not docs/) for Typedoc-generated directories ([#10114](https://github.com/MetaMask/core/pull/10114))
-- chore: bump accounts deps ([#9754](https://github.com/MetaMask/core/pull/9754))
-
 ### Added
 
 - **BREAKING:** Add social identifier pairing after SRP sign-in (`POST /api/v2/profile/pair/identifier`) ([#10128](https://github.com/MetaMask/core/pull/10128))
