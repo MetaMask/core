@@ -765,8 +765,7 @@ describe('PriceDataSource', () => {
 
     await controller.unsubscribe('sub-1');
 
-    jest.advanceTimersByTime(10000);
-    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(10000);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
@@ -1012,7 +1011,7 @@ describe('PriceDataSource', () => {
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
     // Advance past the TTL (pollInterval = 10s is used as freshness TTL)
-    jest.advanceTimersByTime(11_000);
+    await jest.advanceTimersByTimeAsync(11_000);
 
     await controller.fetch(createDataRequest(), getAssetsState);
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
@@ -1273,8 +1272,7 @@ describe('PriceDataSource', () => {
 
     controller.destroy();
 
-    jest.advanceTimersByTime(10000);
-    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(10000);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
   });
