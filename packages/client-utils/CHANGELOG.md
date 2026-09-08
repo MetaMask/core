@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Preserve api-docs/ (not docs/) for Typedoc-generated directories ([#10114](https://github.com/MetaMask/core/pull/10114))
-
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^69.6.0` to `^69.8.1` ([#9969](https://github.com/MetaMask/core/pull/9969), [#10080](https://github.com/MetaMask/core/pull/10080), [#10046](https://github.com/MetaMask/core/pull/10046), [#10124](https://github.com/MetaMask/core/pull/10124))
