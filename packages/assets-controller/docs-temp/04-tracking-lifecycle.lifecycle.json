@@ -1,0 +1,307 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "AssetsController \u2014 Tracking Lifecycle",
+    "quality_profile": "showcase",
+    "viewBox": [
+      980,
+      630
+    ],
+    "views": [
+      {
+        "id": "steady",
+        "label": "Reaching steady state",
+        "focus": [
+          "constructed",
+          "signals",
+          "gate",
+          "refresh",
+          "tracking"
+        ],
+        "note": "Construction wires everything but touches no network; tracking only begins once the gate opens."
+      },
+      {
+        "id": "closed-gate",
+        "label": "Why nothing is happening",
+        "focus": [
+          "signals",
+          "gate",
+          "dormant"
+        ],
+        "note": "One false condition is enough to tear every subscription down and go back to waiting."
+      },
+      {
+        "id": "rescope",
+        "label": "Re-scoping while live",
+        "focus": [
+          "tracking",
+          "rescope",
+          "refresh"
+        ],
+        "note": "Account or network changes re-enter the fetch path instead of restarting the lifecycle."
+      },
+      {
+        "id": "teardown",
+        "label": "Teardown",
+        "focus": [
+          "dormant",
+          "destroyed"
+        ],
+        "note": "Dormant keeps its messenger handlers; destroy is the only step that releases them."
+      }
+    ],
+    "legend": {
+      "entries": {
+        "start": {
+          "label": "Constructor"
+        },
+        "neutral": {
+          "label": "Waiting on messenger"
+        },
+        "decision": {
+          "label": "Activation gate"
+        },
+        "active": {
+          "label": "Work in flight"
+        },
+        "success": {
+          "label": "Steady state"
+        },
+        "waiting": {
+          "label": "Paused"
+        },
+        "failure": {
+          "label": "Terminal"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "Activation path"
+    },
+    {
+      "id": "interrupts",
+      "label": "Pauses and re-scope"
+    },
+    {
+      "id": "terminal",
+      "label": "Terminal exit"
+    }
+  ],
+  "states": [
+    {
+      "id": "constructed",
+      "type": "start",
+      "label": "Constructed",
+      "sublabel": "no network I/O",
+      "lane": "main",
+      "col": 0,
+      "step": "01",
+      "tag": "ctor"
+    },
+    {
+      "id": "signals",
+      "type": "neutral",
+      "label": "Signals",
+      "sublabel": "unlock \u00b7 UI \u00b7 tree",
+      "lane": "main",
+      "col": 1,
+      "step": "02"
+    },
+    {
+      "id": "gate",
+      "type": "decision",
+      "label": "Gate Check",
+      "sublabel": "all three true?",
+      "lane": "main",
+      "col": 2,
+      "step": "03"
+    },
+    {
+      "id": "refresh",
+      "type": "active",
+      "label": "Refresh",
+      "sublabel": "forced getAssets",
+      "lane": "main",
+      "col": 3,
+      "step": "04"
+    },
+    {
+      "id": "tracking",
+      "type": "success",
+      "label": "Tracking",
+      "sublabel": "subscribed \u00b7 live",
+      "lane": "main",
+      "col": 4,
+      "step": "05",
+      "tag": "steady"
+    },
+    {
+      "id": "dormant",
+      "type": "waiting",
+      "label": "Dormant",
+      "sublabel": "subscriptions cleared",
+      "lane": "interrupts",
+      "col": 0,
+      "tag": "stop"
+    },
+    {
+      "id": "rescope",
+      "type": "active",
+      "label": "Re-scope",
+      "sublabel": "accounts or chains",
+      "lane": "interrupts",
+      "col": 2
+    },
+    {
+      "id": "destroyed",
+      "type": "failure",
+      "label": "Destroyed",
+      "sublabel": "handlers released",
+      "lane": "terminal",
+      "col": 0
+    }
+  ],
+  "transitions": [
+    {
+      "id": "wire-up",
+      "from": "constructed",
+      "to": "signals",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "evaluate",
+      "from": "signals",
+      "to": "gate",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "gate-open",
+      "from": "gate",
+      "to": "refresh",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "seed-subscribe",
+      "from": "refresh",
+      "to": "tracking",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "gate-closed",
+      "from": "gate",
+      "to": "dormant",
+      "label": "any gate false",
+      "note": "locked or UI closed",
+      "variant": "security",
+      "route": "straight",
+      "labelDy": 48
+    },
+    {
+      "id": "await-signal",
+      "from": "dormant",
+      "to": "signals",
+      "label": "wait for next signal",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "bottom",
+      "via": [
+        [
+          320,
+          307
+        ],
+        [
+          320,
+          230
+        ],
+        [
+          248,
+          230
+        ]
+      ],
+      "labelSegment": 2
+    },
+    {
+      "id": "scope-changed",
+      "from": "tracking",
+      "to": "rescope",
+      "label": "scope changed",
+      "variant": "default",
+      "route": "straight",
+      "labelDy": 48
+    },
+    {
+      "id": "resubscribe",
+      "from": "rescope",
+      "to": "refresh",
+      "label": "re-fetch, re-subscribe",
+      "variant": "default",
+      "fromSide": "left",
+      "toSide": "bottom",
+      "via": [
+        [
+          630,
+          307
+        ],
+        [
+          630,
+          230
+        ],
+        [
+          556,
+          230
+        ]
+      ],
+      "labelSegment": 2
+    },
+    {
+      "id": "teardown",
+      "from": "dormant",
+      "to": "destroyed",
+      "label": "destroy()",
+      "note": "callable from any phase",
+      "variant": "security",
+      "route": "straight",
+      "labelDy": 58
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Gate \u2014 all three, or nothing",
+      "items": [
+        "UI open, keyring unlocked, account tree initialised",
+        "Every one of those signals re-runs the same check",
+        "Start is skipped when no account or no chain is enabled",
+        "src/AssetsController.ts \u00b7 #updateActive"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Step 04 \u2014 refresh before subscribe",
+      "items": [
+        "A mutex serialises the forced fetch against later refreshes",
+        "Native zeros and default tracked assets are seeded next",
+        "Sources subscribe with skipInitialFetch, avoiding a re-poll",
+        "src/AssetsController.ts \u00b7 #runStartupRefresh"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Re-scope, pause, destroy",
+      "items": [
+        "Chain claims are recomputed, so every source re-subscribes",
+        "Stop unsubscribes each ds: key so polling timers really die",
+        "Messenger handlers stay registered, so the gate can reopen",
+        "src/AssetsController.ts \u00b7 #stop, destroy"
+      ]
+    }
+  ]
+}
