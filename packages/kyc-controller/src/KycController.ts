@@ -1203,7 +1203,7 @@ export class KycController extends BaseController<
       });
 
       const created = await this.#createUkycSession(generation);
-      if (!created || this.#generation !== generation) {
+      if (!created) {
         return;
       }
 

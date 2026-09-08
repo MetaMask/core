@@ -4323,6 +4323,7 @@ describe('KycController', () => {
           });
 
           expect(controller.state.phase).toBe('idle');
+          expect(handlers.fetchSessionDisclaimers).not.toHaveBeenCalled();
           expect(handlers.submitSessionDisclaimers).not.toHaveBeenCalled();
         },
       );
