@@ -372,6 +372,82 @@ describe('ProofOfOwnershipService', () => {
       });
     });
 
+    it('stringifies non-Error values thrown while signing batch requests', async () => {
+      const signPersonalMessage = jest
+        .fn<Promise<string>, [{ data: string; from: string }]>()
+        .mockRejectedValue('keyring locked');
+      const { rootMessenger } = getService({ signPersonalMessage });
+
+      const response = await rootMessenger.call(
+        'ProofOfOwnershipService:signBatch',
+        {
+          items: [{ account: createMockAccount(), nonce: 'n' }],
+        },
+      );
+
+      expect(response).toStrictEqual({
+        results: [{ error: 'keyring locked' }],
+      });
+    });
+
+    it('returns an item-level error when a snap account has no snap metadata', async () => {
+      const snapHandle = jest.fn<Promise<unknown>, [unknown]>();
+      const { rootMessenger } = getService({ snapHandle });
+      const account = createMockAccount({
+        id: 'orphan',
+        scopes: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+        address: '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM',
+        metadata: {
+          keyring: { type: 'Test Keyring' },
+          name: 'Orphan',
+          importTime: 0,
+        },
+      });
+
+      const response = await rootMessenger.call(
+        'ProofOfOwnershipService:signBatch',
+        {
+          items: [{ account, nonce: 'n' }],
+        },
+      );
+
+      expect(response).toStrictEqual({
+        results: [
+          {
+            error:
+              "ProofOfOwnershipService: account 'orphan' has no snap to sign a proof of ownership.",
+          },
+        ],
+      });
+      expect(snapHandle).not.toHaveBeenCalled();
+    });
+
+    it('returns an item-level error when an account namespace is unsupported', async () => {
+      const snapHandle = jest.fn<Promise<unknown>, [unknown]>();
+      const { rootMessenger } = getService({ snapHandle });
+      const account = createMockAccount({
+        scopes: ['cosmos:cosmoshub-4'],
+        address: 'cosmos1abc',
+      });
+
+      const response = await rootMessenger.call(
+        'ProofOfOwnershipService:signBatch',
+        {
+          items: [{ account, nonce: 'n' }],
+        },
+      );
+
+      expect(response).toStrictEqual({
+        results: [
+          {
+            error:
+              "Proof of ownership is not supported for namespace 'cosmos'.",
+          },
+        ],
+      });
+      expect(snapHandle).not.toHaveBeenCalled();
+    });
+
     it('groups snap accounts by snap ID and preserves per-item results', async () => {
       const snapHandle = jest
         .fn<Promise<unknown>, [unknown]>()

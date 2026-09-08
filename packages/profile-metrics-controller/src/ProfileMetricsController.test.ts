@@ -1188,6 +1188,38 @@ describe('ProfileMetricsController', () => {
             );
           });
 
+          it('keeps the batch in the queue when signBatch returns the wrong number of results', async () => {
+            const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+            const accounts: Record<string, AccountWithScopes[]> = {
+              id1: [{ address: address.toLowerCase(), scopes: ['eip155:1'] }],
+            };
+            await withController(
+              {
+                options: {
+                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
+                },
+              },
+              async ({
+                controller,
+                mockSubmitMetrics,
+                mockFetchNonces,
+                mockSignProofBatch,
+                registerAccounts,
+              }) => {
+                registerAccounts([createMockAccount(address.toLowerCase())]);
+                mockFetchNonces.mockResolvedValueOnce({ [address]: 'n' });
+                mockSignProofBatch.mockResolvedValueOnce({ results: [] });
+
+                await expect(controller._executePoll()).rejects.toThrow(
+                  'ProofOfOwnershipService:signBatch returned 0 results for 1 requests.',
+                );
+
+                expect(mockSubmitMetrics).not.toHaveBeenCalled();
+                expect(controller.state.syncQueue).toStrictEqual(accounts);
+              },
+            );
+          });
+
           it('keeps the batch in the queue when submitMetrics fails after proofs have been signed', async () => {
             const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
             const accounts: Record<string, AccountWithScopes[]> = {
