@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Stop `previewPositionModify` from re-margining an open isolated position when the order selects a different leverage
+  - The preview applied the selected leverage to the whole resulting position, modelling `updateLeverage` as if it reallocated collateral already posted. HyperLiquid does not do this: leverage is checked when a position is opened, and changing it afterwards leaves `marginUsed` where it is. Adding to a position at a higher leverage was therefore projected as a margin _release_ — an over-collateralized position adding $15 at 28x previewed $3.43 → $0.85 where the venue settled at $3.95.
+  - The selected leverage now sizes the margin posted for the added fill only, and a partial decrease releases a proportional share of the position's current collateral. Because posted collateral is untouched, `resulting.leverage` can sit below (or above) the leverage the order selected; clients showing a before → after margin should expect an increase to raise it.
 - Handle zero minimum order amounts and margin fractions reported by Lighter for inactive markets by omitting unusable retired rows, while keeping valid delisted metadata and active market values strict. ([#10110](https://github.com/MetaMask/core/pull/10110))
 
 ## [16.1.0]
