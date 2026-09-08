@@ -1025,6 +1025,36 @@ describe('NotificationServicesController', () => {
           ADDRESS_1,
         ]);
       });
+
+      it('does not write preferences or unregister push when the keyring has no accounts', async () => {
+        const {
+          messenger,
+          mockDisablePushNotifications,
+          mockEnablePushNotifications,
+          mockUpdateNotifications,
+          mockKeyringControllerGetState,
+        } = arrangeMocks({
+          configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
+        });
+
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [],
+        });
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+
+        await controller.createOnChainTriggers();
+
+        // Writing the blob here would make the next run a re-subscribe with no
+        // chance to seed accounts; unregistering would drop an existing device.
+        expect(mockUpdateNotifications).not.toHaveBeenCalled();
+        expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+        expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+      });
     });
 
     describe('when AUS preferences are fully initialized', () => {
@@ -1052,6 +1082,37 @@ describe('NotificationServicesController', () => {
         expect(mockUpdateNotifications).not.toHaveBeenCalled();
         expect(mockTriggerUpdate.isDone()).toBe(false);
         expect(mockEnablePushNotifications).toHaveBeenCalled();
+      });
+
+      it('leaves existing push links alone on re-subscribe when the keyring has no accounts', async () => {
+        const {
+          messenger,
+          mockDisablePushNotifications,
+          mockEnablePushNotifications,
+          mockUpdateNotifications,
+          mockKeyringControllerGetState,
+        } = arrangeMocks({
+          configurePrefs: (mock) =>
+            mock.mockResolvedValueOnce(mockPreferences()),
+        });
+
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [],
+        });
+        const mockTriggerUpdate = mockUpdateOnChainNotifications();
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+
+        await controller.createOnChainTriggers();
+
+        expect(mockTriggerUpdate.isDone()).toBe(false);
+        expect(mockUpdateNotifications).not.toHaveBeenCalled();
+        expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+        expect(mockEnablePushNotifications).not.toHaveBeenCalled();
       });
 
       it('does not re-subscribe accounts on the daily re-subscribe when the user disabled them all', async () => {
@@ -2001,6 +2062,31 @@ describe('NotificationServicesController', () => {
       expect(mockEnablePushNotifications).toHaveBeenCalledWith([
         ADDRESS_1.toLowerCase(),
       ]);
+    });
+
+    it('leaves existing push links alone when the keyring has no accounts', async () => {
+      const {
+        messenger,
+        mockEnablePushNotifications,
+        mockDisablePushNotifications,
+        mockKeyringControllerGetState,
+      } = arrangeMocks();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [],
+      });
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+        state: { isNotificationServicesEnabled: true },
+      });
+
+      await controller.enablePushNotifications();
+
+      // An empty keyring is not "every account disabled": unregistering here
+      // would drop the device until the next successful re-subscribe.
+      expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+      expect(mockEnablePushNotifications).not.toHaveBeenCalled();
     });
 
     it('unregisters the device when no account has notifications enabled', async () => {
