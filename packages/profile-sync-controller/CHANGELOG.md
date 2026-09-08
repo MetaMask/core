@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add social identifier pairing after SRP sign-in (`POST /api/v2/profile/pair/identifier`) ([#10128](https://github.com/MetaMask/core/pull/10128))
+  - Add `needsSocialPairing?: boolean` to state (defaults `true`; cleared on success or 409 Conflict; left `true` on other failures so the next `performSignIn` retries; cleared without an API call when the user never logged in with a social provider). If `authConnection` is set but the seedless vault is not written yet, the flag stays `true` so onboarding-in-flight sign-ins can retry. Optional in the type so partial-state selectors stay assignable; treat `undefined` as `true`.
+  - Add optional `isSocialPairingEnabled` config callback (defaults to `() => false`). When it returns `true`, Google/Apple/Telegram seedless users are paired after SRP login and profile pairing. Telegram never sends `email` (clients store a display name there).
+  - Use `SeedlessOnboardingController:getAccessToken` to fetch the social JWT (refreshed when expired).
+  - Add `pairSocialIdentifier` to `JwtBearerAuth` / `SRPJwtBearerAuth` and `PairConflictError` for 409 Conflict.
+
 ### Changed
 
 - **BREAKING:** Derive auth and user-storage message-signing keys natively via SIP-6 from HD keyring seeds instead of calling `@metamask/message-signing-snap` through `SnapController`. `AuthenticationController` and `UserStorageController` now require `KeyringController:withKeyringV2Unsafe` and no longer call `SnapController:handleRequest`. The message-signing snap remains for Portfolio / external origins ([#9824](https://github.com/MetaMask/core/pull/9824))

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.1]
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
@@ -280,7 +282,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of the RemoteFeatureFlagController. ([#4931](https://github.com/MetaMask/core/pull/4931))
   - This controller manages the retrieval and caching of remote feature flags. It fetches feature flags from a remote API, caches them, and provides methods to access and manage these flags. The controller ensures that feature flags are refreshed based on a specified interval and handles cases where the controller is disabled or the network is unavailable.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@6.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@6.1.1...HEAD
+[6.1.1]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@6.1.0...@metamask/remote-feature-flag-controller@6.1.1
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@6.0.0...@metamask/remote-feature-flag-controller@6.1.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@5.0.0...@metamask/remote-feature-flag-controller@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.2.2...@metamask/remote-feature-flag-controller@5.0.0
