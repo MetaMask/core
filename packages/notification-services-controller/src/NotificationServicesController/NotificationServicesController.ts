@@ -913,7 +913,7 @@ export class NotificationServicesController extends BaseController<
   public async enablePushNotifications(): Promise<void> {
     try {
       const { accounts } = this.#accounts.listAccounts();
-      if (accounts.length === 0) {
+      if (!this.#keyringController.isUnlocked || accounts.length === 0) {
         // no keyring accounts could be caused by calling this function while keyring is locked
         // it does not mean the user does not have any enabled accounts on Trigger API
         return;
@@ -1032,7 +1032,7 @@ export class NotificationServicesController extends BaseController<
       this.#setIsUpdatingMetamaskNotifications(true);
 
       const { accounts } = this.#accounts.listAccounts();
-      if (accounts.length === 0) {
+      if (!this.#keyringController.isUnlocked || accounts.length === 0) {
         // no keyring accounts could be caused by calling this function while keyring is locked
         // it does not mean the user does not have any enabled accounts on Trigger API
         return;
