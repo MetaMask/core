@@ -23,7 +23,7 @@
         "id": "multicall",
         "label": "Inside the RPC attempt",
         "focus": ["rpc_ds", "node"],
-        "note": "One batched multicall with three attempts, then per-account calls."
+        "note": "One batched multicall with three attempts, then one call per asset."
       }
     ],
     "legend": {
@@ -176,7 +176,7 @@
       "from": "rpc_ds",
       "to": "node",
       "y": 394,
-      "label": "eth_call per account, batch 50",
+      "label": "one eth_call per asset",
       "variant": "dashed"
     },
     {
@@ -256,7 +256,7 @@
       "title": "Where the retries actually live",
       "items": [
         "Only the batched multicall retries: three attempts under a service policy",
-        "Per-account eth_call is the last resort and never retries on its own"
+        "The per-asset eth_call is the last resort and never retries on its own"
       ]
     }
   ]

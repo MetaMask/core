@@ -123,7 +123,7 @@
       "id": "per_asset",
       "type": "backend",
       "label": "Per-asset Calls",
-      "sublabel": "50 in parallel",
+      "sublabel": "one eth_call each",
       "stage": 2,
       "row": 1
     },
@@ -291,7 +291,7 @@
       "items": [
         "aggregate3 carries up to 300 calls; batches run serially",
         "Three attempts total before the batch is abandoned",
-        "A chain with no Multicall3 skips straight to single calls",
+        "A chain with no Multicall3 batches 50 single calls in parallel",
         "src/.../evm-rpc-services/clients/MulticallClient.ts"
       ]
     },

@@ -405,11 +405,11 @@ rect.c-bg-rect { fill: var(--bg); }
         </g>
         </g>
 
-        <g data-edge-from="rpc_ds" data-edge-to="node" data-edge-label="eth_call per account, batch 50" data-edge-key="8" data-edge-id="single">
+        <g data-edge-from="rpc_ds" data-edge-to="node" data-edge-label="one eth_call per asset" data-edge-key="8" data-edge-id="single">
           <path data-composition-edge-from="rpc_ds" data-composition-edge-to="node" data-composition-edge-id="single" data-composition-points="810.9,394;965.5,394" d="M 810.9 394 L 965.5 394" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
         <g>
-          <rect x="804.2" y="374" width="168" height="16" rx="3" class="c-mask"/>
-          <text x="888.2" y="384" class="t-messagebus" font-size="9" text-anchor="middle">eth_call per account, batch 50</text>
+          <rect x="825" y="374" width="126.4" height="16" rx="3" class="c-mask"/>
+          <text x="888.2" y="384" class="t-messagebus" font-size="9" text-anchor="middle">one eth_call per asset</text>
         </g>
         </g>
 

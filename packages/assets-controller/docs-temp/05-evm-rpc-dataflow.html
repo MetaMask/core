@@ -5132,15 +5132,15 @@
         <text data-detail="fine" x="530" y="175" class="t-backend" font-size="7" text-anchor="middle">aggregate3</text>
         </g>
 
-        <g id="node-per_asset" data-node-id="per_asset" data-node-label="Per-asset Calls" tabindex="0" role="button" aria-label="Focus Per-asset Calls, 50 in parallel, 03 / Call" aria-pressed="false" data-node-kind="backend" data-node-sublabel="50 in parallel" data-node-context="03 / Call">
-          <title>Per-asset Calls · 50 in parallel · 03 / Call</title>
+        <g id="node-per_asset" data-node-id="per_asset" data-node-label="Per-asset Calls" tabindex="0" role="button" aria-label="Focus Per-asset Calls, one eth_call each, 03 / Call" aria-pressed="false" data-node-kind="backend" data-node-sublabel="one eth_call each" data-node-context="03 / Call">
+          <title>Per-asset Calls · one eth_call each · 03 / Call</title>
           <rect x="474" y="242" width="112" height="58" rx="6" class="c-mask"/>
           <rect x="474" y="242" width="112" height="58" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(480 248) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="530" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Per-asset Calls</text>
-          <text data-detail="context" x="530" y="279" class="t-muted" font-size="7" text-anchor="middle">50 in parallel</text>
+          <text data-detail="context" x="530" y="279" class="t-muted" font-size="7" text-anchor="middle">one eth_call each</text>
         </g>
 
         <g id="node-staking_c" data-node-id="staking_c" data-node-label="Staking Contract" tabindex="0" role="button" aria-label="Focus Staking Contract, two ordered calls, 03 / Call" aria-pressed="false" data-node-kind="external" data-node-sublabel="two ordered calls" data-node-context="03 / Call">
@@ -5490,7 +5490,7 @@
         <ul>
           <li>&bull; aggregate3 carries up to 300 calls; batches run serially</li>
           <li>&bull; Three attempts total before the batch is abandoned</li>
-          <li>&bull; A chain with no Multicall3 skips straight to single calls</li>
+          <li>&bull; A chain with no Multicall3 batches 50 single calls in parallel</li>
           <li>&bull; src/.../evm-rpc-services/clients/MulticallClient.ts</li>
         </ul>
       </div>
