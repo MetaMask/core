@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/1241.0.0
+- Preserve api-docs/ (not docs/) for Typedoc-generated directories ([#10114](https://github.com/MetaMask/core/pull/10114))
+- Remove lint rule that deprecates use of :stateChange events ([#10090](https://github.com/MetaMask/core/pull/10090))
+
 ### Changed
 
 - Bump `@metamask/core-backend` from `^9.0.0` to `^9.1.0` ([#10138](https://github.com/MetaMask/core/pull/10138))

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/1241.0.0
+- Move FakeProvider to eth-json-rpc-provider (as FakeInternalProvider) ([#10099](https://github.com/MetaMask/core/pull/10099))
+- Preserve api-docs/ (not docs/) for Typedoc-generated directories ([#10114](https://github.com/MetaMask/core/pull/10114))
+
 ### Changed
 
 - Bump `@metamask/core-backend` from `^9.0.0` to `^9.1.0` ([#10138](https://github.com/MetaMask/core/pull/10138))
