@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Handle zero minimum order amounts and margin fractions reported by Lighter for inactive markets by omitting unusable retired rows, while keeping valid delisted metadata and active market values strict. ([#10110](https://github.com/MetaMask/core/pull/10110))
+- Resolve Lighter accounts from sparse address-discovery rows and every API-key slot, settle confirmed missing accounts to an empty state, and preserve the last authoritative state across transport, authentication, and malformed-response failures. ([#10119](https://github.com/MetaMask/core/pull/10119))
+- Accept Lighter trade rows that omit the counterparty's realized PnL while continuing to require a valid PnL for the selected account. ([#10119](https://github.com/MetaMask/core/pull/10119))
+- Stop emitting a debug log for every Lighter price-stream frame. ([#10119](https://github.com/MetaMask/core/pull/10119))
 
 ## [16.1.0]
 
