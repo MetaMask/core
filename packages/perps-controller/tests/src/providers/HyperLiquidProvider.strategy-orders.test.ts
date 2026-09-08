@@ -2701,6 +2701,105 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
+    describe('when a completing fill ties lastUpdated across history entries', () => {
+      // The venue reports one lifecycle as an activation plus a terminal
+      // record, and every entry sharing a twapId receives the same slice
+      // fills. A schedule finished by its last fill therefore derives an
+      // identical lastUpdated on both entries, because that fill outranks
+      // each entry's own whole-second timestamp.
+      const finishedAtSeconds = 1_700_000_600;
+      const completingFillTimestamp = finishedAtSeconds * 1_000 + 500;
+
+      const activationEntry = {
+        time: 1_700_000_000,
+        twapId: 987,
+        state: {
+          coin: 'ETH',
+          executedNtl: '0',
+          executedSz: '0',
+          minutes: 10,
+          randomize: false,
+          reduceOnly: false,
+          side: 'B',
+          sz: '1',
+          timestamp: startedAt,
+          user: userAddress,
+        },
+        status: { status: 'activated' },
+      };
+
+      const terminalEntry = {
+        time: finishedAtSeconds,
+        twapId: 987,
+        state: {
+          coin: 'ETH',
+          executedNtl: '3000',
+          executedSz: '1',
+          minutes: 10,
+          randomize: false,
+          reduceOnly: false,
+          side: 'B',
+          sz: '1',
+          timestamp: startedAt,
+          user: userAddress,
+        },
+        status: { status: 'finished' },
+      };
+
+      const completingSliceFills = [
+        {
+          twapId: 987,
+          fill: {
+            coin: 'ETH',
+            px: '3000',
+            sz: '1',
+            side: 'B',
+            time: completingFillTimestamp,
+            startPosition: '0',
+            dir: 'Open Long',
+            closedPnl: '0',
+            hash: '0xabc',
+            oid: 321,
+            crossed: true,
+            fee: '3.00',
+            tid: 456,
+            feeToken: 'USDC',
+            twapId: 987,
+          },
+        },
+      ];
+
+      it.each([
+        [
+          'venue order, terminal record first',
+          [terminalEntry, activationEntry],
+        ],
+        ['reversed, activation first', [activationEntry, terminalEntry]],
+      ])('keeps the terminal record (%s)', async (_label, history) => {
+        useStrategyClients({
+          info: {
+            twapHistory: jest.fn().mockResolvedValue(history),
+            userTwapSliceFills: jest
+              .fn()
+              .mockResolvedValue(completingSliceFills),
+          },
+        });
+
+        const orders = await provider.getTwapOrders();
+
+        expect(orders).toHaveLength(1);
+        // Reading 'active' here means the activation overwrote the terminal
+        // record, which leaves a finished schedule listed as live forever.
+        expect(orders[0]).toMatchObject({
+          orderId: '987',
+          status: 'completed',
+          executedSize: '1',
+          remainingSize: '0',
+          lastUpdated: completingFillTimestamp,
+        });
+      });
+    });
+
     it.each([
       ['negative', '-1', '0', '10', 0, 'completed_underfilled'],
       ['oversized', '11', '10', '0', 10_000, 'completed'],
