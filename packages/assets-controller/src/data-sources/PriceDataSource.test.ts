@@ -1332,26 +1332,6 @@ describe('PriceDataSource', () => {
       'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
     const MALFORMED_ASSET_ID = 'not-a-valid-caip19' as Caip19AssetId;
 
-    it('loads supported networks once at construction and reuses them', async () => {
-      const { controller, apiClient, getAssetsState } = setupController({
-        balanceState: {
-          'mock-account-id': {
-            [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
-          },
-        },
-        priceResponse: { [MOCK_NATIVE_ASSET]: createMockPriceData(2500) },
-      });
-
-      await controller.fetch(createDataRequest(), getAssetsState);
-      await controller.fetch(createDataRequest(), getAssetsState);
-
-      expect(
-        apiClient.prices.fetchPriceV2SupportedNetworks,
-      ).toHaveBeenCalledTimes(1);
-
-      controller.destroy();
-    });
-
     const arrangeMiddleware = ({
       assetsForPriceUpdate = [],
       detectedAssets = [],

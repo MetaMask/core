@@ -162,12 +162,6 @@ export class PriceDataSource {
    */
   readonly #deduper: DedupingBatchFetcher<Caip19AssetId, FungibleAssetPrice>;
 
-  /** Cached Price API supported CAIP-2 networks. */
-  #supportedNetworks: Set<string> | undefined;
-
-  /** In-flight supported-networks request, if any. */
-  #supportedNetworksInflight: Promise<Set<string>> | undefined;
-
   /** Active subscriptions by ID */
   readonly #activeSubscriptions: Map<
     string,
@@ -191,7 +185,6 @@ export class PriceDataSource {
         this.#executeBatchFetch(assetIds),
       freshnessTtlMs: options.priceFreshnessTtlMs ?? this.#pollInterval,
     });
-    this.#supportedNetworksInflight = this.#loadSupportedNetworks();
   }
 
   // ============================================================================
@@ -485,24 +478,11 @@ export class PriceDataSource {
   }
 
   /**
-   * Price API supported networks, loaded once and reused.
+   * Price API supported networks.
    *
    * @returns CAIP-2 chain IDs; empty on error.
    */
   async #getSupportedNetworks(): Promise<Set<string>> {
-    if (this.#supportedNetworks) {
-      return this.#supportedNetworks;
-    }
-    this.#supportedNetworksInflight ??= this.#loadSupportedNetworks();
-    return this.#supportedNetworksInflight;
-  }
-
-  /**
-   * Fetches supported networks and caches a successful result.
-   *
-   * @returns CAIP-2 chain IDs; empty on error (fail open).
-   */
-  async #loadSupportedNetworks(): Promise<Set<string>> {
     try {
       const response = await fetchWithTimeout(
         (): Promise<PriceSupportedNetworksResponse> =>
@@ -511,14 +491,10 @@ export class PriceDataSource {
       );
 
       const allNetworks = [...response.fullSupport, ...response.partialSupport];
-      const supportedNetworks = new Set(allNetworks);
-      this.#supportedNetworks = supportedNetworks;
-      return supportedNetworks;
+      return new Set(allNetworks);
     } catch (error) {
       log('Failed to fetch price supported networks', { error });
       return new Set();
-    } finally {
-      this.#supportedNetworksInflight = undefined;
     }
   }
 
@@ -746,7 +722,5 @@ export class PriceDataSource {
     }
     this.#activeSubscriptions.clear();
     this.#deduper.destroy();
-    this.#supportedNetworks = undefined;
-    this.#supportedNetworksInflight = undefined;
   }
 }
