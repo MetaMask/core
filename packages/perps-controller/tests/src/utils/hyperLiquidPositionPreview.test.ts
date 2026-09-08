@@ -217,7 +217,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     });
   });
 
-  it('reallocates the existing isolated position when order leverage differs', () => {
+  it('margins only the added size when order leverage differs', () => {
     const result = previewHyperLiquidIsolatedPositionModify({
       position: isolatedPosition(),
       direction: 'long',
@@ -232,27 +232,21 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       return;
     }
     expect(result.kind).toBe('increase');
-    // Existing 5x $400 is reset to $200 at 10x, then $100 is added for the order.
+    // The existing 5x $400 stays posted; only the added $1000 is margined at
+    // 10x. Raising leverage does not hand any of the $400 back.
     expect(result.resulting.margin).toStrictEqual({
       available: true,
-      value: 300,
+      value: 500,
     });
-    expect(result.resulting.leverage).toBeCloseTo(10);
-    const liquidationPrice = availablePreviewValue(
-      result.resulting.liquidationPrice,
-    );
-    const overstatedMarginLiq = estimateIsolatedLiquidationPrice({
-      isLong: true,
-      markPrice: 2000,
-      margin: 500,
-      positionSize: 1.5,
-      maintenanceMarginRate: 1 / 50,
-    });
-    expect(overstatedMarginLiq).not.toBeNull();
-    expect(liquidationPrice).toBeGreaterThan(overstatedMarginLiq ?? 0);
+    // $3000 notional on $500 sits at 6x, below the 10x the order selected.
+    expect(result.resulting.leverage).toBeCloseTo(6);
+    // (2000 - 500/1.5) / (1 - 1/50) = 1700.680...
+    expect(
+      availablePreviewValue(result.resulting.liquidationPrice),
+    ).toBeCloseTo(1700.6802721088);
   });
 
-  it('reports mark-based leverage when entry differs from mark after a leverage change', () => {
+  it('reports mark-based leverage when entry differs from mark', () => {
     const result = previewHyperLiquidIsolatedPositionModify({
       position: isolatedPosition({
         entryPrice: '2000',
@@ -272,15 +266,15 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     }
     expect(result.resulting.margin).toStrictEqual({
       available: true,
-      value: 375,
+      value: 625,
     });
-    expect(result.resulting.leverage).toBeCloseTo(10);
+    expect(result.resulting.leverage).toBeCloseTo(6);
     expect(result.resulting.entryPrice).toBeCloseTo(2166.6666667);
-    // Mark-based liq: (2500 - 375/1.5) / (1 - 1/50) = 2295.918...
-    // Entry-based liq would be ~1955.78 and is wrong for TP/SL.
+    // Mark-based liq: (2500 - 625/1.5) / (1 - 1/50) = 2125.850...
+    // Entry-based liq would be ~1785.71 and is wrong for TP/SL.
     expect(
       availablePreviewValue(result.resulting.liquidationPrice),
-    ).toBeCloseTo(2295.9183673469);
+    ).toBeCloseTo(2125.8503401361);
   });
 
   it('projects a partial decrease using the remaining position direction', () => {
@@ -337,7 +331,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     ).toBeCloseTo(1428.5714285714);
   });
 
-  it('reallocates before a partial decrease when leverage changes', () => {
+  it('releases margin proportionally on a partial decrease when leverage changes', () => {
     const result = previewHyperLiquidIsolatedPositionModify({
       position: isolatedPosition(),
       direction: 'short',
@@ -351,9 +345,10 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     if (result.status !== 'open') {
       return;
     }
+    // 60% of the posted $400. A leverage change does not resize what is left.
     expect(result.resulting.margin).toStrictEqual({
       available: true,
-      value: 120,
+      value: 240,
     });
     expect(result.resulting.direction).toBe('long');
   });
@@ -616,7 +611,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     });
   });
 
-  it('strips extra isolated margin when leverage increases', () => {
+  it('keeps extra isolated margin when the order raises leverage', () => {
     const result = previewHyperLiquidIsolatedPositionModify({
       position: isolatedPosition({ marginUsed: '800' }),
       direction: 'long',
@@ -630,13 +625,51 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     if (result.status !== 'open') {
       return;
     }
+    // An over-collateralized position raising leverage to add size still ends
+    // up with more margin than it started with, never less.
     expect(result.resulting.margin).toStrictEqual({
       available: true,
-      value: 300,
+      value: 900,
     });
   });
 
-  it('adds isolated margin when selected leverage is lower than the position', () => {
+  it('projects a rise, not a drop, when an over-collateralized position adds size at higher leverage', () => {
+    // Reported case: BTC open at 20x holding $3.43 on a $9.20 notional, adding
+    // $15 at 28x. Re-margining the open position at 28x predicted ~$0.85; the
+    // venue settled at $3.95 because the $3.43 was never handed back.
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition({
+        symbol: 'BTC',
+        size: '0.000092',
+        entryPrice: '100000',
+        positionValue: '9.2',
+        marginUsed: '3.43',
+        leverage: { type: 'isolated', value: 20 },
+        liquidationPrice: '60000',
+        maxLeverage: 40,
+      }),
+      direction: 'long',
+      size: '0.00015',
+      price: '100000',
+      leverage: 28,
+      feeAmountUsd: 0.015,
+      marginTiers: [{ lowerBound: 0, maxLeverage: 40 }],
+    });
+
+    expect(result.status).toBe('open');
+    if (result.status !== 'open') {
+      return;
+    }
+    expect(result.kind).toBe('increase');
+    // $3.43 + $15/28 - $0.015 fee.
+    expect(availablePreviewValue(result.resulting.margin)).toBeCloseTo(3.95, 2);
+    expect(availablePreviewValue(result.resulting.margin)).toBeGreaterThan(
+      availablePreviewValue(result.current.margin),
+    );
+    expect(result.resulting.leverage).toBeLessThan(28);
+  });
+
+  it('margins only the added size when selected leverage is lower than the position', () => {
     const result = previewHyperLiquidIsolatedPositionModify({
       position: isolatedPosition({
         leverage: { type: 'isolated', value: 10 },
@@ -653,12 +686,14 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     if (result.status !== 'open') {
       return;
     }
-    // Existing $2000 / 5 = $400, plus 0.5 * 2000 / 5 = $200.
+    // The posted $200 stays as-is, plus 0.5 * 2000 / 5 = $200 for the add.
+    // Lowering leverage does not top up the collateral already posted.
     expect(result.resulting.margin).toStrictEqual({
       available: true,
-      value: 600,
+      value: 400,
     });
-    expect(result.resulting.leverage).toBeCloseTo(5);
+    // $3000 notional on $400 is 7.5x, above the 5x the order selected.
+    expect(result.resulting.leverage).toBeCloseTo(7.5);
   });
 
   it('projects a short increase, keeping liquidation above entry', () => {
@@ -690,7 +725,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     ).toBeGreaterThan(2000);
   });
 
-  it('reallocates a short when increasing at higher leverage', () => {
+  it('margins only the added size on a short increase at higher leverage', () => {
     const result = previewHyperLiquidIsolatedPositionModify({
       position: isolatedPosition({
         size: '-1',
@@ -709,7 +744,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     }
     expect(result.resulting.margin).toStrictEqual({
       available: true,
-      value: 300,
+      value: 500,
     });
     expect(result.resulting.direction).toBe('short');
   });

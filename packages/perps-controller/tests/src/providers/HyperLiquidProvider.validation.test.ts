@@ -1124,7 +1124,7 @@ describe('HyperLiquidProvider', () => {
       expect(result.kind).toBe('increase');
       expect(result.resulting.margin).toStrictEqual({
         available: true,
-        value: 300,
+        value: 500,
       });
       expect(result.resulting.direction).toBe('long');
     });
@@ -1160,7 +1160,7 @@ describe('HyperLiquidProvider', () => {
       }
       expect(result.resulting.margin).toStrictEqual({
         available: true,
-        value: 300,
+        value: 500,
       });
       expect(result.resulting.liquidationPrice).toStrictEqual({
         available: false,

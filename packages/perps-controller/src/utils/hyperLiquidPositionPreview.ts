@@ -301,18 +301,24 @@ const resultingLeverage = (params: {
 /**
  * Projects the isolated position that would remain after a proposed order.
  *
- * Models HyperLiquid's isolated `updateLeverage` (the selected leverage is
- * applied to the whole asset before the fill) and maintenance tiers at the
- * resulting liquidation notional. Liquidation uses the projected mark, not
- * average entry, because isolated `marginUsed` is mark-based equity.
- * Cross-margin positions return `{ status: 'unsupported', reason: 'cross_margin' }`.
+ * The selected leverage sizes the margin posted for the new fill only.
+ * HyperLiquid's isolated `updateLeverage` does not re-margin collateral that is
+ * already posted, so a leverage change leaves the open position's `marginUsed`
+ * where it is — raising leverage before adding to a position does not release
+ * margin, it only makes the added size cheaper. The resulting position can
+ * therefore sit at a lower effective leverage than the one selected.
+ *
+ * Maintenance tiers are applied at the resulting liquidation notional.
+ * Liquidation uses the projected mark, not average entry, because isolated
+ * `marginUsed` is mark-based equity. Cross-margin positions return
+ * `{ status: 'unsupported', reason: 'cross_margin' }`.
  *
  * `price` is the fill or resting-limit price the caller expects. A marketable
  * order should pass its execution price; a limit should pass the limit. The
  * preview does not distinguish order types itself, does not model whether a
  * resting limit would fill, and treats scale/TWAP/chase as one aggregated fill.
- * Decrease margin is the remaining isolated collateral after leverage
- * reallocation; close fees and realized PnL settle to the account, not the
+ * Decrease margin is the proportional share of the position's current isolated
+ * collateral; close fees and realized PnL settle to the account, not the
  * leftover margin.
  *
  * @param params - Live isolated position, proposed order, and optional tiers.
@@ -367,12 +373,6 @@ export function previewHyperLiquidIsolatedPositionModify(
   const currentNotional = isPositiveFinite(positionValue)
     ? positionValue
     : currentSize * currentEntry;
-
-  const leverageChanged =
-    Math.abs(selectedLeverage - currentLeverage) > SIZE_EPSILON;
-  const existingMarginAfterLeverage = leverageChanged
-    ? currentNotional / selectedLeverage
-    : currentMargin;
 
   const withResultingLiquidation = (preview: {
     kind: 'increase' | 'decrease' | 'flip';
@@ -430,10 +430,7 @@ export function previewHyperLiquidIsolatedPositionModify(
     const resultingSize = currentSize + orderSize;
     const resultingEntryPrice =
       (currentSize * currentEntry + orderSize * fillPrice) / resultingSize;
-    const newMargin = Math.max(
-      0,
-      existingMarginAfterLeverage + orderMargin - feeAmountUsd,
-    );
+    const newMargin = Math.max(0, currentMargin + orderMargin - feeAmountUsd);
 
     return withResultingLiquidation({
       kind: 'increase',
@@ -449,7 +446,7 @@ export function previewHyperLiquidIsolatedPositionModify(
   if (orderSize + SIZE_EPSILON < currentSize) {
     const remainingRatio = (currentSize - orderSize) / currentSize;
     const resultingSize = currentSize - orderSize;
-    const newMargin = Math.max(0, existingMarginAfterLeverage * remainingRatio);
+    const newMargin = Math.max(0, currentMargin * remainingRatio);
     const currentMarkPrice = currentNotional / currentSize;
     const resultingMarkPrice = fillPrice ?? currentMarkPrice;
 
