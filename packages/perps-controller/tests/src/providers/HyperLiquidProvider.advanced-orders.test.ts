@@ -720,14 +720,15 @@ describe('HyperLiquidProvider', () => {
     it.each(['cross', 'isolated'])(
       'checks %s mode for a resting order',
       async (existingMode) => {
+        const activeAssetData = jest
+          .fn()
+          .mockResolvedValue({ leverage: { type: existingMode, value: 5 } });
         const info = createMockInfoClient({
           clearinghouseState: jest
             .fn()
             .mockResolvedValue({ assetPositions: [] }),
           frontendOpenOrders: jest.fn().mockResolvedValue([{ coin: 'BTC' }]),
-          activeAssetData: jest
-            .fn()
-            .mockResolvedValue({ leverage: { type: existingMode, value: 5 } }),
+          activeAssetData,
         });
         mockClientService.getInfoClient.mockReturnValue(
           info as unknown as ReturnType<
@@ -745,17 +746,18 @@ describe('HyperLiquidProvider', () => {
           expect(result.error).toBe(
             PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN,
           );
-        expect(info.activeAssetData).toHaveBeenCalled();
+        expect(activeAssetData).toHaveBeenCalled();
       },
     );
 
     it('fails closed when the resting-order asset mode cannot be read', async () => {
+      const activeAssetData = jest
+        .fn()
+        .mockRejectedValue(new Error('asset mode offline'));
       const info = createMockInfoClient({
         clearinghouseState: jest.fn().mockResolvedValue({ assetPositions: [] }),
         frontendOpenOrders: jest.fn().mockResolvedValue([{ coin: 'BTC' }]),
-        activeAssetData: jest
-          .fn()
-          .mockRejectedValue(new Error('asset mode offline')),
+        activeAssetData,
       });
       mockClientService.getInfoClient.mockReturnValue(
         info as unknown as ReturnType<
@@ -769,7 +771,7 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(info.activeAssetData).toHaveBeenCalled();
+      expect(activeAssetData).toHaveBeenCalled();
       expect(
         mockClientService.getExchangeClient().updateLeverage,
       ).not.toHaveBeenCalled();
