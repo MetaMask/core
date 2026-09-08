@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Set `persist: false` on state metadata for legacy assets controllers so their state is no longer written to disk (`TokensController`, `CurrencyRateController`, `TokenRatesController`, `TokenBalancesController`, `AccountTrackerController`, `MultichainAssetsController`, `MultichainAssetsRatesController`, `MultichainBalancesController`) ([#9842](https://github.com/MetaMask/core/pull/9842))
 - Bump `@metamask/core-backend` from `^9.0.0` to `^9.1.0` ([#10138](https://github.com/MetaMask/core/pull/10138))
 - Bump `@metamask/phishing-controller` from `^17.4.0` to `^17.4.1` ([#10080](https://github.com/MetaMask/core/pull/10080))
 - Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.1` ([#9980](https://github.com/MetaMask/core/pull/9980), [#10129](https://github.com/MetaMask/core/pull/10129))

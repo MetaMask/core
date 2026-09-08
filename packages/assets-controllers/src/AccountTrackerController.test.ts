@@ -2042,13 +2042,7 @@ describe('AccountTrackerController', () => {
             controller.metadata,
             'persist',
           ),
-        ).toMatchInlineSnapshot(`
-          {
-            "accountsByChainId": {
-              "0x1": {},
-            },
-          }
-        `);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
