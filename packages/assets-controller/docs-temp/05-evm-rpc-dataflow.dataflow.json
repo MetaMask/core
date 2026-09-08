@@ -1,0 +1,332 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "EVM RPC Read Path \u2014 State to Decoded Balances",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1070,
+      505
+    ],
+    "views": [
+      {
+        "id": "happy",
+        "label": "One batched call per chain",
+        "focus": [
+          "tracked",
+          "requests",
+          "multicall",
+          "decode",
+          "state"
+        ],
+        "note": "The whole tracked set for one account and chain collapses into a single aggregate3 call."
+      },
+      {
+        "id": "degraded",
+        "label": "When the batch cannot be used",
+        "focus": [
+          "requests",
+          "multicall",
+          "per_asset",
+          "failed"
+        ],
+        "note": "Two different reasons drop to per-asset calls, and both are opt-in per caller."
+      },
+      {
+        "id": "scope",
+        "label": "What gets asked for",
+        "focus": [
+          "tracked",
+          "custom",
+          "requests"
+        ],
+        "note": "RPC only reads assets already known to state, so it never discovers new tokens here."
+      },
+      {
+        "id": "staked",
+        "label": "Pooled staking side channel",
+        "focus": [
+          "stake_scope",
+          "staked_req",
+          "staking_c",
+          "stake_assets"
+        ],
+        "note": "Staked balances need two ordered calls and never share the balance batch."
+      }
+    ],
+    "legend": {
+      "entries": {
+        "emphasis": {
+          "label": "Primary read path"
+        },
+        "dashed": {
+          "label": "Degraded to single calls"
+        },
+        "security": {
+          "label": "Dropped result"
+        },
+        "database": {
+          "label": "Controller state"
+        },
+        "default": {
+          "label": "Supporting read"
+        }
+      }
+    }
+  },
+  "stages": [
+    {
+      "label": "Scope"
+    },
+    {
+      "label": "Plan"
+    },
+    {
+      "label": "Call"
+    },
+    {
+      "label": "Decode"
+    },
+    {
+      "label": "Commit"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "tracked",
+      "type": "database",
+      "label": "Tracked Assets",
+      "sublabel": "assetsBalance",
+      "stage": 0,
+      "row": 0
+    },
+    {
+      "id": "custom",
+      "type": "database",
+      "label": "Custom Assets",
+      "sublabel": "RPC is sole source",
+      "stage": 0,
+      "row": 1
+    },
+    {
+      "id": "stake_scope",
+      "type": "database",
+      "label": "Staking Chains",
+      "sublabel": "known contracts",
+      "stage": 0,
+      "row": 2
+    },
+    {
+      "id": "requests",
+      "type": "backend",
+      "label": "Balance Requests",
+      "sublabel": "deduped by address",
+      "stage": 1,
+      "row": 0,
+      "tag": "per account"
+    },
+    {
+      "id": "staked_req",
+      "type": "backend",
+      "label": "Staking Reads",
+      "sublabel": "one per account",
+      "stage": 1,
+      "row": 2
+    },
+    {
+      "id": "multicall",
+      "type": "backend",
+      "label": "Multicall3",
+      "sublabel": "300 calls per batch",
+      "stage": 2,
+      "row": 0,
+      "tag": "aggregate3"
+    },
+    {
+      "id": "per_asset",
+      "type": "backend",
+      "label": "Per-asset Calls",
+      "sublabel": "50 in parallel",
+      "stage": 2,
+      "row": 1
+    },
+    {
+      "id": "staking_c",
+      "type": "external",
+      "label": "Staking Contract",
+      "sublabel": "two ordered calls",
+      "stage": 2,
+      "row": 2
+    },
+    {
+      "id": "decode",
+      "type": "backend",
+      "label": "Decode",
+      "sublabel": "uint256 to string",
+      "stage": 3,
+      "row": 0
+    },
+    {
+      "id": "failed",
+      "type": "backend",
+      "label": "Failed Addresses",
+      "sublabel": "no value written",
+      "stage": 3,
+      "row": 1
+    },
+    {
+      "id": "stake_assets",
+      "type": "backend",
+      "label": "Staked Balance",
+      "sublabel": "synthetic asset id",
+      "stage": 3,
+      "row": 2
+    },
+    {
+      "id": "state",
+      "type": "database",
+      "label": "assetsBalance",
+      "sublabel": "committed",
+      "stage": 4,
+      "row": 0,
+      "tag": "commit"
+    }
+  ],
+  "flows": [
+    {
+      "id": "tracked-in",
+      "from": "tracked",
+      "to": "requests",
+      "label": "tracked ids",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelDy": -32
+    },
+    {
+      "id": "custom-in",
+      "from": "custom",
+      "to": "requests",
+      "label": "custom ids"
+    },
+    {
+      "id": "stake-scope-in",
+      "from": "stake_scope",
+      "to": "staked_req",
+      "label": "eligible chains",
+      "route": "straight"
+    },
+    {
+      "id": "plan-batch",
+      "from": "requests",
+      "to": "multicall",
+      "label": "balanceOf",
+      "variant": "emphasis",
+      "route": "straight",
+      "classification": "batched",
+      "labelDy": -32
+    },
+    {
+      "id": "no-multicall",
+      "from": "requests",
+      "to": "per_asset",
+      "label": "no Multicall3",
+      "variant": "dashed",
+      "classification": "opt-in"
+    },
+    {
+      "id": "batch-threw",
+      "from": "multicall",
+      "to": "per_asset",
+      "label": "3 tries, then drop",
+      "variant": "dashed",
+      "route": "straight",
+      "labelDy": 24
+    },
+    {
+      "id": "return-data",
+      "from": "multicall",
+      "to": "decode",
+      "label": "returnData",
+      "variant": "emphasis",
+      "route": "straight",
+      "classification": "success flag",
+      "labelDy": -32
+    },
+    {
+      "id": "single-results",
+      "from": "per_asset",
+      "to": "decode",
+      "label": "one result each"
+    },
+    {
+      "id": "dropped",
+      "from": "decode",
+      "to": "failed",
+      "label": "success = false",
+      "variant": "security",
+      "labelDy": 24
+    },
+    {
+      "id": "staking-call",
+      "from": "staked_req",
+      "to": "staking_c",
+      "label": "getShares",
+      "route": "straight"
+    },
+    {
+      "id": "staking-convert",
+      "from": "staking_c",
+      "to": "stake_assets",
+      "label": "convertToAssets",
+      "route": "straight"
+    },
+    {
+      "id": "commit",
+      "from": "decode",
+      "to": "state",
+      "label": "balances",
+      "variant": "emphasis",
+      "route": "straight",
+      "classification": "per asset",
+      "labelDy": -32
+    },
+    {
+      "id": "staked-commit",
+      "from": "stake_assets",
+      "to": "state",
+      "label": "staked balance"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Scope comes from state, not discovery",
+      "items": [
+        "Only assets already in assetsBalance are re-read",
+        "Custom assets are read even with no balance entry yet",
+        "Requests are deduplicated by lowercase token address",
+        "src/.../evm-rpc-services/services/BalanceFetcher.ts"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "One call, then two ways down",
+      "items": [
+        "aggregate3 carries up to 300 calls; batches run serially",
+        "Three attempts total before the batch is abandoned",
+        "A chain with no Multicall3 skips straight to single calls",
+        "src/.../evm-rpc-services/clients/MulticallClient.ts"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Failures stay out of state",
+      "items": [
+        "A per-call success flag decides balance versus failure",
+        "Failed addresses are returned, never written as zero",
+        "Single-call fallback is opt-in, so callers can refuse it",
+        "Staked reads use their own poll and their own contract"
+      ]
+    }
+  ]
+}
