@@ -13,6 +13,9 @@ import type { NeobankOnboardingDerivationInput } from './neobank-onboarding.js';
  * default so each test can override the branch under assertion.
  *
  * @param overrides - Partial input overrides.
+ * @param overrides.kyc - KYC input fields to override.
+ * @param overrides.wallet - Wallet lookup result to override.
+ * @param overrides.autoramp - Autoramp summary to override.
  * @returns A complete derivation input.
  */
 function buildInput(

@@ -36,14 +36,6 @@ import {
   isHeadlessAllProvidersEnabled,
   normalizeHeadlessProviderId,
 } from './featureFlags.js';
-import type {
-  NeoBankServiceCreateAutorampAction,
-  NeoBankServiceGetAutorampAction,
-  NeoBankServiceGetCustomerByExternalIdAction,
-  NeoBankServiceGetWalletRegistrationStatusAction,
-  NeoBankServiceRegisterSelfHostedWalletAction,
-} from './NeoBankService-method-action-types.js';
-import type { NeoBankServiceActions } from './NeoBankService.js';
 import type { NeobankState } from './neobank-onboarding.js';
 import {
   NeobankOnboardingStage,
@@ -52,6 +44,14 @@ import {
   summarizeAutorampsForWallet,
 } from './neobank-onboarding.js';
 import type { NeobankOnboardingDerivationInput } from './neobank-onboarding.js';
+import type {
+  NeoBankServiceCreateAutorampAction,
+  NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetCustomerByExternalIdAction,
+  NeoBankServiceGetWalletRegistrationStatusAction,
+  NeoBankServiceRegisterSelfHostedWalletAction,
+} from './NeoBankService-method-action-types.js';
+import type { NeoBankServiceActions } from './NeoBankService.js';
 import {
   areOrdersEqual,
   deleteOrderInUserStorage,
@@ -593,8 +593,8 @@ export type RampsControllerState = {
   /**
    * Money Account / NeoBank onboarding stage derived by
    * {@link RampsController.hydrateNeobankStore}. Mobile reads `stage` to route
-   * after cold start or missed KYC events. Persist so a failed hydrate can still
-   * surface the last known stage.
+   * after cold start or missed KYC events. Lookup failures are persisted with
+   * their error while the last successful hydration time is retained.
    */
   neobank: NeobankState;
   /**
@@ -3658,20 +3658,28 @@ export class RampsController extends BaseController<
   }: {
     walletAddress: string;
   }): Promise<NeobankOnboardingStage> {
-    let refreshError: string | null = null;
+    if (!walletAddress.trim()) {
+      return this.#commitNeobankStage(
+        NeobankOnboardingStage.LookupFailed,
+        'walletAddress is required.',
+      );
+    }
+
     try {
       await this.messenger.call('KycController:refreshKycStatus');
     } catch (error) {
-      refreshError = String(error);
+      return this.#commitNeobankStage(
+        NeobankOnboardingStage.LookupFailed,
+        String(error),
+      );
     }
 
     const kycState = this.messenger.call('KycController:getState');
     const identity = this.messenger.call('KycController:getCustomerIdentity');
     const hasVendorTerms = hasKycVendorTerms(kycState);
     const hasProviderTerms = hasKycProviderTerms(kycState);
-    const hasCustomerIdentity = Boolean(
-      identity?.id || kycState.email || kycState.userStatus !== null,
-    );
+    const hasCustomerIdentity =
+      Boolean(identity?.id ?? kycState.email) || kycState.userStatus !== null;
 
     const kycInput: NeobankOnboardingDerivationInput['kyc'] = {
       phase: kycState.phase,
@@ -3682,27 +3690,13 @@ export class RampsController extends BaseController<
       hasProviderTerms,
     };
 
-    // A refresh failure with no local KYC signal is not "no user" — Mobile
-    // should retry rather than restart onboarding.
-    if (
-      refreshError &&
-      !hasVendorTerms &&
-      !hasProviderTerms &&
-      kycState.userStatus === null &&
-      !hasCustomerIdentity
-    ) {
-      return this.#commitNeobankStage(
-        NeobankOnboardingStage.LookupFailed,
-        refreshError,
-      );
-    }
-
     let wallet: NeobankOnboardingDerivationInput['wallet'] = {
       status: 'skipped',
     };
     let autoramp: NeobankOnboardingDerivationInput['autoramp'] = {
       status: 'skipped',
     };
+    let lookupError: string | null = null;
 
     if (kycState.userStatus === 'completed') {
       try {
@@ -3726,7 +3720,7 @@ export class RampsController extends BaseController<
           status: 'lookupUnavailable',
           message: String(error),
         };
-        refreshError = refreshError ?? String(error);
+        lookupError = String(error);
       }
     }
 
@@ -3737,7 +3731,7 @@ export class RampsController extends BaseController<
     });
     return this.#commitNeobankStage(
       stage,
-      stage === NeobankOnboardingStage.LookupFailed ? refreshError : null,
+      stage === NeobankOnboardingStage.LookupFailed ? lookupError : null,
     );
   }
 
@@ -3755,7 +3749,10 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.neobank = {
         stage,
-        lastHydratedAt: new Date().toISOString(),
+        lastHydratedAt:
+          stage === NeobankOnboardingStage.LookupFailed
+            ? state.neobank.lastHydratedAt
+            : new Date().toISOString(),
         lastError:
           stage === NeobankOnboardingStage.LookupFailed ? lastError : null,
       };

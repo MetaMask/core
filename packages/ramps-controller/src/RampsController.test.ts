@@ -9990,7 +9990,7 @@ describe('RampsController', () => {
         expect(controller.state.neobank.stage).toBe(
           NeobankOnboardingStage.NoUser,
         );
-        expect(controller.state.neobank.lastHydratedAt).toEqual(
+        expect(controller.state.neobank.lastHydratedAt).toStrictEqual(
           expect.any(String),
         );
         expect(controller.state.neobank.lastError).toBeNull();
@@ -10008,6 +10008,49 @@ describe('RampsController', () => {
 
         expect(stage).toBe(NeobankOnboardingStage.LookupFailed);
         expect(controller.state.neobank.lastError).toMatch(/network down/u);
+      });
+    });
+
+    it('returns LookupFailed instead of routing from stale KYC state', async () => {
+      const staleKycState = {
+        ...defaultKycState,
+        email: 'user@example.com',
+        vendorDisclaimersAccepted: {
+          moonpay: null,
+          iron: { disclaimerIds: ['d1'] },
+        },
+      };
+
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerHydrateHandlers(
+          rootMessenger,
+          staleKycState,
+        );
+        handlers.refreshKycStatus.mockRejectedValue(new Error('network down'));
+
+        const stage = await controller.hydrateNeobankStore({
+          walletAddress: '0xabc',
+        });
+
+        expect(stage).toBe(NeobankOnboardingStage.LookupFailed);
+        expect(controller.state.neobank.lastHydratedAt).toBeNull();
+        expect(controller.state.neobank.lastError).toMatch(/network down/u);
+      });
+    });
+
+    it('returns LookupFailed for a missing wallet address', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerHydrateHandlers(rootMessenger);
+
+        const stage = await controller.hydrateNeobankStore({
+          walletAddress: ' ',
+        });
+
+        expect(stage).toBe(NeobankOnboardingStage.LookupFailed);
+        expect(controller.state.neobank.lastError).toMatch(
+          /walletAddress is required/u,
+        );
+        expect(handlers.refreshKycStatus).not.toHaveBeenCalled();
       });
     });
 
