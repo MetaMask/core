@@ -729,6 +729,111 @@ describe('HyperLiquidProvider - strategy order types', () => {
     },
   });
 
+  describe('explicit margin mode across order types', () => {
+    const orderShapes: Pick<
+      OrderParams,
+      | 'orderType'
+      | 'twapDuration'
+      | 'scaleMinPrice'
+      | 'scaleMaxPrice'
+      | 'scaleNumOrders'
+      | 'triggerPrice'
+    >[] = [
+      { orderType: 'stop_market', triggerPrice: '3100' },
+      { orderType: 'twap', twapDuration: 30 },
+      {
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      },
+      { orderType: 'chase' },
+    ];
+
+    afterEach(async () => {
+      await provider.disconnect();
+    });
+
+    describe.each(orderShapes)('$orderType', (shape) => {
+      it.each(['cross', 'isolated', undefined] as const)(
+        'forwards %s mode at the SDK boundary',
+        async (marginMode) => {
+          const { exchangeClient } = useStrategyClients({
+            info: {
+              clearinghouseState: jest
+                .fn()
+                .mockResolvedValue(createClearinghouseBalance('10000')),
+              frontendOpenOrders: jest.fn().mockResolvedValue([]),
+            },
+            exchange: {
+              order: jest
+                .fn()
+                .mockImplementation((request: { orders: unknown[] }) =>
+                  Promise.resolve({
+                    status: 'ok',
+                    response: {
+                      data: {
+                        statuses: request.orders.map((_, index) => ({
+                          resting: { oid: 55 + index },
+                        })),
+                      },
+                    },
+                  }),
+                ),
+            },
+          });
+
+          const result = await provider.placeOrder({
+            ...baseOrder,
+            ...shape,
+            leverage: 5,
+            marginMode,
+          });
+
+          expect(result.success).toBe(true);
+          expect(exchangeClient.updateLeverage).toHaveBeenCalledWith({
+            asset: 1,
+            isCross: marginMode === 'cross',
+            leverage: 5,
+          });
+          expect(
+            shape.orderType === 'twap'
+              ? exchangeClient.twapOrder
+              : exchangeClient.order,
+          ).toHaveBeenCalled();
+        },
+      );
+
+      it('rejects a conflicting mode before signatures or submission', async () => {
+        // The default venue fixture already holds a Cross ETH position.
+        const { exchangeClient } = useStrategyClients();
+
+        const result = await provider.placeOrder({
+          ...baseOrder,
+          ...shape,
+          leverage: 5,
+          marginMode: 'isolated',
+        });
+
+        expect(result.error).toBe(
+          PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN,
+        );
+        for (const method of [
+          'updateLeverage',
+          'approveBuilderFee',
+          'setReferrer',
+          'userSetAbstraction',
+          'agentSetAbstraction',
+          'sendAsset',
+          'order',
+          'twapOrder',
+        ]) {
+          expect(exchangeClient[method]).not.toHaveBeenCalled();
+        }
+      });
+    });
+  });
+
   describe('Builder fee policy', () => {
     it('applies one builder context to a default parent and TP/SL batch', async () => {
       const { exchangeClient } = useStrategyClients();

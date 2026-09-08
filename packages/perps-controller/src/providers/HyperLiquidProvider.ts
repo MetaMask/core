@@ -5077,6 +5077,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       throw new Error(PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID);
     }
     const { dex: dexName } = parseAssetName(params.symbol);
+    // Both SDK marginMode values (strictIsolated and noCross) prohibit Cross.
+    // Treat any future restriction value as unsupported until handled explicitly.
     if (
       params.marginMode === 'cross' &&
       (assetInfo.onlyIsolated || assetInfo.marginMode || dexName !== null)

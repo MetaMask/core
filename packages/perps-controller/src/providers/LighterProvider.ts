@@ -14,7 +14,6 @@
  *   order-book, and candle streams, with price polling as a fallback.
  */
 
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { CaipAccountId } from '@metamask/utils';
 
 import type { CandlePeriod } from '../constants/chartConfig.js';
@@ -56,6 +55,7 @@ import {
 } from '../constants/lighterConfig.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import {
   convertKeysToCamelCase,
   LighterClientService,

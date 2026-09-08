@@ -1,6 +1,8 @@
 /* eslint-disable */
 jest.mock('@nktkas/hyperliquid', () => ({}));
 
+import type { MetaResponse } from '@nktkas/hyperliquid';
+
 import { ORDER_SLIPPAGE_CONFIG } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
@@ -598,42 +600,54 @@ describe('HyperLiquidProvider', () => {
       { onlyIsolated: true },
       { marginMode: 'strictIsolated' },
       { marginMode: 'noCross' },
-    ])('rejects unsupported Cross capability %j', async (capability) => {
-      const info = createMockInfoClient({
-        meta: jest
-          .fn()
-          .mockResolvedValue({
+    ] satisfies Partial<MetaResponse['universe'][number]>[])(
+      'rejects unsupported Cross capability %j',
+      async (capability) => {
+        const info = createMockInfoClient({
+          meta: jest.fn().mockResolvedValue({
             universe: [
-              { name: 'BTC', szDecimals: 3, maxLeverage: 50, ...capability },
+              {
+                name: 'BTC',
+                szDecimals: 3,
+                maxLeverage: 50,
+                marginTableId: 1,
+                ...capability,
+              } satisfies MetaResponse['universe'][number],
             ],
           }),
-      });
-      mockClientService.getInfoClient.mockReturnValue(
-        info as unknown as ReturnType<
-          HyperLiquidClientService['getInfoClient']
-        >,
-      );
+        });
+        mockClientService.getInfoClient.mockReturnValue(
+          info as unknown as ReturnType<
+            HyperLiquidClientService['getInfoClient']
+          >,
+        );
 
-      const result = await provider.placeOrder({
-        ...order,
-        marginMode: 'cross',
-      });
+        const result = await provider.placeOrder({
+          ...order,
+          marginMode: 'cross',
+        });
 
-      expect(result.error).toBe(
-        PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
-      );
-      expect(
-        mockClientService.getExchangeClient().updateLeverage,
-      ).not.toHaveBeenCalled();
-    });
+        expect(result.error).toBe(
+          PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+        );
+        expect(
+          mockClientService.getExchangeClient().updateLeverage,
+        ).not.toHaveBeenCalled();
+      },
+    );
 
     it('keeps HIP-3 Cross unavailable while its transfers assume isolated', async () => {
       const info = createMockInfoClient({
-        meta: jest
-          .fn()
-          .mockResolvedValue({
-            universe: [{ name: 'xyz:XYZ100', szDecimals: 3, maxLeverage: 20 }],
-          }),
+        meta: jest.fn().mockResolvedValue({
+          universe: [
+            {
+              name: 'xyz:XYZ100',
+              szDecimals: 3,
+              maxLeverage: 20,
+              marginTableId: 1,
+            } satisfies MetaResponse['universe'][number],
+          ],
+        }),
       });
       mockClientService.getInfoClient.mockReturnValue(
         info as unknown as ReturnType<
@@ -671,12 +685,15 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('allows an order in the existing position mode', async () => {
-      const result = await provider.validateOrder({
+      const result = await provider.placeOrder({
         ...order,
         marginMode: 'cross',
       });
 
-      expect(result.isValid).toBe(true);
+      expect(result.success).toBe(true);
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).toHaveBeenCalledWith({ asset: 0, isCross: true, leverage: 5 });
     });
 
     it('fails closed when fresh positions cannot be read', async () => {
@@ -731,6 +748,73 @@ describe('HyperLiquidProvider', () => {
         expect(info.activeAssetData).toHaveBeenCalled();
       },
     );
+
+    it('fails closed when the resting-order asset mode cannot be read', async () => {
+      const info = createMockInfoClient({
+        clearinghouseState: jest.fn().mockResolvedValue({ assetPositions: [] }),
+        frontendOpenOrders: jest.fn().mockResolvedValue([{ coin: 'BTC' }]),
+        activeAssetData: jest
+          .fn()
+          .mockRejectedValue(new Error('asset mode offline')),
+      });
+      mockClientService.getInfoClient.mockReturnValue(
+        info as unknown as ReturnType<
+          HyperLiquidClientService['getInfoClient']
+        >,
+      );
+
+      const result = await provider.placeOrder({
+        ...order,
+        marginMode: 'cross',
+      });
+
+      expect(result.success).toBe(false);
+      expect(info.activeAssetData).toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rechecks the venue book at placement after a successful preview', async () => {
+      const clearinghouseState = jest
+        .fn()
+        .mockResolvedValue({ assetPositions: [] });
+      const info = createMockInfoClient({
+        clearinghouseState,
+        frontendOpenOrders: jest.fn().mockResolvedValue([]),
+      });
+      mockClientService.getInfoClient.mockReturnValue(
+        info as unknown as ReturnType<
+          HyperLiquidClientService['getInfoClient']
+        >,
+      );
+      const preview = await provider.validateOrder({
+        ...order,
+        marginMode: 'isolated',
+      });
+      expect(preview.isValid).toBe(true);
+      clearinghouseState.mockResolvedValue(
+        await createMockInfoClient().clearinghouseState(),
+      );
+
+      const placed = await provider.placeOrder({
+        ...order,
+        marginMode: 'isolated',
+      });
+
+      expect(placed.error).toBe(
+        PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN,
+      );
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
 
     it('fails closed when fresh orders cannot be read', async () => {
       const info = createMockInfoClient({

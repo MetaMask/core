@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BREAKING:** Add `ORDER_MARGIN_MODE_INVALID`, `ORDER_MARGIN_MODE_UNSUPPORTED`, `ORDER_MARGIN_MODE_POSITION_OPEN`, and `ORDER_MARGIN_MODE_ORDER_OPEN` to the exported `PerpsErrorCode` union. ([#10136](https://github.com/MetaMask/core/pull/10136))
+  - Consumers with exhaustive `Record<PerpsErrorCode, …>` maps must add all four entries, including Mobile's `app/components/UI/Perps/utils/translatePerpsError.ts` and Extension's `ui/components/app/perps/utils/translate-perps-error.ts`. Existing callers that omit `marginMode` keep the same runtime behavior.
 - Add explicit HyperLiquid `OrderParams.marginMode` selection with market-capability and open-position/order guards, and expose the venue's `MarketInfo.marginMode` capability. ([#10136](https://github.com/MetaMask/core/pull/10136))
 
 ### Fixed
