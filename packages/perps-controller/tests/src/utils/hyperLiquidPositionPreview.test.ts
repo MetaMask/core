@@ -634,18 +634,19 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
   });
 
   it('projects a rise, not a drop, when an over-collateralized position adds size at higher leverage', () => {
-    // Reported case: BTC open at 20x holding $3.43 on a $9.20 notional, adding
-    // $15 at 28x. Re-margining the open position at 28x predicted ~$0.85; the
-    // venue settled at $3.95 because the $3.43 was never handed back.
+    // Reported case: a BTC long opened at 20x still holding $3.43 against a
+    // $9.50 notional, adding $15 at 28x. Re-margining the open position at 28x
+    // predicted $3.43 → $0.86; the venue settled at $3.95, because the $3.43
+    // already posted is never handed back when leverage changes.
     const result = previewHyperLiquidIsolatedPositionModify({
       position: isolatedPosition({
         symbol: 'BTC',
-        size: '0.000092',
+        size: '0.000095',
         entryPrice: '100000',
-        positionValue: '9.2',
+        positionValue: '9.5',
         marginUsed: '3.43',
         leverage: { type: 'isolated', value: 20 },
-        liquidationPrice: '60000',
+        liquidationPrice: '64703',
         maxLeverage: 40,
       }),
       direction: 'long',
@@ -661,12 +662,15 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       return;
     }
     expect(result.kind).toBe('increase');
-    // $3.43 + $15/28 - $0.015 fee.
+    expect(availablePreviewValue(result.current.margin)).toBeCloseTo(3.43, 2);
+    // $3.43 + $15/28 - $0.015 fee. Reallocating the $9.50 notional at 28x
+    // instead would give $9.50/28 + $15/28 - $0.015 = the reported $0.86.
     expect(availablePreviewValue(result.resulting.margin)).toBeCloseTo(3.95, 2);
     expect(availablePreviewValue(result.resulting.margin)).toBeGreaterThan(
       availablePreviewValue(result.current.margin),
     );
-    expect(result.resulting.leverage).toBeLessThan(28);
+    // $24.50 notional on $3.95 is 6.2x, not the 28x the order asked for.
+    expect(result.resulting.leverage).toBeCloseTo(6.2, 1);
   });
 
   it('margins only the added size when selected leverage is lower than the position', () => {
