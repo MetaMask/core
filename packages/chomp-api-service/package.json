@@ -1,6 +1,6 @@
 {
   "name": "@metamask/chomp-api-service",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "description": "Data service for the Chomp API",
   "keywords": [
     "Ethereum",

@@ -8,7 +8,6 @@ describe('encryptorFactory', () => {
     // eslint-disable-next-line n/no-unsupported-features/node-builtins
     globalThis.crypto ??= webcrypto as typeof globalThis.crypto;
 
-    // eslint-disable-next-line no-restricted-syntax
     if (!('CryptoKey' in globalThis)) {
       Object.defineProperty(globalThis, 'CryptoKey', {
         value: webcrypto.CryptoKey,

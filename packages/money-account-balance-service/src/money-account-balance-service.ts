@@ -351,7 +351,6 @@ export class MoneyAccountBalanceService extends BaseDataService<
       });
 
     this.messenger.subscribe(
-      // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
       (state) => this.#onRemoteFeatureFlagChange(state.remoteFeatureFlags),
     );

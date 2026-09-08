@@ -57,10 +57,10 @@
   "dependencies": {
     "@metamask/contract-metadata": "^2.4.0",
     "@metamask/controller-utils": "^12.3.0",
-    "@metamask/core-backend": "^9.0.0",
+    "@metamask/core-backend": "^9.1.0",
     "@metamask/keyring-api": "^24.0.0",
     "@metamask/slip44": "^4.3.0",
-    "@metamask/transaction-controller": "^69.8.0",
+    "@metamask/transaction-controller": "^69.8.1",
     "@metamask/utils": "^11.12.0",
     "eth-chainlist": "^0.0.795"
   },

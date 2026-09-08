@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `AccountTreeSnapshot:strip{Metadata,Secrets}` support ([#10112](https://github.com/MetaMask/core/pull/10112))
+  - This can be used to mutate the snapshot before calling `:importState` and ease custom flow integration where secrets and metadata would be imported in 2-steps.
+
+### Changed
+
+- **BREAKING:** `metadata` is now optional on `AccountWalletPayloadMetadata`, `AccountWalletGroupPayloadMetadata`, and all wallet/group payload entry types ([#10112](https://github.com/MetaMask/core/pull/10112))
+  - Consumers reading `metadata` from a snapshot or payload must now guard against `undefined` (e.g. after calling `AccountTreeSnapshot.stripMetadata()`).
+
+## [8.1.0]
+
+### Added
+
 - Add `AccountTreeController:isInitialized` action so consumers can query whether `init()` has completed ([#10059](https://github.com/MetaMask/core/pull/10059))
 
 ### Changed
@@ -679,7 +691,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@8.0.0...@metamask/account-tree-controller@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.6.1...@metamask/account-tree-controller@8.0.0
 [7.6.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.6.0...@metamask/account-tree-controller@7.6.1
 [7.6.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.5.5...@metamask/account-tree-controller@7.6.0

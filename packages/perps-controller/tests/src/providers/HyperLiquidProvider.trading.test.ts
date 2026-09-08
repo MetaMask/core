@@ -1948,7 +1948,7 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.closePosition(closeParams);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('No position found for BTC');
+      expect(result.error).toBe(PERPS_ERROR_CODES.POSITION_NOT_FOUND);
     });
 
     it('handles short position close with TP/SL', async () => {
@@ -2335,7 +2335,7 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('No position found for BTC');
+      expect(result.error).toBe(PERPS_ERROR_CODES.POSITION_NOT_FOUND);
       expect(
         mockClientService.getExchangeClient().order,
       ).not.toHaveBeenCalled();
@@ -2717,7 +2717,7 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('No position found for BTC');
+      expect(result.error).toBe(PERPS_ERROR_CODES.POSITION_NOT_FOUND);
       expect(
         mockClientService.getExchangeClient().order,
       ).not.toHaveBeenCalled();
@@ -2762,7 +2762,7 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('No position found for BTC');
+      expect(result.error).toBe(PERPS_ERROR_CODES.POSITION_NOT_FOUND);
       expect(
         mockClientService.getExchangeClient().order,
       ).not.toHaveBeenCalled();
@@ -3167,7 +3167,7 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('No position found for BTC');
+      expect(result.error).toBe(PERPS_ERROR_CODES.POSITION_NOT_FOUND);
       expect(
         mockClientService.getExchangeClient().order,
       ).not.toHaveBeenCalled();
@@ -3176,7 +3176,7 @@ describe('HyperLiquidProvider', () => {
     it('closes a HIP-3 position the frozen aggregate has never seen', async () => {
       // The aggregate has never seen this DEX at all, so a sweep derived from
       // the aggregate's own symbols would not consult the xyz slice and the
-      // close would fail with "No position found" for an open position.
+      // close would fail with POSITION_NOT_FOUND for an open position.
       const hip3Provider = createTestProvider({
         hip3Enabled: true,
         allowlistMarkets: ['xyz:*'],
@@ -4087,7 +4087,7 @@ describe('HyperLiquidProvider', () => {
 
       expect(result).toStrictEqual({
         success: false,
-        error: 'No position found for BTC',
+        error: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
       });
       expect(updateIsolatedMargin).not.toHaveBeenCalled();
     });

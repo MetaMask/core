@@ -619,7 +619,6 @@ export class PhishingController extends BaseController<
 
   #subscribeToAddressBookControllerStateChange(): void {
     this.messenger.subscribe(
-      // eslint-disable-next-line no-restricted-syntax
       'AddressBookController:stateChange',
       this.#addressBookControllerStateChangeHandler,
     );
@@ -627,7 +626,6 @@ export class PhishingController extends BaseController<
 
   #subscribeToTransactionControllerStateChange(): void {
     this.messenger.subscribe(
-      // eslint-disable-next-line no-restricted-syntax
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
     );
