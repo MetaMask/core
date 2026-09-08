@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/base-data-service` from `^0.1.3` to `^1.0.0` ([#9972](https://github.com/MetaMask/core/pull/9972))
 - Replace `KycController` `console.error` tracing with the `@metamask/utils` debug logger (`createProjectLogger` / `createModuleLogger`), so flow diagnostics are opt-in via `DEBUG=kyc-controller*` instead of always printing to the console. ([#10054](https://github.com/MetaMask/core/pull/10054))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/profile-sync-controller` from `^29.0.0` to `^30.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
 
 ### Fixed
 
