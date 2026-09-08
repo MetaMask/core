@@ -1407,11 +1407,7 @@ describe('TokenRatesController', () => {
             controller.metadata,
             'persist',
           ),
-        ).toMatchInlineSnapshot(`
-          {
-            "marketData": {},
-          }
-        `);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 

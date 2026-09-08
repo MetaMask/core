@@ -942,10 +942,13 @@ describe('LighterProvider', () => {
       expect(result.error).toContain('signer bridge');
     });
 
-    it('sets up the signer and registers the venue key when missing', async () => {
+    it('queries all API-key slots and registers the venue key when the configured slot is missing', async () => {
       const { provider, clientInstance, calls, bridge } = buildProvider();
       const result = await provider.isReadyToTrade();
       expect(result.ready).toBe(true);
+      // A direct lookup of an unused slot returns venue error 21109
+      // (`api key not found`); querying all slots returns an empty list.
+      expect(clientInstance.getApiKeys).toHaveBeenCalledWith(28);
       expect(bridge.createClient).toHaveBeenCalledWith({
         chainId: 300,
         accountIndex: 28,
@@ -1837,6 +1840,35 @@ describe('LighterProvider', () => {
       await provider.disconnect();
     });
 
+    it('does not log every price-stream frame', async () => {
+      const infra = createMockInfrastructure();
+      const { provider } = buildProvider({
+        webSocketCtor: fakeCtor,
+        platformDependencies: infra,
+      });
+      const unsubscribe = provider.subscribeToPrices({
+        symbols: [],
+        callback: jest.fn(),
+      });
+      const socket = FakeWebSocket.instances[0];
+      socket.open();
+
+      socket.receive({
+        type: 'subscribed/market_stats',
+        market_stats: { '1': wsStat('BTC', 1, '63000.5') },
+      });
+      socket.receive({
+        type: 'update/market_stats',
+        market_stats: { '1': wsStat('BTC', 1, '63001.5') },
+      });
+
+      expect(infra.debugLogger.log).not.toHaveBeenCalledWith(
+        expect.stringContaining('[LighterProvider] price stream cycle='),
+      );
+      unsubscribe();
+      await provider.disconnect();
+    });
+
     it('replays the merged snapshot to late subscribers with symbol filters', async () => {
       const { provider } = buildProvider({ webSocketCtor: fakeCtor });
       const unsubscribeFirst = provider.subscribeToPrices({
@@ -2180,6 +2212,74 @@ describe('LighterProvider', () => {
       expect(positionsCallback).not.toHaveBeenCalled();
       expect(ordersCallback).not.toHaveBeenCalled();
       unsubscribeAccount();
+      unsubscribePositions();
+      unsubscribeOrders();
+      await provider.disconnect();
+    });
+
+    it('emits authoritative empty state when the selected wallet has no Lighter account', async () => {
+      const { provider, clientInstance } = buildProvider({
+        webSocketCtor: fakeCtor,
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockRejectedValue(
+        new LighterApiError('account not found', 21100),
+      );
+      const accountCallback = jest.fn();
+      const positionsCallback = jest.fn();
+      const ordersCallback = jest.fn();
+      const unsubscribeAccount = provider.subscribeToAccount({
+        callback: accountCallback,
+      });
+      const unsubscribePositions = provider.subscribeToPositions({
+        callback: positionsCallback,
+      });
+      const unsubscribeOrders = provider.subscribeToOrders({
+        callback: ordersCallback,
+      });
+
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+
+      expect(accountCallback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          totalBalance: '0',
+          spendableBalance: '0',
+          providerId: 'lighter',
+        }),
+      );
+      expect(positionsCallback).toHaveBeenCalledWith([]);
+      expect(ordersCallback).toHaveBeenCalledWith([]);
+      unsubscribeAccount();
+      unsubscribePositions();
+      unsubscribeOrders();
+      await provider.disconnect();
+    });
+
+    it('also settles account subscribers when discovery succeeds with no accounts', async () => {
+      const { provider, clientInstance } = buildProvider({
+        webSocketCtor: fakeCtor,
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockResolvedValue({
+        code: 200,
+        l1Address: ACCOUNT.l1Address,
+        subAccounts: [],
+      });
+      const positionsCallback = jest.fn();
+      const ordersCallback = jest.fn();
+      const unsubscribePositions = provider.subscribeToPositions({
+        callback: positionsCallback,
+      });
+      const unsubscribeOrders = provider.subscribeToOrders({
+        callback: ordersCallback,
+      });
+
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+      await new Promise((resolveTick) => setImmediate(resolveTick));
+
+      expect(positionsCallback).toHaveBeenCalledWith([]);
+      expect(ordersCallback).toHaveBeenCalledWith([]);
       unsubscribePositions();
       unsubscribeOrders();
       await provider.disconnect();
