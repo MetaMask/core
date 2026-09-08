@@ -227,6 +227,9 @@ export type TPSLTrackingData = {
   perpDiscoverySource?: string;
 };
 
+/** Collateral mode requested for a new order. */
+export type MarginMode = 'isolated' | 'cross';
+
 // MetaMask Perps API order parameters for PerpsController
 export type OrderParams = {
   symbol: string; // Asset identifier (e.g., 'ETH', 'BTC', 'xyz:TSLA')
@@ -299,6 +302,12 @@ export type OrderParams = {
   grouping?: 'na' | 'normalTpsl' | 'positionTpsl'; // Override grouping (defaults: 'na' without TP/SL, 'normalTpsl' with TP/SL)
   currentPrice?: number; // Current market price (avoids extra API call if provided)
   leverage?: number; // Leverage to apply for the order (e.g., 10 for 10x leverage)
+  /**
+   * Explicit collateral mode. Requires leverage. HyperLiquid validates market
+   * support and refuses mode changes with an open position or resting order.
+   * Omit to retain the existing isolated-leverage behavior.
+   */
+  marginMode?: MarginMode;
   existingPositionLeverage?: number; // Existing position leverage for validation (protocol constraint)
 
   // Optional tracking data for MetaMetrics events
@@ -734,6 +743,7 @@ export type MarketInfo = {
   szDecimals: number; // HyperLiquid: size decimals
   maxLeverage: number; // HyperLiquid: max leverage
   marginTableId: number; // HyperLiquid: margin requirements table ID
+  marginMode?: 'strictIsolated' | 'noCross'; // HyperLiquid market capability
   onlyIsolated?: true; // HyperLiquid: isolated margin only (optional, only when true)
   isDelisted?: true; // HyperLiquid: delisted status (optional, only when true)
   minimumOrderSize?: number; // Minimum order size in USD (protocol-specific)

@@ -14,6 +14,7 @@
  *   order-book, and candle streams, with price polling as a fallback.
  */
 
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type { CaipAccountId } from '@metamask/utils';
 
 import type { CandlePeriod } from '../constants/chartConfig.js';
@@ -5055,6 +5056,12 @@ export class LighterProvider implements PerpsProvider {
     // mutation happened.
     let leverageCommitted = false;
     try {
+      if (params.marginMode !== undefined) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+        };
+      }
       if (params.orderType !== 'limit' && params.orderType !== 'market') {
         return { success: false, error: LIGHTER_NOT_SUPPORTED_ERROR };
       }
@@ -6854,6 +6861,12 @@ export class LighterProvider implements PerpsProvider {
   readonly #validateOrderChecks = async (
     params: OrderParams,
   ): Promise<{ isValid: boolean; error?: string }> => {
+    if (params.marginMode !== undefined) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+      };
+    }
     // Mirrors placeOrder's own rejections so validation never approves an
     // order shape the placement path would refuse.
     if (params.orderType !== 'limit' && params.orderType !== 'market') {

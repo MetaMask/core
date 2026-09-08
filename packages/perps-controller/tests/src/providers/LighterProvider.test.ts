@@ -1431,6 +1431,33 @@ describe('LighterProvider', () => {
   });
 
   describe('placeOrder', () => {
+    it.each(['cross', 'isolated'] as const)(
+      'rejects explicit %s before signing',
+      async (marginMode) => {
+        const { provider, calls } = buildProvider();
+        const params = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'limit' as const,
+          price: '90000',
+          leverage: 5,
+          marginMode,
+        };
+
+        const validation = await provider.validateOrder(params);
+        const result = await provider.placeOrder(params);
+
+        expect(validation).toStrictEqual({
+          isValid: false,
+          error: 'ORDER_MARGIN_MODE_UNSUPPORTED',
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toBe('ORDER_MARGIN_MODE_UNSUPPORTED');
+        expect(calls).toHaveLength(0);
+      },
+    );
+
     it('signs and submits a limit order with integerized values', async () => {
       const { provider, clientInstance, calls } = buildProvider();
       const result = await provider.placeOrder({
