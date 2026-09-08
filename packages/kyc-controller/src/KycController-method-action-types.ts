@@ -211,6 +211,10 @@ export type KycControllerStartSumSubAction = {
  * stores it on state, publishes {@link KycControllerStatusChangedEvent}, and
  * schedules short-interval polling while the status is `pending`.
  *
+ * Skipped when `userStatus` is already `completed`: a follow-up
+ * `GET /kyc/status` can still read a stale `pending` (for example after
+ * `session_not_in_valid_state`) and must not undo that decision.
+ *
  * @returns The latest status payload.
  */
 export type KycControllerRefreshKycStatusAction = {
