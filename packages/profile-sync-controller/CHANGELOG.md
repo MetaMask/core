@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Preserve api-docs/ (not docs/) for Typedoc-generated directories ([#10114](https://github.com/MetaMask/core/pull/10114))
+- chore: bump accounts deps ([#9754](https://github.com/MetaMask/core/pull/9754))
+
 ### Changed
 
 - **BREAKING:** Derive auth and user-storage message-signing keys natively via SIP-6 from HD keyring seeds instead of calling `@metamask/message-signing-snap` through `SnapController`. `AuthenticationController` and `UserStorageController` now require `KeyringController:withKeyringV2Unsafe` and no longer call `SnapController:handleRequest`. The message-signing snap remains for Portfolio / external origins ([#9824](https://github.com/MetaMask/core/pull/9824))
