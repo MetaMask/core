@@ -1,0 +1,354 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "getAssets \u2014 Fast Lane and Background Lane",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "fast",
+        "label": "What the caller waits for",
+        "focus": [
+          "caller",
+          "fast_balance",
+          "graduation",
+          "rpc_fallback",
+          "detect_fast",
+          "enrich_fast",
+          "commit",
+          "result"
+        ],
+        "note": "The fast lane is the only part of the work the caller blocks on."
+      },
+      {
+        "id": "leftovers",
+        "label": "Chains the fast lane could not serve",
+        "focus": [
+          "leftover",
+          "slow_balance",
+          "detect_slow",
+          "enrich_slow"
+        ],
+        "note": "Errored chains and chains outside Accounts API coverage are retried in the background."
+      },
+      {
+        "id": "ordering",
+        "label": "Why graduation precedes fallback",
+        "focus": [
+          "fast_balance",
+          "graduation",
+          "rpc_fallback"
+        ],
+        "note": "Graduation must only ever see Accounts API and websocket balances, never RPC ones."
+      }
+    ],
+    "legend": {
+      "entries": {
+        "frontend": {
+          "label": "Caller"
+        },
+        "backend": {
+          "label": "Pipeline stage"
+        },
+        "messagebus": {
+          "label": "Handoff"
+        },
+        "database": {
+          "label": "State"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "caller",
+      "label": "Caller"
+    },
+    {
+      "id": "fast",
+      "label": "Fast lane \u00b7 awaited"
+    },
+    {
+      "id": "slow",
+      "label": "Background lane \u00b7 fire and forget",
+      "variant": "exception"
+    },
+    {
+      "id": "store",
+      "label": "State"
+    }
+  ],
+  "phases": [
+    {
+      "id": "gather",
+      "label": "Gather balances",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "reconcile",
+      "label": "Reconcile",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "finish",
+      "label": "Enrich and commit",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "groups": [
+    {
+      "id": "enrich_group",
+      "label": "detect then enrich",
+      "lane": "fast",
+      "fromCol": 3,
+      "toCol": 4,
+      "variant": "emphasis"
+    },
+    {
+      "id": "slow_group",
+      "label": "same shape, deferred",
+      "lane": "slow",
+      "fromCol": 0,
+      "toCol": 4,
+      "variant": "dashed"
+    }
+  ],
+  "mainPath": [
+    "caller",
+    "fast_balance",
+    "graduation",
+    "rpc_fallback",
+    "detect_fast",
+    "enrich_fast",
+    "commit",
+    "result"
+  ],
+  "semanticChecks": {
+    "allowedRoots": [
+      "caller"
+    ],
+    "allowedTerminals": [
+      "result"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "caller",
+      "lane": "caller",
+      "col": 0,
+      "type": "frontend",
+      "label": "getAssets",
+      "sublabel": "forceUpdate: true",
+      "tag": "blocking",
+      "width": 146
+    },
+    {
+      "id": "result",
+      "lane": "caller",
+      "col": 5,
+      "type": "frontend",
+      "label": "Read from state",
+      "sublabel": "balance \u00b7 metadata \u00b7 price",
+      "width": 160
+    },
+    {
+      "id": "fast_balance",
+      "lane": "fast",
+      "col": 0,
+      "type": "backend",
+      "label": "Parallel balance",
+      "sublabel": "AccountsApi + Staked",
+      "tag": "pLimit 3",
+      "width": 152
+    },
+    {
+      "id": "graduation",
+      "lane": "fast",
+      "col": 1,
+      "type": "backend",
+      "label": "Graduation",
+      "sublabel": "retire custom assets",
+      "width": 150
+    },
+    {
+      "id": "rpc_fallback",
+      "lane": "fast",
+      "col": 2,
+      "type": "backend",
+      "label": "RPC fallback",
+      "sublabel": "errored + stale-zero",
+      "width": 150
+    },
+    {
+      "id": "detect_fast",
+      "lane": "fast",
+      "col": 3,
+      "type": "backend",
+      "label": "Detection",
+      "sublabel": "assets with no metadata",
+      "width": 158
+    },
+    {
+      "id": "enrich_fast",
+      "lane": "fast",
+      "col": 4,
+      "type": "backend",
+      "label": "Parallel enrich",
+      "sublabel": "Token + Price",
+      "tag": "pLimit 2",
+      "width": 150
+    },
+    {
+      "id": "leftover",
+      "lane": "slow",
+      "col": 0,
+      "type": "messagebus",
+      "label": "Leftover chains",
+      "sublabel": "errored, or not covered",
+      "tag": "after fast commit",
+      "width": 158
+    },
+    {
+      "id": "slow_balance",
+      "lane": "slow",
+      "col": 1,
+      "type": "backend",
+      "label": "Parallel balance",
+      "sublabel": "Snap + Rpc",
+      "tag": "pLimit 3",
+      "width": 150
+    },
+    {
+      "id": "detect_slow",
+      "lane": "slow",
+      "col": 3,
+      "type": "backend",
+      "label": "Detection",
+      "sublabel": "assets with no metadata",
+      "width": 158
+    },
+    {
+      "id": "enrich_slow",
+      "lane": "slow",
+      "col": 4,
+      "type": "backend",
+      "label": "Parallel enrich",
+      "sublabel": "Token + Price",
+      "width": 150
+    },
+    {
+      "id": "commit",
+      "lane": "store",
+      "col": 5,
+      "type": "database",
+      "label": "#updateState",
+      "sublabel": "merge \u00b7 normalize \u00b7 publish",
+      "width": 166
+    }
+  ],
+  "edges": [
+    {
+      "id": "call",
+      "from": "caller",
+      "to": "fast_balance",
+      "label": "accounts + chainIds",
+      "variant": "emphasis"
+    },
+    {
+      "id": "balance-graduate",
+      "from": "fast_balance",
+      "to": "graduation",
+      "variant": "emphasis"
+    },
+    {
+      "id": "graduate-fallback",
+      "from": "graduation",
+      "to": "rpc_fallback",
+      "label": "must precede fallback",
+      "variant": "emphasis"
+    },
+    {
+      "id": "fallback-detect",
+      "from": "rpc_fallback",
+      "to": "detect_fast",
+      "variant": "emphasis"
+    },
+    {
+      "id": "detect-enrich",
+      "from": "detect_fast",
+      "to": "enrich_fast",
+      "variant": "emphasis"
+    },
+    {
+      "id": "enrich-commit",
+      "from": "enrich_fast",
+      "to": "commit",
+      "label": "enriched response",
+      "variant": "emphasis"
+    },
+    {
+      "id": "commit-read",
+      "from": "commit",
+      "to": "result",
+      "label": "resolve caller",
+      "role": "return",
+      "width": 1.2
+    },
+    {
+      "id": "spill",
+      "from": "fast_balance",
+      "to": "leftover",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "slow-balance",
+      "from": "leftover",
+      "to": "slow_balance",
+      "variant": "dashed"
+    },
+    {
+      "id": "slow-detect",
+      "from": "slow_balance",
+      "to": "detect_slow",
+      "variant": "dashed"
+    },
+    {
+      "id": "slow-enrich",
+      "from": "detect_slow",
+      "to": "enrich_slow",
+      "variant": "dashed"
+    },
+    {
+      "id": "slow-commit",
+      "from": "enrich_slow",
+      "to": "commit",
+      "label": "second commit",
+      "variant": "dashed",
+      "role": "async"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Two lanes, one pipeline shape",
+      "items": [
+        "The caller only waits for the fast lane; the background lane is never awaited",
+        "A chain is retried in the background if it errored or Accounts API does not cover it"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Failure is absorbed, not propagated",
+      "items": [
+        "A stage that throws is caught by name and the chain continues with the next one",
+        "Every stage still calls next, so no stage can silently truncate the pipeline"
+      ]
+    }
+  ]
+}
