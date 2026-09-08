@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add batch proof-of-ownership signing for wallet snap accounts during profile metrics sync. ([#XXX](https://github.com/MetaMask/core/pull/XXX))
+- **BREAKING:** Add batch proof-of-ownership signing for wallet snap accounts during profile metrics sync. ([#10142](https://github.com/MetaMask/core/pull/10142))
 
 ### Changed
 
