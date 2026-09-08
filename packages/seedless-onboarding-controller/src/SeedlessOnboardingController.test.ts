@@ -81,7 +81,10 @@ import type {
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
 } from './SeedlessOnboardingController.js';
-import type { SeedlessOnboardingControllerState } from './types.js';
+import type {
+  SeedlessOnboardingControllerState,
+  SeedlessPasswordChangeLifecycle,
+} from './types.js';
 
 const authConnection = AuthConnection.Google;
 const socialLoginEmail = 'user-test@gmail.com';
@@ -643,6 +646,7 @@ async function decryptVault(
  * @param options.encryptedSeedlessEncryptionKey - The mock encrypted seedless encryption key.
  * @param options.pendingToBeRevokedTokens - The mock pending to be revoked tokens.
  * @param options.migrationVersion - The mock migration version.
+ * @param options.passwordChangeLifecycle - The mock password-change lifecycle.
  * @returns The initial controller state with the mock authenticated user.
  */
 function getMockInitialControllerState(options?: {
@@ -665,6 +669,7 @@ function getMockInitialControllerState(options?: {
       }[]
     | undefined;
   migrationVersion?: number;
+  passwordChangeLifecycle?: SeedlessPasswordChangeLifecycle;
 }): Partial<SeedlessOnboardingControllerState> {
   const state = getInitialSeedlessOnboardingControllerStateWithDefaults();
 
@@ -716,6 +721,10 @@ function getMockInitialControllerState(options?: {
 
   if (options?.migrationVersion !== undefined) {
     state.migrationVersion = options.migrationVersion;
+  }
+
+  if (options?.passwordChangeLifecycle !== undefined) {
+    state.passwordChangeLifecycle = options.passwordChangeLifecycle;
   }
 
   return state;

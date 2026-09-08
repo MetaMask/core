@@ -43,6 +43,7 @@ export type {
   AuthenticatedUserDetails,
   SocialBackupsMetadata,
   SeedlessOnboardingControllerState,
+  SeedlessPasswordChangeLifecycle,
   ToprfKeyDeriver,
   RecoveryErrorData,
   InvalidPrimarySecretDataTypeErrorData,
@@ -53,6 +54,8 @@ export {
   SeedlessOnboardingMigrationVersion,
   AuthConnection,
   SecretType,
+  SeedlessPasswordChangePhase,
+  SeedlessPasswordChangeErrorCode,
 } from './constants.js';
 export { SecretMetadata } from './SecretMetadata.js';
 export {

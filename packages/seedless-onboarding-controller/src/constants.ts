@@ -25,6 +25,47 @@ export enum SeedlessOnboardingMigrationVersion {
   V1 = 1,
 }
 
+/**
+ * The lifecycle phase of a Seedless password-change operation.
+ *
+ * Used as a recovery signal only — it is not proof that a remote or local
+ * operation completed. Recovery must always verify actual remote and local
+ * state before acting on the phase.
+ */
+export enum SeedlessPasswordChangePhase {
+  /** No password change is in progress. */
+  Idle = 'IDLE',
+  /** A password change has started but the remote Seedless result is not yet confirmed. */
+  SeedlessChangePending = 'SEEDLESS_CHANGE_PENDING',
+  /** The remote Seedless password change is confirmed committed. */
+  SeedlessCommitted = 'SEEDLESS_COMMITTED',
+  /** The local Seedless vault has been rewritten with the new password. */
+  LocalKeyringPending = 'LOCAL_KEYRING_PENDING',
+  /** The local Keyring encryption key has been stored; awaiting final verification. */
+  KeySyncPending = 'KEY_SYNC_PENDING',
+  /** The password change is fully complete and verified. */
+  Complete = 'COMPLETE',
+  /** The result of one or more steps could not be established. */
+  Unknown = 'UNKNOWN',
+}
+
+/**
+ * Non-sensitive error codes stored on the password-change lifecycle.
+ *
+ * These must never contain passwords, raw error messages, or server response
+ * bodies — only a closed set of classification labels.
+ */
+export enum SeedlessPasswordChangeErrorCode {
+  RemoteTimeout = 'REMOTE_TIMEOUT',
+  RemoteAmbiguous = 'REMOTE_AMBIGUOUS',
+  RemoteDefinitiveFailure = 'REMOTE_DEFINITIVE_FAILURE',
+  RemoteStatusUnavailable = 'REMOTE_STATUS_UNAVAILABLE',
+  LocalVaultFailure = 'LOCAL_VAULT_FAILURE',
+  LocalKeyringFailure = 'LOCAL_KEYRING_FAILURE',
+  KeyStoreFailure = 'KEY_STORE_FAILURE',
+  PersistenceFailure = 'PERSISTENCE_FAILURE',
+}
+
 export enum SeedlessOnboardingControllerErrorMessage {
   ControllerLocked = `${controllerName} - The operation cannot be completed while the controller is locked.`,
   VaultLocked = `${controllerName} - The operation cannot be completed while the vault is locked.`,

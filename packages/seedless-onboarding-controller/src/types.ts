@@ -5,7 +5,12 @@ import type {
 } from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
-import type { AuthConnection, SecretType } from './constants.js';
+import type {
+  AuthConnection,
+  SecretType,
+  SeedlessPasswordChangeErrorCode,
+  SeedlessPasswordChangePhase,
+} from './constants.js';
 
 /**
  * The backup state of the secret data.
@@ -106,6 +111,26 @@ export type InvalidPrimarySecretDataTypeErrorData = (
 )[];
 
 // State
+
+/**
+ * The persisted lifecycle record for a Seedless password-change operation.
+ *
+ * This is a recovery signal only — it is not proof that a remote or local
+ * operation completed. It must never contain a password, SRP, raw encryption
+ * key, decrypted vault data, or an error message that may contain sensitive
+ * data.
+ */
+export type SeedlessPasswordChangeLifecycle = {
+  /**
+   * The current lifecycle phase.
+   */
+  phase: SeedlessPasswordChangePhase;
+  /**
+   * A non-sensitive error code from the last failed step, if any.
+   */
+  lastErrorCode?: SeedlessPasswordChangeErrorCode;
+};
+
 export type SeedlessOnboardingControllerState =
   Partial<AuthenticatedUserDetails> &
     Partial<SRPBackedUpUserDetails> & {
@@ -190,6 +215,12 @@ export type SeedlessOnboardingControllerState =
        * Used to prevent re-running migrations.
        */
       migrationVersion: number;
+
+      /**
+       * The persisted lifecycle record for an in-progress or unresolved
+       * password-change operation. Missing or `undefined` means `IDLE`.
+       */
+      passwordChangeLifecycle?: SeedlessPasswordChangeLifecycle;
     };
 
 /**

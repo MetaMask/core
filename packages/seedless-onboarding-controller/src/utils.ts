@@ -8,13 +8,18 @@ import {
 } from '@metamask/utils';
 import { bytesToUtf8 } from '@noble/ciphers/utils';
 
-import { SecretType } from './constants.js';
+import {
+  SecretType,
+  SeedlessPasswordChangeErrorCode,
+  SeedlessPasswordChangePhase,
+} from './constants.js';
 import type { SecretMetadata } from './SecretMetadata.js';
 import type {
   DecodedBaseJWTToken,
   DecodedNodeAuthToken,
   DeserializedVaultData,
   InvalidPrimarySecretDataTypeErrorData,
+  SeedlessPasswordChangeLifecycle,
   VaultData,
 } from './types.js';
 
@@ -186,4 +191,198 @@ export function getInvalidPrimarySecretDataTypeErrorData(
   secrets: SecretMetadata<string | Uint8Array>[],
 ): InvalidPrimarySecretDataTypeErrorData {
   return secrets.map((secret) => secret.dataType ?? secret.type);
+}
+
+/**
+ * Legal forward transitions for the password-change lifecycle.
+ *
+ * This map is used by tests to validate that transitions are sensible. It is
+ * NOT the source of truth for recovery — a persisted phase may be stale, and
+ * recovery must always verify actual remote and local state before acting.
+ *
+ * `UNKNOWN` is intentionally permissive: recovery may resolve it to any phase
+ * or clear it to `IDLE`. Any phase may transition to `UNKNOWN` when a result
+ * is ambiguous.
+ */
+const LEGAL_PASSWORD_CHANGE_TRANSITIONS: Record<
+  SeedlessPasswordChangePhase,
+  SeedlessPasswordChangePhase[]
+> = {
+  [SeedlessPasswordChangePhase.Idle]: [
+    SeedlessPasswordChangePhase.SeedlessChangePending,
+  ],
+  [SeedlessPasswordChangePhase.SeedlessChangePending]: [
+    SeedlessPasswordChangePhase.SeedlessCommitted,
+    SeedlessPasswordChangePhase.Idle,
+    SeedlessPasswordChangePhase.Unknown,
+  ],
+  [SeedlessPasswordChangePhase.SeedlessCommitted]: [
+    SeedlessPasswordChangePhase.LocalKeyringPending,
+    SeedlessPasswordChangePhase.Unknown,
+  ],
+  [SeedlessPasswordChangePhase.LocalKeyringPending]: [
+    SeedlessPasswordChangePhase.KeySyncPending,
+    SeedlessPasswordChangePhase.Unknown,
+  ],
+  [SeedlessPasswordChangePhase.KeySyncPending]: [
+    SeedlessPasswordChangePhase.Complete,
+    SeedlessPasswordChangePhase.Unknown,
+  ],
+  [SeedlessPasswordChangePhase.Complete]: [
+    SeedlessPasswordChangePhase.Idle,
+  ],
+  [SeedlessPasswordChangePhase.Unknown]: [
+    SeedlessPasswordChangePhase.Idle,
+    SeedlessPasswordChangePhase.SeedlessCommitted,
+    SeedlessPasswordChangePhase.LocalKeyringPending,
+    SeedlessPasswordChangePhase.KeySyncPending,
+    SeedlessPasswordChangePhase.Complete,
+  ],
+};
+
+/**
+ * Create a new password-change lifecycle record at the given phase.
+ *
+ * @param phase - The initial phase.
+ * @returns A new lifecycle record.
+ */
+export function createPasswordChangeLifecycle(
+  phase: SeedlessPasswordChangePhase,
+): SeedlessPasswordChangeLifecycle {
+  return { phase };
+}
+
+/**
+ * Apply a phase transition to a lifecycle record, returning a new record.
+ *
+ * Preserves `lastErrorCode` from the previous record unless a new code is
+ * provided or the target phase is `IDLE` (which clears it).
+ *
+ * @param lifecycle - The current lifecycle record (or `undefined` for `IDLE`).
+ * @param phase - The target phase.
+ * @param lastErrorCode - Optional error code to set on the new record.
+ * @returns A new lifecycle record with the transitioned phase.
+ */
+export function transitionPasswordChangeLifecycle(
+  lifecycle: SeedlessPasswordChangeLifecycle | undefined,
+  phase: SeedlessPasswordChangePhase,
+  lastErrorCode?: SeedlessPasswordChangeErrorCode,
+): SeedlessPasswordChangeLifecycle {
+  const preservedErrorCode = resolvePasswordChangeErrorCode(
+    lifecycle,
+    phase,
+    lastErrorCode,
+  );
+  const next: SeedlessPasswordChangeLifecycle = {
+    phase,
+    ...(preservedErrorCode === undefined
+      ? {}
+      : { lastErrorCode: preservedErrorCode }),
+  };
+  return next;
+}
+
+/**
+ * Resolve the `lastErrorCode` to attach to a transitioned lifecycle record.
+ *
+ * A new code wins. Otherwise the previous code is preserved unless the target
+ * phase is `IDLE` (which clears it).
+ *
+ * @param lifecycle - The current lifecycle record (or `undefined` for `IDLE`).
+ * @param phase - The target phase.
+ * @param lastErrorCode - Optional error code to set on the new record.
+ * @returns The error code to attach, or `undefined` to omit it.
+ */
+function resolvePasswordChangeErrorCode(
+  lifecycle: SeedlessPasswordChangeLifecycle | undefined,
+  phase: SeedlessPasswordChangePhase,
+  lastErrorCode?: SeedlessPasswordChangeErrorCode,
+): SeedlessPasswordChangeErrorCode | undefined {
+  if (lastErrorCode !== undefined) {
+    return lastErrorCode;
+  }
+  if (
+    lifecycle?.lastErrorCode !== undefined &&
+    phase !== SeedlessPasswordChangePhase.Idle
+  ) {
+    return lifecycle.lastErrorCode;
+  }
+  return undefined;
+}
+
+/**
+ * Return the phase of a lifecycle record, treating `undefined` as `IDLE`.
+ *
+ * @param lifecycle - The lifecycle record, or `undefined`.
+ * @returns The phase, or `IDLE` if the record is missing.
+ */
+export function getPasswordChangePhase(
+  lifecycle: SeedlessPasswordChangeLifecycle | undefined,
+): SeedlessPasswordChangePhase {
+  return lifecycle?.phase ?? SeedlessPasswordChangePhase.Idle;
+}
+
+/**
+ * Check whether a phase transition is legal according to the transition map.
+ *
+ * This is for test validation only. A persisted phase may be stale; recovery
+ * must verify actual state rather than relying on this validator.
+ *
+ * @param from - The source phase (or `undefined` for `IDLE`).
+ * @param to - The target phase.
+ * @returns `true` if the transition is legal.
+ */
+export function isValidPasswordChangePhaseTransition(
+  from: SeedlessPasswordChangeLifecycle | undefined,
+  to: SeedlessPasswordChangePhase,
+): boolean {
+  const fromPhase = getPasswordChangePhase(from);
+  return LEGAL_PASSWORD_CHANGE_TRANSITIONS[fromPhase].includes(to);
+}
+
+/**
+ * Classify an error into a non-sensitive password-change error code.
+ *
+ * This inspects the error's `message` and `name` for known patterns. It must
+ * never persist the raw error message — only the closed set of codes.
+ *
+ * @param error - The error to classify.
+ * @returns A non-sensitive error code.
+ */
+export function classifyPasswordChangeError(
+  error: unknown,
+): SeedlessPasswordChangeErrorCode {
+  let message = '';
+  if (error instanceof Error) {
+    message = error.message;
+  } else if (typeof error === 'string') {
+    message = error;
+  }
+
+  if (message.includes('fetch')) {
+    return SeedlessPasswordChangeErrorCode.RemoteStatusUnavailable;
+  }
+  if (
+    message.includes('timeout') ||
+    message.includes('Timeout') ||
+    message.includes('TIMEOUT')
+  ) {
+    return SeedlessPasswordChangeErrorCode.RemoteTimeout;
+  }
+  if (
+    message.includes('FailedToChangePassword') ||
+    message.includes('changeEncKey')
+  ) {
+    return SeedlessPasswordChangeErrorCode.RemoteAmbiguous;
+  }
+  if (message.includes('vault')) {
+    return SeedlessPasswordChangeErrorCode.LocalVaultFailure;
+  }
+  if (message.includes('keyring') || message.includes('Keyring')) {
+    return SeedlessPasswordChangeErrorCode.LocalKeyringFailure;
+  }
+  if (message.includes('persist') || message.includes('storage')) {
+    return SeedlessPasswordChangeErrorCode.PersistenceFailure;
+  }
+  return SeedlessPasswordChangeErrorCode.RemoteAmbiguous;
 }

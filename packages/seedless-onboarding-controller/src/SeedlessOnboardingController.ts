@@ -385,6 +385,13 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       includeInDebugSnapshot: true,
       usedInUi: false,
     },
+    passwordChangeLifecycle: {
+      // Safe fields only: phase and lastErrorCode. No secrets.
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: true,
+    },
   };
 
 export class SeedlessOnboardingController<
