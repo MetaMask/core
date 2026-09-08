@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `metadata` is now optional on `AccountWalletPayloadMetadata`, `AccountWalletGroupPayloadMetadata`, and all wallet/group payload entry types ([#10112](https://github.com/MetaMask/core/pull/10112))
   - Consumers reading `metadata` from a snapshot or payload must now guard against `undefined` (e.g. after calling `AccountTreeSnapshot.stripMetadata()`).
+- Bump `@metamask/profile-sync-controller` from `^29.0.0` to `^30.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
 
 ## [8.1.0]
 

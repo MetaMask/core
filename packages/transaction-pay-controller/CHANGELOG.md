@@ -11,8 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^69.7.0` to `^69.8.1` ([#10080](https://github.com/MetaMask/core/pull/10080), [#10124](https://github.com/MetaMask/core/pull/10124))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
-- Bump `@metamask/assets-controller` from `^14.0.3` to `^15.0.0` ([#10088](https://github.com/MetaMask/core/pull/10088))
+- Bump `@metamask/assets-controller` from `^14.0.3` to `^15.0.1` ([#10088](https://github.com/MetaMask/core/pull/10088), [#10139](https://github.com/MetaMask/core/pull/10139))
 - Bump `@metamask/remote-feature-flag-controller` from `^6.1.0` to `^6.1.1` ([#10129](https://github.com/MetaMask/core/pull/10129))
+- Bump `@metamask/assets-controllers` from `^111.1.3` to `^111.1.4` ([#10139](https://github.com/MetaMask/core/pull/10139))
+- Bump `@metamask/ramps-controller` from `^20.2.0` to `^20.3.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
 
 ### Fixed
 
