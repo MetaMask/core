@@ -89,7 +89,7 @@ export type AccountWalletMnemonicGroupEntry = {
   id: AccountGroupPayloadId;
   /** BIP-44 account index this group was derived at. */
   groupIndex: number;
-  metadata: AccountWalletGroupPayloadMetadata;
+  metadata?: AccountWalletGroupPayloadMetadata;
 };
 
 /**
@@ -123,7 +123,7 @@ export type AccountWalletPrivateKeyGroupEntry = {
      */
     type?: KeyringAccount['type'];
   };
-  metadata: AccountWalletGroupPayloadMetadata;
+  metadata?: AccountWalletGroupPayloadMetadata;
 };
 
 /** Payload entry for an HD (entropy) wallet and its derived account groups. */
@@ -132,7 +132,7 @@ export type AccountWalletMnemonicPayload = {
   type: typeof AccountWalletPayloadType.Mnemonic;
   /** BIP-39 mnemonic phrase encoded as bytes. Absent in metadata-only exports. */
   value?: EncodedBytes;
-  metadata: AccountWalletPayloadMetadata;
+  metadata?: AccountWalletPayloadMetadata;
   groups: AccountWalletMnemonicGroupEntry[];
 };
 
@@ -145,7 +145,7 @@ export type AccountWalletMnemonicPayload = {
 export type AccountWalletPrivateKeyPayload = {
   id: AccountWalletPayloadId;
   type: typeof AccountWalletPayloadType.PrivateKey;
-  metadata: AccountWalletPayloadMetadata;
+  metadata?: AccountWalletPayloadMetadata;
   groups: AccountWalletPrivateKeyGroupEntry[];
 };
 
@@ -257,13 +257,13 @@ const AccountWalletPrivateKeyValueStruct = object({
 const AccountWalletMnemonicGroupEntryStruct = object({
   id: AccountGroupPayloadIdStruct,
   groupIndex: integer(),
-  metadata: AccountWalletGroupPayloadMetadataStruct,
+  metadata: exactOptional(AccountWalletGroupPayloadMetadataStruct),
 });
 
 const AccountWalletPrivateKeyGroupEntryStruct = object({
   id: AccountGroupPayloadIdStruct,
   value: exactOptional(AccountWalletPrivateKeyValueStruct),
-  metadata: AccountWalletGroupPayloadMetadataStruct,
+  metadata: exactOptional(AccountWalletGroupPayloadMetadataStruct),
 });
 
 // The `groups` array in a mnemonic wallet payload must have contiguous group indices starting at 0.
@@ -289,14 +289,14 @@ const AccountWalletMnemonicPayloadStruct = object({
   id: AccountWalletPayloadIdStruct,
   type: literal(AccountWalletPayloadType.Mnemonic),
   value: exactOptional(sensitive(BytesStruct)),
-  metadata: AccountWalletPayloadMetadataStruct,
+  metadata: exactOptional(AccountWalletPayloadMetadataStruct),
   groups: AccountWalletMnemonicGroupsStruct,
 });
 
 const AccountWalletPrivateKeyPayloadStruct = object({
   id: AccountWalletPayloadIdStruct,
   type: literal(AccountWalletPayloadType.PrivateKey),
-  metadata: AccountWalletPayloadMetadataStruct,
+  metadata: exactOptional(AccountWalletPayloadMetadataStruct),
   groups: array(AccountWalletPrivateKeyGroupEntryStruct),
 });
 
