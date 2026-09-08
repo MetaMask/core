@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.1.1]
+
 ## [9.1.0]
 
 ### Added
@@ -414,7 +416,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.1.1...HEAD
+[9.1.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.1.0...@metamask/core-backend@9.1.1
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.0.0...@metamask/core-backend@9.1.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.2...@metamask/core-backend@9.0.0
 [8.1.2]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.1...@metamask/core-backend@8.1.2

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [80.2.1]
+
 ### Uncategorized
 
 - Move FakeProvider to eth-json-rpc-provider (as FakeInternalProvider) ([#10099](https://github.com/MetaMask/core/pull/10099))
@@ -1999,7 +2001,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.2.1...HEAD
+[80.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.2.0...@metamask/bridge-controller@80.2.1
 [80.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.1.1...@metamask/bridge-controller@80.2.0
 [80.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.1.0...@metamask/bridge-controller@80.1.1
 [80.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.0.0...@metamask/bridge-controller@80.1.0

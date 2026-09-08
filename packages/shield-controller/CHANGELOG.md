@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.2]
+
 ### Uncategorized
 
 - Preserve api-docs/ (not docs/) for Typedoc-generated directories ([#10114](https://github.com/MetaMask/core/pull/10114))
@@ -296,7 +298,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the shield-controller package ([#6137](https://github.com/MetaMask/core/pull/6137)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@6.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@6.0.2...HEAD
+[6.0.2]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@6.0.1...@metamask/shield-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@6.0.0...@metamask/shield-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.1.3...@metamask/shield-controller@6.0.0
 [5.1.3]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.1.2...@metamask/shield-controller@5.1.3

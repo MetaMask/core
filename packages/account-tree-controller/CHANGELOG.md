@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+
 ### Uncategorized
 
 - Preserve api-docs/ (not docs/) for Typedoc-generated directories ([#10114](https://github.com/MetaMask/core/pull/10114))
@@ -695,7 +697,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@8.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@8.1.0...@metamask/account-tree-controller@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@8.0.0...@metamask/account-tree-controller@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.6.1...@metamask/account-tree-controller@8.0.0
 [7.6.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.6.0...@metamask/account-tree-controller@7.6.1
