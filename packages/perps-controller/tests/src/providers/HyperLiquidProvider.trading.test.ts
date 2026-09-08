@@ -4849,7 +4849,7 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.updatePositionTPSL(updateParams);
 
       expect(result.success).toBe(true);
-      expect(result.orderId).toBeDefined();
+      expect(result.childOrderIds).toEqual(['123', '124']);
     });
 
     it('handles update with only take profit price', async () => {

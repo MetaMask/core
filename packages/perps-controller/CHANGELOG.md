@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **BREAKING:** Replace the placeholder HyperLiquid TP/SL success `orderId` with confirmed venue IDs in `OrderResult.childOrderIds`. Resolve acknowledgements without IDs by their submitted client order ID; accepted protection remains successful when its venue ID is unavailable.
-- **BREAKING:** Reject failed or incomplete open-order fetches from HyperLiquid, Lighter, and aggregated providers instead of reporting empty or partial success. Callers must handle rejections and retain prior order state. HyperLiquid order classification now requires complete position context for the requested account.
+- **BREAKING:** Replace the placeholder HyperLiquid TP/SL success `orderId` with confirmed venue IDs in `OrderResult.childOrderIds`. Resolve acknowledgements without IDs by their submitted client order ID; accepted protection remains successful when its venue ID is unavailable. ([#10135](https://github.com/MetaMask/core/pull/10135))
+- **BREAKING:** Reject failed or incomplete open-order fetches from HyperLiquid, Lighter, and aggregated providers instead of reporting empty or partial success. Callers must handle rejections and retain prior order state. HyperLiquid order classification now requires complete position context for the requested account. ([#10135](https://github.com/MetaMask/core/pull/10135))
 - Handle zero minimum order amounts and margin fractions reported by Lighter for inactive markets by omitting unusable retired rows, while keeping valid delisted metadata and active market values strict. ([#10110](https://github.com/MetaMask/core/pull/10110))
 
 ## [16.1.0]
