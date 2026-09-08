@@ -4,44 +4,24 @@
   "meta": {
     "title": "@metamask/assets-controller \u2014 Component Map",
     "quality_profile": "showcase",
-    "viewBox": [
-      1330,
-      716
-    ],
+    "viewBox": [1330, 716],
     "views": [
       {
         "id": "entry",
         "label": "How callers reach the controller",
-        "focus": [
-          "consumers",
-          "messenger",
-          "controller",
-          "state",
-          "events"
-        ],
+        "focus": ["consumers", "messenger", "controller", "state", "events"],
         "note": "Reads and refreshes arrive as registered messenger actions; commits publish events back."
       },
       {
         "id": "balance-priority",
         "label": "Balance sources by priority",
-        "focus": [
-          "pipeline",
-          "activity",
-          "accounts_api",
-          "snap_ds",
-          "rpc_ds"
-        ],
+        "focus": ["pipeline", "activity", "accounts_api", "snap_ds", "rpc_ds"],
         "note": "Four sources claim chains in a fixed order, so later ones absorb what is left."
       },
       {
         "id": "enrichment",
         "label": "Enrichment and egress",
-        "focus": [
-          "token_ds",
-          "price_ds",
-          "token_price_api",
-          "evm_rpc"
-        ],
+        "focus": ["token_ds", "price_ds", "token_price_api", "evm_rpc"],
         "note": "Metadata and price run together as one parallel stage after balances land."
       }
     ]
@@ -52,42 +32,24 @@
       "type": "frontend",
       "label": "Client + Controllers",
       "sublabel": "extension \u00b7 mobile",
-      "pos": [
-        405,
-        40
-      ],
-      "size": [
-        190,
-        60
-      ]
+      "pos": [405, 40],
+      "size": [190, 60]
     },
     {
       "id": "messenger",
       "type": "messagebus",
       "label": "Messenger",
       "sublabel": "actions \u00b7 events",
-      "pos": [
-        661,
-        40
-      ],
-      "size": [
-        180,
-        60
-      ]
+      "pos": [661, 40],
+      "size": [180, 60]
     },
     {
       "id": "events",
       "type": "messagebus",
       "label": "Published Events",
       "sublabel": "stateChange \u00b7 balanceChanged",
-      "pos": [
-        961,
-        40
-      ],
-      "size": [
-        220,
-        60
-      ]
+      "pos": [961, 40],
+      "size": [220, 60]
     },
     {
       "id": "controller",
@@ -95,42 +57,24 @@
       "label": "AssetsController",
       "sublabel": "BaseController",
       "tag": "core",
-      "pos": [
-        661,
-        168
-      ],
-      "size": [
-        180,
-        64
-      ]
+      "pos": [661, 168],
+      "size": [180, 64]
     },
     {
       "id": "state",
       "type": "database",
       "label": "State Commit",
       "sublabel": "assetsInfo \u00b7 assetsBalance",
-      "pos": [
-        961,
-        168
-      ],
-      "size": [
-        220,
-        64
-      ]
+      "pos": [961, 168],
+      "size": [220, 64]
     },
     {
       "id": "pipeline",
       "type": "backend",
       "label": "Middleware Pipeline",
       "sublabel": "composed with reduceRight \u00b7 a throwing stage is caught and skipped",
-      "pos": [
-        232,
-        300
-      ],
-      "size": [
-        1038,
-        72
-      ]
+      "pos": [232, 300],
+      "size": [1038, 72]
     },
     {
       "id": "activity",
@@ -138,14 +82,8 @@
       "label": "AccountActivity",
       "sublabel": "push only \u00b7 never fetched",
       "tag": "priority 1",
-      "pos": [
-        60,
-        470
-      ],
-      "size": [
-        150,
-        68
-      ]
+      "pos": [60, 470],
+      "size": [150, 68]
     },
     {
       "id": "accounts_api",
@@ -153,14 +91,8 @@
       "label": "AccountsApi",
       "sublabel": "poll 30s \u00b7 timeout 15s",
       "tag": "priority 2",
-      "pos": [
-        232,
-        470
-      ],
-      "size": [
-        150,
-        68
-      ]
+      "pos": [232, 470],
+      "size": [150, 68]
     },
     {
       "id": "snap_ds",
@@ -168,14 +100,8 @@
       "label": "Snap",
       "sublabel": "keyring events",
       "tag": "priority 3",
-      "pos": [
-        404,
-        470
-      ],
-      "size": [
-        150,
-        68
-      ]
+      "pos": [404, 470],
+      "size": [150, 68]
     },
     {
       "id": "rpc_ds",
@@ -183,14 +109,8 @@
       "label": "Rpc",
       "sublabel": "eip155 only \u00b7 poll 30s",
       "tag": "priority 4",
-      "pos": [
-        576,
-        470
-      ],
-      "size": [
-        150,
-        68
-      ]
+      "pos": [576, 470],
+      "size": [150, 68]
     },
     {
       "id": "staked_ds",
@@ -198,143 +118,83 @@
       "label": "StakedBalance",
       "sublabel": "mainnet + Hoodi",
       "tag": "no claims",
-      "pos": [
-        762,
-        470
-      ],
-      "size": [
-        150,
-        68
-      ]
+      "pos": [762, 470],
+      "size": [150, 68]
     },
     {
       "id": "token_ds",
       "type": "backend",
       "label": "Token",
       "sublabel": "batch 50 \u00b7 timeout 15s",
-      "pos": [
-        948,
-        470
-      ],
-      "size": [
-        150,
-        68
-      ]
+      "pos": [948, 470],
+      "size": [150, 68]
     },
     {
       "id": "price_ds",
       "type": "backend",
       "label": "Price",
       "sublabel": "poll 60s \u00b7 deduped",
-      "pos": [
-        1120,
-        470
-      ],
-      "size": [
-        150,
-        68
-      ]
+      "pos": [1120, 470],
+      "size": [150, 68]
     },
     {
       "id": "activity_ws",
       "type": "cloud",
       "label": "Activity Service",
       "sublabel": "WebSocket",
-      "pos": [
-        60,
-        632
-      ],
-      "size": [
-        150,
-        60
-      ]
+      "pos": [60, 632],
+      "size": [150, 60]
     },
     {
       "id": "accounts_api_svc",
       "type": "cloud",
       "label": "Accounts API",
       "sublabel": "v5 / v6 balances",
-      "pos": [
-        232,
-        632
-      ],
-      "size": [
-        150,
-        60
-      ]
+      "pos": [232, 632],
+      "size": [150, 60]
     },
     {
       "id": "snaps",
       "type": "external",
       "label": "Keyring Snaps",
       "sublabel": "Solana \u00b7 Bitcoin",
-      "pos": [
-        404,
-        632
-      ],
-      "size": [
-        150,
-        60
-      ]
+      "pos": [404, 632],
+      "size": [150, 60]
     },
     {
       "id": "evm_rpc",
       "type": "external",
       "label": "EVM JSON-RPC",
       "sublabel": "Multicall3 \u00b7 staking vault",
-      "pos": [
-        576,
-        632
-      ],
-      "size": [
-        336,
-        60
-      ]
+      "pos": [576, 632],
+      "size": [336, 60]
     },
     {
       "id": "token_price_api",
       "type": "cloud",
       "label": "Tokens + Price API",
       "sublabel": "metadata \u00b7 spot prices",
-      "pos": [
-        948,
-        632
-      ],
-      "size": [
-        322,
-        60
-      ]
+      "pos": [948, 632],
+      "size": [322, 60]
     }
   ],
   "boundaries": [
     {
       "kind": "region",
       "label": "controller core",
-      "wraps": [
-        "controller",
-        "state",
-        "pipeline"
-      ],
+      "wraps": ["controller", "state", "pipeline"],
       "pad": 20
     },
     {
       "kind": "security-group",
       "label": "balance sources \u00b7 first-pick chain assignment",
-      "wraps": [
-        "activity",
-        "accounts_api",
-        "snap_ds",
-        "rpc_ds"
-      ],
+      "wraps": ["activity", "accounts_api", "snap_ds", "rpc_ds"],
       "pad": 14
     },
     {
       "kind": "security-group",
       "label": "enrichment \u00b7 one parallel stage",
-      "wraps": [
-        "token_ds",
-        "price_ds"
-      ],
+      "wraps": ["token_ds", "price_ds"],
       "pad": 14
     }
   ],

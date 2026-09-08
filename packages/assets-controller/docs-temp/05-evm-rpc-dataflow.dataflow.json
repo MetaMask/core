@@ -4,53 +4,30 @@
   "meta": {
     "title": "EVM RPC Read Path \u2014 State to Decoded Balances",
     "quality_profile": "showcase",
-    "viewBox": [
-      1070,
-      505
-    ],
+    "viewBox": [1070, 505],
     "views": [
       {
         "id": "happy",
         "label": "One batched call per chain",
-        "focus": [
-          "tracked",
-          "requests",
-          "multicall",
-          "decode",
-          "state"
-        ],
+        "focus": ["tracked", "requests", "multicall", "decode", "state"],
         "note": "The whole tracked set for one account and chain collapses into a single aggregate3 call."
       },
       {
         "id": "degraded",
         "label": "When the batch cannot be used",
-        "focus": [
-          "requests",
-          "multicall",
-          "per_asset",
-          "failed"
-        ],
+        "focus": ["requests", "multicall", "per_asset", "failed"],
         "note": "Two different reasons drop to per-asset calls, and both are opt-in per caller."
       },
       {
         "id": "scope",
         "label": "What gets asked for",
-        "focus": [
-          "tracked",
-          "custom",
-          "requests"
-        ],
+        "focus": ["tracked", "custom", "requests"],
         "note": "RPC only reads assets already known to state, so it never discovers new tokens here."
       },
       {
         "id": "staked",
         "label": "Pooled staking side channel",
-        "focus": [
-          "stake_scope",
-          "staked_req",
-          "staking_c",
-          "stake_assets"
-        ],
+        "focus": ["stake_scope", "staked_req", "staking_c", "stake_assets"],
         "note": "Staked balances need two ordered calls and never share the balance batch."
       }
     ],

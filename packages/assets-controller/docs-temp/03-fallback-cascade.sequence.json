@@ -5,38 +5,24 @@
     "title": "Balance Fallback Cascade \u2014 One EVM Chain, Every Layer Degrading",
     "quality_profile": "showcase",
     "column_fit": "spread",
-    "viewBox": [
-      1080,
-      575
-    ],
+    "viewBox": [1080, 575],
     "views": [
       {
         "id": "primary",
         "label": "Primary source fails",
-        "focus": [
-          "balance_stage",
-          "accounts_api",
-          "api"
-        ],
+        "focus": ["balance_stage", "accounts_api", "api"],
         "note": "A timeout is recorded as a per-chain error instead of being thrown."
       },
       {
         "id": "handoff",
         "label": "Fallback picks the chain up",
-        "focus": [
-          "balance_stage",
-          "fallback",
-          "rpc_ds"
-        ],
+        "focus": ["balance_stage", "fallback", "rpc_ds"],
         "note": "Only chains that errored or hold a suspicious zero are handed to RPC."
       },
       {
         "id": "multicall",
         "label": "Inside the RPC attempt",
-        "focus": [
-          "rpc_ds",
-          "node"
-        ],
+        "focus": ["rpc_ds", "node"],
         "note": "One batched multicall with three attempts, then per-account calls."
       }
     ],

@@ -4,50 +4,30 @@
   "meta": {
     "title": "AssetsController \u2014 Tracking Lifecycle",
     "quality_profile": "showcase",
-    "viewBox": [
-      980,
-      630
-    ],
+    "viewBox": [980, 630],
     "views": [
       {
         "id": "steady",
         "label": "Reaching steady state",
-        "focus": [
-          "constructed",
-          "signals",
-          "gate",
-          "refresh",
-          "tracking"
-        ],
+        "focus": ["constructed", "signals", "gate", "refresh", "tracking"],
         "note": "Construction wires everything but touches no network; tracking only begins once the gate opens."
       },
       {
         "id": "closed-gate",
         "label": "Why nothing is happening",
-        "focus": [
-          "signals",
-          "gate",
-          "dormant"
-        ],
+        "focus": ["signals", "gate", "dormant"],
         "note": "One false condition is enough to tear every subscription down and go back to waiting."
       },
       {
         "id": "rescope",
         "label": "Re-scoping while live",
-        "focus": [
-          "tracking",
-          "rescope",
-          "refresh"
-        ],
+        "focus": ["tracking", "rescope", "refresh"],
         "note": "Account or network changes re-enter the fetch path instead of restarting the lifecycle."
       },
       {
         "id": "teardown",
         "label": "Teardown",
-        "focus": [
-          "dormant",
-          "destroyed"
-        ],
+        "focus": ["dormant", "destroyed"],
         "note": "Dormant keeps its messenger handlers; destroy is the only step that releases them."
       }
     ],
@@ -213,18 +193,9 @@
       "fromSide": "left",
       "toSide": "bottom",
       "via": [
-        [
-          320,
-          307
-        ],
-        [
-          320,
-          230
-        ],
-        [
-          248,
-          230
-        ]
+        [320, 307],
+        [320, 230],
+        [248, 230]
       ],
       "labelSegment": 2
     },
@@ -246,18 +217,9 @@
       "fromSide": "left",
       "toSide": "bottom",
       "via": [
-        [
-          630,
-          307
-        ],
-        [
-          630,
-          230
-        ],
-        [
-          556,
-          230
-        ]
+        [630, 307],
+        [630, 230],
+        [556, 230]
       ],
       "labelSegment": 2
     },

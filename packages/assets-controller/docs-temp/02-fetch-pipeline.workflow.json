@@ -23,22 +23,13 @@
       {
         "id": "leftovers",
         "label": "Chains the fast lane could not serve",
-        "focus": [
-          "leftover",
-          "slow_balance",
-          "detect_slow",
-          "enrich_slow"
-        ],
+        "focus": ["leftover", "slow_balance", "detect_slow", "enrich_slow"],
         "note": "Errored chains and chains outside Accounts API coverage are retried in the background."
       },
       {
         "id": "ordering",
         "label": "Why graduation precedes fallback",
-        "focus": [
-          "fast_balance",
-          "graduation",
-          "rpc_fallback"
-        ],
+        "focus": ["fast_balance", "graduation", "rpc_fallback"],
         "note": "Graduation must only ever see Accounts API and websocket balances, never RPC ones."
       }
     ],
@@ -129,12 +120,8 @@
     "result"
   ],
   "semanticChecks": {
-    "allowedRoots": [
-      "caller"
-    ],
-    "allowedTerminals": [
-      "result"
-    ]
+    "allowedRoots": ["caller"],
+    "allowedTerminals": ["result"]
   },
   "nodes": [
     {
