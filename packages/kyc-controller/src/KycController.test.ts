@@ -4384,6 +4384,36 @@ describe('KycController', () => {
       );
     });
 
+    it('refreshKycStatus skips the fetch when userStatus is already completed', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userStatus: 'completed',
+              userStatusSumsubSessionId: 'ss-1',
+            },
+            userStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers, rootMessenger }) => {
+          const listener = jest.fn();
+          rootMessenger.subscribe('KycController:statusChanged', listener);
+          handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
+
+          const result = await controller.refreshKycStatus();
+
+          expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+          expect(result).toStrictEqual({
+            status: 'completed',
+            sumsubSessionId: 'ss-1',
+            errorCode: null,
+          });
+          expect(controller.state.userStatus).toBe('completed');
+          expect(listener).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('polls user status while pending and stops on a terminal status', async () => {
       jest.useFakeTimers();
       try {
@@ -4667,6 +4697,7 @@ describe('KycController', () => {
               "Fetching 'https://x' failed with status '409': session_not_in_valid_state",
             ),
           );
+          handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
 
           const result = await controller.startSumSub();
 
@@ -4674,6 +4705,7 @@ describe('KycController', () => {
           expect(controller.state.userStatus).toBe('completed');
           expect(controller.state.phase).toBe('done');
           expect(controller.state.sumsub.status).toBe('complete');
+          expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
         },
       );
     });

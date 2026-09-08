@@ -2129,7 +2129,13 @@ export class KycController extends BaseController<
         return result;
       }
     } finally {
-      await this.#resumeUserStatusAfterSumSub(generation);
+      if (this.#generation === generation) {
+        try {
+          await this.refreshKycStatus();
+        } catch (error) {
+          controllerLog('KYC status refresh failed:', error);
+        }
+      }
     }
   }
 
@@ -2138,6 +2144,10 @@ export class KycController extends BaseController<
    * stores it on state, publishes {@link KycControllerStatusChangedEvent}, and
    * schedules short-interval polling while the status is `pending`.
    *
+   * Skipped when `userStatus` is already `completed`: a follow-up
+   * `GET /kyc/status` can still read a stale `pending` (for example after
+   * `session_not_in_valid_state`) and must not undo that decision.
+   *
    * @returns The latest status payload.
    */
   async refreshKycStatus(): Promise<{
@@ -2145,6 +2155,14 @@ export class KycController extends BaseController<
     sumsubSessionId: string | null;
     errorCode: string | null;
   }> {
+    if (this.state.userStatus === 'completed') {
+      return {
+        status: 'completed',
+        sumsubSessionId: this.state.userStatusSumsubSessionId,
+        errorCode: this.state.userStatusErrorCode,
+      };
+    }
+
     const generation = this.#generation;
     const payload = await this.#fetchAndApplyUserStatus();
     // A `reset()` landing while the request was in flight already stopped
@@ -2262,28 +2280,6 @@ export class KycController extends BaseController<
       tick();
     }, this.#userStatusPollIntervalMs);
     this.#userStatusPollTimer.unref?.();
-  }
-
-  /**
-   * Restores user-keyed `GET /kyc/status` polling after {@link startSumSub}
-   * settles. Skipped when a `reset()` superseded the sub-flow.
-   *
-   * @param generation - Flow generation captured when the sub-flow started.
-   */
-  async #resumeUserStatusAfterSumSub(generation: number): Promise<void> {
-    if (this.#generation !== generation) {
-      return;
-    }
-    // `session_not_in_valid_state` already wrote `completed`. A follow-up
-    // `GET /kyc/status` can still read a stale `pending` and must not undo it.
-    if (this.state.userStatus === 'completed') {
-      return;
-    }
-    try {
-      await this.refreshKycStatus();
-    } catch (error) {
-      controllerLog('KYC status refresh failed:', error);
-    }
   }
 
   /**
