@@ -1,4 +1,5 @@
 import { HyperliquidError } from '@nktkas/hyperliquid';
+import type { MetaResponse } from '@nktkas/hyperliquid';
 
 import { BUILDER_FEE_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
 import {
@@ -804,33 +805,66 @@ describe('HyperLiquidProvider - strategy order types', () => {
         },
       );
 
-      it('rejects a conflicting mode before signatures or submission', async () => {
-        // The default venue fixture already holds a Cross ETH position.
-        const { exchangeClient } = useStrategyClients();
-
-        const result = await provider.placeOrder({
-          ...baseOrder,
-          ...shape,
-          leverage: 5,
+      it.each([
+        {
+          reason: 'a conflicting mode',
+          restricted: false,
           marginMode: 'isolated',
-        });
+          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN,
+        },
+        {
+          reason: 'an unsupported market',
+          restricted: true,
+          marginMode: 'cross',
+          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+        },
+      ] as const)(
+        'rejects $reason before signatures or submission',
+        async ({ restricted, marginMode, error }) => {
+          // The default venue fixture already holds a Cross ETH position.
+          const { exchangeClient } = useStrategyClients(
+            restricted
+              ? {
+                  info: {
+                    meta: jest.fn().mockResolvedValue({
+                      universe: [
+                        {
+                          name: 'ETH',
+                          szDecimals: 3,
+                          maxLeverage: 50,
+                          marginTableId: 1,
+                          marginMode: 'noCross',
+                        } satisfies MetaResponse['universe'][number],
+                      ],
+                    }),
+                  },
+                }
+              : {},
+          );
 
-        expect(result.error).toBe(
-          PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN,
-        );
-        for (const method of [
-          'updateLeverage',
-          'approveBuilderFee',
-          'setReferrer',
-          'userSetAbstraction',
-          'agentSetAbstraction',
-          'sendAsset',
-          'order',
-          'twapOrder',
-        ]) {
-          expect(exchangeClient[method]).not.toHaveBeenCalled();
-        }
-      });
+          const result = await provider.placeOrder({
+            ...baseOrder,
+            ...shape,
+            leverage: 5,
+            marginMode,
+          });
+
+          expect(result.success).toBe(false);
+          expect(result.error).toBe(error);
+          for (const method of [
+            'updateLeverage',
+            'approveBuilderFee',
+            'setReferrer',
+            'userSetAbstraction',
+            'agentSetAbstraction',
+            'sendAsset',
+            'order',
+            'twapOrder',
+          ]) {
+            expect(exchangeClient[method]).not.toHaveBeenCalled();
+          }
+        },
+      );
     });
   });
 
