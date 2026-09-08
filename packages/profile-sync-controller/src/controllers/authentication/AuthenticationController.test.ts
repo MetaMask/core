@@ -77,16 +77,20 @@ type SrpLoginRequestBody = {
  *
  * @param options - Options.
  * @param options.expiresIn - The `expiresIn` token property.
- * @param options.needsProfilePairing - Whether pairing is still needed.
- * Defaults to `false` (post-pair steady state).
+ * @param options.needsProfilePairing - Whether SRP profile pairing is still
+ * needed. Defaults to `false` (post-pair steady state).
+ * @param options.needsSocialPairing - Whether social identifier pairing is
+ * still needed. Defaults to `false` (post-pair steady state).
  * @returns Mock AuthenticationController state reflecting a signed in user.
  */
 const mockSignedInState = ({
   expiresIn = Date.now() + 3600,
   needsProfilePairing = false,
+  needsSocialPairing = false,
 }: {
   expiresIn?: number;
   needsProfilePairing?: boolean;
+  needsSocialPairing?: boolean;
 } = {}): AuthenticationControllerState => {
   const srpSessionData = {} as Record<string, LoginResponse>;
 
@@ -109,8 +113,24 @@ const mockSignedInState = ({
   return {
     isSignedIn: true,
     needsProfilePairing,
+    needsSocialPairing,
     srpSessionData,
   };
+};
+
+const SOCIAL_PAIRING_ENABLED: { isSocialPairingEnabled: () => boolean } = {
+  isSocialPairingEnabled: () => true,
+};
+
+const MOCK_SOCIAL_JWT = 'MOCK_SOCIAL_JWT';
+const MOCK_SOCIAL_EMAIL = 'user@example.com';
+
+type PairSocialIdentifierRequestBody = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- API field
+  identifier_type?: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- API field
+  social_jwt?: string;
+  email?: string;
 };
 
 describe('AuthenticationController', () => {
@@ -124,6 +144,8 @@ describe('AuthenticationController', () => {
 
       expect(controller.state.isSignedIn).toBe(false);
       expect(controller.state.srpSessionData).toBeUndefined();
+      expect(controller.state.needsProfilePairing).toBe(true);
+      expect(controller.state.needsSocialPairing).toBe(true);
     });
 
     it('should initialize with override state', () => {
@@ -861,6 +883,668 @@ describe('AuthenticationController', () => {
     });
   });
 
+  describe('social pairing', () => {
+    it('does not call pair/identifier when isSocialPairingEnabled is false, and leaves needsSocialPairing true', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const mockEndpoints = arrangeAuthAPIs();
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: 'encrypted',
+        authConnection: 'google',
+        socialLoginEmail: MOCK_SOCIAL_EMAIL,
+      });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+      });
+
+      await controller.performSignIn();
+
+      expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(false);
+      expect(controller.state.needsSocialPairing).toBe(true);
+    });
+
+    it('does not call pair/identifier when needsSocialPairing is already false', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const mockEndpoints = arrangeAuthAPIs();
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: 'encrypted',
+        authConnection: 'google',
+        socialLoginEmail: MOCK_SOCIAL_EMAIL,
+      });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: SOCIAL_PAIRING_ENABLED,
+        state: mockSignedInState({ needsSocialPairing: false }),
+      });
+
+      await controller.performSignIn();
+
+      expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(false);
+      expect(controller.state.needsSocialPairing).toBe(false);
+    });
+
+    it('pairs a Google vault with the correct body, then clears needsSocialPairing', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const pairBodies: PairSocialIdentifierRequestBody[] = [];
+      const mockEndpoints = arrangeAuthAPIs({
+        onPairSocialIdentifierBody: (body) => {
+          pairBodies.push(
+            (typeof body === 'string'
+              ? JSON.parse(body)
+              : body) as PairSocialIdentifierRequestBody,
+          );
+        },
+      });
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: 'encrypted',
+        authConnection: 'google',
+        socialLoginEmail: MOCK_SOCIAL_EMAIL,
+      });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: SOCIAL_PAIRING_ENABLED,
+      });
+
+      const accessTokens = await controller.performSignIn();
+
+      expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(true);
+      expect(pairBodies).toHaveLength(1);
+      expect(pairBodies[0]).toStrictEqual({
+        identifier_type: 'GOOGLE',
+        social_jwt: MOCK_SOCIAL_JWT,
+        email: MOCK_SOCIAL_EMAIL,
+      });
+      expect(controller.state.needsSocialPairing).toBe(false);
+      expect(accessTokens[0]).toBe(MOCK_OATH_TOKEN_RESPONSE.access_token);
+    });
+
+    it('treats undefined needsSocialPairing as still needed', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const mockEndpoints = arrangeAuthAPIs();
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: 'encrypted',
+        authConnection: 'google',
+        socialLoginEmail: MOCK_SOCIAL_EMAIL,
+      });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: SOCIAL_PAIRING_ENABLED,
+        state: { ...mockSignedInState(), needsSocialPairing: undefined },
+      });
+
+      expect(controller.state.needsSocialPairing).toBeUndefined();
+      await controller.performSignIn();
+      expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(true);
+      expect(controller.state.needsSocialPairing).toBe(false);
+    });
+
+    it('omits email from the body for Apple when socialLoginEmail is missing', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const pairBodies: PairSocialIdentifierRequestBody[] = [];
+      arrangeAuthAPIs({
+        onPairSocialIdentifierBody: (body) => {
+          pairBodies.push(
+            (typeof body === 'string'
+              ? JSON.parse(body)
+              : body) as PairSocialIdentifierRequestBody,
+          );
+        },
+      });
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: 'encrypted',
+        authConnection: 'apple',
+      });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: SOCIAL_PAIRING_ENABLED,
+      });
+
+      await controller.performSignIn();
+
+      expect(pairBodies).toHaveLength(1);
+      expect(pairBodies[0]).toStrictEqual({
+        identifier_type: 'APPLE',
+        social_jwt: MOCK_SOCIAL_JWT,
+      });
+      expect(pairBodies[0]).not.toHaveProperty('email');
+      expect(controller.state.needsSocialPairing).toBe(false);
+    });
+
+    it('includes email in the body for Apple when socialLoginEmail is present', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const pairBodies: PairSocialIdentifierRequestBody[] = [];
+      arrangeAuthAPIs({
+        onPairSocialIdentifierBody: (body) => {
+          pairBodies.push(
+            (typeof body === 'string'
+              ? JSON.parse(body)
+              : body) as PairSocialIdentifierRequestBody,
+          );
+        },
+      });
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: 'encrypted',
+        authConnection: 'apple',
+        socialLoginEmail: MOCK_SOCIAL_EMAIL,
+      });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: SOCIAL_PAIRING_ENABLED,
+      });
+
+      await controller.performSignIn();
+
+      expect(pairBodies[0]).toStrictEqual({
+        identifier_type: 'APPLE',
+        social_jwt: MOCK_SOCIAL_JWT,
+        email: MOCK_SOCIAL_EMAIL,
+      });
+      expect(controller.state.needsSocialPairing).toBe(false);
+    });
+
+    it('skips Google pairing when email is missing and leaves needsSocialPairing true', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const mockEndpoints = arrangeAuthAPIs();
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: 'encrypted',
+        authConnection: 'google',
+      });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: SOCIAL_PAIRING_ENABLED,
+      });
+
+      await controller.performSignIn();
+
+      expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(false);
+      expect(mockSeedlessOnboardingGetAccessToken).not.toHaveBeenCalled();
+      expect(controller.state.needsSocialPairing).toBe(true);
+    });
+
+    it('clears needsSocialPairing without calling pair/identifier when the user never logged in with a social provider', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const mockEndpoints = arrangeAuthAPIs();
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: SOCIAL_PAIRING_ENABLED,
+      });
+
+      await controller.performSignIn();
+
+      expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(false);
+      expect(mockSeedlessOnboardingGetAccessToken).not.toHaveBeenCalled();
+      expect(controller.state.needsSocialPairing).toBe(false);
+    });
+
+    it('does not clear needsSocialPairing when authConnection is set but the vault is not written yet', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const mockEndpoints = arrangeAuthAPIs();
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: undefined,
+        authConnection: 'google',
+        socialLoginEmail: MOCK_SOCIAL_EMAIL,
+      });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: SOCIAL_PAIRING_ENABLED,
+      });
+
+      await controller.performSignIn();
+
+      expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(false);
+      expect(mockSeedlessOnboardingGetAccessToken).not.toHaveBeenCalled();
+      expect(controller.state.needsSocialPairing).toBe(true);
+    });
+
+    it('pairs Telegram without email even when socialLoginEmail is a display name', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const pairBodies: PairSocialIdentifierRequestBody[] = [];
+      const mockEndpoints = arrangeAuthAPIs({
+        onPairSocialIdentifierBody: (body) => {
+          pairBodies.push(
+            (typeof body === 'string'
+              ? JSON.parse(body)
+              : body) as PairSocialIdentifierRequestBody,
+          );
+        },
+      });
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: 'encrypted',
+        authConnection: 'telegram',
+        socialLoginEmail: 'Telegram 12345',
+      });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: SOCIAL_PAIRING_ENABLED,
+      });
+
+      await controller.performSignIn();
+
+      expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(true);
+      expect(pairBodies).toHaveLength(1);
+      expect(pairBodies[0]).toStrictEqual({
+        identifier_type: 'TELEGRAM',
+        social_jwt: MOCK_SOCIAL_JWT,
+      });
+      expect(pairBodies[0]).not.toHaveProperty('email');
+      expect(controller.state.needsSocialPairing).toBe(false);
+    });
+
+    it.each([500, 429])(
+      'does not throw out of performSignIn when pair/identifier returns %s, and leaves needsSocialPairing true',
+      async (status) => {
+        const metametrics = createMockAuthMetaMetrics();
+        arrangeAuthAPIs({
+          mockPairSocialIdentifier: { status },
+        });
+        const {
+          messenger,
+          mockKeyringControllerGetState,
+          mockSeedlessOnboardingGetState,
+          mockSeedlessOnboardingGetAccessToken,
+        } = createMockAuthenticationMessenger();
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: true,
+          keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+        });
+        mockSeedlessOnboardingGetState.mockReturnValue({
+          vault: 'encrypted',
+          authConnection: 'google',
+          socialLoginEmail: MOCK_SOCIAL_EMAIL,
+        });
+        mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
+
+        const controller = new AuthenticationController({
+          messenger,
+          metametrics,
+          config: SOCIAL_PAIRING_ENABLED,
+        });
+
+        expect(await controller.performSignIn()).toBeDefined();
+        expect(controller.state.needsSocialPairing).toBe(true);
+        expect(controller.state.isSignedIn).toBe(true);
+      },
+    );
+
+    it('pairs on a later performSignIn after isSocialPairingEnabled flips from false to true', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const mockEndpoints = arrangeAuthAPIs();
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: 'encrypted',
+        authConnection: 'google',
+        socialLoginEmail: MOCK_SOCIAL_EMAIL,
+      });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
+
+      let isEnabled = false;
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: { isSocialPairingEnabled: (): boolean => isEnabled },
+      });
+
+      await controller.performSignIn();
+      expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(false);
+      expect(controller.state.needsSocialPairing).toBe(true);
+
+      isEnabled = true;
+      await controller.performSignIn();
+      expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(true);
+      expect(controller.state.needsSocialPairing).toBe(false);
+    });
+
+    it('clears needsSocialPairing on 409 Conflict', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      arrangeAuthAPIs({
+        mockPairSocialIdentifier: {
+          status: 409,
+          body: {
+            message: 'Identifier already belongs to another profile',
+            error: 'conflict',
+          },
+        },
+      });
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: 'encrypted',
+        authConnection: 'apple',
+      });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: SOCIAL_PAIRING_ENABLED,
+      });
+
+      expect(await controller.performSignIn()).toBeDefined();
+      expect(controller.state.needsSocialPairing).toBe(false);
+    });
+
+    it('swallows getAccessToken throwing and leaves needsSocialPairing true', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const mockEndpoints = arrangeAuthAPIs();
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: 'encrypted',
+        authConnection: 'google',
+        socialLoginEmail: MOCK_SOCIAL_EMAIL,
+      });
+      mockSeedlessOnboardingGetAccessToken.mockRejectedValue(
+        new Error('token refresh failed'),
+      );
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: SOCIAL_PAIRING_ENABLED,
+      });
+
+      expect(await controller.performSignIn()).toBeDefined();
+      expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(false);
+      expect(controller.state.needsSocialPairing).toBe(true);
+    });
+
+    it('skips pairing when getAccessToken returns an empty string and leaves needsSocialPairing true', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const mockEndpoints = arrangeAuthAPIs();
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: 'encrypted',
+        authConnection: 'apple',
+      });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue('');
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: SOCIAL_PAIRING_ENABLED,
+      });
+
+      await controller.performSignIn();
+
+      expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(false);
+      expect(controller.state.needsSocialPairing).toBe(true);
+    });
+
+    it('skips pairing when there is no primary access token and leaves needsSocialPairing true', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const mockEndpoints = arrangeAuthAPIs();
+      const { messenger, mockKeyringControllerGetState } =
+        createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [],
+      });
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: SOCIAL_PAIRING_ENABLED,
+      });
+
+      const accessTokens = await controller.performSignIn();
+
+      expect(accessTokens).toStrictEqual([]);
+      expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(false);
+      expect(controller.state.needsSocialPairing).toBe(true);
+    });
+
+    it('skips pairing when getAccessToken returns undefined and leaves needsSocialPairing true', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const mockEndpoints = arrangeAuthAPIs();
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: 'encrypted',
+        authConnection: 'apple',
+      });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(undefined);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: SOCIAL_PAIRING_ENABLED,
+      });
+
+      await controller.performSignIn();
+
+      expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(false);
+      expect(controller.state.needsSocialPairing).toBe(true);
+    });
+
+    it('leaves needsSocialPairing true when SeedlessOnboarding getState throws', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const mockEndpoints = arrangeAuthAPIs();
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockImplementation(() => {
+        throw new Error('SeedlessOnboardingController unavailable');
+      });
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: SOCIAL_PAIRING_ENABLED,
+      });
+
+      await controller.performSignIn();
+
+      expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(false);
+      expect(controller.state.needsSocialPairing).toBe(true);
+    });
+
+    it('still pairs the social identifier after a failed SRP profile pair', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const mockEndpoints = arrangeAuthAPIs({
+        mockPairProfiles: { status: 500 },
+      });
+      const {
+        messenger,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: 'encrypted',
+        authConnection: 'google',
+        socialLoginEmail: MOCK_SOCIAL_EMAIL,
+      });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: SOCIAL_PAIRING_ENABLED,
+      });
+
+      await controller.performSignIn();
+
+      expect(mockEndpoints.mockPairProfilesUrl.isDone()).toBe(true);
+      expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(true);
+      expect(controller.state.needsProfilePairing).toBe(true);
+      expect(controller.state.needsSocialPairing).toBe(false);
+    });
+  });
+
   describe('requestProfilePairing', () => {
     it('flips needsProfilePairing from false to true', () => {
       const metametrics = createMockAuthMetaMetrics();
@@ -1445,6 +2129,7 @@ describe('metadata', () => {
       {
         "isSignedIn": true,
         "needsProfilePairing": false,
+        "needsSocialPairing": false,
       }
     `);
   });
@@ -1468,6 +2153,7 @@ describe('metadata', () => {
         {
           "isSignedIn": true,
           "needsProfilePairing": false,
+          "needsSocialPairing": false,
           "srpSessionData": {
             "MOCK_ENTROPY_SOURCE_ID": {
               "profile": {
@@ -1514,6 +2200,7 @@ describe('metadata', () => {
         {
           "isSignedIn": false,
           "needsProfilePairing": true,
+          "needsSocialPairing": true,
         }
       `);
     });
@@ -1533,6 +2220,7 @@ describe('metadata', () => {
       {
         "isSignedIn": true,
         "needsProfilePairing": false,
+        "needsSocialPairing": false,
         "srpSessionData": {
           "MOCK_ENTROPY_SOURCE_ID": {
             "profile": {
@@ -1583,6 +2271,7 @@ describe('metadata', () => {
       {
         "isSignedIn": true,
         "needsProfilePairing": false,
+        "needsSocialPairing": false,
         "srpSessionData": {
           "MOCK_ENTROPY_SOURCE_ID": {
             "profile": {
@@ -1664,6 +2353,7 @@ function createAuthenticationMessenger(): {
       'KeyringController:getState',
       'KeyringController:withKeyringV2Unsafe',
       'SeedlessOnboardingController:getState',
+      'SeedlessOnboardingController:getAccessToken',
     ],
     events: ['KeyringController:lock', 'KeyringController:unlock'],
   });
@@ -1684,6 +2374,7 @@ function createMockAuthenticationMessenger(): {
   mockKeyringControllerGetState: jest.Mock;
   mockWithKeyringV2Unsafe: jest.Mock;
   mockSeedlessOnboardingGetState: jest.Mock;
+  mockSeedlessOnboardingGetAccessToken: jest.Mock;
 } {
   const { baseMessenger, messenger } = createAuthenticationMessenger();
 
@@ -1719,6 +2410,10 @@ function createMockAuthenticationMessenger(): {
     .fn()
     .mockReturnValue({ vault: null });
 
+  const mockSeedlessOnboardingGetAccessToken = jest
+    .fn()
+    .mockResolvedValue(undefined);
+
   mockCall.mockImplementation((...args: unknown[]) => {
     const [actionType] = args;
     if (actionType === 'KeyringController:withKeyringV2Unsafe') {
@@ -1741,6 +2436,10 @@ function createMockAuthenticationMessenger(): {
       return mockSeedlessOnboardingGetState();
     }
 
+    if (actionType === 'SeedlessOnboardingController:getAccessToken') {
+      return mockSeedlessOnboardingGetAccessToken();
+    }
+
     throw new Error(
       `MOCK_FAIL - unsupported messenger call: ${actionType as string}`,
     );
@@ -1754,6 +2453,7 @@ function createMockAuthenticationMessenger(): {
     mockKeyringControllerGetState,
     mockWithKeyringV2Unsafe,
     mockSeedlessOnboardingGetState,
+    mockSeedlessOnboardingGetAccessToken,
   };
 }
 
