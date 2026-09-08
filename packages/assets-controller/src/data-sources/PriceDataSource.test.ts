@@ -1432,9 +1432,7 @@ describe('PriceDataSource', () => {
           supportedNetworks: [SUPPORTED_SOLANA_CHAIN],
         });
 
-        await setup.act().catch(() => {
-          // Do nothing
-        });
+        await setup.act();
         expectAPI(setup);
         setup.controller.destroy();
       },
