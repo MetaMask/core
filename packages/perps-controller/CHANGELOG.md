@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/1242.0.0 ([#10139](https://github.com/MetaMask/core/pull/10139))
-- Release 1239.0.0 ([#10129](https://github.com/MetaMask/core/pull/10129))
-- Release/1238.0.0 ([#10124](https://github.com/MetaMask/core/pull/10124))
-- Preserve api-docs/ (not docs/) for Typedoc-generated directories ([#10114](https://github.com/MetaMask/core/pull/10114))
-
 ### Fixed
 
 - Keep the terminal HyperLiquid TWAP record when a completing fill ties `lastUpdated` with the activation, so a finished schedule is no longer reported as live. ([#10122](https://github.com/MetaMask/core/pull/10122))

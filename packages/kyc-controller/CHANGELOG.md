@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0]
+
 ### Added
 
 - Add `idosRelayBaseUrl` on `KycService` and `KycService.fetchIdosRelayJwks()` to fetch the idOS relay well-known JWKS used to verify the `ukycCapabilityToken` encryption schema. `encryptionDataKey` continues to verify against idOS enclave JWKS via `fetchIdosEnclaveJwks` / `idosEnclaveBaseUrl`. ([#10008](https://github.com/MetaMask/core/pull/10008))
@@ -70,4 +72,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Check for null bearer token before calling `assert()` in `#requestJson`, ensuring the custom "wallet signed in" error message is shown instead of a generic superstruct error. ([#9908](https://github.com/MetaMask/core/pull/9908))
 - Require reacceptance of consents-path terms when `sumsubTncAccepted` or `idosTncAccepted` are `null` (pre-migration state), preventing invalid T&C2 flag submission on session resume. ([#9908](https://github.com/MetaMask/core/pull/9908))
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.1.0...HEAD
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/kyc-controller@0.1.0
