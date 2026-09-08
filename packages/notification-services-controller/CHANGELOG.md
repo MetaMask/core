@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Leave existing push registration in place when the keyring has no accounts yet ([#10143](https://github.com/MetaMask/core/pull/10143))
+  - `createOnChainTriggers` and `enablePushNotifications` no longer treat an empty keyring as "every account disabled", which previously unregistered the device. An empty keyring is skipped so a later run can still seed first-time preferences and keep push links.
+
 ## [27.0.2]
 
 ### Changed

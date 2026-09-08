@@ -912,8 +912,14 @@ export class NotificationServicesController extends BaseController<
    */
   public async enablePushNotifications(): Promise<void> {
     try {
-      const { bearerToken } = await this.#getBearerToken();
       const { accounts } = this.#accounts.listAccounts();
+      if (!this.#keyringController.isUnlocked || accounts.length === 0) {
+        // no keyring accounts could be caused by calling this function while keyring is locked
+        // it does not mean the user does not have any enabled accounts on Trigger API
+        return;
+      }
+
+      const { bearerToken } = await this.#getBearerToken();
       const enabledAddresses = await getEnabledAccounts(
         bearerToken,
         accounts,
@@ -1025,9 +1031,14 @@ export class NotificationServicesController extends BaseController<
     try {
       this.#setIsUpdatingMetamaskNotifications(true);
 
-      const { bearerToken } = await this.#getBearerToken();
-
       const { accounts } = this.#accounts.listAccounts();
+      if (!this.#keyringController.isUnlocked || accounts.length === 0) {
+        // no keyring accounts could be caused by calling this function while keyring is locked
+        // it does not mean the user does not have any enabled accounts on Trigger API
+        return;
+      }
+
+      const { bearerToken } = await this.#getBearerToken();
 
       // 1. Read existing AUS notification preferences. Their absence is what
       // marks a first-time setup, and they are initialized in step 3.
