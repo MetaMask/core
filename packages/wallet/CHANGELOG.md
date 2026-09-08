@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/claims-controller` from `^0.6.1` to `^0.6.2` ([#10139](https://github.com/MetaMask/core/pull/10139))
+- Bump `@metamask/shield-controller` from `^6.0.1` to `^6.0.2` ([#10139](https://github.com/MetaMask/core/pull/10139))
+- Bump `@metamask/subscription-controller` from `^8.0.1` to `^8.1.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
+
 ## [12.0.3]
 
 ### Changed
