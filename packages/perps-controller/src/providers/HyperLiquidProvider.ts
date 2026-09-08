@@ -5098,10 +5098,46 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
       return;
     }
-    const orders = await this.#fetchOpenOrders({ dexName });
-    if (orders.some((order) => order.coin === params.symbol)) {
-      const user = await this.#walletService.getUserAddressWithDefault();
-      const asset = await this.#clientService.getInfoClient().activeAssetData({
+    const user = await this.#walletService.getUserAddressWithDefault();
+    const infoClient = this.#clientService.getInfoClient();
+    const [orders, twapHistory] = await Promise.all([
+      this.#fetchOpenOrders({ dexName }),
+      infoClient.twapHistory({ user }),
+    ]);
+    // Native TWAP schedules are absent from frontendOpenOrders before a slice
+    // rests or fills. Read history directly: getTwapOrders can rebalance HIP-3
+    // collateral, which must not run as part of pre-sign validation.
+    const latestTwaps = new Map<
+      HyperLiquidTwapHistoryEntry['twapId'],
+      HyperLiquidTwapHistoryEntry
+    >();
+    for (const entry of twapHistory) {
+      if (entry.state.coin !== params.symbol) {
+        continue;
+      }
+      const previous = latestTwaps.get(entry.twapId);
+      if (
+        !previous ||
+        normalizeTwapHistoryTimestamp(entry.time) >=
+          normalizeTwapHistoryTimestamp(previous.time)
+      ) {
+        latestTwaps.set(entry.twapId, entry);
+      }
+    }
+    const hasActiveTwap = [...latestTwaps.values()].some((entry) => {
+      switch (entry.status.status) {
+        case HyperLiquidTwapLifecycleStatus.Finished:
+        case HyperLiquidTwapLifecycleStatus.Stopped:
+        case HyperLiquidTwapLifecycleStatus.Terminated:
+        case HyperLiquidTwapLifecycleStatus.Failed:
+          return false;
+        default:
+          // Waiting and future venue states are not proof of termination.
+          return true;
+      }
+    });
+    if (orders.some((order) => order.coin === params.symbol) || hasActiveTwap) {
+      const asset = await infoClient.activeAssetData({
         user,
         coin: params.symbol,
       });

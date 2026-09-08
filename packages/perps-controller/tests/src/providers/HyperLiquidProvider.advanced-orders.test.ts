@@ -120,6 +120,7 @@ const mockValidateBalance = validateBalance as jest.MockedFunction<
 // Mock factory functions - defined once, reused everywhere
 // These reduce duplication and make tests more maintainable
 const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
+  twapHistory: jest.fn().mockResolvedValue([]),
   clearinghouseState: jest.fn().mockResolvedValue({
     marginSummary: {
       totalMarginUsed: '500',

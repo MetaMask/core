@@ -55,7 +55,8 @@ Pass `marginMode: 'cross'` or `marginMode: 'isolated'` with an integer `leverage
 to `placeOrder`. Omitted mode retains the existing isolated-leverage behavior.
 Explicit mode requests are validated before signing: Cross is unavailable on
 isolated-only markets and HIP-3 markets, and an order cannot change the mode of
-an asset with an open position or resting order. Orders in the same mode may
+an asset with an open position, resting order, or active native TWAP schedule,
+including schedules whose first slice has not filled. Orders in the same mode may
 increase or reduce the existing position.
 
 ## Contributing
