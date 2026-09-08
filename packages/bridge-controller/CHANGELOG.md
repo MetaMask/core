@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [80.2.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.8.0` to `^69.8.1` ([#10124](https://github.com/MetaMask/core/pull/10124))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.1.0` to `^6.1.1` ([#10129](https://github.com/MetaMask/core/pull/10129))
+- Bump `@metamask/assets-controller` from `^15.0.0` to `^15.0.1` ([#10139](https://github.com/MetaMask/core/pull/10139))
+- Bump `@metamask/assets-controllers` from `^111.1.3` to `^111.1.4` ([#10139](https://github.com/MetaMask/core/pull/10139))
+- Bump `@metamask/profile-sync-controller` from `^29.0.0` to `^30.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
+
+## [80.2.0]
+
 ### Added
 
 - Add SwapBridge failure telemetry schema and quote-fetch classifier for a later emit ([#9947](https://github.com/MetaMask/core/pull/9947))
@@ -1987,7 +1999,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.2.1...HEAD
+[80.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.2.0...@metamask/bridge-controller@80.2.1
+[80.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.1.1...@metamask/bridge-controller@80.2.0
 [80.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.1.0...@metamask/bridge-controller@80.1.1
 [80.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.0.0...@metamask/bridge-controller@80.1.0
 [80.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@79.3.1...@metamask/bridge-controller@80.0.0

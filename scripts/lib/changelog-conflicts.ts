@@ -196,97 +196,162 @@ function getChangeKey(change: Change): string {
 }
 
 /**
- * Merge new entries from `incoming` into `base`, mutating `base` in place.
- * Breaking changes are inserted below any existing leading breaking changes;
- * other changes are appended to the end. Relative order within `incoming` is
- * preserved.
+ * Merge entries from `theirChanges` into `ourChanges`, mutating `ourChanges`
+ * in place. An entry only counts as new if it's absent from *both*
+ * `ourChanges` and `baseChanges` (the common ancestor) — an entry `theirs`
+ * merely inherited unchanged from the common ancestor is not "their" change,
+ * so it's never re-added even if `ours` has since evolved past it (e.g. a
+ * dependency bump entry that's since been bumped further on `ours`). New
+ * breaking changes are inserted below any existing leading breaking changes;
+ * other changes are appended to the end. Relative order within
+ * `theirChanges` is preserved.
  *
- * @param baseChanges - The category's changes to merge into.
- * @param incomingChanges - The category's changes to merge from.
- * @returns The number of new entries added to `base`.
+ * @param ourChanges - The category's changes to merge into.
+ * @param theirChanges - The category's changes to merge from.
+ * @param baseChanges - The category's changes at the common ancestor, used
+ * to tell which of `theirChanges` are actually new.
+ * @returns The number of new entries added to `ourChanges`.
  */
 function mergeCategoryEntries(
+  ourChanges: Change[],
+  theirChanges: Change[],
   baseChanges: Change[],
-  incomingChanges: Change[],
 ): number {
-  const initialLength = baseChanges.length;
-  const existingKeys = new Set(baseChanges.map(getChangeKey));
+  const initialLength = ourChanges.length;
+  const ourKeys = new Set(ourChanges.map(getChangeKey));
+  const baseKeys = new Set(baseChanges.map(getChangeKey));
 
-  for (const change of incomingChanges) {
+  for (const change of theirChanges) {
     const key = getChangeKey(change);
-    if (existingKeys.has(key)) {
+    if (ourKeys.has(key) || baseKeys.has(key)) {
       continue;
     }
 
-    existingKeys.add(key);
+    ourKeys.add(key);
 
     if (isBreakingChange(change)) {
-      const firstNonBreakingIndex = baseChanges.findIndex(
+      const firstNonBreakingIndex = ourChanges.findIndex(
         (entry) => !isBreakingChange(entry),
       );
 
       const insertIndex =
         firstNonBreakingIndex === -1
-          ? baseChanges.length
+          ? ourChanges.length
           : firstNonBreakingIndex;
 
-      baseChanges.splice(insertIndex, 0, change);
+      ourChanges.splice(insertIndex, 0, change);
     } else {
-      baseChanges.push(change);
+      ourChanges.push(change);
     }
   }
 
-  return baseChanges.length - initialLength;
+  return ourChanges.length - initialLength;
 }
 
 /**
- * Merge new entries from `incoming` into `base` across every category
- * present on either side, mutating `base` in place.
+ * Merge entries from `theirReleaseChanges` into `ourReleaseChanges` across
+ * every category `theirs` has entries in, mutating `ourReleaseChanges` in
+ * place.
  *
- * @param baseReleaseChanges - The release's changes (by category) to merge
+ * @param ourReleaseChanges - The release's changes (by category) to merge
  * into.
- * @param incomingReleaseChanges - The release's changes (by category) to merge
+ * @param theirReleaseChanges - The release's changes (by category) to merge
  * from.
- * @returns The number of new entries added to `base`.
+ * @param baseReleaseChanges - The release's changes (by category) at the
+ * common ancestor, used to tell which of `theirReleaseChanges` are actually
+ * new.
+ * @returns The number of new entries added to `ourReleaseChanges`.
  */
 function mergeReleaseChanges(
+  ourReleaseChanges: ReleaseChanges,
+  theirReleaseChanges: ReleaseChanges,
   baseReleaseChanges: ReleaseChanges,
-  incomingReleaseChanges: ReleaseChanges,
 ): number {
   let addedEntriesCount = 0;
   const categories = new Set([
-    ...Object.keys(baseReleaseChanges),
-    ...Object.keys(incomingReleaseChanges),
+    ...Object.keys(ourReleaseChanges),
+    ...Object.keys(theirReleaseChanges),
   ]) as Set<Category>;
 
   for (const category of categories) {
-    const incomingEntries = incomingReleaseChanges[category] ?? [];
-    if (incomingEntries.length === 0) {
+    const theirEntries = theirReleaseChanges[category] ?? [];
+    if (theirEntries.length === 0) {
       continue;
     }
 
-    baseReleaseChanges[category] ??= [];
+    const categoryAlreadyExisted = category in ourReleaseChanges;
+    ourReleaseChanges[category] ??= [];
 
+    const ourCategoryChanges = ourReleaseChanges[category] as Change[];
     addedEntriesCount += mergeCategoryEntries(
-      baseReleaseChanges[category] as Change[],
-      incomingEntries,
+      ourCategoryChanges,
+      theirEntries,
+      baseReleaseChanges[category] ?? [],
     );
+
+    // Avoid leaving behind an empty category header (e.g. `### Changed`)
+    // when every one of `theirEntries` turned out to already be present.
+    if (!categoryAlreadyExisted && ourCategoryChanges.length === 0) {
+      delete ourReleaseChanges[category];
+    }
   }
 
   return addedEntriesCount;
 }
 
 /**
- * Merge two conflicting versions of a changelog by taking the union of their
- * entries: every entry unique to either side is kept, deduplicated by PR
- * number and description together, with new `**BREAKING:**` entries placed
- * below existing breaking entries and other new entries appended.
+ * Parse the changelog content at the common ancestor ("merge base"), so that
+ * only entries `theirs` actually added since diverging count as new. Parse
+ * failures and a missing/absent `baseContent` (e.g. the file didn't exist at
+ * the common ancestor) are tolerated by returning `undefined`, which callers
+ * treat as "no known common ancestor" — falling back to a plain two-way
+ * union of `ours` and `theirs`.
+ *
+ * @param baseContent - The changelog content at the common ancestor, if any.
+ * @param repoUrl - The GitHub repository URL for the package.
+ * @param tagPrefix - The changelog tag prefix for the package.
+ * @returns The parsed changelog, or `undefined` if unavailable/unparseable.
+ */
+function parseBaseChangelog(
+  baseContent: string | undefined,
+  repoUrl: string,
+  tagPrefix: string,
+): ReturnType<typeof parseChangelog> | undefined {
+  if (baseContent === undefined) {
+    return undefined;
+  }
+
+  try {
+    return parseChangelog({
+      changelogContent: baseContent,
+      repoUrl,
+      tagPrefix,
+      shouldExtractPrLinks: true,
+    });
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Merge two conflicting versions of a changelog via a proper three-way
+ * merge: only entries `theirs` actually added since the common ancestor
+ * (`baseContent`) are merged into `ours`, deduplicated against `ours` by PR
+ * number and description together. This means an entry `theirs` merely
+ * inherited unchanged from the common ancestor is never re-added, even if
+ * `ours` has since evolved past it (e.g. a dependency bump entry that's
+ * since been bumped further on `ours`) — avoiding the duplicate entries a
+ * plain two-way union would produce. New `**BREAKING:**` entries are placed
+ * below existing breaking entries; other new entries are appended.
  *
  * @param options - Options.
  * @param options.ourContent - The changelog content on the "ours" conflict
  * side.
  * @param options.theirContent - The changelog content on the "theirs"
  * conflict side.
+ * @param options.baseContent - The changelog content at the common
+ * ancestor ("merge base"), if available. Without it, this falls back to a
+ * plain two-way union of `ours` and `theirs`.
  * @param options.repoUrl - The GitHub repository URL for the package.
  * @param options.tagPrefix - The changelog tag prefix for the package.
  * @param options.packageRename - The package's rename properties, if it was
@@ -299,12 +364,14 @@ function mergeReleaseChanges(
 export async function mergeChangelogs({
   ourContent,
   theirContent,
+  baseContent,
   repoUrl,
   tagPrefix,
   packageRename,
 }: {
   ourContent: string;
   theirContent: string;
+  baseContent?: string;
   repoUrl: string;
   tagPrefix: string;
   packageRename?: PackageRename;
@@ -331,9 +398,12 @@ export async function mergeChangelogs({
     shouldExtractPrLinks: true,
   });
 
+  const baseChangelog = parseBaseChangelog(baseContent, repoUrl, tagPrefix);
+
   let mergedEntryCount = mergeReleaseChanges(
     ourChangelog.getUnreleasedChanges(),
     theirChangelog.getUnreleasedChanges(),
+    baseChangelog?.getUnreleasedChanges() ?? {},
   );
 
   const oursVersions = new Set(
@@ -363,10 +433,14 @@ export async function mergeChangelogs({
     const theirReleaseChanges = theirChangelog.getReleaseChanges(
       theirRelease.version,
     );
+    const baseReleaseChanges = baseChangelog?.getReleaseChanges(
+      theirRelease.version,
+    );
 
     mergedEntryCount += mergeReleaseChanges(
       ourReleaseChanges,
       theirReleaseChanges ?? {},
+      baseReleaseChanges ?? {},
     );
   }
 
@@ -396,16 +470,22 @@ export async function resolveChangelogConflicts(): Promise<ConflictResolutionRes
       const [
         oursContent,
         theirsContent,
+        baseContent,
         { repoUrl, tagPrefix, packageRename },
       ] = await Promise.all([
         readGitBlob(':2', changelogPath),
         readGitBlob(':3', changelogPath),
+        // Stage 1 (the common ancestor) doesn't exist if, e.g., both sides
+        // added the file independently — tolerate that and fall back to a
+        // two-way union in `mergeChangelogs`.
+        readGitBlob(':1', changelogPath).catch(() => undefined),
         resolvePackageMetadata(changelogPath),
       ]);
 
       const { content, mergedEntryCount } = await mergeChangelogs({
         ourContent: oursContent,
         theirContent: theirsContent,
+        baseContent,
         repoUrl,
         tagPrefix,
         packageRename,

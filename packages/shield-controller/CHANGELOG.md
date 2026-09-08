@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.2]
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.8.0` ([#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080))
+- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.8.1` ([#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080), [#10124](https://github.com/MetaMask/core/pull/10124))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/profile-sync-controller` from `^29.0.0` to `^30.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
 
 ## [6.0.1]
 
@@ -292,7 +295,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the shield-controller package ([#6137](https://github.com/MetaMask/core/pull/6137)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@6.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@6.0.2...HEAD
+[6.0.2]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@6.0.1...@metamask/shield-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@6.0.0...@metamask/shield-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.1.3...@metamask/shield-controller@6.0.0
 [5.1.3]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.1.2...@metamask/shield-controller@5.1.3

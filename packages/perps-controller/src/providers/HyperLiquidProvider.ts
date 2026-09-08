@@ -1233,6 +1233,37 @@ const resolveTwapOrderStatus = (
   }
 };
 
+/**
+ * Decide whether a newly adapted schedule replaces the one already collapsed
+ * under the same order id.
+ *
+ * The venue reports one lifecycle as several history entries — an activation
+ * plus a terminal record — and `lastUpdated` folds in slice fills that every
+ * entry sharing a `twapId` receives. A schedule whose final fill completed it
+ * therefore derives the same `lastUpdated` on both entries, because that fill
+ * outranks each entry's own whole-second timestamp. Ordering on `lastUpdated`
+ * alone admits that tie, letting the activation overwrite the terminal record
+ * so the schedule reads as live long after it ended. Terminality decides
+ * first, and an equal `lastUpdated` keeps the entry already collapsed.
+ *
+ * @param candidate - Schedule adapted from the current history entry.
+ * @param existing - Schedule already collapsed under this order id.
+ * @returns True when the candidate replaces the existing schedule.
+ */
+const supersedesCollapsedTwapOrder = (
+  candidate: TwapOrder,
+  existing: TwapOrder,
+): boolean => {
+  const candidateIsTerminal =
+    candidate.status !== PerpsTwapLifecycleStatus.Active;
+  const existingIsTerminal =
+    existing.status !== PerpsTwapLifecycleStatus.Active;
+  if (candidateIsTerminal !== existingIsTerminal) {
+    return candidateIsTerminal;
+  }
+  return candidate.lastUpdated > existing.lastUpdated;
+};
+
 const adaptTwapOrderFill = (
   entry: HyperLiquidTwapSliceFillEntry,
 ): TwapOrderFill => ({
@@ -7672,7 +7703,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       const existing = ordersById.get(order.orderId);
-      if (!existing || order.lastUpdated >= existing.lastUpdated) {
+      if (!existing || supersedesCollapsedTwapOrder(order, existing)) {
         ordersById.set(order.orderId, order);
       }
     }
@@ -9493,6 +9524,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // side/size reduce-only rejection this method is meant to prevent.
       const currentPositions = await this.#getPositionsForOperation(
         parseAssetName(symbol).dex ?? '',
+        { revalidateMissingSymbol: symbol },
       );
       const position = currentPositions.find((pos) => pos.symbol === symbol);
 
@@ -10717,8 +10749,11 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * A symbol-specific caller can use its current-connection DEX slice directly.
    * The current-epoch slice wins before any REST request because it is the
-   * provider's live subscription source for that exact DEX. If the target DEX
-   * has not published, the caller uses REST instead of a stale aggregate.
+   * provider's live subscription source for that exact DEX. A caller may opt
+   * into one targeted REST revalidation when a required symbol is absent, which
+   * covers the post-fill window before the next WebSocket position update. If
+   * the target DEX has not published, the caller uses REST instead of a stale
+   * aggregate.
    *
    * A whole-list caller uses one shallow-copied WebSocket snapshot only when
    * every configured DEX is current. Otherwise it falls back to REST. No path
@@ -10727,20 +10762,43 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param targetDex - DEX for a single-symbol lookup, or undefined for a full
    * position list.
+   * @param options - Optional lookup behavior for a symbol-specific operation.
+   * @param options.revalidateMissingSymbol - Query the target DEX over REST when
+   * its current WebSocket slice does not contain this symbol.
    * @returns Positions from one provenance-safe cache/REST path.
    */
-  async #getPositionsForOperation(targetDex?: string): Promise<Position[]> {
+  async #getPositionsForOperation(
+    targetDex?: string,
+    options: { revalidateMissingSymbol?: string } = {},
+  ): Promise<Position[]> {
     if (targetDex !== undefined) {
       const targetPositions =
         this.#subscriptionService.getCachedPositionsForDex(targetDex);
-      if (targetPositions !== null) {
-        return [...targetPositions];
+      if (targetPositions === null) {
+        this.#deps.debugLogger.log(
+          'Target DEX position cache unavailable: fetching REST positions',
+          { dex: targetDex || 'main' },
+        );
+      } else {
+        const { revalidateMissingSymbol } = options;
+        const shouldRevalidate =
+          revalidateMissingSymbol !== undefined &&
+          targetPositions.find(
+            (position) => position.symbol === revalidateMissingSymbol,
+          ) === undefined;
+        if (shouldRevalidate) {
+          this.#deps.debugLogger.log(
+            'Target symbol missing from position cache: revalidating REST positions',
+            {
+              dex: targetDex || 'main',
+              symbol: revalidateMissingSymbol,
+            },
+          );
+        } else {
+          return [...targetPositions];
+        }
       }
 
-      this.#deps.debugLogger.log(
-        'Target DEX position cache unavailable: fetching REST positions',
-        { dex: targetDex || 'main' },
-      );
       const { answered, positions } = await this.#queryDexPositions(
         targetDex || null,
       );
@@ -13591,7 +13649,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             continue;
           }
           const existing = ordersById.get(order.orderId);
-          if (!existing || order.lastUpdated >= existing.lastUpdated) {
+          if (!existing || supersedesCollapsedTwapOrder(order, existing)) {
             ordersById.set(order.orderId, order);
           }
         }

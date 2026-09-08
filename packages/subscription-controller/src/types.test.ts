@@ -2,10 +2,16 @@ import type { Hex } from '@metamask/utils';
 
 import {
   CRYPTO_AUTH_METHODS,
+  MoneyAccountFeature,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
+  ShieldFeature,
 } from './types.js';
-import type { StartCryptoSubscriptionRequest } from './types.js';
+import type {
+  MoneyAccountEntitlements,
+  ShieldEntitlements,
+  StartCryptoSubscriptionRequest,
+} from './types.js';
 
 const SHARED_CRYPTO_REQUEST = {
   products: [PRODUCT_TYPES.SHIELD],
@@ -22,6 +28,46 @@ function assertStartCryptoSubscriptionRequest(
 ): StartCryptoSubscriptionRequest {
   return request;
 }
+
+function assertMoneyAccountEntitlements(
+  entitlements: MoneyAccountEntitlements,
+): MoneyAccountEntitlements {
+  return entitlements;
+}
+
+function assertShieldEntitlements(
+  entitlements: ShieldEntitlements,
+): ShieldEntitlements {
+  return entitlements;
+}
+
+describe('product entitlement types', () => {
+  it('requires every API-defined product feature', () => {
+    expect(
+      assertMoneyAccountEntitlements({
+        [MoneyAccountFeature.SwapFeeWaiver]: true,
+        [MoneyAccountFeature.PerpsFeeWaiver]: false,
+        [MoneyAccountFeature.PredictFreeTx]: true,
+        [MoneyAccountFeature.PremiumApy]: true,
+      }),
+    ).toBeDefined();
+    expect(
+      assertShieldEntitlements({
+        [ShieldFeature.ShieldClaim]: true,
+        [ShieldFeature.PrioritySupport]: false,
+      }),
+    ).toBeDefined();
+
+    // @ts-expect-error Missing required Money Account features.
+    assertMoneyAccountEntitlements({
+      [MoneyAccountFeature.PremiumApy]: true,
+    });
+    // @ts-expect-error Missing required Shield priority support.
+    assertShieldEntitlements({
+      [ShieldFeature.ShieldClaim]: true,
+    });
+  });
+});
 
 describe('StartCryptoSubscriptionRequest', () => {
   it('accepts an ERC-20 approval request without cryptoAuthMethod', () => {
