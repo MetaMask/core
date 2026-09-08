@@ -1,0 +1,277 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Balance Fallback Cascade \u2014 One EVM Chain, Every Layer Degrading",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "viewBox": [
+      1080,
+      575
+    ],
+    "views": [
+      {
+        "id": "primary",
+        "label": "Primary source fails",
+        "focus": [
+          "balance_stage",
+          "accounts_api",
+          "api"
+        ],
+        "note": "A timeout is recorded as a per-chain error instead of being thrown."
+      },
+      {
+        "id": "handoff",
+        "label": "Fallback picks the chain up",
+        "focus": [
+          "balance_stage",
+          "fallback",
+          "rpc_ds"
+        ],
+        "note": "Only chains that errored or hold a suspicious zero are handed to RPC."
+      },
+      {
+        "id": "multicall",
+        "label": "Inside the RPC attempt",
+        "focus": [
+          "rpc_ds",
+          "node"
+        ],
+        "note": "One batched multicall with three attempts, then per-account calls."
+      }
+    ],
+    "legend": {
+      "entries": {
+        "default": {
+          "label": "call"
+        },
+        "emphasis": {
+          "label": "main path"
+        },
+        "security": {
+          "label": "failure"
+        },
+        "dashed": {
+          "label": "degraded"
+        },
+        "return": {
+          "label": "response"
+        }
+      }
+    }
+  },
+  "participants": [
+    {
+      "id": "balance_stage",
+      "type": "backend",
+      "label": "ParallelBalance",
+      "sublabel": "partitions chains"
+    },
+    {
+      "id": "accounts_api",
+      "type": "backend",
+      "label": "AccountsApi",
+      "sublabel": "priority 2"
+    },
+    {
+      "id": "api",
+      "type": "cloud",
+      "label": "Accounts API",
+      "sublabel": "HTTPS"
+    },
+    {
+      "id": "fallback",
+      "type": "backend",
+      "label": "RpcFallback",
+      "sublabel": "middleware"
+    },
+    {
+      "id": "rpc_ds",
+      "type": "backend",
+      "label": "RpcDataSource",
+      "sublabel": "eip155 only"
+    },
+    {
+      "id": "node",
+      "type": "external",
+      "label": "EVM JSON-RPC",
+      "sublabel": "Multicall3"
+    }
+  ],
+  "segments": [
+    {
+      "from": 155,
+      "to": 240,
+      "label": "Primary attempt"
+    },
+    {
+      "from": 246,
+      "to": 296,
+      "label": "Chain marked failed"
+    },
+    {
+      "from": 302,
+      "to": 436,
+      "label": "RPC fallback cascade"
+    },
+    {
+      "from": 442,
+      "to": 492,
+      "label": "Merge back"
+    }
+  ],
+  "messages": [
+    {
+      "id": "fetch",
+      "from": "balance_stage",
+      "to": "accounts_api",
+      "y": 170,
+      "label": "fetch claimed chains",
+      "variant": "emphasis"
+    },
+    {
+      "id": "http",
+      "from": "accounts_api",
+      "to": "api",
+      "y": 198,
+      "label": "multi-account balances",
+      "variant": "default"
+    },
+    {
+      "id": "timeout",
+      "from": "api",
+      "to": "accounts_api",
+      "y": 226,
+      "label": "no response in 15s",
+      "variant": "security"
+    },
+    {
+      "id": "mark",
+      "from": "accounts_api",
+      "to": "balance_stage",
+      "y": 254,
+      "label": "errors[chainId], no throw",
+      "variant": "return"
+    },
+    {
+      "id": "carry",
+      "from": "balance_stage",
+      "to": "fallback",
+      "y": 282,
+      "label": "next(), error still set",
+      "variant": "emphasis"
+    },
+    {
+      "id": "select",
+      "from": "fallback",
+      "to": "rpc_ds",
+      "y": 310,
+      "label": "errored + stale-zero chains",
+      "variant": "emphasis"
+    },
+    {
+      "id": "aggregate",
+      "from": "rpc_ds",
+      "to": "node",
+      "y": 338,
+      "label": "aggregate3, batch 300",
+      "variant": "emphasis"
+    },
+    {
+      "id": "aggregate-fail",
+      "from": "node",
+      "to": "rpc_ds",
+      "y": 366,
+      "label": "3 attempts exhausted",
+      "variant": "security"
+    },
+    {
+      "id": "single",
+      "from": "rpc_ds",
+      "to": "node",
+      "y": 394,
+      "label": "eth_call per account, batch 50",
+      "variant": "dashed"
+    },
+    {
+      "id": "single-ok",
+      "from": "node",
+      "to": "rpc_ds",
+      "y": 422,
+      "label": "balances",
+      "variant": "return"
+    },
+    {
+      "id": "hand-back",
+      "from": "rpc_ds",
+      "to": "fallback",
+      "y": 450,
+      "label": "balances by chain",
+      "variant": "return"
+    },
+    {
+      "id": "merge",
+      "from": "fallback",
+      "to": "balance_stage",
+      "y": 478,
+      "label": "merged, error cleared",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "balance_stage",
+      "from": 165,
+      "to": 484,
+      "type": "backend"
+    },
+    {
+      "participant": "accounts_api",
+      "from": 176,
+      "to": 260,
+      "type": "backend"
+    },
+    {
+      "participant": "api",
+      "from": 193,
+      "to": 232,
+      "type": "cloud"
+    },
+    {
+      "participant": "fallback",
+      "from": 277,
+      "to": 482,
+      "type": "backend"
+    },
+    {
+      "participant": "rpc_ds",
+      "from": 305,
+      "to": 456,
+      "type": "backend"
+    },
+    {
+      "participant": "node",
+      "from": 333,
+      "to": 428,
+      "type": "external"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Every layer degrades once",
+      "items": [
+        "A timeout becomes a per-chain error entry, so the pipeline keeps running",
+        "The merge only clears an error for a chain RPC actually returned balances for"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Where the retries actually live",
+      "items": [
+        "Only the batched multicall retries: three attempts under a service policy",
+        "Per-account eth_call is the last resort and never retries on its own"
+      ]
+    }
+  ]
+}
