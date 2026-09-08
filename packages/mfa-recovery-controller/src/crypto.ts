@@ -1,10 +1,16 @@
-import { bytesToHex, hexToBytes, stringToBytes } from '@metamask/utils';
+import {
+  base64ToBytes,
+  bytesToBase64,
+  bytesToHex,
+  concatBytes,
+  hexToBytes,
+  sha256,
+  stringToBytes,
+} from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import { p256 } from '@noble/curves/p256';
 
 import type { Identifier } from './types.js';
-
-const ECDSA = { name: 'ECDSA', namedCurve: 'P-256' } as const;
-const ECDSA_SIGN = { name: 'ECDSA', hash: 'SHA-256' } as const;
 
 /**
  * Recursively sorts object keys so hashes are independent of property order.
@@ -23,11 +29,7 @@ export function canonicalize(value: unknown): string {
  * @returns Hex digest.
  */
 export async function hash(value: unknown): Promise<Hex> {
-  const digest = await globalThis.crypto.subtle.digest(
-    'SHA-256',
-    stringToBytes(canonicalize(value)),
-  );
-  return bytesToHex(new Uint8Array(digest));
+  return bytesToHex(await sha256(stringToBytes(canonicalize(value))));
 }
 
 /**
@@ -65,17 +67,20 @@ export async function generateSigningKey(): Promise<{
   publicKey: string;
   privateKey: string;
 }> {
-  const pair = await globalThis.crypto.subtle.generateKey(ECDSA, true, [
-    'sign',
-    'verify',
-  ]);
-  const [publicJwk, privateJwk] = await Promise.all([
-    globalThis.crypto.subtle.exportKey('jwk', pair.publicKey),
-    globalThis.crypto.subtle.exportKey('jwk', pair.privateKey),
-  ]);
+  const privateKeyBytes = p256.utils.randomPrivateKey();
+  const publicKeyBytes = p256.getPublicKey(privateKeyBytes, false);
+  const publicJwk = {
+    kty: 'EC',
+    crv: 'P-256',
+    x: toBase64Url(publicKeyBytes.slice(1, 33)),
+    y: toBase64Url(publicKeyBytes.slice(33, 65)),
+  };
   return {
     publicKey: JSON.stringify(publicJwk),
-    privateKey: JSON.stringify(privateJwk),
+    privateKey: JSON.stringify({
+      ...publicJwk,
+      d: toBase64Url(privateKeyBytes),
+    }),
   };
 }
 
@@ -83,31 +88,26 @@ export async function generateSigningKey(): Promise<{
  * Signs a message with the ephemeral proof private key.
  *
  * @param privateKey - JWK JSON private key.
- * @param message - Prehashed message hex or string.
- * @returns Hex signature.
+ * @param message - Message string; hashed with SHA-256 before ECDSA.
+ * @returns Compact IEEE P1363 hex signature (`r‖s`).
  */
 export async function sign(privateKey: string, message: string): Promise<Hex> {
-  const key = await globalThis.crypto.subtle.importKey(
-    'jwk',
-    JSON.parse(privateKey) as JsonWebKey,
-    ECDSA,
-    false,
-    ['sign'],
+  const jwk = JSON.parse(privateKey) as { d?: string };
+  if (typeof jwk.d !== 'string') {
+    throw new Error('Invalid P-256 private JWK');
+  }
+  const digest = await sha256(stringToBytes(message));
+  return bytesToHex(
+    p256.sign(digest, fromBase64Url(jwk.d)).toCompactRawBytes(),
   );
-  const signature = await globalThis.crypto.subtle.sign(
-    ECDSA_SIGN,
-    key,
-    stringToBytes(message),
-  );
-  return bytesToHex(new Uint8Array(signature));
 }
 
 /**
  * Verifies a proof signature against a public key.
  *
  * @param publicKey - JWK JSON public key.
- * @param signature - Hex signature.
- * @param message - Prehashed message.
+ * @param signature - Compact IEEE P1363 hex signature.
+ * @param message - Message string; hashed with SHA-256 before ECDSA.
  * @returns Whether the signature is valid.
  */
 export async function verifySignature(
@@ -115,19 +115,24 @@ export async function verifySignature(
   signature: string,
   message: string,
 ): Promise<boolean> {
-  const key = await globalThis.crypto.subtle.importKey(
-    'jwk',
-    JSON.parse(publicKey) as JsonWebKey,
-    ECDSA,
-    false,
-    ['verify'],
-  );
-  return await globalThis.crypto.subtle.verify(
-    ECDSA_SIGN,
-    key,
-    hexToBytes(signature as Hex),
-    stringToBytes(message),
-  );
+  const jwk = JSON.parse(publicKey) as { x?: string; y?: string };
+  if (typeof jwk.x !== 'string' || typeof jwk.y !== 'string') {
+    return false;
+  }
+  try {
+    const digest = await sha256(stringToBytes(message));
+    return p256.verify(
+      hexToBytes(signature as Hex),
+      digest,
+      concatBytes([
+        new Uint8Array([0x04]),
+        fromBase64Url(jwk.x),
+        fromBase64Url(jwk.y),
+      ]),
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -174,6 +179,34 @@ export function bytesToSecretHex(bytes: Uint8Array): Hex {
 export function secretHexToBytes(secretHex: string): Uint8Array {
   return hexToBytes(
     (secretHex.startsWith('0x') ? secretHex : `0x${secretHex}`) as Hex,
+  );
+}
+
+/**
+ * Encodes bytes as unpadded base64url (JWK coordinate format).
+ *
+ * @param bytes - Raw coordinate or scalar.
+ * @returns Base64url string.
+ */
+function toBase64Url(bytes: Uint8Array): string {
+  return bytesToBase64(bytes)
+    .replace(/\+/gu, '-')
+    .replace(/\//gu, '_')
+    .replace(/[=]+$/u, '');
+}
+
+/**
+ * Decodes unpadded base64url JWK coordinates.
+ *
+ * @param value - Base64url string.
+ * @returns Raw bytes.
+ */
+function fromBase64Url(value: string): Uint8Array {
+  return base64ToBytes(
+    value
+      .replace(/-/gu, '+')
+      .replace(/_/gu, '/')
+      .padEnd(value.length + ((4 - (value.length % 4)) % 4), '='),
   );
 }
 

@@ -4,8 +4,11 @@ import {
   bytesToSecretHex,
   canonicalize,
   canonicalizeIdentifiers,
+  generateSigningKey,
   hash,
   secretHexToBytes,
+  sign,
+  verifySignature,
 } from './crypto.js';
 import type { Identifier } from './types.js';
 
@@ -24,6 +27,24 @@ describe('crypto', () => {
     const bytes = new Uint8Array([255, 0, 16]);
     const encoded = bytesToSecretHex(bytes);
     expect(secretHexToBytes(encoded.slice(2))).toStrictEqual(bytes);
+  });
+
+  it('round-trips a P-256 proof signature', async () => {
+    const key = await generateSigningKey();
+    const signature = await sign(key.privateKey, 'hello');
+
+    expect(await verifySignature(key.publicKey, signature, 'hello')).toBe(true);
+    expect(await verifySignature(key.publicKey, signature, 'other')).toBe(
+      false,
+    );
+    expect(await verifySignature(key.publicKey, '0x00', 'hello')).toBe(false);
+    expect(await verifySignature(key.publicKey, 'not-hex', 'hello')).toBe(
+      false,
+    );
+    expect(await verifySignature('{}', signature, 'hello')).toBe(false);
+    await expect(sign('{}', 'hello')).rejects.toThrow(
+      'Invalid P-256 private JWK',
+    );
   });
 
   it('sorts identifiers for ownership hashes', () => {
