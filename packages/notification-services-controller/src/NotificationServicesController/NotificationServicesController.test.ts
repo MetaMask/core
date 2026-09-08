@@ -630,6 +630,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers({
           hasMarketingConsent: true,
@@ -690,6 +691,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers({
           registerPushNotifications: false,
@@ -738,6 +740,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers();
 
@@ -786,6 +789,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await expect(controller.createOnChainTriggers()).rejects.toThrow(
           'Failed to create On Chain triggers',
@@ -831,6 +835,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers();
 
@@ -850,6 +855,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers();
 
@@ -870,6 +876,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers({
           productAnnouncementEnabled: true,
@@ -919,6 +926,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers();
 
@@ -971,6 +979,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers();
 
@@ -1015,6 +1024,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers();
 
@@ -1046,11 +1056,47 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers();
 
         // Writing the blob here would make the next run a re-subscribe with no
         // chance to seed accounts; unregistering would drop an existing device.
+        expect(mockUpdateNotifications).not.toHaveBeenCalled();
+        expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+        expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+      });
+
+      it('does not write preferences or unregister push when the keyring is locked', async () => {
+        const {
+          messenger,
+          mockDisablePushNotifications,
+          mockEnablePushNotifications,
+          mockUpdateNotifications,
+          mockKeyringControllerGetState,
+        } = arrangeMocks({
+          configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
+        });
+
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: false,
+          keyrings: [
+            {
+              accounts: [ADDRESS_1, ADDRESS_2],
+              type: KeyringTypes.hd,
+              metadata: { id: 'srp-1', name: 'SRP 1' },
+            },
+          ],
+        });
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+        controller.init();
+
+        await controller.createOnChainTriggers();
+
         expect(mockUpdateNotifications).not.toHaveBeenCalled();
         expect(mockDisablePushNotifications).not.toHaveBeenCalled();
         expect(mockEnablePushNotifications).not.toHaveBeenCalled();
@@ -1075,6 +1121,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers();
 
@@ -1106,6 +1153,45 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
+
+        await controller.createOnChainTriggers();
+
+        expect(mockTriggerUpdate.isDone()).toBe(false);
+        expect(mockUpdateNotifications).not.toHaveBeenCalled();
+        expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+        expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+      });
+
+      it('leaves existing push links alone on re-subscribe when the keyring is locked', async () => {
+        const {
+          messenger,
+          mockDisablePushNotifications,
+          mockEnablePushNotifications,
+          mockUpdateNotifications,
+          mockKeyringControllerGetState,
+        } = arrangeMocks({
+          configurePrefs: (mock) =>
+            mock.mockResolvedValueOnce(mockPreferences()),
+        });
+
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: false,
+          keyrings: [
+            {
+              accounts: [ADDRESS_1, ADDRESS_2],
+              type: KeyringTypes.hd,
+              metadata: { id: 'srp-1', name: 'SRP 1' },
+            },
+          ],
+        });
+        const mockTriggerUpdate = mockUpdateOnChainNotifications();
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+        controller.init();
 
         await controller.createOnChainTriggers();
 
@@ -1149,6 +1235,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers();
 
@@ -1180,6 +1267,7 @@ describe('NotificationServicesController', () => {
           messenger,
           env: { featureAnnouncements: featureAnnouncementsEnv },
         });
+        controller.init();
 
         await controller.createOnChainTriggers();
 
@@ -1199,6 +1287,7 @@ describe('NotificationServicesController', () => {
             mock.mockResolvedValueOnce(mockPreferences()),
         });
         mockGetOnChainNotificationsConfig();
+        mockGetOnChainNotificationsConfig();
 
         const controller = new NotificationServicesController({
           messenger,
@@ -1208,6 +1297,7 @@ describe('NotificationServicesController', () => {
             isFeatureAnnouncementsEnabled: false,
           },
         });
+        controller.init();
 
         await controller.enableMetamaskNotifications();
 
@@ -1226,6 +1316,7 @@ describe('NotificationServicesController', () => {
         messenger: mocks.messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
       });
+      controller.init();
 
       const testScenarios = {
         ...arrangeFailureAuthAssertions(mocks),
@@ -1867,6 +1958,7 @@ describe('NotificationServicesController', () => {
         messenger: mocks.messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
       });
+      controller.init();
 
       await controller.enableMetamaskNotifications();
 
@@ -1886,6 +1978,7 @@ describe('NotificationServicesController', () => {
         messenger: mocks.messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
       });
+      controller.init();
 
       const promise = controller.enableMetamaskNotifications();
 
@@ -1913,6 +2006,7 @@ describe('NotificationServicesController', () => {
         messenger: mocks.messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
       });
+      controller.init();
 
       await controller.enableMetamaskNotifications({
         registerPushNotifications: false,
@@ -1936,6 +2030,7 @@ describe('NotificationServicesController', () => {
         messenger: mocks.messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
       });
+      controller.init();
 
       await controller.enableMetamaskNotifications();
 
@@ -2051,8 +2146,8 @@ describe('NotificationServicesController', () => {
       const controller = new NotificationServicesController({
         messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
-        state: { isNotificationServicesEnabled: true },
       });
+      controller.init();
 
       // Act
       await controller.enablePushNotifications();
@@ -2078,13 +2173,42 @@ describe('NotificationServicesController', () => {
       const controller = new NotificationServicesController({
         messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
-        state: { isNotificationServicesEnabled: true },
       });
+      controller.init();
 
       await controller.enablePushNotifications();
 
       // An empty keyring is not "every account disabled": unregistering here
       // would drop the device until the next successful re-subscribe.
+      expect(mockDisablePushNotifications).not.toHaveBeenCalled();
+      expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+    });
+
+    it('leaves existing push links alone when the keyring is locked', async () => {
+      const {
+        messenger,
+        mockEnablePushNotifications,
+        mockDisablePushNotifications,
+        mockKeyringControllerGetState,
+      } = arrangeMocks();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: false,
+        keyrings: [
+          {
+            accounts: [ADDRESS_1, ADDRESS_2],
+            type: KeyringTypes.hd,
+            metadata: { id: 'srp-1', name: 'SRP 1' },
+          },
+        ],
+      });
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+      controller.init();
+
+      await controller.enablePushNotifications();
+
       expect(mockDisablePushNotifications).not.toHaveBeenCalled();
       expect(mockEnablePushNotifications).not.toHaveBeenCalled();
     });
@@ -2105,8 +2229,8 @@ describe('NotificationServicesController', () => {
       const controller = new NotificationServicesController({
         messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
-        state: { isNotificationServicesEnabled: true },
       });
+      controller.init();
 
       await controller.enablePushNotifications();
 
@@ -2129,8 +2253,8 @@ describe('NotificationServicesController', () => {
       const controller = new NotificationServicesController({
         messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
-        state: { isNotificationServicesEnabled: true },
       });
+      controller.init();
 
       await controller.enablePushNotifications();
 
@@ -2164,8 +2288,8 @@ describe('NotificationServicesController', () => {
       const controller = new NotificationServicesController({
         messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
-        state: { isNotificationServicesEnabled: true },
       });
+      controller.init();
 
       await controller.enablePushNotifications();
 
@@ -2186,6 +2310,7 @@ describe('NotificationServicesController', () => {
         env: { featureAnnouncements: featureAnnouncementsEnv },
         state: { isNotificationServicesEnabled: true },
       });
+      controller.init();
 
       // Should not throw error
       await controller.enablePushNotifications();
