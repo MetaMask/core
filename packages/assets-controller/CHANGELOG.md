@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix `#start()` re-entrancy so a second unlock/init/state-change trigger can't run a duplicate startup asset refresh while the first one is still in flight ([#10131](https://github.com/MetaMask/core/pull/10131))
+- Filter asset IDs by supported networks before calling the Price API v3 spot-prices endpoint. Prevent HTTP 400 errors ([#10132](https://github.com/MetaMask/core/pull/10132))
 
 ## [15.0.0]
 
