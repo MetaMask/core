@@ -70,6 +70,7 @@ export const queryStandaloneClearinghouseStates = async (
 /**
  * Query frontendOpenOrders across multiple DEXs in parallel.
  * Used by standalone mode to fetch open orders across HIP-3 DEXs.
+ * Rejects if any DEX request fails.
  *
  * @param infoClient - The HyperLiquid InfoClient instance to use for queries.
  * @param userAddress - The user's wallet address to query orders for.
@@ -81,7 +82,7 @@ export const queryStandaloneOpenOrders = async (
   userAddress: string,
   dexs: (string | null)[],
 ): Promise<FrontendOpenOrdersResponse[]> => {
-  const results = await Promise.allSettled(
+  return Promise.all(
     dexs.map(async (dex) => {
       const queryParams: { user: string; dex?: string } = {
         user: userAddress,
@@ -92,11 +93,4 @@ export const queryStandaloneOpenOrders = async (
       return infoClient.frontendOpenOrders(queryParams);
     }),
   );
-
-  return results
-    .filter(
-      (result): result is PromiseFulfilledResult<FrontendOpenOrdersResponse> =>
-        result.status === 'fulfilled',
-    )
-    .map((result) => result.value);
 };

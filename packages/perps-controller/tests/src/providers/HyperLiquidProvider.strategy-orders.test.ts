@@ -1343,7 +1343,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(result).toStrictEqual({
         success: true,
-        orderId: 'TP/SL orders placed',
+        childOrderIds: ['123'],
       });
       expect(exchangeClient.cancel.mock.invocationCallOrder[0]).toBeLessThan(
         exchangeClient.order.mock.invocationCallOrder[0],
@@ -1664,7 +1664,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(result).toStrictEqual({
         success: true,
-        orderId: 'TP/SL orders placed',
+        childOrderIds: [],
       });
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
       expect(infoClient.frontendOpenOrders).not.toHaveBeenCalled();

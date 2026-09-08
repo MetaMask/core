@@ -3010,9 +3010,12 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Unlike ordinary discovery, this uses HTTP and never degrades to main-only
    * when HIP-3 discovery fails.
    *
+   * @param client - Optional standalone read client.
    * @returns The validated DEX set.
    */
-  async #getValidatedDexsStrict(): Promise<(string | null)[]> {
+  async #getValidatedDexsStrict(
+    client?: InfoClient,
+  ): Promise<(string | null)[]> {
     if (!this.#hip3Enabled) {
       return [null];
     }
@@ -3022,7 +3025,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     }
 
     const lifecycleGeneration = this.#lifecycleGeneration;
-    const infoClient = this.#clientService.getInfoClient({ useHttp: true });
+    const infoClient =
+      client ?? this.#clientService.getInfoClient({ useHttp: true });
     let allDexs;
     try {
       allDexs = await infoClient.perpDexs();
@@ -9841,6 +9845,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (takeProfitPrice) {
         const tpOrder: SDKOrderParams = {
           a: assetId,
+          c: `0x${uuidv4().replace(/-/gu, '')}`,
           b: !isLong, // Opposite side to close position
           p: formatHyperLiquidPrice({
             price: parseFloat(takeProfitPrice),
@@ -9866,6 +9871,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       if (stopLossPrice) {
         const slOrder: SDKOrderParams = {
           a: assetId,
+          c: `0x${uuidv4().replace(/-/gu, '')}`,
           b: !isLong, // Opposite side to close position
           p: formatHyperLiquidPrice({
             price: parseFloat(stopLossPrice),
@@ -10117,9 +10123,53 @@ export class HyperLiquidProvider implements PerpsProvider {
         );
 
       if (placementAccepted) {
+        const childOrderIds = await Promise.all(
+          initialPlacementOutcomes.map(async (outcome, index) => {
+            if (outcome.orderId !== undefined) {
+              return outcome.orderId;
+            }
+            const clientOrderId = orders[index].c;
+            if (!clientOrderId) {
+              return undefined;
+            }
+            try {
+              const status = await infoClient.orderStatus({
+                user: userAddress,
+                oid: clientOrderId,
+              });
+              if (status.status === 'order') {
+                const venueOrder = status.order.order;
+                if (
+                  venueOrder.cloid?.toLowerCase() ===
+                    clientOrderId.toLowerCase() &&
+                  venueOrder.coin === symbol &&
+                  Number.isSafeInteger(venueOrder.oid) &&
+                  venueOrder.oid >= 0
+                ) {
+                  return String(venueOrder.oid);
+                }
+              }
+            } catch (error) {
+              this.#deps.debugLogger.log(
+                'Accepted TP/SL order ID unavailable',
+                {
+                  symbol,
+                  error: ensureError(
+                    error,
+                    'HyperLiquidProvider.updatePositionTPSL',
+                  ).message,
+                },
+              );
+            }
+            // Acceptance does not depend on the order-status index catching up.
+            return undefined;
+          }),
+        );
         return {
           success: true,
-          orderId: 'TP/SL orders placed',
+          childOrderIds: childOrderIds.filter(
+            (orderId): orderId is string => orderId !== undefined,
+          ),
         };
       }
 
@@ -11460,7 +11510,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         const standaloneInfoClient = createStandaloneInfoClient({
           isTestnet: this.#clientService.isTestnetMode(),
         });
-        const dexs = await this.#getStandaloneValidatedDexs();
+        const dexs = await this.#getValidatedDexsStrict(standaloneInfoClient);
         const orderResults = await queryStandaloneOpenOrders(
           standaloneInfoClient,
           userAddress,
@@ -11512,29 +11562,50 @@ export class HyperLiquidProvider implements PerpsProvider {
         params?.accountId,
       );
 
-      // Query orders across all enabled DEXs in parallel
+      const dexs = await this.#getValidatedDexsStrict();
       const { results: orderResults, failedDexs } =
         await this.#queryUserDataAcrossDexs(
           { user: userAddress },
           (userParam) => infoClient.frontendOpenOrders(userParam),
+          dexs,
         );
 
       if (failedDexs.length > 0) {
         this.#deps.debugLogger.log(
-          'Partial multi-DEX open order fetch completed with failures',
+          'Complete multi-DEX open order fetch unavailable',
           {
             failedDexs: failedDexs.map(
               ({ dex, error }) => `${dex ?? 'main'}:${error.message}`,
             ),
           },
         );
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
       }
 
       // Combine all orders from all DEXs
       const rawOrders = orderResults.flatMap((result) => result.data);
+      if (rawOrders.length === 0) {
+        return [];
+      }
 
-      // Get positions for order context (already multi-DEX aware)
-      const positions = await this.getPositions();
+      // Order classification needs complete position context for the same account.
+      const { results: stateResults, failedDexs: failedStateDexs } =
+        await this.#queryUserDataAcrossDexs(
+          { user: userAddress },
+          (userParam) => infoClient.clearinghouseState(userParam),
+          dexs,
+        );
+      if (
+        failedStateDexs.length > 0 ||
+        stateResults.some(({ data }) => !Array.isArray(data.assetPositions))
+      ) {
+        throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      }
+      const positions = stateResults.flatMap(({ data }) =>
+        data.assetPositions
+          .filter((assetPos) => assetPos.position.szi !== '0')
+          .map((assetPos) => adaptPositionFromSDK(assetPos)),
+      );
 
       this.#deps.debugLogger.log('Currently open orders received (all DEXs):', {
         count: rawOrders.length,
@@ -11551,7 +11622,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       return orders;
     } catch (error) {
       this.#deps.debugLogger.log('Error getting currently open orders:', error);
-      return [];
+      throw error;
     }
   }
 

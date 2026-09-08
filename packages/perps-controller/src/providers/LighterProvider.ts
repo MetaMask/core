@@ -4934,7 +4934,7 @@ export class LighterProvider implements PerpsProvider {
         error: String(wrappedError),
         ...this.#getErrorContext('getOpenOrders'),
       });
-      return [];
+      throw wrappedError;
     }
   }
 
@@ -4965,8 +4965,7 @@ export class LighterProvider implements PerpsProvider {
       );
       // Full lifecycle: open orders first, then the historical states.
       const open = await this.getOpenOrders(params);
-      // getOpenOrders swallows its own cancellation into []; the merge must
-      // still refuse to pair A's history with B's session.
+      // Never pair one account's history with another account's open orders.
       this.#assertSession(generation);
       return [...open, ...historical];
     } catch (caughtError) {

@@ -1420,20 +1420,17 @@ describe('HyperLiquidProvider', () => {
         });
       });
 
-      it('returns empty array when standalone client fails', async () => {
-        // Arrange
+      it('rejects when standalone open orders fail', async () => {
         mockStandaloneInfoClient.frontendOpenOrders.mockRejectedValue(
           new Error('API unavailable'),
         );
 
-        // Act
-        const orders = await provider.getOpenOrders({
-          standalone: true,
-          userAddress: mockUserAddress,
-        });
-
-        // Assert — all DEX queries failed, flatMap([]) returns empty
-        expect(orders).toEqual([]);
+        await expect(
+          provider.getOpenOrders({
+            standalone: true,
+            userAddress: mockUserAddress,
+          }),
+        ).rejects.toThrow('API unavailable');
       });
     });
 

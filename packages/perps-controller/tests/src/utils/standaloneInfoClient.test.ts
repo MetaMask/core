@@ -278,30 +278,32 @@ describe('standaloneInfoClient', () => {
       expect(mockInfoClient.frontendOpenOrders).toHaveBeenCalledTimes(2);
     });
 
-    it('returns only fulfilled results when some DEX queries fail', async () => {
+    it('rejects when some open-order DEX queries fail', async () => {
       const ordersA = [{ oid: 1, coin: 'BTC', side: 'A' }];
 
       mockInfoClient.frontendOpenOrders
         .mockResolvedValueOnce(ordersA)
         .mockRejectedValueOnce(new Error('DEX timeout'));
 
-      const results = await queryStandaloneOpenOrders(
-        mockInfoClient as unknown as InfoClient,
-        userAddress,
-        [null, 'failing-dex'],
-      );
-
-      expect(results).toEqual([ordersA]);
+      await expect(
+        queryStandaloneOpenOrders(
+          mockInfoClient as unknown as InfoClient,
+          userAddress,
+          [null, 'failing-dex'],
+        ),
+      ).rejects.toThrow('DEX timeout');
     });
 
     it('omits dex param when DEX is null', async () => {
       mockInfoClient.frontendOpenOrders.mockResolvedValue([]);
 
-      await queryStandaloneOpenOrders(
-        mockInfoClient as unknown as InfoClient,
-        userAddress,
-        [null],
-      );
+      await expect(
+        queryStandaloneOpenOrders(
+          mockInfoClient as unknown as InfoClient,
+          userAddress,
+          [null],
+        ),
+      ).resolves.toEqual([[]]);
 
       expect(mockInfoClient.frontendOpenOrders).toHaveBeenCalledWith({
         user: userAddress,

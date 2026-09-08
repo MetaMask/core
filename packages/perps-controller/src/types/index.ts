@@ -1972,6 +1972,7 @@ export type PerpsProvider = {
    * Purpose: Show orders that are currently open/pending execution (not historical states).
    * Different from getOrders() which returns complete historical order lifecycle.
    * Example: Shows only orders that are actually open right now in the exchange.
+   * Rejects failed or incomplete fetches; callers should retain prior order state on error.
    */
   getOpenOrders(params?: GetOrdersParams): Promise<Order[]>;
 

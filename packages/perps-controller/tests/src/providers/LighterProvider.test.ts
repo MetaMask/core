@@ -5348,7 +5348,9 @@ describe('LighterProvider', () => {
       const venueB = setupTriggerVenue(second.clientInstance, second.bridge);
       venueB.setVenueNonce(venueA.getVenueNonce());
       venueB.setNextIndex(venueA.getNextIndex());
-      await second.provider.getOpenOrders();
+      await expect(second.provider.getOpenOrders()).rejects.toThrow(
+        'unresolved outcome',
+      );
       await new Promise((resolve) => setTimeout(resolve, 500));
       // The obligation is retained (unexpired + venue-confirmed nothing).
       expect(journalKeysOf(disk)).toHaveLength(1);
@@ -10157,7 +10159,7 @@ describe('LighterProvider', () => {
       expect(result.totalBalance).toBe('0');
     });
 
-    it('getOpenOrders returns nothing when the account switches between index and token', async () => {
+    it('getOpenOrders rejects when the account switches between index and token', async () => {
       const { provider, clientInstance, getUserAddressMock, bridge } =
         buildProvider({ configuredAccountIndex: null });
       clientInstance.getAccountsByL1Address.mockImplementation(
@@ -10185,8 +10187,7 @@ describe('LighterProvider', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       getUserAddressMock.mockReturnValue('0xbbbb');
       releaseToken();
-      const orders = await readUnderA;
-      expect(orders).toStrictEqual([]);
+      await expect(readUnderA).rejects.toThrow('Operation cancelled');
       // The A index + fresh token pairing never reached the venue.
       expect(clientInstance.getActiveOrders).not.toHaveBeenCalled();
     });

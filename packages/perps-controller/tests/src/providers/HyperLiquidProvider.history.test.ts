@@ -1375,7 +1375,7 @@ describe('HyperLiquidProvider', () => {
   });
 
   describe('getOpenOrders additional coverage', () => {
-    it('returns empty array when frontendOpenOrders throws error', async () => {
+    it('rejects when frontendOpenOrders throws error', async () => {
       // Arrange
       mockClientService.getInfoClient = jest.fn().mockReturnValue({
         frontendOpenOrders: jest.fn().mockRejectedValue(new Error('API Error')),
@@ -1386,10 +1386,9 @@ describe('HyperLiquidProvider', () => {
       });
 
       // Act
-      const result = await provider.getOpenOrders({ skipCache: true });
-
-      // Assert
-      expect(result).toEqual([]);
+      await expect(provider.getOpenOrders({ skipCache: true })).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      );
     });
 
     it('returns cached orders when cache is initialized', async () => {
@@ -1561,8 +1560,7 @@ describe('HyperLiquidProvider', () => {
       // Assert
       expect(result).toHaveLength(1);
       expect(result[0].symbol).toBe('ETH');
-      // Note: frontendOpenOrders is called twice - once for getOpenOrders and once for getPositions
-      expect(mockFrontendOpenOrders).toHaveBeenCalled();
+      expect(mockFrontendOpenOrders).toHaveBeenCalledTimes(1);
     });
 
     it('queries multiple DEXs when HIP-3 enabled', async () => {

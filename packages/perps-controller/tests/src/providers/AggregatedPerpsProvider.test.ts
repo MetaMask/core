@@ -525,6 +525,11 @@ describe('AggregatedPerpsProvider', () => {
       expect(result).toContainEqual(
         expect.objectContaining({ orderId: '1', providerId: 'hyperliquid' }),
       );
+
+      mockHLProvider.getOpenOrders.mockRejectedValue(new Error('Unavailable'));
+      await expect(aggregatedProvider.getOpenOrders()).rejects.toThrow(
+        'Unavailable',
+      );
     });
   });
 

@@ -465,14 +465,14 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   async getOpenOrders(params?: GetOrdersParams): Promise<Order[]> {
-    const results = await Promise.allSettled(
+    const results = await Promise.all(
       this.#getActiveProviders().map(async ([id, provider]) => {
         const orders = await provider.getOpenOrders(params);
         return orders.map((order) => ({ ...order, providerId: id }));
       }),
     );
 
-    return this.#extractSuccessfulResults(results, 'getOpenOrders').flat();
+    return results.flat();
   }
 
   async getFunding(
