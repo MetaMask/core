@@ -1,5 +1,5 @@
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 import type { GetSimulationConfig } from 'src';
 
 import { CHAIN_IDS, DELEGATION_MANAGER_ADDRESSES } from '../constants.js';

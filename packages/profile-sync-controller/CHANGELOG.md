@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - Replace `siwe` with `@signinwithethereum/siwe` ^4.2.1 ([#10049](https://github.com/MetaMask/core/pull/10049))
   - The old package is no longer maintained by Spruce. The Ethereum Identity Foundation now maintains the successor under the `@signinwithethereum` scope. The `SiweMessage` class API is backward compatible for the usage in this package (`new SiweMessage({...}).prepareMessage()`).

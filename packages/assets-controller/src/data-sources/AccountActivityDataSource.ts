@@ -5,7 +5,7 @@ import type {
 } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { isCaipChainId } from '@metamask/utils';
-import BigNumberJS from 'bignumber.js';
+import { BigNumber as BigNumberJS } from 'bignumber.js';
 
 import type { AssetsControllerMessenger } from '../AssetsController.js';
 import { projectLogger, createModuleLogger } from '../logger.js';

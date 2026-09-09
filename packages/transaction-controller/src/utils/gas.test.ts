@@ -1,7 +1,7 @@
 import type { NetworkClientId } from '@metamask/network-controller';
 import { remove0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import type {
   SimulationResponse,

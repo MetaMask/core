@@ -10,7 +10,12 @@ import type {
   SourceFile,
   Type,
 } from 'typescript';
-import {
+import typescript from 'typescript';
+
+// Older versions of TypeScript break when importing directly in ESM. This is a
+// temporary workaround
+/* eslint-disable import-x/no-named-as-default-member */
+const {
   ScriptTarget,
   createProgram,
   createSourceFile,
@@ -28,7 +33,8 @@ import {
   parseJsonConfigFileContent,
   readConfigFile,
   sys,
-} from 'typescript';
+} = typescript;
+/* eslint-enable import-x/no-named-as-default-member */
 
 export type MethodInfo = {
   name: string;
