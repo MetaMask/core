@@ -509,6 +509,7 @@ describe('BaseDataService', () => {
     it('waits for cache initialization before fetching a query', async () => {
       cleanAll();
       const networkScope = mockAssets();
+      const activityScope = mockTransactionsPage1();
       let resolveGetItem: ((value: { result: null }) => void) | undefined;
       const getItem = jest.fn(
         () =>
@@ -532,6 +533,9 @@ describe('BaseDataService', () => {
       resolveGetItem?.({ result: null });
       expect(await resultPromise).toHaveLength(3);
       expect(networkScope.isDone()).toBe(true);
+
+      expect(await service.getActivity(TEST_ADDRESS)).toHaveProperty('data');
+      expect(activityScope.isDone()).toBe(true);
 
       service.destroy();
     });
