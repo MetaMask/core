@@ -286,7 +286,9 @@ export class BaseDataService<
     queryFn: QueryFunction<TQueryFnData, TQueryKey>;
     responseStruct?: TDataStruct;
   }): Promise<TData> {
-    await this.#initializationPromise;
+    if (this.#initializationPromise) {
+      await this.#initializationPromise;
+    }
 
     return this.#queryClient.fetchQuery({
       ...options,
@@ -340,7 +342,9 @@ export class BaseDataService<
       },
     pageParam?: TPageParam,
   ): Promise<TData> {
-    await this.#initializationPromise;
+    if (this.#initializationPromise) {
+      await this.#initializationPromise;
+    }
 
     const cache = this.#queryClient.getQueryCache();
 
