@@ -625,6 +625,30 @@ describe('PhishingDataService', () => {
       expect(response).toStrictEqual(apiResponse);
     });
 
+    it('accepts the Verified verdict returned by the token API', async () => {
+      const token = '0x1234567890123456789012345678901234567890';
+      const apiResponse = {
+        results: {
+          [token]: { result_type: 'Verified' },
+        },
+      };
+      nock(SECURITY_ALERTS_BASE_URL)
+        .post(TOKEN_BULK_SCANNING_ENDPOINT, {
+          chain: 'ethereum',
+          tokens: [token],
+        })
+        .reply(200, apiResponse);
+      const { rootMessenger } = createService();
+
+      expect(
+        await rootMessenger.call(
+          'PhishingDataService:bulkScanTokens',
+          'ethereum',
+          [token],
+        ),
+      ).toStrictEqual(apiResponse);
+    });
+
     it('preserves cached results when an uncached token fails', async () => {
       const cachedToken = '0x1234567890123456789012345678901234567890';
       const uncachedToken = '0x0987654321098765432109876543210987654321';
@@ -859,6 +883,24 @@ describe('PhishingDataService', () => {
       expect(response).toStrictEqual({ result_type: 'Benign', label: '' });
     });
 
+    it.each(['Verified', 'Trusted', 'Error'])(
+      'accepts the %s verdict returned by the address API',
+      async (resultType) => {
+        nock(SECURITY_ALERTS_BASE_URL)
+          .post(ADDRESS_SCAN_ENDPOINT)
+          .reply(200, { result_type: resultType, label: '' });
+        const { rootMessenger } = createService();
+
+        expect(
+          await rootMessenger.call(
+            'PhishingDataService:scanAddress',
+            'ethereum',
+            '0x1234567890123456789012345678901234567890',
+          ),
+        ).toStrictEqual({ result_type: resultType, label: '' });
+      },
+    );
+
     it('throws if the API returns a malformed response', async () => {
       nock(SECURITY_ALERTS_BASE_URL)
         .post(ADDRESS_SCAN_ENDPOINT)
@@ -897,7 +939,7 @@ describe('PhishingDataService', () => {
             spender: {
               address: '0xspender',
             },
-            verdict: 'Benign',
+            verdict: 'Verified',
           },
         ],
       };

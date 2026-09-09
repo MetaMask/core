@@ -233,6 +233,7 @@ const RecommendedActionStruct = union([
 ]);
 
 const TokenScanResultTypeStruct = union([
+  literal(TokenScanResultType.Verified),
   literal(TokenScanResultType.Benign),
   literal(TokenScanResultType.Warning),
   literal(TokenScanResultType.Malicious),
@@ -240,13 +241,18 @@ const TokenScanResultTypeStruct = union([
 ]);
 
 const AddressScanResultTypeStruct = union([
+  literal(AddressScanResultType.Verified),
+  literal(AddressScanResultType.Trusted),
   literal(AddressScanResultType.Benign),
   literal(AddressScanResultType.Warning),
   literal(AddressScanResultType.Malicious),
   literal(AddressScanResultType.ErrorResult),
+  literal(AddressScanResultType.ApiError),
 ]);
 
 const ApprovalResultTypeStruct = union([
+  literal(ApprovalResultType.Verified),
+  literal(ApprovalResultType.Trusted),
   literal(ApprovalResultType.Benign),
   literal(ApprovalResultType.Warning),
   literal(ApprovalResultType.Malicious),

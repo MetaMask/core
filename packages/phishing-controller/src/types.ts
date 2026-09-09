@@ -310,6 +310,7 @@ export type BulkTokenScanRequest = {
  * Result type of a token scan
  */
 export enum TokenScanResultType {
+  Verified = 'Verified',
   Benign = 'Benign',
   Warning = 'Warning',
   Malicious = 'Malicious',
@@ -418,6 +419,14 @@ export type ChainIdToNameMap = typeof DEFAULT_CHAIN_ID_TO_NAME;
  */
 export enum AddressScanResultType {
   /**
+   * Address is verified by internal trust signals
+   */
+  Verified = 'Verified',
+  /**
+   * Address is trusted by internal trust signals
+   */
+  Trusted = 'Trusted',
+  /**
    * Address is benign/safe
    */
   Benign = 'Benign',
@@ -433,6 +442,10 @@ export enum AddressScanResultType {
    * Error occurred during scan
    */
   ErrorResult = 'ErrorResult',
+  /**
+   * Error returned by the security alerts API
+   */
+  ApiError = 'Error',
 }
 
 /**
@@ -611,6 +624,8 @@ export enum ApprovalResultType {
   Malicious = 'Malicious',
   Warning = 'Warning',
   Benign = 'Benign',
+  Trusted = 'Trusted',
+  Verified = 'Verified',
   ErrorResult = 'Error',
 }
 
