@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
+- Preserve api-docs/ (not docs/) for Typedoc-generated directories ([#10114](https://github.com/MetaMask/core/pull/10114))
+- Remove lint rule that deprecates use of :stateChange events ([#10090](https://github.com/MetaMask/core/pull/10090))
+- Add typechecking in CI for react-data-query ([#10010](https://github.com/MetaMask/core/pull/10010))
+- Enable typechecking in CI for base-data-service ([#10009](https://github.com/MetaMask/core/pull/10009))
+- docs: Improve `ExampleDataService` types ([#10001](https://github.com/MetaMask/core/pull/10001))
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
