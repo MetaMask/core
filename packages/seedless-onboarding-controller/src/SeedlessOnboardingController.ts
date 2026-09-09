@@ -50,6 +50,7 @@ import {
   SecretType,
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
+  SeedlessPasswordChangePhase,
   Web3AuthNetwork,
 } from './constants.js';
 import {
@@ -78,6 +79,7 @@ import {
   decodeJWTToken,
   decodeNodeAuthToken,
   deserializeVaultData,
+  getPasswordChangePhase,
   serializeVaultData,
 } from './utils.js';
 
@@ -385,8 +387,8 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       includeInDebugSnapshot: true,
       usedInUi: false,
     },
-    passwordChangeLifecycle: {
-      // Safe fields only: phase and lastErrorCode. No secrets.
+    passwordChangePhase: {
+      // Safe field only: the phase. No secrets.
       includeInStateLogs: true,
       persist: true,
       includeInDebugSnapshot: false,
@@ -985,6 +987,12 @@ export class SeedlessOnboardingController<
           keyringEncryptionKey = await this.loadKeyringEncryptionKey();
         }
 
+        // Persist the lifecycle before the first remote mutation so a later
+        // crash or lost response leaves a recovery signal. The password change
+        // is never retried; recovery reconciles local state via the existing
+        // password-sync flow.
+        this.#startPasswordChangeLifecycle();
+
         // update the encryption key with new password and update the Metadata Store
         const {
           encKey: newEncKey,
@@ -996,6 +1004,12 @@ export class SeedlessOnboardingController<
           latestKeyIndex,
         });
 
+        // The remote Seedless change is committed. Persist the boundary so
+        // recovery knows the remote password is new.
+        this.#advancePasswordChangeLifecycle(
+          SeedlessPasswordChangePhase.SeedlessCommitted,
+        );
+
         // update and encrypt the vault with new password
         await this.#createNewVaultWithAuthData({
           password: newPassword,
@@ -1003,6 +1017,11 @@ export class SeedlessOnboardingController<
           rawToprfPwEncryptionKey: newPwEncKey,
           rawToprfAuthKeyPair: newAuthKeyPair,
         });
+
+        // The local Seedless vault has been rewritten with the new password.
+        this.#advancePasswordChangeLifecycle(
+          SeedlessPasswordChangePhase.LocalKeyringPending,
+        );
 
         this.#resetPasswordOutdatedCache();
 
@@ -1019,6 +1038,14 @@ export class SeedlessOnboardingController<
         );
       } catch (error) {
         log('Error changing password', error);
+        // Preserve the last known lifecycle phase. The phase written before
+        // the failed step is the recovery signal: e.g. if `changeEncKey`
+        // rejected, the phase is `SEEDLESS_CHANGE_PENDING` and the client
+        // performs an authoritative password-outdated check to decide the
+        // recovery branch. Overwriting it with `UNKNOWN` here would discard
+        // that signal and leave the client unable to choose a branch. If the
+        // failure happened before the first lifecycle write, the lifecycle
+        // stays `IDLE` (nothing to recover).
         throw new SeedlessOnboardingError(
           SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
           {
@@ -2243,6 +2270,72 @@ export class SeedlessOnboardingController<
     callback: MutuallyExclusiveCallback<Result>,
   ): Promise<Result> {
     return await withLock(this.#vaultOperationMutex, callback);
+  }
+
+  /**
+   * Persist a password-change phase boundary to controller state.
+   *
+   * The phase is a recovery signal only; it is persisted through the normal
+   * controller state-change flow (`persist: true` metadata). It is not proof
+   * that a remote or local operation completed — recovery must always
+   * re-verify actual remote and local state.
+   *
+   * Must be called while the controller lock is held.
+   *
+   * @param phase - The phase to persist, or `undefined` to clear to `IDLE`.
+   */
+  #writePasswordChangePhase(
+    phase: SeedlessPasswordChangePhase | undefined,
+  ): void {
+    this.update((state) => {
+      state.passwordChangePhase = phase;
+    });
+  }
+
+  /**
+   * Start a password-change lifecycle before the first remote mutation.
+   *
+   * Persists `SEEDLESS_CHANGE_PENDING`. Must be called while the controller
+   * lock is held, before any remote Seedless mutation.
+   */
+  #startPasswordChangeLifecycle(): void {
+    this.#writePasswordChangePhase(
+      SeedlessPasswordChangePhase.SeedlessChangePending,
+    );
+  }
+
+  /**
+   * Advance the lifecycle to a target phase after an irreversible boundary.
+   *
+   * Must be called while the controller lock is held.
+   *
+   * @param phase - The target phase.
+   */
+  #advancePasswordChangeLifecycle(
+    phase: SeedlessPasswordChangePhase,
+  ): void {
+    this.#writePasswordChangePhase(phase);
+  }
+
+  /**
+   * Clear the password-change lifecycle to `IDLE`.
+   *
+   * This is an explicit operation used after a definitive remote failure
+   * (server did not commit) or after `COMPLETE`. The controller clears to
+   * `IDLE` so the next unlock is normal.
+   *
+   * @returns A promise that resolves once the lifecycle has been cleared.
+   */
+  async clearPasswordChangePhase(): Promise<void> {
+    await this.#withControllerLock(async () => {
+      if (
+        getPasswordChangePhase(this.state.passwordChangePhase) ===
+        SeedlessPasswordChangePhase.Idle
+      ) {
+        return;
+      }
+      this.#writePasswordChangePhase(undefined);
+    });
   }
 
   /**

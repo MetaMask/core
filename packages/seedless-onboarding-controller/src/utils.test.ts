@@ -5,22 +5,18 @@ import { utf8ToBytes } from '@noble/ciphers/utils';
 import { createMockJWTToken } from '../tests/mocks/utils.js';
 import {
   SecretType,
-  SeedlessPasswordChangeErrorCode,
   SeedlessPasswordChangePhase,
 } from './constants.js';
 import { SecretMetadata } from './SecretMetadata.js';
 import type { DecodedNodeAuthToken } from './types.js';
 import {
-  classifyPasswordChangeError,
   compareAndGetLatestToken,
-  createPasswordChangeLifecycle,
   decodeJWTToken,
   decodeNodeAuthToken,
   getInvalidPrimarySecretDataTypeErrorData,
   getPasswordChangePhase,
   getSecretTypeFromDataType,
   isValidPasswordChangePhaseTransition,
-  transitionPasswordChangeLifecycle,
 } from './utils.js';
 
 describe('utils', () => {
@@ -279,89 +275,17 @@ describe('utils', () => {
     });
   });
 
-  describe('createPasswordChangeLifecycle', () => {
-    it('creates a record with the given phase and no error code', () => {
-      expect(
-        createPasswordChangeLifecycle(SeedlessPasswordChangePhase.Idle),
-      ).toStrictEqual({ phase: SeedlessPasswordChangePhase.Idle });
-    });
-
-    it('creates a record with a pending phase', () => {
-      expect(
-        createPasswordChangeLifecycle(
-          SeedlessPasswordChangePhase.SeedlessChangePending,
-        ),
-      ).toStrictEqual({
-        phase: SeedlessPasswordChangePhase.SeedlessChangePending,
-      });
-    });
-  });
-
   describe('getPasswordChangePhase', () => {
-    it('returns IDLE when the lifecycle is undefined', () => {
+    it('returns IDLE when the phase is undefined', () => {
       expect(getPasswordChangePhase(undefined)).toBe(
         SeedlessPasswordChangePhase.Idle,
       );
     });
 
-    it('returns the stored phase when the lifecycle is defined', () => {
+    it('returns the stored phase when defined', () => {
       expect(
-        getPasswordChangePhase(
-          createPasswordChangeLifecycle(
-            SeedlessPasswordChangePhase.SeedlessCommitted,
-          ),
-        ),
+        getPasswordChangePhase(SeedlessPasswordChangePhase.SeedlessCommitted),
       ).toBe(SeedlessPasswordChangePhase.SeedlessCommitted);
-    });
-  });
-
-  describe('transitionPasswordChangeLifecycle', () => {
-    it('transitions from undefined (IDLE) to SEEDLESS_CHANGE_PENDING', () => {
-      const next = transitionPasswordChangeLifecycle(
-        undefined,
-        SeedlessPasswordChangePhase.SeedlessChangePending,
-      );
-      expect(next.phase).toBe(SeedlessPasswordChangePhase.SeedlessChangePending);
-      expect(next.lastErrorCode).toBeUndefined();
-    });
-
-    it('preserves lastErrorCode when transitioning without a new code', () => {
-      const lifecycle = {
-        phase: SeedlessPasswordChangePhase.SeedlessChangePending,
-        lastErrorCode: SeedlessPasswordChangeErrorCode.RemoteTimeout,
-      };
-      const next = transitionPasswordChangeLifecycle(
-        lifecycle,
-        SeedlessPasswordChangePhase.Unknown,
-      );
-      expect(next.phase).toBe(SeedlessPasswordChangePhase.Unknown);
-      expect(next.lastErrorCode).toBe(
-        SeedlessPasswordChangeErrorCode.RemoteTimeout,
-      );
-    });
-
-    it('sets a new lastErrorCode when provided', () => {
-      const next = transitionPasswordChangeLifecycle(
-        undefined,
-        SeedlessPasswordChangePhase.Unknown,
-        SeedlessPasswordChangeErrorCode.RemoteAmbiguous,
-      );
-      expect(next.lastErrorCode).toBe(
-        SeedlessPasswordChangeErrorCode.RemoteAmbiguous,
-      );
-    });
-
-    it('clears lastErrorCode when transitioning to IDLE', () => {
-      const lifecycle = {
-        phase: SeedlessPasswordChangePhase.Unknown,
-        lastErrorCode: SeedlessPasswordChangeErrorCode.RemoteTimeout,
-      };
-      const next = transitionPasswordChangeLifecycle(
-        lifecycle,
-        SeedlessPasswordChangePhase.Idle,
-      );
-      expect(next.phase).toBe(SeedlessPasswordChangePhase.Idle);
-      expect(next.lastErrorCode).toBeUndefined();
     });
   });
 
@@ -378,9 +302,7 @@ describe('utils', () => {
     it('allows SEEDLESS_CHANGE_PENDING to SEEDLESS_COMMITTED', () => {
       expect(
         isValidPasswordChangePhaseTransition(
-          createPasswordChangeLifecycle(
-            SeedlessPasswordChangePhase.SeedlessChangePending,
-          ),
+          SeedlessPasswordChangePhase.SeedlessChangePending,
           SeedlessPasswordChangePhase.SeedlessCommitted,
         ),
       ).toBe(true);
@@ -389,9 +311,7 @@ describe('utils', () => {
     it('allows SEEDLESS_CHANGE_PENDING to IDLE (definitive remote failure)', () => {
       expect(
         isValidPasswordChangePhaseTransition(
-          createPasswordChangeLifecycle(
-            SeedlessPasswordChangePhase.SeedlessChangePending,
-          ),
+          SeedlessPasswordChangePhase.SeedlessChangePending,
           SeedlessPasswordChangePhase.Idle,
         ),
       ).toBe(true);
@@ -400,9 +320,7 @@ describe('utils', () => {
     it('allows SEEDLESS_COMMITTED to LOCAL_KEYRING_PENDING', () => {
       expect(
         isValidPasswordChangePhaseTransition(
-          createPasswordChangeLifecycle(
-            SeedlessPasswordChangePhase.SeedlessCommitted,
-          ),
+          SeedlessPasswordChangePhase.SeedlessCommitted,
           SeedlessPasswordChangePhase.LocalKeyringPending,
         ),
       ).toBe(true);
@@ -411,9 +329,7 @@ describe('utils', () => {
     it('allows LOCAL_KEYRING_PENDING to KEY_SYNC_PENDING', () => {
       expect(
         isValidPasswordChangePhaseTransition(
-          createPasswordChangeLifecycle(
-            SeedlessPasswordChangePhase.LocalKeyringPending,
-          ),
+          SeedlessPasswordChangePhase.LocalKeyringPending,
           SeedlessPasswordChangePhase.KeySyncPending,
         ),
       ).toBe(true);
@@ -422,9 +338,7 @@ describe('utils', () => {
     it('allows KEY_SYNC_PENDING to COMPLETE', () => {
       expect(
         isValidPasswordChangePhaseTransition(
-          createPasswordChangeLifecycle(
-            SeedlessPasswordChangePhase.KeySyncPending,
-          ),
+          SeedlessPasswordChangePhase.KeySyncPending,
           SeedlessPasswordChangePhase.Complete,
         ),
       ).toBe(true);
@@ -433,7 +347,7 @@ describe('utils', () => {
     it('allows COMPLETE to IDLE (clear)', () => {
       expect(
         isValidPasswordChangePhaseTransition(
-          createPasswordChangeLifecycle(SeedlessPasswordChangePhase.Complete),
+          SeedlessPasswordChangePhase.Complete,
           SeedlessPasswordChangePhase.Idle,
         ),
       ).toBe(true);
@@ -448,7 +362,7 @@ describe('utils', () => {
       ]) {
         expect(
           isValidPasswordChangePhaseTransition(
-            createPasswordChangeLifecycle(phase),
+            phase,
             SeedlessPasswordChangePhase.Unknown,
           ),
         ).toBe(true);
@@ -465,7 +379,7 @@ describe('utils', () => {
       ]) {
         expect(
           isValidPasswordChangePhaseTransition(
-            createPasswordChangeLifecycle(SeedlessPasswordChangePhase.Unknown),
+            SeedlessPasswordChangePhase.Unknown,
             target,
           ),
         ).toBe(true);
@@ -484,9 +398,7 @@ describe('utils', () => {
     it('rejects SEEDLESS_COMMITTED to IDLE (cannot skip back without definitive failure)', () => {
       expect(
         isValidPasswordChangePhaseTransition(
-          createPasswordChangeLifecycle(
-            SeedlessPasswordChangePhase.SeedlessCommitted,
-          ),
+          SeedlessPasswordChangePhase.SeedlessCommitted,
           SeedlessPasswordChangePhase.Idle,
         ),
       ).toBe(false);
@@ -495,80 +407,10 @@ describe('utils', () => {
     it('rejects COMPLETE to SEEDLESS_CHANGE_PENDING (cannot restart from complete)', () => {
       expect(
         isValidPasswordChangePhaseTransition(
-          createPasswordChangeLifecycle(SeedlessPasswordChangePhase.Complete),
+          SeedlessPasswordChangePhase.Complete,
           SeedlessPasswordChangePhase.SeedlessChangePending,
         ),
       ).toBe(false);
-    });
-  });
-
-  describe('classifyPasswordChangeError', () => {
-    it('classifies a fetch error as RemoteStatusUnavailable', () => {
-      expect(
-        classifyPasswordChangeError(new Error('Failed to fetch auth pub key')),
-      ).toBe(SeedlessPasswordChangeErrorCode.RemoteStatusUnavailable);
-    });
-
-    it('classifies a timeout error as RemoteTimeout', () => {
-      expect(
-        classifyPasswordChangeError(new Error('Request timeout')),
-      ).toBe(SeedlessPasswordChangeErrorCode.RemoteTimeout);
-    });
-
-    it('classifies a vault error as LocalVaultFailure', () => {
-      expect(
-        classifyPasswordChangeError(new Error('vault decryption failed')),
-      ).toBe(SeedlessPasswordChangeErrorCode.LocalVaultFailure);
-    });
-
-    it('classifies a keyring error as LocalKeyringFailure', () => {
-      expect(
-        classifyPasswordChangeError(new Error('Keyring operation failed')),
-      ).toBe(SeedlessPasswordChangeErrorCode.LocalKeyringFailure);
-    });
-
-    it('classifies a persistence error as PersistenceFailure', () => {
-      expect(
-        classifyPasswordChangeError(new Error('storage write failed')),
-      ).toBe(SeedlessPasswordChangeErrorCode.PersistenceFailure);
-    });
-
-    it('classifies a FailedToChangePassword error as RemoteAmbiguous', () => {
-      expect(
-        classifyPasswordChangeError(
-          new Error('SeedlessOnboardingController - Failed to change password'),
-        ),
-      ).toBe(SeedlessPasswordChangeErrorCode.RemoteAmbiguous);
-    });
-
-    it('classifies a changeEncKey error as RemoteAmbiguous', () => {
-      expect(
-        classifyPasswordChangeError(new Error('changeEncKey failed')),
-      ).toBe(SeedlessPasswordChangeErrorCode.RemoteAmbiguous);
-    });
-
-    it('classifies an unknown error as RemoteAmbiguous', () => {
-      expect(classifyPasswordChangeError(new Error('something went wrong'))).toBe(
-        SeedlessPasswordChangeErrorCode.RemoteAmbiguous,
-      );
-    });
-
-    it('classifies a string error', () => {
-      expect(
-        classifyPasswordChangeError('timeout exceeded'),
-      ).toBe(SeedlessPasswordChangeErrorCode.RemoteTimeout);
-    });
-
-    it('classifies a non-Error non-string value as RemoteAmbiguous', () => {
-      expect(classifyPasswordChangeError(null)).toBe(
-        SeedlessPasswordChangeErrorCode.RemoteAmbiguous,
-      );
-      expect(classifyPasswordChangeError(undefined)).toBe(
-        SeedlessPasswordChangeErrorCode.RemoteAmbiguous,
-      );
-      expect(classifyPasswordChangeError({ foo: 'bar' })).toBe(
-        SeedlessPasswordChangeErrorCode.RemoteAmbiguous,
-      );
     });
   });
 });

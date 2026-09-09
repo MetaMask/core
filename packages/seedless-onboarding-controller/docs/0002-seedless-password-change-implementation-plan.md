@@ -18,7 +18,7 @@ Update the checkboxes as work is completed. Keep the phase status aligned with i
 | ---------------------------------- | ----------- | -------------------------------------------------------------- |
 | 0. External prerequisites          | Complete    | —                                                              |
 | 1. Lifecycle model                 | Complete    | —                                                              |
-| 2. Controller lifecycle operations | Not started | Add serialized lifecycle transitions and durable writes        |
+| 2. Controller lifecycle operations | Complete    | —                                                              |
 | 3. `changePassword` flow           | Not started | Add server-first lifecycle boundaries                          |
 | 4. Keyring-key storage             | Not started | Couple encrypted-key storage to lifecycle persistence          |
 | 5. Recovery primitives             | Not started | Preserve existing recovery methods and add recovery safeguards |
@@ -35,16 +35,13 @@ The controller should persist enough non-sensitive lifecycle information to tell
 
 ## Design summary
 
-Use one persisted lifecycle record:
+Use one persisted field that holds the last-known phase:
 
 ```ts
-type SeedlessPasswordChangeLifecycle = {
-  phase: SeedlessPasswordChangePhase;
-  lastErrorCode?: string;
-};
+passwordChangePhase?: SeedlessPasswordChangePhase;
 ```
 
-The record must never contain a password, SRP, raw encryption key, decrypted vault data, or an error message that may contain sensitive data.
+The field must never contain a password, SRP, raw encryption key, decrypted vault data, or an error message that may contain sensitive data. Missing or `undefined` means `IDLE`.
 
 Use the lifecycle as a recovery signal only. It is not proof that a remote or local operation completed. Recovery must always:
 
@@ -90,29 +87,24 @@ Keep the existing methods where possible. Add only the lifecycle information nee
    - Use string enum values matching the ADR exactly.
    - Add no sensitive values to the enum.
 
-2. Add `SeedlessPasswordChangeLifecycle` to `src/types.ts`.
+2. Add `passwordChangePhase?: SeedlessPasswordChangePhase` to `SeedlessOnboardingControllerState` in `src/types.ts`.
 
-   - Make the lifecycle state optional so old persisted state without the field is treated as `IDLE`.
+   - Make the field optional so old persisted state without it is treated as `IDLE`.
 
-3. Add `passwordChangeLifecycle?: SeedlessPasswordChangeLifecycle` to `SeedlessOnboardingControllerState`.
-
-4. Add metadata for `passwordChangeLifecycle` in `seedlessOnboardingMetadata`.
+3. Add metadata for `passwordChangePhase` in `seedlessOnboardingMetadata`.
 
    - Set `persist: true`.
    - Keep state logs and debug snapshots limited to safe fields, or exclude the field if the platform does not need it there.
    - Do not expose raw error objects through state.
 
-5. Export the phase and lifecycle types through `src/index.ts`.
+4. Export the phase type through `src/index.ts`.
 
 ### Lifecycle helpers
 
 Add small, pure helpers rather than spreading phase mutations through the controller:
 
-1. Define a helper for creating a new lifecycle record.
-2. Define a helper for applying a phase transition.
-3. Define a helper for classifying errors into a non-sensitive error code.
-4. Define a helper for treating missing lifecycle state as `IDLE`.
-5. Validate legal transitions in tests. Do not make the transition validator the source of truth for recovery; a persisted phase may be stale.
+1. Define a helper for treating a missing phase as `IDLE`.
+2. Validate legal transitions in tests. Do not make the transition validator the source of truth for recovery; a persisted phase may be stale.
 
 These helpers can live in `src/utils.ts` if they remain general and pure. Keep controller-specific transition behavior in private controller methods.
 
@@ -120,21 +112,23 @@ These helpers can live in `src/utils.ts` if they remain general and pure. Keep c
 
 Out of scope for this plan. The Seedless/TOPRF server does not accept an idempotency key or transaction ID today, and adding one is not a simple server-side change. Recovery here does not retry the password change — it uses the existing password-sync flow (`checkIsPasswordOutdated` + `submitGlobalPassword` + `syncLatestGlobalPassword`) to reconcile local state once remote state is established. A transaction ID remains a “good to have” for a future TOPRF release; until then, ambiguous remote results stay `UNKNOWN`.
 
-### Durable lifecycle persistence
+### Lifecycle persistence
 
-The existing `stateChanged` event remains the notification mechanism, but a normal state update is not a durability acknowledgement.
+The lifecycle is persisted as ordinary controller state. The `passwordChangePhase` field has `persist: true` metadata, so it is written through the controller's normal `stateChange` flow (the same debounced persistence path as every other persisted field). There is no separate awaitable durability hook on the controller.
 
-**Phase 0 decision:** use a narrow awaitable persistence hook on the controller options (`persistPasswordChangeLifecycle`), used only for lifecycle boundaries. Clients implement the hook with a non-debounced durable write. See [0003](./0003-seedless-password-change-contracts.md).
+The lifecycle is a recovery signal only — it is not proof that a remote or local operation completed, and it is not proof that the lifecycle itself reached durable storage before the next step ran. A crash can leave the durable marker behind the actual cryptographic state, so recovery must always re-verify actual remote and local state before acting on the phase. A missing or stale marker is recoverable: `checkIsPasswordOutdated({ skipCache: true })` detects a remote change with no marker at all, and cryptographic Keyring verification classifies the local state.
 
-The hook must provide:
+Required lifecycle write points (controller `this.update(...)` calls):
 
-- an awaitable write before the first remote mutation;
-- an awaitable write after each irreversible boundary;
-- an awaitable write for `COMPLETE`;
-- a read of the last durable lifecycle before normal unlock error handling;
-- surfaced write failures, so the client can lock the wallet and keep recovery active.
+- before the first remote mutation (`SEEDLESS_CHANGE_PENDING`);
+- after each irreversible boundary (`SEEDLESS_COMMITTED`, `LOCAL_KEYRING_PENDING`);
+- after local Keyring-key storage when that update is coupled to a lifecycle write;
+- after `COMPLETE`;
+- after explicit clear to `IDLE`.
 
-Do not claim that `this.update(...)` alone satisfies this contract. Do not use the generic debounced persistence path as the only completion boundary.
+On a failed step the controller **preserves the last known phase**; it does not overwrite it with `UNKNOWN`. The last written phase is the recovery signal: e.g. if `changeEncKey` rejected, the phase stays `SEEDLESS_CHANGE_PENDING` and the client performs an authoritative password-outdated check to choose the recovery branch. If the failure happened before the first lifecycle write, the lifecycle stays `IDLE` (nothing to recover). `UNKNOWN` is a recovery-time determination made by the client when an authoritative server check or local cryptographic verification cannot establish the state — not a phase written by `changePassword`'s catch block.
+
+These publish `SeedlessOnboardingController:stateChange`; they are not awaited durability boundaries. See [0003](./0003-seedless-password-change-contracts.md).
 
 ## Development phases
 
@@ -146,7 +140,7 @@ Complete these checks before changing controller behavior:
 - [x] Confirm whether the password-change request accepts an idempotency key or transaction ID.
 - [x] Confirm whether Keyring encryption-key synchronization is a Seedless/TOPRF API, a client persistence operation, or both.
 - [x] Define how the remote service reports old, new, partial, and unknown state.
-- [x] Define the durable persistence hook for extension and mobile.
+- [x] Define the lifecycle persistence approach for extension and mobile.
 - [x] Define how the client reads the lifecycle before attempting normal unlock.
 
 Deliverable: [0003-seedless-password-change-contracts.md](./0003-seedless-password-change-contracts.md). Authoritative remote status is unavailable in `@metamask/toprf-secure-backup@1.1.0`; lost-response and partial backup paths remain `UNKNOWN` until TOPRF adds that API.
@@ -173,18 +167,17 @@ Add private methods with names that describe the boundary, for example:
 
 - `#startPasswordChangeLifecycle`
 - `#advancePasswordChangeLifecycle`
-- `#markPasswordChangeUnknown`
+- `#writePasswordChangePhase`
 - `#completePasswordChangeLifecycle`
-- `#clearPasswordChangeLifecycle`
+- `#clearPasswordChangePhase`
 
 Implement them in this order:
 
-- [ ] Create the lifecycle before the first remote mutation with `SEEDLESS_CHANGE_PENDING`.
-- [ ] Preserve the lifecycle when any later operation throws.
-- [ ] Mark `UNKNOWN` only when the controller cannot safely classify the result; do not reset to `IDLE` on every error.
-- [ ] Make clearing the lifecycle an explicit operation after definitive remote failure or durable `COMPLETE`.
-- [ ] Keep all transitions serialized under `#withControllerLock`.
-- [ ] Route durable lifecycle writes through the persistence contract selected in Phase 0.
+- [x] Create the lifecycle before the first remote mutation with `SEEDLESS_CHANGE_PENDING`.
+- [x] Preserve the last known phase when any later operation throws; do not overwrite it with `UNKNOWN` and do not reset to `IDLE` on every error.
+- [x] Make clearing the lifecycle an explicit operation after definitive remote failure or durable `COMPLETE`.
+- [x] Keep all transitions serialized under `#withControllerLock`.
+- [x] Route durable lifecycle writes through the persistence contract selected in Phase 0.
 
 Do not add a second mutex unless the existing controller mutex cannot protect the lifecycle update. The client must use its own coordinator lock for the cross-controller transaction.
 
@@ -363,7 +356,7 @@ The implementation is ready when:
 ### This package
 
 - `src/constants.ts` — lifecycle phase enum.
-- `src/types.ts` — lifecycle record and state field.
+- `src/types.ts` — password-change phase state field.
 - `src/utils.ts` — pure lifecycle helpers, if needed.
 - `src/SeedlessOnboardingController.ts` — metadata, transition helpers, lifecycle-aware `changePassword`, and lifecycle-aware key storage.
 - `src/SeedlessOnboardingController-method-action-types.ts` — public action documentation/signature.
@@ -376,7 +369,7 @@ The implementation is ready when:
 
 - Client password-change coordinator and unlock/recovery routing.
 - KeyringController integration for `verifyPassword`, `submitEncryptionKey`, `changePassword`, and `exportEncryptionKey`.
-- Durable storage adapter or persistence hook implementation.
+- Client persistence of the `SeedlessOnboardingController` state slice (debounced, same as other persisted controller state).
 - Seedless/TOPRF API support for authoritative status (future: idempotent retries keyed by transaction ID).
 - Client UI and end-to-end tests.
 
@@ -384,11 +377,11 @@ The implementation is ready when:
 
 Resolved in [0003](./0003-seedless-password-change-contracts.md):
 
-- [x] Decide which layer owns the awaitable durable persistence hook. Controller option `persistPasswordChangeLifecycle`; clients supply the durable write.
+- [x] Decide the lifecycle persistence approach. Persisted as ordinary controller state (`persist: true`) via the normal `stateChange` flow; no separate awaitable durability hook. Recovery re-verifies actual state, so a stale/missing marker is recoverable.
 - [x] Define what exact remote API confirms password-change and Keyring-key synchronization status. Today: `fetchAuthPubKey` plus cryptographic recover. No transaction-status API. Local Keyring-key proof is `storeKeyringEncryptionKey` durability only.
 - [x] Confirm whether `transactionId` is accepted by the current Seedless/TOPRF API, or whether server work must land first. Not accepted, and out of scope for this plan. Recovery uses `fetchAuthPubKey` comparison and cryptographic verification instead.
 - [x] Define what the remote service returns for a partial backup/key-share update. Nothing; classify as `UNKNOWN`.
-- [x] Decide whether the lifecycle record is visible to UI state or only to the client coordinator through the messenger. Persisted controller state; coordinator reads `getState` before unlock; `usedInUi: true` for safe fields only.
+- [x] Decide whether the lifecycle phase is visible to UI state or only to the client coordinator through the messenger. Persisted controller state; coordinator reads `getState` before unlock; `usedInUi: true` for the phase only.
 
 Still open:
 

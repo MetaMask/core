@@ -49,23 +49,6 @@ export enum SeedlessPasswordChangePhase {
   Unknown = 'UNKNOWN',
 }
 
-/**
- * Non-sensitive error codes stored on the password-change lifecycle.
- *
- * These must never contain passwords, raw error messages, or server response
- * bodies — only a closed set of classification labels.
- */
-export enum SeedlessPasswordChangeErrorCode {
-  RemoteTimeout = 'REMOTE_TIMEOUT',
-  RemoteAmbiguous = 'REMOTE_AMBIGUOUS',
-  RemoteDefinitiveFailure = 'REMOTE_DEFINITIVE_FAILURE',
-  RemoteStatusUnavailable = 'REMOTE_STATUS_UNAVAILABLE',
-  LocalVaultFailure = 'LOCAL_VAULT_FAILURE',
-  LocalKeyringFailure = 'LOCAL_KEYRING_FAILURE',
-  KeyStoreFailure = 'KEY_STORE_FAILURE',
-  PersistenceFailure = 'PERSISTENCE_FAILURE',
-}
-
 export enum SeedlessOnboardingControllerErrorMessage {
   ControllerLocked = `${controllerName} - The operation cannot be completed while the controller is locked.`,
   VaultLocked = `${controllerName} - The operation cannot be completed while the vault is locked.`,

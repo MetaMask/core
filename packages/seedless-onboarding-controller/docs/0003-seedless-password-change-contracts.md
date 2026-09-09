@@ -80,65 +80,51 @@ Recovery reuses the existing password-sync flow, which already handles “remote
 
 `COMPLETE` in this contract means: remote Seedless password is new, local Seedless vault is new, local Keyring uses the new password, and the current Keyring encryption key is durably stored via `storeKeyringEncryptionKey`.
 
-## Durable persistence hook (extension and mobile)
+## Lifecycle persistence
 
-**Decision:** use the plan’s preferred approach — a narrow awaitable persistence hook on the controller, used only at lifecycle boundaries. Do not rely on generic debounced `stateChanged` persistence as the completion boundary.
+**Decision:** the password-change lifecycle is persisted as ordinary controller state. The `passwordChangePhase` field has `persist: true` metadata, so it is written through the controller's normal `stateChange` flow (the same debounced persistence path used by every other persisted field). There is no separate awaitable durability hook on the controller.
 
-### Hook
+The lifecycle is a **recovery signal only** — it is not proof that a remote or local operation completed, and it is not proof that the lifecycle itself reached durable storage before the next step ran. A crash can leave the durable marker behind the actual cryptographic state. Recovery must therefore always re-verify actual remote and local state (see [No retries, no concurrency](#no-retries-no-concurrency) and [Unlock-time lifecycle read](#unlock-time-lifecycle-read)) before acting on the phase. A missing or stale marker is recoverable: `checkIsPasswordOutdated({ skipCache: true })` detects a remote change with no marker at all, and cryptographic Keyring verification classifies the local state.
 
-```ts
-type PersistPasswordChangeLifecycle = (input: {
-  lifecycle: SeedlessPasswordChangeLifecycle | undefined;
-  state: SeedlessOnboardingControllerState;
-}) => Promise<void>;
-```
-
-Constructor option: `persistPasswordChangeLifecycle?: PersistPasswordChangeLifecycle`.
-
-Semantics:
-
-1. The controller updates in-memory state first (`this.update`), then **awaits** this hook before treating the boundary as durable.
-2. The hook must return only after the lifecycle (and any adjacent fields written in the same update, such as `encryptedKeyringEncryptionKey`) is written to the platform’s durable store.
-3. Hook rejection is a persistence failure. Surface it to the caller. The client must lock the wallet and keep recovery active. Do not classify the remote password change from this failure.
-4. If the hook is omitted, later phases that persist lifecycle **fail closed** before the first remote mutation. Unit tests inject a resolving or rejecting mock.
-5. `undefined` lifecycle means the durable record was cleared (`IDLE`).
-
-Required await points:
+Required lifecycle write points (in controller code):
 
 - before the first remote mutation (`SEEDLESS_CHANGE_PENDING`);
 - after authoritative remote commitment (`SEEDLESS_COMMITTED`);
-- after local Seedless vault rewrite (`LOCAL_KEYRING_PENDING`);
+- after the local Seedless vault rewrite (`LOCAL_KEYRING_PENDING`);
 - after local Keyring-key storage when that update is coupled to a lifecycle write;
-- after `UNKNOWN`;
 - after `COMPLETE`;
 - after explicit clear to `IDLE`.
 
-### Platform adapters
+On a failed step the controller **preserves the last known phase**; it does not overwrite it with `UNKNOWN`. The last written phase is the recovery signal (e.g. a `changeEncKey` rejection leaves `SEEDLESS_CHANGE_PENDING`, and the client performs an authoritative password-outdated check to choose the branch). If the failure happened before the first lifecycle write, the lifecycle stays `IDLE`. `UNKNOWN` is a recovery-time determination made by the client when an authoritative server check or local cryptographic verification cannot establish the state — not a phase written by `changePassword`'s catch block.
+
+These are `this.update(...)` calls that publish `SeedlessOnboardingController:stateChange`. They are not awaited durability boundaries.
+
+### Platform persistence
 
 | Client | Durable write | Unlock-time read |
 | --- | --- | --- |
-| Extension | Await the persisted `SeedlessOnboardingController` slice in `chrome.storage` / the client persist pipeline. Bypass debounce for this write. | Read the persisted slice during background/start hydration, before password-unlock error handling. |
-| Mobile | Await the filesystem / redux-persist (or equivalent) write for the same slice. Bypass debounce for this write. | Read the rehydrated slice at app start, before treating unlock as a normal invalid-password failure. |
+| Extension | The persisted `SeedlessOnboardingController` slice in `chrome.storage` / the client persist pipeline (debounced). | Read the persisted slice during background/start hydration, before password-unlock error handling. |
+| Mobile | The filesystem / redux-persist (or equivalent) write for the same slice (debounced). | Read the rehydrated slice at app start, before treating unlock as a normal invalid-password failure. |
 
-The generic ComposableController / redux persist debounce may remain for unrelated state. It must not be the only write that `COMPLETE` waits on.
+The generic ComposableController / redux persist debounce remains the persistence path for this field, the same as for all other persisted controller state.
 
 ## Unlock-time lifecycle read
 
 **Decision:** the lifecycle is persisted controller state. Clients read it through `SeedlessOnboardingController:getState` (or the already-hydrated persisted snapshot) **before** normal Keyring invalid-password handling. Recovery UI may observe safe fields; the coordinator, not the UI, decides the recovery branch.
 
-Metadata for `passwordChangeLifecycle` (Phase 1):
+Metadata for `passwordChangePhase` (Phase 1):
 
 - `persist: true`
 - `usedInUi: true` so recovery screens can show phase, without exposing secrets
 - `includeInDebugSnapshot: false`
-- `includeInStateLogs: true` only for non-sensitive fields (`phase`, `lastErrorCode`)
+- `includeInStateLogs: true` (the only stored field is `phase`, which is non-sensitive)
 
 Missing persisted field ⇒ `IDLE`.
 
 Unlock routing:
 
 1. Hydrate durable controller state.
-2. Read `passwordChangeLifecycle`; treat missing as `IDLE`.
+2. Read `passwordChangePhase`; treat missing as `IDLE`.
 3. If phase is `IDLE` or `COMPLETE` (or `COMPLETE` already cleared to `IDLE`): continue normal unlock.
 4. Otherwise: recovery-blocked path. Do not report the entered password as an ordinary Keyring unlock failure while recovery is pending.
 5. For every unfinished phase, bypass `passwordOutdatedCache` and fetch remote `authPubKey`.
@@ -147,28 +133,13 @@ Unlock routing:
 
 `COMPLETE` is not a second source of cryptographic truth. After a durable `COMPLETE`, the controller should clear to `IDLE` so the next unlock is normal.
 
-## Error codes stored on the lifecycle
-
-`lastErrorCode` must be a closed, non-sensitive set. Do not persist error messages, passwords, or server bodies.
-
-Suggested codes for later phases:
-
-- `REMOTE_TIMEOUT`
-- `REMOTE_AMBIGUOUS`
-- `REMOTE_DEFINITIVE_FAILURE`
-- `REMOTE_STATUS_UNAVAILABLE`
-- `LOCAL_VAULT_FAILURE`
-- `LOCAL_KEYRING_FAILURE`
-- `KEY_STORE_FAILURE`
-- `PERSISTENCE_FAILURE`
-
 ## Implications for later phases
 
-- Phase 1–2 may add lifecycle types and the persistence hook without calling new TOPRF methods.
-- Phase 3 must mark `UNKNOWN` on ambiguous `changeEncKey` failures and must not reset to `IDLE` without an **old** remote classification. It must never retry `changeEncKey`.
-- Phase 4 couples local Keyring-key storage to the hook; no remote key-sync API is needed.
+- Phase 1–2 may add lifecycle types and lifecycle write points without calling new TOPRF methods.
+- Phase 3 must **preserve the last known lifecycle phase** on ambiguous `changeEncKey` failures (e.g. leave `SEEDLESS_CHANGE_PENDING` in place) and must not reset to `IDLE` without an **old** remote classification. It must never retry `changeEncKey`. `UNKNOWN` is determined later by recovery, not written by the catch block.
+- Phase 4 couples local Keyring-key storage to a lifecycle write; no remote key-sync API is needed.
 - Phase 5 reuses `submitGlobalPassword` and `syncLatestGlobalPassword` as the recovery mechanism.
-- Phase 7 clients must implement the hook and the unlock-time read. They must not start a second password change while the lifecycle is unfinished, and must never retry `changePassword` / `changeEncKey`.
+- Phase 7 clients must implement the unlock-time read of the persisted lifecycle. They must not start a second password change while the lifecycle is unfinished, and must never retry `changePassword` / `changeEncKey`.
 
 ## Existing TOPRF endpoints used by recovery
 
