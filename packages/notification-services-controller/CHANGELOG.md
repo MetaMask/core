@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+
 ### Fixed
 
 - Leave existing push registration in place when the keyring has no accounts yet ([#10143](https://github.com/MetaMask/core/pull/10143))

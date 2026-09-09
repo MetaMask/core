@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - Replace `@spruceid/siwe-parser` with `@signinwithethereum/siwe-parser` ^4.2.1 ([#10049](https://github.com/MetaMask/core/pull/10049))
   - The old package is no longer maintained. The Ethereum Identity Foundation now maintains the successor under the `@signinwithethereum` scope.
   - The `ParsedMessage` class API is backward compatible.
