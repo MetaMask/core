@@ -685,11 +685,15 @@ export class PhishingDataService extends BaseDataService<
           },
           URL_SCAN_TIMEOUT,
         );
-        return this.#validate(
+        const scanResult = this.#validate(
           response,
           ScanUrlResponseStruct,
           'URL scan',
-        ) as Json;
+        );
+        if (scanResult.fetchError) {
+          throw new Error(scanResult.fetchError);
+        }
+        return scanResult as Json;
       },
       staleTime: SCAN_RESULT_STALE_TIME,
       gcTime: SCAN_RESULT_GC_TIME,
@@ -742,18 +746,23 @@ export class PhishingDataService extends BaseDataService<
         for (const [key, messages] of Object.entries(response.errors)) {
           itemErrors[key] = new BatchItemError(messages.join(', '));
         }
+        const results: Record<string, Json> = {};
+        for (const [key, result] of Object.entries(response.results)) {
+          if (result.fetchError) {
+            itemErrors[key] = new BatchItemError(result.fetchError);
+          } else {
+            results[key] = result as Json;
+          }
+        }
         for (const url of batchUrls) {
-          if (
-            !Object.hasOwn(response.results, url) &&
-            !Object.hasOwn(itemErrors, url)
-          ) {
+          if (!Object.hasOwn(results, url) && !Object.hasOwn(itemErrors, url)) {
             itemErrors[url] = new BatchItemError(
               'No result returned by bulk URL scan endpoint',
             );
           }
         }
         return {
-          results: response.results as Record<string, Json>,
+          results,
           errors: itemErrors,
         };
       },

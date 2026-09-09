@@ -390,6 +390,28 @@ describe('PhishingDataService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
+    it('does not cache a response containing a fetch error', async () => {
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, {
+          recommendedAction: 'NONE',
+          fetchError: 'detector unavailable',
+        })
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, { recommendedAction: 'BLOCK' });
+      const { rootMessenger } = createService();
+
+      await expect(
+        rootMessenger.call('PhishingDataService:scanUrl', 'example.com'),
+      ).rejects.toThrow('detector unavailable');
+      expect(
+        await rootMessenger.call('PhishingDataService:scanUrl', 'example.com'),
+      ).toStrictEqual({ recommendedAction: 'BLOCK' });
+      expect(scope.isDone()).toBe(true);
+    });
+
     it('refetches once a cached result passes its garbage collection time', async () => {
       jest.useFakeTimers({
         doNotFake: ['nextTick', 'queueMicrotask'],
@@ -526,6 +548,75 @@ describe('PhishingDataService', () => {
       expect(second.errors['https://example1.com']).toStrictEqual([
         'upstream failure',
       ]);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('does not cache URL results containing a fetch error', async () => {
+      const blockedUrl = 'https://blocked.com';
+      const failedUrl = 'https://failed.com';
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: [blockedUrl, failedUrl],
+        })
+        .reply(200, {
+          results: {
+            [blockedUrl]: {
+              hostname: 'blocked.com',
+              recommendedAction: 'BLOCK',
+            },
+            [failedUrl]: {
+              hostname: 'failed.com',
+              recommendedAction: 'NONE',
+              fetchError: 'detector unavailable',
+            },
+          },
+          errors: {},
+        })
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: [failedUrl],
+        })
+        .reply(200, {
+          results: {
+            [failedUrl]: {
+              hostname: 'failed.com',
+              recommendedAction: 'WARN',
+            },
+          },
+          errors: {},
+        });
+      const { rootMessenger } = createService();
+
+      const first = await rootMessenger.call(
+        'PhishingDataService:bulkScanUrls',
+        [blockedUrl, failedUrl],
+      );
+      const second = await rootMessenger.call(
+        'PhishingDataService:bulkScanUrls',
+        [blockedUrl, failedUrl],
+      );
+
+      expect(first).toStrictEqual({
+        results: {
+          [blockedUrl]: {
+            hostname: 'blocked.com',
+            recommendedAction: 'BLOCK',
+          },
+        },
+        errors: { [failedUrl]: ['detector unavailable'] },
+      });
+      expect(second).toStrictEqual({
+        results: {
+          [blockedUrl]: {
+            hostname: 'blocked.com',
+            recommendedAction: 'BLOCK',
+          },
+          [failedUrl]: {
+            hostname: 'failed.com',
+            recommendedAction: 'WARN',
+          },
+        },
+        errors: {},
+      });
       expect(scope.isDone()).toBe(true);
     });
 
