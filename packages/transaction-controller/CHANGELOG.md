@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
+- Add approval-time sponsorship/signing hooks to `TransactionController` and keep gas-fee-token preflight in the approval flow ([#10109](https://github.com/MetaMask/core/pull/10109))
 
 ## [70.0.0]
 
@@ -31,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [69.8.1]
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^9.0.0` to `^9.1.1` ([#10138](https://github.com/MetaMask/core/pull/10138), [#10139](https://github.com/MetaMask/core/pull/10139))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.1.0` to `^6.1.1` ([#10129](https://github.com/MetaMask/core/pull/10129))
 
 ### Fixed
 

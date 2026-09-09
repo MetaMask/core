@@ -124,6 +124,8 @@ import type {
   AfterAddHook,
   GasFeeEstimateLevel as GasFeeEstimateLevelType,
   TransactionBatchMeta,
+  IsSponsoredHook,
+  ShouldSignHook,
   BeforeSignHook,
   GetSimulationConfig,
   AddTransactionOptions,
@@ -412,6 +414,16 @@ export type TransactionControllerOptions = {
     beforeCheckPendingTransaction?: (
       transactionMeta: TransactionMeta,
     ) => Promise<boolean>;
+
+    /**
+     * Additional logic to determine whether a transaction is sponsored.
+     */
+    isSponsored?: IsSponsoredHook;
+
+    /**
+     * Additional logic to determine whether a transaction should be signed locally.
+     */
+    shouldSign?: ShouldSignHook;
 
     /**
      * Additional logic to execute before publishing a transaction.
@@ -732,6 +744,10 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
   ) => Promise<boolean>;
 
+  readonly #isSponsored: IsSponsoredHook;
+
+  readonly #shouldSign: ShouldSignHook;
+
   readonly #beforePublish: (
     transactionMeta: TransactionMeta,
   ) => Promise<boolean>;
@@ -833,6 +849,19 @@ export class TransactionController extends BaseController<
       /* istanbul ignore next */
       hooks?.beforeCheckPendingTransaction ??
       ((): Promise<boolean> => Promise.resolve(true));
+    this.#isSponsored =
+      hooks?.isSponsored ??
+      (async ({ transactionMeta }: { transactionMeta: TransactionMeta }) =>
+        Boolean(transactionMeta.isGasFeeSponsored));
+    this.#shouldSign =
+      hooks?.shouldSign ??
+      (async ({
+        transactionMeta,
+        isSponsored,
+      }: {
+        transactionMeta: TransactionMeta;
+        isSponsored: boolean;
+      }) => !Boolean(transactionMeta.isExternalSign));
     this.#beforePublish =
       hooks?.beforePublish ?? ((): Promise<boolean> => Promise.resolve(true));
     this.#beforeSign =
@@ -3112,19 +3141,6 @@ export class TransactionController extends BaseController<
       clearApprovingTransactionId = (): boolean =>
         this.#approvingTransactionIds.delete(transactionId);
 
-      const { networkClientId } = transactionMeta;
-
-      const [nonce, releaseNonce] = await getNextNonce(
-        transactionMeta,
-        (address: string) =>
-          this.#multichainTrackingHelper.getNonceLock(
-            address,
-            transactionMeta.networkClientId,
-          ),
-      );
-
-      clearNonceLock = releaseNonce;
-
       // eslint-disable-next-line require-atomic-updates
       transactionMeta = this.#updateTransactionInternal(
         {
@@ -3137,7 +3153,6 @@ export class TransactionController extends BaseController<
           draftTxMeta.status = TransactionStatus.approved;
           draftTxMeta.txParams.chainId = chainId;
           draftTxMeta.txParams.gasLimit = gas;
-          draftTxMeta.txParams.nonce = nonce;
 
           if (!type && isEIP1559Transaction(txParams)) {
             draftTxMeta.txParams.type = TransactionEnvelopeType.feeMarket;
@@ -3147,13 +3162,77 @@ export class TransactionController extends BaseController<
 
       this.#onTransactionStatusChange(transactionMeta);
 
-      const rawTx = await this.#trace(
-        { name: 'Sign', parentContext: traceContext },
-        () => this.#signTransaction(transactionMeta),
-      );
+      transactionMeta = await this.#applyBeforeSignHook(transactionMeta);
+
+      const { networkClientId } = transactionMeta;
+
+      await checkGasFeeTokenBeforePublish({
+        messenger: this.messenger,
+        networkClientId,
+        fetchGasFeeTokens: async (tx) =>
+          (await this.#getGasFeeTokens(tx)).gasFeeTokens,
+        transaction: transactionMeta,
+        updateTransaction: (txId, fn) =>
+          this.#updateTransactionInternal({ transactionId: txId }, fn),
+      });
+
+      transactionMeta = this.#getTransactionOrThrow(transactionId);
+
+      const isSponsored = await this.#isSponsored({ transactionMeta });
+      const shouldSign = await this.#shouldSign({
+        transactionMeta,
+        isSponsored,
+      });
 
       // eslint-disable-next-line require-atomic-updates
-      transactionMeta = this.#getTransactionOrThrow(transactionId);
+      transactionMeta = this.#updateTransactionInternal(
+        {
+          transactionId,
+        },
+        (draftTxMeta) => {
+          draftTxMeta.isGasFeeSponsored = isSponsored;
+          draftTxMeta.isExternalSign = !shouldSign;
+
+          if (!shouldSign) {
+            draftTxMeta.txParams.nonce = undefined;
+          }
+        },
+      );
+
+      let rawTx: string | undefined;
+
+      if (shouldSign) {
+        const [nonce, releaseNonce] = await getNextNonce(
+          transactionMeta,
+          (address: string) =>
+            this.#multichainTrackingHelper.getNonceLock(
+              address,
+              transactionMeta.networkClientId,
+            ),
+        );
+
+        clearNonceLock = releaseNonce;
+
+        // eslint-disable-next-line require-atomic-updates
+        transactionMeta = this.#updateTransactionInternal(
+          {
+            transactionId,
+          },
+          (draftTxMeta) => {
+            draftTxMeta.txParams.nonce = nonce;
+          },
+        );
+
+        this.#onTransactionStatusChange(transactionMeta);
+
+        rawTx = await this.#trace(
+          { name: 'Sign', parentContext: traceContext },
+          () => this.#signTransaction(transactionMeta, true, true),
+        );
+
+        // eslint-disable-next-line require-atomic-updates
+        transactionMeta = this.#getTransactionOrThrow(transactionId);
+      }
 
       if (!(await this.#beforePublish(transactionMeta))) {
         log('Skipping publishing transaction based on hook');
@@ -3671,10 +3750,9 @@ export class TransactionController extends BaseController<
     );
   }
 
-  async #signTransaction(
-    originalTransactionMeta: TransactionMeta,
-  ): Promise<string | undefined> {
-    let transactionMeta = originalTransactionMeta;
+  async #applyBeforeSignHook(
+    transactionMeta: TransactionMeta,
+  ): Promise<TransactionMeta> {
     const { id: transactionId } = transactionMeta;
 
     log('Calling before sign hook', transactionMeta);
@@ -3691,21 +3769,37 @@ export class TransactionController extends BaseController<
       log('Updated transaction after before sign hook');
     }
 
-    transactionMeta = this.#getTransactionOrThrow(transactionId);
+    return this.#getTransactionOrThrow(transactionId);
+  }
 
-    const { networkClientId } = transactionMeta;
+  async #signTransaction(
+    originalTransactionMeta: TransactionMeta,
+    skipGasFeeTokenCheck = false,
+    skipBeforeSign = false,
+  ): Promise<string | undefined> {
+    let transactionMeta = originalTransactionMeta;
+    const { id: transactionId } = transactionMeta;
 
-    await checkGasFeeTokenBeforePublish({
-      messenger: this.messenger,
-      networkClientId,
-      fetchGasFeeTokens: async (tx) =>
-        (await this.#getGasFeeTokens(tx)).gasFeeTokens,
-      transaction: transactionMeta,
-      updateTransaction: (txId, fn) =>
-        this.#updateTransactionInternal({ transactionId: txId }, fn),
-    });
+    if (!skipBeforeSign) {
+      transactionMeta = await this.#applyBeforeSignHook(transactionMeta);
+    }
 
-    transactionMeta = this.#getTransactionOrThrow(transactionId);
+    if (!skipGasFeeTokenCheck) {
+      const { networkClientId } = transactionMeta;
+
+      await checkGasFeeTokenBeforePublish({
+        messenger: this.messenger,
+        networkClientId,
+        fetchGasFeeTokens: async (tx) =>
+          (await this.#getGasFeeTokens(tx)).gasFeeTokens,
+        transaction: transactionMeta,
+        updateTransaction: (txId, fn) =>
+          this.#updateTransactionInternal({ transactionId: txId }, fn),
+      });
+
+      transactionMeta = this.#getTransactionOrThrow(transactionId);
+    }
+
     const { chainId, isExternalSign, txParams } = transactionMeta;
 
     if (isExternalSign) {
