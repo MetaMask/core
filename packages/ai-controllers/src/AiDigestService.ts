@@ -220,6 +220,10 @@ export class AiDigestService implements DigestService {
   async fetchFrontPageItem(
     id: string,
   ): Promise<MarketOverviewFrontPage | null> {
+    if (!id) {
+      throw new Error(AiDigestControllerErrorMessage.INVALID_FRONT_PAGE_ID);
+    }
+
     const response = await fetch(
       `${this.#baseUrl}/market-overview/front-page/${encodeURIComponent(id)}`,
     );
@@ -259,6 +263,10 @@ export class AiDigestService implements DigestService {
   async searchDigest(
     assetIdentifier: string,
   ): Promise<MarketInsightsReport | null> {
+    if (!assetIdentifier) {
+      throw new Error(AiDigestControllerErrorMessage.INVALID_ASSET_IDENTIFIER);
+    }
+
     const response = await fetch(
       `${this.#baseUrl}/asset-summary?asset=${encodeURIComponent(assetIdentifier)}`,
     );

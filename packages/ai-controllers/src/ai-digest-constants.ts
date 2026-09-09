@@ -1,5 +1,3 @@
-export const controllerName = 'AiDigestController';
-
 export const AiDigestControllerErrorMessage = {
   API_REQUEST_FAILED: 'API request failed',
   API_INVALID_RESPONSE: 'API returned invalid response',

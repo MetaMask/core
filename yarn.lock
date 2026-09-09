@@ -5686,8 +5686,6 @@ __metadata:
   resolution: "@metamask/ai-controllers@workspace:packages/ai-controllers"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.1.0"
-    "@metamask/base-controller": "npm:^9.1.0"
-    "@metamask/messenger": "npm:^2.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^11.12.0"
     "@ts-bridge/cli": "npm:^0.6.4"

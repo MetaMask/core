@@ -194,16 +194,6 @@ export type MarketOverviewFrontPage = {
 };
 
 // ---------------------------------------------------------------------------
-// Controller state
-// ---------------------------------------------------------------------------
-
-/**
- * AiDigestController has no persisted cache. Digest freshness is owned by
- * clients (e.g. React Query).
- */
-export type AiDigestControllerState = Record<string, never>;
-
-// ---------------------------------------------------------------------------
 // Service interface
 // ---------------------------------------------------------------------------
 

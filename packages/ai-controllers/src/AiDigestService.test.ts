@@ -58,6 +58,17 @@ describe('AiDigestService', () => {
       digest: mockMarketInsightsReport,
     };
 
+    it('throws for an empty asset identifier without calling the API', async () => {
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+
+      await expect(service.searchDigest('')).rejects.toThrow(
+        AiDigestControllerErrorMessage.INVALID_ASSET_IDENTIFIER,
+      );
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
     it('fetches market insights using universal asset= param for CAIP-19 identifiers', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -927,6 +938,17 @@ describe('AiDigestService', () => {
         'Bitcoin and Ethereum held firm as funding rates normalized.',
       createdAt: '2026-02-16T10:00:00.000Z',
     };
+
+    it('throws for an empty id without calling the API', async () => {
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+
+      await expect(service.fetchFrontPageItem('')).rejects.toThrow(
+        AiDigestControllerErrorMessage.INVALID_FRONT_PAGE_ID,
+      );
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
 
     it('fetches a front page item from the correct endpoint', async () => {
       mockFetch.mockResolvedValue({
