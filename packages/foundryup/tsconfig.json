@@ -1,8 +1,5 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "lib": ["ES2021", "DOM"]
-  },
   "references": [],
   "include": ["../../types", "./types", "./src"]
 }

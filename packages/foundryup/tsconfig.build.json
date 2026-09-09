@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
-    "lib": ["ES2021", "DOM"],
     "outDir": "./dist",
     "rootDir": "./src",
     "types": ["node"]
