@@ -18,6 +18,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { accountSupports7702 } from '../../utils/7702.js';
 import { prefixError } from '../../utils/error-prefix.js';
 import {
   getFeatureFlags,
@@ -883,7 +884,8 @@ async function submitViaTransactionController(
   const isSourceGasFeeSponsored =
     transaction.isGasFeeSponsored &&
     quote.request.sourceChainId === transaction.chainId &&
-    quote.request.targetChainId === transaction.chainId;
+    quote.request.targetChainId === transaction.chainId &&
+    accountSupports7702(messenger, from);
 
   const gasFeeToken =
     !isSourceGasFeeSponsored && quote.fees.isSourceGasFeeToken

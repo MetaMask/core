@@ -24,6 +24,7 @@ import {
   define,
   optional,
   record,
+  refine,
   string,
   type,
   union,
@@ -113,12 +114,12 @@ const NonNegativeFiniteNumberStruct = define<number>(
   'non-negative finite number',
   (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0,
 );
-const MarginFractionStruct = define<number>(
-  'margin fraction in (0, 10000]',
+const NonNegativeMarginFractionStruct = define<number>(
+  'margin fraction in [0, 10000]',
   (value) =>
     typeof value === 'number' &&
     Number.isSafeInteger(value) &&
-    value >= 1 &&
+    value >= 0 &&
     value <= 10_000,
 );
 const NonNegativeFinancialNumberStruct = union([
@@ -156,25 +157,50 @@ const AccountStruct = type({
   availableBalance: NonNegativeDecimalStringStruct,
   positions: optional(array(PositionStruct)),
 });
-const MarketStruct = type({
+// The address-discovery endpoint is an identity lookup, not a financial read:
+// live responses can carry sparse balance fields (for example an empty
+// `availableBalance`). Validate only the fields its sole consumer needs. Full
+// account reads retain AccountStruct and its strict financial validation.
+const AccountSummaryStruct = type({
+  accountType: SafeIntegerStruct,
+  index: NonNegativeIntegerStruct,
+  l1Address: string(),
+});
+const MarketBaseStruct = type({
   symbol: string(),
   marketId: NonNegativeIntegerStruct,
   marketType: string(),
   status: string(),
   takerFee: SignedDecimalStringStruct,
   makerFee: SignedDecimalStringStruct,
-  minBaseAmount: PositiveDecimalStringStruct,
-  minQuoteAmount: PositiveDecimalStringStruct,
+  minBaseAmount: NonNegativeDecimalStringStruct,
+  minQuoteAmount: NonNegativeDecimalStringStruct,
   supportedSizeDecimals: NonNegativeIntegerStruct,
   supportedPriceDecimals: NonNegativeIntegerStruct,
   supportedQuoteDecimals: NonNegativeIntegerStruct,
 });
-const MarketDetailStruct = type({
-  ...MarketStruct.schema,
+const hasValidMarketMinimums = (
+  market: Pick<
+    LighterOrderBookMeta,
+    'status' | 'minBaseAmount' | 'minQuoteAmount'
+  >,
+): boolean =>
+  market.status === 'inactive' ||
+  [market.minBaseAmount, market.minQuoteAmount].every((value) => {
+    const parsed = parseStrictDecimalString(value);
+    return parsed !== null && parsed > 0;
+  });
+const MarketStruct = refine(
+  MarketBaseStruct,
+  'positive minimum amounts for tradable markets',
+  hasValidMarketMinimums,
+);
+const MarketDetailBaseStruct = type({
+  ...MarketBaseStruct.schema,
   lastTradePrice: NonNegativeFiniteNumberStruct,
-  defaultInitialMarginFraction: optional(MarginFractionStruct),
-  minInitialMarginFraction: optional(MarginFractionStruct),
-  maintenanceMarginFraction: optional(MarginFractionStruct),
+  defaultInitialMarginFraction: optional(NonNegativeMarginFractionStruct),
+  minInitialMarginFraction: optional(NonNegativeMarginFractionStruct),
+  maintenanceMarginFraction: optional(NonNegativeMarginFractionStruct),
   dailyTradesCount: NonNegativeFiniteNumberStruct,
   dailyBaseTokenVolume: NonNegativeFiniteNumberStruct,
   dailyQuoteTokenVolume: NonNegativeFiniteNumberStruct,
@@ -184,6 +210,27 @@ const MarketDetailStruct = type({
   openInterest: NonNegativeFiniteNumberStruct,
   dailyChart: record(string(), FiniteNumberStruct),
 });
+const hasValidMarketMarginFractions = (market: {
+  status: string;
+  defaultInitialMarginFraction?: number;
+  minInitialMarginFraction?: number;
+  maintenanceMarginFraction?: number;
+}): boolean =>
+  market.status === 'inactive' ||
+  [
+    market.defaultInitialMarginFraction,
+    market.minInitialMarginFraction,
+    market.maintenanceMarginFraction,
+  ].every((value) => value === undefined || value > 0);
+const MarketDetailStruct = refine(
+  refine(
+    MarketDetailBaseStruct,
+    'positive minimum amounts for tradable markets',
+    hasValidMarketMinimums,
+  ),
+  'positive margin fractions for tradable markets',
+  hasValidMarketMarginFractions,
+);
 const OrderStruct = type({
   orderIndex: NonNegativeIntegerStruct,
   clientOrderIndex: NonNegativeIntegerStruct,
@@ -221,8 +268,8 @@ const TradeStruct = type({
   bidAccountId: NonNegativeIntegerStruct,
   isMakerAsk: boolean(),
   timestamp: NonNegativeIntegerStruct,
-  askAccountPnl: SignedDecimalStringStruct,
-  bidAccountPnl: SignedDecimalStringStruct,
+  askAccountPnl: optional(SignedDecimalStringStruct),
+  bidAccountPnl: optional(SignedDecimalStringStruct),
   takerFee: optional(NonNegativeFinancialNumberStruct),
   makerFee: optional(NonNegativeFinancialNumberStruct),
   takerPositionSizeBefore: NonNegativeDecimalStringStruct,
@@ -247,7 +294,7 @@ const ResponseStructs = {
   accountsByAddress: type({
     ...BaseResponseStruct.schema,
     l1Address: string(),
-    subAccounts: array(AccountStruct),
+    subAccounts: array(AccountSummaryStruct),
   }),
   apiKeys: type({
     ...BaseResponseStruct.schema,

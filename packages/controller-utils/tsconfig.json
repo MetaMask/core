@@ -1,7 +1,9 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src"],
+  "references": [
+    {
+      "path": "../eth-json-rpc-provider"
+    }
+  ]
 }

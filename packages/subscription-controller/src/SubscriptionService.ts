@@ -32,6 +32,7 @@ import {
   StartCryptoSubscriptionResponseStruct,
   StartSubscriptionResponseStruct,
   SubscriptionApiGeneralResponseStruct,
+  SubscriptionBenefitsResponseStruct,
   SubscriptionEligibilityArrayStruct,
   SubscriptionStruct,
   UpdatePaymentMethodCardResponseStruct,
@@ -53,6 +54,7 @@ import type {
   SubmitUserEventRequest,
   Subscription,
   SubscriptionApiGeneralResponse,
+  SubscriptionBenefitsResponse,
   SubscriptionEligibility,
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCardResponse,
@@ -66,6 +68,7 @@ export const SUBSCRIPTION_URL = (env: Env, path: string): string =>
 
 const MESSENGER_EXPOSED_METHODS = [
   'getSubscriptions',
+  'getBenefits',
   'cancelSubscription',
   'unCancelSubscription',
   'startSubscriptionWithCard',
@@ -199,6 +202,27 @@ export class SubscriptionService extends BaseDataService<
     });
 
     return create(jsonResponse, GetSubscriptionsResponseStruct);
+  }
+
+  /**
+   * Fetches the user's subscription benefits.
+   *
+   * @returns The benefits response.
+   */
+  async getBenefits(): Promise<SubscriptionBenefitsResponse> {
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
+    const jsonResponse = await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'getBenefits',
+      requestParams: null,
+      path: 'benefits',
+      method: 'POST',
+      body: {},
+      errorMessage: SubscriptionServiceErrorMessage.FailedToGetBenefits,
+    });
+
+    return create(jsonResponse, SubscriptionBenefitsResponseStruct);
   }
 
   /**

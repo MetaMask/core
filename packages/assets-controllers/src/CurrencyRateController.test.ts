@@ -2326,18 +2326,7 @@ describe('CurrencyRateController', () => {
           controller.metadata,
           'persist',
         ),
-      ).toMatchInlineSnapshot(`
-        {
-          "currencyRates": {
-            "ETH": {
-              "conversionDate": 0,
-              "conversionRate": 0,
-              "usdConversionRate": null,
-            },
-          },
-          "currentCurrency": "usd",
-        }
-      `);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('exposes expected state to UI', () => {

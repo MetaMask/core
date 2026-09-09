@@ -144,7 +144,7 @@
       "count": 1
     }
   },
-  "packages/assets-controllers/jest.environment.js": {
+  "packages/assets-controllers/jest.environment.cjs": {
     "n/prefer-global/text-decoder": {
       "count": 1
     },
@@ -500,7 +500,7 @@
       "count": 25
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
+      "count": 2
     },
     "no-negated-condition": {
       "count": 1
@@ -1858,9 +1858,6 @@
   "packages/smart-transactions-controller/src/utils.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 10
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
     },
     "@typescript-eslint/no-explicit-any": {
       "count": 4

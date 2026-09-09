@@ -10,6 +10,8 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
+import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
+import type { MockInternalProviderStub } from '@metamask/eth-json-rpc-provider';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -20,8 +22,6 @@ import type { CaipChainId, Hex } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
-import { FakeProvider } from '../../../tests/fake-provider.js';
-import type { FakeProviderStub } from '../../../tests/fake-provider.js';
 import { buildTestObject } from '../../../tests/helpers.js';
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client.js';
 import { NetworkController } from '../src/index.js';
@@ -230,9 +230,9 @@ function buildFakeNetworkClient({
   providerStubs = [],
 }: {
   configuration: NetworkClientConfiguration;
-  providerStubs?: FakeProviderStub[];
+  providerStubs?: MockInternalProviderStub[];
 }): NetworkClient {
-  const provider = new FakeProvider({ stubs: providerStubs });
+  const provider = new MockInternalProvider({ stubs: providerStubs });
   return {
     configuration,
     provider,

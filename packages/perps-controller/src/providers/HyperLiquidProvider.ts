@@ -743,11 +743,7 @@ type CachedMarketDataSnapshot = {
 };
 
 type GetAssetInfoResult = {
-  assetInfo: {
-    name: string;
-    szDecimals: number;
-    maxLeverage: number;
-  };
+  assetInfo: MetaResponse['universe'][number];
   currentPrice: number;
   meta: MetaResponse;
 };
@@ -756,6 +752,7 @@ type PrepareAssetForTradingParams = {
   symbol: string;
   assetId: number;
   leverage?: number;
+  marginMode?: OrderParams['marginMode'];
 };
 
 type Hip3TransferInfo = {
@@ -1231,6 +1228,37 @@ const resolveTwapOrderStatus = (
       // non-terminal so collateral cannot be reclaimed from a live TWAP.
       return PerpsTwapLifecycleStatus.Active;
   }
+};
+
+/**
+ * Decide whether a newly adapted schedule replaces the one already collapsed
+ * under the same order id.
+ *
+ * The venue reports one lifecycle as several history entries — an activation
+ * plus a terminal record — and `lastUpdated` folds in slice fills that every
+ * entry sharing a `twapId` receives. A schedule whose final fill completed it
+ * therefore derives the same `lastUpdated` on both entries, because that fill
+ * outranks each entry's own whole-second timestamp. Ordering on `lastUpdated`
+ * alone admits that tie, letting the activation overwrite the terminal record
+ * so the schedule reads as live long after it ended. Terminality decides
+ * first, and an equal `lastUpdated` keeps the entry already collapsed.
+ *
+ * @param candidate - Schedule adapted from the current history entry.
+ * @param existing - Schedule already collapsed under this order id.
+ * @returns True when the candidate replaces the existing schedule.
+ */
+const supersedesCollapsedTwapOrder = (
+  candidate: TwapOrder,
+  existing: TwapOrder,
+): boolean => {
+  const candidateIsTerminal =
+    candidate.status !== PerpsTwapLifecycleStatus.Active;
+  const existingIsTerminal =
+    existing.status !== PerpsTwapLifecycleStatus.Active;
+  if (candidateIsTerminal !== existingIsTerminal) {
+    return candidateIsTerminal;
+  }
+  return candidate.lastUpdated > existing.lastUpdated;
 };
 
 const adaptTwapOrderFill = (
@@ -5063,6 +5091,94 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Validate an explicit mode before trading setup can sign or change leverage.
+   * Mode belongs to the asset, so a new order cannot change an existing book.
+   *
+   * @param params - Requested order and collateral mode.
+   * @param assetInfo - Venue capabilities for the requested market.
+   */
+  async #validateMarginMode(
+    params: OrderParams,
+    assetInfo: MetaResponse['universe'][number],
+  ): Promise<void> {
+    if (params.marginMode === undefined) {
+      return;
+    }
+    if (!Number.isInteger(params.leverage) || (params.leverage ?? 0) < 1) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID);
+    }
+    const { dex: dexName } = parseAssetName(params.symbol);
+    // Both SDK marginMode values (strictIsolated and noCross) prohibit Cross.
+    // Treat any future restriction value as unsupported until handled explicitly.
+    if (
+      params.marginMode === 'cross' &&
+      (assetInfo.onlyIsolated || assetInfo.marginMode || dexName !== null)
+    ) {
+      // HIP-3 collateral transfers still assume isolated margin. Keep Cross
+      // unavailable there until that account-mode-aware path is supported.
+      throw new Error(PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED);
+    }
+    const { answered, positions } = await this.#queryDexPositions(dexName);
+    if (!answered) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+    const position = positions.find((item) => item.symbol === params.symbol);
+    if (position) {
+      if (position.leverage.type !== params.marginMode) {
+        throw new Error(PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN);
+      }
+      return;
+    }
+    const user = await this.#walletService.getUserAddressWithDefault();
+    const infoClient = this.#clientService.getInfoClient();
+    const [orders, twapHistory] = await Promise.all([
+      this.#fetchOpenOrders({ dexName }),
+      infoClient.twapHistory({ user }),
+    ]);
+    // Native TWAP schedules are absent from frontendOpenOrders before a slice
+    // rests or fills. Read history directly: getTwapOrders can rebalance HIP-3
+    // collateral, which must not run as part of pre-sign validation.
+    const latestTwaps = new Map<
+      HyperLiquidTwapHistoryEntry['twapId'],
+      HyperLiquidTwapHistoryEntry
+    >();
+    for (const entry of twapHistory) {
+      if (entry.state.coin !== params.symbol) {
+        continue;
+      }
+      const previous = latestTwaps.get(entry.twapId);
+      if (
+        !previous ||
+        normalizeTwapHistoryTimestamp(entry.time) >=
+          normalizeTwapHistoryTimestamp(previous.time)
+      ) {
+        latestTwaps.set(entry.twapId, entry);
+      }
+    }
+    const hasActiveTwap = [...latestTwaps.values()].some((entry) => {
+      switch (entry.status.status) {
+        case HyperLiquidTwapLifecycleStatus.Finished:
+        case HyperLiquidTwapLifecycleStatus.Stopped:
+        case HyperLiquidTwapLifecycleStatus.Terminated:
+        case HyperLiquidTwapLifecycleStatus.Failed:
+          return false;
+        default:
+          // Waiting and future venue states are not proof of termination.
+          return true;
+      }
+    });
+    if (orders.some((order) => order.coin === params.symbol) || hasActiveTwap) {
+      const asset = await infoClient.activeAssetData({
+        user,
+        coin: params.symbol,
+      });
+      if (asset.leverage.type !== params.marginMode) {
+        throw new Error(PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN);
+      }
+    }
+  }
+
+  /**
    * Prepares asset for trading by updating leverage if specified
    *
    * @param params - The operation parameters.
@@ -5070,7 +5186,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   async #prepareAssetForTrading(
     params: PrepareAssetForTradingParams,
   ): Promise<void> {
-    const { symbol, assetId, leverage } = params;
+    const { symbol, assetId, leverage, marginMode = 'isolated' } = params;
 
     if (!leverage) {
       return;
@@ -5080,13 +5196,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       symbol,
       assetId,
       requestedLeverage: leverage,
-      leverageType: 'isolated',
+      leverageType: marginMode,
     });
 
     const exchangeClient = this.#clientService.getExchangeClient();
     const leverageResult = await exchangeClient.updateLeverage({
       asset: assetId,
-      isCross: false,
+      isCross: marginMode === 'cross',
       leverage,
     });
 
@@ -5460,6 +5576,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         symbol: params.symbol,
         assetId,
         leverage: params.leverage,
+        marginMode: params.marginMode,
       });
 
       // 6. Handle HIP-3 balance management (if applicable)
@@ -5860,6 +5977,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       symbol: params.symbol,
       assetId,
       leverage: params.leverage,
+      marginMode: params.marginMode,
     });
 
     const builder = builderFeeSetupContext
@@ -7672,7 +7790,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       const existing = ordersById.get(order.orderId);
-      if (!existing || order.lastUpdated >= existing.lastUpdated) {
+      if (!existing || supersedesCollapsedTwapOrder(order, existing)) {
         ordersById.set(order.orderId, order);
       }
     }
@@ -9493,6 +9611,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // side/size reduce-only rejection this method is meant to prevent.
       const currentPositions = await this.#getPositionsForOperation(
         parseAssetName(symbol).dex ?? '',
+        { revalidateMissingSymbol: symbol },
       );
       const position = currentPositions.find((pos) => pos.symbol === symbol);
 
@@ -10717,8 +10836,11 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * A symbol-specific caller can use its current-connection DEX slice directly.
    * The current-epoch slice wins before any REST request because it is the
-   * provider's live subscription source for that exact DEX. If the target DEX
-   * has not published, the caller uses REST instead of a stale aggregate.
+   * provider's live subscription source for that exact DEX. A caller may opt
+   * into one targeted REST revalidation when a required symbol is absent, which
+   * covers the post-fill window before the next WebSocket position update. If
+   * the target DEX has not published, the caller uses REST instead of a stale
+   * aggregate.
    *
    * A whole-list caller uses one shallow-copied WebSocket snapshot only when
    * every configured DEX is current. Otherwise it falls back to REST. No path
@@ -10727,20 +10849,43 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param targetDex - DEX for a single-symbol lookup, or undefined for a full
    * position list.
+   * @param options - Optional lookup behavior for a symbol-specific operation.
+   * @param options.revalidateMissingSymbol - Query the target DEX over REST when
+   * its current WebSocket slice does not contain this symbol.
    * @returns Positions from one provenance-safe cache/REST path.
    */
-  async #getPositionsForOperation(targetDex?: string): Promise<Position[]> {
+  async #getPositionsForOperation(
+    targetDex?: string,
+    options: { revalidateMissingSymbol?: string } = {},
+  ): Promise<Position[]> {
     if (targetDex !== undefined) {
       const targetPositions =
         this.#subscriptionService.getCachedPositionsForDex(targetDex);
-      if (targetPositions !== null) {
-        return [...targetPositions];
+      if (targetPositions === null) {
+        this.#deps.debugLogger.log(
+          'Target DEX position cache unavailable: fetching REST positions',
+          { dex: targetDex || 'main' },
+        );
+      } else {
+        const { revalidateMissingSymbol } = options;
+        const shouldRevalidate =
+          revalidateMissingSymbol !== undefined &&
+          targetPositions.find(
+            (position) => position.symbol === revalidateMissingSymbol,
+          ) === undefined;
+        if (shouldRevalidate) {
+          this.#deps.debugLogger.log(
+            'Target symbol missing from position cache: revalidating REST positions',
+            {
+              dex: targetDex || 'main',
+              symbol: revalidateMissingSymbol,
+            },
+          );
+        } else {
+          return [...targetPositions];
+        }
       }
 
-      this.#deps.debugLogger.log(
-        'Target DEX position cache unavailable: fetching REST positions',
-        { dex: targetDex || 'main' },
-      );
       const { answered, positions } = await this.#queryDexPositions(
         targetDex || null,
       );
@@ -12883,6 +13028,27 @@ export class HyperLiquidProvider implements PerpsProvider {
         return basicValidation;
       }
 
+      if (params.marginMode !== undefined) {
+        if (params.marginMode !== 'cross' && params.marginMode !== 'isolated') {
+          return {
+            isValid: false,
+            error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_INVALID,
+          };
+        }
+        const { dex: dexName } = parseAssetName(params.symbol);
+        const meta = await this.#getCachedMeta({ dexName });
+        const assetInfo = meta.universe.find(
+          (asset) => asset.name === params.symbol,
+        );
+        if (!assetInfo) {
+          return {
+            isValid: false,
+            error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+          };
+        }
+        await this.#validateMarginMode(params, assetInfo);
+      }
+
       // Check minimum order size using consistent defaults (matching useMinimumOrderAmount hook)
       // Note: For full validation with market-specific limits, use async methods
       const minimumOrderSize = this.#clientService.isTestnetMode()
@@ -13591,7 +13757,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             continue;
           }
           const existing = ordersById.get(order.orderId);
-          if (!existing || order.lastUpdated >= existing.lastUpdated) {
+          if (!existing || supersedesCollapsedTwapOrder(order, existing)) {
             ordersById.set(order.orderId, order);
           }
         }
