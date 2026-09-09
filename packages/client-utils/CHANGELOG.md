@@ -16,10 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
-- Bump `@metamask/core-backend` from `^9.0.0` to `^10.0.0` ([#10138](https://github.com/MetaMask/core/pull/10138), [#10139](https://github.com/MetaMask/core/pull/10139), [#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/transaction-controller` from `^69.6.0` to `^70.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969), [#10080](https://github.com/MetaMask/core/pull/10080), [#10046](https://github.com/MetaMask/core/pull/10046), [#10124](https://github.com/MetaMask/core/pull/10124), [#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/core-backend` from `^9.0.0` to `^10.0.0` ([#10138](https://github.com/MetaMask/core/pull/10138), [#10139](https://github.com/MetaMask/core/pull/10139), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/transaction-controller` from `^69.6.0` to `^70.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969), [#10080](https://github.com/MetaMask/core/pull/10080), [#10046](https://github.com/MetaMask/core/pull/10046), [#10124](https://github.com/MetaMask/core/pull/10124), [#10160](https://github.com/MetaMask/core/pull/10160))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
-- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [2.1.1]
 
