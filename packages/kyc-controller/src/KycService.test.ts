@@ -1,8 +1,8 @@
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
-  MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import nock, { cleanAll } from 'nock';
 
@@ -53,8 +53,7 @@ describe('KycService', () => {
         expect(
           () =>
             new KycService({
-              messenger:
-                messenger as unknown as MockAnyNamespace<KycServiceMessenger>,
+              messenger,
               baseUrl: MOCK_API_URL,
             }),
         ).toThrow(
@@ -558,7 +557,7 @@ describe('KycService', () => {
     });
 
     it('falls back to status-only HttpError when the body is not an object', async () => {
-      nock(MOCK_API_URL).get('/sessions/sid/status').reply(409, null);
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(409, 'null');
       const { service } = getService();
 
       await expect(
