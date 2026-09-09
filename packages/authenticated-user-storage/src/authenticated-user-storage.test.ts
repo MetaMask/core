@@ -461,6 +461,59 @@ describe('AuthenticatedUserStorageService', () => {
 
       expect(mock.isDone()).toBe(true);
     });
+
+    it('does not retry a failed request', async () => {
+      nock(MOCK_ASSETS_WATCHLIST_URL)
+        .put('')
+        .reply(500, { error: 'server error' })
+        .put('')
+        .reply(200);
+      const { service } = createService();
+
+      await expect(
+        service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB),
+      ).rejects.toThrow('Failed to put assets watchlist: 500');
+    });
+
+    it('does not deduplicate concurrent requests', async () => {
+      const scope = nock(MOCK_ASSETS_WATCHLIST_URL).put('').twice().reply(200);
+      const { service } = createService();
+
+      await Promise.all([
+        service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB),
+        service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB),
+      ]);
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('includes the global ID in mutation cache updates', async () => {
+      handleMockSetAssetsWatchlist();
+      const { service, messenger } = createService();
+      const publishSpy = jest.spyOn(messenger, 'publish');
+
+      await service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB, 'global-id');
+
+      expect(publishSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'AuthenticatedUserStorageService:cacheUpdated:',
+        ),
+        expect.objectContaining({
+          objectType: 'mutation',
+          state: expect.objectContaining({
+            mutations: [
+              expect.objectContaining({
+                mutationKey: [
+                  'AuthenticatedUserStorageService:setAssetsWatchlist',
+                  MOCK_ASSETS_WATCHLIST_BLOB,
+                ],
+                meta: { globalId: 'global-id' },
+              }),
+            ],
+          }),
+        }),
+      );
+    });
   });
 
   describe('cache invalidation', () => {
