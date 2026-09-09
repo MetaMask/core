@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [76.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -1568,7 +1570,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.5.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.0.0...HEAD
+[76.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.5.1...@metamask/bridge-status-controller@76.0.0
 [75.5.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.5.0...@metamask/bridge-status-controller@75.5.1
 [75.5.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.4.0...@metamask/bridge-status-controller@75.5.0
 [75.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.3.0...@metamask/bridge-status-controller@75.4.0

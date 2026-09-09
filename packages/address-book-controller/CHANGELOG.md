@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -310,7 +312,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@7.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@7.1.2...@metamask/address-book-controller@8.0.0
 [7.1.2]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@7.1.1...@metamask/address-book-controller@7.1.2
 [7.1.1]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@7.1.0...@metamask/address-book-controller@7.1.1
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@7.0.1...@metamask/address-book-controller@7.1.0

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -529,7 +531,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.7...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.7...@metamask/earn-controller@13.0.0
 [12.2.7]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.6...@metamask/earn-controller@12.2.7
 [12.2.6]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.5...@metamask/earn-controller@12.2.6
 [12.2.5]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.4...@metamask/earn-controller@12.2.5

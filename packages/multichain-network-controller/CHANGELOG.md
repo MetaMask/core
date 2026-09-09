@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -356,7 +358,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Handle both EVM and non-EVM network and account switching for the associated network.
   - Act as a proxy for the `NetworkController` (for EVM network changes).
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.2.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.2.4...@metamask/multichain-network-controller@4.0.0
 [3.2.4]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.2.3...@metamask/multichain-network-controller@3.2.4
 [3.2.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.2.2...@metamask/multichain-network-controller@3.2.3
 [3.2.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.2.1...@metamask/multichain-network-controller@3.2.2

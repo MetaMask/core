@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -600,7 +602,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.3.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@27.0.0...HEAD
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.3.2...@metamask/gas-fee-controller@27.0.0
 [26.3.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.3.1...@metamask/gas-fee-controller@26.3.2
 [26.3.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.3.0...@metamask/gas-fee-controller@26.3.1
 [26.3.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.4...@metamask/gas-fee-controller@26.3.0

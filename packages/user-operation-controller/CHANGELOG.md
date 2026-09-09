@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [42.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -676,7 +678,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.9...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.0.0...HEAD
+[42.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.9...@metamask/user-operation-controller@42.0.0
 [41.2.9]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.8...@metamask/user-operation-controller@41.2.9
 [41.2.8]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.7...@metamask/user-operation-controller@41.2.8
 [41.2.7]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.6...@metamask/user-operation-controller@41.2.7

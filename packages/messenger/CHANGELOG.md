@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -148,7 +150,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Existing `RestrictedMessenger` instances should be replaced with a `Messenger` with the `parent` constructor parameter set to the global messenger. We can now use the same class everywhere, passing capabilities using `delegate`.
   - See this ADR for details: https://github.com/MetaMask/decisions/blob/main/decisions/core/0012-messenger-delegation.md
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/messenger@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/messenger@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@2.0.0...@metamask/messenger@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.2.0...@metamask/messenger@2.0.0
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.1.1...@metamask/messenger@1.2.0
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.1.0...@metamask/messenger@1.1.1

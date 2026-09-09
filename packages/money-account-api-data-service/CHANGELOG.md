@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -59,7 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fetch cursor-paginated cash-flow history (`fetchHistory`)
   - Fetch vault exchange-rate time series (`fetchRateHistory`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.4.1...@metamask/money-account-api-data-service@1.0.0
 [0.4.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.4.0...@metamask/money-account-api-data-service@0.4.1
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.3.0...@metamask/money-account-api-data-service@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@0.2.0...@metamask/money-account-api-data-service@0.3.0

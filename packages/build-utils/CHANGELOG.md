@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -119,7 +121,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#3577](https://github.com/MetaMask/core/pull/3577), [#3588](https://github.com/MetaMask/core/pull/3588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/build-utils@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.4...@metamask/build-utils@4.0.0
 [3.0.4]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.3...@metamask/build-utils@3.0.4
 [3.0.3]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.2...@metamask/build-utils@3.0.3
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.1...@metamask/build-utils@3.0.2

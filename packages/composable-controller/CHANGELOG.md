@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -283,7 +285,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@12.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@12.0.1...@metamask/composable-controller@13.0.0
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@12.0.0...@metamask/composable-controller@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.1.1...@metamask/composable-controller@12.0.0
 [11.1.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.1.0...@metamask/composable-controller@11.1.1

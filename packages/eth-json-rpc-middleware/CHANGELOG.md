@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -143,7 +145,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See [`MetaMask/eth-json-rpc-middleware`](https://github.com/MetaMask/eth-json-rpc-middleware/blob/main/CHANGELOG.md)
     for the original changelog.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@25.0.0...HEAD
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.2...@metamask/eth-json-rpc-middleware@25.0.0
 [24.0.2]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.1...@metamask/eth-json-rpc-middleware@24.0.2
 [24.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.0...@metamask/eth-json-rpc-middleware@24.0.1
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.3...@metamask/eth-json-rpc-middleware@24.0.0

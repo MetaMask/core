@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -44,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive TypeScript type definitions ([#6789](https://github.com/MetaMask/core/pull/6789))
 - Documentation and examples ([#6789](https://github.com/MetaMask/core/pull/6789))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-7702-internal-rpc-middleware@0.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eip-7702-internal-rpc-middleware@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/eip-7702-internal-rpc-middleware@0.1.1...@metamask/eip-7702-internal-rpc-middleware@1.0.0
 [0.1.1]: https://github.com/MetaMask/core/compare/@metamask/eip-7702-internal-rpc-middleware@0.1.0...@metamask/eip-7702-internal-rpc-middleware@0.1.1
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/eip-7702-internal-rpc-middleware@0.1.0

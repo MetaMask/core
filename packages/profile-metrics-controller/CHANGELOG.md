@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -240,7 +242,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7194](https://github.com/MetaMask/core/pull/7194), [#7196](https://github.com/MetaMask/core/pull/7196), [#7263](https://github.com/MetaMask/core/pull/7263))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.4...@metamask/profile-metrics-controller@5.0.0
 [4.0.4]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.3...@metamask/profile-metrics-controller@4.0.4
 [4.0.3]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.2...@metamask/profile-metrics-controller@4.0.3
 [4.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.1...@metamask/profile-metrics-controller@4.0.2

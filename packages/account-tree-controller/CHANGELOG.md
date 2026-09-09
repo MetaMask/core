@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -706,7 +708,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@9.0.0...@metamask/account-tree-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@8.1.0...@metamask/account-tree-controller@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@8.0.0...@metamask/account-tree-controller@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.6.1...@metamask/account-tree-controller@8.0.0

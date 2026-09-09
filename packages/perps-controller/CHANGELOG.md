@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -906,7 +908,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.2.0...@metamask/perps-controller@17.0.0
 [16.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.1.0...@metamask/perps-controller@16.2.0
 [16.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.0.0...@metamask/perps-controller@16.1.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@15.1.0...@metamask/perps-controller@16.0.0

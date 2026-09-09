@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -169,7 +171,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5592](https://github.com/MetaMask/core/pull/5592))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@3.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@3.0.2...@metamask/delegation-controller@4.0.0
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@3.0.1...@metamask/delegation-controller@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@3.0.0...@metamask/delegation-controller@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@2.1.0...@metamask/delegation-controller@3.0.0

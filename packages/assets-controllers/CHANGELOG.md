@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [112.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -3479,7 +3481,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.0...HEAD
+[112.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.3.0...@metamask/assets-controllers@112.0.0
 [111.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.2.0...@metamask/assets-controllers@111.3.0
 [111.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.1.3...@metamask/assets-controllers@111.2.0
 [111.1.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.1.2...@metamask/assets-controllers@111.1.3

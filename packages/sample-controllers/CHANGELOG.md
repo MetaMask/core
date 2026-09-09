@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -200,7 +202,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/sample-controllers.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.6...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.6...@metamask/sample-controllers@6.0.0
 [5.0.6]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.5...@metamask/sample-controllers@5.0.6
 [5.0.5]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.4...@metamask/sample-controllers@5.0.5
 [5.0.4]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.3...@metamask/sample-controllers@5.0.4

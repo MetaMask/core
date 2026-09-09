@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -58,7 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8037](https://github.com/MetaMask/core/pull/8037))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@1.0.0...@metamask/geolocation-controller@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.3...@metamask/geolocation-controller@1.0.0
 [0.1.3]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.2...@metamask/geolocation-controller@0.1.3
 [0.1.2]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.1...@metamask/geolocation-controller@0.1.2
