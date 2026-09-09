@@ -45,6 +45,7 @@ import type {
   GetHistoricalPortfolioParams,
   GetMarketsParams,
   GetOrderCapabilitiesParams,
+  GetScalePriceLadderParams,
   GetOrderFillsParams,
   GetOrdersParams,
   GetOrFetchFillsParams,
@@ -67,6 +68,7 @@ import type {
   OrderResult,
   PerpsMarketData,
   PerpsOrderCapabilities,
+  PerpsScalePriceLadder,
   PerpsPendingManualRecovery,
   PerpsRecoveredDispatch,
   PerpsProviderType,
@@ -78,6 +80,7 @@ import type {
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
+  SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
   ToggleTestnetResult,
@@ -127,7 +130,7 @@ export class ChaseOrderSuspensionError extends Error {
  * const aggregated = new AggregatedPerpsProvider({
  *   providers: new Map([
  *     ['hyperliquid', hlProvider],
- *     ['myx', myxProvider],
+ *     ['lighter', lighterProvider],
  *   ]),
  *   defaultProvider: 'hyperliquid',
  *   infrastructure: deps,
@@ -137,7 +140,7 @@ export class ChaseOrderSuspensionError extends Error {
  * const positions = await aggregated.getPositions();
  *
  * // Write: routes to specific or default provider
- * await aggregated.placeOrder({ symbol: 'BTC', providerId: 'myx', ... });
+ * await aggregated.placeOrder({ symbol: 'BTC', providerId: 'lighter', ... });
  * ```
  */
 export class AggregatedPerpsProvider implements PerpsProvider {
@@ -322,6 +325,42 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         reason: 'provider_unavailable',
       };
     }
+  }
+
+  /**
+   * Normalize a Scale price ladder through the selected provider route.
+   *
+   * @param params - Market, ladder bounds, count, and optional explicit route.
+   * @returns Provider-normalized prices or a typed unavailable result.
+   * @throws When the selected provider cannot normalize the requested ladder.
+   */
+  async getScalePriceLadder(
+    params: GetScalePriceLadderParams,
+  ): Promise<PerpsScalePriceLadder> {
+    const providerId = params.providerId ?? this.#defaultProvider;
+    const provider = this.#providers.get(providerId);
+    if (!provider) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_found',
+      };
+    }
+    if (!provider.getScalePriceLadder) {
+      return { status: 'unavailable', providerId, reason: 'not_implemented' };
+    }
+    const result = await provider.getScalePriceLadder({
+      ...params,
+      providerId,
+    });
+    if (result.providerId !== undefined && result.providerId !== providerId) {
+      return {
+        status: 'unavailable',
+        providerId,
+        reason: 'provider_not_routable',
+      };
+    }
+    return { ...result, providerId };
   }
 
   // ============================================================================
@@ -865,6 +904,43 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     return this.#subscriptionMux.subscribeToOrders({
       ...params,
       providers: this.#getActiveProviders(),
+    });
+  }
+
+  /**
+   * Stream TWAP updates from the default provider only.
+   *
+   * Unlike `getTwapOrders`, this does not fan out: HyperLiquid is the sole
+   * venue with a native TWAP push channel today, so a mux would add
+   * multi-provider merge semantics with nothing to merge. Callers needing the
+   * aggregated view across providers keep using `getTwapOrders`.
+   *
+   * @param params - Subscription parameters including callback and account ID.
+   * @returns A cleanup function; a no-op when the default provider has no
+   * native TWAP push channel.
+   */
+  subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
+    const defaultProviderId = this.#defaultProvider;
+    // Read the map directly: #getDefaultProvider throws when the default is
+    // unavailable, and this method's contract is a no-op cleanup, not a throw.
+    const provider = this.#providers.get(defaultProviderId);
+    if (!provider?.subscribeToTwapOrders) {
+      return () => {
+        // No-op: default provider exposes no native TWAP push channel
+      };
+    }
+    return provider.subscribeToTwapOrders({
+      ...params,
+      // Stamp the same way getTwapOrders does, so swapping a poll for this
+      // subscription does not silently drop providerId from every schedule.
+      callback: (twapOrders, isSnapshot) =>
+        params.callback(
+          twapOrders.map((order) => ({
+            ...order,
+            providerId: defaultProviderId,
+          })),
+          isSnapshot,
+        ),
     });
   }
 

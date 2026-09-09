@@ -18,7 +18,7 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import {
-  getEffectiveRecipient,
+  getSendRecipients,
   TransactionStatus,
 } from '@metamask/transaction-controller';
 import { getErrorMessage } from '@metamask/utils';
@@ -367,7 +367,6 @@ export class PhishingController extends BaseController<
 
   #subscribeToAddressBookControllerStateChange(): void {
     this.messenger.subscribe(
-      // eslint-disable-next-line no-restricted-syntax
       'AddressBookController:stateChange',
       this.#addressBookControllerStateChangeHandler,
     );
@@ -375,7 +374,6 @@ export class PhishingController extends BaseController<
 
   #subscribeToTransactionControllerStateChange(): void {
     this.messenger.subscribe(
-      // eslint-disable-next-line no-restricted-syntax
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
     );
@@ -710,18 +708,11 @@ export class PhishingController extends BaseController<
       return [];
     }
 
-    const transactionRecipient = this.#normalizeAddress(
-      getEffectiveRecipient(transaction),
-    );
-    const swapAndSendRecipient = this.#normalizeAddress(
-      transaction.swapAndSendRecipient,
-    );
-
     return Array.from(
       new Set(
-        [transactionRecipient, swapAndSendRecipient].filter(
-          (address): address is string => Boolean(address),
-        ),
+        getSendRecipients(transaction)
+          .map((address) => this.#normalizeAddress(address))
+          .filter((address): address is string => Boolean(address)),
       ),
     );
   }

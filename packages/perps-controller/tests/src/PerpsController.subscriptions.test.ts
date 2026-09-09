@@ -16,10 +16,6 @@ import {
 } from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
-jest.mock('@myx-trade/sdk', () => ({
-  MyxClient: jest.fn(),
-  OrderStatusEnum: { Successful: 9 },
-}));
 
 import {
   PerpsController,
@@ -36,7 +32,6 @@ import type {
 } from '../../src/types/index.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
-jest.mock('../../src/providers/MYXProvider');
 
 // Mock transaction controller utility
 const mockAddTransaction = jest.fn();
@@ -344,16 +339,6 @@ class TestablePerpsController extends PerpsController {
 
   public testHasStandaloneProvider(): boolean {
     return this.hasStandaloneProvider();
-  }
-
-  public testRegisterMYXProvider(
-    MYXProvider: new (opts: Record<string, unknown>) => PerpsProvider,
-  ) {
-    this.registerMYXProvider(MYXProvider as never);
-  }
-
-  public testHandleMYXImportError(error: unknown) {
-    this.handleMYXImportError(error);
   }
 }
 
@@ -721,14 +706,14 @@ describe('PerpsController', () => {
         .spyOn(mockMarketDataServiceInstance, 'getMaxLeverage')
         .mockResolvedValue(17);
 
-      const result = await controller.getMaxLeverage(asset, 'myx');
+      const result = await controller.getMaxLeverage(asset, 'lighter');
 
       expect(result).toBe(17);
       expect(mockMarketDataServiceInstance.getMaxLeverage).toHaveBeenCalledWith(
         {
           provider: mockProvider,
           asset,
-          providerId: 'myx',
+          providerId: 'lighter',
           context: expect.any(Object),
         },
       );

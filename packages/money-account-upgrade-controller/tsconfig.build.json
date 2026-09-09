@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "outDir": "./dist",
     "rootDir": "./src"
   },
@@ -25,7 +24,13 @@
       "path": "../messenger/tsconfig.build.json"
     },
     {
+      "path": "../money-account-utils/tsconfig.build.json"
+    },
+    {
       "path": "../network-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../remote-feature-flag-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

@@ -1,6 +1,8 @@
 export {
   KycController,
   getDefaultKycControllerState,
+  getDefaultKycProviderDisclaimersAccepted,
+  getDefaultKycVendorDisclaimersAccepted,
   controllerName,
 } from './KycController.js';
 export type {
@@ -94,6 +96,7 @@ export type {
 } from './crypto.js';
 
 export type {
+  KycCatalogDocument,
   KycConsentDocument,
   KycConsentRecord,
   KycCustomerIdentity,
@@ -101,14 +104,19 @@ export type {
   KycDisclaimersCatalog,
   KycPhase,
   KycProduct,
+  KycProviderDisclaimersAccepted,
   KycSessionDisclaimers,
   KycSessionStatus,
   KycSumSubLaunchParams,
   KycSumSubLauncher,
+  KycSumSubSdkStatus,
   KycSumSubStatus,
   KycUserStatus,
   KycUserStatusResponse,
   KycVendor,
+  KycIronVendorDisclaimersAccepted,
+  KycMoonpayVendorDisclaimersAccepted,
+  KycVendorDisclaimersAccepted,
   KycVendorSigning,
 } from './types.js';
 

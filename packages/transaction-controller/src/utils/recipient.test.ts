@@ -1,6 +1,9 @@
+import { Interface } from '@ethersproject/abi';
+import { abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
+
 import type { TransactionMeta } from '../types.js';
 import { TransactionStatus, TransactionType } from '../types.js';
-import { getEffectiveRecipient } from './recipient.js';
+import { getEffectiveRecipient, getSendRecipients } from './recipient.js';
 
 const FROM_ADDRESS = '0x0987654321098765432109876543210987654321';
 const TOKEN_CONTRACT = '0x1234567890123456789012345678901234567890';
@@ -17,6 +20,34 @@ const TRANSFER_FROM_DATA = `0x23b872dd000000000000000000000000${FROM_ADDRESS.sli
 )}000000000000000000000000${TOKEN_RECIPIENT.slice(
   2,
 )}0000000000000000000000000000000000000000000000000000000000000064`;
+
+const ERC721_SAFE_TRANSFER_FROM_DATA = new Interface(
+  abiERC721,
+).encodeFunctionData('safeTransferFrom(address,address,uint256)', [
+  FROM_ADDRESS,
+  TOKEN_RECIPIENT,
+  '1',
+]);
+
+const ERC1155_SAFE_TRANSFER_FROM_DATA = new Interface(
+  abiERC1155,
+).encodeFunctionData('safeTransferFrom', [
+  FROM_ADDRESS,
+  TOKEN_RECIPIENT,
+  '1',
+  '1',
+  '0x',
+]);
+
+const ERC1155_SAFE_BATCH_TRANSFER_FROM_DATA = new Interface(
+  abiERC1155,
+).encodeFunctionData('safeBatchTransferFrom', [
+  FROM_ADDRESS,
+  TOKEN_RECIPIENT,
+  ['1'],
+  ['1'],
+  '0x',
+]);
 
 /**
  * Builds a minimal transaction meta object for testing.
@@ -104,5 +135,390 @@ describe('getEffectiveRecipient', () => {
     );
 
     expect(getEffectiveRecipient(transactionMeta)).toBe(TOKEN_CONTRACT);
+  });
+});
+
+describe('getSendRecipients', () => {
+  it('returns the native recipient for simple sends', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.simpleSend,
+      undefined,
+      TOKEN_RECIPIENT,
+    );
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('prefers txParamsOriginal.to when container wrapping replaced the recipient', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(
+        TransactionType.simpleSend,
+        undefined,
+        TOKEN_CONTRACT,
+      ),
+      txParamsOriginal: {
+        from: FROM_ADDRESS,
+        to: TOKEN_RECIPIENT,
+        value: '0x0',
+      },
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it.each([
+    { data: TRANSFER_DATA, standard: 'ERC-20' },
+    { data: ERC721_SAFE_TRANSFER_FROM_DATA, standard: 'ERC-721' },
+    { data: ERC1155_SAFE_TRANSFER_FROM_DATA, standard: 'ERC-1155' },
+  ])(
+    'decodes an $standard payee from original params after wrapping changed the type',
+    ({ data }) => {
+      const transactionMeta = {
+        ...buildTransactionMeta(
+          TransactionType.contractInteraction,
+          '0xdeadbeef',
+        ),
+        txParamsOriginal: {
+          data,
+          from: FROM_ADDRESS,
+          to: TOKEN_CONTRACT,
+          value: '0x0',
+        },
+      };
+
+      expect(
+        getSendRecipients(transactionMeta).map((address) =>
+          address.toLowerCase(),
+        ),
+      ).toStrictEqual([TOKEN_RECIPIENT]);
+    },
+  );
+
+  it('returns the decoded payee for token transfers and ignores the token contract', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.tokenMethodTransfer,
+      TRANSFER_DATA,
+    );
+
+    expect(
+      getSendRecipients(transactionMeta).map((address) =>
+        address.toLowerCase(),
+      ),
+    ).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('returns the decoded payee for transferFrom transactions', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.tokenMethodTransferFrom,
+      TRANSFER_FROM_DATA,
+    );
+
+    expect(
+      getSendRecipients(transactionMeta).map((address) =>
+        address.toLowerCase(),
+      ),
+    ).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('returns the decoded payee for ERC-721 safeTransferFrom transactions', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.tokenMethodSafeTransferFrom,
+      ERC721_SAFE_TRANSFER_FROM_DATA,
+    );
+
+    expect(
+      getSendRecipients(transactionMeta).map((address) =>
+        address.toLowerCase(),
+      ),
+    ).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('returns the decoded payee for ERC-1155 safeTransferFrom transactions', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.tokenMethodSafeTransferFrom,
+      ERC1155_SAFE_TRANSFER_FROM_DATA,
+    );
+
+    expect(
+      getSendRecipients(transactionMeta).map((address) =>
+        address.toLowerCase(),
+      ),
+    ).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('returns no recipients when token transfer calldata cannot be decoded', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.tokenMethodTransfer,
+      '0x01',
+    );
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
+  });
+
+  it('returns no recipients for approve transactions', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.tokenMethodApprove,
+      '0x095ea7b3000000000000000000000000cccccccccccccccccccccccccccccccccccccccc0000000000000000000000000000000000000000000000000000000000000001',
+    );
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
+  });
+
+  it('does not infer an approval recipient from original params', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(
+        TransactionType.contractInteraction,
+        '0xdeadbeef',
+      ),
+      txParamsOriginal: {
+        data: '0x095ea7b3000000000000000000000000cccccccccccccccccccccccccccccccccccccccc0000000000000000000000000000000000000000000000000000000000000001',
+        from: FROM_ADDRESS,
+        to: TOKEN_CONTRACT,
+        value: '0x0',
+      },
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
+  });
+
+  it('returns no recipients for contract interactions', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.contractInteraction,
+      TRANSFER_DATA,
+    );
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
+  });
+
+  it('returns the decoded payee for ERC-1155 safeBatchTransferFrom contract interactions', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.contractInteraction,
+      ERC1155_SAFE_BATCH_TRANSFER_FROM_DATA,
+    );
+
+    expect(
+      getSendRecipients(transactionMeta).map((address) =>
+        address.toLowerCase(),
+      ),
+    ).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('returns swapAndSendRecipient for swap-and-send transactions', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(TransactionType.swapAndSend, TRANSFER_DATA),
+      swapAndSendRecipient: TOKEN_RECIPIENT,
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('includes nested send and transfer payees from a batch', () => {
+    const nestedSendRecipient = '0x1234dddddddddddddddddddddddddddddddd9abc';
+    const transactionMeta = {
+      ...buildTransactionMeta(
+        TransactionType.batch,
+        '0xdeadbeef',
+        TOKEN_CONTRACT,
+      ),
+      nestedTransactions: [
+        {
+          to: nestedSendRecipient,
+          type: TransactionType.simpleSend,
+        },
+        {
+          data: TRANSFER_DATA,
+          to: TOKEN_CONTRACT,
+          type: TransactionType.tokenMethodTransfer,
+        },
+        {
+          to: TOKEN_CONTRACT,
+          type: TransactionType.tokenMethodApprove,
+        },
+      ],
+    };
+
+    expect(
+      getSendRecipients(transactionMeta).map((address) =>
+        address.toLowerCase(),
+      ),
+    ).toStrictEqual([nestedSendRecipient, TOKEN_RECIPIENT]);
+  });
+
+  it('includes a nested ERC-1155 safeBatchTransferFrom payee from a batch', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(
+        TransactionType.batch,
+        '0xdeadbeef',
+        TOKEN_CONTRACT,
+      ),
+      nestedTransactions: [
+        {
+          data: ERC1155_SAFE_BATCH_TRANSFER_FROM_DATA,
+          to: TOKEN_CONTRACT,
+          type: TransactionType.contractInteraction,
+        },
+      ],
+    };
+
+    expect(
+      getSendRecipients(transactionMeta).map((address) =>
+        address.toLowerCase(),
+      ),
+    ).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('treats untyped transactions with no calldata as native sends', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.simpleSend,
+      undefined,
+      TOKEN_RECIPIENT,
+    );
+
+    expect(
+      getSendRecipients({ ...transactionMeta, type: undefined }),
+    ).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('classifies a sped-up simple send using originalType', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(
+        TransactionType.retry,
+        undefined,
+        TOKEN_RECIPIENT,
+      ),
+      originalType: TransactionType.simpleSend,
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('decodes the payee for a sped-up token transfer using originalType', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(TransactionType.retry, TRANSFER_DATA),
+      originalType: TransactionType.tokenMethodTransfer,
+    };
+
+    expect(
+      getSendRecipients(transactionMeta).map((address) =>
+        address.toLowerCase(),
+      ),
+    ).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('returns no recipients for a cancellation even with a simpleSend originalType', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(TransactionType.cancel, undefined, FROM_ADDRESS),
+      originalType: TransactionType.simpleSend,
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
+  });
+
+  it('returns no recipients for a cancellation with stale original ERC-1155 batch calldata', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(TransactionType.cancel, undefined, FROM_ADDRESS),
+      txParamsOriginal: {
+        data: ERC1155_SAFE_BATCH_TRANSFER_FROM_DATA,
+        from: FROM_ADDRESS,
+        to: TOKEN_CONTRACT,
+        value: '0x0',
+      },
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
+  });
+
+  it('returns no recipients for a sped-up cancellation with stale send metadata', () => {
+    const nestedSendRecipient = '0x1234dddddddddddddddddddddddddddddddd9abc';
+    const transactionMeta = {
+      ...buildTransactionMeta(TransactionType.retry, undefined, FROM_ADDRESS),
+      originalType: TransactionType.cancel,
+      swapAndSendRecipient: TOKEN_RECIPIENT,
+      nestedTransactions: [
+        {
+          to: nestedSendRecipient,
+          type: TransactionType.simpleSend,
+        },
+      ],
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
+  });
+
+  it('treats a native transfer to a contract address as a native send', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.contractInteraction,
+      undefined,
+      TOKEN_RECIPIENT,
+    );
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('returns no recipients for a contract interaction that has calldata', () => {
+    const transactionMeta = buildTransactionMeta(
+      TransactionType.contractInteraction,
+      '0xdeadbeef',
+      TOKEN_RECIPIENT,
+    );
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
+  });
+
+  it('treats a nested native transfer to a contract address as a native send', () => {
+    const transactionMeta = {
+      ...buildTransactionMeta(
+        TransactionType.batch,
+        '0xdeadbeef',
+        TOKEN_CONTRACT,
+      ),
+      nestedTransactions: [
+        {
+          to: TOKEN_RECIPIENT,
+          type: TransactionType.contractInteraction,
+        },
+      ],
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([TOKEN_RECIPIENT]);
+  });
+
+  it('ignores stale nested transactions on a cancelled batch', () => {
+    const nestedSendRecipient = '0x1234dddddddddddddddddddddddddddddddd9abc';
+    const transactionMeta = {
+      ...buildTransactionMeta(TransactionType.cancel, undefined, FROM_ADDRESS),
+      originalType: TransactionType.batch,
+      nestedTransactions: [
+        {
+          to: nestedSendRecipient,
+          type: TransactionType.simpleSend,
+        },
+        {
+          data: TRANSFER_DATA,
+          to: TOKEN_CONTRACT,
+          type: TransactionType.tokenMethodTransfer,
+        },
+      ],
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([]);
+  });
+
+  it('still processes nested transactions on a sped-up batch', () => {
+    const nestedSendRecipient = '0x1234dddddddddddddddddddddddddddddddd9abc';
+    const transactionMeta = {
+      ...buildTransactionMeta(TransactionType.retry, undefined, TOKEN_CONTRACT),
+      originalType: TransactionType.batch,
+      nestedTransactions: [
+        {
+          to: nestedSendRecipient,
+          type: TransactionType.simpleSend,
+        },
+      ],
+    };
+
+    expect(getSendRecipients(transactionMeta)).toStrictEqual([
+      nestedSendRecipient,
+    ]);
   });
 });

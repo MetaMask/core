@@ -7,11 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+
 ### Changed
 
-- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
-- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.1` ([#9129](https://github.com/MetaMask/core/pull/9129), [#9791](https://github.com/MetaMask/core/pull/9791))
-- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/utils` from `^11.9.0` to `^11.12.0` ([#9074](https://github.com/MetaMask/core/pull/9074), [#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^28.0.0` ([#9129](https://github.com/MetaMask/core/pull/9129), [#9791](https://github.com/MetaMask/core/pull/9791), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^1.2.0` to `^3.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [3.0.2]
 
@@ -58,14 +66,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996)), ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996), [#8140](https://github.com/MetaMask/core/pull/8140))
 
 ## [2.0.1]
 
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
-- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642), [#7713](https://github.com/MetaMask/core/pull/7713)), ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642), [#7713](https://github.com/MetaMask/core/pull/7713), [#7897](https://github.com/MetaMask/core/pull/7897))
   - The dependencies moved are:
     - `@metamask/accounts-controller` (^36.0.0)
     - `@metamask/keyring-controller` (^25.1.0)
@@ -155,7 +163,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5592](https://github.com/MetaMask/core/pull/5592))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@3.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@3.0.2...@metamask/delegation-controller@4.0.0
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@3.0.1...@metamask/delegation-controller@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@3.0.0...@metamask/delegation-controller@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@2.1.0...@metamask/delegation-controller@3.0.0

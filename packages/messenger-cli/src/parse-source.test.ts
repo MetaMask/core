@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { createSandbox } from '@metamask/utils/node';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -445,7 +446,9 @@ class BadTsconfigController {
         'utf8',
       );
 
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       const result = await parseSourceFile(controllerFile);
 
       expect(result).toBeNull();
@@ -478,7 +481,9 @@ class NoTsconfigController {
         'utf8',
       );
 
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       const result = await parseSourceFile(controllerFile);
 
       // Should return null because assert fails when type checker can't be created
@@ -492,7 +497,9 @@ class NoTsconfigController {
   it('returns null and logs error for invalid file', async () => {
     expect.assertions(2);
 
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
 
     const result = await parseSourceFile('/nonexistent/file.ts');
 

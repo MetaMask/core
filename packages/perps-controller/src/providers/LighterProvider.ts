@@ -55,8 +55,10 @@ import {
 } from '../constants/lighterConfig.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import {
   convertKeysToCamelCase,
+  LighterApiError,
   LighterClientService,
 } from '../services/LighterClientService.js';
 import { LighterWalletService } from '../services/LighterWalletService.js';
@@ -124,6 +126,8 @@ import type {
 } from '../types/index.js';
 import type {
   LighterApiOrder,
+  LighterApiPosition,
+  LighterAccountsByL1AddressResponse,
   LighterAuthConfig,
   LighterTxLookupResponse,
   LighterTransferHistoryItem,
@@ -203,6 +207,18 @@ const deriveLighterMaxLeverage = (
   }
   return maxLeverage;
 };
+
+const isInactiveMarketWithoutUsableRiskMetadata = (market: {
+  status: string;
+  minInitialMarginFraction?: number;
+  maintenanceMarginFraction?: number;
+}): boolean =>
+  // Lighter retains inactive rows for historical identity but can zero their
+  // trading constraints. They are valid venue records, not usable markets.
+  market.status === 'inactive' &&
+  (market.minInitialMarginFraction === undefined ||
+    market.minInitialMarginFraction === 0 ||
+    market.maintenanceMarginFraction === 0);
 
 const adaptLighterTransferDelta = (
   entry: LighterTransferHistoryItem,
@@ -966,6 +982,16 @@ const LIGHTER_SIGNER_UNAVAILABLE_ERROR = 'Lighter signer bridge not configured';
 const LIGHTER_MAINNET_EXPLORER_URL = 'https://scan.lighter.xyz';
 const LIGHTER_TESTNET_EXPLORER_URL = 'https://testnet.zklighter.elliot.ai';
 
+/** A definitive venue response that the selected wallet has no account. */
+class LighterAccountNotFoundError extends Error {
+  constructor(address: string) {
+    super(
+      `No Lighter account exists for ${address}; fund it via the bridge (or the testnet faucet) first`,
+    );
+    this.name = 'LighterAccountNotFoundError';
+  }
+}
+
 /**
  * Empty account state returned when reads fail or no account exists.
  */
@@ -1034,9 +1060,6 @@ export class LighterProvider implements PerpsProvider {
   #pricePollTimer: ReturnType<typeof setInterval> | null = null;
 
   #priceWs: LighterWebSocketLike | null = null;
-
-  /** Monotonic poll counter — surfaced in debug logs so e2e can assert liveness. */
-  #pricePollCycle = 0;
 
   /** Injectable WebSocket constructor (null → REST polling fallback). */
   readonly #webSocketCtor: LighterWebSocketCtor | null;
@@ -1247,7 +1270,7 @@ export class LighterProvider implements PerpsProvider {
   }
 
   async toggleTestnet(): Promise<ToggleTestnetResult> {
-    // Network is fixed at construction, mirroring MYXProvider.
+    // Network is fixed at construction.
     return {
       success: false,
       isTestnet: this.#isTestnet,
@@ -1557,7 +1580,15 @@ export class LighterProvider implements PerpsProvider {
     }
     const generation = this.#sessionGeneration;
     const address = this.#walletService.getUserAddress();
-    const response = await this.#clientService.getAccountsByL1Address(address);
+    let response: LighterAccountsByL1AddressResponse;
+    try {
+      response = await this.#clientService.getAccountsByL1Address(address);
+    } catch (error) {
+      if (error instanceof LighterApiError && error.code === 21100) {
+        throw new LighterAccountNotFoundError(address);
+      }
+      throw error;
+    }
     // Re-run the binding so an EXTERNAL switch nothing else observed also
     // advances the generation, then compare: caching after any switch
     // would poison the new session with the old account. Retry instead.
@@ -1566,9 +1597,7 @@ export class LighterProvider implements PerpsProvider {
       return await this.#ensureAccountIndex();
     }
     if (!response.subAccounts?.length) {
-      throw new Error(
-        `No Lighter account exists for ${address}; fund it via the bridge (or the testnet faucet) first`,
-      );
+      throw new LighterAccountNotFoundError(address);
     }
     const master = response.subAccounts.reduce((min, account) =>
       account.index < min.index ? account : min,
@@ -4237,10 +4266,11 @@ export class LighterProvider implements PerpsProvider {
   readonly #isVenueKeyRegistered = async (
     accountIndex: number,
   ): Promise<boolean> => {
-    const response = await this.#clientService.getApiKeys(
-      accountIndex,
-      this.#apiKeyIndex,
-    );
+    // Query all slots. Lighter returns `api key not found` when a missing
+    // slot is requested directly, which would make first-time registration
+    // impossible. The all-slots response is successful and represents an
+    // unused slot by omitting it from `apiKeys`.
+    const response = await this.#clientService.getApiKeys(accountIndex);
     const configuredSlot = response.apiKeys.find(
       (key) => key.apiKeyIndex === this.#apiKeyIndex,
     );
@@ -4702,9 +4732,14 @@ export class LighterProvider implements PerpsProvider {
       await this.#ensureMarketMargins();
       return markets
         .filter((market) => market.marketType === 'perp')
-        .map((market) => {
+        .flatMap((market) => {
           const margins = this.#marginBySymbol.get(market.symbol);
           if (!margins) {
+            // #ensureMarketMargins deliberately omits inactive rows whose
+            // retired risk metadata cannot produce a canonical MarketInfo.
+            if (market.status === 'inactive') {
+              return [];
+            }
             throw new Error(
               `${LIGHTER_DATA_INTEGRITY_PREFIX} missing authoritative leverage for ${market.symbol}`,
             );
@@ -4724,7 +4759,7 @@ export class LighterProvider implements PerpsProvider {
               adapted.minimumOrderSize = oneTickUsd;
             }
           }
-          return adapted;
+          return [adapted];
         });
     } catch (caughtError) {
       const wrappedError = ensureError(
@@ -4750,6 +4785,7 @@ export class LighterProvider implements PerpsProvider {
       const response = await this.#clientService.getOrderBookDetails();
       return response.orderBookDetails
         .filter((detail) => detail.marketType === 'perp')
+        .filter((detail) => !isInactiveMarketWithoutUsableRiskMetadata(detail))
         .map((detail) =>
           adaptMarketDataFromLighter(detail, this.#deps.marketDataFormatters),
         );
@@ -4802,7 +4838,7 @@ export class LighterProvider implements PerpsProvider {
         .map((position) =>
           adaptPositionFromLighter(
             position,
-            this.#maxLeverageForMarketId(position.marketId),
+            this.#maxLeverageForPosition(position),
           ),
         )
         .filter((position) => parseFloat(position.size) !== 0);
@@ -5036,6 +5072,12 @@ export class LighterProvider implements PerpsProvider {
     // mutation happened.
     let leverageCommitted = false;
     try {
+      if (params.marginMode !== undefined) {
+        return {
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+        };
+      }
       if (params.orderType !== 'limit' && params.orderType !== 'market') {
         return { success: false, error: LIGHTER_NOT_SUPPORTED_ERROR };
       }
@@ -6835,6 +6877,12 @@ export class LighterProvider implements PerpsProvider {
   readonly #validateOrderChecks = async (
     params: OrderParams,
   ): Promise<{ isValid: boolean; error?: string }> => {
+    if (params.marginMode !== undefined) {
+      return {
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+      };
+    }
     // Mirrors placeOrder's own rejections so validation never approves an
     // order shape the placement path would refuse.
     if (params.orderType !== 'limit' && params.orderType !== 'market') {
@@ -7316,23 +7364,40 @@ export class LighterProvider implements PerpsProvider {
   /**
    * Synchronous per-market max leverage from the authoritative margin cache.
    *
-   * @param marketId - Numeric Lighter market id.
+   * Inactive markets cannot increase exposure. When Lighter has retired their
+   * risk metadata, the position's current leverage is therefore the highest
+   * leverage that can be reported without inventing a tradable venue limit.
+   *
+   * @param position - Position carrying the market id and current margin.
    * @returns Max leverage for the market.
    * @throws If the market identity or margin metadata is unavailable.
    */
-  readonly #maxLeverageForMarketId = (marketId: number): number => {
+  readonly #maxLeverageForPosition = (
+    position: Pick<LighterApiPosition, 'marketId' | 'initialMarginFraction'>,
+  ): number => {
+    const { marketId } = position;
     const symbol = this.#marketsById.get(marketId)?.symbol;
     const metadata =
       (symbol ? this.#marginBySymbol.get(symbol) : undefined) ??
       [...this.#marginBySymbol.values()].find(
         (entry) => entry.marketId === marketId,
       );
-    if (!metadata) {
-      throw new Error(
-        `${LIGHTER_DATA_INTEGRITY_PREFIX} margin metadata unavailable for market ${marketId}`,
-      );
+    if (metadata) {
+      return deriveLighterMaxLeverage(metadata.minInitial, marketId);
     }
-    return deriveLighterMaxLeverage(metadata.minInitial, marketId);
+    if (this.#marketsById.get(marketId)?.status === 'inactive') {
+      const marginFraction = parseStrictDecimal(position.initialMarginFraction);
+      const currentLeverage =
+        marginFraction !== null && marginFraction > 0
+          ? Math.round(100 / marginFraction)
+          : 0;
+      if (Number.isSafeInteger(currentLeverage) && currentLeverage > 0) {
+        return currentLeverage;
+      }
+    }
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} margin metadata unavailable for market ${marketId}`,
+    );
   };
 
   /**
@@ -7396,6 +7461,9 @@ export class LighterProvider implements PerpsProvider {
           // The timestamp only advances on success.
           const fresh = new Map<string, LighterMarginMetadata>();
           for (const detail of details.orderBookDetails) {
+            if (isInactiveMarketWithoutUsableRiskMetadata(detail)) {
+              continue;
+            }
             if (detail.minInitialMarginFraction !== undefined) {
               deriveLighterMaxLeverage(
                 detail.minInitialMarginFraction,
@@ -7571,8 +7639,8 @@ export class LighterProvider implements PerpsProvider {
 
   /**
    * Resolve the Lighter account index and request the account-scoped
-   * channels. Without a Lighter account, account-scoped subscribers receive
-   * one empty emission unless the failure is a capability refusal.
+   * channels. When the venue definitively reports no Lighter account,
+   * account-scoped subscribers receive an empty emission.
    */
   readonly #ensureAccountChannels = (): void => {
     if (this.#isDisconnected) {
@@ -7618,11 +7686,23 @@ export class LighterProvider implements PerpsProvider {
           '[LighterProvider] account channels unavailable',
           { error: String(error) },
         );
+        // A venue-confirmed absent account is authoritative empty state for
+        // this exact wallet binding. It must settle initial subscribers so
+        // clients do not render loading skeletons forever. All other failures
+        // preserve the last snapshot: transport, malformed data, auth and
+        // capability errors cannot prove that the account is empty.
+        this.#ensureSessionBinding();
+        if (
+          error instanceof LighterAccountNotFoundError &&
+          generation === this.#sessionGeneration
+        ) {
+          this.#emitAccountBindingReset();
+        }
         // An aborted previous-account setup has no authority over the new
         // session. Current-session failures also preserve the last known data.
-        // Discovery, transport, auth, capability, and integrity failures are
-        // not authoritative empty account state. Explicit account switches
-        // and deselection already emit their synchronous reset.
+        // Transport, auth, capability, and integrity failures are not
+        // authoritative empty account state. Explicit account switches and
+        // deselection already emit their synchronous reset.
       }
     })();
     this.#accountChannelsPromise = setupPromise;
@@ -7844,7 +7924,7 @@ export class LighterProvider implements PerpsProvider {
       const updates = Object.values(message.marketStats).map((stat) =>
         adaptPriceUpdateFromLighterWsStat(stat, timestamp),
       );
-      this.#dispatchPriceUpdates(updates, 'ws');
+      this.#dispatchPriceUpdates(updates);
       this.#dispatchOICaps(Object.values(message.marketStats));
       return;
     }
@@ -7867,7 +7947,7 @@ export class LighterProvider implements PerpsProvider {
       for (const [marketId, position] of Object.entries(message.positions)) {
         const adapted = adaptPositionFromLighter(
           position,
-          this.#maxLeverageForMarketId(position.marketId),
+          this.#maxLeverageForPosition(position),
         );
         if (parseFloat(adapted.size) === 0) {
           nextPositions.delete(Number(marketId));
@@ -8229,29 +8309,21 @@ export class LighterProvider implements PerpsProvider {
     const updates = (response.orderBookDetails ?? []).map((detail) =>
       adaptPriceUpdateFromLighter(detail, timestamp),
     );
-    this.#dispatchPriceUpdates(updates, 'poll');
+    this.#dispatchPriceUpdates(updates);
   };
 
   /**
    * Fan price updates out to every subscriber, honoring symbol filters.
    *
    * @param updates - Adapted price updates for this cycle.
-   * @param transport - Which transport produced the cycle (ws or poll).
    */
-  readonly #dispatchPriceUpdates = (
-    updates: PriceUpdate[],
-    transport: string,
-  ): void => {
+  readonly #dispatchPriceUpdates = (updates: PriceUpdate[]): void => {
     if (this.#isDisconnected || updates.length === 0) {
       return;
     }
     for (const update of updates) {
       this.#lastPriceBySymbol.set(update.symbol, update);
     }
-    this.#pricePollCycle += 1;
-    this.#deps.debugLogger.log(
-      `[LighterProvider] price stream cycle=${this.#pricePollCycle} transport=${transport} updates=${updates.length}`,
-    );
     for (const subscriber of this.#priceSubscribers) {
       this.#deliverPrices(subscriber, updates);
     }

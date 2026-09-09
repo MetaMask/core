@@ -3,8 +3,7 @@
  *
  * Adapters transforming zkLighter REST payloads into the MetaMask Perps API
  * canonical types. Portable: no mobile-specific imports; formatters are
- * injected via the MarketDataFormatters interface (same pattern as
- * myxAdapter.ts).
+ * injected via the MarketDataFormatters interface.
  *
  * Key differences from HyperLiquid:
  * - Prices/sizes are human-readable decimal strings in REST responses, but

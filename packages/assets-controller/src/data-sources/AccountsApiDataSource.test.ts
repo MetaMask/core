@@ -184,7 +184,7 @@ async function setupController(
   rootMessenger.delegate({
     messenger: controllerMessenger,
     actions: ['RemoteFeatureFlagController:getState'],
-    // eslint-disable-next-line no-restricted-syntax
+
     events: ['RemoteFeatureFlagController:stateChange'],
   });
 
@@ -532,6 +532,36 @@ describe('AccountsApiDataSource', () => {
       [`eip155:1:${MOCK_ADDRESS}`],
       undefined,
       { staleTime: 0, gcTime: 0 },
+    );
+
+    controller.destroy();
+  });
+
+  it('fetch requests a full cache bypass when request.bypassServerCache is true', async () => {
+    const { controller, apiClient } = await setupController();
+
+    await controller.fetch(
+      createDataRequest({ forceUpdate: true, bypassServerCache: true }),
+    );
+
+    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
+      [`eip155:1:${MOCK_ADDRESS}`],
+      undefined,
+      { staleTime: 0, gcTime: 0, bypassServerCache: true },
+    );
+
+    controller.destroy();
+  });
+
+  it('fetch bypasses caches when bypassServerCache is set without forceUpdate', async () => {
+    const { controller, apiClient } = await setupController();
+
+    await controller.fetch(createDataRequest({ bypassServerCache: true }));
+
+    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
+      [`eip155:1:${MOCK_ADDRESS}`],
+      undefined,
+      { staleTime: 0, gcTime: 0, bypassServerCache: true },
     );
 
     controller.destroy();

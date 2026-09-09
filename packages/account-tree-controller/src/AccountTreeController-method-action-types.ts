@@ -29,6 +29,17 @@ export type AccountTreeControllerReinitAction = {
 };
 
 /**
+ * Whether `init()` has completed and the account tree is ready to consume.
+ * Returns false after `clearState()` until the next successful `init()`.
+ *
+ * @returns True when the controller has been initialized.
+ */
+export type AccountTreeControllerIsInitializedAction = {
+  type: `AccountTreeController:isInitialized`;
+  handler: AccountTreeController['isInitialized'];
+};
+
+/**
  * Gets the account wallet object from its ID.
  *
  * @param walletId - Account wallet ID.
@@ -277,6 +288,7 @@ export type AccountTreeControllerImportStateAction = {
 export type AccountTreeControllerMethodActions =
   | AccountTreeControllerInitAction
   | AccountTreeControllerReinitAction
+  | AccountTreeControllerIsInitializedAction
   | AccountTreeControllerGetAccountWalletObjectAction
   | AccountTreeControllerGetAccountWalletObjectsAction
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction

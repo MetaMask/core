@@ -62,10 +62,12 @@ export type KycControllerLoadDisclaimersAction = {
  * @param params.product - The consuming feature the flow runs for. See
  * {@link initialize} for how the product drives the automatic post
  * authentication continuation.
- * @param params.sumsubTncSigned - Whether Sumsub T&C were accepted (T&C2).
- * Required for every vendor so callers explicitly declare acceptance.
- * @param params.idosTncSigned - Whether idOS T&C were accepted (T&C2).
- * Required for every vendor so callers explicitly declare acceptance.
+ * @param params.providerDisclaimersAccepted - Sumsub disclaimer documents the
+ * customer accepted (`{ key, version }` records). Required for every vendor
+ * so callers explicitly declare acceptance.
+ * @param params.idosDisclaimersAccepted - idOS disclaimer documents the
+ * customer accepted (`{ key, version }` records). Required for every vendor
+ * so callers explicitly declare acceptance.
  * @param params.credentialReusabilityConsentGiven - Whether the customer
  * consented to reuse existing idOS credentials. Used when recording
  * session-scoped disclaimers on the consents path. Defaults to `false`.
@@ -208,6 +210,10 @@ export type KycControllerStartSumSubAction = {
  * Refreshes the user-keyed simplified KYC status from `GET /kyc/status`,
  * stores it on state, publishes {@link KycControllerStatusChangedEvent}, and
  * schedules short-interval polling while the status is `pending`.
+ *
+ * Skipped when `userStatus` is already `completed`: a follow-up
+ * `GET /kyc/status` can still read a stale `pending` (for example after
+ * `session_not_in_valid_state`) and must not undo that decision.
  *
  * @returns The latest status payload.
  */

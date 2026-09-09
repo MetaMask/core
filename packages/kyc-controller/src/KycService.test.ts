@@ -1,8 +1,8 @@
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
-  MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import nock, { cleanAll } from 'nock';
 
@@ -53,8 +53,7 @@ describe('KycService', () => {
         expect(
           () =>
             new KycService({
-              messenger:
-                messenger as unknown as MockAnyNamespace<KycServiceMessenger>,
+              messenger,
               baseUrl: MOCK_API_URL,
             }),
         ).toThrow(
@@ -558,7 +557,7 @@ describe('KycService', () => {
     });
 
     it('falls back to status-only HttpError when the body is not an object', async () => {
-      nock(MOCK_API_URL).get('/sessions/sid/status').reply(409, null);
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(409, 'null');
       const { service } = getService();
 
       await expect(
@@ -769,7 +768,6 @@ describe('KycService', () => {
           version: '1',
           title: 'idOS ToS',
           url: 'https://idos.example/tos',
-          consented: false,
         },
       ],
       kycProvider: [
@@ -778,7 +776,6 @@ describe('KycService', () => {
           version: '1',
           title: 'SumSub ToS',
           url: 'https://sumsub.example/tos',
-          consented: false,
         },
       ],
     };
@@ -890,6 +887,30 @@ describe('KycService', () => {
       nock(MOCK_API_URL)
         .get('/sessions/sid-1/disclaimers')
         .reply(200, documents);
+      const { service } = getService();
+
+      await expect(
+        service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+      ).rejects.toThrow(
+        /Malformed response received from session disclaimers API/u,
+      );
+    });
+
+    it('throws when a session document omits consented', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/sid-1/disclaimers')
+        .reply(200, {
+          idOS: [
+            {
+              key: 'idos-tos',
+              version: '1',
+              title: 'idOS ToS',
+              url: 'https://idos.example/tos',
+            },
+          ],
+          kycProvider: [],
+          credentialReusabilityConsentGiven: false,
+        });
       const { service } = getService();
 
       await expect(

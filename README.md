@@ -69,6 +69,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/connectivity-controller`](packages/connectivity-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/core-backend`](packages/core-backend)
+- [`@metamask/cryptography`](packages/cryptography)
 - [`@metamask/delegation-controller`](packages/delegation-controller)
 - [`@metamask/earn-controller`](packages/earn-controller)
 - [`@metamask/eip-5792-middleware`](packages/eip-5792-middleware)
@@ -175,6 +176,7 @@ linkStyle default opacity:0.5
   connectivity_controller(["@metamask/connectivity-controller"]);
   controller_utils(["@metamask/controller-utils"]);
   core_backend(["@metamask/core-backend"]);
+  cryptography(["@metamask/cryptography"]);
   delegation_controller(["@metamask/delegation-controller"]);
   earn_controller(["@metamask/earn-controller"]);
   eip_5792_middleware(["@metamask/eip-5792-middleware"]);
@@ -308,6 +310,7 @@ linkStyle default opacity:0.5
   assets_controllers --> remote_feature_flag_controller;
   assets_controllers --> storage_service;
   assets_controllers --> transaction_controller;
+  assets_controllers --> eth_json_rpc_provider;
   authenticated_user_storage --> base_data_service;
   authenticated_user_storage --> controller_utils;
   authenticated_user_storage --> messenger;
@@ -370,6 +373,7 @@ linkStyle default opacity:0.5
   config_registry_controller --> remote_feature_flag_controller;
   connectivity_controller --> base_controller;
   connectivity_controller --> messenger;
+  controller_utils --> eth_json_rpc_provider;
   core_backend --> account_tree_controller;
   core_backend --> controller_utils;
   core_backend --> keyring_controller;
@@ -449,7 +453,9 @@ linkStyle default opacity:0.5
   money_account_upgrade_controller --> delegation_controller;
   money_account_upgrade_controller --> keyring_controller;
   money_account_upgrade_controller --> messenger;
+  money_account_upgrade_controller --> money_account_utils;
   money_account_upgrade_controller --> network_controller;
+  money_account_upgrade_controller --> remote_feature_flag_controller;
   money_account_utils --> transaction_controller;
   multichain_account_service --> accounts_controller;
   multichain_account_service --> base_controller;

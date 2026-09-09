@@ -22,7 +22,7 @@ import {
   KnownCaipNamespace,
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import BigNumberJS from 'bignumber.js';
+import { BigNumber as BigNumberJS } from 'bignumber.js';
 
 import type {
   AssetsControllerGetStateAction,
@@ -1334,6 +1334,16 @@ export class RpcDataSource extends AbstractDataSource<
         context.response.assetsInfo = {
           ...context.response.assetsInfo,
           ...response.assetsInfo,
+        };
+      }
+
+      // Propagate per-chain fetch errors so downstream consumers (e.g.
+      // RpcFallbackMiddleware) can tell which chains this source actually
+      // failed on and discard their failure stubs instead of merging them.
+      if (response.errors) {
+        context.response.errors = {
+          ...context.response.errors,
+          ...response.errors,
         };
       }
 

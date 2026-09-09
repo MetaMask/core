@@ -8,6 +8,8 @@ import {
   MOCK_PAIR_IDENTIFIERS_URL,
   MOCK_PAIR_PROFILES_RESPONSE,
   MOCK_PAIR_PROFILES_URL,
+  MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE,
+  MOCK_PAIR_SOCIAL_IDENTIFIER_URL,
   MOCK_PROFILE_LINEAGE_URL,
   MOCK_SIWE_LOGIN_RESPONSE,
   MOCK_SIWE_LOGIN_URL,
@@ -68,6 +70,25 @@ export const handleMockPairProfiles = (mockReply?: MockReply): nock.Scope => {
     .reply(reply.status, reply.body);
 
   return mockPairProfilesEndpoint;
+};
+
+export const handleMockPairSocialIdentifier = (
+  mockReply?: MockReply,
+  onBody?: (body: unknown) => void,
+): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE,
+  };
+  const mockPairSocialIdentifierEndpoint = nock(MOCK_PAIR_SOCIAL_IDENTIFIER_URL)
+    .persist()
+    .post('', (body) => {
+      onBody?.(body);
+      return true;
+    })
+    .reply(reply.status, reply.body);
+
+  return mockPairSocialIdentifierEndpoint;
 };
 
 export const handleMockSrpLogin = (
@@ -134,9 +155,11 @@ export const arrangeAuthAPIs = (options?: {
   mockSiweLoginUrl?: MockReply;
   mockPairIdentifiers?: MockReply;
   mockPairProfiles?: MockReply;
+  mockPairSocialIdentifier?: MockReply;
   mockUserProfileLineageUrl?: MockReply;
   mockCustomerServiceTokenUrl?: MockReply;
   onSrpLoginBody?: (body: unknown) => void;
+  onPairSocialIdentifierBody?: (body: unknown) => void;
 }): {
   mockNonceUrl: nock.Scope;
   mockOAuth2TokenUrl: nock.Scope;
@@ -144,6 +167,7 @@ export const arrangeAuthAPIs = (options?: {
   mockSiweLoginUrl: nock.Scope;
   mockPairIdentifiersUrl: nock.Scope;
   mockPairProfilesUrl: nock.Scope;
+  mockPairSocialIdentifierUrl: nock.Scope;
   mockUserProfileLineageUrl: nock.Scope;
   mockCustomerServiceTokenUrl: nock.Scope;
 } => {
@@ -158,6 +182,10 @@ export const arrangeAuthAPIs = (options?: {
     options?.mockPairIdentifiers,
   );
   const mockPairProfilesUrl = handleMockPairProfiles(options?.mockPairProfiles);
+  const mockPairSocialIdentifierUrl = handleMockPairSocialIdentifier(
+    options?.mockPairSocialIdentifier,
+    options?.onPairSocialIdentifierBody,
+  );
   const mockUserProfileLineageUrl = handleMockUserProfileLineage(
     options?.mockUserProfileLineageUrl,
   );
@@ -172,6 +200,7 @@ export const arrangeAuthAPIs = (options?: {
     mockSiweLoginUrl,
     mockPairIdentifiersUrl,
     mockPairProfilesUrl,
+    mockPairSocialIdentifierUrl,
     mockUserProfileLineageUrl,
     mockCustomerServiceTokenUrl,
   };
