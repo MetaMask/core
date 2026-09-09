@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0]
-
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -16,12 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
-- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/base-data-service` from `^1.0.0` to `^2.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/profile-sync-controller` from `^30.0.0` to `^31.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
 
 ## [0.6.2]
 
@@ -192,8 +184,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `generateMessageForClaimSignature`: generate message to sign for the claim signature.
   - `verifyClaimSignature`: verify claim signature produced by user.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.0...HEAD
-[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.6.2...@metamask/claims-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.6.2...HEAD
 [0.6.2]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.6.1...@metamask/claims-controller@0.6.2
 [0.6.1]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.6.0...@metamask/claims-controller@0.6.1
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.4...@metamask/claims-controller@0.6.0

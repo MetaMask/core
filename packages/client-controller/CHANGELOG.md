@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.0]
-
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -16,8 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
-- Bump `@metamask/messenger` from `^1.0.0` to `^3.0.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632), [#9392](https://github.com/MetaMask/core/pull/9392), [#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/base-controller` from `^9.0.1` to `^10.0.0` ([#8457](https://github.com/MetaMask/core/pull/8457), [#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/messenger` from `^1.0.0` to `^2.0.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632), [#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 
 ## [1.0.1]
 
@@ -38,7 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `clientControllerSelectors.selectIsUiOpen` selector for derived state access
   - Full TypeScript support with exported types
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-controller@2.0.0...HEAD
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/client-controller@1.0.1...@metamask/client-controller@2.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-controller@1.0.1...HEAD
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/client-controller@1.0.0...@metamask/client-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/client-controller@1.0.0

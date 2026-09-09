@@ -1,6 +1,6 @@
 {
   "name": "@metamask/rate-limit-controller",
-  "version": "8.0.0",
+  "version": "7.0.1",
   "description": "Contains logic for rate-limiting API endpoints by requesting origin",
   "keywords": [
     "Ethereum",
@@ -48,8 +48,8 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^10.0.0",
-    "@metamask/messenger": "^3.0.0",
+    "@metamask/base-controller": "^9.1.0",
+    "@metamask/messenger": "^2.0.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.12.0"
   },

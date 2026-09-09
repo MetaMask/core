@@ -1,6 +1,6 @@
 {
   "name": "@metamask/shield-controller",
-  "version": "7.0.0",
+  "version": "6.0.2",
   "description": "Controller handling shield transaction coverage logic",
   "keywords": [
     "Ethereum",
@@ -50,13 +50,13 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^10.0.0",
-    "@metamask/base-data-service": "^2.0.0",
-    "@metamask/controller-utils": "^13.0.0",
-    "@metamask/messenger": "^3.0.0",
-    "@metamask/profile-sync-controller": "^31.0.0",
-    "@metamask/signature-controller": "^40.0.0",
-    "@metamask/transaction-controller": "^70.0.0",
+    "@metamask/base-controller": "^9.1.0",
+    "@metamask/base-data-service": "^1.0.0",
+    "@metamask/controller-utils": "^12.3.0",
+    "@metamask/messenger": "^2.0.0",
+    "@metamask/profile-sync-controller": "^30.0.0",
+    "@metamask/signature-controller": "^39.2.10",
+    "@metamask/transaction-controller": "^69.8.1",
     "@metamask/utils": "^11.12.0",
     "@tanstack/query-core": "^5.62.16",
     "cockatiel": "^3.1.2"

@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.0.0]
-
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -16,13 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
-- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^7.0.0` ([#9980](https://github.com/MetaMask/core/pull/9980), [#10129](https://github.com/MetaMask/core/pull/10129), [#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.1` ([#9980](https://github.com/MetaMask/core/pull/9980), [#10129](https://github.com/MetaMask/core/pull/10129))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
-- Bump `@metamask/base-data-service` from `^1.0.0` to `^2.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/money-account-api-data-service` from `^0.4.1` to `^1.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
 
 ## [2.4.3]
 
@@ -166,8 +159,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compute mUSD-equivalent value of vault share holdings (`getMusdEquivalentValue`)
   - Fetch vault APY from the Veda performance REST API (`getVaultApy`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@3.0.0...HEAD
-[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.3...@metamask/money-account-balance-service@3.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.3...HEAD
 [2.4.3]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.2...@metamask/money-account-balance-service@2.4.3
 [2.4.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.1...@metamask/money-account-balance-service@2.4.2
 [2.4.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.4.0...@metamask/money-account-balance-service@2.4.1

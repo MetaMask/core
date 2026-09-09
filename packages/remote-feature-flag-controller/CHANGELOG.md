@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [7.0.0]
-
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -16,9 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
-- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
 
 ## [6.1.1]
 
@@ -295,8 +290,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of the RemoteFeatureFlagController. ([#4931](https://github.com/MetaMask/core/pull/4931))
   - This controller manages the retrieval and caching of remote feature flags. It fetches feature flags from a remote API, caches them, and provides methods to access and manage these flags. The controller ensures that feature flags are refreshed based on a specified interval and handles cases where the controller is disabled or the network is unavailable.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@7.0.0...HEAD
-[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@6.1.1...@metamask/remote-feature-flag-controller@7.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@6.1.1...HEAD
 [6.1.1]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@6.1.0...@metamask/remote-feature-flag-controller@6.1.1
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@6.0.0...@metamask/remote-feature-flag-controller@6.1.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@5.0.0...@metamask/remote-feature-flag-controller@6.0.0
