@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+
 ## [111.3.0]
 
 ### Changed
 
-- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - `DeFiPositionsControllerV2.fetchDeFiPositions` now sets `forceFetchDeFiPositions` on the Accounts API request only when `forceRefresh` is true ([#10149](https://github.com/MetaMask/core/pull/10149))
 
 ## [111.2.0]
