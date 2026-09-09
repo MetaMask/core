@@ -8,6 +8,7 @@ import type {
 import type { RampsControllerMessenger } from './RampsController.js';
 import {
   RampsController,
+  RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController.js';
 import { RampsOrderStatus } from './RampsService.js';
@@ -56,11 +57,13 @@ function setupControllerWithOrderSyncingMocks(args?: {
   controller: RampsController;
   performBatchSetStorage: jest.Mock;
   performGetStorageAllFeatureEntries: jest.Mock;
+  getOrder: jest.Mock;
 } {
   const performBatchSetStorage = jest.fn().mockResolvedValue(undefined);
   const performGetStorageAllFeatureEntries = jest
     .fn()
     .mockResolvedValue([] as string[]);
+  const getOrder = jest.fn();
 
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -82,6 +85,7 @@ function setupControllerWithOrderSyncingMocks(args?: {
     'AuthenticationController:isSignedIn',
     () => true,
   );
+  rootMessenger.registerActionHandler('RampsService:getOrder', getOrder);
 
   const messenger: RampsControllerMessenger = new Messenger({
     namespace: 'RampsController',
@@ -92,10 +96,7 @@ function setupControllerWithOrderSyncingMocks(args?: {
     messenger,
     actions: [
       ...RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
-      'UserStorageController:getState',
-      'UserStorageController:performGetStorageAllFeatureEntries',
-      'UserStorageController:performBatchSetStorage',
-      'AuthenticationController:isSignedIn',
+      ...RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS,
     ],
   });
 
@@ -108,6 +109,7 @@ function setupControllerWithOrderSyncingMocks(args?: {
     controller,
     performBatchSetStorage,
     performGetStorageAllFeatureEntries,
+    getOrder,
   };
 }
 
@@ -218,15 +220,25 @@ describe('RampsController order syncing', () => {
 
   it('reports incremental removeOrder remote sync failures via onOrderSyncErroneousSituation', async () => {
     const onOrderSyncErroneousSituation = jest.fn();
-    const { controller, performBatchSetStorage } =
-      setupControllerWithOrderSyncingMocks({ onOrderSyncErroneousSituation });
+    const {
+      controller,
+      performBatchSetStorage,
+      performGetStorageAllFeatureEntries,
+    } = setupControllerWithOrderSyncingMocks({
+      onOrderSyncErroneousSituation,
+    });
     const consoleErrorSpy = jest
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
 
-    performBatchSetStorage.mockRejectedValue(new Error('remote delete failed'));
-
-    controller.addOrder(createMockOrder());
+    const order = createMockOrder();
+    controller.addOrder(order);
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+    performBatchSetStorage.mockRejectedValueOnce(
+      new Error('remote delete failed'),
+    );
     controller.removeOrder('abc-123');
 
     await new Promise((resolve) => {
@@ -241,6 +253,48 @@ describe('RampsController order syncing', () => {
       'Error deleting ramps order from remote storage',
       expect.objectContaining({ error: expect.any(Error) }),
     );
+
+    expect(controller.getPendingRemoteDeletes()).toStrictEqual([
+      expect.objectContaining({ providerOrderId: 'abc-123' }),
+    ]);
+
+    performGetStorageAllFeatureEntries.mockResolvedValue([
+      JSON.stringify({ v: '1', o: order, lu: order.createdAt }),
+    ]);
+    await controller.syncOrdersWithUserStorage();
+
+    expect(controller.state.orders).toStrictEqual([]);
+    expect(controller.getPendingRemoteDeletes()).toStrictEqual([]);
+  });
+
+  it('does not restore an order when its fetch finishes after removal', async () => {
+    const { controller, getOrder } = setupControllerWithOrderSyncingMocks();
+    const order = createMockOrder();
+    let resolveFetch: (fetchedOrder: RampsOrder) => void = () => undefined;
+    getOrder.mockImplementation(
+      () =>
+        new Promise<RampsOrder>((resolve) => {
+          resolveFetch = resolve;
+        }),
+    );
+
+    controller.addOrder(order);
+    const fetchPromise = controller.getOrder(
+      'transak',
+      'abc-123',
+      order.walletAddress,
+    );
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+
+    controller.removeOrder('abc-123');
+    resolveFetch(order);
+
+    expect(await fetchPromise).toStrictEqual(
+      expect.objectContaining({ providerOrderId: 'abc-123' }),
+    );
+    expect(controller.state.orders).toStrictEqual([]);
   });
 
   it('skips incremental remote writes while full sync is in progress', async () => {

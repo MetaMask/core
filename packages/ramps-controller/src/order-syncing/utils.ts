@@ -13,7 +13,7 @@ import type { SyncRampsOrder, UserStorageRampsOrderEntry } from './types.js';
  * @param value - A timestamp from a local or remote order.
  * @returns Epoch milliseconds, or zero when the value is invalid.
  */
-function normalizeCreatedAt(value: unknown): number {
+export function normalizeCreatedAt(value: unknown): number {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : 0;
   }
@@ -165,8 +165,15 @@ export function areOrdersEqual(
   a: SyncRampsOrder | RampsOrder,
   b: SyncRampsOrder | RampsOrder,
 ): boolean {
-  return deepEqual(
-    stripPaymentDetailsForRemoteStorage(stripSyncMetadata(a as SyncRampsOrder)),
-    stripPaymentDetailsForRemoteStorage(stripSyncMetadata(b as SyncRampsOrder)),
-  );
+  const normalizeOrder = (order: SyncRampsOrder | RampsOrder): RampsOrder => {
+    const syncableOrder = stripPaymentDetailsForRemoteStorage(
+      stripSyncMetadata(order as SyncRampsOrder),
+    );
+    return {
+      ...syncableOrder,
+      createdAt: normalizeCreatedAt(syncableOrder.createdAt),
+    };
+  };
+
+  return deepEqual(normalizeOrder(a), normalizeOrder(b));
 }

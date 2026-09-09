@@ -324,5 +324,14 @@ describe('order-syncing/utils', () => {
       const remote = createMockOrder();
       expect(areOrdersEqual(local, remote)).toBe(true);
     });
+
+    it('treats equivalent ISO and numeric createdAt values as equal', () => {
+      const isoOrder = createMockOrder({
+        createdAt: '2026-09-03T20:53:56.153Z',
+      } as unknown as Partial<RampsOrder>);
+      const numericOrder = createMockOrder({ createdAt: 1788468836153 });
+
+      expect(areOrdersEqual(isoOrder, numericOrder)).toBe(true);
+    });
   });
 });

@@ -1011,6 +1011,13 @@ describe('order-syncing/controller-integration', () => {
       ).toBe(10);
       expect(getOrderTimestamp(createMockOrder({ createdAt: 5 }))).toBe(5);
       expect(
+        getOrderTimestamp(
+          createMockOrder({
+            createdAt: '2026-09-03T20:53:56.153Z',
+          } as unknown as Partial<RampsOrder>),
+        ),
+      ).toBe(1788468836153);
+      expect(
         getOrderTimestamp({
           providerOrderId: 'x',
         } as RampsOrder),

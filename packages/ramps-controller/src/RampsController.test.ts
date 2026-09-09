@@ -103,17 +103,27 @@ describe('RampsController', () => {
   });
 
   describe('RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS', () => {
-    it('includes every external controller action that RampsController calls', async () => {
+    it('includes every external controller action that ramps order code calls', async () => {
       expect.hasAssertions();
-      const controllerPath = path.join(__dirname, 'RampsController.ts');
-      const source = await fs.promises.readFile(controllerPath, 'utf-8');
+      const sourcePaths = [
+        path.join(__dirname, 'RampsController.ts'),
+        path.join(__dirname, 'order-syncing/controller-integration.ts'),
+        path.join(__dirname, 'order-syncing/sync-utils.ts'),
+      ];
+      const sources = await Promise.all(
+        sourcePaths.map((sourcePath) =>
+          fs.promises.readFile(sourcePath, 'utf-8'),
+        ),
+      );
       const callPattern =
-        /messenger\.call\s*\(\s*['"]([A-Za-z]+Controller:[^'"]+)['"]/gu;
+        /(?:messenger|getMessenger\(\))\.call\s*\(\s*['"]([A-Za-z]+Controller:[^'"]+)['"]/gu;
       const calledActions = new Set<string>();
-      let match: RegExpExecArray | null;
-      while ((match = callPattern.exec(source)) !== null) {
-        if (!match[1].startsWith('RampsController:')) {
-          calledActions.add(match[1]);
+      for (const source of sources) {
+        let match: RegExpExecArray | null;
+        while ((match = callPattern.exec(source)) !== null) {
+          if (!match[1].startsWith('RampsController:')) {
+            calledActions.add(match[1]);
+          }
         }
       }
       const requiredSet = new Set(

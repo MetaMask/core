@@ -232,12 +232,17 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
  * `AuthenticationController:getSessionProfile` resolves the vendor customer
  * identity from Profile Sync, and `KeyringController:signPersonalMessage` signs
  * the EIP-191 ownership proof for Money Account self-hosted wallet
- * registration; both are only exercised by the autoramp paths.
+ * registration; both are only exercised by the autoramp paths. User Storage
+ * and authentication actions support cross-client order syncing.
  */
 export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'AuthenticationController:getSessionProfile',
+  'AuthenticationController:isSignedIn',
   'KeyringController:signPersonalMessage',
   'RemoteFeatureFlagController:getState',
+  'UserStorageController:getState',
+  'UserStorageController:performGetStorageAllFeatureEntries',
+  'UserStorageController:performBatchSetStorage',
 ] as const;
 
 /**
@@ -3098,17 +3103,23 @@ export class RampsController extends BaseController<
 
     if (orderToRemove) {
       const deleteKey = getInternalOrderCode(orderToRemove);
+      const isLocalDeletion = !this.#isApplyingOrderSyncChanges;
+
+      if (isLocalDeletion && deleteKey) {
+        // Retain the delete until a full sync confirms its tombstone was
+        // persisted. This prevents a failed incremental write from allowing
+        // the still-active remote copy to be imported again.
+        this.#pendingRemoteDeletes.set(deleteKey, orderToRemove);
+      }
+
       if (this.#isOrderSyncingInProgress) {
-        if (!this.#isApplyingOrderSyncChanges) {
+        if (isLocalDeletion) {
           // Incremental remote deletes are gated off during full sync; queue a
           // tombstone write and another full sync pass so deletes during the
           // upload await are not dropped.
           this.#orderSyncQueued = true;
-          if (deleteKey) {
-            this.#pendingRemoteDeletes.set(deleteKey, orderToRemove);
-          }
         }
-      } else {
+      } else if (isLocalDeletion) {
         deleteOrderInRemoteStorage(
           orderToRemove,
           {
@@ -3862,6 +3873,9 @@ export class RampsController extends BaseController<
     orderCode: string,
     wallet: string,
   ): Promise<RampsOrder> {
+    const hadOrderAtRequestStart = this.state.orders.some(
+      (existingOrder) => getInternalOrderCode(existingOrder) === orderCode,
+    );
     const order = await this.messenger.call(
       'RampsService:getOrder',
       providerCode,
@@ -3880,8 +3894,17 @@ export class RampsController extends BaseController<
       providerOrderId: internalOrderCode,
     };
 
-    // Use addOrder to ensure lastUpdatedAt is bumped and incremental sync is triggered
-    this.addOrder(healedOrder);
+    const orderStillExists = this.state.orders.some(
+      (existingOrder) =>
+        getInternalOrderCode(existingOrder) === internalOrderCode,
+    );
+
+    // A polling request can finish after removeOrder. Do not let that stale
+    // response recreate the local order and overwrite its remote tombstone.
+    if (!hadOrderAtRequestStart || orderStillExists) {
+      // Use addOrder to bump lastUpdatedAt and trigger incremental sync.
+      this.addOrder(healedOrder);
+    }
 
     return healedOrder;
   }

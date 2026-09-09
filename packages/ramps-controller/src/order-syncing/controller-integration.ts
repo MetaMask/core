@@ -17,6 +17,7 @@ import {
   isSyncableOrder,
   mapRampsOrderToUserStorageEntry,
   mapUserStorageEntryToRampsOrder,
+  normalizeCreatedAt,
   stripDeletedAt,
   stripSyncMetadata,
 } from './utils.js';
@@ -44,7 +45,9 @@ type MergePlan = {
  * @returns The best available last-updated timestamp.
  */
 function getOrderTimestamp(order: RampsOrder | SyncRampsOrder): number {
-  return (order as SyncRampsOrder).lastUpdatedAt ?? order.createdAt ?? 0;
+  return normalizeCreatedAt(
+    (order as SyncRampsOrder).lastUpdatedAt ?? order.createdAt,
+  );
 }
 
 /**
