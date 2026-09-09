@@ -8,10 +8,7 @@ import {
 } from '@metamask/utils';
 import { bytesToUtf8 } from '@noble/ciphers/utils';
 
-import {
-  SecretType,
-  SeedlessPasswordChangePhase,
-} from './constants.js';
+import { SecretType } from './constants.js';
 import type { SecretMetadata } from './SecretMetadata.js';
 import type {
   DecodedBaseJWTToken,
@@ -190,16 +187,3 @@ export function getInvalidPrimarySecretDataTypeErrorData(
 ): InvalidPrimarySecretDataTypeErrorData {
   return secrets.map((secret) => secret.dataType ?? secret.type);
 }
-
-/**
- * Resolve a password-change phase, treating `undefined` as `IDLE`.
- *
- * @param phase - The persisted phase, or `undefined`.
- * @returns The phase, or `IDLE` if it is missing.
- */
-export function getPasswordChangePhase(
-  phase: SeedlessPasswordChangePhase | undefined,
-): SeedlessPasswordChangePhase {
-  return phase ?? SeedlessPasswordChangePhase.Idle;
-}
-

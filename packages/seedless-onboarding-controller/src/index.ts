@@ -20,7 +20,6 @@ export type {
   SeedlessOnboardingControllerChangePasswordAction,
   SeedlessOnboardingControllerClearPasswordChangePhaseAction,
   SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction,
-  SeedlessOnboardingControllerCompletePasswordChangeAction,
   SeedlessOnboardingControllerUpdateBackupMetadataStateAction,
   SeedlessOnboardingControllerVerifyVaultPasswordAction,
   SeedlessOnboardingControllerGetSecretDataBackupStateAction,

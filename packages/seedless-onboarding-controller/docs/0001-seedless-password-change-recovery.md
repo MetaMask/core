@@ -33,10 +33,10 @@ Use a durable, idempotent lifecycle state machine around the server-first operat
 - Use cryptographic verification to determine whether the local Keyring is old or new.
 - Re-run already-completed operations safely instead of attempting an in-process rollback.
 - Lock the wallet from the client whenever any password-change or recovery step fails, before exposing an error or intermediary screen.
-- Mark `COMPLETE` only after the current Keyring encryption key is synchronized to Seedless and all required local state is durably persisted.
+- Clear the lifecycle only after the current Keyring encryption key is synchronized to Seedless and all required local state is durably persisted. (There is no separate `COMPLETE` state: "no change in progress" and "done" are both represented by an unset/`undefined` phase.)
 - Keep any state that cannot be distinguished safely as `unknown`.
 
-The lifecycle names below are descriptive. They can be mapped to the final implementation enum without changing the recovery semantics.
+The lifecycle names below are descriptive. They can be mapped to the final implementation enum without changing the recovery semantics. The implementation uses `undefined` for the "no change in progress / done" state rather than a dedicated `IDLE`/`COMPLETE` enum member.
 
 ## Implementation scope
 
@@ -60,14 +60,14 @@ The new controller work is:
 - Add a persisted password-change lifecycle state/phase to `SeedlessOnboardingControllerState`, with persistence metadata. The lifecycle must not store passwords, SRPs, raw Keyring encryption keys, or decrypted backup material.
 - Modify `changePassword` to update the lifecycle after each relevant operation: before the remote change, after remote commitment, after the local Seedless vault/state update, and when the operation fails or becomes ambiguous.
 - Modify `storeKeyringEncryptionKey` to update the lifecycle after the encrypted Keyring encryption key has been stored in controller state. The encrypted-key update and lifecycle update should be adjacent so observers do not see an inconsistent intermediate controller state.
-- Do not let `storeKeyringEncryptionKey` mark `COMPLETE` by itself. Completion also requires client confirmation of the local Keyring state, remote synchronization, and durable persistence.
+- Do not let `storeKeyringEncryptionKey` clear the lifecycle by itself. Completion also requires client confirmation of the local Keyring state, remote synchronization, and durable persistence.
 - Ensure a thrown error after a partial mutation does not reset the lifecycle to the pre-operation state. The last known phase must remain available for recovery.
 - Facilitate the existing password-sync operations for both post-remote-commit recovery branches:
   - Old local Keyring: submit the new Seedless password, load the stored Keyring encryption key, and allow the client to call `submitEncryptionKey` before re-encrypting locally.
   - New local Keyring: submit the new password, verify/unlock the local Keyring, export its current Keyring encryption key, and store/synchronize it.
 - Preserve the existing token-refresh and controller-lock behavior while making lifecycle transitions observable to clients.
 
-The controller must not infer completion from a successful in-memory update or from a rejected Promise. The client remains responsible for coordinating the KeyringController and for the final durable `COMPLETE` transition.
+The controller must not infer completion from a successful in-memory update or from a rejected Promise. The client remains responsible for coordinating the KeyringController and for the final durable clear of the lifecycle.
 
 #### KeyringController
 
@@ -89,8 +89,8 @@ Wallet locking for password-change errors is also a client responsibility. The c
 - Write `SEEDLESS_CHANGE_PENDING` before the first remote mutation.
 - Write `SEEDLESS_COMMITTED` only after remote commitment is confirmed by the server or an authoritative status check.
 - Advance the lifecycle after each `changePassword` and `storeKeyringEncryptionKey` operation so a later unlock can identify the last known boundary, while treating the phase as advisory when persistence may have been interrupted.
-- Use an awaitable durable persistence operation for lifecycle transitions and `COMPLETE`. The generic debounced state-change path must not be the only durability boundary.
-- Serialize password-change and recovery operations. A second request must be rejected or queued until the first transaction reaches `COMPLETE` or an explicitly recoverable terminal state.
+- Use an awaitable durable persistence operation for lifecycle transitions and the final clear. The generic debounced state-change path must not be the only durability boundary.
+- Serialize password-change and recovery operations. A second request must be rejected or queued until the first transaction is cleared (no change in progress) or reaches an explicitly recoverable terminal state.
 - Make recovery verify the actual cryptographic state before mutating either controller.
 - Keep the recovery transaction active until Keyring encryption-key synchronization and local persistence are confirmed. Do not clear the lifecycle marker early.
 
@@ -146,13 +146,13 @@ Each client must provide a durable persistence boundary for lifecycle state:
 
 - Lifecycle transitions must have an explicit, awaitable durable-write path.
 - The client must be able to read the last lifecycle state before normal unlock routing begins.
-- `COMPLETE` must be written only after the synchronized Keyring encryption key and all required local controller state are durably persisted.
+- The lifecycle must be cleared only after the synchronized Keyring encryption key and all required local controller state are durably persisted.
 - A generic debounce may remain acceptable for unrelated state, but it cannot prove that password-change state is durable.
 - Lifecycle state must contain only non-sensitive metadata and must never contain passwords, SRPs, raw Keyring encryption keys, or decrypted backup material.
 
 #### Client UI and user behavior
 
-Each client must provide UI behavior for `SEEDLESS_CHANGE_PENDING`, `SEEDLESS_COMMITTED`, `LOCAL_KEYRING_PENDING`, `KEY_SYNC_PENDING`, `COMPLETE`, and `UNKNOWN`:
+Each client must provide UI behavior for `SEEDLESS_CHANGE_PENDING`, `SEEDLESS_COMMITTED`, `LOCAL_KEYRING_PENDING`, `KEY_SYNC_PENDING`, and `UNKNOWN` (no dedicated UI state is needed for "no change in progress" — that is the normal wallet UI):
 
 - Show a recovery-blocked state for every unfinished lifecycle state.
 - Treat any password-change error as a locked-wallet state before showing an error modal, retry screen, or other intermediary UI.
@@ -162,7 +162,7 @@ Each client must provide UI behavior for `SEEDLESS_CHANGE_PENDING`, `SEEDLESS_CO
 - Preserve retryable recovery actions across app/browser restarts and backgrounding.
 - Prevent a second password change while recovery is pending.
 - Do not display raw server/controller errors or sensitive recovery data.
-- Do not expose the wallet as fully recovered until key synchronization is verified and `COMPLETE` is durable.
+- Do not expose the wallet as fully recovered until key synchronization is verified and the lifecycle is cleared.
 - Keep reset wallet as an explicit last resort. It must not be triggered automatically for a recoverable partial state or used to hide an unresolved remote result.
 
 The client owns this lock/error boundary because it controls navigation and intermediary screens. This allows UX changes without changing the controller’s cryptographic responsibilities, while ensuring that no client-specific screen accidentally leaves a partially changed wallet unlocked.
@@ -189,7 +189,7 @@ All clients must agree on:
 - Which states require a server check before unlock.
 - The two cryptographic recovery branches.
 - Idempotency and transaction-identifier semantics.
-- The definition of durable synchronization and the `COMPLETE` boundary.
+- The definition of durable synchronization and the completion (clear) boundary.
 - The meaning of `unknown` and the conditions under which reset wallet may be offered.
 - The requirement that any password-change or recovery error locks the wallet before an error or intermediary screen is shown.
 
@@ -199,27 +199,25 @@ Platform-specific UI can differ, but it must not change the recovery decision or
 
 This table defines what the user and UI should experience when the lifecycle state is encountered during unlock. The current server and local states are defined separately below so that recovery behavior is not confused with state observation.
 
-| Lifecycle state | Sync Server state check required before unlock? | User behaviors | UI requirements |
-| --- | --- | --- | --- |
-| `IDLE` | No. A server check may run as part of normal Seedless behavior, but it is not a recovery prerequisite. | Enter the current wallet password and continue normally. The user may start a new password change. | Show the normal locked or unlocked wallet UI. |
-| `SEEDLESS_CHANGE_PENDING` | Yes. The remote request may not have started, may have failed before mutation, or may have committed with a lost response. | Do not assume which password is valid. If the server proves that the change did not commit, enter the old password. If it proves commitment, enter the new password. If the result remains ambiguous, `unknown`. Do not start another password change. | Show a password-change recovery screen. Do not report an entered password as an ordinary unlock failure while recovery is pending. Explain that the previous password change must be resolved first. |
-| `SEEDLESS_COMMITTED` | Yes. Confirm the remote Seedless password and required backup/key-share changes. | Enter the new Seedless password. The user should not need the old Keyring password when the stored Keyring encryption key is recoverable from Seedless. | Keep wallet access behind a recovery screen. Explain that the remote change succeeded but local recovery still needs to finish. |
-| `LOCAL_KEYRING_PENDING` | Yes. Confirm the remote new-password state before recovering the Keyring encryption key or synchronizing a local key. | Enter the new password. Allow recovery to determine cryptographically whether the local Keyring is old or new; do not ask the user to guess which state occurred. | Keep wallet access blocked until the local Keyring is reconciled and its current encryption key is synchronized. Show progress and retryable errors without clearing the recovery state. |
-| `KEY_SYNC_PENDING` | Yes. The remote password is expected to be new, but the remote copy of the Keyring encryption key may be old, new, missing, or unknown. | Enter the new password, unlock the local Keyring, and allow the current Keyring encryption key to be exported and synchronized. Do not start another password change. | Show that the wallet password has changed but backup synchronization is incomplete. Do not expose the wallet as fully recovered until synchronization is verified. |
-| `COMPLETE` | No additional recovery check is required. A defensive check may still run. | Enter the new password and unlock normally. | Show the normal wallet UI. |
-| `UNKNOWN` | Yes, whenever a server status check or cryptographic verification may resolve the state. If it cannot, remain `unknown`. | unknown | Keep the wallet locked and show a recovery-blocked state. Do not silently retry a non-idempotent operation or claim that either password is authoritative. |
+| Lifecycle state           | Sync Server state check required before unlock?                                                                                         | User behaviors                                                                                                                                                                                                                                         | UI requirements                                                                                                                                                                                      |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _No phase (`undefined`)_  | No. A server check may run as part of normal Seedless behavior, but it is not a recovery prerequisite.                                  | Enter the current wallet password and continue normally. The user may start a new password change.                                                                                                                                                     | Show the normal locked or unlocked wallet UI.                                                                                                                                                        |
+| `SEEDLESS_CHANGE_PENDING` | Yes. The remote request may not have started, may have failed before mutation, or may have committed with a lost response.              | Do not assume which password is valid. If the server proves that the change did not commit, enter the old password. If it proves commitment, enter the new password. If the result remains ambiguous, `unknown`. Do not start another password change. | Show a password-change recovery screen. Do not report an entered password as an ordinary unlock failure while recovery is pending. Explain that the previous password change must be resolved first. |
+| `SEEDLESS_COMMITTED`      | Yes. Confirm the remote Seedless password and required backup/key-share changes.                                                        | Enter the new Seedless password. The user should not need the old Keyring password when the stored Keyring encryption key is recoverable from Seedless.                                                                                                | Keep wallet access behind a recovery screen. Explain that the remote change succeeded but local recovery still needs to finish.                                                                      |
+| `LOCAL_KEYRING_PENDING`   | Yes. Confirm the remote new-password state before recovering the Keyring encryption key or synchronizing a local key.                   | Enter the new password. Allow recovery to determine cryptographically whether the local Keyring is old or new; do not ask the user to guess which state occurred.                                                                                      | Keep wallet access blocked until the local Keyring is reconciled and its current encryption key is synchronized. Show progress and retryable errors without clearing the recovery state.             |
+| `KEY_SYNC_PENDING`        | Yes. The remote password is expected to be new, but the remote copy of the Keyring encryption key may be old, new, missing, or unknown. | Enter the new password, unlock the local Keyring, and allow the current Keyring encryption key to be exported and synchronized. Do not start another password change.                                                                                  | Show that the wallet password has changed but backup synchronization is incomplete. Do not expose the wallet as fully recovered until synchronization is verified.                                   |
+| `UNKNOWN`                 | Yes, whenever a server status check or cryptographic verification may resolve the state. If it cannot, remain `unknown`.                | unknown                                                                                                                                                                                                                                                | Keep the wallet locked and show a recovery-blocked state. Do not silently retry a non-idempotent operation or claim that either password is authoritative.                                           |
 
 ## Server and local state matrix
 
-| Lifecycle state | Server State | Local State | Recovered server state | Recovered local state |
-| --- | --- | --- | --- | --- |
-| `IDLE` | Stable and synchronized. The password is the current password; no change is pending. | Local Keyring, local Seedless state, and the persisted Keyring encryption key are stable and synchronized. | No change. The server remains in its current stable state. | No change. The local state remains in its current stable state. |
-| `SEEDLESS_CHANGE_PENDING` | `unknown` until authoritative server status resolves whether the remote password change and backup updates are old, new, or partial. | Normally old/old, but local state may already have changed if lifecycle persistence was delayed or lost. Verify the local Keyring and local Seedless state independently. | Definitively old: return to `IDLE` after durable cleanup. Definitively new: transition to `SEEDLESS_COMMITTED` or `LOCAL_KEYRING_PENDING`. Ambiguous: `unknown`. | Do not mutate until the server result is resolved. After remote commitment, cryptographically classify the local Keyring as old or new and follow the matching branch. |
-| `SEEDLESS_COMMITTED` | New Seedless password and new remote backup/key-share state, confirmed through server verification. If this cannot be established, `unknown`. | Local Keyring may be old or new. Local Seedless state and the stored Keyring encryption key may be old, new, or not durably persisted. | Remains new and committed. | Transition to `LOCAL_KEYRING_PENDING`; cryptographically determine whether to recover the old local Keyring or synchronize the already-new local Keyring. |
-| `LOCAL_KEYRING_PENDING` | Remote Seedless is new and committed. | Local Keyring state is unresolved: old with a recoverable stored encryption key, new with a locally exportable current key, or `unknown`. | Remains new and committed. | **Old Keyring:** recover the stored key with the new Seedless password, call `submitEncryptionKey`, re-encrypt locally, export the current key, and synchronize it. **New Keyring:** unlock with the new password, export the current key, and synchronize it. In both cases, verify and durably persist before `COMPLETE`. |
-| `KEY_SYNC_PENDING` | New Seedless password and remote backup/key-share state. The synchronized Keyring encryption key is not confirmed. | Local Keyring uses the new password. The Seedless copy of its Keyring encryption key is stale, missing, or not durably confirmed. | New password with the current Keyring encryption key synchronized and verified. | Local Keyring, local Seedless state, synchronized key, and lifecycle marker are durably persisted. Only then transition to `COMPLETE`. |
-| `COMPLETE` | New Seedless password, new remote backup/key-share state, and the current Keyring encryption key synchronized. | Local Keyring and local Seedless state use the new password. The current Keyring encryption key is durably persisted locally and in Seedless. | No change. The server remains new and synchronized. | No change. The local state remains new and synchronized. |
-| `UNKNOWN` | `unknown`. The server may have accepted some, all, or none of the remote password-change or key-synchronization operations. | `unknown`. Local Keyring, local Seedless state, or durable lifecycle state may reflect different points in the operation. | unknown | unknown |
+| Lifecycle state           | Server State                                                                                                                                  | Local State                                                                                                                                                               | Recovered server state                                                                                                                                          | Recovered local state                                                                                                                                                                                                                                                                                                                   |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| _No phase (`undefined`)_  | Stable and synchronized. The password is the current password; no change is pending.                                                          | Local Keyring, local Seedless state, and the persisted Keyring encryption key are stable and synchronized.                                                                | No change. The server remains in its current stable state.                                                                                                      | No change. The local state remains in its current stable state.                                                                                                                                                                                                                                                                         |
+| `SEEDLESS_CHANGE_PENDING` | `unknown` until authoritative server status resolves whether the remote password change and backup updates are old, new, or partial.          | Normally old/old, but local state may already have changed if lifecycle persistence was delayed or lost. Verify the local Keyring and local Seedless state independently. | Definitively old: clear the phase after durable cleanup. Definitively new: transition to `SEEDLESS_COMMITTED` or `LOCAL_KEYRING_PENDING`. Ambiguous: `unknown`. | Do not mutate until the server result is resolved. After remote commitment, cryptographically classify the local Keyring as old or new and follow the matching branch.                                                                                                                                                                  |
+| `SEEDLESS_COMMITTED`      | New Seedless password and new remote backup/key-share state, confirmed through server verification. If this cannot be established, `unknown`. | Local Keyring may be old or new. Local Seedless state and the stored Keyring encryption key may be old, new, or not durably persisted.                                    | Remains new and committed.                                                                                                                                      | Transition to `LOCAL_KEYRING_PENDING`; cryptographically determine whether to recover the old local Keyring or synchronize the already-new local Keyring.                                                                                                                                                                               |
+| `LOCAL_KEYRING_PENDING`   | Remote Seedless is new and committed.                                                                                                         | Local Keyring state is unresolved: old with a recoverable stored encryption key, new with a locally exportable current key, or `unknown`.                                 | Remains new and committed.                                                                                                                                      | **Old Keyring:** recover the stored key with the new Seedless password, call `submitEncryptionKey`, re-encrypt locally, export the current key, and synchronize it. **New Keyring:** unlock with the new password, export the current key, and synchronize it. In both cases, verify and durably persist before clearing the lifecycle. |
+| `KEY_SYNC_PENDING`        | New Seedless password and remote backup/key-share state. The synchronized Keyring encryption key is not confirmed.                            | Local Keyring uses the new password. The Seedless copy of its Keyring encryption key is stale, missing, or not durably confirmed.                                         | New password with the current Keyring encryption key synchronized and verified.                                                                                 | Local Keyring, local Seedless state, synchronized key, and lifecycle marker are durably persisted. Only then clear the lifecycle.                                                                                                                                                                                                       |
+| `UNKNOWN`                 | `unknown`. The server may have accepted some, all, or none of the remote password-change or key-synchronization operations.                   | `unknown`. Local Keyring, local Seedless state, or durable lifecycle state may reflect different points in the operation.                                                 | unknown                                                                                                                                                         | unknown                                                                                                                                                                                                                                                                                                                                 |
 
 ## Failure and recovery rules
 
@@ -235,7 +233,7 @@ Remote Seedless, local Seedless, and local Keyring remain old and synchronized.
 
 **Recovery plan**
 
-Lock the wallet if required, ask the user to unlock with the old password, and durably clear the pending lifecycle state. A later retry starts from `IDLE`.
+Lock the wallet if required, ask the user to unlock with the old password, and durably clear the pending lifecycle state. A later retry starts from no phase set.
 
 ### Remote error after a possible mutation
 
@@ -283,7 +281,7 @@ Remote Seedless is new. The remote synchronized Keyring encryption key is old, n
 
 **Recovery plan**
 
-Keep `KEY_SYNC_PENDING`. Unlock with the new password, export the current Keyring encryption key, retry using the same transaction identity, and verify the remote result. Do not mark `COMPLETE` until synchronization and local persistence are durable. If the remote result cannot be verified, unknown.
+Keep `KEY_SYNC_PENDING`. Unlock with the new password, export the current Keyring encryption key, retry using the same transaction identity, and verify the remote result. Do not clear the lifecycle until synchronization and local persistence are durable. If the remote result cannot be verified, unknown.
 
 ### Lifecycle persistence failure
 
@@ -355,7 +353,7 @@ Fault-injection tests must terminate or fail the operation at every boundary:
 - Before, during, and after local Keyring password change.
 - Before, during, and after Keyring encryption-key synchronization.
 - Before and after each lifecycle persistence write.
-- Immediately before writing `COMPLETE`.
+- Immediately before clearing the lifecycle.
 
 After restart, each test must verify that:
 
@@ -364,7 +362,7 @@ After restart, each test must verify that:
 - Seedless recovers the current Keyring encryption key.
 - Retrying recovery produces the same final state.
 - A lost response does not cause a second non-idempotent password change.
-- `COMPLETE` is never durable before key synchronization and local persistence.
+- The lifecycle is never cleared before key synchronization and local persistence.
 - An unresolved server result remains `unknown`.
 
 ## Open questions

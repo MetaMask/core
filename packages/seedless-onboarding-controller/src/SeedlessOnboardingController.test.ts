@@ -83,9 +83,7 @@ import type {
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
 } from './SeedlessOnboardingController.js';
-import type {
-  SeedlessOnboardingControllerState,
-} from './types.js';
+import type { SeedlessOnboardingControllerState } from './types.js';
 
 const authConnection = AuthConnection.Google;
 const socialLoginEmail = 'user-test@gmail.com';
@@ -1122,8 +1120,8 @@ describe('SeedlessOnboardingController', () => {
     });
   });
 
-  describe('resolvePasswordSyncState (IDLE phase: outdated check)', () => {
-    it('should return NoChange if password is not outdated (authPubKey matches)', async () => {
+  describe('resolvePasswordSyncState (no lifecycle: outdated check)', () => {
+    it('should return InSync if password is not outdated (authPubKey matches)', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -1137,12 +1135,12 @@ describe('SeedlessOnboardingController', () => {
           const result = await baseMessenger.call(
             'SeedlessOnboardingController:resolvePasswordSyncState',
           );
-          expect(result).toBe(PasswordChangeRecoveryStatus.NoChange);
+          expect(result).toBe(PasswordChangeRecoveryStatus.InSync);
           // Call again to test cache
           const result2 = await baseMessenger.call(
             'SeedlessOnboardingController:resolvePasswordSyncState',
           );
-          expect(result2).toBe(PasswordChangeRecoveryStatus.NoChange);
+          expect(result2).toBe(PasswordChangeRecoveryStatus.InSync);
           // Should only call fetchAuthPubKey once due to cache
           expect(spy).toHaveBeenCalledTimes(1);
         },
@@ -1192,7 +1190,7 @@ describe('SeedlessOnboardingController', () => {
               skipCache: true,
             },
           );
-          expect(result).toBe(PasswordChangeRecoveryStatus.NoChange);
+          expect(result).toBe(PasswordChangeRecoveryStatus.InSync);
           // Call again with skipCache: true, should call fetchAuthPubKey again
           const result2 = await baseMessenger.call(
             'SeedlessOnboardingController:resolvePasswordSyncState',
@@ -1200,7 +1198,7 @@ describe('SeedlessOnboardingController', () => {
               skipCache: true,
             },
           );
-          expect(result2).toBe(PasswordChangeRecoveryStatus.NoChange);
+          expect(result2).toBe(PasswordChangeRecoveryStatus.InSync);
           expect(spy).toHaveBeenCalledTimes(2);
         },
       );
@@ -1904,13 +1902,12 @@ describe('SeedlessOnboardingController', () => {
             vault: MOCK_VAULT,
             vaultEncryptionKey: MOCK_VAULT_ENCRYPTION_KEY,
             vaultEncryptionSalt: MOCK_VAULT_ENCRYPTION_SALT,
-            passwordChangePhase:
-              SeedlessPasswordChangePhase.SeedlessCommitted,
+            passwordChangePhase: SeedlessPasswordChangePhase.SeedlessCommitted,
           }),
         },
         async ({ baseMessenger }) => {
           // Unlock first so #assertIsUnlocked() passes; the phase stays
-          // non-IDLE because submitPassword does not touch it.
+          // set because submitPassword does not touch it.
           await baseMessenger.call(
             'SeedlessOnboardingController:submitPassword',
             MOCK_PASSWORD,
@@ -4276,7 +4273,7 @@ describe('SeedlessOnboardingController', () => {
             MOCK_KEYRING_ID,
           );
 
-          // A previous change left the lifecycle in a non-IDLE phase (e.g. a
+          // A previous change left the lifecycle set (e.g. a
           // crash after the remote commit). Recovery has not finished, so a
           // fresh change must not start.
           expect(controller.state.passwordChangePhase).toBe(
@@ -4336,7 +4333,7 @@ describe('SeedlessOnboardingController', () => {
 
           // The outdated-password check rejects before the first lifecycle
           // write (SEEDLESS_CHANGE_PENDING), so there is nothing to recover
-          // and the lifecycle stays unset/IDLE.
+          // and the lifecycle stays unset.
           expect(controller.state.passwordChangePhase).toBeUndefined();
         },
       );
@@ -4671,14 +4668,14 @@ describe('SeedlessOnboardingController', () => {
 
           // The fetch failure rejects before the first lifecycle write
           // (SEEDLESS_CHANGE_PENDING), so there is nothing to recover and the
-          // lifecycle stays unset/IDLE.
+          // lifecycle stays unset.
           expect(controller.state.passwordChangePhase).toBeUndefined();
         },
       );
     });
 
     describe('clearPasswordChangePhase', () => {
-      it('clears an in-progress lifecycle to IDLE', async () => {
+      it('clears an in-progress lifecycle', async () => {
         await withController(
           {
             state: getMockInitialControllerState({
@@ -4694,7 +4691,7 @@ describe('SeedlessOnboardingController', () => {
         );
       });
 
-      it('is a no-op when already IDLE', async () => {
+      it('is a no-op when no change is in progress', async () => {
         await withController(
           {
             state: getMockInitialControllerState({
@@ -4735,8 +4732,7 @@ describe('SeedlessOnboardingController', () => {
           {
             state: getMockInitialControllerState({
               withMockAuthenticatedUser: true,
-              passwordChangePhase:
-                SeedlessPasswordChangePhase.KeySyncPending,
+              passwordChangePhase: SeedlessPasswordChangePhase.KeySyncPending,
             }),
           },
           async ({ controller }) => {
@@ -4749,49 +4745,10 @@ describe('SeedlessOnboardingController', () => {
         );
       });
     });
-
-    describe('completePasswordChange', () => {
-      it('advances the lifecycle to COMPLETE', async () => {
-        await withController(
-          {
-            state: getMockInitialControllerState({
-              withMockAuthenticatedUser: true,
-              passwordChangePhase:
-                SeedlessPasswordChangePhase.KeySyncPending,
-            }),
-          },
-          async ({ controller }) => {
-            await controller.completePasswordChange();
-
-            expect(controller.state.passwordChangePhase).toBe(
-              SeedlessPasswordChangePhase.Complete,
-            );
-          },
-        );
-      });
-
-      it('is a no-op when already COMPLETE', async () => {
-        await withController(
-          {
-            state: getMockInitialControllerState({
-              withMockAuthenticatedUser: true,
-              passwordChangePhase: SeedlessPasswordChangePhase.Complete,
-            }),
-          },
-          async ({ controller }) => {
-            await controller.completePasswordChange();
-
-            expect(controller.state.passwordChangePhase).toBe(
-              SeedlessPasswordChangePhase.Complete,
-            );
-          },
-        );
-      });
-    });
   });
 
   describe('resolvePasswordSyncState (recovery phases)', () => {
-    it('returns no-change when the phase is IDLE and the password is in sync', async () => {
+    it('returns in-sync when no phase is set and the password is in sync', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -4802,7 +4759,7 @@ describe('SeedlessOnboardingController', () => {
         async ({ toprfClient, controller }) => {
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
           const result = await controller.resolvePasswordSyncState();
-          expect(result).toBe(PasswordChangeRecoveryStatus.NoChange);
+          expect(result).toBe(PasswordChangeRecoveryStatus.InSync);
           expect(controller.state.passwordChangePhase).toBeUndefined();
         },
       );
@@ -4814,15 +4771,12 @@ describe('SeedlessOnboardingController', () => {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
             withMockAuthPubKey: true,
-            passwordChangePhase:
-              SeedlessPasswordChangePhase.SeedlessCommitted,
+            passwordChangePhase: SeedlessPasswordChangePhase.SeedlessCommitted,
           }),
         },
         async ({ controller }) => {
           const result = await controller.resolvePasswordSyncState();
-          expect(result).toBe(
-            PasswordChangeRecoveryStatus.EnterNewPassword,
-          );
+          expect(result).toBe(PasswordChangeRecoveryStatus.EnterNewPassword);
           expect(controller.state.passwordChangePhase).toBe(
             SeedlessPasswordChangePhase.SeedlessCommitted,
           );
@@ -4842,9 +4796,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller }) => {
           const result = await controller.resolvePasswordSyncState();
-          expect(result).toBe(
-            PasswordChangeRecoveryStatus.ReconcileKeyring,
-          );
+          expect(result).toBe(PasswordChangeRecoveryStatus.ReconcileKeyring);
         },
       );
     });
@@ -4865,22 +4817,6 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('returns complete when the phase is COMPLETE', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            withMockAuthPubKey: true,
-            passwordChangePhase: SeedlessPasswordChangePhase.Complete,
-          }),
-        },
-        async ({ controller }) => {
-          const result = await controller.resolvePasswordSyncState();
-          expect(result).toBe(PasswordChangeRecoveryStatus.Complete);
-        },
-      );
-    });
-
     it('returns unknown when the phase is UNKNOWN', async () => {
       await withController(
         {
@@ -4897,7 +4833,7 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('treats an unrecognized persisted phase as IDLE (no-change)', async () => {
+    it('treats an unrecognized persisted phase as in-sync', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -4909,12 +4845,12 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller }) => {
           const result = await controller.resolvePasswordSyncState();
-          expect(result).toBe(PasswordChangeRecoveryStatus.NoChange);
+          expect(result).toBe(PasswordChangeRecoveryStatus.InSync);
         },
       );
     });
 
-    it('clears to IDLE when SEEDLESS_CHANGE_PENDING and remote did not commit', async () => {
+    it('clears the phase when SEEDLESS_CHANGE_PENDING and remote did not commit', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -4928,7 +4864,7 @@ describe('SeedlessOnboardingController', () => {
           // Remote auth pub key matches the local one -> not outdated.
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
           const result = await controller.resolvePasswordSyncState();
-          expect(result).toBe(PasswordChangeRecoveryStatus.NoChange);
+          expect(result).toBe(PasswordChangeRecoveryStatus.InSync);
           expect(controller.state.passwordChangePhase).toBeUndefined();
         },
       );
@@ -4948,9 +4884,7 @@ describe('SeedlessOnboardingController', () => {
           // Remote auth pub key differs from the stale local one -> outdated.
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
           const result = await controller.resolvePasswordSyncState();
-          expect(result).toBe(
-            PasswordChangeRecoveryStatus.EnterNewPassword,
-          );
+          expect(result).toBe(PasswordChangeRecoveryStatus.EnterNewPassword);
           expect(controller.state.passwordChangePhase).toBe(
             SeedlessPasswordChangePhase.SeedlessCommitted,
           );
@@ -4987,7 +4921,7 @@ describe('SeedlessOnboardingController', () => {
     const OLD_PASSWORD = 'old-mock-password';
     const NEW_PASSWORD = 'new-mock-password';
 
-    it('returns no-change when the phase is IDLE and the password is in sync', async () => {
+    it('returns in-sync when no phase is set and the password is in sync', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -5000,7 +4934,7 @@ describe('SeedlessOnboardingController', () => {
           const result = await controller.recoverPasswordChange({
             globalPassword: NEW_PASSWORD,
           });
-          expect(result).toBe(PasswordChangeRecoveryStatus.NoChange);
+          expect(result).toBe(PasswordChangeRecoveryStatus.InSync);
         },
       );
     });
@@ -5045,24 +4979,6 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('returns complete when the phase is COMPLETE', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            withMockAuthPubKey: true,
-            passwordChangePhase: SeedlessPasswordChangePhase.Complete,
-          }),
-        },
-        async ({ controller }) => {
-          const result = await controller.recoverPasswordChange({
-            globalPassword: NEW_PASSWORD,
-          });
-          expect(result).toBe(PasswordChangeRecoveryStatus.Complete);
-        },
-      );
-    });
-
     it('returns unknown when the phase is UNKNOWN', async () => {
       await withController(
         {
@@ -5081,7 +4997,7 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('treats an unrecognized persisted phase as IDLE (no-change)', async () => {
+    it('treats an unrecognized persisted phase as in-sync', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -5095,12 +5011,12 @@ describe('SeedlessOnboardingController', () => {
           const result = await controller.recoverPasswordChange({
             globalPassword: NEW_PASSWORD,
           });
-          expect(result).toBe(PasswordChangeRecoveryStatus.NoChange);
+          expect(result).toBe(PasswordChangeRecoveryStatus.InSync);
         },
       );
     });
 
-    it('syncs the Seedless side without advancing the phase when IDLE and the remote password is outdated', async () => {
+    it('syncs the Seedless side and advances to Keyring reconciliation when no phase is set and the remote password is outdated', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -5121,7 +5037,7 @@ describe('SeedlessOnboardingController', () => {
           );
 
           // Remote auth pub key differs from the local one -> outdated, so
-          // the IDLE branch re-checks and runs the password-sync flow.
+          // the no-phase branch re-checks and runs the password-sync flow.
           mockFetchAuthPubKey(
             toprfClient,
             base64ToBytes(MOCK_AUTH_PUB_KEY_OUTDATED),
@@ -5143,24 +5059,25 @@ describe('SeedlessOnboardingController', () => {
           });
           // recoverPwEncKey recovers the vault key the existing vault was
           // encrypted with, so it must return the OLD password's pwEncKey.
-          jest
-            .spyOn(toprfClient, 'recoverPwEncKey')
-            .mockResolvedValueOnce({
-              pwEncKey: mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD),
-            });
+          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
+            pwEncKey: mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD),
+          });
 
           const result = await controller.recoverPasswordChange({
             globalPassword: NEW_PASSWORD,
           });
 
-          expect(result).toBe(PasswordChangeRecoveryStatus.NoChange);
-          // No lifecycle is in flight; the phase stays IDLE.
-          expect(controller.state.passwordChangePhase).toBeUndefined();
+          expect(result).toBe(PasswordChangeRecoveryStatus.ReconcileKeyring);
+          // Another-device recovery must continue through the local Keyring
+          // reconciliation boundary after the Seedless side is synchronized.
+          expect(controller.state.passwordChangePhase).toBe(
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          );
         },
       );
     });
 
-    it('returns unknown when the IDLE outdated check fails', async () => {
+    it('returns unknown when the no-phase outdated check fails', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -5188,8 +5105,7 @@ describe('SeedlessOnboardingController', () => {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
             withMockAuthPubKey: true,
-            passwordChangePhase:
-              SeedlessPasswordChangePhase.SeedlessCommitted,
+            passwordChangePhase: SeedlessPasswordChangePhase.SeedlessCommitted,
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {
@@ -5228,9 +5144,7 @@ describe('SeedlessOnboardingController', () => {
             globalPassword: NEW_PASSWORD,
           });
 
-          expect(result).toBe(
-            PasswordChangeRecoveryStatus.ReconcileKeyring,
-          );
+          expect(result).toBe(PasswordChangeRecoveryStatus.ReconcileKeyring);
           expect(controller.state.passwordChangePhase).toBe(
             SeedlessPasswordChangePhase.LocalKeyringPending,
           );
@@ -5244,8 +5158,7 @@ describe('SeedlessOnboardingController', () => {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
             withMockAuthPubKey: true,
-            passwordChangePhase:
-              SeedlessPasswordChangePhase.SeedlessCommitted,
+            passwordChangePhase: SeedlessPasswordChangePhase.SeedlessCommitted,
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {

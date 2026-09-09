@@ -1,4 +1,4 @@
-# Plan 0004: Migrate password-change recovery into the controller (Option B)
+# Plan 0003: Migrate password-change recovery into the controller (Option B)
 
 - Status: Planned (post-testing migration)
 - Related: [ADR 0001](./0001-seedless-password-change-recovery.md), [Recovery flow 0002](./0002-password-change-recovery-flow.md)
@@ -6,7 +6,7 @@
 
 ## Context
 
-The first implementation (see [0002](./0002-password-change-recovery-flow.md)) ships **Option A**: the controller owns all *Seedless-side* recovery sequencing, but the *Keyring-side* steps (`verifyPassword`, `submitEncryptionKey`, `changePassword`, `exportEncryptionKey`) stay in the client because `SeedlessOnboardingController` has no `KeyringController` dependency (`AllowedActions = never`).
+The first implementation (see [0002](./0002-password-change-recovery-flow.md)) ships **Option A**: the controller owns all _Seedless-side_ recovery sequencing, but the _Keyring-side_ steps (`verifyPassword`, `submitEncryptionKey`, `changePassword`, `exportEncryptionKey`) stay in the client because `SeedlessOnboardingController` has no `KeyringController` dependency (`AllowedActions = never`).
 
 This document plans the migration to **Option B**: the controller owns the entire recovery, including the Keyring side. Motivation: the recovery transaction spans two controllers, and we cannot rely on every client sequencing the Keyring-side steps correctly. Centralizing the full transaction removes a class of client-integration bugs.
 
@@ -14,12 +14,12 @@ This migration is deferred until Option A is shipped and tested, so the recovery
 
 ## Goal
 
-A single controller method performs the entire recovery for any non-IDLE phase and returns only a final status. The client no longer sequences Seedless or Keyring operations; it only supplies the password and reacts to the status.
+A single controller method performs the entire recovery for any set phase and returns only a final status. The client no longer sequences Seedless or Keyring operations; it only supplies the password and reacts to the status.
 
 ## Current state (Option A)
 
 - `recoverPasswordChange({ globalPassword })` does the Seedless-side steps (`#checkIsPasswordOutdated({ skipCache: true })`, `submitGlobalPassword`, `syncLatestGlobalPassword`, lifecycle advances) and returns a result describing the remaining Keyring-side step. Remote-state resolution for `SeedlessChangePending` is owned by `resolvePasswordSyncState()` (password-less), which the client calls first.
-- The client classifies the local Keyring via `KeyringController:verifyPassword`, then runs the old-Keyring or new-Keyring branch itself, calling `KeyringController:submitEncryptionKey` / `changePassword` / `exportEncryptionKey` and the controller's `loadKeyringEncryptionKey` / `storeKeyringEncryptionKey` / `markPasswordChangeKeySyncPending` / `completePasswordChange`.
+- The client classifies the local Keyring via `KeyringController:verifyPassword`, then runs the old-Keyring or new-Keyring branch itself, calling `KeyringController:submitEncryptionKey` / `changePassword` / `exportEncryptionKey` and the controller's `loadKeyringEncryptionKey` / `storeKeyringEncryptionKey` / `markPasswordChangeKeySyncPending` / `clearPasswordChangePhase`.
 - `AllowedActions = never`; the controller does not call `KeyringController`.
 
 ## Target state (Option B)
@@ -31,8 +31,8 @@ A single controller method performs the entire recovery for any non-IDLE phase a
   3. Classify the local Keyring via `KeyringController:verifyPassword(newPassword)`.
   4. Old-Keyring branch: `loadKeyringEncryptionKey` → `KeyringController:submitEncryptionKey` → `KeyringController:changePassword` → `KeyringController:exportEncryptionKey` → `storeKeyringEncryptionKey` → `markPasswordChangeKeySyncPending`.
   5. New-Keyring branch: `KeyringController:exportEncryptionKey` → `storeKeyringEncryptionKey` → `markPasswordChangeKeySyncPending`.
-  6. `KeySyncPending`: `KeyringController:exportEncryptionKey` → `storeKeyringEncryptionKey` → remote key sync → `completePasswordChange` → `clearPasswordChangePhase`.
-  7. Return a final status only (`PasswordChangeRecoveryStatus.NoChange | Complete | Unknown`).
+  6. `KeySyncPending`: `KeyringController:exportEncryptionKey` → `storeKeyringEncryptionKey` → remote key sync → `clearPasswordChangePhase`.
+  7. Return a final status only (`PasswordChangeRecoveryStatus.InSync | Unknown`).
 - The client supplies the password, calls one method, and routes UI from the status. It performs no cross-controller sequencing.
 
 ## Changes

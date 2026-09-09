@@ -33,8 +33,6 @@ export enum SeedlessOnboardingMigrationVersion {
  * state before acting on the phase.
  */
 export enum SeedlessPasswordChangePhase {
-  /** No password change is in progress. */
-  Idle = 'IDLE',
   /** A password change has started but the remote Seedless result is not yet confirmed. */
   SeedlessChangePending = 'SEEDLESS_CHANGE_PENDING',
   /** The remote Seedless password change is confirmed committed. */
@@ -43,8 +41,6 @@ export enum SeedlessPasswordChangePhase {
   LocalKeyringPending = 'LOCAL_KEYRING_PENDING',
   /** The local Keyring encryption key has been stored; awaiting final verification. */
   KeySyncPending = 'KEY_SYNC_PENDING',
-  /** The password change is fully complete and verified. */
-  Complete = 'COMPLETE',
   /** The result of one or more steps could not be established. */
   Unknown = 'UNKNOWN',
 }
@@ -57,21 +53,19 @@ export enum SeedlessPasswordChangePhase {
  * The controller owns the Seedless-side recovery sequencing; the client owns
  * the Keyring-side steps (it must call `KeyringController` directly) and UI
  * routing based on this status. See
- * [0004](./docs/0004-controller-owned-password-change-recovery-plan.md).
+ * [0003](./docs/0003-controller-owned-password-change-recovery-plan.md).
  */
 export enum PasswordChangeRecoveryStatus {
-  /** Remote did not commit; the phase has been cleared to `IDLE`. Unlock with the old password normally. */
-  NoChange = 'no-change',
-  /** Phase is `IDLE` but the remote password changed (e.g. another device changed it). Prompt for the new password, then call `recoverPasswordChange`. */
+  /** The local and remote passwords are synchronized; no recovery action is needed. Unlock normally. */
+  InSync = 'in-sync',
+  /** No lifecycle is in flight but the remote password changed (e.g. another device changed it). Prompt for the new password, then call `recoverPasswordChange`. */
   PasswordOutdated = 'password-outdated',
   /** Remote committed (or the local Seedless side still needs the new password). Prompt for the new password, then call `recoverPasswordChange`. */
   EnterNewPassword = 'enter-new-password',
   /** The Seedless side is reconciled (phase is `LOCAL_KEYRING_PENDING`). The client must cryptographically classify the local Keyring and run the old/new branch. */
   ReconcileKeyring = 'reconcile-keyring',
-  /** Phase is `KEY_SYNC_PENDING`. The client must export, store, and sync the current Keyring encryption key, then call `completePasswordChange`. */
+  /** Phase is `KEY_SYNC_PENDING`. The client must export, store, and sync the current Keyring encryption key, then call `clearPasswordChangePhase`. */
   SyncKey = 'sync-key',
-  /** Phase is `COMPLETE`. The client should clear the lifecycle to `IDLE`. */
-  Complete = 'complete',
   /** The remote or local state could not be established. Keep the wallet locked. The last known phase is preserved. */
   Unknown = 'unknown',
 }

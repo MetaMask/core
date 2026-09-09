@@ -260,11 +260,12 @@ export type SeedlessOnboardingControllerLoadKeyringEncryptionKeyAction = {
 };
 
 /**
- * Clear the password-change lifecycle to `IDLE`.
+ * Clear the password-change lifecycle.
  *
- * This is an explicit operation used after a definitive remote failure
- * (server did not commit) or after `COMPLETE`. The controller clears to
- * `IDLE` so the next unlock is normal.
+ * Used after a definitive remote failure (server did not commit) or once
+ * Keyring encryption-key synchronization is verified and all required local
+ * writes have succeeded. The controller clears the phase so the next unlock
+ * is normal.
  *
  * @returns A promise that resolves once the lifecycle has been cleared.
  */
@@ -289,22 +290,6 @@ export type SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction =
   };
 
 /**
- * Mark the password-change lifecycle as `COMPLETE`.
- *
- * Called by the client coordinator only after Keyring encryption-key
- * synchronization is verified and all required local writes have succeeded.
- * The controller only records the boundary; it does not infer completion
- * from this call. Follow with `clearPasswordChangePhase` to return to
- * `IDLE` once the durable `COMPLETE` state is no longer needed as a signal.
- *
- * @returns A promise that resolves once the phase has been persisted.
- */
-export type SeedlessOnboardingControllerCompletePasswordChangeAction = {
-  type: `SeedlessOnboardingController:completePasswordChange`;
-  handler: SeedlessOnboardingController['completePasswordChange'];
-};
-
-/**
  * Resolve the current password-sync state without consuming a password.
  *
  * Merges the legacy `checkIsPasswordOutdated` read with password-change
@@ -312,14 +297,14 @@ export type SeedlessOnboardingControllerCompletePasswordChangeAction = {
  * page render and on password submit) and routes UI from the returned status.
  *
  * Phase handling:
- * - `IDLE`: run the authoritative outdated check. `skipCache` is honored, so
- * the client can read from cache on render and force a remote call on
- * submit. Returns `NoChange` (in sync) or `PasswordOutdated` (another device
+ * - No phase (`undefined`): run the authoritative outdated check. `skipCache`
+ * is honored, so the client can read from cache on render and force a remote
+ * call on submit. Returns `InSync` or `PasswordOutdated` (another device
  * changed the remote password).
  * - `SEEDLESS_CHANGE_PENDING`: the remote outcome is ambiguous, so `skipCache`
- * is ignored and a remote check is forced. Clears to `IDLE` (remote did not
+ * is ignored and a remote check is forced. Clears the phase (remote did not
  * commit) or advances to `SEEDLESS_COMMITTED` (remote committed). Returns
- * `NoChange` or `EnterNewPassword`.
+ * `InSync` or `EnterNewPassword`.
  * - Other phases: return the next recovery step without mutating state.
  *
  * This method does not consume a password; the client prompts for the
@@ -347,16 +332,17 @@ export type SeedlessOnboardingControllerResolvePasswordSyncStateAction = {
  * the local Seedless vault was already rewritten. The controller is left
  * unlocked.
  *
- * For `IDLE` it re-checks whether the remote password is outdated and, if so,
- * runs the same password-sync flow without advancing any phase (there is no
- * local password-change lifecycle in flight — e.g. another device changed
- * the remote password). If the remote password is not outdated it is a no-op.
+ * For no phase (`undefined`) it re-checks whether the remote password is
+ * outdated. If it is, it runs the same password-sync flow, advances to
+ * `LOCAL_KEYRING_PENDING`, and returns `ReconcileKeyring` so the client can
+ * reconcile the local Keyring (e.g. after another device changed the remote
+ * password). If the remote password is not outdated it is a no-op.
  *
  * The client remains responsible for the Keyring side (classifying the local
  * Keyring via `KeyringController:verifyPassword` and running the old-Keyring
  * or new-Keyring branch), because this controller does not depend on
  * `KeyringController`. See
- * [0004](./docs/0004-controller-owned-password-change-recovery-plan.md).
+ * [0003](./docs/0003-controller-owned-password-change-recovery-plan.md).
  *
  * @param params - The recovery parameters.
  * @param params.globalPassword - The new global password.
@@ -481,7 +467,6 @@ export type SeedlessOnboardingControllerMethodActions =
   | SeedlessOnboardingControllerLoadKeyringEncryptionKeyAction
   | SeedlessOnboardingControllerClearPasswordChangePhaseAction
   | SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction
-  | SeedlessOnboardingControllerCompletePasswordChangeAction
   | SeedlessOnboardingControllerResolvePasswordSyncStateAction
   | SeedlessOnboardingControllerRecoverPasswordChangeAction
   | SeedlessOnboardingControllerRefreshAuthTokensAction

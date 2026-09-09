@@ -3,10 +3,7 @@ import { bytesToBase64 } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 
 import { createMockJWTToken } from '../tests/mocks/utils.js';
-import {
-  SecretType,
-  SeedlessPasswordChangePhase,
-} from './constants.js';
+import { SecretType } from './constants.js';
 import { SecretMetadata } from './SecretMetadata.js';
 import type { DecodedNodeAuthToken } from './types.js';
 import {
@@ -14,7 +11,6 @@ import {
   decodeJWTToken,
   decodeNodeAuthToken,
   getInvalidPrimarySecretDataTypeErrorData,
-  getPasswordChangePhase,
   getSecretTypeFromDataType,
 } from './utils.js';
 
@@ -271,20 +267,6 @@ describe('utils', () => {
       expect(getInvalidPrimarySecretDataTypeErrorData(secrets)).toStrictEqual([
         SecretType.Mnemonic,
       ]);
-    });
-  });
-
-  describe('getPasswordChangePhase', () => {
-    it('returns IDLE when the phase is undefined', () => {
-      expect(getPasswordChangePhase(undefined)).toBe(
-        SeedlessPasswordChangePhase.Idle,
-      );
-    });
-
-    it('returns the stored phase when defined', () => {
-      expect(
-        getPasswordChangePhase(SeedlessPasswordChangePhase.SeedlessCommitted),
-      ).toBe(SeedlessPasswordChangePhase.SeedlessCommitted);
     });
   });
 });
