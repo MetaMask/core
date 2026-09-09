@@ -908,6 +908,7 @@ async function calculateSourceNetworkCost(
   }
 
   if (
+    accountSupports7702 &&
     transaction.isGasFeeSponsored &&
     request.sourceChainId === transaction.chainId &&
     request.targetChainId === transaction.chainId

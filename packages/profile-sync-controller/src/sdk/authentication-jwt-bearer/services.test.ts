@@ -2,6 +2,7 @@ import { Env, Platform } from '../../shared/env.js';
 import {
   NonceRetrievalError,
   SignInError,
+  PairConflictError,
   PairError,
   RateLimitedError,
 } from '../errors.js';
@@ -11,6 +12,7 @@ import {
   authorizeOIDC,
   pairIdentifiers,
   pairProfiles,
+  pairSocialIdentifier,
   getUserProfileLineage,
   getCustomerServiceToken,
   NONCE_URL,
@@ -19,6 +21,7 @@ import {
   SIWE_LOGIN_URL,
   PAIR_IDENTIFIERS,
   PAIR_PROFILES_URL,
+  PAIR_SOCIAL_IDENTIFIER_URL,
   PROFILE_LINEAGE_URL,
   CUSTOMER_SERVICE_TOKEN_URL,
 } from './services.js';
@@ -134,6 +137,12 @@ describe('services', () => {
     it('should build correct PAIR_PROFILES_URL', () => {
       expect(PAIR_PROFILES_URL(Env.DEV)).toBe(
         'https://authentication.dev-api.cx.metamask.io/api/v2/profile/pair',
+      );
+    });
+
+    it('should build correct PAIR_SOCIAL_IDENTIFIER_URL', () => {
+      expect(PAIR_SOCIAL_IDENTIFIER_URL(Env.DEV)).toBe(
+        'https://authentication.dev-api.cx.metamask.io/api/v2/profile/pair/identifier',
       );
     });
 
@@ -965,6 +974,203 @@ describe('services', () => {
       const calledUrl = mockFetch.mock.calls[0][0];
       expect(calledUrl.toString()).toContain('api.cx.metamask.io');
       expect(calledUrl.toString()).toContain('/profile/pair');
+    });
+  });
+
+  describe('pairSocialIdentifier', () => {
+    const mockSocialPairResponse = {
+      expires_in: 3600,
+      profile: {
+        created_at: '2024-01-15T10:30:00Z',
+        identifier_id: 'id-social',
+        identifier_type: 'GOOGLE',
+        profile_id: 'canonical-1',
+      },
+      token: 'new-jwt',
+    };
+
+    it('should send GOOGLE request with email and Bearer token', async () => {
+      const mockResponse = createMockResponse(mockSocialPairResponse);
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await pairSocialIdentifier(
+        {
+          identifierType: 'GOOGLE',
+          socialJwt: 'social-jwt',
+          email: 'user@example.com',
+        },
+        'primary-srp-token',
+        Env.DEV,
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(URL),
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer primary-srp-token',
+          },
+          body: JSON.stringify({
+            identifier_type: 'GOOGLE',
+            social_jwt: 'social-jwt',
+            email: 'user@example.com',
+          }),
+        }),
+      );
+    });
+
+    it('should omit email from the body when undefined', async () => {
+      const mockResponse = createMockResponse(mockSocialPairResponse);
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await pairSocialIdentifier(
+        {
+          identifierType: 'APPLE',
+          socialJwt: 'social-jwt',
+        },
+        'primary-srp-token',
+        Env.DEV,
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(URL),
+        expect.objectContaining({
+          body: JSON.stringify({
+            identifier_type: 'APPLE',
+            social_jwt: 'social-jwt',
+          }),
+        }),
+      );
+    });
+
+    it('should send TELEGRAM request without email', async () => {
+      const mockResponse = createMockResponse(mockSocialPairResponse);
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await pairSocialIdentifier(
+        {
+          identifierType: 'TELEGRAM',
+          socialJwt: 'social-jwt',
+        },
+        'primary-srp-token',
+        Env.DEV,
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(URL),
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer primary-srp-token',
+          },
+          body: JSON.stringify({
+            identifier_type: 'TELEGRAM',
+            social_jwt: 'social-jwt',
+          }),
+        }),
+      );
+    });
+
+    it('should resolve without reading the response body on 2xx', async () => {
+      const mockResponse = createMockResponse(mockSocialPairResponse);
+      const jsonSpy = jest.spyOn(mockResponse, 'json');
+      mockFetch.mockResolvedValue(mockResponse);
+
+      expect(
+        await pairSocialIdentifier(
+          {
+            identifierType: 'GOOGLE',
+            socialJwt: 'social-jwt',
+            email: 'user@example.com',
+          },
+          'primary-srp-token',
+          Env.DEV,
+        ),
+      ).toBeUndefined();
+      expect(jsonSpy).not.toHaveBeenCalled();
+    });
+
+    it('should throw PairError on network failure', async () => {
+      mockFetch.mockRejectedValue(new Error('Connection refused'));
+
+      await expect(
+        pairSocialIdentifier(
+          { identifierType: 'APPLE', socialJwt: 'social-jwt' },
+          'auth-token',
+          Env.DEV,
+        ),
+      ).rejects.toThrow(PairError);
+    });
+
+    it('should throw PairError on error response', async () => {
+      const mockResponse = createMockResponse(
+        { message: 'Invalid social JWT', error: 'invalid_request' },
+        { ok: false, status: 400 },
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(
+        pairSocialIdentifier(
+          { identifierType: 'APPLE', socialJwt: 'social-jwt' },
+          'auth-token',
+          Env.DEV,
+        ),
+      ).rejects.toThrow(PairError);
+    });
+
+    it('should throw PairConflictError on 409 response', async () => {
+      const mockResponse = createMockResponse(
+        {
+          message: 'Identifier already belongs to another profile',
+          error: 'conflict',
+        },
+        { ok: false, status: 409 },
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      const error = await pairSocialIdentifier(
+        { identifierType: 'APPLE', socialJwt: 'social-jwt' },
+        'auth-token',
+        Env.DEV,
+      ).catch((caughtError) => caughtError);
+
+      expect(error).toBeInstanceOf(PairConflictError);
+      expect(error).toBeInstanceOf(PairError);
+      expect(error.status).toBe(409);
+    });
+
+    it('should throw RateLimitedError on 429 response', async () => {
+      const mockResponse = createMockResponse(
+        { message: 'Rate limited', error: 'too_many_requests' },
+        { ok: false, status: 429, headers: { 'Retry-After': '10' } },
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      const error = await pairSocialIdentifier(
+        { identifierType: 'APPLE', socialJwt: 'social-jwt' },
+        'auth-token',
+        Env.DEV,
+      ).catch((caughtError) => caughtError);
+
+      expect(error).toBeInstanceOf(RateLimitedError);
+      expect(error.retryAfterMs).toBe(10000);
+    });
+
+    it('should call correct URL for environment', async () => {
+      const mockResponse = createMockResponse(mockSocialPairResponse);
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await pairSocialIdentifier(
+        { identifierType: 'APPLE', socialJwt: 'social-jwt' },
+        'auth-token',
+        Env.PRD,
+      );
+
+      const calledUrl = mockFetch.mock.calls[0][0];
+      expect(calledUrl.toString()).toContain('api.cx.metamask.io');
+      expect(calledUrl.toString()).toContain('/profile/pair/identifier');
     });
   });
 

@@ -7,14 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.1.1]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^8.1.0` to `^9.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
+- Bump `@metamask/profile-sync-controller` from `^29.0.0` to `^30.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
+
+## [9.1.0]
+
 ### Added
 
+- Add `authTokenTimeout` to `ApiPlatformClientOptions` and export `DEFAULT_AUTH_TOKEN_TIMEOUT` ([#10104](https://github.com/MetaMask/core/pull/10104))
+  - Requests wait at most this long (default 500ms) for `getBearerToken`. If the token is not ready, the request is sent unauthenticated while the in-flight `fetchQuery` continues so later requests can attach the token. Set `authTokenTimeout` to `0` to wait indefinitely.
+  - Bearer-token `fetchQuery` uses `staleTime: 0` so concurrent requests are de-duplicated without a second JWT cache; token lifetime stays with AuthenticationController.
 - Add `bypassServerCache` option to `FetchOptions` ([#10068](https://github.com/MetaMask/core/pull/10068))
   - When true, the v5/v6 multi-account balances requests skip the client-side query cache (stale time defaults to 0) and append a random `bypassServerCache` query param so the Accounts API's server-side cache (keyed on the full URL) misses. Intended for hard refreshes only, e.g. right after a transaction confirms.
 
 ### Changed
 
-- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.0` ([#9980](https://github.com/MetaMask/core/pull/9980))
+- Bearer-token `fetchQuery` no longer uses a 5-minute `STALE_TIMES.AUTH_TOKEN`; `STALE_TIMES.AUTH_TOKEN` is removed ([#10104](https://github.com/MetaMask/core/pull/10104))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.1` ([#9980](https://github.com/MetaMask/core/pull/9980), [#10129](https://github.com/MetaMask/core/pull/10129))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
 - Bump `@metamask/account-tree-controller` from `^8.0.0` to `^8.1.0` ([#10088](https://github.com/MetaMask/core/pull/10088))
 
@@ -408,7 +421,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.1.1...HEAD
+[9.1.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.1.0...@metamask/core-backend@9.1.1
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.0.0...@metamask/core-backend@9.1.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.2...@metamask/core-backend@9.0.0
 [8.1.2]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.1...@metamask/core-backend@8.1.2
 [8.1.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.0...@metamask/core-backend@8.1.1

@@ -1,5 +1,6 @@
 export type { UpgradeConfig } from './types.js';
 export {
+  MissingMoneyAccountVaultConfigError,
   MoneyAccountUpgradeStepError,
   TerminalUpgradeError,
   isMoneyAccountUpgradeStepError,
@@ -13,6 +14,7 @@ export type {
   MoneyAccountUpgradeControllerState,
   MoneyAccountUpgradeControllerGetStateAction,
   MoneyAccountUpgradeControllerActions,
+  MoneyAccountUpgradeControllerHooks,
   MoneyAccountUpgradeControllerStateChangedEvent,
   MoneyAccountUpgradeControllerEvents,
   MoneyAccountUpgradeControllerMessenger,

@@ -26,6 +26,44 @@ export const PRODUCT_TYPES = {
 
 export type ProductType = (typeof PRODUCT_TYPES)[keyof typeof PRODUCT_TYPES];
 
+export const MoneyAccountFeature = {
+  SwapFeeWaiver: 'swapFeeWaiver',
+  PerpsFeeWaiver: 'perpsFeeWaiver',
+  PredictFreeTx: 'predictFreeTx',
+  PremiumApy: 'premiumApy',
+} as const;
+
+export type MoneyAccountFeature =
+  (typeof MoneyAccountFeature)[keyof typeof MoneyAccountFeature];
+
+export type MoneyAccountEntitlements = Record<MoneyAccountFeature, boolean>;
+
+export const ShieldFeature = {
+  ShieldClaim: 'shieldClaim',
+  PrioritySupport: 'prioritySupport',
+} as const;
+
+export type ShieldFeature = (typeof ShieldFeature)[keyof typeof ShieldFeature];
+
+export type ShieldEntitlements = Record<ShieldFeature, boolean>;
+
+export type MoneyAccountPlusClaim = {
+  plan: string;
+  entitlements: MoneyAccountEntitlements;
+};
+
+export type ProductEntitlements = {
+  [PRODUCT_TYPES.SHIELD]?: {
+    entitlements: ShieldEntitlements;
+  };
+  [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]?: MoneyAccountPlusClaim;
+};
+
+export type ProductEntitlementFeatureMap = {
+  [PRODUCT_TYPES.SHIELD]: ShieldFeature;
+  [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: MoneyAccountFeature;
+};
+
 /**
  * How a crypto subscription is authorized.
  *
@@ -174,10 +212,58 @@ export type GetSubscriptionsResponse = {
   customerId?: string;
   subscriptions: Subscription[];
   trialedProducts: ProductType[];
+  productEntitlements?: ProductEntitlements;
   /** The last subscription that user has subscribed to if any. */
   lastSubscription?: Subscription;
   /** The reward account ID if user has linked rewards to the subscription. */
   rewardAccountId?: CaipAccountId;
+};
+
+/**
+ * Benefits available to a subscription user.
+ */
+export type SwapsBenefitUsage = {
+  feeBips: string | null;
+  capMicroUsd?: number;
+  consumedMicroUsd?: number;
+  remainingMicroUsd: number | null;
+  exhausted: boolean;
+};
+
+export type PerpsBenefitUsage = {
+  builderFeeBips: string | null;
+  builderCode: string | null;
+  capMicroUsd?: number;
+  consumedMicroUsd?: number;
+  remainingMicroUsd: number | null;
+  exhausted: boolean;
+};
+
+export type PredictBenefitUsage = {
+  builderCode: string | null;
+  capTxCount?: number;
+  consumedTxCount?: number;
+  remainingTxCount: number | null;
+  exhausted: boolean;
+};
+
+type SubscriptionBenefitsProducts = {
+  swaps: SwapsBenefitUsage;
+  perps: PerpsBenefitUsage;
+  predict: PredictBenefitUsage;
+};
+
+export type SubscriptionBenefitsResponse = {
+  eligible: boolean;
+  billingPeriodId: string | null;
+  products: SubscriptionBenefitsProducts;
+};
+
+/**
+ * Benefits state exposed to the UI.
+ */
+export type SubscriptionBenefitsState = SubscriptionBenefitsProducts & {
+  billingPeriodId: string | null;
 };
 
 export type StartSubscriptionRequest = {
@@ -539,6 +625,7 @@ export type SubmitSponsorshipIntentsMethodParams = Pick<
 
 export type ISubscriptionService = {
   getSubscriptions(): Promise<GetSubscriptionsResponse>;
+  getBenefits(): Promise<SubscriptionBenefitsResponse>;
   cancelSubscription(request: CancelSubscriptionRequest): Promise<Subscription>;
   unCancelSubscription(request: {
     subscriptionId: string;

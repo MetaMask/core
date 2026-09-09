@@ -52,6 +52,7 @@ export enum SubscriptionControllerErrorMessage {
 
 export enum SubscriptionServiceErrorMessage {
   FailedToGetSubscriptions = 'Failed to get subscriptions',
+  FailedToGetBenefits = 'Failed to get benefits',
   FailedToCancelSubscription = 'Failed to cancel subscription',
   FailedToUncancelSubscription = 'Failed to uncancel subscription',
   FailedToStartSubscriptionWithCard = 'Failed to start subscription with card',

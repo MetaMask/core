@@ -109,6 +109,7 @@ export type {
   KycSessionStatus,
   KycSumSubLaunchParams,
   KycSumSubLauncher,
+  KycSumSubSdkStatus,
   KycSumSubStatus,
   KycUserStatus,
   KycUserStatusResponse,
