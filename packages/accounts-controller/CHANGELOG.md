@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [40.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -15,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [39.1.1]
 
@@ -898,7 +904,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@40.0.0...HEAD
+[40.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.1.1...@metamask/accounts-controller@40.0.0
 [39.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.1.0...@metamask/accounts-controller@39.1.1
 [39.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.7...@metamask/accounts-controller@39.1.0
 [39.0.7]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.6...@metamask/accounts-controller@39.0.7

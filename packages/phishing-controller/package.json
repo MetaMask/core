@@ -1,6 +1,6 @@
 {
   "name": "@metamask/phishing-controller",
-  "version": "17.4.1",
+  "version": "18.0.0",
   "description": "Maintains a periodically updated list of approved and unapproved website origins",
   "keywords": [
     "Ethereum",
@@ -50,11 +50,11 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/address-book-controller": "^7.1.2",
-    "@metamask/base-controller": "^9.1.0",
-    "@metamask/controller-utils": "^12.3.0",
-    "@metamask/messenger": "^2.0.0",
-    "@metamask/transaction-controller": "^69.8.1",
+    "@metamask/address-book-controller": "^8.0.0",
+    "@metamask/base-controller": "^10.0.0",
+    "@metamask/controller-utils": "^13.0.0",
+    "@metamask/messenger": "^3.0.0",
+    "@metamask/transaction-controller": "^70.0.0",
     "@noble/hashes": "^1.8.0",
     "@types/punycode": "^2.1.0",
     "ethereum-cryptography": "^2.1.2",

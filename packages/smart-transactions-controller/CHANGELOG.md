@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -14,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/eth-json-rpc-provider` from `^6.0.1` to `^7.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/polling-controller` from `^16.0.9` to `^17.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/profile-sync-controller` from `^30.0.0` to `^31.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.1.1` to `^7.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/transaction-controller` from `^69.8.1` to `^70.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [26.0.1]
 
@@ -110,7 +121,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.0.0` to `^68.0.1` ([#9177](https://github.com/MetaMask/core/pull/9177))
 - Drop unused dependencies `@ethereumjs/tx`, `@ethereumjs/util`, and `fast-json-patch` ([#9139](https://github.com/MetaMask/core/pull/9139))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@26.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.0...HEAD
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@26.0.1...@metamask/smart-transactions-controller@27.0.0
 [26.0.1]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@26.0.0...@metamask/smart-transactions-controller@26.0.1
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@25.1.1...@metamask/smart-transactions-controller@26.0.0
 [25.1.1]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@25.1.0...@metamask/smart-transactions-controller@25.1.1

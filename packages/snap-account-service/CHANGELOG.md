@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -15,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [2.1.2]
 
@@ -174,7 +178,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/account-tree-controller` from `^7.3.0` to `^7.4.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.1.2...@metamask/snap-account-service@3.0.0
 [2.1.2]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.1.1...@metamask/snap-account-service@2.1.2
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.1.0...@metamask/snap-account-service@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.0.0...@metamask/snap-account-service@2.1.0

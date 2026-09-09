@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [112.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -14,6 +16,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/account-tree-controller` from `^9.0.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/accounts-controller` from `^39.1.1` to `^40.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/approval-controller` from `^9.0.2` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/core-backend` from `^9.1.1` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/multichain-account-service` from `^13.0.2` to `^14.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-enablement-controller` from `^6.0.5` to `^7.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/permission-controller` from `^13.1.1` to `^14.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/phishing-controller` from `^17.4.1` to `^18.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/polling-controller` from `^16.0.9` to `^17.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/preferences-controller` from `^23.1.0` to `^24.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/profile-sync-controller` from `^30.0.0` to `^31.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.1.1` to `^7.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/storage-service` from `^1.0.2` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/transaction-controller` from `^69.8.1` to `^70.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [111.3.0]
 
@@ -3475,7 +3496,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.0.0...HEAD
+[112.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.3.0...@metamask/assets-controllers@112.0.0
 [111.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.2.0...@metamask/assets-controllers@111.3.0
 [111.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.1.3...@metamask/assets-controllers@111.2.0
 [111.1.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@111.1.2...@metamask/assets-controllers@111.1.3

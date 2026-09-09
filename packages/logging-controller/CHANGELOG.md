@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -15,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [9.0.0]
 
@@ -241,7 +245,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial Release
   - Add logging controller ([#1089](https://github.com/MetaMask/core.git/pull/1089))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@9.0.0...@metamask/logging-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@8.0.2...@metamask/logging-controller@9.0.0
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@8.0.1...@metamask/logging-controller@8.0.2
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@8.0.0...@metamask/logging-controller@8.0.1

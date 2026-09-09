@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [28.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -14,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/authenticated-user-storage` from `^3.0.2` to `^4.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/profile-sync-controller` from `^30.0.0` to `^31.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ### Fixed
 
@@ -905,7 +913,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@27.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@28.0.0...HEAD
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@27.0.2...@metamask/notification-services-controller@28.0.0
 [27.0.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@27.0.1...@metamask/notification-services-controller@27.0.2
 [27.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@27.0.0...@metamask/notification-services-controller@27.0.1
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@26.0.1...@metamask/notification-services-controller@27.0.0

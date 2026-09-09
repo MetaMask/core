@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -14,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/geolocation-controller` from `^1.0.0` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [2.1.0]
 
@@ -86,7 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/analytics-controller. ([#7017](https://github.com/MetaMask/core/pull/7017), [#7202](https://github.com/MetaMask/core/pull/7202))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@2.1.0...@metamask/analytics-controller@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@2.0.0...@metamask/analytics-controller@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.2.1...@metamask/analytics-controller@2.0.0
 [1.2.1]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.2.0...@metamask/analytics-controller@1.2.1

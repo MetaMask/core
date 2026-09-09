@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -14,7 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
-- Bump `@metamask/transaction-controller` from `^69.8.0` to `^69.8.1` ([#10124](https://github.com/MetaMask/core/pull/10124))
+- Bump `@metamask/transaction-controller` from `^69.8.0` to `^70.0.0` ([#10124](https://github.com/MetaMask/core/pull/10124), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/address-book-controller` from `^7.1.2` to `^8.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [17.4.1]
 
@@ -662,7 +668,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@18.0.0...HEAD
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.4.1...@metamask/phishing-controller@18.0.0
 [17.4.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.4.0...@metamask/phishing-controller@17.4.1
 [17.4.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.3.1...@metamask/phishing-controller@17.4.0
 [17.3.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.3.0...@metamask/phishing-controller@17.3.1
