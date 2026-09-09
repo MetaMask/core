@@ -809,6 +809,7 @@ describe('resolveChangelogConflicts', () => {
     const theirsContent = baseContent;
 
     (execa as unknown as jest.Mock).mockImplementation(
+      // @ts-expect-error: Partial mock.
       async (command: string, args: string[]) => {
         if (args[0] === 'diff') {
           return { stdout: changelogPath };
@@ -842,7 +843,10 @@ describe('resolveChangelogConflicts', () => {
     expect(result.resolved).toStrictEqual([
       { path: changelogPath, mergedEntryCount: 0 },
     ]);
-    const [, writtenContent] = (fs.writeFile as jest.Mock).mock.calls[0];
+    const [, writtenContent] = jest.mocked(fs.writeFile).mock.calls[0] as [
+      string,
+      string,
+    ];
     expect(writtenContent.match(/Bump `dep`/gu)).toHaveLength(1);
     expect(writtenContent).toContain('Bump `dep` from `1.0.0` to `1.0.5`');
   });
@@ -857,6 +861,7 @@ describe('resolveChangelogConflicts', () => {
     );
 
     (execa as unknown as jest.Mock).mockImplementation(
+      // @ts-expect-error: Partial mock.
       async (command: string, args: string[]) => {
         if (args[0] === 'diff') {
           return { stdout: changelogPath };
