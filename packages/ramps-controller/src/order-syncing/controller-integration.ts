@@ -434,14 +434,19 @@ async function saveOrdersToUserStorage(
 }
 
 /**
- * Updates a single order in remote storage without a full sync.
+ * Updates a single order in User Storage without a full sync.
+ *
+ * This helper always stamps `lastUpdatedAt` and writes. Callers own change
+ * detection — skip this when the syncable payload is unchanged so polling
+ * cannot amplify User Storage writes. `RampsController.addOrder` performs
+ * that check via {@link areOrdersEqual}.
  *
  * @param order - The order that was updated locally.
  * @param options - Parameters used for syncing operations.
  * @param config - Optional sync callbacks for error reporting.
- * @returns Resolves when the remote update completes or no-ops.
+ * @returns Resolves when the User Storage update completes or no-ops.
  */
-export async function updateOrderInRemoteStorage(
+export async function updateOrderInUserStorage(
   order: RampsOrder,
   options: OrderSyncingOptions,
   config: SyncOrdersWithUserStorageConfig = {},
@@ -485,7 +490,7 @@ export async function updateOrderInRemoteStorage(
  * @param config - Optional sync callbacks for error reporting.
  * @returns Resolves when the remote soft-delete completes or no-ops.
  */
-export async function deleteOrderInRemoteStorage(
+export async function deleteOrderInUserStorage(
   order: RampsOrder,
   options: OrderSyncingOptions,
   config: SyncOrdersWithUserStorageConfig = {},

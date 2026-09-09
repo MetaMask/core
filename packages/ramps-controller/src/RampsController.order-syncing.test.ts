@@ -192,6 +192,73 @@ describe('RampsController order syncing', () => {
     );
   });
 
+  it('does not bump lastUpdatedAt or write remotely when addOrder payload is unchanged', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    const { controller, performBatchSetStorage } =
+      setupControllerWithOrderSyncingMocks();
+    const order = createMockOrder({ status: RampsOrderStatus.Pending });
+
+    controller.addOrder(order);
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+    performBatchSetStorage.mockClear();
+    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
+
+    controller.addOrder(order);
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+
+    expect(performBatchSetStorage).not.toHaveBeenCalled();
+    expect(controller.state.orders[0]?.lastUpdatedAt).toBe(1_700_000_000_000);
+  });
+
+  it('does not write remotely when getOrder returns an unchanged order', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    const { controller, getOrder, performBatchSetStorage } =
+      setupControllerWithOrderSyncingMocks();
+    const order = createMockOrder({ status: RampsOrderStatus.Pending });
+
+    controller.addOrder(order);
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+    performBatchSetStorage.mockClear();
+    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
+    getOrder.mockResolvedValue(order);
+
+    await controller.getOrder('transak', 'abc-123', order.walletAddress);
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+
+    expect(performBatchSetStorage).not.toHaveBeenCalled();
+    expect(controller.state.orders[0]?.lastUpdatedAt).toBe(1_700_000_000_000);
+  });
+
+  it('writes remotely once when getOrder returns a status change', async () => {
+    const { controller, getOrder, performBatchSetStorage } =
+      setupControllerWithOrderSyncingMocks();
+    const order = createMockOrder({ status: RampsOrderStatus.Pending });
+
+    controller.addOrder(order);
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+    performBatchSetStorage.mockClear();
+    getOrder.mockResolvedValue(
+      createMockOrder({ status: RampsOrderStatus.Completed }),
+    );
+
+    await controller.getOrder('transak', 'abc-123', order.walletAddress);
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+
+    expect(performBatchSetStorage).toHaveBeenCalledTimes(1);
+  });
+
   it('reports incremental addOrder remote sync failures via onOrderSyncErroneousSituation', async () => {
     const onOrderSyncErroneousSituation = jest.fn();
     const { controller, performBatchSetStorage } =

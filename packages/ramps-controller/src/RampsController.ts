@@ -39,9 +39,10 @@ import type {
 } from './NeoBankService-method-action-types.js';
 import type { NeoBankServiceActions } from './NeoBankService.js';
 import {
-  deleteOrderInRemoteStorage,
+  areOrdersEqual,
+  deleteOrderInUserStorage,
   syncOrdersWithUserStorage as syncOrdersWithUserStorageInternal,
-  updateOrderInRemoteStorage,
+  updateOrderInUserStorage,
 } from './order-syncing/index.js';
 import type { SyncRampsOrder } from './order-syncing/types.js';
 import {
@@ -2999,6 +3000,8 @@ export class RampsController extends BaseController<
    * If an order with the same internal order code already exists, the incoming
    * fields are merged on top of the existing order so that fields not present
    * in the update (e.g. paymentDetails from the Transak API) are preserved.
+   * Unchanged syncable payloads (including unchanged poll results) are ignored
+   * so `lastUpdatedAt` is not bumped and User Storage is not rewritten.
    *
    * @param order - The RampsOrder to add or update.
    */
@@ -3009,6 +3012,18 @@ export class RampsController extends BaseController<
         'Unable to derive internal order code for addOrder',
         {},
       );
+      return;
+    }
+
+    const existing = this.state.orders.find(
+      (existingOrder) =>
+        getInternalOrderCode(existingOrder) === internalOrderCode,
+    );
+    if (
+      existing &&
+      !this.#isApplyingOrderSyncChanges &&
+      areOrdersEqual(existing, order)
+    ) {
       return;
     }
 
@@ -3051,7 +3066,7 @@ export class RampsController extends BaseController<
       // sync pass so mutations during the upload await are not dropped.
       this.#orderSyncQueued = true;
     } else if (!this.#isOrderSyncingInProgress) {
-      updateOrderInRemoteStorage(
+      updateOrderInUserStorage(
         healedOrder,
         {
           getRampsControllerInstance: () => this,
@@ -3120,7 +3135,7 @@ export class RampsController extends BaseController<
           this.#orderSyncQueued = true;
         }
       } else if (isLocalDeletion) {
-        deleteOrderInRemoteStorage(
+        deleteOrderInUserStorage(
           orderToRemove,
           {
             getRampsControllerInstance: () => this,
@@ -3902,7 +3917,6 @@ export class RampsController extends BaseController<
     // A polling request can finish after removeOrder. Do not let that stale
     // response recreate the local order and overwrite its remote tombstone.
     if (!hadOrderAtRequestStart || orderStillExists) {
-      // Use addOrder to bump lastUpdatedAt and trigger incremental sync.
       this.addOrder(healedOrder);
     }
 

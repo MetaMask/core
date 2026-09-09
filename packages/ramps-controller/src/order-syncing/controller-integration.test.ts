@@ -6,10 +6,10 @@ import {
   USER_STORAGE_VERSION_KEY,
 } from './constants.js';
 import {
-  deleteOrderInRemoteStorage,
+  deleteOrderInUserStorage,
   orderSyncingTestExports,
   syncOrdersWithUserStorage,
-  updateOrderInRemoteStorage,
+  updateOrderInUserStorage,
 } from './controller-integration.js';
 import type { OrderSyncingOptions, SyncRampsOrder } from './types.js';
 import { mapRampsOrderToUserStorageEntry } from './utils.js';
@@ -860,12 +860,12 @@ describe('order-syncing/controller-integration', () => {
     });
   });
 
-  describe('updateOrderInRemoteStorage', () => {
+  describe('updateOrderInUserStorage', () => {
     it('writes a single order entry via batch storage', async () => {
       const order = createMockOrder();
       const { options, performBatchSetStorage } = arrangeMocks();
 
-      await updateOrderInRemoteStorage(order, options);
+      await updateOrderInUserStorage(order, options);
 
       expect(performBatchSetStorage).toHaveBeenCalledWith(
         USER_STORAGE_RAMPS_ORDERS_FEATURE,
@@ -883,7 +883,7 @@ describe('order-syncing/controller-integration', () => {
       const { options, performBatchSetStorage, performSetStorage } =
         arrangeMocks();
 
-      await updateOrderInRemoteStorage(order, options);
+      await updateOrderInUserStorage(order, options);
 
       expect(performBatchSetStorage).toHaveBeenCalledWith(
         USER_STORAGE_RAMPS_ORDERS_FEATURE,
@@ -902,7 +902,7 @@ describe('order-syncing/controller-integration', () => {
         isBackupAndSyncEnabled: false,
       });
 
-      await updateOrderInRemoteStorage(createMockOrder(), options);
+      await updateOrderInUserStorage(createMockOrder(), options);
 
       expect(performBatchSetStorage).not.toHaveBeenCalled();
     });
@@ -912,7 +912,7 @@ describe('order-syncing/controller-integration', () => {
       const order = createMockOrder();
       const { options } = arrangeMocks();
 
-      await updateOrderInRemoteStorage(order, {
+      await updateOrderInUserStorage(order, {
         ...options,
         trace,
       });
@@ -924,13 +924,13 @@ describe('order-syncing/controller-integration', () => {
     });
   });
 
-  describe('deleteOrderInRemoteStorage', () => {
+  describe('deleteOrderInUserStorage', () => {
     it('soft-deletes via batch storage using the local order payload', async () => {
       const order = createMockOrder();
       const { options, performBatchSetStorage, performGetStorage } =
         arrangeMocks();
 
-      await deleteOrderInRemoteStorage(order, options);
+      await deleteOrderInUserStorage(order, options);
 
       expect(performGetStorage).not.toHaveBeenCalled();
       expect(performBatchSetStorage).toHaveBeenCalledWith(
@@ -948,7 +948,7 @@ describe('order-syncing/controller-integration', () => {
     it('no-ops when deleting a non-syncable order', async () => {
       const { options, performBatchSetStorage } = arrangeMocks();
 
-      await deleteOrderInRemoteStorage(
+      await deleteOrderInUserStorage(
         createMockOrder({ id: '', providerOrderId: '' }),
         options,
       );
@@ -961,7 +961,7 @@ describe('order-syncing/controller-integration', () => {
       const order = createMockOrder();
       const { options } = arrangeMocks();
 
-      await deleteOrderInRemoteStorage(order, {
+      await deleteOrderInUserStorage(order, {
         ...options,
         trace,
       });

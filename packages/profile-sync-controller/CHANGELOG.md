@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `BACKUPANDSYNC_FEATURES.rampsSyncing` and `UserStorageController.isRampsSyncingEnabled` ([#9474](https://github.com/MetaMask/core/pull/9474))
   - Defaults to enabled (`true`); hosts can toggle Buy & sell order sync independently of account/contact sync
-  - Disabling ramps syncing alone does not disable main Backup & Sync
 
 ### Changed
 

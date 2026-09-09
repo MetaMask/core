@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Strip `paymentDetails` from remote payloads (PII stays local-only)
   - Soft deletes use remote tombstones; retention matches contact sync (no remote purge/compaction)
   - Mid-sync local mutations coalesce into a follow-up full sync pass so uploads are not dropped during `performBatchSetStorage`
-  - Polling via `getOrder` → `addOrder` stamps `lastUpdatedAt` so status refreshes participate in LWW
+  - Polling via `getOrder` → `addOrder` stamps `lastUpdatedAt` and writes to User Storage only when the syncable payload changed
   - Normalize ISO and numeric-string `createdAt` values from Portfolio and older clients to epoch milliseconds
   - Optional `onOrderSyncErroneousSituation` (full sync and incremental push/delete) and `trace` callbacks
 

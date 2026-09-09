@@ -24,6 +24,6 @@ export { canPerformOrderSyncing } from './sync-utils.js';
 export type { SyncOrdersWithUserStorageConfig } from './controller-integration.js';
 export {
   syncOrdersWithUserStorage,
-  updateOrderInRemoteStorage,
-  deleteOrderInRemoteStorage,
+  updateOrderInUserStorage,
+  deleteOrderInUserStorage,
 } from './controller-integration.js';

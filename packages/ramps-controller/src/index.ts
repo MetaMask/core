@@ -216,8 +216,8 @@ export {
   areOrdersEqual,
   canPerformOrderSyncing,
   syncOrdersWithUserStorage,
-  updateOrderInRemoteStorage,
-  deleteOrderInRemoteStorage,
+  updateOrderInUserStorage,
+  deleteOrderInUserStorage,
 } from './order-syncing/index.js';
 export type {
   TransakServiceActions,
