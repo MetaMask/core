@@ -16,7 +16,6 @@ import {
   getInvalidPrimarySecretDataTypeErrorData,
   getPasswordChangePhase,
   getSecretTypeFromDataType,
-  isValidPasswordChangePhaseTransition,
 } from './utils.js';
 
 describe('utils', () => {
@@ -286,131 +285,6 @@ describe('utils', () => {
       expect(
         getPasswordChangePhase(SeedlessPasswordChangePhase.SeedlessCommitted),
       ).toBe(SeedlessPasswordChangePhase.SeedlessCommitted);
-    });
-  });
-
-  describe('isValidPasswordChangePhaseTransition', () => {
-    it('allows IDLE to SEEDLESS_CHANGE_PENDING', () => {
-      expect(
-        isValidPasswordChangePhaseTransition(
-          undefined,
-          SeedlessPasswordChangePhase.SeedlessChangePending,
-        ),
-      ).toBe(true);
-    });
-
-    it('allows SEEDLESS_CHANGE_PENDING to SEEDLESS_COMMITTED', () => {
-      expect(
-        isValidPasswordChangePhaseTransition(
-          SeedlessPasswordChangePhase.SeedlessChangePending,
-          SeedlessPasswordChangePhase.SeedlessCommitted,
-        ),
-      ).toBe(true);
-    });
-
-    it('allows SEEDLESS_CHANGE_PENDING to IDLE (definitive remote failure)', () => {
-      expect(
-        isValidPasswordChangePhaseTransition(
-          SeedlessPasswordChangePhase.SeedlessChangePending,
-          SeedlessPasswordChangePhase.Idle,
-        ),
-      ).toBe(true);
-    });
-
-    it('allows SEEDLESS_COMMITTED to LOCAL_KEYRING_PENDING', () => {
-      expect(
-        isValidPasswordChangePhaseTransition(
-          SeedlessPasswordChangePhase.SeedlessCommitted,
-          SeedlessPasswordChangePhase.LocalKeyringPending,
-        ),
-      ).toBe(true);
-    });
-
-    it('allows LOCAL_KEYRING_PENDING to KEY_SYNC_PENDING', () => {
-      expect(
-        isValidPasswordChangePhaseTransition(
-          SeedlessPasswordChangePhase.LocalKeyringPending,
-          SeedlessPasswordChangePhase.KeySyncPending,
-        ),
-      ).toBe(true);
-    });
-
-    it('allows KEY_SYNC_PENDING to COMPLETE', () => {
-      expect(
-        isValidPasswordChangePhaseTransition(
-          SeedlessPasswordChangePhase.KeySyncPending,
-          SeedlessPasswordChangePhase.Complete,
-        ),
-      ).toBe(true);
-    });
-
-    it('allows COMPLETE to IDLE (clear)', () => {
-      expect(
-        isValidPasswordChangePhaseTransition(
-          SeedlessPasswordChangePhase.Complete,
-          SeedlessPasswordChangePhase.Idle,
-        ),
-      ).toBe(true);
-    });
-
-    it('allows any phase to UNKNOWN', () => {
-      for (const phase of [
-        SeedlessPasswordChangePhase.SeedlessChangePending,
-        SeedlessPasswordChangePhase.SeedlessCommitted,
-        SeedlessPasswordChangePhase.LocalKeyringPending,
-        SeedlessPasswordChangePhase.KeySyncPending,
-      ]) {
-        expect(
-          isValidPasswordChangePhaseTransition(
-            phase,
-            SeedlessPasswordChangePhase.Unknown,
-          ),
-        ).toBe(true);
-      }
-    });
-
-    it('allows UNKNOWN to any resolvable phase', () => {
-      for (const target of [
-        SeedlessPasswordChangePhase.Idle,
-        SeedlessPasswordChangePhase.SeedlessCommitted,
-        SeedlessPasswordChangePhase.LocalKeyringPending,
-        SeedlessPasswordChangePhase.KeySyncPending,
-        SeedlessPasswordChangePhase.Complete,
-      ]) {
-        expect(
-          isValidPasswordChangePhaseTransition(
-            SeedlessPasswordChangePhase.Unknown,
-            target,
-          ),
-        ).toBe(true);
-      }
-    });
-
-    it('rejects IDLE to COMPLETE (skipping steps)', () => {
-      expect(
-        isValidPasswordChangePhaseTransition(
-          undefined,
-          SeedlessPasswordChangePhase.Complete,
-        ),
-      ).toBe(false);
-    });
-
-    it('rejects SEEDLESS_COMMITTED to IDLE (cannot skip back without definitive failure)', () => {
-      expect(
-        isValidPasswordChangePhaseTransition(
-          SeedlessPasswordChangePhase.SeedlessCommitted,
-          SeedlessPasswordChangePhase.Idle,
-        ),
-      ).toBe(false);
-    });
-
-    it('rejects COMPLETE to SEEDLESS_CHANGE_PENDING (cannot restart from complete)', () => {
-      expect(
-        isValidPasswordChangePhaseTransition(
-          SeedlessPasswordChangePhase.Complete,
-          SeedlessPasswordChangePhase.SeedlessChangePending,
-        ),
-      ).toBe(false);
     });
   });
 });

@@ -58,8 +58,10 @@ Recovery rules:
 
 - Do **not** call `changeEncKey` again while remote classification is unknown.
 - After remote classification is **old** (server did not commit), clear the lifecycle to `IDLE`. A later password change is a fresh operation, not a retry.
-- After remote classification is **new** (server committed), do not call `changeEncKey` again. Reconcile local state using the existing password-sync flow: `submitGlobalPassword` (unlock via server password-key history chain) → `syncLatestGlobalPassword` (rewrite local vault) → `loadKeyringEncryptionKey` / `storeKeyringEncryptionKey`.
+- After remote classification is **new** (server committed), do not call `changeEncKey` again. Reconcile the Seedless side through the controller-owned recovery methods, which wrap the existing password-sync flow: `resolvePasswordSyncState()` (password-less remote-state resolution; also merges the legacy `checkIsPasswordOutdated` read) → `recoverPasswordChange({ globalPassword })` (runs `submitGlobalPassword` → `syncLatestGlobalPassword` internally and advances to `LOCAL_KEYRING_PENDING`). The client then owns the Keyring-side steps (`loadKeyringEncryptionKey` / `storeKeyringEncryptionKey`, `markPasswordChangeKeySyncPending`, `completePasswordChange`).
 - `storeKeyringEncryptionKey` of the already-current key is a local overwrite and is safe to re-run.
+
+The controller-owned recovery methods return a `PasswordChangeRecoveryStatus` (`NoChange`, `EnterNewPassword`, `ReconcileKeyring`, `SyncKey`, `Complete`, `Unknown`) that the client routes on. This is Option A (controller owns the Seedless side; client owns the Keyring side). See [0004](./0004-controller-owned-password-change-recovery-plan.md) for the planned Option B migration where the controller also owns the Keyring side.
 
 A transaction ID / idempotency key is out of scope — the TOPRF server does not accept one today, and adding it is not a simple server-side change. It remains a “good to have” for a future TOPRF release.
 
@@ -71,12 +73,15 @@ The Keyring encryption key is stored **locally** in controller state (`encrypted
 - `loadKeyringEncryptionKey` is read-only with respect to lifecycle. Loading a key does not complete recovery.
 - `storeKeyringEncryptionKey` must never mark `COMPLETE`.
 
-Recovery reuses the existing password-sync flow, which already handles “remote changed, local is outdated”:
+Recovery reuses the existing password-sync flow, which already handles “remote changed, local is outdated”. The controller now owns the Seedless-side sequencing through two public methods:
 
-1. `checkIsPasswordOutdated({ skipCache: true })` — fetches remote `authPubKey`, compares with local. Classifies old vs new.
-2. `submitGlobalPassword({ globalPassword })` — calls `toprfClient.recoverPwEncKey`, which walks the server-side password-key history chain (`maxPwChainLength`) to find the `pwEncKey` matching this device’s `authPubKey`, then unlocks the vault with the new password.
-3. `syncLatestGlobalPassword({ globalPassword })` — rewrites the local Seedless vault with the new password’s keys.
-4. `loadKeyringEncryptionKey()` (old-Keyring branch) or `storeKeyringEncryptionKey(currentKey)` (new-Keyring branch) — recover or persist the Keyring encryption key locally.
+1. `resolvePasswordSyncState()` — password-less. Merges the legacy `checkIsPasswordOutdated` read (now private `#checkIsPasswordOutdated`) with password-change recovery routing, so the client makes a single call at unlock. For `IDLE` it runs the authoritative outdated check (`skipCache` honored) and returns `no-change` or `password-outdated`. For `SEEDLESS_CHANGE_PENDING` it forces a remote check (ignoring `skipCache`), clears to `IDLE` if remote is **old**, advances to `SEEDLESS_COMMITTED` if remote is **new**, and returns `unknown` (preserving the phase) if the check fails. For all other phases it returns the matching status without a remote call.
+2. `recoverPasswordChange({ globalPassword })` — password-consuming. For `SEEDLESS_COMMITTED` / `LOCAL_KEYRING_PENDING` it runs `submitGlobalPassword({ globalPassword })` (`toprfClient.recoverPwEncKey` walks the server-side password-key history chain `maxPwChainLength` to find the `pwEncKey` matching this device’s `authPubKey`, then unlocks the vault) → `syncLatestGlobalPassword` (rewrites the local Seedless vault with the new password’s keys), then advances to `LOCAL_KEYRING_PENDING` and returns `reconcile-keyring`. For `IDLE` it re-checks the remote password and, if outdated, runs the same password-sync flow without advancing any phase (another-device sync); if not outdated it is a no-op. On failure it returns `unknown` and preserves the phase.
+
+The client then owns the Keyring side based on the returned status:
+
+3. `loadKeyringEncryptionKey()` (old-Keyring branch) or `storeKeyringEncryptionKey(currentKey)` (new-Keyring branch) — recover or persist the Keyring encryption key locally.
+4. `markPasswordChangeKeySyncPending()` → `completePasswordChange()` → `clearPasswordChangePhase()` once the current key is synchronized and persisted.
 
 `COMPLETE` in this contract means: remote Seedless password is new, local Seedless vault is new, local Keyring uses the new password, and the current Keyring encryption key is durably stored via `storeKeyringEncryptionKey`.
 
@@ -127,9 +132,9 @@ Unlock routing:
 2. Read `passwordChangePhase`; treat missing as `IDLE`.
 3. If phase is `IDLE` or `COMPLETE` (or `COMPLETE` already cleared to `IDLE`): continue normal unlock.
 4. Otherwise: recovery-blocked path. Do not report the entered password as an ordinary Keyring unlock failure while recovery is pending.
-5. For every unfinished phase, bypass `passwordOutdatedCache` and fetch remote `authPubKey`.
-6. Classify the local Keyring with `KeyringController:verifyPassword` (new vs old). Do not infer that from the lifecycle phase.
-7. If remote or local classification cannot be established, persist `UNKNOWN` and keep the wallet locked.
+5. Call `resolvePasswordSyncState()` to resolve remote state without a password. Only prompt for the new password when it returns `enter-new-password`; if it returns `no-change`, unlock with the old password normally.
+6. After the user supplies the new password, call `recoverPasswordChange({ globalPassword })` to reconcile the Seedless side. On `reconcile-keyring`, classify the local Keyring with `KeyringController:verifyPassword` (new vs old). Do not infer that from the lifecycle phase.
+7. If remote or local classification cannot be established, keep the phase as-is (the recovery methods return `unknown` and preserve the phase) and keep the wallet locked.
 
 `COMPLETE` is not a second source of cryptographic truth. After a durable `COMPLETE`, the controller should clear to `IDLE` so the next unlock is normal.
 
@@ -139,7 +144,8 @@ Unlock routing:
 - Phase 3 must **preserve the last known lifecycle phase** on ambiguous `changeEncKey` failures (e.g. leave `SEEDLESS_CHANGE_PENDING` in place) and must not reset to `IDLE` without an **old** remote classification. It must never retry `changeEncKey`. `UNKNOWN` is determined later by recovery, not written by the catch block.
 - Phase 4 couples local Keyring-key storage to a lifecycle write; no remote key-sync API is needed.
 - Phase 5 reuses `submitGlobalPassword` and `syncLatestGlobalPassword` as the recovery mechanism.
-- Phase 7 clients must implement the unlock-time read of the persisted lifecycle. They must not start a second password change while the lifecycle is unfinished, and must never retry `changePassword` / `changeEncKey`.
+- Phase 6 exposes the controller-owned recovery methods (`resolvePasswordSyncState`, `recoverPasswordChange`) and the `PasswordChangeRecoveryStatus` enum through the messenger and package exports. The legacy `checkIsPasswordOutdated` is folded into `resolvePasswordSyncState` (now private `#checkIsPasswordOutdated`).
+- Phase 7 clients must implement the unlock-time read of the persisted lifecycle and route through `resolvePasswordSyncState` / `recoverPasswordChange` for the Seedless side, owning only the Keyring side (Option A). They must not start a second password change while the lifecycle is unfinished, and must never retry `changePassword` / `changeEncKey`. Option B (controller owning the Keyring side too) is planned in [0004](./0004-controller-owned-password-change-recovery-plan.md).
 
 ## Existing TOPRF endpoints used by recovery
 

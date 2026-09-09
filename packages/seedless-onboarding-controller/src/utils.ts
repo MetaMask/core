@@ -192,53 +192,6 @@ export function getInvalidPrimarySecretDataTypeErrorData(
 }
 
 /**
- * Legal forward transitions for the password-change lifecycle.
- *
- * This map is used by tests to validate that transitions are sensible. It is
- * NOT the source of truth for recovery — a persisted phase may be stale, and
- * recovery must always verify actual remote and local state before acting.
- *
- * `UNKNOWN` is intentionally permissive: recovery may resolve it to any phase
- * or clear it to `IDLE`. Any phase may transition to `UNKNOWN` when a result
- * is ambiguous.
- */
-const LEGAL_PASSWORD_CHANGE_TRANSITIONS: Record<
-  SeedlessPasswordChangePhase,
-  SeedlessPasswordChangePhase[]
-> = {
-  [SeedlessPasswordChangePhase.Idle]: [
-    SeedlessPasswordChangePhase.SeedlessChangePending,
-  ],
-  [SeedlessPasswordChangePhase.SeedlessChangePending]: [
-    SeedlessPasswordChangePhase.SeedlessCommitted,
-    SeedlessPasswordChangePhase.Idle,
-    SeedlessPasswordChangePhase.Unknown,
-  ],
-  [SeedlessPasswordChangePhase.SeedlessCommitted]: [
-    SeedlessPasswordChangePhase.LocalKeyringPending,
-    SeedlessPasswordChangePhase.Unknown,
-  ],
-  [SeedlessPasswordChangePhase.LocalKeyringPending]: [
-    SeedlessPasswordChangePhase.KeySyncPending,
-    SeedlessPasswordChangePhase.Unknown,
-  ],
-  [SeedlessPasswordChangePhase.KeySyncPending]: [
-    SeedlessPasswordChangePhase.Complete,
-    SeedlessPasswordChangePhase.Unknown,
-  ],
-  [SeedlessPasswordChangePhase.Complete]: [
-    SeedlessPasswordChangePhase.Idle,
-  ],
-  [SeedlessPasswordChangePhase.Unknown]: [
-    SeedlessPasswordChangePhase.Idle,
-    SeedlessPasswordChangePhase.SeedlessCommitted,
-    SeedlessPasswordChangePhase.LocalKeyringPending,
-    SeedlessPasswordChangePhase.KeySyncPending,
-    SeedlessPasswordChangePhase.Complete,
-  ],
-};
-
-/**
  * Resolve a password-change phase, treating `undefined` as `IDLE`.
  *
  * @param phase - The persisted phase, or `undefined`.
@@ -250,20 +203,3 @@ export function getPasswordChangePhase(
   return phase ?? SeedlessPasswordChangePhase.Idle;
 }
 
-/**
- * Check whether a phase transition is legal according to the transition map.
- *
- * This is for test validation only. A persisted phase may be stale; recovery
- * must verify actual state rather than relying on this validator.
- *
- * @param from - The source phase (or `undefined` for `IDLE`).
- * @param to - The target phase.
- * @returns `true` if the transition is legal.
- */
-export function isValidPasswordChangePhaseTransition(
-  from: SeedlessPasswordChangePhase | undefined,
-  to: SeedlessPasswordChangePhase,
-): boolean {
-  const fromPhase = getPasswordChangePhase(from);
-  return LEGAL_PASSWORD_CHANGE_TRANSITIONS[fromPhase].includes(to);
-}

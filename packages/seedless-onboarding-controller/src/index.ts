@@ -18,6 +18,9 @@ export type {
   SeedlessOnboardingControllerAddNewSecretDataAction,
   SeedlessOnboardingControllerFetchAllSecretDataAction,
   SeedlessOnboardingControllerChangePasswordAction,
+  SeedlessOnboardingControllerClearPasswordChangePhaseAction,
+  SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction,
+  SeedlessOnboardingControllerCompletePasswordChangeAction,
   SeedlessOnboardingControllerUpdateBackupMetadataStateAction,
   SeedlessOnboardingControllerVerifyVaultPasswordAction,
   SeedlessOnboardingControllerGetSecretDataBackupStateAction,
@@ -25,7 +28,6 @@ export type {
   SeedlessOnboardingControllerSetLockedAction,
   SeedlessOnboardingControllerSyncLatestGlobalPasswordAction,
   SeedlessOnboardingControllerSubmitGlobalPasswordAction,
-  SeedlessOnboardingControllerCheckIsPasswordOutdatedAction,
   SeedlessOnboardingControllerGetIsUserAuthenticatedAction,
   SeedlessOnboardingControllerClearStateAction,
   SeedlessOnboardingControllerStoreKeyringEncryptionKeyAction,
@@ -38,6 +40,8 @@ export type {
   SeedlessOnboardingControllerCheckMetadataAccessTokenExpiredAction,
   SeedlessOnboardingControllerCheckAccessTokenExpiredAction,
   SeedlessOnboardingControllerRunMigrationsAction,
+  SeedlessOnboardingControllerResolvePasswordSyncStateAction,
+  SeedlessOnboardingControllerRecoverPasswordChangeAction,
 } from './SeedlessOnboardingController-method-action-types.js';
 export type {
   AuthenticatedUserDetails,
@@ -54,6 +58,7 @@ export {
   AuthConnection,
   SecretType,
   SeedlessPasswordChangePhase,
+  PasswordChangeRecoveryStatus,
 } from './constants.js';
 export { SecretMetadata } from './SecretMetadata.js';
 export {

@@ -19,10 +19,10 @@ Update the checkboxes as work is completed. Keep the phase status aligned with i
 | 0. External prerequisites          | Complete    | —                                                              |
 | 1. Lifecycle model                 | Complete    | —                                                              |
 | 2. Controller lifecycle operations | Complete    | —                                                              |
-| 3. `changePassword` flow           | Not started | Add server-first lifecycle boundaries                          |
-| 4. Keyring-key storage             | Not started | Couple encrypted-key storage to lifecycle persistence          |
-| 5. Recovery primitives             | Not started | Preserve existing recovery methods and add recovery safeguards |
-| 6. Messenger/package contracts     | Not started | Update exports, action types, fixtures, and consumers          |
+| 3. `changePassword` flow           | Complete    | —                                                              |
+| 4. Keyring-key storage             | Complete    | —                                                              |
+| 5. Recovery primitives             | Complete    | —                                                              |
+| 6. Messenger/package contracts     | Complete    | —                                                              |
 | 7. Client integration              | Not started | Add coordinator, locking, unlock routing, UI, and E2E coverage |
 
 At the end of each phase, update its status and remove completed items from the remaining-work description. Keep unresolved items in [Open decisions before implementation](#open-decisions-before-implementation).
@@ -185,20 +185,20 @@ Do not add a second mutex unless the existing controller mutex cannot protect th
 
 Refactor the current method without duplicating its cryptographic work:
 
-- [ ] Acquire the existing controller lock.
-- [ ] Reject a second concurrent password change; recovery must finish before a new one starts.
-- [ ] Create/persist the lifecycle as `SEEDLESS_CHANGE_PENDING`.
-- [ ] Reuse `verifyVaultPassword(oldPassword, { skipLock: true })`.
-- [ ] Reuse `#assertPasswordInSync({ skipCache: true, skipLock: true })`.
-- [ ] Reuse `loadKeyringEncryptionKey()` before the remote mutation when an encrypted Keyring key exists.
-- [ ] Call `#changeEncryptionKey` through the existing `#executeWithTokenRefresh` wrapper.
-- [ ] After authoritative remote commitment, persist `SEEDLESS_COMMITTED`.
-- [ ] Reuse `#createNewVaultWithAuthData` to write the new local Seedless vault.
-- [ ] Persist `LOCAL_KEYRING_PENDING` after local Seedless state has been updated.
-- [ ] Reuse `storeKeyringEncryptionKey` for the encrypted local copy of the current Keyring key.
-- [ ] Leave final Keyring re-encryption, local Keyring-key storage, and `COMPLETE` to the client coordinator.
-- [ ] Preserve the existing error wrapping with `SeedlessOnboardingError`, but retain the last lifecycle phase when wrapping the error.
-- [ ] Reset the password-outdated cache only after the local Seedless password update succeeds, using the existing `#resetPasswordOutdatedCache`.
+- [x] Acquire the existing controller lock.
+- [x] Reject a second concurrent password change; recovery must finish before a new one starts.
+- [x] Create/persist the lifecycle as `SEEDLESS_CHANGE_PENDING`.
+- [x] Reuse `verifyVaultPassword(oldPassword, { skipLock: true })`.
+- [x] Reuse `#assertPasswordInSync({ skipCache: true, skipLock: true })`.
+- [x] Reuse `loadKeyringEncryptionKey()` before the remote mutation when an encrypted Keyring key exists.
+- [x] Call `#changeEncryptionKey` through the existing `#executeWithTokenRefresh` wrapper.
+- [x] After authoritative remote commitment, persist `SEEDLESS_COMMITTED`.
+- [x] Reuse `#createNewVaultWithAuthData` to write the new local Seedless vault.
+- [x] Persist `LOCAL_KEYRING_PENDING` after local Seedless state has been updated.
+- [x] Reuse `storeKeyringEncryptionKey` for the encrypted local copy of the current Keyring key.
+- [x] Leave final Keyring re-encryption, local Keyring-key storage, and `COMPLETE` to the client coordinator.
+- [x] Preserve the existing error wrapping with `SeedlessOnboardingError`, but retain the last lifecycle phase when wrapping the error.
+- [x] Reset the password-outdated cache only after the local Seedless password update succeeds, using the existing `#resetPasswordOutdatedCache`.
 
 Important: a rejected Promise from `#changeEncryptionKey` does not prove that the server did not mutate. Only a definitive server result may return the lifecycle to `IDLE`.
 
@@ -206,26 +206,27 @@ Important: a rejected Promise from `#changeEncryptionKey` does not prove that th
 
 Update `storeKeyringEncryptionKey` and its private helper with minimal behavior changes:
 
-- [ ] Keep the current `#unlockVaultAndGetVaultData` call to obtain the Seedless password encryption key.
-- [ ] Keep the current AES-GCM encryption and base64 encoding.
-- [ ] Update `encryptedKeyringEncryptionKey` and the lifecycle boundary in the same controller update where possible, so observers do not see an unrelated intermediate lifecycle state.
-- [ ] Await the selected durable persistence boundary after the encrypted key is stored.
-- [ ] Allow the client to mark `KEY_SYNC_PENDING` before synchronization and `COMPLETE` only after synchronization verification and all local writes succeed.
-- [ ] Never let `storeKeyringEncryptionKey` mark `COMPLETE` by itself.
-- [ ] Keep `loadKeyringEncryptionKey` read-only with respect to lifecycle state; loading a key is not proof of recovery completion.
+- [x] Keep the current `#unlockVaultAndGetVaultData` call to obtain the Seedless password encryption key.
+- [x] Keep the current AES-GCM encryption and base64 encoding.
+- [x] Update `encryptedKeyringEncryptionKey` and the lifecycle boundary in the same controller update where possible, so observers do not see an unrelated intermediate lifecycle state.
+- [x] Allow the client to mark `KEY_SYNC_PENDING` before synchronization and `COMPLETE` only after synchronization verification and all local writes succeed.
+- [x] Never let `storeKeyringEncryptionKey` mark `COMPLETE` by itself.
+- [x] Keep `loadKeyringEncryptionKey` read-only with respect to lifecycle state; loading a key is not proof of recovery completion.
+
+> **Descoped:** A separate awaitable durable-persistence boundary for lifecycle writes is out of scope for the controller. The lifecycle is persisted as ordinary controller state via the normal debounced `stateChange` path (same as every other persisted field); there is no extra durability hook on the controller. Recovery must therefore always re-verify actual remote and local state before acting on the phase — a missing or stale marker is recoverable via `checkIsPasswordOutdated({ skipCache: true })` and cryptographic Keyring verification. See [Design summary](#design-summary) and [0003](./0003-seedless-password-change-contracts.md).
 
 ### Phase 5: Add recovery-facing controller behavior
 
 Keep cross-controller orchestration in the client, but make the controller primitives safe and explicit:
 
-- [ ] `submitGlobalPassword({ globalPassword })` remains the entry point to recover the Seedless controller with the new password.
-- [ ] `syncLatestGlobalPassword({ globalPassword })` remains the operation that rewrites the local Seedless vault after recovery.
-- [ ] `loadKeyringEncryptionKey()` remains the old-Keyring recovery input.
-- [ ] `storeKeyringEncryptionKey()` remains the local encrypted-key persistence operation.
-- [ ] `checkIsPasswordOutdated({ skipCache: true })` must be used during recovery whenever the client needs a fresh auth-public-key comparison.
-- [ ] Do not silently use a cached `passwordOutdatedCache` result on the recovery path.
-- [ ] Preserve `#executeWithTokenRefresh` behavior for all existing password-sync operations.
-- [ ] Ensure controller lock state is cleaned up correctly when recovery operations fail.
+- [x] `submitGlobalPassword({ globalPassword })` remains the entry point to recover the Seedless controller with the new password.
+- [x] `syncLatestGlobalPassword({ globalPassword })` remains the operation that rewrites the local Seedless vault after recovery.
+- [x] `loadKeyringEncryptionKey()` remains the old-Keyring recovery input.
+- [x] `storeKeyringEncryptionKey()` remains the local encrypted-key persistence operation.
+- [x] `checkIsPasswordOutdated({ skipCache: true })` must be used during recovery whenever the client needs a fresh auth-public-key comparison. (Controller honors `skipCache`; covered by the "should bypass cache if skipCache is true" test.)
+- [x] Do not silently use a cached `passwordOutdatedCache` result on the recovery path. (Satisfied by `skipCache` bypass.)
+- [x] Preserve `#executeWithTokenRefresh` behavior for all existing password-sync operations.
+- [x] Ensure controller lock state is cleaned up correctly when recovery operations fail. (`withLock` releases in `finally`.)
 
 The client coordinator then performs the two ADR branches:
 
@@ -255,26 +256,32 @@ The client coordinator then performs the two ADR branches:
 
 If local cryptographic verification or remote status cannot establish the branch, mark `UNKNOWN` and keep the wallet locked.
 
+> **Scope note:** The two ADR branches above (Old / New local Keyring) are client orchestration and are implemented in [Phase 7](#phase-7-implement-client-integration). No controller-package code is required for them beyond the primitives already preserved in this phase.
+
 ### Phase 6: Update messenger and package contracts
 
-- [ ] Update `src/SeedlessOnboardingController-method-action-types.ts` documentation and types for the lifecycle-aware `changePassword` behavior.
-- [ ] Export the new lifecycle types and enum from `src/index.ts`.
-- [ ] Check all generated/action type references compile without manually editing generated output beyond the source-of-truth file.
-- [ ] Update package consumers and mock messengers that call `changePassword`.
-- [ ] Preserve the existing `changePassword` signature and behavior for callers that do not opt into lifecycle-aware recovery.
+- [x] Update `src/SeedlessOnboardingController-method-action-types.ts` documentation and types for the lifecycle-aware `changePassword` behavior. (Regenerated via `messenger-action-types:generate` after adding `clearPasswordChangePhase`, `markPasswordChangeKeySyncPending`, `completePasswordChange`, `resolvePasswordSyncState`, `recoverPasswordChange` to `MESSENGER_EXPOSED_METHODS`; `messenger-action-types:check` passes.)
+- [x] Export the new lifecycle types and enum from `src/index.ts`. (`SeedlessPasswordChangePhase` and `PasswordChangeRecoveryStatus` enums exported from `./constants.js`; added the new action-type exports. The recovery methods return `PasswordChangeRecoveryStatus` directly, so no separate result type is exported.)
+- [x] Check all generated/action type references compile without manually editing generated output beyond the source-of-truth file. (Only `MESSENGER_EXPOSED_METHODS` in the controller was hand-edited; the generated file was regenerated, not hand-edited.)
+- [x] Update package consumers and mock messengers that call `changePassword`. (Mock messenger auto-derives from `SeedlessOnboardingControllerMessenger`; no external package references the removed `SeedlessPasswordChangeLifecycle`/`passwordChangeLifecycle`.)
+- [x] Preserve the existing `changePassword` signature and behavior for callers that do not opt into lifecycle-aware recovery. (Signature unchanged; lifecycle is additive via new state field and methods.)
+- [x] Add controller-owned Seedless-side recovery methods (`resolvePasswordSyncState` + `recoverPasswordChange`) so clients do not have to hand-orchestrate the Seedless half of recovery. `resolvePasswordSyncState` merges the legacy `checkIsPasswordOutdated` read with password-change recovery routing into a single unlock-time call. See [0004](./0004-controller-owned-password-change-recovery-plan.md) for the future Option B (full cross-controller recovery) migration.
 
 ### Phase 7: Implement client integration
 
-This work is outside the controller package but is required for the ADR to be complete:
+This work is outside the controller package but is required for the ADR to be complete. The controller side of recovery is already provided (Option A): `resolvePasswordSyncState()` resolves remote state without a password (merging the legacy `checkIsPasswordOutdated` read with password-change recovery routing), and `recoverPasswordChange({ globalPassword })` reconciles the Seedless side with the new password. The client owns the Keyring-side steps and UI routing based on the returned `PasswordChangeRecoveryStatus`. See [0004](./0004-controller-owned-password-change-recovery-plan.md) for the planned Option B migration where the controller also owns the Keyring side.
 
 - [ ] Add a single coordinator lock covering Seedless and Keyring password changes. The controller mutex already serializes controller operations; this lock extends serialization to the cross-controller transaction.
 - [ ] Persist `SEEDLESS_CHANGE_PENDING` before the first remote mutation.
 - [ ] Lock the wallet before exposing any password-change or recovery error.
 - [ ] On unlock, inspect the durable lifecycle before normal invalid-password handling.
-- [ ] For every unfinished phase, bypass stale password-outdated cache and query remote state via `checkIsPasswordOutdated({ skipCache: true })`.
+- [ ] For every unfinished phase, call `resolvePasswordSyncState()` first (password-less remote-state resolution); only prompt for the new password when it returns `enter-new-password`.
+- [ ] After the user supplies the new password, call `recoverPasswordChange({ globalPassword })` to reconcile the Seedless side; on `reconcile-keyring`, run the Keyring-side branch below.
 - [ ] Use `KeyringController:verifyPassword` to classify old versus new local Keyring state.
-- [ ] Use the old-Keyring or new-Keyring branch above (existing `submitGlobalPassword` + `syncLatestGlobalPassword` flow).
-- [ ] Never retry `changePassword` or `changeEncKey`; reconcile only via the existing password-sync flow.
+- [ ] Old-Keyring branch: `loadKeyringEncryptionKey` → `KeyringController:submitEncryptionKey` → `KeyringController:changePassword` → `storeKeyringEncryptionKey` → `markPasswordChangeKeySyncPending`.
+- [ ] New-Keyring branch: `KeyringController:exportEncryptionKey` → `storeKeyringEncryptionKey` → `markPasswordChangeKeySyncPending`.
+- [ ] `KEY_SYNC_PENDING`: unlock with the new password, export the current Keyring encryption key, store/sync it to the remote Seedless backup, then `completePasswordChange` → `clearPasswordChangePhase`.
+- [ ] Never retry `changePassword` or `changeEncKey`; reconcile only via the recovery methods and the existing password-sync flow.
 - [ ] Keep the wallet locked and the phase `UNKNOWN` if the result is not distinguishable.
 - [ ] Persist `COMPLETE` only after local persistence is verified.
 - [ ] Offer reset wallet only as an explicit last resort for a confirmed unrecoverable state.
@@ -300,6 +307,8 @@ Extend `src/SeedlessOnboardingController.test.ts` and add focused tests for:
 - [ ] Repeated lifecycle transitions being safe to re-run.
 - [ ] Existing token-refresh retry behavior remaining unchanged.
 - [ ] Existing `loadKeyringEncryptionKey` and `storeKeyringEncryptionKey` behavior remaining compatible.
+- [ ] `resolvePasswordSyncState` returning the correct `PasswordChangeRecoveryStatus` for each phase, clearing to `IDLE` when remote did not commit, advancing to `SEEDLESS_COMMITTED` when remote committed, and returning `unknown` (preserving the phase) when the remote check fails.
+- [ ] `recoverPasswordChange` reconciling the Seedless side and advancing to `LOCAL_KEYRING_PENDING` for `SEEDLESS_COMMITTED`/`LOCAL_KEYRING_PENDING`, and returning `unknown` (preserving the phase) when reconciliation fails.
 
 Use the existing fixtures and mocks in `tests/__fixtures__` and `tests/mocks`. Add only the remote-status mocks that the new contract requires.
 
@@ -355,14 +364,15 @@ The implementation is ready when:
 
 ### This package
 
-- `src/constants.ts` — lifecycle phase enum.
+- `src/constants.ts` — lifecycle phase enum and `PasswordChangeRecoveryStatus` enum.
 - `src/types.ts` — password-change phase state field.
 - `src/utils.ts` — pure lifecycle helpers, if needed.
-- `src/SeedlessOnboardingController.ts` — metadata, transition helpers, lifecycle-aware `changePassword`, and lifecycle-aware key storage.
+- `src/SeedlessOnboardingController.ts` — metadata, transition helpers, lifecycle-aware `changePassword`, lifecycle-aware key storage, and controller-owned recovery methods (`resolvePasswordSyncState`, `recoverPasswordChange`). `resolvePasswordSyncState` folds the legacy `checkIsPasswordOutdated` read (now private `#checkIsPasswordOutdated`) into the unlock-time recovery routing.
 - `src/SeedlessOnboardingController-method-action-types.ts` — public action documentation/signature.
 - `src/index.ts` — public exports.
 - `src/SeedlessOnboardingController.test.ts` — unit and fault-injection coverage.
 - `docs/0003-seedless-password-change-contracts.md` — Phase 0 shared contract.
+- `docs/0004-controller-owned-password-change-recovery-plan.md` — Option B (full cross-controller recovery) migration plan.
 - `tests/__fixtures__/*` and `tests/mocks/*` — lifecycle, status, and persistence fixtures as needed.
 
 ### Outside this package
