@@ -40,23 +40,27 @@ runs:
           const number = parseInt(match[1], 10);
           core.setOutput('pr-number', number);
 
-    - name: Get pull request branch
-      id: pr-branch
+    - name: Fetch pull request head commit
+      id: pr-head
       shell: bash
       env:
-        REPOSITORY: ${{ github.repository }}
         PR_NUMBER: ${{ steps.pr-number.outputs.pr-number }}
-        GH_TOKEN: ${{ inputs.github-token }}
       run: |
-        BRANCH=$(gh api "/repos/${REPOSITORY}/pulls/${PR_NUMBER}" --jq=.head.ref)
-        echo "pr-branch=$BRANCH" >> "$GITHUB_OUTPUT"
+        set -euo pipefail
+
+        # The head branch of a fork pull request does not exist in this
+        # repository, so the head commit is only reachable through the pull
+        # request ref.
+        PR_REF="refs/remotes/pr/${PR_NUMBER}/head"
+        git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:${PR_REF}"
+        echo "pr-ref=$PR_REF" >> "$GITHUB_OUTPUT"
 
     - name: Check changelog changes
       id: changelog-check
       shell: bash
       env:
         BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
-        PR_BRANCH: ${{ steps.pr-branch.outputs.pr-branch }}
+        PR_REF: ${{ steps.pr-head.outputs.pr-ref }}
         ACTION_PATH: ${{ github.action_path }}
       run: |
         set -euo pipefail
@@ -69,10 +73,10 @@ runs:
           BASE_REF="${BASH_REMATCH[1]}"
         fi
 
-        TARGET_REF=$(git merge-base "origin/$BASE_REF" "origin/$PR_BRANCH")
+        TARGET_REF=$(git merge-base "origin/$BASE_REF" "$PR_REF")
         git fetch origin "$TARGET_REF"
 
-        UPDATED_CHANGELOGS=$(git diff --name-only "$TARGET_REF" "origin/$PR_BRANCH" | grep -E 'CHANGELOG\.md$' || true)
+        UPDATED_CHANGELOGS=$(git diff --name-only "$TARGET_REF" "$PR_REF" | grep -E 'CHANGELOG\.md$' || true)
         if [ -n "$UPDATED_CHANGELOGS" ]; then
           for FILE in $UPDATED_CHANGELOGS; do
             if [ ! -f "$FILE" ]; then
@@ -87,7 +91,7 @@ runs:
 
             echo "Checking changelog file: $FILE"
             git show "$TARGET_REF":"$FILE" > /tmp/base-changelog.md
-            git show origin/"$PR_BRANCH":"$FILE" > /tmp/pr-changelog.md
+            git show "$PR_REF":"$FILE" > /tmp/pr-changelog.md
 
             node "${ACTION_PATH}/check-changelog-diff.cjs" \
               /tmp/base-changelog.md \
