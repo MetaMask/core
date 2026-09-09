@@ -541,7 +541,6 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          // @ts-expect-error T&C2 flags are required
           await controller.acceptTermsAndStartSession();
 
           expect(controller.state.phase).toBe('error');
@@ -4950,7 +4949,7 @@ function withController<ReturnValue>(
     parent: rootMessenger,
   });
   rootMessenger.delegate({
-    actions: SERVICE_ACTIONS,
+    actions: [...SERVICE_ACTIONS],
     events: [],
     messenger,
   });
