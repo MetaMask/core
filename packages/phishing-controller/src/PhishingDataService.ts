@@ -16,13 +16,15 @@ import type {
 import type { Infer, Struct } from '@metamask/superstruct';
 import {
   array,
+  boolean,
   is,
+  literal,
   number,
   optional,
   record,
   string,
   type,
-  unknown,
+  union,
 } from '@metamask/superstruct';
 import { Duration, getErrorMessage, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
@@ -39,6 +41,13 @@ import type {
   PhishingDetectionScanResult,
   PhishingStalelist,
   TokenScanApiResponse,
+} from './types.js';
+import {
+  AddressScanResultType,
+  ApprovalFeatureType,
+  ApprovalResultType,
+  RecommendedAction,
+  TokenScanResultType,
 } from './types.js';
 import {
   getHostnameFromWebUrl,
@@ -216,18 +225,62 @@ export type PhishingDataServiceMessenger = Messenger<
 
 // === RESPONSE VALIDATION ===
 
-// The structs below intentionally validate only the shape that the consuming
-// code depends on for control flow, mirroring the tolerance of the previous
-// in-controller fetching: a response that is missing auxiliary fields is
-// passed through rather than rejected.
+const RecommendedActionStruct = union([
+  literal(RecommendedAction.None),
+  literal(RecommendedAction.Warn),
+  literal(RecommendedAction.Block),
+  literal(RecommendedAction.Verified),
+]);
+
+const TokenScanResultTypeStruct = union([
+  literal(TokenScanResultType.Benign),
+  literal(TokenScanResultType.Warning),
+  literal(TokenScanResultType.Malicious),
+  literal(TokenScanResultType.Spam),
+]);
+
+const AddressScanResultTypeStruct = union([
+  literal(AddressScanResultType.Benign),
+  literal(AddressScanResultType.Warning),
+  literal(AddressScanResultType.Malicious),
+  literal(AddressScanResultType.ErrorResult),
+]);
+
+const ApprovalResultTypeStruct = union([
+  literal(ApprovalResultType.Benign),
+  literal(ApprovalResultType.Warning),
+  literal(ApprovalResultType.Malicious),
+  literal(ApprovalResultType.ErrorResult),
+]);
+
+const ApprovalFeatureTypeStruct = union([
+  literal(ApprovalFeatureType.Benign),
+  literal(ApprovalFeatureType.Warning),
+  literal(ApprovalFeatureType.Malicious),
+  literal(ApprovalFeatureType.Info),
+]);
+
 const StalelistResponseStruct = type({
   data: type({
+    allowlist: array(string()),
+    blocklist: array(string()),
+    blocklistPaths: array(string()),
+    fuzzylist: array(string()),
+    tolerance: number(),
+    version: number(),
     lastUpdated: number(),
   }),
 });
 
 const HotlistDiffsResponseStruct = type({
-  data: array(unknown()),
+  data: array(
+    type({
+      url: string(),
+      timestamp: number(),
+      targetList: string(),
+      isRemoval: optional(boolean()),
+    }),
+  ),
 });
 
 const C2DomainBlocklistResponseStruct = type({
@@ -236,24 +289,63 @@ const C2DomainBlocklistResponseStruct = type({
 });
 
 const ScanUrlResponseStruct = type({
-  recommendedAction: string(),
+  recommendedAction: RecommendedActionStruct,
 });
 
 const BulkScanUrlsResponseStruct = type({
-  results: record(string(), unknown()),
+  results: record(string(), ScanUrlResponseStruct),
   errors: record(string(), array(string())),
 });
 
+const TokenScanResultStruct = type({
+  result_type: TokenScanResultTypeStruct,
+  chain: optional(string()),
+  address: optional(string()),
+});
+
 const BulkScanTokensResponseStruct = type({
-  results: optional(record(string(), unknown())),
+  results: optional(record(string(), TokenScanResultStruct)),
 });
 
 const ScanAddressResponseStruct = type({
-  result_type: string(),
+  result_type: AddressScanResultTypeStruct,
+  label: string(),
+});
+
+const ApprovalFeatureStruct = type({
+  feature_id: string(),
+  type: ApprovalFeatureTypeStruct,
+  description: string(),
+});
+
+const ApprovalStruct = type({
+  allowance: type({
+    value: optional(string()),
+    usd_price: optional(string()),
+  }),
+  asset: type({
+    address: string(),
+    symbol: string(),
+    name: string(),
+    decimals: number(),
+    logo_url: optional(string()),
+    type: optional(string()),
+  }),
+  exposure: type({
+    usd_price: optional(string()),
+    value: string(),
+    raw_value: string(),
+  }),
+  spender: type({
+    address: string(),
+    label: optional(string()),
+    features: optional(array(ApprovalFeatureStruct)),
+  }),
+  verdict: ApprovalResultTypeStruct,
 });
 
 const ApprovalsResponseStruct = type({
-  approvals: array(unknown()),
+  approvals: array(ApprovalStruct),
 });
 
 // === BATCH LOADING ===
@@ -618,6 +710,16 @@ export class PhishingDataService extends BaseDataService<
         const itemErrors: Record<string, Error> = {};
         for (const [key, messages] of Object.entries(response.errors)) {
           itemErrors[key] = new BatchItemError(messages.join(', '));
+        }
+        for (const url of batchUrls) {
+          if (
+            !Object.hasOwn(response.results, url) &&
+            !Object.hasOwn(itemErrors, url)
+          ) {
+            itemErrors[url] = new BatchItemError(
+              'No result returned by bulk URL scan endpoint',
+            );
+          }
         }
         return {
           results: response.results as Record<string, Json>,

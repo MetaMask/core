@@ -1957,6 +1957,7 @@ describe('PhishingController', () => {
             data: {
               allowlist: [],
               blocklist: [],
+              blocklistPaths: [],
               fuzzylist: [],
               tolerance: 0,
               version: 0,
@@ -1993,6 +1994,7 @@ describe('PhishingController', () => {
             data: {
               allowlist: [],
               blocklist: [],
+              blocklistPaths: [],
               fuzzylist: [],
               tolerance: 0,
               version: 0,
@@ -2571,6 +2573,7 @@ describe('PhishingController', () => {
           data: {
             allowlist: [],
             blocklist: [],
+            blocklistPaths: [],
             fuzzylist: [],
             tolerance: 0,
             version: 0,
@@ -2609,6 +2612,7 @@ describe('PhishingController', () => {
           data: {
             allowlist: [],
             blocklist: [],
+            blocklistPaths: [],
             fuzzylist: [],
             tolerance: 0,
             version: 0,
@@ -2646,6 +2650,7 @@ describe('PhishingController', () => {
           data: {
             allowlist: [],
             blocklist: [],
+            blocklistPaths: [],
             fuzzylist: [],
             tolerance: 0,
             version: 0,
@@ -2682,6 +2687,7 @@ describe('PhishingController', () => {
           data: {
             allowlist: [],
             blocklist: [],
+            blocklistPaths: [],
             fuzzylist: [],
             tolerance: 0,
             version: 0,
