@@ -1,7 +1,11 @@
 /**
- * Error codes for PerpsController
- * These codes are returned to the UI layer for translation
- * Extracted to separate file to avoid circular dependencies with translatePerpsError
+ * Error codes for PerpsController.
+ * These codes are returned to the UI layer for translation.
+ * Extracted to a separate file to avoid circular dependencies with translatePerpsError.
+ *
+ * Adding a code is a minor, not a breaking change. Clients must handle unknown
+ * codes in a catch-all (else / default / fallback translation) rather than an
+ * exhaustive `Record<PerpsErrorCode, …>`.
  */
 export const PERPS_ERROR_CODES = {
   CLIENT_NOT_INITIALIZED: 'CLIENT_NOT_INITIALIZED',
