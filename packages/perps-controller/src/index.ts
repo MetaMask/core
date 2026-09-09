@@ -203,6 +203,7 @@ export type {
   TrackingData,
   TPSLTrackingData,
   OrderParams,
+  MarginMode,
   OrderResult,
   ScaleOrderChild,
   ChaseOrder,

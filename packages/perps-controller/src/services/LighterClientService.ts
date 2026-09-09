@@ -157,6 +157,15 @@ const AccountStruct = type({
   availableBalance: NonNegativeDecimalStringStruct,
   positions: optional(array(PositionStruct)),
 });
+// The address-discovery endpoint is an identity lookup, not a financial read:
+// live responses can carry sparse balance fields (for example an empty
+// `availableBalance`). Validate only the fields its sole consumer needs. Full
+// account reads retain AccountStruct and its strict financial validation.
+const AccountSummaryStruct = type({
+  accountType: SafeIntegerStruct,
+  index: NonNegativeIntegerStruct,
+  l1Address: string(),
+});
 const MarketBaseStruct = type({
   symbol: string(),
   marketId: NonNegativeIntegerStruct,
@@ -259,8 +268,8 @@ const TradeStruct = type({
   bidAccountId: NonNegativeIntegerStruct,
   isMakerAsk: boolean(),
   timestamp: NonNegativeIntegerStruct,
-  askAccountPnl: SignedDecimalStringStruct,
-  bidAccountPnl: SignedDecimalStringStruct,
+  askAccountPnl: optional(SignedDecimalStringStruct),
+  bidAccountPnl: optional(SignedDecimalStringStruct),
   takerFee: optional(NonNegativeFinancialNumberStruct),
   makerFee: optional(NonNegativeFinancialNumberStruct),
   takerPositionSizeBefore: NonNegativeDecimalStringStruct,
@@ -285,7 +294,7 @@ const ResponseStructs = {
   accountsByAddress: type({
     ...BaseResponseStruct.schema,
     l1Address: string(),
-    subAccounts: array(AccountStruct),
+    subAccounts: array(AccountSummaryStruct),
   }),
   apiKeys: type({
     ...BaseResponseStruct.schema,

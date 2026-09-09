@@ -27,16 +27,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - The daemon client (`sendCommand`) now retries only on `ECONNREFUSED`, not `ECONNRESET`, since a reset can drop after the daemon has already acted on a request — re-sending could execute a non-idempotent action (e.g. a transaction broadcast) twice ([#9608](https://github.com/MetaMask/core/pull/9608))
 - `--password` / `MM_WALLET_PASSWORD` is now optional on `mm daemon start`; on subsequent runs, omitting it starts the daemon with a locked keyring, and the persisted vault is auto-unlocked when a password is supplied ([#8821](https://github.com/MetaMask/core/pull/8821))
 - The daemon RPC server now validates `params` against each handler's superstruct before dispatch, returning a `-32602 invalidParams` error on mismatch instead of passing raw params to the handler ([#8846](https://github.com/MetaMask/core/pull/8846))
 - Report daemon socket connection errors consistently across `mm daemon call` and `mm daemon list` ([#9339](https://github.com/MetaMask/core/pull/9339))
-- Bump `@metamask/wallet` from `^3.0.0` to `^12.0.2` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9263](https://github.com/MetaMask/core/pull/9263), [#9349](https://github.com/MetaMask/core/pull/9349), [#9396](https://github.com/MetaMask/core/pull/9396), [#9470](https://github.com/MetaMask/core/pull/9470), [#9609](https://github.com/MetaMask/core/pull/9609), [#9629](https://github.com/MetaMask/core/pull/9629), [#9735](https://github.com/MetaMask/core/pull/9735), [#9809](https://github.com/MetaMask/core/pull/9809), [#9903](https://github.com/MetaMask/core/pull/9903), [#9938](https://github.com/MetaMask/core/pull/9938), [#9945](https://github.com/MetaMask/core/pull/9945), [#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/wallet` from `^3.0.0` to `^13.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9263](https://github.com/MetaMask/core/pull/9263), [#9349](https://github.com/MetaMask/core/pull/9349), [#9396](https://github.com/MetaMask/core/pull/9396), [#9470](https://github.com/MetaMask/core/pull/9470), [#9609](https://github.com/MetaMask/core/pull/9609), [#9629](https://github.com/MetaMask/core/pull/9629), [#9735](https://github.com/MetaMask/core/pull/9735), [#9809](https://github.com/MetaMask/core/pull/9809), [#9903](https://github.com/MetaMask/core/pull/9903), [#9938](https://github.com/MetaMask/core/pull/9938), [#9945](https://github.com/MetaMask/core/pull/9945), [#9969](https://github.com/MetaMask/core/pull/9969), [#10137](https://github.com/MetaMask/core/pull/10137), [#10160](https://github.com/MetaMask/core/pull/10160))
 - Wrap daemon password and SRP in opaque `Password` and `Srp` types that redact on logging; validated and unwrapped only at trust boundaries ([#8863](https://github.com/MetaMask/core/pull/8863))
-- Bump `@metamask/analytics-controller` from `^1.2.1` to `^2.1.0` ([#9735](https://github.com/MetaMask/core/pull/9735), [#10092](https://github.com/MetaMask/core/pull/10092))
-- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^6.1.1` ([#9735](https://github.com/MetaMask/core/pull/9735), [#9945](https://github.com/MetaMask/core/pull/9945), [#9980](https://github.com/MetaMask/core/pull/9980), [#10129](https://github.com/MetaMask/core/pull/10129))
+- Bump `@metamask/analytics-controller` from `^1.2.1` to `^3.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735), [#10092](https://github.com/MetaMask/core/pull/10092), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^7.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735), [#9945](https://github.com/MetaMask/core/pull/9945), [#9980](https://github.com/MetaMask/core/pull/9980), [#10129](https://github.com/MetaMask/core/pull/10129), [#10160](https://github.com/MetaMask/core/pull/10160))
 - Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
-- Bump `@metamask/config-registry-controller` from `^3.0.0` to `^3.1.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+- Bump `@metamask/config-registry-controller` from `^3.0.0` to `^4.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969), [#10160](https://github.com/MetaMask/core/pull/10160))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/storage-service` from `^1.0.2` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 [Unreleased]: https://github.com/MetaMask/core/

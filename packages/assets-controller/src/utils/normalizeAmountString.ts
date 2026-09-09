@@ -1,4 +1,4 @@
-import BigNumberJS from 'bignumber.js';
+import { BigNumber as BigNumberJS } from 'bignumber.js';
 
 /**
  * Normalize an asset balance `amount` string into a canonical plain-decimal

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/user-operation-controller",
-  "version": "41.2.9",
+  "version": "42.0.0",
   "description": "Creates user operations and manages their life cycle",
   "keywords": [
     "Ethereum",
@@ -18,19 +18,12 @@
   "files": [
     "dist/"
   ],
+  "type": "module",
   "sideEffects": false,
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.cts",
-        "default": "./dist/index.cjs"
-      }
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -39,9 +32,11 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
-    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
+    "build": "tsc --project tsconfig.build.json",
+    "build:all": "tsc --build tsconfig.build.json --verbose",
+    "build:clean": "yarn build:only-clean && yarn build",
     "build:docs": "typedoc",
+    "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/user-operation-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/user-operation-controller",
     "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
@@ -56,41 +51,42 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/approval-controller": "^9.0.2",
-    "@metamask/base-controller": "^9.1.0",
-    "@metamask/controller-utils": "^12.3.0",
+    "@metamask/approval-controller": "^10.0.0",
+    "@metamask/base-controller": "^10.0.0",
+    "@metamask/controller-utils": "^13.0.0",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/gas-fee-controller": "^26.3.2",
-    "@metamask/keyring-controller": "^27.1.1",
-    "@metamask/messenger": "^2.0.0",
-    "@metamask/network-controller": "^36.0.0",
-    "@metamask/polling-controller": "^16.0.9",
+    "@metamask/gas-fee-controller": "^27.0.0",
+    "@metamask/keyring-controller": "^28.0.0",
+    "@metamask/messenger": "^3.0.0",
+    "@metamask/network-controller": "^37.0.0",
+    "@metamask/polling-controller": "^17.0.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^69.8.1",
+    "@metamask/transaction-controller": "^70.0.0",
     "@metamask/utils": "^11.12.0",
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",
-    "lodash": "^4.17.21",
-    "uuid": "^8.3.2"
+    "lodash-es": "^4.17.21",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/eth-block-tracker": "^15.0.0",
-    "@ts-bridge/cli": "^0.6.4",
+    "@metamask/eth-block-tracker": "^16.0.0",
     "@types/jest": "^30.0.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
+    "rimraf": "^5.0.5",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.3.3"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "peerDependencies": {
     "@metamask/eth-block-tracker": ">=9"
   },
   "engines": {
-    "node": "^18.18 || >=20"
+    "node": "^22.14.0 || ^24"
   }
 }

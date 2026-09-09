@@ -402,13 +402,26 @@ export type LighterSubAccount = {
 };
 
 /**
+ * Identity fields returned by `GET /api/v1/accountsByL1Address`.
+ *
+ * Lighter's address-discovery endpoint may leave balance fields empty even
+ * though the full `account` endpoint returns validated decimal values. Account
+ * discovery only consumes these identity fields; financial reads continue to
+ * use {@link LighterSubAccount} and its stricter response validation.
+ */
+export type LighterAccountSummary = Pick<
+  LighterSubAccount,
+  'accountType' | 'index' | 'l1Address'
+>;
+
+/**
  * Response of `GET /api/v1/accountsByL1Address`.
  */
 export type LighterAccountsByL1AddressResponse = {
   code: number;
   message?: string;
   l1Address: string;
-  subAccounts: LighterSubAccount[];
+  subAccounts: LighterAccountSummary[];
 };
 
 /**
@@ -657,9 +670,9 @@ export type LighterRestTrade = {
   isMakerAsk: boolean;
   timestamp: number;
   /** Realized pnl for the ask-side account, signed USDC. */
-  askAccountPnl: string;
+  askAccountPnl?: string;
   /** Realized pnl for the bid-side account, signed USDC. */
-  bidAccountPnl: string;
+  bidAccountPnl?: string;
   /**
    * Taker/maker fees, present when nonzero. The official model types them
    * as StrictInt with NO documented unit or scale; until a captured

@@ -484,6 +484,7 @@ export function adaptMarketFromSDK(
     maxLeverage: sdkMarket.maxLeverage,
     marginTableId: sdkMarket.marginTableId,
     onlyIsolated: sdkMarket.onlyIsolated,
+    marginMode: sdkMarket.marginMode,
     isDelisted: sdkMarket.isDelisted,
   };
 }

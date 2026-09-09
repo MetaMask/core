@@ -9,6 +9,7 @@ import type { LoginResponse, Pair } from './authentication-jwt-bearer/types.js';
 import { JwtBearerAuth } from './authentication.js';
 import {
   NonceRetrievalError,
+  PairConflictError,
   PairError,
   SignInError,
   UnsupportedAuthTypeError,
@@ -656,6 +657,56 @@ describe('Authentication - SRP Default Flow - signMessage() & getIdentifier()', 
 
     const message = await auth.signMessage('metamask:test message');
     expect(message).toBeDefined();
+  });
+});
+
+describe('Authentication - pairSocialIdentifier()', () => {
+  it('pairs a Google identifier', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { mockPairSocialIdentifierUrl } = arrangeAuthAPIs();
+
+    expect(
+      await auth.pairSocialIdentifier(
+        {
+          identifierType: 'GOOGLE',
+          socialJwt: 'social-jwt',
+          email: 'user@example.com',
+        },
+        'primary-srp-token',
+      ),
+    ).toBeUndefined();
+    expect(mockPairSocialIdentifierUrl.isDone()).toBe(true);
+  });
+
+  it('throws PairConflictError when the identifier is already owned', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    arrangeAuthAPIs({
+      mockPairSocialIdentifier: {
+        status: 409,
+        body: {
+          message: 'Identifier already belongs to another profile',
+          error: 'conflict',
+        },
+      },
+    });
+
+    await expect(
+      auth.pairSocialIdentifier(
+        { identifierType: 'APPLE', socialJwt: 'social-jwt' },
+        'primary-srp-token',
+      ),
+    ).rejects.toThrow(PairConflictError);
+  });
+
+  it('rejects when called from the SIWE flow', async () => {
+    const { auth } = arrangeAuth('SiWE', MOCK_ADDRESS);
+
+    await expect(
+      auth.pairSocialIdentifier(
+        { identifierType: 'APPLE', socialJwt: 'social-jwt' },
+        'primary-srp-token',
+      ),
+    ).rejects.toThrow(UnsupportedAuthTypeError);
   });
 });
 
