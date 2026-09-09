@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/1242.0.0 ([#10139](https://github.com/MetaMask/core/pull/10139))
+- Release 1239.0.0 ([#10129](https://github.com/MetaMask/core/pull/10129))
+- Release/1238.0.0 ([#10124](https://github.com/MetaMask/core/pull/10124))
+- Preserve api-docs/ (not docs/) for Typedoc-generated directories ([#10114](https://github.com/MetaMask/core/pull/10114))
+
 ### Added
 
 - **BREAKING:** Add `ORDER_MARGIN_MODE_INVALID`, `ORDER_MARGIN_MODE_UNSUPPORTED`, `ORDER_MARGIN_MODE_POSITION_OPEN`, and `ORDER_MARGIN_MODE_ORDER_OPEN` to the exported `PerpsErrorCode` union. ([#10136](https://github.com/MetaMask/core/pull/10136))
