@@ -2822,7 +2822,9 @@ describe('KycController', () => {
             product: 'money',
           });
 
-          expect(handlers.fetchSessionDisclaimersBySessionId).toHaveBeenCalled();
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).toHaveBeenCalled();
           expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith({
             vendor: 'iron',
             disclaimerIds: ['d1'],
@@ -3189,7 +3191,9 @@ describe('KycController', () => {
             vendor: 'iron',
             disclaimerIds: ['d1'],
           });
-          expect(handlers.fetchSessionDisclaimersBySessionId).toHaveBeenCalledWith({
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
           expect(handlers.submitSessionDisclaimers).toHaveBeenCalledWith({
@@ -3207,7 +3211,8 @@ describe('KycController', () => {
           expect(
             handlers.createUkycSession.mock.invocationCallOrder[0],
           ).toBeLessThan(
-            handlers.fetchSessionDisclaimersBySessionId.mock.invocationCallOrder[0],
+            handlers.fetchSessionDisclaimersBySessionId.mock
+              .invocationCallOrder[0],
           );
           expect(handlers.createUkycSession).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -3311,7 +3316,9 @@ describe('KycController', () => {
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
-          expect(handlers.fetchSessionDisclaimersBySessionId).toHaveBeenCalledTimes(2);
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).toHaveBeenCalledTimes(2);
           expect(controller.state.phase).toBe('done');
           expect(launcher.launch).toHaveBeenCalled();
           controller.reset();
@@ -3388,7 +3395,9 @@ describe('KycController', () => {
             })),
             credentialReusabilityConsentGiven: false,
           };
-          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(consentedDocs);
+          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(
+            consentedDocs,
+          );
           handlers.submitSessionDisclaimers.mockRejectedValue(
             new HttpError(
               409,
@@ -4109,7 +4118,9 @@ describe('KycController', () => {
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
-          expect(handlers.fetchSessionDisclaimersBySessionId).toHaveBeenCalledWith({
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
           expect(launcher.launch).not.toHaveBeenCalled();
@@ -4167,10 +4178,12 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.fetchSessionDisclaimersBySessionId.mockImplementation(async () => {
-            controller.reset();
-            return MOCK_SESSION_DISCLAIMERS;
-          });
+          handlers.fetchSessionDisclaimersBySessionId.mockImplementation(
+            async () => {
+              controller.reset();
+              return MOCK_SESSION_DISCLAIMERS;
+            },
+          );
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -4440,7 +4453,9 @@ describe('KycController', () => {
           });
 
           expect(controller.state.phase).toBe('idle');
-          expect(handlers.fetchSessionDisclaimersBySessionId).not.toHaveBeenCalled();
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).not.toHaveBeenCalled();
           expect(handlers.submitSessionDisclaimers).not.toHaveBeenCalled();
         },
       );

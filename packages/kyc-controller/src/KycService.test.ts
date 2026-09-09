@@ -868,7 +868,9 @@ describe('KycService', () => {
       const { service } = getService();
 
       expect(
-        await service.fetchSessionDisclaimersBySessionId({ sessionId: 'sid-1' }),
+        await service.fetchSessionDisclaimersBySessionId({
+          sessionId: 'sid-1',
+        }),
       ).toStrictEqual(catalog);
     });
 
