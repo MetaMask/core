@@ -6904,18 +6904,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-block-tracker@npm:^15.0.0":
-  version: 15.0.1
-  resolution: "@metamask/eth-block-tracker@npm:15.0.1"
-  dependencies:
-    "@metamask/eth-json-rpc-provider": "npm:^6.0.0"
-    "@metamask/safe-event-emitter": "npm:^3.0.0"
-    "@metamask/utils": "npm:^11.9.0"
-    json-rpc-random-id: "npm:^1.0.1"
-  checksum: 10/8c0e0f5bde00fb40aa240fc562c29d0ce84156402132705d387c95453c6f265b3b738c9b649510771965d8b5b8036c2bdc6406142ff634383bf60df3741bdbfe
-  languageName: node
-  linkType: hard
-
 "@metamask/eth-block-tracker@npm:^16.0.0, @metamask/eth-block-tracker@workspace:packages/eth-block-tracker":
   version: 0.0.0-use.local
   resolution: "@metamask/eth-block-tracker@workspace:packages/eth-block-tracker"
@@ -7023,18 +7011,6 @@ __metadata:
     "@metamask/utils": "npm:^11.8.1"
     uuid: "npm:^8.3.2"
   checksum: 10/1b874b04a0d8c53edf7036c8dbf4403101afba548cfd3bfc1fa969b893905a72e44c36a17b60ccb202f14a8e012b08031b4649c2ee77d604dc84dfbc6c88b812
-  languageName: node
-  linkType: hard
-
-"@metamask/eth-json-rpc-provider@npm:^6.0.0":
-  version: 6.0.1
-  resolution: "@metamask/eth-json-rpc-provider@npm:6.0.1"
-  dependencies:
-    "@metamask/json-rpc-engine": "npm:^10.2.4"
-    "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/utils": "npm:^11.9.0"
-    nanoid: "npm:^3.3.8"
-  checksum: 10/06078a9e43b02f35387a3ccfe09733c7eeac2a732dee1f1be53254fc05719e230776b8512b13702a178fb692088fc7da46f727c5064550d65f51ac59d44f9d83
   languageName: node
   linkType: hard
 
@@ -9413,7 +9389,7 @@ __metadata:
     "@metamask/connectivity-controller": "npm:^1.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/core-backend": "npm:^10.0.0"
-    "@metamask/eth-block-tracker": "npm:^15.0.0"
+    "@metamask/eth-block-tracker": "npm:^16.0.0"
     "@metamask/eth-json-rpc-provider": "npm:^7.0.0"
     "@metamask/ethjs-provider-http": "npm:^0.3.0"
     "@metamask/gas-fee-controller": "npm:^27.0.0"
@@ -9500,7 +9476,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
-    "@metamask/eth-block-tracker": "npm:^15.0.0"
+    "@metamask/eth-block-tracker": "npm:^16.0.0"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/gas-fee-controller": "npm:^27.0.0"
     "@metamask/keyring-controller": "npm:^28.0.0"
