@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -14,7 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
-- Bump `@metamask/remote-feature-flag-controller` from `^6.1.0` to `^6.1.1` ([#10129](https://github.com/MetaMask/core/pull/10129))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.1.0` to `^7.0.0` ([#10129](https://github.com/MetaMask/core/pull/10129), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/authenticated-user-storage` from `^3.0.2` to `^4.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/chomp-api-service` from `^4.0.2` to `^5.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/delegation-controller` from `^3.0.2` to `^4.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/money-account-utils` from `^1.2.0` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [4.0.0]
 
@@ -205,7 +215,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MoneyAccountUpgradeController` with `upgradeAccount` method ([#8426](https://github.com/MetaMask/core/pull/8426))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@4.0.0...@metamask/money-account-upgrade-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.2...@metamask/money-account-upgrade-controller@4.0.0
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.1...@metamask/money-account-upgrade-controller@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.0...@metamask/money-account-upgrade-controller@3.0.1

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -14,9 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
-- Bump `@metamask/core-backend` from `^9.0.0` to `^9.1.1` ([#10138](https://github.com/MetaMask/core/pull/10138), [#10139](https://github.com/MetaMask/core/pull/10139))
-- Bump `@metamask/transaction-controller` from `^69.6.0` to `^69.8.1` ([#9969](https://github.com/MetaMask/core/pull/9969), [#10080](https://github.com/MetaMask/core/pull/10080), [#10046](https://github.com/MetaMask/core/pull/10046), [#10124](https://github.com/MetaMask/core/pull/10124))
+- Bump `@metamask/core-backend` from `^9.0.0` to `^10.0.0` ([#10138](https://github.com/MetaMask/core/pull/10138), [#10139](https://github.com/MetaMask/core/pull/10139), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/transaction-controller` from `^69.6.0` to `^70.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969), [#10080](https://github.com/MetaMask/core/pull/10080), [#10046](https://github.com/MetaMask/core/pull/10046), [#10124](https://github.com/MetaMask/core/pull/10124), [#10160](https://github.com/MetaMask/core/pull/10160))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [2.1.1]
 
@@ -157,7 +160,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.1.1...@metamask/client-utils@3.0.0
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.1.0...@metamask/client-utils@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.0.2...@metamask/client-utils@2.1.0
 [2.0.2]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.0.1...@metamask/client-utils@2.0.2

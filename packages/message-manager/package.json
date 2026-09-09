@@ -1,6 +1,6 @@
 {
   "name": "@metamask/message-manager",
-  "version": "14.1.2",
+  "version": "15.0.0",
   "description": "Stores and manages interactions with signing requests",
   "keywords": [
     "Ethereum",
@@ -48,10 +48,10 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^9.1.0",
-    "@metamask/controller-utils": "^12.3.0",
+    "@metamask/base-controller": "^10.0.0",
+    "@metamask/controller-utils": "^13.0.0",
     "@metamask/eth-sig-util": "^9.0.0",
-    "@metamask/messenger": "^2.0.0",
+    "@metamask/messenger": "^3.0.0",
     "@metamask/utils": "^11.12.0",
     "@types/uuid": "^8.3.0",
     "jsonschema": "^1.4.1",
