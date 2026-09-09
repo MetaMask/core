@@ -101,6 +101,33 @@ describe('PhishingDataService', () => {
         rootMessenger.call('PhishingDataService:getStalelist'),
       ).rejects.toThrow('Malformed response received from stalelist endpoint');
     });
+
+    it('aborts a pending list request when the service is destroyed', async () => {
+      let requestSignal: AbortSignal | null | undefined;
+      const fetchMock = jest.spyOn(globalThis, 'fetch').mockImplementation(
+        (_input, init) =>
+          new Promise<Response>((_resolve, reject) => {
+            requestSignal = init?.signal;
+            requestSignal?.addEventListener(
+              'abort',
+              () => reject(new Error('aborted')),
+              { once: true },
+            );
+          }),
+      );
+      const { service } = createService();
+      const pendingRequest = service.getStalelist().catch((error) => error);
+
+      try {
+        await flushPromises();
+        service.destroy();
+
+        expect(requestSignal?.aborted).toBe(true);
+        await pendingRequest;
+      } finally {
+        fetchMock.mockRestore();
+      }
+    });
   });
 
   describe('getHotlistDiffs', () => {

@@ -588,9 +588,9 @@ export class PhishingDataService extends BaseDataService<
       queryKey: [`${this.name}:getStalelist`],
       // Validated inside the query function so that a malformed response is
       // never committed to, or persisted from, the query cache.
-      queryFn: async () =>
+      queryFn: async ({ signal }) =>
         this.#validate(
-          await this.#getJson(METAMASK_STALELIST_URL),
+          await this.#getJson(METAMASK_STALELIST_URL, { signal }),
           StalelistResponseStruct,
           'stalelist',
         ) as Json,
@@ -612,9 +612,11 @@ export class PhishingDataService extends BaseDataService<
   ): Promise<DataResultWrapper<Hotlist>> {
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:getHotlistDiffs`, timestamp],
-      queryFn: async () =>
+      queryFn: async ({ signal }) =>
         this.#validate(
-          await this.#getJson(`${METAMASK_HOTLIST_DIFF_URL}/${timestamp}`),
+          await this.#getJson(`${METAMASK_HOTLIST_DIFF_URL}/${timestamp}`, {
+            signal,
+          }),
           HotlistDiffsResponseStruct,
           'hotlist diffs',
         ) as Json,
@@ -642,9 +644,9 @@ export class PhishingDataService extends BaseDataService<
 
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:getC2DomainBlocklist`, timestamp ?? null],
-      queryFn: async () =>
+      queryFn: async ({ signal }) =>
         this.#validate(
-          await this.#getJson(url),
+          await this.#getJson(url, { signal }),
           C2DomainBlocklistResponseStruct,
           'C2 domain blocklist',
         ) as Json,
@@ -990,10 +992,15 @@ export class PhishingDataService extends BaseDataService<
    * Performs a GET request against a phishing configuration endpoint.
    *
    * @param url - The URL to fetch.
+   * @param options - Request cancellation options.
+   * @param options.signal - A signal that cancels the request.
    * @returns The parsed JSON response.
    */
-  async #getJson(url: string): Promise<Json> {
-    return this.#fetchJson(url, { cache: 'no-cache' });
+  async #getJson(
+    url: string,
+    { signal }: { signal?: AbortSignal },
+  ): Promise<Json> {
+    return this.#fetchJson(url, { cache: 'no-cache', signal });
   }
 
   /**
