@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [17.0.0]
 
-### Uncategorized
-
-- chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
-- Preserve api-docs/ (not docs/) for Typedoc-generated directories ([#10114](https://github.com/MetaMask/core/pull/10114))
-
 ### Added
 
 - Export `AbstractPollingControllerBaseMixin`, `getKey`, `Constructor`, and `PollingTokenSetId` ([#9882](https://github.com/MetaMask/core/pull/9882))
