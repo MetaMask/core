@@ -51,7 +51,7 @@ import {
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
   SeedlessPasswordChangePhase,
-  PasswordChangeRecoveryStatus,
+  PasswordSyncStatus,
   Web3AuthNetwork,
 } from './constants.js';
 import {
@@ -2371,11 +2371,11 @@ export class SeedlessOnboardingController<
    * @param options.skipCache - Whether to bypass the outdated cache. Ignored
    * for `SEEDLESS_CHANGE_PENDING`, which always forces a remote check.
    * @returns The sync/recovery resolution. On any failure the last known phase
-   * is preserved and `PasswordChangeRecoveryStatus.Unknown` is returned.
+   * is preserved and `PasswordSyncStatus.Unknown` is returned.
    */
   async resolvePasswordSyncState(options?: {
     skipCache?: boolean;
-  }): Promise<PasswordChangeRecoveryStatus> {
+  }): Promise<PasswordSyncStatus> {
     const phase = this.state.passwordChangePhase;
     switch (phase) {
       case undefined: {
@@ -2386,11 +2386,11 @@ export class SeedlessOnboardingController<
             skipCache: options?.skipCache,
           });
           return outdated
-            ? PasswordChangeRecoveryStatus.PasswordOutdated
-            : PasswordChangeRecoveryStatus.InSync;
+            ? PasswordSyncStatus.PasswordOutdated
+            : PasswordSyncStatus.InSync;
         } catch {
           // Remote state could not be established. Keep the wallet locked.
-          return PasswordChangeRecoveryStatus.Unknown;
+          return PasswordSyncStatus.Unknown;
         }
       }
       case SeedlessPasswordChangePhase.SeedlessChangePending: {
@@ -2408,25 +2408,25 @@ export class SeedlessOnboardingController<
               // Remote did not commit. Clear the phase; unlock with the old
               // password normally.
               this.#writePasswordChangePhase(undefined);
-              return PasswordChangeRecoveryStatus.InSync;
+              return PasswordSyncStatus.InSync;
             }
             // Remote committed. Advance so recovery reconciles the local
             // Seedless side with the new password.
             this.#writePasswordChangePhase(
               SeedlessPasswordChangePhase.SeedlessCommitted,
             );
-            return PasswordChangeRecoveryStatus.EnterNewPassword;
+            return PasswordSyncStatus.EnterNewPassword;
           } catch {
             // Remote state could not be established. Preserve the phase and
             // keep the wallet locked.
-            return PasswordChangeRecoveryStatus.Unknown;
+            return PasswordSyncStatus.Unknown;
           }
         });
       }
       case SeedlessPasswordChangePhase.SeedlessCommitted:
-        return PasswordChangeRecoveryStatus.EnterNewPassword;
+        return PasswordSyncStatus.EnterNewPassword;
       case SeedlessPasswordChangePhase.LocalKeyringPending:
-        return PasswordChangeRecoveryStatus.ReconcileKeyring;
+        return PasswordSyncStatus.ReconcileKeyring;
       default:
         // Terminal phases (KEY_SYNC_PENDING, UNKNOWN) and any unrecognized
         // persisted value share routing.
@@ -2459,20 +2459,20 @@ export class SeedlessOnboardingController<
    * @param params - The reconciliation parameters.
    * @param params.globalPassword - The current global password.
    * @returns The reconciliation result. On any failure the last known phase is
-   * preserved and `PasswordChangeRecoveryStatus.Unknown` is returned.
+   * preserved and `PasswordSyncStatus.Unknown` is returned.
    */
   async reconcilePassword({
     globalPassword,
   }: {
     globalPassword: string;
-  }): Promise<PasswordChangeRecoveryStatus> {
+  }): Promise<PasswordSyncStatus> {
     return await this.#withControllerLock(async () => {
       const phase = this.state.passwordChangePhase;
       switch (phase) {
         case SeedlessPasswordChangePhase.SeedlessChangePending:
           // Remote state must be resolved first via
           // resolvePasswordSyncState.
-          return PasswordChangeRecoveryStatus.Unknown;
+          return PasswordSyncStatus.Unknown;
         case SeedlessPasswordChangePhase.SeedlessCommitted:
         case SeedlessPasswordChangePhase.LocalKeyringPending: {
           try {
@@ -2483,11 +2483,11 @@ export class SeedlessOnboardingController<
             this.#writePasswordChangePhase(
               SeedlessPasswordChangePhase.LocalKeyringPending,
             );
-            return PasswordChangeRecoveryStatus.ReconcileKeyring;
+            return PasswordSyncStatus.ReconcileKeyring;
           } catch {
             // Reconciliation failed (e.g. wrong password or transient
             // remote error). Preserve the phase and keep the wallet locked.
-            return PasswordChangeRecoveryStatus.Unknown;
+            return PasswordSyncStatus.Unknown;
           }
         }
         case undefined: {
@@ -2501,17 +2501,17 @@ export class SeedlessOnboardingController<
               skipLock: true,
             });
             if (!outdated) {
-              return PasswordChangeRecoveryStatus.InSync;
+              return PasswordSyncStatus.InSync;
             }
             await this.#runPasswordSyncFlow(globalPassword);
             this.#writePasswordChangePhase(
               SeedlessPasswordChangePhase.LocalKeyringPending,
             );
-            return PasswordChangeRecoveryStatus.ReconcileKeyring;
+            return PasswordSyncStatus.ReconcileKeyring;
           } catch {
             // Sync failed (e.g. wrong password or transient remote error).
             // Keep the wallet locked.
-            return PasswordChangeRecoveryStatus.Unknown;
+            return PasswordSyncStatus.Unknown;
           }
         }
         default:
@@ -2560,15 +2560,15 @@ export class SeedlessOnboardingController<
    */
   #statusForTerminalPhase(
     phase: SeedlessPasswordChangePhase,
-  ): PasswordChangeRecoveryStatus {
+  ): PasswordSyncStatus {
     switch (phase) {
       case SeedlessPasswordChangePhase.KeySyncPending:
-        return PasswordChangeRecoveryStatus.SyncKey;
+        return PasswordSyncStatus.SyncKey;
       case SeedlessPasswordChangePhase.Unknown:
-        return PasswordChangeRecoveryStatus.Unknown;
+        return PasswordSyncStatus.Unknown;
       default:
         // An unrecognized persisted phase is treated as no change in progress.
-        return PasswordChangeRecoveryStatus.InSync;
+        return PasswordSyncStatus.InSync;
     }
   }
 

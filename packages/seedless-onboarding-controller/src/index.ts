@@ -55,7 +55,7 @@ export {
   AuthConnection,
   SecretType,
   SeedlessPasswordChangePhase,
-  PasswordChangeRecoveryStatus,
+  PasswordSyncStatus,
 } from './constants.js';
 export { SecretMetadata } from './SecretMetadata.js';
 export {

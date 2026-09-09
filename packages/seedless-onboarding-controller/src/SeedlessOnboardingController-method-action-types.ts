@@ -287,7 +287,7 @@ export type SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction =
  * @param options.skipCache - Whether to bypass the outdated cache. Ignored
  * for `SEEDLESS_CHANGE_PENDING`, which always forces a remote check.
  * @returns The sync/recovery resolution. On any failure the last known phase
- * is preserved and `PasswordChangeRecoveryStatus.Unknown` is returned.
+ * is preserved and `PasswordSyncStatus.Unknown` is returned.
  */
 export type SeedlessOnboardingControllerResolvePasswordSyncStateAction = {
   type: `SeedlessOnboardingController:resolvePasswordSyncState`;
@@ -319,7 +319,7 @@ export type SeedlessOnboardingControllerResolvePasswordSyncStateAction = {
  * @param params - The reconciliation parameters.
  * @param params.globalPassword - The current global password.
  * @returns The reconciliation result. On any failure the last known phase is
- * preserved and `PasswordChangeRecoveryStatus.Unknown` is returned.
+ * preserved and `PasswordSyncStatus.Unknown` is returned.
  */
 export type SeedlessOnboardingControllerReconcilePasswordAction = {
   type: `SeedlessOnboardingController:reconcilePassword`;

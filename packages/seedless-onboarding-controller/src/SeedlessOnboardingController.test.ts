@@ -70,7 +70,7 @@ import {
   AuthConnection,
   SecretType,
   SeedlessPasswordChangePhase,
-  PasswordChangeRecoveryStatus,
+  PasswordSyncStatus,
 } from './constants.js';
 import { RecoveryError } from './errors.js';
 import { SecretMetadata } from './SecretMetadata.js';
@@ -1134,12 +1134,12 @@ describe('SeedlessOnboardingController', () => {
           const result = await baseMessenger.call(
             'SeedlessOnboardingController:resolvePasswordSyncState',
           );
-          expect(result).toBe(PasswordChangeRecoveryStatus.InSync);
+          expect(result).toBe(PasswordSyncStatus.InSync);
           // Call again to test cache
           const result2 = await baseMessenger.call(
             'SeedlessOnboardingController:resolvePasswordSyncState',
           );
-          expect(result2).toBe(PasswordChangeRecoveryStatus.InSync);
+          expect(result2).toBe(PasswordSyncStatus.InSync);
           // Should only call fetchAuthPubKey once due to cache
           expect(spy).toHaveBeenCalledTimes(1);
         },
@@ -1160,12 +1160,12 @@ describe('SeedlessOnboardingController', () => {
           const result = await baseMessenger.call(
             'SeedlessOnboardingController:resolvePasswordSyncState',
           );
-          expect(result).toBe(PasswordChangeRecoveryStatus.PasswordOutdated);
+          expect(result).toBe(PasswordSyncStatus.PasswordOutdated);
           // Call again to test cache
           const result2 = await baseMessenger.call(
             'SeedlessOnboardingController:resolvePasswordSyncState',
           );
-          expect(result2).toBe(PasswordChangeRecoveryStatus.PasswordOutdated);
+          expect(result2).toBe(PasswordSyncStatus.PasswordOutdated);
           // Should only call fetchAuthPubKey once due to cache
           expect(spy).toHaveBeenCalledTimes(1);
         },
@@ -1189,7 +1189,7 @@ describe('SeedlessOnboardingController', () => {
               skipCache: true,
             },
           );
-          expect(result).toBe(PasswordChangeRecoveryStatus.InSync);
+          expect(result).toBe(PasswordSyncStatus.InSync);
           // Call again with skipCache: true, should call fetchAuthPubKey again
           const result2 = await baseMessenger.call(
             'SeedlessOnboardingController:resolvePasswordSyncState',
@@ -1197,7 +1197,7 @@ describe('SeedlessOnboardingController', () => {
               skipCache: true,
             },
           );
-          expect(result2).toBe(PasswordChangeRecoveryStatus.InSync);
+          expect(result2).toBe(PasswordSyncStatus.InSync);
           expect(spy).toHaveBeenCalledTimes(2);
         },
       );
@@ -1214,7 +1214,7 @@ describe('SeedlessOnboardingController', () => {
           const result = await baseMessenger.call(
             'SeedlessOnboardingController:resolvePasswordSyncState',
           );
-          expect(result).toBe(PasswordChangeRecoveryStatus.Unknown);
+          expect(result).toBe(PasswordSyncStatus.Unknown);
         },
       );
     });
@@ -1234,7 +1234,7 @@ describe('SeedlessOnboardingController', () => {
           const result = await baseMessenger.call(
             'SeedlessOnboardingController:resolvePasswordSyncState',
           );
-          expect(result).toBe(PasswordChangeRecoveryStatus.Unknown);
+          expect(result).toBe(PasswordSyncStatus.Unknown);
         },
       );
     });
@@ -1256,7 +1256,7 @@ describe('SeedlessOnboardingController', () => {
           const result = await baseMessenger.call(
             'SeedlessOnboardingController:resolvePasswordSyncState',
           );
-          expect(result).toBe(PasswordChangeRecoveryStatus.Unknown);
+          expect(result).toBe(PasswordSyncStatus.Unknown);
         },
       );
     });
@@ -4758,7 +4758,7 @@ describe('SeedlessOnboardingController', () => {
         async ({ toprfClient, controller }) => {
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
           const result = await controller.resolvePasswordSyncState();
-          expect(result).toBe(PasswordChangeRecoveryStatus.InSync);
+          expect(result).toBe(PasswordSyncStatus.InSync);
           expect(controller.state.passwordChangePhase).toBeUndefined();
         },
       );
@@ -4775,7 +4775,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller }) => {
           const result = await controller.resolvePasswordSyncState();
-          expect(result).toBe(PasswordChangeRecoveryStatus.EnterNewPassword);
+          expect(result).toBe(PasswordSyncStatus.EnterNewPassword);
           expect(controller.state.passwordChangePhase).toBe(
             SeedlessPasswordChangePhase.SeedlessCommitted,
           );
@@ -4795,7 +4795,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller }) => {
           const result = await controller.resolvePasswordSyncState();
-          expect(result).toBe(PasswordChangeRecoveryStatus.ReconcileKeyring);
+          expect(result).toBe(PasswordSyncStatus.ReconcileKeyring);
         },
       );
     });
@@ -4811,7 +4811,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller }) => {
           const result = await controller.resolvePasswordSyncState();
-          expect(result).toBe(PasswordChangeRecoveryStatus.SyncKey);
+          expect(result).toBe(PasswordSyncStatus.SyncKey);
         },
       );
     });
@@ -4827,7 +4827,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller }) => {
           const result = await controller.resolvePasswordSyncState();
-          expect(result).toBe(PasswordChangeRecoveryStatus.Unknown);
+          expect(result).toBe(PasswordSyncStatus.Unknown);
         },
       );
     });
@@ -4844,7 +4844,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller }) => {
           const result = await controller.resolvePasswordSyncState();
-          expect(result).toBe(PasswordChangeRecoveryStatus.InSync);
+          expect(result).toBe(PasswordSyncStatus.InSync);
         },
       );
     });
@@ -4863,7 +4863,7 @@ describe('SeedlessOnboardingController', () => {
           // Remote auth pub key matches the local one -> not outdated.
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
           const result = await controller.resolvePasswordSyncState();
-          expect(result).toBe(PasswordChangeRecoveryStatus.InSync);
+          expect(result).toBe(PasswordSyncStatus.InSync);
           expect(controller.state.passwordChangePhase).toBeUndefined();
         },
       );
@@ -4883,7 +4883,7 @@ describe('SeedlessOnboardingController', () => {
           // Remote auth pub key differs from the stale local one -> outdated.
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
           const result = await controller.resolvePasswordSyncState();
-          expect(result).toBe(PasswordChangeRecoveryStatus.EnterNewPassword);
+          expect(result).toBe(PasswordSyncStatus.EnterNewPassword);
           expect(controller.state.passwordChangePhase).toBe(
             SeedlessPasswordChangePhase.SeedlessCommitted,
           );
@@ -4906,7 +4906,7 @@ describe('SeedlessOnboardingController', () => {
             .spyOn(toprfClient, 'fetchAuthPubKey')
             .mockRejectedValueOnce(new Error('network failure'));
           const result = await controller.resolvePasswordSyncState();
-          expect(result).toBe(PasswordChangeRecoveryStatus.Unknown);
+          expect(result).toBe(PasswordSyncStatus.Unknown);
           // The phase is preserved as the recovery signal.
           expect(controller.state.passwordChangePhase).toBe(
             SeedlessPasswordChangePhase.SeedlessChangePending,
@@ -4933,7 +4933,7 @@ describe('SeedlessOnboardingController', () => {
           const result = await controller.reconcilePassword({
             globalPassword: NEW_PASSWORD,
           });
-          expect(result).toBe(PasswordChangeRecoveryStatus.InSync);
+          expect(result).toBe(PasswordSyncStatus.InSync);
         },
       );
     });
@@ -4952,7 +4952,7 @@ describe('SeedlessOnboardingController', () => {
           const result = await controller.reconcilePassword({
             globalPassword: NEW_PASSWORD,
           });
-          expect(result).toBe(PasswordChangeRecoveryStatus.Unknown);
+          expect(result).toBe(PasswordSyncStatus.Unknown);
           expect(controller.state.passwordChangePhase).toBe(
             SeedlessPasswordChangePhase.SeedlessChangePending,
           );
@@ -4973,7 +4973,7 @@ describe('SeedlessOnboardingController', () => {
           const result = await controller.reconcilePassword({
             globalPassword: NEW_PASSWORD,
           });
-          expect(result).toBe(PasswordChangeRecoveryStatus.SyncKey);
+          expect(result).toBe(PasswordSyncStatus.SyncKey);
         },
       );
     });
@@ -4991,7 +4991,7 @@ describe('SeedlessOnboardingController', () => {
           const result = await controller.reconcilePassword({
             globalPassword: NEW_PASSWORD,
           });
-          expect(result).toBe(PasswordChangeRecoveryStatus.Unknown);
+          expect(result).toBe(PasswordSyncStatus.Unknown);
         },
       );
     });
@@ -5010,7 +5010,7 @@ describe('SeedlessOnboardingController', () => {
           const result = await controller.reconcilePassword({
             globalPassword: NEW_PASSWORD,
           });
-          expect(result).toBe(PasswordChangeRecoveryStatus.InSync);
+          expect(result).toBe(PasswordSyncStatus.InSync);
         },
       );
     });
@@ -5070,7 +5070,7 @@ describe('SeedlessOnboardingController', () => {
             globalPassword: NEW_PASSWORD,
           });
 
-          expect(result).toBe(PasswordChangeRecoveryStatus.ReconcileKeyring);
+          expect(result).toBe(PasswordSyncStatus.ReconcileKeyring);
           // Another-device recovery must continue through the local Keyring
           // reconciliation boundary after the Seedless side is synchronized.
           expect(controller.state.passwordChangePhase).toBe(
@@ -5102,7 +5102,7 @@ describe('SeedlessOnboardingController', () => {
             globalPassword: NEW_PASSWORD,
           });
 
-          expect(result).toBe(PasswordChangeRecoveryStatus.Unknown);
+          expect(result).toBe(PasswordSyncStatus.Unknown);
         },
       );
     });
@@ -5156,7 +5156,7 @@ describe('SeedlessOnboardingController', () => {
             globalPassword: NEW_PASSWORD,
           });
 
-          expect(result).toBe(PasswordChangeRecoveryStatus.ReconcileKeyring);
+          expect(result).toBe(PasswordSyncStatus.ReconcileKeyring);
           expect(controller.state.passwordChangePhase).toBe(
             SeedlessPasswordChangePhase.LocalKeyringPending,
           );
@@ -5202,7 +5202,7 @@ describe('SeedlessOnboardingController', () => {
             await controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             }),
-          ).toBe(PasswordChangeRecoveryStatus.ReconcileKeyring);
+          ).toBe(PasswordSyncStatus.ReconcileKeyring);
           expect(
             controller.state.encryptedKeyringEncryptionKey,
           ).toBeUndefined();
@@ -5238,7 +5238,7 @@ describe('SeedlessOnboardingController', () => {
             globalPassword: NEW_PASSWORD,
           });
 
-          expect(result).toBe(PasswordChangeRecoveryStatus.Unknown);
+          expect(result).toBe(PasswordSyncStatus.Unknown);
           // The phase is preserved as the recovery signal.
           expect(controller.state.passwordChangePhase).toBe(
             SeedlessPasswordChangePhase.SeedlessCommitted,
@@ -5279,7 +5279,7 @@ describe('SeedlessOnboardingController', () => {
             await controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             }),
-          ).toBe(PasswordChangeRecoveryStatus.Unknown);
+          ).toBe(PasswordSyncStatus.Unknown);
           expect(controller.state.passwordChangePhase).toBe(
             SeedlessPasswordChangePhase.SeedlessCommitted,
           );
@@ -5329,7 +5329,7 @@ describe('SeedlessOnboardingController', () => {
             await controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             }),
-          ).toBe(PasswordChangeRecoveryStatus.Unknown);
+          ).toBe(PasswordSyncStatus.Unknown);
         },
       );
     });
@@ -5371,7 +5371,7 @@ describe('SeedlessOnboardingController', () => {
             await controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             }),
-          ).toBe(PasswordChangeRecoveryStatus.Unknown);
+          ).toBe(PasswordSyncStatus.Unknown);
         },
       );
     });
@@ -5408,7 +5408,7 @@ describe('SeedlessOnboardingController', () => {
             await controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             }),
-          ).toBe(PasswordChangeRecoveryStatus.Unknown);
+          ).toBe(PasswordSyncStatus.Unknown);
         },
       );
     });
@@ -5453,7 +5453,7 @@ describe('SeedlessOnboardingController', () => {
             await controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             }),
-          ).toBe(PasswordChangeRecoveryStatus.Unknown);
+          ).toBe(PasswordSyncStatus.Unknown);
         },
       );
     });
@@ -6223,7 +6223,7 @@ describe('SeedlessOnboardingController', () => {
           const result = await baseMessenger.call(
             'SeedlessOnboardingController:resolvePasswordSyncState',
           );
-          expect(result).toBe(PasswordChangeRecoveryStatus.Unknown);
+          expect(result).toBe(PasswordSyncStatus.Unknown);
 
           // Verify that fetchAuthPubKey was only called once (no retry)
           expect(toprfClient.fetchAuthPubKey).toHaveBeenCalledTimes(1);

@@ -46,16 +46,17 @@ export enum SeedlessPasswordChangePhase {
 }
 
 /**
- * The outcome of a password-sync / password-change recovery step, returned by
- * `resolvePasswordSyncState` (read + resolve, no password) and
- * `reconcilePassword` (apply, with password).
+ * The next step for the client after a password-sync or password-change
+ * recovery check. Returned by `resolvePasswordSyncState` (read + resolve, no
+ * password) and `reconcilePassword` (apply, with password).
  *
- * The controller owns the Seedless-side recovery sequencing; the client owns
- * the Keyring-side steps (it must call `KeyringController` directly) and UI
- * routing based on this status. See
- * [0003](./docs/0003-controller-owned-password-change-recovery-plan.md).
+ * Covers both an interrupted local password change and an another-device
+ * password change. The controller owns Seedless-side sequencing; the client
+ * owns the Keyring-side steps (it must call `KeyringController` directly)
+ * and UI routing based on this status. See
+ * [0002](./docs/0002-password-change-recovery-flow.md).
  */
-export enum PasswordChangeRecoveryStatus {
+export enum PasswordSyncStatus {
   /** The local and remote passwords are synchronized; no recovery action is needed. Unlock normally. */
   InSync = 'in-sync',
   /** No lifecycle is in flight but the remote password changed (e.g. another device changed it). Prompt for the new password, then call `reconcilePassword`. */

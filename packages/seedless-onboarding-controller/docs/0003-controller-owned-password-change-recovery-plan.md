@@ -32,7 +32,7 @@ A single controller method performs the entire recovery for any set phase and re
   4. Old-Keyring branch: `loadKeyringEncryptionKey` → `KeyringController:submitEncryptionKey` → `KeyringController:changePassword` → `KeyringController:exportEncryptionKey` → `storeKeyringEncryptionKey` → `markPasswordChangeKeySyncPending`.
   5. New-Keyring branch: `KeyringController:exportEncryptionKey` → `storeKeyringEncryptionKey` → `markPasswordChangeKeySyncPending`.
   6. `KeySyncPending`: `KeyringController:exportEncryptionKey` → `storeKeyringEncryptionKey` → remote key sync → `clearPasswordChangePhase`.
-  7. Return a final status only (`PasswordChangeRecoveryStatus.InSync | Unknown`).
+  7. Return a final status only (`PasswordSyncStatus.InSync | Unknown`).
 - The client supplies the password, calls one method, and routes UI from the status. It performs no cross-controller sequencing.
 
 ## Changes

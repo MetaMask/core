@@ -25,9 +25,9 @@ Persisted on `SeedlessOnboardingControllerState.passwordChangePhase` (`persist: 
 | `KEY_SYNC_PENDING`        | The Keyring encryption key has been stored; awaiting final verification/sync. |
 | `UNKNOWN`                 | The result of one or more steps could not be established.                     |
 
-## The recovery status
+## The sync status
 
-Returned by the two controller methods. The client routes UI from this status.
+Returned by `resolvePasswordSyncState` and `reconcilePassword` as `PasswordSyncStatus`. The client routes UI from this status.
 
 | Status               | Meaning                                                                     | Client action                                                                                   |
 | -------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
@@ -49,7 +49,7 @@ For password-change recovery and another-device password sync, clients call `res
 ```ts
 SeedlessOnboardingController:resolvePasswordSyncState({
   skipCache?: boolean,
-}): Promise<PasswordChangeRecoveryStatus>
+}): Promise<PasswordSyncStatus>
 ```
 
 Single unlock-time call (call on page render _and_ on password submit). Merges the legacy `checkIsPasswordOutdated` read with password-change recovery routing.
@@ -64,7 +64,7 @@ Single unlock-time call (call on page render _and_ on password submit). Merges t
 ```ts
 SeedlessOnboardingController:reconcilePassword({
   globalPassword: string,
-}): Promise<PasswordChangeRecoveryStatus>
+}): Promise<PasswordSyncStatus>
 ```
 
 Reconciles the Seedless side with the supplied password.
