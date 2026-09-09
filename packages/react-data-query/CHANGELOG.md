@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -15,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/base-data-service` from `^1.0.0` to `^2.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
 
 ## [1.0.0]
 
@@ -63,7 +66,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8039](https://github.com/MetaMask/core/pull/8039), [#8292](https://github.com/MetaMask/core/pull/8292))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@1.0.0...@metamask/react-data-query@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.2...@metamask/react-data-query@1.0.0
 [0.2.2]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.1...@metamask/react-data-query@0.2.2
 [0.2.1]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.0...@metamask/react-data-query@0.2.1

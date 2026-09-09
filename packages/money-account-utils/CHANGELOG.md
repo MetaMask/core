@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -14,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
-- Bump `@metamask/transaction-controller` from `^69.8.0` to `^69.8.1` ([#10124](https://github.com/MetaMask/core/pull/10124))
+- Bump `@metamask/transaction-controller` from `^69.8.0` to `^70.0.0` ([#10124](https://github.com/MetaMask/core/pull/10124), [#10155](https://github.com/MetaMask/core/pull/10155))
 
 ## [1.2.0]
 
@@ -56,7 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Guards: `isMusdToken`, `isMusdTokenOnChain`, `isMusdOnMoneyAccountChain`
 - Add `getTokenDisplaySymbol`, ported from MetaMask Mobile, which canonicalises the registry symbol of the mUSD token to its branded casing (`MUSD` → `mUSD`) and passes all other symbols through unchanged ([#9397](https://github.com/MetaMask/core/pull/9397))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@1.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@1.2.0...@metamask/money-account-utils@2.0.0
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@1.1.0...@metamask/money-account-utils@1.2.0
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-utils@1.0.0...@metamask/money-account-utils@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/money-account-utils@1.0.0

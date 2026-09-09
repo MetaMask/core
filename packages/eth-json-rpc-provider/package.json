@@ -1,6 +1,6 @@
 {
   "name": "@metamask/eth-json-rpc-provider",
-  "version": "6.0.1",
+  "version": "7.0.0",
   "description": "Create an Ethereum provider using a JSON-RPC engine or middleware",
   "keywords": [
     "Ethereum",
@@ -48,7 +48,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/json-rpc-engine": "^10.5.0",
+    "@metamask/json-rpc-engine": "^11.0.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.12.0",
     "@types/lodash": "^4.14.191",

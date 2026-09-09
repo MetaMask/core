@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -15,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/client-controller` from `^1.0.1` to `^2.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/connectivity-controller` from `^0.3.0` to `^1.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/network-enablement-controller` from `^6.0.5` to `^7.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
 
 ## [0.2.1]
 
@@ -54,7 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dismissal, and switching custom RPC endpoints to an available Infura endpoint
   ([#9041](https://github.com/MetaMask/core/pull/9041))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.2.1...@metamask/network-connection-banner-controller@1.0.0
 [0.2.1]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.2.0...@metamask/network-connection-banner-controller@0.2.1
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.1.2...@metamask/network-connection-banner-controller@0.2.0
 [0.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.1.1...@metamask/network-connection-banner-controller@0.1.2

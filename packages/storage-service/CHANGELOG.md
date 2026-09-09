@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -15,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
 - Bump `@metamask/utils` from `^11.9.0` to `^11.12.0` ([#9074](https://github.com/MetaMask/core/pull/9074), [#10076](https://github.com/MetaMask/core/pull/10076))
-- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/messenger` from `^1.2.0` to `^3.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392), [#10155](https://github.com/MetaMask/core/pull/10155))
 
 ## [1.0.2]
 
@@ -45,7 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of `@metamask/storage-service` ([#7192](https://github.com/MetaMask/core/pull/7192))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/storage-service@1.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/storage-service@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/storage-service@1.0.2...@metamask/storage-service@2.0.0
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/storage-service@1.0.1...@metamask/storage-service@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/storage-service@1.0.0...@metamask/storage-service@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/storage-service@0.0.1...@metamask/storage-service@1.0.0

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/build-utils",
-  "version": "3.0.4",
+  "version": "4.0.0",
   "description": "Utilities for building MetaMask applications",
   "keywords": [
     "Ethereum",

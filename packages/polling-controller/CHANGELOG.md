@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0]
+
 ### Added
 
 - Export `AbstractPollingControllerBaseMixin`, `getKey`, `Constructor`, and `PollingTokenSetId` ([#9882](https://github.com/MetaMask/core/pull/9882))
@@ -20,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
 
 ### Removed
 
@@ -367,7 +370,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.9...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.9...@metamask/polling-controller@17.0.0
 [16.0.9]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.8...@metamask/polling-controller@16.0.9
 [16.0.8]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.7...@metamask/polling-controller@16.0.8
 [16.0.7]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@16.0.6...@metamask/polling-controller@16.0.7

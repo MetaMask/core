@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -15,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/permission-controller` from `^13.1.1` to `^14.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
 
 ## [1.7.0]
 
@@ -239,7 +243,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.7.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.7.0...@metamask/chain-agnostic-permission@2.0.0
 [1.7.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.2...@metamask/chain-agnostic-permission@1.7.0
 [1.6.2]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.1...@metamask/chain-agnostic-permission@1.6.2
 [1.6.1]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.0...@metamask/chain-agnostic-permission@1.6.1
