@@ -150,7 +150,6 @@ unlock render / submit
 3. **Unlock routing.** On unlock (page render _and_ password submit), read `passwordChangePhase` from controller state, then call `resolvePasswordSyncState({ skipCache })`. Route UI from the returned status using the table above. Do not classify a password as invalid until recovery has run.
 
 4. **Two-step UX.**
-
    - Step 1 (password-less): `resolvePasswordSyncState` decides whether the old or new password is needed.
    - Step 2 (password-consuming): only after step 1 returns `enter-new-password` / `password-outdated`, prompt for the new password and call `reconcilePassword({ globalPassword })`.
 
