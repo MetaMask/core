@@ -1002,7 +1002,12 @@ describe('PhishingDataService', () => {
           }),
       );
       const { rootMessenger: secondMessenger, service } = createService({
-        options: { persistenceConfig: undefined },
+        options: {
+          persistenceConfig: undefined,
+          queryClientConfig: {
+            defaultOptions: { queries: { gcTime: Infinity } },
+          },
+        },
         setItemMock: jest.fn(),
         getItemMock: getItem,
       });

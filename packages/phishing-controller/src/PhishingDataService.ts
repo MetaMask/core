@@ -531,12 +531,12 @@ export class PhishingDataService extends BaseDataService<
         defaultOptions: {
           ...queryClientConfig.defaultOptions,
           queries: {
+            ...queryClientConfig.defaultOptions?.queries,
             // Hydration reconstructs queries using these defaults. Without an
             // explicit value, service workers receive TanStack's server
             // default of `Infinity`, which cannot later be reduced by a
             // per-query option.
             gcTime: SCAN_RESULT_GC_TIME,
-            ...queryClientConfig.defaultOptions?.queries,
           },
         },
       },
