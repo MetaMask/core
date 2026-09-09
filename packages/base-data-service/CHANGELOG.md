@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Wait for cache rehydration to finish before starting a query when `init` has been called, preventing persisted results from racing the first network request ([#9914](https://github.com/MetaMask/core/pull/9914))
+
 ## [2.0.0]
 
 ### Changed
