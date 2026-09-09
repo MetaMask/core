@@ -7,10 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `SeedlessPasswordChangePhase` enum and a `passwordChangePhase` state field to persist a non-sensitive password-change lifecycle phase used as a recovery signal ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add `PasswordChangeRecoveryStatus` enum returned by the new password-change recovery methods ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add `resolvePasswordSyncState({ skipCache })` to resolve remote password-change state without a password at unlock, merging the legacy `checkIsPasswordOutdated` read with password-change recovery routing ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add `recoverPasswordChange({ globalPassword })` to reconcile the Seedless side with the new password and advance the lifecycle to `LOCAL_KEYRING_PENDING` ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add `clearPasswordChangePhase`, `markPasswordChangeKeySyncPending`, and `completePasswordChange` lifecycle-advance methods ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add `PasswordChangeInProgress` error message, thrown when a second password change is attempted while one is already in progress ([#0000](https://github.com/MetaMask/core/pull/0000))
+
 ### Changed
 
+- **BREAKING:** `changePassword` is now lifecycle-aware: it writes `SEEDLESS_CHANGE_PENDING`, `SEEDLESS_COMMITTED`, and `LOCAL_KEYRING_PENDING` phases and rejects a second concurrent change with `PasswordChangeInProgress`. Clients must not start a second password change while the lifecycle is unfinished; see [0002](./docs/0002-password-change-recovery-flow.md) for the client integration guide ([#0000](https://github.com/MetaMask/core/pull/0000))
 - Bump `@metamask/keyring-controller` from `^27.1.0` to `^27.1.1` ([#9791](https://github.com/MetaMask/core/pull/9791))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+### Removed
+
+- **BREAKING:** Remove the public `checkIsPasswordOutdated` method and `SeedlessOnboardingControllerCheckIsPasswordOutdatedAction`; the read is folded into `resolvePasswordSyncState` (now private `#checkIsPasswordOutdated`) ([#0000](https://github.com/MetaMask/core/pull/0000))
+- **BREAKING:** Remove `resolvePasswordChangeRecovery` method and `SeedlessOnboardingControllerResolvePasswordChangeRecoveryAction`; replaced by `resolvePasswordSyncState` (password-less resolve) and `recoverPasswordChange` (password-consuming apply) ([#0000](https://github.com/MetaMask/core/pull/0000))
+- **BREAKING:** Remove `PasswordChangeRecoveryResult` type; recovery methods now return `PasswordChangeRecoveryStatus` ([#0000](https://github.com/MetaMask/core/pull/0000))
 
 ## [10.1.1]
 

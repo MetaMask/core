@@ -1,12 +1,12 @@
 # Plan 0004: Migrate password-change recovery into the controller (Option B)
 
 - Status: Planned (post-testing migration)
-- Related: [ADR 0001](./0001-seedless-password-change-recovery.md), [Implementation plan 0002](./0002-seedless-password-change-implementation-plan.md), [Contracts 0003](./0003-seedless-password-change-contracts.md)
+- Related: [ADR 0001](./0001-seedless-password-change-recovery.md), [Recovery flow 0002](./0002-password-change-recovery-flow.md)
 - Scope: `SeedlessOnboardingController` only
 
 ## Context
 
-The first implementation ([0002](./0002-seedless-password-change-implementation-plan.md)) ships **Option A**: the controller owns all *Seedless-side* recovery sequencing, but the *Keyring-side* steps (`verifyPassword`, `submitEncryptionKey`, `changePassword`, `exportEncryptionKey`) stay in the client because `SeedlessOnboardingController` has no `KeyringController` dependency (`AllowedActions = never`).
+The first implementation (see [0002](./0002-password-change-recovery-flow.md)) ships **Option A**: the controller owns all *Seedless-side* recovery sequencing, but the *Keyring-side* steps (`verifyPassword`, `submitEncryptionKey`, `changePassword`, `exportEncryptionKey`) stay in the client because `SeedlessOnboardingController` has no `KeyringController` dependency (`AllowedActions = never`).
 
 This document plans the migration to **Option B**: the controller owns the entire recovery, including the Keyring side. Motivation: the recovery transaction spans two controllers, and we cannot rely on every client sequencing the Keyring-side steps correctly. Centralizing the full transaction removes a class of client-integration bugs.
 
@@ -55,8 +55,8 @@ A single controller method performs the entire recovery for any non-IDLE phase a
 
 ### 3. Contracts and exports
 
-- Update [0003](./0003-seedless-password-change-contracts.md): the client contract shrinks to "call `recoverPasswordChange`, route on status". The Keyring-side client steps move to the controller.
-- Update [0002](./0002-seedless-password-change-implementation-plan.md) Phase 7 controller-side items and the progress tracker.
+- Update [0002](./0002-password-change-recovery-flow.md): the client contract shrinks to "call `recoverPasswordChange`, route on status". The Keyring-side client steps move to the controller.
+- Update the controller-side status and remaining-work notes in [0002](./0002-password-change-recovery-flow.md).
 - Re-export the new result/status types from `src/index.ts`.
 - Regenerate `SeedlessOnboardingController-method-action-types.ts` (the method signature change is picked up automatically).
 
@@ -86,5 +86,5 @@ A single controller method performs the entire recovery for any non-IDLE phase a
 1. Land Option A and ship it; gather client integration feedback.
 2. Add the `KeyringController` messenger dependency and mock wiring (behind no behavior change yet).
 3. Fold the Keyring-side steps into `recoverPasswordChange`; change the return shape to final status.
-4. Update contracts (0003), plan (0002), exports, and clients.
+4. Update the recovery flow guide (0002), exports, and clients.
 5. Run the full controller + client test suites; remove the now-dead client sequencing code.
