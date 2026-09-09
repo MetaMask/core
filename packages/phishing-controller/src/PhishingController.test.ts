@@ -42,6 +42,7 @@ import {
 } from './tests/utils.js';
 import type {
   PhishingDetectionScanResult,
+  AddressScanCacheData,
   AddressScanResult,
 } from './types.js';
 import {
@@ -3550,6 +3551,7 @@ describe('PhishingController', () => {
     const mockResponse: AddressScanResult = {
       result_type: AddressScanResultType.Benign,
       label: '',
+      address_alert_response_flagged_by: [],
     };
 
     beforeEach(() => {
@@ -3564,7 +3566,7 @@ describe('PhishingController', () => {
       jest.useRealTimers();
     });
 
-    it('will return the scan result for a valid address', async () => {
+    it('will return the scan result, including vendor attribution, for a valid address', async () => {
       const scope = nock(SECURITY_ALERTS_BASE_URL)
         .post(ADDRESS_SCAN_ENDPOINT, {
           chain: 'ethereum',
@@ -3577,8 +3579,64 @@ describe('PhishingController', () => {
         testChainId,
         testAddress,
       );
-      expect(response).toMatchObject(mockResponse);
+      expect(response).toStrictEqual(mockResponse);
       expect(scope.isDone()).toBe(true);
+    });
+
+    it('will default missing vendor attribution to an empty array', async () => {
+      const legacyResponse = {
+        result_type: AddressScanResultType.Benign,
+        label: '',
+      };
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, legacyResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+      );
+
+      expect(response).toStrictEqual({
+        ...legacyResponse,
+        address_alert_response_flagged_by: [],
+      });
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('defaults vendor attribution for a legacy cached result', async () => {
+      const cacheKey = `${testChainId}:${testAddress}`;
+      const { rootMessenger: messengerWithLegacyCache } = getPhishingController(
+        {
+          state: {
+            addressScanCache: {
+              [cacheKey]: {
+                data: {
+                  result_type: AddressScanResultType.Benign,
+                  label: '',
+                } as AddressScanCacheData,
+                timestamp: 0,
+              },
+            },
+          },
+        },
+      );
+
+      const response = await messengerWithLegacyCache.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+      );
+
+      expect(response).toStrictEqual({
+        result_type: AddressScanResultType.Benign,
+        label: '',
+        address_alert_response_flagged_by: [],
+      });
     });
 
     it.each([
@@ -3608,6 +3666,7 @@ describe('PhishingController', () => {
         expect(response).toMatchObject({
           result_type: AddressScanResultType.ErrorResult,
           label: '',
+          address_alert_response_flagged_by: [],
         });
         expect(scope.isDone()).toBe(true);
       },
@@ -3632,6 +3691,7 @@ describe('PhishingController', () => {
       expect(response).toMatchObject({
         result_type: AddressScanResultType.ErrorResult,
         label: '',
+        address_alert_response_flagged_by: [],
       });
       expect(scope.isDone()).toBe(false);
     });
@@ -3645,6 +3705,7 @@ describe('PhishingController', () => {
       expect(response).toMatchObject({
         result_type: AddressScanResultType.ErrorResult,
         label: '',
+        address_alert_response_flagged_by: [],
       });
     });
 
@@ -3658,6 +3719,7 @@ describe('PhishingController', () => {
       expect(response).toMatchObject({
         result_type: AddressScanResultType.ErrorResult,
         label: '',
+        address_alert_response_flagged_by: [],
       });
     });
 
@@ -3675,6 +3737,7 @@ describe('PhishingController', () => {
       expect(response).toMatchObject({
         result_type: AddressScanResultType.ErrorResult,
         label: '',
+        address_alert_response_flagged_by: [],
       });
       expect(scope.isDone()).toBe(false);
       cleanAll();
@@ -3753,11 +3816,13 @@ describe('PhishingController', () => {
       const mockResponse1: AddressScanResult = {
         result_type: AddressScanResultType.Benign,
         label: 'ethereum result',
+        address_alert_response_flagged_by: [],
       };
 
       const mockResponse2: AddressScanResult = {
         result_type: AddressScanResultType.Warning,
         label: 'polygon result',
+        address_alert_response_flagged_by: ['hypernative'],
       };
 
       const scope1 = nock(SECURITY_ALERTS_BASE_URL)
