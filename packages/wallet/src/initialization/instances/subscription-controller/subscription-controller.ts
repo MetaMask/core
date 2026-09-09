@@ -28,6 +28,7 @@ export const subscriptionController: InitializationConfiguration<
   SubscriptionControllerMessenger
 > = {
   name: 'SubscriptionController',
+  reference: SubscriptionController,
   init: ({ state, messenger, options }) =>
     new SubscriptionController({
       ...options,
