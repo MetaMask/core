@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
 - Replace `siwe` with `@signinwithethereum/siwe` ^4.2.1 ([#10049](https://github.com/MetaMask/core/pull/10049))
   - The old package is no longer maintained by Spruce. The Ethereum Identity Foundation now maintains the successor under the `@signinwithethereum` scope. The `SiweMessage` class API is backward compatible for the usage in this package (`new SiweMessage({...}).prepareMessage()`).
+- Bump `@metamask/address-book-controller` from `^7.1.2` to `^8.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/seedless-onboarding-controller` from `^10.1.1` to `^11.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
 
 ## [30.0.0]
 

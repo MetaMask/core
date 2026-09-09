@@ -16,8 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
-- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^6.1.1` ([#9980](https://github.com/MetaMask/core/pull/9980), [#10129](https://github.com/MetaMask/core/pull/10129))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.0.0` to `^7.0.0` ([#9980](https://github.com/MetaMask/core/pull/9980), [#10129](https://github.com/MetaMask/core/pull/10129), [#10155](https://github.com/MetaMask/core/pull/10155))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/polling-controller` from `^16.0.9` to `^17.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
 
 ## [3.1.0]
 
