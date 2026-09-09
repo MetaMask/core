@@ -506,6 +506,36 @@ describe('BaseDataService', () => {
       expect(getItem).toHaveBeenCalledWith(serviceName, STORAGE_SERVICE_KEY);
     });
 
+    it('waits for cache initialization before fetching a query', async () => {
+      cleanAll();
+      const networkScope = mockAssets();
+      let resolveGetItem: ((value: { result: null }) => void) | undefined;
+      const getItem = jest.fn(
+        () =>
+          new Promise<{ result: null }>((resolve) => {
+            resolveGetItem = resolve;
+          }),
+      );
+      const rootMessenger = createRootMessenger({
+        actionHandlers: {
+          'StorageService:getItem': getItem,
+        },
+      });
+      const messenger = createServiceMessenger(rootMessenger);
+      const service = new ExampleDataService(messenger);
+
+      service.init();
+      const resultPromise = service.getAssets(MOCK_ASSETS);
+      await new Promise(setImmediate);
+
+      expect(networkScope.isDone()).toBe(false);
+      resolveGetItem?.({ result: null });
+      expect(await resultPromise).toHaveLength(3);
+      expect(networkScope.isDone()).toBe(true);
+
+      service.destroy();
+    });
+
     it('discards the cache if it has expired', async () => {
       const getItem = jest.fn().mockResolvedValue({
         result: {

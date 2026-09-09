@@ -167,6 +167,8 @@ export class BaseDataService<
 
   readonly #persistenceConfig?: PersistenceConfiguration;
 
+  #initializationPromise?: Promise<void>;
+
   constructor({
     name,
     messenger,
@@ -284,6 +286,8 @@ export class BaseDataService<
     queryFn: QueryFunction<TQueryFnData, TQueryKey>;
     responseStruct?: TDataStruct;
   }): Promise<TData> {
+    await this.#initializationPromise;
+
     return this.#queryClient.fetchQuery({
       ...options,
       queryFn: async (context) => {
@@ -336,6 +340,8 @@ export class BaseDataService<
       },
     pageParam?: TPageParam,
   ): Promise<TData> {
+    await this.#initializationPromise;
+
     const cache = this.#queryClient.getQueryCache();
 
     const query = cache.find<
@@ -408,7 +414,7 @@ export class BaseDataService<
    * Initialize the service, rehydrating the cache with persisted data if possible.
    */
   init(): void {
-    this.#loadCache().catch(
+    this.#initializationPromise ??= this.#loadCache().catch(
       /* istanbul ignore next */
       (error) => this.#messenger.captureException?.(error),
     );

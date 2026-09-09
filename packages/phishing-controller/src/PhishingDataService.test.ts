@@ -984,21 +984,37 @@ describe('PhishingDataService', () => {
       const persisted = setItem.mock.calls.at(-1)?.[2];
       expect(persisted).toBeDefined();
 
+      let resolveGetItem:
+        | ((value: { result: typeof persisted }) => void)
+        | undefined;
+      const getItem = jest.fn(
+        () =>
+          new Promise<{ result: typeof persisted }>((resolve) => {
+            resolveGetItem = resolve;
+          }),
+      );
       const { rootMessenger: secondMessenger, service } = createService({
         options: { persistenceConfig: undefined },
         setItemMock: jest.fn(),
-        getItemMock: jest.fn().mockResolvedValue({ result: persisted }),
+        getItemMock: getItem,
       });
       service.init();
-      await flushPromises();
 
-      // No nock interceptor is registered, so this can only succeed if the
-      // rehydrated entry was used.
-      const result = await secondMessenger.call(
+      const networkScope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(500);
+      const resultPromise = secondMessenger.call(
         'PhishingDataService:scanUrl',
         'example.com',
       );
+      await flushPromises();
+      expect(networkScope.isDone()).toBe(false);
+
+      resolveGetItem?.({ result: persisted });
+      const result = await resultPromise;
       expect(result).toStrictEqual({ recommendedAction: 'NONE' });
+      expect(networkScope.isDone()).toBe(false);
     });
 
     it('discards and removes a persisted cache older than maxAge', async () => {
