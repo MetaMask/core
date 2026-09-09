@@ -110,8 +110,8 @@ jobs:
             exit 1
           fi
 
-  lint-eslint:
-    name: Lint (lint:eslint)
+  lint-oxlint:
+    name: Lint (lint:oxlint)
     runs-on: ubuntu-latest
     if: needs.prepare.outputs.changed-paths != '[]'
     needs: prepare
@@ -126,19 +126,7 @@ jobs:
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
       - name: Lint
-        run: |
-          if [[ "$CHANGED_PATHS" == "full" ]]; then
-            echo "Running ESLint on all packages."
-            echo ""
-            yarn lint:eslint
-          else
-            echo "Running ESLint on:"
-            echo "$CHANGED_PATHS" | jq -r '"- " + .[]'
-            echo ""
-            echo "$CHANGED_PATHS" | jq -r '.[]' | xargs yarn lint:eslint
-          fi
-        env:
-          CHANGED_PATHS: ${{ needs.prepare.outputs.changed-paths }}
+        run: yarn lint:oxlint
       - name: Require clean working directory
         shell: bash
         run: |
