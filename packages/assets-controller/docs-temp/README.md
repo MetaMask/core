@@ -22,12 +22,15 @@ Each diagram exists in four forms:
 | [`06-event-stack`](./06-event-stack.png)               | workflow     | How `handleAssetsUpdate` composes a different middleware stack per source   |
 | [`07-token-filtering`](./07-token-filtering.png)       | workflow     | The three moments a spam token can be filtered out, and what each removes   |
 | [`08-spam-verdict`](./08-spam-verdict.png)             | dataflow     | How one candidate token turns into a keep or drop verdict                   |
+| [`09-visibility-gate`](./09-visibility-gate.png)       | workflow     | Why a token that is in state still does not come back from a read           |
 
 Diagrams 02 and 06 are the two halves of the middleware architecture: 02 is the fetch
 stack that a caller drives, 06 is the event stack that an incoming update drives.
 
-Diagrams 07 and 08 are the two halves of spam filtering: 07 is _when_ a token is judged,
-08 is _how_ the verdict is reached.
+Diagrams 07, 08 and 09 cover token filtering. 07 is _when_ a token is judged as spam and
+08 is _how_ that verdict is reached — both are write-path filters that decide what
+reaches state. 09 is the separate read-path filter that decides what a caller gets back
+out of state, and it deletes nothing.
 
 ## Regenerating
 
@@ -36,7 +39,7 @@ archify deliver <kind> <source.json> <output.html> --quality showcase
 archify visual-check <output.html> --json
 ```
 
-All eight pass `deliver` at the `showcase` quality profile. All except
+All nine pass `deliver` at the `showcase` quality profile. All except
 `04-tracking-lifecycle` also pass `visual-check` containment at 1440×900, 1600×1000,
 1920×1080, and 2048×1320 in both themes; the lifecycle renderer's band geometry has a
 fixed vertical budget that makes the page scroll vertically below 1920px wide, which the
