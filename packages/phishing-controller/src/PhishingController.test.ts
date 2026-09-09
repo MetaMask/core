@@ -658,7 +658,6 @@ describe('PhishingController', () => {
           hotlistLastFetched: 0,
           stalelistLastFetched: 0,
           c2DomainBlocklistLastFetched: 0,
-          urlScanCache: {},
         },
       });
 
