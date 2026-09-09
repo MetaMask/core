@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
+- Preserve api-docs/ (not docs/) for Typedoc-generated directories ([#10114](https://github.com/MetaMask/core/pull/10114))
+- chore: migrate Jest from v29 to v30 ([#7905](https://github.com/MetaMask/core/pull/7905))
+- refactor: add `.js` import extensions to Core Platform packages ([#9571](https://github.com/MetaMask/core/pull/9571))
+- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
+- chore: drop unused jest-it-up devDep ([#9052](https://github.com/MetaMask/core/pull/9052))
+- chore: remove vestigial lint scripts from migrated packages ([#9048](https://github.com/MetaMask/core/pull/9048))
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -349,9 +359,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [7.2.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.1.1...@metamask/json-rpc-engine@7.2.0
 [7.1.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.1.0...@metamask/json-rpc-engine@7.1.1
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.0.0...@metamask/json-rpc-engine@7.1.0
-[7.0.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@6.1.0...@metamask/json-rpc-engine@7.0.0
-[6.1.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@6.0.0...json-rpc-engine@6.1.0
-[6.0.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@5.4.0...json-rpc-engine@6.0.0
-[5.4.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@5.3.0...json-rpc-engine@5.4.0
-[5.3.0]: https://github.com/MetaMask/core/compare/json-rpc-engine@5.2.0...json-rpc-engine@5.3.0
-[5.2.0]: https://github.com/MetaMask/core/releases/tag/json-rpc-engine@5.2.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@6.1.0...@metamask/json-rpc-engine@7.0.0
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@6.0.0...@metamask/json-rpc-engine@6.1.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@5.4.0...@metamask/json-rpc-engine@6.0.0
+[5.4.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@5.3.0...@metamask/json-rpc-engine@5.4.0
+[5.3.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@5.2.0...@metamask/json-rpc-engine@5.3.0
+[5.2.0]: https://github.com/MetaMask/core/releases/tag/@metamask/json-rpc-engine@5.2.0
