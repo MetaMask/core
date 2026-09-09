@@ -38,6 +38,13 @@ import type {
   PhishingControllerTestOriginAction,
 } from './PhishingController-method-action-types.js';
 import type { PhishingDataServiceMethodActions } from './PhishingDataService-method-action-types.js';
+import {
+  ADDRESS_SCAN_TIMEOUT,
+  APPROVALS_TIMEOUT,
+  BULK_URL_SCAN_TIMEOUT,
+  TOKEN_SCAN_TIMEOUT,
+  URL_SCAN_TIMEOUT,
+} from './PhishingDataService.js';
 import { PhishingDetector } from './PhishingDetector.js';
 import {
   PhishingDetectorResultType,
@@ -110,13 +117,6 @@ export type {
 export const C2_DOMAIN_BLOCKLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
 export const HOTLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
 export const STALELIST_REFRESH_INTERVAL = 30 * 24 * 60 * 60; // 30 days in seconds
-
-// Request timeouts, in milliseconds.
-const URL_SCAN_TIMEOUT = 8000;
-const BULK_URL_SCAN_TIMEOUT = 15000;
-const TOKEN_SCAN_TIMEOUT = 8000;
-const ADDRESS_SCAN_TIMEOUT = 5000;
-const APPROVALS_TIMEOUT = 5000;
 
 const controllerName = 'PhishingController';
 

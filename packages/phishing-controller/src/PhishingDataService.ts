@@ -83,6 +83,13 @@ export const METAMASK_STALELIST_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_STA
 export const METAMASK_HOTLIST_DIFF_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_HOTLIST_DIFF_FILE}`;
 export const C2_DOMAIN_BLOCKLIST_URL = `${CLIENT_SIDE_DETECION_BASE_URL}${C2_DOMAIN_BLOCKLIST_ENDPOINT}`;
 
+// Request timeouts, in milliseconds.
+export const URL_SCAN_TIMEOUT = 8000;
+export const BULK_URL_SCAN_TIMEOUT = 15000;
+export const TOKEN_SCAN_TIMEOUT = 8000;
+export const ADDRESS_SCAN_TIMEOUT = 5000;
+export const APPROVALS_TIMEOUT = 5000;
+
 /**
  * The maximum number of URLs sent to the bulk dapp-scanning endpoint in one
  * request.
@@ -543,18 +550,20 @@ export class PhishingDataService extends BaseDataService<
   async scanUrl(url: string): Promise<PhishingDetectionScanResult> {
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:scanUrl`, url],
-      queryFn: async () => {
-        const response = await fetch(
+      queryFn: async ({ signal }) => {
+        const response = await this.#fetchJson(
           `${PHISHING_DETECTION_BASE_URL}/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(url)}`,
           {
             method: 'GET',
             headers: {
               Accept: 'application/json',
             },
+            signal,
           },
+          URL_SCAN_TIMEOUT,
         );
         return this.#validate(
-          await this.#toJson(response),
+          response,
           ScanUrlResponseStruct,
           'URL scan',
         ) as Json;
@@ -596,6 +605,7 @@ export class PhishingDataService extends BaseDataService<
         const jsonResponse = await this.#postJson(
           `${PHISHING_DETECTION_BASE_URL}/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`,
           { urls: batchUrls },
+          { timeout: BULK_URL_SCAN_TIMEOUT },
         );
         const response = this.#validate(
           jsonResponse,
@@ -758,6 +768,7 @@ export class PhishingDataService extends BaseDataService<
         const jsonResponse = await this.#postJson(
           `${SECURITY_ALERTS_BASE_URL}${TOKEN_BULK_SCANNING_ENDPOINT}`,
           { chain, tokens: batchTokens },
+          { timeout: TOKEN_SCAN_TIMEOUT },
         );
         const response = this.#validate(
           jsonResponse,
@@ -804,11 +815,12 @@ export class PhishingDataService extends BaseDataService<
   ): Promise<AddressScanResult> {
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:scanAddress`, chain, address],
-      queryFn: async () =>
+      queryFn: async ({ signal }) =>
         this.#validate(
           await this.#postJson(
             `${SECURITY_ALERTS_BASE_URL}${ADDRESS_SCAN_ENDPOINT}`,
             { chain, address },
+            { signal, timeout: ADDRESS_SCAN_TIMEOUT },
           ),
           ScanAddressResponseStruct,
           'address scan',
@@ -841,6 +853,7 @@ export class PhishingDataService extends BaseDataService<
     const jsonResponse = await this.#postJson(
       `${SECURITY_ALERTS_BASE_URL}${APPROVALS_ENDPOINT}`,
       { chain, address },
+      { timeout: APPROVALS_TIMEOUT },
     );
 
     return this.#validate(
@@ -857,8 +870,7 @@ export class PhishingDataService extends BaseDataService<
    * @returns The parsed JSON response.
    */
   async #getJson(url: string): Promise<Json> {
-    const response = await fetch(url, { cache: 'no-cache' });
-    return this.#toJson(response);
+    return this.#fetchJson(url, { cache: 'no-cache' });
   }
 
   /**
@@ -866,18 +878,77 @@ export class PhishingDataService extends BaseDataService<
    *
    * @param url - The URL to fetch.
    * @param body - The request body, serialized as JSON.
+   * @param options - Request cancellation options.
+   * @param options.signal - A signal that cancels the request.
+   * @param options.timeout - The request timeout, in milliseconds.
    * @returns The parsed JSON response.
    */
-  async #postJson(url: string, body: Record<string, Json>): Promise<Json> {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
+  async #postJson(
+    url: string,
+    body: Record<string, Json>,
+    { signal, timeout }: { signal?: AbortSignal; timeout?: number } = {},
+  ): Promise<Json> {
+    return this.#fetchJson(
+      url,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+        signal,
       },
-      body: JSON.stringify(body),
-    });
-    return this.#toJson(response);
+      timeout,
+    );
+  }
+
+  /**
+   * Performs a fetch request and parses its JSON response.
+   *
+   * @param url - The URL to fetch.
+   * @param init - The fetch request options.
+   * @param timeout - The optional request timeout, in milliseconds.
+   * @returns The parsed JSON response.
+   */
+  async #fetchJson(
+    url: string,
+    init: RequestInit,
+    timeout?: number,
+  ): Promise<Json> {
+    const controller = new AbortController();
+    const sourceSignal = init.signal;
+    let didTimeout = false;
+    const abort = () => controller.abort();
+    const timer =
+      timeout === undefined
+        ? undefined
+        : setTimeout(() => {
+            didTimeout = true;
+            controller.abort();
+          }, timeout);
+
+    if (sourceSignal?.aborted) {
+      controller.abort();
+    } else {
+      sourceSignal?.addEventListener('abort', abort, { once: true });
+    }
+
+    try {
+      const response = await fetch(url, {
+        ...init,
+        signal: controller.signal,
+      });
+      return await this.#toJson(response);
+    } catch (error) {
+      if (didTimeout) {
+        throw new Error(`timeout of ${timeout}ms exceeded`, { cause: error });
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+      sourceSignal?.removeEventListener('abort', abort);
+    }
   }
 
   /**

@@ -25,6 +25,7 @@ import {
   APPROVALS_ENDPOINT,
   SCAN_RESULT_GC_TIME,
   SCAN_RESULT_STALE_TIME,
+  URL_SCAN_TIMEOUT,
 } from './PhishingDataService.js';
 import type { PhishingDataServiceMessenger } from './PhishingDataService.js';
 import { TokenScanResultType } from './types.js';
@@ -255,6 +256,45 @@ describe('PhishingDataService', () => {
       await expect(
         rootMessenger.call('PhishingDataService:scanUrl', 'example.com'),
       ).rejects.toThrow('404 Not Found');
+    });
+
+    it('aborts a timed-out request so the next scan can retry', async () => {
+      jest.useFakeTimers({
+        doNotFake: ['nextTick', 'queueMicrotask'],
+      });
+      const fetchMock = jest.spyOn(globalThis, 'fetch');
+      fetchMock
+        .mockImplementationOnce(
+          (_input, init) =>
+            new Promise<Response>((_resolve, reject) => {
+              init?.signal?.addEventListener(
+                'abort',
+                () => reject(new Error('aborted')),
+                { once: true },
+              );
+            }),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ recommendedAction: 'BLOCK' }), {
+            status: 200,
+          }),
+        );
+      const { rootMessenger } = createService();
+
+      try {
+        const timedOutScan = expect(
+          rootMessenger.call('PhishingDataService:scanUrl', 'example.com'),
+        ).rejects.toThrow(`timeout of ${URL_SCAN_TIMEOUT}ms exceeded`);
+        await jest.advanceTimersByTimeAsync(URL_SCAN_TIMEOUT);
+        await timedOutScan;
+
+        await expect(
+          rootMessenger.call('PhishingDataService:scanUrl', 'example.com'),
+        ).resolves.toStrictEqual({ recommendedAction: 'BLOCK' });
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+      } finally {
+        fetchMock.mockRestore();
+      }
     });
 
     it('throws if the API returns a malformed response', async () => {
