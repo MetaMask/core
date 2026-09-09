@@ -1003,7 +1003,7 @@ describe('PhishingDataService', () => {
       const networkScope = nock(PHISHING_DETECTION_BASE_URL)
         .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
         .query({ url: 'example.com' })
-        .reply(500);
+        .reply(200, { recommendedAction: 'BLOCK' });
       const resultPromise = secondMessenger.call(
         'PhishingDataService:scanUrl',
         'example.com',
@@ -1015,6 +1015,14 @@ describe('PhishingDataService', () => {
       const result = await resultPromise;
       expect(result).toStrictEqual({ recommendedAction: 'NONE' });
       expect(networkScope.isDone()).toBe(false);
+
+      jest.advanceTimersByTime(SCAN_RESULT_GC_TIME + 1);
+      await flushPromises();
+
+      await expect(
+        secondMessenger.call('PhishingDataService:scanUrl', 'example.com'),
+      ).resolves.toStrictEqual({ recommendedAction: 'BLOCK' });
+      expect(networkScope.isDone()).toBe(true);
     });
 
     it('discards and removes a persisted cache older than maxAge', async () => {

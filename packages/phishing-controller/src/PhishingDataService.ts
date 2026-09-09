@@ -526,7 +526,20 @@ export class PhishingDataService extends BaseDataService<
     super({
       name: serviceName,
       messenger,
-      queryClientConfig,
+      queryClientConfig: {
+        ...queryClientConfig,
+        defaultOptions: {
+          ...queryClientConfig.defaultOptions,
+          queries: {
+            // Hydration reconstructs queries using these defaults. Without an
+            // explicit value, service workers receive TanStack's server
+            // default of `Infinity`, which cannot later be reduced by a
+            // per-query option.
+            gcTime: SCAN_RESULT_GC_TIME,
+            ...queryClientConfig.defaultOptions?.queries,
+          },
+        },
+      },
       // Circuit breaking is disabled by default: this service talks to four
       // independent API hosts through a single shared policy, so a broken
       // circuit caused by one host's outage would also pause phishing-list
