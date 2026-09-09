@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -625,7 +627,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141), [#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@13.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@13.0.2...@metamask/multichain-account-service@14.0.0
 [13.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@13.0.1...@metamask/multichain-account-service@13.0.2
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@13.0.0...@metamask/multichain-account-service@13.0.1
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@12.0.0...@metamask/multichain-account-service@13.0.0

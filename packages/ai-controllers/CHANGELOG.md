@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -146,7 +148,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removes `fetchDigest`, `clearDigest`, and `clearAllDigests` actions from the controller action surface.
   - Removes `DigestData`/`DigestEntry` types and the `digests` state branch.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@1.0.0...@metamask/ai-controllers@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.8.0...@metamask/ai-controllers@1.0.0
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.7.0...@metamask/ai-controllers@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.6.3...@metamask/ai-controllers@0.7.0

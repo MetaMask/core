@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -270,7 +272,8 @@ Release `v2.0.0` is identical to `v1.0.1` aside from Node.js version requirement
 
 - Initial release, including `providerFromEngine` and `providerFromMiddleware`.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@6.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@6.0.1...@metamask/eth-json-rpc-provider@7.0.0
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@6.0.0...@metamask/eth-json-rpc-provider@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@5.0.1...@metamask/eth-json-rpc-provider@6.0.0
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@5.0.0...@metamask/eth-json-rpc-provider@5.0.1

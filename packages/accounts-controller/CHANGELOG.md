@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [40.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -903,7 +905,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@40.0.0...HEAD
+[40.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.1.1...@metamask/accounts-controller@40.0.0
 [39.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.1.0...@metamask/accounts-controller@39.1.1
 [39.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.7...@metamask/accounts-controller@39.1.0
 [39.0.7]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.6...@metamask/accounts-controller@39.0.7

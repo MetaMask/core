@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -427,7 +429,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.5...@metamask/network-enablement-controller@7.0.0
 [6.0.5]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.4...@metamask/network-enablement-controller@6.0.5
 [6.0.4]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.3...@metamask/network-enablement-controller@6.0.4
 [6.0.3]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.2...@metamask/network-enablement-controller@6.0.3

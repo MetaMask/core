@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -330,7 +332,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.5.0...@metamask/json-rpc-engine@11.0.0
 [10.5.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.4.0...@metamask/json-rpc-engine@10.5.0
 [10.4.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.3.0...@metamask/json-rpc-engine@10.4.0
 [10.3.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.2.4...@metamask/json-rpc-engine@10.3.0

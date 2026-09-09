@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -61,7 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7623](https://github.com/MetaMask/core/pull/7623))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@0.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@0.3.0...@metamask/connectivity-controller@1.0.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@0.2.0...@metamask/connectivity-controller@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/connectivity-controller@0.1.0...@metamask/connectivity-controller@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/connectivity-controller@0.1.0

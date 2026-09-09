@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [40.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -847,7 +849,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.10...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@40.0.0...HEAD
+[40.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.10...@metamask/signature-controller@40.0.0
 [39.2.10]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.9...@metamask/signature-controller@39.2.10
 [39.2.9]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.8...@metamask/signature-controller@39.2.9
 [39.2.8]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.7...@metamask/signature-controller@39.2.8

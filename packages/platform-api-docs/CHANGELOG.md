@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -27,5 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the platform-api-docs package ([#8012](https://github.com/MetaMask/core/pull/8012), [#9913](https://github.com/MetaMask/core/pull/9913))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/platform-api-docs@0.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/platform-api-docs@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/platform-api-docs@0.1.0...@metamask/platform-api-docs@1.0.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/platform-api-docs@0.1.0

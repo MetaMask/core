@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -100,7 +102,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING**: Rename `SocialAIPreference.traderProfileIds` to `mutedTraderProfileIds` in types and notification-preferences validation to match the API payload. ([#8536](https://github.com/MetaMask/core/pull/8536))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@3.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@3.0.2...@metamask/authenticated-user-storage@4.0.0
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@3.0.1...@metamask/authenticated-user-storage@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@3.0.0...@metamask/authenticated-user-storage@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@2.1.0...@metamask/authenticated-user-storage@3.0.0

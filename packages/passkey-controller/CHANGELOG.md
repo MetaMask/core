@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -126,7 +128,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Registration verification requires the credential `id`/`rawId` to match the credential id in authenticator data; vault wrapping key derivation uses that verified credential id so enrollment keys align with the stored credential.
 - Registration options request attestation conveyance `'none'` so clients are not asked for direct attestation formats the verifier does not implement (`none` and self-attested `packed` only).
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@3.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@3.1.0...@metamask/passkey-controller@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@3.0.0...@metamask/passkey-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@2.1.0...@metamask/passkey-controller@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@2.0.1...@metamask/passkey-controller@2.1.0

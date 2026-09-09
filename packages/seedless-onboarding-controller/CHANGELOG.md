@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -438,7 +440,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.1.1...@metamask/seedless-onboarding-controller@11.0.0
 [10.1.1]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.1.0...@metamask/seedless-onboarding-controller@10.1.1
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.0.3...@metamask/seedless-onboarding-controller@10.1.0
 [10.0.3]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@10.0.2...@metamask/seedless-onboarding-controller@10.0.3

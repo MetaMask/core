@@ -1,6 +1,6 @@
 {
   "name": "@metamask/money-account-upgrade-controller",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "description": "MetaMask Money account upgrade controller",
   "keywords": [
     "Ethereum",
@@ -50,17 +50,17 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/authenticated-user-storage": "^3.0.2",
-    "@metamask/base-controller": "^9.1.0",
-    "@metamask/chomp-api-service": "^4.0.2",
-    "@metamask/delegation-controller": "^3.0.2",
+    "@metamask/authenticated-user-storage": "^4.0.0",
+    "@metamask/base-controller": "^10.0.0",
+    "@metamask/chomp-api-service": "^5.0.0",
+    "@metamask/delegation-controller": "^4.0.0",
     "@metamask/delegation-core": "^2.2.1",
     "@metamask/delegation-deployments": "^1.4.0",
-    "@metamask/keyring-controller": "^27.1.1",
-    "@metamask/messenger": "^2.0.0",
-    "@metamask/money-account-utils": "^1.2.0",
-    "@metamask/network-controller": "^36.0.0",
-    "@metamask/remote-feature-flag-controller": "^6.1.1",
+    "@metamask/keyring-controller": "^28.0.0",
+    "@metamask/messenger": "^3.0.0",
+    "@metamask/money-account-utils": "^2.0.0",
+    "@metamask/network-controller": "^37.0.0",
+    "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/utils": "^11.12.0"
   },
   "devDependencies": {

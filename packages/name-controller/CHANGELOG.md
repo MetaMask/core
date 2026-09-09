@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -239,7 +241,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1647](https://github.com/MetaMask/core/pull/1647))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@9.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@9.1.2...@metamask/name-controller@10.0.0
 [9.1.2]: https://github.com/MetaMask/core/compare/@metamask/name-controller@9.1.1...@metamask/name-controller@9.1.2
 [9.1.1]: https://github.com/MetaMask/core/compare/@metamask/name-controller@9.1.0...@metamask/name-controller@9.1.1
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@9.0.0...@metamask/name-controller@9.1.0

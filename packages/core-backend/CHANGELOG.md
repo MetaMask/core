@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -433,7 +435,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.1.1...@metamask/core-backend@10.0.0
 [9.1.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.1.0...@metamask/core-backend@9.1.1
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.0.0...@metamask/core-backend@9.1.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@8.1.2...@metamask/core-backend@9.0.0

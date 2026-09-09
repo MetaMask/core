@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
 ### Uncategorized
 
 - chore: bump TypeScript from 5 to 7, and add TypeScript 6 side by side ([#9518](https://github.com/MetaMask/core/pull/9518))
@@ -179,7 +181,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/account-tree-controller` from `^7.3.0` to `^7.4.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.1.2...@metamask/snap-account-service@3.0.0
 [2.1.2]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.1.1...@metamask/snap-account-service@2.1.2
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.1.0...@metamask/snap-account-service@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.0.0...@metamask/snap-account-service@2.1.0
