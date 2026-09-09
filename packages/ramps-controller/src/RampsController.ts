@@ -3049,7 +3049,7 @@ export class RampsController extends BaseController<
 
     this.update((state) => {
       const idx = state.orders.findIndex(
-        (existing) => getInternalOrderCode(existing) === internalOrderCode,
+        (stateOrder) => getInternalOrderCode(stateOrder) === internalOrderCode,
       );
       if (idx === -1) {
         state.orders.push(healedOrder);

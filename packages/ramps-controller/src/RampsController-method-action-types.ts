@@ -306,6 +306,8 @@ export type RampsControllerGetQuotesAction = {
  * If an order with the same internal order code already exists, the incoming
  * fields are merged on top of the existing order so that fields not present
  * in the update (e.g. paymentDetails from the Transak API) are preserved.
+ * Unchanged syncable payloads (including unchanged poll results) are ignored
+ * so `lastUpdatedAt` is not bumped and User Storage is not rewritten.
  *
  * @param order - The RampsOrder to add or update.
  */
