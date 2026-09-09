@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Leave existing push registration in place when the keyring has no accounts yet ([#10143](https://github.com/MetaMask/core/pull/10143))
+  - `createOnChainTriggers` and `enablePushNotifications` no longer treat an empty keyring as "every account disabled", which previously unregistered the device. An empty keyring is skipped so a later run can still seed first-time preferences and keep push links.
+
+## [27.0.2]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^29.0.0` to `^30.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
+
 ## [27.0.1]
 
 ### Fixed
@@ -886,7 +897,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@27.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@27.0.2...HEAD
+[27.0.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@27.0.1...@metamask/notification-services-controller@27.0.2
 [27.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@27.0.0...@metamask/notification-services-controller@27.0.1
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@26.0.1...@metamask/notification-services-controller@27.0.0
 [26.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@26.0.0...@metamask/notification-services-controller@26.0.1

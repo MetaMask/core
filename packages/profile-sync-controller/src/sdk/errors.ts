@@ -21,6 +21,20 @@ export class PairError extends Error {
   }
 }
 
+/**
+ * Thrown when `POST /api/v2/profile/pair/identifier` returns 409 Conflict:
+ * the social identifier already belongs to another canonical profile.
+ * Retrying the same request cannot succeed.
+ */
+export class PairConflictError extends PairError {
+  readonly status = HTTP_STATUS_CODES.CONFLICT;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'PairConflictError';
+  }
+}
+
 export class UserStorageError extends Error {
   constructor(message: string) {
     super(message);
