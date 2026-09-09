@@ -13,7 +13,10 @@ import {
   getDefaultKycControllerState,
   KycController,
 } from './KycController.js';
-import type { KycControllerMessenger } from './KycController.js';
+import type {
+  FetchSessionDisclaimersParams,
+  KycControllerMessenger,
+} from './KycController.js';
 import type {
   KycConsentRecord,
   KycDisclaimer,
@@ -494,6 +497,121 @@ describe('KycController', () => {
         await controller.loadDisclaimers({ country: 'USA' });
 
         expect(controller.state.vendorError).toMatch(/boom/u);
+      });
+    });
+  });
+
+  describe('fetchSessionDisclaimers', () => {
+    const globalCatalog = {
+      idOS: [
+        {
+          key: 'idos-tos',
+          version: '1',
+          title: 'idOS ToS',
+          url: 'https://idos.example/tos',
+        },
+      ],
+      kycProvider: [
+        {
+          key: 'sumsub-tos',
+          version: '1',
+          title: 'SumSub ToS',
+          url: 'https://sumsub.example/tos',
+        },
+      ],
+    };
+
+    it('fetches the session-scoped catalog by sessionId', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(
+          MOCK_SESSION_DISCLAIMERS,
+        );
+
+        expect(
+          await controller.fetchSessionDisclaimers({ sessionId: 'sid' }),
+        ).toStrictEqual(MOCK_SESSION_DISCLAIMERS);
+
+        expect(
+          handlers.fetchSessionDisclaimersBySessionId,
+        ).toHaveBeenCalledWith({ sessionId: 'sid' });
+        expect(
+          handlers.fetchSessionDisclaimersByCountry,
+        ).not.toHaveBeenCalled();
+        expect(controller.state.sessionDisclaimers).toStrictEqual(
+          MOCK_SESSION_DISCLAIMERS,
+        );
+      });
+    });
+
+    it('fetches the global catalog by country', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.fetchSessionDisclaimersByCountry.mockResolvedValue(
+          globalCatalog,
+        );
+
+        expect(
+          await controller.fetchSessionDisclaimers({ country: 'USA' }),
+        ).toStrictEqual(globalCatalog);
+
+        expect(handlers.fetchSessionDisclaimersByCountry).toHaveBeenCalledWith({
+          country: 'USA',
+        });
+        expect(
+          handlers.fetchSessionDisclaimersBySessionId,
+        ).not.toHaveBeenCalled();
+        expect(controller.state.sessionDisclaimers).toBeNull();
+      });
+    });
+
+    it('throws when neither sessionId nor country is provided', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await expect(
+          controller.fetchSessionDisclaimers(
+            {} as FetchSessionDisclaimersParams,
+          ),
+        ).rejects.toThrow(/exactly one of sessionId or country/u);
+
+        expect(
+          handlers.fetchSessionDisclaimersBySessionId,
+        ).not.toHaveBeenCalled();
+        expect(
+          handlers.fetchSessionDisclaimersByCountry,
+        ).not.toHaveBeenCalled();
+      });
+    });
+
+    it('throws when both sessionId and country are provided', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await expect(
+          controller.fetchSessionDisclaimers({
+            sessionId: 'sid',
+            country: 'USA',
+          } as unknown as FetchSessionDisclaimersParams),
+        ).rejects.toThrow(/exactly one of sessionId or country/u);
+
+        expect(
+          handlers.fetchSessionDisclaimersBySessionId,
+        ).not.toHaveBeenCalled();
+        expect(
+          handlers.fetchSessionDisclaimersByCountry,
+        ).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not write sessionDisclaimers when reset lands during a sessionId fetch', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.fetchSessionDisclaimersBySessionId.mockImplementation(
+          async () => {
+            controller.reset();
+            return MOCK_SESSION_DISCLAIMERS;
+          },
+        );
+
+        expect(
+          await controller.fetchSessionDisclaimers({ sessionId: 'sid' }),
+        ).toStrictEqual(MOCK_SESSION_DISCLAIMERS);
+
+        expect(controller.state.sessionDisclaimers).toBeNull();
       });
     });
   });
@@ -2704,7 +2822,9 @@ describe('KycController', () => {
             product: 'money',
           });
 
-          expect(handlers.fetchSessionDisclaimers).toHaveBeenCalled();
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).toHaveBeenCalled();
           expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith({
             vendor: 'iron',
             disclaimerIds: ['d1'],
@@ -3038,7 +3158,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers, launcher }) => {
-          handlers.fetchSessionDisclaimers.mockResolvedValue(
+          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(
             MOCK_SESSION_DISCLAIMERS,
           );
           handlers.submitSessionDisclaimers.mockResolvedValue({
@@ -3071,7 +3191,9 @@ describe('KycController', () => {
             vendor: 'iron',
             disclaimerIds: ['d1'],
           });
-          expect(handlers.fetchSessionDisclaimers).toHaveBeenCalledWith({
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
           expect(handlers.submitSessionDisclaimers).toHaveBeenCalledWith({
@@ -3089,7 +3211,8 @@ describe('KycController', () => {
           expect(
             handlers.createUkycSession.mock.invocationCallOrder[0],
           ).toBeLessThan(
-            handlers.fetchSessionDisclaimers.mock.invocationCallOrder[0],
+            handlers.fetchSessionDisclaimersBySessionId.mock
+              .invocationCallOrder[0],
           );
           expect(handlers.createUkycSession).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -3172,7 +3295,7 @@ describe('KycController', () => {
               consented: true,
             })),
           };
-          handlers.fetchSessionDisclaimers
+          handlers.fetchSessionDisclaimersBySessionId
             .mockResolvedValueOnce(MOCK_SESSION_DISCLAIMERS)
             .mockResolvedValueOnce(consentedCatalog);
           handlers.submitSessionDisclaimers.mockRejectedValue(
@@ -3193,7 +3316,9 @@ describe('KycController', () => {
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
-          expect(handlers.fetchSessionDisclaimers).toHaveBeenCalledTimes(2);
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).toHaveBeenCalledTimes(2);
           expect(controller.state.phase).toBe('done');
           expect(launcher.launch).toHaveBeenCalled();
           controller.reset();
@@ -3220,7 +3345,7 @@ describe('KycController', () => {
               consented: true,
             })),
           };
-          handlers.fetchSessionDisclaimers
+          handlers.fetchSessionDisclaimersBySessionId
             .mockResolvedValueOnce(MOCK_SESSION_DISCLAIMERS)
             .mockResolvedValueOnce(afterConflict);
           handlers.submitSessionDisclaimers.mockRejectedValue(
@@ -3270,7 +3395,9 @@ describe('KycController', () => {
             })),
             credentialReusabilityConsentGiven: false,
           };
-          handlers.fetchSessionDisclaimers.mockResolvedValue(consentedDocs);
+          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(
+            consentedDocs,
+          );
           handlers.submitSessionDisclaimers.mockRejectedValue(
             new HttpError(
               409,
@@ -3305,7 +3432,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers, launcher }) => {
-          handlers.fetchSessionDisclaimers.mockResolvedValue(
+          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(
             MOCK_SESSION_DISCLAIMERS,
           );
           handlers.submitSessionDisclaimers.mockRejectedValue(
@@ -3342,7 +3469,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers, launcher }) => {
-          handlers.fetchSessionDisclaimers.mockResolvedValue({
+          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue({
             idOS: [
               {
                 key: 'idos-tos',
@@ -3400,7 +3527,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers, launcher }) => {
-          handlers.fetchSessionDisclaimers.mockResolvedValue({
+          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue({
             ...MOCK_SESSION_DISCLAIMERS,
             idOS: MOCK_SESSION_DISCLAIMERS.idOS.map((doc) => ({
               ...doc,
@@ -3863,7 +3990,7 @@ describe('KycController', () => {
           let release: () => void = () => {
             // placeholder
           };
-          handlers.fetchSessionDisclaimers.mockReturnValue(
+          handlers.fetchSessionDisclaimersBySessionId.mockReturnValue(
             new Promise<KycSessionDisclaimers>((resolve) => {
               release = (): void => {
                 resolve(MOCK_SESSION_DISCLAIMERS);
@@ -3991,7 +4118,9 @@ describe('KycController', () => {
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
-          expect(handlers.fetchSessionDisclaimers).toHaveBeenCalledWith({
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
           expect(launcher.launch).not.toHaveBeenCalled();
@@ -4013,7 +4142,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.fetchSessionDisclaimers
+          handlers.fetchSessionDisclaimersBySessionId
             .mockResolvedValueOnce(MOCK_SESSION_DISCLAIMERS)
             .mockImplementationOnce(async () => {
               controller.reset();
@@ -4049,10 +4178,12 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.fetchSessionDisclaimers.mockImplementation(async () => {
-            controller.reset();
-            return MOCK_SESSION_DISCLAIMERS;
-          });
+          handlers.fetchSessionDisclaimersBySessionId.mockImplementation(
+            async () => {
+              controller.reset();
+              return MOCK_SESSION_DISCLAIMERS;
+            },
+          );
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -4170,7 +4301,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers, launcher }) => {
-          handlers.fetchSessionDisclaimers.mockResolvedValue({
+          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue({
             idOS: [],
             kycProvider: MOCK_SESSION_DISCLAIMERS.kycProvider,
             credentialReusabilityConsentGiven: false,
@@ -4205,7 +4336,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers, launcher }) => {
-          handlers.fetchSessionDisclaimers.mockResolvedValue({
+          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue({
             idOS: MOCK_SESSION_DISCLAIMERS.idOS,
             kycProvider: [],
             credentialReusabilityConsentGiven: false,
@@ -4239,7 +4370,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers, launcher }) => {
-          handlers.fetchSessionDisclaimers
+          handlers.fetchSessionDisclaimersBySessionId
             .mockResolvedValueOnce(MOCK_SESSION_DISCLAIMERS)
             .mockResolvedValueOnce({
               idOS: [],
@@ -4322,7 +4453,9 @@ describe('KycController', () => {
           });
 
           expect(controller.state.phase).toBe('idle');
-          expect(handlers.fetchSessionDisclaimers).not.toHaveBeenCalled();
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).not.toHaveBeenCalled();
           expect(handlers.submitSessionDisclaimers).not.toHaveBeenCalled();
         },
       );
@@ -4807,6 +4940,20 @@ describe('KycController', () => {
         ).toContain('ch_reset');
       });
     });
+
+    it('exposes fetchSessionDisclaimers as a messenger action', async () => {
+      await withController(async ({ rootMessenger, handlers }) => {
+        handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(
+          MOCK_SESSION_DISCLAIMERS,
+        );
+
+        expect(
+          await rootMessenger.call('KycController:fetchSessionDisclaimers', {
+            sessionId: 'sid',
+          }),
+        ).toStrictEqual(MOCK_SESSION_DISCLAIMERS);
+      });
+    });
   });
 });
 
@@ -4823,7 +4970,8 @@ type ServiceHandlers = {
   checkKycRequired: jest.Mock;
   createVendorCustomer: jest.Mock;
   submitVendorDisclaimers: jest.Mock;
-  fetchSessionDisclaimers: jest.Mock;
+  fetchSessionDisclaimersByCountry: jest.Mock;
+  fetchSessionDisclaimersBySessionId: jest.Mock;
   submitSessionDisclaimers: jest.Mock;
   fetchKycStatus: jest.Mock;
   fetchIdosEnclaveJwks: jest.Mock;
@@ -4860,7 +5008,8 @@ const SERVICE_ACTIONS = [
   'KycService:checkKycRequired',
   'KycService:createVendorCustomer',
   'KycService:submitVendorDisclaimers',
-  'KycService:fetchSessionDisclaimers',
+  'KycService:fetchSessionDisclaimersByCountry',
+  'KycService:fetchSessionDisclaimersBySessionId',
   'KycService:submitSessionDisclaimers',
   'KycService:fetchKycStatus',
   'KycService:fetchIdosEnclaveJwks',
@@ -4969,7 +5118,11 @@ function withController<ReturnValue>(
       .mockResolvedValue([
         { id: 'sign-1', customer_id: 'cust-1', content_id: 'd1' },
       ]),
-    fetchSessionDisclaimers: jest
+    fetchSessionDisclaimersByCountry: jest.fn().mockResolvedValue({
+      idOS: [],
+      kycProvider: [],
+    }),
+    fetchSessionDisclaimersBySessionId: jest
       .fn()
       .mockResolvedValue(MOCK_SESSION_DISCLAIMERS),
     submitSessionDisclaimers: jest.fn().mockResolvedValue({
@@ -5021,8 +5174,12 @@ function withController<ReturnValue>(
     handlers.submitVendorDisclaimers,
   );
   rootMessenger.registerActionHandler(
-    'KycService:fetchSessionDisclaimers',
-    handlers.fetchSessionDisclaimers,
+    'KycService:fetchSessionDisclaimersByCountry',
+    handlers.fetchSessionDisclaimersByCountry,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:fetchSessionDisclaimersBySessionId',
+    handlers.fetchSessionDisclaimersBySessionId,
   );
   rootMessenger.registerActionHandler(
     'KycService:submitSessionDisclaimers',
