@@ -26,6 +26,9 @@
       "path": "../messenger"
     },
     {
+      "path": "../money-account-balance-service"
+    },
+    {
       "path": "../money-account-utils"
     },
     {

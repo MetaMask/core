@@ -1,5 +1,6 @@
 import type { DelegationResponse } from '@metamask/authenticated-user-storage';
 import {
+  createRedeemerTerms,
   decodeERC20TokenPeriodTransferTerms,
   decodeValueLteTerms,
 } from '@metamask/delegation-core';
@@ -40,6 +41,10 @@ export function equalsIgnoreCase(left: string, right: string): boolean {
 export function makeMatchesSubscriptionDelegation(
   expected: SubscriptionDelegationFingerprint,
 ): (entry: DelegationResponse) => boolean {
+  const expectedRedeemerTerms = createRedeemerTerms({
+    redeemers: [expected.delegateAddress],
+  });
+
   return (entry) => {
     if (entry.metadata.type !== SUBSCRIPTION_PAYMENT_DELEGATION_TYPE) {
       return false;
@@ -68,7 +73,7 @@ export function makeMatchesSubscriptionDelegation(
     }
 
     const { caveats } = entry.signedDelegation;
-    if (caveats.length < 2) {
+    if (caveats.length < 3) {
       return false;
     }
 
@@ -81,7 +86,13 @@ export function makeMatchesSubscriptionDelegation(
         expected.enforcers.erc20TokenPeriodTransfer,
       ),
     );
-    if (!valueLteCaveat || !periodCaveat) {
+    const redeemerCaveat = caveats.find((caveat) =>
+      equalsIgnoreCase(caveat.enforcer, expected.enforcers.redeemer),
+    );
+    if (!valueLteCaveat || !periodCaveat || !redeemerCaveat) {
+      return false;
+    }
+    if (!equalsIgnoreCase(redeemerCaveat.terms, expectedRedeemerTerms)) {
       return false;
     }
 

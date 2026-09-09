@@ -2,6 +2,7 @@ import type { SignedDelegation } from '@metamask/authenticated-user-storage';
 import {
   ROOT_AUTHORITY,
   createERC20TokenPeriodTransferTerms,
+  createRedeemerTerms,
   createValueLteTerms,
 } from '@metamask/delegation-core';
 import { bytesToHex } from '@metamask/utils';
@@ -16,6 +17,7 @@ export type UnsignedSubscriptionDelegation = Omit<
 
 export type BuildSubscriptionPaymentCaveatsParams = {
   enforcers: SubscriptionDelegationEnforcers;
+  delegateAddress: Hex;
   tokenAddress: Hex;
   periodAmount: bigint;
   periodDuration: number;
@@ -24,17 +26,25 @@ export type BuildSubscriptionPaymentCaveatsParams = {
 
 /**
  * Builds the caveat list for a subscription-payment delegation:
- * `ValueLte(0)` then `ERC20TokenPeriodTransfer(...)`.
+ * `ValueLte(0)`, `ERC20TokenPeriodTransfer(...)`, then `Redeemer(delegate)`.
  *
- * @param params - Enforcer addresses and period terms.
+ * @param params - Enforcer addresses, parties, and period terms.
+ * @param params.enforcers - Delegation Framework enforcer addresses.
+ * @param params.delegateAddress - Sole permitted redeemer.
+ * @param params.tokenAddress - Subscription settlement token.
+ * @param params.periodAmount - Maximum token amount per period.
+ * @param params.periodDuration - Period length in seconds.
+ * @param params.startDate - Unix timestamp when transfers may begin.
  * @returns Caveats in enforcer order.
  */
-export function buildSubscriptionPaymentCaveats(
-  params: BuildSubscriptionPaymentCaveatsParams,
-): SignedDelegation['caveats'] {
-  const { enforcers, tokenAddress, periodAmount, periodDuration, startDate } =
-    params;
-
+export function buildSubscriptionPaymentCaveats({
+  enforcers,
+  delegateAddress,
+  tokenAddress,
+  periodAmount,
+  periodDuration,
+  startDate,
+}: BuildSubscriptionPaymentCaveatsParams): SignedDelegation['caveats'] {
   return [
     {
       enforcer: enforcers.valueLte,
@@ -51,12 +61,16 @@ export function buildSubscriptionPaymentCaveats(
       }),
       args: '0x',
     },
+    {
+      enforcer: enforcers.redeemer,
+      terms: createRedeemerTerms({ redeemers: [delegateAddress] }),
+      args: '0x',
+    },
   ];
 }
 
 export type BuildUnsignedSubscriptionDelegationParams =
   BuildSubscriptionPaymentCaveatsParams & {
-    delegateAddress: Hex;
     delegatorAddress: Hex;
     /**
      * Optional salt for tests. When omitted, a random 32-byte salt is generated.

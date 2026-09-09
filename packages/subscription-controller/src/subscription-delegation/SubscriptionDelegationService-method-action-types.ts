@@ -6,6 +6,18 @@
 import type { SubscriptionDelegationService } from './SubscriptionDelegationService.js';
 
 /**
+ * Checks whether the Money Account holds enough convertible mUSD value to
+ * cover pricing `unitAmount × minBillingCyclesForBalance`.
+ *
+ * @param request - Payer address and pricing amount fields.
+ * @returns Balance comparison in mUSD base units (6 decimals).
+ */
+export type SubscriptionDelegationServiceCheckMoneyAccountBalanceAction = {
+  type: `SubscriptionDelegationService:checkMoneyAccountBalance`;
+  handler: SubscriptionDelegationService['checkMoneyAccountBalance'];
+};
+
+/**
  * Prepares a subscription-payment delegation and returns its verified hash.
  *
  * Reuses a stored AUS delegation that matches the semantic fingerprint when
@@ -24,4 +36,5 @@ export type SubscriptionDelegationServicePrepareDelegationAction = {
  * Union of all SubscriptionDelegationService action types.
  */
 export type SubscriptionDelegationServiceMethodActions =
-  SubscriptionDelegationServicePrepareDelegationAction;
+  | SubscriptionDelegationServiceCheckMoneyAccountBalanceAction
+  | SubscriptionDelegationServicePrepareDelegationAction;

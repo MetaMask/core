@@ -1,6 +1,10 @@
 import { SubscriptionDelegationServiceErrorMessage } from '../constants.js';
 import { RECURRING_INTERVALS } from '../types.js';
-import { calculatePeriodAmount, getPeriodDuration } from './amount.js';
+import {
+  calculatePeriodAmount,
+  getDelegationStartDate,
+  getPeriodDuration,
+} from './amount.js';
 
 describe('calculatePeriodAmount', () => {
   it('returns the same amount when decimals match', () => {
@@ -90,4 +94,35 @@ describe('getPeriodDuration', () => {
       SubscriptionDelegationServiceErrorMessage.UnsupportedRecurringInterval,
     );
   });
+});
+
+describe('getDelegationStartDate', () => {
+  const nowSeconds = 1_700_000_000;
+
+  it('returns now when trialPeriodDays is omitted', () => {
+    expect(getDelegationStartDate({ nowSeconds })).toBe(nowSeconds);
+  });
+
+  it('returns now when trialPeriodDays is 0', () => {
+    expect(getDelegationStartDate({ nowSeconds, trialPeriodDays: 0 })).toBe(
+      nowSeconds,
+    );
+  });
+
+  it('offsets now by the trial period in seconds', () => {
+    expect(getDelegationStartDate({ nowSeconds, trialPeriodDays: 14 })).toBe(
+      nowSeconds + 14 * 86_400,
+    );
+  });
+
+  it.each([-1, 1.5])(
+    'throws on invalid trialPeriodDays %#',
+    (trialPeriodDays) => {
+      expect(() =>
+        getDelegationStartDate({ nowSeconds, trialPeriodDays }),
+      ).toThrow(
+        SubscriptionDelegationServiceErrorMessage.InvalidTrialPeriodDays,
+      );
+    },
+  );
 });

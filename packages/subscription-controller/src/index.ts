@@ -173,7 +173,10 @@ export {
   serviceName as subscriptionDelegationServiceName,
 } from './subscription-delegation/SubscriptionDelegationService.js';
 export type { SubscriptionDelegationServicePrepareDelegationAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
+export type { SubscriptionDelegationServiceCheckMoneyAccountBalanceAction } from './subscription-delegation/SubscriptionDelegationService-method-action-types.js';
 export type {
+  MoneyAccountBalanceCheckRequest,
+  MoneyAccountBalanceCheckResult,
   PrepareSubscriptionDelegationRequest,
   PreparedSubscriptionDelegation,
 } from './subscription-delegation/types.js';

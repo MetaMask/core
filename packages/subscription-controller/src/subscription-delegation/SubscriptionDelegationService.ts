@@ -5,21 +5,41 @@ import type {
 import type {
   ChompApiServiceCreateIntentsAction,
   ChompApiServiceGetIntentsByAddressAction,
-  ChompApiServiceGetServiceDetailsAction,
   ChompApiServiceVerifyDelegationAction,
 } from '@metamask/chomp-api-service';
 import type { DelegationControllerSignDelegationAction } from '@metamask/delegation-controller';
 import { hashDelegation } from '@metamask/delegation-core';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type { Messenger } from '@metamask/messenger';
-import { getMoneyAccountVaultConfig } from '@metamask/money-account-utils';
+import type { MoneyAccountBalanceServiceFetchBalanceWithFallbackAction } from '@metamask/money-account-balance-service';
+import {
+  getMoneyAccountVaultConfig,
+  MUSD_DECIMALS,
+} from '@metamask/money-account-utils';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import { add0x, hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import type { SubscriptionControllerGetPricingAction } from '../SubscriptionController-method-action-types.js';
 import { SubscriptionDelegationServiceErrorMessage } from '../constants.js';
-import { PRODUCT_TYPES } from '../types.js';
-import { calculatePeriodAmount, getPeriodDuration } from './amount.js';
+import {
+  CRYPTO_AUTH_METHODS,
+  PAYMENT_TYPES,
+  PRODUCT_TYPES,
+} from '../types.js';
+import type {
+  ProductPrice,
+  ProductType,
+  PricingCryptoPaymentMethod,
+  RecurringInterval,
+  TokenPaymentInfo,
+} from '../types.js';
+import {
+  assertPositiveInteger,
+  calculatePeriodAmount,
+  getDelegationStartDate,
+  getPeriodDuration,
+} from './amount.js';
 import { buildUnsignedSubscriptionDelegation } from './caveats.js';
 import {
   equalsIgnoreCase,
@@ -27,6 +47,8 @@ import {
 } from './fingerprint.js';
 import type { SubscriptionDelegationServiceMethodActions } from './SubscriptionDelegationService-method-action-types.js';
 import type {
+  MoneyAccountBalanceCheckRequest,
+  MoneyAccountBalanceCheckResult,
   PrepareSubscriptionDelegationRequest,
   PreparedSubscriptionDelegation,
   SubscriptionDelegationEnforcers,
@@ -39,7 +61,10 @@ import { SUBSCRIPTION_PAYMENT_DELEGATION_TYPE } from './types.js';
  */
 export const serviceName = 'SubscriptionDelegationService';
 
-const MESSENGER_EXPOSED_METHODS = ['prepareDelegation'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'prepareDelegation',
+  'checkMoneyAccountBalance',
+] as const;
 
 const DELEGATION_FRAMEWORK_VERSION = '1.3.0';
 
@@ -47,7 +72,11 @@ function resolveEnforcers(chainId: Hex): SubscriptionDelegationEnforcers {
   const contracts =
     DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION]?.[hexToNumber(chainId)];
 
-  if (!contracts?.ValueLteEnforcer || !contracts.ERC20PeriodTransferEnforcer) {
+  if (
+    !contracts?.ValueLteEnforcer ||
+    !contracts.ERC20PeriodTransferEnforcer ||
+    !contracts.RedeemerEnforcer
+  ) {
     throw new Error(
       `${SubscriptionDelegationServiceErrorMessage.DelegationContractsNotFound}: ${chainId}`,
     );
@@ -56,6 +85,7 @@ function resolveEnforcers(chainId: Hex): SubscriptionDelegationEnforcers {
   return {
     valueLte: contracts.ValueLteEnforcer,
     erc20TokenPeriodTransfer: contracts.ERC20PeriodTransferEnforcer,
+    redeemer: contracts.RedeemerEnforcer,
   };
 }
 
@@ -74,9 +104,10 @@ type AllowedActions =
   | ChompApiServiceVerifyDelegationAction
   | ChompApiServiceCreateIntentsAction
   | ChompApiServiceGetIntentsByAddressAction
-  | ChompApiServiceGetServiceDetailsAction
   | DelegationControllerSignDelegationAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | MoneyAccountBalanceServiceFetchBalanceWithFallbackAction
+  | RemoteFeatureFlagControllerGetStateAction
+  | SubscriptionControllerGetPricingAction;
 
 /**
  * Events that {@link SubscriptionDelegationService} exposes to other consumers.
@@ -115,6 +146,8 @@ type ResolvedSubscriptionDelegationConfig = {
   chainId: Hex;
   delegateAddress: Hex;
   enforcers: SubscriptionDelegationEnforcers;
+  price: ProductPrice;
+  token: TokenPaymentInfo;
 };
 
 /**
@@ -124,9 +157,10 @@ type ResolvedSubscriptionDelegationConfig = {
  * Authenticated User Storage → register CHOMP intent. Returns a verified
  * `delegationHash` for `SubscriptionController.startSubscriptionWithCrypto`.
  *
- * Each call resolves the Money Account chain from remote feature flags, the
- * delegate from CHOMP service details, and Delegation Framework enforcers
- * from `@metamask/delegation-deployments`.
+ * Each call resolves the Money Account chain from remote feature flags, then
+ * resolves its price, payment token, and delegate from `SubscriptionController`
+ * pricing. The pricing `delegateAddress` is used as both the delegation
+ * `delegate` and the RedeemerEnforcer redeemer.
  *
  * Does not own subscription state; `SubscriptionController` does not depend on
  * this service. Only Money Account Plus is supported.
@@ -143,6 +177,52 @@ export class SubscriptionDelegationService {
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Checks whether the Money Account holds enough convertible mUSD value to
+   * cover pricing `unitAmount × minBillingCyclesForBalance`.
+   *
+   * @param request - Payer address and pricing amount fields.
+   * @returns Balance comparison in mUSD base units (6 decimals).
+   */
+  async checkMoneyAccountBalance(
+    request: MoneyAccountBalanceCheckRequest,
+  ): Promise<MoneyAccountBalanceCheckResult> {
+    const { price } = await this.#resolveConfiguration(
+      request.product,
+      request.recurringInterval,
+    );
+    return this.#compareMoneyAccountBalance(request.payerAddress, price);
+  }
+
+  async #compareMoneyAccountBalance(
+    payerAddress: Hex,
+    price: ProductPrice,
+  ): Promise<MoneyAccountBalanceCheckResult> {
+    assertPositiveInteger(
+      price.minBillingCyclesForBalance,
+      SubscriptionDelegationServiceErrorMessage.InvalidMinimumFundingCycles,
+    );
+
+    const periodAmount = calculatePeriodAmount({
+      unitAmount: price.unitAmount,
+      unitDecimals: price.unitDecimals,
+      tokenDecimals: MUSD_DECIMALS,
+    });
+    const requiredBalance =
+      periodAmount * BigInt(price.minBillingCyclesForBalance);
+
+    const { totalBalance } = await this.#messenger.call(
+      'MoneyAccountBalanceService:fetchBalanceWithFallback',
+      payerAddress,
+    );
+
+    return {
+      hasSufficientBalance: BigInt(totalBalance) >= requiredBalance,
+      balance: totalBalance,
+      requiredBalance: requiredBalance.toString(),
+    };
   }
 
   /**
@@ -164,13 +244,28 @@ export class SubscriptionDelegationService {
       );
     }
 
-    const { chainId, delegateAddress, enforcers } =
-      await this.#resolveConfiguration();
+    const { chainId, delegateAddress, enforcers, price, token } =
+      await this.#resolveConfiguration(
+        request.product,
+        request.recurringInterval,
+      );
+
+    if (request.checkBalance) {
+      const { hasSufficientBalance } = await this.#compareMoneyAccountBalance(
+        request.payerAddress,
+        price,
+      );
+      if (!hasSufficientBalance) {
+        throw new Error(
+          SubscriptionDelegationServiceErrorMessage.InsufficientBalance,
+        );
+      }
+    }
 
     const periodAmount = calculatePeriodAmount({
-      unitAmount: request.unitAmount,
-      unitDecimals: request.unitDecimals,
-      tokenDecimals: request.tokenDecimals,
+      unitAmount: price.unitAmount,
+      unitDecimals: price.unitDecimals,
+      tokenDecimals: token.decimals,
     });
     const periodDuration = getPeriodDuration(request.recurringInterval);
 
@@ -178,7 +273,7 @@ export class SubscriptionDelegationService {
       delegatorAddress: request.payerAddress,
       delegateAddress,
       chainId,
-      tokenAddress: request.tokenAddress,
+      tokenAddress: token.address,
       periodAmount,
       periodDuration,
       enforcers,
@@ -203,12 +298,17 @@ export class SubscriptionDelegationService {
       };
     }
 
-    const startDate = Math.floor(Date.now() / 1000);
+    const startDate = getDelegationStartDate({
+      nowSeconds: Math.floor(Date.now() / 1000),
+      trialPeriodDays: request.isTrialRequested
+        ? price.trialPeriodDays
+        : undefined,
+    });
     const unsigned = buildUnsignedSubscriptionDelegation({
       delegateAddress,
       delegatorAddress: request.payerAddress,
       enforcers,
-      tokenAddress: request.tokenAddress,
+      tokenAddress: token.address,
       periodAmount,
       periodDuration,
       startDate,
@@ -264,8 +364,8 @@ export class SubscriptionDelegationService {
           delegationHash,
           chainIdHex: chainId,
           allowance,
-          tokenSymbol: request.tokenSymbol,
-          tokenAddress: request.tokenAddress,
+          tokenSymbol: token.symbol,
+          tokenAddress: token.address,
           type: SUBSCRIPTION_PAYMENT_DELEGATION_TYPE,
         },
       },
@@ -276,8 +376,8 @@ export class SubscriptionDelegationService {
       chainId,
       delegationHash,
       allowance,
-      tokenSymbol: request.tokenSymbol,
-      tokenAddress: request.tokenAddress,
+      tokenSymbol: token.symbol,
+      tokenAddress: token.address,
     });
 
     return {
@@ -286,7 +386,10 @@ export class SubscriptionDelegationService {
     };
   }
 
-  async #resolveConfiguration(): Promise<ResolvedSubscriptionDelegationConfig> {
+  async #resolveConfiguration(
+    product: ProductType,
+    recurringInterval: RecurringInterval,
+  ): Promise<ResolvedSubscriptionDelegationConfig> {
     const { remoteFeatureFlags } = this.#messenger.call(
       'RemoteFeatureFlagController:getState',
     );
@@ -299,23 +402,34 @@ export class SubscriptionDelegationService {
 
     const { chainId } = vaultConfig;
     const enforcers = resolveEnforcers(chainId);
-    const { chains } = await this.#messenger.call(
-      'ChompApiService:getServiceDetails',
-      [chainId],
+    const pricing = await this.#messenger.call(
+      'SubscriptionController:getPricing',
     );
-    const chain = chains[chainId];
-    if (!chain) {
+    const price = pricing.products
+      .find((entry) => entry.name === product)
+      ?.prices.find((entry) => entry.interval === recurringInterval);
+    const paymentMethod = pricing.paymentMethods.find(
+      (entry): entry is PricingCryptoPaymentMethod =>
+        entry.type === PAYMENT_TYPES.byCrypto &&
+        entry.cryptoAuthMethod === CRYPTO_AUTH_METHODS.DELEGATION &&
+        entry.products?.includes(product) === true,
+    );
+    const chain = paymentMethod?.chains?.find(
+      (entry) => entry.chainId === chainId,
+    );
+    const token = chain?.tokens[0];
+    if (!price || !chain?.delegateAddress || !token) {
       throw new Error(
-        `${SubscriptionDelegationServiceErrorMessage.ChompChainNotFound}: ${chainId}`,
+        SubscriptionDelegationServiceErrorMessage.PricingConfigurationNotFound,
       );
     }
 
-    // TODO(SUB-911/SUB-914): Use the subscription-payment delegate once CHOMP
-    // exposes one instead of reusing the Money Account auto-deposit delegate.
     return {
       chainId,
-      delegateAddress: chain.autoDepositDelegate,
+      delegateAddress: chain.delegateAddress,
       enforcers,
+      price,
+      token,
     };
   }
 

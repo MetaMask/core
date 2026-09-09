@@ -80,11 +80,45 @@ export function getPeriodDuration(
 }
 
 /**
+ * Computes the ERC20TokenPeriodTransfer `startDate` for a subscription
+ * delegation, optionally deferred by a pricing trial.
+ *
+ * @param params - Clock and optional trial length.
+ * @param params.nowSeconds - Current unix timestamp in seconds.
+ * @param params.trialPeriodDays - Optional non-negative trial length in days.
+ * Defaults to `0` (no offset) when omitted.
+ * @returns Unix timestamp when the first period transfer may begin.
+ */
+export function getDelegationStartDate({
+  nowSeconds,
+  trialPeriodDays = 0,
+}: {
+  nowSeconds: number;
+  trialPeriodDays?: number;
+}): number {
+  assertNonNegativeInteger(
+    trialPeriodDays,
+    SubscriptionDelegationServiceErrorMessage.InvalidTrialPeriodDays,
+  );
+  return nowSeconds + trialPeriodDays * SECONDS_PER_DAY;
+}
+
+/**
  * @param value - Candidate number.
  * @param message - Error message when invalid.
  */
 function assertNonNegativeInteger(value: number, message: string): void {
   if (!Number.isInteger(value) || value < 0) {
+    throw new Error(message);
+  }
+}
+
+/**
+ * @param value - Candidate number.
+ * @param message - Error message when invalid.
+ */
+export function assertPositiveInteger(value: number, message: string): void {
+  if (!Number.isInteger(value) || value <= 0) {
     throw new Error(message);
   }
 }

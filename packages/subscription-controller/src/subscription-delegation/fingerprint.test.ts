@@ -1,6 +1,7 @@
 import type { DelegationResponse } from '@metamask/authenticated-user-storage';
 import {
   createERC20TokenPeriodTransferTerms,
+  createRedeemerTerms,
   createValueLteTerms,
   ROOT_AUTHORITY,
 } from '@metamask/delegation-core';
@@ -14,9 +15,11 @@ import { SUBSCRIPTION_PAYMENT_DELEGATION_TYPE } from './types.js';
 
 const VALUE_LTE = '0x1111111111111111111111111111111111111111' as Hex;
 const PERIOD = '0x2222222222222222222222222222222222222222' as Hex;
+const REDEEMER = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
 const TOKEN = '0x3333333333333333333333333333333333333333' as Hex;
 const DELEGATE = '0x4444444444444444444444444444444444444444' as Hex;
 const DELEGATOR = '0x5555555555555555555555555555555555555555' as Hex;
+const OTHER_REDEEMER = '0x6666666666666666666666666666666666666666' as Hex;
 const CHAIN_ID = '0x1' as Hex;
 const PERIOD_AMOUNT = 10n * 10n ** 18n;
 const PERIOD_DURATION = 28 * 86_400;
@@ -32,6 +35,9 @@ function buildEntry({
   startDate = 1_700_000_000,
   valueLteEnforcer = VALUE_LTE,
   periodEnforcer = PERIOD,
+  redeemerEnforcer = REDEEMER,
+  redeemerAddress = DELEGATE,
+  includeRedeemer = true,
   maxValue = 0n,
 }: {
   type?: string;
@@ -44,30 +50,43 @@ function buildEntry({
   startDate?: number;
   valueLteEnforcer?: Hex;
   periodEnforcer?: Hex;
+  redeemerEnforcer?: Hex;
+  redeemerAddress?: Hex;
+  includeRedeemer?: boolean;
   maxValue?: bigint;
 } = {}): DelegationResponse {
+  const caveats = [
+    {
+      enforcer: valueLteEnforcer,
+      terms: createValueLteTerms({ maxValue }),
+      args: '0x' as Hex,
+    },
+    {
+      enforcer: periodEnforcer,
+      terms: createERC20TokenPeriodTransferTerms({
+        tokenAddress,
+        periodAmount,
+        periodDuration,
+        startDate,
+      }),
+      args: '0x' as Hex,
+    },
+  ];
+
+  if (includeRedeemer) {
+    caveats.push({
+      enforcer: redeemerEnforcer,
+      terms: createRedeemerTerms({ redeemers: [redeemerAddress] }),
+      args: '0x' as Hex,
+    });
+  }
+
   return {
     signedDelegation: {
       delegate,
       delegator,
       authority: ROOT_AUTHORITY,
-      caveats: [
-        {
-          enforcer: valueLteEnforcer,
-          terms: createValueLteTerms({ maxValue }),
-          args: '0x',
-        },
-        {
-          enforcer: periodEnforcer,
-          terms: createERC20TokenPeriodTransferTerms({
-            tokenAddress,
-            periodAmount,
-            periodDuration,
-            startDate,
-          }),
-          args: '0x',
-        },
-      ],
+      caveats,
       salt: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       signature: `0x${'bb'.repeat(65)}`,
     },
@@ -92,6 +111,7 @@ const expected = {
   enforcers: {
     valueLte: VALUE_LTE,
     erc20TokenPeriodTransfer: PERIOD,
+    redeemer: REDEEMER,
   },
 };
 
@@ -125,6 +145,7 @@ describe('makeMatchesSubscriptionDelegation', () => {
           delegate: upper(DELEGATE),
           tokenAddress: upper(TOKEN),
           chainIdHex: upper(CHAIN_ID),
+          redeemerAddress: upper(DELEGATE),
         }),
       ),
     ).toBe(true);
@@ -157,6 +178,13 @@ describe('makeMatchesSubscriptionDelegation', () => {
         periodEnforcer: '0x6666666666666666666666666666666666666666' as Hex,
       },
     ],
+    [
+      'redeemerEnforcer',
+      {
+        redeemerEnforcer: '0x6666666666666666666666666666666666666666' as Hex,
+      },
+    ],
+    ['redeemerAddress', { redeemerAddress: OTHER_REDEEMER }],
     ['periodAmount', { periodAmount: PERIOD_AMOUNT + 1n }],
     ['periodDuration', { periodDuration: PERIOD_DURATION + 1 }],
     ['maxValue', { maxValue: 1n }],
@@ -169,6 +197,10 @@ describe('makeMatchesSubscriptionDelegation', () => {
     entry.signedDelegation.caveats = [];
 
     expect(matches(entry)).toBe(false);
+  });
+
+  it('rejects a delegation missing the redeemer caveat', () => {
+    expect(matches(buildEntry({ includeRedeemer: false }))).toBe(false);
   });
 
   it('rejects a delegation with malformed caveat terms', () => {
