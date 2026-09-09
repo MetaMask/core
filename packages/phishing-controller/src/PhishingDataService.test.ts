@@ -130,7 +130,15 @@ describe('PhishingDataService', () => {
     it('throws if the API returns a malformed response', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/1700000000`)
-        .reply(200, { data: [{}] });
+        .reply(200, {
+          data: [
+            {
+              url: 'phishing.example.com',
+              timestamp: 1700000001,
+              targetList: 'unexpected.blocklist',
+            },
+          ],
+        });
       const { rootMessenger } = createService();
 
       await expect(
@@ -310,6 +318,22 @@ describe('PhishingDataService', () => {
         .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
         .query({ url: 'example.com' })
         .reply(200, { recommendedAction: 'INVALID' });
+      const { rootMessenger } = createService();
+
+      await expect(
+        rootMessenger.call('PhishingDataService:scanUrl', 'example.com'),
+      ).rejects.toThrow('Malformed response received from URL scan endpoint');
+    });
+
+    it('validates optional URL scan response fields when present', async () => {
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, {
+          hostname: 123,
+          recommendedAction: 'NONE',
+          fetchError: false,
+        });
       const { rootMessenger } = createService();
 
       await expect(

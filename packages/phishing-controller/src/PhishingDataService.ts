@@ -260,6 +260,14 @@ const ApprovalFeatureTypeStruct = union([
   literal(ApprovalFeatureType.Info),
 ]);
 
+const HotlistTargetListStruct = union([
+  literal('eth_phishing_detect_config.allowlist'),
+  literal('eth_phishing_detect_config.blocklist'),
+  literal('eth_phishing_detect_config.blocklistPaths'),
+  literal('eth_phishing_detect_config.fuzzylist'),
+  literal('eth_phishing_detect_config.c2DomainBlocklist'),
+]);
+
 const StalelistResponseStruct = type({
   data: type({
     allowlist: array(string()),
@@ -277,7 +285,7 @@ const HotlistDiffsResponseStruct = type({
     type({
       url: string(),
       timestamp: number(),
-      targetList: string(),
+      targetList: HotlistTargetListStruct,
       isRemoval: optional(boolean()),
     }),
   ),
@@ -289,7 +297,9 @@ const C2DomainBlocklistResponseStruct = type({
 });
 
 const ScanUrlResponseStruct = type({
+  hostname: optional(string()),
   recommendedAction: RecommendedActionStruct,
+  fetchError: optional(string()),
 });
 
 const BulkScanUrlsResponseStruct = type({
