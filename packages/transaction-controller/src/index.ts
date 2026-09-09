@@ -71,6 +71,8 @@ export type {
   BatchTransaction,
   BatchTransactionParams,
   BeforeSignHook,
+  IsSponsoredHook,
+  ShouldSignHook,
   DappSuggestedGasFees,
   DefaultGasEstimates,
   FeeMarketEIP1559Values,
