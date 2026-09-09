@@ -1,10 +1,10 @@
 import { KnownCaipNamespace } from '@metamask/utils';
-import { QuoteMetadata } from 'src/utils/quote-metadata/types';
 
 import { mockBridgeQuotesErc20Erc20V2Migration } from '../../tests/mock-quotes-erc20-erc20-migration-v2.js';
 import { mockBridgeQuotesErc20Erc20V1 } from '../../tests/mock-quotes-erc20-erc20.js';
 import { mergeQuoteMetadata } from '../utils/quote-metadata/merge.js';
 import { toQuoteMetadataV1 } from '../utils/quote-metadata/to-quote-metadata-v1.js';
+import { QuoteMetadata } from '../utils/quote-metadata/types.js';
 import { toQuoteResponseV2 } from './quote-response-v1-to-v2.js';
 
 const TEST_METADATA: QuoteMetadata = {
