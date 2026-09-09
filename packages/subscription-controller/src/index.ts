@@ -180,4 +180,4 @@ export type {
   PrepareSubscriptionDelegationRequest,
   PreparedSubscriptionDelegation,
 } from './subscription-delegation/types.js';
-export { SUBSCRIPTION_PAYMENT_DELEGATION_TYPE } from './subscription-delegation/types.js';
+export { CASH_SUBSCRIPTION_DELEGATION_TYPE } from './subscription-delegation/types.js';

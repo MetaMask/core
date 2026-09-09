@@ -1,15 +1,17 @@
+import { CHOMP_INTENT_TYPES } from '@metamask/chomp-api-service';
 import type { Hex } from '@metamask/utils';
 
 import { PRODUCT_TYPES } from '../types.js';
 import type { RecurringInterval } from '../types.js';
 
 /**
- * Storage / CHOMP metadata type for subscription-payment delegations.
+ * Storage / CHOMP metadata type for cash-subscription delegations.
  */
-export const SUBSCRIPTION_PAYMENT_DELEGATION_TYPE = 'subscription-payment';
+export const CASH_SUBSCRIPTION_DELEGATION_TYPE =
+  CHOMP_INTENT_TYPES.CASH_SUBSCRIPTION;
 
 /**
- * Request to prepare a subscription-payment delegation.
+ * Request to prepare a cash-subscription delegation.
  *
  * The service resolves all amount, token, delegate, and trial-duration fields
  * from authoritative pricing held by `SubscriptionController`.
@@ -61,7 +63,7 @@ export type MoneyAccountBalanceCheckResult = {
 };
 
 /**
- * Delegation Framework enforcers used by subscription-payment delegations.
+ * Delegation Framework enforcers used by cash-subscription delegations.
  */
 export type SubscriptionDelegationEnforcers = {
   valueLte: Hex;

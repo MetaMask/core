@@ -41,12 +41,18 @@ export type VerifyDelegationParams = {
 };
 
 /**
- * CHOMP intent / delegation metadata type discriminator.
+ * CHOMP intent / delegation metadata type discriminators.
  */
+export const CHOMP_INTENT_TYPES = {
+  CASH_DEPOSIT: 'cash-deposit',
+  CASH_WITHDRAWAL: 'cash-withdrawal',
+  CASH_SUBSCRIPTION: 'cash-subscription',
+  CASH_DEPOSIT_PREMIUM: 'cash-deposit-premium',
+  CASH_WITHDRAWAL_PREMIUM: 'cash-withdrawal-premium',
+} as const;
+
 export type ChompIntentType =
-  | 'cash-deposit'
-  | 'cash-withdrawal'
-  | 'subscription-payment';
+  (typeof CHOMP_INTENT_TYPES)[keyof typeof CHOMP_INTENT_TYPES];
 
 export type IntentMetadataParams = {
   allowance: Hex;

@@ -9,6 +9,7 @@ import nock from 'nock';
 
 import type { ChompApiServiceMessenger } from './chomp-api-service.js';
 import { ChompApiService } from './chomp-api-service.js';
+import { CHOMP_INTENT_TYPES } from './types.js';
 
 const BASE_URL = 'https://api.chomp.example.com';
 const MOCK_TOKEN = 'mock-jwt-token';
@@ -521,7 +522,7 @@ describe('ChompApiService', () => {
       );
     });
 
-    it('accepts subscription-payment intent metadata type', async () => {
+    it('accepts cash-subscription intent metadata type', async () => {
       const subscriptionIntentParams = [
         {
           account: '0xabc' as const,
@@ -531,7 +532,7 @@ describe('ChompApiService', () => {
             allowance: '0xff' as const,
             tokenSymbol: 'pvmUSD',
             tokenAddress: '0x123' as const,
-            type: 'subscription-payment' as const,
+            type: CHOMP_INTENT_TYPES.CASH_SUBSCRIPTION,
           },
         },
       ];
@@ -542,7 +543,7 @@ describe('ChompApiService', () => {
             allowance: '0xff',
             tokenSymbol: 'pvmUSD',
             tokenAddress: '0x123',
-            type: 'subscription-payment',
+            type: CHOMP_INTENT_TYPES.CASH_SUBSCRIPTION,
           },
           createdAt: '2026-01-01T00:00:00Z',
         },
@@ -687,7 +688,7 @@ describe('ChompApiService', () => {
                 },
               ],
               adapterAddress: '0x4839b1BA117BdFFA986FCfA4E5fE6b9027b8f8B1',
-              intentTypes: ['cash-deposit', 'cash-withdrawal'],
+              intentTypes: Object.values(CHOMP_INTENT_TYPES),
             },
           },
         },

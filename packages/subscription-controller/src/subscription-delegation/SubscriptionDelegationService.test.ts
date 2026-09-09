@@ -18,10 +18,7 @@ import {
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
 } from '../types.js';
-import type {
-  PricingCryptoPaymentMethod,
-  PricingResponse,
-} from '../types.js';
+import type { PricingCryptoPaymentMethod, PricingResponse } from '../types.js';
 import { calculatePeriodAmount, getPeriodDuration } from './amount.js';
 import {
   SubscriptionDelegationService,
@@ -29,7 +26,7 @@ import {
 } from './SubscriptionDelegationService.js';
 import type { SubscriptionDelegationServiceMessenger } from './SubscriptionDelegationService.js';
 import type { PrepareSubscriptionDelegationRequest } from './types.js';
-import { SUBSCRIPTION_PAYMENT_DELEGATION_TYPE } from './types.js';
+import { CASH_SUBSCRIPTION_DELEGATION_TYPE } from './types.js';
 
 const TOKEN = '0x3333333333333333333333333333333333333333' as Hex;
 const DELEGATE = '0x4444444444444444444444444444444444444444' as Hex;
@@ -339,7 +336,7 @@ function buildStoredDelegation({
       allowance: `0x${periodAmount.toString(16)}`,
       tokenSymbol: 'pvmUSD',
       tokenAddress: TOKEN,
-      type: SUBSCRIPTION_PAYMENT_DELEGATION_TYPE,
+      type: CASH_SUBSCRIPTION_DELEGATION_TYPE,
     },
   };
 }
@@ -410,7 +407,7 @@ describe('SubscriptionDelegationService', () => {
           allowance: `0x${PERIOD_AMOUNT.toString(16)}`,
           tokenSymbol: 'pvmUSD',
           tokenAddress: TOKEN,
-          type: SUBSCRIPTION_PAYMENT_DELEGATION_TYPE,
+          type: CASH_SUBSCRIPTION_DELEGATION_TYPE,
         }),
       });
       expect(mocks.createIntents).toHaveBeenCalledWith([
@@ -422,7 +419,7 @@ describe('SubscriptionDelegationService', () => {
             allowance: `0x${PERIOD_AMOUNT.toString(16)}`,
             tokenSymbol: 'pvmUSD',
             tokenAddress: TOKEN,
-            type: SUBSCRIPTION_PAYMENT_DELEGATION_TYPE,
+            type: CASH_SUBSCRIPTION_DELEGATION_TYPE,
           },
         },
       ]);

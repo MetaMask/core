@@ -15,7 +15,7 @@ export type UnsignedSubscriptionDelegation = Omit<
   'signature'
 >;
 
-export type BuildSubscriptionPaymentCaveatsParams = {
+export type BuildSubscriptionCaveatsParams = {
   enforcers: SubscriptionDelegationEnforcers;
   delegateAddress: Hex;
   tokenAddress: Hex;
@@ -25,7 +25,7 @@ export type BuildSubscriptionPaymentCaveatsParams = {
 };
 
 /**
- * Builds the caveat list for a subscription-payment delegation:
+ * Builds the caveat list for a cash-subscription delegation:
  * `ValueLte(0)`, `ERC20TokenPeriodTransfer(...)`, then `Redeemer(delegate)`.
  *
  * @param params - Enforcer addresses, parties, and period terms.
@@ -37,14 +37,14 @@ export type BuildSubscriptionPaymentCaveatsParams = {
  * @param params.startDate - Unix timestamp when transfers may begin.
  * @returns Caveats in enforcer order.
  */
-export function buildSubscriptionPaymentCaveats({
+export function buildSubscriptionCaveats({
   enforcers,
   delegateAddress,
   tokenAddress,
   periodAmount,
   periodDuration,
   startDate,
-}: BuildSubscriptionPaymentCaveatsParams): SignedDelegation['caveats'] {
+}: BuildSubscriptionCaveatsParams): SignedDelegation['caveats'] {
   return [
     {
       enforcer: enforcers.valueLte,
@@ -70,7 +70,7 @@ export function buildSubscriptionPaymentCaveats({
 }
 
 export type BuildUnsignedSubscriptionDelegationParams =
-  BuildSubscriptionPaymentCaveatsParams & {
+  BuildSubscriptionCaveatsParams & {
     delegatorAddress: Hex;
     /**
      * Optional salt for tests. When omitted, a random 32-byte salt is generated.
@@ -79,7 +79,7 @@ export type BuildUnsignedSubscriptionDelegationParams =
   };
 
 /**
- * Builds an unsigned root subscription-payment delegation.
+ * Builds an unsigned root cash-subscription delegation.
  *
  * @param params - Delegation parties, enforcers, and period terms.
  * @returns An unsigned delegation ready for signing.
@@ -95,7 +95,7 @@ export function buildUnsignedSubscriptionDelegation(
     delegate: params.delegateAddress,
     delegator: params.delegatorAddress,
     authority: ROOT_AUTHORITY,
-    caveats: buildSubscriptionPaymentCaveats(params),
+    caveats: buildSubscriptionCaveats(params),
     salt,
   };
 }

@@ -11,7 +11,7 @@ import {
   equalsIgnoreCase,
   makeMatchesSubscriptionDelegation,
 } from './fingerprint.js';
-import { SUBSCRIPTION_PAYMENT_DELEGATION_TYPE } from './types.js';
+import { CASH_SUBSCRIPTION_DELEGATION_TYPE } from './types.js';
 
 const VALUE_LTE = '0x1111111111111111111111111111111111111111' as Hex;
 const PERIOD = '0x2222222222222222222222222222222222222222' as Hex;
@@ -25,7 +25,7 @@ const PERIOD_AMOUNT = 10n * 10n ** 18n;
 const PERIOD_DURATION = 28 * 86_400;
 
 function buildEntry({
-  type = SUBSCRIPTION_PAYMENT_DELEGATION_TYPE,
+  type = CASH_SUBSCRIPTION_DELEGATION_TYPE,
   delegator = DELEGATOR,
   delegate = DELEGATE,
   chainIdHex = CHAIN_ID,

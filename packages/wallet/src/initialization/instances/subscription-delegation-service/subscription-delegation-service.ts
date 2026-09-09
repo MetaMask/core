@@ -27,9 +27,10 @@ export const subscriptionDelegationService: InitializationConfiguration<
         'ChompApiService:verifyDelegation',
         'ChompApiService:createIntents',
         'ChompApiService:getIntentsByAddress',
-        'ChompApiService:getServiceDetails',
         'DelegationController:signDelegation',
+        'MoneyAccountBalanceService:fetchBalanceWithFallback',
         'RemoteFeatureFlagController:getState',
+        'SubscriptionController:getPricing',
       ],
     });
 

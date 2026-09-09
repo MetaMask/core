@@ -46,6 +46,7 @@ import type {
   VerifyDelegationParams,
   VerifyDelegationResponse,
 } from './types.js';
+import { CHOMP_INTENT_TYPES } from './types.js';
 
 // === GENERAL ===
 
@@ -193,11 +194,7 @@ const VerifyDelegationResponseStruct = type({
   errors: optional(array(string())),
 });
 
-const ChompIntentTypeStruct = enums([
-  'cash-deposit',
-  'cash-withdrawal',
-  'subscription-payment',
-]);
+const ChompIntentTypeStruct = enums(Object.values(CHOMP_INTENT_TYPES));
 
 const SendIntentResponseArrayStruct = array(
   type({

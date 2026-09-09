@@ -44,3 +44,4 @@ export type {
   VerifyDelegationParams,
   VerifyDelegationResponse,
 } from './types.js';
+export { CHOMP_INTENT_TYPES } from './types.js';

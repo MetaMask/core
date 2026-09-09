@@ -7,7 +7,7 @@ import {
 import type { Hex } from '@metamask/utils';
 
 import type { SubscriptionDelegationEnforcers } from './types.js';
-import { SUBSCRIPTION_PAYMENT_DELEGATION_TYPE } from './types.js';
+import { CASH_SUBSCRIPTION_DELEGATION_TYPE } from './types.js';
 
 export type SubscriptionDelegationFingerprint = {
   delegatorAddress: Hex;
@@ -32,7 +32,7 @@ export function equalsIgnoreCase(left: string, right: string): boolean {
 
 /**
  * Builds a predicate that matches a stored AUS delegation to the semantic
- * subscription-payment fingerprint. Salt and period `startDate` are ignored so
+ * cash-subscription fingerprint. Salt and period `startDate` are ignored so
  * a previously signed equivalent permission can be reused.
  *
  * @param expected - Semantic fields that must match.
@@ -46,7 +46,7 @@ export function makeMatchesSubscriptionDelegation(
   });
 
   return (entry) => {
-    if (entry.metadata.type !== SUBSCRIPTION_PAYMENT_DELEGATION_TYPE) {
+    if (entry.metadata.type !== CASH_SUBSCRIPTION_DELEGATION_TYPE) {
       return false;
     }
     if (

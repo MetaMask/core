@@ -18,7 +18,7 @@ export type SubscriptionDelegationServiceCheckMoneyAccountBalanceAction = {
 };
 
 /**
- * Prepares a subscription-payment delegation and returns its verified hash.
+ * Prepares a cash-subscription delegation and returns its verified hash.
  *
  * Reuses a stored AUS delegation that matches the semantic fingerprint when
  * one exists (ensuring a CHOMP intent is active for its hash). Otherwise

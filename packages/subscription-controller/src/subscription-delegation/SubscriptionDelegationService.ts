@@ -20,13 +20,9 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import { add0x, hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type { SubscriptionControllerGetPricingAction } from '../SubscriptionController-method-action-types.js';
 import { SubscriptionDelegationServiceErrorMessage } from '../constants.js';
-import {
-  CRYPTO_AUTH_METHODS,
-  PAYMENT_TYPES,
-  PRODUCT_TYPES,
-} from '../types.js';
+import type { SubscriptionControllerGetPricingAction } from '../SubscriptionController-method-action-types.js';
+import { CRYPTO_AUTH_METHODS, PAYMENT_TYPES, PRODUCT_TYPES } from '../types.js';
 import type {
   ProductPrice,
   ProductType,
@@ -53,7 +49,7 @@ import type {
   PreparedSubscriptionDelegation,
   SubscriptionDelegationEnforcers,
 } from './types.js';
-import { SUBSCRIPTION_PAYMENT_DELEGATION_TYPE } from './types.js';
+import { CASH_SUBSCRIPTION_DELEGATION_TYPE } from './types.js';
 
 /**
  * The name of the {@link SubscriptionDelegationService}, used to namespace the
@@ -151,7 +147,7 @@ type ResolvedSubscriptionDelegationConfig = {
 };
 
 /**
- * Stateless orchestrator for subscription-payment delegation setup.
+ * Stateless orchestrator for cash-subscription delegation setup.
  *
  * Owns the workflow: size periodic caveats → sign → CHOMP verify → persist to
  * Authenticated User Storage → register CHOMP intent. Returns a verified
@@ -226,7 +222,7 @@ export class SubscriptionDelegationService {
   }
 
   /**
-   * Prepares a subscription-payment delegation and returns its verified hash.
+   * Prepares a cash-subscription delegation and returns its verified hash.
    *
    * Reuses a stored AUS delegation that matches the semantic fingerprint when
    * one exists (ensuring a CHOMP intent is active for its hash). Otherwise
@@ -366,7 +362,7 @@ export class SubscriptionDelegationService {
           allowance,
           tokenSymbol: token.symbol,
           tokenAddress: token.address,
-          type: SUBSCRIPTION_PAYMENT_DELEGATION_TYPE,
+          type: CASH_SUBSCRIPTION_DELEGATION_TYPE,
         },
       },
     );
@@ -474,7 +470,7 @@ export class SubscriptionDelegationService {
           allowance: params.allowance,
           tokenSymbol: params.tokenSymbol,
           tokenAddress: params.tokenAddress,
-          type: SUBSCRIPTION_PAYMENT_DELEGATION_TYPE,
+          type: CASH_SUBSCRIPTION_DELEGATION_TYPE,
         },
       },
     ]);

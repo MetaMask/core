@@ -7,7 +7,7 @@ import {
 import type { Hex } from '@metamask/utils';
 
 import {
-  buildSubscriptionPaymentCaveats,
+  buildSubscriptionCaveats,
   buildUnsignedSubscriptionDelegation,
 } from './caveats.js';
 
@@ -24,9 +24,9 @@ const ENFORCERS = {
   redeemer: REDEEMER_ENFORCER,
 };
 
-describe('buildSubscriptionPaymentCaveats', () => {
+describe('buildSubscriptionCaveats', () => {
   it('builds ValueLte(0), ERC20TokenPeriodTransfer, then Redeemer caveats', () => {
-    const caveats = buildSubscriptionPaymentCaveats({
+    const caveats = buildSubscriptionCaveats({
       enforcers: ENFORCERS,
       delegateAddress: DELEGATE,
       tokenAddress: TOKEN_ADDRESS,
