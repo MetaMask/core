@@ -452,6 +452,151 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       `[1.0.0]: ${REPO_URL}/releases/tag/${oldTagPrefix}1.0.0`,
     );
   });
+
+  it('does not re-add an entry theirs inherited unchanged from the common ancestor, even if ours has since evolved it', async () => {
+    // Regression test: "theirs" is behind and still has the original
+    // dependency-bump entry from the common ancestor; "ours" has since
+    // bumped the same dependency further (a common occurrence on a
+    // long-lived base branch). Without the common ancestor, the stale
+    // entry from "theirs" looks new (different PR numbers/description) and
+    // gets wrongly re-added, duplicating it.
+    const baseContent = buildChangelog(
+      `### Changed
+
+- Bump \`dep\` from \`1.0.0\` to \`1.0.1\` ([#10](${REPO_URL}/pull/10))`,
+    );
+    const theirContent = baseContent;
+    const ourContent = buildChangelog(
+      `### Changed
+
+- Bump \`dep\` from \`1.0.0\` to \`1.0.5\` ([#10](${REPO_URL}/pull/10), [#11](${REPO_URL}/pull/11))`,
+    );
+
+    const { content, mergedEntryCount } = await mergeChangelogs({
+      ourContent,
+      theirContent,
+      baseContent,
+      repoUrl: REPO_URL,
+      tagPrefix: TAG_PREFIX,
+    });
+
+    expect(mergedEntryCount).toBe(0);
+    expect(content.match(/Bump `dep`/gu)).toHaveLength(1);
+    expect(content).toContain('Bump `dep` from `1.0.0` to `1.0.5`');
+  });
+
+  it('does not re-add a dependency bump entry that has since been released on ours with a different target version', async () => {
+    // Regression test: "theirs" still has the original dependency-bump
+    // entry under Unreleased, unchanged since the common ancestor. Since
+    // then, "ours" cut a release: the entry moved out of Unreleased into a
+    // version section, and its target version was bumped further before
+    // release. The entry now lives in a different place (a release instead
+    // of Unreleased) with different text, so it must still be recognized as
+    // "not new" and not re-added to ours' (now-empty) Unreleased section.
+    const baseContent = `# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Changed
+
+- Bump \`@metamask/dep\` from \`1.0.0\` to \`1.0.1\` ([#10](${REPO_URL}/pull/10))
+
+## [1.0.0]
+
+### Added
+
+- Initial release ([#1](${REPO_URL}/pull/1))
+
+[Unreleased]: ${REPO_URL}/compare/${TAG_PREFIX}1.0.0...HEAD
+[1.0.0]: ${REPO_URL}/releases/tag/${TAG_PREFIX}1.0.0
+`;
+    const theirContent = baseContent;
+    const ourContent = `# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [2.0.0]
+
+### Changed
+
+- Bump \`@metamask/dep\` from \`1.0.0\` to \`1.0.5\` ([#10](${REPO_URL}/pull/10), [#11](${REPO_URL}/pull/11))
+
+## [1.0.0]
+
+### Added
+
+- Initial release ([#1](${REPO_URL}/pull/1))
+
+[Unreleased]: ${REPO_URL}/compare/${TAG_PREFIX}2.0.0...HEAD
+[2.0.0]: ${REPO_URL}/compare/${TAG_PREFIX}1.0.0...${TAG_PREFIX}2.0.0
+[1.0.0]: ${REPO_URL}/releases/tag/${TAG_PREFIX}1.0.0
+`;
+
+    const { content, mergedEntryCount } = await mergeChangelogs({
+      ourContent,
+      theirContent,
+      baseContent,
+      repoUrl: REPO_URL,
+      tagPrefix: TAG_PREFIX,
+    });
+
+    expect(mergedEntryCount).toBe(0);
+    expect(content.match(/Bump `@metamask\/dep`/gu)).toHaveLength(1);
+    expect(content).toContain('Bump `@metamask/dep` from `1.0.0` to `1.0.5`');
+    expect(content).not.toContain('to `1.0.1`');
+    // Unreleased has nothing to merge in, so it stays empty.
+    expect(content).toMatch(/## \[Unreleased\]\s*\n\n## \[2\.0\.0\]/u);
+  });
+
+  it('still merges a genuinely new entry from theirs when a common ancestor is provided', async () => {
+    const baseContent = buildChangelog('');
+    const theirContent = buildChangelog(
+      `### Added
+
+- Added by theirs, absent from the common ancestor ([#20](${REPO_URL}/pull/20))`,
+    );
+    const ourContent = buildChangelog('');
+
+    const { content, mergedEntryCount } = await mergeChangelogs({
+      ourContent,
+      theirContent,
+      baseContent,
+      repoUrl: REPO_URL,
+      tagPrefix: TAG_PREFIX,
+    });
+
+    expect(mergedEntryCount).toBe(1);
+    expect(content).toContain(
+      'Added by theirs, absent from the common ancestor',
+    );
+  });
+
+  it('falls back to a two-way union when the common ancestor is unparseable', async () => {
+    const { content, mergedEntryCount } = await mergeChangelogs({
+      ourContent: buildChangelog(''),
+      theirContent: buildChangelog(
+        `### Added
+
+- Added by theirs ([#20](${REPO_URL}/pull/20))`,
+      ),
+      baseContent: 'this is not a valid changelog',
+      repoUrl: REPO_URL,
+      tagPrefix: TAG_PREFIX,
+    });
+
+    expect(mergedEntryCount).toBe(1);
+    expect(content).toContain('Added by theirs');
+  });
 });
 
 describe('findConflictedChangelogFiles', () => {
@@ -607,6 +752,9 @@ describe('resolveChangelogConflicts', () => {
         if (args[0] === 'show' && args[1] === `:3:${changelogPath}`) {
           return { stdout: theirsContent };
         }
+        if (args[0] === 'show' && args[1] === `:1:${changelogPath}`) {
+          return { stdout: buildChangelog('') };
+        }
         if (args[0] === 'add') {
           return { stdout: '' };
         }
@@ -635,6 +783,113 @@ describe('resolveChangelogConflicts', () => {
     );
   });
 
+  it('does not re-add an entry theirs inherited unchanged from the common ancestor', async () => {
+    // End-to-end version of the mergeChangelogs regression test above,
+    // proving the common ancestor is actually fetched and used.
+    const changelogPath = 'packages/example/CHANGELOG.md';
+    const baseContent = buildChangelog(
+      `### Changed
+
+- Bump \`dep\` from \`1.0.0\` to \`1.0.1\` ([#10](${REPO_URL}/pull/10))`,
+    );
+    const oursContent = buildChangelog(
+      `### Changed
+
+- Bump \`dep\` from \`1.0.0\` to \`1.0.5\` ([#10](${REPO_URL}/pull/10), [#11](${REPO_URL}/pull/11))`,
+    );
+    const theirsContent = baseContent;
+
+    (execa as unknown as jest.Mock).mockImplementation(
+      async (command: string, args: string[]) => {
+        if (args[0] === 'diff') {
+          return { stdout: changelogPath };
+        }
+        if (args[0] === 'show' && args[1] === `:1:${changelogPath}`) {
+          return { stdout: baseContent };
+        }
+        if (args[0] === 'show' && args[1] === `:2:${changelogPath}`) {
+          return { stdout: oursContent };
+        }
+        if (args[0] === 'show' && args[1] === `:3:${changelogPath}`) {
+          return { stdout: theirsContent };
+        }
+        if (args[0] === 'add') {
+          return { stdout: '' };
+        }
+        throw new Error(`Unexpected execa call: ${command} ${args.join(' ')}`);
+      },
+    );
+
+    jest.spyOn(fs, 'readFile').mockResolvedValue(
+      JSON.stringify({
+        name: '@metamask/example',
+        repository: { type: 'git', url: `${REPO_URL}.git` },
+      }),
+    );
+    jest.spyOn(fs, 'writeFile').mockResolvedValue();
+
+    const result = await resolveChangelogConflicts();
+
+    expect(result.resolved).toStrictEqual([
+      { path: changelogPath, mergedEntryCount: 0 },
+    ]);
+    const [, writtenContent] = (fs.writeFile as jest.Mock).mock.calls[0];
+    expect(writtenContent.match(/Bump `dep`/gu)).toHaveLength(1);
+    expect(writtenContent).toContain('Bump `dep` from `1.0.0` to `1.0.5`');
+  });
+
+  it('tolerates a missing common ancestor (e.g. both sides added the file)', async () => {
+    const changelogPath = 'packages/example/CHANGELOG.md';
+    const oursContent = buildChangelog('');
+    const theirsContent = buildChangelog(
+      `### Added
+
+- Added theirs entry ([#11](${REPO_URL}/pull/11))`,
+    );
+
+    (execa as unknown as jest.Mock).mockImplementation(
+      async (command: string, args: string[]) => {
+        if (args[0] === 'diff') {
+          return { stdout: changelogPath };
+        }
+        if (args[0] === 'show' && args[1] === `:1:${changelogPath}`) {
+          throw new Error(
+            'path exists on disk, but not in the index at stage 1',
+          );
+        }
+        if (args[0] === 'show' && args[1] === `:2:${changelogPath}`) {
+          return { stdout: oursContent };
+        }
+        if (args[0] === 'show' && args[1] === `:3:${changelogPath}`) {
+          return { stdout: theirsContent };
+        }
+        if (args[0] === 'add') {
+          return { stdout: '' };
+        }
+        throw new Error(`Unexpected execa call: ${command} ${args.join(' ')}`);
+      },
+    );
+
+    jest.spyOn(fs, 'readFile').mockResolvedValue(
+      JSON.stringify({
+        name: '@metamask/example',
+        repository: { type: 'git', url: `${REPO_URL}.git` },
+      }),
+    );
+    jest.spyOn(fs, 'writeFile').mockResolvedValue();
+
+    const result = await resolveChangelogConflicts();
+
+    expect(result.resolved).toStrictEqual([
+      { path: changelogPath, mergedEntryCount: 1 },
+    ]);
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.stringContaining(changelogPath),
+      expect.stringContaining('Added theirs entry'),
+      'utf8',
+    );
+  });
+
   it('skips a file that cannot be parsed and leaves it unresolved', async () => {
     const changelogPath = 'packages/example/CHANGELOG.md';
 
@@ -647,6 +902,9 @@ describe('resolveChangelogConflicts', () => {
           return { stdout: 'this is not a valid changelog' };
         }
         if (args[0] === 'show' && args[1] === `:3:${changelogPath}`) {
+          return { stdout: buildChangelog('') };
+        }
+        if (args[0] === 'show' && args[1] === `:1:${changelogPath}`) {
           return { stdout: buildChangelog('') };
         }
         throw new Error(`Unexpected execa call: ${command} ${args.join(' ')}`);

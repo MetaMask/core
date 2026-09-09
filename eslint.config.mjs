@@ -59,7 +59,7 @@ const config = createConfig([
       '**/.tsc-lint-cache',
       '**/coverage/**',
       '**/dist/**',
-      '**/docs/**',
+      '**/api-docs/**',
       '.platform-api-docs/**',
       '.skills-cache/**',
       '.yarn/**',
@@ -335,7 +335,6 @@ const config = createConfig([
       'packages/permission-log-controller/src/PermissionLogController.ts',
       'packages/phishing-controller/src/PhishingController.ts',
       'packages/rate-limit-controller/src/RateLimitController.ts',
-      'tests/fake-provider.ts',
       'tests/mock-network.ts',
     ],
     rules: {
