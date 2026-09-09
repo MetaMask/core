@@ -724,10 +724,21 @@ export class PhishingDataService extends BaseDataService<
     loader.flush();
 
     const results: TokenScanApiResponse['results'] = {};
-    for (const [token, result] of await Promise.all(entries)) {
+    let firstError: unknown;
+    for (const outcome of await Promise.allSettled(entries)) {
+      if (outcome.status === 'rejected') {
+        firstError ??= outcome.reason;
+        continue;
+      }
+
+      const [token, result] = outcome.value;
       if (result !== null) {
         results[token] = result;
       }
+    }
+
+    if (Object.keys(results).length === 0 && firstError !== undefined) {
+      throw firstError;
     }
 
     return { results };

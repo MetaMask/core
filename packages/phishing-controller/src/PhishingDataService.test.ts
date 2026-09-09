@@ -498,6 +498,47 @@ describe('PhishingDataService', () => {
       expect(response).toStrictEqual(apiResponse);
     });
 
+    it('preserves cached results when an uncached token fails', async () => {
+      const cachedToken = '0x1234567890123456789012345678901234567890';
+      const uncachedToken = '0x0987654321098765432109876543210987654321';
+      const cachedResult = { result_type: 'Malicious' };
+      nock(SECURITY_ALERTS_BASE_URL)
+        .post(TOKEN_BULK_SCANNING_ENDPOINT, {
+          chain: 'ethereum',
+          tokens: [cachedToken],
+        })
+        .reply(200, {
+          results: {
+            [cachedToken]: cachedResult,
+          },
+        });
+      const { rootMessenger } = createService();
+      await rootMessenger.call(
+        'PhishingDataService:scanToken',
+        'ethereum',
+        cachedToken,
+      );
+
+      nock(SECURITY_ALERTS_BASE_URL)
+        .post(TOKEN_BULK_SCANNING_ENDPOINT, {
+          chain: 'ethereum',
+          tokens: [uncachedToken],
+        })
+        .reply(500, 'boom');
+
+      const response = await rootMessenger.call(
+        'PhishingDataService:bulkScanTokens',
+        'ethereum',
+        [cachedToken, uncachedToken],
+      );
+
+      expect(response).toStrictEqual({
+        results: {
+          [cachedToken]: cachedResult,
+        },
+      });
+    });
+
     it('accepts a response without a results field', async () => {
       nock(SECURITY_ALERTS_BASE_URL)
         .post(TOKEN_BULK_SCANNING_ENDPOINT)
