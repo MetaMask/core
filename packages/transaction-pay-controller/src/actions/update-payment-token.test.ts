@@ -1,5 +1,5 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import { noop } from 'lodash';
+import { noop } from 'lodash-es';
 
 import type { TransactionData, TransactionPaymentToken } from '../types.js';
 import {
