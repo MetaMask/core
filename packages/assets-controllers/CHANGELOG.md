@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `DeFiPositionsControllerV2.fetchDeFiPositions` now sets `forceFetchDeFiPositions` on the Accounts API request only when `forceRefresh` is true
+
 ## [111.2.0]
 
 ### Changed
