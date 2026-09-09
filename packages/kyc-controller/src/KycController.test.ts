@@ -527,9 +527,9 @@ describe('KycController', () => {
           MOCK_SESSION_DISCLAIMERS,
         );
 
-        await expect(
-          controller.fetchSessionDisclaimers({ sessionId: 'sid' }),
-        ).resolves.toStrictEqual(MOCK_SESSION_DISCLAIMERS);
+        expect(
+          await controller.fetchSessionDisclaimers({ sessionId: 'sid' }),
+        ).toStrictEqual(MOCK_SESSION_DISCLAIMERS);
 
         expect(
           handlers.fetchSessionDisclaimersBySessionId,
@@ -549,9 +549,9 @@ describe('KycController', () => {
           globalCatalog,
         );
 
-        await expect(
-          controller.fetchSessionDisclaimers({ country: 'USA' }),
-        ).resolves.toStrictEqual(globalCatalog);
+        expect(
+          await controller.fetchSessionDisclaimers({ country: 'USA' }),
+        ).toStrictEqual(globalCatalog);
 
         expect(handlers.fetchSessionDisclaimersByCountry).toHaveBeenCalledWith({
           country: 'USA',
@@ -607,9 +607,9 @@ describe('KycController', () => {
           },
         );
 
-        await expect(
-          controller.fetchSessionDisclaimers({ sessionId: 'sid' }),
-        ).resolves.toStrictEqual(MOCK_SESSION_DISCLAIMERS);
+        expect(
+          await controller.fetchSessionDisclaimers({ sessionId: 'sid' }),
+        ).toStrictEqual(MOCK_SESSION_DISCLAIMERS);
 
         expect(controller.state.sessionDisclaimers).toBeNull();
       });
@@ -4932,11 +4932,11 @@ describe('KycController', () => {
           MOCK_SESSION_DISCLAIMERS,
         );
 
-        await expect(
-          rootMessenger.call('KycController:fetchSessionDisclaimers', {
+        expect(
+          await rootMessenger.call('KycController:fetchSessionDisclaimers', {
             sessionId: 'sid',
           }),
-        ).resolves.toStrictEqual(MOCK_SESSION_DISCLAIMERS);
+        ).toStrictEqual(MOCK_SESSION_DISCLAIMERS);
       });
     });
   });

@@ -1114,8 +1114,10 @@ export class KycController extends BaseController<
   async fetchSessionDisclaimers(
     params: FetchSessionDisclaimersParams,
   ): Promise<KycSessionDisclaimers | KycDisclaimersCatalog> {
-    const sessionId = 'sessionId' in params ? params.sessionId : undefined;
-    const country = 'country' in params ? params.country : undefined;
+    const { sessionId, country } = params as {
+      sessionId?: string;
+      country?: string;
+    };
     if (sessionId && country) {
       throw new Error(
         'KycController.fetchSessionDisclaimers: provide exactly one of sessionId or country.',
