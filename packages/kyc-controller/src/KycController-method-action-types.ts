@@ -58,9 +58,9 @@ export type KycControllerLoadDisclaimersAction = {
  * `sessionId` or `country`:
  *
  * - `{ sessionId }` → {@link KycService.fetchSessionDisclaimersBySessionId}
- *   (`GET /sessions/{sessionId}/disclaimers`)
+ * (`GET /sessions/{sessionId}/disclaimers`)
  * - `{ country }` → {@link KycService.fetchSessionDisclaimersByCountry}
- *   (`GET /disclaimers?country=`)
+ * (`GET /disclaimers?country=`)
  *
  * A session-id fetch also writes the catalog to `sessionDisclaimers`.
  *
