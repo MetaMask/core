@@ -1369,7 +1369,7 @@ export class KycController extends BaseController<
     generation: number,
   ): Promise<void> {
     const catalog = await this.messenger.call(
-      'KycService:fetchSessionDisclaimers',
+      'KycService:fetchSessionDisclaimersBySessionId',
       { sessionId },
     );
     if (this.#generation !== generation) {
@@ -1429,7 +1429,7 @@ export class KycController extends BaseController<
       // continue only when every document the user accepted is now consented;
       // otherwise fail closed so a version bump cannot skip new docs.
       const latest = await this.messenger.call(
-        'KycService:fetchSessionDisclaimers',
+        'KycService:fetchSessionDisclaimersBySessionId',
         { sessionId },
       );
       if (this.#generation !== generation) {

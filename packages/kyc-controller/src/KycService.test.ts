@@ -760,7 +760,7 @@ describe('KycService', () => {
     });
   });
 
-  describe('fetchDisclaimersCatalog', () => {
+  describe('fetchSessionDisclaimersByCountry', () => {
     const documents = {
       idOS: [
         {
@@ -788,7 +788,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       expect(
-        await service.fetchDisclaimersCatalog({ country: 'USA' }),
+        await service.fetchSessionDisclaimersByCountry({ country: 'USA' }),
       ).toStrictEqual(documents);
     });
 
@@ -796,7 +796,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchDisclaimersCatalog({ country: 'US' }),
+        service.fetchSessionDisclaimersByCountry({ country: 'US' }),
       ).rejects.toThrow(/ISO 3166-1 alpha-3/u);
     });
 
@@ -808,7 +808,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchDisclaimersCatalog({ country: 'USA' }),
+        service.fetchSessionDisclaimersByCountry({ country: 'USA' }),
       ).rejects.toThrow(/Malformed response received from disclaimers API/u);
     });
 
@@ -820,7 +820,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchDisclaimersCatalog({ country: 'USA' }),
+        service.fetchSessionDisclaimersByCountry({ country: 'USA' }),
       ).rejects.toThrow(/Malformed response received from disclaimers API/u);
     });
 
@@ -832,12 +832,12 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchDisclaimersCatalog({ country: 'USA' }),
+        service.fetchSessionDisclaimersByCountry({ country: 'USA' }),
       ).rejects.toThrow(/failed with status '500'/u);
     });
   });
 
-  describe('fetchSessionDisclaimers', () => {
+  describe('fetchSessionDisclaimersBySessionId', () => {
     const documents = {
       idOS: [
         {
@@ -868,7 +868,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       expect(
-        await service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+        await service.fetchSessionDisclaimersBySessionId({ sessionId: 'sid-1' }),
       ).toStrictEqual(catalog);
     });
 
@@ -877,7 +877,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+        service.fetchSessionDisclaimersBySessionId({ sessionId: 'sid-1' }),
       ).rejects.toThrow(
         /Malformed response received from session disclaimers API/u,
       );
@@ -890,7 +890,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+        service.fetchSessionDisclaimersBySessionId({ sessionId: 'sid-1' }),
       ).rejects.toThrow(
         /Malformed response received from session disclaimers API/u,
       );
@@ -914,7 +914,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+        service.fetchSessionDisclaimersBySessionId({ sessionId: 'sid-1' }),
       ).rejects.toThrow(
         /Malformed response received from session disclaimers API/u,
       );
@@ -925,7 +925,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+        service.fetchSessionDisclaimersBySessionId({ sessionId: 'sid-1' }),
       ).rejects.toThrow(/failed with status '500'/u);
     });
   });
