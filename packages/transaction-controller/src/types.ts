@@ -2131,6 +2131,21 @@ export type AfterAddHook = (request: {
 }>;
 
 /**
+ * Custom logic to determine whether a transaction should be treated as sponsored.
+ */
+export type IsSponsoredHook = (request: {
+  transactionMeta: TransactionMeta;
+}) => Promise<boolean>;
+
+/**
+ * Custom logic to determine whether a transaction should be signed locally.
+ */
+export type ShouldSignHook = (request: {
+  transactionMeta: TransactionMeta;
+  isSponsored: boolean;
+}) => Promise<boolean>;
+
+/**
  * Custom logic to be executed before a transaction is signed.
  * Can optionally update the transaction by returning the `updateTransaction` callback.
  */

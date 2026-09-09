@@ -2409,6 +2409,130 @@ describe('TransactionController', () => {
       });
     });
 
+    describe('with sponsored approval hooks', () => {
+      it('calls isSponsored hook before reserving a nonce', async () => {
+        const callOrder: string[] = [];
+
+        const isSponsoredHook = jest.fn().mockImplementation(async () => {
+          callOrder.push('isSponsored');
+          expect(getNonceLockSpy).not.toHaveBeenCalled();
+          return false;
+        });
+
+        const shouldSignHook = jest.fn().mockImplementation(async () => {
+          callOrder.push('shouldSign');
+          expect(getNonceLockSpy).not.toHaveBeenCalled();
+          return true;
+        });
+
+        getNonceLockSpy.mockImplementation(async () => {
+          callOrder.push('getNonceLock');
+          return {
+            nextNonce: NONCE_MOCK,
+            releaseLock: () => Promise.resolve(),
+          };
+        });
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            hooks: {
+              isSponsored: isSponsoredHook,
+              shouldSign: shouldSignHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(isSponsoredHook).toHaveBeenCalledTimes(1);
+        expect(shouldSignHook).toHaveBeenCalledTimes(1);
+        expect(callOrder).toStrictEqual(['isSponsored', 'shouldSign', 'getNonceLock']);
+      });
+
+      it('skips nonce reservation when shouldSign resolves false', async () => {
+        const isSponsoredHook = jest.fn().mockResolvedValue(false);
+        const shouldSignHook = jest.fn().mockResolvedValue(false);
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            hooks: {
+              isSponsored: isSponsoredHook,
+              shouldSign: shouldSignHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(isSponsoredHook).toHaveBeenCalledTimes(1);
+        expect(shouldSignHook).toHaveBeenCalledTimes(1);
+        expect(getNonceLockSpy).not.toHaveBeenCalled();
+      });
+
+      it('still runs beforeSign when shouldSign resolves false', async () => {
+        const beforeSignHook = jest.fn().mockResolvedValueOnce({});
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            hooks: {
+              beforeSign: beforeSignHook,
+              shouldSign: jest.fn().mockResolvedValue(false),
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(beforeSignHook).toHaveBeenCalledTimes(1);
+        expect(getNonceLockSpy).not.toHaveBeenCalled();
+      });
+    });
+
     describe('with beforeSign hook', () => {
       it('calls beforeSign hook', async () => {
         const beforeSignHook = jest.fn().mockResolvedValueOnce({});
