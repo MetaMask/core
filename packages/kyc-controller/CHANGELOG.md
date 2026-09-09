@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `KycController.fetchSessionDisclaimers`, which fetches the idOS + KYC-provider catalog by `{ sessionId }` or `{ country }` via `KycService.fetchSessionDisclaimersBySessionId` or `KycService.fetchSessionDisclaimersByCountry`.
+
+### Changed
+
+- **BREAKING:** Rename `KycService.fetchDisclaimersCatalog` to `fetchSessionDisclaimersByCountry`.
+  - Rename `FetchDisclaimersCatalogParams` to `FetchSessionDisclaimersByCountryParams`.
+  - Rename the messenger action `KycService:fetchDisclaimersCatalog` to `KycService:fetchSessionDisclaimersByCountry`.
+- **BREAKING:** Rename `KycService.fetchSessionDisclaimers` to `fetchSessionDisclaimersBySessionId`.
+  - Rename `FetchSessionDisclaimersParams` to `FetchSessionDisclaimersBySessionIdParams`.
+  - Rename the messenger action `KycService:fetchSessionDisclaimers` to `KycService:fetchSessionDisclaimersBySessionId`.
+
 ## [0.2.0]
 
 ### Changed

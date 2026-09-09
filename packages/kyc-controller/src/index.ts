@@ -14,6 +14,7 @@ export type {
   KycControllerState,
   KycControllerStateChangeEvent,
   KycControllerStatusChangedEvent,
+  FetchSessionDisclaimersParams,
 } from './KycController.js';
 export type {
   KycControllerAcceptTermsAndStartSessionAction,
@@ -24,6 +25,7 @@ export type {
   KycControllerClearSavedTermsAction,
   KycControllerClearStateAction,
   KycControllerCreateVendorCustomerAction,
+  KycControllerFetchSessionDisclaimersAction,
   KycControllerGetCustomerIdentityAction,
   KycControllerGetKycStatusAction,
   KycControllerGetSessionStatusAction,
@@ -72,6 +74,7 @@ export type {
   KycServiceFetchKycStatusAction,
   KycServiceFetchSessionDisclaimersByCountryAction,
   KycServiceFetchSessionDisclaimersBySessionIdAction,
+  KycServiceFetchVendorDisclaimersAction,
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceSetAuthorizationsAction,

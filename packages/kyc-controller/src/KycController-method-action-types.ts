@@ -54,6 +54,29 @@ export type KycControllerLoadDisclaimersAction = {
 };
 
 /**
+ * Fetches the idOS + KYC-provider disclaimer catalog. Pass exactly one of
+ * `sessionId` or `country`:
+ *
+ * - `{ sessionId }` → {@link KycService.fetchSessionDisclaimersBySessionId}
+ *   (`GET /sessions/{sessionId}/disclaimers`)
+ * - `{ country }` → {@link KycService.fetchSessionDisclaimersByCountry}
+ *   (`GET /disclaimers?country=`)
+ *
+ * A session-id fetch also writes the catalog to `sessionDisclaimers`.
+ *
+ * @param params - The parameters. Provide exactly one of `sessionId` or
+ * `country`.
+ * @param params.sessionId - The UKYC session id.
+ * @param params.country - ISO 3166-1 alpha-3 country code.
+ * @returns The catalog. Session fetches include consent state; country
+ * fetches do not.
+ */
+export type KycControllerFetchSessionDisclaimersAction = {
+  type: `KycController:fetchSessionDisclaimers`;
+  handler: KycController['fetchSessionDisclaimers'];
+};
+
+/**
  * Captures terms acceptance for the currently loaded disclaimers and creates
  * a session.
  *
@@ -264,6 +287,7 @@ export type KycControllerMethodActions =
   | KycControllerInitializeAction
   | KycControllerCreateVendorCustomerAction
   | KycControllerLoadDisclaimersAction
+  | KycControllerFetchSessionDisclaimersAction
   | KycControllerAcceptTermsAndStartSessionAction
   | KycControllerClearSavedTermsAction
   | KycControllerHandleFrameMessageAction

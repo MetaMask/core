@@ -99,7 +99,7 @@ graph TB
 
 Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
-`initialize`, `loadDisclaimers`, `acceptTermsAndStartSession`,
+`initialize`, `loadDisclaimers`, `fetchSessionDisclaimers`, `acceptTermsAndStartSession`,
 `createVendorCustomer`, `clearSavedTerms`, `handleFrameMessage`,
 `buildCheckFrameUrl`, `buildAuthFrameUrl`, `buildResetFrameUrl`,
 `checkKycRequired`, `getKycStatus`, `getCustomerIdentity`, `refreshKycStatus`,
