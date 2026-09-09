@@ -96,14 +96,12 @@ const MESSENGER_EXPOSED_METHODS = [
   'clearPasswordChangePhase',
   'markPasswordChangeKeySyncPending',
   'resolvePasswordSyncState',
-  'recoverPasswordChange',
+  'reconcilePassword',
   'updateBackupMetadataState',
   'verifyVaultPassword',
   'getSecretDataBackupState',
   'submitPassword',
   'setLocked',
-  'syncLatestGlobalPassword',
-  'submitGlobalPassword',
   'getIsUserAuthenticated',
   'clearState',
   'storeKeyringEncryptionKey',
@@ -1213,43 +1211,26 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Sync the latest global password to the controller.
-   * reset vault with latest globalPassword,
-   * persist the latest global password authPubKey
+   * Rewrite the local Seedless vault under the latest global password.
    *
-   * @param params - The parameters for syncing the latest global password.
-   * @param params.globalPassword - The latest global password.
-   * @returns A promise that resolves to the success of the operation.
-   */
-  async syncLatestGlobalPassword({
-    globalPassword,
-  }: {
-    globalPassword: string;
-  }): Promise<void> {
-    return await this.#withControllerLock(async () => {
-      this.#assertIsUnlocked();
-      return await this.#executeWithTokenRefresh(
-        async () => await this.#syncLatestGlobalPasswordInner(globalPassword),
-        'syncLatestGlobalPassword',
-      );
-    });
-  }
-
-  /**
-   * Lock-free implementation of `syncLatestGlobalPassword`.
-   *
-   * Rewrites the local Seedless vault under the latest global password and
-   * resets the password-outdated cache. Must be called while the controller
-   * lock is held (or from a context that does not hold the lock, in which
-   * case the caller manages locking).
+   * Rewrites the local Seedless vault under the latest global password,
+   * re-encrypts `encryptedKeyringEncryptionKey` under the new wrapping key,
+   * and resets the password-outdated cache. Must be called while the
+   * controller lock is held (or from a context that does not hold the lock,
+   * in which case the caller manages locking).
    *
    * @param globalPassword - The latest global password.
    */
   async #syncLatestGlobalPasswordInner(globalPassword: string): Promise<void> {
-    // update vault with latest globalPassword
+    // Decrypt under the old wrapping key before the vault rewrite so the
+    // ciphertext can be persisted under the new `toprfPwEncryptionKey`.
+    let keyringEncryptionKey: string | undefined;
+    if (this.state.encryptedKeyringEncryptionKey) {
+      keyringEncryptionKey = await this.loadKeyringEncryptionKey();
+    }
+
     const { encKey, pwEncKey, authKeyPair } =
       await this.#recoverEncKey(globalPassword);
-    // update and encrypt the vault with new password
     await this.#createNewVaultWithAuthData({
       password: globalPassword,
       rawToprfEncryptionKey: encKey,
@@ -1257,34 +1238,11 @@ export class SeedlessOnboardingController<
       rawToprfAuthKeyPair: authKeyPair,
     });
 
-    this.#resetPasswordOutdatedCache();
-  }
+    if (keyringEncryptionKey) {
+      await this.#persistKeyringEncryptionKey(keyringEncryptionKey);
+    }
 
-  /**
-   * @description Unlock the controller with the latest global password.
-   *
-   * @param params - The parameters for unlocking the controller.
-   * @param params.maxKeyChainLength - The maximum chain length of the pwd encryption keys.
-   * @param params.globalPassword - The latest global password.
-   * @returns A promise that resolves to the success of the operation.
-   */
-  async submitGlobalPassword({
-    globalPassword,
-    maxKeyChainLength = 5,
-  }: {
-    globalPassword: string;
-    maxKeyChainLength?: number;
-  }): Promise<void> {
-    return await this.#withControllerLock(async () => {
-      return await this.#executeWithTokenRefresh(async () => {
-        const currentDeviceAuthPubKey = this.#recoverAuthPubKey();
-        await this.#submitGlobalPassword({
-          targetAuthPubKey: currentDeviceAuthPubKey,
-          globalPassword,
-          maxKeyChainLength,
-        });
-      }, 'submitGlobalPassword');
-    });
+    this.#resetPasswordOutdatedCache();
   }
 
   /**
@@ -1333,7 +1291,8 @@ export class SeedlessOnboardingController<
       this.#setUnlocked();
 
       // Pick the latest access token - the token from state might be newer (from refreshAuthTokens)
-      // than the token stored in the vault. The vault will be updated later by syncLatestGlobalPassword.
+      // than the token stored in the vault. The vault will be updated later
+      // by the password-sync flow.
       this.#pickLatestAccessToken(
         accessTokenBeforeUnlock,
         decryptedVaultData.accessToken,
@@ -2404,7 +2363,7 @@ export class SeedlessOnboardingController<
    * - Other phases: return the next recovery step without mutating state.
    *
    * This method does not consume a password; the client prompts for the
-   * correct password and then calls `recoverPasswordChange`.
+   * correct password and then calls `reconcilePassword`.
    *
    * @param options - The options.
    * @param options.skipCache - Whether to bypass the outdated cache. Ignored
@@ -2474,11 +2433,10 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Reconcile the Seedless side of a password-change recovery — or a plain
-   * remote password sync — with the supplied password.
+   * Reconcile the local Seedless password with the remote password.
    *
    * For `SEEDLESS_COMMITTED` or `LOCAL_KEYRING_PENDING` it re-runs the existing
-   * password-sync flow (`submitGlobalPassword` + `syncLatestGlobalPassword`)
+   * password-sync flow (chain unlock + local vault rewrite)
    * with the new password and advances the phase to `LOCAL_KEYRING_PENDING`.
    * These operations are idempotent, so re-running them is safe whether or not
    * the local Seedless vault was already rewritten. The controller is left
@@ -2496,12 +2454,12 @@ export class SeedlessOnboardingController<
    * `KeyringController`. See
    * [0003](./docs/0003-controller-owned-password-change-recovery-plan.md).
    *
-   * @param params - The recovery parameters.
-   * @param params.globalPassword - The new global password.
-   * @returns The recovery result. On any failure the last known phase is
+   * @param params - The reconciliation parameters.
+   * @param params.globalPassword - The current global password.
+   * @returns The reconciliation result. On any failure the last known phase is
    * preserved and `PasswordChangeRecoveryStatus.Unknown` is returned.
    */
-  async recoverPasswordChange({
+  async reconcilePassword({
     globalPassword,
   }: {
     globalPassword: string;
@@ -2563,8 +2521,8 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Re-run the password-sync flow (`submitGlobalPassword` +
-   * `syncLatestGlobalPassword`) with the supplied password.
+   * Re-run the password-sync flow (chain unlock + local vault rewrite) with
+   * the supplied password.
    *
    * Both operations are idempotent if the local Seedless vault is already
    * synced, so this is safe to re-run during recovery or a plain
@@ -2591,7 +2549,7 @@ export class SeedlessOnboardingController<
   /**
    * Return the recovery status for phases that require no Seedless-side
    * mutation. Shared by `resolvePasswordSyncState` (read) and
-   * `recoverPasswordChange` (apply) so both route the terminal phases
+   * `reconcilePassword` (apply) so both route the terminal phases
    * identically.
    *
    * @param phase - The persisted password-change phase.

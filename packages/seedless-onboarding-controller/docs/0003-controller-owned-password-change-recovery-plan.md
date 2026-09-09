@@ -18,16 +18,16 @@ A single controller method performs the entire recovery for any set phase and re
 
 ## Current state (Option A)
 
-- `recoverPasswordChange({ globalPassword })` does the Seedless-side steps (`#checkIsPasswordOutdated({ skipCache: true })`, `submitGlobalPassword`, `syncLatestGlobalPassword`, lifecycle advances) and returns a result describing the remaining Keyring-side step. Remote-state resolution for `SeedlessChangePending` is owned by `resolvePasswordSyncState()` (password-less), which the client calls first.
+- `reconcilePassword({ globalPassword })` does the Seedless-side steps (`#checkIsPasswordOutdated({ skipCache: true })`, chain unlock, local vault rewrite, lifecycle advances) and returns a result describing the remaining Keyring-side step. Remote-state resolution for `SeedlessChangePending` is owned by `resolvePasswordSyncState()` (password-less), which the client calls first.
 - The client classifies the local Keyring via `KeyringController:verifyPassword`, then runs the old-Keyring or new-Keyring branch itself, calling `KeyringController:submitEncryptionKey` / `changePassword` / `exportEncryptionKey` and the controller's `loadKeyringEncryptionKey` / `storeKeyringEncryptionKey` / `markPasswordChangeKeySyncPending` / `clearPasswordChangePhase`.
 - `AllowedActions = never`; the controller does not call `KeyringController`.
 
 ## Target state (Option B)
 
 - `AllowedActions` includes `KeyringController:verifyPassword`, `KeyringController:submitEncryptionKey`, `KeyringController:changePassword`, `KeyringController:exportEncryptionKey` (and `KeyringController:setLocked` if locking is folded in).
-- `recoverPasswordChange({ globalPassword })` performs the full transaction:
+- `reconcilePassword({ globalPassword })` performs the full transaction:
   1. Resolve remote state for `SeedlessChangePending` via `resolvePasswordSyncState()` (which runs `#checkIsPasswordOutdated({ skipCache: true })`).
-  2. Reconcile the Seedless side (`submitGlobalPassword` + `syncLatestGlobalPassword`) for `SeedlessCommitted` / `LocalKeyringPending`.
+  2. Reconcile the Seedless side (internal chain unlock + local vault rewrite) for `SeedlessCommitted` / `LocalKeyringPending`.
   3. Classify the local Keyring via `KeyringController:verifyPassword(newPassword)`.
   4. Old-Keyring branch: `loadKeyringEncryptionKey` → `KeyringController:submitEncryptionKey` → `KeyringController:changePassword` → `KeyringController:exportEncryptionKey` → `storeKeyringEncryptionKey` → `markPasswordChangeKeySyncPending`.
   5. New-Keyring branch: `KeyringController:exportEncryptionKey` → `storeKeyringEncryptionKey` → `markPasswordChangeKeySyncPending`.
@@ -46,7 +46,7 @@ A single controller method performs the entire recovery for any set phase and re
 
 ### 2. Controller method
 
-- Fold the Keyring-side steps into `recoverPasswordChange`. Keep the existing private helpers; replace the "return a plan" shape with a final-status shape.
+- Fold the Keyring-side steps into `reconcilePassword`. Keep the existing private helpers; replace the "return a plan" shape with a final-status shape.
 - Preserve all existing invariants:
   - No retries of `changePassword` / `changeEncKey`; reconcile only via the password-sync flow.
   - Preserve the last known phase on failure; do not write `UNKNOWN` from the happy path.
@@ -55,7 +55,7 @@ A single controller method performs the entire recovery for any set phase and re
 
 ### 3. Contracts and exports
 
-- Update [0002](./0002-password-change-recovery-flow.md): the client contract shrinks to "call `recoverPasswordChange`, route on status". The Keyring-side client steps move to the controller.
+- Update [0002](./0002-password-change-recovery-flow.md): the client contract shrinks to "call `reconcilePassword`, route on status". The Keyring-side client steps move to the controller.
 - Update the controller-side status and remaining-work notes in [0002](./0002-password-change-recovery-flow.md).
 - Re-export the new result/status types from `src/index.ts`.
 - Regenerate `SeedlessOnboardingController-method-action-types.ts` (the method signature change is picked up automatically).
@@ -63,7 +63,7 @@ A single controller method performs the entire recovery for any set phase and re
 ### 4. Clients
 
 - Remove client-side Keyring-side recovery sequencing (the old-Keyring / new-Keyring branches).
-- Keep: the single coordinator lock, wallet locking on error, unlock routing to call `recoverPasswordChange`, and UI per status.
+- Keep: the single coordinator lock, wallet locking on error, unlock routing to call `reconcilePassword`, and UI per status.
 - Update client tests to assert against the new status-only result.
 
 ## Trade-offs and risks
@@ -75,7 +75,7 @@ A single controller method performs the entire recovery for any set phase and re
 
 ## Test plan
 
-- Controller unit tests for every phase, each branch (old/new Keyring), and each failure injection point (remote check error, `submitGlobalPassword` error, `verifyPassword` error, `submitEncryptionKey` error, `changePassword` error, `exportEncryptionKey` error, `storeKeyringEncryptionKey` error, remote key-sync error).
+- Controller unit tests for every phase, each branch (old/new Keyring), and each failure injection point (remote check error, chain-unlock error, `verifyPassword` error, `submitEncryptionKey` error, `changePassword` error, `exportEncryptionKey` error, `storeKeyringEncryptionKey` error, remote key-sync error).
 - Assert the final status and the resulting `passwordChangePhase` for each.
 - Assert no `changePassword`/`changeEncKey` retry occurs on any recovery path.
 - Assert the controller lock is released on every failure path.
@@ -85,6 +85,6 @@ A single controller method performs the entire recovery for any set phase and re
 
 1. Land Option A and ship it; gather client integration feedback.
 2. Add the `KeyringController` messenger dependency and mock wiring (behind no behavior change yet).
-3. Fold the Keyring-side steps into `recoverPasswordChange`; change the return shape to final status.
+3. Fold the Keyring-side steps into `reconcilePassword`; change the return shape to final status.
 4. Update the recovery flow guide (0002), exports, and clients.
 5. Run the full controller + client test suites; remove the now-dead client sequencing code.

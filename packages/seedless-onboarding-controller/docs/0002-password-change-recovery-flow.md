@@ -32,8 +32,8 @@ Returned by the two controller methods. The client routes UI from this status.
 | Status               | Meaning                                                                     | Client action                                                                                   |
 | -------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `in-sync`            | Local and remote passwords are synchronized; no recovery action is needed.  | Unlock normally.                                                                                |
-| `password-outdated`  | No lifecycle is in flight but the remote password changed (another device). | Prompt for the new password, then `recoverPasswordChange`.                                      |
-| `enter-new-password` | Remote committed (or the local Seedless side still needs the new password). | Prompt for the new password, then `recoverPasswordChange`.                                      |
+| `password-outdated`  | No lifecycle is in flight but the remote password changed (another device). | Prompt for the new password, then `reconcilePassword`.                                          |
+| `enter-new-password` | Remote committed (or the local Seedless side still needs the new password). | Prompt for the new password, then `reconcilePassword`.                                          |
 | `reconcile-keyring`  | Seedless side reconciled (phase is `LOCAL_KEYRING_PENDING`).                | Cryptographically classify the local Keyring, then run the old/new branch.                      |
 | `sync-key`           | Phase is `KEY_SYNC_PENDING`.                                                | Export, store, and sync the current Keyring encryption key, then `clearPasswordChangePhase`.    |
 | `unknown`            | Remote or local state could not be established.                             | Keep the wallet locked. Preserve the phase. Offer reset wallet only as an explicit last resort. |
@@ -41,6 +41,8 @@ Returned by the two controller methods. The client routes UI from this status.
 ## Controller public API
 
 The controller owns the Seedless-side sequencing. The client owns the Keyring-side steps and UI routing.
+
+For password-change recovery and another-device password sync, clients call `resolvePasswordSyncState` followed by `reconcilePassword`, then use the lifecycle advances and Keyring-key methods described below. The old public `submitGlobalPassword` and `syncLatestGlobalPassword` methods have been removed: their sequencing is now internal to `reconcilePassword`, which also re-wraps `encryptedKeyringEncryptionKey` and advances to `LOCAL_KEYRING_PENDING`.
 
 ### Read / resolve (no password)
 
@@ -60,14 +62,14 @@ Single unlock-time call (call on page render _and_ on password submit). Merges t
 ### Apply (with password)
 
 ```ts
-SeedlessOnboardingController:recoverPasswordChange({
+SeedlessOnboardingController:reconcilePassword({
   globalPassword: string,
 }): Promise<PasswordChangeRecoveryStatus>
 ```
 
 Reconciles the Seedless side with the supplied password.
 
-- `SEEDLESS_COMMITTED` / `LOCAL_KEYRING_PENDING`: re-runs `submitGlobalPassword` → `syncLatestGlobalPassword` (idempotent), advances to `LOCAL_KEYRING_PENDING`, returns `reconcile-keyring`.
+- `SEEDLESS_COMMITTED` / `LOCAL_KEYRING_PENDING`: re-runs the internal chain-unlock and local-vault rewrite (idempotent), advances to `LOCAL_KEYRING_PENDING`, returns `reconcile-keyring`.
 - No phase (`undefined`): re-checks the remote password and, if outdated, runs the same password-sync flow, advances to `LOCAL_KEYRING_PENDING`, and returns `reconcile-keyring` so the client reconciles the local Keyring after a password change on another device. If not outdated, a no-op that returns `in-sync`.
 - `SEEDLESS_CHANGE_PENDING`: returns `unknown` (resolve remote state via `resolvePasswordSyncState` first).
 - On any failure: returns `unknown` and preserves the phase.
@@ -99,7 +101,7 @@ unlock render / submit
  └───────────────────┴───────────────────┴───────────────────┴─────────────────┴───────────┴─────────┘
         │                   │                   │                   │                │
         │                   ▼                   ▼                   ▼                ▼
-        │          recoverPasswordChange   recoverPasswordChange   old/new branch   clearPasswordChangePhase
+        │          reconcilePassword       reconcilePassword       old/new branch   clearPasswordChangePhase
         │          ({ globalPassword })   ({ globalPassword })   (see below)      (after sync verified)
         ▼
    normal unlock            │                   │
@@ -150,17 +152,47 @@ unlock render / submit
 4. **Two-step UX.**
 
    - Step 1 (password-less): `resolvePasswordSyncState` decides whether the old or new password is needed.
-   - Step 2 (password-consuming): only after step 1 returns `enter-new-password` / `password-outdated`, prompt for the new password and call `recoverPasswordChange({ globalPassword })`.
+   - Step 2 (password-consuming): only after step 1 returns `enter-new-password` / `password-outdated`, prompt for the new password and call `reconcilePassword({ globalPassword })`.
 
 5. **Keyring classification.** On `reconcile-keyring`, call `KeyringController:verifyPassword(newPassword)` to choose the old-Keyring or new-Keyring branch. Do **not** infer the local Keyring state from the lifecycle phase.
 
-6. **Lock before error.** Any failure from `changePassword`, `resolvePasswordSyncState`, `recoverPasswordChange`, or any Keyring step must lock the wallet _before_ surfacing an error modal, retry screen, or intermediary UI. If the lock itself fails, keep the wallet in a recovery-blocked UI and never expose wallet access.
+6. **Lock before error.** Any failure from `changePassword`, `resolvePasswordSyncState`, `reconcilePassword`, or any Keyring step must lock the wallet _before_ surfacing an error modal, retry screen, or intermediary UI. If the lock itself fails, keep the wallet in a recovery-blocked UI and never expose wallet access.
 
 7. **Completion boundary.** Call `clearPasswordChangePhase()` only after the synchronized Keyring encryption key and all required local state are durably persisted. This clears the lifecycle so the next unlock is normal.
 
-8. **`UNKNOWN` is terminal for this attempt.** If `resolvePasswordSyncState` or `recoverPasswordChange` returns `unknown`, keep the wallet locked, preserve the phase, and stop. Do not retry `changePassword` / `changeEncKey`. Offer reset wallet only as an explicit last resort for a confirmed unrecoverable state.
+8. **`UNKNOWN` is terminal for this attempt.** If `resolvePasswordSyncState` or `reconcilePassword` returns `unknown`, keep the wallet locked, preserve the phase, and stop. Do not retry `changePassword` / `changeEncKey`. Offer reset wallet only as an explicit last resort for a confirmed unrecoverable state.
 
 9. **Cache.** `resolvePasswordSyncState` honors `skipCache` for the no-phase outdated check only. Use `skipCache: false` (default) on render and `skipCache: true` on submit. `SEEDLESS_CHANGE_PENDING` always forces a remote check.
+
+### Password out of sync (another device changed the remote password)
+
+No local `changePassword` is in flight (`passwordChangePhase` is unset). The remote Seedless password is newer than this device.
+
+1. Lock the wallet before any error or “wrong password” UI.
+2. On unlock render / submit, call `resolvePasswordSyncState({ skipCache })`. Expect `password-outdated` (or `in-sync` if this device is current).
+3. Prompt for the **new** global password. Do not ask for the old Keyring password.
+4. Call `reconcilePassword({ globalPassword })`. That rewrites the local Seedless vault, re-wraps `encryptedKeyringEncryptionKey`, sets `LOCAL_KEYRING_PENDING`, and returns `reconcile-keyring`.
+5. Classify the local Keyring with `KeyringController:verifyPassword(newPassword)` and run the [old-Keyring](#old-keyring-branch-local-keyring-still-on-the-old-password) or [new-Keyring](#new-keyring-branch-local-keyring-already-on-the-new-password) branch.
+6. Finish with `clearPasswordChangePhase()` only after key sync and local persistence.
+
+The chain-unlock and vault-rewrite steps are internal; clients do not call separate password-sync primitives.
+
+### Password-change error (this device’s `changePassword` failed)
+
+A local change started and left a phase. Do **not** retry `changePassword` / `changeEncKey`.
+
+1. Lock the wallet **before** showing the error, retry screen, or any intermediary UI.
+2. On the next unlock, call `resolvePasswordSyncState({ skipCache })` and route on the status:
+
+   | Status               | What happened                                                                                         | Client action                                                                                                 |
+   | -------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+   | `in-sync`            | Remote did not commit (`SEEDLESS_CHANGE_PENDING` resolved to old). Phase cleared.                     | Unlock with the **old** password.                                                                             |
+   | `enter-new-password` | Remote committed (`SEEDLESS_CHANGE_PENDING` → `SEEDLESS_COMMITTED`, or already `SEEDLESS_COMMITTED`). | Prompt for the **new** password, then `reconcilePassword`.                                                    |
+   | `reconcile-keyring`  | Local Seedless vault already rewritten (`LOCAL_KEYRING_PENDING`).                                     | Classify Keyring; run the old/new branch. If Seedless is locked, call `reconcilePassword` first (idempotent). |
+   | `sync-key`           | Keyring is on the new password; backup key sync is unfinished.                                        | Unlock with the new password; export / store / remote-sync; `clearPasswordChangePhase`.                       |
+   | `unknown`            | Remote or local state could not be established.                                                       | Keep locked. Preserve the phase. Do not retry `changePassword`.                                               |
+
+3. After `reconcilePassword` returns `reconcile-keyring`, run the same Keyring branches as another-device sync. `loadKeyringEncryptionKey` is valid because reconciliation re-wraps the stored key under the new Seedless wrapping key.
 
 ## Technical details
 
@@ -204,12 +236,12 @@ A password-change operation must never be retried as a fresh `changePassword` / 
 
 ### Recovery mechanism
 
-Recovery reuses the existing password-sync flow, which already handles "remote changed, local is outdated" (e.g. another device changed the password):
+`reconcilePassword` runs the password-sync flow internally:
 
-- `submitGlobalPassword({ globalPassword })` — `toprfClient.recoverPwEncKey` walks the server-side password-key history chain (`maxPwChainLength`) to find the `pwEncKey` matching this device's `authPubKey`, then unlocks the vault.
-- `syncLatestGlobalPassword({ globalPassword })` — `toprfClient.recoverEncKey` derives encryption material from the candidate password and rewrites the local Seedless vault with the new password's keys.
+- `#submitGlobalPassword` — `toprfClient.recoverPwEncKey` walks the server-side password-key history chain (`maxPwChainLength`) to find the `pwEncKey` matching this device's `authPubKey`, then unlocks the vault.
+- `#syncLatestGlobalPasswordInner` — `toprfClient.recoverEncKey` derives encryption material from the candidate password, rewrites the local Seedless vault with the new password's keys, and re-encrypts `encryptedKeyringEncryptionKey` under the new `toprfPwEncryptionKey` so `loadKeyringEncryptionKey` still works.
 
-Both run through `#executeWithTokenRefresh`, which preserves the existing token-refresh retry behavior. `storeKeyringEncryptionKey` of the already-current key is a local overwrite and is safe to re-run.
+Both run through `#executeWithTokenRefresh`. `storeKeyringEncryptionKey` of the already-current key is a local overwrite and is safe to re-run.
 
 ### Remote-state classification
 
@@ -227,7 +259,7 @@ There is no API that reports partial backup or key-share state; such cases are c
 
 - It does not call `KeyringController` (`AllowedActions = never`). Keyring classification, re-encryption, and key export are client responsibilities.
 - It does not provide an awaitable durability boundary for lifecycle writes. The lifecycle is persisted as ordinary debounced controller state. Recovery re-verifies actual state, so a stale/missing marker is recoverable.
-- It does not retry `changePassword` / `changeEncKey`. Recovery reconciles local state via the existing password-sync flow (`submitGlobalPassword` + `syncLatestGlobalPassword`).
+- It does not retry `changePassword` / `changeEncKey`. Password reconciliation performs the chain unlock and local vault rewrite internally.
 - It does not lock the wallet. Locking is a client responsibility (the client owns navigation/intermediary screens).
 
 ## Controller-side status
@@ -237,7 +269,7 @@ All controller-package work is complete:
 - Lifecycle model, helpers, metadata, exports.
 - Lifecycle-aware `changePassword` with concurrency guard and phase preservation on error.
 - Lifecycle-aware `storeKeyringEncryptionKey`.
-- `resolvePasswordSyncState` + `recoverPasswordChange` (Option A: controller owns the Seedless side).
+- `resolvePasswordSyncState` + `reconcilePassword` (Option A: controller owns the Seedless side).
 - `markPasswordChangeKeySyncPending` / `clearPasswordChangePhase`.
 - Messenger action types, package exports, and unit tests (290 tests, 100% statement / 99.22% branch coverage).
 

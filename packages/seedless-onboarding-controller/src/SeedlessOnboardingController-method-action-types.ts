@@ -184,33 +184,6 @@ export type SeedlessOnboardingControllerSetLockedAction = {
 };
 
 /**
- * Sync the latest global password to the controller.
- * reset vault with latest globalPassword,
- * persist the latest global password authPubKey
- *
- * @param params - The parameters for syncing the latest global password.
- * @param params.globalPassword - The latest global password.
- * @returns A promise that resolves to the success of the operation.
- */
-export type SeedlessOnboardingControllerSyncLatestGlobalPasswordAction = {
-  type: `SeedlessOnboardingController:syncLatestGlobalPassword`;
-  handler: SeedlessOnboardingController['syncLatestGlobalPassword'];
-};
-
-/**
- * @description Unlock the controller with the latest global password.
- *
- * @param params - The parameters for unlocking the controller.
- * @param params.maxKeyChainLength - The maximum chain length of the pwd encryption keys.
- * @param params.globalPassword - The latest global password.
- * @returns A promise that resolves to the success of the operation.
- */
-export type SeedlessOnboardingControllerSubmitGlobalPasswordAction = {
-  type: `SeedlessOnboardingController:submitGlobalPassword`;
-  handler: SeedlessOnboardingController['submitGlobalPassword'];
-};
-
-/**
  * Check if the user is authenticated with the seedless onboarding flow by checking the token values in the state.
  *
  * This method will check the `accessToken` and `revokeToken` in the state, besides the social login authentication details.
@@ -308,7 +281,7 @@ export type SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction =
  * - Other phases: return the next recovery step without mutating state.
  *
  * This method does not consume a password; the client prompts for the
- * correct password and then calls `recoverPasswordChange`.
+ * correct password and then calls `reconcilePassword`.
  *
  * @param options - The options.
  * @param options.skipCache - Whether to bypass the outdated cache. Ignored
@@ -322,11 +295,10 @@ export type SeedlessOnboardingControllerResolvePasswordSyncStateAction = {
 };
 
 /**
- * Reconcile the Seedless side of a password-change recovery — or a plain
- * remote password sync — with the supplied password.
+ * Reconcile the local Seedless password with the remote password.
  *
  * For `SEEDLESS_COMMITTED` or `LOCAL_KEYRING_PENDING` it re-runs the existing
- * password-sync flow (`submitGlobalPassword` + `syncLatestGlobalPassword`)
+ * password-sync flow (chain unlock + local vault rewrite)
  * with the new password and advances the phase to `LOCAL_KEYRING_PENDING`.
  * These operations are idempotent, so re-running them is safe whether or not
  * the local Seedless vault was already rewritten. The controller is left
@@ -344,14 +316,14 @@ export type SeedlessOnboardingControllerResolvePasswordSyncStateAction = {
  * `KeyringController`. See
  * [0003](./docs/0003-controller-owned-password-change-recovery-plan.md).
  *
- * @param params - The recovery parameters.
- * @param params.globalPassword - The new global password.
- * @returns The recovery result. On any failure the last known phase is
+ * @param params - The reconciliation parameters.
+ * @param params.globalPassword - The current global password.
+ * @returns The reconciliation result. On any failure the last known phase is
  * preserved and `PasswordChangeRecoveryStatus.Unknown` is returned.
  */
-export type SeedlessOnboardingControllerRecoverPasswordChangeAction = {
-  type: `SeedlessOnboardingController:recoverPasswordChange`;
-  handler: SeedlessOnboardingController['recoverPasswordChange'];
+export type SeedlessOnboardingControllerReconcilePasswordAction = {
+  type: `SeedlessOnboardingController:reconcilePassword`;
+  handler: SeedlessOnboardingController['reconcilePassword'];
 };
 
 /**
@@ -459,8 +431,6 @@ export type SeedlessOnboardingControllerMethodActions =
   | SeedlessOnboardingControllerGetSecretDataBackupStateAction
   | SeedlessOnboardingControllerSubmitPasswordAction
   | SeedlessOnboardingControllerSetLockedAction
-  | SeedlessOnboardingControllerSyncLatestGlobalPasswordAction
-  | SeedlessOnboardingControllerSubmitGlobalPasswordAction
   | SeedlessOnboardingControllerGetIsUserAuthenticatedAction
   | SeedlessOnboardingControllerClearStateAction
   | SeedlessOnboardingControllerStoreKeyringEncryptionKeyAction
@@ -468,7 +438,7 @@ export type SeedlessOnboardingControllerMethodActions =
   | SeedlessOnboardingControllerClearPasswordChangePhaseAction
   | SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction
   | SeedlessOnboardingControllerResolvePasswordSyncStateAction
-  | SeedlessOnboardingControllerRecoverPasswordChangeAction
+  | SeedlessOnboardingControllerReconcilePasswordAction
   | SeedlessOnboardingControllerRefreshAuthTokensAction
   | SeedlessOnboardingControllerRotateRefreshTokenAction
   | SeedlessOnboardingControllerRevokePendingRefreshTokensAction

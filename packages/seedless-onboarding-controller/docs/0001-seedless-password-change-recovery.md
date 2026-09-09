@@ -51,7 +51,7 @@ The controller already provides most of the required recovery primitives:
 - `changePassword` performs the Seedless password/vault change and handles the controller-level token-refresh path.
 - `loadKeyringEncryptionKey` can recover the stored Keyring encryption key after the new Seedless password is submitted.
 - `storeKeyringEncryptionKey` encrypts and stores the current Keyring encryption key in controller state.
-- `submitGlobalPassword` and `syncLatestGlobalPassword` provide the password-sync operations needed to rehydrate and update local Seedless state.
+- `reconcilePassword` provides the password-sync operation needed to rehydrate and update local Seedless state after either an interrupted local password change or an another-device password change.
 - `checkIsPasswordOutdated({ skipCache: true })` provides a cache-bypassed password-state check.
 - Controller locking already serializes controller-level operations.
 

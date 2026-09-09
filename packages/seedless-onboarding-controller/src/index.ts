@@ -25,8 +25,6 @@ export type {
   SeedlessOnboardingControllerGetSecretDataBackupStateAction,
   SeedlessOnboardingControllerSubmitPasswordAction,
   SeedlessOnboardingControllerSetLockedAction,
-  SeedlessOnboardingControllerSyncLatestGlobalPasswordAction,
-  SeedlessOnboardingControllerSubmitGlobalPasswordAction,
   SeedlessOnboardingControllerGetIsUserAuthenticatedAction,
   SeedlessOnboardingControllerClearStateAction,
   SeedlessOnboardingControllerStoreKeyringEncryptionKeyAction,
@@ -40,7 +38,7 @@ export type {
   SeedlessOnboardingControllerCheckAccessTokenExpiredAction,
   SeedlessOnboardingControllerRunMigrationsAction,
   SeedlessOnboardingControllerResolvePasswordSyncStateAction,
-  SeedlessOnboardingControllerRecoverPasswordChangeAction,
+  SeedlessOnboardingControllerReconcilePasswordAction,
 } from './SeedlessOnboardingController-method-action-types.js';
 export type {
   AuthenticatedUserDetails,
