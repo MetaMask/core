@@ -115,13 +115,17 @@ describe('ProfileMetricsController', () => {
               expect(controller.state.accountSourceBackfillEnqueued).toBe(true);
               expect(controller.state.syncQueue).toStrictEqual({
                 'entropy-0xAccount1': [
-                  { address: '0xAccount1', scopes: ['eip155:1'] },
+                  {
+                    address: '0xAccount1',
+                    scopes: ['eip155:1'],
+                    accountSource: 'mnemonic',
+                  },
                 ],
                 null: [
                   {
                     address: '0xAccount2',
                     scopes: ['eip155:1'],
-                    source: 'imported',
+                    accountSource: 'imported',
                   },
                 ],
               });
@@ -143,7 +147,11 @@ describe('ProfileMetricsController', () => {
 
               expect(controller.state.syncQueue).toStrictEqual({
                 [`entropy-${checksummedAddress.toLowerCase()}`]: [
-                  { address: checksummedAddress, scopes: ['eip155:1'] },
+                  {
+                    address: checksummedAddress,
+                    scopes: ['eip155:1'],
+                    accountSource: 'mnemonic',
+                  },
                 ],
               });
             },
@@ -184,14 +192,18 @@ describe('ProfileMetricsController', () => {
 
               expect(controller.state.syncQueue).toStrictEqual({
                 'entropy-0xAccount2': [
-                  { address: '0xAccount2', scopes: ['eip155:1'] },
+                  {
+                    address: '0xAccount2',
+                    scopes: ['eip155:1'],
+                    accountSource: 'mnemonic',
+                  },
                 ],
               });
             },
           );
         });
 
-        it('groups all non-mnemonic accounts into a single batch, each tagged with its source', async () => {
+        it('groups all non-mnemonic accounts into a single batch, each tagged with its account source', async () => {
           await withController(
             async ({ controller, rootMessenger, registerAccounts }) => {
               registerAccounts([
@@ -209,14 +221,18 @@ describe('ProfileMetricsController', () => {
                   {
                     address: '0xHardware',
                     scopes: ['eip155:1'],
-                    source: 'hardware',
+                    accountSource: 'hardware',
                   },
                   {
                     address: '0xImported',
                     scopes: ['eip155:1'],
-                    source: 'imported',
+                    accountSource: 'imported',
                   },
-                  { address: '0xSnap', scopes: ['eip155:1'], source: 'snap' },
+                  {
+                    address: '0xSnap',
+                    scopes: ['eip155:1'],
+                    accountSource: 'snap',
+                  },
                   { address: '0xUnknown', scopes: ['eip155:1'] },
                 ],
               });
@@ -283,7 +299,11 @@ describe('ProfileMetricsController', () => {
               expect(controller.state.proofBackfillEnqueued).toBe(true);
               expect(controller.state.syncQueue).toStrictEqual({
                 'entropy-0xAccount1': [
-                  { address: '0xAccount1', scopes: ['eip155:1'] },
+                  {
+                    address: '0xAccount1',
+                    scopes: ['eip155:1'],
+                    accountSource: 'mnemonic',
+                  },
                 ],
                 null: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
               });
@@ -340,10 +360,18 @@ describe('ProfileMetricsController', () => {
               expect(controller.state.proofBackfillEnqueued).toBe(true);
               expect(controller.state.syncQueue).toStrictEqual({
                 'entropy-0xAccount1': [
-                  { address: '0xAccount1', scopes: ['eip155:1'] },
+                  {
+                    address: '0xAccount1',
+                    scopes: ['eip155:1'],
+                    accountSource: 'mnemonic',
+                  },
                 ],
                 'entropy-0xAccount2': [
-                  { address: '0xAccount2', scopes: ['eip155:1'] },
+                  {
+                    address: '0xAccount2',
+                    scopes: ['eip155:1'],
+                    accountSource: 'mnemonic',
+                  },
                 ],
               });
             },
@@ -438,7 +466,11 @@ describe('ProfileMetricsController', () => {
 
                 expect(controller.state.syncQueue).toStrictEqual({
                   'entropy-0xNewAccount': [
-                    { address: '0xNewAccount', scopes: ['eip155:1'] },
+                    {
+                      address: '0xNewAccount',
+                      scopes: ['eip155:1'],
+                      accountSource: 'mnemonic',
+                    },
                   ],
                 });
               },
@@ -466,16 +498,16 @@ describe('ProfileMetricsController', () => {
           });
 
           it.each([
-            { keyringType: KeyringTypes.qr, source: 'hardware' },
-            { keyringType: KeyringTypes.trezor, source: 'hardware' },
-            { keyringType: KeyringTypes.oneKey, source: 'hardware' },
-            { keyringType: KeyringTypes.ledger, source: 'hardware' },
-            { keyringType: KeyringTypes.lattice, source: 'hardware' },
-            { keyringType: KeyringTypes.simple, source: 'imported' },
-            { keyringType: KeyringTypes.snap, source: 'snap' },
+            { keyringType: KeyringTypes.qr, accountSource: 'hardware' },
+            { keyringType: KeyringTypes.trezor, accountSource: 'hardware' },
+            { keyringType: KeyringTypes.oneKey, accountSource: 'hardware' },
+            { keyringType: KeyringTypes.ledger, accountSource: 'hardware' },
+            { keyringType: KeyringTypes.lattice, accountSource: 'hardware' },
+            { keyringType: KeyringTypes.simple, accountSource: 'imported' },
+            { keyringType: KeyringTypes.snap, accountSource: 'snap' },
           ] as const)(
-            'adds the new `$keyringType` account to the sync queue under `null` tagged with the `$source` source',
-            async ({ keyringType, source }) => {
+            'adds the new `$keyringType` account to the sync queue under `null` tagged with the `$accountSource` account source',
+            async ({ keyringType, accountSource }) => {
               await withController(
                 { options: { assertUserOptedIn: () => assertUserOptedIn } },
                 async ({ controller, rootMessenger }) => {
@@ -496,7 +528,7 @@ describe('ProfileMetricsController', () => {
                       {
                         address: '0xNewAccount',
                         scopes: ['eip155:1'],
-                        source,
+                        accountSource,
                       },
                     ],
                   });
@@ -505,7 +537,7 @@ describe('ProfileMetricsController', () => {
             },
           );
 
-          it('does not tag a mnemonic-backed Snap account with a source', async () => {
+          it('tags a mnemonic-backed Snap account as mnemonic', async () => {
             await withController(
               { options: { assertUserOptedIn: () => assertUserOptedIn } },
               async ({ controller, rootMessenger }) => {
@@ -517,7 +549,11 @@ describe('ProfileMetricsController', () => {
 
                 expect(controller.state.syncQueue).toStrictEqual({
                   'entropy-0xNewAccount': [
-                    { address: '0xNewAccount', scopes: ['eip155:1'] },
+                    {
+                      address: '0xNewAccount',
+                      scopes: ['eip155:1'],
+                      accountSource: 'mnemonic',
+                    },
                   ],
                 });
               },
@@ -558,7 +594,11 @@ describe('ProfileMetricsController', () => {
 
                 expect(controller.state.syncQueue).toStrictEqual({
                   'entropy-0xNewAccount': [
-                    { address: '0xNewAccount', scopes: [] },
+                    {
+                      address: '0xNewAccount',
+                      scopes: [],
+                      accountSource: 'mnemonic',
+                    },
                   ],
                 });
                 expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -584,7 +624,11 @@ describe('ProfileMetricsController', () => {
 
                 expect(controller.state.syncQueue).toStrictEqual({
                   'entropy-cosmos1abc': [
-                    { address: 'cosmos1abc', scopes: ['cosmos:cosmoshub-4'] },
+                    {
+                      address: 'cosmos1abc',
+                      scopes: ['cosmos:cosmoshub-4'],
+                      accountSource: 'mnemonic',
+                    },
                   ],
                 });
                 expect(consoleErrorSpy).not.toHaveBeenCalled();
@@ -675,7 +719,7 @@ describe('ProfileMetricsController', () => {
                     {
                       address: '0xAccount2',
                       scopes: ['eip155:1'],
-                      source: 'imported',
+                      accountSource: 'imported',
                     },
                   ],
                 });
@@ -1061,13 +1105,17 @@ describe('ProfileMetricsController', () => {
             const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
             const accounts: Record<string, AccountWithScopes[]> = {
               null: [
-                { address, scopes: ['eip155:1'], source: 'hardware' },
+                { address, scopes: ['eip155:1'], accountSource: 'hardware' },
                 {
                   address: '0xImported',
                   scopes: ['eip155:1'],
-                  source: 'imported',
+                  accountSource: 'imported',
                 },
-                { address: '0xSnap', scopes: ['eip155:1'], source: 'snap' },
+                {
+                  address: '0xSnap',
+                  scopes: ['eip155:1'],
+                  accountSource: 'snap',
+                },
                 // Persisted by a version that did not tag sources.
                 { address: '0xLegacy', scopes: ['eip155:1'] },
               ],

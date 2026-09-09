@@ -63,19 +63,20 @@ export type AccountOwnershipProof = {
 };
 
 /**
- * The source of an account that is not derived from an SRP.
+ * The kind of keyring that controls an account, as accepted by the auth API.
+ * Any other value is rejected by the API, so unrecognized keyrings must be
+ * left untagged rather than passed through.
  */
-export type AccountSource = 'hardware' | 'imported' | 'snap';
+export type AccountSource = 'mnemonic' | 'hardware' | 'imported' | 'snap';
 
 /**
- * An account address along with its associated scopes, an optional source
- * for accounts that are not derived from an SRP, and an optional ownership
- * proof.
+ * An account address along with its associated scopes, an optional account
+ * source, and an optional ownership proof.
  */
 export type AccountWithScopes = {
   address: string;
   scopes: `${string}:${string}`[];
-  source?: AccountSource;
+  accountSource?: AccountSource;
   proof?: AccountOwnershipProof;
 };
 
@@ -434,7 +435,11 @@ export class ProfileMetricsService {
         },
         body: JSON.stringify({
           metametrics_id: data.metametricsId,
-          accounts: data.accounts,
+          accounts: data.accounts.map(({ accountSource, ...account }) => ({
+            ...account,
+            // Omitted rather than sent empty when unknown, per the API spec.
+            ...(accountSource ? { account_source: accountSource } : {}),
+          })),
         }),
         // The auth API is stateless (no cookies used)
         // prevent marketing cookies scoped to

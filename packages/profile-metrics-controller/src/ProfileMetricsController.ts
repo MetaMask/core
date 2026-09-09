@@ -86,8 +86,8 @@ export type ProfileMetricsControllerState = {
   proofBackfillEnqueued: boolean;
   /**
    * Whether known accounts have been re-enqueued once so that they are
-   * reported with canonical addresses and, for non-mnemonic accounts, an
-   * account source. Set on the first unlock after upgrading; fresh installs
+   * reported with canonical addresses and an account source. Set on the
+   * first unlock after upgrading; fresh installs
    * flip this on their initial sync.
    */
   accountSourceBackfillEnqueued: boolean;
@@ -602,17 +602,16 @@ function getAccountEntropySourceId(account: InternalAccount): string | null {
 }
 
 /**
- * Derive the reporting source of an account that is not backed by a mnemonic,
- * from its keyring type.
+ * Derive the account source to report for the given account, from its
+ * entropy source and keyring type.
  *
  * @param account - The account to classify.
- * @returns The account source, or undefined for mnemonic-backed accounts
- * (which are attributed to their entropy source instead) and for
- * unrecognized keyring types.
+ * @returns The account source, or undefined for unrecognized keyring types
+ * (the auth API rejects unknown values, so those are left untagged).
  */
 function getAccountSource(account: InternalAccount): AccountSource | undefined {
   if (getAccountEntropySourceId(account) !== null) {
-    return undefined;
+    return 'mnemonic';
   }
   switch (account.metadata.keyring.type) {
     case KeyringTypes.simple:
@@ -667,15 +666,15 @@ function getCanonicalAddress(account: InternalAccount): string | undefined {
  * submitted to the ProfileMetricsService.
  *
  * @param account - The internal account.
- * @returns The queued account, with a canonical address and, for
- * non-mnemonic accounts, a source.
+ * @returns The queued account, with a canonical address and, when known, an
+ * account source.
  */
 function toQueuedAccount(account: InternalAccount): AccountWithScopes {
-  const source = getAccountSource(account);
+  const accountSource = getAccountSource(account);
   return {
     address: getCanonicalAddress(account) ?? account.address,
     scopes: account.scopes,
-    ...(source ? { source } : {}),
+    ...(accountSource ? { accountSource } : {}),
   };
 }
 

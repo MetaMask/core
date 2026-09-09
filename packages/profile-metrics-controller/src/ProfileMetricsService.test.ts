@@ -369,7 +369,7 @@ describe('ProfileMetricsService', () => {
       expect(submitMetricsResponse).toBeUndefined();
     });
 
-    it('serializes the optional proof and source fields for each account that has them and omits them for those that do not', async () => {
+    it('serializes the optional proof and account source for each account that has them and omits them for those that do not', async () => {
       const mockFetch = jest.fn().mockResolvedValue(
         // eslint-disable-next-line no-restricted-globals
         new Response(JSON.stringify({ data: { success: true } }), {
@@ -392,7 +392,7 @@ describe('ProfileMetricsService', () => {
             {
               address: '0xImportedAccount',
               scopes: ['eip155:1'],
-              source: 'imported',
+              accountSource: 'imported',
             },
           ],
         }),
@@ -404,11 +404,12 @@ describe('ProfileMetricsService', () => {
         {
           address: '0xImportedAccount',
           scopes: ['eip155:1'],
-          source: 'imported',
+          account_source: 'imported',
         },
       ]);
-      expect(body.accounts[0]).not.toHaveProperty('source');
+      expect(body.accounts[0]).not.toHaveProperty('account_source');
       expect(body.accounts[1]).not.toHaveProperty('proof');
+      expect(body.accounts[1]).not.toHaveProperty('accountSource');
     });
   });
 
