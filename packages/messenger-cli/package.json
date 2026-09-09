@@ -51,6 +51,7 @@
     "@metamask/auto-changelog": "^6.1.0",
     "@types/jest": "^30.0.0",
     "@types/yargs": "^17.0.32",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "execa": "^5.0.0",
     "jest": "^30.4.2",
@@ -59,7 +60,7 @@
     "rimraf": "^5.0.5",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
-    "typescript": "~5.3.3"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "peerDependencies": {
     "oxfmt": "^0.44.0",

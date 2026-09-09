@@ -67,6 +67,7 @@
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^6.1.0",
     "@types/jest": "^30.0.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
     "lodash-es": "^4.17.21",
@@ -75,7 +76,7 @@
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.3.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "uuid": "^8.3.2"
   },
   "engines": {

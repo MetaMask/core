@@ -70,6 +70,7 @@
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/keyring-internal-api": "^12.0.0",
     "@types/jest": "^30.0.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
     "nock": "^13.3.1",
@@ -78,7 +79,7 @@
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.3.3"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {
     "node": "^22.14.0 || ^24"
