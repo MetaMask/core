@@ -68,6 +68,7 @@
     "@types/jest": "^30.0.0",
     "@types/lodash-es": "^4.17.12",
     "@types/uuid": "^8.3.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
     "jest": "^30.4.2",
@@ -77,7 +78,7 @@
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.3.3"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {
     "node": "^22.14.0 || ^24"

@@ -81,7 +81,7 @@ export enum TransactionPayStrategy {
   Server = 'server',
 }
 
-const VALID_STRATEGIES = new Set(
+const VALID_STRATEGIES: Set<TransactionPayStrategy> = new Set(
   Object.values(TransactionPayStrategy).filter(
     (strategy) => strategy !== TransactionPayStrategy.None,
   ),

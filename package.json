@@ -38,6 +38,8 @@
     "lint:misc:check": "yarn lint:misc --check",
     "lint:teams": "tsx scripts/lint-teams-json.ts",
     "lint:tsc": "tsc --build tsconfig.lint.json",
+    "lint:tsc:clean": "yarn lint:tsc:only-clean && yarn lint:tsc",
+    "lint:tsc:only-clean": "rimraf -g 'packages/*/.tsc-lint-cache' '.tsc-lint-cache'",
     "lint:tsconfigs": "tsx scripts/lint-tsconfigs/lint-tsconfigs.mts",
     "lint:tsconfigs:all": "yarn workspaces foreach --all --parallel --interlaced --verbose run lint:tsconfigs",
     "lint:tsconfigs:fix": "tsx scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
@@ -84,6 +86,7 @@
     "@types/semver": "^7",
     "@typescript-eslint/eslint-plugin": "^8.48.0",
     "@typescript-eslint/parser": "^8.48.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "@yarnpkg/cli": "^4.17.1",
     "@yarnpkg/core": "^4.9.0",
     "@yarnpkg/fslib": "^3.1.5",
@@ -114,13 +117,14 @@
     "simple-git-hooks": "^2.8.0",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
-    "typescript": "~5.3.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.48.0",
     "uuid": "^8.3.2",
     "yargs": "^17.7.2"
   },
   "resolutions": {
     "@nktkas/hyperliquid@npm:^0.33.1": "patch:@nktkas/hyperliquid@npm%3A0.33.1#~/.yarn/patches/@nktkas-hyperliquid-npm-0.33.1-6a541fdd1d.patch",
+    "@typescript/old": "patch:typescript@npm%3A6.0.3#~/.yarn/patches/typescript-npm-6.0.3-585eecd158.patch",
     "elliptic@6.5.4": "^6.5.7",
     "fast-xml-parser@^4.3.4": "^4.4.1",
     "ws@7.4.6": "^7.5.10"
@@ -131,7 +135,7 @@
   "engines": {
     "node": "^22.14.0 || ^24"
   },
-  "packageManager": "yarn@4.16.0+sha256.ba05224324578801b9cc98170d64aa50b9a36733b440fb0942306da3fbbdc7d1",
+  "packageManager": "yarn@4.17.1+sha256.471ffb15e0523663865bbf46a69e7d157ecf532412eb436c48dfab6e3f2abe88",
   "lavamoat": {
     "allowScripts": {
       "$root$": true,

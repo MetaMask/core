@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "outDir": "./dist",
     "rootDir": "./src"
   },
@@ -12,8 +11,12 @@
     {
       "path": "../base-controller/tsconfig.build.json"
     },
-    { "path": "../config-registry-controller/tsconfig.build.json" },
-    { "path": "../messenger/tsconfig.build.json" },
+    {
+      "path": "../config-registry-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../messenger/tsconfig.build.json"
+    },
     {
       "path": "../remote-feature-flag-controller/tsconfig.build.json"
     },

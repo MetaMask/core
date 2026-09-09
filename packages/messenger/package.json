@@ -57,16 +57,17 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
     "@types/jest": "^30.0.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
     "jest": "^30.4.2",
     "rimraf": "^5.0.5",
     "ts-jest": "^29.4.11",
-    "tstyche": "^5.0.2",
+    "tstyche": "^7.2.3",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.3.3"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "peerDependencies": {
     "typescript": ">=5.0.0"
