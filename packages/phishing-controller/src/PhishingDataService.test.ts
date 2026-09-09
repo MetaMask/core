@@ -275,22 +275,30 @@ describe('PhishingDataService', () => {
             }),
         )
         .mockResolvedValueOnce(
-          new Response(JSON.stringify({ recommendedAction: 'BLOCK' }), {
-            status: 200,
-          }),
+          new globalThis.Response(
+            JSON.stringify({ recommendedAction: 'BLOCK' }),
+            {
+              status: 200,
+            },
+          ),
         );
       const { rootMessenger } = createService();
 
       try {
-        const timedOutScan = expect(
-          rootMessenger.call('PhishingDataService:scanUrl', 'example.com'),
-        ).rejects.toThrow(`timeout of ${URL_SCAN_TIMEOUT}ms exceeded`);
+        const timedOutScan = rootMessenger
+          .call('PhishingDataService:scanUrl', 'example.com')
+          .catch((error) => error);
         await jest.advanceTimersByTimeAsync(URL_SCAN_TIMEOUT);
-        await timedOutScan;
+        expect(await timedOutScan).toMatchObject({
+          message: `timeout of ${URL_SCAN_TIMEOUT}ms exceeded`,
+        });
 
-        await expect(
-          rootMessenger.call('PhishingDataService:scanUrl', 'example.com'),
-        ).resolves.toStrictEqual({ recommendedAction: 'BLOCK' });
+        expect(
+          await rootMessenger.call(
+            'PhishingDataService:scanUrl',
+            'example.com',
+          ),
+        ).toStrictEqual({ recommendedAction: 'BLOCK' });
         expect(fetchMock).toHaveBeenCalledTimes(2);
       } finally {
         fetchMock.mockRestore();
@@ -1019,9 +1027,12 @@ describe('PhishingDataService', () => {
       jest.advanceTimersByTime(SCAN_RESULT_GC_TIME + 1);
       await flushPromises();
 
-      await expect(
-        secondMessenger.call('PhishingDataService:scanUrl', 'example.com'),
-      ).resolves.toStrictEqual({ recommendedAction: 'BLOCK' });
+      expect(
+        await secondMessenger.call(
+          'PhishingDataService:scanUrl',
+          'example.com',
+        ),
+      ).toStrictEqual({ recommendedAction: 'BLOCK' });
       expect(networkScope.isDone()).toBe(true);
     });
 

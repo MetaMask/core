@@ -116,6 +116,26 @@ function getPhishingController(options?: Partial<PhishingControllerOptions>) {
   });
 }
 
+/**
+ * Mock a fetch that remains pending until its abort signal fires.
+ *
+ * @returns The fetch spy.
+ */
+function mockPendingFetch(): jest.SpiedFunction<typeof fetch> {
+  return jest
+    .spyOn(globalThis, 'fetch')
+    .mockImplementation(
+      (_input, init) =>
+        new Promise<Response>((_resolve, reject) =>
+          init?.signal?.addEventListener(
+            'abort',
+            () => reject(new Error('aborted')),
+            { once: true },
+          ),
+        ),
+    );
+}
+
 describe('PhishingController - Bulk Token Scanning', () => {
   let controller: PhishingController;
   let consoleErrorSpy: jest.SpyInstance;
@@ -129,8 +149,7 @@ describe('PhishingController - Bulk Token Scanning', () => {
 
   afterEach(() => {
     cleanAll();
-    consoleErrorSpy.mockRestore();
-    consoleWarnSpy.mockRestore();
+    jest.restoreAllMocks();
     while (createdDataServices.length > 0) {
       createdDataServices.pop()?.destroy();
     }
@@ -439,11 +458,7 @@ describe('PhishingController - Bulk Token Scanning', () => {
           now: 1_000_000,
         });
         const tokens = ['0x1234567890123456789012345678901234567890'];
-
-        nock(SECURITY_ALERTS_BASE_URL)
-          .post(TOKEN_BULK_SCANNING_ENDPOINT)
-          .delayConnection(10000)
-          .reply(200, { results: {} });
+        const fetchMock = mockPendingFetch();
 
         const request: BulkTokenScanRequest = {
           chainId: '0x1',
@@ -458,6 +473,7 @@ describe('PhishingController - Bulk Token Scanning', () => {
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           'Error scanning tokens: timeout of 8000ms exceeded',
         );
+        expect(fetchMock).toHaveBeenCalledTimes(1);
         jest.useRealTimers();
       });
     });

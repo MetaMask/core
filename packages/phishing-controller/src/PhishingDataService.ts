@@ -781,15 +781,13 @@ export class PhishingDataService extends BaseDataService<
         continue;
       }
 
-      if (outcome.value !== null) {
-        const scanResult = outcome.value as PhishingDetectionScanResult;
-        // Entries seeded by single-URL scans hold the raw scan response,
-        // which may not include the hostname; fill it in from the URL.
-        results[url] = {
-          ...scanResult,
-          hostname: scanResult.hostname ?? hostname,
-        };
-      }
+      const scanResult = outcome.value as PhishingDetectionScanResult;
+      // Entries seeded by single-URL scans hold the raw scan response,
+      // which may not include the hostname; fill it in from the URL.
+      results[url] = {
+        ...scanResult,
+        hostname: scanResult.hostname ?? hostname,
+      };
     }
 
     // A request-level failure that produced nothing at all is surfaced to the
@@ -849,10 +847,10 @@ export class PhishingDataService extends BaseDataService<
     loader.flush();
 
     const results: TokenScanApiResponse['results'] = {};
-    let firstError: unknown;
+    let firstError: Error | undefined;
     for (const outcome of await Promise.allSettled(entries)) {
       if (outcome.status === 'rejected') {
-        firstError ??= outcome.reason;
+        firstError ??= outcome.reason as Error;
         continue;
       }
 
@@ -1001,7 +999,7 @@ export class PhishingDataService extends BaseDataService<
   async #postJson(
     url: string,
     body: Record<string, Json>,
-    { signal, timeout }: { signal?: AbortSignal; timeout?: number } = {},
+    { signal, timeout }: { signal?: AbortSignal; timeout?: number },
   ): Promise<Json> {
     return this.#fetchJson(
       url,
@@ -1034,7 +1032,7 @@ export class PhishingDataService extends BaseDataService<
     const controller = new AbortController();
     const sourceSignal = init.signal;
     let didTimeout = false;
-    const abort = () => controller.abort();
+    const abort = (): void => controller.abort();
     const timer =
       timeout === undefined
         ? undefined
@@ -1043,11 +1041,7 @@ export class PhishingDataService extends BaseDataService<
             controller.abort();
           }, timeout);
 
-    if (sourceSignal?.aborted) {
-      controller.abort();
-    } else {
-      sourceSignal?.addEventListener('abort', abort, { once: true });
-    }
+    sourceSignal?.addEventListener('abort', abort, { once: true });
 
     try {
       const response = await fetch(url, {

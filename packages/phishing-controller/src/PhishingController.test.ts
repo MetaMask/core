@@ -251,9 +251,30 @@ function getPhishingController(options?: Partial<PhishingControllerOptions>): {
   return { controller, rootMessenger };
 }
 
+/**
+ * Mock a fetch that remains pending until its abort signal fires.
+ *
+ * @returns The fetch spy.
+ */
+function mockPendingFetch(): jest.SpiedFunction<typeof fetch> {
+  return jest
+    .spyOn(globalThis, 'fetch')
+    .mockImplementation(
+      (_input, init) =>
+        new Promise<Response>((_resolve, reject) =>
+          init?.signal?.addEventListener(
+            'abort',
+            () => reject(new Error('aborted')),
+            { once: true },
+          ),
+        ),
+    );
+}
+
 describe('PhishingController', () => {
   afterEach(() => {
     jest.useRealTimers();
+    jest.restoreAllMocks();
     cleanAll();
     destroyDataServices();
   });
@@ -2968,11 +2989,7 @@ describe('PhishingController', () => {
     );
 
     it('should return a PhishingDetectionScanResult with a fetchError on timeout', async () => {
-      const scope = nock(PHISHING_DETECTION_BASE_URL)
-        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
-        .query({ url: 'example.com' })
-        .delayConnection(10000)
-        .reply(200, {});
+      const fetchMock = mockPendingFetch();
 
       const promise = rootMessenger.call('PhishingController:scanUrl', testUrl);
       jest.advanceTimersByTime(8000);
@@ -2982,7 +2999,7 @@ describe('PhishingController', () => {
         recommendedAction: RecommendedAction.None,
         fetchError: 'timeout of 8000ms exceeded',
       });
-      expect(scope.isDone()).toBe(false);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
     it('should only send hostname when URL contains query parameters', async () => {
@@ -3274,12 +3291,7 @@ describe('PhishingController', () => {
     );
 
     it('should handle timeouts correctly', async () => {
-      const scope = nock(PHISHING_DETECTION_BASE_URL)
-        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
-          urls: testUrls,
-        })
-        .delayConnection(20000)
-        .reply(200, {});
+      const fetchMock = mockPendingFetch();
 
       const promise = rootMessenger.call(
         'PhishingController:bulkScanUrls',
@@ -3293,7 +3305,7 @@ describe('PhishingController', () => {
           network_error: ['timeout of 15000ms exceeded'],
         },
       });
-      expect(scope.isDone()).toBe(false);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
     it('should process URLs in batches when more than 50 URLs are provided', async () => {
@@ -3713,13 +3725,7 @@ describe('PhishingController', () => {
     );
 
     it('will return an AddressScanResult with an ErrorResult on timeout', async () => {
-      const scope = nock(SECURITY_ALERTS_BASE_URL)
-        .post(ADDRESS_SCAN_ENDPOINT, {
-          chain: 'ethereum',
-          address: testAddress.toLowerCase(),
-        })
-        .delayConnection(10000)
-        .reply(200, {});
+      const fetchMock = mockPendingFetch();
 
       const promise = rootMessenger.call(
         'PhishingController:scanAddress',
@@ -3732,7 +3738,7 @@ describe('PhishingController', () => {
         result_type: AddressScanResultType.ErrorResult,
         label: '',
       });
-      expect(scope.isDone()).toBe(false);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
     it('will return an AddressScanResult with an ErrorResult when address is missing', async () => {
@@ -4020,13 +4026,7 @@ describe('PhishingController', () => {
     });
 
     it('will return empty approvals on timeout', async () => {
-      const scope = nock(SECURITY_ALERTS_BASE_URL)
-        .post(APPROVALS_ENDPOINT, {
-          chain: 'ethereum',
-          address: testAddress.toLowerCase(),
-        })
-        .delayConnection(10000)
-        .reply(200, mockResponse);
+      const fetchMock = mockPendingFetch();
 
       const promise = rootMessenger.call(
         'PhishingController:getApprovals',
@@ -4036,7 +4036,7 @@ describe('PhishingController', () => {
       jest.advanceTimersByTime(5000);
       const response = await promise;
       expect(response).toStrictEqual({ approvals: [] });
-      expect(scope.isDone()).toBe(false);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
     it('will normalize address to lowercase before API call', async () => {
