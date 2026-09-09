@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.0]
-
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -16,7 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
-- Bump `@metamask/local-node-utils` from `^1.0.0` to `^2.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
 
 ## [1.0.0]
 
@@ -27,6 +24,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Exposes `java-tron-up` and `java-tron` binaries via `node_modules/.bin`
   - Uses `@metamask/local-node-utils` for cache resolution, downloads, and executable wrappers
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/java-tron-up@2.0.0...HEAD
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/java-tron-up@1.0.0...@metamask/java-tron-up@2.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/java-tron-up@1.0.0...HEAD
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/java-tron-up@1.0.0

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/geolocation-controller",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "Centralised geolocation controller with TTL caching and request deduplication",
   "keywords": [
     "Ethereum",
@@ -50,9 +50,9 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^10.0.0",
-    "@metamask/controller-utils": "^13.0.0",
-    "@metamask/messenger": "^3.0.0"
+    "@metamask/base-controller": "^9.1.0",
+    "@metamask/controller-utils": "^12.3.0",
+    "@metamask/messenger": "^2.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",

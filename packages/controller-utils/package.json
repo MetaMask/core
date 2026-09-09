@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controller-utils",
-  "version": "13.0.0",
+  "version": "12.3.0",
   "description": "Data and convenience functions shared by multiple packages",
   "keywords": [
     "Ethereum",
@@ -64,7 +64,7 @@
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/eth-json-rpc-provider": "^7.0.0",
+    "@metamask/eth-json-rpc-provider": "^6.0.1",
     "@types/jest": "^30.0.0",
     "@types/lodash-es": "^4.17.12",
     "@typescript/native": "npm:typescript@^7.0.2",

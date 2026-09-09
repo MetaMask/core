@@ -1,6 +1,6 @@
 {
   "name": "@metamask/announcement-controller",
-  "version": "9.0.0",
+  "version": "8.1.0",
   "description": "Manages in-app announcements",
   "keywords": [
     "Ethereum",
@@ -50,8 +50,8 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^10.0.0",
-    "@metamask/messenger": "^3.0.0"
+    "@metamask/base-controller": "^9.1.0",
+    "@metamask/messenger": "^2.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",

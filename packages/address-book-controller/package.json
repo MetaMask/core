@@ -1,6 +1,6 @@
 {
   "name": "@metamask/address-book-controller",
-  "version": "8.0.0",
+  "version": "7.1.2",
   "description": "Manages a list of recipient addresses associated with nicknames",
   "keywords": [
     "Ethereum",
@@ -50,9 +50,9 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^10.0.0",
-    "@metamask/controller-utils": "^13.0.0",
-    "@metamask/messenger": "^3.0.0",
+    "@metamask/base-controller": "^9.1.0",
+    "@metamask/controller-utils": "^12.3.0",
+    "@metamask/messenger": "^2.0.0",
     "@metamask/utils": "^11.12.0"
   },
   "devDependencies": {

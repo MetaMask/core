@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [16.0.0]
-
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -16,24 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
-- Bump `@metamask/assets-controllers` from `^111.2.0` to `^112.0.0` ([#10152](https://github.com/MetaMask/core/pull/10152), [#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/account-tree-controller` from `^9.0.0` to `^10.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/accounts-controller` from `^39.1.1` to `^40.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/client-controller` from `^1.0.1` to `^2.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/config-registry-controller` from `^3.1.0` to `^4.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/core-backend` from `^9.1.1` to `^10.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/network-enablement-controller` from `^6.0.5` to `^7.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/permission-controller` from `^13.1.1` to `^14.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/phishing-controller` from `^17.4.1` to `^18.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/polling-controller` from `^16.0.9` to `^17.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/preferences-controller` from `^23.1.0` to `^24.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/remote-feature-flag-controller` from `^6.1.1` to `^7.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/transaction-controller` from `^69.8.1` to `^70.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
+- Bump `@metamask/assets-controllers` from `^111.2.0` to `^111.3.0` ([#10152](https://github.com/MetaMask/core/pull/10152))
 
 ## [15.1.0]
 
@@ -1038,8 +1019,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.0.0...HEAD
-[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@15.1.0...@metamask/assets-controller@16.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@15.1.0...HEAD
 [15.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@15.0.0...@metamask/assets-controller@15.1.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.3...@metamask/assets-controller@15.0.0
 [14.0.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.2...@metamask/assets-controller@14.0.3

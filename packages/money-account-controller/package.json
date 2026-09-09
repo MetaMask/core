@@ -1,6 +1,6 @@
 {
   "name": "@metamask/money-account-controller",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "MetaMask Money account controller",
   "keywords": [
     "Ethereum",
@@ -50,12 +50,12 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^40.0.0",
-    "@metamask/base-controller": "^10.0.0",
+    "@metamask/accounts-controller": "^39.1.1",
+    "@metamask/base-controller": "^9.1.0",
     "@metamask/eth-money-keyring": "^4.0.0",
     "@metamask/keyring-api": "^24.0.0",
-    "@metamask/keyring-controller": "^28.0.0",
-    "@metamask/messenger": "^3.0.0",
+    "@metamask/keyring-controller": "^27.1.1",
+    "@metamask/messenger": "^2.0.0",
     "async-mutex": "^0.5.0"
   },
   "devDependencies": {

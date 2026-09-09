@@ -1,6 +1,6 @@
 {
   "name": "@metamask/eth-block-tracker",
-  "version": "16.0.0",
+  "version": "15.0.1",
   "description": "A block tracker for the Ethereum blockchain. Keeps track of the latest block",
   "keywords": [
     "Ethereum",
@@ -49,14 +49,14 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/eth-json-rpc-provider": "^7.0.0",
+    "@metamask/eth-json-rpc-provider": "^6.0.1",
     "@metamask/safe-event-emitter": "^3.1.3",
     "@metamask/utils": "^11.12.0",
     "json-rpc-random-id": "^1.0.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/json-rpc-engine": "^11.0.0",
+    "@metamask/json-rpc-engine": "^10.5.0",
     "@types/jest": "^30.0.0",
     "@types/json-rpc-random-id": "^1.0.1",
     "@typescript/native": "npm:typescript@^7.0.2",

@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [25.0.0]
-
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -17,10 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
-- Bump `@metamask/eth-block-tracker` from `^15.0.1` to `^16.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/eth-json-rpc-provider` from `^6.0.1` to `^7.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/json-rpc-engine` from `^10.5.0` to `^11.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
-- Bump `@metamask/message-manager` from `^14.1.2` to `^15.0.0` ([#10155](https://github.com/MetaMask/core/pull/10155))
 
 ## [24.0.2]
 
@@ -144,8 +138,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See [`MetaMask/eth-json-rpc-middleware`](https://github.com/MetaMask/eth-json-rpc-middleware/blob/main/CHANGELOG.md)
     for the original changelog.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@25.0.0...HEAD
-[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.2...@metamask/eth-json-rpc-middleware@25.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.2...HEAD
 [24.0.2]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.1...@metamask/eth-json-rpc-middleware@24.0.2
 [24.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@24.0.0...@metamask/eth-json-rpc-middleware@24.0.1
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.3...@metamask/eth-json-rpc-middleware@24.0.0

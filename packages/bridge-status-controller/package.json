@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-status-controller",
-  "version": "76.0.0",
+  "version": "75.5.1",
   "description": "Manages bridge-related status fetching functionality for MetaMask",
   "keywords": [
     "Ethereum",
@@ -49,19 +49,19 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^40.0.0",
-    "@metamask/base-controller": "^10.0.0",
-    "@metamask/bridge-controller": "^81.0.0",
-    "@metamask/controller-utils": "^13.0.0",
-    "@metamask/gas-fee-controller": "^27.0.0",
-    "@metamask/keyring-controller": "^28.0.0",
-    "@metamask/messenger": "^3.0.0",
-    "@metamask/network-controller": "^37.0.0",
-    "@metamask/polling-controller": "^17.0.0",
-    "@metamask/profile-sync-controller": "^31.0.0",
+    "@metamask/accounts-controller": "^39.1.1",
+    "@metamask/base-controller": "^9.1.0",
+    "@metamask/bridge-controller": "^80.2.1",
+    "@metamask/controller-utils": "^12.3.0",
+    "@metamask/gas-fee-controller": "^26.3.2",
+    "@metamask/keyring-controller": "^27.1.1",
+    "@metamask/messenger": "^2.0.0",
+    "@metamask/network-controller": "^36.0.0",
+    "@metamask/polling-controller": "^16.0.9",
+    "@metamask/profile-sync-controller": "^30.0.0",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^70.0.0",
+    "@metamask/transaction-controller": "^69.8.1",
     "@metamask/utils": "^11.12.0",
     "bignumber.js": "^9.1.2",
     "uuid": "^8.3.2"
