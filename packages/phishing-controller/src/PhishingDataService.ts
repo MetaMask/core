@@ -1001,10 +1001,12 @@ export class PhishingDataService extends BaseDataService<
     // provide no benefit while publishing the response on the messenger as a
     // `cacheUpdated` payload. This matches the handling of non-cached POSTs
     // elsewhere in the monorepo.
-    const jsonResponse = await this.#postJson(
-      `${SECURITY_ALERTS_BASE_URL}${APPROVALS_ENDPOINT}`,
-      { chain, address },
-      { timeout: APPROVALS_TIMEOUT },
+    const jsonResponse = await this.executeWithPolicy(() =>
+      this.#postJson(
+        `${SECURITY_ALERTS_BASE_URL}${APPROVALS_ENDPOINT}`,
+        { chain, address },
+        { timeout: APPROVALS_TIMEOUT },
+      ),
     );
 
     return this.#validate(

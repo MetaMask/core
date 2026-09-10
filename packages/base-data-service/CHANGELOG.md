@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add a protected `executeWithPolicy` helper for applying a data service's retry and circuit-breaker policy to uncached requests ([#9914](https://github.com/MetaMask/core/pull/9914))
+
 ### Fixed
 
 - Wait for cache rehydration to finish before starting a query when `init` has been called, preventing persisted results from racing the first network request ([#9914](https://github.com/MetaMask/core/pull/9914))

@@ -1106,6 +1106,28 @@ describe('PhishingDataService', () => {
       expect(response2).toStrictEqual(secondResponse);
     });
 
+    it('applies the configured service policy', async () => {
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(APPROVALS_ENDPOINT)
+        .reply(500)
+        .post(APPROVALS_ENDPOINT)
+        .reply(200, { approvals: [] });
+      const { rootMessenger } = createService({
+        options: {
+          policyOptions: { maxRetries: 1, backoff: new ConstantBackoff(0) },
+        },
+      });
+
+      expect(
+        await rootMessenger.call(
+          'PhishingDataService:getApprovals',
+          'ethereum',
+          '0x1234567890123456789012345678901234567890',
+        ),
+      ).toStrictEqual({ approvals: [] });
+      expect(scope.isDone()).toBe(true);
+    });
+
     it('throws if the API returns a malformed response', async () => {
       nock(SECURITY_ALERTS_BASE_URL)
         .post(APPROVALS_ENDPOINT)

@@ -293,7 +293,7 @@ export class BaseDataService<
     return this.#queryClient.fetchQuery({
       ...options,
       queryFn: async (context) => {
-        const response = await this.#policy.execute(() =>
+        const response = await this.executeWithPolicy(() =>
           options.queryFn(context),
         );
         return processQueryResponse(options.queryKey, response, responseStruct);
@@ -361,7 +361,7 @@ export class BaseDataService<
         ...options,
         initialPageParam: pageParam ?? options.initialPageParam,
         queryFn: async (context) => {
-          const response = await this.#policy.execute(async () =>
+          const response = await this.executeWithPolicy(async () =>
             options.queryFn({
               ...context,
               pageParam: context.meta?.pageParam ?? context.pageParam,
@@ -398,6 +398,19 @@ export class BaseDataService<
     );
 
     return result.pages[pageIndex];
+  }
+
+  /**
+   * Executes an operation using this service's retry and circuit-breaker
+   * policy without adding the result to the query cache.
+   *
+   * @param operation - The asynchronous operation to execute.
+   * @returns The operation result.
+   */
+  protected async executeWithPolicy<Result>(
+    operation: () => PromiseLike<Result> | Result,
+  ): Promise<Result> {
+    return this.#policy.execute(operation);
   }
 
   /**
