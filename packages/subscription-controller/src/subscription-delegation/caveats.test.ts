@@ -1,5 +1,4 @@
 import {
-  createRedeemerTerms,
   decodeERC20TokenPeriodTransferTerms,
   decodeValueLteTerms,
   ROOT_AUTHORITY,
@@ -25,7 +24,7 @@ const ENFORCERS = {
 };
 
 describe('buildSubscriptionCaveats', () => {
-  it('builds ValueLte(0), ERC20TokenPeriodTransfer, then Redeemer caveats', () => {
+  it('builds ValueLte(0) and ERC20TokenPeriodTransfer caveats', () => {
     const caveats = buildSubscriptionCaveats({
       enforcers: ENFORCERS,
       delegateAddress: DELEGATE,
@@ -35,11 +34,10 @@ describe('buildSubscriptionCaveats', () => {
       startDate: 1_700_000_000,
     });
 
-    expect(caveats).toHaveLength(3);
-    const [valueLteCaveat, periodCaveat, redeemerCaveat] = caveats;
+    expect(caveats).toHaveLength(2);
+    const [valueLteCaveat, periodCaveat] = caveats;
     expect(valueLteCaveat?.enforcer).toBe(VALUE_LTE_ENFORCER);
     expect(periodCaveat?.enforcer).toBe(PERIOD_ENFORCER);
-    expect(redeemerCaveat?.enforcer).toBe(REDEEMER_ENFORCER);
     expect(decodeValueLteTerms(valueLteCaveat?.terms ?? '0x')).toStrictEqual({
       maxValue: 0n,
     });
@@ -51,10 +49,6 @@ describe('buildSubscriptionCaveats', () => {
       periodDuration: 28 * 86_400,
       startDate: 1_700_000_000,
     });
-    expect(redeemerCaveat?.terms).toBe(
-      createRedeemerTerms({ redeemers: [DELEGATE] }),
-    );
-    expect(redeemerCaveat?.args).toBe('0x');
   });
 });
 
@@ -81,12 +75,9 @@ describe('buildUnsignedSubscriptionDelegation', () => {
       salt,
     });
     expect(unsigned.salt).toMatch(/^0x[0-9a-fA-F]{64}$/u);
-    expect(unsigned.caveats).toHaveLength(3);
-    expect(unsigned.caveats[2]).toStrictEqual({
-      enforcer: REDEEMER_ENFORCER,
-      terms: createRedeemerTerms({ redeemers: [DELEGATE] }),
-      args: '0x',
-    });
+    expect(unsigned.caveats).toHaveLength(2);
+    expect(unsigned.caveats[0]?.enforcer).toBe(VALUE_LTE_ENFORCER);
+    expect(unsigned.caveats[1]?.enforcer).toBe(PERIOD_ENFORCER);
   });
 
   it('generates a random 32-byte salt when omitted', () => {

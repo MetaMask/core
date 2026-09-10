@@ -19,7 +19,6 @@ const REDEEMER = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
 const TOKEN = '0x3333333333333333333333333333333333333333' as Hex;
 const DELEGATE = '0x4444444444444444444444444444444444444444' as Hex;
 const DELEGATOR = '0x5555555555555555555555555555555555555555' as Hex;
-const OTHER_REDEEMER = '0x6666666666666666666666666666666666666666' as Hex;
 const CHAIN_ID = '0x1' as Hex;
 const PERIOD_AMOUNT = 10n * 10n ** 18n;
 const PERIOD_DURATION = 28 * 86_400;
@@ -37,7 +36,7 @@ function buildEntry({
   periodEnforcer = PERIOD,
   redeemerEnforcer = REDEEMER,
   redeemerAddress = DELEGATE,
-  includeRedeemer = true,
+  includeRedeemer = false,
   maxValue = 0n,
 }: {
   type?: string;
@@ -178,13 +177,6 @@ describe('makeMatchesSubscriptionDelegation', () => {
         periodEnforcer: '0x6666666666666666666666666666666666666666' as Hex,
       },
     ],
-    [
-      'redeemerEnforcer',
-      {
-        redeemerEnforcer: '0x6666666666666666666666666666666666666666' as Hex,
-      },
-    ],
-    ['redeemerAddress', { redeemerAddress: OTHER_REDEEMER }],
     ['periodAmount', { periodAmount: PERIOD_AMOUNT + 1n }],
     ['periodDuration', { periodDuration: PERIOD_DURATION + 1 }],
     ['maxValue', { maxValue: 1n }],
@@ -199,8 +191,8 @@ describe('makeMatchesSubscriptionDelegation', () => {
     expect(matches(entry)).toBe(false);
   });
 
-  it('rejects a delegation missing the redeemer caveat', () => {
-    expect(matches(buildEntry({ includeRedeemer: false }))).toBe(false);
+  it('still matches when the redeemer caveat is present', () => {
+    expect(matches(buildEntry({ includeRedeemer: true }))).toBe(true);
   });
 
   it('rejects a delegation with malformed caveat terms', () => {
