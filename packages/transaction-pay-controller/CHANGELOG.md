@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Restore `EXACT_OUTPUT` Relay quotes for `predictDepositAndOrder` flows so Predict deposit-and-order trades keep a guaranteed output amount.
+
 ## [28.0.1]
 
 ### Changed
