@@ -61,27 +61,6 @@ type PipelineResult = {
   requestedAssetBatches: string[][];
 };
 
-/**
- * Balances the pipeline returned for the wallet's account.
- *
- * @param response - The pipeline response.
- * @returns The account's balances, keyed by CAIP-19 asset ID.
- */
-function balancesFor(response: DataResponse): Record<string, unknown> {
-  return response.assetsBalance?.[BSC_SPAM_ACCOUNT_ID] ?? {};
-}
-
-/**
- * Look an asset up in a record case-insensitively.
- *
- * Every assertion about the spam token goes through this: matching
- * case-sensitively is precisely the mistake under test, so a test that only
- * checked one casing would pass while the bug persisted under the other.
- *
- * @param record - The record to search.
- * @param assetId - The CAIP-19 asset ID, in any casing.
- * @returns The matching value, or undefined.
- */
 function getIgnoringCase(
   record: Record<string, unknown>,
   assetId: string,
@@ -93,16 +72,6 @@ function getIgnoringCase(
   return match === undefined ? undefined : record[match];
 }
 
-/**
- * Every asset ID the pipeline reported as newly detected, across all accounts.
- *
- * @param response - The pipeline response.
- * @returns The detected asset IDs.
- */
-function allDetectedAssetIds(response: DataResponse): string[] {
-  return Object.values(response.detectedAssets ?? {}).flat();
-}
-
 type ResponseSurface = {
   surface: string;
   lookUp: (response: DataResponse, assetId: string) => unknown;
@@ -111,7 +80,10 @@ type ResponseSurface = {
 const BALANCES: ResponseSurface = {
   surface: 'balances',
   lookUp: (response, assetId) =>
-    getIgnoringCase(balancesFor(response), assetId),
+    getIgnoringCase(
+      response.assetsBalance?.[BSC_SPAM_ACCOUNT_ID] ?? {},
+      assetId,
+    ),
 };
 
 const METADATA: ResponseSurface = {
@@ -129,30 +101,16 @@ const PRICES: ResponseSurface = {
 const DETECTED_ASSETS: ResponseSurface = {
   surface: 'detected assets',
   lookUp: (response, assetId) =>
-    allDetectedAssetIds(response).find(
-      (detectedId) => detectedId.toLowerCase() === assetId.toLowerCase(),
-    ),
+    Object.values(response.detectedAssets ?? {})
+      .flat()
+      .find((detectedId) => detectedId.toLowerCase() === assetId.toLowerCase()),
 };
 
-/**
- * Register the controllers the RPC-backed sources read their networks from, so
- * BNB Chain resolves to a network client backed by a `MockInternalProvider`.
- *
- * Staking stays inert regardless: its supported chains are Mainnet and Hoodi,
- * and BNB Chain is neither.
- *
- * @param rootMessenger - The root messenger to register handlers on.
- */
 function registerBscNetwork(
   rootMessenger: ReturnType<
     typeof createMockAssetControllerMessenger
   >['rootMessenger'],
 ): void {
-  // Answers in process, so no JSON-RPC can reach a real node. `eth_chainId`
-  // gets a real answer because ethers asks for it before any other call; the
-  // read methods get `'0x'`, which every caller in the lane takes as "nothing
-  // here". Anything else throws, which is what we want: this wallet's captures
-  // give the lane no reason to read on-chain at all.
   const provider = new MockInternalProvider({
     stubs: [
       { method: 'eth_chainId', result: BSC_CHAIN_ID_HEX },
@@ -162,8 +120,6 @@ function registerBscNetwork(
     ].map(({ method, result }) => ({
       request: { method },
       response: { result },
-      // Stubs are consumed on match unless this says otherwise, and the lane
-      // may read the same method once per account and chain.
       discardAfterMatching: false,
     })),
   });
@@ -208,8 +164,6 @@ function registerBscNetwork(
       ({
         ...getNetworkClientById(networkClientId),
         provider,
-        // The real client's provider and block tracker are proxies around live
-        // connections; the sources only ever call `request` on the provider.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }) as any,
   );
@@ -222,31 +176,18 @@ function registerBscNetwork(
     }),
   );
 
-  // Read for the chain's multicall3 address; BNB Chain has no entry here.
   rootMessenger.registerActionHandler(
     'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
     () => undefined,
   );
 }
 
-/**
- * Run the fast fetch lane once against the captured APIs.
- *
- * The lane is composed by `buildFastFetchSources`, the same function
- * `AssetsController` uses, so the middlewares run in the production order with
- * the production roles filled by real instances.
- *
- * @param state - Controller state the pipeline reads through `getAssetsState`.
- * @returns The pipeline response and what each API was asked for.
- */
 async function runPipeline(
   state: AssetsControllerStateInternal,
 ): Promise<PipelineResult> {
   const { assetsControllerMessenger, rootMessenger } =
     createMockAssetControllerMessenger({ delegateGetState: false });
 
-  // AccountsApiDataSource reads the v6-balances feature flag before fetching;
-  // absent flags leave it on the v5 endpoint this fixture captures.
   rootMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',
     (): {
@@ -299,8 +240,6 @@ async function runPipeline(
 
   const { assets } = mockBscSpamApis();
 
-  // `fetch` only accepts chains the source has claimed, which it learns from
-  // the Accounts API's supported-network list.
   await accountsApiDataSource.refreshActiveChains();
 
   const account = buildBscSpamAccount();
@@ -338,7 +277,6 @@ async function runPipeline(
     getAssetsState: () => state,
   });
 
-  // cleanup
   accountsApiDataSource.destroy();
   stakedBalanceDataSource.destroy();
   rpcDataSource.destroy();
@@ -347,11 +285,6 @@ async function runPipeline(
   return { response, requestedAssetBatches: assets.requestedBatches };
 }
 
-/**
- * The passes the wallet is put through. Each runs the lane end to end and
- * hands back the one response every expectation below is read from, so a pass
- * costs a single pipeline run no matter how many table rows examine it.
- */
 const WALLET_PASSES = [
   {
     pass: 'first pass over a fresh wallet',
@@ -419,13 +352,8 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
 
       const requested = requestedAssetBatches.flat();
 
-      // `AccountsApiDataSource` checksums ERC-20 ids, so that is the casing the
-      // pipeline carries and the casing the Tokens API is asked with...
       expect(requested).toContain(CDOGE_ASSET_ID_CHECKSUM);
       expect(requested).not.toContain(CDOGE_ASSET_ID_LOWERCASE);
-      // ...while the captured Tokens API answers lower-case regardless. Any
-      // filtering that matches asset ids by exact string across this boundary
-      // silently does nothing.
     });
   });
 });
