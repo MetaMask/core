@@ -80,6 +80,7 @@
     "@types/semver": "^7",
     "@types/uuid": "^9.0.8",
     "@typescript/native": "npm:typescript@^7.0.2",
+    "deepmerge": "^4.2.2",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-import-resolver-typescript": "^3.6.3",
