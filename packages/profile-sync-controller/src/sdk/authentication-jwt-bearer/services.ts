@@ -4,6 +4,7 @@ import type { MetaMetricsAuth } from '../../shared/types/services.js';
 import { HTTP_STATUS_CODES } from '../constants.js';
 import {
   NonceRetrievalError,
+  PairConflictError,
   PairError,
   SignInError,
   ValidationError,
@@ -14,6 +15,7 @@ import type {
   AccessToken,
   ErrorMessage,
   LoginIdentifierType,
+  PairSocialIdentifierParams,
   ProfileAlias,
   UserProfile,
   UserProfileLineage,
@@ -155,6 +157,9 @@ export const SIWE_LOGIN_URL = (env: Env): string =>
 
 export const PAIR_PROFILES_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/profile/pair`;
+
+export const PAIR_SOCIAL_IDENTIFIER_URL = (env: Env): string =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/profile/pair/identifier`;
 
 export const PROFILE_LINEAGE_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/profile/lineage`;
@@ -311,6 +316,52 @@ export async function pairProfiles(
     };
   } catch (error) {
     return await throwServiceError(error, 'Failed to pair profiles', PairError);
+  }
+}
+
+/**
+ * Attach a Google/Apple/Telegram social identifier to the profile that
+ * owns `authAccessToken` (`POST /api/v2/profile/pair/identifier`).
+ *
+ * `email` is omitted from the body when undefined. 409 Conflict throws
+ * {@link PairConflictError} so callers can treat it as terminal. The
+ * response body (new token + profile) is not consumed: a 2xx status is the
+ * only success signal.
+ *
+ * @param params - Social identifier type, social JWT, and optional email
+ * @param authAccessToken - Bearer token of the canonical (primary SRP) profile
+ * @param env - server environment
+ */
+export async function pairSocialIdentifier(
+  params: PairSocialIdentifierParams,
+  authAccessToken: string,
+  env: Env,
+): Promise<void> {
+  const pairUrl = new URL(PAIR_SOCIAL_IDENTIFIER_URL(env));
+  const errorPrefix = 'Failed to pair social identifier';
+
+  try {
+    const response = await fetch(pairUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authAccessToken}`,
+      },
+      body: JSON.stringify({
+        identifier_type: params.identifierType,
+        social_jwt: params.socialJwt,
+        ...(params.email === undefined ? {} : { email: params.email }),
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === HTTP_STATUS_CODES.CONFLICT) {
+        await throwServiceError(response, errorPrefix, PairConflictError);
+      }
+      await throwServiceError(response, errorPrefix, PairError);
+    }
+  } catch (error) {
+    await throwServiceError(error, errorPrefix, PairError);
   }
 }
 

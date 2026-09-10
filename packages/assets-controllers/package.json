@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "111.1.3",
+  "version": "112.0.0",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "Ethereum",
@@ -18,19 +18,12 @@
   "files": [
     "dist/"
   ],
+  "type": "module",
   "sideEffects": false,
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.cts",
-        "default": "./dist/index.cjs"
-      }
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -39,9 +32,11 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
-    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
+    "build": "tsc --project tsconfig.build.json",
+    "build:all": "tsc --build tsconfig.build.json --verbose",
+    "build:clean": "yarn build:only-clean && yarn build",
     "build:docs": "typedoc",
+    "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/assets-controllers",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/assets-controllers",
     "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
@@ -62,68 +57,70 @@
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@metamask/abi-utils": "^2.0.3",
-    "@metamask/account-tree-controller": "^8.1.0",
-    "@metamask/accounts-controller": "^39.1.1",
-    "@metamask/approval-controller": "^9.0.2",
-    "@metamask/base-controller": "^9.1.0",
+    "@metamask/account-tree-controller": "^10.0.0",
+    "@metamask/accounts-controller": "^40.0.0",
+    "@metamask/approval-controller": "^10.0.0",
+    "@metamask/base-controller": "^10.0.0",
     "@metamask/contract-metadata": "^2.4.0",
-    "@metamask/controller-utils": "^12.3.0",
-    "@metamask/core-backend": "^9.0.0",
+    "@metamask/controller-utils": "^13.0.0",
+    "@metamask/core-backend": "^10.0.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/keyring-api": "^24.0.0",
-    "@metamask/keyring-controller": "^27.1.1",
-    "@metamask/messenger": "^2.0.0",
+    "@metamask/keyring-controller": "^28.0.0",
+    "@metamask/messenger": "^3.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
-    "@metamask/multichain-account-service": "^13.0.2",
-    "@metamask/network-controller": "^36.0.0",
-    "@metamask/network-enablement-controller": "^6.0.5",
-    "@metamask/permission-controller": "^13.1.1",
-    "@metamask/phishing-controller": "^17.4.1",
-    "@metamask/polling-controller": "^16.0.9",
-    "@metamask/preferences-controller": "^23.1.0",
-    "@metamask/profile-sync-controller": "^29.0.0",
-    "@metamask/remote-feature-flag-controller": "^6.1.0",
+    "@metamask/multichain-account-service": "^14.0.0",
+    "@metamask/network-controller": "^37.0.0",
+    "@metamask/network-enablement-controller": "^7.0.0",
+    "@metamask/permission-controller": "^14.0.0",
+    "@metamask/phishing-controller": "^18.0.0",
+    "@metamask/polling-controller": "^17.0.0",
+    "@metamask/preferences-controller": "^24.0.0",
+    "@metamask/profile-sync-controller": "^31.0.0",
+    "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",
-    "@metamask/storage-service": "^1.0.2",
-    "@metamask/transaction-controller": "^69.8.0",
+    "@metamask/storage-service": "^2.0.0",
+    "@metamask/transaction-controller": "^70.0.0",
     "@metamask/utils": "^11.12.0",
     "@tanstack/query-core": "^5.62.16",
     "@types/bn.js": "^5.1.5",
-    "@types/uuid": "^8.3.0",
+    "@types/uuid": "^9.0.8",
     "async-mutex": "^0.5.0",
     "bitcoin-address-validation": "^2.2.3",
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",
-    "lodash": "^4.17.21",
+    "lodash-es": "^4.17.21",
     "multiformats": "^9.9.0",
     "reselect": "^5.1.1",
     "single-call-balance-checker-abi": "^1.0.0",
-    "uuid": "^8.3.2"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
     "@metamask/account-api": "^2.0.0",
     "@metamask/auto-changelog": "^6.1.0",
+    "@metamask/eth-json-rpc-provider": "^7.0.0",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/keyring-internal-api": "^12.0.0",
     "@metamask/keyring-snap-client": "^10.0.0",
     "@metamask/providers": "^22.1.0",
-    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",
-    "@types/lodash": "^4.14.191",
-    "@types/node": "^16.18.54",
+    "@types/lodash-es": "^4.17.12",
+    "@types/node": "^22.13.14",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
     "nock": "^13.3.1",
+    "rimraf": "^5.0.5",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.3.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {
@@ -131,6 +128,6 @@
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
   },
   "engines": {
-    "node": "^18.18 || >=20"
+    "node": "^22.14.0 || ^24"
   }
 }

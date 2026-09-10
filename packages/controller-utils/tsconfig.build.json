@@ -1,9 +1,13 @@
 {
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "outDir": "./dist",
     "rootDir": "./src"
   },
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src"],
+  "references": [
+    {
+      "path": "../eth-json-rpc-provider/tsconfig.build.json"
+    }
+  ]
 }

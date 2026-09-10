@@ -10,6 +10,7 @@ export type {
 export type {
   SubscriptionControllerGetPricingAction,
   SubscriptionControllerGetSubscriptionsAction,
+  SubscriptionControllerGetBenefitsAction,
   SubscriptionControllerGetSubscriptionByProductAction,
   SubscriptionControllerGetSubscriptionsEligibilitiesAction,
   SubscriptionControllerCancelSubscriptionAction,
@@ -39,6 +40,11 @@ export {
 export type {
   SubscriptionApiError,
   Subscription,
+  PerpsBenefitUsage,
+  PredictBenefitUsage,
+  SubscriptionBenefitsResponse,
+  SubscriptionBenefitsState,
+  SwapsBenefitUsage,
   AuthUtils,
   CancelSubscriptionRequest,
   CancelType,
@@ -91,6 +97,11 @@ export type {
   AssignCohortRequest,
   GetSubscriptionsEligibilitiesRequest,
   ModalType,
+  MoneyAccountEntitlements,
+  MoneyAccountPlusClaim,
+  ProductEntitlementFeatureMap,
+  ProductEntitlements,
+  ShieldEntitlements,
 } from './types.js';
 export {
   CANCEL_TYPES,
@@ -104,7 +115,14 @@ export {
   COHORT_NAMES,
   BALANCE_CATEGORIES,
   MODAL_TYPE,
+  MoneyAccountFeature,
+  ShieldFeature,
 } from './types.js';
+export {
+  selectHasEntitlement,
+  selectIsActiveSubscriber,
+  selectIsUsageAvailable,
+} from './selectors.js';
 export { SubscriptionServiceError } from './errors.js';
 export {
   Env,
@@ -127,6 +145,7 @@ export {
 } from './SubscriptionService.js';
 export type {
   SubscriptionServiceGetSubscriptionsAction,
+  SubscriptionServiceGetBenefitsAction,
   SubscriptionServiceCancelSubscriptionAction,
   SubscriptionServiceUnCancelSubscriptionAction,
   SubscriptionServiceStartSubscriptionWithCardAction,

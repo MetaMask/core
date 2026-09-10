@@ -1,8 +1,5 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
     {
       "path": "../authenticated-user-storage"
@@ -23,7 +20,13 @@
       "path": "../messenger"
     },
     {
+      "path": "../money-account-utils"
+    },
+    {
       "path": "../network-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
     }
   ],
   "include": ["../../types", "./src"]

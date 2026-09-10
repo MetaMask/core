@@ -1,5 +1,6 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { query, toChecksumHexAddress } from '@metamask/controller-utils';
+import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type {
@@ -19,7 +20,6 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { FakeProvider } from '../../../tests/fake-provider.js';
 import { jestAdvanceTime } from '../../../tests/helpers.js';
 import { createMockInternalAccount } from '../../accounts-controller/tests/mocks.js';
 import {
@@ -2042,13 +2042,7 @@ describe('AccountTrackerController', () => {
             controller.metadata,
             'persist',
           ),
-        ).toMatchInlineSnapshot(`
-          {
-            "accountsByChainId": {
-              "0x1": {},
-            },
-          }
-        `);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -2318,7 +2312,7 @@ async function withController<ReturnValue>(
     (clientId) => {
       const network = getNetworkClientById(clientId);
 
-      const provider = new FakeProvider({
+      const provider = new MockInternalProvider({
         stubs: [
           {
             request: {
