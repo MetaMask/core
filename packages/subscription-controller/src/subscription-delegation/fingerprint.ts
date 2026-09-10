@@ -1,6 +1,5 @@
 import type { DelegationResponse } from '@metamask/authenticated-user-storage';
 import {
-  createRedeemerTerms,
   decodeERC20TokenPeriodTransferTerms,
   decodeValueLteTerms,
 } from '@metamask/delegation-core';
@@ -41,9 +40,9 @@ export function equalsIgnoreCase(left: string, right: string): boolean {
 export function makeMatchesSubscriptionDelegation(
   expected: SubscriptionDelegationFingerprint,
 ): (entry: DelegationResponse) => boolean {
-  const expectedRedeemerTerms = createRedeemerTerms({
-    redeemers: [expected.delegateAddress],
-  });
+  // const expectedRedeemerTerms = createRedeemerTerms({
+  //   redeemers: [expected.delegateAddress],
+  // });
 
   return (entry) => {
     if (entry.metadata.type !== CASH_SUBSCRIPTION_DELEGATION_TYPE) {
@@ -73,7 +72,7 @@ export function makeMatchesSubscriptionDelegation(
     }
 
     const { caveats } = entry.signedDelegation;
-    if (caveats.length < 3) {
+    if (caveats.length < 2) {
       return false;
     }
 
@@ -86,15 +85,17 @@ export function makeMatchesSubscriptionDelegation(
         expected.enforcers.erc20TokenPeriodTransfer,
       ),
     );
-    const redeemerCaveat = caveats.find((caveat) =>
-      equalsIgnoreCase(caveat.enforcer, expected.enforcers.redeemer),
-    );
-    if (!valueLteCaveat || !periodCaveat || !redeemerCaveat) {
+    // TODO: recheck with CHOMP team if we should set redeemer to subscirption payment address
+    // or use allowed call data
+    // const redeemerCaveat = caveats.find((caveat) =>
+    //   equalsIgnoreCase(caveat.enforcer, expected.enforcers.redeemer),
+    // );
+    if (!valueLteCaveat || !periodCaveat) {
       return false;
     }
-    if (!equalsIgnoreCase(redeemerCaveat.terms, expectedRedeemerTerms)) {
-      return false;
-    }
+    // if (!equalsIgnoreCase(redeemerCaveat.terms, expectedRedeemerTerms)) {
+    //   return false;
+    // }
 
     try {
       const valueTerms = decodeValueLteTerms(valueLteCaveat.terms);

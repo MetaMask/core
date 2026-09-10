@@ -2,7 +2,6 @@ import type { SignedDelegation } from '@metamask/authenticated-user-storage';
 import {
   ROOT_AUTHORITY,
   createERC20TokenPeriodTransferTerms,
-  createRedeemerTerms,
   createValueLteTerms,
 } from '@metamask/delegation-core';
 import { bytesToHex } from '@metamask/utils';
@@ -39,7 +38,6 @@ export type BuildSubscriptionCaveatsParams = {
  */
 export function buildSubscriptionCaveats({
   enforcers,
-  delegateAddress,
   tokenAddress,
   periodAmount,
   periodDuration,
@@ -61,11 +59,13 @@ export function buildSubscriptionCaveats({
       }),
       args: '0x',
     },
-    {
-      enforcer: enforcers.redeemer,
-      terms: createRedeemerTerms({ redeemers: [delegateAddress] }),
-      args: '0x',
-    },
+    // TODO: recheck with CHOMP team if we should set redeemer to subscirption payment address
+    // or use allowed call data
+    // {
+    //   enforcer: enforcers.redeemer,
+    //   terms: createRedeemerTerms({ redeemers: [delegateAddress] }),
+    //   args: '0x',
+    // },
   ];
 }
 
