@@ -514,9 +514,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
         // from a prior session and re-derives each account's canonical
         // address and source.
         state.syncQueue = {};
-        for (const account of Object.values(accounts)) {
-          enqueueAccount(state, account);
-        }
+        enqueueAccounts(state, Object.values(accounts));
         state.initialEnqueueCompleted = true;
         state.proofBackfillEnqueued = true;
         state.accountSourceBackfillEnqueued = true;
@@ -555,7 +553,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
   async #addAccountToQueue(account: InternalAccount): Promise<void> {
     await this.#mutex.runExclusive(async () => {
       this.update((state) => {
-        enqueueAccount(state, account);
+        enqueueAccounts(state, [account]);
       });
     });
   }
@@ -679,25 +677,35 @@ function toQueuedAccount(account: InternalAccount): AccountWithScopes {
 }
 
 /**
- * Push the given account onto the sync queue held in `state`, unless its
- * canonical address has already been reported or is already queued.
+ * Push the given accounts onto the sync queue held in `state`, skipping any
+ * whose canonical address has already been reported or is already queued.
+ *
+ * Duplicates must be caught here: two entries for one address would share a
+ * single queue key, hence a single batch, and `#attachProofs` would sign the
+ * same single-use nonce twice. The known addresses are collected into a set
+ * once so that enqueuing `n` accounts stays linear.
  *
  * @param state - The controller state to mutate.
- * @param account - The account to enqueue.
+ * @param accounts - The accounts to enqueue.
  */
-function enqueueAccount(
+function enqueueAccounts(
   state: ProfileMetricsControllerState,
-  account: InternalAccount,
+  accounts: InternalAccount[],
 ): void {
-  const queuedAccount = toQueuedAccount(account);
-  const isKnown =
-    state.reportedAccounts.includes(queuedAccount.address) ||
-    Object.values(state.syncQueue).some((batch) =>
-      batch.some(({ address }) => address === queuedAccount.address),
-    );
-  if (isKnown) {
-    return;
+  const knownAddresses = new Set([
+    ...state.reportedAccounts,
+    ...Object.values(state.syncQueue).flatMap((batch) =>
+      batch.map(({ address }) => address),
+    ),
+  ]);
+  for (const account of accounts) {
+    const queuedAccount = toQueuedAccount(account);
+    if (knownAddresses.has(queuedAccount.address)) {
+      continue;
+    }
+    knownAddresses.add(queuedAccount.address);
+    const queueKey =
+      getAccountEntropySourceId(account) ?? NON_MNEMONIC_QUEUE_KEY;
+    (state.syncQueue[queueKey] ??= []).push(queuedAccount);
   }
-  const queueKey = getAccountEntropySourceId(account) ?? NON_MNEMONIC_QUEUE_KEY;
-  (state.syncQueue[queueKey] ??= []).push(queuedAccount);
 }

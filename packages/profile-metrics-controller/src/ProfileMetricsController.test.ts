@@ -203,6 +203,32 @@ describe('ProfileMetricsController', () => {
           );
         });
 
+        it('enqueues accounts sharing a canonical address only once', async () => {
+          const checksummedAddress =
+            '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+          await withController(
+            async ({ controller, rootMessenger, registerAccounts }) => {
+              registerAccounts([
+                createMockAccount(checksummedAddress.toLowerCase()),
+                createMockAccount(checksummedAddress, false),
+              ]);
+
+              rootMessenger.publish('KeyringController:unlock');
+              await Promise.resolve();
+
+              expect(controller.state.syncQueue).toStrictEqual({
+                [`entropy-${checksummedAddress.toLowerCase()}`]: [
+                  {
+                    address: checksummedAddress,
+                    scopes: ['eip155:1'],
+                    accountSource: 'mnemonic',
+                  },
+                ],
+              });
+            },
+          );
+        });
+
         it('groups all non-mnemonic accounts into a single batch, each tagged with its account source', async () => {
           await withController(
             async ({ controller, rootMessenger, registerAccounts }) => {
