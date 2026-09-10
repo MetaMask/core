@@ -63,7 +63,7 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/network-controller": "^37.0.0",
-    "@metamask/ramps-controller": "^21.0.0",
+    "@metamask/ramps-controller": "^22.0.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/sentinel-api-service": "^2.0.0",
     "@metamask/transaction-controller": "^70.0.0",
