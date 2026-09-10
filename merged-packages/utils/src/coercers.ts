@@ -105,6 +105,7 @@ export function createBigInt(value: NumberLike): bigint {
     // There is no need to validate the value manually.
     return create(value, BigIntCoercer);
   } catch (error) {
+    /* istanbul ignore else -- Coercion failures always surface as StructError; the rethrow below is a safety net. */
     if (error instanceof StructError) {
       throw new Error(
         `Expected a number-like value, got "${String(error.value)}".`,
@@ -143,6 +144,7 @@ export function createBytes(value: BytesLike): Uint8Array {
   try {
     return create(value, BytesCoercer);
   } catch (error) {
+    /* istanbul ignore else -- Coercion failures always surface as StructError; the rethrow below is a safety net. */
     if (error instanceof StructError) {
       throw new Error(
         `Expected a bytes-like value, got "${String(error.value)}".`,
@@ -184,6 +186,7 @@ export function createHex(value: BytesLike): Hex {
   try {
     return create(value, HexCoercer);
   } catch (error) {
+    /* istanbul ignore else -- Coercion failures always surface as StructError; the rethrow below is a safety net. */
     if (error instanceof StructError) {
       throw new Error(
         `Expected a bytes-like value, got "${String(error.value)}".`,

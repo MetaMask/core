@@ -85,7 +85,7 @@
     "@metamask/eslint-config-typescript": "^15.0.0",
     "@ts-bridge/cli": "^0.1.2",
     "@ts-bridge/shims": "^0.1.1",
-    "@types/jest": "^28.1.7",
+    "@types/jest": "^30.0.0",
     "@types/jest-when": "^3.5.3",
     "@types/node": "~18.18.14",
     "@types/semver": "^7",
@@ -100,13 +100,13 @@
     "eslint-plugin-n": "^17.10.3",
     "eslint-plugin-prettier": "^5.2.1",
     "eslint-plugin-promise": "^7.1.0",
-    "jest": "^29.2.2",
+    "jest": "^30.4.2",
     "jest-it-up": "^2.0.2",
     "jest-when": "^3.7.0",
     "oxfmt": "^0.44.0",
     "prettier": "^3.3.3",
     "stdio-mock": "^1.2.0",
-    "ts-jest": "^29.0.3",
+    "ts-jest": "^29.4.11",
     "ts-node": "^10.7.0",
     "tsd": "^0.29.0",
     "typedoc": "^0.25.13",
@@ -127,7 +127,8 @@
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,
-      "eslint-plugin-import-x>unrs-resolver": false
+      "eslint-plugin-import-x>unrs-resolver": false,
+      "jest>@jest/core>jest-haste-map>@parcel/watcher": false
     }
   }
 }

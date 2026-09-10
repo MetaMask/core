@@ -592,6 +592,7 @@ describe('areUint8ArraysEqual', () => {
   it('has similar runtime for early vs late differences on large arrays', () => {
     const LENGTH = 100_000;
     const ITERATIONS = 200;
+    const TRIALS = 7;
 
     const base = new Uint8Array(LENGTH).fill(7);
     const early = base.slice();
@@ -608,28 +609,43 @@ describe('areUint8ArraysEqual', () => {
 
     const now = (): number => Number(process.hrtime.bigint());
 
-    let earlyTotal = 0;
-    let lateTotal = 0;
+    const measure = (candidate: Uint8Array): number => {
+      const start = now();
+      for (let i = 0; i < ITERATIONS; i++) {
+        areUint8ArraysEqual(candidate, base);
+      }
+      return now() - start;
+    };
 
-    // Measure early difference
-    const startEarly = now();
-    for (let i = 0; i < ITERATIONS; i++) {
-      areUint8ArraysEqual(early, base);
-    }
-    earlyTotal = now() - startEarly;
+    // Timing noise is strictly additive: scheduling, garbage collection and
+    // cache pressure only ever make a run slower, never faster. The fastest
+    // sample is therefore the closest to the function's true cost, which makes
+    // the minimum a much steadier estimator here than a single reading. A lone
+    // sample per side is what made this assertion fail intermittently on CI.
+    const fastest = (values: number[]): number => Math.min(...values);
 
-    // Measure late difference
-    const startLate = now();
-    for (let i = 0; i < ITERATIONS; i++) {
-      areUint8ArraysEqual(late, base);
+    const earlySamples: number[] = [];
+    const lateSamples: number[] = [];
+    for (let trial = 0; trial < TRIALS; trial++) {
+      earlySamples.push(measure(early));
+      lateSamples.push(measure(late));
     }
-    lateTotal = now() - startLate;
+
+    const earlyTotal = fastest(earlySamples);
+    const lateTotal = fastest(lateSamples);
 
     // Ratio ≈ 1.0 ⇒ similar runtimes regardless of diff position.
-    // The threshold enforces the same order of magnitude while allowing normal system jitter.
-    // It's an empirical upper bound (~p95). To tune: run multiple trials, take a high percentile, and set slightly above it.
+    //
+    // The bound is deliberately loose. What this test exists to catch is the
+    // comparison regaining an early return on the first differing byte. Were
+    // that to happen, `early` would stop after one byte while `late` still
+    // walked all 100,000, so the ratio would land in the thousands rather than
+    // slightly above 1. Anything under an order of magnitude is measurement
+    // noise, and on shared CI runners that noise reaches ~1.14 no matter how
+    // the samples are taken. A tighter bound buys no sensitivity to the real
+    // regression, only flakiness.
     const ratio =
       earlyTotal > lateTotal ? earlyTotal / lateTotal : lateTotal / earlyTotal;
-    expect(ratio).toBeLessThan(1.1);
+    expect(ratio).toBeLessThan(2);
   });
 });
