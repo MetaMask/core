@@ -58,7 +58,7 @@
     "prepack": "./scripts/prepack.sh",
     "test": "yarn test:source && yarn test:types",
     "test:source": "jest && jest-it-up",
-    "test:types": "tsd",
+    "test:types": "tsd --files 'src/*.test-d.ts'",
     "test:watch": "jest --watch"
   },
   "dependencies": {
