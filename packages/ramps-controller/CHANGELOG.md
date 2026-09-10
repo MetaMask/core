@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `RampsControllerMessenger` now requires these actions to be delegated for order syncing ([#9474](https://github.com/MetaMask/core/pull/9474)):
+- **BREAKING:** `RampsControllerMessenger` now requires these actions to be delegated for order syncing: ([#9474](https://github.com/MetaMask/core/pull/9474))
   - `UserStorageController:getState`
   - `UserStorageController:performGetStorageAllFeatureEntries`
   - `UserStorageController:performBatchSetStorage`
