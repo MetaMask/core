@@ -52,7 +52,7 @@
   "dependencies": {
     "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/account-tree-controller": "^10.0.0",
+    "@metamask/account-tree-controller": "^10.0.1",
     "@metamask/base-controller": "^10.0.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/keyring-api": "^24.0.0",
