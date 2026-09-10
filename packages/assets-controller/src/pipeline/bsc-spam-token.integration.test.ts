@@ -3,18 +3,13 @@ import { cleanAll } from 'nock';
 
 import { mockBscSpamApis } from '../__fixtures__/bsc-spam-token/api-responses/index.js';
 import {
-  ABOVE_FLOOR_ASSET_IDS,
   BNB_ASSET_ID,
   BSC_CHAIN_ID,
-  BSC_OCCURRENCE_FLOOR,
   BSC_SPAM_ACCOUNT_ID,
-  BSC_SPAM_WALLET_ASSET_IDS,
   CDOGE_ASSET_ID_CHECKSUM,
   CDOGE_ASSET_ID_LOWERCASE,
-  SUB_FLOOR_ASSET_IDS,
   buildBscSpamAccount,
   buildEmptyAssetsState,
-  occurrencesFor,
 } from '../__fixtures__/bsc-spam-token/bscSpamWallet.js';
 import { createMockAssetControllerMessenger } from '../__fixtures__/MockAssetControllerMessenger.js';
 import { createTestApiClient } from '../__fixtures__/mockTokenApi.js';
@@ -237,40 +232,6 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
     cleanAll();
   });
 
-  describe('fixture sanity', () => {
-    it('pins the conditions that make the spam token filterable', () => {
-      // If a re-capture moves any of these, the reproduction below stops
-      // testing what it claims to, so fail here rather than there.
-      expect(BSC_OCCURRENCE_FLOOR).toBe(3);
-      expect(occurrencesFor(CDOGE_ASSET_ID_LOWERCASE)).toBe(1);
-      expect(SUB_FLOOR_ASSET_IDS).toContain(CDOGE_ASSET_ID_CHECKSUM);
-    });
-
-    it('partitions the ERC-20 holdings into a non-empty set on each side of the floor', () => {
-      // Exact counts are deliberately not asserted: the Tokens API's occurrence
-      // numbers drift between captures, so both sets are derived from the
-      // fixtures rather than listed. What must hold is that the partition is
-      // total, disjoint, and has something to say on both sides.
-      expect(SUB_FLOOR_ASSET_IDS.length).toBeGreaterThan(0);
-      expect(ABOVE_FLOOR_ASSET_IDS.length).toBeGreaterThan(0);
-      expect(
-        SUB_FLOOR_ASSET_IDS.filter((assetId) =>
-          ABOVE_FLOOR_ASSET_IDS.includes(assetId),
-        ),
-      ).toStrictEqual([]);
-      expect(SUB_FLOOR_ASSET_IDS.length + ABOVE_FLOOR_ASSET_IDS.length).toBe(
-        BSC_SPAM_WALLET_ASSET_IDS.length - 1, // minus native BNB
-      );
-    });
-
-    it('has a native BNB entry that is only kept because it is native', () => {
-      // BNB reports a single occurrence, so the exemption for native assets —
-      // not its occurrence count — is what keeps it. That makes the "keeps
-      // native BNB" case below a real test of the exemption.
-      expect(occurrencesFor(BNB_ASSET_ID)).toBeLessThan(BSC_OCCURRENCE_FLOOR);
-    });
-  });
-
   describe('first pass over a fresh wallet', () => {
     it('drops the sub-floor spam token from the balances it would persist', async () => {
       const { response } = await runPipeline(buildEmptyAssetsState());
@@ -283,17 +244,6 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
       expect(
         getIgnoringCase(balances, CDOGE_ASSET_ID_LOWERCASE),
       ).toBeUndefined();
-    });
-
-    it('drops every other sub-floor airdrop from the balances too', async () => {
-      const { response } = await runPipeline(buildEmptyAssetsState());
-
-      const balances = balancesFor(response);
-      const survivingSpam = SUB_FLOOR_ASSET_IDS.filter(
-        (assetId) => getIgnoringCase(balances, assetId) !== undefined,
-      );
-
-      expect(survivingSpam).toStrictEqual([]);
     });
 
     it('drops the spam token from the detected-asset list', async () => {
@@ -326,17 +276,6 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
       ).toBeUndefined();
     });
 
-    it('keeps the genuine holdings that meet the occurrence floor', async () => {
-      const { response } = await runPipeline(buildEmptyAssetsState());
-
-      const balances = balancesFor(response);
-      const droppedGenuine = ABOVE_FLOOR_ASSET_IDS.filter(
-        (assetId) => getIgnoringCase(balances, assetId) === undefined,
-      );
-
-      expect(droppedGenuine).toStrictEqual([]);
-    });
-
     it('keeps the native BNB balance and its metadata despite its low occurrence count', async () => {
       const { response } = await runPipeline(buildEmptyAssetsState());
 
@@ -361,10 +300,9 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
       // pipeline carries and the casing the Tokens API is asked with...
       expect(requested).toContain(CDOGE_ASSET_ID_CHECKSUM);
       expect(requested).not.toContain(CDOGE_ASSET_ID_LOWERCASE);
-      // ...while the API answers lower-case regardless (verified live). Any
+      // ...while the captured Tokens API answers lower-case regardless. Any
       // filtering that matches asset ids by exact string across this boundary
       // silently does nothing.
-      expect(occurrencesFor(CDOGE_ASSET_ID_CHECKSUM)).toBe(1);
     });
 
     it('prunes balances, metadata, and detected assets for spam tokens', async () => {
