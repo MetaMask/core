@@ -77,7 +77,7 @@
     "@metamask/eth-hd-keyring": "^15.0.0",
     "@metamask/providers": "^22.1.0",
     "@types/jest": "^30.0.0",
-    "@types/uuid": "^8.3.0",
+    "@types/uuid": "^9.0.8",
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
@@ -87,7 +87,7 @@
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "uuid": "^8.3.2",
+    "uuid": "^9.0.1",
     "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {

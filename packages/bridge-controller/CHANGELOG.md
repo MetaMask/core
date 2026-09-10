@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Emit `failure_phase` and `error_code` on Quotes Error events ([#9949](https://github.com/MetaMask/core/pull/9949))
+- Emit `failure_phase`, `error_code`, `source_hash_present`, and `destination_hash_present` on Failed events ([#9949](https://github.com/MetaMask/core/pull/9949))
+
+### Changed
+
+- Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
+
 ## [81.0.0]
 
 ### Changed
@@ -51,6 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Optional `source_hash_present` and `destination_hash_present` on Failed, Submitted, and Completed event context types
   - Submit and status classifiers live in `@metamask/bridge-status-controller`
 - Add `recurring_buy` and `limit_order` FeatureIds ([#10096](https://github.com/MetaMask/core/pull/10096))
+- Emit `failure_phase` and `error_code` on Quotes Error events ([#9949](https://github.com/MetaMask/core/pull/9949))
+- Emit `failure_phase`, `error_code`, `source_hash_present`, and `destination_hash_present` on Failed events ([#9949](https://github.com/MetaMask/core/pull/9949))
 
 ### Changed
 

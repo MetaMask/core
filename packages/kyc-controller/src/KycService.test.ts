@@ -1,8 +1,8 @@
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
-  MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
 import nock, { cleanAll } from 'nock';
 
@@ -53,8 +53,7 @@ describe('KycService', () => {
         expect(
           () =>
             new KycService({
-              messenger:
-                messenger as unknown as MockAnyNamespace<KycServiceMessenger>,
+              messenger,
               baseUrl: MOCK_API_URL,
             }),
         ).toThrow(
@@ -558,7 +557,7 @@ describe('KycService', () => {
     });
 
     it('falls back to status-only HttpError when the body is not an object', async () => {
-      nock(MOCK_API_URL).get('/sessions/sid/status').reply(409, null);
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(409, 'null');
       const { service } = getService();
 
       await expect(
@@ -761,7 +760,7 @@ describe('KycService', () => {
     });
   });
 
-  describe('fetchDisclaimersCatalog', () => {
+  describe('fetchSessionDisclaimersByCountry', () => {
     const documents = {
       idOS: [
         {
@@ -789,7 +788,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       expect(
-        await service.fetchDisclaimersCatalog({ country: 'USA' }),
+        await service.fetchSessionDisclaimersByCountry({ country: 'USA' }),
       ).toStrictEqual(documents);
     });
 
@@ -797,7 +796,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchDisclaimersCatalog({ country: 'US' }),
+        service.fetchSessionDisclaimersByCountry({ country: 'US' }),
       ).rejects.toThrow(/ISO 3166-1 alpha-3/u);
     });
 
@@ -809,7 +808,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchDisclaimersCatalog({ country: 'USA' }),
+        service.fetchSessionDisclaimersByCountry({ country: 'USA' }),
       ).rejects.toThrow(/Malformed response received from disclaimers API/u);
     });
 
@@ -821,7 +820,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchDisclaimersCatalog({ country: 'USA' }),
+        service.fetchSessionDisclaimersByCountry({ country: 'USA' }),
       ).rejects.toThrow(/Malformed response received from disclaimers API/u);
     });
 
@@ -833,12 +832,12 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchDisclaimersCatalog({ country: 'USA' }),
+        service.fetchSessionDisclaimersByCountry({ country: 'USA' }),
       ).rejects.toThrow(/failed with status '500'/u);
     });
   });
 
-  describe('fetchSessionDisclaimers', () => {
+  describe('fetchSessionDisclaimersBySessionId', () => {
     const documents = {
       idOS: [
         {
@@ -869,7 +868,9 @@ describe('KycService', () => {
       const { service } = getService();
 
       expect(
-        await service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+        await service.fetchSessionDisclaimersBySessionId({
+          sessionId: 'sid-1',
+        }),
       ).toStrictEqual(catalog);
     });
 
@@ -878,7 +879,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+        service.fetchSessionDisclaimersBySessionId({ sessionId: 'sid-1' }),
       ).rejects.toThrow(
         /Malformed response received from session disclaimers API/u,
       );
@@ -891,7 +892,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+        service.fetchSessionDisclaimersBySessionId({ sessionId: 'sid-1' }),
       ).rejects.toThrow(
         /Malformed response received from session disclaimers API/u,
       );
@@ -915,7 +916,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+        service.fetchSessionDisclaimersBySessionId({ sessionId: 'sid-1' }),
       ).rejects.toThrow(
         /Malformed response received from session disclaimers API/u,
       );
@@ -926,7 +927,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.fetchSessionDisclaimers({ sessionId: 'sid-1' }),
+        service.fetchSessionDisclaimersBySessionId({ sessionId: 'sid-1' }),
       ).rejects.toThrow(/failed with status '500'/u);
     });
   });
