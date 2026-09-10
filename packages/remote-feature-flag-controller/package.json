@@ -1,6 +1,6 @@
 {
   "name": "@metamask/remote-feature-flag-controller",
-  "version": "6.1.1",
+  "version": "7.0.0",
   "description": "The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags",
   "keywords": [
     "Ethereum",
@@ -50,11 +50,11 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^9.1.0",
-    "@metamask/controller-utils": "^12.3.0",
-    "@metamask/messenger": "^2.0.0",
+    "@metamask/base-controller": "^10.0.0",
+    "@metamask/controller-utils": "^13.0.0",
+    "@metamask/messenger": "^3.0.0",
     "@metamask/utils": "^11.12.0",
-    "uuid": "^8.3.2"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",

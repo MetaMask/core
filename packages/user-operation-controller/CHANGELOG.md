@@ -9,13 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
+
+## [42.0.0]
+
+### Changed
+
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
   - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
 - **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
-- Bump `@metamask/transaction-controller` from `^69.6.1` to `^69.8.1` ([#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080), [#10124](https://github.com/MetaMask/core/pull/10124))
+- Bump `@metamask/transaction-controller` from `^69.6.1` to `^70.0.0` ([#10046](https://github.com/MetaMask/core/pull/10046), [#10080](https://github.com/MetaMask/core/pull/10080), [#10124](https://github.com/MetaMask/core/pull/10124), [#10160](https://github.com/MetaMask/core/pull/10160))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/approval-controller` from `^9.0.2` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/gas-fee-controller` from `^26.3.2` to `^27.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/polling-controller` from `^16.0.9` to `^17.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [41.2.9]
 
@@ -671,7 +685,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.9...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.0.0...HEAD
+[42.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.9...@metamask/user-operation-controller@42.0.0
 [41.2.9]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.8...@metamask/user-operation-controller@41.2.9
 [41.2.8]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.7...@metamask/user-operation-controller@41.2.8
 [41.2.7]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.6...@metamask/user-operation-controller@41.2.7

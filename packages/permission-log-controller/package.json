@@ -1,6 +1,6 @@
 {
   "name": "@metamask/permission-log-controller",
-  "version": "5.1.0",
+  "version": "6.0.0",
   "description": "Controller with middleware for logging requests and responses to restricted and permissions-related methods",
   "keywords": [
     "Ethereum",
@@ -50,9 +50,9 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^9.1.0",
-    "@metamask/json-rpc-engine": "^10.5.0",
-    "@metamask/messenger": "^2.0.0",
+    "@metamask/base-controller": "^10.0.0",
+    "@metamask/json-rpc-engine": "^11.0.0",
+    "@metamask/messenger": "^3.0.0",
     "@metamask/utils": "^11.12.0"
   },
   "devDependencies": {

@@ -204,36 +204,8 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
-      - name: Unshallow checkout
-        if: needs.prepare.outputs.merge-base != ''
-        run: |
-          # Unshallow so git can walk history back to the merge base for
-          # `git diff --name-only`. Using `--filter=blob:none` avoids
-          # downloading file content — only commit and tree objects are needed.
-          git fetch --unshallow --filter=blob:none --no-tags origin HEAD
       - name: Build
-        run: |
-          if [[ -n "$MERGE_BASE" && "$CHANGED_PATHS" != "full" ]]; then
-            TSCONFIG=$(mktemp --tmpdir="$GITHUB_WORKSPACE" --suffix=.json)
-            yarn tsx scripts/generate-partial-build-tsconfig.mts "$MERGE_BASE" "$HEAD_SHA" > "$TSCONFIG"
-            if [[ -s "$TSCONFIG" ]]; then
-              echo "Building changed packages:"
-              jq -r '"- " + (.references[].path | ltrimstr("./") | rtrimstr("/tsconfig.build.json"))' "$TSCONFIG"
-              echo ""
-              yarn tsc --build --project "$TSCONFIG" --verbose
-            else
-              echo "No packages to build."
-            fi
-            rm -f "$TSCONFIG"
-          else
-            echo "Building all packages."
-            echo ""
-            yarn build
-          fi
-        env:
-          MERGE_BASE: ${{ needs.prepare.outputs.merge-base }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
-          CHANGED_PATHS: ${{ needs.prepare.outputs.changed-paths }}
+        run: yarn build
       - name: Require clean working directory
         shell: bash
         run: |

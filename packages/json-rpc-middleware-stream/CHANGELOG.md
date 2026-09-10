@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -15,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
 - Bump `@metamask/utils` from `^11.8.1` to `^11.12.0` ([#7511](https://github.com/MetaMask/core/pull/7511), [#9074](https://github.com/MetaMask/core/pull/9074), [#10076](https://github.com/MetaMask/core/pull/10076))
-- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.5.0` ([#7202](https://github.com/MetaMask/core/pull/7202), [#7642](https://github.com/MetaMask/core/pull/7642), [#7856](https://github.com/MetaMask/core/pull/7856), [#8078](https://github.com/MetaMask/core/pull/8078), [#8317](https://github.com/MetaMask/core/pull/8317), [#8661](https://github.com/MetaMask/core/pull/8661), [#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753))
+- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^11.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202), [#7642](https://github.com/MetaMask/core/pull/7642), [#7856](https://github.com/MetaMask/core/pull/7856), [#8078](https://github.com/MetaMask/core/pull/8078), [#8317](https://github.com/MetaMask/core/pull/8317), [#8661](https://github.com/MetaMask/core/pull/8661), [#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753), [#10160](https://github.com/MetaMask/core/pull/10160))
 
 ## [8.0.8]
 
@@ -66,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -214,7 +216,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - TypeScript typings ([#11](https://github.com/MetaMask/json-rpc-middleware-stream/pull/11))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.8...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.8...@metamask/json-rpc-middleware-stream@9.0.0
 [8.0.8]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.7...@metamask/json-rpc-middleware-stream@8.0.8
 [8.0.7]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.6...@metamask/json-rpc-middleware-stream@8.0.7
 [8.0.6]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.5...@metamask/json-rpc-middleware-stream@8.0.6
