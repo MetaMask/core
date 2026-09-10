@@ -22,6 +22,7 @@ import type {
 import {
   RampsController,
   getDefaultRampsControllerState,
+  getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
   RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS,
 } from './RampsController.js';
@@ -102,17 +103,27 @@ describe('RampsController', () => {
   });
 
   describe('RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS', () => {
-    it('includes every external controller action that RampsController calls', async () => {
+    it('includes every external controller action that ramps order code calls', async () => {
       expect.hasAssertions();
-      const controllerPath = path.join(__dirname, 'RampsController.ts');
-      const source = await fs.promises.readFile(controllerPath, 'utf-8');
+      const sourcePaths = [
+        path.join(__dirname, 'RampsController.ts'),
+        path.join(__dirname, 'order-syncing/controller-integration.ts'),
+        path.join(__dirname, 'order-syncing/sync-utils.ts'),
+      ];
+      const sources = await Promise.all(
+        sourcePaths.map((sourcePath) =>
+          fs.promises.readFile(sourcePath, 'utf-8'),
+        ),
+      );
       const callPattern =
-        /messenger\.call\s*\(\s*['"]([A-Za-z]+Controller:[^'"]+)['"]/gu;
+        /(?:messenger|getMessenger\(\))\.call\s*\(\s*['"]([A-Za-z]+Controller:[^'"]+)['"]/gu;
       const calledActions = new Set<string>();
-      let match: RegExpExecArray | null;
-      while ((match = callPattern.exec(source)) !== null) {
-        if (!match[1].startsWith('RampsController:')) {
-          calledActions.add(match[1]);
+      for (const source of sources) {
+        let match: RegExpExecArray | null;
+        while ((match = callPattern.exec(source)) !== null) {
+          if (!match[1].startsWith('RampsController:')) {
+            calledActions.add(match[1]);
+          }
         }
       }
       const requiredSet = new Set(
@@ -10180,9 +10191,13 @@ describe('RampsController', () => {
 
     it('adds a new order to state', async () => {
       await withController(({ controller, rootMessenger }) => {
+        jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_100);
         rootMessenger.call('RampsController:addOrder', mockOrder);
         expect(controller.state.orders).toHaveLength(1);
-        expect(controller.state.orders[0]).toStrictEqual(mockOrder);
+        expect(controller.state.orders[0]).toStrictEqual({
+          ...mockOrder,
+          lastUpdatedAt: 1_700_000_000_100,
+        });
       });
     });
 
@@ -10293,6 +10308,60 @@ describe('RampsController', () => {
 
         rootMessenger.call('RampsController:removeOrder', 'nonexistent');
         expect(controller.state.orders).toHaveLength(1);
+      });
+    });
+
+    it('clears polling metadata when removing by internal order code', async () => {
+      await withController(async ({ rootMessenger }) => {
+        jest.useFakeTimers();
+
+        const legacyOrder = createMockOrder({
+          id: '/providers/transak/orders/internal-order-456',
+          providerOrderId: 'legacy-provider-id',
+          status: RampsOrderStatus.Pending,
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
+          walletAddress: '0xabc',
+        });
+        rootMessenger.call('RampsController:addOrder', legacyOrder);
+
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => {
+            callCount += 1;
+            throw new Error('fail');
+          },
+        );
+
+        rootMessenger.call('RampsController:startOrderPolling');
+        await jest.advanceTimersByTimeAsync(0);
+        expect(callCount).toBe(1);
+
+        rootMessenger.call('RampsController:removeOrder', 'internal-order-456');
+        rootMessenger.call('RampsController:stopOrderPolling');
+
+        const replacementOrder = createMockOrder({
+          id: '/providers/transak/orders/internal-order-456',
+          providerOrderId: 'legacy-provider-id',
+          status: RampsOrderStatus.Pending,
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
+          walletAddress: '0xabc',
+        });
+        rootMessenger.call('RampsController:addOrder', replacementOrder);
+
+        callCount = 0;
+        rootMessenger.call('RampsController:startOrderPolling');
+        await jest.advanceTimersByTimeAsync(0);
+        expect(callCount).toBe(1);
+
+        rootMessenger.call('RampsController:stopOrderPolling');
+        jest.useRealTimers();
       });
     });
   });
@@ -12754,6 +12823,31 @@ describe('RampsController', () => {
         });
       });
     });
+  });
+});
+
+describe('getInternalOrderCode', () => {
+  it('returns empty string when object has no /orders/ id and no providerOrderId', () => {
+    expect(getInternalOrderCode({ id: 'plain-id' })).toBe('');
+  });
+
+  it('trims providerOrderId when id has no /orders/ path', () => {
+    expect(
+      getInternalOrderCode({ id: 'plain-id', providerOrderId: '  abc  ' }),
+    ).toBe('abc');
+  });
+
+  it('falls back to providerOrderId when /orders/ segment is empty', () => {
+    expect(
+      getInternalOrderCode({
+        id: '/providers/transak/orders/',
+        providerOrderId: 'real-id',
+      }),
+    ).toBe('real-id');
+  });
+
+  it('returns empty string for a string id with an empty /orders/ segment', () => {
+    expect(getInternalOrderCode('/providers/transak/orders/')).toBe('');
   });
 });
 

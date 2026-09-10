@@ -743,11 +743,7 @@ type CachedMarketDataSnapshot = {
 };
 
 type GetAssetInfoResult = {
-  assetInfo: {
-    name: string;
-    szDecimals: number;
-    maxLeverage: number;
-  };
+  assetInfo: MetaResponse['universe'][number];
   currentPrice: number;
   meta: MetaResponse;
 };
@@ -756,6 +752,7 @@ type PrepareAssetForTradingParams = {
   symbol: string;
   assetId: number;
   leverage?: number;
+  marginMode?: OrderParams['marginMode'];
 };
 
 type Hip3TransferInfo = {
@@ -5094,6 +5091,94 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Validate an explicit mode before trading setup can sign or change leverage.
+   * Mode belongs to the asset, so a new order cannot change an existing book.
+   *
+   * @param params - Requested order and collateral mode.
+   * @param assetInfo - Venue capabilities for the requested market.
+   */
+  async #validateMarginMode(
+    params: OrderParams,
+    assetInfo: MetaResponse['universe'][number],
+  ): Promise<void> {
+    if (params.marginMode === undefined) {
+      return;
+    }
+    if (!Number.isInteger(params.leverage) || (params.leverage ?? 0) < 1) {
+      throw new Error(PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID);
+    }
+    const { dex: dexName } = parseAssetName(params.symbol);
+    // Both SDK marginMode values (strictIsolated and noCross) prohibit Cross.
+    // Treat any future restriction value as unsupported until handled explicitly.
+    if (
+      params.marginMode === 'cross' &&
+      (assetInfo.onlyIsolated || assetInfo.marginMode || dexName !== null)
+    ) {
+      // HIP-3 collateral transfers still assume isolated margin. Keep Cross
+      // unavailable there until that account-mode-aware path is supported.
+      throw new Error(PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED);
+    }
+    const { answered, positions } = await this.#queryDexPositions(dexName);
+    if (!answered) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+    }
+    const position = positions.find((item) => item.symbol === params.symbol);
+    if (position) {
+      if (position.leverage.type !== params.marginMode) {
+        throw new Error(PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN);
+      }
+      return;
+    }
+    const user = await this.#walletService.getUserAddressWithDefault();
+    const infoClient = this.#clientService.getInfoClient();
+    const [orders, twapHistory] = await Promise.all([
+      this.#fetchOpenOrders({ dexName }),
+      infoClient.twapHistory({ user }),
+    ]);
+    // Native TWAP schedules are absent from frontendOpenOrders before a slice
+    // rests or fills. Read history directly: getTwapOrders can rebalance HIP-3
+    // collateral, which must not run as part of pre-sign validation.
+    const latestTwaps = new Map<
+      HyperLiquidTwapHistoryEntry['twapId'],
+      HyperLiquidTwapHistoryEntry
+    >();
+    for (const entry of twapHistory) {
+      if (entry.state.coin !== params.symbol) {
+        continue;
+      }
+      const previous = latestTwaps.get(entry.twapId);
+      if (
+        !previous ||
+        normalizeTwapHistoryTimestamp(entry.time) >=
+          normalizeTwapHistoryTimestamp(previous.time)
+      ) {
+        latestTwaps.set(entry.twapId, entry);
+      }
+    }
+    const hasActiveTwap = [...latestTwaps.values()].some((entry) => {
+      switch (entry.status.status) {
+        case HyperLiquidTwapLifecycleStatus.Finished:
+        case HyperLiquidTwapLifecycleStatus.Stopped:
+        case HyperLiquidTwapLifecycleStatus.Terminated:
+        case HyperLiquidTwapLifecycleStatus.Failed:
+          return false;
+        default:
+          // Waiting and future venue states are not proof of termination.
+          return true;
+      }
+    });
+    if (orders.some((order) => order.coin === params.symbol) || hasActiveTwap) {
+      const asset = await infoClient.activeAssetData({
+        user,
+        coin: params.symbol,
+      });
+      if (asset.leverage.type !== params.marginMode) {
+        throw new Error(PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN);
+      }
+    }
+  }
+
+  /**
    * Prepares asset for trading by updating leverage if specified
    *
    * @param params - The operation parameters.
@@ -5101,7 +5186,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   async #prepareAssetForTrading(
     params: PrepareAssetForTradingParams,
   ): Promise<void> {
-    const { symbol, assetId, leverage } = params;
+    const { symbol, assetId, leverage, marginMode = 'isolated' } = params;
 
     if (!leverage) {
       return;
@@ -5111,13 +5196,13 @@ export class HyperLiquidProvider implements PerpsProvider {
       symbol,
       assetId,
       requestedLeverage: leverage,
-      leverageType: 'isolated',
+      leverageType: marginMode,
     });
 
     const exchangeClient = this.#clientService.getExchangeClient();
     const leverageResult = await exchangeClient.updateLeverage({
       asset: assetId,
-      isCross: false,
+      isCross: marginMode === 'cross',
       leverage,
     });
 
@@ -5491,6 +5576,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         symbol: params.symbol,
         assetId,
         leverage: params.leverage,
+        marginMode: params.marginMode,
       });
 
       // 6. Handle HIP-3 balance management (if applicable)
@@ -5891,6 +5977,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       symbol: params.symbol,
       assetId,
       leverage: params.leverage,
+      marginMode: params.marginMode,
     });
 
     const builder = builderFeeSetupContext
@@ -12939,6 +13026,27 @@ export class HyperLiquidProvider implements PerpsProvider {
       });
       if (!basicValidation.isValid) {
         return basicValidation;
+      }
+
+      if (params.marginMode !== undefined) {
+        if (params.marginMode !== 'cross' && params.marginMode !== 'isolated') {
+          return {
+            isValid: false,
+            error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_INVALID,
+          };
+        }
+        const { dex: dexName } = parseAssetName(params.symbol);
+        const meta = await this.#getCachedMeta({ dexName });
+        const assetInfo = meta.universe.find(
+          (asset) => asset.name === params.symbol,
+        );
+        if (!assetInfo) {
+          return {
+            isValid: false,
+            error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+          };
+        }
+        await this.#validateMarginMode(params, assetInfo);
       }
 
       // Check minimum order size using consistent defaults (matching useMinimumOrderAmount hook)

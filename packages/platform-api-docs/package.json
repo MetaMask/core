@@ -1,6 +1,6 @@
 {
   "name": "@metamask/platform-api-docs",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Produces documentation for the platform API, the set of actions and events available in the clients through the message bus",
   "keywords": [
     "Ethereum",
@@ -15,19 +15,22 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "bin": "./dist/cli.mjs",
+  "bin": "./dist/cli.js",
   "files": [
     "dist/",
     "site/"
   ],
+  "type": "module",
   "sideEffects": false,
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
-    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
+    "build": "tsc --project tsconfig.build.json",
+    "build:all": "tsc --build tsconfig.build.json --verbose",
+    "build:clean": "yarn build:only-clean && yarn build",
+    "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/platform-api-docs",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/platform-api-docs",
     "cli": "tsx src/cli.ts",
@@ -58,19 +61,20 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",
-    "@types/node": "^16.18.54",
+    "@types/node": "^22.13.14",
     "@types/npm-which": "^3",
     "@types/react": "^19.0.0",
     "@types/yargs": "^17.0.32",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
+    "rimraf": "^5.0.5",
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
-    "typescript": "~5.3.3"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {
-    "node": "^18.18 || >=20"
+    "node": "^22.14.0 || ^24"
   }
 }

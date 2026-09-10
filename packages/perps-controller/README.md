@@ -49,6 +49,23 @@ The package exports the controller's parameter, result, provider, and
 messenger types for client integrations. Provider availability and aggregated
 routing are controlled by client configuration and feature flags.
 
+## Error codes
+
+`PERPS_ERROR_CODES` / `PerpsErrorCode` are the structured codes returned to
+the UI for translation. New codes are additive and ship as a minor. Clients
+should keep a catch-all for unrecognized codes instead of an exhaustive map,
+so a bump does not fail to compile when a code is added.
+
+## Explicit HyperLiquid margin mode
+
+Pass `marginMode: 'cross'` or `marginMode: 'isolated'` with an integer `leverage`
+to `placeOrder`. Omitted mode retains the existing isolated-leverage behavior.
+Explicit mode requests are validated before signing: Cross is unavailable on
+isolated-only markets and HIP-3 markets, and an order cannot change the mode of
+an asset with an open position, resting order, or active native TWAP schedule,
+including schedules whose first slice has not filled. Orders in the same mode may
+increase or reduce the existing position.
+
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).

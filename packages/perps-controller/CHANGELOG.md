@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
+
+## [17.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [16.2.0]
+
+### Added
+
+- Add `ORDER_MARGIN_MODE_INVALID`, `ORDER_MARGIN_MODE_UNSUPPORTED`, `ORDER_MARGIN_MODE_POSITION_OPEN`, and `ORDER_MARGIN_MODE_ORDER_OPEN` to the exported `PerpsErrorCode` union. ([#10136](https://github.com/MetaMask/core/pull/10136))
+  - Expanding `PerpsErrorCode` is a minor. Clients should handle unknown codes in a catch-all rather than an exhaustive `Record<PerpsErrorCode, …>`. Existing callers that omit `marginMode` keep the same runtime behavior.
+- Add explicit HyperLiquid `OrderParams.marginMode` selection with market-capability and open-position/order/TWAP guards, and expose the venue's `MarketInfo.marginMode` capability. ([#10136](https://github.com/MetaMask/core/pull/10136))
+
 ### Fixed
 
 - Keep the terminal HyperLiquid TWAP record when a completing fill ties `lastUpdated` with the activation, so a finished schedule is no longer reported as live. ([#10122](https://github.com/MetaMask/core/pull/10122))
@@ -886,7 +911,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.2.0...@metamask/perps-controller@17.0.0
+[16.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.1.0...@metamask/perps-controller@16.2.0
 [16.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.0.0...@metamask/perps-controller@16.1.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@15.1.0...@metamask/perps-controller@16.0.0
 [15.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@15.0.0...@metamask/perps-controller@15.1.0

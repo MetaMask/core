@@ -76,6 +76,7 @@ function getDefaultTransactionControllerState(): TransactionControllerState {
   return {
     transactions: [],
     transactionBatches: [],
+    batchTransactionCounts: {},
     methodData: {},
     lastFetchedBlockNumbers: {},
     submitHistory: [],
@@ -4837,19 +4838,23 @@ describe('Address poisoning detection', () => {
       [],
     );
 
-    rootMessenger.publish('AddressBookController:stateChange', {
-      addressBook: {
-        '0x1': {
-          [ADDRESS_BOOK_RECIPIENT]: {
-            address: ADDRESS_BOOK_RECIPIENT,
-            name: 'Known recipient',
-            chainId: '0x1',
-            memo: '',
-            isEns: false,
+    rootMessenger.publish(
+      'AddressBookController:stateChange',
+      {
+        addressBook: {
+          '0x1': {
+            [ADDRESS_BOOK_RECIPIENT]: {
+              address: ADDRESS_BOOK_RECIPIENT,
+              name: 'Known recipient',
+              chainId: '0x1',
+              memo: '',
+              isEns: false,
+            },
           },
         },
       },
-    });
+      [],
+    );
 
     await new Promise((resolve) => process.nextTick(resolve));
 

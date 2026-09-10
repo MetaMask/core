@@ -1434,6 +1434,33 @@ describe('LighterProvider', () => {
   });
 
   describe('placeOrder', () => {
+    it.each(['cross', 'isolated'] as const)(
+      'rejects explicit %s before signing',
+      async (marginMode) => {
+        const { provider, calls } = buildProvider();
+        const params = {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.001',
+          orderType: 'limit' as const,
+          price: '90000',
+          leverage: 5,
+          marginMode,
+        };
+
+        const validation = await provider.validateOrder(params);
+        const result = await provider.placeOrder(params);
+
+        expect(validation).toStrictEqual({
+          isValid: false,
+          error: 'ORDER_MARGIN_MODE_UNSUPPORTED',
+        });
+        expect(result.success).toBe(false);
+        expect(result.error).toBe('ORDER_MARGIN_MODE_UNSUPPORTED');
+        expect(calls).toHaveLength(0);
+      },
+    );
+
     it('signs and submits a limit order with integerized values', async () => {
       const { provider, clientInstance, calls } = buildProvider();
       const result = await provider.placeOrder({
@@ -9319,7 +9346,7 @@ describe('LighterProvider', () => {
       }
       const ids = calls
         .filter((call) => call.function === '_signCreateOrder')
-        .map((call) => call.params[2] as number);
+        .map((call) => call.params[2]);
       expect(ids).toHaveLength(3);
       expect(new Set(ids).size).toBe(3);
       for (const id of ids) {
@@ -9371,7 +9398,7 @@ describe('LighterProvider', () => {
         expect(second.success).toBe(true);
         const ids = calls
           .filter((call) => call.function === '_signCreateOrder')
-          .map((call) => call.params[2] as number);
+          .map((call) => call.params[2]);
         const of = (byte: number): number => {
           const third = byte * 65_536 + byte * 256 + byte;
           return third * 2 ** 24 + third;
@@ -9411,7 +9438,7 @@ describe('LighterProvider', () => {
         expect(result.success).toBe(true);
         const ids = calls
           .filter((call) => call.function === '_signCreateOrder')
-          .map((call) => call.params[2] as number);
+          .map((call) => call.params[2]);
         const third = 0xc0 * 65_536 + 0xc0 * 256 + 0xc0;
         expect(ids).toStrictEqual([third * 2 ** 24 + third]);
         expect(randomSpy).toHaveBeenCalledTimes(2);

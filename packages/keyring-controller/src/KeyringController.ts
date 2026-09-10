@@ -37,9 +37,9 @@ import {
 } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { MutexInterface } from 'async-mutex';
-import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
+import * as ethereumjsWallet from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 // When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
 import { ulid } from 'ulid';
 
@@ -52,6 +52,26 @@ import type {
   PersonalMessageParams,
   TypedMessageParams,
 } from './types.js';
+
+/**
+ * `ethereumjs-wallet` is CommonJS, and Node cannot reliably detect its named
+ * exports, so importing `thirdparty` directly fails at run time. It also
+ * declares a TypeScript-style default export, which means `module.exports` is
+ * reached through `default` under Node's ESM interop but is the namespace
+ * itself once `esModuleInterop` has unwrapped it. Both shapes are resolved
+ * here so the imports work whichever applies.
+ */
+/* istanbul ignore next: only one branch is reachable per module system */
+const walletModule = (typeof ethereumjsWallet.default === 'object' &&
+ethereumjsWallet.default
+  ? ethereumjsWallet.default
+  : ethereumjsWallet) as unknown as {
+  default: typeof ethereumjsWallet.default;
+  thirdparty: typeof ethereumjsWallet.thirdparty;
+};
+
+const Wallet = walletModule.default;
+const importers = walletModule.thirdparty;
 
 const name = 'KeyringController';
 
@@ -1376,6 +1396,7 @@ export class KeyringController<
           try {
             wallet = importers.fromEtherWallet(input, password);
           } catch {
+            // @ts-expect-error: Wallet.fromV3 does not exist?
             wallet = wallet ?? (await Wallet.fromV3(input, password, true));
           }
           privateKey = bytesToHex(new Uint8Array(wallet.getPrivateKey()));

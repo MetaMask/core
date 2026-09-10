@@ -13,7 +13,10 @@ import {
   getDefaultKycControllerState,
   KycController,
 } from './KycController.js';
-import type { KycControllerMessenger } from './KycController.js';
+import type {
+  FetchSessionDisclaimersParams,
+  KycControllerMessenger,
+} from './KycController.js';
 import type {
   KycConsentRecord,
   KycDisclaimer,
@@ -498,6 +501,121 @@ describe('KycController', () => {
     });
   });
 
+  describe('fetchSessionDisclaimers', () => {
+    const globalCatalog = {
+      idOS: [
+        {
+          key: 'idos-tos',
+          version: '1',
+          title: 'idOS ToS',
+          url: 'https://idos.example/tos',
+        },
+      ],
+      kycProvider: [
+        {
+          key: 'sumsub-tos',
+          version: '1',
+          title: 'SumSub ToS',
+          url: 'https://sumsub.example/tos',
+        },
+      ],
+    };
+
+    it('fetches the session-scoped catalog by sessionId', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(
+          MOCK_SESSION_DISCLAIMERS,
+        );
+
+        expect(
+          await controller.fetchSessionDisclaimers({ sessionId: 'sid' }),
+        ).toStrictEqual(MOCK_SESSION_DISCLAIMERS);
+
+        expect(
+          handlers.fetchSessionDisclaimersBySessionId,
+        ).toHaveBeenCalledWith({ sessionId: 'sid' });
+        expect(
+          handlers.fetchSessionDisclaimersByCountry,
+        ).not.toHaveBeenCalled();
+        expect(controller.state.sessionDisclaimers).toStrictEqual(
+          MOCK_SESSION_DISCLAIMERS,
+        );
+      });
+    });
+
+    it('fetches the global catalog by country', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.fetchSessionDisclaimersByCountry.mockResolvedValue(
+          globalCatalog,
+        );
+
+        expect(
+          await controller.fetchSessionDisclaimers({ country: 'USA' }),
+        ).toStrictEqual(globalCatalog);
+
+        expect(handlers.fetchSessionDisclaimersByCountry).toHaveBeenCalledWith({
+          country: 'USA',
+        });
+        expect(
+          handlers.fetchSessionDisclaimersBySessionId,
+        ).not.toHaveBeenCalled();
+        expect(controller.state.sessionDisclaimers).toBeNull();
+      });
+    });
+
+    it('throws when neither sessionId nor country is provided', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await expect(
+          controller.fetchSessionDisclaimers(
+            {} as FetchSessionDisclaimersParams,
+          ),
+        ).rejects.toThrow(/exactly one of sessionId or country/u);
+
+        expect(
+          handlers.fetchSessionDisclaimersBySessionId,
+        ).not.toHaveBeenCalled();
+        expect(
+          handlers.fetchSessionDisclaimersByCountry,
+        ).not.toHaveBeenCalled();
+      });
+    });
+
+    it('throws when both sessionId and country are provided', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await expect(
+          controller.fetchSessionDisclaimers({
+            sessionId: 'sid',
+            country: 'USA',
+          } as unknown as FetchSessionDisclaimersParams),
+        ).rejects.toThrow(/exactly one of sessionId or country/u);
+
+        expect(
+          handlers.fetchSessionDisclaimersBySessionId,
+        ).not.toHaveBeenCalled();
+        expect(
+          handlers.fetchSessionDisclaimersByCountry,
+        ).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not write sessionDisclaimers when reset lands during a sessionId fetch', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.fetchSessionDisclaimersBySessionId.mockImplementation(
+          async () => {
+            controller.reset();
+            return MOCK_SESSION_DISCLAIMERS;
+          },
+        );
+
+        expect(
+          await controller.fetchSessionDisclaimers({ sessionId: 'sid' }),
+        ).toStrictEqual(MOCK_SESSION_DISCLAIMERS);
+
+        expect(controller.state.sessionDisclaimers).toBeNull();
+      });
+    });
+  });
+
   describe('acceptTermsAndStartSession', () => {
     it('captures terms and creates a session', async () => {
       await withController(
@@ -541,7 +659,6 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          // @ts-expect-error T&C2 flags are required
           await controller.acceptTermsAndStartSession();
 
           expect(controller.state.phase).toBe('error');
@@ -956,6 +1073,7 @@ describe('KycController', () => {
           expect(controller.state.kycRequiredByProduct.card).toBe(true);
           expect(launcher.launch).toHaveBeenCalledTimes(1);
           expect(controller.state.sumsub.status).toBe('complete');
+          expect(handlers.fetchKycStatus).toHaveBeenCalled();
         },
       );
     });
@@ -1798,11 +1916,40 @@ describe('KycController', () => {
       });
     });
 
-    it('marks failed when launch resolves without a Completed status', async () => {
+    it.each(['Pending', 'Approved'])(
+      'treats the SumSub %s status as a completed applicant flow',
+      async (completedStatus) => {
+        await withController(async ({ controller, launcher }) => {
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            onStatusChange?.('Incomplete', completedStatus);
+            return { ok: true, status: completedStatus };
+          });
+
+          await controller.startSumSub();
+
+          expect(controller.state.sumsub.status).toBe('complete');
+        });
+      },
+    );
+
+    it('uses the resolved SDK status when its final transition was not delivered', async () => {
       await withController(async ({ controller, launcher }) => {
+        launcher.launch.mockResolvedValue({
+          ok: true,
+          status: 'Pending',
+        });
+
+        await controller.startSumSub();
+
+        expect(controller.state.sumsub.status).toBe('complete');
+      });
+    });
+
+    it('marks abandoned when launch resolves without a completed status', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
         launcher.launch.mockImplementation(async ({ onStatusChange }) => {
-          // The applicant abandons the flow: the SDK reports progress but never
-          // a Completed status, yet `launch` still resolves.
+          // The applicant abandons the flow: the SDK reports progress but
+          // never a completed status, yet `launch` still resolves.
           onStatusChange?.('idle', 'InProgress');
           return { ok: false };
         });
@@ -1810,10 +1957,83 @@ describe('KycController', () => {
         const result = await controller.startSumSub();
 
         expect(result).toStrictEqual({ ok: false });
-        expect(controller.state.sumsub.status).toBe('failed');
+        expect(controller.state.sumsub.status).toBe('abandoned');
         expect(controller.state.sumsub.result).toStrictEqual({ ok: false });
+        // No decision was reached, so consents-path callers still rewind.
+        expect(controller.state.sumsub.sessionStatus).toBeNull();
+        expect(handlers.getSessionStatus).not.toHaveBeenCalled();
       });
     });
+
+    it.each(['Initial', 'Incomplete', 'Ready'])(
+      'marks abandoned when the applicant stops short and the SDK reports %s',
+      async (unfinishedStatus) => {
+        await withController(async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            onStatusChange?.('Ready', unfinishedStatus);
+            return { success: false, status: unfinishedStatus };
+          });
+
+          await controller.startSumSub();
+
+          expect(controller.state.sumsub.status).toBe('abandoned');
+          // The UKYC session leaves its initial state as soon as the journey is
+          // created, so it must not be consulted to second-guess the SDK.
+          expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+        });
+      },
+    );
+
+    it.each([
+      ['the Failed status', { success: false, status: 'Failed' }],
+      ['an error message', { success: false, error: 'token rejected' }],
+    ])('marks failed when the SDK reports %s', async (_label, launchResult) => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        // The SDK could not run — a real failure, not a change of mind.
+        launcher.launch.mockResolvedValue(launchResult);
+
+        await controller.startSumSub();
+
+        expect(controller.state.sumsub.status).toBe('failed');
+        expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+      });
+    });
+
+    it('treats the SumSub ActionCompleted status as a completed applicant flow', async () => {
+      await withController(async ({ controller, launcher }) => {
+        launcher.launch.mockResolvedValue({
+          success: true,
+          status: 'ActionCompleted',
+        });
+
+        await controller.startSumSub();
+
+        expect(controller.state.sumsub.status).toBe('complete');
+      });
+    });
+
+    it.each(['FinallyRejected', 'TemporarilyDeclined'])(
+      'polls UKYC after the SumSub %s review decision instead of treating it as abandoned',
+      async (reviewStatus) => {
+        await withController(async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockResolvedValue({
+            success: true,
+            status: reviewStatus,
+          });
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('rejected'),
+          );
+
+          await controller.startSumSub();
+
+          expect(handlers.getSessionStatus).toHaveBeenCalled();
+          expect(controller.state.sumsub.status).toBe('failed');
+          expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+            sessionStatus('rejected'),
+          );
+        });
+      },
+    );
 
     it('marks failed and returns the error when a step throws', async () => {
       await withController(async ({ controller, handlers }) => {
@@ -1915,6 +2135,81 @@ describe('KycController', () => {
         expect(controller.state.phase).toBe('idle');
       });
     });
+
+    it('pauses user-status polling while the SDK is open and resumes after it closes', async () => {
+      jest.useFakeTimers();
+      try {
+        await withController(
+          { options: { userStatusPollIntervalMs: 1000 } },
+          async ({ controller, handlers, launcher }) => {
+            handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
+            await controller.refreshKycStatus();
+            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(1);
+
+            let releaseLaunch: (value: { ok: boolean }) => void = () =>
+              undefined;
+            launcher.launch.mockReturnValue(
+              new Promise((resolve) => {
+                releaseLaunch = resolve;
+              }),
+            );
+
+            const pending = controller.startSumSub();
+            while (launcher.launch.mock.calls.length === 0) {
+              await Promise.resolve();
+            }
+            handlers.fetchKycStatus.mockClear();
+            await jest.advanceTimersByTimeAsync(3000);
+            expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+
+            releaseLaunch({ ok: false });
+            await pending;
+
+            expect(handlers.fetchKycStatus).toHaveBeenCalled();
+            handlers.fetchKycStatus.mockClear();
+            await jest.advanceTimersByTimeAsync(1000);
+            expect(handlers.fetchKycStatus).toHaveBeenCalled();
+          },
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('does not resume user-status polling when reset() lands during launch', async () => {
+      jest.useFakeTimers();
+      try {
+        await withController(
+          { options: { userStatusPollIntervalMs: 1000 } },
+          async ({ controller, handlers, launcher }) => {
+            handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
+            await controller.refreshKycStatus();
+
+            let releaseLaunch: (value: { ok: boolean }) => void = () =>
+              undefined;
+            launcher.launch.mockReturnValue(
+              new Promise((resolve) => {
+                releaseLaunch = resolve;
+              }),
+            );
+
+            const pending = controller.startSumSub();
+            while (launcher.launch.mock.calls.length === 0) {
+              await Promise.resolve();
+            }
+            controller.reset();
+            releaseLaunch({ ok: true });
+            await pending;
+            handlers.fetchKycStatus.mockClear();
+            await jest.advanceTimersByTimeAsync(3000);
+
+            expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+          },
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+    });
   });
 
   describe('session status polling', () => {
@@ -1984,12 +2279,12 @@ describe('KycController', () => {
     it('does not poll when the SDK did not report completion', async () => {
       await withController(async ({ controller, handlers, launcher }) => {
         // The applicant abandons the flow: `launch` resolves without ever
-        // reporting a Completed status.
+        // reporting a completed status.
         launcher.launch.mockResolvedValue({ ok: false });
 
         await controller.startSumSub();
 
-        expect(controller.state.sumsub.status).toBe('failed');
+        expect(controller.state.sumsub.status).toBe('abandoned');
         expect(handlers.getSessionStatus).not.toHaveBeenCalled();
       });
     });
@@ -2527,7 +2822,9 @@ describe('KycController', () => {
             product: 'money',
           });
 
-          expect(handlers.fetchSessionDisclaimers).toHaveBeenCalled();
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).toHaveBeenCalled();
           expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith({
             vendor: 'iron',
             disclaimerIds: ['d1'],
@@ -2861,7 +3158,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers, launcher }) => {
-          handlers.fetchSessionDisclaimers.mockResolvedValue(
+          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(
             MOCK_SESSION_DISCLAIMERS,
           );
           handlers.submitSessionDisclaimers.mockResolvedValue({
@@ -2894,7 +3191,9 @@ describe('KycController', () => {
             vendor: 'iron',
             disclaimerIds: ['d1'],
           });
-          expect(handlers.fetchSessionDisclaimers).toHaveBeenCalledWith({
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
           expect(handlers.submitSessionDisclaimers).toHaveBeenCalledWith({
@@ -2912,7 +3211,8 @@ describe('KycController', () => {
           expect(
             handlers.createUkycSession.mock.invocationCallOrder[0],
           ).toBeLessThan(
-            handlers.fetchSessionDisclaimers.mock.invocationCallOrder[0],
+            handlers.fetchSessionDisclaimersBySessionId.mock
+              .invocationCallOrder[0],
           );
           expect(handlers.createUkycSession).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -2995,7 +3295,7 @@ describe('KycController', () => {
               consented: true,
             })),
           };
-          handlers.fetchSessionDisclaimers
+          handlers.fetchSessionDisclaimersBySessionId
             .mockResolvedValueOnce(MOCK_SESSION_DISCLAIMERS)
             .mockResolvedValueOnce(consentedCatalog);
           handlers.submitSessionDisclaimers.mockRejectedValue(
@@ -3016,7 +3316,9 @@ describe('KycController', () => {
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
-          expect(handlers.fetchSessionDisclaimers).toHaveBeenCalledTimes(2);
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).toHaveBeenCalledTimes(2);
           expect(controller.state.phase).toBe('done');
           expect(launcher.launch).toHaveBeenCalled();
           controller.reset();
@@ -3043,7 +3345,7 @@ describe('KycController', () => {
               consented: true,
             })),
           };
-          handlers.fetchSessionDisclaimers
+          handlers.fetchSessionDisclaimersBySessionId
             .mockResolvedValueOnce(MOCK_SESSION_DISCLAIMERS)
             .mockResolvedValueOnce(afterConflict);
           handlers.submitSessionDisclaimers.mockRejectedValue(
@@ -3093,7 +3395,9 @@ describe('KycController', () => {
             })),
             credentialReusabilityConsentGiven: false,
           };
-          handlers.fetchSessionDisclaimers.mockResolvedValue(consentedDocs);
+          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(
+            consentedDocs,
+          );
           handlers.submitSessionDisclaimers.mockRejectedValue(
             new HttpError(
               409,
@@ -3128,7 +3432,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers, launcher }) => {
-          handlers.fetchSessionDisclaimers.mockResolvedValue(
+          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(
             MOCK_SESSION_DISCLAIMERS,
           );
           handlers.submitSessionDisclaimers.mockRejectedValue(
@@ -3165,7 +3469,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers, launcher }) => {
-          handlers.fetchSessionDisclaimers.mockResolvedValue({
+          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue({
             idOS: [
               {
                 key: 'idos-tos',
@@ -3223,7 +3527,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers, launcher }) => {
-          handlers.fetchSessionDisclaimers.mockResolvedValue({
+          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue({
             ...MOCK_SESSION_DISCLAIMERS,
             idOS: MOCK_SESSION_DISCLAIMERS.idOS.map((doc) => ({
               ...doc,
@@ -3445,7 +3749,51 @@ describe('KycController', () => {
       );
     });
 
-    it('returns to terms when SumSub closes without completion during the Iron session', async () => {
+    it.each([
+      ['reported by the SDK', { ok: false, status: 'Initial' }],
+      ['withheld by the SDK', { ok: false }],
+    ])(
+      'returns to terms without an error when the applicant abandons SumSub %s during the Iron session',
+      async (_label, launchResult) => {
+        await withController(
+          {
+            options: {
+              state: {
+                activeVendor: 'iron',
+                vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+              },
+            },
+          },
+          async ({ controller, handlers, launcher }) => {
+            // The applicant closes the SDK before submitting anything.
+            launcher.launch.mockResolvedValue(launchResult);
+            handlers.fetchVendorDisclaimers.mockResolvedValue([]);
+
+            await controller.acceptTermsAndStartSession({
+              email: 'a@b.co',
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            });
+
+            expect(controller.state.phase).toBe('terms');
+            // Nothing went wrong, so there is no error for consumers to report.
+            expect(controller.state.error).toBeNull();
+            expect(controller.state.sumsub.status).toBe('abandoned');
+            expect(controller.state.statusMessage).toMatch(
+              /was not finished/iu,
+            );
+            // The spent session is still dropped.
+            expect(controller.state.sumsub.sessionId).toBeNull();
+            expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
+            // User-status polling resumes from startSumSub, but abandon is not
+            // a verification decision so phase stays on terms.
+            expect(controller.state.userStatus).not.toBe('completed');
+          },
+        );
+      },
+    );
+
+    it('returns to terms with an error when SumSub itself fails during the Iron session', async () => {
       await withController(
         {
           options: {
@@ -3456,10 +3804,9 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers, launcher }) => {
-          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
-            // Applicant abandons: launch resolves without a Completed status.
-            onStatusChange?.('idle', 'InProgress');
-            return { ok: false };
+          launcher.launch.mockResolvedValue({
+            success: false,
+            status: 'Failed',
           });
           handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
@@ -3471,10 +3818,47 @@ describe('KycController', () => {
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.sumsub.status).toBe('idle');
-          expect(controller.state.sumsub.sessionId).toBeNull();
-          expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
-          expect(controller.state.error).toMatch(/Consents session failed/u);
-          expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+          expect(controller.state.error).toMatch(
+            /Consents session failed.*could not run/u,
+          );
+        },
+      );
+    });
+
+    it('reaches the done phase when the native SDK reports a Pending submission', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+            userStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          // The native SDK reports `Pending` — documents in, review awaited —
+          // rather than the launcher-normalized `Completed`.
+          launcher.launch.mockResolvedValue({
+            success: true,
+            status: 'Pending',
+          });
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+          handlers.fetchKycStatus.mockResolvedValue({ status: 'completed' });
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
+
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+          });
+
+          expect(controller.state.phase).toBe('done');
+          expect(controller.state.error).toBeNull();
+          expect(controller.state.sumsub.status).toBe('complete');
+          expect(controller.state.userStatus).toBe('completed');
         },
       );
     });
@@ -3524,6 +3908,43 @@ describe('KycController', () => {
       );
     });
 
+    it('finishes as done when the native SDK reports FinallyRejected', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+            userStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockResolvedValue({
+            success: true,
+            status: 'FinallyRejected',
+          });
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('rejected'),
+          );
+          handlers.fetchKycStatus.mockResolvedValue({
+            status: 'terminal-failure',
+          });
+
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+          });
+
+          expect(controller.state.phase).toBe('done');
+          expect(controller.state.sumsub.status).toBe('failed');
+          expect(controller.state.error).toBeNull();
+          expect(controller.state.userStatus).toBe('terminal-failure');
+        },
+      );
+    });
+
     it('keeps done when status refresh fails after a successful SumSub', async () => {
       await withController(
         {
@@ -3569,7 +3990,7 @@ describe('KycController', () => {
           let release: () => void = () => {
             // placeholder
           };
-          handlers.fetchSessionDisclaimers.mockReturnValue(
+          handlers.fetchSessionDisclaimersBySessionId.mockReturnValue(
             new Promise<KycSessionDisclaimers>((resolve) => {
               release = (): void => {
                 resolve(MOCK_SESSION_DISCLAIMERS);
@@ -3697,7 +4118,9 @@ describe('KycController', () => {
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
-          expect(handlers.fetchSessionDisclaimers).toHaveBeenCalledWith({
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
           expect(launcher.launch).not.toHaveBeenCalled();
@@ -3719,7 +4142,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.fetchSessionDisclaimers
+          handlers.fetchSessionDisclaimersBySessionId
             .mockResolvedValueOnce(MOCK_SESSION_DISCLAIMERS)
             .mockImplementationOnce(async () => {
               controller.reset();
@@ -3755,10 +4178,12 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.fetchSessionDisclaimers.mockImplementation(async () => {
-            controller.reset();
-            return MOCK_SESSION_DISCLAIMERS;
-          });
+          handlers.fetchSessionDisclaimersBySessionId.mockImplementation(
+            async () => {
+              controller.reset();
+              return MOCK_SESSION_DISCLAIMERS;
+            },
+          );
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -3876,7 +4301,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers, launcher }) => {
-          handlers.fetchSessionDisclaimers.mockResolvedValue({
+          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue({
             idOS: [],
             kycProvider: MOCK_SESSION_DISCLAIMERS.kycProvider,
             credentialReusabilityConsentGiven: false,
@@ -3911,7 +4336,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers, launcher }) => {
-          handlers.fetchSessionDisclaimers.mockResolvedValue({
+          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue({
             idOS: MOCK_SESSION_DISCLAIMERS.idOS,
             kycProvider: [],
             credentialReusabilityConsentGiven: false,
@@ -3945,7 +4370,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers, launcher }) => {
-          handlers.fetchSessionDisclaimers
+          handlers.fetchSessionDisclaimersBySessionId
             .mockResolvedValueOnce(MOCK_SESSION_DISCLAIMERS)
             .mockResolvedValueOnce({
               idOS: [],
@@ -4028,6 +4453,9 @@ describe('KycController', () => {
           });
 
           expect(controller.state.phase).toBe('idle');
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).not.toHaveBeenCalled();
           expect(handlers.submitSessionDisclaimers).not.toHaveBeenCalled();
         },
       );
@@ -4085,6 +4513,36 @@ describe('KycController', () => {
             sumsubSessionId: 'ss-1',
             errorCode: null,
           });
+        },
+      );
+    });
+
+    it('refreshKycStatus skips the fetch when userStatus is already completed', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userStatus: 'completed',
+              userStatusSumsubSessionId: 'ss-1',
+            },
+            userStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers, rootMessenger }) => {
+          const listener = jest.fn();
+          rootMessenger.subscribe('KycController:statusChanged', listener);
+          handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
+
+          const result = await controller.refreshKycStatus();
+
+          expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+          expect(result).toStrictEqual({
+            status: 'completed',
+            sumsubSessionId: 'ss-1',
+            errorCode: null,
+          });
+          expect(controller.state.userStatus).toBe('completed');
+          expect(listener).not.toHaveBeenCalled();
         },
       );
     });
@@ -4372,6 +4830,7 @@ describe('KycController', () => {
               "Fetching 'https://x' failed with status '409': session_not_in_valid_state",
             ),
           );
+          handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
 
           const result = await controller.startSumSub();
 
@@ -4379,6 +4838,7 @@ describe('KycController', () => {
           expect(controller.state.userStatus).toBe('completed');
           expect(controller.state.phase).toBe('done');
           expect(controller.state.sumsub.status).toBe('complete');
+          expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
         },
       );
     });
@@ -4480,6 +4940,20 @@ describe('KycController', () => {
         ).toContain('ch_reset');
       });
     });
+
+    it('exposes fetchSessionDisclaimers as a messenger action', async () => {
+      await withController(async ({ rootMessenger, handlers }) => {
+        handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(
+          MOCK_SESSION_DISCLAIMERS,
+        );
+
+        expect(
+          await rootMessenger.call('KycController:fetchSessionDisclaimers', {
+            sessionId: 'sid',
+          }),
+        ).toStrictEqual(MOCK_SESSION_DISCLAIMERS);
+      });
+    });
   });
 });
 
@@ -4496,7 +4970,8 @@ type ServiceHandlers = {
   checkKycRequired: jest.Mock;
   createVendorCustomer: jest.Mock;
   submitVendorDisclaimers: jest.Mock;
-  fetchSessionDisclaimers: jest.Mock;
+  fetchSessionDisclaimersByCountry: jest.Mock;
+  fetchSessionDisclaimersBySessionId: jest.Mock;
   submitSessionDisclaimers: jest.Mock;
   fetchKycStatus: jest.Mock;
   fetchIdosEnclaveJwks: jest.Mock;
@@ -4533,7 +5008,8 @@ const SERVICE_ACTIONS = [
   'KycService:checkKycRequired',
   'KycService:createVendorCustomer',
   'KycService:submitVendorDisclaimers',
-  'KycService:fetchSessionDisclaimers',
+  'KycService:fetchSessionDisclaimersByCountry',
+  'KycService:fetchSessionDisclaimersBySessionId',
   'KycService:submitSessionDisclaimers',
   'KycService:fetchKycStatus',
   'KycService:fetchIdosEnclaveJwks',
@@ -4622,7 +5098,7 @@ function withController<ReturnValue>(
     parent: rootMessenger,
   });
   rootMessenger.delegate({
-    actions: SERVICE_ACTIONS,
+    actions: [...SERVICE_ACTIONS],
     events: [],
     messenger,
   });
@@ -4642,7 +5118,11 @@ function withController<ReturnValue>(
       .mockResolvedValue([
         { id: 'sign-1', customer_id: 'cust-1', content_id: 'd1' },
       ]),
-    fetchSessionDisclaimers: jest
+    fetchSessionDisclaimersByCountry: jest.fn().mockResolvedValue({
+      idOS: [],
+      kycProvider: [],
+    }),
+    fetchSessionDisclaimersBySessionId: jest
       .fn()
       .mockResolvedValue(MOCK_SESSION_DISCLAIMERS),
     submitSessionDisclaimers: jest.fn().mockResolvedValue({
@@ -4694,8 +5174,12 @@ function withController<ReturnValue>(
     handlers.submitVendorDisclaimers,
   );
   rootMessenger.registerActionHandler(
-    'KycService:fetchSessionDisclaimers',
-    handlers.fetchSessionDisclaimers,
+    'KycService:fetchSessionDisclaimersByCountry',
+    handlers.fetchSessionDisclaimersByCountry,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:fetchSessionDisclaimersBySessionId',
+    handlers.fetchSessionDisclaimersBySessionId,
   );
   rootMessenger.registerActionHandler(
     'KycService:submitSessionDisclaimers',
