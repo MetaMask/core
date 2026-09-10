@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1247.0.0",
+  "version": "1248.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -78,7 +78,7 @@
     "@metamask/skills": "^0.1.0",
     "@metamask/utils": "^11.12.0",
     "@types/jest": "^30.0.0",
-    "@types/lodash": "^4.14.191",
+    "@types/lodash": "^4.17.20",
     "@types/node": "^22.13.14",
     "@types/semver": "^7",
     "@typescript-eslint/eslint-plugin": "^8.48.0",

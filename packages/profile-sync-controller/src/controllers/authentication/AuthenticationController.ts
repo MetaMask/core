@@ -25,6 +25,8 @@ import type {
   SrpLoginTag,
   UserProfile,
   UserProfileLineage,
+  OidcTokenAudience,
+  OidcTokenClaims,
 } from '../../sdk/index.js';
 import {
   assertMessageStartsWithMetamask,
@@ -149,6 +151,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'refreshCanonicalProfileId',
   'getUserProfileLineage',
   'getCustomerServiceToken',
+  'getPartnerIdentityToken',
   'isSignedIn',
   'requestProfilePairing',
   'clearState',
@@ -851,6 +854,33 @@ export class AuthenticationController extends BaseController<
     this.#assertIsUnlocked('getCustomerServiceToken');
     const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getCustomerServiceToken(resolvedId);
+  }
+
+  /**
+   * Mints a partner identity token for the specified SRP, logging in if needed.
+   *
+   * Calls `POST /api/v2/oidc/token` with the Hydra login bearer and returns
+   * the minted `access_token`. Email on live tokens is under JWT `ext`.
+   * HTTP 422 throws `EmailRequiredError` when this profile has no
+   * verified email.
+   *
+   * @param claims - Claim names to embed. Only `email` is supported.
+   * @param audience - Partner audience (`kyc` or `iron`).
+   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+   * @returns The partner identity access token.
+   */
+  public async getPartnerIdentityToken(
+    claims: OidcTokenClaims,
+    audience: OidcTokenAudience,
+    entropySourceId?: string,
+  ): Promise<string> {
+    this.#assertIsUnlocked('getPartnerIdentityToken');
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
+    return await this.#auth.getPartnerIdentityToken(
+      claims,
+      audience,
+      resolvedId,
+    );
   }
 
   public isSignedIn(): boolean {

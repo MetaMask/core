@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.0.0]
+
 ### Added
 
 - Add V2 ramps order syncing with User Storage ([#9474](https://github.com/MetaMask/core/pull/9474))
@@ -27,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `UserStorageController:performGetStorageAllFeatureEntries`
   - `UserStorageController:performBatchSetStorage`
   - `AuthenticationController:isSignedIn`
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
 
 ## [21.0.0]
 
@@ -594,7 +597,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@21.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@22.0.0...HEAD
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@21.0.0...@metamask/ramps-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.3.0...@metamask/ramps-controller@21.0.0
 [20.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.2.0...@metamask/ramps-controller@20.3.0
 [20.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.1.0...@metamask/ramps-controller@20.2.0
