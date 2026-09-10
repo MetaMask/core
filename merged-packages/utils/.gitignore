@@ -38,6 +38,7 @@ node_modules/
 
 # TypeScript cache
 *.tsbuildinfo
+**/.tsc-lint-cache/
 
 # Optional npm cache directory
 .npm

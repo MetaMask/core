@@ -11,7 +11,13 @@ const tsconfigRootDir = path.dirname(fileURLToPath(import.meta.url));
 const config = createConfig([
   ...base,
   {
-    ignores: ['coverage/**', 'dist/**', 'docs/**', '.yarn/**'],
+    ignores: [
+      '**/.tsc-lint-cache',
+      'coverage/**',
+      'dist/**',
+      'docs/**',
+      '.yarn/**',
+    ],
   },
   {
     linterOptions: {
