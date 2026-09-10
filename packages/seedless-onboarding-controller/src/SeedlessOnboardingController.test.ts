@@ -5261,29 +5261,31 @@ describe('SeedlessOnboardingController', () => {
             });
 
           let interruptPersistence = true;
-          const interruptingListener = (
-            state: SeedlessOnboardingControllerState,
-          ): void => {
-            if (interruptPersistence && state.vault !== vaultBeforeSync) {
-              interruptPersistence = false;
-              throw new Error('simulated persistence interruption');
-            }
+          const controllerWithUpdate = controller as unknown as {
+            update: (...args: unknown[]) => unknown;
           };
-          baseMessenger.subscribe(
-            'SeedlessOnboardingController:stateChange',
-            interruptingListener,
-          );
+          const originalUpdate = controllerWithUpdate.update.bind(controller);
+          jest
+            .spyOn(controllerWithUpdate, 'update')
+            .mockImplementation((...args: unknown[]) => {
+              const result = originalUpdate(...args) as {
+                nextState: SeedlessOnboardingControllerState;
+              };
+              if (
+                interruptPersistence &&
+                result.nextState.vault !== vaultBeforeSync
+              ) {
+                interruptPersistence = false;
+                throw new Error('simulated persistence interruption');
+              }
+              return result;
+            });
 
           expect(
             await controller.reconcilePassword({
               globalPassword: NEW_PASSWORD,
             }),
           ).toBe(PasswordSyncStatus.Unknown);
-
-          baseMessenger.unsubscribe(
-            'SeedlessOnboardingController:stateChange',
-            interruptingListener,
-          );
 
           // The rewritten vault must never be persisted without its matching
           // auth key, Keyring ciphertext, and recovery phase.
