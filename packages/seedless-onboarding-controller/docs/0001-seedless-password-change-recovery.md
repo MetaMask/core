@@ -59,7 +59,7 @@ The new controller work is:
 
 - Add a persisted password-change lifecycle state/phase to `SeedlessOnboardingControllerState`, with persistence metadata. The lifecycle must not store passwords, SRPs, raw Keyring encryption keys, or decrypted backup material.
 - Modify `changePassword` to update the lifecycle after each relevant operation: before the remote change, after remote commitment, after the local Seedless vault/state update, and when the operation fails or becomes ambiguous.
-- Modify `storeKeyringEncryptionKey` to update the lifecycle after the encrypted Keyring encryption key has been stored in controller state. The encrypted-key update and lifecycle update should be adjacent so observers do not see an inconsistent intermediate controller state.
+- Keep `storeKeyringEncryptionKey` lifecycle-neutral. Password-change-specific commits persist the encrypted Keyring encryption key and lifecycle phase together, while later client-driven synchronization uses the explicit lifecycle-advance methods.
 - Do not let `storeKeyringEncryptionKey` clear the lifecycle by itself. Completion also requires client confirmation of the local Keyring state, remote synchronization, and durable persistence.
 - Ensure a thrown error after a partial mutation does not reset the lifecycle to the pre-operation state. The last known phase must remain available for recovery.
 - Facilitate the existing password-sync operations for both post-remote-commit recovery branches:
@@ -88,7 +88,7 @@ Wallet locking for password-change errors is also a client responsibility. The c
 - Persist only non-sensitive transaction data, such as lifecycle phase, transaction identifier, timestamps, retry metadata, and non-sensitive error classification.
 - Write `SEEDLESS_CHANGE_PENDING` before the first remote mutation.
 - Write `SEEDLESS_COMMITTED` only after remote commitment is confirmed by the server or an authoritative status check.
-- Advance the lifecycle after each `changePassword` and `storeKeyringEncryptionKey` operation so a later unlock can identify the last known boundary, while treating the phase as advisory when persistence may have been interrupted.
+- Advance the lifecycle at the explicit password-change and recovery boundaries so a later unlock can identify the last known boundary. `storeKeyringEncryptionKey` only persists the encrypted key and does not advance or clear the lifecycle.
 - Use an awaitable durable persistence operation for lifecycle transitions and the final clear. The generic debounced state-change path must not be the only durability boundary.
 - Serialize password-change and recovery operations. A second request must be rejected or queued until the first transaction is cleared (no change in progress) or reaches an explicitly recoverable terminal state.
 - Make recovery verify the actual cryptographic state before mutating either controller.

@@ -530,6 +530,34 @@ async function mockCreateToprfKeyAndBackupSeedPhrase<
 }
 
 /**
+ * Creates a mock user with a vault and stores the Keyring encryption key.
+ *
+ * @param toprfClient - The ToprfSecureBackup instance.
+ * @param controller - The SeedlessOnboardingController instance.
+ * @param baseMessenger - The root messenger to call the methods through.
+ * @param password - The mock password.
+ */
+async function newUserSetup<EKey, SupportedKeyDerivationParams>(
+  toprfClient: ToprfSecureBackup,
+  controller: SeedlessOnboardingController<EKey, SupportedKeyDerivationParams>,
+  baseMessenger: RootMessenger,
+  password: string,
+): Promise<void> {
+  await mockCreateToprfKeyAndBackupSeedPhrase(
+    toprfClient,
+    controller,
+    baseMessenger,
+    password,
+    MOCK_SEED_PHRASE,
+    MOCK_KEYRING_ID,
+  );
+  await baseMessenger.call(
+    'SeedlessOnboardingController:storeKeyringEncryptionKey',
+    MOCK_KEYRING_ENCRYPTION_KEY,
+  );
+}
+
+/**
  * Creates a mock vault.
  *
  * @param encKey - The encryption key.
@@ -4017,16 +4045,22 @@ describe('SeedlessOnboardingController', () => {
           const { encKey: newEncKey, authKeyPair: newAuthKeyPair } =
             mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
 
-          // Observe the persisted lifecycle phases as the password change
-          // progresses: SEEDLESS_CHANGE_PENDING is written before the remote
-          // mutation, SEEDLESS_COMMITTED after it succeeds, then
+          // Observe lifecycle transitions as the password change progresses:
+          // SEEDLESS_CHANGE_PENDING is written before the remote mutation,
+          // SEEDLESS_COMMITTED after it succeeds, then
           // LOCAL_KEYRING_PENDING once the local vault is rewritten.
-          const observedPhases: (SeedlessPasswordChangePhase | undefined)[] =
-            [];
+          const observedPhaseTransitions: (
+            | SeedlessPasswordChangePhase
+            | undefined
+          )[] = [];
+          let previousPhase = controller.state.passwordChangePhase;
           baseMessenger.subscribe(
             'SeedlessOnboardingController:stateChange',
             (state) => {
-              observedPhases.push(state.passwordChangePhase);
+              if (state.passwordChangePhase !== previousPhase) {
+                observedPhaseTransitions.push(state.passwordChangePhase);
+              }
+              previousPhase = state.passwordChangePhase;
             },
           );
 
@@ -4062,12 +4096,11 @@ describe('SeedlessOnboardingController', () => {
 
           // The lifecycle advances through every phase in order and ends on
           // LOCAL_KEYRING_PENDING, signalling the local rewrite completed.
-          expect(observedPhases).toContain(
+          expect(observedPhaseTransitions).toStrictEqual([
             SeedlessPasswordChangePhase.SeedlessChangePending,
-          );
-          expect(observedPhases).toContain(
             SeedlessPasswordChangePhase.SeedlessCommitted,
-          );
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          ]);
           expect(controller.state.passwordChangePhase).toBe(
             SeedlessPasswordChangePhase.LocalKeyringPending,
           );
@@ -4084,20 +4117,11 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {
-          await mockCreateToprfKeyAndBackupSeedPhrase(
+          await newUserSetup(
             toprfClient,
             controller,
             baseMessenger,
             MOCK_PASSWORD,
-            MOCK_SEED_PHRASE,
-            MOCK_KEYRING_ID,
-          );
-
-          // Store an existing keyring encryption key so changePassword
-          // exercises the re-encryption path.
-          await baseMessenger.call(
-            'SeedlessOnboardingController:storeKeyringEncryptionKey',
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
           const oldEncryptedKeyringEncryptionKey =
             controller.state.encryptedKeyringEncryptionKey;
@@ -5024,19 +5048,11 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {
-          // Create a vault under the old password so the password-sync flow
-          // has a vault to recover and rewrite.
-          await mockCreateToprfKeyAndBackupSeedPhrase(
+          await newUserSetup(
             toprfClient,
             controller,
             baseMessenger,
             OLD_PASSWORD,
-            MOCK_SEED_PHRASE,
-            MOCK_KEYRING_ID,
-          );
-          await baseMessenger.call(
-            'SeedlessOnboardingController:storeKeyringEncryptionKey',
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           // Remote auth pub key differs from the local one -> outdated, so
@@ -5066,11 +5082,38 @@ describe('SeedlessOnboardingController', () => {
             pwEncKey: mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD),
           });
 
+          const observedPhases: SeedlessPasswordChangePhase[] = [];
+          let localKeyringPendingStateUpdates = 0;
+          let previousPhase = controller.state.passwordChangePhase;
+          baseMessenger.subscribe(
+            'SeedlessOnboardingController:stateChange',
+            (state) => {
+              if (
+                state.passwordChangePhase ===
+                SeedlessPasswordChangePhase.LocalKeyringPending
+              ) {
+                localKeyringPendingStateUpdates += 1;
+              }
+              if (
+                state.passwordChangePhase !== undefined &&
+                state.passwordChangePhase !== previousPhase
+              ) {
+                observedPhases.push(state.passwordChangePhase);
+              }
+              previousPhase = state.passwordChangePhase;
+            },
+          );
+
           const result = await controller.reconcilePassword({
             globalPassword: NEW_PASSWORD,
           });
 
           expect(result).toBe(PasswordSyncStatus.ReconcileKeyring);
+          expect(observedPhases).toStrictEqual([
+            SeedlessPasswordChangePhase.SeedlessCommitted,
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          ]);
+          expect(localKeyringPendingStateUpdates).toBe(1);
           // Another-device recovery must continue through the local Keyring
           // reconciliation boundary after the Seedless side is synchronized.
           expect(controller.state.passwordChangePhase).toBe(
@@ -5117,19 +5160,11 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {
-          // Create a vault under the old password so the password-sync flow
-          // has a vault to recover and rewrite.
-          await mockCreateToprfKeyAndBackupSeedPhrase(
+          await newUserSetup(
             toprfClient,
             controller,
             baseMessenger,
             OLD_PASSWORD,
-            MOCK_SEED_PHRASE,
-            MOCK_KEYRING_ID,
-          );
-          await baseMessenger.call(
-            'SeedlessOnboardingController:storeKeyringEncryptionKey',
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           // Mock the password-sync flow for the new password. recoverEncKey
@@ -5152,6 +5187,19 @@ describe('SeedlessOnboardingController', () => {
             pwEncKey: mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD),
           });
 
+          let localKeyringPendingStateUpdates = 0;
+          baseMessenger.subscribe(
+            'SeedlessOnboardingController:stateChange',
+            (state) => {
+              if (
+                state.passwordChangePhase ===
+                SeedlessPasswordChangePhase.LocalKeyringPending
+              ) {
+                localKeyringPendingStateUpdates += 1;
+              }
+            },
+          );
+
           const result = await controller.reconcilePassword({
             globalPassword: NEW_PASSWORD,
           });
@@ -5160,6 +5208,114 @@ describe('SeedlessOnboardingController', () => {
           expect(controller.state.passwordChangePhase).toBe(
             SeedlessPasswordChangePhase.LocalKeyringPending,
           );
+          expect(localKeyringPendingStateUpdates).toBe(1);
+          expect(await controller.loadKeyringEncryptionKey()).toBe(
+            MOCK_KEYRING_ENCRYPTION_KEY,
+          );
+        },
+      );
+    });
+
+    it('persists recovery state atomically so an interrupted rewrite can be retried', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase: SeedlessPasswordChangePhase.SeedlessCommitted,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await newUserSetup(
+            toprfClient,
+            controller,
+            baseMessenger,
+            OLD_PASSWORD,
+          );
+
+          const vaultBeforeSync = controller.state.vault;
+          const oldEncryptedKeyringEncryptionKey =
+            controller.state.encryptedKeyringEncryptionKey;
+
+          const mockToprfEncryptor = createMockToprfEncryptor();
+          const newEncKey = mockToprfEncryptor.deriveEncKey(NEW_PASSWORD);
+          const newPwEncKey = mockToprfEncryptor.derivePwEncKey(NEW_PASSWORD);
+          const newAuthKeyPair =
+            mockToprfEncryptor.deriveAuthKeyPair(NEW_PASSWORD);
+          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValue({
+            encKey: newEncKey,
+            authKeyPair: newAuthKeyPair,
+            pwEncKey: newPwEncKey,
+            rateLimitResetResult: Promise.resolve(),
+            keyShareIndex: 1,
+          });
+          jest
+            .spyOn(toprfClient, 'recoverPwEncKey')
+            .mockResolvedValueOnce({
+              // The first attempt unlocks the old local vault.
+              pwEncKey: mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD),
+            })
+            .mockResolvedValue({
+              // A retry after the rewrite unlocks the new local vault.
+              pwEncKey: newPwEncKey,
+            });
+
+          let interruptPersistence = true;
+          const interruptingListener = (
+            state: SeedlessOnboardingControllerState,
+          ): void => {
+            if (interruptPersistence && state.vault !== vaultBeforeSync) {
+              interruptPersistence = false;
+              throw new Error('simulated persistence interruption');
+            }
+          };
+          baseMessenger.subscribe(
+            'SeedlessOnboardingController:stateChange',
+            interruptingListener,
+          );
+
+          expect(
+            await controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).toBe(PasswordSyncStatus.Unknown);
+
+          baseMessenger.unsubscribe(
+            'SeedlessOnboardingController:stateChange',
+            interruptingListener,
+          );
+
+          // The rewritten vault must never be persisted without its matching
+          // auth key, Keyring ciphertext, and recovery phase.
+          expect(controller.state.authPubKey).toBe(
+            bytesToBase64(newAuthKeyPair.pk),
+          );
+          expect(controller.state.encryptedKeyringEncryptionKey).not.toBe(
+            oldEncryptedKeyringEncryptionKey,
+          );
+          expect(controller.state.passwordChangePhase).toBe(
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          );
+          const recoveredKeyringEncryptionKey = managedNonce(gcm)(
+            newPwEncKey,
+          ).decrypt(
+            base64ToBytes(
+              controller.state.encryptedKeyringEncryptionKey as string,
+            ),
+          );
+          expect(bytesToString(recoveredKeyringEncryptionKey)).toBe(
+            MOCK_KEYRING_ENCRYPTION_KEY,
+          );
+
+          // Simulate a restart so the retry cannot use a stale decrypted-vault
+          // cache from before the interrupted rewrite.
+          await controller.setLocked();
+
+          expect(
+            await controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            }),
+          ).toBe(PasswordSyncStatus.ReconcileKeyring);
           expect(await controller.loadKeyringEncryptionKey()).toBe(
             MOCK_KEYRING_ENCRYPTION_KEY,
           );
@@ -5473,18 +5629,11 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {
-          await mockCreateToprfKeyAndBackupSeedPhrase(
+          await newUserSetup(
             toprfClient,
             controller,
             baseMessenger,
             MOCK_PASSWORD,
-            MOCK_SEED_PHRASE,
-            MOCK_KEYRING_ID,
-          );
-
-          await baseMessenger.call(
-            'SeedlessOnboardingController:storeKeyringEncryptionKey',
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           // The shared key-storage operation must remain lifecycle-neutral
@@ -5507,17 +5656,11 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {
-          await mockCreateToprfKeyAndBackupSeedPhrase(
+          await newUserSetup(
             toprfClient,
             controller,
             baseMessenger,
             MOCK_PASSWORD,
-            MOCK_SEED_PHRASE,
-            MOCK_KEYRING_ID,
-          );
-          await baseMessenger.call(
-            'SeedlessOnboardingController:storeKeyringEncryptionKey',
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           const loaded = await baseMessenger.call(
@@ -6061,7 +6204,6 @@ describe('SeedlessOnboardingController', () => {
             SeedlessOnboardingControllerErrorMessage.WrongPasswordType,
           );
 
-          // Setup and store keyring encryption key.
           await mockCreateToprfKeyAndBackupSeedPhrase(
             toprfClient,
             controller,
@@ -6091,19 +6233,11 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {
-          // Setup and store keyring encryption key.
-          await mockCreateToprfKeyAndBackupSeedPhrase(
+          await newUserSetup(
             toprfClient,
             controller,
             baseMessenger,
             RECOVERED_PASSWORD,
-            MOCK_SEED_PHRASE,
-            MOCK_KEYRING_ID,
-          );
-
-          await baseMessenger.call(
-            'SeedlessOnboardingController:storeKeyringEncryptionKey',
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           const result = await baseMessenger.call(
@@ -6123,19 +6257,11 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient, baseMessenger }) => {
-          // Setup and store keyring encryption key.
-          await mockCreateToprfKeyAndBackupSeedPhrase(
+          await newUserSetup(
             toprfClient,
             controller,
             baseMessenger,
             RECOVERED_PASSWORD,
-            MOCK_SEED_PHRASE,
-            MOCK_KEYRING_ID,
-          );
-
-          await baseMessenger.call(
-            'SeedlessOnboardingController:storeKeyringEncryptionKey',
-            MOCK_KEYRING_ENCRYPTION_KEY,
           );
 
           await mockChangePassword(

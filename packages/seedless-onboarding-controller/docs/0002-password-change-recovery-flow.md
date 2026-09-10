@@ -150,6 +150,7 @@ unlock render / submit
 3. **Unlock routing.** On unlock (page render _and_ password submit), read `passwordChangePhase` from controller state, then call `resolvePasswordSyncState({ skipCache })`. Route UI from the returned status using the table above. Do not classify a password as invalid until recovery has run.
 
 4. **Two-step UX.**
+
    - Step 1 (password-less): `resolvePasswordSyncState` decides whether the old or new password is needed.
    - Step 2 (password-consuming): only after step 1 returns `enter-new-password` / `password-outdated`, prompt for the new password and call `reconcilePassword({ globalPassword })`.
 
@@ -212,7 +213,8 @@ Controller `this.update(...)` calls happen:
 - before the first remote mutation (`SEEDLESS_CHANGE_PENDING`);
 - after authoritative remote commitment (`SEEDLESS_COMMITTED`);
 - after the local Seedless vault rewrite (`LOCAL_KEYRING_PENDING`);
-- after local Keyring-key storage when that update is coupled to a lifecycle write;
+- the password-change commit writes the vault, `authPubKey`, encrypted
+  Keyring key, and lifecycle phase together;
 - after an explicit clear (no change in progress).
 
 These publish `SeedlessOnboardingController:stateChange`; they are not awaited durability boundaries.
@@ -227,7 +229,7 @@ A password-change operation must never be retried as a fresh `changePassword` / 
 
 ### `changePassword` behavior
 
-`changePassword` is now lifecycle-aware: it writes `SEEDLESS_CHANGE_PENDING` before the first remote mutation, `SEEDLESS_COMMITTED` after authoritative remote commitment, and `LOCAL_KEYRING_PENDING` after the local Seedless vault rewrite. It rejects a second concurrent change with `PasswordChangeInProgress`. It reuses the existing `verifyVaultPassword`, `#assertPasswordInSync({ skipCache: true })`, `#changeEncryptionKey` (via `#executeWithTokenRefresh`), `#createNewVaultWithAuthData`, and `storeKeyringEncryptionKey`. A rejected `#changeEncryptionKey` Promise is not proof that the server did not mutate; only a definitive server result may clear the lifecycle.
+`changePassword` is now lifecycle-aware: it writes `SEEDLESS_CHANGE_PENDING` before the first remote mutation, `SEEDLESS_COMMITTED` after authoritative remote commitment, and `LOCAL_KEYRING_PENDING` after the local Seedless vault rewrite. It rejects a second concurrent change with `PasswordChangeInProgress`. It reuses the existing `verifyVaultPassword`, `#assertPasswordInSync({ skipCache: true })`, `#changeEncryptionKey` (via `#executeWithTokenRefresh`), and `#commitPasswordChangeState`. The final commit writes the rewritten vault, `authPubKey`, encrypted Keyring key, and lifecycle phase in one state update. A rejected `#changeEncryptionKey` Promise is not proof that the server did not mutate; only a definitive server result may clear the lifecycle.
 
 ### `storeKeyringEncryptionKey` behavior
 
@@ -267,7 +269,9 @@ All controller-package work is complete:
 
 - Lifecycle model, helpers, metadata, exports.
 - Lifecycle-aware `changePassword` with concurrency guard and phase preservation on error.
-- Lifecycle-aware `storeKeyringEncryptionKey`.
+- Lifecycle-neutral `storeKeyringEncryptionKey`; password-change lifecycle
+  phases are committed by the password-change flow and explicit lifecycle
+  methods.
 - `resolvePasswordSyncState` + `reconcilePassword` (Option A: controller owns the Seedless side).
 - `markPasswordChangeKeySyncPending` / `clearPasswordChangePhase`.
 - Messenger action types, package exports, and unit tests (290 tests, 100% statement / 99.22% branch coverage).
