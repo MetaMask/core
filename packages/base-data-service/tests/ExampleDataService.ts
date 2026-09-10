@@ -219,7 +219,7 @@ export class ExampleDataService extends BaseDataService<
           );
         }
 
-        return response.json() as Promise<Json>;
+        return response.json();
       },
       gcTime: inMilliseconds(1, Duration.Day),
       responseStruct: AddFollowerResponseStruct,

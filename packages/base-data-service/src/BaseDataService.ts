@@ -464,13 +464,7 @@ export class BaseDataService<
    */
   protected async executeMutation<
     TMutationFnData extends Json,
-    // We have to use `Struct<any>` here, as using `Struct<InputResponse>` (or
-    // even `Struct<unknown>`) would reject a more concrete, "real world" struct.
-    // The reason is that `Struct` is an object type with methods whose signatures
-    // feature the struct's content type, making `Struct` contravariant in its
-    // content type. The only way to get around this is to use `any`.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    TDataStruct extends Struct<any> | undefined = undefined,
+    TDataStruct extends Struct<TMutationFnData> | undefined = undefined,
     TData = TDataStruct extends Struct<infer StructType>
       ? StructType
       : TMutationFnData,
@@ -510,11 +504,14 @@ export class BaseDataService<
         const response = await this.#policy.circuitBreakerPolicy.execute(() =>
           mutationFn(...args),
         );
+        // Type assertion: TypeScript is not able to unify the type that this
+        // function returns with `TData` at compile-time. We can still typecheck
+        // the arguments, though.
         return processMutationResponse(
           options.mutationKey,
           response,
           responseStruct,
-        );
+        ) as TData;
       },
     });
     // We purposely pass an empty set of variables because this method is
