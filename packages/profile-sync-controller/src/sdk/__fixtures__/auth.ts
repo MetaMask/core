@@ -152,17 +152,19 @@ export const handleMockCustomerServiceToken = (
   return mockCustomerServiceTokenEndpoint;
 };
 
-export const handleMockOidcToken = (mockReply?: MockReply): nock.Scope => {
+export const handleMockPartnerIdentityToken = (
+  mockReply?: MockReply,
+): nock.Scope => {
   const reply = mockReply ?? {
     status: 200,
     body: MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE,
   };
-  const mockOidcTokenEndpoint = nock(MOCK_PARTNER_IDENTITY_TOKEN_URL)
+  const mockPartnerIdentityTokenEndpoint = nock(MOCK_PARTNER_IDENTITY_TOKEN_URL)
     .persist()
     .post('')
     .reply(reply.status, reply.body);
 
-  return mockOidcTokenEndpoint;
+  return mockPartnerIdentityTokenEndpoint;
 };
 
 export const arrangeAuthAPIs = (options?: {
@@ -175,7 +177,7 @@ export const arrangeAuthAPIs = (options?: {
   mockPairSocialIdentifier?: MockReply;
   mockUserProfileLineageUrl?: MockReply;
   mockCustomerServiceTokenUrl?: MockReply;
-  mockOidcTokenUrl?: MockReply;
+  mockPartnerIdentityTokenUrl?: MockReply;
   onSrpLoginBody?: (body: unknown) => void;
   onPairSocialIdentifierBody?: (body: unknown) => void;
   mockPairProfilesDelayMs?: number;
@@ -189,7 +191,7 @@ export const arrangeAuthAPIs = (options?: {
   mockPairSocialIdentifierUrl: nock.Scope;
   mockUserProfileLineageUrl: nock.Scope;
   mockCustomerServiceTokenUrl: nock.Scope;
-  mockOidcTokenUrl: nock.Scope;
+  mockPartnerIdentityTokenUrl: nock.Scope;
 } => {
   const mockNonceUrl = handleMockNonce(options?.mockNonceUrl);
   const mockOAuth2TokenUrl = handleMockOAuth2Token(options?.mockOAuth2TokenUrl);
@@ -215,7 +217,9 @@ export const arrangeAuthAPIs = (options?: {
   const mockCustomerServiceTokenUrl = handleMockCustomerServiceToken(
     options?.mockCustomerServiceTokenUrl,
   );
-  const mockOidcTokenUrl = handleMockOidcToken(options?.mockOidcTokenUrl);
+  const mockPartnerIdentityTokenUrl = handleMockPartnerIdentityToken(
+    options?.mockPartnerIdentityTokenUrl,
+  );
 
   return {
     mockNonceUrl,
@@ -227,6 +231,6 @@ export const arrangeAuthAPIs = (options?: {
     mockPairSocialIdentifierUrl,
     mockUserProfileLineageUrl,
     mockCustomerServiceTokenUrl,
-    mockOidcTokenUrl,
+    mockPartnerIdentityTokenUrl,
   };
 };

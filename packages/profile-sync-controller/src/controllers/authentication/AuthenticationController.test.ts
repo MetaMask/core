@@ -2217,9 +2217,11 @@ describe('AuthenticationController', () => {
       expect(result).toBe(MOCK_ACCESS_JWT);
     });
 
-    it('should throw if the oidc token request fails', async () => {
+    it('should throw if the partner identity token request fails', async () => {
       const metametrics = createMockAuthMetaMetrics();
-      mockAuthenticationFlowEndpoints({ endpointFail: 'oidcToken' });
+      mockAuthenticationFlowEndpoints({
+        endpointFail: 'partnerIdentityToken',
+      });
 
       const { messenger } = createMockAuthenticationMessenger();
       const originalState = mockSignedInState();
@@ -2237,7 +2239,7 @@ describe('AuthenticationController', () => {
     it('should throw EmailRequiredError on 422', async () => {
       const metametrics = createMockAuthMetaMetrics();
       arrangeAuthAPIs({
-        mockOidcTokenUrl: {
+        mockPartnerIdentityTokenUrl: {
           status: 422,
           body: { message: 'email_required', error: 'email_required' },
         },
@@ -2665,7 +2667,7 @@ function mockAuthenticationFlowEndpoints(params?: {
     | 'token'
     | 'lineage'
     | 'customerService'
-    | 'oidcToken';
+    | 'partnerIdentityToken';
 }): ReturnType<typeof arrangeAuthAPIs> {
   return arrangeAuthAPIs({
     mockNonceUrl:
@@ -2678,8 +2680,10 @@ function mockAuthenticationFlowEndpoints(params?: {
       params?.endpointFail === 'lineage' ? { status: 500 } : undefined,
     mockCustomerServiceTokenUrl:
       params?.endpointFail === 'customerService' ? { status: 500 } : undefined,
-    mockOidcTokenUrl:
-      params?.endpointFail === 'oidcToken' ? { status: 500 } : undefined,
+    mockPartnerIdentityTokenUrl:
+      params?.endpointFail === 'partnerIdentityToken'
+        ? { status: 500 }
+        : undefined,
   });
 }
 

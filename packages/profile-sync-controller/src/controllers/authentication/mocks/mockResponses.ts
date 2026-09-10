@@ -178,7 +178,7 @@ export const getMockCustomerServiceTokenResponse = (): MockResponse => {
 export const MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE =
   SDK_MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE;
 
-export const getMockOidcTokenResponse = (): MockResponse => {
+export const getMockPartnerIdentityTokenResponse = (): MockResponse => {
   return {
     url: MOCK_PARTNER_IDENTITY_TOKEN_URL,
     requestMethod: 'POST',
