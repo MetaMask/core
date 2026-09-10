@@ -1,11 +1,10 @@
+import { TRIGGER_TYPES } from '../NotificationServicesController/constants/notification-schema.js';
 import type {
   UnprocessedRawNotification,
   NormalisedAPINotification,
   OnChainRawNotification,
   PlatformRawNotification,
-} from 'src/NotificationServicesController/types/notification-api';
-
-import { TRIGGER_TYPES } from '../NotificationServicesController/constants/notification-schema.js';
+} from '../NotificationServicesController/types/notification-api/index.js';
 import { isOnChainNotification } from './notification-api-type-guards.js';
 
 /**

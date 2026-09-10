@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [31.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Replace `siwe` with `@signinwithethereum/siwe` ^4.2.1 ([#10049](https://github.com/MetaMask/core/pull/10049))
+  - The old package is no longer maintained by Spruce. The Ethereum Identity Foundation now maintains the successor under the `@signinwithethereum` scope. The `SiweMessage` class API is backward compatible for the usage in this package (`new SiweMessage({...}).prepareMessage()`).
+- Bump `@metamask/address-book-controller` from `^7.1.2` to `^8.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/seedless-onboarding-controller` from `^10.1.1` to `^11.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [30.0.0]
+
+### Added
+
+- **BREAKING:** Add social identifier pairing after SRP sign-in (`POST /api/v2/profile/pair/identifier`) ([#10128](https://github.com/MetaMask/core/pull/10128))
+  - Add `needsSocialPairing?: boolean` to state (defaults `true`; cleared on success or 409 Conflict; left `true` on other failures so the next `performSignIn` retries; cleared without an API call when the user never logged in with a social provider). If `authConnection` is set but the seedless vault is not written yet, the flag stays `true` so onboarding-in-flight sign-ins can retry. Optional in the type so partial-state selectors stay assignable; treat `undefined` as `true`.
+  - Add optional `isSocialPairingEnabled` config callback (defaults to `() => false`). When it returns `true`, Google/Apple/Telegram seedless users are paired after SRP login and profile pairing. Telegram never sends `email` (clients store a display name there).
+  - Use `SeedlessOnboardingController:getAccessToken` to fetch the social JWT (refreshed when expired).
+  - Add `pairSocialIdentifier` to `JwtBearerAuth` / `SRPJwtBearerAuth` and `PairConflictError` for 409 Conflict.
+
 ### Changed
 
 - **BREAKING:** Derive auth and user-storage message-signing keys natively via SIP-6 from HD keyring seeds instead of calling `@metamask/message-signing-snap` through `SnapController`. `AuthenticationController` and `UserStorageController` now require `KeyringController:withKeyringV2Unsafe` and no longer call `SnapController:handleRequest`. The message-signing snap remains for Portfolio / external origins ([#9824](https://github.com/MetaMask/core/pull/9824))
@@ -914,7 +941,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@29.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@31.0.0...HEAD
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@30.0.0...@metamask/profile-sync-controller@31.0.0
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@29.0.0...@metamask/profile-sync-controller@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.3.0...@metamask/profile-sync-controller@29.0.0
 [28.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.2.0...@metamask/profile-sync-controller@28.3.0
 [28.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.1.1...@metamask/profile-sync-controller@28.2.0

@@ -6,7 +6,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { gt } from 'semver';
 
-export const ROOT_WORKSPACE = path.resolve(__dirname, '../..');
+export const ROOT_WORKSPACE = path.resolve(import.meta.dirname, '../..');
 
 const CHANGELOG_PATH_PATTERN = /^packages\/[^/]+\/CHANGELOG\.md$/u;
 

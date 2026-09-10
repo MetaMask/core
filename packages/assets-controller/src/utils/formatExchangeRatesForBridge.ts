@@ -9,7 +9,7 @@ import {
 } from '@metamask/assets-controllers';
 import { Hex, KnownCaipNamespace, numberToHex } from '@metamask/utils';
 import { parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
-import { isEqual } from 'lodash';
+import { isEqual } from 'lodash-es';
 
 import type {
   AssetMetadata,
