@@ -10,10 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add a protected `executeWithPolicy` helper for applying a data service's retry and circuit-breaker policy to uncached requests ([#9914](https://github.com/MetaMask/core/pull/9914))
+- Add `hydrationTimeout` and `shouldHydrateQuery` options to `PersistenceConfiguration`, and export `DEFAULT_HYDRATION_TIMEOUT` ([#9914](https://github.com/MetaMask/core/pull/9914))
+  - `hydrationTimeout` bounds how long a query waits for cache rehydration after `init` (default 1 second), and `shouldHydrateQuery` filters persisted queries before they are restored into the cache
 
 ### Fixed
 
-- Wait for cache rehydration to finish before starting a query when `init` has been called, preventing persisted results from racing the first network request ([#9914](https://github.com/MetaMask/core/pull/9914))
+- Wait for cache rehydration to finish before starting a query when `init` has been called, preventing persisted results from racing the first network request; the wait is bounded by `hydrationTimeout` so that a slow or hung storage read cannot block queries ([#9914](https://github.com/MetaMask/core/pull/9914))
+- Discard persisted caches that fail shape validation instead of attempting to hydrate them ([#9914](https://github.com/MetaMask/core/pull/9914))
 
 ## [2.0.0]
 
