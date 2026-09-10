@@ -46,7 +46,6 @@ import type {
   VerifyDelegationParams,
   VerifyDelegationResponse,
 } from './types.js';
-import { CHOMP_INTENT_TYPES } from './types.js';
 
 // === GENERAL ===
 
@@ -194,8 +193,6 @@ const VerifyDelegationResponseStruct = type({
   errors: optional(array(string())),
 });
 
-const ChompIntentTypeStruct = enums(Object.values(CHOMP_INTENT_TYPES));
-
 const SendIntentResponseArrayStruct = array(
   type({
     delegationHash: StrictHexStruct,
@@ -203,7 +200,7 @@ const SendIntentResponseArrayStruct = array(
       allowance: StrictHexStruct,
       tokenSymbol: string(),
       tokenAddress: StrictHexStruct,
-      type: ChompIntentTypeStruct,
+      type: enums(['cash-deposit', 'cash-withdrawal']),
     }),
     createdAt: string(),
   }),
@@ -219,7 +216,7 @@ const IntentEntryArrayStruct = array(
       allowance: StrictHexStruct,
       tokenAddress: StrictHexStruct,
       tokenSymbol: string(),
-      type: ChompIntentTypeStruct,
+      type: enums(['cash-deposit', 'cash-withdrawal']),
     }),
   }),
 );
@@ -236,7 +233,7 @@ const ServiceDetailsProtocolStruct = type({
     }),
   ),
   adapterAddress: StrictHexStruct,
-  intentTypes: array(ChompIntentTypeStruct),
+  intentTypes: array(enums(['cash-deposit', 'cash-withdrawal'])),
 });
 
 const ServiceDetailsResponseStruct = type({

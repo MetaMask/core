@@ -1,4 +1,3 @@
-import { CHOMP_INTENT_TYPES } from '@metamask/chomp-api-service';
 import type { Hex } from '@metamask/utils';
 
 import { PRODUCT_TYPES } from '../types.js';
@@ -6,9 +5,13 @@ import type { RecurringInterval } from '../types.js';
 
 /**
  * Storage / CHOMP metadata type for cash-subscription delegations.
+ *
+ * Defined locally so this package does not depend on an unreleased
+ * `@metamask/chomp-api-service` intent type. Production CHOMP intent
+ * registration still requires a follow-up chomp-api-service release that
+ * accepts `'cash-subscription'`.
  */
-export const CASH_SUBSCRIPTION_DELEGATION_TYPE =
-  CHOMP_INTENT_TYPES.CASH_SUBSCRIPTION;
+export const CASH_SUBSCRIPTION_DELEGATION_TYPE = 'cash-subscription' as const;
 
 /**
  * Request to prepare a cash-subscription delegation.
@@ -34,9 +37,10 @@ export type PrepareSubscriptionDelegationRequest = {
    */
   checkBalance?: boolean;
   /**
-   * When true, skips CHOMP verify/intent interactions. Intended for alpha
-   * demos and tests where the subscription API can create a subscription
-   * without a registered CHOMP intent. Defaults to false.
+   * When true, skips CHOMP verify/intent interactions. Required for alpha
+   * until `@metamask/chomp-api-service` accepts `'cash-subscription'` intent
+   * metadata. Defaults to false (production path; unsupported until that
+   * follow-up release).
    */
   skipChompInteractions?: boolean;
 };

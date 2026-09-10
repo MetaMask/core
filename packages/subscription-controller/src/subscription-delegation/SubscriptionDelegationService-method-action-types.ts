@@ -25,8 +25,10 @@ export type SubscriptionDelegationServiceCheckMoneyAccountBalanceAction = {
  * `skipChompInteractions` is true). Otherwise builds, signs, optionally
  * verifies with CHOMP, persists, and optionally registers a new delegation.
  *
- * When `skipChompInteractions` is true (alpha demos / tests), CHOMP verify
- * and intent calls are skipped; the returned hash is computed locally.
+ * When `skipChompInteractions` is true (required for alpha), CHOMP verify
+ * and intent calls are skipped; the returned hash is computed locally. The
+ * default CHOMP-enabled path requires a follow-up chomp-api-service release
+ * that accepts `'cash-subscription'` intent metadata.
  *
  * @param request - Authoritative pricing and payer details for the delegation.
  * @returns The delegation hash (CHOMP-verified unless skipped) and whether it

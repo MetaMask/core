@@ -9,7 +9,6 @@ import nock from 'nock';
 
 import type { ChompApiServiceMessenger } from './chomp-api-service.js';
 import { ChompApiService } from './chomp-api-service.js';
-import { CHOMP_INTENT_TYPES } from './types.js';
 
 const BASE_URL = 'https://api.chomp.example.com';
 const MOCK_TOKEN = 'mock-jwt-token';
@@ -521,47 +520,6 @@ describe('ChompApiService', () => {
         'At path: 0.delegationHash -- Expected a string',
       );
     });
-
-    it('accepts cash-subscription intent metadata type', async () => {
-      const subscriptionIntentParams = [
-        {
-          account: '0xabc' as const,
-          delegationHash: '0xdef' as const,
-          chainId: '0x1' as const,
-          metadata: {
-            allowance: '0xff' as const,
-            tokenSymbol: 'pvmUSD',
-            tokenAddress: '0x123' as const,
-            type: CHOMP_INTENT_TYPES.CASH_SUBSCRIPTION,
-          },
-        },
-      ];
-      const subscriptionIntentResponse = [
-        {
-          delegationHash: '0xdef',
-          metadata: {
-            allowance: '0xff',
-            tokenSymbol: 'pvmUSD',
-            tokenAddress: '0x123',
-            type: CHOMP_INTENT_TYPES.CASH_SUBSCRIPTION,
-          },
-          createdAt: '2026-01-01T00:00:00Z',
-        },
-      ];
-
-      nock(BASE_URL)
-        .post('/v1/intent', subscriptionIntentParams)
-        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
-        .reply(201, subscriptionIntentResponse);
-      const { rootMessenger } = createService();
-
-      const result = await rootMessenger.call(
-        'ChompApiService:createIntents',
-        subscriptionIntentParams,
-      );
-
-      expect(result).toStrictEqual(subscriptionIntentResponse);
-    });
   });
 
   describe('getIntentsByAddress', () => {
@@ -688,7 +646,7 @@ describe('ChompApiService', () => {
                 },
               ],
               adapterAddress: '0x4839b1BA117BdFFA986FCfA4E5fE6b9027b8f8B1',
-              intentTypes: Object.values(CHOMP_INTENT_TYPES),
+              intentTypes: ['cash-deposit', 'cash-withdrawal'],
             },
           },
         },

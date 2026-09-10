@@ -40,25 +40,11 @@ export type VerifyDelegationParams = {
   chainId: Hex;
 };
 
-/**
- * CHOMP intent / delegation metadata type discriminators.
- */
-export const CHOMP_INTENT_TYPES = {
-  CASH_DEPOSIT: 'cash-deposit',
-  CASH_WITHDRAWAL: 'cash-withdrawal',
-  CASH_SUBSCRIPTION: 'cash-subscription',
-  CASH_DEPOSIT_PREMIUM: 'cash-deposit-premium',
-  CASH_WITHDRAWAL_PREMIUM: 'cash-withdrawal-premium',
-} as const;
-
-export type ChompIntentType =
-  (typeof CHOMP_INTENT_TYPES)[keyof typeof CHOMP_INTENT_TYPES];
-
 export type IntentMetadataParams = {
   allowance: Hex;
   tokenSymbol: string;
   tokenAddress: Hex;
-  type: ChompIntentType;
+  type: 'cash-deposit' | 'cash-withdrawal';
 };
 
 export type SendIntentParams = {
@@ -151,7 +137,7 @@ export type IntentMetadataResponse = {
   allowance: Hex;
   tokenSymbol: string;
   tokenAddress: Hex;
-  type: ChompIntentType;
+  type: 'cash-deposit' | 'cash-withdrawal';
 };
 
 export type SendIntentResponse = {
@@ -172,7 +158,7 @@ export type IntentEntry = {
     allowance: Hex;
     tokenAddress: Hex;
     tokenSymbol: string;
-    type: ChompIntentType;
+    type: 'cash-deposit' | 'cash-withdrawal';
   };
 };
 
@@ -190,7 +176,7 @@ export type ServiceDetailsSupportedToken = {
 export type ServiceDetailsProtocol = {
   supportedTokens: ServiceDetailsSupportedToken[];
   adapterAddress: Hex;
-  intentTypes: ChompIntentType[];
+  intentTypes: ('cash-deposit' | 'cash-withdrawal')[];
 };
 
 export type ServiceDetailsChain = {
