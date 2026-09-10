@@ -53,17 +53,20 @@ export const formatGroupForUserStorageUsage = (
   context: BackupAndSyncContext,
   group: AccountGroupMultichainAccountObject,
 ): UserStorageSyncedWalletGroup => {
-  // This can be null if the user has not manually set a name, pinned or hidden the group
+  // This can be null if the user has not manually set a name
   const persistedGroupMetadata =
     context.controller.state.accountGroupsMetadata[group.id];
   const { groupIndex } = group.metadata.entropy;
 
   try {
     // We mask and we try catch, since `mask` will throw if the persisted metadata has
-    // fields with wrong types.
+    // fields with wrong types. Only `name` is synced; `pinned`, `hidden`, and
+    // `lastSelected` are local-only.
     return mask(
       {
-        ...(persistedGroupMetadata ?? {}),
+        ...(persistedGroupMetadata?.name !== undefined
+          ? { name: persistedGroupMetadata.name }
+          : {}),
         groupIndex,
       },
       UserStorageSyncedWalletGroupSchema,

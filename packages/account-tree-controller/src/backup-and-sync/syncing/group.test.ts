@@ -306,126 +306,39 @@ describe('BackupAndSync - Syncing - Group', () => {
       /* eslint-enable jest/no-conditional-expect */
     });
 
-    it('handles pinned metadata validation and apply local update', async () => {
+    it('does not sync pinned or hidden metadata', async () => {
       mockContext.controller.state.accountGroupsMetadata[mockLocalGroup.id] = {
         pinned: { value: false, lastUpdatedAt: 1000 },
-      };
-
-      let validatePinnedFunction:
-        | Parameters<
-            typeof metadataExports.compareAndSyncMetadata
-          >[0]['validateUserStorageValue']
-        | undefined;
-      let applyPinnedUpdate:
-        | Parameters<
-            typeof metadataExports.compareAndSyncMetadata
-          >[0]['applyLocalUpdate']
-        | undefined;
-
-      mockCompareAndSyncMetadata.mockImplementation(
-        async (
-          options: Parameters<typeof metadataExports.compareAndSyncMetadata>[0],
-        ) => {
-          if (
-            options.userStorageMetadata &&
-            'value' in options.userStorageMetadata &&
-            typeof options.userStorageMetadata.value === 'boolean'
-          ) {
-            validatePinnedFunction = options.validateUserStorageValue;
-            applyPinnedUpdate = options.applyLocalUpdate;
-          }
-          return false;
-        },
-      );
-
-      await syncGroupMetadata(
-        mockContext,
-        mockLocalGroup,
-        {
-          pinned: { value: true, lastUpdatedAt: 2000 },
-        } as unknown as UserStorageSyncedWalletGroup,
-        'test-entropy',
-        'test-profile',
-      );
-
-      expect(validatePinnedFunction).toBeDefined();
-      expect(applyPinnedUpdate).toBeDefined();
-      /* eslint-disable jest/no-conditional-expect */
-      if (validatePinnedFunction) {
-        expect(validatePinnedFunction(true)).toBe(true);
-        expect(validatePinnedFunction(false)).toBe(true);
-        expect(validatePinnedFunction('invalid')).toBe(false);
-        expect(validatePinnedFunction(null)).toBe(false);
-      }
-
-      if (applyPinnedUpdate) {
-        await applyPinnedUpdate(true);
-        expect(
-          mockContext.controller.setAccountGroupPinned,
-        ).toHaveBeenCalledWith(mockLocalGroup.id, true);
-      }
-      /* eslint-enable jest/no-conditional-expect */
-    });
-
-    it('handles hidden metadata validation and apply local update', async () => {
-      mockContext.controller.state.accountGroupsMetadata[mockLocalGroup.id] = {
         hidden: { value: false, lastUpdatedAt: 1000 },
       };
-
-      let validateHiddenFunction:
-        | Parameters<
-            typeof metadataExports.compareAndSyncMetadata
-          >[0]['validateUserStorageValue']
-        | undefined;
-      let applyHiddenUpdate:
-        | Parameters<
-            typeof metadataExports.compareAndSyncMetadata
-          >[0]['applyLocalUpdate']
-        | undefined;
-
-      mockCompareAndSyncMetadata.mockImplementation(
-        async (
-          options: Parameters<typeof metadataExports.compareAndSyncMetadata>[0],
-        ) => {
-          if (
-            options.userStorageMetadata &&
-            'value' in options.userStorageMetadata &&
-            typeof options.userStorageMetadata.value === 'boolean'
-          ) {
-            validateHiddenFunction = options.validateUserStorageValue;
-            applyHiddenUpdate = options.applyLocalUpdate;
-          }
-          return false;
-        },
-      );
+      mockCompareAndSyncMetadata.mockResolvedValue(false);
 
       await syncGroupMetadata(
         mockContext,
         mockLocalGroup,
         {
-          hidden: { value: true, lastUpdatedAt: 2000 },
-        } as unknown as UserStorageSyncedWalletGroup,
+          groupIndex: 0,
+          name: { value: 'Remote Name', lastUpdatedAt: 2000 },
+        },
         'test-entropy',
         'test-profile',
       );
 
-      expect(validateHiddenFunction).toBeDefined();
-      expect(applyHiddenUpdate).toBeDefined();
-      /* eslint-disable jest/no-conditional-expect */
-      if (validateHiddenFunction) {
-        expect(validateHiddenFunction(true)).toBe(true);
-        expect(validateHiddenFunction(false)).toBe(true);
-        expect(validateHiddenFunction('invalid')).toBe(false);
-        expect(validateHiddenFunction(123)).toBe(false);
-      }
-
-      if (applyHiddenUpdate) {
-        await applyHiddenUpdate(false);
-        expect(
-          mockContext.controller.setAccountGroupHidden,
-        ).toHaveBeenCalledWith(mockLocalGroup.id, false);
-      }
-      /* eslint-enable jest/no-conditional-expect */
+      expect(mockCompareAndSyncMetadata).toHaveBeenCalledTimes(1);
+      expect(mockCompareAndSyncMetadata).toHaveBeenCalledWith(
+        expect.objectContaining({
+          analytics: {
+            action: BackupAndSyncAnalyticsEvent.GroupRenamed,
+            profileId: 'test-profile',
+          },
+        }),
+      );
+      expect(
+        mockContext.controller.setAccountGroupPinned,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockContext.controller.setAccountGroupHidden,
+      ).not.toHaveBeenCalled();
     });
   });
 
@@ -489,7 +402,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       expect(mockPushGroupToUserStorageBatch).toHaveBeenCalled();
     });
 
-    it('handles metadata sync for name, pinned, and hidden fields', async () => {
+    it('handles metadata sync for name only', async () => {
       const localGroup = {
         id: 'entropy:test-entropy/0',
         metadata: { entropy: { groupIndex: 0 } },
@@ -511,35 +424,17 @@ describe('BackupAndSync - Syncing - Group', () => {
           {
             groupIndex: 0,
             name: { value: 'Remote Name', lastUpdatedAt: 2000 },
-            pinned: { value: false, lastUpdatedAt: 2000 },
-            hidden: { value: true, lastUpdatedAt: 2000 },
           },
         ],
         'test-entropy',
         'test-profile',
       );
 
-      expect(mockCompareAndSyncMetadata).toHaveBeenCalledTimes(3);
+      expect(mockCompareAndSyncMetadata).toHaveBeenCalledTimes(1);
       expect(mockCompareAndSyncMetadata).toHaveBeenCalledWith(
         expect.objectContaining({
           analytics: {
             action: BackupAndSyncAnalyticsEvent.GroupRenamed,
-            profileId: 'test-profile',
-          },
-        }),
-      );
-      expect(mockCompareAndSyncMetadata).toHaveBeenCalledWith(
-        expect.objectContaining({
-          analytics: {
-            action: BackupAndSyncAnalyticsEvent.GroupPinnedStatusChanged,
-            profileId: 'test-profile',
-          },
-        }),
-      );
-      expect(mockCompareAndSyncMetadata).toHaveBeenCalledWith(
-        expect.objectContaining({
-          analytics: {
-            action: BackupAndSyncAnalyticsEvent.GroupHiddenStatusChanged,
             profileId: 'test-profile',
           },
         }),

@@ -95,10 +95,11 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
   });
 
   describe('formatGroupForUserStorageUsage', () => {
-    it('returns group metadata with groupIndex', () => {
+    it('returns group name metadata with groupIndex', () => {
       const groupMetadata = {
         name: { value: 'Group Name', lastUpdatedAt: 123456 },
         pinned: { value: true, lastUpdatedAt: 123456 },
+        hidden: { value: true, lastUpdatedAt: 123456 },
       };
       mockContext.controller.state.accountGroupsMetadata[mockGroup.id] =
         groupMetadata;
@@ -106,7 +107,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       const result = formatGroupForUserStorageUsage(mockContext, mockGroup);
 
       expect(result).toStrictEqual({
-        ...groupMetadata,
+        name: groupMetadata.name,
         groupIndex: 0,
       });
     });
@@ -135,10 +136,12 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       );
     });
 
-    it('strips fields not in the schema (e.g. lastSelected)', () => {
+    it('strips fields not in the schema (e.g. lastSelected, pinned, hidden)', () => {
       mockContext.controller.state.accountGroupsMetadata[mockGroup.id] = {
         name: { value: 'Group Name', lastUpdatedAt: 123456 },
         lastSelected: 999999,
+        pinned: { value: true, lastUpdatedAt: 123456 },
+        hidden: { value: true, lastUpdatedAt: 123456 },
       };
 
       const result = formatGroupForUserStorageUsage(mockContext, mockGroup);

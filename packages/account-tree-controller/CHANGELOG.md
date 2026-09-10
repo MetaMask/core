@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Stop syncing account group `pinned` and `hidden` metadata with user storage
+  - These fields remain persisted locally and can still be imported/exported via `:{import,export}State`.
+
 ## [10.0.0]
 
 ### Changed

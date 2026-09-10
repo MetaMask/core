@@ -1767,15 +1767,6 @@ export class AccountTreeController extends BaseController<
     if (walletId) {
       this.#publishAccountGroupUpdated(walletId, groupId);
     }
-
-    // Trigger atomic sync for group pinning (only for groups from entropy wallets)
-    if (
-      walletId &&
-      this.state.accountTree.wallets[walletId].type ===
-        AccountWalletType.Entropy
-    ) {
-      this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
-    }
   }
 
   /**
@@ -1812,15 +1803,6 @@ export class AccountTreeController extends BaseController<
 
     if (walletId) {
       this.#publishAccountGroupUpdated(walletId, groupId);
-    }
-
-    // Trigger atomic sync for group hiding (only for groups from entropy wallets)
-    if (
-      walletId &&
-      this.state.accountTree.wallets[walletId].type ===
-        AccountWalletType.Entropy
-    ) {
-      this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
     }
   }
 
