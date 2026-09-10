@@ -604,11 +604,10 @@ describe('UserStorageController', () => {
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
         state: {
+          ...defaultState,
           isBackupAndSyncEnabled: false,
-          isBackupAndSyncUpdateLoading: false,
           isAccountSyncingEnabled: false,
           isContactSyncingEnabled: false,
-          isContactSyncingInProgress: false,
         },
       });
 
@@ -629,11 +628,10 @@ describe('UserStorageController', () => {
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
         state: {
+          ...defaultState,
           isBackupAndSyncEnabled: false,
-          isBackupAndSyncUpdateLoading: false,
           isAccountSyncingEnabled: false,
           isContactSyncingEnabled: false,
-          isContactSyncingInProgress: false,
         },
       });
 
