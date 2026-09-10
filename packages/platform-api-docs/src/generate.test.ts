@@ -144,6 +144,53 @@ export type MyMessenger = Messenger<'My', MyGetAction, never>;
     });
   });
 
+  it('scans a package whose name collides with an exclusion pattern', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      // The exclusions drop directories named `test`, `dist` and friends. They
+      // must be anchored at each package's `src`, not at `packages`, or a
+      // package that happens to be *called* `test` is dropped whole.
+      const pkgSrc = path.join(directoryPath, 'packages', 'test', 'src');
+      await fs.promises.mkdir(pkgSrc, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(pkgSrc, 'Controller.ts'),
+        `
+export type TestPkgGetAction = {
+  type: 'TestPkg:get';
+  handler: () => string;
+};
+
+export type TestPkgMessenger = Messenger<'TestPkg', TestPkgGetAction, never>;
+`,
+      );
+      // A genuine test directory nested inside that package is still excluded.
+      const nestedTestDir = path.join(pkgSrc, 'test');
+      await fs.promises.mkdir(nestedTestDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(nestedTestDir, 'Helper.ts'),
+        `
+export type NestedGetAction = {
+  type: 'Nested:get';
+  handler: () => string;
+};
+
+export type NestedMessenger = Messenger<'Nested', NestedGetAction, never>;
+`,
+      );
+
+      const result = await generate({
+        projectPath: directoryPath,
+        outputDir: path.join(directoryPath, '.docs'),
+        strategy: 'scan',
+        scanDirs: ['src'],
+      });
+
+      expect(result.actions).toBe(1);
+      expect(result.namespaces).toBe(1);
+    });
+  });
+
   it('scans node_modules/@metamask/*/dist/ for .d.cts files', async () => {
     expect.assertions(1);
 
@@ -403,8 +450,8 @@ export type GitMessenger = Messenger<'Git', GitGetAction, never>;
     });
   });
 
-  it('warns and continues when a single source file fails to read', async () => {
-    expect.assertions(2);
+  it('skips unreadable source files and still documents the rest', async () => {
+    expect.assertions(1);
 
     await withinSandbox(async ({ directoryPath }) => {
       const srcDir = path.join(directoryPath, 'src');
@@ -421,28 +468,21 @@ export type OkAction = {
 export type OkMessenger = Messenger<'Ok', OkAction, never>;
 `,
       );
-      // A broken symlink pointing nowhere. Discovery surfaces it (it's not a
-      // directory), but reading it throws ENOENT — exercising the per-file
-      // failure path in `extractFromDirectory`.
+      // A broken symlink pointing nowhere. It matches `**‍/*.ts` by name, but
+      // cannot be read, so it must not stop the valid file being documented.
       await fs.promises.symlink(
         '/this/path/does/not/exist',
         path.join(srcDir, 'Bad.ts'),
       );
 
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      try {
-        const result = await generate({
-          projectPath: directoryPath,
-          outputDir: path.join(directoryPath, '.docs'),
-          strategy: 'scan',
-          scanDirs: ['src'],
-        });
+      const result = await generate({
+        projectPath: directoryPath,
+        outputDir: path.join(directoryPath, '.docs'),
+        strategy: 'scan',
+        scanDirs: ['src'],
+      });
 
-        expect(result.actions).toBe(1);
-        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Bad.ts'));
-      } finally {
-        warnSpy.mockRestore();
-      }
+      expect(result.actions).toBe(1);
     });
   });
 

@@ -75,8 +75,8 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import BigNumberJS from 'bignumber.js';
-import { isEqual } from 'lodash';
+import { BigNumber as BigNumberJS } from 'bignumber.js';
+import { isEqual } from 'lodash-es';
 
 import type { AssetsControllerMethodActions } from './AssetsController-method-action-types.js';
 import type {
@@ -766,6 +766,19 @@ export class AssetsController extends BaseController<
    */
   readonly #activeSubscriptions: Map<string, SubscriptionResponse> = new Map();
 
+  /**
+   * Guards against `#start()` re-entrancy. `#activeSubscriptions` only
+   * becomes non-empty once `#runStartupRefresh()`'s forced `getAssets()`
+   * call resolves, which can take many seconds for accounts with many
+   * chains/snaps. `#start()` is invoked by `#updateActive()`, which is
+   * wired to several independent events (e.g. keyring unlock, account tree
+   * init, client state change). If a second such event fires before the
+   * first `getAssets()` call resolves, the `#activeSubscriptions.size > 0`
+   * guard alone doesn't catch it, and the whole startup refresh (including
+   * its forced `getAssets()` call) runs a second time for the same accounts.
+   */
+  #startInFlight = false;
+
   /** Currently enabled chains from NetworkEnablementController */
   #enabledChains: Set<ChainId> = new Set();
 
@@ -1307,7 +1320,10 @@ export class AssetsController extends BaseController<
 
       this.update((state) => {
         result.applyPatch(
-          state as Pick<AssetsControllerState, 'assetsInfo' | 'assetsBalance'>,
+          state as Pick<
+            AssetsControllerState,
+            'assetsInfo' | 'assetsBalance' | 'assetsPrice'
+          >,
           {
             spamAssetIds: result.spamAssetIds,
           },
@@ -3078,7 +3094,7 @@ export class AssetsController extends BaseController<
       return;
     }
 
-    if (this.#activeSubscriptions.size > 0) {
+    if (this.#activeSubscriptions.size > 0 || this.#startInFlight) {
       return;
     }
 
@@ -3087,9 +3103,14 @@ export class AssetsController extends BaseController<
       enabledChainCount: chainIds.length,
     });
 
-    this.#runStartupRefresh(accounts).catch((error) => {
-      log('Failed to start asset tracking', error);
-    });
+    this.#startInFlight = true;
+    this.#runStartupRefresh(accounts)
+      .catch((error) => {
+        log('Failed to start asset tracking', error);
+      })
+      .finally(() => {
+        this.#startInFlight = false;
+      });
   }
 
   /**

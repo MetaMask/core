@@ -184,7 +184,7 @@ async function setupController(
   rootMessenger.delegate({
     messenger: controllerMessenger,
     actions: ['RemoteFeatureFlagController:getState'],
-    // eslint-disable-next-line no-restricted-syntax
+
     events: ['RemoteFeatureFlagController:stateChange'],
   });
 

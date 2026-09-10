@@ -5,7 +5,7 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import {
@@ -2632,7 +2632,64 @@ describe('Relay Quotes Utils', () => {
         expect(result[0].fees.sourceNetwork.estimate).toStrictEqual(zeroAmount);
         expect(result[0].fees.sourceNetwork.max).toStrictEqual(zeroAmount);
         expect(result[0].original.metamask.gasLimits).toStrictEqual([0]);
+        expect(result[0].original.metamask.is7702).toBe(true);
       });
+
+      it.each([1, 2])(
+        'charges source gas for %i calls when the payer cannot use same-chain parent sponsorship',
+        async (callCount) => {
+          const quote = cloneDeep(QUOTE_MOCK);
+          if (callCount === 2) {
+            quote.steps[0].items.push(cloneDeep(quote.steps[0].items[0]));
+            estimateGasBatchMock.mockResolvedValue({
+              totalGasLimit: 42000,
+              gasLimits: [21000, 21000],
+            });
+          }
+          successfulFetchMock.mockResolvedValue({
+            ok: true,
+            json: async () => quote,
+          } as never);
+          getTokenBalanceMock.mockReturnValue('0');
+          getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+          const result = await getRelayQuotes({
+            accountSupports7702: false,
+            messenger,
+            requests: [
+              {
+                ...QUOTE_REQUEST_MOCK,
+                targetChainId: QUOTE_REQUEST_MOCK.sourceChainId,
+              },
+            ],
+            transaction: {
+              ...TRANSACTION_META_MOCK,
+              txParams: {
+                from: '0x1234567890123456789012345678901234567892',
+              },
+              chainId: QUOTE_REQUEST_MOCK.sourceChainId,
+              isGasFeeSponsored: true,
+            },
+          });
+
+          const expectedCost = {
+            fiat: '4.56',
+            human: '1.725',
+            raw: '1725000000000000',
+            usd: '3.45',
+          };
+          expect(result[0].fees.sourceNetwork).toStrictEqual({
+            estimate: expectedCost,
+            max: expectedCost,
+          });
+          expect(result[0].original.metamask).toStrictEqual({
+            gasLimits: callCount === 1 ? [21000] : [21000, 21000],
+            is7702: false,
+          });
+          expect(result[0].fees.isSourceGasFeeToken).toBeUndefined();
+          expect(getGasFeeTokensMock).not.toHaveBeenCalled();
+        },
+      );
 
       it('does not zero source network fees when parent sponsorship is missing', async () => {
         successfulFetchMock.mockResolvedValue({

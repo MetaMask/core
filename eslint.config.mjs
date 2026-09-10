@@ -7,25 +7,6 @@ import node from 'eslint-plugin-n';
 const NODE_LTS_VERSION = 22;
 
 /**
- * Arguments to the `no-restricted` syntax rule that advises use of
- * `${Controller}:stateChanged` instead of `:stateChange`.
- */
-const NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS = [
-  {
-    selector:
-      'CallExpression[callee.property.name="subscribe"] > Literal[value=/^.+:stateChange$/]',
-    message:
-      "Subscribing to ':stateChange' events is deprecated. Use ':stateChanged' instead.",
-  },
-  {
-    selector:
-      'CallExpression[callee.property.name="delegate"] Property[key.name="events"] ArrayExpression > Literal[value=/^.+:stateChange$/]',
-    message:
-      "Delegating ':stateChange' events is deprecated. Use ':stateChanged' instead.",
-  },
-];
-
-/**
  * Arguments to the `no-restricted-syntax` rule that prevents messsenger actions
  * from being called in constructors.
  */
@@ -75,9 +56,10 @@ const config = createConfig([
   {
     ignores: [
       '**/.docusaurus',
+      '**/.tsc-lint-cache',
       '**/coverage/**',
       '**/dist/**',
-      '**/docs/**',
+      '**/api-docs/**',
       '.platform-api-docs/**',
       '.skills-cache/**',
       '.yarn/**',
@@ -125,7 +107,7 @@ const config = createConfig([
     extends: [nodejs],
   },
   {
-    files: ['**/*.{js,cjs}'],
+    files: ['**/*.cjs'],
     languageOptions: {
       sourceType: 'script',
       ecmaVersion: 2020,
@@ -159,17 +141,6 @@ const config = createConfig([
       // do not work very well.
       'jsdoc/check-tag-names': 'off',
       'jsdoc/require-jsdoc': 'off',
-
-      // Add custom rule for deprecating `${Controller}:stateChange` in favor of
-      // `:stateChanged`.
-      'no-restricted-syntax': [
-        'error',
-        ...collectExistingRuleOptions('no-restricted-syntax', [
-          base,
-          typescript,
-        ]),
-        ...NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS,
-      ],
     },
   },
   {
@@ -181,6 +152,10 @@ const config = createConfig([
       'jest/no-alias-methods': 'error',
       'jest/no-commented-out-tests': 'error',
       'jest/no-disabled-tests': 'error',
+
+      // `import { jest } from '@jest/globals'` is required in ESM test files
+      // and intentionally shadows the Jest-injected global.
+      '@typescript-eslint/no-shadow': ['error', { allow: ['jest'] }],
     },
     settings: {
       node: {
@@ -221,14 +196,14 @@ const config = createConfig([
     },
   },
   {
-    files: ['**/jest.environment.js'],
+    files: ['**/jest.environment.cjs'],
     rules: {
       // These files run under Node, and thus `require(...)` is expected.
       'n/global-require': 'off',
     },
   },
   {
-    files: ['**/*.mjs'],
+    files: ['**/*.js', '**/*.mjs'],
     languageOptions: {
       sourceType: 'module',
     },
@@ -252,7 +227,6 @@ const config = createConfig([
           base,
           typescript,
         ]),
-        ...NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS,
         ...NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_SELECTOR_OBJECTS,
       ],
     },
@@ -268,7 +242,6 @@ const config = createConfig([
           base,
           typescript,
         ]),
-        ...NO_CONTROLLER_STATE_CHANGE_SELECTOR_OBJECTS,
         ...NO_MESSENGER_ACTIONS_IN_CONSTRUCTORS_SELECTOR_OBJECTS,
         {
           selector:
@@ -366,7 +339,6 @@ const config = createConfig([
       'packages/permission-log-controller/src/PermissionLogController.ts',
       'packages/phishing-controller/src/PhishingController.ts',
       'packages/rate-limit-controller/src/RateLimitController.ts',
-      'tests/fake-provider.ts',
       'tests/mock-network.ts',
     ],
     rules: {

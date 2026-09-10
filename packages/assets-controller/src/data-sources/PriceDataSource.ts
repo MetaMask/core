@@ -1,4 +1,5 @@
 import type {
+  PriceSupportedNetworksResponse,
   SupportedCurrency,
   V3SpotPricesResponse,
 } from '@metamask/core-backend';
@@ -16,7 +17,7 @@ import type {
   AssetsControllerStateInternal,
 } from '../types.js';
 import { DedupingBatchFetcher } from '../utils/dedupingBatchFetcher.js';
-import { fetchWithTimeout, normalizeAssetId } from '../utils/index.js';
+import { fetchWithTimeout, safeNormalizeAssetId } from '../utils/index.js';
 import type { SubscriptionRequest } from './AbstractDataSource.js';
 import { reduceInBatchesSerially } from './evm-rpc-services/index.js';
 
@@ -227,7 +228,7 @@ export class PriceDataSource {
         response.detectedAssets ?? {},
       )) {
         for (const assetId of detectedAccountAssets) {
-          const normalizedAssetId = normalizeAssetId(assetId);
+          const normalizedAssetId = safeNormalizeAssetId(assetId);
           const alreadyQueued = request.assetsForPriceUpdate?.some(
             (queuedId) =>
               queuedId === assetId || queuedId === normalizedAssetId,
@@ -253,12 +254,22 @@ export class PriceDataSource {
         return next(ctx);
       }
 
+      const supportedNetworks = await this.#getSupportedNetworks();
+      const supportedAssetIds = this.#filterAssetsByNetwork(
+        priceableAssetIds,
+        supportedNetworks,
+      );
+
+      if (supportedAssetIds.length === 0) {
+        return next(ctx);
+      }
+
       if (request.forceUpdate) {
-        this.#deduper.invalidateKeys(priceableAssetIds);
+        this.#deduper.invalidateKeys(supportedAssetIds);
       }
 
       try {
-        const spotPrices = await this.#fetchSpotPrices(priceableAssetIds);
+        const spotPrices = await this.#fetchSpotPrices(supportedAssetIds);
         response.assetsPrice = {
           ...(response.assetsPrice ?? {}),
           ...spotPrices,
@@ -466,6 +477,52 @@ export class PriceDataSource {
     }
   }
 
+  /**
+   * Price API supported networks.
+   *
+   * @returns CAIP-2 chain IDs; empty on error.
+   */
+  async #getSupportedNetworks(): Promise<Set<string>> {
+    try {
+      const response = await fetchWithTimeout(
+        (): Promise<PriceSupportedNetworksResponse> =>
+          this.#apiClient.prices.fetchPriceV2SupportedNetworks(),
+        this.#fetchTimeoutMs,
+      );
+
+      const allNetworks = [...response.fullSupport, ...response.partialSupport];
+      return new Set(allNetworks);
+    } catch (error) {
+      log('Failed to fetch price supported networks', { error });
+      return new Set();
+    }
+  }
+
+  /**
+   * Keeps asset IDs whose chain is in `supportedNetworks`.
+   *
+   * @param assetIds - CAIP-19 asset IDs.
+   * @param supportedNetworks - Supported CAIP-2 chain IDs.
+   * @returns Matching IDs, or all IDs if the set is empty.
+   */
+  #filterAssetsByNetwork(
+    assetIds: Caip19AssetId[],
+    supportedNetworks: Set<string>,
+  ): Caip19AssetId[] {
+    if (supportedNetworks.size === 0) {
+      return assetIds;
+    }
+    return assetIds.filter((assetId) => {
+      try {
+        const parsed = parseCaipAssetType(assetId);
+        const chainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
+        return supportedNetworks.has(chainId);
+      } catch {
+        return false;
+      }
+    });
+  }
+
   // ============================================================================
   // FETCH
   // ============================================================================
@@ -491,7 +548,17 @@ export class PriceDataSource {
     );
 
     // Filter out non-priceable assets (e.g., Tron bandwidth/energy resources)
-    const assetIds = rawAssetIds.filter(isPriceableAsset);
+    const priceableAssetIds = rawAssetIds.filter(isPriceableAsset);
+
+    if (priceableAssetIds.length === 0) {
+      return response;
+    }
+
+    const supportedNetworks = await this.#getSupportedNetworks();
+    const assetIds = this.#filterAssetsByNetwork(
+      priceableAssetIds,
+      supportedNetworks,
+    );
 
     if (assetIds.length === 0) {
       return response;

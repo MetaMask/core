@@ -1,0 +1,125 @@
+name: Publish Release
+
+on:
+  workflow_call:
+    secrets:
+      NPM_TOKEN:
+        required: false
+      SLACK_WEBHOOK_URL:
+        required: true
+      PUBLISH_DOCS_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish-release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v1
+        with:
+          is-high-risk-environment: true
+          ref: ${{ github.sha }}
+      - uses: MetaMask/action-publish-release@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: yarn --immutable
+      - run: yarn build
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-release-artifacts-${{ github.sha }}
+          retention-days: 4
+          include-hidden-files: true
+          path: |
+            ./dist
+            ./node_modules/.yarn-state.yml
+
+  publish-npm-dry-run:
+    needs: publish-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v1
+        with:
+          is-high-risk-environment: true
+          ref: ${{ github.sha }}
+      - name: Restore build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: publish-release-artifacts-${{ github.sha }}
+      - name: Dry Run Publish
+        uses: MetaMask/action-npm-publish@v6
+        with:
+          slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          subteam: S042S7RE4AE # @metamask-npm-publishers
+        env:
+          SKIP_PREPACK: true
+
+  publish-npm:
+    needs: publish-npm-dry-run
+    runs-on: ubuntu-latest
+    environment: npm-publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v1
+        with:
+          is-high-risk-environment: true
+          ref: ${{ github.sha }}
+      - name: Restore build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: publish-release-artifacts-${{ github.sha }}
+      - name: Publish
+        uses: MetaMask/action-npm-publish@v6
+        with:
+          # This `NPM_TOKEN` needs to be manually set to publish a package for
+          # the first time only.
+          # Look in the repository settings under "Environments", and set this
+          # token in the `npm-publish` environment, and delete it after the
+          # initial publish.
+          npm-token: ${{ secrets.NPM_TOKEN }}
+        env:
+          SKIP_PREPACK: true
+
+  get-release-version:
+    needs: publish-npm
+    runs-on: ubuntu-latest
+    outputs:
+      RELEASE_VERSION: ${{ steps.get-release-version.outputs.RELEASE_VERSION }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - id: get-release-version
+        shell: bash
+        run: ./scripts/get.sh ".version" "RELEASE_VERSION"
+
+  publish-release-to-gh-pages:
+    name: Publish docs to `${{ needs.get-release-version.outputs.RELEASE_VERSION }}` directory of `gh-pages` branch
+    needs: get-release-version
+    permissions:
+      contents: write
+    uses: ./.github/workflows/publish-docs.yml
+    with:
+      destination_dir: ${{ needs.get-release-version.outputs.RELEASE_VERSION }}
+    secrets:
+      PUBLISH_DOCS_TOKEN: ${{ secrets.PUBLISH_DOCS_TOKEN }}
+
+  publish-release-to-latest-gh-pages:
+    name: Publish docs to `latest` directory of `gh-pages` branch
+    needs: publish-npm
+    permissions:
+      contents: write
+    uses: ./.github/workflows/publish-docs.yml
+    with:
+      destination_dir: latest
+    secrets:
+      PUBLISH_DOCS_TOKEN: ${{ secrets.PUBLISH_DOCS_TOKEN }}

@@ -4,6 +4,8 @@ import type { MetaMetricsAuth } from '../../shared/types/services.js';
 import { HTTP_STATUS_CODES } from '../constants.js';
 import {
   NonceRetrievalError,
+  EmailRequiredError,
+  PairConflictError,
   PairError,
   SignInError,
   ValidationError,
@@ -14,6 +16,9 @@ import type {
   AccessToken,
   ErrorMessage,
   LoginIdentifierType,
+  OidcTokenAudience,
+  OidcTokenClaims,
+  PairSocialIdentifierParams,
   ProfileAlias,
   UserProfile,
   UserProfileLineage,
@@ -156,11 +161,17 @@ export const SIWE_LOGIN_URL = (env: Env): string =>
 export const PAIR_PROFILES_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/profile/pair`;
 
+export const PAIR_SOCIAL_IDENTIFIER_URL = (env: Env): string =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/profile/pair/identifier`;
+
 export const PROFILE_LINEAGE_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/profile/lineage`;
 
 export const CUSTOMER_SERVICE_TOKEN_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/customer-service/token`;
+
+export const PARTNER_IDENTITY_TOKEN_URL = (env: Env): string =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/oidc/token`;
 
 const getAuthenticationUrl = (authType: AuthType, env: Env): string => {
   switch (authType) {
@@ -311,6 +322,52 @@ export async function pairProfiles(
     };
   } catch (error) {
     return await throwServiceError(error, 'Failed to pair profiles', PairError);
+  }
+}
+
+/**
+ * Attach a Google/Apple/Telegram social identifier to the profile that
+ * owns `authAccessToken` (`POST /api/v2/profile/pair/identifier`).
+ *
+ * `email` is omitted from the body when undefined. 409 Conflict throws
+ * {@link PairConflictError} so callers can treat it as terminal. The
+ * response body (new token + profile) is not consumed: a 2xx status is the
+ * only success signal.
+ *
+ * @param params - Social identifier type, social JWT, and optional email
+ * @param authAccessToken - Bearer token of the canonical (primary SRP) profile
+ * @param env - server environment
+ */
+export async function pairSocialIdentifier(
+  params: PairSocialIdentifierParams,
+  authAccessToken: string,
+  env: Env,
+): Promise<void> {
+  const pairUrl = new URL(PAIR_SOCIAL_IDENTIFIER_URL(env));
+  const errorPrefix = 'Failed to pair social identifier';
+
+  try {
+    const response = await fetch(pairUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authAccessToken}`,
+      },
+      body: JSON.stringify({
+        identifier_type: params.identifierType,
+        social_jwt: params.socialJwt,
+        ...(params.email === undefined ? {} : { email: params.email }),
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === HTTP_STATUS_CODES.CONFLICT) {
+        await throwServiceError(response, errorPrefix, PairConflictError);
+      }
+      await throwServiceError(response, errorPrefix, PairError);
+    }
+  } catch (error) {
+    await throwServiceError(error, errorPrefix, PairError);
   }
 }
 
@@ -572,5 +629,65 @@ export async function getCustomerServiceToken(
       'Failed to get customer service token',
       SignInError,
     );
+  }
+}
+
+/**
+ * Mint a partner identity token (`POST /api/v2/oidc/token`).
+ *
+ * Exchanges a Hydra login bearer for a short-lived JWT scoped to `audience`
+ * (`kyc` / `iron`) with the requested claims. Email lands under JWT `ext`
+ * on live tokens. Returns only `access_token`.
+ *
+ * @param env - server environment
+ * @param accessToken - Hydra JWT used to access protected resources
+ * @param claims - claim names to embed (only `email` is supported)
+ * @param audience - partner audience stamped on the minted JWT
+ * @returns The partner identity access token.
+ * @throws EmailRequiredError when the profile has no verified email (HTTP 422)
+ */
+export async function getPartnerIdentityToken(
+  env: Env,
+  accessToken: string,
+  claims: OidcTokenClaims,
+  audience: OidcTokenAudience,
+): Promise<string> {
+  const partnerIdentityTokenUrl = new URL(PARTNER_IDENTITY_TOKEN_URL(env));
+  const errorPrefix = 'Failed to get partner identity token';
+
+  try {
+    const response = await fetch(partnerIdentityTokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        claims,
+        audience,
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY) {
+        return await throwServiceError(
+          response,
+          errorPrefix,
+          EmailRequiredError,
+        );
+      }
+      return await throwServiceError(response, errorPrefix, SignInError);
+    }
+
+    const tokenResponse = await response.json();
+    if (typeof tokenResponse?.access_token !== 'string') {
+      throw new SignInError(`${errorPrefix}: missing access_token`);
+    }
+    return tokenResponse.access_token;
+  } catch (error) {
+    if (error instanceof EmailRequiredError) {
+      throw error;
+    }
+    return await throwServiceError(error, errorPrefix, SignInError);
   }
 }

@@ -1,6 +1,7 @@
 import {
   NOTIFICATION_API_LIST_ENDPOINT,
   NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT,
+  TRIGGER_API_NOTIFICATIONS_ENDPOINT,
   TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT,
 } from '../services/api-notifications.js';
 import { FEATURE_ANNOUNCEMENT_API } from '../services/feature-announcements.js';
@@ -30,6 +31,14 @@ export const getMockOnChainNotificationsConfig = (): MockResponse => {
     url: TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(),
     requestMethod: 'POST',
     response: [{ address: '0xTestAddress', enabled: true }],
+  } satisfies MockResponse;
+};
+
+export const getMockUpdateOnChainNotifications = (): MockResponse => {
+  return {
+    url: TRIGGER_API_NOTIFICATIONS_ENDPOINT(),
+    requestMethod: 'POST',
+    response: null,
   } satisfies MockResponse;
 };
 

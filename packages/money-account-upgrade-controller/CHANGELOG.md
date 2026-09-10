@@ -7,11 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0]
+
 ### Changed
 
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/remote-feature-flag-controller` from `^6.1.0` to `^7.0.0` ([#10129](https://github.com/MetaMask/core/pull/10129), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/authenticated-user-storage` from `^3.0.2` to `^4.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/chomp-api-service` from `^4.0.2` to `^5.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/delegation-controller` from `^3.0.2` to `^4.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/money-account-utils` from `^1.2.0` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [4.0.0]
+
+### Added
+
+- Add a public `sync()` method that re-evaluates the bootstrap gates against live state, for clients whose `isEnabled` hook reads client-only signals (onboarding, preferences) that should also re-trigger the bootstrap ([#10072](https://github.com/MetaMask/core/pull/10072))
+- Add `MissingMoneyAccountVaultConfigError`, reported through the `onBootstrapError` hook (once per controller lifetime) when the enable flag is on but `moneyAccountVaultConfig` is unserved or malformed ([#10072](https://github.com/MetaMask/core/pull/10072))
+
+### Changed
+
+- **BREAKING:** The controller now owns its bootstrap: it subscribes to `RemoteFeatureFlagController:stateChanged` and `KeyringController:stateChanged`, gates on an unlocked wallet with an HD keyring, parses the `moneyAccountVaultConfig` remote feature flag, and runs a serialized bootstrap that re-checks its gates across `await` points and re-runs when the vault config changes ([#10072](https://github.com/MetaMask/core/pull/10072))
+  - `init()` is now the no-argument lifecycle entry point (subscribe and first sync), to be called once after all controllers and services the messenger reaches are constructed. The former `init({ chainId, boringVaultAddress })` config-arming routine is internal and reads the chain id and boring vault from the flag; clients that called it must remove that orchestration.
+  - The constructor requires a `hooks` option carrying the client-specific parts of the bootstrap: `isEnabled(remoteFeatureFlags)` (required — version-gated flag evaluation depends on the client version, and clients may add gates such as a basic-functionality toggle), plus optional `isEligible()` (an async pre-bootstrap gate, e.g. fail-closed geolocation), `ensureChainConfigured(vaultConfig)` (client-specific network adding), and `onBootstrapError(error)`.
+  - The messenger must now allow the `RemoteFeatureFlagController:getState` and `KeyringController:getState` actions and the `RemoteFeatureFlagController:stateChanged` and `KeyringController:stateChanged` events.
+- **BREAKING:** `upgradeAccount()` now waits for the in-flight bootstrap chain to settle (including runs scheduled while waiting) instead of throwing, and throws a new not-bootstrapped error message when no bootstrap has armed a config or the wallet is locked. Scheduling a bootstrap for a changed vault config — or `isEnabled` flipping off — disarms the previous config, so an upgrade can never sign against a superseded vault, including after a failed re-bootstrap ([#10072](https://github.com/MetaMask/core/pull/10072))
+  - The armed config is re-checked before every step; if it is disarmed or superseded while the sequence is running, `upgradeAccount()` throws an upgrade-aborted error before the next step signs anything and records nothing
+  - An `onBootstrapError` hook that throws is contained: the failed bootstrap is still forgotten and retried on the next trigger, and the throw does not escape `init()` or `sync()`
+- Add `@metamask/money-account-utils` and `@metamask/remote-feature-flag-controller` as dependencies ([#10072](https://github.com/MetaMask/core/pull/10072))
 - Bump `@metamask/authenticated-user-storage` from `^3.0.1` to `^3.0.2` ([#9972](https://github.com/MetaMask/core/pull/9972))
-- Bump `@metamask/chomp-api-service` from `^4.0.0` to `^4.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
+- Bump `@metamask/chomp-api-service` from `^4.0.0` to `^4.0.2` ([#9972](https://github.com/MetaMask/core/pull/9972), [#10105](https://github.com/MetaMask/core/pull/10105))
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/money-account-utils` from `^1.1.0` to `^1.2.0` ([#10105](https://github.com/MetaMask/core/pull/10105))
 
 ## [3.0.2]
 
@@ -180,7 +215,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MoneyAccountUpgradeController` with `upgradeAccount` method ([#8426](https://github.com/MetaMask/core/pull/8426))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@4.0.0...@metamask/money-account-upgrade-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.2...@metamask/money-account-upgrade-controller@4.0.0
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.1...@metamask/money-account-upgrade-controller@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.0...@metamask/money-account-upgrade-controller@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.2.1...@metamask/money-account-upgrade-controller@3.0.0

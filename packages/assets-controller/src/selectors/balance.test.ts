@@ -309,6 +309,50 @@ describe('balance selectors', () => {
       expect(result.totalBalanceInFiat).toBeCloseTo(54060000000 * 2.5634e-11);
     });
 
+    it('excludes assets that have a balance but no assetsInfo metadata', () => {
+      const state = arrangeAssetsControllerState({
+        assetsBalance: {
+          [accountId1]: {
+            [assetEth]: { amount: '1' },
+            [assetUsdc]: { amount: '100' },
+          },
+        },
+        assetsInfo: {
+          [assetEth]: assetInfoEth,
+          // no entry for assetUsdc
+        },
+      });
+
+      const result = getAggregatedBalanceForAccount(state, selectedAccount);
+
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0].assetId).toBe(assetEth);
+    });
+
+    it('excludes assets without assetsInfo metadata from fiat totals', () => {
+      const state = arrangeAssetsControllerState({
+        assetsBalance: {
+          [accountId1]: {
+            [assetEth]: { amount: '1' },
+            [assetUsdc]: { amount: '100' },
+          },
+        },
+        assetsInfo: {
+          [assetEth]: assetInfoEth,
+          // no entry for assetUsdc
+        },
+        assetsPrice: {
+          [assetEth]: testFungibleAssetPrice(2000, 0),
+          [assetUsdc]: testFungibleAssetPrice(1, 0),
+        },
+      });
+
+      const result = getAggregatedBalanceForAccount(state, selectedAccount);
+
+      expect(result.entries).toHaveLength(1);
+      expect(result.totalBalanceInFiat).toBe(2000);
+    });
+
     it('excludes hidden assets', () => {
       const state = arrangeAssetsControllerState({
         assetsBalance: {

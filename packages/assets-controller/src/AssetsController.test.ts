@@ -3319,6 +3319,68 @@ describe('AssetsController', () => {
         },
       );
     });
+
+    it('does not run the startup refresh twice if a second start trigger fires before the first getAssets resolves', async () => {
+      await withController(
+        { clientControllerState: { isUiOpen: true } },
+        async ({ controller, messenger }) => {
+          let resolveGetAssets: (() => void) | undefined;
+          const getAssetsSpy = jest
+            .spyOn(controller, 'getAssets')
+            .mockImplementation(
+              () =>
+                new Promise((resolve) => {
+                  resolveGetAssets = (): void => resolve({});
+                }),
+            );
+
+          // First trigger: unlock + account tree ready. #start() kicks off
+          // #runStartupRefresh(), whose forced getAssets() call is still
+          // pending (it never resolves until we call resolveGetAssets below).
+          messenger.publish('KeyringController:unlock');
+          (messenger.publish as CallableFunction)(
+            'AccountTreeController:initialized',
+            {},
+          );
+          await flushPromises();
+
+          expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+
+          // Second, independent trigger fires while the first getAssets()
+          // call is still in flight — #activeSubscriptions is still empty at
+          // this point, so only the in-flight guard can prevent a duplicate
+          // #runStartupRefresh() (and its own forced getAssets() call).
+          (
+            messenger as unknown as {
+              publish: (topic: string, payload?: unknown) => void;
+            }
+          ).publish('ClientController:stateChanged', { isUiOpen: true });
+          await flushPromises();
+
+          expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+
+          resolveGetAssets?.();
+          await flushPromises();
+
+          // Once the single in-flight startup refresh settles, it also
+          // triggers one follow-up price-only getAssets() call — but a
+          // duplicate #runStartupRefresh() would double both of these (4
+          // total), not just add one. Two calls confirms no duplicate ran.
+          expect(getAssetsSpy).toHaveBeenCalledTimes(2);
+          expect(getAssetsSpy).toHaveBeenNthCalledWith(
+            1,
+            expect.anything(),
+            expect.objectContaining({ forceUpdate: true }),
+          );
+          expect(getAssetsSpy).toHaveBeenNthCalledWith(
+            2,
+            expect.anything(),
+            expect.objectContaining({ dataTypes: ['price'] }),
+          );
+          getAssetsSpy.mockRestore();
+        },
+      );
+    });
   });
 
   describe('subscribeAssetsPrice', () => {
