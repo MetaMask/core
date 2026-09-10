@@ -82,9 +82,9 @@ const config = createConfig([
   {
     files: ['**/*.test.{js,ts}'],
     rules: {
-      // These tests deliberately reach for `crypto` and `crypto.webcrypto`,
-      // and polyfill the global when running on Node 18. Flagging them as
-      // unsupported defeats the purpose of the polyfill they are testing.
+      // The rule treats the global `crypto` as experimental until Node 23,
+      // and the supported floor here is ^22.14.0. It is present and usable
+      // on 22, so the tests may use it.
       'n/no-unsupported-features/node-builtins': 'off',
     },
   },

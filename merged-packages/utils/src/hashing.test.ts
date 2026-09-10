@@ -1,26 +1,12 @@
 import * as nobleHashes256 from '@noble/hashes/sha256';
 import * as nobleHashes512 from '@noble/hashes/sha512';
-import { webcrypto } from 'crypto';
-import { parse } from 'semver';
 
 import { bytesToHex, stringToBytes } from './bytes';
 import { sha256, sha512, sha384 } from './hashing';
 
 describe('hash functions', () => {
-  const originalSubtle = globalThis.crypto?.subtle ?? webcrypto.subtle;
+  const originalSubtle = globalThis.crypto.subtle;
   const originalDigest = originalSubtle?.digest?.bind(originalSubtle);
-
-  beforeEach(() => {
-    const isNode18 = parse(process.version)?.major === 18;
-
-    // The global does not exist in Node 18, so we must add it.
-    if (isNode18) {
-      Object.defineProperty(globalThis, 'crypto', {
-        value: webcrypto,
-        writable: true,
-      });
-    }
-  });
 
   afterEach(() => {
     Object.defineProperty(globalThis.crypto, 'subtle', {

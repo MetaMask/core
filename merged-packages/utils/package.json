@@ -88,7 +88,7 @@
     "@ts-bridge/shims": "^0.1.1",
     "@types/jest": "^30.0.0",
     "@types/jest-when": "^3.5.3",
-    "@types/node": "~18.18.14",
+    "@types/node": "^22.13.14",
     "@types/semver": "^7",
     "@types/uuid": "^9.0.8",
     "eslint": "^9.39.1",
@@ -121,7 +121,7 @@
     "directory": "src"
   },
   "engines": {
-    "node": "^18.18 || ^20.14 || >=22"
+    "node": "^22.14.0 || ^24"
   },
   "packageManager": "yarn@4.16.0",
   "lavamoat": {

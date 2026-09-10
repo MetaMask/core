@@ -92,7 +92,7 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, null, DependencyType) :-
   DependencyType == 'devDependencies'.
 
   % The package must specify the expected minimum Node version.
-gen_enforced_field(WorkspaceCwd, 'engines.node', '^18.18 || ^20.14 || >=22').
+gen_enforced_field(WorkspaceCwd, 'engines.node', '^22.14.0 || ^24').
 
 % The package is public.
 gen_enforced_field(WorkspaceCwd, 'publishConfig.access', 'public').
