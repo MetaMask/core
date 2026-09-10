@@ -11,7 +11,11 @@ import {
   InvalidateOptions,
   QueryKey,
   QueryClientConfig,
+  Mutation,
   MutationOptions,
+  MutationState,
+  MutationFunction,
+  MutationFunctionContext,
 } from '@tanstack/query-core';
 import { v4 as uuidV4 } from 'uuid';
 
@@ -294,6 +298,7 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
   });
 
   // Override invalidateQueries to ensure the data service is invalidated as well.
+
   const originalInvalidate = client.invalidateQueries.bind(client);
 
   client.invalidateQueries = async (
@@ -319,8 +324,19 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
     return originalInvalidate(filters, options);
   };
 
-  // Override defaultMutationOptions to check for mutationKey if mutationFn is
-  // not provided.
+  // Tracks the `mutationFn`s that we install for data-service mutations, so the
+  // `build` override below can tell them apart from user-provided ones and only
+  // assign a `globalId` to mutations that are actually routed to a data
+  // service.
+  const dataServiceMutationFns = new WeakSet<
+    // We are interoperating with generic `mutationFn`s from @tanstack/query-core.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    MutationFunction<any, any>
+  >();
+
+  // Override `defaultMutationOptions` so that `mutationFn` uses the
+  // `mutationKey` to call an action on a data service through the messenger.
+
   const originalDefaultMutationOptions =
     client.defaultMutationOptions.bind(client);
 
@@ -333,17 +349,11 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
   ): Options => {
     const defaultedOptions = originalDefaultMutationOptions(options);
 
-    // Only mutations that fall back to the data-service default `mutationFn`
-    // need a `globalId` to correlate the UI and service caches. A mutation with
-    // a custom `mutationFn` never reaches a data service, so we leave it alone.
     if (defaultedOptions.mutationFn === undefined) {
-      // Generate the `globalId` once and memoize it on `meta` so it stays
-      // stable across the mutation's lifetime and can be matched against
-      // incoming cache updates.
-      const globalId = readGlobalId(defaultedOptions.meta) ?? uuidV4();
-      defaultedOptions.meta = { ...defaultedOptions.meta, globalId };
-
-      defaultedOptions.mutationFn = async (): Promise<unknown> => {
+      const dataServiceMutationFn = async (
+        _variables: unknown,
+        context: MutationFunctionContext,
+      ): Promise<unknown> => {
         const { mutationKey } = defaultedOptions;
 
         assert(
@@ -360,14 +370,80 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
 
         log(`Detected mutation request, calling action: "${action}"`);
 
-        // The `globalId` is passed as the trailing action argument. Each data
-        // service mutation method forwards it into `executeMutation`, which
-        // echoes it back on the service-side mutation's `meta`.
+        // Thanks to our `MutationCache.build` override below, by the time this
+        // `mutationFn` runs, our mutation *should* already have a `globalId`
+        // (which is available via `context.meta`).
+        const globalId = readGlobalId(context.meta);
+        // We can't realistically test that it doesn't, since
+        // `MutationCache.build` always runs first.
+        // istanbul ignore next
+        if (globalId === undefined) {
+          assert('Expected mutation to have a `globalId`.');
+        }
+
         return await messenger.call(action, ...(params as Json[]), globalId);
       };
+
+      dataServiceMutationFns.add(dataServiceMutationFn);
+      defaultedOptions.mutationFn = dataServiceMutationFn;
     }
 
     return defaultedOptions;
+  };
+
+  // Override `build` to ensure that any data-service mutation created via
+  // `executeMutation` or manually has a `globalId`.
+
+  const originalBuildMutation = mutationCache.build.bind(mutationCache);
+
+  mutationCache.build = function <TData, TError, TVariables, TOnMutateResult>(
+    buildClient: QueryClient,
+    options: MutationOptions<TData, TError, TVariables, TOnMutateResult>,
+    state?: MutationState<TData, TError, TVariables, TOnMutateResult>,
+  ): Mutation<TData, TError, TVariables, TOnMutateResult> {
+    const mutation = originalBuildMutation(buildClient, options, state);
+    const { mutationFn } = mutation.options;
+
+    // Only mutations routed to a data service need a `globalId`, and only if
+    // they don't already have one (e.g., a mutation rebuilt from dehydrated
+    // service state may already have one).
+    // We recognize data-service mutation functions by consulting a WeakSet
+    // (and we use a WeakSet to distinguish mutation functions that *we*
+    // installed via the `defaultMutationOptions` override above, vs. ones that
+    // the engineer has added).
+    if (
+      mutationFn === undefined ||
+      !dataServiceMutationFns.has(mutationFn) ||
+      readGlobalId(mutation.options.meta) !== undefined
+    ) {
+      return mutation;
+    }
+
+    const globalId = uuidV4();
+
+    // Give the mutation its own `options`/`meta` objects rather than mutating
+    // in place. When options are already defaulted, TanStack returns the shared
+    // observer options as-is, so mutating them would leak this mutation's
+    // `globalId` back onto the observer and cause the next mutation built from
+    // that observer to reuse the same id.
+    const originalSetMutationOptions = mutation.setOptions.bind(mutation);
+    originalSetMutationOptions({
+      ...mutation.options,
+      meta: { ...mutation.options.meta, globalId },
+    });
+
+    // `MutationObserver.setOptions` (triggered on every re-render) replaces a
+    // pending mutation's options wholesale, which would otherwise strip the
+    // `globalId` and stop the mutation from matching its service-side cache
+    // updates. Preserve the established `globalId` across such updates.
+    mutation.setOptions = (nextOptions): void => {
+      originalSetMutationOptions({
+        ...nextOptions,
+        meta: { ...nextOptions.meta, globalId },
+      });
+    };
+
+    return mutation;
   };
 
   return client;

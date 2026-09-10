@@ -350,6 +350,109 @@ describe('createUIQueryClient', () => {
     service.destroy();
   });
 
+  it('assigns a distinct `globalId` to each mutation built from a single observer that mutates more than once', async () => {
+    const { clientA: client, service } = createClients();
+
+    mockAddFollowerRequest();
+    mockAddFollowerRequest();
+
+    const observer = new TanStackQueryMutationObserver<AddFollowerResponse>(
+      client,
+      { mutationKey: addFollowerMutationKey },
+    );
+
+    await observer.mutate();
+    await observer.mutate();
+
+    const globalMutationIds = client
+      .getMutationCache()
+      .findAll({ mutationKey: addFollowerMutationKey })
+      .map((mutation) => mutation.meta?.globalId);
+
+    expect(globalMutationIds).toHaveLength(2);
+    expect(globalMutationIds[0]).toBeDefined();
+    expect(globalMutationIds[1]).toBeDefined();
+    expect(globalMutationIds[0]).not.toBe(globalMutationIds[1]);
+
+    observer.reset();
+    service.destroy();
+  });
+
+  it('preserves a pending mutation`s `globalId` when the observer`s options are re-defaulted', async () => {
+    const { clientA: client, messenger, service } = createClients();
+
+    const { promise: promiseToResolveMutation, resolve: resolveMutation } =
+      createDeferredPromise();
+    const replyFn = async (): Promise<[number, ReplyBody]> => {
+      await promiseToResolveMutation;
+      return [
+        DEFAULT_ADD_FOLLOWER_REPLY.status,
+        DEFAULT_ADD_FOLLOWER_REPLY.body,
+      ] as const;
+    };
+    mockAddFollowerRequest({ replyFn });
+
+    const observer = new TanStackQueryMutationObserver<AddFollowerResponse>(
+      client,
+      { mutationKey: addFollowerMutationKey },
+    );
+
+    const promiseForMutation = observer.mutate();
+    jest.advanceTimersByTime(0);
+
+    const mutationFromUi = client
+      .getMutationCache()
+      .find({ mutationKey: addFollowerMutationKey });
+    assert(mutationFromUi);
+    const globalIdBeforeReDefaulting = mutationFromUi.meta?.globalId;
+
+    // Simulate a re-render passing a fresh options object (as `useMutation`
+    // does) while the mutation is still in flight. This must not mint a new
+    // `globalId` for the in-flight mutation.
+    observer.setOptions({ mutationKey: addFollowerMutationKey });
+
+    const globalIdAfterReDefaulting = mutationFromUi.meta?.globalId;
+    expect(globalIdAfterReDefaulting).toBe(globalIdBeforeReDefaulting);
+
+    resolveMutation();
+    await promiseForMutation;
+
+    const { globalId } = mutationFromUi.meta ?? {};
+
+    const hash = hashKey(addFollowerMutationKey);
+    messenger.publish(`ExampleDataService:cacheUpdated:${hash}`, {
+      objectType: 'mutation',
+      type: 'updated',
+      state: {
+        queries: [],
+        mutations: [
+          {
+            mutationKey: addFollowerMutationKey,
+            meta: { globalId },
+            state: {
+              context: undefined,
+              data: { followed: [{ profileId: 'from-service' }] },
+              error: null,
+              failureCount: 0,
+              failureReason: null,
+              isPaused: false,
+              status: 'success' as const,
+              submittedAt: 0,
+              variables: undefined,
+            },
+          },
+        ],
+      },
+    });
+
+    expect(mutationFromUi.state.data).toStrictEqual({
+      followed: [{ profileId: 'from-service' }],
+    });
+
+    observer.reset();
+    service.destroy();
+  });
+
   it('ignores :cacheUpdated events whose referenced mutation carries no `globalId`', async () => {
     const { clientA: client, messenger, service } = createClients();
 
@@ -425,6 +528,9 @@ describe('createUIQueryClient', () => {
 
     expect(mutations).toHaveLength(2);
     expect(mutations[1].state.data).toBe('custom-result');
+    // The mutation with a custom `mutationFn` is never routed to the data
+    // service, so it must not be tagged with a `globalId`.
+    expect(mutations[1].meta?.globalId).toBeUndefined();
 
     customObserver.reset();
     serviceObserver.reset();
