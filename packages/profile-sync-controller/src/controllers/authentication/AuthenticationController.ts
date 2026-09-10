@@ -151,6 +151,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getCustomerServiceToken',
   'isSignedIn',
   'requestProfilePairing',
+  'clearState',
 ] as const;
 
 export type Actions =
@@ -729,6 +730,14 @@ export class AuthenticationController extends BaseController<
       state.isSignedIn = false;
       state.srpSessionData = undefined;
     });
+  }
+
+  /**
+   * Resets the controller to `defaultState`. Clients call this on wallet reset
+   * so the next wallet starts unsigned with both pairing gates re-armed.
+   */
+  public clearState(): void {
+    this.update(() => ({ ...defaultState }));
   }
 
   /**
