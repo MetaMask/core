@@ -25,6 +25,7 @@ import {
   string,
   type,
   union,
+  unknown,
 } from '@metamask/superstruct';
 import { Duration, getErrorMessage, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
@@ -266,14 +267,6 @@ const ApprovalFeatureTypeStruct = union([
   literal(ApprovalFeatureType.Info),
 ]);
 
-const HotlistTargetListStruct = union([
-  literal('eth_phishing_detect_config.allowlist'),
-  literal('eth_phishing_detect_config.blocklist'),
-  literal('eth_phishing_detect_config.blocklistPaths'),
-  literal('eth_phishing_detect_config.fuzzylist'),
-  literal('eth_phishing_detect_config.c2DomainBlocklist'),
-]);
-
 const StalelistResponseStruct = type({
   data: type({
     allowlist: array(string()),
@@ -291,7 +284,9 @@ const HotlistDiffsResponseStruct = type({
     type({
       url: string(),
       timestamp: number(),
-      targetList: HotlistTargetListStruct,
+      // Kept open so that a list added server-side does not reject the whole
+      // hotlist; `applyDiffs` ignores entries for unknown list types.
+      targetList: string(),
       isRemoval: optional(boolean()),
     }),
   ),
@@ -300,7 +295,9 @@ const HotlistDiffsResponseStruct = type({
 const C2DomainBlocklistResponseStruct = type({
   recentlyAdded: array(string()),
   recentlyRemoved: array(string()),
-  lastFetchedAt: number(),
+  // The controller never reads this field, so its absence must not reject
+  // the whole blocklist response.
+  lastFetchedAt: optional(number()),
 });
 
 const ScanUrlResponseStruct = type({
@@ -309,9 +306,11 @@ const ScanUrlResponseStruct = type({
   fetchError: optional(string()),
 });
 
+// Entries are validated individually by `bulkScanUrls`, so that one malformed
+// entry is reported for that URL rather than discarding every verdict.
 const BulkScanUrlsResponseStruct = type({
-  results: record(string(), ScanUrlResponseStruct),
-  errors: record(string(), array(string())),
+  results: record(string(), unknown()),
+  errors: optional(record(string(), array(string()))),
 });
 
 const TokenScanResultStruct = type({
@@ -320,8 +319,11 @@ const TokenScanResultStruct = type({
   address: optional(string()),
 });
 
+// Entries are validated individually by the token batch loader, so that one
+// malformed entry is reported for that token rather than discarding every
+// verdict.
 const BulkScanTokensResponseStruct = type({
-  results: optional(record(string(), TokenScanResultStruct)),
+  results: optional(record(string(), unknown())),
 });
 
 const ScanAddressResponseStruct = type({
@@ -361,8 +363,10 @@ const ApprovalStruct = type({
   verdict: ApprovalResultTypeStruct,
 });
 
+// Entries are validated individually by `getApprovals`, so that one malformed
+// approval does not empty the whole list.
 const ApprovalsResponseStruct = type({
-  approvals: array(ApprovalStruct),
+  approvals: array(unknown()),
 });
 
 // === BATCH LOADING ===
@@ -754,20 +758,30 @@ export class PhishingDataService extends BaseDataService<
           jsonResponse,
           BulkScanUrlsResponseStruct,
           'bulk URL scan',
-        ) as BulkPhishingDetectionScanResponse;
+        );
         // URLs the endpoint reported an error for are rejected rather than
         // resolved, so that the failure is surfaced to the caller instead of
         // being cached as a "no result" verdict for the stale time.
         const itemErrors: Record<string, Error> = {};
-        for (const [key, messages] of Object.entries(response.errors)) {
+        for (const [key, messages] of Object.entries(response.errors ?? {})) {
           itemErrors[key] = new BatchItemError(messages.join(', '));
         }
         const results: Record<string, Json> = {};
         for (const [key, result] of Object.entries(response.results)) {
-          if (result.fetchError) {
+          if (!is(result, ScanUrlResponseStruct)) {
+            itemErrors[key] = new BatchItemError(
+              'Malformed result returned by bulk URL scan endpoint',
+            );
+          } else if (result.fetchError) {
             itemErrors[key] = new BatchItemError(result.fetchError);
           } else {
-            results[key] = result as Json;
+            // Entries are shared with `scanUrl`, whose results always carry a
+            // hostname, so fill it in before the entry reaches the cache.
+            const [hostname] = getHostnameFromWebUrl(key);
+            results[key] = {
+              ...result,
+              hostname: result.hostname ?? hostname,
+            } as Json;
           }
         }
         for (const url of batchUrls) {
@@ -784,7 +798,7 @@ export class PhishingDataService extends BaseDataService<
       },
     });
 
-    const requested: { url: string; hostname: string }[] = [];
+    const requested: string[] = [];
     const entries: Promise<Json | null>[] = [];
     for (const url of urls) {
       const [scanUrlParam, ok] = getPhishingDetectionScanUrlParam(url);
@@ -792,8 +806,7 @@ export class PhishingDataService extends BaseDataService<
         addError(url, 'url is not a valid web URL');
         continue;
       }
-      const [hostname] = getHostnameFromWebUrl(url);
-      requested.push({ url, hostname });
+      requested.push(url);
       entries.push(
         // Keyed by the scan parameter rather than the bare hostname so that
         // path-sensitive hosts (see
@@ -814,7 +827,7 @@ export class PhishingDataService extends BaseDataService<
     let requestFailure: { reason: unknown } | undefined;
 
     for (const [index, outcome] of settled.entries()) {
-      const { url, hostname } = requested[index];
+      const url = requested[index];
 
       if (outcome.status === 'rejected') {
         addError(url, getErrorMessage(outcome.reason));
@@ -824,13 +837,7 @@ export class PhishingDataService extends BaseDataService<
         continue;
       }
 
-      const scanResult = outcome.value as PhishingDetectionScanResult;
-      // Entries seeded by single-URL scans hold the raw scan response,
-      // which may not include the hostname; fill it in from the URL.
-      results[url] = {
-        ...scanResult,
-        hostname: scanResult.hostname ?? hostname,
-      };
+      results[url] = outcome.value as PhishingDetectionScanResult;
     }
 
     // A request-level failure that produced nothing at all is surfaced to the
@@ -930,8 +937,19 @@ export class PhishingDataService extends BaseDataService<
           jsonResponse,
           BulkScanTokensResponseStruct,
           'bulk token scan',
-        ) as TokenScanApiResponse;
-        return { results: (response.results ?? {}) as Record<string, Json> };
+        );
+        const results: Record<string, Json> = {};
+        const errors: Record<string, Error> = {};
+        for (const [key, result] of Object.entries(response.results ?? {})) {
+          if (is(result, TokenScanResultStruct)) {
+            results[key] = result as Json;
+          } else {
+            errors[key] = new BatchItemError(
+              'Malformed result returned by bulk token scan endpoint',
+            );
+          }
+        }
+        return { results, errors };
       },
     });
   }
@@ -1014,11 +1032,16 @@ export class PhishingDataService extends BaseDataService<
       ),
     );
 
-    return this.#validate(
+    const response = this.#validate(
       jsonResponse,
       ApprovalsResponseStruct,
       'approvals',
-    ) as ApprovalsResponse;
+    );
+    return {
+      approvals: response.approvals.filter((approval) =>
+        is(approval, ApprovalStruct),
+      ),
+    } as ApprovalsResponse;
   }
 
   /**

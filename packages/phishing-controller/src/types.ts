@@ -40,12 +40,12 @@ export type EthPhishingResponse = {
  *
  * @property recentlyAdded - List of c2 domains recently added to the blocklist
  * @property recentlyRemoved - List of c2 domains recently removed from the blocklist
- * @property lastFetchedAt - Unix timestamp, in seconds, of the last fetch request
+ * @property lastFetchedAt - Unix timestamp, in seconds, of the last fetch request. Not read by the controller.
  */
 export type C2DomainBlocklistResponse = {
   recentlyAdded: string[];
   recentlyRemoved: string[];
-  lastFetchedAt: number;
+  lastFetchedAt?: number;
 };
 
 /**

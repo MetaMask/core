@@ -2087,6 +2087,61 @@ describe('PhishingController', () => {
       ]);
     });
 
+    it('ignores hotlist diffs that target an unrecognized list type while applying the rest', async () => {
+      const testBlockedDomain = 'some-test-blocked-url.com';
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
+        .reply(200, {
+          data: [
+            {
+              targetList: 'eth_phishing_detect_config.newlist',
+              url: 'some-new-list-url.com',
+              timestamp: 2,
+            },
+            {
+              targetList: 'eth_phishing_detect_config.blocklist',
+              url: testBlockedDomain,
+              timestamp: 1,
+            },
+          ],
+        });
+
+      const { controller } = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
+      await controller.updateHotlist();
+
+      // The unknown-type diff is skipped and does not advance lastUpdated;
+      // the recognized diff is still applied.
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [testBlockedDomain],
+          c2DomainBlocklist: [],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          name: ListNames.MetaMask,
+          version: 1,
+          lastUpdated: 1,
+        },
+      ]);
+    });
+
     it('should not update phishing lists if hotlist fetch returns 404', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)

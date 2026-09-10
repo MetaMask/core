@@ -198,17 +198,34 @@ describe('PhishingDataService', () => {
       expect(response).toStrictEqual(diffs);
     });
 
+    it('passes through diffs for unrecognized target lists', async () => {
+      const diffs = {
+        data: [
+          {
+            url: 'phishing.example.com',
+            timestamp: 1700000001,
+            targetList: 'unexpected.blocklist',
+          },
+        ],
+      };
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/1700000000`)
+        .reply(200, diffs);
+      const { rootMessenger } = createService();
+
+      const response = await rootMessenger.call(
+        'PhishingDataService:getHotlistDiffs',
+        1700000000,
+      );
+
+      expect(response).toStrictEqual(diffs);
+    });
+
     it('throws if the API returns a malformed response', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/1700000000`)
         .reply(200, {
-          data: [
-            {
-              url: 'phishing.example.com',
-              timestamp: 1700000001,
-              targetList: 'unexpected.blocklist',
-            },
-          ],
+          data: [{ url: 'phishing.example.com', timestamp: 'soon' }],
         });
       const { rootMessenger } = createService();
 
@@ -259,10 +276,21 @@ describe('PhishingDataService', () => {
       expect(response).toStrictEqual(blocklist);
     });
 
+    it('accepts a response without lastFetchedAt', async () => {
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, { recentlyAdded: ['abc'], recentlyRemoved: [] });
+      const { rootMessenger } = createService();
+
+      expect(
+        await rootMessenger.call('PhishingDataService:getC2DomainBlocklist'),
+      ).toStrictEqual({ recentlyAdded: ['abc'], recentlyRemoved: [] });
+    });
+
     it('throws if the API returns a malformed response', async () => {
       nock(CLIENT_SIDE_DETECION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
-        .reply(200, { recentlyAdded: [], recentlyRemoved: [] });
+        .reply(200, { recentlyAdded: 'abc', recentlyRemoved: [] });
       const { rootMessenger } = createService();
 
       await expect(
@@ -522,13 +550,42 @@ describe('PhishingDataService', () => {
       expect(response).toStrictEqual(apiResponse);
     });
 
-    it('throws if the API returns a malformed response', async () => {
+    it('reports a malformed result for that URL and keeps the others', async () => {
       nock(PHISHING_DETECTION_BASE_URL)
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`)
         .reply(200, {
-          results: { 'https://example1.com': {} },
+          results: {
+            'https://example1.com': {},
+            'https://example2.com': { recommendedAction: 'BLOCK' },
+          },
           errors: {},
         });
+      const { rootMessenger } = createService();
+
+      const response = await rootMessenger.call(
+        'PhishingDataService:bulkScanUrls',
+        ['https://example1.com', 'https://example2.com'],
+      );
+
+      expect(response).toStrictEqual({
+        results: {
+          'https://example2.com': {
+            recommendedAction: 'BLOCK',
+            hostname: 'example2.com',
+          },
+        },
+        errors: {
+          'https://example1.com': [
+            'Malformed result returned by bulk URL scan endpoint',
+          ],
+        },
+      });
+    });
+
+    it('throws if the API returns a malformed response', async () => {
+      nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`)
+        .reply(200, { results: 'nope' });
       const { rootMessenger } = createService();
 
       await expect(
@@ -538,6 +595,49 @@ describe('PhishingDataService', () => {
       ).rejects.toThrow(
         'Malformed response received from bulk URL scan endpoint',
       );
+    });
+
+    it('accepts a response without an errors object', async () => {
+      nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`)
+        .reply(200, {
+          results: { 'https://example1.com': { recommendedAction: 'NONE' } },
+        });
+      const { rootMessenger } = createService();
+
+      expect(
+        await rootMessenger.call('PhishingDataService:bulkScanUrls', [
+          'https://example1.com',
+        ]),
+      ).toStrictEqual({
+        results: {
+          'https://example1.com': {
+            recommendedAction: 'NONE',
+            hostname: 'example1.com',
+          },
+        },
+        errors: {},
+      });
+    });
+
+    it('stores a hostname on cache entries shared with scanUrl', async () => {
+      nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`)
+        .reply(200, {
+          results: {
+            'https://evil.com/some/path': { recommendedAction: 'BLOCK' },
+          },
+          errors: {},
+        });
+      const { rootMessenger } = createService();
+      await rootMessenger.call('PhishingDataService:bulkScanUrls', [
+        'https://evil.com/some/path',
+      ]);
+
+      // No GET interceptor is registered, so this must be a cache hit.
+      expect(
+        await rootMessenger.call('PhishingDataService:scanUrl', 'evil.com'),
+      ).toStrictEqual({ recommendedAction: 'BLOCK', hostname: 'evil.com' });
     });
 
     it('sends each path separately for path-sensitive hosts', async () => {
@@ -852,14 +952,58 @@ describe('PhishingDataService', () => {
       expect(response).toStrictEqual({ results: {} });
     });
 
-    it('throws if the API returns a malformed response', async () => {
+    it('omits a malformed result for that token and keeps the others', async () => {
       nock(SECURITY_ALERTS_BASE_URL)
         .post(TOKEN_BULK_SCANNING_ENDPOINT)
         .reply(200, {
           results: {
             '0x1234567890123456789012345678901234567890': {},
+            '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd': {
+              result_type: 'Malicious',
+            },
           },
         });
+      const { rootMessenger } = createService();
+
+      const response = await rootMessenger.call(
+        'PhishingDataService:bulkScanTokens',
+        'ethereum',
+        [
+          '0x1234567890123456789012345678901234567890',
+          '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+        ],
+      );
+
+      expect(response).toStrictEqual({
+        results: {
+          '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd': {
+            result_type: 'Malicious',
+          },
+        },
+      });
+    });
+
+    it('throws if every result in the batch is malformed', async () => {
+      nock(SECURITY_ALERTS_BASE_URL)
+        .post(TOKEN_BULK_SCANNING_ENDPOINT)
+        .reply(200, {
+          results: { '0x1234567890123456789012345678901234567890': {} },
+        });
+      const { rootMessenger } = createService();
+
+      await expect(
+        rootMessenger.call('PhishingDataService:bulkScanTokens', 'ethereum', [
+          '0x1234567890123456789012345678901234567890',
+        ]),
+      ).rejects.toThrow(
+        'Malformed result returned by bulk token scan endpoint',
+      );
+    });
+
+    it('throws if the API returns a malformed response', async () => {
+      nock(SECURITY_ALERTS_BASE_URL)
+        .post(TOKEN_BULK_SCANNING_ENDPOINT)
+        .reply(200, { results: 'nope' });
       const { rootMessenger } = createService();
 
       await expect(
@@ -1140,20 +1284,42 @@ describe('PhishingDataService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('throws if the API returns a malformed response', async () => {
+    it('omits malformed approvals and keeps valid ones', async () => {
+      const validApproval = {
+        allowance: {},
+        asset: {
+          address: '0xtoken',
+          symbol: 'TKN',
+          name: 'Token',
+          decimals: 18,
+        },
+        exposure: { value: '100', raw_value: '100000000000000000000' },
+        spender: { address: '0xspender' },
+        verdict: 'Malicious',
+      };
       nock(SECURITY_ALERTS_BASE_URL)
         .post(APPROVALS_ENDPOINT)
         .reply(200, {
           approvals: [
-            {
-              allowance: {},
-              asset: {},
-              exposure: {},
-              spender: {},
-              verdict: 'Benign',
-            },
+            validApproval,
+            { ...validApproval, asset: { ...validApproval.asset, name: null } },
           ],
         });
+      const { rootMessenger } = createService();
+
+      expect(
+        await rootMessenger.call(
+          'PhishingDataService:getApprovals',
+          'ethereum',
+          '0x1234567890123456789012345678901234567890',
+        ),
+      ).toStrictEqual({ approvals: [validApproval] });
+    });
+
+    it('throws if the API returns a malformed response', async () => {
+      nock(SECURITY_ALERTS_BASE_URL)
+        .post(APPROVALS_ENDPOINT)
+        .reply(200, { approvals: 'nope' });
       const { rootMessenger } = createService();
 
       await expect(
