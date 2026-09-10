@@ -1145,6 +1145,43 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    it('should preserve the existing revoke token when it is omitted', async () => {
+      const existingRevokeToken = 'existing-revoke-token';
+
+      await withController(
+        {
+          state: {
+            ...getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+            revokeToken: existingRevokeToken,
+          },
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+            isNewUser: false,
+          });
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:authenticate',
+            {
+              idTokens,
+              authConnectionId,
+              userId,
+              authConnection,
+              socialLoginEmail,
+              refreshToken,
+              accessToken,
+              metadataAccessToken,
+            },
+          );
+
+          expect(controller.state.revokeToken).toBe(existingRevokeToken);
+        },
+      );
+    });
   });
 
   describe('resolvePasswordSyncState (no lifecycle: outdated check)', () => {
@@ -4993,7 +5030,7 @@ describe('SeedlessOnboardingController', () => {
           resolveChangeEncKey(changeEncryptionKeyResult);
           await changePasswordPromise;
 
-          await expect(resolvePasswordSyncStatePromise).resolves.toBe(
+          expect(await resolvePasswordSyncStatePromise).toBe(
             PasswordSyncStatus.ReconcileKeyring,
           );
           expect(controller.state.passwordChangePhase).toBe(
@@ -7490,6 +7527,44 @@ describe('SeedlessOnboardingController', () => {
         );
       });
 
+      it('should not clear a newer in-flight refresh promise', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({
+            controller,
+            toprfClient,
+            mockRefreshJWTToken,
+          }) => {
+            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+            let nestedRefreshPromise!: Promise<void>;
+            mockRefreshJWTToken.mockImplementationOnce(() => {
+              // The nested call starts before the outer call assigns its
+              // in-flight promise. The outer assignment must not be cleared
+              // by the nested call's finally handler.
+              nestedRefreshPromise = controller.refreshAuthTokens();
+              return Promise.resolve({
+                idTokens: ['newIdToken'],
+                metadataAccessToken: 'mock-metadata-access-token',
+                accessToken,
+              });
+            });
+
+            await controller.refreshAuthTokens();
+            await nestedRefreshPromise;
+
+            expect(mockRefreshJWTToken).toHaveBeenCalledTimes(2);
+          },
+        );
+      });
+
       it('should clear the in-flight promise after failure, allowing subsequent calls to succeed', async () => {
         await withController(
           {
@@ -8942,6 +9017,41 @@ describe('SeedlessOnboardingController', () => {
           // The first one was removed in the catch block (line 1911)
           // The second one was removed after successful revocation
           expect(controller.state.pendingToBeRevokedTokens?.length).toBe(1);
+        },
+      );
+    });
+
+    it('should retain all pending tokens when every revocation fails', async () => {
+      const pendingTokens = [
+        {
+          refreshToken: 'old-refresh-token-1',
+          revokeToken: 'old-revoke-token-1',
+        },
+        {
+          refreshToken: 'old-refresh-token-2',
+          revokeToken: 'old-revoke-token-2',
+        },
+      ];
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            pendingToBeRevokedTokens: pendingTokens,
+          }),
+        },
+        async ({ controller, mockRevokeRefreshToken, baseMessenger }) => {
+          mockRevokeRefreshToken.mockRejectedValue(
+            new Error('Revoke failed'),
+          );
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:revokePendingRefreshTokens',
+          );
+
+          expect(controller.state.pendingToBeRevokedTokens).toStrictEqual(
+            pendingTokens,
+          );
         },
       );
     });

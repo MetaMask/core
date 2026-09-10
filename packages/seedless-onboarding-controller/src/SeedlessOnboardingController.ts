@@ -733,7 +733,6 @@ export class SeedlessOnboardingController<
       const performBackup = async (): Promise<void> => {
         await this.#assertPasswordInSync({
           skipCache: true,
-          skipLock: true, // skip lock since we already have the lock
         });
 
         // verify the password and unlock the vault
@@ -773,7 +772,6 @@ export class SeedlessOnboardingController<
 
       await this.#assertPasswordInSync({
         skipCache: true,
-        skipLock: true, // skip lock since we already have the lock
       });
 
       if (this.state.migrationVersion < SeedlessOnboardingMigrationVersion.V1) {
@@ -1001,7 +999,6 @@ export class SeedlessOnboardingController<
       const attemptChangePassword = async (): Promise<void> => {
         const { latestKeyIndex } = await this.#assertPasswordInSync({
           skipCache: true,
-          skipLock: true, // skip lock since we already have the lock
           // `changePassword` writes the phase before its token-refresh retry
           // and guards concurrency itself at entry, so its own assert must
           // not be blocked by the phase it just wrote.
@@ -1309,12 +1306,10 @@ export class SeedlessOnboardingController<
    * @param options.globalAuthPubKey - The global auth public key to compare with the current auth public key.
    * If not provided, the global auth public key will be fetched from the backend.
    * @param options.skipCache - If true, bypass the cache and force a fresh check.
-   * @param options.skipLock - Whether to skip the lock acquisition. (to prevent deadlock in case the caller already acquired the lock)
    * @returns A promise that resolves to true if the password is outdated, false otherwise.
    */
   async #checkIsPasswordOutdated(options?: {
     skipCache?: boolean;
-    skipLock?: boolean;
     globalAuthPubKey?: SEC1EncodedPublicKey;
   }): Promise<boolean> {
     const doCheckIsPasswordExpired = async (): Promise<boolean> => {
@@ -1376,10 +1371,7 @@ export class SeedlessOnboardingController<
     };
 
     return await this.#executeWithTokenRefresh(
-      async () =>
-        options?.skipLock
-          ? await doCheckIsPasswordExpired()
-          : await this.#withControllerLock(doCheckIsPasswordExpired),
+      async () => await doCheckIsPasswordExpired(),
       'checkIsPasswordOutdated',
     );
   }
@@ -2468,7 +2460,6 @@ export class SeedlessOnboardingController<
           try {
             const outdated = await this.#checkIsPasswordOutdated({
               skipCache: options?.skipCache,
-              skipLock: true,
             });
             return outdated
               ? PasswordSyncStatus.PasswordOutdated
@@ -2484,7 +2475,6 @@ export class SeedlessOnboardingController<
             // check regardless of `skipCache`.
             const outdated = await this.#checkIsPasswordOutdated({
               skipCache: true,
-              skipLock: true,
             });
             if (!outdated) {
               // Remote did not commit. Clear the phase; unlock with the old
@@ -2577,7 +2567,6 @@ export class SeedlessOnboardingController<
           try {
             const outdated = await this.#checkIsPasswordOutdated({
               skipCache: true,
-              skipLock: true,
             });
             if (!outdated) {
               return PasswordSyncStatus.InSync;
@@ -2716,14 +2705,12 @@ export class SeedlessOnboardingController<
    *
    * @param options - The options for asserting the password is in sync.
    * @param options.skipCache - Whether to skip the cache check.
-   * @param options.skipLock - Whether to skip the lock acquisition. (to prevent deadlock in case the caller already acquired the lock)
    * @param options.skipPhaseCheck - Whether to skip the `passwordChangePhase` guard. Only `changePassword` should set this: it guards concurrency itself at entry and writes the phase before its token-refresh retry, so its own internal assert must not be blocked by the phase it just wrote.
    * @returns The global auth public key and the latest key index.
    * @throws If the password is outdated.
    */
   async #assertPasswordInSync(options?: {
     skipCache?: boolean;
-    skipLock?: boolean;
     /**
      * Skip the `passwordChangePhase` guard. Only `changePassword` should set
      * this: it guards concurrency itself at entry and writes the phase
