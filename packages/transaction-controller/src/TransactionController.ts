@@ -1272,7 +1272,8 @@ export class TransactionController extends BaseController<
     } else {
       const newTransactionMeta = cloneDeep(addedTransactionMeta);
 
-      this.#updateGasProperties(newTransactionMeta)
+      // eslint-disable-next-line no-void
+      void this.#updateGasProperties(newTransactionMeta)
         .then(() => {
           this.#updateTransactionInternal(
             {
@@ -1308,7 +1309,8 @@ export class TransactionController extends BaseController<
 
     this.#addMetadata(addedTransactionMeta);
 
-    delegationAddressPromise
+    // eslint-disable-next-line no-void
+    void delegationAddressPromise
       .then((delegationAddress) => {
         this.#updateTransactionInternal(
           {
@@ -2418,21 +2420,20 @@ export class TransactionController extends BaseController<
       pickBy(transactionsToFilter, (transaction) => {
         // iterate over the predicateMethods keys to check if the transaction
         // matches the searchCriteria
+        const txParams = transaction.txParams as Record<string, unknown>;
+        const txMeta = transaction as Record<string, unknown>;
+
         for (const [key, predicate] of Object.entries(predicateMethods)) {
           // We return false early as soon as we know that one of the specified
           // search criteria do not match the transaction. This prevents
           // needlessly checking all criteria when we already know the criteria
           // are not fully satisfied. We check both txParams and the base
           // object as predicate keys can be either.
-          if (key in transaction.txParams) {
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            if (predicate((transaction.txParams as any)[key]) === false) {
+          if (key in txParams) {
+            if (predicate(txParams[key]) === false) {
               return false;
             }
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } else if (predicate((transaction as any)[key]) === false) {
+          } else if (predicate(txMeta[key]) === false) {
             return false;
           }
         }
