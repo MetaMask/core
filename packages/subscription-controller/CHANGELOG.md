@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `SubscriptionDelegationService` for Money Account Plus cash-subscription delegation setup. ([#10130](https://github.com/MetaMask/core/pull/10130))
+  - New messenger action `SubscriptionDelegationService:prepareDelegation` orchestrates periodic caveat construction, signing, CHOMP verification, Authenticated User Storage persistence, and CHOMP intent registration.
+  - Returns a verified `delegationHash` with `disposition: 'created' | 'reused'` for `SubscriptionController.startSubscriptionWithCrypto`; the controller does not depend on this service.
+  - `prepareDelegation` accepts the product, recurring interval, payer address, trial selection, optional balance-check flag, and optional `skipChompInteractions` flag; it resolves plan, token, and delegate data through `SubscriptionController:getPricing`.
+  - When `skipChompInteractions` is true, CHOMP verify and intent registration are skipped; the returned hash is computed locally and AUS persistence still occurs.
+  - Resolves the chain from `moneyAccountVaultConfig` and Delegation Framework v1.3.0 enforcers from `@metamask/delegation-deployments`.
+  - Uses pricing `delegateAddress` as both the delegation `delegate` and the RedeemerEnforcer redeemer.
+  - Offsets the period-transfer `startDate` by pricing `trialPeriodDays` only when the trial is selected.
+  - New messenger action `SubscriptionDelegationService:checkMoneyAccountBalance` compares Money Account convertible mUSD balance against pricing `unitAmount × minBillingCyclesForBalance`; `prepareDelegation` can gate on it via `checkBalance`.
+  - Exports `CASH_SUBSCRIPTION_DELEGATION_TYPE` (`'cash-subscription'`) for AUS metadata (and for CHOMP intent metadata once chomp-api-service supports that type).
+  - Only Money Account Plus is supported; Shield continues to use ERC-20 approval.
+
 ## [9.0.0]
 
 ### Changed
@@ -28,17 +42,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `SubscriptionDelegationService` for Money Account Plus cash-subscription delegation setup. ([#10130](https://github.com/MetaMask/core/pull/10130))
-  - New messenger action `SubscriptionDelegationService:prepareDelegation` orchestrates periodic caveat construction, signing, CHOMP verification, Authenticated User Storage persistence, and CHOMP intent registration.
-  - Returns a verified `delegationHash` with `disposition: 'created' | 'reused'` for `SubscriptionController.startSubscriptionWithCrypto`; the controller does not depend on this service.
-  - `prepareDelegation` accepts the product, recurring interval, payer address, trial selection, optional balance-check flag, and optional `skipChompInteractions` flag; it resolves plan, token, and delegate data through `SubscriptionController:getPricing`.
-  - When `skipChompInteractions` is true, CHOMP verify and intent registration are skipped; the returned hash is computed locally and AUS persistence still occurs.
-  - Resolves the chain from `moneyAccountVaultConfig` and Delegation Framework v1.3.0 enforcers from `@metamask/delegation-deployments`.
-  - Uses pricing `delegateAddress` as both the delegation `delegate` and the RedeemerEnforcer redeemer.
-  - Offsets the period-transfer `startDate` by pricing `trialPeriodDays` only when the trial is selected.
-  - New messenger action `SubscriptionDelegationService:checkMoneyAccountBalance` compares Money Account convertible mUSD balance against pricing `unitAmount × minBillingCyclesForBalance`; `prepareDelegation` can gate on it via `checkBalance`.
-  - Exports `CASH_SUBSCRIPTION_DELEGATION_TYPE` (`'cash-subscription'`) for AUS metadata (and for CHOMP intent metadata once chomp-api-service supports that type).
-  - Only Money Account Plus is supported; Shield continues to use ERC-20 approval.
 - Add `selectIsActiveSubscriber` to check whether a product has an active, trialing, or provisional subscription. ([#10017](https://github.com/MetaMask/core/pull/10017))
 - Add product-scoped entitlements to `SubscriptionController` state and export type-safe `selectHasEntitlement` and `selectIsUsageAvailable` selectors for Money Account Plus and Shield ([#10017](https://github.com/MetaMask/core/pull/10017))
 - Add `getBenefits` to fetch and persist Money Account Plus subscription benefits. ([#10103](https://github.com/MetaMask/core/pull/10103))
