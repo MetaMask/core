@@ -321,7 +321,9 @@ export class BaseDataService<
     queryFn: QueryFunction<TQueryFnData, TQueryKey>;
     responseStruct?: TDataStruct;
   }): Promise<TData> {
-    await this.#waitForInitialization();
+    if (this.#initializationPromise) {
+      await this.#waitForInitialization(this.#initializationPromise);
+    }
 
     return this.#queryClient.fetchQuery({
       ...options,
@@ -375,7 +377,9 @@ export class BaseDataService<
       },
     pageParam?: TPageParam,
   ): Promise<TData> {
-    await this.#waitForInitialization();
+    if (this.#initializationPromise) {
+      await this.#waitForInitialization(this.#initializationPromise);
+    }
 
     const cache = this.#queryClient.getQueryCache();
 
@@ -469,21 +473,25 @@ export class BaseDataService<
   }
 
   /**
-   * Waits for cache rehydration to finish if `init` has been called, giving up
-   * after the configured hydration timeout so that a slow or hung storage read
-   * cannot block queries indefinitely. A late rehydration is still applied by
-   * TanStack, which only overwrites entries older than the persisted ones.
+   * Waits for cache rehydration to finish, giving up after the configured
+   * hydration timeout so that a slow or hung storage read cannot block queries
+   * indefinitely. A late rehydration is still applied by TanStack, which only
+   * overwrites entries older than the persisted ones.
+   *
+   * Callers must only await this when `init` has been called: an asynchronous
+   * hop before a query starts changes its timing relative to callers' own
+   * timers, so services without persistence keep starting queries
+   * synchronously.
+   *
+   * @param initialization - The pending rehydration.
    */
-  async #waitForInitialization(): Promise<void> {
-    if (!this.#initializationPromise) {
-      return;
-    }
+  async #waitForInitialization(initialization: Promise<void>): Promise<void> {
     const timeout =
       this.#persistenceConfig?.hydrationTimeout ?? DEFAULT_HYDRATION_TIMEOUT;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
-        this.#initializationPromise,
+        initialization,
         new Promise<void>((resolve) => {
           timer = setTimeout(resolve, timeout);
         }),
