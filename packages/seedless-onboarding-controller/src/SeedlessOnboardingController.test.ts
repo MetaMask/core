@@ -4915,6 +4915,94 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('re-reads the lifecycle phase after waiting for an in-flight password change', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          const oldPassword = 'old-mock-password';
+          const newPassword = 'new-mock-password';
+
+          await newUserSetup(
+            toprfClient,
+            controller,
+            baseMessenger,
+            oldPassword,
+          );
+
+          const currentAuthPubKey = base64ToBytes(
+            controller.state.authPubKey as string,
+          );
+          const newToprfEncryptor = createMockToprfEncryptor();
+          const changeEncryptionKeyResult: ChangeEncryptionKeyResult = {
+            encKey: newToprfEncryptor.deriveEncKey(newPassword),
+            pwEncKey: newToprfEncryptor.derivePwEncKey(newPassword),
+            authKeyPair: newToprfEncryptor.deriveAuthKeyPair(newPassword),
+          };
+
+          let resolveChangeEncKeyStarted!: () => void;
+          const changeEncKeyStarted = new Promise<void>((resolve) => {
+            resolveChangeEncKeyStarted = resolve;
+          });
+          let resolveChangeEncKey!: (
+            result: ChangeEncryptionKeyResult,
+          ) => void;
+          const changeEncKeyResult = new Promise<ChangeEncryptionKeyResult>(
+            (resolve) => {
+              resolveChangeEncKey = resolve;
+            },
+          );
+
+          jest
+            .spyOn(toprfClient, 'fetchAuthPubKey')
+            .mockResolvedValueOnce({
+              authPubKey: currentAuthPubKey,
+              keyIndex: 1,
+            })
+            .mockResolvedValue({
+              authPubKey: changeEncryptionKeyResult.authKeyPair.pk,
+              keyIndex: 1,
+            });
+          jest
+            .spyOn(toprfClient, 'changeEncKey')
+            .mockImplementation(() => {
+              resolveChangeEncKeyStarted();
+              return changeEncKeyResult;
+            });
+
+          const changePasswordPromise = baseMessenger.call(
+            'SeedlessOnboardingController:changePassword',
+            newPassword,
+            oldPassword,
+          );
+          await changeEncKeyStarted;
+          expect(controller.state.passwordChangePhase).toBe(
+            SeedlessPasswordChangePhase.SeedlessChangePending,
+          );
+
+          // resolvePasswordSyncState snapshots the pending phase before it
+          // waits for the controller lock. The password change completes first,
+          // so the resolver must use LOCAL_KEYRING_PENDING instead of clearing
+          // the lifecycle and returning in-sync.
+          const resolvePasswordSyncStatePromise =
+            controller.resolvePasswordSyncState();
+          resolveChangeEncKey(changeEncryptionKeyResult);
+          await changePasswordPromise;
+
+          await expect(resolvePasswordSyncStatePromise).resolves.toBe(
+            PasswordSyncStatus.ReconcileKeyring,
+          );
+          expect(controller.state.passwordChangePhase).toBe(
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          );
+        },
+      );
+    });
+
     it('returns unknown and preserves the phase when the remote check fails', async () => {
       await withController(
         {

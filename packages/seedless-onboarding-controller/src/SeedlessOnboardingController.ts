@@ -2458,27 +2458,27 @@ export class SeedlessOnboardingController<
   async resolvePasswordSyncState(options?: {
     skipCache?: boolean;
   }): Promise<PasswordSyncStatus> {
-    const phase = this.state.passwordChangePhase;
-    switch (phase) {
-      case undefined: {
-        // Pure read with no state mutation; let the helper acquire the
-        // controller lock itself (no `skipLock`).
-        try {
-          const outdated = await this.#checkIsPasswordOutdated({
-            skipCache: options?.skipCache,
-          });
-          return outdated
-            ? PasswordSyncStatus.PasswordOutdated
-            : PasswordSyncStatus.InSync;
-        } catch {
-          // Remote state could not be established. Keep the wallet locked.
-          return PasswordSyncStatus.Unknown;
+    // The phase snapshot and any resulting check or transition must share the
+    // controller lock. Otherwise a concurrent password change can advance the
+    // phase after it is read and before this method acts on it.
+    return await this.#withControllerLock(async () => {
+      const phase = this.state.passwordChangePhase;
+      switch (phase) {
+        case undefined: {
+          try {
+            const outdated = await this.#checkIsPasswordOutdated({
+              skipCache: options?.skipCache,
+              skipLock: true,
+            });
+            return outdated
+              ? PasswordSyncStatus.PasswordOutdated
+              : PasswordSyncStatus.InSync;
+          } catch {
+            // Remote state could not be established. Keep the wallet locked.
+            return PasswordSyncStatus.Unknown;
+          }
         }
-      }
-      case SeedlessPasswordChangePhase.SeedlessChangePending: {
-        // Mutates the phase, so hold the lock for the whole branch and tell
-        // the helper we already have it.
-        return await this.#withControllerLock(async () => {
+        case SeedlessPasswordChangePhase.SeedlessChangePending: {
           try {
             // Remote outcome is ambiguous; force an authoritative remote
             // check regardless of `skipCache`.
@@ -2503,17 +2503,17 @@ export class SeedlessOnboardingController<
             // keep the wallet locked.
             return PasswordSyncStatus.Unknown;
           }
-        });
+        }
+        case SeedlessPasswordChangePhase.SeedlessCommitted:
+          return PasswordSyncStatus.EnterNewPassword;
+        case SeedlessPasswordChangePhase.LocalKeyringPending:
+          return PasswordSyncStatus.ReconcileKeyring;
+        default:
+          // Terminal phases (KEY_SYNC_PENDING, UNKNOWN) and any unrecognized
+          // persisted value share routing.
+          return this.#statusForTerminalPhase(phase);
       }
-      case SeedlessPasswordChangePhase.SeedlessCommitted:
-        return PasswordSyncStatus.EnterNewPassword;
-      case SeedlessPasswordChangePhase.LocalKeyringPending:
-        return PasswordSyncStatus.ReconcileKeyring;
-      default:
-        // Terminal phases (KEY_SYNC_PENDING, UNKNOWN) and any unrecognized
-        // persisted value share routing.
-        return this.#statusForTerminalPhase(phase);
-    }
+    });
   }
 
   /**
