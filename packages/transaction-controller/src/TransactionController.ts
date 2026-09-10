@@ -3163,8 +3163,6 @@ export class TransactionController extends BaseController<
         },
       );
 
-      this.#onTransactionStatusChange(transactionMeta);
-
       // eslint-disable-next-line require-atomic-updates
       transactionMeta = await this.#applyBeforeSignHook(transactionMeta);
 
@@ -3228,8 +3226,6 @@ export class TransactionController extends BaseController<
           },
         );
 
-        this.#onTransactionStatusChange(transactionMeta);
-
         rawTx = await this.#trace(
           { name: 'Sign', parentContext: traceContext },
           () => this.#signTransaction(transactionMeta, true, true),
@@ -3238,6 +3234,8 @@ export class TransactionController extends BaseController<
         // eslint-disable-next-line require-atomic-updates
         transactionMeta = this.#getTransactionOrThrow(transactionId);
       }
+
+      this.#onTransactionStatusChange(transactionMeta);
 
       if (!(await this.#beforePublish(transactionMeta))) {
         log('Skipping publishing transaction based on hook');
