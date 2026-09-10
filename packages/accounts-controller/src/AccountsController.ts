@@ -34,7 +34,7 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import { isCaipChainId } from '@metamask/utils';
 import type { CaipChainId } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import { AccountsControllerMethodActions } from './AccountsController-method-action-types.js';
 import { projectLogger as log } from './logger.js';

@@ -52,7 +52,7 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 import { produce } from 'immer';
-import { isEqual, union } from 'lodash';
+import { isEqual, union } from 'lodash-es';
 
 import type {
   AccountTrackerControllerUpdateNativeBalancesAction,

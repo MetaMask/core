@@ -12,7 +12,7 @@ import type {
 import type { CaipAssetType } from '@metamask/utils';
 import { isStrictHexString, parseCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
-import { orderBy } from 'lodash';
+import { orderBy } from 'lodash-es';
 import {
   createSelector as createSelector_,
   createStructuredSelector as createStructuredSelector_,
