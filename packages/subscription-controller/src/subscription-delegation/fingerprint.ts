@@ -21,10 +21,10 @@ export type SubscriptionDelegationFingerprint = {
    */
   nowSeconds: number;
   /**
-   * When true, only a still-deferred period start matches. When false, only
-   * an immediately redeemable start matches.
+   * When true, only a still-deferred period start (`> nowSeconds`) matches.
+   * When false, only an immediately redeemable start (`<= nowSeconds`) matches.
    */
-  isTrialRequested: boolean;
+  isTrialDeferred: boolean;
   enforcers: SubscriptionDelegationEnforcers;
 };
 
@@ -44,7 +44,7 @@ export function equalsIgnoreCase(left: string, right: string): boolean {
  * cash-subscription fingerprint. Salt is ignored so a previously signed
  * equivalent permission can be reused. Period `startDate` is compared only
  * as trial-deferred (`> nowSeconds`) vs immediately redeemable (`<= nowSeconds`)
- * so a trial request cannot reuse a live permission and vice versa.
+ * so a positive-length trial cannot reuse a live permission and vice versa.
  *
  * @param expected - Semantic fields that must match.
  * @returns Predicate over {@link DelegationResponse}.
@@ -120,7 +120,7 @@ export function makeMatchesSubscriptionDelegation(
       );
       const storedStartDate = Number(periodTerms.startDate);
       const isStoredDeferred = storedStartDate > expected.nowSeconds;
-      if (expected.isTrialRequested !== isStoredDeferred) {
+      if (expected.isTrialDeferred !== isStoredDeferred) {
         return false;
       }
 

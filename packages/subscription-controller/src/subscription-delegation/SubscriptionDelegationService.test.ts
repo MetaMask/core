@@ -629,6 +629,44 @@ describe('SubscriptionDelegationService', () => {
       expect(mocks.signDelegation).not.toHaveBeenCalled();
     });
 
+    it('reuses an immediately redeemable delegation when trialPeriodDays is 0', async () => {
+      const stored = buildStoredDelegation({
+        startDate: Math.floor(Date.now() / 1000),
+      });
+      const { service, mocks } = setup({
+        listDelegations: [stored],
+        intents: [
+          {
+            account: PAYER,
+            delegationHash: stored.metadata.delegationHash,
+            chainId: CHAIN_ID,
+            status: 'active',
+            metadata: stored.metadata,
+          },
+        ],
+        pricing: {
+          ...PRICING,
+          products: [
+            {
+              name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+              prices: [{ ...PRICE, trialPeriodDays: 0 }],
+            },
+          ],
+        },
+      });
+
+      const result = await service.prepareDelegation({
+        ...REQUEST,
+        isTrialRequested: true,
+      });
+
+      expect(result).toStrictEqual({
+        delegationHash: stored.metadata.delegationHash,
+        disposition: 'reused',
+      });
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
+    });
+
     it('reuses a matching delegation without CHOMP when skipChompInteractions is true', async () => {
       const stored = buildStoredDelegation();
       const { service, mocks } = setup({
