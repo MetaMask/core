@@ -387,7 +387,7 @@ describe('Gas Fee Tokens Utils', () => {
         },
       });
 
-      await expect(getGasFeeTokens(request)).resolves.toStrictEqual({
+      expect(await getGasFeeTokens(request)).toStrictEqual({
         gasFeeTokens: [],
         isGasFeeSponsored: false,
       });
@@ -406,7 +406,7 @@ describe('Gas Fee Tokens Utils', () => {
         },
       });
 
-      await expect(getGasFeeTokens(request)).resolves.toStrictEqual({
+      expect(await getGasFeeTokens(request)).toStrictEqual({
         gasFeeTokens: [],
         isGasFeeSponsored: false,
       });
