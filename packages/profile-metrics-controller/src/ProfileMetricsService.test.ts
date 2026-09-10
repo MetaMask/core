@@ -388,28 +388,40 @@ describe('ProfileMetricsService', () => {
         'ProfileMetricsService:submitMetrics',
         createMockRequest({
           accounts: [
-            { address: '0xAccountWithProof', scopes: ['eip155:1'], proof },
+            {
+              address: '0xMnemonicAccount',
+              scopes: ['eip155:1'],
+              accountSource: 'mnemonic',
+              proof,
+            },
             {
               address: '0xImportedAccount',
               scopes: ['eip155:1'],
               accountSource: 'imported',
             },
+            { address: '0xUnknownAccount', scopes: ['eip155:1'] },
           ],
         }),
       );
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       expect(body.accounts).toStrictEqual([
-        { address: '0xAccountWithProof', scopes: ['eip155:1'], proof },
+        {
+          address: '0xMnemonicAccount',
+          scopes: ['eip155:1'],
+          account_source: 'mnemonic',
+          proof,
+        },
         {
           address: '0xImportedAccount',
           scopes: ['eip155:1'],
           account_source: 'imported',
         },
+        { address: '0xUnknownAccount', scopes: ['eip155:1'] },
       ]);
-      expect(body.accounts[0]).not.toHaveProperty('account_source');
-      expect(body.accounts[1]).not.toHaveProperty('proof');
-      expect(body.accounts[1]).not.toHaveProperty('accountSource');
+      for (const account of body.accounts) {
+        expect(account).not.toHaveProperty('accountSource');
+      }
     });
   });
 

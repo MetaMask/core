@@ -376,8 +376,10 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
             accounts: accountsToSubmit,
           });
           this.update((state) => {
+            const reportedAccounts = new Set(state.reportedAccounts);
             for (const { address } of accountsToSubmit) {
-              if (!state.reportedAccounts.includes(address)) {
+              if (!reportedAccounts.has(address)) {
+                reportedAccounts.add(address);
                 state.reportedAccounts.push(address);
               }
             }
