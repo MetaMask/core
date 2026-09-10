@@ -1,6 +1,6 @@
 {
   "name": "@metamask/profile-metrics-controller",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "Manages user profile metrics",
   "keywords": [
     "Ethereum",
@@ -56,7 +56,7 @@
     "@metamask/keyring-controller": "^28.0.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/polling-controller": "^17.0.0",
-    "@metamask/profile-sync-controller": "^31.0.0",
+    "@metamask/profile-sync-controller": "^32.0.0",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",
