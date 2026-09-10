@@ -8,6 +8,7 @@ import {
   authorizeOIDC,
   getCustomerServiceToken,
   getNonce,
+  getOidcToken,
   getUserProfileLineage,
 } from './services.js';
 import type {
@@ -16,6 +17,8 @@ import type {
   AuthType,
   IBaseAuth,
   LoginResponse,
+  OidcTokenAudience,
+  OidcTokenClaim,
   UserProfile,
   UserProfileLineage,
 } from './types.js';
@@ -79,6 +82,14 @@ export class SIWEJwtBearerAuth implements IBaseAuth {
   async getCustomerServiceToken(): Promise<string> {
     const accessToken = await this.getAccessToken();
     return await getCustomerServiceToken(this.#config.env, accessToken);
+  }
+
+  async getOidcToken(
+    claims: OidcTokenClaim[],
+    audience: OidcTokenAudience,
+  ): Promise<string> {
+    const accessToken = await this.getAccessToken();
+    return await getOidcToken(this.#config.env, accessToken, claims, audience);
   }
 
   async signMessage(message: string): Promise<string> {

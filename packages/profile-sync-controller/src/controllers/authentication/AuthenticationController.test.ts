@@ -9,7 +9,7 @@ import type {
 
 import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth.js';
 import type { LoginResponse } from '../../sdk/index.js';
-import { Platform } from '../../sdk/index.js';
+import { EmailRequiredError, Platform } from '../../sdk/index.js';
 import {
   MOCK_ACCESS_JWT,
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
@@ -2083,6 +2083,97 @@ describe('AuthenticationController', () => {
     });
   });
 
+  describe('getOidcToken', () => {
+    it('should throw error if not logged in', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger } = createMockAuthenticationMessenger();
+      const controller = new AuthenticationController({
+        messenger,
+        state: { isSignedIn: false, needsProfilePairing: true },
+        metametrics,
+      });
+
+      await expect(controller.getOidcToken(['email'], 'kyc')).rejects.toThrow(
+        expect.any(Error),
+      );
+    });
+
+    it('should return the partner identity token', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      mockAuthenticationFlowEndpoints();
+
+      const { messenger } = createMockAuthenticationMessenger();
+      const originalState = mockSignedInState();
+      const controller = new AuthenticationController({
+        messenger,
+        state: originalState,
+        metametrics,
+      });
+
+      const result = await controller.getOidcToken(['email'], 'kyc');
+      expect(result).toBe(MOCK_ACCESS_JWT);
+    });
+
+    it('should throw if the oidc token request fails', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      mockAuthenticationFlowEndpoints({ endpointFail: 'oidcToken' });
+
+      const { messenger } = createMockAuthenticationMessenger();
+      const originalState = mockSignedInState();
+      const controller = new AuthenticationController({
+        messenger,
+        state: originalState,
+        metametrics,
+      });
+
+      await expect(controller.getOidcToken(['email'], 'kyc')).rejects.toThrow(
+        expect.any(Error),
+      );
+    });
+
+    it('should throw EmailRequiredError on 422', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      arrangeAuthAPIs({
+        mockOidcTokenUrl: {
+          status: 422,
+          body: { message: 'email_required', error: 'email_required' },
+        },
+      });
+
+      const { messenger } = createMockAuthenticationMessenger();
+      const originalState = mockSignedInState();
+      const controller = new AuthenticationController({
+        messenger,
+        state: originalState,
+        metametrics,
+      });
+
+      await expect(controller.getOidcToken(['email'], 'kyc')).rejects.toThrow(
+        EmailRequiredError,
+      );
+    });
+
+    it('should throw error if wallet is locked', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger, mockKeyringControllerGetState } =
+        createMockAuthenticationMessenger();
+
+      const originalState = mockSignedInState();
+
+      mockKeyringControllerGetState.mockReturnValue({ isUnlocked: false });
+
+      const controller = new AuthenticationController({
+        messenger,
+        state: originalState,
+        metametrics,
+      });
+
+      await expect(controller.getOidcToken(['email'], 'kyc')).rejects.toThrow(
+        expect.any(Error),
+      );
+    });
+  });
+
   describe('isSignedIn', () => {
     it('should return false if not logged in', () => {
       const metametrics = createMockAuthMetaMetrics();
@@ -2465,7 +2556,13 @@ function createMockAuthenticationMessenger(): {
  * @returns mock auth endpoints
  */
 function mockAuthenticationFlowEndpoints(params?: {
-  endpointFail: 'nonce' | 'login' | 'token' | 'lineage' | 'customerService';
+  endpointFail:
+    | 'nonce'
+    | 'login'
+    | 'token'
+    | 'lineage'
+    | 'customerService'
+    | 'oidcToken';
 }): ReturnType<typeof arrangeAuthAPIs> {
   return arrangeAuthAPIs({
     mockNonceUrl:
@@ -2478,6 +2575,8 @@ function mockAuthenticationFlowEndpoints(params?: {
       params?.endpointFail === 'lineage' ? { status: 500 } : undefined,
     mockCustomerServiceTokenUrl:
       params?.endpointFail === 'customerService' ? { status: 500 } : undefined,
+    mockOidcTokenUrl:
+      params?.endpointFail === 'oidcToken' ? { status: 500 } : undefined,
   });
 }
 

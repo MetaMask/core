@@ -12,6 +12,8 @@ import type {
   UserProfile,
   Pair,
   PairSocialIdentifierParams,
+  OidcTokenAudience,
+  OidcTokenClaim,
   UserProfileLineage,
 } from './authentication-jwt-bearer/types.js';
 import { AuthType } from './authentication-jwt-bearer/types.js';
@@ -86,6 +88,19 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
 
   async getCustomerServiceToken(entropySourceId?: string): Promise<string> {
     return await this.#sdk.getCustomerServiceToken(entropySourceId);
+  }
+
+  async getOidcToken(
+    claims: OidcTokenClaim[],
+    audience: OidcTokenAudience,
+    entropySourceId?: string,
+  ): Promise<string> {
+    if (this.#type === AuthType.SRP) {
+      this.#assertSRP(this.#type, this.#sdk);
+      return await this.#sdk.getOidcToken(claims, audience, entropySourceId);
+    }
+    this.#assertSIWE(this.#type, this.#sdk);
+    return await this.#sdk.getOidcToken(claims, audience);
   }
 
   async pairSrpProfiles(

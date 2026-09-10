@@ -9,6 +9,7 @@ import {
   PAIR_SOCIAL_IDENTIFIER_URL,
   PROFILE_LINEAGE_URL,
   CUSTOMER_SERVICE_TOKEN_URL,
+  PARTNER_IDENTITY_TOKEN_URL,
 } from '../authentication-jwt-bearer/services.js';
 
 export const MOCK_NONCE_URL = NONCE_URL(Env.PRD);
@@ -22,6 +23,9 @@ export const MOCK_PAIR_SOCIAL_IDENTIFIER_URL = PAIR_SOCIAL_IDENTIFIER_URL(
 );
 export const MOCK_PROFILE_LINEAGE_URL = PROFILE_LINEAGE_URL(Env.PRD);
 export const MOCK_CUSTOMER_SERVICE_TOKEN_URL = CUSTOMER_SERVICE_TOKEN_URL(
+  Env.PRD,
+);
+export const MOCK_PARTNER_IDENTITY_TOKEN_URL = PARTNER_IDENTITY_TOKEN_URL(
   Env.PRD,
 );
 
@@ -70,6 +74,13 @@ export const MOCK_OIDC_TOKEN_RESPONSE = {
 };
 
 export const MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE = {
+  access_token: MOCK_ACCESS_JWT,
+  refresh_token: 'ory_rt_mock_refresh_token',
+  expires_in: 3600,
+  token_type: 'bearer',
+};
+
+export const MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE = {
   access_token: MOCK_ACCESS_JWT,
   refresh_token: 'ory_rt_mock_refresh_token',
   expires_in: 3600,

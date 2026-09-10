@@ -18,6 +18,8 @@ import {
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
   MOCK_CUSTOMER_SERVICE_TOKEN_URL,
   MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE,
+  MOCK_PARTNER_IDENTITY_TOKEN_URL,
+  MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE,
 } from '../mocks/auth.js';
 
 type MockReply = {
@@ -148,6 +150,19 @@ export const handleMockCustomerServiceToken = (
   return mockCustomerServiceTokenEndpoint;
 };
 
+export const handleMockOidcToken = (mockReply?: MockReply): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE,
+  };
+  const mockOidcTokenEndpoint = nock(MOCK_PARTNER_IDENTITY_TOKEN_URL)
+    .persist()
+    .post('')
+    .reply(reply.status, reply.body);
+
+  return mockOidcTokenEndpoint;
+};
+
 export const arrangeAuthAPIs = (options?: {
   mockNonceUrl?: MockReply;
   mockOAuth2TokenUrl?: MockReply;
@@ -158,6 +173,7 @@ export const arrangeAuthAPIs = (options?: {
   mockPairSocialIdentifier?: MockReply;
   mockUserProfileLineageUrl?: MockReply;
   mockCustomerServiceTokenUrl?: MockReply;
+  mockOidcTokenUrl?: MockReply;
   onSrpLoginBody?: (body: unknown) => void;
   onPairSocialIdentifierBody?: (body: unknown) => void;
 }): {
@@ -170,6 +186,7 @@ export const arrangeAuthAPIs = (options?: {
   mockPairSocialIdentifierUrl: nock.Scope;
   mockUserProfileLineageUrl: nock.Scope;
   mockCustomerServiceTokenUrl: nock.Scope;
+  mockOidcTokenUrl: nock.Scope;
 } => {
   const mockNonceUrl = handleMockNonce(options?.mockNonceUrl);
   const mockOAuth2TokenUrl = handleMockOAuth2Token(options?.mockOAuth2TokenUrl);
@@ -192,6 +209,7 @@ export const arrangeAuthAPIs = (options?: {
   const mockCustomerServiceTokenUrl = handleMockCustomerServiceToken(
     options?.mockCustomerServiceTokenUrl,
   );
+  const mockOidcTokenUrl = handleMockOidcToken(options?.mockOidcTokenUrl);
 
   return {
     mockNonceUrl,
@@ -203,5 +221,6 @@ export const arrangeAuthAPIs = (options?: {
     mockPairSocialIdentifierUrl,
     mockUserProfileLineageUrl,
     mockCustomerServiceTokenUrl,
+    mockOidcTokenUrl,
   };
 };

@@ -40,6 +40,17 @@ export type PairSocialIdentifierParams = {
 };
 
 /**
+ * Claim names accepted by `POST /api/v2/oidc/token`. Only `email` is
+ * supported; `email_verified` is set by the server when email is present.
+ */
+export type OidcTokenClaim = 'email';
+
+/**
+ * Partner audience stamped on the minted JWT.
+ */
+export type OidcTokenAudience = 'kyc' | 'iron';
+
+/**
  * Tag appended to the SRP login `raw_message` so the auth server can
  * distinguish primary vs secondary SRPs.
  *

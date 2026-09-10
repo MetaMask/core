@@ -1,8 +1,10 @@
 import {
   getMockAuthAccessTokenResponse,
   getMockCustomerServiceTokenResponse,
+  getMockOidcTokenResponse,
   getE2EIdentifierFromJwt,
   MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE,
+  MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE,
   MOCK_OATH_TOKEN_RESPONSE,
 } from './mockResponses.js';
 
@@ -85,5 +87,15 @@ describe('getMockCustomerServiceTokenResponse()', () => {
     expect(mock.requestMethod).toBe('POST');
     expect(mock.url).toContain('/customer-service/token');
     expect(mock.response).toStrictEqual(MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE);
+  });
+});
+
+describe('getMockOidcTokenResponse()', () => {
+  it('returns a POST mock for the partner identity token endpoint', () => {
+    const mock = getMockOidcTokenResponse();
+
+    expect(mock.requestMethod).toBe('POST');
+    expect(mock.url).toContain('/oidc/token');
+    expect(mock.response).toStrictEqual(MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE);
   });
 });
