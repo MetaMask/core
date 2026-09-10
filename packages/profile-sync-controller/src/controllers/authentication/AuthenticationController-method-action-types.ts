@@ -110,6 +110,24 @@ export type AuthenticationControllerGetCustomerServiceTokenAction = {
   handler: AuthenticationController['getCustomerServiceToken'];
 };
 
+/**
+ * Mints a partner identity token for the specified SRP, logging in if needed.
+ *
+ * Calls `POST /api/v2/oidc/token` with the Hydra login bearer and returns
+ * the minted `access_token`. Email on live tokens is under JWT `ext`.
+ * HTTP 422 throws `EmailRequiredError` when this profile has no
+ * verified email.
+ *
+ * @param claims - Claim names to embed. Only `email` is supported.
+ * @param audience - Partner audience (`kyc` or `iron`).
+ * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+ * @returns The partner identity access token.
+ */
+export type AuthenticationControllerGetPartnerIdentityTokenAction = {
+  type: `AuthenticationController:getPartnerIdentityToken`;
+  handler: AuthenticationController['getPartnerIdentityToken'];
+};
+
 export type AuthenticationControllerIsSignedInAction = {
   type: `AuthenticationController:isSignedIn`;
   handler: AuthenticationController['isSignedIn'];
@@ -128,4 +146,5 @@ export type AuthenticationControllerMethodActions =
   | AuthenticationControllerRefreshCanonicalProfileIdAction
   | AuthenticationControllerGetUserProfileLineageAction
   | AuthenticationControllerGetCustomerServiceTokenAction
+  | AuthenticationControllerGetPartnerIdentityTokenAction
   | AuthenticationControllerIsSignedInAction;
