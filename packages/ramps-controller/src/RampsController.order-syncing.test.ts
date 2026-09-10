@@ -259,6 +259,65 @@ describe('RampsController order syncing', () => {
     expect(performBatchSetStorage).toHaveBeenCalledTimes(1);
   });
 
+  it('merges paymentDetails without bumping lastUpdatedAt or writing remotely when only paymentDetails changed', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    const { controller, performBatchSetStorage } =
+      setupControllerWithOrderSyncingMocks();
+    const order = createMockOrder({ status: RampsOrderStatus.Pending });
+
+    controller.addOrder(order);
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+    performBatchSetStorage.mockClear();
+    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
+
+    const orderWithPaymentDetails = {
+      ...order,
+      paymentDetails: [{ method: 'bank_transfer', details: 'some-details' }],
+    };
+    controller.addOrder(orderWithPaymentDetails);
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+
+    expect(performBatchSetStorage).not.toHaveBeenCalled();
+    expect(controller.state.orders[0]?.lastUpdatedAt).toBe(1_700_000_000_000);
+    expect(controller.state.orders[0]?.paymentDetails).toStrictEqual([
+      { method: 'bank_transfer', details: 'some-details' },
+    ]);
+  });
+
+  it('merges paymentDetails from poll without remote write when only paymentDetails changed', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    const { controller, getOrder, performBatchSetStorage } =
+      setupControllerWithOrderSyncingMocks();
+    const order = createMockOrder({ status: RampsOrderStatus.Pending });
+
+    controller.addOrder(order);
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+    performBatchSetStorage.mockClear();
+    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_999);
+    const orderWithPaymentDetails = {
+      ...order,
+      paymentDetails: [{ method: 'bank_transfer', details: 'some-details' }],
+    };
+    getOrder.mockResolvedValue(orderWithPaymentDetails);
+
+    await controller.getOrder('transak', 'abc-123', order.walletAddress);
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+
+    expect(performBatchSetStorage).not.toHaveBeenCalled();
+    expect(controller.state.orders[0]?.lastUpdatedAt).toBe(1_700_000_000_000);
+    expect(controller.state.orders[0]?.paymentDetails).toStrictEqual([
+      { method: 'bank_transfer', details: 'some-details' },
+    ]);
+  });
+
   it('reports incremental addOrder remote sync failures via onOrderSyncErroneousSituation', async () => {
     const onOrderSyncErroneousSituation = jest.fn();
     const { controller, performBatchSetStorage } =

@@ -3024,6 +3024,27 @@ export class RampsController extends BaseController<
       !this.#isApplyingOrderSyncChanges &&
       areOrdersEqual(existing, order)
     ) {
+      // Syncable payload unchanged; check if paymentDetails differ.
+      // paymentDetails is local-only (never synced remotely), so if it's the
+      // only change we merge it without bumping lastUpdatedAt or writing remotely.
+      if (
+        order.paymentDetails &&
+        JSON.stringify(existing.paymentDetails) !==
+          JSON.stringify(order.paymentDetails)
+      ) {
+        this.update((state) => {
+          const idx = state.orders.findIndex(
+            (stateOrder) =>
+              getInternalOrderCode(stateOrder) === internalOrderCode,
+          );
+          if (idx !== -1) {
+            state.orders[idx] = {
+              ...state.orders[idx],
+              paymentDetails: order.paymentDetails,
+            };
+          }
+        });
+      }
       return;
     }
 
