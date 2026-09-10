@@ -33,6 +33,12 @@ export type PrepareSubscriptionDelegationRequest = {
    * (`unitAmount × minBillingCyclesForBalance` in mUSD) before side effects.
    */
   checkBalance?: boolean;
+  /**
+   * When true, skips CHOMP verify/intent interactions. Intended for alpha
+   * demos and tests where the subscription API can create a subscription
+   * without a registered CHOMP intent. Defaults to false.
+   */
+  skipChompInteractions?: boolean;
 };
 
 /**

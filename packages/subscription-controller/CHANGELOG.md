@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `SubscriptionDelegationService` for Money Account Plus cash-subscription delegation setup. ([#10130](https://github.com/MetaMask/core/pull/10130))
   - New messenger action `SubscriptionDelegationService:prepareDelegation` orchestrates periodic caveat construction, signing, CHOMP verification, Authenticated User Storage persistence, and CHOMP intent registration.
   - Returns a verified `delegationHash` with `disposition: 'created' | 'reused'` for `SubscriptionController.startSubscriptionWithCrypto`; the controller does not depend on this service.
-  - `prepareDelegation` accepts the product, recurring interval, payer address, trial selection, and optional balance-check flag; it resolves plan, token, and delegate data through `SubscriptionController:getPricing`.
+  - `prepareDelegation` accepts the product, recurring interval, payer address, trial selection, optional balance-check flag, and optional `skipChompInteractions` flag for alpha demos/tests; it resolves plan, token, and delegate data through `SubscriptionController:getPricing`.
+  - When `skipChompInteractions` is true, CHOMP verify and intent registration are skipped; the returned hash is computed locally and AUS persistence still occurs.
   - Resolves the chain from `moneyAccountVaultConfig` and Delegation Framework v1.3.0 enforcers from `@metamask/delegation-deployments`.
   - Uses pricing `delegateAddress` as both the delegation `delegate` and the RedeemerEnforcer redeemer.
   - Offsets the period-transfer `startDate` by pricing `trialPeriodDays` only when the trial is selected.

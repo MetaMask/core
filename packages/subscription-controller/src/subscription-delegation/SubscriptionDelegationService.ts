@@ -152,6 +152,8 @@ type ResolvedSubscriptionDelegationConfig = {
  * Owns the workflow: size periodic caveats → sign → CHOMP verify → persist to
  * Authenticated User Storage → register CHOMP intent. Returns a verified
  * `delegationHash` for `SubscriptionController.startSubscriptionWithCrypto`.
+ * Callers may set `skipChompInteractions` to bypass CHOMP verify/intent steps
+ * for alpha demos and tests.
  *
  * Each call resolves the Money Account chain from remote feature flags, then
  * resolves its price, payment token, and delegate from `SubscriptionController`
@@ -222,14 +224,19 @@ export class SubscriptionDelegationService {
   }
 
   /**
-   * Prepares a cash-subscription delegation and returns its verified hash.
+   * Prepares a cash-subscription delegation and returns its hash.
    *
    * Reuses a stored AUS delegation that matches the semantic fingerprint when
-   * one exists (ensuring a CHOMP intent is active for its hash). Otherwise
-   * builds, signs, verifies, persists, and registers a new delegation.
+   * one exists (ensuring a CHOMP intent is active for its hash, unless
+   * `skipChompInteractions` is true). Otherwise builds, signs, optionally
+   * verifies with CHOMP, persists, and optionally registers a new delegation.
+   *
+   * When `skipChompInteractions` is true (alpha demos / tests), CHOMP verify
+   * and intent calls are skipped; the returned hash is computed locally.
    *
    * @param request - Authoritative pricing and payer details for the delegation.
-   * @returns The verified delegation hash and whether it was created or reused.
+   * @returns The delegation hash (CHOMP-verified unless skipped) and whether it
+   * was created or reused.
    */
   async prepareDelegation(
     request: PrepareSubscriptionDelegationRequest,
@@ -239,6 +246,8 @@ export class SubscriptionDelegationService {
         SubscriptionDelegationServiceErrorMessage.UnsupportedProduct,
       );
     }
+
+    const skipChomp = Boolean(request.skipChompInteractions);
 
     const { chainId, delegateAddress, enforcers, price, token } =
       await this.#resolveConfiguration(
@@ -280,14 +289,16 @@ export class SubscriptionDelegationService {
     );
     const reusable = existingDelegations.find(matches);
     if (reusable) {
-      await this.#ensureIntent({
-        account: request.payerAddress,
-        chainId,
-        delegationHash: reusable.metadata.delegationHash,
-        allowance: reusable.metadata.allowance,
-        tokenSymbol: reusable.metadata.tokenSymbol,
-        tokenAddress: reusable.metadata.tokenAddress,
-      });
+      if (!skipChomp) {
+        await this.#ensureIntent({
+          account: request.payerAddress,
+          chainId,
+          delegationHash: reusable.metadata.delegationHash,
+          allowance: reusable.metadata.allowance,
+          tokenSymbol: reusable.metadata.tokenSymbol,
+          tokenAddress: reusable.metadata.tokenAddress,
+        });
+      }
       return {
         delegationHash: reusable.metadata.delegationHash,
         disposition: 'reused',
@@ -317,37 +328,39 @@ export class SubscriptionDelegationService {
 
     const signedDelegation = { ...unsigned, signature };
 
-    const verifyResult = await this.#messenger.call(
-      'ChompApiService:verifyDelegation',
-      {
-        signedDelegation,
-        chainId,
-      },
-    );
-
-    if (!verifyResult.valid) {
-      throw new Error(
-        `${SubscriptionDelegationServiceErrorMessage.ChompRejectedDelegation}: ${
-          verifyResult.errors?.join(', ') ?? 'unknown error'
-        }`,
-      );
-    }
-
     const delegationHash = hashDelegation({
       ...unsigned,
       salt: BigInt(unsigned.salt),
       signature,
     });
 
-    if (!verifyResult.delegationHash) {
-      throw new Error(
-        SubscriptionDelegationServiceErrorMessage.ChompMissingDelegationHash,
+    if (!skipChomp) {
+      const verifyResult = await this.#messenger.call(
+        'ChompApiService:verifyDelegation',
+        {
+          signedDelegation,
+          chainId,
+        },
       );
-    }
-    if (!equalsIgnoreCase(verifyResult.delegationHash, delegationHash)) {
-      throw new Error(
-        SubscriptionDelegationServiceErrorMessage.ChompDelegationHashMismatch,
-      );
+
+      if (!verifyResult.valid) {
+        throw new Error(
+          `${SubscriptionDelegationServiceErrorMessage.ChompRejectedDelegation}: ${
+            verifyResult.errors?.join(', ') ?? 'unknown error'
+          }`,
+        );
+      }
+
+      if (!verifyResult.delegationHash) {
+        throw new Error(
+          SubscriptionDelegationServiceErrorMessage.ChompMissingDelegationHash,
+        );
+      }
+      if (!equalsIgnoreCase(verifyResult.delegationHash, delegationHash)) {
+        throw new Error(
+          SubscriptionDelegationServiceErrorMessage.ChompDelegationHashMismatch,
+        );
+      }
     }
 
     const allowance: Hex = add0x(periodAmount.toString(16));
@@ -367,14 +380,16 @@ export class SubscriptionDelegationService {
       },
     );
 
-    await this.#createIntent({
-      account: request.payerAddress,
-      chainId,
-      delegationHash,
-      allowance,
-      tokenSymbol: token.symbol,
-      tokenAddress: token.address,
-    });
+    if (!skipChomp) {
+      await this.#createIntent({
+        account: request.payerAddress,
+        chainId,
+        delegationHash,
+        allowance,
+        tokenSymbol: token.symbol,
+        tokenAddress: token.address,
+      });
+    }
 
     return {
       delegationHash,

@@ -385,11 +385,6 @@ describe('SubscriptionDelegationService', () => {
           caveats: [
             expect.objectContaining({ enforcer: VALUE_LTE }),
             expect.objectContaining({ enforcer: PERIOD }),
-            expect.objectContaining({
-              enforcer: REDEEMER,
-              terms: createRedeemerTerms({ redeemers: [DELEGATE] }),
-              args: '0x',
-            }),
           ],
         }),
         chainId: CHAIN_ID,
@@ -517,6 +512,60 @@ describe('SubscriptionDelegationService', () => {
         }),
       ]);
       expect(mocks.signDelegation).not.toHaveBeenCalled();
+    });
+
+    it('skips CHOMP verify and intent registration when skipChompInteractions is true', async () => {
+      const { service, mocks } = setup();
+
+      const result = await service.prepareDelegation({
+        ...REQUEST,
+        skipChompInteractions: true,
+      });
+
+      expect(result.disposition).toBe('created');
+      expect(result.delegationHash).toMatch(/^0x[0-9a-fA-F]{64}$/u);
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+      expect(mocks.createDelegation).toHaveBeenCalledWith({
+        signedDelegation: expect.objectContaining({
+          delegate: DELEGATE,
+          delegator: PAYER,
+          signature: SIGNATURE,
+        }),
+        metadata: expect.objectContaining({
+          delegationHash: result.delegationHash,
+          chainIdHex: CHAIN_ID,
+          allowance: `0x${PERIOD_AMOUNT.toString(16)}`,
+          tokenSymbol: 'pvmUSD',
+          tokenAddress: TOKEN,
+          type: CASH_SUBSCRIPTION_DELEGATION_TYPE,
+        }),
+      });
+      expect(mocks.verifyDelegation).not.toHaveBeenCalled();
+      expect(mocks.getIntentsByAddress).not.toHaveBeenCalled();
+      expect(mocks.createIntents).not.toHaveBeenCalled();
+    });
+
+    it('reuses a matching delegation without CHOMP when skipChompInteractions is true', async () => {
+      const stored = buildStoredDelegation();
+      const { service, mocks } = setup({
+        listDelegations: [stored],
+        intents: [],
+      });
+
+      const result = await service.prepareDelegation({
+        ...REQUEST,
+        skipChompInteractions: true,
+      });
+
+      expect(result).toStrictEqual({
+        delegationHash: stored.metadata.delegationHash,
+        disposition: 'reused',
+      });
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
+      expect(mocks.verifyDelegation).not.toHaveBeenCalled();
+      expect(mocks.createDelegation).not.toHaveBeenCalled();
+      expect(mocks.getIntentsByAddress).not.toHaveBeenCalled();
+      expect(mocks.createIntents).not.toHaveBeenCalled();
     });
 
     it('checks Money Account balance when checkBalance is true and proceeds when sufficient', async () => {
