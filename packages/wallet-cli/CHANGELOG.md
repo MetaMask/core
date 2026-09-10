@@ -38,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/remote-feature-flag-controller` from `^4.2.2` to `^7.0.0` ([#9735](https://github.com/MetaMask/core/pull/9735), [#9945](https://github.com/MetaMask/core/pull/9945), [#9980](https://github.com/MetaMask/core/pull/9980), [#10129](https://github.com/MetaMask/core/pull/10129), [#10160](https://github.com/MetaMask/core/pull/10160))
 - Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#9754](https://github.com/MetaMask/core/pull/9754))
 - Bump `@metamask/config-registry-controller` from `^3.0.0` to `^4.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969), [#10160](https://github.com/MetaMask/core/pull/10160))
-- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/utils` from `^11.11.0` to `^12.0.0` ([#10076](https://github.com/MetaMask/core/pull/10076), [#10127](https://github.com/MetaMask/core/pull/10127))
 - Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 - Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 - Bump `@metamask/storage-service` from `^1.0.2` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
