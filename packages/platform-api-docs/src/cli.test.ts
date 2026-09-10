@@ -149,9 +149,9 @@ export type QuxMessenger = Messenger<'Qux', QuxAction, never>;
     const result = await runCLI(['--help']);
 
     expect(result.exitCode).toBe(0);
-    expect(result.all).toContain(
-      'Produces documentation for the platform API, the set of actions and events\navailable in clients through the message bus',
-    );
+    // Keep this short: yargs wraps the help text to the terminal width, so a
+    // longer excerpt would depend on where the tests run.
+    expect(result.all).toContain('Produces documentation for the platform API');
   });
 
   it('exits with error when no scannable directories found', async () => {

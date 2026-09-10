@@ -1,9 +1,9 @@
 import nock from 'nock';
-import type { UserStorageGenericFeatureKey } from 'src/shared/storage-schema';
 
 import { SHARED_SALT } from '../shared/encryption/constants.js';
 import encryption, { createSHA256Hash } from '../shared/encryption/index.js';
 import { Env } from '../shared/env.js';
+import type { UserStorageGenericFeatureKey } from '../shared/storage-schema.js';
 import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema.js';
 import { arrangeAuthAPIs } from './__fixtures__/auth.js';
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils.js';

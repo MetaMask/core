@@ -5,7 +5,7 @@ import type {
 } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { isCaipChainId } from '@metamask/utils';
-import BigNumberJS from 'bignumber.js';
+import { BigNumber as BigNumberJS } from 'bignumber.js';
 
 import type { AssetsControllerMessenger } from '../AssetsController.js';
 import { projectLogger, createModuleLogger } from '../logger.js';
@@ -382,9 +382,7 @@ export class AccountActivityDataSource extends AbstractDataSource<
     try {
       // Act on every namespace (eip155, solana, etc.); AssetsController is
       // multichain. Only skip identifiers that are not valid CAIP-2 chain IDs.
-      const validChains = chainIds.filter((chainId) =>
-        isCaipChainId(chainId),
-      ) as ChainId[];
+      const validChains = chainIds.filter((chainId) => isCaipChainId(chainId));
 
       if (validChains.length === 0) {
         return;

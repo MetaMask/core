@@ -9,7 +9,7 @@ import {
   parseCaipAssetType,
   parseCaipChainId,
 } from '@metamask/utils';
-import BigNumberJS from 'bignumber.js';
+import { BigNumber as BigNumberJS } from 'bignumber.js';
 
 import type { AssetsControllerState } from '../AssetsController.js';
 import type {

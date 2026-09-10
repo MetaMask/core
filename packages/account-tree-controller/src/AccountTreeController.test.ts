@@ -5680,6 +5680,7 @@ describe('AccountTreeController', () => {
           isBackupAndSyncUpdateLoading: false,
           isContactSyncingEnabled: false,
           isContactSyncingInProgress: false,
+          isRampsSyncingEnabled: true,
         },
         [],
       );
