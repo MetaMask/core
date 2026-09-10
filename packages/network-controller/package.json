@@ -78,7 +78,7 @@
     "@metamask/auto-changelog": "^6.1.0",
     "@types/deep-freeze-strict": "^1.1.0",
     "@types/jest": "^30.0.0",
-    "@types/jest-when": "^2.7.3",
+    "@types/jest-when": "^3.5.3",
     "@types/lodash-es": "^4.17.12",
     "@types/node-fetch": "^2.6.12",
     "@typescript/native": "npm:typescript@^7.0.2",

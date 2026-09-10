@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Exports `CASH_SUBSCRIPTION_DELEGATION_TYPE` (`'cash-subscription'`) for AUS metadata (and for CHOMP intent metadata once chomp-api-service supports that type).
   - Only Money Account Plus is supported; Shield continues to use ERC-20 approval.
 
+## [9.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
+
 ## [9.0.0]
 
 ### Changed
@@ -497,7 +503,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.0.1...HEAD
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@9.0.0...@metamask/subscription-controller@9.0.1
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@8.1.0...@metamask/subscription-controller@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@8.0.1...@metamask/subscription-controller@8.1.0
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@8.0.0...@metamask/subscription-controller@8.0.1

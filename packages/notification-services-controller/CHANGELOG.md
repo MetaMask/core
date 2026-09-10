@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [28.0.1]
+
 ### Changed
 
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
 
 ## [28.0.0]
 
@@ -917,7 +920,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@28.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@28.0.1...HEAD
+[28.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@28.0.0...@metamask/notification-services-controller@28.0.1
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@27.0.2...@metamask/notification-services-controller@28.0.0
 [27.0.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@27.0.1...@metamask/notification-services-controller@27.0.2
 [27.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@27.0.0...@metamask/notification-services-controller@27.0.1

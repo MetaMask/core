@@ -1,6 +1,6 @@
 {
   "name": "@metamask/subscription-controller",
-  "version": "9.0.0",
+  "version": "9.0.1",
   "description": "Handle user subscription",
   "keywords": [
     "Ethereum",
@@ -62,7 +62,7 @@
     "@metamask/money-account-balance-service": "^3.0.0",
     "@metamask/money-account-utils": "^2.0.0",
     "@metamask/polling-controller": "^17.0.0",
-    "@metamask/profile-sync-controller": "^31.0.0",
+    "@metamask/profile-sync-controller": "^32.0.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/transaction-controller": "^70.0.0",

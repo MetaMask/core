@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Delegates `AuthenticatedUserStorageService:listDelegations`, `AuthenticatedUserStorageService:createDelegation`, `ChompApiService:verifyDelegation`, `ChompApiService:createIntents`, `ChompApiService:getIntentsByAddress`, `DelegationController:signDelegation`, `MoneyAccountBalanceService:fetchBalanceWithFallback`, `RemoteFeatureFlagController:getState`, and `SubscriptionController:getPricing` from the wallet root messenger.
   - Hosts must register `AuthenticatedUserStorageService`, `ChompApiService`, `DelegationController`, `MoneyAccountBalanceService`, and `SubscriptionController` on the supplied root messenger before calling `prepareDelegation`; `RemoteFeatureFlagController` is already initialized by default.
 
+### Changed
+
+- Bump `@metamask/claims-controller` from `^1.0.0` to `^1.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/shield-controller` from `^7.0.0` to `^7.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/subscription-controller` from `^9.0.0` to `^9.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+
 ## [13.0.0]
 
 ### Changed

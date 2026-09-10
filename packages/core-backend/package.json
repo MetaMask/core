@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-backend",
-  "version": "10.0.0",
+  "version": "10.0.1",
   "description": "Core backend services for MetaMask",
   "keywords": [
     "Ethereum",
@@ -50,11 +50,11 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/account-tree-controller": "^10.0.0",
+    "@metamask/account-tree-controller": "^10.0.1",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/keyring-controller": "^28.0.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/profile-sync-controller": "^31.0.0",
+    "@metamask/profile-sync-controller": "^32.0.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/utils": "^11.12.0",
     "@tanstack/query-core": "^5.62.16",

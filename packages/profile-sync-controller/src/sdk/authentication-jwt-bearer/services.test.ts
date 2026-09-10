@@ -5,6 +5,7 @@ import {
   PairConflictError,
   PairError,
   RateLimitedError,
+  EmailRequiredError,
 } from '../errors.js';
 import {
   getNonce,
@@ -15,6 +16,7 @@ import {
   pairSocialIdentifier,
   getUserProfileLineage,
   getCustomerServiceToken,
+  getPartnerIdentityToken,
   NONCE_URL,
   OIDC_TOKEN_URL,
   SRP_LOGIN_URL,
@@ -24,6 +26,7 @@ import {
   PAIR_SOCIAL_IDENTIFIER_URL,
   PROFILE_LINEAGE_URL,
   CUSTOMER_SERVICE_TOKEN_URL,
+  PARTNER_IDENTITY_TOKEN_URL,
 } from './services.js';
 import { AuthType } from './types.js';
 
@@ -149,6 +152,12 @@ describe('services', () => {
     it('should build correct CUSTOMER_SERVICE_TOKEN_URL', () => {
       expect(CUSTOMER_SERVICE_TOKEN_URL(Env.DEV)).toBe(
         'https://authentication.dev-api.cx.metamask.io/api/v2/customer-service/token',
+      );
+    });
+
+    it('should build correct PARTNER_IDENTITY_TOKEN_URL', () => {
+      expect(PARTNER_IDENTITY_TOKEN_URL(Env.DEV)).toBe(
+        'https://authentication.dev-api.cx.metamask.io/api/v2/oidc/token',
       );
     });
   });
@@ -1341,6 +1350,91 @@ describe('services', () => {
       await expect(
         getCustomerServiceToken(Env.DEV, 'access-token'),
       ).rejects.toThrow(RateLimitedError);
+    });
+  });
+
+  describe('getPartnerIdentityToken', () => {
+    it('should return the access_token on success', async () => {
+      const mockResponse = createMockResponse({
+        access_token: 'partner-access-token',
+        refresh_token: 'ory_rt_unused',
+        expires_in: 3600,
+        token_type: 'bearer',
+      });
+      mockFetch.mockResolvedValue(mockResponse);
+
+      const result = await getPartnerIdentityToken(
+        Env.DEV,
+        'access-token',
+        ['email'],
+        'kyc',
+      );
+
+      expect(result).toBe('partner-access-token');
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(URL),
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer access-token',
+          },
+          body: JSON.stringify({
+            claims: ['email'],
+            audience: 'kyc',
+          }),
+        }),
+      );
+    });
+
+    it('should throw SignInError when access_token is missing', async () => {
+      const mockResponse = createMockResponse({});
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(
+        getPartnerIdentityToken(Env.DEV, 'access-token', ['email'], 'kyc'),
+      ).rejects.toThrow(SignInError);
+      await expect(
+        getPartnerIdentityToken(Env.DEV, 'access-token', ['email'], 'kyc'),
+      ).rejects.toThrow(
+        'Failed to get partner identity token: missing access_token',
+      );
+    });
+
+    it('should throw SignInError on 400 unknown audience', async () => {
+      const mockResponse = createMockResponse(
+        { message: 'unknown audience', error: 'bad_request' },
+        { ok: false, status: 400 },
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(
+        getPartnerIdentityToken(Env.DEV, 'access-token', ['email'], 'kyc'),
+      ).rejects.toThrow(SignInError);
+    });
+
+    it('should throw SignInError on 401', async () => {
+      const mockResponse = createMockResponse(
+        { message: 'Unauthorized', error: 'invalid_token' },
+        { ok: false, status: 401 },
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(
+        getPartnerIdentityToken(Env.DEV, 'access-token', ['email'], 'kyc'),
+      ).rejects.toThrow(SignInError);
+    });
+
+    it('should throw EmailRequiredError on 422', async () => {
+      const mockResponse = createMockResponse(
+        { message: 'email_required', error: 'email_required' },
+        { ok: false, status: 422 },
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(
+        getPartnerIdentityToken(Env.DEV, 'access-token', ['email'], 'kyc'),
+      ).rejects.toThrow(EmailRequiredError);
     });
   });
 
