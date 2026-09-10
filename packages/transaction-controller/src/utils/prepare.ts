@@ -106,5 +106,5 @@ function normalizeAuthorizationList(
 function removeLeadingZeroes(value: Hex | undefined): Hex | undefined {
   return value === '0x0'
     ? '0x'
-    : (value?.replace?.(/^0x(00)+/u, '0x') as Hex | undefined) ?? value;
+    : ((value?.replace?.(/^0x(00)+/u, '0x') as Hex | undefined) ?? value);
 }
