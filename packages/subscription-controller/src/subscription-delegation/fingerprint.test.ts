@@ -100,6 +100,8 @@ function buildEntry({
   };
 }
 
+const NOW_SECONDS = 1_700_000_000;
+
 const expected = {
   delegatorAddress: DELEGATOR,
   delegateAddress: DELEGATE,
@@ -107,6 +109,8 @@ const expected = {
   tokenAddress: TOKEN,
   periodAmount: PERIOD_AMOUNT,
   periodDuration: PERIOD_DURATION,
+  nowSeconds: NOW_SECONDS,
+  isTrialRequested: false,
   enforcers: {
     valueLte: VALUE_LTE,
     erc20TokenPeriodTransfer: PERIOD,
@@ -128,8 +132,34 @@ describe('makeMatchesSubscriptionDelegation', () => {
     expect(matches(buildEntry())).toBe(true);
   });
 
-  it('matches when startDate differs', () => {
-    expect(matches(buildEntry({ startDate: 1_800_000_000 }))).toBe(true);
+  it('matches when startDate is earlier but still immediately redeemable', () => {
+    expect(matches(buildEntry({ startDate: NOW_SECONDS - 86_400 }))).toBe(true);
+  });
+
+  it('rejects a trial-deferred startDate when trial is not requested', () => {
+    expect(matches(buildEntry({ startDate: NOW_SECONDS + 86_400 }))).toBe(
+      false,
+    );
+  });
+
+  it('matches a deferred startDate when trial is requested', () => {
+    const matchesTrial = makeMatchesSubscriptionDelegation({
+      ...expected,
+      isTrialRequested: true,
+    });
+
+    expect(matchesTrial(buildEntry({ startDate: NOW_SECONDS + 86_400 }))).toBe(
+      true,
+    );
+  });
+
+  it('rejects an immediately redeemable startDate when trial is requested', () => {
+    const matchesTrial = makeMatchesSubscriptionDelegation({
+      ...expected,
+      isTrialRequested: true,
+    });
+
+    expect(matchesTrial(buildEntry({ startDate: NOW_SECONDS }))).toBe(false);
   });
 
   it('matches case-insensitively on addresses and chain id', () => {

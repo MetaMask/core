@@ -15,6 +15,16 @@ export type SubscriptionDelegationFingerprint = {
   tokenAddress: Hex;
   periodAmount: bigint;
   periodDuration: number;
+  /**
+   * Current unix timestamp in seconds. Used to classify a stored period
+   * `startDate` as immediately redeemable (`<= now`) vs trial-deferred (`> now`).
+   */
+  nowSeconds: number;
+  /**
+   * When true, only a still-deferred period start matches. When false, only
+   * an immediately redeemable start matches.
+   */
+  isTrialRequested: boolean;
   enforcers: SubscriptionDelegationEnforcers;
 };
 
@@ -31,8 +41,10 @@ export function equalsIgnoreCase(left: string, right: string): boolean {
 
 /**
  * Builds a predicate that matches a stored AUS delegation to the semantic
- * cash-subscription fingerprint. Salt and period `startDate` are ignored so
- * a previously signed equivalent permission can be reused.
+ * cash-subscription fingerprint. Salt is ignored so a previously signed
+ * equivalent permission can be reused. Period `startDate` is compared only
+ * as trial-deferred (`> nowSeconds`) vs immediately redeemable (`<= nowSeconds`)
+ * so a trial request cannot reuse a live permission and vice versa.
  *
  * @param expected - Semantic fields that must match.
  * @returns Predicate over {@link DelegationResponse}.
@@ -106,6 +118,12 @@ export function makeMatchesSubscriptionDelegation(
       const periodTerms = decodeERC20TokenPeriodTransferTerms(
         periodCaveat.terms,
       );
+      const storedStartDate = Number(periodTerms.startDate);
+      const isStoredDeferred = storedStartDate > expected.nowSeconds;
+      if (expected.isTrialRequested !== isStoredDeferred) {
+        return false;
+      }
+
       return (
         equalsIgnoreCase(periodTerms.tokenAddress, expected.tokenAddress) &&
         periodTerms.periodAmount === expected.periodAmount &&

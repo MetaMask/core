@@ -231,8 +231,10 @@ export class SubscriptionDelegationService {
    *
    * Reuses a stored AUS delegation that matches the semantic fingerprint when
    * one exists (ensuring a CHOMP intent is active for its hash, unless
-   * `skipChompInteractions` is true). Otherwise builds, signs, optionally
-   * verifies with CHOMP, persists, and optionally registers a new delegation.
+   * `skipChompInteractions` is true). Period `startDate` must still be
+   * trial-deferred when `isTrialRequested` is true, and immediately redeemable
+   * otherwise. If there is no match, builds, signs, optionally verifies with
+   * CHOMP, persists, and optionally registers a new delegation.
    *
    * When `skipChompInteractions` is true (required for alpha), CHOMP verify
    * and intent calls are skipped; the returned hash is computed locally. The
@@ -278,6 +280,13 @@ export class SubscriptionDelegationService {
       tokenDecimals: token.decimals,
     });
     const periodDuration = getPeriodDuration(request.recurringInterval);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const startDate = getDelegationStartDate({
+      nowSeconds,
+      trialPeriodDays: request.isTrialRequested
+        ? price.trialPeriodDays
+        : undefined,
+    });
 
     const matches = makeMatchesSubscriptionDelegation({
       delegatorAddress: request.payerAddress,
@@ -286,6 +295,8 @@ export class SubscriptionDelegationService {
       tokenAddress: token.address,
       periodAmount,
       periodDuration,
+      nowSeconds,
+      isTrialRequested: request.isTrialRequested,
       enforcers,
     });
 
@@ -310,12 +321,6 @@ export class SubscriptionDelegationService {
       };
     }
 
-    const startDate = getDelegationStartDate({
-      nowSeconds: Math.floor(Date.now() / 1000),
-      trialPeriodDays: request.isTrialRequested
-        ? price.trialPeriodDays
-        : undefined,
-    });
     const unsigned = buildUnsignedSubscriptionDelegation({
       delegateAddress,
       delegatorAddress: request.payerAddress,

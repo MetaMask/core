@@ -295,10 +295,12 @@ function buildStoredDelegation({
   periodAmount = PERIOD_AMOUNT,
   periodDuration = PERIOD_DURATION,
   delegationHash = `0x${'dd'.repeat(32)}`,
+  startDate = 1_700_000_000,
 }: {
   periodAmount?: bigint;
   periodDuration?: number;
   delegationHash?: Hex;
+  startDate?: number;
 } = {}) {
   return {
     signedDelegation: {
@@ -317,7 +319,7 @@ function buildStoredDelegation({
             tokenAddress: TOKEN,
             periodAmount,
             periodDuration,
-            startDate: 1_700_000_000,
+            startDate,
           }),
           args: '0x',
         },
@@ -543,6 +545,88 @@ describe('SubscriptionDelegationService', () => {
       expect(mocks.verifyDelegation).not.toHaveBeenCalled();
       expect(mocks.getIntentsByAddress).not.toHaveBeenCalled();
       expect(mocks.createIntents).not.toHaveBeenCalled();
+    });
+
+    it('does not reuse an immediately redeemable delegation when trial is requested', async () => {
+      const stored = buildStoredDelegation({
+        startDate: Math.floor(Date.now() / 1000),
+      });
+      const { service, mocks } = setup({
+        listDelegations: [stored],
+        intents: [
+          {
+            account: PAYER,
+            delegationHash: stored.metadata.delegationHash,
+            chainId: CHAIN_ID,
+            status: 'active',
+            metadata: stored.metadata,
+          },
+        ],
+      });
+
+      const result = await service.prepareDelegation({
+        ...REQUEST,
+        isTrialRequested: true,
+      });
+
+      expect(result.disposition).toBe('created');
+      expect(result.delegationHash).not.toBe(stored.metadata.delegationHash);
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not reuse a trial-deferred delegation when trial is not requested', async () => {
+      const stored = buildStoredDelegation({
+        startDate:
+          Math.floor(Date.now() / 1000) + PRICE.trialPeriodDays * 86_400,
+      });
+      const { service, mocks } = setup({
+        listDelegations: [stored],
+        intents: [
+          {
+            account: PAYER,
+            delegationHash: stored.metadata.delegationHash,
+            chainId: CHAIN_ID,
+            status: 'active',
+            metadata: stored.metadata,
+          },
+        ],
+      });
+
+      const result = await service.prepareDelegation(REQUEST);
+
+      expect(result.disposition).toBe('created');
+      expect(result.delegationHash).not.toBe(stored.metadata.delegationHash);
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+    });
+
+    it('reuses a trial-deferred delegation when trial is requested', async () => {
+      const stored = buildStoredDelegation({
+        startDate:
+          Math.floor(Date.now() / 1000) + PRICE.trialPeriodDays * 86_400,
+      });
+      const { service, mocks } = setup({
+        listDelegations: [stored],
+        intents: [
+          {
+            account: PAYER,
+            delegationHash: stored.metadata.delegationHash,
+            chainId: CHAIN_ID,
+            status: 'active',
+            metadata: stored.metadata,
+          },
+        ],
+      });
+
+      const result = await service.prepareDelegation({
+        ...REQUEST,
+        isTrialRequested: true,
+      });
+
+      expect(result).toStrictEqual({
+        delegationHash: stored.metadata.delegationHash,
+        disposition: 'reused',
+      });
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
     });
 
     it('reuses a matching delegation without CHOMP when skipChompInteractions is true', async () => {
