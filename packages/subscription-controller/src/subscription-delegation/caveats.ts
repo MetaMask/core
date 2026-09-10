@@ -30,7 +30,6 @@ export type BuildSubscriptionCaveatsParams = {
  *
  * @param params - Enforcer addresses, parties, and period terms.
  * @param params.enforcers - Delegation Framework enforcer addresses.
- * @param params.delegateAddress - Sole permitted redeemer.
  * @param params.tokenAddress - Subscription settlement token.
  * @param params.periodAmount - Maximum token amount per period.
  * @param params.periodDuration - Period length in seconds.
