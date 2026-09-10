@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix(transaction-controller): satisfy lint and changelog
+- test(transaction-controller): cover approval edge cases
+- docs(transaction-controller): concise approval hook changelog
+- fix(transaction-controller): restore gas fee preflight on approval
+- chore: Migrate SIWE dependency to @signinwithethereum/siwe v4 ([#10049](https://github.com/MetaMask/core/pull/10049))
+- Release 1245.0.0 ([#10146](https://github.com/MetaMask/core/pull/10146))
+- feat(perps): support explicit HyperLiquid margin mode ([#10136](https://github.com/MetaMask/core/pull/10136))
+- Release 1244.0.0 ([#10145](https://github.com/MetaMask/core/pull/10145))
+- fix(kyc-controller): treat native SumSub completion and applicant abandonment separately ([#10133](https://github.com/MetaMask/core/pull/10133))
+- fix(notification-services-controller): prevent unsibscribing if keyring is locked ([#10143](https://github.com/MetaMask/core/pull/10143))
+- Release 1243.0.0 ([#10141](https://github.com/MetaMask/core/pull/10141))
+- chore: disable persistence for legacy assets controllers ([#9842](https://github.com/MetaMask/core/pull/9842))
+- fix(perps-controller): keep the terminal TWAP record when a completing fill ties lastUpdated ([#10122](https://github.com/MetaMask/core/pull/10122))
+- fix(perps): stabilize Lighter account loading ([#10119](https://github.com/MetaMask/core/pull/10119))
+- fix: filter Price API v3 requests to supported networks ([#10132](https://github.com/MetaMask/core/pull/10132))
+- fix(assets-controller): make #start() re-entrancy safe ([#10131](https://github.com/MetaMask/core/pull/10131))
+- feat(profile-sync-controller): add social pairing support ([#10128](https://github.com/MetaMask/core/pull/10128))
+- Release 1240.0.0 ([#10137](https://github.com/MetaMask/core/pull/10137))
+- feat(account-tree-controller)!: add `strip{Metadata,Secrets}` helpers on state snapshot ([#10112](https://github.com/MetaMask/core/pull/10112))
+- feat: gate Relay source sponsorship on payer capability ([#10126](https://github.com/MetaMask/core/pull/10126))
+- fix: keep persisted feature flags for empty segmentation id ([#10123](https://github.com/MetaMask/core/pull/10123))
+
 ### Changed
 
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
@@ -2752,8 +2776,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.0.0...HEAD
-[70.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.8.1...@metamask/transaction-controller@70.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.8.1...HEAD
 [69.8.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.8.0...@metamask/transaction-controller@69.8.1
 [69.8.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.7.0...@metamask/transaction-controller@69.8.0
 [69.7.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.6.1...@metamask/transaction-controller@69.7.0
