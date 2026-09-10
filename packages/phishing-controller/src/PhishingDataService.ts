@@ -513,6 +513,8 @@ export class PhishingDataService extends BaseDataService<
   typeof serviceName,
   PhishingDataServiceMessenger
 > {
+  readonly #abortController = new AbortController();
+
   /**
    * Constructs a new PhishingDataService object.
    *
@@ -582,6 +584,15 @@ export class PhishingDataService extends BaseDataService<
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Aborts all requests owned by this service before clearing its query cache
+   * and messenger registrations.
+   */
+  override destroy(): void {
+    this.#abortController.abort();
+    super.destroy();
   }
 
   /**
@@ -1063,6 +1074,7 @@ export class PhishingDataService extends BaseDataService<
   ): Promise<Json> {
     const controller = new AbortController();
     const sourceSignal = init.signal;
+    const serviceSignal = this.#abortController.signal;
     let didTimeout = false;
     const abort = (): void => controller.abort();
     const timer =
@@ -1074,6 +1086,11 @@ export class PhishingDataService extends BaseDataService<
           }, timeout);
 
     sourceSignal?.addEventListener('abort', abort, { once: true });
+    serviceSignal.addEventListener('abort', abort, { once: true });
+    /* istanbul ignore next -- service actions are removed during destruction */
+    if (sourceSignal?.aborted || serviceSignal.aborted) {
+      controller.abort();
+    }
 
     try {
       const response = await fetch(url, {
@@ -1089,6 +1106,7 @@ export class PhishingDataService extends BaseDataService<
     } finally {
       clearTimeout(timer);
       sourceSignal?.removeEventListener('abort', abort);
+      serviceSignal.removeEventListener('abort', abort);
     }
   }
 

@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `bulkScanUrls` no longer caches a "no result" verdict for URLs the API reported an error for, so those URLs are retried on the next call instead of being silently skipped for a minute ([#9914](https://github.com/MetaMask/core/pull/9914))
 - `bulkScanTokens` now preserves successful cached verdicts when another token lookup fails, instead of discarding every result in the batch ([#9914](https://github.com/MetaMask/core/pull/9914))
 - Timed-out URL, token, and address-security requests are now aborted so later calls can retry instead of remaining attached to the original pending query ([#9914](https://github.com/MetaMask/core/pull/9914))
+- Destroying `PhishingDataService` now aborts all pending requests, including batched scans and uncached approval requests ([#9914](https://github.com/MetaMask/core/pull/9914))
 
 ### Removed
 

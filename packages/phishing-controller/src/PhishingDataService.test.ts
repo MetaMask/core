@@ -128,6 +128,50 @@ describe('PhishingDataService', () => {
         fetchMock.mockRestore();
       }
     });
+
+    it('aborts batched and uncached POST requests when destroyed', async () => {
+      jest.useFakeTimers({
+        doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'],
+      });
+      const requestSignals: AbortSignal[] = [];
+      const fetchMock = jest.spyOn(globalThis, 'fetch').mockImplementation(
+        (_input, init) =>
+          new Promise<Response>((_resolve, reject) => {
+            const signal = init?.signal;
+            if (signal) {
+              requestSignals.push(signal);
+              if (signal.aborted) {
+                reject(new Error('aborted'));
+              } else {
+                signal.addEventListener(
+                  'abort',
+                  () => reject(new Error('aborted')),
+                  { once: true },
+                );
+              }
+            }
+          }),
+      );
+      const { service } = createService();
+      const pendingBulkScan = service
+        .bulkScanUrls(['https://example.com'])
+        .catch((error) => error);
+      const pendingApprovals = service
+        .getApprovals('ethereum', '0x1234567890123456789012345678901234567890')
+        .catch((error) => error);
+
+      try {
+        await flushPromises();
+        expect(requestSignals).toHaveLength(2);
+
+        service.destroy();
+
+        expect(requestSignals.every((signal) => signal.aborted)).toBe(true);
+        await Promise.all([pendingBulkScan, pendingApprovals]);
+      } finally {
+        fetchMock.mockRestore();
+      }
+    });
   });
 
   describe('getHotlistDiffs', () => {
