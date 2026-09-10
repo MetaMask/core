@@ -2,6 +2,10 @@
   "name": "@metamask/utils",
   "version": "12.0.0",
   "description": "Various JavaScript/TypeScript utilities of wide relevance to the MetaMask codebase",
+  "keywords": [
+    "Ethereum",
+    "MetaMask"
+  ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/utils#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
@@ -94,9 +98,5 @@
       "eslint-plugin-import-x>unrs-resolver": false,
       "jest>@jest/core>jest-haste-map>@parcel/watcher": false
     }
-  },
-  "keywords": [
-    "Ethereum",
-    "MetaMask"
-  ]
+  }
 }

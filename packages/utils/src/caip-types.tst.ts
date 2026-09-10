@@ -80,7 +80,9 @@ describe('CAIP types', () => {
     expect(0).type.not.toBeAssignableTo<CaipReference>();
 
     expect('namespace:reference:😀').type.toBeAssignableTo<CaipAccountId>();
-    expect('😀:reference:accountAddress').type.toBeAssignableTo<CaipAccountId>();
+    expect(
+      '😀:reference:accountAddress',
+    ).type.toBeAssignableTo<CaipAccountId>();
     expect(0).type.not.toBeAssignableTo<CaipAccountId>();
     expect('🙃').type.not.toBeAssignableTo<CaipAccountId>();
 

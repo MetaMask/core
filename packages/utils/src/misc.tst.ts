@@ -23,9 +23,9 @@ describe('PublicInterface', () => {
   });
 
   test('still requires public properties', () => {
-    expect(
-      {},
-    ).type.not.toBeAssignableTo<PublicInterface<ClassWithPrivateProperties>>();
+    expect({}).type.not.toBeAssignableTo<
+      PublicInterface<ClassWithPrivateProperties>
+    >();
   });
 });
 
