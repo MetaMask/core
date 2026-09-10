@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0]
+
+### Added
+
+- Tag each account with an `accountSource` on `AccountWithScopes`, submitted to the auth API as `account_source` ([#10107](https://github.com/MetaMask/core/pull/10107))
+  - The value (`'mnemonic' | 'hardware' | 'imported' | 'snap'`) is derived from the account's entropy source and `metadata.keyring.type`; accounts with an unrecognized keyring type are left untagged since the API rejects unknown values.
+  - Adds a `reportedAccounts` state property recording the canonical addresses that have been submitted, so enqueuing them again is a no-op.
+  - Re-enqueues all known accounts on the first unlock after upgrading so previously-synced records get an account source and canonical address, gated by a new `accountSourceBackfillEnqueued` state flag (fresh installs flip the flag on their initial sync).
+
 ### Changed
 
+- Canonicalize account addresses when they are enqueued rather than only when a proof of ownership is signed, so accounts without a proof (hardware, imported, non-mnemonic Snap) are also submitted in canonical form ([#10107](https://github.com/MetaMask/core/pull/10107))
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
 
 ## [5.0.0]
 
@@ -250,7 +261,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7194](https://github.com/MetaMask/core/pull/7194), [#7196](https://github.com/MetaMask/core/pull/7196), [#7263](https://github.com/MetaMask/core/pull/7263))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.0...HEAD
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.0.0...@metamask/profile-metrics-controller@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.4...@metamask/profile-metrics-controller@5.0.0
 [4.0.4]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.3...@metamask/profile-metrics-controller@4.0.4
 [4.0.3]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.2...@metamask/profile-metrics-controller@4.0.3

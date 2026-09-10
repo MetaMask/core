@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
+
 ## [7.0.0]
 
 ### Changed
@@ -312,7 +318,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the shield-controller package ([#6137](https://github.com/MetaMask/core/pull/6137)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.1...HEAD
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.0...@metamask/shield-controller@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@6.0.2...@metamask/shield-controller@7.0.0
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@6.0.1...@metamask/shield-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@6.0.0...@metamask/shield-controller@6.0.1
