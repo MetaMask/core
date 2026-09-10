@@ -225,7 +225,7 @@ describe('PhishingDataService', () => {
       const blocklist = {
         recentlyAdded: ['0415f1f1'],
         recentlyRemoved: [],
-        lastFetchedAt: '2024-01-01T00:00:00Z',
+        lastFetchedAt: 1700000000,
       };
       nock(CLIENT_SIDE_DETECION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
@@ -243,7 +243,7 @@ describe('PhishingDataService', () => {
       const blocklist = {
         recentlyAdded: [],
         recentlyRemoved: ['0415f1f1'],
-        lastFetchedAt: '2024-01-01T00:00:00Z',
+        lastFetchedAt: 1700000000,
       };
       nock(CLIENT_SIDE_DETECION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
@@ -262,7 +262,7 @@ describe('PhishingDataService', () => {
     it('throws if the API returns a malformed response', async () => {
       nock(CLIENT_SIDE_DETECION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
-        .reply(200, { recentlyAdded: 'not an array' });
+        .reply(200, { recentlyAdded: [], recentlyRemoved: [] });
       const { rootMessenger } = createService();
 
       await expect(
@@ -322,7 +322,10 @@ describe('PhishingDataService', () => {
         'PhishingDataService:scanUrl',
         'example.com',
       );
-      expect(response3).toStrictEqual({ recommendedAction: 'BLOCK' });
+      expect(response3).toStrictEqual({
+        hostname: 'example.com',
+        recommendedAction: 'BLOCK',
+      });
     });
 
     it('throws if the API returns a non-200 status', async () => {
@@ -377,7 +380,10 @@ describe('PhishingDataService', () => {
             'PhishingDataService:scanUrl',
             'example.com',
           ),
-        ).toStrictEqual({ recommendedAction: 'BLOCK' });
+        ).toStrictEqual({
+          hostname: 'example.com',
+          recommendedAction: 'BLOCK',
+        });
         expect(fetchMock).toHaveBeenCalledTimes(2);
       } finally {
         fetchMock.mockRestore();
@@ -430,7 +436,10 @@ describe('PhishingDataService', () => {
       // next call re-requests and sees the real verdict.
       expect(
         await rootMessenger.call('PhishingDataService:scanUrl', 'example.com'),
-      ).toStrictEqual({ recommendedAction: 'BLOCK' });
+      ).toStrictEqual({
+        hostname: 'example.com',
+        recommendedAction: 'BLOCK',
+      });
       expect(scope.isDone()).toBe(true);
     });
 
@@ -452,7 +461,10 @@ describe('PhishingDataService', () => {
       ).rejects.toThrow('detector unavailable');
       expect(
         await rootMessenger.call('PhishingDataService:scanUrl', 'example.com'),
-      ).toStrictEqual({ recommendedAction: 'BLOCK' });
+      ).toStrictEqual({
+        hostname: 'example.com',
+        recommendedAction: 'BLOCK',
+      });
       expect(scope.isDone()).toBe(true);
     });
 
@@ -1276,7 +1288,10 @@ describe('PhishingDataService', () => {
 
       resolveGetItem?.({ result: persisted });
       const result = await resultPromise;
-      expect(result).toStrictEqual({ recommendedAction: 'NONE' });
+      expect(result).toStrictEqual({
+        hostname: 'example.com',
+        recommendedAction: 'NONE',
+      });
       expect(networkScope.isDone()).toBe(false);
 
       jest.advanceTimersByTime(SCAN_RESULT_GC_TIME + 1);
@@ -1287,7 +1302,10 @@ describe('PhishingDataService', () => {
           'PhishingDataService:scanUrl',
           'example.com',
         ),
-      ).toStrictEqual({ recommendedAction: 'BLOCK' });
+      ).toStrictEqual({
+        hostname: 'example.com',
+        recommendedAction: 'BLOCK',
+      });
       expect(networkScope.isDone()).toBe(true);
     });
 

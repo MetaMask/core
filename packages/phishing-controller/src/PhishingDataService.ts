@@ -300,6 +300,7 @@ const HotlistDiffsResponseStruct = type({
 const C2DomainBlocklistResponseStruct = type({
   recentlyAdded: array(string()),
   recentlyRemoved: array(string()),
+  lastFetchedAt: number(),
 });
 
 const ScanUrlResponseStruct = type({
@@ -704,7 +705,11 @@ export class PhishingDataService extends BaseDataService<
         if (scanResult.fetchError) {
           throw new Error(scanResult.fetchError);
         }
-        return scanResult as Json;
+        const [hostname] = getHostnameFromWebUrl(`https://${url}`);
+        return {
+          ...scanResult,
+          hostname: scanResult.hostname ?? hostname,
+        } as Json;
       },
       staleTime: SCAN_RESULT_STALE_TIME,
       gcTime: SCAN_RESULT_GC_TIME,
