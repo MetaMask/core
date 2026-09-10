@@ -9241,6 +9241,43 @@ describe('TransactionController', () => {
 
         expect(approvedEventListener).not.toHaveBeenCalled();
       });
+
+      it('publishes transactionApproved with a nonce after signing approval', async () => {
+        const {
+          controller,
+          messenger,
+          mockTransactionApprovalRequest,
+        } = setupController();
+
+        const approvedEventListener = jest.fn();
+
+        messenger.subscribe(
+          'TransactionController:transactionApproved',
+          approvedEventListener,
+        );
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x21000',
+            gasPrice: '0x1',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        mockTransactionApprovalRequest.approve();
+
+        await result;
+
+        expect(approvedEventListener).toHaveBeenCalledTimes(1);
+        expect(
+          approvedEventListener.mock.calls[0][0].transactionMeta.txParams.nonce,
+        ).toBeDefined();
+      });
     });
 
     describe('TransactionController:estimateGasBatch', () => {
