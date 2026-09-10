@@ -622,12 +622,18 @@ linkStyle default opacity:0.5
   social_controllers --> profile_sync_controller;
   solana_test_validator_up --> local_node_utils;
   storage_service --> messenger;
+  subscription_controller --> authenticated_user_storage;
   subscription_controller --> base_controller;
   subscription_controller --> base_data_service;
+  subscription_controller --> chomp_api_service;
   subscription_controller --> controller_utils;
+  subscription_controller --> delegation_controller;
   subscription_controller --> messenger;
+  subscription_controller --> money_account_balance_service;
+  subscription_controller --> money_account_utils;
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
+  subscription_controller --> remote_feature_flag_controller;
   subscription_controller --> transaction_controller;
   transaction_controller --> accounts_controller;
   transaction_controller --> approval_controller;
