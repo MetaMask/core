@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `AuthenticationController.getOidcToken` method and messenger action to mint a partner identity token (`POST /api/v2/oidc/token`). HTTP 422 throws `EmailRequiredError` when the profile has no verified email.
+- Add `AuthenticationController.getOidcToken` method and messenger action to mint a partner identity token (`POST /api/v2/oidc/token`). HTTP 422 throws `EmailRequiredError` when the profile has no verified email ([#10164](https://github.com/MetaMask/core/pull/10164)).
 
 ## [31.0.0]
 
