@@ -22,8 +22,10 @@ export type SubscriptionDelegationServiceCheckMoneyAccountBalanceAction = {
  *
  * Reuses a stored AUS delegation that matches the semantic fingerprint when
  * one exists (ensuring a CHOMP intent is active for its hash, unless
- * `skipChompInteractions` is true). Otherwise builds, signs, optionally
- * verifies with CHOMP, persists, and optionally registers a new delegation.
+ * `skipChompInteractions` is true). Period `startDate` must still be
+ * trial-deferred when `isTrialRequested` is true, and immediately redeemable
+ * otherwise. If there is no match, builds, signs, optionally verifies with
+ * CHOMP, persists, and optionally registers a new delegation.
  *
  * When `skipChompInteractions` is true (required for alpha), CHOMP verify
  * and intent calls are skipped; the returned hash is computed locally. The
