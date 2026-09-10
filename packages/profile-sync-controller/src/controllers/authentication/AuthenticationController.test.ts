@@ -1689,6 +1689,23 @@ describe('AuthenticationController', () => {
       expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(true);
       expect(controller.state.needsSocialPairing).toBe(false);
     });
+
+    it('keeps needsProfilePairing true when clearState lands during an in-flight /pair', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      arrangeAuthAPIs({ mockPairProfilesDelayMs: 50 });
+      const { messenger } = createMockAuthenticationMessenger();
+      const controller = new AuthenticationController({
+        messenger,
+        state: mockSignedInState({ needsProfilePairing: true }),
+        metametrics,
+      });
+
+      const performSignInPromise = controller.performSignIn();
+      controller.clearState();
+      await performSignInPromise;
+
+      expect(controller.state.needsProfilePairing).toBe(true);
+    });
   });
 
   describe('getBearerToken', () => {

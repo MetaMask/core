@@ -220,9 +220,10 @@ export class AuthenticationController extends BaseController<
 
   #isUnlocked = false;
 
-  // Bumped by `requestProfilePairing`. `performSignIn` snapshots this
-  // before its first await; if it changes mid-flight we must NOT clear
-  // `needsProfilePairing` (the rearm signal wins).
+  /**
+   * Bumped by `requestProfilePairing` and `clearState` so an in-flight
+   * `performSignIn` can't clear `needsProfilePairing` afterwards.
+   */
   #profilePairingRequestEpoch = 0;
 
   readonly #keyringController = {
@@ -737,6 +738,7 @@ export class AuthenticationController extends BaseController<
    * so the next wallet starts unsigned with both pairing gates re-armed.
    */
   public clearState(): void {
+    this.#profilePairingRequestEpoch += 1;
     this.update(() => ({ ...defaultState }));
   }
 
