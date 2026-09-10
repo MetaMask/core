@@ -22,3 +22,8 @@ export const CDOGE_ASSET_ID_CHECKSUM =
 
 /** Native BNB, which is never occurrence-filtered. */
 export const BNB_ASSET_ID = `${BSC_CHAIN_ID}/slip44:714` as const;
+
+// RPC mocks
+export const BSC_CHAIN_ID_HEX = '0x38' as const;
+export const BSC_NETWORK_CLIENT_ID = 'bsc' as const;
+export const BSC_RPC_URL = 'https://bsc-rpc.test';

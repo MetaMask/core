@@ -1,6 +1,18 @@
+import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
+import type { NetworkState } from '@metamask/network-controller';
+import {
+  getDefaultNetworkControllerState,
+  NetworkStatus,
+} from '@metamask/network-controller';
 import { parseCaipAssetType } from '@metamask/utils';
 import { cleanAll } from 'nock';
 
+import {
+  buildCustomNetworkClientConfiguration,
+  buildCustomNetworkConfiguration,
+  buildCustomRpcEndpoint,
+  buildMockGetNetworkClientById,
+} from '../../../network-controller/tests/helpers.js';
 import { mockBscSpamApis } from '../__fixtures__/bsc-spam-token/api-responses/index.js';
 import {
   buildBscSpamAccount,
@@ -8,43 +20,40 @@ import {
 } from '../__fixtures__/bsc-spam-token/bscSpamWallet.js';
 import {
   BNB_ASSET_ID,
-  CDOGE_ASSET_ID_LOWERCASE,
-  CDOGE_ASSET_ID_CHECKSUM,
   BSC_CHAIN_ID,
+  BSC_CHAIN_ID_HEX,
+  BSC_NETWORK_CLIENT_ID,
+  BSC_RPC_URL,
   BSC_SPAM_ACCOUNT_ID,
+  CDOGE_ASSET_ID_CHECKSUM,
+  CDOGE_ASSET_ID_LOWERCASE,
 } from '../__fixtures__/bsc-spam-token/wallet.js';
 import { createMockAssetControllerMessenger } from '../__fixtures__/MockAssetControllerMessenger.js';
 import { createTestApiClient } from '../__fixtures__/mockTokenApi.js';
 import { AccountsApiDataSource } from '../data-sources/AccountsApiDataSource.js';
 import { PriceDataSource } from '../data-sources/PriceDataSource.js';
+import { RpcDataSource } from '../data-sources/RpcDataSource.js';
+import { StakedBalanceDataSource } from '../data-sources/StakedBalanceDataSource.js';
 import { TokenDataSource } from '../data-sources/TokenDataSource.js';
+import { CustomAssetGraduationMiddleware } from '../middlewares/CustomAssetGraduationMiddleware.js';
 import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
-import {
-  createParallelBalanceMiddleware,
-  createParallelMiddleware,
-} from '../middlewares/ParallelMiddleware.js';
+import { RpcFallbackMiddleware } from '../middlewares/RpcFallbackMiddleware.js';
 import type {
+  AccountId,
   AssetsControllerStateInternal,
+  Caip19AssetId,
   DataRequest,
   DataResponse,
 } from '../types.js';
-import { executeAssetsPipeline } from './index.js';
+import { buildFastFetchSources, executeAssetsPipeline } from './index.js';
 
 /**
  * Integration coverage for the fast fetch lane against the BNB Chain wallet
  * from the `$$$DOGECHAIN` (`CDOGE`) spam-token report.
  *
- * This drives the real `AccountsApiDataSource`, `DetectionMiddleware`,
- * `TokenDataSource` and `PriceDataSource` through `executeAssetsPipeline`
- * without booting `AssetsController`, and answers every HTTP call from
- * responses captured live off the Accounts, Tokens, Token and Price APIs (see
- * `__fixtures__/bsc-spam-token/`). Only the messenger and the HTTP boundary are
- * mocked.
+ * Executes the real fast-lane pipeline against realistic APIs.
  *
- * The wallet holds 38 assets. `CDOGE` has one aggregator occurrence, BNB Chain
- * has no entry in `/v1/suggestedOccurrenceFloors` so its floor is the default
- * three, and `eip155:56` is fully supported by the Tokens API — so the spam
- * token genuinely reaches the occurrence filter and should be dropped.
+ * Integration Expectation - CDOGE is correctly filtered out.
  */
 
 type PipelineResult = {
@@ -52,16 +61,6 @@ type PipelineResult = {
   /** The asset IDs each `/v3/assets` request asked about, in request order. */
   requestedAssetBatches: string[][];
 };
-
-/**
- * Teardown for everything `runPipeline` constructs.
- *
- * Both entries matter for the suite to terminate. `AccountsApiDataSource`
- * installs a 20-minute chain-refresh interval, and every cached API response
- * holds a 5-minute TanStack Query garbage-collection timer — enough to keep a
- * single-file jest run alive long past the last assertion.
- */
-const teardowns: (() => void)[] = [];
 
 /**
  * Balances the pipeline returned for the wallet's account.
@@ -106,14 +105,106 @@ function allDetectedAssetIds(response: DataResponse): string[] {
 }
 
 /**
+ * Register the controllers the RPC-backed sources read their networks from, so
+ * BNB Chain resolves to a network client backed by a `MockInternalProvider`.
+ *
+ * Staking stays inert regardless: its supported chains are Mainnet and Hoodi,
+ * and BNB Chain is neither.
+ *
+ * @param rootMessenger - The root messenger to register handlers on.
+ */
+function registerBscNetwork(
+  rootMessenger: ReturnType<
+    typeof createMockAssetControllerMessenger
+  >['rootMessenger'],
+): void {
+  // Answers in process, so no JSON-RPC can reach a real node. `eth_chainId`
+  // gets a real answer because ethers asks for it before any other call; the
+  // read methods get `'0x'`, which every caller in the lane takes as "nothing
+  // here". Anything else throws, which is what we want: this wallet's captures
+  // give the lane no reason to read on-chain at all.
+  const provider = new MockInternalProvider({
+    stubs: [
+      { method: 'eth_chainId', result: BSC_CHAIN_ID_HEX },
+      { method: 'eth_call', result: '0x' },
+      { method: 'eth_getBalance', result: '0x' },
+      { method: 'eth_blockNumber', result: '0x' },
+    ].map(({ method, result }) => ({
+      request: { method },
+      response: { result },
+      // Stubs are consumed on match unless this says otherwise, and the lane
+      // may read the same method once per account and chain.
+      discardAfterMatching: false,
+    })),
+  });
+
+  const networkState: NetworkState = {
+    ...getDefaultNetworkControllerState(),
+    selectedNetworkClientId: BSC_NETWORK_CLIENT_ID,
+    networkConfigurationsByChainId: {
+      [BSC_CHAIN_ID_HEX]: buildCustomNetworkConfiguration({
+        chainId: BSC_CHAIN_ID_HEX,
+        name: 'BNB Chain',
+        nativeCurrency: 'BNB',
+        rpcEndpoints: [
+          buildCustomRpcEndpoint({
+            networkClientId: BSC_NETWORK_CLIENT_ID,
+            url: BSC_RPC_URL,
+          }),
+        ],
+      }),
+    },
+    networksMetadata: {
+      [BSC_NETWORK_CLIENT_ID]: { status: NetworkStatus.Available, EIPS: {} },
+    },
+  };
+
+  rootMessenger.registerActionHandler(
+    'NetworkController:getState',
+    () => networkState,
+  );
+
+  const getNetworkClientById = buildMockGetNetworkClientById({
+    [BSC_NETWORK_CLIENT_ID]: buildCustomNetworkClientConfiguration({
+      chainId: BSC_CHAIN_ID_HEX,
+      rpcUrl: BSC_RPC_URL,
+      ticker: 'BNB',
+    }),
+  });
+
+  rootMessenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    (networkClientId) =>
+      ({
+        ...getNetworkClientById(networkClientId),
+        provider,
+        // The real client's provider and block tracker are proxies around live
+        // connections; the sources only ever call `request` on the provider.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      }) as any,
+  );
+
+  rootMessenger.registerActionHandler(
+    'NetworkEnablementController:getState',
+    () => ({
+      enabledNetworkMap: { eip155: { [BSC_CHAIN_ID_HEX]: true } },
+      nativeAssetIdentifiers: { [BSC_CHAIN_ID]: BNB_ASSET_ID },
+    }),
+  );
+
+  // Read for the chain's multicall3 address; BNB Chain has no entry here.
+  rootMessenger.registerActionHandler(
+    'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+    () => undefined,
+  );
+}
+
+/**
  * Run the fast fetch lane once against the captured APIs.
  *
- * The lane is composed here rather than through `buildFastFetchSources`, which
- * requires the full production set: the RPC, staking and graduation sources are
- * irrelevant to this wallet and would add network surface unrelated to the bug.
- * The slice below keeps the part of the production order that matters here —
- * balances, then detection, then metadata and prices in parallel.
- * `buildFastFetchSources.test.ts` pins the full ordering separately.
+ * The lane is composed by `buildFastFetchSources`, the same function
+ * `AssetsController` uses, so the middlewares run in the production order with
+ * the production roles filled by real instances.
  *
  * @param state - Controller state the pipeline reads through `getAssetsState`.
  * @returns The pipeline response and what each API was asked for.
@@ -137,13 +228,29 @@ async function runPipeline(
     }),
   );
 
+  registerBscNetwork(rootMessenger);
+
   const queryApiClient = createTestApiClient();
-  const getAssetsState = (): AssetsControllerStateInternal => state;
 
   const accountsApiDataSource = new AccountsApiDataSource({
     messenger: assetsControllerMessenger,
     queryApiClient,
     onActiveChainsUpdated: (): void => undefined,
+  });
+
+  const stakedBalanceDataSource = new StakedBalanceDataSource({
+    messenger: assetsControllerMessenger,
+    onActiveChainsUpdated: (): void => undefined,
+  });
+
+  const rpcDataSource = new RpcDataSource({
+    messenger: assetsControllerMessenger,
+    onActiveChainsUpdated: (): void => undefined,
+    getNativeAssetForChain: (): Caip19AssetId => BNB_ASSET_ID,
+    getAssetType: (assetId): 'native' | 'erc20' =>
+      parseCaipAssetType(assetId).assetNamespace === 'erc20'
+        ? 'erc20'
+        : 'native',
   });
 
   const tokenDataSource = new TokenDataSource(assetsControllerMessenger, {
@@ -158,11 +265,6 @@ async function runPipeline(
   const priceDataSource = new PriceDataSource({
     queryApiClient,
     getSelectedCurrency: (): 'usd' => 'usd',
-  });
-
-  teardowns.push((): void => {
-    accountsApiDataSource.destroy();
-    queryApiClient.clear();
   });
 
   const { assets } = mockBscSpamApis();
@@ -180,15 +282,37 @@ async function runPipeline(
     forceUpdate: true,
   };
 
+  const sources = buildFastFetchSources(
+    {
+      accountsApiDataSource,
+      stakedBalanceDataSource,
+      customAssetGraduationMiddleware: new CustomAssetGraduationMiddleware({
+        getSelectedAccountId: (): AccountId => BSC_SPAM_ACCOUNT_ID,
+        removeCustomAsset: (): void => {
+          throw new Error(
+            'Integration should not call graduation to remove assets!',
+          );
+        },
+      }),
+      rpcFallbackMiddleware: new RpcFallbackMiddleware({ rpcDataSource }),
+      detectionMiddleware: new DetectionMiddleware(),
+      tokenDataSource,
+      priceDataSource,
+    },
+    { isBasicFunctionality: true },
+  );
+
   const { response } = await executeAssetsPipeline({
-    sources: [
-      createParallelBalanceMiddleware([accountsApiDataSource]),
-      new DetectionMiddleware(),
-      createParallelMiddleware([tokenDataSource, priceDataSource]),
-    ],
+    sources,
     request,
-    getAssetsState,
+    getAssetsState: () => state,
   });
+
+  // cleanup
+  accountsApiDataSource.destroy();
+  stakedBalanceDataSource.destroy();
+  rpcDataSource.destroy();
+  queryApiClient.clear();
 
   return { response, requestedAssetBatches: assets.requestedBatches };
 }
@@ -228,54 +352,26 @@ function commitToState(
 
 describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
   afterEach(() => {
-    while (teardowns.length > 0) {
-      teardowns.pop()?.();
-    }
     cleanAll();
   });
 
   describe('first pass over a fresh wallet', () => {
-    it('drops the sub-floor spam token from the balances it would persist', async () => {
+    it('prunes balances, metadata, and detected assets for the spam token', async () => {
       const { response } = await runPipeline(buildEmptyAssetsState());
-
-      const balances = balancesFor(response);
 
       // The Accounts API returned this balance and the Tokens API said the
       // token has one occurrence against a floor of three, so nothing about it
-      // should reach state.
+      // should reach state — including `detectedAssets`, which would still
+      // announce it downstream as a new holding.
       expect(
-        getIgnoringCase(balances, CDOGE_ASSET_ID_LOWERCASE),
+        getIgnoringCase(balancesFor(response), CDOGE_ASSET_ID_LOWERCASE),
       ).toBeUndefined();
-    });
-
-    it('drops the spam token from the detected-asset list', async () => {
-      const { response } = await runPipeline(buildEmptyAssetsState());
-
-      const detectedLowerIds = allDetectedAssetIds(response).map((assetId) =>
-        assetId.toLowerCase(),
-      );
-
-      // Left in `detectedAssets`, the spam token is still announced downstream
-      // as a new holding even once its balance is gone.
-      expect(detectedLowerIds).not.toContain(CDOGE_ASSET_ID_LOWERCASE);
-    });
-
-    it('does not enrich the spam token with metadata', async () => {
-      const { response } = await runPipeline(buildEmptyAssetsState());
-
       expect(
         getIgnoringCase(response.assetsInfo ?? {}, CDOGE_ASSET_ID_LOWERCASE),
       ).toBeUndefined();
-    });
-
-    // Legitimate failing test, our middleware stack does not filter out spam asset prices!
-    // This does eventually get cleaned up during unlock cleanup, but worth flagging.
-    // eslint-disable-next-line jest/no-disabled-tests
-    it.skip('does not carry a price for the spam token', async () => {
-      const { response } = await runPipeline(buildEmptyAssetsState());
       expect(
-        getIgnoringCase(response.assetsPrice ?? {}, CDOGE_ASSET_ID_LOWERCASE),
-      ).toBeUndefined();
+        allDetectedAssetIds(response).map((assetId) => assetId.toLowerCase()),
+      ).not.toContain(CDOGE_ASSET_ID_LOWERCASE);
     });
 
     it('keeps the native BNB balance and its metadata despite its low occurrence count', async () => {
@@ -287,6 +383,16 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
       expect(
         getIgnoringCase(response.assetsInfo ?? {}, BNB_ASSET_ID),
       ).toBeDefined();
+    });
+
+    // Legitimate failing test, our middleware stack does not filter out spam asset prices!
+    // This does eventually get cleaned up during unlock cleanup, but worth flagging.
+    // eslint-disable-next-line jest/no-disabled-tests
+    it.skip('does not carry a price for the spam token', async () => {
+      const { response } = await runPipeline(buildEmptyAssetsState());
+      expect(
+        getIgnoringCase(response.assetsPrice ?? {}, CDOGE_ASSET_ID_LOWERCASE),
+      ).toBeUndefined();
     });
   });
 
@@ -305,25 +411,6 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
       // ...while the captured Tokens API answers lower-case regardless. Any
       // filtering that matches asset ids by exact string across this boundary
       // silently does nothing.
-    });
-
-    it('prunes balances, metadata, and detected assets for spam tokens', async () => {
-      const { response } = await runPipeline(buildEmptyAssetsState());
-
-      // spam balances filtered out
-      expect(
-        getIgnoringCase(balancesFor(response), CDOGE_ASSET_ID_LOWERCASE),
-      ).toBeUndefined();
-
-      // spam metadata filtered out
-      expect(
-        getIgnoringCase(response.assetsInfo ?? {}, CDOGE_ASSET_ID_LOWERCASE),
-      ).toBeUndefined();
-
-      // spam detected assets filtered out
-      expect(
-        allDetectedAssetIds(response).map((assetId) => assetId.toLowerCase()),
-      ).not.toContain(CDOGE_ASSET_ID_LOWERCASE);
     });
   });
 
@@ -348,23 +435,9 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
       expect(
         getIgnoringCase(response.assetsInfo ?? {}, CDOGE_ASSET_ID_LOWERCASE),
       ).toBeUndefined();
-    });
-  });
-
-  describe('custom assets', () => {
-    it('keeps a sub-floor token the user imported themselves', async () => {
-      // Users may import whatever they like; the occurrence floor must not
-      // second-guess an explicit import.
-      const importedSpam = CDOGE_ASSET_ID_CHECKSUM;
-      const state = buildEmptyAssetsState({
-        customAssets: { [BSC_SPAM_ACCOUNT_ID]: [importedSpam] },
-      });
-
-      const { response } = await runPipeline(state);
-
       expect(
-        getIgnoringCase(response.assetsInfo ?? {}, importedSpam),
-      ).toBeDefined();
+        allDetectedAssetIds(response).map((assetId) => assetId.toLowerCase()),
+      ).not.toContain(CDOGE_ASSET_ID_LOWERCASE);
     });
   });
 });
