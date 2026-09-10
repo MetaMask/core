@@ -102,6 +102,23 @@ describe('marketUtils category classification', () => {
         ).toBe(true);
       });
 
+      it('matches a main-DEX market with unset marketType and the memecoin tag', () => {
+        // Common provider-sourced shape: main-DEX markets often have
+        // marketType undefined until Terminal enrichment applies it. The
+        // memecoin filter must still surface them, mirroring the 'crypto'
+        // case above.
+        expect(
+          matchesCategory(
+            market({
+              isHip3: false,
+              marketType: undefined,
+              tags: ['memecoin'],
+            }),
+            'memecoin',
+          ),
+        ).toBe(true);
+      });
+
       it('still matches crypto for a memecoin (overlapping by design)', () => {
         expect(
           matchesCategory(
@@ -126,10 +143,30 @@ describe('marketUtils category classification', () => {
         ).toBe(false);
       });
 
-      it('does not match non-crypto markets even with the memecoin tag', () => {
+      it('does not match non-crypto HIP-3 markets even with the memecoin tag', () => {
         expect(
           matchesCategory(
-            market({ marketType: 'stock', tags: ['memecoin'] }),
+            market({
+              isHip3: true,
+              marketType: 'stock',
+              tags: ['memecoin'],
+            }),
+            'memecoin',
+          ),
+        ).toBe(false);
+      });
+
+      it('does not match a marketSource-only HIP-3 market with the memecoin tag', () => {
+        // isHip3Market also treats markets with only a marketSource DEX id
+        // as HIP-3, so those shouldn't leak into the memecoin filter
+        // either.
+        expect(
+          matchesCategory(
+            market({
+              isHip3: undefined,
+              marketSource: 'xyz',
+              tags: ['memecoin'],
+            }),
             'memecoin',
           ),
         ).toBe(false);

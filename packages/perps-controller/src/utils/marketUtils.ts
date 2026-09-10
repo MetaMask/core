@@ -69,9 +69,12 @@ export function matchesCategory(
       return !isHip3Market(market) || market.marketType === 'crypto';
     case 'memecoin':
       // Derived category: a crypto market that carries the 'memecoin' tag.
-      // Overlaps with 'crypto' by design — memecoins appear under both pills.
+      // Aligned with the 'crypto' case above so tagged main-DEX markets
+      // still match when their marketType is unset (the common
+      // provider-sourced shape prior to Terminal enrichment). Overlaps
+      // with 'crypto' by design — memecoins appear under both pills.
       return (
-        market.marketType === 'crypto' &&
+        (!isHip3Market(market) || market.marketType === 'crypto') &&
         (market.tags?.includes('memecoin') ?? false)
       );
     default:
