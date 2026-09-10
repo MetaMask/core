@@ -1090,10 +1090,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lavamoat/preinstall-always-fail@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "@lavamoat/preinstall-always-fail@npm:1.0.0"
-  checksum: 10/93af02b34c8a7d99296025fd2052272f26310b38998c07b39f698ba395a5543b450dea41d3a26005c83a634738e6f7de01a7cea0eb5552cfe83abe619c3e7b31
+"@lavamoat/preinstall-always-fail@npm:^2.1.0":
+  version: 2.1.1
+  resolution: "@lavamoat/preinstall-always-fail@npm:2.1.1"
+  checksum: 10/679cfd6b981326bf6f7cce63af4062b1e1e2ffaefd4db316e918ec41ac089c835aafd7f2bb5193cd25538e084d3df1375cd2ac5a52c3e7777aedeb2ee507dd29
   languageName: node
   linkType: hard
 
@@ -1206,7 +1206,7 @@ __metadata:
   dependencies:
     "@ethereumjs/tx": "npm:^4.2.0"
     "@lavamoat/allow-scripts": "npm:^3.0.4"
-    "@lavamoat/preinstall-always-fail": "npm:^1.0.0"
+    "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/eslint-config": "npm:^15.0.0"
     "@metamask/eslint-config-jest": "npm:^15.0.0"
@@ -1238,7 +1238,7 @@ __metadata:
     eslint-plugin-promise: "npm:^7.1.0"
     jest: "npm:^29.2.2"
     jest-it-up: "npm:^2.0.2"
-    jest-when: "npm:^3.6.0"
+    jest-when: "npm:^3.7.0"
     lodash: "npm:^4.17.21"
     oxfmt: "npm:^0.44.0"
     pony-cause: "npm:^2.1.10"
@@ -1248,7 +1248,7 @@ __metadata:
     ts-jest: "npm:^29.0.3"
     ts-node: "npm:^10.7.0"
     tsd: "npm:^0.29.0"
-    typedoc: "npm:^0.23.15"
+    typedoc: "npm:^0.25.13"
     typescript: "npm:~5.3.3"
     typescript-eslint: "npm:^8.48.0"
     uuid: "npm:^9.0.1"
@@ -2840,12 +2840,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"brace-expansion@npm:^2.0.1":
-  version: 2.0.1
-  resolution: "brace-expansion@npm:2.0.1"
+"brace-expansion@npm:^2.0.1, brace-expansion@npm:^2.0.2":
+  version: 2.1.4
+  resolution: "brace-expansion@npm:2.1.4"
   dependencies:
     balanced-match: "npm:^1.0.0"
-  checksum: 10/a61e7cd2e8a8505e9f0036b3b6108ba5e926b4b55089eeb5550cd04a471fe216c96d4fe7e4c7f995c728c554ae20ddfc4244cad10aef255e72b62930afd233d1
+  checksum: 10/11e18dc39706037331abedbb742af1da733267042f94c0f08487ef1a63cee068c1859f8d5f95523869725191133eb1a69753de457ed4b76b7c187d9ea0646737
   languageName: node
   linkType: hard
 
@@ -5456,12 +5456,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jest-when@npm:^3.6.0":
-  version: 3.6.0
-  resolution: "jest-when@npm:3.6.0"
+"jest-when@npm:^3.7.0":
+  version: 3.7.0
+  resolution: "jest-when@npm:3.7.0"
   peerDependencies:
     jest: ">= 25"
-  checksum: 10/0cb92738ccfa5711a685107f4437f18aefbe3cda120c912a9d49b612eeef03a910481ab40fe753fd42c4e617ffbb3d84c6bd66a76d963dac7f1ad9e9e5059359
+  checksum: 10/b5b88d077ed467aab220c71c885dbc5f448604f06e68f761ce9f479c99bb74e0dbf553d1cc980751d88401b034a578e1c44eec5e4095743b7586f02bb7c6313d
   languageName: node
   linkType: hard
 
@@ -5818,7 +5818,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"marked@npm:^4.2.12":
+"marked@npm:^4.3.0":
   version: 4.3.0
   resolution: "marked@npm:4.3.0"
   bin:
@@ -5926,7 +5926,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"minimatch@npm:^7.1.3, minimatch@npm:^7.4.6":
+"minimatch@npm:^7.4.6":
   version: 7.4.6
   resolution: "minimatch@npm:7.4.6"
   dependencies:
@@ -5935,12 +5935,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"minimatch@npm:^9.0.1":
-  version: 9.0.3
-  resolution: "minimatch@npm:9.0.3"
+"minimatch@npm:^9.0.1, minimatch@npm:^9.0.3":
+  version: 9.0.9
+  resolution: "minimatch@npm:9.0.9"
   dependencies:
-    brace-expansion: "npm:^2.0.1"
-  checksum: 10/c81b47d28153e77521877649f4bab48348d10938df9e8147a58111fe00ef89559a2938de9f6632910c4f7bf7bb5cd81191a546167e58d357f0cfb1e18cecc1c5
+    brace-expansion: "npm:^2.0.2"
+  checksum: 10/b91fad937deaffb68a45a2cb731ff3cff1c3baf9b6469c879477ed16f15c8f4ce39d63a3f75c2455107c2fdff0f3ab597d97dc09e2e93b883aafcf926ef0c8f9
   languageName: node
   linkType: hard
 
@@ -7069,15 +7069,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"shiki@npm:^0.14.1":
-  version: 0.14.1
-  resolution: "shiki@npm:0.14.1"
+"shiki@npm:^0.14.7":
+  version: 0.14.7
+  resolution: "shiki@npm:0.14.7"
   dependencies:
     ansi-sequence-parser: "npm:^1.1.0"
     jsonc-parser: "npm:^3.2.0"
     vscode-oniguruma: "npm:^1.7.0"
     vscode-textmate: "npm:^8.0.0"
-  checksum: 10/6256651a5db0cfcb3069c483e8cc43765af24fce0df6e5fdb515e61d52b0880c06c43bc1e6f7ef1bd58bada38830e6e7367256ce9472e879af1c88c41231b13b
+  checksum: 10/be3f2444c65bd0c57802026f171cb42ad571d361ee885be0c292b60785f68c70f19b69310f5ffe7f7a93db4c5ef50211e0a0248794bc6bb48d242bc43fe72a62
   languageName: node
   linkType: hard
 
@@ -7665,19 +7665,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typedoc@npm:^0.23.15":
-  version: 0.23.28
-  resolution: "typedoc@npm:0.23.28"
+"typedoc@npm:^0.25.13":
+  version: 0.25.13
+  resolution: "typedoc@npm:0.25.13"
   dependencies:
     lunr: "npm:^2.3.9"
-    marked: "npm:^4.2.12"
-    minimatch: "npm:^7.1.3"
-    shiki: "npm:^0.14.1"
+    marked: "npm:^4.3.0"
+    minimatch: "npm:^9.0.3"
+    shiki: "npm:^0.14.7"
   peerDependencies:
-    typescript: 4.6.x || 4.7.x || 4.8.x || 4.9.x || 5.0.x
+    typescript: 4.6.x || 4.7.x || 4.8.x || 4.9.x || 5.0.x || 5.1.x || 5.2.x || 5.3.x || 5.4.x
   bin:
     typedoc: bin/typedoc
-  checksum: 10/1f3d43037ea400b690d296afe384d2df1dbfc06581af20b5c674d9be8cf7cce53279859f919f3dfd78f43a2f2b72d23ca0ae9b080b411febe8a41ad3fae5ff5e
+  checksum: 10/3c82603894b5830c4b027b4f4f9ca70f770b6752c6512a42e780c40cb67fe4c9a144e34a837bb35aab14a125e00a5893e1e6feac1ec86a2add80f46833b279d4
   languageName: node
   linkType: hard
 
