@@ -1599,7 +1599,7 @@ describe('ProfileMetricsController', () => {
           it('keeps the batch in the queue when signBatch rejects', async () => {
             const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
             const accounts: Record<string, AccountWithScopes[]> = {
-              id1: [{ address: address.toLowerCase(), scopes: ['eip155:1'] }],
+              id1: [{ address, scopes: ['eip155:1'] }],
             };
             await withController(
               {
@@ -1614,17 +1614,21 @@ describe('ProfileMetricsController', () => {
                 mockSignProofBatch,
                 registerAccounts,
               }) => {
-                jest.spyOn(console, 'error').mockImplementation();
+                const consoleErrorSpy = jest
+                  .spyOn(console, 'error')
+                  .mockImplementation();
                 registerAccounts([createMockAccount(address.toLowerCase())]);
                 mockFetchNonces.mockResolvedValueOnce({ [address]: 'n' });
                 mockSignProofBatch.mockRejectedValueOnce(
                   new Error('batch signing failed'),
                 );
 
-                await expect(controller._executePoll()).rejects.toThrow(
-                  'batch signing failed',
-                );
+                await controller._executePoll();
 
+                expect(consoleErrorSpy).toHaveBeenCalledWith(
+                  'Failed to submit profile metrics for sync queue key id1:',
+                  expect.any(Error),
+                );
                 expect(mockSubmitMetrics).not.toHaveBeenCalled();
                 expect(controller.state.syncQueue).toStrictEqual(accounts);
               },
@@ -1634,7 +1638,7 @@ describe('ProfileMetricsController', () => {
           it('keeps the batch in the queue when signBatch returns the wrong number of results', async () => {
             const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
             const accounts: Record<string, AccountWithScopes[]> = {
-              id1: [{ address: address.toLowerCase(), scopes: ['eip155:1'] }],
+              id1: [{ address, scopes: ['eip155:1'] }],
             };
             await withController(
               {
@@ -1649,14 +1653,19 @@ describe('ProfileMetricsController', () => {
                 mockSignProofBatch,
                 registerAccounts,
               }) => {
+                const consoleErrorSpy = jest
+                  .spyOn(console, 'error')
+                  .mockImplementation();
                 registerAccounts([createMockAccount(address.toLowerCase())]);
                 mockFetchNonces.mockResolvedValueOnce({ [address]: 'n' });
                 mockSignProofBatch.mockResolvedValueOnce({ results: [] });
 
-                await expect(controller._executePoll()).rejects.toThrow(
-                  'ProofOfOwnershipService:signBatch returned 0 results for 1 requests.',
-                );
+                await controller._executePoll();
 
+                expect(consoleErrorSpy).toHaveBeenCalledWith(
+                  'Failed to submit profile metrics for sync queue key id1:',
+                  expect.any(Error),
+                );
                 expect(mockSubmitMetrics).not.toHaveBeenCalled();
                 expect(controller.state.syncQueue).toStrictEqual(accounts);
               },
