@@ -8482,6 +8482,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^10.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
+    "@metamask/eth-sig-util": "npm:^9.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/transaction-controller": "npm:^70.0.0"
     "@noble/hashes": "npm:^1.8.0"
