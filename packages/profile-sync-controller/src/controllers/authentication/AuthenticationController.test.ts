@@ -18,7 +18,10 @@ import {
   getMessageSigningPublicKey,
   signMessageWithMessageSigningKey,
 } from '../../shared/utils/message-signing.js';
-import { AuthenticationController } from './AuthenticationController.js';
+import {
+  AuthenticationController,
+  defaultState,
+} from './AuthenticationController.js';
 import type {
   AuthenticationControllerMessenger,
   AuthenticationControllerState,
@@ -1603,6 +1606,106 @@ describe('AuthenticationController', () => {
       controller.performSignOut();
       expect(controller.state.isSignedIn).toBe(false);
       expect(controller.state.srpSessionData).toBeUndefined();
+      // Sign-out is not a wallet reset: pairing gates stay cleared.
+      expect(controller.state.needsProfilePairing).toBe(false);
+      expect(controller.state.needsSocialPairing).toBe(false);
+    });
+  });
+
+  describe('clearState', () => {
+    it('resets a fully populated state to defaultState', () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger } = createMockAuthenticationMessenger();
+      const populatedState = mockSignedInState({
+        needsProfilePairing: false,
+        needsSocialPairing: false,
+      });
+      const controller = new AuthenticationController({
+        messenger,
+        state: populatedState,
+        metametrics,
+      });
+
+      expect(controller.state).toStrictEqual(populatedState);
+
+      controller.clearState();
+
+      expect(controller.state).toStrictEqual(defaultState);
+      expect(populatedState).not.toStrictEqual(defaultState);
+    });
+
+    it('is exposed via the messenger registry', () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger, baseMessenger } = createMockAuthenticationMessenger();
+      const controller = new AuthenticationController({
+        messenger,
+        state: mockSignedInState({
+          needsProfilePairing: false,
+          needsSocialPairing: false,
+        }),
+        metametrics,
+      });
+
+      baseMessenger.call('AuthenticationController:clearState');
+      expect(controller.state).toStrictEqual(defaultState);
+    });
+
+    it('re-arms social pairing so the next performSignIn calls pair/identifier', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const mockEndpoints = arrangeAuthAPIs();
+      const {
+        messenger,
+        mockKeyringControllerGetState,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: mockHdKeyrings(MOCK_ENTROPY_SOURCE_IDS[0]),
+      });
+      mockSeedlessOnboardingGetState.mockReturnValue({
+        vault: 'encrypted',
+        authConnection: 'google',
+        socialLoginEmail: MOCK_SOCIAL_EMAIL,
+      });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(MOCK_SOCIAL_JWT);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+        config: SOCIAL_PAIRING_ENABLED,
+        state: mockSignedInState({
+          needsProfilePairing: false,
+          needsSocialPairing: false,
+        }),
+      });
+
+      expect(controller.state.needsSocialPairing).toBe(false);
+
+      controller.clearState();
+      expect(controller.state).toStrictEqual(defaultState);
+
+      await controller.performSignIn();
+
+      expect(mockEndpoints.mockPairSocialIdentifierUrl.isDone()).toBe(true);
+      expect(controller.state.needsSocialPairing).toBe(false);
+    });
+
+    it('keeps needsProfilePairing true when clearState lands during an in-flight /pair', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      arrangeAuthAPIs({ mockPairProfilesDelayMs: 50 });
+      const { messenger } = createMockAuthenticationMessenger();
+      const controller = new AuthenticationController({
+        messenger,
+        state: mockSignedInState({ needsProfilePairing: true }),
+        metametrics,
+      });
+
+      const performSignInPromise = controller.performSignIn();
+      controller.clearState();
+      await performSignInPromise;
+
+      expect(controller.state.needsProfilePairing).toBe(true);
     });
   });
 
