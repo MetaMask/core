@@ -68,7 +68,7 @@ type ParsedArguments = CommonArguments &
  * @returns Absolute path to the `docusaurus` executable.
  */
 function resolveDocusaurus(): string {
-  return npmWhich(__dirname).sync('docusaurus');
+  return npmWhich(import.meta.dirname).sync('docusaurus');
 }
 
 /**
@@ -103,17 +103,13 @@ async function runDocusaurus(
  * @param outDir - The output directory to set up.
  */
 async function setupSite(outDir: string): Promise<void> {
-  const packageDir = path.resolve(__dirname, '..');
+  const packageDir = path.resolve(import.meta.dirname, '..');
   const siteDir = path.join(packageDir, 'site');
   const packageNodeModules = path.join(packageDir, 'node_modules');
   const skip = new Set(['node_modules', 'docs', 'tsconfig.json']);
 
   console.log(`\nSetting up Docusaurus site in ${outDir}...`);
 
-  // `fs.cp` has been available since Node 16.7 and only got the "stable"
-  // marker in 22.3 — it's functional throughout our supported Node range
-  // (`^18.18 || >=20`), even though the linter flags the older versions.
-  // eslint-disable-next-line n/no-unsupported-features/node-builtins
   await fs.cp(siteDir, outDir, {
     recursive: true,
     filter: (source) => !skip.has(path.basename(source)),
