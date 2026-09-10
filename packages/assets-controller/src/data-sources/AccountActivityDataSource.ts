@@ -250,6 +250,9 @@ export class AccountActivityDataSource extends AbstractDataSource<
   // SUBSCRIBE / UNSUBSCRIBE
   // ============================================================================
 
+  // Pins on active chains are claimed via the inherited `claimCustomAssets`:
+  // the activity stream pushes all activity for the address, pins included.
+
   /**
    * AADS is event-driven and chain-agnostic: it never participates in the
    * controller's subscribe/unsubscribe handoff. Incoming `balanceUpdated`
