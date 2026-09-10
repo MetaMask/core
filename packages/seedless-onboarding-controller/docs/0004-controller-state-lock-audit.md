@@ -356,4 +356,3 @@ The state-lock design is complete when:
 - Cross-controller Keyring operations are covered by a coordinator lock.
 - Concurrency and process-interruption tests verify the final state, returned
   status, and recoverability rather than only individual method results.
-

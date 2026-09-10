@@ -4985,9 +4985,7 @@ describe('SeedlessOnboardingController', () => {
           const changeEncKeyStarted = new Promise<void>((resolve) => {
             resolveChangeEncKeyStarted = resolve;
           });
-          let resolveChangeEncKey!: (
-            result: ChangeEncryptionKeyResult,
-          ) => void;
+          let resolveChangeEncKey!: (result: ChangeEncryptionKeyResult) => void;
           const changeEncKeyResult = new Promise<ChangeEncryptionKeyResult>(
             (resolve) => {
               resolveChangeEncKey = resolve;
@@ -5004,12 +5002,10 @@ describe('SeedlessOnboardingController', () => {
               authPubKey: changeEncryptionKeyResult.authKeyPair.pk,
               keyIndex: 1,
             });
-          jest
-            .spyOn(toprfClient, 'changeEncKey')
-            .mockImplementation(() => {
-              resolveChangeEncKeyStarted();
-              return changeEncKeyResult;
-            });
+          jest.spyOn(toprfClient, 'changeEncKey').mockImplementation(() => {
+            resolveChangeEncKeyStarted();
+            return changeEncKeyResult;
+          });
 
           const changePasswordPromise = baseMessenger.call(
             'SeedlessOnboardingController:changePassword',
@@ -7534,11 +7530,7 @@ describe('SeedlessOnboardingController', () => {
               withMockAuthenticatedUser: true,
             }),
           },
-          async ({
-            controller,
-            toprfClient,
-            mockRefreshJWTToken,
-          }) => {
+          async ({ controller, toprfClient, mockRefreshJWTToken }) => {
             jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
@@ -9041,9 +9033,7 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, mockRevokeRefreshToken, baseMessenger }) => {
-          mockRevokeRefreshToken.mockRejectedValue(
-            new Error('Revoke failed'),
-          );
+          mockRevokeRefreshToken.mockRejectedValue(new Error('Revoke failed'));
 
           await baseMessenger.call(
             'SeedlessOnboardingController:revokePendingRefreshTokens',
