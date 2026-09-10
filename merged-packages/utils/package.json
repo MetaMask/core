@@ -62,7 +62,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@ethereumjs/tx": "^4.2.0",
+    "@ethereumjs/tx": "^5.4.0",
     "@metamask/scure-bip39": "^2.1.1",
     "@metamask/superstruct": "^3.4.1",
     "@noble/hashes": "^1.8.0",

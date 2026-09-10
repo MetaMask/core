@@ -1,4 +1,4 @@
-import type { TypedTransaction, TxData } from '@ethereumjs/tx';
+import type { TypedTransaction, LegacyTxData } from '@ethereumjs/tx';
 
 import type { Eip1024EncryptedData } from './encryption-types';
 import type { Hex } from './hex';
@@ -149,7 +149,7 @@ export type Keyring<State extends Json> = {
     address: Hex,
     transaction: TypedTransaction,
     options?: Record<string, unknown>,
-  ): Promise<TxData>;
+  ): Promise<LegacyTxData>;
 
   /**
    * Sign a message. This is equivalent to an older version of the the

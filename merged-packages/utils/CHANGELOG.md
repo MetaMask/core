@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@ethereumjs/tx` from `^4.2.0` to `^5.4.0` ([#321](https://github.com/MetaMask/utils/pull/321))
+  - The deprecated `Keyring.signTransaction` now returns `LegacyTxData` rather than `TxData`. These describe the same shape: `@ethereumjs/tx@5` repurposed the name `TxData` for a map keyed by transaction type and renamed the old meaning to `LegacyTxData`. Implementations do not need changing.
 - Bump `@metamask/scure-bip39` from `^2.0.3` to `^2.1.1` ([#311](https://github.com/MetaMask/utils/pull/311))
 - Bump `@metamask/superstruct` from `^3.1.0` to `^3.4.1` ([#311](https://github.com/MetaMask/utils/pull/311))
 - Bump `@noble/hashes` from `^1.3.1` to `^1.8.0` ([#311](https://github.com/MetaMask/utils/pull/311))
