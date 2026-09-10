@@ -966,6 +966,41 @@ describe('TransactionController', () => {
       );
     });
 
+    it('updates transaction batch gas fee estimates when the poller emits a batch update', async () => {
+      const batchId = BATCH_ID_MOCK;
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactionBatches: [{ id: batchId } as never],
+          },
+        },
+      });
+      const batchUpdateHandler = gasFeePollerMock.hub.on.mock.calls.find(
+        ([event]) => event === 'transaction-batch-updated',
+      )?.[1] as (
+        request: {
+          transactionBatchId: Hex;
+          gasFeeEstimates?: GasFeeEstimates;
+        },
+      ) => void;
+
+      batchUpdateHandler({
+        transactionBatchId: batchId,
+        gasFeeEstimates: {
+          type: GasFeeEstimateType.FeeMarket,
+        } as GasFeeEstimates,
+      });
+
+      expect(controller.state.transactionBatches).toContainEqual(
+        expect.objectContaining({
+          id: batchId,
+          gasFeeEstimates: {
+            type: GasFeeEstimateType.FeeMarket,
+          },
+        }),
+      );
+    });
+
     it('provides only test flow if option set', () => {
       setupController({
         options: {
@@ -3917,6 +3952,32 @@ describe('TransactionController', () => {
         ).rejects.toThrow(
           providerErrors.unauthorized({ data: { origin: expectedOrigin } }),
         );
+      });
+
+      it('reads internal accounts while validating an approved transaction', async () => {
+        const { controller, rootMessenger } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        rootMessenger.unregisterActionHandler('AccountsController:getState');
+        rootMessenger.registerActionHandler('AccountsController:getState', () => ({
+          internalAccounts: {
+            accounts: {
+              [INTERNAL_ACCOUNT_MOCK.id]: INTERNAL_ACCOUNT_MOCK,
+            },
+          },
+        }));
+
+        const { result } = await controller.addTransaction(
+          { from: ACCOUNT_MOCK, to: ACCOUNT_MOCK },
+          { networkClientId: NETWORK_CLIENT_ID_MOCK },
+        );
+
+        await result;
       });
     });
 
