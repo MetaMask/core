@@ -977,12 +977,10 @@ describe('TransactionController', () => {
       });
       const batchUpdateHandler = gasFeePollerMock.hub.on.mock.calls.find(
         ([event]) => event === 'transaction-batch-updated',
-      )?.[1] as (
-        request: {
-          transactionBatchId: Hex;
-          gasFeeEstimates?: GasFeeEstimates;
-        },
-      ) => void;
+      )?.[1] as (request: {
+        transactionBatchId: Hex;
+        gasFeeEstimates?: GasFeeEstimates;
+      }) => void;
 
       batchUpdateHandler({
         transactionBatchId: batchId,
@@ -2450,25 +2448,34 @@ describe('TransactionController', () => {
       it('calls isSponsored hook before reserving a nonce', async () => {
         const callOrder: string[] = [];
 
-        const isSponsoredHook = jest.fn().mockImplementation(async () => {
-          callOrder.push('isSponsored');
-          expect(getNonceLockSpy).not.toHaveBeenCalled();
-          return false;
-        });
+        const isSponsoredHook = jest
+          .fn()
+          .mockImplementation(async (): Promise<boolean> => {
+            callOrder.push('isSponsored');
+            expect(getNonceLockSpy).not.toHaveBeenCalled();
+            return false;
+          });
 
-        const shouldSignHook = jest.fn().mockImplementation(async () => {
-          callOrder.push('shouldSign');
-          expect(getNonceLockSpy).not.toHaveBeenCalled();
-          return true;
-        });
+        const shouldSignHook = jest
+          .fn()
+          .mockImplementation(async (): Promise<boolean> => {
+            callOrder.push('shouldSign');
+            expect(getNonceLockSpy).not.toHaveBeenCalled();
+            return true;
+          });
 
-        getNonceLockSpy.mockImplementation(async () => {
-          callOrder.push('getNonceLock');
-          return {
-            nextNonce: NONCE_MOCK,
-            releaseLock: () => Promise.resolve(),
-          };
-        });
+        getNonceLockSpy.mockImplementation(
+          async (): Promise<{
+            nextNonce: Hex;
+            releaseLock: () => Promise<void>;
+          }> => {
+            callOrder.push('getNonceLock');
+            return {
+              nextNonce: NONCE_MOCK,
+              releaseLock: () => Promise.resolve(),
+            };
+          },
+        );
 
         const { controller } = setupController({
           messengerOptions: {
@@ -2498,7 +2505,11 @@ describe('TransactionController', () => {
 
         expect(isSponsoredHook).toHaveBeenCalledTimes(1);
         expect(shouldSignHook).toHaveBeenCalledTimes(1);
-        expect(callOrder).toStrictEqual(['isSponsored', 'shouldSign', 'getNonceLock']);
+        expect(callOrder).toStrictEqual([
+          'isSponsored',
+          'shouldSign',
+          'getNonceLock',
+        ]);
       });
 
       it('skips nonce reservation when shouldSign resolves false', async () => {
@@ -3964,13 +3975,16 @@ describe('TransactionController', () => {
         });
 
         rootMessenger.unregisterActionHandler('AccountsController:getState');
-        rootMessenger.registerActionHandler('AccountsController:getState', () => ({
-          internalAccounts: {
-            accounts: {
-              [INTERNAL_ACCOUNT_MOCK.id]: INTERNAL_ACCOUNT_MOCK,
+        rootMessenger.registerActionHandler(
+          'AccountsController:getState',
+          () => ({
+            internalAccounts: {
+              accounts: {
+                [INTERNAL_ACCOUNT_MOCK.id]: INTERNAL_ACCOUNT_MOCK,
+              },
             },
-          },
-        }));
+          }),
+        );
 
         const { result } = await controller.addTransaction(
           { from: ACCOUNT_MOCK, to: ACCOUNT_MOCK },
