@@ -1631,6 +1631,7 @@ describe('AuthenticationController', () => {
       controller.clearState();
 
       expect(controller.state).toStrictEqual(defaultState);
+      expect(populatedState).not.toStrictEqual(defaultState);
     });
 
     it('is exposed via the messenger registry', () => {
