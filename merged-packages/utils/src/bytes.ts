@@ -1,8 +1,8 @@
 import { base64 } from '@scure/base';
 
-import { assert } from './assert';
-import type { Hex } from './hex';
-import { add0x, assertIsHexString, remove0x } from './hex';
+import { assert } from './assert.js';
+import type { Hex } from './hex.js';
+import { add0x, assertIsHexString, remove0x } from './hex.js';
 
 // '0'.charCodeAt(0) === 48
 const HEX_MINIMUM_NUMBER_CHARACTER = 48;

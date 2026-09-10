@@ -8,8 +8,8 @@ import {
   validRange as validSemVerRange,
 } from 'semver';
 
-import { assertStruct } from './assert';
-import type { Opaque } from './opaque';
+import { assertStruct } from './assert.js';
+import type { Opaque } from './opaque.js';
 
 /**
  * {@link https://codemix.com/opaque-types-in-javascript/ Opaque} type for SemVer ranges.

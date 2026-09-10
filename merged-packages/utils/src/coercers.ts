@@ -10,10 +10,10 @@ import {
   union,
 } from '@metamask/superstruct';
 
-import { assert } from './assert';
-import { bytesToHex, hexToBytes } from './bytes';
-import type { Hex } from './hex';
-import { StrictHexStruct } from './hex';
+import { assert } from './assert.js';
+import { bytesToHex, hexToBytes } from './bytes.js';
+import type { Hex } from './hex.js';
+import { StrictHexStruct } from './hex.js';
 
 const NumberLikeStruct = union([number(), bigint(), string(), StrictHexStruct]);
 const NumberCoercer = coerce(number(), NumberLikeStruct, Number);

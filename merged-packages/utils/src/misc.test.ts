@@ -1,4 +1,4 @@
-import type { RuntimeObject } from '.';
+import type { RuntimeObject } from './index.js';
 import {
   isNonEmptyArray,
   isNullOrUndefined,
@@ -9,7 +9,7 @@ import {
   calculateNumberSize,
   isASCII,
   calculateStringSize,
-} from '.';
+} from './index.js';
 
 describe('miscellaneous', () => {
   describe('isNonEmptyArray', () => {

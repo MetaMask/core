@@ -1,7 +1,7 @@
 import {
   convertMnemonicToWordlistIndices,
   uint8ArrayToMnemonic,
-} from './mnemonic';
+} from './mnemonic.js';
 
 const TWELVE_WORD_MNEMONIC =
   'bulk riot robust reward museum path chunk health rate soon zone wagon';

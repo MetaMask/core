@@ -8,7 +8,7 @@ import {
   CAIP_CHAIN_ID_FIXTURES,
   CAIP_NAMESPACE_FIXTURES,
   CAIP_REFERENCE_FIXTURES,
-} from './__fixtures__';
+} from './__fixtures__/index.js';
 import {
   CAIP_ACCOUNT_ADDRESS_REGEX,
   CAIP_ASSET_NAMESPACE_REGEX,
@@ -34,7 +34,7 @@ import {
   toCaipAssetId,
   toCaipAssetType,
   toCaipChainId,
-} from './caip-types';
+} from './caip-types.js';
 
 describe('isCaipChainId', () => {
   it.each(CAIP_CHAIN_ID_FIXTURES)(

@@ -7,7 +7,7 @@ import {
   isErrorWithMessage,
   isErrorWithStack,
   wrapError,
-} from './errors';
+} from './errors.js';
 
 describe('isErrorWithCode', () => {
   it('returns true if given an object that includes a "code" property', () => {

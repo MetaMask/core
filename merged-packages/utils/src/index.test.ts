@@ -1,4 +1,4 @@
-import * as allExports from '.';
+import * as allExports from './index.js';
 
 describe('index', () => {
   it('includes only cross-platform exports', () => {

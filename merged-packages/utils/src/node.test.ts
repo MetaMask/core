@@ -1,4 +1,4 @@
-import * as allExports from './node';
+import * as allExports from './node.js';
 
 describe('node', () => {
   it('includes Node-specific exports in addition to the cross-platform ones', () => {

@@ -11,6 +11,17 @@ import {
 } from '@metamask/superstruct';
 
 import {
+  JSON_FIXTURES,
+  JSON_RPC_ERROR_FIXTURES,
+  JSON_RPC_FAILURE_FIXTURES,
+  JSON_RPC_NOTIFICATION_FIXTURES,
+  JSON_RPC_PENDING_RESPONSE_FIXTURES,
+  JSON_RPC_REQUEST_FIXTURES,
+  JSON_RPC_RESPONSE_FIXTURES,
+  JSON_RPC_SUCCESS_FIXTURES,
+  JSON_VALIDATION_FIXTURES,
+} from './__fixtures__/index.js';
+import {
   assert,
   assertIsJsonRpcError,
   assertIsJsonRpcFailure,
@@ -33,18 +44,7 @@ import {
   object,
   exactOptional,
   JsonStruct,
-} from '.';
-import {
-  JSON_FIXTURES,
-  JSON_RPC_ERROR_FIXTURES,
-  JSON_RPC_FAILURE_FIXTURES,
-  JSON_RPC_NOTIFICATION_FIXTURES,
-  JSON_RPC_PENDING_RESPONSE_FIXTURES,
-  JSON_RPC_REQUEST_FIXTURES,
-  JSON_RPC_RESPONSE_FIXTURES,
-  JSON_RPC_SUCCESS_FIXTURES,
-  JSON_VALIDATION_FIXTURES,
-} from './__fixtures__';
+} from './index.js';
 
 jest.mock('@metamask/superstruct', () => ({
   ...jest.requireActual('@metamask/superstruct'),

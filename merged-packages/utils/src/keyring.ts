@@ -1,8 +1,8 @@
 import type { TypedTransaction, LegacyTxData } from '@ethereumjs/tx';
 
-import type { Eip1024EncryptedData } from './encryption-types';
-import type { Hex } from './hex';
-import type { Json } from './json';
+import type { Eip1024EncryptedData } from './encryption-types.js';
+import type { Hex } from './hex.js';
+import type { Json } from './json.js';
 
 /**
  * A Keyring class.

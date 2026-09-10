@@ -1,6 +1,6 @@
 import { expectAssignable, expectNotAssignable } from 'tsd';
 
-import type { Hex } from '.';
+import type { Hex } from './index.js';
 
 // Valid hex strings:
 

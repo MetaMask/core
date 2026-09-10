@@ -1,6 +1,6 @@
 import { is } from '@metamask/superstruct';
 
-import { ChecksumStruct } from './checksum';
+import { ChecksumStruct } from './checksum.js';
 
 describe('ChecksumStruct', () => {
   it('validates valid checksum', () => {

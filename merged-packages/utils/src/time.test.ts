@@ -1,4 +1,4 @@
-import { Duration, inMilliseconds, timeSince } from '.';
+import { Duration, inMilliseconds, timeSince } from './index.js';
 
 describe('time utilities', () => {
   describe('Duration', () => {

@@ -1,4 +1,4 @@
-import * as englishWordlist from '@metamask/scure-bip39/dist/wordlists/english';
+import * as englishWordlist from '@metamask/scure-bip39/dist/wordlists/english.js';
 
 const { wordlist } = englishWordlist;
 

@@ -1,4 +1,4 @@
-import type { SemVerRange, SemVerVersion } from './versions';
+import type { SemVerRange, SemVerVersion } from './versions.js';
 import {
   assertIsSemVerRange,
   assertIsSemVerVersion,
@@ -7,7 +7,7 @@ import {
   isValidSemVerRange,
   isValidSemVerVersion,
   satisfiesVersionRange,
-} from './versions';
+} from './versions.js';
 
 describe('assertIsSemVerVersion', () => {
   it('shows descriptive errors', () => {

@@ -1,6 +1,6 @@
 import { ErrorWithCause } from 'pony-cause';
 
-import { isNullOrUndefined, isObject } from './misc';
+import { isNullOrUndefined, isObject } from './misc.js';
 
 /**
  * Type guard for determining whether the given value is an instance of Error.

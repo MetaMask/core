@@ -1,5 +1,10 @@
-import { NUMBER_VALUES } from './__fixtures__';
-import { bigIntToHex, hexToBigInt, hexToNumber, numberToHex } from './number';
+import { NUMBER_VALUES } from './__fixtures__/index.js';
+import {
+  bigIntToHex,
+  hexToBigInt,
+  hexToNumber,
+  numberToHex,
+} from './number.js';
 
 describe('numberToHex', () => {
   it.each(NUMBER_VALUES)(

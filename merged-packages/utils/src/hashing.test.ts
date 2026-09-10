@@ -1,8 +1,8 @@
 import * as nobleHashes256 from '@noble/hashes/sha256';
 import * as nobleHashes512 from '@noble/hashes/sha512';
 
-import { bytesToHex, stringToBytes } from './bytes';
-import { sha256, sha512, sha384 } from './hashing';
+import { bytesToHex, stringToBytes } from './bytes.js';
+import { sha256, sha512, sha384 } from './hashing.js';
 
 describe('hash functions', () => {
   const originalSubtle = globalThis.crypto.subtle;

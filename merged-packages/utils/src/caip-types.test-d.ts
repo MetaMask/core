@@ -10,7 +10,7 @@ import type {
   CaipChainId,
   CaipNamespace,
   CaipReference,
-} from '.';
+} from './index.js';
 
 const embeddedString = 'test';
 

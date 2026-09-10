@@ -11,7 +11,7 @@ import {
   remove0x,
   getChecksumAddressUnmemoized as getChecksumAddress,
   getChecksumAddress as getChecksumAddressMemoized,
-} from './hex';
+} from './hex.js';
 
 describe('isHexString', () => {
   it.each([

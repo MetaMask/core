@@ -1,6 +1,6 @@
 import { MockWritable } from 'stdio-mock';
 
-import { createProjectLogger, createModuleLogger } from './logging';
+import { createProjectLogger, createModuleLogger } from './logging.js';
 
 describe('logging', () => {
   beforeAll(() => {

@@ -26,9 +26,9 @@ import type {
   Optionalize,
 } from '@metamask/superstruct';
 
-import type { AssertionErrorConstructor } from './assert';
-import { assertStruct } from './assert';
-import { hasProperty } from './misc';
+import type { AssertionErrorConstructor } from './assert.js';
+import { assertStruct } from './assert.js';
+import { hasProperty } from './misc.js';
 
 /**
  * Any JSON-compatible value.

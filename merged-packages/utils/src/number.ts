@@ -1,6 +1,6 @@
-import { assert } from './assert';
-import type { Hex } from './hex';
-import { add0x, assertIsHexString } from './hex';
+import { assert } from './assert.js';
+import type { Hex } from './hex.js';
+import { add0x, assertIsHexString } from './hex.js';
 
 /**
  * Convert a number to a hexadecimal string. This verifies that the number is a

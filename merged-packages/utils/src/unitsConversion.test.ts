@@ -7,7 +7,7 @@ import {
   numericToBigInt,
   getValueOfUnit,
   unitMap,
-} from './unitsConversion';
+} from './unitsConversion.js';
 
 // Import the internal function for testing (note: this would normally be exported for testing)
 // For now we'll test it indirectly through the public functions

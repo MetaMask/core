@@ -90,7 +90,12 @@ module.exports = {
   // ],
 
   // A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
-  // moduleNameMapper: {},
+  // The sources are ESM and so use explicit `.js` specifiers on relative
+  // imports. The tests compile to CommonJS (see `transform` below), where those
+  // files are still `.ts`, so the extension is stripped back off here.
+  moduleNameMapper: {
+    '^(\\.{1,2}/.+)\\.js$': '$1',
+  },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
   // modulePathIgnorePatterns: [],
@@ -187,7 +192,21 @@ module.exports = {
   // timers: "real",
 
   // A map from regular expressions to paths to transformers
-  // transform: undefined,
+  // The package is ESM, but Jest runs the tests as CommonJS. Overriding the
+  // module settings here compiles the sources to CommonJS for tests without
+  // affecting the published build.
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        tsconfig: {
+          module: 'CommonJS',
+          moduleResolution: 'Node',
+          verbatimModuleSyntax: false,
+        },
+      },
+    ],
+  },
 
   // An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
   // transformIgnorePatterns: [

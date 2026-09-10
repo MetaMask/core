@@ -4,8 +4,8 @@ import type { Infer } from '@metamask/superstruct';
 import { boolean, number, optional, string } from '@metamask/superstruct';
 import { expectAssignable, expectNotAssignable } from 'tsd';
 
-import type { Json } from '.';
-import { exactOptional, object } from '.';
+import type { Json } from './index.js';
+import { exactOptional, object } from './index.js';
 
 // Valid Json:
 

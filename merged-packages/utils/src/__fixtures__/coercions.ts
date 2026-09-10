@@ -1,4 +1,4 @@
-import type { Hex } from '../hex';
+import type { Hex } from '../hex.js';
 
 export const POSITIVE_INTEGERS = [0, 1, 10, 100, 1000, 123456789, 2147483647];
 export const NEGATIVE_INTEGERS = [

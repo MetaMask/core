@@ -5,7 +5,7 @@ import {
   assertExhaustive,
   AssertionError,
   assertStruct,
-} from './assert';
+} from './assert.js';
 
 jest.mock('@metamask/superstruct', () => ({
   ...jest.requireActual('@metamask/superstruct'),

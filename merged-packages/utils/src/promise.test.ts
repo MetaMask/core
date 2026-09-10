@@ -1,4 +1,4 @@
-import { createDeferredPromise } from './promise';
+import { createDeferredPromise } from './promise.js';
 
 describe('Promise utilities', () => {
   describe('createDeferredPromise', () => {

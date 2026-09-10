@@ -1,4 +1,4 @@
-import { FrozenMap, FrozenSet } from './collections';
+import { FrozenMap, FrozenSet } from './collections.js';
 
 describe('FrozenMap', () => {
   describe('immutability', () => {

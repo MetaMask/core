@@ -18,7 +18,7 @@ import {
   readJsonFile,
   writeFile,
   writeJsonFile,
-} from './fs';
+} from './fs.js';
 
 const { withinSandbox } = createSandbox('utils');
 

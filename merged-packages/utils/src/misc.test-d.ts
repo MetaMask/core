@@ -1,7 +1,7 @@
 import { expectAssignable, expectNotAssignable, expectType } from 'tsd';
 
-import type { PublicInterface, RuntimeObject } from './misc';
-import { isObject, hasProperty, getKnownPropertyNames } from './misc';
+import type { PublicInterface, RuntimeObject } from './misc.js';
+import { isObject, hasProperty, getKnownPropertyNames } from './misc.js';
 
 //=============================================================================
 // PublicInterface

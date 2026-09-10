@@ -1,6 +1,6 @@
 import { assert, is, pattern, string } from '@metamask/superstruct';
 
-import { definePattern } from './superstruct';
+import { definePattern } from './superstruct.js';
 
 describe('definePattern', () => {
   const hexPattern = /^0x[0-9a-f]+$/u;

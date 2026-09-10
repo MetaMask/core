@@ -5,7 +5,7 @@ import {
   TWOS_COMPLEMENT_BYTES_FIXTURES,
   UPPER_CASE_HEX_FIXTURES,
   UTF_8_BYTES_FIXTURES,
-} from './__fixtures__';
+} from './__fixtures__/index.js';
 import {
   areUint8ArraysEqual,
   assertIsBytes,
@@ -25,7 +25,7 @@ import {
   signedBigIntToBytes,
   stringToBytes,
   valueToBytes,
-} from './bytes';
+} from './bytes.js';
 
 describe('isBytes', () => {
   it('returns true for a Node.js Buffer', () => {

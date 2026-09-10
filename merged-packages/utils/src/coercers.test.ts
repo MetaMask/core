@@ -3,10 +3,15 @@ import {
   HEX_STRINGS,
   NEGATIVE_INTEGERS,
   POSITIVE_INTEGERS,
-} from './__fixtures__';
-import { bytesToHex, hexToBytes } from './bytes';
-import { createBigInt, createBytes, createHex, createNumber } from './coercers';
-import { add0x } from './hex';
+} from './__fixtures__/index.js';
+import { bytesToHex, hexToBytes } from './bytes.js';
+import {
+  createBigInt,
+  createBytes,
+  createHex,
+  createNumber,
+} from './coercers.js';
+import { add0x } from './hex.js';
 
 describe('createNumber', () => {
   it.each(POSITIVE_INTEGERS)(
