@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-status-controller",
-  "version": "76.0.0",
+  "version": "76.0.1",
   "description": "Manages bridge-related status fetching functionality for MetaMask",
   "keywords": [
     "Ethereum",
@@ -51,7 +51,7 @@
   "dependencies": {
     "@metamask/accounts-controller": "^40.0.0",
     "@metamask/base-controller": "^10.0.0",
-    "@metamask/bridge-controller": "^81.0.0",
+    "@metamask/bridge-controller": "^81.0.1",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/gas-fee-controller": "^27.0.0",
     "@metamask/keyring-controller": "^28.0.0",

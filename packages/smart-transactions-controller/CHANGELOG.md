@@ -7,9 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
+## [27.0.1]
 
 ## [27.0.0]
 
@@ -125,7 +123,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.0.0` to `^68.0.1` ([#9177](https://github.com/MetaMask/core/pull/9177))
 - Drop unused dependencies `@ethereumjs/tx`, `@ethereumjs/util`, and `fast-json-patch` ([#9139](https://github.com/MetaMask/core/pull/9139))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.1...HEAD
+[27.0.1]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.0...@metamask/smart-transactions-controller@27.0.1
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@26.0.1...@metamask/smart-transactions-controller@27.0.0
 [26.0.1]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@26.0.0...@metamask/smart-transactions-controller@26.0.1
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@25.1.1...@metamask/smart-transactions-controller@26.0.0

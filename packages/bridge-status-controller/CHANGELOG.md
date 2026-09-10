@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [76.0.1]
+
 ### Added
 
 - Emit `failure_phase`, `error_code`, `source_hash_present`, and `destination_hash_present` on SwapBridge Submitted, Completed, and Failed events ([#9949](https://github.com/MetaMask/core/pull/9949))
@@ -14,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
-- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
 
 ## [76.0.0]
 
@@ -1587,7 +1588,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.0.1...HEAD
+[76.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.0.0...@metamask/bridge-status-controller@76.0.1
 [76.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.5.1...@metamask/bridge-status-controller@76.0.0
 [75.5.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.5.0...@metamask/bridge-status-controller@75.5.1
 [75.5.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@75.4.0...@metamask/bridge-status-controller@75.5.0
