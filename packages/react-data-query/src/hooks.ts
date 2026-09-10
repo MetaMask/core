@@ -22,6 +22,10 @@ import {
   UseMutationResult,
 } from '@tanstack/react-query';
 
+// This is referenced in JSDoc below.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { createUIQueryClient } from './createUIQueryClient.js';
+
 const DATA_SERVICE_QUERY_DEFAULTS = {
   staleTime: 0,
   retry: false,
@@ -85,8 +89,16 @@ export function useInfiniteQuery<
 /**
  * Execute a mutation through a data service.
  *
- * @param options - The mutation options. Keep in mind that `mutationFn` is not supported
- * when executing mutations through data services.
+ * This is a version of `useMutation` from TanStack Query which is intended to be used with a {@link createUIQueryClient|UI query client}. Note the following constraints:
+ *
+ * - The `mutationKey` must refer to a method within a data service by matching the following format: ``[`${ServiceName}:${actionName}`, ...arguments]``.
+ * - Providing a custom `mutationFn` is not supported.
+ * - Updating a connected query's cache data [before][1] or [after][2] a mutation via `setQueryData` is not supported.
+ *
+ * [1]: https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates#via-the-cache
+ * [2]: https://tanstack.com/query/latest/docs/framework/react/guides/updates-from-mutation-responses
+ *
+ * @param options - The mutation options.
  * @returns The result of the mutation.
  */
 export function useMutation<

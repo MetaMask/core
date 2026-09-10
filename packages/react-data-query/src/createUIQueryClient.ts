@@ -65,21 +65,14 @@ type MessengerAdapter<DataServiceName extends string> = {
 };
 
 /**
- * Create a QueryClient that queries and subscribes to data services using a
- * messenger adapter. This is a messenger-like object that carries some
- * constraints:
+ * Create a QueryClient that enables data services to power queries and mutations via a messenger adapter.
  *
- * 1. The messenger must support the `call`, `subscribe` and
- *    `unsubscribe` methods.
- * 2. All action handler arguments and event payloads must be JSON-compatible.
- * 3. The messenger must minimally support actions that are scoped to the
- *    designated data services and must minimally support the
- *    `:cacheUpdated:${hash}` event scoped to the designated data services.
+ * This returns a wrapped version of TanStack Query's QueryClient interface. Note that while some methods such as `invalidateQueries` have support for data services, some such as `setQueryData` do not.
  *
  * @param dataServices - A list of data services.
- * @param messenger - A messenger adapter.
+ * @param messenger - A messenger-like object with the following constraints: 1) the messenger must support the `call`, `subscribe` and `unsubscribe` methods; 2) all action handler arguments and event payloads must be JSON-compatible; 3) the messenger must minimally support actions that are scoped to the designated data services and must minimally support the `:cacheUpdated:${hash}` event scoped to the designated data services.
  * @param config - Optional query client configuration options.
- * @returns The QueryClient.
+ * @returns The created QueryClient.
  */
 export function createUIQueryClient<DataServiceNames extends readonly string[]>(
   dataServices: DataServiceNames,
