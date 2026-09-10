@@ -19,6 +19,7 @@ const NumberLikeStruct = union([number(), bigint(), string(), StrictHexStruct]);
 const NumberCoercer = coerce(number(), NumberLikeStruct, Number);
 const BigIntCoercer = coerce(bigint(), NumberLikeStruct, BigInt);
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Only referenced via `Infer<typeof ...>` below, but the value is required for that.
 const BytesLikeStruct = union([StrictHexStruct, instance(Uint8Array)]);
 const BytesCoercer = coerce(
   instance(Uint8Array),

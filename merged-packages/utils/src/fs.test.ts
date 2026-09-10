@@ -3,6 +3,9 @@ import { when } from 'jest-when';
 import os from 'os';
 import path from 'path';
 import util from 'util';
+// The namespace object is required so the tests below can
+// `jest.spyOn(uuid, 'v4')`, which a named import cannot support.
+// eslint-disable-next-line import-x/namespace -- import-x cannot read named exports out of uuid's CommonJS build.
 import * as uuid from 'uuid';
 
 import {
@@ -23,7 +26,6 @@ const { withinSandbox } = createSandbox('utils');
 jest.mock('uuid', () => {
   return {
     // This is how to mock an ES-compatible module in Jest.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     __esModule: true,
     ...jest.requireActual('uuid'),
   };
@@ -143,7 +145,7 @@ describe('fs', () => {
         await withinSandbox(async (sandbox) => {
           const filePath = path.join(sandbox.directoryPath, 'test.json');
           const parser = {
-            parse(content: string) {
+            parse(content: string): { content: string } {
               return { content };
             },
           };
@@ -162,7 +164,7 @@ describe('fs', () => {
         await withinSandbox(async (sandbox) => {
           const filePath = path.join(sandbox.directoryPath, 'nonexistent.json');
           const parser = {
-            parse(content: string) {
+            parse(content: string): { content: string } {
               return { content };
             },
           };
@@ -265,7 +267,7 @@ describe('fs', () => {
                 | (number | string)[]
                 | null,
               space?: string,
-            ) {
+            ): string {
               return (
                 `${util.inspect(json)}\n` +
                 `replacer: ${util.inspect(replacer)}, space: ${util.inspect(
@@ -296,7 +298,7 @@ describe('fs', () => {
                 | (number | string)[]
                 | null,
               space?: string,
-            ) {
+            ): string {
               return (
                 `${util.inspect(json)}\n` +
                 `replacer: ${util.inspect(replacer)}, space: ${util.inspect(
@@ -331,7 +333,7 @@ describe('fs', () => {
                 | (number | string)[]
                 | null,
               space?: string,
-            ) {
+            ): string {
               return (
                 `${util.inspect(json)}\n` +
                 `replacer: ${util.inspect(replacer)}, space: ${util.inspect(
@@ -368,7 +370,7 @@ describe('fs', () => {
                 | (number | string)[]
                 | null,
               space?: string,
-            ) {
+            ): string {
               return (
                 `${util.inspect(json)}\n` +
                 `replacer: ${util.inspect(replacer)}, space: ${util.inspect(

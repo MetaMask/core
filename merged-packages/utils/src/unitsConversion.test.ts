@@ -19,7 +19,7 @@ const totalTypes = Object.keys(unitMap).length;
  *
  * @param negative - Whether to test negative values.
  */
-function testRandomValueAgainstWeb3ToWei(negative: boolean) {
+function testRandomValueAgainstWeb3ToWei(negative: boolean): void {
   const stringTestValue = `${negative ? '-' : ''}${String(
     Math.floor(Math.random() * 100000000000000000 + 1),
   )}`;
@@ -37,7 +37,7 @@ function testRandomValueAgainstWeb3ToWei(negative: boolean) {
  *
  * @param negative - Whether to test negative values.
  */
-function testRandomValueAgainstWeb3FromWei(negative: boolean) {
+function testRandomValueAgainstWeb3FromWei(negative: boolean): void {
   const stringTestValue = `${negative ? '-' : ''}${String(
     Math.floor(Math.random() * 100000000000000000 + 1),
   )}`;

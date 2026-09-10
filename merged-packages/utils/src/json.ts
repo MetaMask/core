@@ -95,6 +95,7 @@ export const object = <Schema extends ObjectSchema>(
   // `undefined` itself. This means that we need a type cast.
   superstructObject(schema) as unknown as Struct<ObjectType<Schema>>;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Branding symbol for the opaque guard type; used only via `typeof`.
 declare const exactOptionalSymbol: unique symbol;
 type ExactOptionalGuard = {
   _exactOptionalGuard?: typeof exactOptionalSymbol;
@@ -153,7 +154,7 @@ export function exactOptional<Type, Schema>(
       !hasOptional(context) || struct.validator(value, context),
 
     refiner: (value, context) =>
-      !hasOptional(context) || struct.refiner(value as Type, context),
+      !hasOptional(context) || struct.refiner(value, context),
   });
 }
 
@@ -390,7 +391,6 @@ export function isJsonRpcNotification(
  */
 export function assertIsJsonRpcNotification(
   value: unknown,
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   ErrorWrapper?: AssertionErrorConstructor,
 ): asserts value is JsonRpcNotification {
   assertStruct(
@@ -421,7 +421,6 @@ export function isJsonRpcRequest(value: unknown): value is JsonRpcRequest {
  */
 export function assertIsJsonRpcRequest(
   value: unknown,
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   ErrorWrapper?: AssertionErrorConstructor,
 ): asserts value is JsonRpcRequest {
   assertStruct(
@@ -468,6 +467,7 @@ export type JsonRpcSuccess<Result extends Json = Json> = Omit<
 export const JsonRpcFailureStruct = object({
   id: JsonRpcIdStruct,
   jsonrpc: JsonRpcVersionStruct,
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- The assertion does not change assignability, but it does pin the emitted declaration to the named `JsonRpcError`. Without it TypeScript inlines the structure and leaks the unexported `ExactOptionalGuard` into the published types.
   error: JsonRpcErrorStruct as Struct<JsonRpcError>,
 });
 
@@ -515,7 +515,6 @@ export function isPendingJsonRpcResponse(
  */
 export function assertIsPendingJsonRpcResponse(
   response: unknown,
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   ErrorWrapper?: AssertionErrorConstructor,
 ): asserts response is PendingJsonRpcResponse {
   assertStruct(
@@ -548,7 +547,6 @@ export function isJsonRpcResponse(
  */
 export function assertIsJsonRpcResponse(
   value: unknown,
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   ErrorWrapper?: AssertionErrorConstructor,
 ): asserts value is JsonRpcResponse {
   assertStruct(
@@ -579,7 +577,6 @@ export function isJsonRpcSuccess(value: unknown): value is JsonRpcSuccess {
  */
 export function assertIsJsonRpcSuccess(
   value: unknown,
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   ErrorWrapper?: AssertionErrorConstructor,
 ): asserts value is JsonRpcSuccess {
   assertStruct(
@@ -610,7 +607,6 @@ export function isJsonRpcFailure(value: unknown): value is JsonRpcFailure {
  */
 export function assertIsJsonRpcFailure(
   value: unknown,
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   ErrorWrapper?: AssertionErrorConstructor,
 ): asserts value is JsonRpcFailure {
   assertStruct(
@@ -641,7 +637,6 @@ export function isJsonRpcError(value: unknown): value is JsonRpcError {
  */
 export function assertIsJsonRpcError(
   value: unknown,
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   ErrorWrapper?: AssertionErrorConstructor,
 ): asserts value is JsonRpcError {
   assertStruct(
@@ -681,7 +676,9 @@ type JsonRpcValidatorOptions = {
  * Default: `true`
  * @returns The JSON-RPC ID validator function.
  */
-export function getJsonRpcIdValidator(options?: JsonRpcValidatorOptions) {
+export function getJsonRpcIdValidator(
+  options?: JsonRpcValidatorOptions,
+): (id: unknown) => id is JsonRpcId {
   const { permitEmptyString, permitFractions, permitNull } = {
     permitEmptyString: true,
     permitFractions: false,

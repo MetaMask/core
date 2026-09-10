@@ -26,7 +26,7 @@ describe('time utilities', () => {
 
     it('counts durations correctly', () => {
       // A count that won't overflow for any Duration value.
-      const getRandomCount = () => Math.floor(Math.random() * 1000);
+      const getRandomCount = (): number => Math.floor(Math.random() * 1000);
 
       Object.values(Duration).forEach((duration) => {
         const count = getRandomCount();

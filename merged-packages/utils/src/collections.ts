@@ -5,13 +5,20 @@
  * to this map.
  */
 class FrozenMap<Key, Value> implements ReadonlyMap<Key, Value> {
+  // The iterator methods below borrow their return types from the inner map
+  // rather than naming one. The name changed across TypeScript versions
+  // (`IterableIterator` became `MapIterator`), and `tsd` type tests run against
+  // a different version than the build, so any hardcoded name is wrong for one
+  // of them. Deriving the type keeps it correct under both.
   readonly #map: Map<Key, Value>;
 
-  public get size() {
+  public get size(): number {
     return this.#map.size;
   }
 
-  public [Symbol.iterator]() {
+  public [Symbol.iterator](): ReturnType<
+    Map<Key, Value>[typeof Symbol.iterator]
+  > {
     return this.#map[Symbol.iterator]();
   }
 
@@ -20,7 +27,7 @@ class FrozenMap<Key, Value> implements ReadonlyMap<Key, Value> {
     Object.freeze(this);
   }
 
-  public entries() {
+  public entries(): ReturnType<Map<Key, Value>['entries']> {
     return this.#map.entries();
   }
 
@@ -35,19 +42,19 @@ class FrozenMap<Key, Value> implements ReadonlyMap<Key, Value> {
     );
   }
 
-  public get(key: Key) {
+  public get(key: Key): Value | undefined {
     return this.#map.get(key);
   }
 
-  public has(key: Key) {
+  public has(key: Key): boolean {
     return this.#map.has(key);
   }
 
-  public keys() {
+  public keys(): ReturnType<Map<Key, Value>['keys']> {
     return this.#map.keys();
   }
 
-  public values() {
+  public values(): ReturnType<Map<Key, Value>['values']> {
     return this.#map.values();
   }
 
@@ -69,13 +76,14 @@ class FrozenMap<Key, Value> implements ReadonlyMap<Key, Value> {
  * to this set.
  */
 class FrozenSet<Value> implements ReadonlySet<Value> {
+  // Derived from the inner set for the same reason as `FrozenMap` above.
   readonly #set: Set<Value>;
 
-  public get size() {
+  public get size(): number {
     return this.#set.size;
   }
 
-  public [Symbol.iterator]() {
+  public [Symbol.iterator](): ReturnType<Set<Value>[typeof Symbol.iterator]> {
     return this.#set[Symbol.iterator]();
   }
 
@@ -84,7 +92,7 @@ class FrozenSet<Value> implements ReadonlySet<Value> {
     Object.freeze(this);
   }
 
-  public entries() {
+  public entries(): ReturnType<Set<Value>['entries']> {
     return this.#set.entries();
   }
 
@@ -99,15 +107,15 @@ class FrozenSet<Value> implements ReadonlySet<Value> {
     );
   }
 
-  public has(value: Value) {
+  public has(value: Value): boolean {
     return this.#set.has(value);
   }
 
-  public keys() {
+  public keys(): ReturnType<Set<Value>['keys']> {
     return this.#set.keys();
   }
 
-  public values() {
+  public values(): ReturnType<Set<Value>['values']> {
     return this.#set.values();
   }
 

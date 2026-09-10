@@ -14,7 +14,6 @@ describe('hash functions', () => {
     const isNode18 = parse(process.version)?.major === 18;
 
     // The global does not exist in Node 18, so we must add it.
-    // eslint-disable-next-line jest/no-if
     if (isNode18) {
       Object.defineProperty(globalThis, 'crypto', {
         value: webcrypto,

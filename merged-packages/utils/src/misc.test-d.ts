@@ -8,7 +8,8 @@ import { isObject, hasProperty, getKnownPropertyNames } from './misc';
 //=============================================================================
 
 class ClassWithPrivateProperties {
-  #foo: string;
+  // eslint-disable-next-line no-unused-private-class-members -- Type-level test fixture; never read at runtime.
+  readonly #foo: string;
 
   bar: string;
 
@@ -27,7 +28,6 @@ expectNotAssignable<PublicInterface<ClassWithPrivateProperties>>({});
 // isObject
 //=============================================================================
 
-// eslint-disable-next-line @typescript-eslint/ban-types
 const unknownValue = {} as unknown;
 
 expectNotAssignable<RuntimeObject>(unknownValue);
@@ -46,8 +46,7 @@ if (hasProperty(constObjectType, 'foo')) {
 // hasProperty
 //=============================================================================
 
-// eslint-disable-next-line @typescript-eslint/ban-types
-const unknownObject = {} as Object;
+const unknownObject = {} as object;
 
 // Establish that `Object` is not accepted when a specific property is needed.
 expectNotAssignable<Record<'foo', unknown>>(unknownObject);
@@ -143,7 +142,6 @@ expectAssignable<RuntimeObject>({});
 
 expectAssignable<RuntimeObject>({ foo: 'foo' });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 expectAssignable<RuntimeObject>({ 0: 'foo' });
 
 expectAssignable<RuntimeObject>({ [Symbol('foo')]: 'foo' });

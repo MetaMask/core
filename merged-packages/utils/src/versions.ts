@@ -31,6 +31,7 @@ import type { Opaque } from './opaque';
  * @see {@link isValidSemVerRange}
  */
 export type SemVerRange = Opaque<string, typeof semVerRange>;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Branding symbol for the opaque type; used only via `typeof`.
 declare const semVerRange: unique symbol;
 
 /**
@@ -53,6 +54,7 @@ declare const semVerRange: unique symbol;
  * @see {@link isValidSemVerVersion}
  */
 export type SemVerVersion = Opaque<string, typeof semVerVersion>;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Branding symbol for the opaque type; used only via `typeof`.
 declare const semVerVersion: unique symbol;
 
 /**

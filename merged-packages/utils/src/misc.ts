@@ -96,7 +96,7 @@ export function isObject(value: unknown): value is RuntimeObject {
  * name, regardless of whether it is enumerable or not.
  */
 export const hasProperty = <
-  // eslint-disable-next-line @typescript-eslint/ban-types
+  // eslint-disable-next-line @typescript-eslint/no-wrapper-object-types -- `Object` is deliberate: it accepts boxed primitives, so callers can pass a string or number. Narrowing to `object` would be a breaking change.
   ObjectToCheck extends Object,
   Property extends PropertyKey,
 >(
@@ -130,6 +130,10 @@ export type PlainObject = Record<number | string | symbol, unknown>;
 /**
  * Predefined sizes (in Bytes) of specific parts of JSON structure.
  */
+/* eslint-disable @typescript-eslint/no-duplicate-enum-values --
+   These are byte sizes, so collisions are meaningful rather than mistakes:
+   a comma, a brace, a quote and a colon are all one byte, and `null` and
+   `true` are both four characters. */
 export enum JsonSize {
   Null = 4,
   Comma = 1,
@@ -141,6 +145,7 @@ export enum JsonSize {
   // eslint-disable-next-line @typescript-eslint/no-shadow
   Date = 24,
 }
+/* eslint-enable @typescript-eslint/no-duplicate-enum-values */
 
 /**
  * Regular expression with pattern matching for (special) escaped characters.
@@ -166,7 +171,7 @@ export function isPlainObject(value: unknown): value is PlainObject {
     }
 
     return Object.getPrototypeOf(value) === proto;
-  } catch (_) {
+  } catch {
     return false;
   }
 }
@@ -177,7 +182,7 @@ export function isPlainObject(value: unknown): value is PlainObject {
  * @param character - Character.
  * @returns True if a character code is ASCII, false if not.
  */
-export function isASCII(character: string) {
+export function isASCII(character: string): boolean {
   return character.charCodeAt(0) <= 127;
 }
 

@@ -30,7 +30,7 @@ export type Base64Options = {
 export const base64 = <Type extends string, Schema>(
   struct: Struct<Type, Schema>,
   options: Base64Options = {},
-) => {
+): Struct<Type, Schema> => {
   const paddingRequired = options.paddingRequired ?? false;
   const characterSet = options.characterSet ?? 'base64';
 

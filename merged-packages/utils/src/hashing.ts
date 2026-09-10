@@ -17,10 +17,8 @@ export async function sha256(bytes: Uint8Array): Promise<Uint8Array> {
   if (
     'crypto' in globalThis &&
     typeof globalThis.crypto === 'object' &&
-    // eslint-disable-next-line no-restricted-globals
     globalThis.crypto.subtle?.digest
   ) {
-    // eslint-disable-next-line no-restricted-globals
     return new Uint8Array(
       await globalThis.crypto.subtle.digest('SHA-256', bytes),
     );
@@ -41,10 +39,8 @@ export async function sha512(bytes: Uint8Array): Promise<Uint8Array> {
   if (
     'crypto' in globalThis &&
     typeof globalThis.crypto === 'object' &&
-    // eslint-disable-next-line no-restricted-globals
     globalThis.crypto.subtle?.digest
   ) {
-    // eslint-disable-next-line no-restricted-globals
     return new Uint8Array(
       await globalThis.crypto.subtle.digest('SHA-512', bytes),
     );
@@ -65,10 +61,8 @@ export async function sha384(bytes: Uint8Array): Promise<Uint8Array> {
   if (
     'crypto' in globalThis &&
     typeof globalThis.crypto === 'object' &&
-    // eslint-disable-next-line no-restricted-globals
     globalThis.crypto.subtle?.digest
   ) {
-    // eslint-disable-next-line no-restricted-globals
     return new Uint8Array(
       await globalThis.crypto.subtle.digest('SHA-384', bytes),
     );

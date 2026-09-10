@@ -95,7 +95,7 @@ describe('assertStruct', () => {
   });
 
   it('throws with a custom error function', () => {
-    const CustomError = ({ message }: { message: string }) =>
+    const CustomError = ({ message }: { message: string }): Error =>
       new Error(message);
 
     expect(() =>
@@ -112,7 +112,7 @@ describe('assertStruct', () => {
     (
       superstructAssert as jest.MockedFunction<typeof superstructAssert>
     ).mockImplementation(() => {
-      // eslint-disable-next-line @typescript-eslint/no-throw-literal
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw 'foo.';
     });
 

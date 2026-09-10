@@ -108,7 +108,7 @@ export function getValueOfUnit(unitInput: EthereumUnit = 'ether'): bigint {
  * @returns The string representation of the number.
  * @throws Error if the number is invalid.
  */
-export function numberToString(arg: string | number | bigint) {
+export function numberToString(arg: string | number | bigint): string {
   if (typeof arg === 'string') {
     if (!NUMBER_REGEX.test(arg)) {
       throw new Error(
@@ -145,7 +145,7 @@ export function fromWei(
   weiInput: string | number | bigint,
   unit: EthereumUnit,
   optionsInput?: { pad?: boolean; commify?: boolean },
-) {
+): string {
   let wei = numericToBigInt(weiInput);
   const negative = wei < zero;
   const unitLower = unit.toLowerCase() as EthereumUnit;
@@ -263,10 +263,13 @@ export function toWei(
   let whole = comps[0];
   let fraction = comps[1];
 
-  if (!whole) {
+  // Both halves are missing when the input has no decimal point, and empty
+  // when it starts or ends with one (`.5`, `5.`). Nullish coalescing would
+  // only cover the former.
+  if (whole === undefined || whole === '') {
     whole = '0';
   }
-  if (!fraction) {
+  if (fraction === undefined || fraction === '') {
     fraction = '0';
   }
   if (fraction.length > baseLength) {

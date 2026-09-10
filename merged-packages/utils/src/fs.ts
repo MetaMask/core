@@ -1,10 +1,10 @@
 // This file is intended to be used only in a Node.js context.
-/* eslint-disable import/no-nodejs-modules */
+/* eslint-disable import-x/no-nodejs-modules */
 
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import * as uuid from 'uuid';
+import { v4 as uuidV4 } from 'uuid';
 
 import { isErrorWithCode, wrapError } from './errors';
 import type { Json } from './json';
@@ -241,13 +241,13 @@ export async function forceRemove(entryPath: string): Promise<void> {
  * ```
  */
 export function createSandbox(projectName: string): FileSandbox {
-  const directoryPath = path.join(os.tmpdir(), projectName, uuid.v4());
+  const directoryPath = path.join(os.tmpdir(), projectName, uuidV4());
 
   return {
     directoryPath,
     async withinSandbox(
       test: (args: { directoryPath: string }) => Promise<void>,
-    ) {
+    ): Promise<void> {
       if (await directoryExists(directoryPath)) {
         throw new Error(`${directoryPath} already exists. Cannot continue.`);
       }

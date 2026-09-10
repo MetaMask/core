@@ -1,4 +1,3 @@
-import type { Hex } from './hex';
 import {
   add0x,
   assertIsHexString,
@@ -254,8 +253,8 @@ describe('isHexChecksumAddress', () => {
 
 describe('isValidHexAddress', () => {
   it.each([
-    '0x0000000000000000000000000000000000000000' as Hex,
-    '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as Hex,
+    '0x0000000000000000000000000000000000000000' as const,
+    '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as const,
   ])('returns true for a valid prefixed hex address', (hexString) => {
     expect(isValidHexAddress(hexString)).toBe(true);
   });
@@ -336,7 +335,7 @@ describe('getChecksumAddress', () => {
 
 describe('getChecksumAddress (memoized)', () => {
   it('memoizes results for repeated calls with the same input', () => {
-    const address = '0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed' as Hex;
+    const address = '0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed' as const;
     const expected = '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed';
 
     // First call should compute the result
@@ -352,8 +351,8 @@ describe('getChecksumAddress (memoized)', () => {
   });
 
   it('handles different inputs correctly', () => {
-    const address1 = '0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed' as Hex;
-    const address2 = '0xfb6916095ca1df60bb79ce92ce3ea74c37c5d359' as Hex;
+    const address1 = '0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed' as const;
+    const address2 = '0xfb6916095ca1df60bb79ce92ce3ea74c37c5d359' as const;
 
     const result1 = getChecksumAddressMemoized(address1);
     const result2 = getChecksumAddressMemoized(address2);
@@ -366,26 +365,26 @@ describe('getChecksumAddress (memoized)', () => {
 
 describe('isValidChecksumAddress', () => {
   it.each([
-    '0x0000000000000000000000000000000000000000' as Hex,
-    '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as Hex,
-    '0xCf5609B003B2776699eEA1233F7C82D5695cC9AA' as Hex,
-    '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as Hex,
-    '0x8617E340B3D01FA5F11F306F4090FD50E238070D' as Hex,
-    '0x52908400098527886E0F7030069857D2E4169EE7' as Hex,
-    '0xde709f2102306220921060314715629080e2fb77' as Hex,
-    '0x27b1fdb04752bbc536007a920d24acb045561c26' as Hex,
-    '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed' as Hex,
-    '0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359' as Hex,
-    '0xdbF03B407c01E7cD3CBea99509d93f8DDDC8C6FB' as Hex,
-    '0xD1220A0cf47c7B9Be7A2E6BA89F429762e7b9aDb' as Hex,
+    '0x0000000000000000000000000000000000000000' as const,
+    '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as const,
+    '0xCf5609B003B2776699eEA1233F7C82D5695cC9AA' as const,
+    '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' as const,
+    '0x8617E340B3D01FA5F11F306F4090FD50E238070D' as const,
+    '0x52908400098527886E0F7030069857D2E4169EE7' as const,
+    '0xde709f2102306220921060314715629080e2fb77' as const,
+    '0x27b1fdb04752bbc536007a920d24acb045561c26' as const,
+    '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed' as const,
+    '0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359' as const,
+    '0xdbF03B407c01E7cD3CBea99509d93f8DDDC8C6FB' as const,
+    '0xD1220A0cf47c7B9Be7A2E6BA89F429762e7b9aDb' as const,
   ])('returns true for a valid checksum address', (hexString) => {
     expect(isValidChecksumAddress(hexString)).toBe(true);
   });
 
   it.each([
-    '0xz' as Hex,
-    '0xD8DA6BF26964AF9D7EED9E03E53415D37AA96045' as Hex,
-    '0xCF5609B003B2776699EEA1233F7C82D5695CC9AA' as Hex,
+    '0xz' as const,
+    '0xD8DA6BF26964AF9D7EED9E03E53415D37AA96045' as const,
+    '0xCF5609B003B2776699EEA1233F7C82D5695CC9AA' as const,
   ])('returns false for an invalid checksum address', (hexString) => {
     expect(isValidChecksumAddress(hexString)).toBe(false);
   });

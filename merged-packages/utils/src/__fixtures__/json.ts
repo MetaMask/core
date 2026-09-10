@@ -5,7 +5,7 @@ export const JSON_FIXTURES = {
     ['a', 2, null],
     [{ a: null, b: 2, c: [{ foo: 'bar' }] }],
   ],
-  invalid: [undefined, Symbol('bar'), () => 'foo', [{ a: undefined }]],
+  invalid: [undefined, Symbol('bar'), (): string => 'foo', [{ a: undefined }]],
 };
 
 export const JSON_RPC_NOTIFICATION_FIXTURES = {
@@ -1054,7 +1054,6 @@ export const JSON_RPC_PENDING_RESPONSE_FIXTURES = {
   ],
 };
 
-/* eslint-disable @typescript-eslint/naming-convention */
 export const CHARACTER_MAP = {
   '"': '\\"',
   '\\': '\\\\',
@@ -1091,7 +1090,6 @@ export const CHARACTER_MAP = {
   '\x1E': '\\u001e',
   '\x1F': '\\u001f',
 };
-/* eslint-enable @typescript-eslint/naming-convention */
 
 const DIRECT_CIRCULAR_REFERENCE_ARRAY: unknown[] = [];
 DIRECT_CIRCULAR_REFERENCE_ARRAY.push(DIRECT_CIRCULAR_REFERENCE_ARRAY);
@@ -1113,13 +1111,13 @@ const INDIRECT_CIRCULAR_REFERENCE_OBJECT: Record<string, unknown> = {
 };
 
 const TO_JSON_CIRCULAR_REFERENCE = {
-  toJSON() {
+  toJSON(): object {
     return {};
   },
 };
 
 const CIRCULAR_REFERENCE = { prop: TO_JSON_CIRCULAR_REFERENCE };
-TO_JSON_CIRCULAR_REFERENCE.toJSON = function () {
+TO_JSON_CIRCULAR_REFERENCE.toJSON = function (): object {
   return CIRCULAR_REFERENCE;
 };
 
@@ -1202,7 +1200,6 @@ export const JSON_VALIDATION_FIXTURES = [
     value: {
       data: {
         account: {
-          /* eslint-disable @typescript-eslint/naming-convention */
           __typename: 'Account',
           registrations: [
             {
@@ -1219,7 +1216,6 @@ export const JSON_VALIDATION_FIXTURES = [
               expiryDate: '1754111315',
             },
           ],
-          /* eslint-enable @typescript-eslint/naming-convention */
         },
         moreComplexity: {
           numbers: [
@@ -1339,7 +1335,7 @@ export const JSON_VALIDATION_FIXTURES = [
         levelTwo: {
           levelThree: {
             levelFour: {
-              levelFive: () => {
+              levelFive: (): string => {
                 return 'anything';
               },
             },
@@ -1359,7 +1355,7 @@ export const JSON_VALIDATION_FIXTURES = [
   },
   {
     value: [
-      function () {
+      function (): string {
         return 'whatever';
       },
     ],
@@ -1476,7 +1472,7 @@ export const JSON_VALIDATION_FIXTURES = [
   },
   {
     value: {
-      get key() {
+      get key(): never {
         throw new Error();
       },
     },

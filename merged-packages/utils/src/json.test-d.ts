@@ -140,6 +140,7 @@ expectNotAssignable<Json>(foo);
 
 // Object using `exactOptional`:
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Type-level test fixture; consumed via `typeof`.
 const exactOptionalObject = object({
   a: number(),
   b: optional(string()),

@@ -31,7 +31,7 @@ describe('miscellaneous', () => {
     });
 
     it('identifies non-nullish values', () => {
-      [false, 1, 0, -1, '', [], () => undefined].forEach(
+      [false, 1, 0, -1, '', [], (): undefined => undefined].forEach(
         (nonNullOrUndefinedValue) => {
           expect(isNullOrUndefined(nonNullOrUndefinedValue)).toBe(false);
         },
@@ -52,7 +52,7 @@ describe('miscellaneous', () => {
       [
         Symbol('foo'),
         [],
-        () => undefined,
+        (): undefined => undefined,
         Promise.resolve.bind(Promise),
         1,
         null,
@@ -142,7 +142,7 @@ describe('miscellaneous', () => {
     });
 
     it('should return false if function is passed', () => {
-      const someFunction = (someArg: string) => {
+      const someFunction = (someArg: string): string => {
         return someArg;
       };
 

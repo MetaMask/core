@@ -5,7 +5,7 @@ export * from './caip-types';
 export * from './checksum';
 export * from './coercers';
 export * from './collections';
-export * from './encryption-types';
+export type * from './encryption-types';
 export * from './errors';
 export * from './hashing';
 export type { Hex } from './hex';
@@ -27,16 +27,16 @@ export {
   remove0x,
 } from './hex';
 export * from './json';
-export * from './keyring';
+export type * from './keyring';
 export * from './logging';
 export * from './misc';
 export * from './mnemonic';
 export * from './number';
-export * from './opaque';
+export type * from './opaque';
 export * from './promise';
 export * from './superstruct';
 export * from './time';
-export * from './transaction-types';
+export type * from './transaction-types';
 export * from './versions';
 export {
   toWei,

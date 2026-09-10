@@ -47,6 +47,9 @@ export function createDeferredPromise<Result = void>({
 } = {}): DeferredPromise<Result> {
   let resolve: DeferredPromise<Result>['resolve'];
   let reject: DeferredPromise<Result>['reject'];
+  /* eslint-disable promise/param-names -- Deliberately not named
+     'resolve'/'reject' so they do not shadow the outer bindings assigned
+     just below. */
   const promise = new Promise<Result>(
     (
       innerResolve: DeferredPromise<Result>['resolve'],
@@ -56,6 +59,7 @@ export function createDeferredPromise<Result = void>({
       reject = innerReject;
     },
   );
+  /* eslint-enable promise/param-names */
 
   if (suppressUnhandledRejection) {
     promise.catch((_error) => {
