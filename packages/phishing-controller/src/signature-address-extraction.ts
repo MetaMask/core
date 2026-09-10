@@ -1,6 +1,8 @@
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-const HEX_STRING_REGEX = /^0x[0-9a-fA-F]+$/u;
+// Same as `@metamask/utils` `isStrictHexString` (`/^0x[0-9a-f]+$/iu`): the
+// signer accepts a `0X` prefix, so we must too.
+const HEX_STRING_REGEX = /^0x[0-9a-f]+$/iu;
 const DECIMAL_STRING_REGEX = /^[0-9]+$/u;
 
 export const DEFAULT_MAX_SIGNATURE_ADDRESSES = 10;

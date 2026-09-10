@@ -561,6 +561,35 @@ describe('extractSignatureAddresses', () => {
     ).toStrictEqual([oddPadded]);
   });
 
+  it('agrees with eth-sig-util on a 0X-prefixed address (isStrictHexString is true)', () => {
+    // The signer treats 0X-hex as isStrictHexString (regex is case-insensitive)
+    // and encodes it as the same address as 0x-hex.
+    const types = {
+      EIP712Domain: DOMAIN_TYPE,
+      Mail: [{ name: 'to', type: 'address' }],
+    };
+    const upperPrefix = `0X${ADDR_A.slice(2)}`;
+
+    expect(
+      TypedDataUtils.encodeData(
+        'Mail',
+        { to: upperPrefix },
+        types,
+        SignTypedDataVersion.V4,
+      ),
+    ).toStrictEqual(
+      TypedDataUtils.encodeData(
+        'Mail',
+        { to: ADDR_A },
+        types,
+        SignTypedDataVersion.V4,
+      ),
+    );
+    expect(
+      addressesOf(build('Mail', { Mail: types.Mail }, { to: upperPrefix })),
+    ).toStrictEqual([ADDR_A]);
+  });
+
   it('does not treat oversized 0x-hex as a signable address (encoder rejects 21 bytes)', () => {
     const types = {
       EIP712Domain: DOMAIN_TYPE,
