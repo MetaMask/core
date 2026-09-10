@@ -121,6 +121,16 @@ export const applyDiffs = (
 
   for (const { isRemoval, targetList, url, timestamp } of diffsToApply) {
     const targetListType = splitStringByPeriod(targetList)[1];
+    // Diffs for list types this client does not know about (for example a
+    // list introduced server-side after this release) are ignored rather than
+    // failing the whole update. They do not advance `lastUpdated`, matching
+    // how diffs for other list keys are treated.
+    if (
+      targetListType !== 'blocklistPaths' &&
+      !Object.hasOwn(listSets, targetListType)
+    ) {
+      continue;
+    }
     if (timestamp > latestDiffTimestamp) {
       latestDiffTimestamp = timestamp;
     }
@@ -427,6 +437,21 @@ export const getPhishingDetectionScanUrlParam = (
 
   return [scanUrlParam, true];
 };
+
+const EVM_ADDRESS_REGEX = /^0x[0-9a-fA-F]{40}$/u;
+
+/**
+ * Normalizes an address for use in scan requests and cache keys. EVM addresses
+ * are case-insensitive and are lowercased so that differently-cased inputs
+ * share one cache entry and match the API's lowercase response keys. Any other
+ * address (for example a base58 Solana address) is case-sensitive and is
+ * returned unchanged.
+ *
+ * @param address - The address to normalize.
+ * @returns The normalized address.
+ */
+export const normalizeScanAddress = (address: string): string =>
+  EVM_ADDRESS_REGEX.test(address) ? address.toLowerCase() : address;
 
 export const getPathnameFromUrl = (url: string): string => {
   try {

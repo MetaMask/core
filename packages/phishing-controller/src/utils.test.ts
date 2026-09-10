@@ -1,5 +1,6 @@
 import { ListKeys, ListNames } from './PhishingController.js';
 import type { PhishingListState } from './PhishingController.js';
+import type { Hotlist } from './types.js';
 import {
   applyDiffs,
   domainToParts,
@@ -15,6 +16,7 @@ import {
   isPhishingDetectionPathBasedHostname,
   isTokenScanSupportedChain,
   matchPartsAgainstList,
+  normalizeScanAddress,
   processConfigs,
   processDomainList,
   resolveChainName,
@@ -204,6 +206,24 @@ describe('applyDiffs', () => {
     expect(result).toStrictEqual({
       ...testExistingState,
       name: ListNames.MetaMask,
+    });
+  });
+
+  it('ignores diffs that target an unrecognized list type without advancing lastUpdated', () => {
+    const unknownTypeDiff = {
+      targetList: 'eth_phishing_detect_config.newlist',
+      url: 'https://example-new-list-item.com',
+      timestamp: exampleAddDiff.timestamp + 10,
+    } as unknown as Hotlist[number];
+    const result = applyDiffs(
+      exampleListState,
+      [exampleAddDiff, unknownTypeDiff],
+      ListKeys.EthPhishingDetectConfig,
+    );
+    expect(result).toStrictEqual({
+      ...exampleListState,
+      blocklist: [...exampleListState.blocklist, exampleBlockedUrlTwo],
+      lastUpdated: exampleAddDiff.timestamp,
     });
   });
   // New tests for handling C2 domain blocklist
@@ -1324,5 +1344,19 @@ describe('getHostnameAndPathComponents', () => {
   ])('parses %s correctly', (input, expected) => {
     const result = getHostnameAndPathComponents(input);
     expect(result).toStrictEqual(expected);
+  });
+});
+
+describe('normalizeScanAddress', () => {
+  it('lowercases EVM addresses', () => {
+    expect(
+      normalizeScanAddress('0xAbCdEf0000000000000000000000000000000001'),
+    ).toBe('0xabcdef0000000000000000000000000000000001');
+  });
+
+  it('leaves non-EVM addresses unchanged', () => {
+    expect(
+      normalizeScanAddress('So11111111111111111111111111111111111111112'),
+    ).toBe('So11111111111111111111111111111111111111112');
   });
 });
