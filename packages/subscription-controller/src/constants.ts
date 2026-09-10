@@ -76,7 +76,7 @@ export enum SubscriptionDelegationServiceErrorMessage {
   InvalidMinimumFundingCycles = 'Subscription delegation minimum funding cycles must be a positive integer',
   LossyAmountScale = 'Subscription delegation amount cannot be scaled to token decimals without remainder',
   UnsupportedRecurringInterval = 'Unsupported subscription recurring interval',
-  UnsupportedProduct = 'Subscription delegation is only supported for Money Account Plus',
+  UnsupportedProduct = 'Subscription delegation is only supported for Money Account',
   MissingMoneyAccountVaultConfig = 'Money Account vault configuration is missing or invalid',
   DelegationContractsNotFound = 'Subscription delegation contracts were not found for the configured chain',
   PricingConfigurationNotFound = 'Subscription delegation pricing configuration was not found',
