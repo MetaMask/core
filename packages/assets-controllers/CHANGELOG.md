@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Move FakeBlockTracker to eth-block-tracker (as MockPollingBlockTracker) ([#10121](https://github.com/MetaMask/core/pull/10121))
+
 ## [112.0.1]
 
 ### Changed
