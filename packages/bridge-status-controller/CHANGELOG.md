@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- No longer report `SUBMITTED` or finalized quote statuses to the quote status API for intent-based swaps, since the bridge backend observes intent settlement and owns those statuses ([#10171](https://github.com/MetaMask/core/pull/10171))
+
 ## [76.1.0]
 
 ### Added
@@ -15,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- No longer report `SUBMITTED` or finalized quote statuses to the quote status API for intent-based swaps, since the bridge backend observes intent settlement and owns those statuses ([#10171](https://github.com/MetaMask/core/pull/10171))
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
 - Bump `@metamask/bridge-controller` from `^81.0.0` to `^81.1.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
 - Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
