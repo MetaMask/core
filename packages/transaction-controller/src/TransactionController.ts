@@ -851,17 +851,20 @@ export class TransactionController extends BaseController<
       ((): Promise<boolean> => Promise.resolve(true));
     this.#isSponsored =
       hooks?.isSponsored ??
-      (async ({ transactionMeta }: { transactionMeta: TransactionMeta }) =>
-        Boolean(transactionMeta.isGasFeeSponsored));
+      (async ({
+        transactionMeta,
+      }: {
+        transactionMeta: TransactionMeta;
+      }): Promise<boolean> => Boolean(transactionMeta.isGasFeeSponsored));
     this.#shouldSign =
       hooks?.shouldSign ??
       (async ({
         transactionMeta,
-        isSponsored,
+        isSponsored: _isSponsored,
       }: {
         transactionMeta: TransactionMeta;
         isSponsored: boolean;
-      }) => !Boolean(transactionMeta.isExternalSign));
+      }): Promise<boolean> => !transactionMeta.isExternalSign);
     this.#beforePublish =
       hooks?.beforePublish ?? ((): Promise<boolean> => Promise.resolve(true));
     this.#beforeSign =
@@ -3141,7 +3144,6 @@ export class TransactionController extends BaseController<
       clearApprovingTransactionId = (): boolean =>
         this.#approvingTransactionIds.delete(transactionId);
 
-      // eslint-disable-next-line require-atomic-updates
       transactionMeta = this.#updateTransactionInternal(
         {
           transactionId,
@@ -3162,6 +3164,7 @@ export class TransactionController extends BaseController<
 
       this.#onTransactionStatusChange(transactionMeta);
 
+      // eslint-disable-next-line require-atomic-updates
       transactionMeta = await this.#applyBeforeSignHook(transactionMeta);
 
       const { networkClientId } = transactionMeta;
@@ -3176,6 +3179,7 @@ export class TransactionController extends BaseController<
           this.#updateTransactionInternal({ transactionId: txId }, fn),
       });
 
+      // eslint-disable-next-line require-atomic-updates
       transactionMeta = this.#getTransactionOrThrow(transactionId);
 
       const isSponsored = await this.#isSponsored({ transactionMeta });
