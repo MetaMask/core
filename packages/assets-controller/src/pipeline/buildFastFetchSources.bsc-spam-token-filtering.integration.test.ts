@@ -58,7 +58,6 @@ import { buildFastFetchSources, executeAssetsPipeline } from './index.js';
 
 type PipelineResult = {
   response: DataResponse;
-  /** The asset IDs each `/v3/assets` request asked about, in request order. */
   requestedAssetBatches: string[][];
 };
 
@@ -103,6 +102,37 @@ function getIgnoringCase(
 function allDetectedAssetIds(response: DataResponse): string[] {
   return Object.values(response.detectedAssets ?? {}).flat();
 }
+
+type ResponseSurface = {
+  surface: string;
+  lookUp: (response: DataResponse, assetId: string) => unknown;
+};
+
+const BALANCES: ResponseSurface = {
+  surface: 'balances',
+  lookUp: (response, assetId) =>
+    getIgnoringCase(balancesFor(response), assetId),
+};
+
+const METADATA: ResponseSurface = {
+  surface: 'metadata',
+  lookUp: (response, assetId) =>
+    getIgnoringCase(response.assetsInfo ?? {}, assetId),
+};
+
+const PRICES: ResponseSurface = {
+  surface: 'prices',
+  lookUp: (response, assetId) =>
+    getIgnoringCase(response.assetsPrice ?? {}, assetId),
+};
+
+const DETECTED_ASSETS: ResponseSurface = {
+  surface: 'detected assets',
+  lookUp: (response, assetId) =>
+    allDetectedAssetIds(response).find(
+      (detectedId) => detectedId.toLowerCase() === assetId.toLowerCase(),
+    ),
+};
 
 /**
  * Register the controllers the RPC-backed sources read their networks from, so
@@ -318,81 +348,66 @@ async function runPipeline(
 }
 
 /**
- * Apply a pipeline response to state the way `AssetsController` merges it, so a
- * second pass sees what the first pass would have persisted.
- *
- * Deliberately naive — a plain merge of balances, metadata and prices. The
- * point is only that whatever survived pass one is "known" in pass two.
- *
- * @param state - The state to merge into.
- * @param response - The pipeline response to apply.
- * @returns The merged state.
+ * The passes the wallet is put through. Each runs the lane end to end and
+ * hands back the one response every expectation below is read from, so a pass
+ * costs a single pipeline run no matter how many table rows examine it.
  */
-function commitToState(
-  state: AssetsControllerStateInternal,
-  response: DataResponse,
-): AssetsControllerStateInternal {
-  const assetsBalance = { ...state.assetsBalance };
-  for (const [accountId, accountBalances] of Object.entries(
-    response.assetsBalance ?? {},
-  )) {
-    assetsBalance[accountId] = {
-      ...(assetsBalance[accountId] ?? {}),
-      ...accountBalances,
-    };
-  }
+const WALLET_PASSES = [
+  {
+    pass: 'first pass over a fresh wallet',
+    run: async (): Promise<DataResponse> =>
+      (await runPipeline(buildEmptyAssetsState())).response,
+  },
+  {
+    pass: 'second pass over the wallet the first pass left behind',
+    run: async (): Promise<DataResponse> => {
+      const firstPass = await runPipeline(buildEmptyAssetsState());
+      cleanAll();
 
-  return {
-    ...state,
-    assetsBalance,
-    assetsInfo: { ...state.assetsInfo, ...(response.assetsInfo ?? {}) },
-    assetsPrice: { ...state.assetsPrice, ...(response.assetsPrice ?? {}) },
-  };
-}
+      const secondPass = await runPipeline(
+        buildEmptyAssetsState({
+          assetsBalance: firstPass.response.assetsBalance,
+          assetsInfo: firstPass.response.assetsInfo,
+          assetsPrice: firstPass.response.assetsPrice,
+        }),
+      );
+      return secondPass.response;
+    },
+  },
+];
 
 describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
   afterEach(() => {
     cleanAll();
   });
 
-  describe('first pass over a fresh wallet', () => {
-    it('prunes balances, metadata, and detected assets for the spam token', async () => {
-      const { response } = await runPipeline(buildEmptyAssetsState());
+  describe.each(WALLET_PASSES)('$pass', ({ run }) => {
+    let response: DataResponse;
 
-      // The Accounts API returned this balance and the Tokens API said the
-      // token has one occurrence against a floor of three, so nothing about it
-      // should reach state — including `detectedAssets`, which would still
-      // announce it downstream as a new holding.
-      expect(
-        getIgnoringCase(balancesFor(response), CDOGE_ASSET_ID_LOWERCASE),
-      ).toBeUndefined();
-      expect(
-        getIgnoringCase(response.assetsInfo ?? {}, CDOGE_ASSET_ID_LOWERCASE),
-      ).toBeUndefined();
-      expect(
-        allDetectedAssetIds(response).map((assetId) => assetId.toLowerCase()),
-      ).not.toContain(CDOGE_ASSET_ID_LOWERCASE);
+    beforeAll(async () => {
+      response = await run();
     });
 
-    it('keeps the native BNB balance and its metadata despite its low occurrence count', async () => {
-      const { response } = await runPipeline(buildEmptyAssetsState());
+    it.each([BALANCES, METADATA, DETECTED_ASSETS])(
+      '$surface - filter out the spam token',
+      ({ lookUp }) => {
+        expect(lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
+      },
+    );
 
-      expect(
-        getIgnoringCase(balancesFor(response), BNB_ASSET_ID),
-      ).toBeDefined();
-      expect(
-        getIgnoringCase(response.assetsInfo ?? {}, BNB_ASSET_ID),
-      ).toBeDefined();
-    });
+    it.each([BALANCES, METADATA])(
+      '$surface - keeps the native BNB asset despite low occurrences',
+      ({ lookUp }) => {
+        expect(lookUp(response, BNB_ASSET_ID)).toBeDefined();
+      },
+    );
 
-    // Legitimate failing test, our middleware stack does not filter out spam asset prices!
-    // This does eventually get cleaned up during unlock cleanup, but worth flagging.
+    // Legitimate failing test, our middleware stack does not filter out spam
+    // asset prices! This does eventually get cleaned up during unlock cleanup,
+    // but worth flagging.
     // eslint-disable-next-line jest/no-disabled-tests
-    it.skip('does not carry a price for the spam token', async () => {
-      const { response } = await runPipeline(buildEmptyAssetsState());
-      expect(
-        getIgnoringCase(response.assetsPrice ?? {}, CDOGE_ASSET_ID_LOWERCASE),
-      ).toBeUndefined();
+    it.skip('keeps the spam token out of prices', () => {
+      expect(PRICES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
     });
   });
 
@@ -411,33 +426,6 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
       // ...while the captured Tokens API answers lower-case regardless. Any
       // filtering that matches asset ids by exact string across this boundary
       // silently does nothing.
-    });
-  });
-
-  describe('second pass over the wallet the first pass left behind', () => {
-    it('still keeps the spam token out once its balance is in state', async () => {
-      const firstPass = await runPipeline(buildEmptyAssetsState());
-      cleanAll();
-
-      const stateAfterFirstPass = commitToState(
-        buildEmptyAssetsState(),
-        firstPass.response,
-      );
-      const { response } = await runPipeline(stateAfterFirstPass);
-
-      // A spam balance that survives pass one is no longer "newly detected" in
-      // pass two, so `TokenDataSource` treats it as a balance-only heal — a
-      // path that bypasses spam filtering outright. That is what makes the bug
-      // stick rather than self-correct on the next poll.
-      expect(
-        getIgnoringCase(balancesFor(response), CDOGE_ASSET_ID_LOWERCASE),
-      ).toBeUndefined();
-      expect(
-        getIgnoringCase(response.assetsInfo ?? {}, CDOGE_ASSET_ID_LOWERCASE),
-      ).toBeUndefined();
-      expect(
-        allDetectedAssetIds(response).map((assetId) => assetId.toLowerCase()),
-      ).not.toContain(CDOGE_ASSET_ID_LOWERCASE);
     });
   });
 });
