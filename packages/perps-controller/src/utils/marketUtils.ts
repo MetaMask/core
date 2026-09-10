@@ -67,6 +67,13 @@ export function matchesCategory(
     case 'crypto':
       // Main-DEX markets, plus HIP-3 assets explicitly typed as CryptoCurrency.
       return !isHip3Market(market) || market.marketType === 'crypto';
+    case 'memecoin':
+      // Derived category: a crypto market that carries the 'memecoin' tag.
+      // Overlaps with 'crypto' by design — memecoins appear under both pills.
+      return (
+        market.marketType === 'crypto' &&
+        (market.tags?.includes('memecoin') ?? false)
+      );
     default:
       // Every other filter is a 1:1 data-model category match.
       return market.marketType !== undefined && market.marketType === category;

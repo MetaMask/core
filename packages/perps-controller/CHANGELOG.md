@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `MarketCategory.Memecoin` (`'memecoin'`) as a new UI-only filter category and expose it via `MARKET_CATEGORIES` and `MarketTypeFilter`.
+  - Derived from `marketType === 'crypto'` and `tags.includes('memecoin')` in `matchesCategory`.
+  - Overlaps with the `'crypto'` filter by design — memecoin markets appear under both pills.
+
 ### Changed
 
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))

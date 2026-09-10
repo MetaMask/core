@@ -93,7 +93,7 @@ describe('HIP3_ASSET_MARKET_TYPES', () => {
 });
 
 describe('MarketCategory', () => {
-  it('has string values for all 7 data-model categories', () => {
+  it('has string values for all 8 data-model categories', () => {
     expect(MarketCategory.CryptoCurrency).toBe('crypto');
     expect(MarketCategory.Stock).toBe('stock');
     expect(MarketCategory.PreIpo).toBe('pre-ipo');
@@ -101,17 +101,18 @@ describe('MarketCategory', () => {
     expect(MarketCategory.Etf).toBe('etf');
     expect(MarketCategory.Commodity).toBe('commodity');
     expect(MarketCategory.Forex).toBe('forex');
+    expect(MarketCategory.Memecoin).toBe('memecoin');
   });
 
-  it('has exactly 7 members', () => {
+  it('has exactly 8 members', () => {
     const values = Object.values(MarketCategory);
-    expect(values).toHaveLength(7);
+    expect(values).toHaveLength(8);
   });
 });
 
 describe('MARKET_CATEGORIES', () => {
-  it('has exactly 7 entries (one per data-model category)', () => {
-    expect(MARKET_CATEGORIES).toHaveLength(7);
+  it('has exactly 8 entries (one per data-model category)', () => {
+    expect(MARKET_CATEGORIES).toHaveLength(8);
   });
 
   it('does not include the all or new sentinel values', () => {
@@ -119,9 +120,10 @@ describe('MARKET_CATEGORIES', () => {
     expect(MARKET_CATEGORIES).not.toContain('new');
   });
 
-  it('includes all 7 MarketTypeFilter data categories', () => {
+  it('includes all 8 MarketTypeFilter data categories', () => {
     const dataCategories: MarketTypeFilter[] = [
       'crypto',
+      'memecoin',
       'stock',
       'pre-ipo',
       'index',
@@ -139,6 +141,7 @@ describe('MARKET_CATEGORIES', () => {
     // The runtime check here mirrors that constraint.
     const validValues: readonly string[] = [
       'crypto',
+      'memecoin',
       'stock',
       'pre-ipo',
       'index',

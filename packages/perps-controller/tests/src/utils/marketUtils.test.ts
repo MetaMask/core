@@ -91,6 +91,50 @@ describe('marketUtils category classification', () => {
         expect(matchesCategory(market({ marketType }), filter)).toBe(true);
       },
     );
+
+    describe("'memecoin' filter", () => {
+      it('matches a crypto market carrying the memecoin tag', () => {
+        expect(
+          matchesCategory(
+            market({ marketType: 'crypto', tags: ['memecoin'] }),
+            'memecoin',
+          ),
+        ).toBe(true);
+      });
+
+      it('still matches crypto for a memecoin (overlapping by design)', () => {
+        expect(
+          matchesCategory(
+            market({ marketType: 'crypto', tags: ['memecoin'] }),
+            'crypto',
+          ),
+        ).toBe(true);
+      });
+
+      it('does not match crypto without the memecoin tag', () => {
+        expect(
+          matchesCategory(
+            market({ marketType: 'crypto', tags: ['top-100'] }),
+            'memecoin',
+          ),
+        ).toBe(false);
+      });
+
+      it('does not match a crypto market with no tags', () => {
+        expect(
+          matchesCategory(market({ marketType: 'crypto' }), 'memecoin'),
+        ).toBe(false);
+      });
+
+      it('does not match non-crypto markets even with the memecoin tag', () => {
+        expect(
+          matchesCategory(
+            market({ marketType: 'stock', tags: ['memecoin'] }),
+            'memecoin',
+          ),
+        ).toBe(false);
+      });
+    });
   });
 
   describe('getMarketTypeFilter', () => {
