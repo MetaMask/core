@@ -75,7 +75,8 @@ export type AuthenticatedUserStorageServiceGetAssetsWatchlistAction = {
  * contain at most `ASSETS_WATCHLIST_MAX_ASSETS` CAIP-19 asset identifiers;
  * this is enforced by `assertAssetsWatchlistBlobForWrite` before the
  * request is sent.
- * @param clientType - Optional client type header.
+ * @param clientTypeOrGlobalId - Optional client type header or mutation ID.
+ * @param globalId - Optional mutation ID when a client type is provided.
  * @throws A `StructError` from `@metamask/superstruct` if `blob` is
  * structurally invalid or `assets` exceeds the cap; an `HttpError` from
  * `@metamask/controller-utils` if the API responds with a non-2xx status.

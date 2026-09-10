@@ -35,6 +35,19 @@ import {
 export const serviceName = 'AuthenticatedUserStorageService';
 
 /**
+ * Checks whether a value is a supported client type.
+ *
+ * This distinguishes the existing client-type argument from the optional
+ * mutation global ID when the method is invoked through a UI query client.
+ *
+ * @param value - The value to check.
+ * @returns Whether the value is a client type.
+ */
+function isClientType(value: string | undefined): value is ClientType {
+  return value === 'extension' || value === 'mobile' || value === 'portfolio';
+}
+
+/**
  * Builds the versioned API base URL for a given environment.
  *
  * @param environment - The target environment.
@@ -392,23 +405,31 @@ export class AuthenticatedUserStorageService extends BaseDataService<
    * contain at most `ASSETS_WATCHLIST_MAX_ASSETS` CAIP-19 asset identifiers;
    * this is enforced by `assertAssetsWatchlistBlobForWrite` before the
    * request is sent.
-   * @param clientType - Optional client type header.
+   * @param clientTypeOrGlobalId - Optional client type header or mutation ID.
+   * @param globalId - Optional mutation ID when a client type is provided.
    * @throws A `StructError` from `@metamask/superstruct` if `blob` is
    * structurally invalid or `assets` exceeds the cap; an `HttpError` from
    * `@metamask/controller-utils` if the API responds with a non-2xx status.
    */
   async setAssetsWatchlist(
     blob: AssetsWatchlistBlob,
-    clientType?: ClientType,
+    clientTypeOrGlobalId?: ClientType | string,
+    globalId?: string,
   ): Promise<void> {
     assertAssetsWatchlistBlobForWrite(blob);
 
     const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/assets-watchlist`;
+    const clientType = isClientType(clientTypeOrGlobalId)
+      ? clientTypeOrGlobalId
+      : undefined;
+    const mutationGlobalId = clientType
+      ? globalId
+      : (globalId ?? clientTypeOrGlobalId);
 
-    await this.fetchQuery({
-      queryKey: [`${this.name}:setAssetsWatchlist`, blob as unknown as Json],
-      staleTime: 0,
-      queryFn: async () => {
+    await this.executeMutation({
+      mutationKey: [`${this.name}:setAssetsWatchlist`, blob as Json],
+      globalId: mutationGlobalId,
+      mutationFn: async () => {
         const headers = await this.#getHeaders(clientType);
         const response = await fetch(url, {
           method: 'PUT',
