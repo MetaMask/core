@@ -1,4 +1,8 @@
-import { ConstantBackoff } from '@metamask/base-data-service';
+import {
+  ConstantBackoff,
+  DEFAULT_HYDRATION_TIMEOUT,
+  handleWhen,
+} from '@metamask/base-data-service';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -522,6 +526,130 @@ describe('PhishingDataService', () => {
   });
 
   describe('bulkScanUrls', () => {
+    it('retries a failed batch as a whole when retries are enabled', async () => {
+      const batchSizes: number[] = [];
+      nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`)
+        .times(3)
+        .reply(function (_uri, body) {
+          batchSizes.push((body as { urls: string[] }).urls.length);
+          return [500, 'boom'];
+        });
+      const { rootMessenger } = createService({
+        options: {
+          policyOptions: { maxRetries: 2, backoff: new ConstantBackoff(0) },
+        },
+      });
+
+      await expect(
+        rootMessenger.call('PhishingDataService:bulkScanUrls', [
+          'https://example1.com',
+          'https://example2.com',
+          'https://example3.com',
+        ]),
+      ).rejects.toThrow('500 Internal Server Error');
+      expect(batchSizes).toStrictEqual([3, 3, 3]);
+    });
+
+    it('still coalesces lookups into one request after init', async () => {
+      const batchSizes: number[] = [];
+      nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`)
+        .reply(function (_uri, body) {
+          const { urls } = body as { urls: string[] };
+          batchSizes.push(urls.length);
+          return [
+            200,
+            {
+              results: Object.fromEntries(
+                urls.map((url) => [url, { recommendedAction: 'NONE' }]),
+              ),
+              errors: {},
+            },
+          ];
+        });
+      const { rootMessenger, service } = createService({
+        options: { persistenceConfig: undefined },
+        setItemMock: jest.fn(),
+        getItemMock: jest.fn().mockResolvedValue({ result: null }),
+      });
+      service.init();
+
+      const response = await rootMessenger.call(
+        'PhishingDataService:bulkScanUrls',
+        [
+          'https://example1.com',
+          'https://example2.com',
+          'https://example3.com',
+        ],
+      );
+
+      expect(batchSizes).toStrictEqual([3]);
+      expect(Object.keys(response.results)).toHaveLength(3);
+    });
+
+    it('does not retry per-URL errors reported by the endpoint', async () => {
+      let requests = 0;
+      nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`)
+        .times(3)
+        .reply(() => {
+          requests += 1;
+          return [
+            200,
+            { results: {}, errors: { 'https://example1.com': ['boom'] } },
+          ];
+        });
+      const { rootMessenger } = createService({
+        options: {
+          policyOptions: { maxRetries: 2, backoff: new ConstantBackoff(0) },
+        },
+      });
+
+      expect(
+        await rootMessenger.call('PhishingDataService:bulkScanUrls', [
+          'https://example1.com',
+        ]),
+      ).toStrictEqual({
+        results: {},
+        errors: { 'https://example1.com': ['boom'] },
+      });
+      expect(requests).toBe(1);
+    });
+
+    it('never retries item-level batch errors even if a caller-provided retryFilterPolicy would', async () => {
+      let requests = 0;
+      nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`)
+        .times(3)
+        .reply(() => {
+          requests += 1;
+          return [
+            200,
+            { results: {}, errors: { 'https://example1.com': ['boom'] } },
+          ];
+        });
+      const { rootMessenger } = createService({
+        options: {
+          policyOptions: {
+            maxRetries: 2,
+            backoff: new ConstantBackoff(0),
+            retryFilterPolicy: handleWhen(() => true),
+          },
+        },
+      });
+
+      expect(
+        await rootMessenger.call('PhishingDataService:bulkScanUrls', [
+          'https://example1.com',
+        ]),
+      ).toStrictEqual({
+        results: {},
+        errors: { 'https://example1.com': ['boom'] },
+      });
+      expect(requests).toBe(1);
+    });
+
     it('returns the scan results from the API', async () => {
       const urls = ['https://example1.com', 'https://example2.com'];
       const apiResponse = {
@@ -851,6 +979,30 @@ describe('PhishingDataService', () => {
   });
 
   describe('bulkScanTokens', () => {
+    it('retries a failed batch as a whole when retries are enabled', async () => {
+      const batchSizes: number[] = [];
+      nock(SECURITY_ALERTS_BASE_URL)
+        .post(TOKEN_BULK_SCANNING_ENDPOINT)
+        .times(3)
+        .reply(function (_uri, body) {
+          batchSizes.push((body as { tokens: string[] }).tokens.length);
+          return [500, 'boom'];
+        });
+      const { rootMessenger } = createService({
+        options: {
+          policyOptions: { maxRetries: 2, backoff: new ConstantBackoff(0) },
+        },
+      });
+
+      await expect(
+        rootMessenger.call('PhishingDataService:bulkScanTokens', 'ethereum', [
+          '0x1234567890123456789012345678901234567890',
+          '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+        ]),
+      ).rejects.toThrow('500 Internal Server Error');
+      expect(batchSizes).toStrictEqual([2, 2, 2]);
+    });
+
     it('lowercases EVM token addresses and keys results by the normalized address', async () => {
       const lower = '0xabcdef0000000000000000000000000000000001';
       nock(SECURITY_ALERTS_BASE_URL)
@@ -1582,6 +1734,175 @@ describe('PhishingDataService', () => {
 
       expect(getItem).toHaveBeenCalledWith('PhishingDataService', 'cache');
       expect(removeItem).toHaveBeenCalledWith('PhishingDataService', 'cache');
+    });
+
+    it('discards persisted scan results that fail validation or belong to unknown queries', async () => {
+      const now = Date.now();
+      const dehydratedQuery = (
+        queryKey: unknown[],
+        data: unknown,
+      ): Record<string, unknown> => ({
+        queryHash: JSON.stringify(queryKey),
+        queryKey,
+        state: {
+          data,
+          dataUpdateCount: 1,
+          dataUpdatedAt: now,
+          error: null,
+          errorUpdateCount: 0,
+          errorUpdatedAt: 0,
+          fetchFailureCount: 0,
+          fetchFailureReason: null,
+          fetchMeta: null,
+          fetchStatus: 'idle',
+          isInvalidated: false,
+          status: 'success',
+        },
+      });
+      const getItem = jest.fn().mockResolvedValue({
+        result: {
+          timestamp: now,
+          state: {
+            mutations: [],
+            queries: [
+              dehydratedQuery(['PhishingDataService:scanUrl', 'good.com'], {
+                hostname: 'good.com',
+                recommendedAction: 'BLOCK',
+              }),
+              dehydratedQuery(['PhishingDataService:scanUrl', 'evil.com'], {
+                hostname: 'evil.com',
+                recommendedAction: 'PWNED',
+              }),
+              dehydratedQuery(
+                ['PhishingDataService:scanToken', 'ethereum', '0xabc'],
+                null,
+              ),
+              dehydratedQuery(
+                ['PhishingDataService:scanToken', 'ethereum', '0xdef'],
+                { result_type: 'Malicious' },
+              ),
+              dehydratedQuery(
+                ['PhishingDataService:scanAddress', 'ethereum', '0xabc'],
+                { result_type: 'Benign' },
+              ),
+              dehydratedQuery(['PhishingDataService:getStalelist'], {
+                data: {},
+              }),
+            ],
+          },
+        },
+      });
+      const evilScope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'evil.com' })
+        .reply(200, { recommendedAction: 'BLOCK' });
+      const { rootMessenger, messenger, service } = createService({
+        options: { persistenceConfig: undefined },
+        setItemMock: jest.fn(),
+        getItemMock: getItem,
+      });
+      const publishSpy = jest.spyOn(messenger, 'publish');
+      service.init();
+      await flushPromises();
+
+      const hydratedEvents = publishSpy.mock.calls
+        .map(([eventType]) => String(eventType))
+        .filter((eventType) =>
+          eventType.startsWith('PhishingDataService:cacheUpdated:'),
+        );
+      expect(hydratedEvents).toStrictEqual([
+        'PhishingDataService:cacheUpdated:["PhishingDataService:scanUrl","good.com"]',
+        'PhishingDataService:cacheUpdated:["PhishingDataService:scanToken","ethereum","0xabc"]',
+        'PhishingDataService:cacheUpdated:["PhishingDataService:scanToken","ethereum","0xdef"]',
+      ]);
+
+      expect(
+        await rootMessenger.call('PhishingDataService:scanUrl', 'good.com'),
+      ).toStrictEqual({ hostname: 'good.com', recommendedAction: 'BLOCK' });
+      expect(
+        await rootMessenger.call('PhishingDataService:scanUrl', 'evil.com'),
+      ).toStrictEqual({ hostname: 'evil.com', recommendedAction: 'BLOCK' });
+      expect(evilScope.isDone()).toBe(true);
+    });
+
+    it('composes a caller-provided shouldHydrateQuery with the built-in validation', async () => {
+      const shouldHydrateQuery = jest.fn(() => false);
+      const getItem = jest.fn().mockResolvedValue({
+        result: {
+          timestamp: Date.now(),
+          state: {
+            mutations: [],
+            queries: [
+              {
+                queryHash: '["PhishingDataService:scanUrl","good.com"]',
+                queryKey: ['PhishingDataService:scanUrl', 'good.com'],
+                state: {
+                  data: { hostname: 'good.com', recommendedAction: 'BLOCK' },
+                  dataUpdateCount: 1,
+                  dataUpdatedAt: Date.now(),
+                  error: null,
+                  errorUpdateCount: 0,
+                  errorUpdatedAt: 0,
+                  fetchFailureCount: 0,
+                  fetchFailureReason: null,
+                  fetchMeta: null,
+                  fetchStatus: 'idle',
+                  isInvalidated: false,
+                  status: 'success',
+                },
+              },
+            ],
+          },
+        },
+      });
+      const { messenger, service } = createService({
+        options: {
+          persistenceConfig: {
+            maxAge: inMilliseconds(5, Duration.Minute),
+            shouldHydrateQuery,
+          },
+        },
+        setItemMock: jest.fn(),
+        getItemMock: getItem,
+      });
+      const publishSpy = jest.spyOn(messenger, 'publish');
+      service.init();
+      await flushPromises();
+
+      expect(shouldHydrateQuery).toHaveBeenCalledTimes(1);
+      expect(publishSpy).not.toHaveBeenCalled();
+    });
+
+    it('proceeds with a scan when rehydration hangs past the hydration timeout', async () => {
+      jest.useFakeTimers({
+        doNotFake: ['nextTick', 'queueMicrotask'],
+        now: 1_000_000,
+      });
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, { recommendedAction: 'BLOCK' });
+      const { rootMessenger, service } = createService({
+        options: { persistenceConfig: undefined },
+        setItemMock: jest.fn(),
+        getItemMock: jest.fn(() => new Promise(() => undefined)),
+      });
+      service.init();
+
+      const resultPromise = rootMessenger.call(
+        'PhishingDataService:scanUrl',
+        'example.com',
+      );
+      await flushPromises();
+      expect(scope.isDone()).toBe(false);
+
+      jest.advanceTimersByTime(DEFAULT_HYDRATION_TIMEOUT);
+
+      expect(await resultPromise).toStrictEqual({
+        hostname: 'example.com',
+        recommendedAction: 'BLOCK',
+      });
+      expect(scope.isDone()).toBe(true);
     });
   });
 

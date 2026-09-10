@@ -1,4 +1,4 @@
-import { BaseDataService } from '@metamask/base-data-service';
+import { BaseDataService, handleWhen } from '@metamask/base-data-service';
 import type {
   CreateServicePolicyOptions,
   DataServiceCacheUpdatedEvent,
@@ -29,7 +29,7 @@ import {
 } from '@metamask/superstruct';
 import { Duration, getErrorMessage, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
-import type { QueryClientConfig } from '@tanstack/query-core';
+import type { DehydratedState, QueryClientConfig } from '@tanstack/query-core';
 
 import type { PhishingDataServiceMethodActions } from './PhishingDataService-method-action-types.js';
 import type {
@@ -332,6 +332,37 @@ const ScanAddressResponseStruct = type({
   label: string(),
 });
 
+const PersistedScanUrlResultStruct = type({
+  hostname: string(),
+  recommendedAction: RecommendedActionStruct,
+});
+
+/**
+ * Decides whether a persisted query may be restored into the cache. Only scan
+ * results are retained between sessions, and each is checked against the
+ * shape its endpoint validation produces, so that a corrupted or tampered
+ * persisted entry can never be served as a verdict. Anything else, including
+ * list queries, is discarded.
+ *
+ * @param query - The persisted query.
+ * @returns Whether the query may be hydrated.
+ */
+function isValidPersistedScanQuery(
+  query: DehydratedState['queries'][number],
+): boolean {
+  const { data } = query.state;
+  switch (query.queryKey[0]) {
+    case `${serviceName}:scanUrl`:
+      return is(data, PersistedScanUrlResultStruct);
+    case `${serviceName}:scanToken`:
+      return data === null || is(data, TokenScanResultStruct);
+    case `${serviceName}:scanAddress`:
+      return is(data, ScanAddressResponseStruct);
+    default:
+      return false;
+  }
+}
+
 const ApprovalFeatureStruct = type({
   feature_id: string(),
   type: ApprovalFeatureTypeStruct,
@@ -380,19 +411,50 @@ const ApprovalsResponseStruct = type({
  */
 type BatchOutcome = {
   results: Record<string, Json>;
-  errors?: Record<string, Error>;
+  errors: Record<string, Error>;
 };
+
+/**
+ * Base class for errors delivered to items of a batched request. The service
+ * policy never retries these: item queries are backed by a batched request
+ * that is itself retried as a whole, so retrying items individually would
+ * only fan one failed batch out into many single-item requests against a host
+ * that is already failing.
+ */
+class BatchError extends Error {}
 
 /**
  * An error reported by a batch endpoint for one specific item, as opposed to a
  * failure of the request as a whole. These are surfaced to the caller per item
  * and never cached, but they do not make the overall call fail.
  */
-class BatchItemError extends Error {
+class BatchItemError extends BatchError {
   constructor(message: string) {
     super(message);
     this.name = 'BatchItemError';
   }
+}
+
+/**
+ * A failure of a batched request as a whole, delivered to every item in it.
+ * The original request error is available as `cause` and is what callers
+ * ultimately receive.
+ */
+class BatchRequestError extends BatchError {
+  constructor(cause: unknown) {
+    super(getErrorMessage(cause), { cause });
+    this.name = 'BatchRequestError';
+  }
+}
+
+/**
+ * Returns the request error behind a batch failure, or the error itself.
+ *
+ * @param error - An error rejected by a batch item.
+ * @returns The underlying error.
+ */
+function unwrapBatchError(error: unknown): unknown {
+  return error instanceof BatchRequestError ? error.cause : error;
 }
 
 type BatchLoader = {
@@ -440,7 +502,7 @@ function createBatchLoader({
 
   const executeChunk = async (chunk: PendingItem[]): Promise<void> => {
     try {
-      const { results, errors = {} } = await executeBatch(
+      const { results, errors } = await executeBatch(
         chunk.map((item) => item.key),
       );
       for (const item of chunk) {
@@ -453,7 +515,7 @@ function createBatchLoader({
       }
     } catch (error) {
       for (const item of chunk) {
-        item.reject(error);
+        item.reject(new BatchRequestError(error));
       }
     }
   };
@@ -547,6 +609,7 @@ export class PhishingDataService extends BaseDataService<
     policyOptions?: CreateServicePolicyOptions;
     persistenceConfig?: PersistenceConfiguration | null;
   }) {
+    const { retryFilterPolicy, ...restPolicyOptions } = policyOptions;
     super({
       name: serviceName,
       messenger,
@@ -573,17 +636,33 @@ export class PhishingDataService extends BaseDataService<
       //
       // Retries are disabled by default for the same reason. The previous
       // in-controller implementation made a single request per call, and the
-      // controller's timeouts are sized for one attempt. Retries are also
-      // unsafe for the batched endpoints: a failed batch rejects every item
-      // query in it, and each would then retry independently, turning one
-      // failed request into many single-item requests against a host that is
-      // already failing.
+      // controller's timeouts are sized for one attempt. When enabled, retries
+      // apply to each batched request as a whole; see `retryFilterPolicy`.
       policyOptions: {
         maxConsecutiveFailures: Number.MAX_SAFE_INTEGER,
         maxRetries: 0,
-        ...policyOptions,
+        ...restPolicyOptions,
+        // Item queries backed by a batched request are never retried on their
+        // own: the batch is retried as a whole inside the loader, and an item
+        // retry would only fan one failed batch out into many single-item
+        // requests against a host that is already failing. A caller-provided
+        // filter is still applied to everything else.
+        retryFilterPolicy: handleWhen(
+          (error): boolean =>
+            !(error instanceof BatchError) &&
+            (retryFilterPolicy?.options.errorFilter(error) ?? true),
+        ),
       },
-      persistenceConfig: persistenceConfig ?? undefined,
+      persistenceConfig: persistenceConfig
+        ? {
+            ...persistenceConfig,
+            // Persisted scan results are validated before they can be served
+            // from the cache; a caller-provided filter is applied on top.
+            shouldHydrateQuery: (query): boolean =>
+              isValidPersistedScanQuery(query) &&
+              (persistenceConfig.shouldHydrateQuery?.(query) ?? true),
+          }
+        : undefined,
     });
 
     this.messenger.registerMethodActionHandlers(
@@ -750,10 +829,12 @@ export class PhishingDataService extends BaseDataService<
     const loader = createBatchLoader({
       maxBatchSize: MAX_URLS_PER_SCAN_REQUEST,
       executeBatch: async (batchUrls) => {
-        const jsonResponse = await this.#postJson(
-          `${PHISHING_DETECTION_BASE_URL}/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`,
-          { urls: batchUrls },
-          { timeout: BULK_URL_SCAN_TIMEOUT },
+        const jsonResponse = await this.executeWithPolicy(() =>
+          this.#postJson(
+            `${PHISHING_DETECTION_BASE_URL}/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`,
+            { urls: batchUrls },
+            { timeout: BULK_URL_SCAN_TIMEOUT },
+          ),
         );
         const response = this.#validate(
           jsonResponse,
@@ -831,9 +912,10 @@ export class PhishingDataService extends BaseDataService<
       const url = requested[index];
 
       if (outcome.status === 'rejected') {
-        addError(url, getErrorMessage(outcome.reason));
+        const reason = unwrapBatchError(outcome.reason);
+        addError(url, getErrorMessage(reason));
         if (!(outcome.reason instanceof BatchItemError)) {
-          requestFailure ??= { reason: outcome.reason };
+          requestFailure ??= { reason };
         }
         continue;
       }
@@ -909,7 +991,7 @@ export class PhishingDataService extends BaseDataService<
     let firstError: Error | undefined;
     for (const outcome of await Promise.allSettled(entries)) {
       if (outcome.status === 'rejected') {
-        firstError ??= outcome.reason as Error;
+        firstError ??= unwrapBatchError(outcome.reason) as Error;
         continue;
       }
 
@@ -937,10 +1019,12 @@ export class PhishingDataService extends BaseDataService<
     return createBatchLoader({
       maxBatchSize: MAX_TOKENS_PER_SCAN_REQUEST,
       executeBatch: async (batchTokens) => {
-        const jsonResponse = await this.#postJson(
-          `${SECURITY_ALERTS_BASE_URL}${TOKEN_BULK_SCANNING_ENDPOINT}`,
-          { chain, tokens: batchTokens },
-          { timeout: TOKEN_SCAN_TIMEOUT },
+        const jsonResponse = await this.executeWithPolicy(() =>
+          this.#postJson(
+            `${SECURITY_ALERTS_BASE_URL}${TOKEN_BULK_SCANNING_ENDPOINT}`,
+            { chain, tokens: batchTokens },
+            { timeout: TOKEN_SCAN_TIMEOUT },
+          ),
         );
         const response = this.#validate(
           jsonResponse,
