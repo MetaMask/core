@@ -1,0 +1,19 @@
+name: Publish a preview build
+
+on:
+  issue_comment:
+    types: created
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  publish-preview:
+    if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot publish-preview') }}
+    uses: MetaMask/github-tools/.github/workflows/publish-preview.yml@v1
+    with:
+      docs-url: 'https://github.com/MetaMask/utils/blob/main/README.md#testing-changes-in-other-projects-using-preview-builds'
+      is-monorepo: false
+    secrets:
+      PUBLISH_PREVIEW_NPM_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}
