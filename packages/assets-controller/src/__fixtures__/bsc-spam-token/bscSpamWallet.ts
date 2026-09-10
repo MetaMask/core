@@ -7,14 +7,6 @@ import {
   BSC_SPAM_WALLET_ADDRESS,
 } from './wallet.js';
 
-export {
-  BNB_ASSET_ID,
-  BSC_CHAIN_ID,
-  BSC_SPAM_ACCOUNT_ID,
-  CDOGE_ASSET_ID_CHECKSUM,
-  CDOGE_ASSET_ID_LOWERCASE,
-} from './wallet.js';
-
 /**
  * Build the wallet's `InternalAccount`.
  *

@@ -3,14 +3,16 @@ import { cleanAll } from 'nock';
 
 import { mockBscSpamApis } from '../__fixtures__/bsc-spam-token/api-responses/index.js';
 import {
-  BNB_ASSET_ID,
-  BSC_CHAIN_ID,
-  BSC_SPAM_ACCOUNT_ID,
-  CDOGE_ASSET_ID_CHECKSUM,
-  CDOGE_ASSET_ID_LOWERCASE,
   buildBscSpamAccount,
   buildEmptyAssetsState,
 } from '../__fixtures__/bsc-spam-token/bscSpamWallet.js';
+import {
+  BNB_ASSET_ID,
+  CDOGE_ASSET_ID_LOWERCASE,
+  CDOGE_ASSET_ID_CHECKSUM,
+  BSC_CHAIN_ID,
+  BSC_SPAM_ACCOUNT_ID,
+} from '../__fixtures__/bsc-spam-token/wallet.js';
 import { createMockAssetControllerMessenger } from '../__fixtures__/MockAssetControllerMessenger.js';
 import { createTestApiClient } from '../__fixtures__/mockTokenApi.js';
 import { AccountsApiDataSource } from '../data-sources/AccountsApiDataSource.js';
