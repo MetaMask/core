@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@types/uuid` from `^8.3.0` to `^9.0.8` ([#10117](https://github.com/MetaMask/core/pull/10117))
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
+- Bump `@metamask/account-tree-controller` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/core-backend` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
 
 ## [112.0.0]
 
