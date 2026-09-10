@@ -266,7 +266,6 @@ linkStyle default opacity:0.5
   address_book_controller --> utils;
   ai_controllers --> base_controller;
   ai_controllers --> messenger;
-  ai_controllers --> utils;
   analytics_controller --> base_controller;
   analytics_controller --> geolocation_controller;
   analytics_controller --> messenger;
@@ -384,7 +383,6 @@ linkStyle default opacity:0.5
   compliance_controller --> base_controller;
   compliance_controller --> controller_utils;
   compliance_controller --> messenger;
-  compliance_controller --> utils;
   composable_controller --> base_controller;
   composable_controller --> messenger;
   composable_controller --> json_rpc_engine;
@@ -475,7 +473,6 @@ linkStyle default opacity:0.5
   message_manager --> controller_utils;
   message_manager --> messenger;
   message_manager --> utils;
-  messenger --> utils;
   messenger_cli --> utils;
   money_account_api_data_service --> base_data_service;
   money_account_api_data_service --> controller_utils;
@@ -609,7 +606,6 @@ linkStyle default opacity:0.5
   polling_controller --> messenger;
   preferences_controller --> base_controller;
   preferences_controller --> messenger;
-  preferences_controller --> utils;
   profile_metrics_controller --> accounts_controller;
   profile_metrics_controller --> base_controller;
   profile_metrics_controller --> controller_utils;

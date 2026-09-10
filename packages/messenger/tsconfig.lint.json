@@ -5,9 +5,5 @@
     "tsBuildInfoFile": "./.tsc-lint-cache/tsconfig.tsbuildinfo"
   },
   "exclude": ["**/*.tst.ts"],
-  "references": [
-    {
-      "path": "../utils/tsconfig.lint.json"
-    }
-  ]
+  "references": []
 }

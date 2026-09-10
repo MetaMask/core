@@ -51,9 +51,6 @@
     "test:verbose": "yarn test:unit:verbose && yarn test:types",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
-  "dependencies": {
-    "@metamask/utils": "^12.0.0"
-  },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
     "@types/jest": "^30.0.0",

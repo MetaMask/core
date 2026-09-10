@@ -4,11 +4,7 @@
     "outDir": "./dist",
     "rootDir": "./src"
   },
-  "references": [
-    {
-      "path": "../utils/tsconfig.build.json"
-    }
-  ],
+  "references": [],
   "include": ["../../types", "./src"],
   "exclude": ["**/*.test.ts", "**/*.tst.ts"]
 }

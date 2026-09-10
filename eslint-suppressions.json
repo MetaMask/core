@@ -2058,12 +2058,12 @@
       "count": 3
     }
   },
-  "packages/utils/src/json.test-d.ts": {
+  "packages/utils/src/json.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
   },
-  "packages/utils/src/json.ts": {
+  "packages/utils/src/json.tst.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
@@ -2073,12 +2073,12 @@
       "count": 2
     }
   },
-  "packages/utils/src/misc.test-d.ts": {
+  "packages/utils/src/misc.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
   },
-  "packages/utils/src/misc.ts": {
+  "packages/utils/src/misc.tst.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
     }

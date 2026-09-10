@@ -52,8 +52,7 @@
   "dependencies": {
     "@metamask/base-controller": "^10.0.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/superstruct": "^3.4.1",
-    "@metamask/utils": "^12.0.0"
+    "@metamask/superstruct": "^3.4.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
