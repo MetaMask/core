@@ -16,7 +16,7 @@ import {
   pairSocialIdentifier,
   getUserProfileLineage,
   getCustomerServiceToken,
-  getOidcToken,
+  getPartnerIdentityToken,
   NONCE_URL,
   OIDC_TOKEN_URL,
   SRP_LOGIN_URL,
@@ -1353,7 +1353,7 @@ describe('services', () => {
     });
   });
 
-  describe('getOidcToken', () => {
+  describe('getPartnerIdentityToken', () => {
     it('should return the access_token on success', async () => {
       const mockResponse = createMockResponse({
         access_token: 'partner-access-token',
@@ -1363,7 +1363,7 @@ describe('services', () => {
       });
       mockFetch.mockResolvedValue(mockResponse);
 
-      const result = await getOidcToken(
+      const result = await getPartnerIdentityToken(
         Env.DEV,
         'access-token',
         ['email'],
@@ -1392,11 +1392,13 @@ describe('services', () => {
       mockFetch.mockResolvedValue(mockResponse);
 
       await expect(
-        getOidcToken(Env.DEV, 'access-token', ['email'], 'kyc'),
+        getPartnerIdentityToken(Env.DEV, 'access-token', ['email'], 'kyc'),
       ).rejects.toThrow(SignInError);
       await expect(
-        getOidcToken(Env.DEV, 'access-token', ['email'], 'kyc'),
-      ).rejects.toThrow('Failed to get oidc token: missing access_token');
+        getPartnerIdentityToken(Env.DEV, 'access-token', ['email'], 'kyc'),
+      ).rejects.toThrow(
+        'Failed to get partner identity token: missing access_token',
+      );
     });
 
     it('should throw SignInError on 400 unknown audience', async () => {
@@ -1407,7 +1409,7 @@ describe('services', () => {
       mockFetch.mockResolvedValue(mockResponse);
 
       await expect(
-        getOidcToken(Env.DEV, 'access-token', ['email'], 'kyc'),
+        getPartnerIdentityToken(Env.DEV, 'access-token', ['email'], 'kyc'),
       ).rejects.toThrow(SignInError);
     });
 
@@ -1419,7 +1421,7 @@ describe('services', () => {
       mockFetch.mockResolvedValue(mockResponse);
 
       await expect(
-        getOidcToken(Env.DEV, 'access-token', ['email'], 'kyc'),
+        getPartnerIdentityToken(Env.DEV, 'access-token', ['email'], 'kyc'),
       ).rejects.toThrow(SignInError);
     });
 
@@ -1431,7 +1433,7 @@ describe('services', () => {
       mockFetch.mockResolvedValue(mockResponse);
 
       await expect(
-        getOidcToken(Env.DEV, 'access-token', ['email'], 'kyc'),
+        getPartnerIdentityToken(Env.DEV, 'access-token', ['email'], 'kyc'),
       ).rejects.toThrow(EmailRequiredError);
     });
   });

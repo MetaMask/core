@@ -2083,7 +2083,7 @@ describe('AuthenticationController', () => {
     });
   });
 
-  describe('getOidcToken', () => {
+  describe('getPartnerIdentityToken', () => {
     it('should throw error if not logged in', async () => {
       const metametrics = createMockAuthMetaMetrics();
       const { messenger } = createMockAuthenticationMessenger();
@@ -2093,9 +2093,9 @@ describe('AuthenticationController', () => {
         metametrics,
       });
 
-      await expect(controller.getOidcToken(['email'], 'kyc')).rejects.toThrow(
-        expect.any(Error),
-      );
+      await expect(
+        controller.getPartnerIdentityToken(['email'], 'kyc'),
+      ).rejects.toThrow(expect.any(Error));
     });
 
     it('should return the partner identity token', async () => {
@@ -2110,7 +2110,7 @@ describe('AuthenticationController', () => {
         metametrics,
       });
 
-      const result = await controller.getOidcToken(['email'], 'kyc');
+      const result = await controller.getPartnerIdentityToken(['email'], 'kyc');
       expect(result).toBe(MOCK_ACCESS_JWT);
     });
 
@@ -2126,9 +2126,9 @@ describe('AuthenticationController', () => {
         metametrics,
       });
 
-      await expect(controller.getOidcToken(['email'], 'kyc')).rejects.toThrow(
-        expect.any(Error),
-      );
+      await expect(
+        controller.getPartnerIdentityToken(['email'], 'kyc'),
+      ).rejects.toThrow(expect.any(Error));
     });
 
     it('should throw EmailRequiredError on 422', async () => {
@@ -2148,9 +2148,9 @@ describe('AuthenticationController', () => {
         metametrics,
       });
 
-      await expect(controller.getOidcToken(['email'], 'kyc')).rejects.toThrow(
-        EmailRequiredError,
-      );
+      await expect(
+        controller.getPartnerIdentityToken(['email'], 'kyc'),
+      ).rejects.toThrow(EmailRequiredError);
     });
 
     it('should throw error if wallet is locked', async () => {
@@ -2168,9 +2168,9 @@ describe('AuthenticationController', () => {
         metametrics,
       });
 
-      await expect(controller.getOidcToken(['email'], 'kyc')).rejects.toThrow(
-        expect.any(Error),
-      );
+      await expect(
+        controller.getPartnerIdentityToken(['email'], 'kyc'),
+      ).rejects.toThrow(expect.any(Error));
     });
   });
 

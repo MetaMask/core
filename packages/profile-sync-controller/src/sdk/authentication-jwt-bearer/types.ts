@@ -46,6 +46,11 @@ export type PairSocialIdentifierParams = {
 export type OidcTokenClaim = 'email';
 
 /**
+ * Non-empty list of claims to embed. The API requires at least one name.
+ */
+export type OidcTokenClaims = [OidcTokenClaim, ...OidcTokenClaim[]];
+
+/**
  * Partner audience stamped on the minted JWT.
  */
 export type OidcTokenAudience = 'kyc' | 'iron';

@@ -14,4 +14,5 @@ export type {
   AuthenticationControllerGetUserProfileLineageAction,
   AuthenticationControllerIsSignedInAction,
   AuthenticationControllerRequestProfilePairingAction,
+  AuthenticationControllerGetPartnerIdentityTokenAction,
 } from './AuthenticationController-method-action-types.js';

@@ -15,7 +15,7 @@ import {
   authorizeOIDC,
   getCustomerServiceToken,
   getNonce,
-  getOidcToken,
+  getPartnerIdentityToken,
   getUserProfileLineage,
   pairProfiles,
   pairSocialIdentifier,
@@ -30,7 +30,7 @@ import type {
   LoginIdentifierType,
   LoginResponse,
   OidcTokenAudience,
-  OidcTokenClaim,
+  OidcTokenClaims,
   PairSocialIdentifierParams,
   SrpLoginTag,
   UserProfile,
@@ -198,13 +198,18 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     return await getCustomerServiceToken(this.#config.env, accessToken);
   }
 
-  async getOidcToken(
-    claims: OidcTokenClaim[],
+  async getPartnerIdentityToken(
+    claims: OidcTokenClaims,
     audience: OidcTokenAudience,
     entropySourceId?: string,
   ): Promise<string> {
     const accessToken = await this.getAccessToken(entropySourceId);
-    return await getOidcToken(this.#config.env, accessToken, claims, audience);
+    return await getPartnerIdentityToken(
+      this.#config.env,
+      accessToken,
+      claims,
+      audience,
+    );
   }
 
   async pairSocialIdentifier(

@@ -17,7 +17,7 @@ import type {
   ErrorMessage,
   LoginIdentifierType,
   OidcTokenAudience,
-  OidcTokenClaim,
+  OidcTokenClaims,
   PairSocialIdentifierParams,
   ProfileAlias,
   UserProfile,
@@ -116,11 +116,7 @@ async function throwServiceError(
   ErrorClass: new (message: string) => Error,
 ): Promise<never> {
   // Re-throw RateLimitedError or matching ErrorClass as-is (don't double-wrap)
-  if (
-    error instanceof RateLimitedError ||
-    error instanceof EmailRequiredError ||
-    error instanceof ErrorClass
-  ) {
+  if (error instanceof RateLimitedError || error instanceof ErrorClass) {
     throw error;
   }
 
@@ -650,14 +646,14 @@ export async function getCustomerServiceToken(
  * @returns The partner identity access token.
  * @throws EmailRequiredError when the profile has no verified email (HTTP 422)
  */
-export async function getOidcToken(
+export async function getPartnerIdentityToken(
   env: Env,
   accessToken: string,
-  claims: OidcTokenClaim[],
+  claims: OidcTokenClaims,
   audience: OidcTokenAudience,
 ): Promise<string> {
   const partnerIdentityTokenUrl = new URL(PARTNER_IDENTITY_TOKEN_URL(env));
-  const errorPrefix = 'Failed to get oidc token';
+  const errorPrefix = 'Failed to get partner identity token';
 
   try {
     const response = await fetch(partnerIdentityTokenUrl, {

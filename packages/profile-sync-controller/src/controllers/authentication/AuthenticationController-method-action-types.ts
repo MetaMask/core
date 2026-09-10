@@ -114,9 +114,9 @@ export type AuthenticationControllerGetCustomerServiceTokenAction = {
  * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
  * @returns The partner identity access token.
  */
-export type AuthenticationControllerGetOidcTokenAction = {
-  type: `AuthenticationController:getOidcToken`;
-  handler: AuthenticationController['getOidcToken'];
+export type AuthenticationControllerGetPartnerIdentityTokenAction = {
+  type: `AuthenticationController:getPartnerIdentityToken`;
+  handler: AuthenticationController['getPartnerIdentityToken'];
 };
 
 export type AuthenticationControllerIsSignedInAction = {
@@ -136,5 +136,5 @@ export type AuthenticationControllerMethodActions =
   | AuthenticationControllerRefreshCanonicalProfileIdAction
   | AuthenticationControllerGetUserProfileLineageAction
   | AuthenticationControllerGetCustomerServiceTokenAction
-  | AuthenticationControllerGetOidcTokenAction
+  | AuthenticationControllerGetPartnerIdentityTokenAction
   | AuthenticationControllerIsSignedInAction;

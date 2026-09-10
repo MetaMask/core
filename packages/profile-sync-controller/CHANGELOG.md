@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `AuthenticationController.getOidcToken` method and messenger action to mint a partner identity token (`POST /api/v2/oidc/token`). HTTP 422 throws `EmailRequiredError` when the profile has no verified email ([#10164](https://github.com/MetaMask/core/pull/10164)).
+- Add `AuthenticationController.getPartnerIdentityToken` method and messenger action to mint a partner identity token (`POST /api/v2/oidc/token`). HTTP 422 throws `EmailRequiredError` when the profile has no verified email ([#10164](https://github.com/MetaMask/core/pull/10164)).
+- Add `AuthenticationController.clearState()` to reset the controller to `defaultState` (unsigned, both pairing gates re-armed). Clients call this on wallet reset ([#10165](https://github.com/MetaMask/core/pull/10165))
+- Add `BACKUPANDSYNC_FEATURES.rampsSyncing` and `UserStorageController.isRampsSyncingEnabled` ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - Defaults to enabled (`true`); hosts can toggle Buy & sell order sync independently of account/contact sync
+
+### Changed
+
+- **BREAKING:** `UserStorageControllerState` now includes `isRampsSyncingEnabled`. Consumers that construct full state objects must include this field. ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - Prefer `isRampsSyncingEnabled ?? true` in selectors so wallets upgraded before this field existed keep ramps syncing on by default
 
 ## [31.0.0]
 

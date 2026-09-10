@@ -26,7 +26,7 @@ import type {
   UserProfile,
   UserProfileLineage,
   OidcTokenAudience,
-  OidcTokenClaim,
+  OidcTokenClaims,
 } from '../../sdk/index.js';
 import {
   assertMessageStartsWithMetamask,
@@ -151,7 +151,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'refreshCanonicalProfileId',
   'getUserProfileLineage',
   'getCustomerServiceToken',
-  'getOidcToken',
+  'getPartnerIdentityToken',
   'isSignedIn',
   'requestProfilePairing',
 ] as const;
@@ -858,14 +858,18 @@ export class AuthenticationController extends BaseController<
    * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
    * @returns The partner identity access token.
    */
-  public async getOidcToken(
-    claims: OidcTokenClaim[],
+  public async getPartnerIdentityToken(
+    claims: OidcTokenClaims,
     audience: OidcTokenAudience,
     entropySourceId?: string,
   ): Promise<string> {
-    this.#assertIsUnlocked('getOidcToken');
+    this.#assertIsUnlocked('getPartnerIdentityToken');
     const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
-    return await this.#auth.getOidcToken(claims, audience, resolvedId);
+    return await this.#auth.getPartnerIdentityToken(
+      claims,
+      audience,
+      resolvedId,
+    );
   }
 
   public isSignedIn(): boolean {
