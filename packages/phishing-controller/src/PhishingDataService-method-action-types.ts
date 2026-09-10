@@ -74,8 +74,10 @@ export type PhishingDataServiceBulkScanUrlsAction = {
 /**
  * Scans a token for malicious activity via the security-alerts API.
  *
- * Requests made while a bulk scan is being assembled are coalesced into a
- * single request to the bulk scanning endpoint.
+ * Each call issues its own request to the bulk scanning endpoint; use
+ * {@link PhishingDataService.bulkScanTokens} to scan several tokens in one
+ * request. EVM token addresses are lowercased before being used as the cache
+ * key and sent to the API; other addresses are used as given.
  *
  * @param chain - The chain name (e.g. `ethereum`).
  * @param token - The token address to scan.
@@ -96,8 +98,9 @@ export type PhishingDataServiceScanTokenAction = {
  *
  * @param chain - The chain name (e.g. `ethereum`).
  * @param tokens - The token addresses to scan.
- * @returns The token scan results, keyed by token address. Tokens for which
- * the API returned no result are omitted.
+ * @returns The token scan results, keyed by normalized token address (EVM
+ * addresses are lowercased). Tokens for which the API returned no result
+ * are omitted.
  */
 export type PhishingDataServiceBulkScanTokensAction = {
   type: `PhishingDataService:bulkScanTokens`;
@@ -105,7 +108,9 @@ export type PhishingDataServiceBulkScanTokensAction = {
 };
 
 /**
- * Scans an address for security alerts via the security-alerts API.
+ * Scans an address for security alerts via the security-alerts API. EVM
+ * addresses are lowercased before being used as the cache key and sent to
+ * the API; other addresses are used as given.
  *
  * @param chain - The chain name (e.g. `ethereum`).
  * @param address - The address to scan.

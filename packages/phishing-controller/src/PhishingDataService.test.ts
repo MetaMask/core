@@ -851,6 +851,25 @@ describe('PhishingDataService', () => {
   });
 
   describe('bulkScanTokens', () => {
+    it('lowercases EVM token addresses and keys results by the normalized address', async () => {
+      const lower = '0xabcdef0000000000000000000000000000000001';
+      nock(SECURITY_ALERTS_BASE_URL)
+        .post(TOKEN_BULK_SCANNING_ENDPOINT, {
+          chain: 'ethereum',
+          tokens: [lower],
+        })
+        .reply(200, { results: { [lower]: { result_type: 'Malicious' } } });
+      const { rootMessenger } = createService();
+
+      expect(
+        await rootMessenger.call(
+          'PhishingDataService:bulkScanTokens',
+          'ethereum',
+          ['0xAbCdEf0000000000000000000000000000000001'],
+        ),
+      ).toStrictEqual({ results: { [lower]: { result_type: 'Malicious' } } });
+    });
+
     it('returns the scan results from the API', async () => {
       const tokens = ['0x1234567890123456789012345678901234567890'];
       const apiResponse = {
@@ -1017,6 +1036,51 @@ describe('PhishingDataService', () => {
   });
 
   describe('scanToken', () => {
+    it('lowercases EVM token addresses in the request and cache key', async () => {
+      const lower = '0xabcdef0000000000000000000000000000000001';
+      nock(SECURITY_ALERTS_BASE_URL)
+        .post(TOKEN_BULK_SCANNING_ENDPOINT, {
+          chain: 'ethereum',
+          tokens: [lower],
+        })
+        .reply(200, { results: { [lower]: { result_type: 'Malicious' } } });
+      const { rootMessenger } = createService();
+
+      const first = await rootMessenger.call(
+        'PhishingDataService:scanToken',
+        'ethereum',
+        '0xAbCdEf0000000000000000000000000000000001',
+      );
+      // No second interceptor is registered, so this must be a cache hit.
+      const second = await rootMessenger.call(
+        'PhishingDataService:scanToken',
+        'ethereum',
+        lower,
+      );
+
+      expect(first).toStrictEqual({ result_type: 'Malicious' });
+      expect(second).toStrictEqual({ result_type: 'Malicious' });
+    });
+
+    it('preserves the casing of non-EVM token addresses', async () => {
+      const solanaToken = 'So11111111111111111111111111111111111111112';
+      nock(SECURITY_ALERTS_BASE_URL)
+        .post(TOKEN_BULK_SCANNING_ENDPOINT, {
+          chain: 'solana',
+          tokens: [solanaToken],
+        })
+        .reply(200, { results: { [solanaToken]: { result_type: 'Benign' } } });
+      const { rootMessenger } = createService();
+
+      expect(
+        await rootMessenger.call(
+          'PhishingDataService:scanToken',
+          'solana',
+          solanaToken,
+        ),
+      ).toStrictEqual({ result_type: 'Benign' });
+    });
+
     it('returns the scan result for a single token from the bulk API', async () => {
       const token = '0x1234567890123456789012345678901234567890';
       nock(SECURITY_ALERTS_BASE_URL)
@@ -1156,6 +1220,29 @@ describe('PhishingDataService', () => {
   });
 
   describe('scanAddress', () => {
+    it('lowercases EVM addresses in the request and cache key', async () => {
+      const lower = '0xabcdef0000000000000000000000000000000001';
+      nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, { chain: 'ethereum', address: lower })
+        .reply(200, { result_type: 'Malicious', label: 'bad' });
+      const { rootMessenger } = createService();
+
+      const first = await rootMessenger.call(
+        'PhishingDataService:scanAddress',
+        'ethereum',
+        '0xAbCdEf0000000000000000000000000000000001',
+      );
+      // No second interceptor is registered, so this must be a cache hit.
+      const second = await rootMessenger.call(
+        'PhishingDataService:scanAddress',
+        'ethereum',
+        lower,
+      );
+
+      expect(first).toStrictEqual({ result_type: 'Malicious', label: 'bad' });
+      expect(second).toStrictEqual({ result_type: 'Malicious', label: 'bad' });
+    });
+
     it('returns the scan result from the API', async () => {
       nock(SECURITY_ALERTS_BASE_URL)
         .post(ADDRESS_SCAN_ENDPOINT, {

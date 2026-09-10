@@ -53,6 +53,7 @@ import {
 import {
   getHostnameFromWebUrl,
   getPhishingDetectionScanUrlParam,
+  normalizeScanAddress,
 } from './utils.js';
 
 /**
@@ -854,8 +855,10 @@ export class PhishingDataService extends BaseDataService<
   /**
    * Scans a token for malicious activity via the security-alerts API.
    *
-   * Requests made while a bulk scan is being assembled are coalesced into a
-   * single request to the bulk scanning endpoint.
+   * Each call issues its own request to the bulk scanning endpoint; use
+   * {@link PhishingDataService.bulkScanTokens} to scan several tokens in one
+   * request. EVM token addresses are lowercased before being used as the cache
+   * key and sent to the API; other addresses are used as given.
    *
    * @param chain - The chain name (e.g. `ethereum`).
    * @param token - The token address to scan.
@@ -867,7 +870,11 @@ export class PhishingDataService extends BaseDataService<
     token: string,
   ): Promise<TokenScanResultResponse | null> {
     const loader = this.#createTokenScanLoader(chain);
-    const result = this.#fetchTokenScanQuery(loader, chain, token);
+    const result = this.#fetchTokenScanQuery(
+      loader,
+      chain,
+      normalizeScanAddress(token),
+    );
     loader.flush();
     return await result;
   }
@@ -881,19 +888,21 @@ export class PhishingDataService extends BaseDataService<
    *
    * @param chain - The chain name (e.g. `ethereum`).
    * @param tokens - The token addresses to scan.
-   * @returns The token scan results, keyed by token address. Tokens for which
-   * the API returned no result are omitted.
+   * @returns The token scan results, keyed by normalized token address (EVM
+   * addresses are lowercased). Tokens for which the API returned no result
+   * are omitted.
    */
   async bulkScanTokens(
     chain: string,
     tokens: string[],
   ): Promise<TokenScanApiResponse> {
     const loader = this.#createTokenScanLoader(chain);
-    const entries = tokens.map((token) =>
-      this.#fetchTokenScanQuery(loader, chain, token).then(
-        (result) => [token, result] as const,
-      ),
-    );
+    const entries = tokens.map((token) => {
+      const normalizedToken = normalizeScanAddress(token);
+      return this.#fetchTokenScanQuery(loader, chain, normalizedToken).then(
+        (result) => [normalizedToken, result] as const,
+      );
+    });
     loader.flush();
 
     const results: TokenScanApiResponse['results'] = {};
@@ -977,7 +986,9 @@ export class PhishingDataService extends BaseDataService<
   }
 
   /**
-   * Scans an address for security alerts via the security-alerts API.
+   * Scans an address for security alerts via the security-alerts API. EVM
+   * addresses are lowercased before being used as the cache key and sent to
+   * the API; other addresses are used as given.
    *
    * @param chain - The chain name (e.g. `ethereum`).
    * @param address - The address to scan.
@@ -987,13 +998,14 @@ export class PhishingDataService extends BaseDataService<
     chain: string,
     address: string,
   ): Promise<AddressScanResult> {
+    const normalizedAddress = normalizeScanAddress(address);
     const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:scanAddress`, chain, address],
+      queryKey: [`${this.name}:scanAddress`, chain, normalizedAddress],
       queryFn: async ({ signal }) =>
         this.#validate(
           await this.#postJson(
             `${SECURITY_ALERTS_BASE_URL}${ADDRESS_SCAN_ENDPOINT}`,
-            { chain, address },
+            { chain, address: normalizedAddress },
             { signal, timeout: ADDRESS_SCAN_TIMEOUT },
           ),
           ScanAddressResponseStruct,
