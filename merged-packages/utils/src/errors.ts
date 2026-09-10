@@ -71,6 +71,7 @@ export function getErrorMessage(error: unknown): string {
     return '';
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Stringifying an arbitrary value is the documented fallback here, so `[object Object]` is an accepted result rather than a mistake.
   return String(error);
 }
 

@@ -202,6 +202,9 @@ module.exports = {
         tsconfig: {
           module: 'CommonJS',
           moduleResolution: 'Node',
+          // TS 6 deprecates node10 resolution. The tests are compiled to
+          // CommonJS, so node10 is still the correct choice for them.
+          ignoreDeprecations: '6.0',
           verbatimModuleSyntax: false,
         },
       },
