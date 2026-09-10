@@ -1,0 +1,388 @@
+const v5MultiAccountBalances = {
+  "count": 38,
+  "balances": [
+    {
+      "object": "token",
+      "symbol": "BNB",
+      "name": "BNB",
+      "type": "native",
+      "decimals": 18,
+      "assetId": "eip155:56/slip44:714",
+      "balance": "0.009495005467800000",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "GT Protocol",
+      "symbol": "GTAI",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0x003d87d02a2a01e9e8a20f507c83e15dd83a33d1",
+      "balance": "910.204000000000200000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "Tether USD",
+      "symbol": "USDT",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0x55d398326f99059ff775485246999027b3197955",
+      "balance": "0.002916000000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "Openfabric AI",
+      "symbol": "OFN",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0x8899ec96ed8c96b5c86c23c3f069c3def75b6d97",
+      "balance": "2919.859199999999000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "Binance-Peg USD Coin",
+      "symbol": "USDC",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+      "balance": "0.000253000000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "Swaperry",
+      "symbol": "PERRY",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0x9452d45d33490234b8c96f42342f1be28c0fe097",
+      "balance": "16779.000000000000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "EarnGuild",
+      "symbol": "EARN",
+      "decimals": 8,
+      "assetId": "eip155:56/erc20:0xb0eb3e295b44d7d405ba8026a9734a9ab354a8b2",
+      "balance": "68000.00000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "Gains",
+      "symbol": "GAINS",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0xd9ea58350bf120e2169a35fa1afc31975b07de01",
+      "balance": "2145.457995009695314132",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "BUSD",
+      "symbol": "BUSD",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0xe9e7cea3dedca5984780bafc599bd69add087d56",
+      "balance": "0.671315783745192035",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "Notable",
+      "symbol": "NBL",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0xfaa0fc7b803919b091dbe5ff709b2dabb61b93d9",
+      "balance": "74714.575000000000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "CryptoBlades Kingdoms",
+      "symbol": "KING",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0x0ccd575bf9378c06f6dca82f8122f570769f00c2",
+      "balance": "46530.000000000000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "Zepe.io",
+      "symbol": "ZEPE.IO",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0x119e2ad8f0c85c6f61afdf0df69693028cdc10be",
+      "balance": "750000.000000000000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "ArenaPlay",
+      "symbol": "APC",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0x2aa504586d6cab3c59fa629f74c586d78b93a025",
+      "balance": "14.338600000000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "Magic Square",
+      "symbol": "SQR",
+      "decimals": 8,
+      "assetId": "eip155:56/erc20:0x2b72867c32cf673f7b02d208b26889fed353b1f8",
+      "balance": "5075.86500000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "$$EURCoin",
+      "symbol": "EURC",
+      "decimals": 6,
+      "assetId": "eip155:56/erc20:0x4b97c9bee3677797034033337f32115115867a62",
+      "balance": "1888888.800000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "vBSWAP",
+      "symbol": "VBSWAP",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0x4f0ed527e8a95ecaa132af214dfd41f30b361600",
+      "balance": "0.000000000001000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "LUNC",
+      "symbol": "LUNC",
+      "decimals": 9,
+      "assetId": "eip155:56/erc20:0x5259639653f76f3385ba100ddb6290724891a95b",
+      "balance": "2000.000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "axax.io",
+      "symbol": "AXAX.IO",
+      "decimals": 9,
+      "assetId": "eip155:56/erc20:0x58b5c4697dc70f3d889225260944cdd9c270c132",
+      "balance": "77000.000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "SPACEPI",
+      "symbol": "SPACEPI",
+      "decimals": 9,
+      "assetId": "eip155:56/erc20:0x69b14e8d3cebfdd8196bfe530954a0c226e5008e",
+      "balance": "1000000.000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "hi Dollar",
+      "symbol": "HI",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0x77087ab5df23cfb52449a188e80e9096201c2097",
+      "balance": "27418.637920223037021652",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "$$SafeGrowCoin",
+      "symbol": "SGC",
+      "decimals": 6,
+      "assetId": "eip155:56/erc20:0x7aa3a53360541283ffa9192972223b47a902dc0c",
+      "balance": "1450000.000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "WEB5 Inu",
+      "symbol": "WEB5",
+      "decimals": 9,
+      "assetId": "eip155:56/erc20:0x7d220240cf958c5c47f2daac821db965f9837e82",
+      "balance": "724680.280736556",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "SEOR Network",
+      "symbol": "SEOR",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0x800a25741a414ea6e6e2b382435081a479a8cc3c",
+      "balance": "10444.444444800000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "Atlantis Metaverse",
+      "symbol": "TAU",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0x8632055b9caeebef7c7dccd95461608ca5378839",
+      "balance": "2937.500000000000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "Realio Network Token",
+      "symbol": "RIO",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0x94a8b4ee5cd64c79d0ee816f467ea73009f51aa0",
+      "balance": "4624.900000000000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "DRIP Reward Token",
+      "symbol": "RDRIP",
+      "decimals": 6,
+      "assetId": "eip155:56/erc20:0xa02a0b2d67d4fa48677a79cadc483e114049916d",
+      "balance": "40214587.120000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "Aav Token",
+      "symbol": "AAV",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0xa18b59607b7286a6533fd8c7e8c9716eac9a5c73",
+      "balance": "21500.320000000000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "$$$DOGECHAIN",
+      "symbol": "CDOGE",
+      "decimals": 9,
+      "assetId": "eip155:56/erc20:0xa7255c85232a42b5c602ed66c319da9af8433bb3",
+      "balance": "48612246876233.123735212",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "Bee Token",
+      "symbol": "BEETOKEN",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0xb0a2416fd12711cbcfafb429031c0f7037fab970",
+      "balance": "7.000000000000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "Exverse",
+      "symbol": "EXVG",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0xbb7d61d2511fd2e63f02178ca9b663458af9fc63",
+      "balance": "17581.843800000000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "Zam.io",
+      "symbol": "ZAM",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0xbbcf57177d8752b21d080bf30a06ce20ad6333f8",
+      "balance": "18800.000000000000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "Minereum BSC",
+      "symbol": "MNEB",
+      "decimals": 8,
+      "assetId": "eip155:56/erc20:0xd22202d23fe7de9e3dbe11a2a88f42f4cb9507cf",
+      "balance": "150000.00000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "ACT",
+      "symbol": "ACT",
+      "decimals": 6,
+      "assetId": "eip155:56/erc20:0xd5da8318ce7ca005e8f5285db0e750ca9256586e",
+      "balance": "60000.000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "SafeBlast",
+      "symbol": "BLAST",
+      "decimals": 9,
+      "assetId": "eip155:56/erc20:0xddc0dbd7dc799ae53a98a60b54999cb6ebb3abf0",
+      "balance": "108051.867218691",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "shibainu-dividend.com",
+      "symbol": "SHIBA_DIVIDEND_TRACKER",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0xdddf82fb98530243fcf8d4b8dc452f918c3ac4ac",
+      "balance": "66707.000000000000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "MM72",
+      "symbol": "MM72",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0xdf9e1a85db4f985d5bb5644ad07d9d7ee5673b5e",
+      "balance": "72.000720067858500000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "Pepe AI",
+      "symbol": "PEPEAI",
+      "decimals": 9,
+      "assetId": "eip155:56/erc20:0xe57f73eb27da9d17f90c994744d842e95700c100",
+      "balance": "12345.543210000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    },
+    {
+      "object": "token",
+      "name": "Meta Interstellar Token",
+      "symbol": "MIT",
+      "decimals": 18,
+      "assetId": "eip155:56/erc20:0xe6906717f129427eebade5406de68cadd57aa0c0",
+      "balance": "705.000000000000000000",
+      "type": "erc20",
+      "accountId": "eip155:56:0x9decde522cc1285efe18afde31c79e89dee2e91e"
+    }
+  ],
+  "unprocessedNetworks": []
+} as const;
+
+export default v5MultiAccountBalances;
