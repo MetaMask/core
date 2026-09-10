@@ -57,7 +57,7 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/network-controller": "^37.0.0",
     "@metamask/polling-controller": "^17.0.0",
-    "@metamask/utils": "^11.12.0",
+    "@metamask/utils": "^12.0.0",
     "@types/bn.js": "^5.1.5",
     "@types/uuid": "^9.0.8",
     "bn.js": "^5.2.1",

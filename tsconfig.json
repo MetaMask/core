@@ -300,6 +300,9 @@
       "path": "./packages/user-operation-controller"
     },
     {
+      "path": "./packages/utils"
+    },
+    {
       "path": "./packages/wallet"
     },
     {

@@ -2,21 +2,21 @@
   "name": "@metamask/utils",
   "version": "12.0.0",
   "description": "Various JavaScript/TypeScript utilities of wide relevance to the MetaMask codebase",
-  "homepage": "https://github.com/MetaMask/utils#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/utils#readme",
   "bugs": {
-    "url": "https://github.com/MetaMask/utils/issues"
+    "url": "https://github.com/MetaMask/core/issues"
   },
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "https://github.com/MetaMask/utils.git"
+    "url": "https://github.com/MetaMask/core.git"
   },
   "files": [
-    "dist"
+    "dist",
+    "dist/"
   ],
   "type": "module",
   "sideEffects": false,
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -43,11 +43,14 @@
     "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
     "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
     "since-latest-release": "../../scripts/since-latest-release.sh",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter && yarn test:types",
-    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
-    "test:types": "tsd --files 'src/*.test-d.ts'",
-    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+    "test": "yarn test:unit && yarn test:types",
+    "test:clean": "yarn test:unit:clean && yarn test:types",
+    "test:types": "tsd --typings ./dist/index.d.ts --files 'src/*.test-d.ts'",
+    "test:verbose": "yarn test:unit:verbose && yarn test:types",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "test:unit": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:unit:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:unit:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose"
   },
   "dependencies": {
     "@ethereumjs/tx": "^5.4.0",
@@ -82,11 +85,11 @@
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "web3": "^4.16.0"
   },
-  "resolutions": {
-    "jest-worker@^28.1.3": "patch:jest-worker@npm%3A28.1.3#./.yarn/patches/jest-worker-npm-28.1.3-5d0ff9006c.patch"
-  },
   "tsd": {
-    "directory": "src"
+    "directory": "src",
+    "compilerOptions": {
+      "composite": false
+    }
   },
   "engines": {
     "node": "^22.14.0 || ^24"
@@ -97,5 +100,9 @@
       "eslint-plugin-import-x>unrs-resolver": false,
       "jest>@jest/core>jest-haste-map>@parcel/watcher": false
     }
-  }
+  },
+  "keywords": [
+    "Ethereum",
+    "MetaMask"
+  ]
 }
