@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+
 ### Changed
 
-- **BREAKING:** Bump TypeScript target to ES2022 ([#332](https://github.com/MetaMask/utils/pull/332))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#333](https://github.com/MetaMask/utils/pull/333))
   - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
 - **BREAKING:** Drop support for Node 18 and 20 ([#328](https://github.com/MetaMask/utils/pull/328))
 - **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
@@ -523,7 +525,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v11.12.1...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/utils/compare/v11.12.1...v12.0.0
 [11.12.1]: https://github.com/MetaMask/utils/compare/v11.12.0...v11.12.1
 [11.12.0]: https://github.com/MetaMask/utils/compare/v11.11.0...v11.12.0
 [11.11.0]: https://github.com/MetaMask/utils/compare/v11.10.0...v11.11.0
