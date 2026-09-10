@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `UserStorageController:performGetStorageAllFeatureEntries`
   - `UserStorageController:performBatchSetStorage`
   - `AuthenticationController:isSignedIn`
-- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0`
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
 
 ## [21.0.0]
 
