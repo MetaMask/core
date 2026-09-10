@@ -151,6 +151,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getCustomerServiceToken',
   'isSignedIn',
   'requestProfilePairing',
+  'clearState',
 ] as const;
 
 export type Actions =
@@ -219,9 +220,10 @@ export class AuthenticationController extends BaseController<
 
   #isUnlocked = false;
 
-  // Bumped by `requestProfilePairing`. `performSignIn` snapshots this
-  // before its first await; if it changes mid-flight we must NOT clear
-  // `needsProfilePairing` (the rearm signal wins).
+  /**
+   * Bumped by `requestProfilePairing` and `clearState` so an in-flight
+   * `performSignIn` can't clear `needsProfilePairing` afterwards.
+   */
   #profilePairingRequestEpoch = 0;
 
   readonly #keyringController = {
@@ -729,6 +731,15 @@ export class AuthenticationController extends BaseController<
       state.isSignedIn = false;
       state.srpSessionData = undefined;
     });
+  }
+
+  /**
+   * Resets the controller to `defaultState`. Clients call this on wallet reset
+   * so the next wallet starts unsigned with both pairing gates re-armed.
+   */
+  public clearState(): void {
+    this.#profilePairingRequestEpoch += 1;
+    this.update(() => ({ ...defaultState }));
   }
 
   /**

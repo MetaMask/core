@@ -59,17 +59,19 @@ export const handleMockPairIdentifiers = (
   return mockPairIdentifiersEndpoint;
 };
 
-export const handleMockPairProfiles = (mockReply?: MockReply): nock.Scope => {
+export const handleMockPairProfiles = (
+  mockReply?: MockReply,
+  delayMs?: number,
+): nock.Scope => {
   const reply = mockReply ?? {
     status: 200,
     body: MOCK_PAIR_PROFILES_RESPONSE,
   };
-  const mockPairProfilesEndpoint = nock(MOCK_PAIR_PROFILES_URL)
-    .persist()
-    .post('')
-    .reply(reply.status, reply.body);
-
-  return mockPairProfilesEndpoint;
+  const interceptor = nock(MOCK_PAIR_PROFILES_URL).persist().post('');
+  if (delayMs !== undefined && delayMs > 0) {
+    interceptor.delay(delayMs);
+  }
+  return interceptor.reply(reply.status, reply.body);
 };
 
 export const handleMockPairSocialIdentifier = (
@@ -160,6 +162,7 @@ export const arrangeAuthAPIs = (options?: {
   mockCustomerServiceTokenUrl?: MockReply;
   onSrpLoginBody?: (body: unknown) => void;
   onPairSocialIdentifierBody?: (body: unknown) => void;
+  mockPairProfilesDelayMs?: number;
 }): {
   mockNonceUrl: nock.Scope;
   mockOAuth2TokenUrl: nock.Scope;
@@ -181,7 +184,10 @@ export const arrangeAuthAPIs = (options?: {
   const mockPairIdentifiersUrl = handleMockPairIdentifiers(
     options?.mockPairIdentifiers,
   );
-  const mockPairProfilesUrl = handleMockPairProfiles(options?.mockPairProfiles);
+  const mockPairProfilesUrl = handleMockPairProfiles(
+    options?.mockPairProfiles,
+    options?.mockPairProfilesDelayMs,
+  );
   const mockPairSocialIdentifierUrl = handleMockPairSocialIdentifier(
     options?.mockPairSocialIdentifier,
     options?.onPairSocialIdentifierBody,

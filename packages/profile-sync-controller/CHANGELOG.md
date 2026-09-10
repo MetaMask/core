@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `AuthenticationController.clearState()` to reset the controller to `defaultState` (unsigned, both pairing gates re-armed). Clients call this on wallet reset ([#10165](https://github.com/MetaMask/core/pull/10165))
 - Add `BACKUPANDSYNC_FEATURES.rampsSyncing` and `UserStorageController.isRampsSyncingEnabled` ([#9474](https://github.com/MetaMask/core/pull/9474))
   - Defaults to enabled (`true`); hosts can toggle Buy & sell order sync independently of account/contact sync
 
