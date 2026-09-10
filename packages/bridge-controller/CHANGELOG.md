@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [81.0.1]
+## [81.1.0]
 
 ### Added
 
@@ -2038,8 +2038,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.0.1...HEAD
-[81.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.0.0...@metamask/bridge-controller@81.0.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.1.0...HEAD
+[81.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.0.0...@metamask/bridge-controller@81.1.0
 [81.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.2.1...@metamask/bridge-controller@81.0.0
 [80.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.2.0...@metamask/bridge-controller@80.2.1
 [80.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@80.1.1...@metamask/bridge-controller@80.2.0
