@@ -873,6 +873,8 @@ export class KycController extends BaseController<
    * call `checkKycRequired` manually.
    * @param params.vendor - Identity vendor for this flow. Non-MoonPay vendors
    * skip Check/Auth frames and use the consents path. Defaults to `moonpay`.
+   * @throws If a resumed consents-path session records a failure on state.
+   *   The original error is rethrown after the controller rewinds to `terms`.
    */
   async initialize(params?: {
     email?: string;
@@ -1167,6 +1169,8 @@ export class KycController extends BaseController<
    * @param params.credentialReusabilityConsentGiven - Whether the customer
    * consented to reuse existing idOS credentials. Used when recording
    * session-scoped disclaimers on the consents path. Defaults to `false`.
+   * @throws If the consents-path session records a failure on state. The
+   *   original error is rethrown after the controller rewinds to `terms`.
    */
   async acceptTermsAndStartSession(params?: {
     email?: string;
@@ -1232,6 +1236,8 @@ export class KycController extends BaseController<
    * @param consents.idosDisclaimersAccepted - Accepted idOS disclaimer records.
    * @param consents.credentialReusabilityConsentGiven - Whether credential
    * reuse was accepted.
+   * @throws If a step after recording state fails. The original error is
+   *   rethrown after the controller rewinds to `terms`.
    */
   async #startConsentsSession(consents: {
     providerDisclaimersAccepted: KycConsentRecord[];
@@ -1377,6 +1383,7 @@ export class KycController extends BaseController<
         statusMessage:
           'Consent / verification failed — accept the terms to try again.',
       });
+      throw error;
     }
   }
 
@@ -1666,9 +1673,10 @@ export class KycController extends BaseController<
    * document-verification sub-flow is launched. When no product is set, this is
    * a no-op and the flow stays at `form` for the consumer to drive manually.
    *
-   * Errors are already recorded on state by `checkKycRequired` (`error`
-   * phase) and `startSumSub` (`sumsub.status = 'failed'`); this method swallows
-   * them so it can be awaited safely from the frame-message handler.
+   * `startSumSub` records `sumsub.status = 'failed'` and this method swallows
+   * that rejection so it can be awaited safely from the frame-message handler.
+   * `checkKycRequired` still records `phase: 'error'` and rethrows, so a
+   * failed auto-run check surfaces to the caller.
    */
   async #continueAfterAuthentication(): Promise<void> {
     const product = this.state.activeProduct;
@@ -1745,6 +1753,8 @@ export class KycController extends BaseController<
    * @param params.product - The consuming feature.
    * @param params.country - Optional alpha-3 country override.
    * @returns Whether KYC is required.
+   * @throws If the KYC-required service call fails after the error is recorded
+   *   on controller state (`phase: 'error'`).
    */
   async checkKycRequired(params: {
     product: KycProduct;
@@ -1798,7 +1808,7 @@ export class KycController extends BaseController<
         return false;
       }
       this.#fail(`KYC check failed: ${String(error)}`);
-      return false;
+      throw error;
     }
   }
 
