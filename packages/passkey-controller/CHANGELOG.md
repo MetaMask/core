@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Use `@metamask/utils` SHA-256, SHA-384, and SHA-512 digests for asynchronous WebAuthn verification and RP ID matching, while retaining Noble SHA-256 for synchronous HKDF ([#10188](https://github.com/MetaMask/core/pull/10188))
 
 ## [3.1.0]
 
