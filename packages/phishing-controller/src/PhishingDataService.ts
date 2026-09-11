@@ -466,18 +466,14 @@ type BatchLoader = {
    * include it.
    */
   load: (key: string) => Promise<Json | null>;
-  /**
-   * Executes all pending items, in requests of up to the configured batch
-   * size. Items registered after a flush (e.g. by a retry) are scheduled for
-   * a later flush automatically.
-   */
-  flush: () => void;
 };
 
 /**
  * Creates a loader that coalesces individual item lookups into batched
- * requests. This preserves the per-item caching granularity of the query
- * cache while keeping the batched network behavior of the bulk endpoints.
+ * requests. Every lookup made in the same turn of the event loop is sent in
+ * one batch (split into requests of up to `maxBatchSize`). This preserves the
+ * per-item caching granularity of the query cache while keeping the batched
+ * network behavior of the bulk endpoints.
  *
  * @param options - The loader options.
  * @param options.maxBatchSize - The maximum number of items per request.
@@ -538,19 +534,17 @@ function createBatchLoader({
     async load(key: string): Promise<Json | null> {
       return new Promise((resolve, reject) => {
         pending.push({ key, resolve, reject });
-        // Items registered outside an explicit flush (e.g. by the retry
-        // policy re-running a query) are coalesced via the microtask queue.
+        // The first lookup in a turn schedules the flush as a microtask, which
+        // runs once the current synchronous work has finished, so every other
+        // lookup made in the same turn (for example all the item queries of
+        // one bulk call, whether they start synchronously or after awaiting
+        // cache rehydration) joins the same batch.
         if (!flushScheduled) {
           flushScheduled = true;
-          queueMicrotask(() => {
-            if (flushScheduled) {
-              flush();
-            }
-          });
+          queueMicrotask(flush);
         }
       });
     },
-    flush,
   };
 }
 
@@ -902,7 +896,6 @@ export class PhishingDataService extends BaseDataService<
         }),
       );
     }
-    loader.flush();
 
     const settled = await Promise.allSettled(entries);
     const results: Record<string, PhishingDetectionScanResult> = {};
@@ -957,7 +950,6 @@ export class PhishingDataService extends BaseDataService<
       chain,
       normalizeScanAddress(token),
     );
-    loader.flush();
     return await result;
   }
 
@@ -985,7 +977,6 @@ export class PhishingDataService extends BaseDataService<
         (result) => [normalizedToken, result] as const,
       );
     });
-    loader.flush();
 
     const results: TokenScanApiResponse['results'] = {};
     let firstError: Error | undefined;
