@@ -1,7 +1,6 @@
-import { concatBytes } from '@metamask/utils';
+import { concatBytes, sha256, sha384, sha512 } from '@metamask/utils';
 import { ed25519 } from '@noble/curves/ed25519';
 import { p256, p384, p521 } from '@noble/curves/nist';
-import { sha256, sha384, sha512 } from '@noble/hashes/sha2';
 
 import { bytesToBase64URL } from '../utils/encoding.js';
 import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants.js';
@@ -25,19 +24,20 @@ function getKeyType(cosePublicKey: COSEPublicKey): number {
 /**
  * Verify an EC2 (P-256, P-384, P-521) signature using @noble/curves.
  *
- * ECDSA requires the data to be hashed with the curve-appropriate
- * algorithm before verification: SHA-256 for P-256 and SHA-384 for P-384.
+ * ECDSA requires the data to be hashed with the curve-appropriate algorithm
+ * before verification. Hashing uses the async `@metamask/utils` digests while
+ * signature verification remains synchronous in `@noble/curves`.
  *
  * @param cosePublicKey - COSE-encoded EC2 public key.
  * @param signature - DER-encoded ECDSA signature.
  * @param data - Data that was signed.
- * @returns Whether the signature is valid.
+ * @returns A promise for whether the signature is valid.
  */
-function verifyEC2(
+async function verifyEC2(
   cosePublicKey: COSEPublicKey,
   signature: Uint8Array,
   data: Uint8Array,
-): boolean {
+): Promise<boolean> {
   const alg = cosePublicKey.get(COSEKEYS.Alg);
   const crv = cosePublicKey.get(COSEKEYS.Crv) as number;
   const xCoord = cosePublicKey.get(COSEKEYS.X) as Uint8Array;
@@ -55,11 +55,11 @@ function verifyEC2(
 
   switch (crv) {
     case COSECRV.P256:
-      return p256.verify(signature, sha256(data), uncompressed);
+      return p256.verify(signature, await sha256(data), uncompressed);
     case COSECRV.P384:
-      return p384.verify(signature, sha384(data), uncompressed);
+      return p384.verify(signature, await sha384(data), uncompressed);
     case COSECRV.P521:
-      return p521.verify(signature, sha512(data), uncompressed);
+      return p521.verify(signature, await sha512(data), uncompressed);
     default:
       throw new Error(`Unsupported EC2 curve: ${crv}`);
   }
@@ -192,8 +192,9 @@ async function verifyRSA(
  * Verify a WebAuthn signature using the appropriate algorithm based on
  * the COSE key type.
  *
- * Uses @noble/curves for EC2 and OKP (synchronous, audited, handles DER
- * natively). Falls back to Web Crypto API for RSA.
+ * Uses the async `@metamask/utils` SHA digests with @noble/curves for EC2.
+ * Ed25519 verification also remains on @noble/curves, and RSA falls back to
+ * the Web Crypto API.
  *
  * @param opts - Options object.
  * @param opts.cosePublicKey - COSE-encoded public key as a Map.

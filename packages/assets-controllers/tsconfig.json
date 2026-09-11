@@ -63,6 +63,9 @@
     },
     {
       "path": "../eth-json-rpc-provider"
+    },
+    {
+      "path": "../eth-block-tracker"
     }
   ],
   "include": ["../../types", "./src", "../../tests"]

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.0` ([#10184](https://github.com/MetaMask/core/pull/10184))
+
+## [3.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
+
 ## [3.0.0]
 
 ### Changed
@@ -172,7 +182,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.0.1...HEAD
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.0.0...@metamask/social-controllers@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.8.1...@metamask/social-controllers@3.0.0
 [2.8.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.8.0...@metamask/social-controllers@2.8.1
 [2.8.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.7.2...@metamask/social-controllers@2.8.0
