@@ -2,6 +2,24 @@ import { SUBSCRIPTION_STATUSES } from './types.js';
 
 export const controllerName = 'SubscriptionController';
 
+/**
+ * API cancellation reason values and their client-facing text.
+ */
+export const CANCELLATION_REASONS = {
+  // Costs more than it's worth
+  TOO_EXPENSIVE: 'too_expensive',
+  // I wasn't using the benefits
+  NOT_USING_BENEFITS: 'not_using_benefits',
+  // The benefits weren't what I expected
+  BENEFITS_NOT_AS_EXPECTED: 'benefits_not_as_expected',
+  // Something didn't work
+  SOMETHING_DID_NOT_WORK: 'something_did_not_work',
+  // Unhappy with support
+  UNHAPPY_WITH_SUPPORT: 'unhappy_with_support',
+  // Other
+  OTHER: 'other',
+} as const;
+
 export enum Env {
   DEV = 'dev',
   UAT = 'uat',

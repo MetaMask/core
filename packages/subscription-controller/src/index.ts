@@ -48,6 +48,7 @@ export type {
   AuthUtils,
   CancelSubscriptionRequest,
   CancelType,
+  CancellationReasonCode,
   ISubscriptionService,
   StartCryptoSubscriptionRequest,
   StartDelegationCryptoSubscriptionRequest,
@@ -118,6 +119,7 @@ export {
   MoneyAccountFeature,
   ShieldFeature,
 } from './types.js';
+export { CANCELLATION_REASONS } from './constants.js';
 export {
   selectHasEntitlement,
   selectIsActiveSubscriber,
