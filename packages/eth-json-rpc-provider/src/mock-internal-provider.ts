@@ -13,7 +13,7 @@ import type {
   JsonRpcResponse,
   JsonRpcVersion2,
 } from '@metamask/utils';
-import { isEqual } from 'lodash';
+import { isEqual } from 'lodash-es';
 
 import { InternalProvider } from './internal-provider.js';
 

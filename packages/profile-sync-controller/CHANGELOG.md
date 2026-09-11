@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [32.1.0]
+
+### Added
+
+- Add `AuthenticationController.getPartnerIdentityToken` method and messenger action to mint a partner identity token (`POST /api/v2/oidc/token`). HTTP 422 throws `EmailRequiredError` when the profile has no verified email. ([#10164](https://github.com/MetaMask/core/pull/10164))
+
+## [32.0.0]
+
+### Added
+
+- Add `AuthenticationController.clearState()` to reset the controller to `defaultState` (unsigned, both pairing gates re-armed). Clients call this on wallet reset ([#10165](https://github.com/MetaMask/core/pull/10165))
+- Add `BACKUPANDSYNC_FEATURES.rampsSyncing` and `UserStorageController.isRampsSyncingEnabled` ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - Defaults to enabled (`true`); hosts can toggle Buy & sell order sync independently of account/contact sync
+
+### Changed
+
+- **BREAKING:** `UserStorageControllerState` now includes `isRampsSyncingEnabled`. Consumers that construct full state objects must include this field. ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - Prefer `isRampsSyncingEnabled ?? true` in selectors so wallets upgraded before this field existed keep ramps syncing on by default
+
+## [31.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Replace `siwe` with `@signinwithethereum/siwe` ^4.2.1 ([#10049](https://github.com/MetaMask/core/pull/10049))
+  - The old package is no longer maintained by Spruce. The Ethereum Identity Foundation now maintains the successor under the `@signinwithethereum` scope. The `SiweMessage` class API is backward compatible for the usage in this package (`new SiweMessage({...}).prepareMessage()`).
+- Bump `@metamask/address-book-controller` from `^7.1.2` to `^8.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/keyring-controller` from `^27.1.1` to `^28.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/seedless-onboarding-controller` from `^10.1.1` to `^11.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
 ## [30.0.0]
 
 ### Added
@@ -924,7 +960,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@30.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.1.0...HEAD
+[32.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.0.0...@metamask/profile-sync-controller@32.1.0
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@31.0.0...@metamask/profile-sync-controller@32.0.0
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@30.0.0...@metamask/profile-sync-controller@31.0.0
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@29.0.0...@metamask/profile-sync-controller@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.3.0...@metamask/profile-sync-controller@29.0.0
 [28.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.2.0...@metamask/profile-sync-controller@28.3.0

@@ -25,7 +25,7 @@ export type {
   DataFreshness,
   CashFlowType,
   CashFlowSource,
-} from './response.types';
+} from './response.types.js';
 export type {
   InterestWindow,
   InterestOptions,

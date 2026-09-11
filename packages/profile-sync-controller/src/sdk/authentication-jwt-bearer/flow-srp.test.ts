@@ -22,6 +22,7 @@ const mockAuthenticate = jest.fn();
 const mockAuthorizeOIDC = jest.fn();
 const mockPairProfiles = jest.fn();
 const mockGetCustomerServiceToken = jest.fn();
+const mockGetPartnerIdentityToken = jest.fn();
 
 jest.mock('./services', () => ({
   authenticate: (...args: unknown[]): unknown => mockAuthenticate(...args),
@@ -30,6 +31,8 @@ jest.mock('./services', () => ({
   getUserProfileLineage: jest.fn(),
   getCustomerServiceToken: (...args: unknown[]): unknown =>
     mockGetCustomerServiceToken(...args),
+  getPartnerIdentityToken: (...args: unknown[]): unknown =>
+    mockGetPartnerIdentityToken(...args),
   pairProfiles: (...args: unknown[]): unknown => mockPairProfiles(...args),
 }));
 
@@ -263,6 +266,22 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
     expect(mockGetCustomerServiceToken).toHaveBeenCalledWith(
       config.env,
       'access',
+    );
+  });
+
+  it('getPartnerIdentityToken exchanges the access token via the service', async () => {
+    const { auth } = createAuth();
+    mockGetPartnerIdentityToken.mockResolvedValue('partner-access-token');
+
+    const result = await auth.getPartnerIdentityToken(['email'], 'kyc');
+
+    expect(result).toBe('partner-access-token');
+    expect(mockAuthorizeOIDC).toHaveBeenCalledTimes(1);
+    expect(mockGetPartnerIdentityToken).toHaveBeenCalledWith(
+      config.env,
+      'access',
+      ['email'],
+      'kyc',
     );
   });
 });

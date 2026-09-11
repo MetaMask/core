@@ -9,11 +9,19 @@
      * uncompiled source code for packages that live in this repo.
      *
      * NOTE: This must be synchronized with the `moduleNameMapper` option in
-     * `jest.config.packages.js`.
+     * `jest.config.packages.cjs`.
      */
     "paths": {
-      "@metamask/json-rpc-engine/v2": ["../json-rpc-engine/src/v2/index.ts"],
-      "@metamask/*": ["../*/src"]
+      "@metamask/json-rpc-engine/v2": [
+        "${configDir}/../json-rpc-engine/src/v2/index.ts"
+      ],
+      "@metamask/profile-sync-controller/auth": [
+        "${configDir}/../profile-sync-controller/src/controllers/authentication/index.ts"
+      ],
+      "@metamask/profile-sync-controller/user-storage": [
+        "${configDir}../profile-sync-controller/src/controllers/user-storage/index.ts"
+      ],
+      "@metamask/*": ["${configDir}/../*/src/index.ts"]
     }
   }
 }

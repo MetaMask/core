@@ -26,6 +26,7 @@ import type {
   KycConsentRecord,
   KycCustomerIdentity,
   KycDisclaimer,
+  KycDisclaimersCatalog,
   KycPhase,
   KycProduct,
   KycProviderDisclaimersAccepted,
@@ -614,11 +615,28 @@ function usesConsentsFlow(vendor: KycVendor): boolean {
   return vendor !== 'moonpay';
 }
 
+/**
+ * Parameters for {@link KycController.fetchSessionDisclaimers}. Provide
+ * exactly one of `sessionId` or `country`.
+ */
+export type FetchSessionDisclaimersParams =
+  | {
+      /** UKYC session id from `KycService.createUkycSession`. */
+      sessionId: string;
+      country?: never;
+    }
+  | {
+      /** ISO 3166-1 alpha-3 country code for `GET /disclaimers?country=`. */
+      country: string;
+      sessionId?: never;
+    };
+
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
   'initialize',
   'loadDisclaimers',
+  'fetchSessionDisclaimers',
   'acceptTermsAndStartSession',
   'createVendorCustomer',
   'clearSavedTerms',
@@ -1076,6 +1094,62 @@ export class KycController extends BaseController<
   }
 
   /**
+   * Fetches the idOS + KYC-provider disclaimer catalog. Pass exactly one of
+   * `sessionId` or `country`:
+   *
+   * - `{ sessionId }` → {@link KycService.fetchSessionDisclaimersBySessionId}
+   *   (`GET /sessions/{sessionId}/disclaimers`)
+   * - `{ country }` → {@link KycService.fetchSessionDisclaimersByCountry}
+   *   (`GET /disclaimers?country=`)
+   *
+   * A session-id fetch also writes the catalog to `sessionDisclaimers`.
+   *
+   * @param params - The parameters. Provide exactly one of `sessionId` or
+   * `country`.
+   * @param params.sessionId - The UKYC session id.
+   * @param params.country - ISO 3166-1 alpha-3 country code.
+   * @returns The catalog. Session fetches include consent state; country
+   * fetches do not.
+   */
+  async fetchSessionDisclaimers(
+    params: FetchSessionDisclaimersParams,
+  ): Promise<KycSessionDisclaimers | KycDisclaimersCatalog> {
+    const { sessionId, country } = params as {
+      sessionId?: string;
+      country?: string;
+    };
+    if (sessionId && country) {
+      throw new Error(
+        'KycController.fetchSessionDisclaimers: provide exactly one of sessionId or country.',
+      );
+    }
+
+    const generation = this.#generation;
+
+    if (country) {
+      return this.messenger.call(
+        'KycService:fetchSessionDisclaimersByCountry',
+        { country },
+      );
+    }
+
+    if (!sessionId) {
+      throw new Error(
+        'KycController.fetchSessionDisclaimers: provide exactly one of sessionId or country.',
+      );
+    }
+
+    const catalog = await this.messenger.call(
+      'KycService:fetchSessionDisclaimersBySessionId',
+      { sessionId },
+    );
+    this.#updateIfCurrent(generation, (state) => {
+      state.sessionDisclaimers = catalog;
+    });
+    return catalog;
+  }
+
+  /**
    * Captures terms acceptance for the currently loaded disclaimers and creates
    * a session.
    *
@@ -1369,7 +1443,7 @@ export class KycController extends BaseController<
     generation: number,
   ): Promise<void> {
     const catalog = await this.messenger.call(
-      'KycService:fetchSessionDisclaimers',
+      'KycService:fetchSessionDisclaimersBySessionId',
       { sessionId },
     );
     if (this.#generation !== generation) {
@@ -1429,7 +1503,7 @@ export class KycController extends BaseController<
       // continue only when every document the user accepted is now consented;
       // otherwise fail closed so a version bump cannot skip new docs.
       const latest = await this.messenger.call(
-        'KycService:fetchSessionDisclaimers',
+        'KycService:fetchSessionDisclaimersBySessionId',
         { sessionId },
       );
       if (this.#generation !== generation) {

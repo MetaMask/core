@@ -62,7 +62,7 @@ import type {
   MoneyAccountBalanceResponse,
   MusdEquivalentValueResponse,
   NormalizedVaultApyResponse,
-} from './response.types';
+} from './response.types.js';
 import { VaultApyRawResponseStruct, VaultConfigStruct } from './structs.js';
 import type { VaultConfig } from './types.js';
 
