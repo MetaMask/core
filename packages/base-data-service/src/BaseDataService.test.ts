@@ -19,7 +19,9 @@ import {
   serviceName,
 } from '../tests/ExampleDataService.js';
 import {
+  mockAddFollowerRequest,
   mockAssets,
+  mockCreateDataDeletionTaskRequest,
   mockTransactionsPage1,
   mockTransactionsPage2,
   mockTransactionsPage3,
@@ -140,7 +142,140 @@ describe('BaseDataService', () => {
     expect(page2.data).not.toStrictEqual(page3.data);
   });
 
-  it('emits `:cacheUpdated` events when cache is updated', async () => {
+  it('handles mutations that validate responses', async () => {
+    mockAddFollowerRequest();
+    const messenger = createServiceMessenger();
+    const service = new ExampleDataService(messenger);
+
+    expect(await service.addFollower('1')).toStrictEqual({
+      followed: [
+        {
+          profileId: '550e8400-e29b-41d4-a716-446655440000',
+          address: '0x1234567890abcdef1234567890abcdef12345678',
+          name: 'TraderAlice',
+          imageUrl: 'https://example.com/avatar.png',
+        },
+      ],
+    });
+  });
+
+  it('handles mutations that do not validate responses', async () => {
+    mockCreateDataDeletionTaskRequest();
+    const messenger = createServiceMessenger();
+    const service = new ExampleDataService(messenger);
+
+    expect(await service.createDataDeletionTask('1', '2')).toStrictEqual({
+      status: 'ok',
+      regulateId: '99999',
+    });
+  });
+
+  it('never retries mutations', async () => {
+    mockAddFollowerRequest({
+      mockReply: { status: 504 },
+    });
+    mockAddFollowerRequest();
+    const messenger = createServiceMessenger();
+    const service = new ExampleDataService(messenger);
+
+    await expect(service.addFollower('1')).rejects.toThrow('Mutation failed');
+    expect(await service.addFollower('1')).toStrictEqual({
+      followed: [
+        {
+          profileId: '550e8400-e29b-41d4-a716-446655440000',
+          address: '0x1234567890abcdef1234567890abcdef12345678',
+          name: 'TraderAlice',
+          imageUrl: 'https://example.com/avatar.png',
+        },
+      ],
+    });
+  });
+
+  it('emits `:cacheUpdated` events when query cache entry is added', async () => {
+    const messenger = createServiceMessenger();
+    const publishSpy = jest.spyOn(messenger, 'publish');
+    const service = new ExampleDataService(messenger);
+
+    await service.getAssets(MOCK_ASSETS);
+
+    const queryKey = ['ExampleDataService:getAssets', MOCK_ASSETS];
+    const hash = hashKey(queryKey);
+    const expectedState = {
+      mutations: [],
+      queries: [
+        expect.objectContaining({
+          state: expect.objectContaining({
+            status: 'pending',
+          }),
+        }),
+      ],
+    };
+
+    expect(publishSpy).toHaveBeenNthCalledWith(
+      1,
+      `ExampleDataService:cacheUpdated`,
+      {
+        objectType: 'query',
+        type: 'added',
+        hash,
+        state: expectedState,
+      },
+    );
+
+    expect(publishSpy).toHaveBeenNthCalledWith(
+      2,
+      `ExampleDataService:cacheUpdated:${hash}`,
+      {
+        objectType: 'query',
+        type: 'added',
+        state: expectedState,
+      },
+    );
+  });
+
+  it('emits `:cacheUpdated` events when mutation cache entry is added', async () => {
+    mockAddFollowerRequest();
+    const messenger = createServiceMessenger();
+    const service = new ExampleDataService(messenger);
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    await service.addFollower('1');
+
+    const hash = hashKey(['ExampleDataService:addFollower', '1']);
+    const expectedState = {
+      queries: [],
+      mutations: [
+        expect.objectContaining({
+          state: expect.objectContaining({
+            status: 'idle',
+          }),
+        }),
+      ],
+    };
+
+    expect(publishSpy).toHaveBeenNthCalledWith(
+      1,
+      `ExampleDataService:cacheUpdated`,
+      {
+        objectType: 'mutation',
+        type: 'added',
+        hash,
+        state: expectedState,
+      },
+    );
+
+    expect(publishSpy).toHaveBeenNthCalledWith(
+      2,
+      `ExampleDataService:cacheUpdated:${hash}`,
+      {
+        objectType: 'mutation',
+        type: 'added',
+        state: expectedState,
+      },
+    );
+  });
+
+  it('emits `:cacheUpdated` events when query cache is updated', async () => {
     const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
 
@@ -151,48 +286,113 @@ describe('BaseDataService', () => {
     const queryKey = ['ExampleDataService:getAssets', MOCK_ASSETS];
 
     const hash = hashKey(queryKey);
+    const expectedState = {
+      mutations: [],
+      queries: [
+        expect.objectContaining({
+          state: expect.objectContaining({
+            status: 'success',
+            data: [
+              {
+                assetId:
+                  'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
+                decimals: 18,
+                name: 'Dai Stablecoin',
+                symbol: 'DAI',
+              },
+              {
+                assetId: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+                decimals: 8,
+                name: 'Bitcoin',
+                symbol: 'BTC',
+              },
+              {
+                assetId: 'eip155:1/slip44:60',
+                decimals: 18,
+                name: 'Ethereum',
+                symbol: 'ETH',
+              },
+            ],
+          }),
+        }),
+      ],
+    };
+
+    expect(publishSpy).toHaveBeenNthCalledWith(
+      5,
+      `ExampleDataService:cacheUpdated`,
+      {
+        objectType: 'query',
+        type: 'updated',
+        hash,
+        state: expectedState,
+      },
+    );
 
     expect(publishSpy).toHaveBeenNthCalledWith(
       6,
       `ExampleDataService:cacheUpdated:${hash}`,
       {
+        objectType: 'query',
         type: 'updated',
-        state: {
-          mutations: [],
-          queries: [
-            expect.objectContaining({
-              state: expect.objectContaining({
-                status: 'success',
-                data: [
-                  {
-                    assetId:
-                      'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
-                    decimals: 18,
-                    name: 'Dai Stablecoin',
-                    symbol: 'DAI',
-                  },
-                  {
-                    assetId: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
-                    decimals: 8,
-                    name: 'Bitcoin',
-                    symbol: 'BTC',
-                  },
-                  {
-                    assetId: 'eip155:1/slip44:60',
-                    decimals: 18,
-                    name: 'Ethereum',
-                    symbol: 'ETH',
-                  },
-                ],
-              }),
-            }),
-          ],
-        },
+        state: expectedState,
       },
     );
   });
 
-  it('emits `:cacheUpdated` events when cache entry is removed', async () => {
+  it('emits `:cacheUpdated` events when mutation cache is updated', async () => {
+    mockAddFollowerRequest();
+    const messenger = createServiceMessenger();
+    const service = new ExampleDataService(messenger);
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    await service.addFollower('1');
+
+    const hash = hashKey(['ExampleDataService:addFollower', '1']);
+    const expectedState = {
+      queries: [],
+      mutations: [
+        expect.objectContaining({
+          state: expect.objectContaining({
+            status: 'success',
+            data: {
+              followed: [
+                {
+                  profileId: '550e8400-e29b-41d4-a716-446655440000',
+                  address: '0x1234567890abcdef1234567890abcdef12345678',
+                  name: 'TraderAlice',
+                  imageUrl: 'https://example.com/avatar.png',
+                },
+              ],
+            },
+          }),
+        }),
+      ],
+    };
+
+    expect(publishSpy).toHaveBeenNthCalledWith(
+      5,
+      `ExampleDataService:cacheUpdated`,
+      {
+        objectType: 'mutation',
+        type: 'updated',
+        hash,
+        state: expectedState,
+      },
+    );
+
+    expect(publishSpy).toHaveBeenNthCalledWith(
+      6,
+      `ExampleDataService:cacheUpdated:${hash}`,
+      {
+        objectType: 'mutation',
+        type: 'updated',
+        state: expectedState,
+      },
+    );
+  });
+
+  it('emits `:cacheUpdated` events when query cache entry is removed', async () => {
     const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
 
@@ -208,16 +408,97 @@ describe('BaseDataService', () => {
     const hash = hashKey(queryKey);
 
     expect(publishSpy).toHaveBeenNthCalledWith(
+      7,
+      `ExampleDataService:cacheUpdated`,
+      {
+        objectType: 'query',
+        type: 'removed',
+        hash,
+        state: null,
+      },
+    );
+
+    expect(publishSpy).toHaveBeenNthCalledWith(
       8,
       `ExampleDataService:cacheUpdated:${hash}`,
       {
+        objectType: 'query',
         type: 'removed',
         state: null,
       },
     );
   });
 
+  it('emits `:cacheUpdated` events when mutation cache entry is removed', async () => {
+    mockAddFollowerRequest();
+    const messenger = createServiceMessenger();
+    const service = new ExampleDataService(messenger);
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    await service.addFollower('1');
+    // Wait for GC
+    jest.runAllTimers();
+
+    const hash = hashKey(['ExampleDataService:addFollower', '1']);
+    expect(publishSpy).toHaveBeenCalledTimes(8);
+    expect(publishSpy).toHaveBeenNthCalledWith(
+      7,
+      `ExampleDataService:cacheUpdated`,
+      {
+        objectType: 'mutation',
+        type: 'removed',
+        hash,
+        state: null,
+      },
+    );
+
+    expect(publishSpy).toHaveBeenNthCalledWith(
+      7,
+      `ExampleDataService:cacheUpdated`,
+      {
+        objectType: 'mutation',
+        type: 'removed',
+        hash,
+        state: null,
+      },
+    );
+
+    expect(publishSpy).toHaveBeenNthCalledWith(
+      8,
+      `ExampleDataService:cacheUpdated:${hash}`,
+      {
+        objectType: 'mutation',
+        type: 'removed',
+        state: null,
+      },
+    );
+  });
+
+  it('includes the provided `globalId` for a mutation in `:cacheUpdated` payloads', async () => {
+    mockAddFollowerRequest();
+    const messenger = createServiceMessenger();
+    const service = new ExampleDataService(messenger);
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    await service.addFollower('1', 'global-id');
+
+    const hash = hashKey(['ExampleDataService:addFollower', '1']);
+    expect(publishSpy).toHaveBeenCalledWith(
+      `ExampleDataService:cacheUpdated:${hash}`,
+      expect.objectContaining({
+        state: expect.objectContaining({
+          mutations: [
+            expect.objectContaining({
+              meta: { globalId: 'global-id' },
+            }),
+          ],
+        }),
+      }),
+    );
+  });
+
   it('does not emit events after being destroyed', async () => {
+    mockAddFollowerRequest();
     const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
     const publishSpy = jest.spyOn(messenger, 'publish');
@@ -225,8 +506,21 @@ describe('BaseDataService', () => {
     service.destroy();
 
     await service.getAssets(MOCK_ASSETS);
+    await service.addFollower('1');
 
     expect(publishSpy).toHaveBeenCalledTimes(0);
+  });
+
+  it('clears pending mutation garbage-collection timers when destroyed', async () => {
+    mockAddFollowerRequest();
+    const messenger = createServiceMessenger();
+    const service = new ExampleDataService(messenger);
+    const timerCountBeforeMutation = jest.getTimerCount();
+    await service.addFollower('1');
+
+    service.destroy();
+
+    expect(jest.getTimerCount()).toBe(timerCountBeforeMutation);
   });
 
   it('invalidates queries when requested', async () => {
@@ -258,7 +552,7 @@ describe('BaseDataService', () => {
       cleanAll();
     });
 
-    it('throws when fetchQuery response fails struct validation', async () => {
+    it('throws when query response fails struct validation', async () => {
       const messenger = createServiceMessenger();
       const service = new ExampleDataService(messenger);
 
@@ -266,6 +560,24 @@ describe('BaseDataService', () => {
 
       await expect(service.getAssets(MOCK_ASSETS)).rejects.toThrow(
         'Query function for "ExampleDataService:getAssets" returned an unexpected response: Expected an array value, but received: [object Object].',
+      );
+
+      service.destroy();
+    });
+
+    it('throws when mutation response fails struct validation', async () => {
+      const messenger = createServiceMessenger();
+      const service = new ExampleDataService(messenger);
+
+      mockAddFollowerRequest({
+        mockReply: {
+          status: 200,
+          body: { foo: 'bar' },
+        },
+      });
+
+      await expect(service.addFollower('1')).rejects.toThrow(
+        'Mutation function for "ExampleDataService:addFollower" returned an unexpected response: At path: followed -- Expected an array value, but received: undefined.',
       );
 
       service.destroy();

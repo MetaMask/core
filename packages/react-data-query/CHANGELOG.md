@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for mutations ([#9324](https://github.com/MetaMask/core/pull/9324))
+  - You can now use `useMutation` in your UI files via the UI query client, passing a reference to the action and its called arguments through the `mutationKey` option (e.g. `['SocialService:follow', '0xaaaa', '0xbbbb']`).
+    - This assumes that the data service method you want to call uses `BaseDataService.executeMutation` to make the request instead of `fetchQuery`, but should also take a trailing `globalId` argument.
+    - Retries are disabled by default.
+  - Also, the query client returned by `createUIQueryClient` is now aware of mutations and will ensure that they are copied from data service query clients properly.
+
 ### Changed
 
+- Add `uuid` `^9.0.1` as a dependency ([#9324](https://github.com/MetaMask/core/pull/9324))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
 ## [2.0.0]
