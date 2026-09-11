@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add a protected `executeWithPolicy` helper for applying a data service's retry and circuit-breaker policy to uncached requests ([#9914](https://github.com/MetaMask/core/pull/9914))
+- Add a protected `policy` getter exposing the service's retry and circuit-breaker policy, so subclasses can run uncached requests under the same policy and observe its `onBreak`, `onDegraded`, and `onRetry` events ([#9914](https://github.com/MetaMask/core/pull/9914))
 - Add `hydrationTimeout` and `shouldHydrateQuery` options to `PersistenceConfiguration`, and export `DEFAULT_HYDRATION_TIMEOUT` ([#9914](https://github.com/MetaMask/core/pull/9914))
   - `hydrationTimeout` bounds how long a query waits for cache rehydration after `init` (default 1 second), and `shouldHydrateQuery` filters persisted queries before they are restored into the cache
 

@@ -357,6 +357,19 @@ describe('BaseDataService', () => {
     });
   });
 
+  describe('policy', () => {
+    it('exposes the service policy to subclasses', async () => {
+      const service = new ExampleDataService(createServiceMessenger());
+      const policy = service.getPolicy();
+
+      expect(await policy.execute(() => 'ok')).toBe('ok');
+      expect(typeof policy.onBreak).toBe('function');
+      expect(typeof policy.onDegraded).toBe('function');
+
+      service.destroy();
+    });
+  });
+
   describe('persistence', () => {
     it('persists the cache using the StorageService', async () => {
       const setItem = jest.fn();

@@ -829,7 +829,7 @@ export class PhishingDataService extends BaseDataService<
     const loader = createBatchLoader({
       maxBatchSize: MAX_URLS_PER_SCAN_REQUEST,
       executeBatch: async (batchUrls) => {
-        const jsonResponse = await this.executeWithPolicy(() =>
+        const jsonResponse = await this.policy.execute(() =>
           this.#postJson(
             `${PHISHING_DETECTION_BASE_URL}/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`,
             { urls: batchUrls },
@@ -1019,7 +1019,7 @@ export class PhishingDataService extends BaseDataService<
     return createBatchLoader({
       maxBatchSize: MAX_TOKENS_PER_SCAN_REQUEST,
       executeBatch: async (batchTokens) => {
-        const jsonResponse = await this.executeWithPolicy(() =>
+        const jsonResponse = await this.policy.execute(() =>
           this.#postJson(
             `${SECURITY_ALERTS_BASE_URL}${TOKEN_BULK_SCANNING_ENDPOINT}`,
             { chain, tokens: batchTokens },

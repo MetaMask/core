@@ -328,7 +328,7 @@ export class BaseDataService<
     return this.#queryClient.fetchQuery({
       ...options,
       queryFn: async (context) => {
-        const response = await this.executeWithPolicy(() =>
+        const response = await this.#policy.execute(() =>
           options.queryFn(context),
         );
         return processQueryResponse(options.queryKey, response, responseStruct);
@@ -396,7 +396,7 @@ export class BaseDataService<
         ...options,
         initialPageParam: pageParam ?? options.initialPageParam,
         queryFn: async (context) => {
-          const response = await this.executeWithPolicy(async () =>
+          const response = await this.#policy.execute(async () =>
             options.queryFn({
               ...context,
               pageParam: context.meta?.pageParam ?? context.pageParam,
@@ -436,16 +436,15 @@ export class BaseDataService<
   }
 
   /**
-   * Executes an operation using this service's retry and circuit-breaker
-   * policy without adding the result to the query cache.
+   * The retry and circuit-breaker policy that wraps every query made through
+   * this service. Subclasses can run uncached requests under the same policy
+   * with `this.policy.execute(...)`, or observe its `onBreak`, `onDegraded`,
+   * and `onRetry` events.
    *
-   * @param operation - The asynchronous operation to execute.
-   * @returns The operation result.
+   * @returns The service policy.
    */
-  protected async executeWithPolicy<Result>(
-    operation: () => PromiseLike<Result> | Result,
-  ): Promise<Result> {
-    return this.#policy.execute(operation);
+  protected get policy(): ServicePolicy {
+    return this.#policy;
   }
 
   /**

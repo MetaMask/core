@@ -21,6 +21,7 @@ import {
   DataServiceGranularCacheUpdatedEvent,
   PersistenceConfiguration,
 } from '../src/BaseDataService.js';
+import type { ServicePolicy } from '../src/createServicePolicy.js';
 import { ExampleDataServiceMethodActions } from './ExampleDataService-method-action-types.js';
 
 export const serviceName = 'ExampleDataService';
@@ -107,6 +108,15 @@ export class ExampleDataService extends BaseDataService<
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Exposes the protected service policy for tests.
+   *
+   * @returns The service policy.
+   */
+  getPolicy(): ServicePolicy {
+    return this.policy;
   }
 
   async getAssets(assets: string[]): Promise<GetAssetsResponse> {
