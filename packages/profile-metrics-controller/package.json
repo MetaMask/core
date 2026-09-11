@@ -58,7 +58,7 @@
     "@metamask/polling-controller": "^17.0.0",
     "@metamask/profile-sync-controller": "^32.1.0",
     "@metamask/snaps-controllers": "^19.0.0",
-    "@metamask/snaps-sdk": "^11.0.0",
+    "@metamask/snaps-sdk": "^12.0.1",
     "@metamask/snaps-utils": "^12.1.2",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/transaction-controller": "^70.0.0",

@@ -5587,7 +5587,7 @@ __metadata:
     "@metamask/profile-sync-controller": "npm:^32.1.0"
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
-    "@metamask/snaps-sdk": "npm:^11.0.0"
+    "@metamask/snaps-sdk": "npm:^12.0.1"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
@@ -5930,7 +5930,7 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/snaps-controllers": "npm:^19.0.0"
-    "@metamask/snaps-sdk": "npm:^11.0.0"
+    "@metamask/snaps-sdk": "npm:^12.0.1"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/storage-service": "npm:^2.0.0"
     "@metamask/transaction-controller": "npm:^70.0.0"
@@ -7357,7 +7357,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^37.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
-    "@metamask/snaps-sdk": "npm:^11.0.0"
+    "@metamask/snaps-sdk": "npm:^12.0.1"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/transaction-controller": "npm:^70.0.0"
     "@metamask/utils": "npm:^12.0.0"
@@ -7798,6 +7798,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/messenger@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "@metamask/messenger@npm:2.0.0"
+  dependencies:
+    "@metamask/utils": "npm:^11.11.0"
+  peerDependencies:
+    typescript: ">=5.0.0"
+  checksum: 10/c387511edd89db73b774f631fb4bb382c9254af2dd7f80f9bd45f776e618cf90f653cc0e9744b1bf491f71f99c8318b16e8230a847f619a4fca655ea3f6a08e1
+  languageName: node
+  linkType: hard
+
 "@metamask/messenger@npm:^3.0.0, @metamask/messenger@workspace:packages/messenger":
   version: 0.0.0-use.local
   resolution: "@metamask/messenger@workspace:packages/messenger"
@@ -7984,7 +7995,7 @@ __metadata:
     "@metamask/providers": "npm:^22.1.0"
     "@metamask/snap-account-service": "npm:^3.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
-    "@metamask/snaps-sdk": "npm:^11.0.0"
+    "@metamask/snaps-sdk": "npm:^12.0.1"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
@@ -8091,7 +8102,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
-    "@metamask/snaps-sdk": "npm:^11.0.0"
+    "@metamask/snaps-sdk": "npm:^12.0.1"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -8606,7 +8617,7 @@ __metadata:
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/profile-sync-controller": "npm:^32.1.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
-    "@metamask/snaps-sdk": "npm:^11.0.0"
+    "@metamask/snaps-sdk": "npm:^12.0.1"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^70.0.0"
@@ -9071,7 +9082,7 @@ __metadata:
     "@metamask/keyring-utils": "npm:^5.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
-    "@metamask/snaps-sdk": "npm:^11.0.0"
+    "@metamask/snaps-sdk": "npm:^12.0.1"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
@@ -9170,6 +9181,21 @@ __metadata:
     "@metamask/utils": "npm:^11.11.0"
     luxon: "npm:^3.5.0"
   checksum: 10/8419625775b83045d98c4ed920002ad884471e2303f6650104c97457c238f095ff35030663ddf111ebb6ce8f4cd915f57b7b9a5597d00288093701dbb79e787c
+  languageName: node
+  linkType: hard
+
+"@metamask/snaps-sdk@npm:^12.0.1":
+  version: 12.0.1
+  resolution: "@metamask/snaps-sdk@npm:12.0.1"
+  dependencies:
+    "@metamask/key-tree": "npm:^10.1.1"
+    "@metamask/messenger": "npm:^2.0.0"
+    "@metamask/providers": "npm:^22.1.1"
+    "@metamask/rpc-errors": "npm:^7.0.3"
+    "@metamask/superstruct": "npm:^3.3.0"
+    "@metamask/utils": "npm:^11.11.0"
+    luxon: "npm:^3.5.0"
+  checksum: 10/dfcd6874da9e0f7cab531768f7f3ab1425a579bb7e925e6ceea8e8549ad0be239d24564d2450bc2b92f7f66c1eb4c18fb2c7f9c7262e6166dd55961808e35f6d
   languageName: node
   linkType: hard
 
@@ -9334,7 +9360,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/superstruct@npm:^3.1.0, @metamask/superstruct@npm:^3.2.1, @metamask/superstruct@npm:^3.4.1":
+"@metamask/superstruct@npm:^3.1.0, @metamask/superstruct@npm:^3.2.1, @metamask/superstruct@npm:^3.3.0, @metamask/superstruct@npm:^3.4.1":
   version: 3.4.1
   resolution: "@metamask/superstruct@npm:3.4.1"
   checksum: 10/d37b5662dc9bbe0d99e06eb951167fa745829ae3abfa103423e9d8c05e8712f1451376f8479d484722e1e1c1d881732da1efddccaca8868b530a786264b903b5
