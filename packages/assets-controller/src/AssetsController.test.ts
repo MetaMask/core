@@ -3007,6 +3007,39 @@ describe('AssetsController', () => {
       });
     });
 
+    it('force refreshes default-tracked native assets even when the chain is AccountActivity-active', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        messenger.publish('AccountActivityService:statusChanged', {
+          chainIds: ['eip155:5042'],
+          status: 'up',
+        });
+
+        await flushPromises();
+
+        messenger.publish('TransactionController:transactionConfirmed', {
+          chainId: '0x13b2',
+          txParams: { from: '0x1234567890123456789012345678901234567890' },
+        });
+
+        await flushPromises();
+
+        expect(getAssetsSpy).toHaveBeenCalledWith(
+          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+          {
+            chainIds: ['eip155:5042'],
+            forceUpdate: true,
+            bypassServerCache: true,
+          },
+        );
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+
     it('publishes balanceChanged event when balance updates', async () => {
       await withController(async ({ controller, messenger }) => {
         const balanceChangedHandler = jest.fn();
