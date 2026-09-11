@@ -9241,11 +9241,8 @@ describe('TransactionController', () => {
       });
 
       it('publishes transactionApproved with a nonce after signing approval', async () => {
-        const {
-          controller,
-          messenger,
-          mockTransactionApprovalRequest,
-        } = setupController();
+        const { controller, messenger, mockTransactionApprovalRequest } =
+          setupController();
 
         const approvedEventListener = jest.fn();
 
