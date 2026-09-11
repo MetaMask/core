@@ -623,6 +623,7 @@ linkStyle default opacity:0.5
   profile_sync_controller --> utils;
   ramps_controller --> base_controller;
   ramps_controller --> controller_utils;
+  ramps_controller --> kyc_controller;
   ramps_controller --> messenger;
   ramps_controller --> profile_sync_controller;
   ramps_controller --> remote_feature_flag_controller;
