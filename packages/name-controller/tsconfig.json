@@ -9,6 +9,9 @@
     },
     {
       "path": "../controller-utils"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

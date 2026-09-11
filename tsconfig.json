@@ -5,7 +5,11 @@
    */
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@metamask/utils/node": ["./packages/utils/src/node.ts"],
+      "@metamask/utils": ["./packages/utils/src/index.ts"]
+    }
   },
   "references": [
     {
@@ -298,6 +302,9 @@
     },
     {
       "path": "./packages/user-operation-controller"
+    },
+    {
+      "path": "./packages/utils"
     },
     {
       "path": "./packages/wallet"

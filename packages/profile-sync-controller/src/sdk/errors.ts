@@ -35,6 +35,20 @@ export class PairConflictError extends PairError {
   }
 }
 
+/**
+ * Thrown when `POST /api/v2/oidc/token` returns 422: this profile has no
+ * verified email on record. Consumers should send the user through email
+ * OTP (or Google pair) and retry.
+ */
+export class EmailRequiredError extends Error {
+  readonly status = HTTP_STATUS_CODES.UNPROCESSABLE_ENTITY;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'EmailRequiredError';
+  }
+}
+
 export class UserStorageError extends Error {
   constructor(message: string) {
     super(message);

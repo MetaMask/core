@@ -507,7 +507,15 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       );
     });
 
-    await this.#refreshBenefitsIfActive();
+    try {
+      await this.#getSubscriptions();
+    } catch (error) {
+      log('Failed to refresh subscriptions after cancellation', error);
+
+      // Preserve the existing best-effort benefits refresh behavior if the
+      // canonical subscription refresh is unavailable.
+      await this.#refreshBenefitsIfActive();
+    }
 
     this.triggerAccessTokenRefresh();
   }

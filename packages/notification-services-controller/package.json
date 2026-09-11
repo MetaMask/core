@@ -1,6 +1,6 @@
 {
   "name": "@metamask/notification-services-controller",
-  "version": "28.0.0",
+  "version": "28.0.1",
   "description": "Manages New MetaMask decentralized Notification system",
   "keywords": [
     "Ethereum",
@@ -78,8 +78,8 @@
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/keyring-controller": "^28.0.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/profile-sync-controller": "^31.0.0",
-    "@metamask/utils": "^11.12.0",
+    "@metamask/profile-sync-controller": "^32.1.0",
+    "@metamask/utils": "^12.0.0",
     "bignumber.js": "^9.1.2",
     "firebase": "^11.2.0",
     "lodash-es": "^4.17.21",

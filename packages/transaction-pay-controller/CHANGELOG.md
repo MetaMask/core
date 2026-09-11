@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
+## [28.0.2]
+
+### Fixed
+
+- Restore `EXACT_OUTPUT` Relay quotes for `predictDepositAndOrder` flows so Predict deposit-and-order trades keep a guaranteed output amount.
+
+## [28.0.1]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^112.0.0` to `^112.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/ramps-controller` from `^21.0.0` to `^22.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
+
 ## [28.0.0]
 
 ### Changed
@@ -1527,7 +1544,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.2...HEAD
+[28.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.1...@metamask/transaction-pay-controller@28.0.2
+[28.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.0...@metamask/transaction-pay-controller@28.0.1
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.1.2...@metamask/transaction-pay-controller@28.0.0
 [27.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.1.1...@metamask/transaction-pay-controller@27.1.2
 [27.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.1.0...@metamask/transaction-pay-controller@27.1.1

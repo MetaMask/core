@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `extractSignatureAddresses` utility, plus `ExtractedSignatureAddresses` and `ExtractSignatureAddressesOptions` types, to collect the `address`-typed values from an EIP-712 typed-data message for real-time address scanning ([#10170](https://github.com/MetaMask/core/pull/10170))
+  - Walks the `types` schema from `primaryType`, matching fields by declared type (`address`/`address[]`, including nested structs and arrays) rather than by field name, so custom and unknown message shapes are covered without per-protocol handling.
+  - Normalizes non-canonical `address` encodings (variable-length hex and decimal strings) into canonical lower-case 20-byte hex by taking the leading 20 bytes of the signer-compatible big-endian encoding, and de-duplicates case-insensitively.
+  - Excludes the zero address, a caller-provided `exclude` list (e.g. the signer), and caller-provided top-level `excludeFields`.
+  - Bounds work with a distinct-address cap (default 10, caller-overridable via `maxAddresses`, hard ceiling 50), a traversal depth limit, and a node budget, reporting `overflow` when the message could not be fully walked. Exports `DEFAULT_MAX_SIGNATURE_ADDRESSES` and `MAX_SIGNATURE_ADDRESSES_CEILING`.
+  - Returns the field name each address was found under so callers can attribute alerts.
 - Add `PhishingDataService`, a `BaseDataService` subclass that now performs all network requests for `PhishingController` (stalelist, hotlist diffs, C2 domain blocklist, URL/token/address scans, and approvals) ([#9914](https://github.com/MetaMask/core/pull/9914))
   - Exposes the messenger actions `PhishingDataService:getStalelist`, `PhishingDataService:getHotlistDiffs`, `PhishingDataService:getC2DomainBlocklist`, `PhishingDataService:scanUrl`, `PhishingDataService:bulkScanUrls`, `PhishingDataService:scanToken`, `PhishingDataService:bulkScanTokens`, `PhishingDataService:scanAddress`, and `PhishingDataService:getApprovals`, making query results available to the UI via `@metamask/react-data-query`
   - Requests are wrapped in a shared service policy, configurable via the `policyOptions` option of the `PhishingDataService` constructor. Retries and circuit breaking are both disabled by default: the service spans four independent API hosts, so a circuit broken by one host would pause phishing-list updates from the others, and the previous in-controller implementation made a single request per call. Pass `policyOptions.maxRetries` to opt in; retries then apply to each batched bulk-scan request as a whole rather than to individual items
@@ -30,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `@metamask/base-data-service` `^2.0.0` as a dependency ([#9914](https://github.com/MetaMask/core/pull/9914))
 - Add `@metamask/storage-service` `^2.0.0` as a dependency ([#9914](https://github.com/MetaMask/core/pull/9914))
 - Add `@metamask/superstruct` `^3.4.1` as a dependency ([#9914](https://github.com/MetaMask/core/pull/9914))
-- Add `@metamask/utils` `^11.12.0` as a dependency ([#9914](https://github.com/MetaMask/core/pull/9914))
+- Add `@metamask/utils` `^12.0.0` as a dependency ([#9914](https://github.com/MetaMask/core/pull/9914))
 - Add `@tanstack/query-core` `^5.62.16` as a dependency ([#9914](https://github.com/MetaMask/core/pull/9914))
 - Tokens for which the bulk scanning API returns no result are now negatively cached for `SCAN_RESULT_STALE_TIME` instead of being re-requested on every call ([#9914](https://github.com/MetaMask/core/pull/9914))
 - `PhishingController.scanUrl` now reports the underlying error message in `fetchError` for network errors instead of `'timeout of 8000ms exceeded'` ([#9914](https://github.com/MetaMask/core/pull/9914))

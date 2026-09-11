@@ -30,6 +30,9 @@
     },
     {
       "path": "../eth-block-tracker"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

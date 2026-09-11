@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `hydrationTimeout` and `shouldHydrateQuery` options to `PersistenceConfiguration`, and export `DEFAULT_HYDRATION_TIMEOUT` ([#9914](https://github.com/MetaMask/core/pull/9914))
   - `hydrationTimeout` bounds how long a query waits for cache rehydration after `init` (default 1 second), and `shouldHydrateQuery` filters persisted queries before they are restored into the cache
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
 ### Fixed
 
 - Wait for cache rehydration to finish before starting a query when `init` has been called, preventing persisted results from racing the first network request; the wait is bounded by `hydrationTimeout` so that a slow or hung storage read cannot block queries ([#9914](https://github.com/MetaMask/core/pull/9914))

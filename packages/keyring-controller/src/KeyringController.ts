@@ -641,6 +641,11 @@ const hdKeyringV2Builder: KeyringV2Builder = Object.assign(
 const simpleKeyringV2Builder: KeyringV2Builder = Object.assign(
   (keyring: Keyring): KeyringV2 =>
     new SimpleKeyringV2({
+      // @ts-expect-error TODO: `Keyring` here comes from `@metamask/keyring-utils`,
+      // which still depends on `@metamask/utils@^11`, while this package now
+      // depends on the workspace copy at v12. That leaves two distinct identities
+      // for the same type, so the cast no longer overlaps. Remove this once the
+      // keyring packages depend on v12.
       legacyKeyring: keyring as SimpleKeyring,
     }),
   { type: KeyringTypes.simple as string },
