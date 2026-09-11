@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `KycController.checkKycRequired` and the consents-path session (`acceptTermsAndStartSession` / a resumed `initialize`) now rethrow the underlying error after recording it on controller state.
+- **BREAKING:** `KycController.checkKycRequired` and the consents-path session (`acceptTermsAndStartSession` / a resumed `initialize`) now rethrow the underlying error after recording it on controller state. ([#10214](https://github.com/MetaMask/core/pull/10214))
   - A product-scoped MoonPay auto-run therefore rejects `handleFrameMessage` / `onAuthenticated` when the KYC-required check fails, instead of only setting `phase: 'error'`.
 
 ## [0.3.0]
