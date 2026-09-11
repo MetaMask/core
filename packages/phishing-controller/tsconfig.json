@@ -2,19 +2,25 @@
   "extends": "../../tsconfig.packages.json",
   "references": [
     {
+      "path": "../address-book-controller"
+    },
+    {
       "path": "../base-controller"
+    },
+    {
+      "path": "../base-data-service"
     },
     {
       "path": "../controller-utils"
     },
     {
-      "path": "../transaction-controller"
-    },
-    {
       "path": "../messenger"
     },
     {
-      "path": "../address-book-controller"
+      "path": "../storage-service"
+    },
+    {
+      "path": "../transaction-controller"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

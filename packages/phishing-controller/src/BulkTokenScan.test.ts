@@ -1,4 +1,3 @@
-import { safelyExecuteWithTimeout } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -16,18 +15,10 @@ import type {
   PhishingControllerMessenger,
   PhishingControllerOptions,
 } from './PhishingController.js';
+import { PhishingDataService } from './PhishingDataService.js';
+import type { PhishingDataServiceMessenger } from './PhishingDataService.js';
 import { TokenScanResultType } from './types.js';
 import type { BulkTokenScanRequest, TokenScanApiResponse } from './types.js';
-
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  safelyExecuteWithTimeout: jest.fn(),
-}));
-
-const mockSafelyExecuteWithTimeout =
-  safelyExecuteWithTimeout as jest.MockedFunction<
-    typeof safelyExecuteWithTimeout
-  >;
 
 const controllerName = 'PhishingController';
 
@@ -38,10 +29,12 @@ type AllPhishingControllerEvents = MessengerEvents<PhishingControllerMessenger>;
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
-  AllPhishingControllerActions,
-  AllPhishingControllerEvents,
+  AllPhishingControllerActions | MessengerActions<PhishingDataServiceMessenger>,
+  AllPhishingControllerEvents | MessengerEvents<PhishingDataServiceMessenger>,
   RootMessenger
 >;
+
+const createdDataServices: PhishingDataService[] = [];
 
 /**
  * Creates and returns a root messenger for testing
@@ -55,7 +48,8 @@ function getRootMessenger(): RootMessenger {
 }
 
 /**
- * Constructs a messenger with transaction events enabled.
+ * Constructs a messenger with transaction events enabled, plus a real
+ * PhishingDataService so that tests exercise the full request path via nock.
  *
  * @returns A restricted messenger that can listen to TransactionController events.
  */
@@ -72,8 +66,34 @@ function getMessengerWithTransactionEvents() {
     parent: rootMessenger,
   });
 
+  const dataServiceMessenger = new Messenger<
+    'PhishingDataService',
+    MessengerActions<PhishingDataServiceMessenger>,
+    MessengerEvents<PhishingDataServiceMessenger>,
+    RootMessenger
+  >({
+    namespace: 'PhishingDataService',
+    parent: rootMessenger,
+  });
+  createdDataServices.push(
+    new PhishingDataService({
+      messenger: dataServiceMessenger,
+      policyOptions: { maxRetries: 0 },
+      persistenceConfig: null,
+    }),
+  );
+
   rootMessenger.delegate({
-    actions: [],
+    actions: [
+      'PhishingDataService:getStalelist',
+      'PhishingDataService:getHotlistDiffs',
+      'PhishingDataService:getC2DomainBlocklist',
+      'PhishingDataService:scanUrl',
+      'PhishingDataService:bulkScanUrls',
+      'PhishingDataService:bulkScanTokens',
+      'PhishingDataService:scanAddress',
+      'PhishingDataService:getApprovals',
+    ],
     events: ['TransactionController:stateChange'],
     messenger,
   });
@@ -96,6 +116,26 @@ function getPhishingController(options?: Partial<PhishingControllerOptions>) {
   });
 }
 
+/**
+ * Mock a fetch that remains pending until its abort signal fires.
+ *
+ * @returns The fetch spy.
+ */
+function mockPendingFetch(): jest.SpiedFunction<typeof fetch> {
+  return jest
+    .spyOn(globalThis, 'fetch')
+    .mockImplementation(
+      (_input, init) =>
+        new Promise<Response>((_resolve, reject) =>
+          init?.signal?.addEventListener(
+            'abort',
+            () => reject(new Error('aborted')),
+            { once: true },
+          ),
+        ),
+    );
+}
+
 describe('PhishingController - Bulk Token Scanning', () => {
   let controller: PhishingController;
   let consoleErrorSpy: jest.SpyInstance;
@@ -105,21 +145,14 @@ describe('PhishingController - Bulk Token Scanning', () => {
     controller = getPhishingController();
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
     consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-
-    // Reset the mock to its default behavior (pass through to real implementation)
-    mockSafelyExecuteWithTimeout.mockImplementation(
-      (fn, throwOnTimeout, timeout) => {
-        return jest
-          .requireActual('@metamask/controller-utils')
-          .safelyExecuteWithTimeout(fn, throwOnTimeout, timeout);
-      },
-    );
   });
 
   afterEach(() => {
     cleanAll();
-    consoleErrorSpy.mockRestore();
-    consoleWarnSpy.mockRestore();
+    jest.restoreAllMocks();
+    while (createdDataServices.length > 0) {
+      createdDataServices.pop()?.destroy();
+    }
   });
 
   describe('bulkScanTokens', () => {
@@ -420,22 +453,28 @@ describe('PhishingController - Bulk Token Scanning', () => {
       });
 
       it('should handle API timeout and return empty results', async () => {
+        jest.useFakeTimers({
+          doNotFake: ['nextTick', 'queueMicrotask'],
+          now: 1_000_000,
+        });
         const tokens = ['0x1234567890123456789012345678901234567890'];
-
-        // Mock safelyExecuteWithTimeout to return null (simulating a timeout)
-        mockSafelyExecuteWithTimeout.mockResolvedValueOnce(null);
+        const fetchMock = mockPendingFetch();
 
         const request: BulkTokenScanRequest = {
           chainId: '0x1',
           tokens,
         };
 
-        const result = await controller.bulkScanTokens(request);
+        const promise = controller.bulkScanTokens(request);
+        jest.advanceTimersByTime(8000);
+        const result = await promise;
 
         expect(result).toStrictEqual({});
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           'Error scanning tokens: timeout of 8000ms exceeded',
         );
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        jest.useRealTimers();
       });
     });
 

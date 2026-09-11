@@ -15,6 +15,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Excludes the zero address, a caller-provided `exclude` list (e.g. the signer), and caller-provided top-level `excludeFields`.
   - Bounds work with a distinct-address cap (default 10, caller-overridable via `maxAddresses`, hard ceiling 50), a traversal depth limit, and a node budget, reporting `overflow` when the message could not be fully walked. Exports `DEFAULT_MAX_SIGNATURE_ADDRESSES` and `MAX_SIGNATURE_ADDRESSES_CEILING`.
   - Returns the field name each address was found under so callers can attribute alerts.
+- Add `PhishingDataService`, a `BaseDataService` subclass that now performs all network requests for `PhishingController` (stalelist, hotlist diffs, C2 domain blocklist, URL/token/address scans, and approvals) ([#9914](https://github.com/MetaMask/core/pull/9914))
+  - Exposes the messenger actions `PhishingDataService:getStalelist`, `PhishingDataService:getHotlistDiffs`, `PhishingDataService:getC2DomainBlocklist`, `PhishingDataService:scanUrl`, `PhishingDataService:bulkScanUrls`, `PhishingDataService:scanToken`, `PhishingDataService:bulkScanTokens`, `PhishingDataService:scanAddress`, and `PhishingDataService:getApprovals`, making query results available to the UI via `@metamask/react-data-query`
+  - Requests are wrapped in a shared service policy, configurable via the `policyOptions` option of the `PhishingDataService` constructor. Retries and circuit breaking are both disabled by default: the service spans four independent API hosts, so a circuit broken by one host would pause phishing-list updates from the others, and the previous in-controller implementation made a single request per call. Pass `policyOptions.maxRetries` to opt in; retries then apply to each batched bulk-scan request as a whole rather than to individual items
+  - Scan results are cached for `SCAN_RESULT_STALE_TIME` (1 minute, matching the previous cache TTLs), keyed by the scan URL parameter, token, and address, and retained for `SCAN_RESULT_GC_TIME` (5 minutes), including after cache rehydration; bulk scans only request items without a fresh cached result and coalesce them into batched API calls (up to 50 URLs / 100 tokens per request), and single and bulk URL scans share cache entries. Approvals reflect live account state and are always refetched and never retained
+  - EVM token and address inputs are lowercased before being used as cache keys and sent to the API, so differently-cased inputs share one cache entry and match the API's response keys; `bulkScanTokens` results are keyed by the normalized address
+  - The query cache is persisted between sessions by default (`persistenceConfig`, max age 5 minutes), which requires the `StorageService:setItem`, `StorageService:getItem`, and `StorageService:removeItem` messenger actions, and an `init` call during client initialization. Queries started after `init` wait at most `DEFAULT_HYDRATION_TIMEOUT` (1 second, configurable via `persistenceConfig.hydrationTimeout`) for rehydration to finish, and persisted scan results are validated on rehydration with anything malformed or unrecognized discarded. Pass `persistenceConfig: null` to disable. `PhishingDataService` is not yet part of `@metamask/wallet`'s default instances, so clients must construct it and call `init` themselves
+  - Fetched lists (stalelist, hotlist diffs, and the C2 domain blocklist) are not retained by the query cache, and so are not persisted; the controller keeps its own copy in state
+  - Timed-out requests are aborted so later calls can retry, and destroying the service aborts all pending requests
+- Export the `resolveChainName` utility, which maps chain IDs to the chain names used in scan query keys, enabling UI consumers to construct `PhishingDataService` query keys ([#9914](https://github.com/MetaMask/core/pull/9914))
+
+### Changed
+
+- **BREAKING:** `PhishingController` no longer performs network requests directly; a `PhishingDataService` must be registered and its method actions delegated to the controller's messenger ([#9914](https://github.com/MetaMask/core/pull/9914))
+  - `PhishingControllerMessenger` now requires the `PhishingDataService` method actions listed above as allowed actions
+- **BREAKING:** Remove the `urlScanCache`, `tokenScanCache`, and `addressScanCache` properties from `PhishingControllerState`; scan results are now cached (and persisted) by `PhishingDataService`'s query cache ([#9914](https://github.com/MetaMask/core/pull/9914))
+  - Client state migrations should remove these properties from persisted `PhishingController` state
+- **BREAKING:** Remove the `urlScanCacheTTL`, `urlScanCacheMaxSize`, `tokenScanCacheTTL`, `tokenScanCacheMaxSize`, `addressScanCacheTTL`, and `addressScanCacheMaxSize` options from `PhishingControllerOptions`; scan result freshness is now controlled by `SCAN_RESULT_STALE_TIME` in `PhishingDataService` ([#9914](https://github.com/MetaMask/core/pull/9914))
+- **BREAKING:** `C2DomainBlocklistResponse.lastFetchedAt` is now typed as an optional `number` (previously a required `string`), matching the numeric Unix timestamp returned by the API; responses without it are accepted since the controller does not read it ([#9914](https://github.com/MetaMask/core/pull/9914))
+- Add `@metamask/base-data-service` `^2.0.0` as a dependency ([#9914](https://github.com/MetaMask/core/pull/9914))
+- Add `@metamask/storage-service` `^2.0.0` as a dependency ([#9914](https://github.com/MetaMask/core/pull/9914))
+- Add `@metamask/superstruct` `^3.4.1` as a dependency ([#9914](https://github.com/MetaMask/core/pull/9914))
+- Add `@metamask/utils` `^12.0.0` as a dependency ([#9914](https://github.com/MetaMask/core/pull/9914))
+- Add `@tanstack/query-core` `^5.62.16` as a dependency ([#9914](https://github.com/MetaMask/core/pull/9914))
+- Tokens for which the bulk scanning API returns no result are now negatively cached for `SCAN_RESULT_STALE_TIME` instead of being re-requested on every call ([#9914](https://github.com/MetaMask/core/pull/9914))
+- `PhishingController.scanUrl` now reports the underlying error message in `fetchError` for network errors instead of `'timeout of 8000ms exceeded'` ([#9914](https://github.com/MetaMask/core/pull/9914))
+- Malformed API responses are now rejected and treated as request failures instead of being passed through, and are never cached ([#9914](https://github.com/MetaMask/core/pull/9914))
+  - Bulk URL scan, bulk token scan, and approvals responses are validated per entry: a malformed URL result is reported for that URL in `errors`, and malformed token results and approvals are omitted, so one bad entry does not discard the other verdicts in the response
+
+### Removed
+
+- **BREAKING:** Remove the `CacheEntry` type; the custom cache manager has been replaced by `PhishingDataService`'s query cache ([#9914](https://github.com/MetaMask/core/pull/9914))
+- **BREAKING:** Remove the `DEFAULT_URL_SCAN_CACHE_TTL`, `DEFAULT_URL_SCAN_CACHE_MAX_SIZE`, `DEFAULT_TOKEN_SCAN_CACHE_TTL`, `DEFAULT_TOKEN_SCAN_CACHE_MAX_SIZE`, `DEFAULT_ADDRESS_SCAN_CACHE_TTL`, and `DEFAULT_ADDRESS_SCAN_CACHE_MAX_SIZE` constants ([#9914](https://github.com/MetaMask/core/pull/9914))
+
+### Fixed
+
+- `bulkScanUrls` now returns the results it was able to resolve even if some lookups fail, reporting the failures per URL in `errors`, and only rejects when nothing could be resolved at all ([#9914](https://github.com/MetaMask/core/pull/9914))
+  - Previously a single failed lookup discarded every result in the batch, including cached `BLOCK` verdicts for unrelated URLs
+- Hotlist diffs that target a list type this client does not recognize are now ignored ([#9914](https://github.com/MetaMask/core/pull/9914))
+  - Previously such a diff threw a `TypeError` while the hotlist was being applied, leaving the phishing lists un-updated
 
 ## [18.0.0]
 
