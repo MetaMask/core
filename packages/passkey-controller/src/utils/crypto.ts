@@ -2,7 +2,7 @@ import { bytesToBase64, base64ToBytes } from '@metamask/utils';
 import { gcm } from '@noble/ciphers/aes';
 import { randomBytes } from '@noble/ciphers/webcrypto';
 import { hkdf } from '@noble/hashes/hkdf';
-import { sha256 } from '@noble/hashes/sha2';
+import { sha256 as nobleSha256 } from '@noble/hashes/sha2';
 
 import { bytesToBase64URL } from './encoding.js';
 
@@ -32,7 +32,9 @@ export function deriveEncryptionKey(
   ikm: Uint8Array,
   salt: Uint8Array,
 ): Uint8Array {
-  return hkdf(sha256, ikm, salt, PASSKEY_HKDF_INFO, 32);
+  // @noble/hashes/hkdf accepts only a synchronous hash callback, so this
+  // synchronous HKDF path intentionally retains Noble SHA-256.
+  return hkdf(nobleSha256, ikm, salt, PASSKEY_HKDF_INFO, 32);
 }
 
 /**
