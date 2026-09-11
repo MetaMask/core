@@ -505,6 +505,62 @@ describe('createUIQueryClient', () => {
     service.destroy();
   });
 
+  it('ignores `added` :cacheUpdated events so an idle service mutation cannot wipe a settled UI result', async () => {
+    const { clientA: client, messenger, service } = createClients();
+
+    mockAddFollowerRequest();
+
+    const observer = new TanStackQueryMutationObserver<AddFollowerResponse>(
+      client,
+      { mutationKey: addFollowerMutationKey },
+    );
+
+    await observer.mutate();
+
+    const mutationFromUi = client
+      .getMutationCache()
+      .find({ mutationKey: addFollowerMutationKey });
+    assert(mutationFromUi);
+    expect(mutationFromUi.state.status).toBe('success');
+    const settledState = mutationFromUi.state;
+    const { globalId } = mutationFromUi.meta ?? {};
+
+    // Replay the kind of event a data service emits when it builds a fresh
+    // mutation for the same key: the mutation is included in its initial
+    // `idle` state under an `added` event.
+    const hash = hashKey(addFollowerMutationKey);
+    messenger.publish(`ExampleDataService:cacheUpdated:${hash}`, {
+      objectType: 'mutation',
+      type: 'added',
+      state: {
+        queries: [],
+        mutations: [
+          {
+            mutationKey: addFollowerMutationKey,
+            meta: { globalId },
+            state: {
+              context: undefined,
+              data: undefined,
+              error: null,
+              failureCount: 0,
+              failureReason: null,
+              isPaused: false,
+              status: 'idle' as const,
+              submittedAt: 0,
+              variables: undefined,
+            },
+          },
+        ],
+      },
+    });
+
+    expect(mutationFromUi.state).toBe(settledState);
+    expect(mutationFromUi.state.status).toBe('success');
+
+    observer.reset();
+    service.destroy();
+  });
+
   it('preserves mutations that share a mutation key with an action on the data service but were not actually routed through the data service', async () => {
     const { clientA: client, service } = createClients();
 

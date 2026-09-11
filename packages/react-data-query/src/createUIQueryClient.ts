@@ -258,7 +258,12 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
             payload,
           );
 
-          if (payload.type === 'removed') {
+          // Only `updated` events carry a meaningful mutation state to sync. An
+          // `added` event fires when the service first builds a mutation, while
+          // it is still `idle` with no result; hydrating that would clobber a
+          // UI mutation that has already moved to `pending`, `success`, or
+          // `error`. A `removed` event carries no state at all.
+          if (payload.type !== 'updated') {
             return;
           }
 

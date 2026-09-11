@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Like `fetchQuery` and `fetchInfiniteQuery`, the `useMutation` wrapper disables retries by default and enforces that `mutationKey` matches the same thing that `executeMutation` takes.
   - `createUIQueryClient` now tags each mutation it creates with a unique `globalId` (stored on the mutation's `meta`) and passes it to the data service action as the trailing argument. It uses this `globalId` to update the exact UI mutation that a `:cacheUpdated` event corresponds to, so mutations sharing a `mutationKey` no longer clobber one another, and mutations that use a custom `mutationFn` are left untouched.
   - The `globalId` is minted once per mutation as it is built, so that each `mutate` call from the same observer gets its own id, and re-rendering (which re-defaults a mutation's options) can no longer change the id of an in-flight mutation and detach it from its `:cacheUpdated` events.
+  - Only `updated` `:cacheUpdated` events are synced to UI mutations. An `added` event carries the service mutation in its initial `idle` state, so hydrating it would overwrite (and wipe the result of) a UI mutation that had already settled.
 
 ### Changed
 
