@@ -137,6 +137,7 @@ export {
 export type {
   // Client options
   ApiPlatformClientOptions,
+  ApiUrls,
   FetchOptions,
   // Shared types
   PageInfo,

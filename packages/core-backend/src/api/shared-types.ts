@@ -145,7 +145,16 @@ export type ApiPlatformClientOptions = {
   authTokenTimeout?: number;
   /** Optional custom QueryClient instance */
   queryClient?: QueryClient;
+  /**
+   * Optional overrides for the API base URLs. Any service not specified falls
+   * back to the production URL in {@link API_URLS}. Useful for pointing
+   * clients at dev/local backend environments (e.g. via client env vars).
+   */
+  apiUrls?: Partial<ApiUrls>;
 };
+
+/** Map of API service names to their base URLs. */
+export type ApiUrls = { [Service in keyof typeof API_URLS]: string };
 
 /**
  * Options for API fetch and query methods.
