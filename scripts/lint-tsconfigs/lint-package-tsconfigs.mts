@@ -1,5 +1,3 @@
-import * as path from 'path';
-
 import type {
   PackageManifest,
   TsconfigLintMetaReport,
@@ -8,7 +6,6 @@ import type {
 } from './utils.mjs';
 import {
   ensureTsconfigsUpdated,
-  filterWorkspacesWithTsconfig,
   getAllNonRootWorkspaces,
   lintTsconfigs,
   printReport,
