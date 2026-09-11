@@ -1,6 +1,6 @@
 {
   "name": "@metamask/kyc-controller",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Shared KYC / identity verification controller used across MetaMask clients",
   "keywords": [
     "Ethereum",
