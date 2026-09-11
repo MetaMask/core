@@ -52,7 +52,7 @@
     "@metamask/utils": "^12.0.0",
     "@types/uuid": "^9.0.8",
     "fast-json-stable-stringify": "^2.1.0",
-    "uuid": "^9.0.1"
+    "uuid": "^14.0.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
