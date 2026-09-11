@@ -80,7 +80,6 @@ async function runPipeline(
   state: AssetsControllerStateInternal,
 ): Promise<DataResponse> {
   const { assetsControllerMessenger } = createMockMessengers({
-    delegateGetState: false,
     registerCustomRootActions: (rootMessenger) => {
       // Note - this may change as we add feature flags to the controller/pipeline
       // e.g. Accounts API v6

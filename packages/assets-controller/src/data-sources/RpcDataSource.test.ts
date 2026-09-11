@@ -8,10 +8,14 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import {
   createMockMessengers,
   MockRootMessenger,
+  registerAssetsControllerStateMock,
   registerRpcDataSourceActions,
 } from '../__fixtures__/MockAssetControllerMessenger.js';
 import { getDefaultAssetsControllerState } from '../AssetsController.js';
-import type { AssetsControllerMessenger } from '../AssetsController.js';
+import type {
+  AssetsControllerMessenger,
+  AssetsControllerState,
+} from '../AssetsController.js';
 import type { Caip19AssetId, ChainId, DataRequest, Context } from '../types.js';
 import { normalizeAssetId } from '../utils/index.js';
 import { BalanceFetcher, TokenDetector } from './evm-rpc-services/index.js';
@@ -160,9 +164,17 @@ async function withController<ReturnValue>(
   const { rootMessenger, assetsControllerMessenger } = createMockMessengers();
   const defaultNetworkState = networkState ?? createMockNetworkState();
 
+  // TODO - code smell, why is our internal logic trying to call its own methods via messenger?
+  registerAssetsControllerStateMock(
+    assetsControllerMessenger,
+    actionHandlerOverrides?.['AssetsController:getState'] as
+      | (() => AssetsControllerState)
+      | undefined,
+  );
+
   if (actionHandlerOverrides) {
     for (const [action, handler] of Object.entries(actionHandlerOverrides)) {
-      if (handler) {
+      if (handler && action !== 'AssetsController:getState') {
         (
           rootMessenger as {
             registerActionHandler: (a: string, h: () => unknown) => void;
@@ -189,15 +201,6 @@ async function withController<ReturnValue>(
         provider: { request: jest.fn().mockResolvedValue('0x0') },
         configuration: { chainId: MOCK_CHAIN_ID_HEX },
       }));
-    }
-    if (!actionHandlerOverrides['AssetsController:getState']) {
-      (
-        rootMessenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('AssetsController:getState', () =>
-        getDefaultAssetsControllerState(),
-      );
     }
     if (!actionHandlerOverrides['NetworkEnablementController:getState']) {
       (

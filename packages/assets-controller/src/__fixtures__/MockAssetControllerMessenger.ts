@@ -16,6 +16,7 @@ import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
 
 import {
   AssetsControllerMessenger,
+  AssetsControllerState,
   getDefaultAssetsControllerState,
 } from '../AssetsController.js';
 import { STAKING_INTERFACE } from '../data-sources/evm-rpc-services/services/StakedBalanceFetcher.js';
@@ -73,12 +74,7 @@ export function createMockRootMessenger(): MockRootMessenger {
 
 export function createMockAssetsControllerMessenger(
   rootMessenger: MockRootMessenger,
-  options?: {
-    delegateGetState?: boolean;
-  },
 ): AssetsControllerMessenger {
-  const { delegateGetState = true } = options ?? {};
-
   const assetsControllerMessenger: AssetsControllerMessenger = new Messenger({
     namespace: 'AssetsController',
     parent: rootMessenger,
@@ -93,7 +89,6 @@ export function createMockAssetsControllerMessenger(
       'AccountTreeController:isInitialized',
       'ClientController:getState',
       'KeyringController:isUnlocked',
-      ...(delegateGetState ? ['AssetsController:getState' as const] : []),
       // RpcDataSource
       'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
       'NetworkController:getState',
@@ -144,24 +139,42 @@ export function createMockAssetsControllerMessenger(
 }
 
 export function createMockMessengers(options?: {
-  delegateGetState?: boolean;
   registerCustomRootActions?: (rootMessenger: MockRootMessenger) => void;
 }): {
   rootMessenger: MockRootMessenger;
   assetsControllerMessenger: AssetsControllerMessenger;
 } {
-  const { delegateGetState = true, registerCustomRootActions } = options ?? {};
+  const { registerCustomRootActions } = options ?? {};
 
   const rootMessenger = createMockRootMessenger();
 
   registerCustomRootActions?.(rootMessenger);
 
-  const assetsControllerMessenger = createMockAssetsControllerMessenger(
-    rootMessenger,
-    { delegateGetState },
-  );
+  const assetsControllerMessenger =
+    createMockAssetsControllerMessenger(rootMessenger);
 
   return { rootMessenger, assetsControllerMessenger };
+}
+
+/**
+ * Register a mock `AssetsController:getState` handler.
+ *
+ * The action belongs to the `AssetsController` namespace, so it is registered
+ * on the controller's own messenger rather than delegated from the root. Only
+ * use this in tests that exercise a data source in isolation; a real
+ * `AssetsController` registers this handler itself.
+ *
+ * @param assetsControllerMessenger - The scoped AssetsController messenger.
+ * @param getState - Returns the state to serve. Defaults to the default state.
+ */
+export function registerAssetsControllerStateMock(
+  assetsControllerMessenger: AssetsControllerMessenger,
+  getState: () => AssetsControllerState = getDefaultAssetsControllerState,
+): void {
+  assetsControllerMessenger.registerActionHandler(
+    'AssetsController:getState',
+    getState,
+  );
 }
 
 export function registerStakedMessengerActions(
@@ -228,10 +241,6 @@ export function registerRpcDataSourceActions(
         provider: { request: jest.fn().mockResolvedValue('0x0') },
         configuration: { chainId: MAINNET_CHAIN_ID_HEX },
       }) as TestMockType,
-  );
-
-  rootMessenger.registerActionHandler('AssetsController:getState', () =>
-    getDefaultAssetsControllerState(),
   );
 
   rootMessenger.registerActionHandler(

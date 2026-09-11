@@ -103,7 +103,6 @@ async function withController<ReturnValue>(
   ];
 
   const { rootMessenger, assetsControllerMessenger } = createMockMessengers({
-    delegateGetState: false,
     registerCustomRootActions: (messenger) =>
       registerAssetsControllerActions(messenger, {
         accounts,
