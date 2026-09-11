@@ -1195,9 +1195,10 @@ export class PhishingDataService extends BaseDataService<
     timeout?: number,
   ): Promise<Json> {
     // `fetch` takes a single signal, so each request gets its own controller
-    // that funnels three cancellation sources into one: the query's own signal
-    // from TanStack, the service-wide signal that `destroy` aborts, and this
-    // request's timeout. The timeout is tracked separately so that it can be
+    // that funnels up to three cancellation sources into one: the query's own
+    // signal from TanStack (single-item requests only; batched requests are
+    // not tied to one query), the service-wide signal that `destroy` aborts,
+    // and this request's timeout. The timeout is tracked separately so that it can be
     // reported as one. `AbortSignal.any` and `AbortSignal.timeout` would
     // express this directly but are not reliably available on React Native.
     const controller = new AbortController();
