@@ -146,9 +146,10 @@ export type PersistenceConfiguration = {
    */
   maxWriteDelay?: number;
   /**
-   * The maximum number of milliseconds a query waits for cache rehydration to
-   * finish after `init` has been called. Once exceeded, the query proceeds
-   * without the persisted cache. Defaults to {@link DEFAULT_HYDRATION_TIMEOUT}.
+   * The maximum number of milliseconds queries wait for cache rehydration to
+   * finish after `init` has been called, measured from the first query that
+   * waits. Once exceeded, queries proceed without the persisted cache.
+   * Defaults to {@link DEFAULT_HYDRATION_TIMEOUT}.
    */
   hydrationTimeout?: number;
   /**
@@ -203,6 +204,8 @@ export class BaseDataService<
   readonly #persistenceConfig?: PersistenceConfiguration;
 
   #initializationPromise?: Promise<void>;
+
+  #boundedInitialization?: Promise<void>;
 
   constructor({
     name,
@@ -477,6 +480,11 @@ export class BaseDataService<
    * indefinitely. A late rehydration is still applied by TanStack, which only
    * overwrites entries older than the persisted ones.
    *
+   * The deadline is shared by every waiting query rather than started per
+   * query: all of them resume in the same turn, so lookups that are batched
+   * together stay batched, and once the deadline has passed no later query
+   * waits again while storage remains unresponsive.
+   *
    * Callers must only await this when `init` has been called: an asynchronous
    * hop before a query starts changes its timing relative to callers' own
    * timers, so services without persistence keep starting queries
@@ -485,19 +493,20 @@ export class BaseDataService<
    * @param initialization - The pending rehydration.
    */
   async #waitForInitialization(initialization: Promise<void>): Promise<void> {
-    const timeout =
-      this.#persistenceConfig?.hydrationTimeout ?? DEFAULT_HYDRATION_TIMEOUT;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      await Promise.race([
+    if (!this.#boundedInitialization) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      this.#boundedInitialization = Promise.race([
         initialization,
         new Promise<void>((resolve) => {
-          timer = setTimeout(resolve, timeout);
+          timer = setTimeout(
+            resolve,
+            this.#persistenceConfig?.hydrationTimeout ??
+              DEFAULT_HYDRATION_TIMEOUT,
+          );
         }),
-      ]);
-    } finally {
-      clearTimeout(timer);
+      ]).finally(() => clearTimeout(timer));
     }
+    await this.#boundedInitialization;
   }
 
   /**

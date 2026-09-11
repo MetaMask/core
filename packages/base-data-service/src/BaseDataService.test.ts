@@ -583,6 +583,38 @@ describe('BaseDataService', () => {
       service.destroy();
     });
 
+    it('does not wait again once the hydration timeout has elapsed', async () => {
+      cleanAll();
+      const networkScope = mockAssets();
+      const getItem = jest.fn(
+        () => new Promise<{ result: null }>(() => undefined),
+      );
+      const rootMessenger = createRootMessenger({
+        actionHandlers: {
+          'StorageService:getItem': getItem,
+        },
+      });
+      const messenger = createServiceMessenger(rootMessenger);
+      const service = new ExampleDataService(messenger);
+
+      service.init();
+      const first = service.getAssets(MOCK_ASSETS);
+      await new Promise(setImmediate);
+      jest.advanceTimersByTime(DEFAULT_HYDRATION_TIMEOUT);
+      expect(await first).toHaveLength(3);
+      expect(networkScope.isDone()).toBe(true);
+
+      // A later query must not start a fresh wait while storage still hangs.
+      const secondScope = mockAssets();
+      await service.invalidateQueries({
+        queryKey: ['ExampleDataService:getAssets', MOCK_ASSETS],
+      });
+      expect(await service.getAssets(MOCK_ASSETS)).toHaveLength(3);
+      expect(secondScope.isDone()).toBe(true);
+
+      service.destroy();
+    });
+
     it('honors a custom hydrationTimeout', async () => {
       cleanAll();
       const networkScope = mockAssets();

@@ -588,6 +588,49 @@ describe('PhishingDataService', () => {
       expect(Object.keys(response.results)).toHaveLength(3);
     });
 
+    it('batches a bulk call even when rehydration times out', async () => {
+      const batchSizes: number[] = [];
+      nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`)
+        .times(3)
+        .reply(function (_uri, body) {
+          const { urls } = body as { urls: string[] };
+          batchSizes.push(urls.length);
+          return [
+            200,
+            {
+              results: Object.fromEntries(
+                urls.map((url) => [url, { recommendedAction: 'NONE' }]),
+              ),
+              errors: {},
+            },
+          ];
+        });
+      const { rootMessenger, service } = createService({
+        options: {
+          persistenceConfig: {
+            maxAge: inMilliseconds(5, Duration.Minute),
+            hydrationTimeout: 20,
+          },
+        },
+        setItemMock: jest.fn(),
+        getItemMock: jest.fn(() => new Promise(() => undefined)),
+      });
+      service.init();
+
+      const response = await rootMessenger.call(
+        'PhishingDataService:bulkScanUrls',
+        [
+          'https://example1.com',
+          'https://example2.com',
+          'https://example3.com',
+        ],
+      );
+
+      expect(batchSizes).toStrictEqual([3]);
+      expect(Object.keys(response.results)).toHaveLength(3);
+    });
+
     it('does not retry per-URL errors reported by the endpoint', async () => {
       let requests = 0;
       nock(PHISHING_DETECTION_BASE_URL)
