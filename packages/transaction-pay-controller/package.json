@@ -67,7 +67,7 @@
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/sentinel-api-service": "^2.0.0",
     "@metamask/transaction-controller": "^70.0.0",
-    "@metamask/utils": "^12.0.0",
+    "@metamask/utils": "^11.12.0",
     "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",
