@@ -9,12 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add support for executing mutations by updating `createUIQueryClient` and adding `useMutation` wrapper ([#9324](https://github.com/MetaMask/core/pull/9324))
-  - Provided an action in your data service uses `BaseDataService.executeMutation` to make the request instead of `fetchQuery`, you can now use `useMutation` in your UI files via the UI query client and pass a reference to the action as the mutation key.
-  - Like `fetchQuery` and `fetchInfiniteQuery`, the `useMutation` wrapper disables retries by default and enforces that `mutationKey` matches the same thing that `executeMutation` takes.
-  - `createUIQueryClient` now tags each mutation it creates with a unique `globalId` (stored on the mutation's `meta`) and passes it to the data service action as the trailing argument. It uses this `globalId` to update the exact UI mutation that a `:cacheUpdated` event corresponds to, so mutations sharing a `mutationKey` no longer clobber one another, and mutations that use a custom `mutationFn` are left untouched.
-  - The `globalId` is minted once per mutation as it is built, so that each `mutate` call from the same observer gets its own id, and re-rendering (which re-defaults a mutation's options) can no longer change the id of an in-flight mutation and detach it from its `:cacheUpdated` events.
-  - Only `updated` `:cacheUpdated` events are synced to UI mutations. An `added` event carries the service mutation in its initial `idle` state, so hydrating it would overwrite (and wipe the result of) a UI mutation that had already settled.
+- Add support for mutations ([#9324](https://github.com/MetaMask/core/pull/9324))
+  - You can now use `useMutation` in your UI files via the UI query client, passing a reference to the action and its called arguments through the `mutationKey` option (e.g. `['SocialService:follow', '0xaaaa', '0xbbbb']`).
+    - This assumes that the data service method you want to call uses `BaseDataService.executeMutation` to make the request instead of `fetchQuery`, but should also take a trailing `globalId` argument.
+    - Retries are disabled by default.
+  - Also, the query client returned by `createUIQueryClient` is now aware of mutations and will ensure that they are copied from data service query clients properly.
 
 ### Changed
 
