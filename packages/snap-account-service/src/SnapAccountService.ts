@@ -906,6 +906,7 @@ export class SnapAccountService {
       `Forwarding message "${event}" from Snap "${snapId}" as a SnapAccountService event...`,
     );
 
+    let drop = false;
     if (event === KeyringEvent.AccountAssetListUpdated) {
       assertStruct(message, AccountAssetListUpdatedEventStruct);
       const assets = this.#filterOwnedAccountEntries(
@@ -919,9 +920,7 @@ export class SnapAccountService {
           assets,
         });
       } else {
-        log(
-          `Dropping "${event}" from Snap "${snapId}": no Snap-owned accounts in the update.`,
-        );
+        drop = true;
       }
     } else if (event === KeyringEvent.AccountBalancesUpdated) {
       assertStruct(message, AccountBalancesUpdatedEventStruct);
@@ -936,9 +935,7 @@ export class SnapAccountService {
           balances,
         });
       } else {
-        log(
-          `Dropping "${event}" from Snap "${snapId}": no Snap-owned accounts in the update.`,
-        );
+        drop = true;
       }
     } else if (event === KeyringEvent.AccountTransactionsUpdated) {
       assertStruct(message, AccountTransactionsUpdatedEventStruct);
@@ -956,10 +953,14 @@ export class SnapAccountService {
           },
         );
       } else {
-        log(
-          `Dropping "${event}" from Snap "${snapId}": no Snap-owned accounts in the update.`,
-        );
+        drop = true;
       }
+    }
+
+    if (drop) {
+      log(
+        `Dropping "${event}" from Snap "${snapId}": no Snap-owned accounts in the update.`,
+      );
     }
 
     // We need to return a valid JSON value, so we cannot use `undefined` here.
