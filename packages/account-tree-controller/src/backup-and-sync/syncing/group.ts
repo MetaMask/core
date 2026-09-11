@@ -174,42 +174,6 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
 
   shouldPushGroup ||= shouldPushForName;
 
-  // Compare and sync pinned metadata
-  const shouldPushForPinned = await compareAndSyncMetadata({
-    context,
-    localMetadata: groupPersistedMetadata?.pinned,
-    userStorageMetadata: groupFromUserStorage.pinned,
-    validateUserStorageValue: (value) =>
-      UserStorageSyncedWalletGroupSchema.schema.pinned.schema.value.is(value),
-    applyLocalUpdate: (pinned: boolean) => {
-      context.controller.setAccountGroupPinned(localGroup.id, pinned);
-    },
-    analytics: {
-      action: BackupAndSyncAnalyticsEvent.GroupPinnedStatusChanged,
-      profileId,
-    },
-  });
-
-  shouldPushGroup ||= shouldPushForPinned;
-
-  // Compare and sync hidden metadata
-  const shouldPushForHidden = await compareAndSyncMetadata({
-    context,
-    localMetadata: groupPersistedMetadata?.hidden,
-    userStorageMetadata: groupFromUserStorage.hidden,
-    validateUserStorageValue: (value) =>
-      UserStorageSyncedWalletGroupSchema.schema.hidden.schema.value.is(value),
-    applyLocalUpdate: (hidden: boolean) => {
-      context.controller.setAccountGroupHidden(localGroup.id, hidden);
-    },
-    analytics: {
-      action: BackupAndSyncAnalyticsEvent.GroupHiddenStatusChanged,
-      profileId,
-    },
-  });
-
-  shouldPushGroup ||= shouldPushForHidden;
-
   return shouldPushGroup;
 }
 

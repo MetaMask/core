@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Stop syncing account group `pinned` and `hidden` metadata with user storage ([#10186](https://github.com/MetaMask/core/pull/10186))
+  - These fields remain persisted locally and can still be imported/exported via `:{import,export}State`.
 - Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.0` ([#10184](https://github.com/MetaMask/core/pull/10184))
 
 ## [10.0.1]

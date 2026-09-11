@@ -24,9 +24,9 @@ import type { AccountWalletObject } from './wallet.js';
 export type AccountTreeGroupPersistedMetadata = {
   /** Custom name set by user, overrides default naming logic */
   name?: UpdatableField<string>;
-  /** Whether this group is pinned in the UI */
+  /** Whether this group is pinned in the UI (local-only, not synced) */
   pinned?: UpdatableField<boolean>;
-  /** Whether this group is hidden in the UI */
+  /** Whether this group is hidden in the UI (local-only, not synced) */
   hidden?: UpdatableField<boolean>;
   /** Timestamp of the last time this group was selected (local-only, not synced) */
   lastSelected?: number;
