@@ -382,9 +382,10 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
         // We can't realistically test that it doesn't, since
         // `MutationCache.build` always runs first.
         // istanbul ignore next
-        if (globalId === undefined) {
-          assert('Expected mutation to have a `globalId`.');
-        }
+        assert(
+          globalId !== undefined,
+          'Expected mutation to have a `globalId` in its `meta` by the time its `mutationFn` runs, but none was found. This is a bug in `createUIQueryClient`.',
+        );
 
         return await messenger.call(action, ...(params as Json[]), globalId);
       };
