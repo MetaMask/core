@@ -2331,7 +2331,7 @@ describe('AccountsController', () => {
     });
   });
 
-  describe('updateAccounts', () => {
+  describe('#sync', () => {
     const mockAddress1 = '0x123';
     const mockAddress2 = '0x456';
     let mockSnapAccount: InternalAccount;
@@ -2434,7 +2434,7 @@ describe('AccountsController', () => {
       ];
       mockUUIDWithNormalAccounts(expectedAccounts);
 
-      await accountsController.updateAccounts();
+      accountsController.init();
 
       expect(accountsController.listMultichainAccounts()).toStrictEqual(
         expectedAccounts,
@@ -2505,7 +2505,7 @@ describe('AccountsController', () => {
 
       const expectedAccounts = [expectedAccount1, expectedAccount2];
 
-      await accountsController.updateAccounts();
+      accountsController.init();
 
       expect(
         accountsController
@@ -2539,7 +2539,7 @@ describe('AccountsController', () => {
 
       const expectedAccounts: InternalAccount[] = [];
 
-      await accountsController.updateAccounts();
+      accountsController.init();
 
       expect(accountsController.listMultichainAccounts()).toStrictEqual(
         expectedAccounts,
@@ -2605,7 +2605,7 @@ describe('AccountsController', () => {
       ];
       mockUUIDWithNormalAccounts(expectedAccounts);
 
-      await accountsController.updateAccounts();
+      accountsController.init();
 
       expect(accountsController.listMultichainAccounts()).toStrictEqual(
         expectedAccounts,
@@ -2678,7 +2678,7 @@ describe('AccountsController', () => {
         }),
       ];
 
-      await accountsController.updateAccounts();
+      accountsController.init();
 
       expect(accountsController.listMultichainAccounts()).toStrictEqual(
         expectedAccounts,
@@ -2744,7 +2744,7 @@ describe('AccountsController', () => {
         }),
       ];
 
-      await accountsController.updateAccounts();
+      accountsController.init();
 
       expect(accountsController.listMultichainAccounts()).toStrictEqual(
         expectedAccounts,
@@ -2810,7 +2810,7 @@ describe('AccountsController', () => {
         }),
       ];
 
-      await accountsController.updateAccounts();
+      accountsController.init();
 
       expect(accountsController.listMultichainAccounts()).toStrictEqual(
         expectedAccounts,
@@ -2883,7 +2883,7 @@ describe('AccountsController', () => {
         }),
       ];
 
-      await accountsController.updateAccounts();
+      accountsController.init();
 
       expect(accountsController.listMultichainAccounts()).toStrictEqual(
         expectedAccounts,
@@ -2950,7 +2950,7 @@ describe('AccountsController', () => {
         }),
       ];
 
-      await accountsController.updateAccounts();
+      accountsController.init();
 
       expect(
         accountsController
@@ -2991,7 +2991,7 @@ describe('AccountsController', () => {
         messenger,
       });
 
-      await expect(accountsController.updateAccounts()).rejects.toThrow(
+      expect(() => accountsController.init()).toThrow(
         'Unknown keyring unknown',
       );
     });
@@ -3094,7 +3094,7 @@ describe('AccountsController', () => {
           messenger,
         });
 
-        await accountsController.updateAccounts();
+        accountsController.init();
 
         const selectedAccount = accountsController.getSelectedAccount();
 
@@ -3180,7 +3180,7 @@ describe('AccountsController', () => {
       });
 
       // Will automatically re-create the internal account list.
-      await accountsController.updateAccounts();
+      accountsController.init();
 
       const account = accountsController.getAccount(mockHdSnapAccount.id);
       expect(account?.options).toStrictEqual({
@@ -3270,7 +3270,7 @@ describe('AccountsController', () => {
       });
 
       // Will automatically re-create the internal account list.
-      await accountsController.updateAccounts();
+      accountsController.init();
 
       // This account has been skipped.
       expect(
@@ -3334,7 +3334,7 @@ describe('AccountsController', () => {
         messenger,
       });
 
-      await accountsController.updateAccounts();
+      accountsController.init();
 
       const accounts = accountsController.listMultichainAccounts();
       expect(accounts).toHaveLength(1);
@@ -3386,7 +3386,7 @@ describe('AccountsController', () => {
         messenger,
       });
 
-      await accountsController.updateAccounts();
+      accountsController.init();
 
       expect(accountsController.listMultichainAccounts()).toStrictEqual([]);
     });
@@ -3394,6 +3394,206 @@ describe('AccountsController', () => {
     it.todo(
       'does not re-fire a accountChanged event if the account is still the same',
     );
+  });
+
+  describe('init', () => {
+    function setupInitTest(): ReturnType<typeof setupAccountsController> {
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({ keyrings: [] }),
+      );
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([]),
+      );
+      return setupAccountsController({ messenger });
+    }
+
+    it('runs the internal sync', async () => {
+      const { accountsController } = setupInitTest();
+
+      // Verify init completes without throwing — the sync ran if no error occurs
+      expect(() => accountsController.init()).not.toThrow();
+    });
+
+    it('is a no-op on subsequent calls', async () => {
+      const { accountsController, messenger } = setupInitTest();
+
+      const initializedListener = jest.fn();
+      messenger.subscribe(
+        'AccountsController:initialized',
+        initializedListener,
+      );
+
+      accountsController.init();
+      accountsController.init();
+
+      // initialized event fires exactly once
+      expect(initializedListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('fires accountsAdded for accounts not previously in state', async () => {
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address],
+              metadata: { id: 'mock-id', name: 'mock-name' },
+            },
+          ],
+        }),
+      );
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([]),
+      );
+      mockUUIDWithNormalAccounts([mockAccount]);
+
+      const { accountsController } = setupAccountsController({
+        initialState: getDefaultAccountsControllerState(),
+        messenger,
+      });
+
+      const accountsAddedListener = jest.fn();
+      messenger.subscribe(
+        'AccountsController:accountsAdded',
+        accountsAddedListener,
+      );
+
+      accountsController.init();
+
+      expect(accountsAddedListener).toHaveBeenCalledTimes(1);
+      expect(accountsAddedListener.mock.calls[0][0]).toHaveLength(1);
+    });
+
+    it('does not fire accountsAdded for accounts already in state', async () => {
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address],
+              metadata: { id: 'mock-id', name: 'mock-name' },
+            },
+          ],
+        }),
+      );
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([]),
+      );
+      mockUUIDWithNormalAccounts([mockAccount]);
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: { [mockAccount.address]: mockAccount.id },
+        },
+        messenger,
+      });
+
+      const accountsAddedListener = jest.fn();
+      messenger.subscribe(
+        'AccountsController:accountsAdded',
+        accountsAddedListener,
+      );
+
+      accountsController.init();
+
+      expect(accountsAddedListener).not.toHaveBeenCalled();
+    });
+
+    it('fires accountsRemoved for accounts dropped by the keyring rebuild', async () => {
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        // keyrings are now empty — mockAccount is no longer in any keyring
+        mockGetState.mockReturnValue({ keyrings: [] }),
+      );
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([]),
+      );
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: { [mockAccount.address]: mockAccount.id },
+        },
+        messenger,
+      });
+
+      const accountsRemovedListener = jest.fn();
+      messenger.subscribe(
+        'AccountsController:accountsRemoved',
+        accountsRemovedListener,
+      );
+
+      accountsController.init();
+
+      expect(accountsRemovedListener).toHaveBeenCalledTimes(1);
+      expect(accountsRemovedListener).toHaveBeenCalledWith([mockAccount.id]);
+    });
+
+    it('fires the initialized event with current state', async () => {
+      const { accountsController, messenger } = setupInitTest();
+
+      const initializedListener = jest.fn();
+      messenger.subscribe(
+        'AccountsController:initialized',
+        initializedListener,
+      );
+
+      accountsController.init();
+
+      expect(initializedListener).toHaveBeenCalledTimes(1);
+      expect(initializedListener).toHaveBeenCalledWith(
+        accountsController.state,
+      );
+    });
+
+    it('does not fire initialized on subsequent calls', async () => {
+      const { accountsController, messenger } = setupInitTest();
+
+      const initializedListener = jest.fn();
+      messenger.subscribe(
+        'AccountsController:initialized',
+        initializedListener,
+      );
+
+      accountsController.init();
+      accountsController.init();
+
+      expect(initializedListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('runs again after clearState resets the flag', async () => {
+      const { accountsController, messenger } = setupInitTest();
+
+      const initializedListener = jest.fn();
+      messenger.subscribe(
+        'AccountsController:initialized',
+        initializedListener,
+      );
+
+      accountsController.init();
+      accountsController.clearState();
+      accountsController.init();
+
+      expect(initializedListener).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('clearState', () => {
@@ -3451,6 +3651,20 @@ describe('AccountsController', () => {
       expect(accountsController.state).toStrictEqual(
         getDefaultAccountsControllerState(),
       );
+    });
+
+    it('fires the uninitialized event', () => {
+      const { accountsController, messenger } = setupAccountsController({});
+
+      const uninitializedListener = jest.fn();
+      messenger.subscribe(
+        'AccountsController:uninitialized',
+        uninitializedListener,
+      );
+
+      accountsController.clearState();
+
+      expect(uninitializedListener).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -4511,7 +4725,6 @@ describe('AccountsController', () => {
       jest.spyOn(AccountsController.prototype, 'listAccounts');
       jest.spyOn(AccountsController.prototype, 'listMultichainAccounts');
       jest.spyOn(AccountsController.prototype, 'setAccountName');
-      jest.spyOn(AccountsController.prototype, 'updateAccounts');
       jest.spyOn(AccountsController.prototype, 'getAccountByAddress');
       jest.spyOn(AccountsController.prototype, 'getSelectedAccount');
       jest.spyOn(AccountsController.prototype, 'getAccount');
@@ -4677,8 +4890,8 @@ describe('AccountsController', () => {
       });
     });
 
-    describe('updateAccounts', () => {
-      it('update accounts', async () => {
+    describe('init', () => {
+      it('is callable via the messenger and fires initialized event', async () => {
         const messenger = buildMessenger();
         messenger.registerActionHandler(
           'KeyringController:getState',
@@ -4689,7 +4902,7 @@ describe('AccountsController', () => {
           mockGetKeyringByType.mockReturnValueOnce([]),
         );
 
-        const { accountsController } = setupAccountsController({
+        setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: { [mockAccount.id]: mockAccount },
@@ -4702,8 +4915,15 @@ describe('AccountsController', () => {
           messenger,
         });
 
-        await messenger.call('AccountsController:updateAccounts');
-        expect(accountsController.updateAccounts).toHaveBeenCalledWith();
+        const initializedListener = jest.fn();
+        messenger.subscribe(
+          'AccountsController:initialized',
+          initializedListener,
+        );
+
+        messenger.call('AccountsController:init');
+
+        expect(initializedListener).toHaveBeenCalledTimes(1);
       });
     });
 

@@ -151,16 +151,19 @@ export type AccountsControllerUpdateAccountMetadataAction = {
 };
 
 /**
- * Updates the internal accounts list by retrieving normal and snap accounts,
- * removing duplicates, and updating the metadata of each account.
+ * Initializes the controller by loading accounts from the current keyring
+ * state. Any accounts present in the keyrings but missing from the
+ * controller's state are added; existing accounts are preserved.
+ *
+ * Intended to be called after {@link clearState} to restore accounts from
+ * the keyrings (i.e. `clearState` then `init`), or on first startup.
  *
  * @deprecated This method is deprecated and will be removed in a future version.
  * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- * @returns A Promise that resolves when the accounts have been updated.
  */
-export type AccountsControllerUpdateAccountsAction = {
-  type: `AccountsController:updateAccounts`;
-  handler: AccountsController['updateAccounts'];
+export type AccountsControllerInitAction = {
+  type: `AccountsController:init`;
+  handler: AccountsController['init'];
 };
 
 /**
@@ -201,6 +204,6 @@ export type AccountsControllerMethodActions =
   | AccountsControllerSetAccountNameAction
   | AccountsControllerSetAccountNameAndSelectAccountAction
   | AccountsControllerUpdateAccountMetadataAction
-  | AccountsControllerUpdateAccountsAction
+  | AccountsControllerInitAction
   | AccountsControllerLoadBackupAction
   | AccountsControllerClearStateAction;
