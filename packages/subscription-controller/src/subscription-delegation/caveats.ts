@@ -26,7 +26,6 @@ export type BuildSubscriptionCaveatsParams = {
 /**
  * Builds the caveat list for a cash-subscription delegation:
  * `ValueLte(0)` then `ERC20TokenPeriodTransfer(...)`.
- * RedeemerEnforcer is temporarily omitted pending CHOMP guidance.
  *
  * @param params - Enforcer addresses, parties, and period terms.
  * @param params.enforcers - Delegation Framework enforcer addresses.
@@ -59,13 +58,6 @@ export function buildSubscriptionCaveats({
       }),
       args: '0x',
     },
-    // TODO: recheck with CHOMP team if we should set redeemer to subscription payment address
-    // or use allowed call data
-    // {
-    //   enforcer: enforcers.redeemer,
-    //   terms: createRedeemerTerms({ redeemers: [delegateAddress] }),
-    //   args: '0x',
-    // },
   ];
 }
 

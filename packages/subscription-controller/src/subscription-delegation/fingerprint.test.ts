@@ -1,7 +1,6 @@
 import type { DelegationResponse } from '@metamask/authenticated-user-storage';
 import {
   createERC20TokenPeriodTransferTerms,
-  createRedeemerTerms,
   createValueLteTerms,
   ROOT_AUTHORITY,
 } from '@metamask/delegation-core';
@@ -15,7 +14,6 @@ import { CASH_SUBSCRIPTION_DELEGATION_TYPE } from './types.js';
 
 const VALUE_LTE = '0x1111111111111111111111111111111111111111' as Hex;
 const PERIOD = '0x2222222222222222222222222222222222222222' as Hex;
-const REDEEMER = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
 const TOKEN = '0x3333333333333333333333333333333333333333' as Hex;
 const DELEGATE = '0x4444444444444444444444444444444444444444' as Hex;
 const DELEGATOR = '0x5555555555555555555555555555555555555555' as Hex;
@@ -34,9 +32,6 @@ function buildEntry({
   startDate = 1_700_000_000,
   valueLteEnforcer = VALUE_LTE,
   periodEnforcer = PERIOD,
-  redeemerEnforcer = REDEEMER,
-  redeemerAddress = DELEGATE,
-  includeRedeemer = false,
   maxValue = 0n,
 }: {
   type?: string;
@@ -49,9 +44,6 @@ function buildEntry({
   startDate?: number;
   valueLteEnforcer?: Hex;
   periodEnforcer?: Hex;
-  redeemerEnforcer?: Hex;
-  redeemerAddress?: Hex;
-  includeRedeemer?: boolean;
   maxValue?: bigint;
 } = {}): DelegationResponse {
   const caveats = [
@@ -71,14 +63,6 @@ function buildEntry({
       args: '0x' as Hex,
     },
   ];
-
-  if (includeRedeemer) {
-    caveats.push({
-      enforcer: redeemerEnforcer,
-      terms: createRedeemerTerms({ redeemers: [redeemerAddress] }),
-      args: '0x' as Hex,
-    });
-  }
 
   return {
     signedDelegation: {
@@ -114,7 +98,6 @@ const expected = {
   enforcers: {
     valueLte: VALUE_LTE,
     erc20TokenPeriodTransfer: PERIOD,
-    redeemer: REDEEMER,
   },
 };
 
@@ -174,7 +157,6 @@ describe('makeMatchesSubscriptionDelegation', () => {
           delegate: upper(DELEGATE),
           tokenAddress: upper(TOKEN),
           chainIdHex: upper(CHAIN_ID),
-          redeemerAddress: upper(DELEGATE),
         }),
       ),
     ).toBe(true);
@@ -219,10 +201,6 @@ describe('makeMatchesSubscriptionDelegation', () => {
     entry.signedDelegation.caveats = [];
 
     expect(matches(entry)).toBe(false);
-  });
-
-  it('still matches when the redeemer caveat is present', () => {
-    expect(matches(buildEntry({ includeRedeemer: true }))).toBe(true);
   });
 
   it('rejects a delegation with malformed caveat terms', () => {

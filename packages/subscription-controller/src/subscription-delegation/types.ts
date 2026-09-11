@@ -78,5 +78,4 @@ export type MoneyAccountBalanceCheckResult = {
 export type SubscriptionDelegationEnforcers = {
   valueLte: Hex;
   erc20TokenPeriodTransfer: Hex;
-  redeemer: Hex;
 };

@@ -68,11 +68,7 @@ function resolveEnforcers(chainId: Hex): SubscriptionDelegationEnforcers {
   const contracts =
     DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION]?.[hexToNumber(chainId)];
 
-  if (
-    !contracts?.ValueLteEnforcer ||
-    !contracts.ERC20PeriodTransferEnforcer ||
-    !contracts.RedeemerEnforcer
-  ) {
+  if (!contracts?.ValueLteEnforcer || !contracts.ERC20PeriodTransferEnforcer) {
     throw new Error(
       `${SubscriptionDelegationServiceErrorMessage.DelegationContractsNotFound}: ${chainId}`,
     );
@@ -81,7 +77,6 @@ function resolveEnforcers(chainId: Hex): SubscriptionDelegationEnforcers {
   return {
     valueLte: contracts.ValueLteEnforcer,
     erc20TokenPeriodTransfer: contracts.ERC20PeriodTransferEnforcer,
-    redeemer: contracts.RedeemerEnforcer,
   };
 }
 
@@ -160,8 +155,7 @@ type ResolvedSubscriptionDelegationConfig = {
  *
  * Each call resolves the Money Account chain from remote feature flags, then
  * resolves its price, payment token, and delegate from `SubscriptionController`
- * pricing. The pricing `delegateAddress` is used as both the delegation
- * `delegate` and the RedeemerEnforcer redeemer.
+ * pricing. The pricing `delegateAddress` is used as the delegation `delegate`.
  *
  * Does not own subscription state; `SubscriptionController` does not depend on
  * this service. Only Money Account Plus is supported.

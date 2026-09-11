@@ -1,6 +1,5 @@
 import {
   createERC20TokenPeriodTransferTerms,
-  createRedeemerTerms,
   createValueLteTerms,
   decodeERC20TokenPeriodTransferTerms,
   hashDelegation,
@@ -34,11 +33,8 @@ const PAYER = '0x5555555555555555555555555555555555555555' as Hex;
 const CHAIN_ID = '0x1' as Hex;
 const TOKEN_DECIMALS = 18;
 const SIGNATURE: Hex = `0x${'ab'.repeat(65)}`;
-const {
-  ValueLteEnforcer: VALUE_LTE,
-  ERC20PeriodTransferEnforcer: PERIOD,
-  RedeemerEnforcer: REDEEMER,
-} = DELEGATOR_CONTRACTS['1.3.0'][1];
+const { ValueLteEnforcer: VALUE_LTE, ERC20PeriodTransferEnforcer: PERIOD } =
+  DELEGATOR_CONTRACTS['1.3.0'][1];
 
 const MONEY_ACCOUNT_VAULT_CONFIG = {
   chainId: CHAIN_ID,
@@ -321,11 +317,6 @@ function buildStoredDelegation({
             periodDuration,
             startDate,
           }),
-          args: '0x',
-        },
-        {
-          enforcer: REDEEMER,
-          terms: createRedeemerTerms({ redeemers: [DELEGATE] }),
           args: '0x',
         },
       ],
