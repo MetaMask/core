@@ -87,6 +87,7 @@ function processAccountActivityBalanceUpdates(
 
     assetsBalance[accountId][assetId] = {
       amount: humanReadableAmount,
+      ...(postBalance.metadata ? { metadata: postBalance.metadata } : {}),
     };
 
     assetsMetadata[assetId] = {

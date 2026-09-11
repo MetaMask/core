@@ -341,6 +341,55 @@ describe('AccountActivityDataSource', () => {
       cleanup();
     });
 
+    it('persists Stellar trustline metadata from postBalance', async () => {
+      const STELLAR_CHAIN = 'stellar:pubnet' as ChainId;
+      const STELLAR_ADDRESS =
+        'GCRTHNJHYCV4F4JOAIMUE2ALYPE3C7Q53XTSUVGYJ4UXYIKWZAK7FWPG';
+      const STELLAR_USDC =
+        'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' as Caip19AssetId;
+      const trustlineMetadata = {
+        authorized: true,
+        limit: '9223372036854775807',
+      };
+      const account = createMockAccount({
+        address: STELLAR_ADDRESS,
+        type: 'stellar:ss58',
+        scopes: [STELLAR_CHAIN],
+      });
+      const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
+        groupAccounts: [account],
+      });
+
+      triggerBalanceUpdated({
+        address: STELLAR_ADDRESS,
+        chain: STELLAR_CHAIN,
+        updates: [
+          createBalanceUpdate({
+            asset: {
+              type: STELLAR_USDC,
+              unit: 'USDC',
+              decimals: 7,
+            },
+            postBalance: {
+              amount: '201421',
+              metadata: trustlineMetadata,
+            },
+          }),
+        ],
+      });
+
+      await Promise.resolve();
+
+      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(response.assetsBalance[account.id][STELLAR_USDC]).toStrictEqual({
+        amount: '0.0201421',
+        metadata: trustlineMetadata,
+      });
+
+      cleanup();
+    });
+
     it('resolves the asset type via the injected getAssetType', async () => {
       const { getAssetType, triggerBalanceUpdated, cleanup } = setup({
         getAssetType: () => 'erc20',

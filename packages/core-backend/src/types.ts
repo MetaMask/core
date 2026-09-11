@@ -1,3 +1,5 @@
+import type { Json } from '@metamask/utils';
+
 /**
  * Basic transaction information
  */
@@ -38,6 +40,13 @@ export type Balance = {
   amount: string;
   /** Optional error message */
   error?: string;
+  /**
+   * Network-specific balance properties from Account Activity websocket
+   * messages. Stellar trustlines typically include `limit`, `authorized`, and
+   * optionally `sponsor` (sponsor address). This is the stream payload, not
+   * the Accounts API camelCase fields (`sponsored`, `spendableBalance`, …).
+   */
+  metadata?: Json;
 };
 
 /**
