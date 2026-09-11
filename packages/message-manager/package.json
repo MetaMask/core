@@ -55,7 +55,7 @@
     "@metamask/utils": "^12.0.0",
     "@types/uuid": "^9.0.8",
     "jsonschema": "^1.4.1",
-    "uuid": "^9.0.1"
+    "uuid": "^14.0.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
