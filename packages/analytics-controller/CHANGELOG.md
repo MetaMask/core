@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add independent marketing consent (`optedInToMarketing`, `optInToMarketing` / `optOutOfMarketing` / `resetMarketingConsentDecision`) and classify named events against a remote marketing-events list from `ConfigRegistryApiService:fetchMarketingEvents`
+- Stamp `context.marketing` (`true` or `false`) on named `track` and `view` payloads so Segment can tell marketing events from product events
+
 ### Changed
 
+- Treat an event fragment that declares both marketing and product event names as marketing at write time
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 

@@ -5,6 +5,9 @@
       "path": "../base-controller"
     },
     {
+      "path": "../config-registry-controller"
+    },
+    {
       "path": "../geolocation-controller"
     },
     {

@@ -9,7 +9,10 @@ import type {
   ConfigRegistryApiServiceMessenger,
   ConfigRegistryApiServiceOptions,
 } from './config-registry-api-service.js';
-import type { RegistryConfigApiResponse } from './types.js';
+import type {
+  MarketingEventsApiResponse,
+  RegistryConfigApiResponse,
+} from './types.js';
 
 function createMockServiceMessenger(): ConfigRegistryApiServiceMessenger {
   return {
@@ -36,6 +39,16 @@ const MOCK_API_RESPONSE: RegistryConfigApiResponse = {
     version: '"24952800ba9dafbc5e2c91f57f386d28"',
     timestamp: 1761829548000,
     chains: [createMockNetworkConfig()],
+  },
+};
+
+const MARKETING_EVENTS_PATH = '/v1/config/marketing-events';
+
+const MOCK_MARKETING_EVENTS_RESPONSE: MarketingEventsApiResponse = {
+  data: {
+    version: 'abc123',
+    timestamp: 1761829548000,
+    eventNames: ['Deep Link Used'],
   },
 };
 
@@ -299,6 +312,126 @@ describe('ConfigRegistryApiService', () => {
 
       expect(result).toMatchObject({ modified: true, data: MOCK_API_RESPONSE });
       expect(successScope.isDone()).toBe(true);
+    });
+  });
+
+  describe('fetchMarketingEvents', () => {
+    describe('URL by env', () => {
+      it('uses UAT URL when env is UAT', async () => {
+        const scope = nock(UAT_ORIGIN)
+          .get(MARKETING_EVENTS_PATH)
+          .reply(200, MOCK_MARKETING_EVENTS_RESPONSE);
+
+        const service = createService({ env: ConfigRegistryApiEnv.UAT });
+        await service.fetchMarketingEvents();
+        expect(scope.isDone()).toBe(true);
+      });
+
+      it('uses DEV URL when env is DEV', async () => {
+        const scope = nock(DEV_ORIGIN)
+          .get(MARKETING_EVENTS_PATH)
+          .reply(200, MOCK_MARKETING_EVENTS_RESPONSE);
+
+        const service = createService({ env: ConfigRegistryApiEnv.DEV });
+        await service.fetchMarketingEvents();
+        expect(scope.isDone()).toBe(true);
+      });
+
+      it('uses PRD URL when env is PRD', async () => {
+        const scope = nock(PRD_ORIGIN)
+          .get(MARKETING_EVENTS_PATH)
+          .reply(200, MOCK_MARKETING_EVENTS_RESPONSE);
+
+        const service = createService({ env: ConfigRegistryApiEnv.PRD });
+        await service.fetchMarketingEvents();
+        expect(scope.isDone()).toBe(true);
+      });
+    });
+
+    it('fetches marketing events from API successfully', async () => {
+      const scope = nock(UAT_ORIGIN)
+        .get(MARKETING_EVENTS_PATH)
+        .reply(200, MOCK_MARKETING_EVENTS_RESPONSE, {
+          ETag: '"test-etag-123"',
+        });
+
+      const service = createService();
+      const result = await service.fetchMarketingEvents();
+
+      expect(result).toMatchObject({
+        modified: true,
+        etag: '"test-etag-123"',
+        data: MOCK_MARKETING_EVENTS_RESPONSE,
+      });
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('handles 304 Not Modified response', async () => {
+      const etag = '"test-etag-123"';
+      const scope = nock(UAT_ORIGIN)
+        .get(MARKETING_EVENTS_PATH)
+        .matchHeader('If-None-Match', etag)
+        .reply(304);
+
+      const service = createService();
+      const result = await service.fetchMarketingEvents({ etag });
+
+      expect(result.modified).toBe(false);
+      expect(result.data).toBeUndefined();
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('returns cached data when 304 is received and service has prior successful response', async () => {
+      const etag = '"test-etag-123"';
+      const firstScope = nock(UAT_ORIGIN)
+        .get(MARKETING_EVENTS_PATH)
+        .reply(200, MOCK_MARKETING_EVENTS_RESPONSE, { ETag: etag });
+
+      const service = createService();
+      await service.fetchMarketingEvents();
+      expect(firstScope.isDone()).toBe(true);
+
+      const secondScope = nock(UAT_ORIGIN)
+        .get(MARKETING_EVENTS_PATH)
+        .matchHeader('If-None-Match', etag)
+        .reply(304);
+
+      const result = await service.fetchMarketingEvents({ etag });
+
+      expect(result.modified).toBe(false);
+      expect(result.data).toStrictEqual(MOCK_MARKETING_EVENTS_RESPONSE);
+      expect(secondScope.isDone()).toBe(true);
+    });
+
+    it('throws error on invalid response structure', async () => {
+      const invalidResponse = { invalid: 'data' };
+      const scope = nock(UAT_ORIGIN)
+        .get(MARKETING_EVENTS_PATH)
+        .reply(200, invalidResponse);
+
+      const service = createService();
+
+      await expect(service.fetchMarketingEvents()).rejects.toMatchObject(
+        expect.objectContaining({ message: expect.any(String) }),
+      );
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('throws error on HTTP error status', async () => {
+      const scope = nock(UAT_ORIGIN)
+        .get(MARKETING_EVENTS_PATH)
+        .reply(500, 'Internal Server Error');
+
+      const service = createService({
+        policyOptions: { maxRetries: 0 },
+      });
+
+      await expect(service.fetchMarketingEvents()).rejects.toMatchObject(
+        expect.objectContaining({
+          message: 'Failed to fetch config: 500 Internal Server Error',
+        }),
+      );
+      expect(scope.isDone()).toBe(true);
     });
   });
 

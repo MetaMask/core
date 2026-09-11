@@ -115,3 +115,36 @@ export type FetchConfigResult =
       data: RegistryConfigApiResponse;
       etag?: string;
     };
+
+/**
+ * Schema for the marketing-events config registry API response.
+ */
+export const MarketingEventsApiResponseSchema = type({
+  data: type({
+    version: string(),
+    timestamp: number(),
+    eventNames: array(string()),
+  }),
+});
+
+export type MarketingEventsApiResponse = Infer<
+  typeof MarketingEventsApiResponseSchema
+>;
+
+export function validateMarketingEventsApiResponse(
+  data: unknown,
+): asserts data is MarketingEventsApiResponse {
+  assert(data, MarketingEventsApiResponseSchema);
+}
+
+export type FetchMarketingEventsResult =
+  | {
+      modified: false;
+      etag?: string;
+      data?: MarketingEventsApiResponse;
+    }
+  | {
+      modified: true;
+      data: MarketingEventsApiResponse;
+      etag?: string;
+    };

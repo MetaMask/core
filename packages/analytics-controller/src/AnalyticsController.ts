@@ -55,6 +55,30 @@ export const controllerName = 'AnalyticsController';
  */
 export const EVENT_FRAGMENT_MAX_AGE = 24 * 60 * 60 * 1000;
 
+/**
+ * Consent lane for a named analytics payload.
+ *
+ * Chosen from the marketing-events list at capture, then stored as
+ * `context.marketing` so queues and fragments do not look up the name again.
+ */
+const AnalyticsLane = {
+  Marketing: 'marketing',
+  Product: 'product',
+} as const;
+
+type AnalyticsLane = (typeof AnalyticsLane)[keyof typeof AnalyticsLane];
+
+/**
+ * Persisted queue fields on {@link AnalyticsControllerState}.
+ */
+const AnalyticsQueueField = {
+  Event: 'eventQueue',
+  PreConsent: 'preConsentEventQueue',
+} as const;
+
+type AnalyticsQueueField =
+  (typeof AnalyticsQueueField)[keyof typeof AnalyticsQueueField];
+
 // === STATE ===
 
 /**
@@ -65,6 +89,29 @@ export type AnalyticsControllerState = {
    * Whether the user has opted in to analytics.
    */
   optedIn: boolean;
+
+  /**
+   * Whether the user has opted in to marketing analytics.
+   *
+   * Independent of {@link optedIn}. Named events in the remote marketing list
+   * are governed only by this flag. Optional for backward compatibility with
+   * persisted state that predates this field. Missing values are treated as
+   * `false`.
+   */
+  optedInToMarketing?: boolean;
+
+  /**
+   * Whether the user has made a marketing consent decision (opted in or opted
+   * out). Mirrors {@link consentDecisionMade} for the marketing lane.
+   * Optional for backward compatibility. Missing values are treated as `false`.
+   */
+  marketingConsentDecisionMade?: boolean;
+
+  /**
+   * Cached marketing event names from the config registry. Used to classify
+   * events when offline. Optional for backward compatibility.
+   */
+  marketingEventNames?: string[];
 
   /**
    * User's UUIDv4 analytics identifier.
@@ -195,6 +242,8 @@ export function getDefaultAnalyticsControllerState(): Omit<
   return {
     optedIn: false,
     consentDecisionMade: false,
+    optedInToMarketing: false,
+    marketingConsentDecisionMade: false,
   };
 }
 
@@ -210,6 +259,24 @@ const analyticsControllerMetadata = {
     persist: true,
     includeInDebugSnapshot: true,
     usedInUi: true,
+  },
+  optedInToMarketing: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  marketingConsentDecisionMade: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  marketingEventNames: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: false,
   },
   analyticsId: {
     includeInStateLogs: true,
@@ -252,6 +319,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'optIn',
   'optOut',
   'resetConsentDecision',
+  'optInToMarketing',
+  'optOutOfMarketing',
+  'resetMarketingConsentDecision',
   'createEventFragment',
   'upsertEventFragment',
   'updateEventFragment',
@@ -278,7 +348,24 @@ export type AnalyticsControllerActions =
 /**
  * Actions from other messengers that {@link AnalyticsControllerMessenger} calls.
  */
-type AllowedActions = GeolocationControllerGetGeolocationDataAction;
+type ConfigRegistryApiServiceFetchMarketingEventsAction = {
+  type: 'ConfigRegistryApiService:fetchMarketingEvents';
+  handler: (options?: { etag?: string }) => Promise<{
+    modified: boolean;
+    etag?: string;
+    data?: {
+      data: {
+        version: string;
+        timestamp: number;
+        eventNames: string[];
+      };
+    };
+  }>;
+};
+
+type AllowedActions =
+  | GeolocationControllerGetGeolocationDataAction
+  | ConfigRegistryApiServiceFetchMarketingEventsAction;
 
 /**
  * Event emitted when the state of the {@link AnalyticsController} changes.
@@ -537,22 +624,21 @@ function mergeEventFragment(
 }
 
 /**
- * Merges two optional analytics contexts, preserving `undefined` when neither
- * side has one so an empty context is never sent.
+ * Merges two optional analytics contexts.
  *
  * @param base - The context to merge into.
- * @param override - The context whose fields win.
+ * @param override - The context whose fields win. When omitted, `base` is kept.
  * @returns The merged context, or `undefined` when both sides are unset.
  */
 function mergeEventFragmentContext(
   base: AnalyticsContext | undefined,
   override: AnalyticsContext | undefined,
 ): AnalyticsContext | undefined {
-  if (base === undefined && override === undefined) {
-    return undefined;
+  if (override === undefined) {
+    return base;
   }
 
-  return { ...(base ?? {}), ...(override ?? {}) };
+  return { ...(base ?? {}), ...override };
 }
 
 /**
@@ -584,6 +670,12 @@ export class AnalyticsController extends BaseController<
   readonly #isGeolocationEnabled: boolean;
 
   readonly #isEventFragmentsEnabled: boolean;
+
+  /**
+   * In-memory lookup of marketing event names from the registry or persisted
+   * cache. Empty until a list is available.
+   */
+  #marketingEventNames: Set<string>;
 
   /**
    * The in-flight (or settled) initialization promise. Set on the first
@@ -651,6 +743,9 @@ export class AnalyticsController extends BaseController<
     this.#platformAdapter = platformAdapter;
     this.#initPromise = undefined;
     this.#locationResolvePromise = undefined;
+    this.#marketingEventNames = new Set(
+      initialState.marketingEventNames ?? [],
+    );
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -660,6 +755,9 @@ export class AnalyticsController extends BaseController<
     log('AnalyticsController initialized and ready', {
       enabled: analyticsControllerSelectors.selectEnabled(this.state),
       optedIn: this.state.optedIn,
+      optedInToMarketing: this.state.optedInToMarketing === true,
+      marketingConsentDecisionMade:
+        this.state.marketingConsentDecisionMade === true,
       consentDecisionMade: this.state.consentDecisionMade,
       analyticsId: this.state.analyticsId,
       eventQueuePersistenceEnabled: this.#isEventQueuePersistenceEnabled,
@@ -718,9 +816,12 @@ export class AnalyticsController extends BaseController<
       }
     }
 
-    // Resolve geolocation only when the user is already opted in; for undecided
-    // or opted-out users it is deferred to {@link optIn}. Awaited so that an
-    // already-opted-in session has location available before events replay.
+    await this.#fetchMarketingEventNames();
+
+    // Resolve geolocation only when the user is already opted in to product or
+    // marketing analytics. For undecided or opted-out users it is deferred to
+    // {@link optIn} / {@link optInToMarketing}. Awaited so that an already-opted-in
+    // session has location available before events replay.
     await this.#maybeResolveLocation();
 
     // Call onSetupCompleted lifecycle hook after initialization
@@ -757,7 +858,7 @@ export class AnalyticsController extends BaseController<
     if (
       this.#isGeolocationEnabled &&
       this.#locationResolvePromise === undefined &&
-      analyticsControllerSelectors.selectEnabled(this.state)
+      (this.state.optedIn || this.state.optedInToMarketing === true)
     ) {
       this.#locationResolvePromise = this.#resolveLocationContext();
     }
@@ -813,22 +914,225 @@ export class AnalyticsController extends BaseController<
   }
 
   /**
+   * Stamp the capture lane on context as `marketing` for Segment.
+   *
+   * @param lane - Marketing or product.
+   * @param context - Optional caller-provided context.
+   * @param includeLocation - When false, skip geolocation enrichment.
+   * @returns Context with `marketing` set.
+   */
+  #contextForLane(
+    lane: AnalyticsLane,
+    context?: AnalyticsContext,
+    includeLocation = true,
+  ): AnalyticsContext {
+    const withLocation = includeLocation
+      ? this.#withLocationContext(context)
+      : context;
+
+    return {
+      ...withLocation,
+      marketing: lane === AnalyticsLane.Marketing,
+    };
+  }
+
+  /**
+   * Fetch marketing event names from the config registry and cache them.
+   * On failure or an unmodified empty response, keep whatever names are
+   * already in memory (persisted cache, or none).
+   */
+  async #fetchMarketingEventNames(): Promise<void> {
+    try {
+      const result = await this.messenger.call(
+        'ConfigRegistryApiService:fetchMarketingEvents',
+      );
+
+      if (!result.modified && result.data === undefined) {
+        return;
+      }
+
+      const eventNames = result.data?.data.eventNames;
+      if (eventNames === undefined) {
+        return;
+      }
+
+      this.#setMarketingEventNames(eventNames);
+    } catch (error) {
+      log('Failed to fetch marketing event names from the config registry', {
+        error,
+      });
+    }
+  }
+
+  #setMarketingEventNames(eventNames: string[]): void {
+    this.#marketingEventNames = new Set(eventNames);
+
+    const currentNames = this.state.marketingEventNames;
+    if (
+      currentNames?.length === eventNames.length &&
+      currentNames.every((name, index) => name === eventNames[index])
+    ) {
+      return;
+    }
+
+    this.update((state) => {
+      state.marketingEventNames = eventNames;
+    });
+  }
+
+  #laneFromName(name: string): AnalyticsLane {
+    return this.#marketingEventNames.has(name)
+      ? AnalyticsLane.Marketing
+      : AnalyticsLane.Product;
+  }
+
+  #laneFromContext(context?: AnalyticsContext): AnalyticsLane {
+    return context?.marketing === true
+      ? AnalyticsLane.Marketing
+      : AnalyticsLane.Product;
+  }
+
+  #laneFromQueuedEvent(queuedEvent: AnalyticsQueuedEvent): AnalyticsLane {
+    if (typeof queuedEvent.context?.marketing === 'boolean') {
+      return this.#laneFromContext(queuedEvent.context);
+    }
+
+    if (queuedEvent.type === 'track') {
+      return this.#laneFromName(queuedEvent.eventName);
+    }
+
+    if (queuedEvent.type === 'view') {
+      return this.#laneFromName(queuedEvent.name);
+    }
+
+    return AnalyticsLane.Product;
+  }
+
+  #laneFromDeclaredNames(
+    fragment: Pick<
+      AnalyticsEventFragment,
+      'initialEvent' | 'successEvent' | 'failureEvent'
+    >,
+  ): AnalyticsLane {
+    const names = [
+      fragment.initialEvent,
+      fragment.successEvent,
+      fragment.failureEvent,
+    ].filter((name): name is string => typeof name === 'string');
+
+    return names.some(
+      (name) => this.#laneFromName(name) === AnalyticsLane.Marketing,
+    )
+      ? AnalyticsLane.Marketing
+      : AnalyticsLane.Product;
+  }
+
+  #laneFromFragment(
+    fragment: Pick<
+      AnalyticsEventFragment,
+      'initialEvent' | 'successEvent' | 'failureEvent' | 'context'
+    >,
+  ): AnalyticsLane {
+    if (typeof fragment.context?.marketing === 'boolean') {
+      return this.#laneFromContext(fragment.context);
+    }
+
+    return this.#laneFromDeclaredNames(fragment);
+  }
+
+  #stampFragmentLane(fragment: AnalyticsEventFragment): AnalyticsEventFragment {
+    return {
+      ...fragment,
+      context: this.#contextForLane(
+        this.#laneFromDeclaredNames(fragment),
+        fragment.context,
+        false,
+      ),
+    };
+  }
+
+  #consent(lane: AnalyticsLane): {
+    optedIn: boolean;
+    decisionMade: boolean;
+  } {
+    return lane === AnalyticsLane.Marketing
+      ? {
+          optedIn: this.state.optedInToMarketing === true,
+          decisionMade: this.state.marketingConsentDecisionMade === true,
+        }
+      : {
+          optedIn: this.state.optedIn,
+          decisionMade: this.state.consentDecisionMade === true,
+        };
+  }
+
+  #isCaptureAllowed(lane: AnalyticsLane): boolean {
+    const { optedIn, decisionMade } = this.#consent(lane);
+    return optedIn || (this.#isPreConsentQueueEnabled && !decisionMade);
+  }
+
+  #filterQueuedEvents(
+    queue: Record<string, Json>,
+    laneToClear: AnalyticsLane,
+  ): Record<string, Json> {
+    const nextQueue: Record<string, Json> = {};
+
+    for (const [messageId, queuedEvent] of Object.entries(queue)) {
+      if (
+        !isAnalyticsQueuedEvent(queuedEvent) ||
+        queuedEvent.messageId !== messageId
+      ) {
+        continue;
+      }
+
+      if (this.#laneFromQueuedEvent(queuedEvent) !== laneToClear) {
+        nextQueue[messageId] = queuedEvent as unknown as Json;
+      }
+    }
+
+    return nextQueue;
+  }
+
+  #replaceQueue(
+    field: AnalyticsQueueField,
+    nextQueue: Record<string, Json>,
+  ): void {
+    const currentQueue = this.state[field] as Record<string, Json>;
+    const currentKeys = Object.keys(currentQueue);
+    const nextKeys = Object.keys(nextQueue);
+
+    if (
+      currentKeys.length === nextKeys.length &&
+      currentKeys.every((key) =>
+        Object.prototype.hasOwnProperty.call(nextQueue, key),
+      )
+    ) {
+      return;
+    }
+
+    this.update((state) => {
+      state[field] = nextQueue as never;
+    });
+  }
+
+  /**
    * Send final track payload through the platform adapter or queue it if persistence is enabled.
    *
    * @param eventName - The name of the event.
    * @param properties - Optional event properties.
    * @param context - Optional platform-specific context.
+   * @param lane - Capture lane stamped on `context`.
    */
   #sendOrQueueTrackEvent(
     eventName: string,
-    properties?: AnalyticsEventProperties,
-    context?: AnalyticsContext,
+    properties: AnalyticsEventProperties | undefined,
+    context: AnalyticsContext,
+    lane: AnalyticsLane,
   ): void {
+    const { optedIn } = this.#consent(lane);
+
     // Direct delivery: enabled and not persisting.
-    if (
-      analyticsControllerSelectors.selectEnabled(this.state) &&
-      !this.#isEventQueuePersistenceEnabled
-    ) {
+    if (optedIn && !this.#isEventQueuePersistenceEnabled) {
       this.#platformAdapter.track(eventName, properties, context);
       return;
     }
@@ -839,12 +1143,10 @@ export class AnalyticsController extends BaseController<
       messageId: uuid(),
       timestamp: new Date().toISOString(),
       ...(properties === undefined ? {} : { properties }),
-      ...(context === undefined ? {} : { context }),
+      context,
     };
 
-    // Not yet enabled (reached only while undecided with the pre-consent queue
-    // enabled): hold the event until the user opts in.
-    if (!analyticsControllerSelectors.selectEnabled(this.state)) {
+    if (!optedIn) {
       this.#enqueuePreConsentEvent(queuedEvent);
       return;
     }
@@ -887,13 +1189,17 @@ export class AnalyticsController extends BaseController<
    * @param name - The view name.
    * @param properties - Optional view properties.
    * @param context - Optional platform-specific context.
+   * @param lane - Capture lane stamped on `context`.
    */
   #sendOrQueueViewEvent(
     name: string,
-    properties?: AnalyticsEventProperties,
-    context?: AnalyticsContext,
+    properties: AnalyticsEventProperties | undefined,
+    context: AnalyticsContext,
+    lane: AnalyticsLane,
   ): void {
-    if (!this.#isEventQueuePersistenceEnabled) {
+    const { optedIn } = this.#consent(lane);
+
+    if (optedIn && !this.#isEventQueuePersistenceEnabled) {
       this.#platformAdapter.view(name, properties, context);
       return;
     }
@@ -904,8 +1210,13 @@ export class AnalyticsController extends BaseController<
       messageId: uuid(),
       timestamp: new Date().toISOString(),
       ...(properties === undefined ? {} : { properties }),
-      ...(context === undefined ? {} : { context }),
+      context,
     };
+
+    if (!optedIn) {
+      this.#enqueuePreConsentEvent(queuedEvent);
+      return;
+    }
 
     this.#enqueueEvent(queuedEvent);
   }
@@ -964,7 +1275,13 @@ export class AnalyticsController extends BaseController<
         this.#platformAdapter.track(
           queuedEvent.eventName,
           cloneDeep(queuedEvent.properties),
-          cloneDeep(queuedEvent.context),
+          cloneDeep(
+            this.#contextForLane(
+              this.#laneFromQueuedEvent(queuedEvent),
+              queuedEvent.context,
+              false,
+            ),
+          ),
           options,
         );
       } else if (queuedEvent.type === 'identify') {
@@ -978,7 +1295,13 @@ export class AnalyticsController extends BaseController<
         this.#platformAdapter.view(
           queuedEvent.name,
           cloneDeep(queuedEvent.properties),
-          cloneDeep(queuedEvent.context),
+          cloneDeep(
+            this.#contextForLane(
+              this.#laneFromQueuedEvent(queuedEvent),
+              queuedEvent.context,
+              false,
+            ),
+          ),
           options,
         );
       }
@@ -998,10 +1321,8 @@ export class AnalyticsController extends BaseController<
       return;
     }
 
-    if (!analyticsControllerSelectors.selectEnabled(this.state)) {
-      this.#clearQueuedEvents();
-      return;
-    }
+    const remainingQueue: Record<string, Json> = {};
+    const eventsToSend: AnalyticsQueuedEvent[] = [];
 
     for (const [messageId, queuedEvent] of Object.entries(
       this.state.eventQueue,
@@ -1011,10 +1332,22 @@ export class AnalyticsController extends BaseController<
         queuedEvent.messageId !== messageId
       ) {
         log('Dropping invalid queued analytics event', { messageId });
-        this.#removeQueuedEvent(messageId);
         continue;
       }
 
+      const { optedIn } = this.#consent(
+        this.#laneFromQueuedEvent(queuedEvent),
+      );
+
+      if (optedIn) {
+        remainingQueue[messageId] = queuedEvent as unknown as Json;
+        eventsToSend.push(queuedEvent);
+      }
+    }
+
+    this.#replaceQueue(AnalyticsQueueField.Event, remainingQueue);
+
+    for (const queuedEvent of eventsToSend) {
       this.#sendQueuedEvent(queuedEvent);
     }
   }
@@ -1041,20 +1374,16 @@ export class AnalyticsController extends BaseController<
     });
   }
 
-  /**
-   * Clear all queued analytics events.
-   */
-  #clearQueuedEvents(): void {
-    if (
-      !this.state.eventQueue ||
-      Object.keys(this.state.eventQueue).length === 0
-    ) {
+  #clearQueuedEventsInLane(
+    field: AnalyticsQueueField,
+    laneToClear: AnalyticsLane,
+  ): void {
+    const queue = this.state[field];
+    if (!queue) {
       return;
     }
 
-    this.update((state) => {
-      state.eventQueue = {} as never;
-    });
+    this.#replaceQueue(field, this.#filterQueuedEvents(queue, laneToClear));
   }
 
   /**
@@ -1082,20 +1411,10 @@ export class AnalyticsController extends BaseController<
    *
    * @param queue - The pre-consent event queue to replay.
    */
-  #replayPreConsentEvents(queue: Record<string, Json>): void {
-    this.#clearPreConsentEvents();
-
-    for (const [messageId, queuedEvent] of Object.entries(queue)) {
-      if (
-        !isAnalyticsQueuedEvent(queuedEvent) ||
-        queuedEvent.messageId !== messageId
-      ) {
-        log('Dropping invalid queued pre-consent analytics event', {
-          messageId,
-        });
-        continue;
-      }
-
+  #replayPreConsentEvents(
+    queue: Record<string, AnalyticsQueuedEvent>,
+  ): void {
+    for (const queuedEvent of Object.values(queue)) {
       const eventToReplay = this.#enrichPreConsentEvent(queuedEvent);
 
       if (this.#isEventQueuePersistenceEnabled) {
@@ -1136,25 +1455,10 @@ export class AnalyticsController extends BaseController<
   }
 
   /**
-   * Clear all queued pre-consent events.
-   */
-  #clearPreConsentEvents(): void {
-    if (!this.state.preConsentEventQueue) {
-      return;
-    }
-
-    this.update((state) => {
-      state.preConsentEventQueue = {} as never;
-    });
-  }
-
-  /**
    * Reconcile the pre-consent queue on initialization.
    *
-   * The queue should normally be empty unless the user is still undecided. This
-   * handles the rare cases where a consent decision was persisted but the queue
-   * was not flushed/cleared (e.g. an interrupted shutdown): replay it if the
-   * user is opted in, or clear it if they opted out.
+   * Each queued item is replayed, kept, or dropped according to the consent
+   * lane stamped at capture. Product and marketing items are independent.
    *
    * If the pre-consent queue is disabled, any stale persisted entries (e.g. from
    * a previous session where it was enabled) are dropped so they can never be
@@ -1168,15 +1472,36 @@ export class AnalyticsController extends BaseController<
     }
 
     if (!this.#isPreConsentQueueEnabled) {
-      this.#clearPreConsentEvents();
+      this.update((state) => {
+        state.preConsentEventQueue = {} as never;
+      });
       return;
     }
 
-    if (this.state.optedIn) {
-      this.#replayPreConsentEvents(queue);
-    } else if (this.state.consentDecisionMade) {
-      this.#clearPreConsentEvents();
+    const keep: Record<string, Json> = {};
+    const replay: Record<string, AnalyticsQueuedEvent> = {};
+
+    for (const [messageId, queuedEvent] of Object.entries(queue)) {
+      if (
+        !isAnalyticsQueuedEvent(queuedEvent) ||
+        queuedEvent.messageId !== messageId
+      ) {
+        continue;
+      }
+
+      const { optedIn, decisionMade } = this.#consent(
+        this.#laneFromQueuedEvent(queuedEvent),
+      );
+
+      if (optedIn) {
+        replay[messageId] = queuedEvent;
+      } else if (!decisionMade) {
+        keep[messageId] = queuedEvent as unknown as Json;
+      }
     }
+
+    this.#replaceQueue(AnalyticsQueueField.PreConsent, keep);
+    this.#replayPreConsentEvents(replay);
   }
 
   /**
@@ -1210,12 +1535,33 @@ export class AnalyticsController extends BaseController<
       return;
     }
 
-    if (!this.#isEventFragmentsEnabled || !this.#isAnalyticsCaptureAllowed()) {
+    if (!this.#isEventFragmentsEnabled) {
       this.#clearEventFragments();
       return;
     }
 
-    this.#purgeStaleEventFragments(fragments, initEventFragmentSnapshot);
+    const allowedFragments: AnalyticsEventFragments = {};
+    for (const [id, fragment] of Object.entries(fragments)) {
+      if (!isAnalyticsEventFragment(fragment) || fragment.id !== id) {
+        allowedFragments[id] = fragment;
+        continue;
+      }
+
+      if (this.#isCaptureAllowed(this.#laneFromFragment(fragment))) {
+        allowedFragments[id] = fragment;
+      }
+    }
+
+    if (Object.keys(allowedFragments).length === 0) {
+      this.#clearEventFragments();
+      return;
+    }
+
+    this.update((state) => {
+      state.eventFragments = allowedFragments as never;
+    });
+
+    this.#purgeStaleEventFragments(allowedFragments, initEventFragmentSnapshot);
   }
 
   /**
@@ -1285,16 +1631,20 @@ export class AnalyticsController extends BaseController<
    * Write an event fragment to state, replacing any fragment with the same ID.
    *
    * @param fragment - The fragment to store.
+   * @returns The stored fragment with `context.marketing` stamped.
    */
-  #setEventFragment(fragment: AnalyticsEventFragment): void {
+  #setEventFragment(fragment: AnalyticsEventFragment): AnalyticsEventFragment {
+    const stampedFragment = this.#stampFragmentLane(fragment);
     const eventFragments: AnalyticsEventFragments = {
       ...this.state.eventFragments,
-      [fragment.id]: fragment,
+      [stampedFragment.id]: stampedFragment,
     };
 
     this.update((state) => {
       state.eventFragments = eventFragments as never;
     });
+
+    return stampedFragment;
   }
 
   /**
@@ -1313,6 +1663,28 @@ export class AnalyticsController extends BaseController<
     }
 
     const { [id]: _deletedFragment, ...eventFragments } = currentEventFragments;
+
+    this.update((state) => {
+      state.eventFragments = eventFragments as never;
+    });
+  }
+
+  #clearEventFragmentsInLane(laneToClear: AnalyticsLane): void {
+    const fragments = this.state.eventFragments;
+
+    if (!fragments || Object.keys(fragments).length === 0) {
+      return;
+    }
+
+    const eventFragments: AnalyticsEventFragments = {};
+    for (const [id, fragment] of Object.entries(fragments)) {
+      if (
+        isAnalyticsEventFragment(fragment) &&
+        this.#laneFromFragment(fragment) !== laneToClear
+      ) {
+        eventFragments[id] = fragment;
+      }
+    }
 
     this.update((state) => {
       state.eventFragments = eventFragments as never;
@@ -1345,9 +1717,16 @@ export class AnalyticsController extends BaseController<
    * fragment never accumulates data for an event that could not be delivered.
    *
    * @param method - The name of the method that was called.
+   * @param fragment - The fragment being read or written, when one is known.
    * @returns True when the call should be ignored.
    */
-  #shouldIgnoreEventFragmentCall(method: string): boolean {
+  #shouldIgnoreEventFragmentCall(
+    method: string,
+    fragment?: Pick<
+      AnalyticsEventFragment,
+      'initialEvent' | 'successEvent' | 'failureEvent'
+    >,
+  ): boolean {
     if (!this.#isEventFragmentsEnabled) {
       log(
         'Ignoring event fragment call because the event fragments feature is disabled',
@@ -1357,7 +1736,12 @@ export class AnalyticsController extends BaseController<
       return true;
     }
 
-    if (!this.#isAnalyticsCaptureAllowed()) {
+    const captureAllowed = fragment
+      ? this.#isCaptureAllowed(this.#laneFromFragment(fragment))
+      : this.#isCaptureAllowed(AnalyticsLane.Product) ||
+        this.#isCaptureAllowed(AnalyticsLane.Marketing);
+
+    if (!captureAllowed) {
       log(
         'Ignoring event fragment call because the consent state does not allow capturing analytics',
         { method },
@@ -1403,26 +1787,6 @@ export class AnalyticsController extends BaseController<
   }
 
   /**
-   * Returns whether the current consent state allows analytics data to be
-   * captured, either for immediate delivery or to be held until the user
-   * decides.
-   *
-   * Capture is allowed once the user has opted in, and also while they are
-   * undecided if the pre-consent queue is enabled: what is captured then is
-   * replayed when they opt in (see {@link optIn}) and discarded if they opt out
-   * (see {@link optOut}). An explicit opt-out never allows capture.
-   *
-   * @returns True when analytics data may be captured.
-   */
-  #isAnalyticsCaptureAllowed(): boolean {
-    if (analyticsControllerSelectors.selectEnabled(this.state)) {
-      return true;
-    }
-
-    return this.#isPreConsentQueueEnabled && !this.state.consentDecisionMade;
-  }
-
-  /**
    * Track an analytics event.
    *
    * Events are only tracked if analytics is enabled.
@@ -1431,10 +1795,12 @@ export class AnalyticsController extends BaseController<
    * @param context - Optional platform-specific context forwarded to the platform adapter.
    */
   trackEvent(event: AnalyticsTrackingEvent, context?: AnalyticsContext): void {
+    const lane = this.#laneFromName(event.name);
+
     // An event captured while the user is still undecided is held in the
     // pre-consent queue (see #sendOrQueueTrackEvent) instead of being
     // delivered, and replayed if they later opt in.
-    if (!this.#isAnalyticsCaptureAllowed()) {
+    if (!this.#isCaptureAllowed(lane)) {
       return;
     }
 
@@ -1444,7 +1810,8 @@ export class AnalyticsController extends BaseController<
       this.#sendOrQueueTrackEvent(
         event.name,
         undefined,
-        this.#withLocationContext(context),
+        this.#contextForLane(lane, context),
+        lane,
       );
       return;
     }
@@ -1458,7 +1825,8 @@ export class AnalyticsController extends BaseController<
         {
           ...event.properties,
         },
-        this.#withLocationContext(context),
+        this.#contextForLane(lane, context),
+        lane,
       );
     }
 
@@ -1476,9 +1844,12 @@ export class AnalyticsController extends BaseController<
         // When the anonymous events feature is enabled, this payload is the
         // anonymous one and must carry no geolocation. When the feature is
         // disabled, this is the single identified payload, so it is enriched.
-        this.#isAnonymousEventsFeatureEnabled
-          ? context
-          : this.#withLocationContext(context),
+        this.#contextForLane(
+          lane,
+          context,
+          !this.#isAnonymousEventsFeatureEnabled,
+        ),
+        lane,
       );
     }
   }
@@ -1494,7 +1865,6 @@ export class AnalyticsController extends BaseController<
       return;
     }
 
-    // Delegate to platform adapter using the current analytics ID
     this.#sendOrQueueIdentifyEvent(
       this.state.analyticsId,
       traits,
@@ -1514,7 +1884,8 @@ export class AnalyticsController extends BaseController<
     properties?: AnalyticsEventProperties,
     context?: AnalyticsContext,
   ): void {
-    if (!analyticsControllerSelectors.selectEnabled(this.state)) {
+    const lane = this.#laneFromName(name);
+    if (!this.#isCaptureAllowed(lane)) {
       return;
     }
 
@@ -1522,7 +1893,8 @@ export class AnalyticsController extends BaseController<
     this.#sendOrQueueViewEvent(
       name,
       properties,
-      this.#withLocationContext(context),
+      this.#contextForLane(lane, context),
+      lane,
     );
   }
 
@@ -1553,13 +1925,15 @@ export class AnalyticsController extends BaseController<
   createEventFragment(
     options: AnalyticsEventFragmentOptions = {},
   ): ReadonlyAnalyticsEventFragment | undefined {
-    if (this.#shouldIgnoreEventFragmentCall('createEventFragment')) {
+    if (
+      this.#shouldIgnoreEventFragmentCall('createEventFragment', options)
+    ) {
       return undefined;
     }
 
     const now = Date.now();
 
-    const fragment: AnalyticsEventFragment = {
+    const fragment = this.#setEventFragment({
       id: options.id ?? uuid(),
       properties: { ...(options.properties ?? {}) },
       sensitiveProperties: { ...(options.sensitiveProperties ?? {}) },
@@ -1578,9 +1952,7 @@ export class AnalyticsController extends BaseController<
         ? {}
         : { context: { ...options.context } }),
       ...(options.persist === undefined ? {} : { persist: options.persist }),
-    };
-
-    this.#setEventFragment(fragment);
+    });
 
     if (fragment.initialEvent) {
       this.#emitEventFragment(
@@ -1607,11 +1979,15 @@ export class AnalyticsController extends BaseController<
     id: string,
     payload: AnalyticsEventFragmentPayload = {},
   ): void {
-    if (this.#shouldIgnoreEventFragmentCall('upsertEventFragment')) {
+    const fragment = this.#getEventFragment(id);
+    if (
+      this.#shouldIgnoreEventFragmentCall(
+        'upsertEventFragment',
+        fragment ?? {},
+      )
+    ) {
       return;
     }
-
-    const fragment = this.#getEventFragment(id);
 
     if (!fragment) {
       this.createEventFragment({ id, ...payload });
@@ -1635,11 +2011,10 @@ export class AnalyticsController extends BaseController<
     id: string,
     payload: AnalyticsEventFragmentPayload = {},
   ): void {
-    if (this.#shouldIgnoreEventFragmentCall('updateEventFragment')) {
+    const fragment = this.#getEventFragment(id);
+    if (this.#shouldIgnoreEventFragmentCall('updateEventFragment', fragment)) {
       return;
     }
-
-    const fragment = this.#getEventFragment(id);
 
     if (!fragment) {
       throw new Error(`Event fragment with id ${id} does not exist.`);
@@ -1659,11 +2034,10 @@ export class AnalyticsController extends BaseController<
    * {@link upsertEventFragment} to write.
    */
   getEventFragmentById(id: string): ReadonlyAnalyticsEventFragment | undefined {
-    if (this.#shouldIgnoreEventFragmentCall('getEventFragmentById')) {
+    const fragment = this.#getEventFragment(id);
+    if (this.#shouldIgnoreEventFragmentCall('getEventFragmentById', fragment)) {
       return undefined;
     }
-
-    const fragment = this.#getEventFragment(id);
 
     return fragment === undefined ? undefined : cloneDeep(fragment);
   }
@@ -1674,7 +2048,8 @@ export class AnalyticsController extends BaseController<
    * @param id - The fragment ID.
    */
   deleteEventFragment(id: string): void {
-    if (this.#shouldIgnoreEventFragmentCall('deleteEventFragment')) {
+    const fragment = this.#getEventFragment(id);
+    if (this.#shouldIgnoreEventFragmentCall('deleteEventFragment', fragment)) {
       return;
     }
 
@@ -1701,11 +2076,10 @@ export class AnalyticsController extends BaseController<
     id: string,
     { abandoned = false, context }: AnalyticsEventFragmentFinalizeOptions = {},
   ): void {
-    if (this.#shouldIgnoreEventFragmentCall('finalizeEventFragment')) {
+    const fragment = this.#getEventFragment(id);
+    if (this.#shouldIgnoreEventFragmentCall('finalizeEventFragment', fragment)) {
       return;
     }
-
-    const fragment = this.#getEventFragment(id);
 
     if (!fragment) {
       throw new Error(`Event fragment with id ${id} does not exist.`);
@@ -1766,9 +2140,15 @@ export class AnalyticsController extends BaseController<
       state.consentDecisionMade = true;
     });
 
-    this.#clearQueuedEvents();
-    this.#clearPreConsentEvents();
-    this.#clearEventFragments();
+    this.#clearQueuedEventsInLane(
+      AnalyticsQueueField.Event,
+      AnalyticsLane.Product,
+    );
+    this.#clearQueuedEventsInLane(
+      AnalyticsQueueField.PreConsent,
+      AnalyticsLane.Product,
+    );
+    this.#clearEventFragmentsInLane(AnalyticsLane.Product);
   }
 
   /**
@@ -1789,10 +2169,72 @@ export class AnalyticsController extends BaseController<
       state.consentDecisionMade = false;
     });
 
-    this.#clearQueuedEvents();
+    this.#clearQueuedEventsInLane(
+      AnalyticsQueueField.Event,
+      AnalyticsLane.Product,
+    );
+    if (!this.#isCaptureAllowed(AnalyticsLane.Product)) {
+      this.#clearEventFragmentsInLane(AnalyticsLane.Product);
+    }
+  }
 
-    if (!this.#isAnalyticsCaptureAllowed()) {
-      this.#clearEventFragments();
+  /**
+   * Opt in to marketing analytics.
+   *
+   * Independent of {@link optIn}. Replays queued marketing events.
+   *
+   * @returns A promise that resolves once opt-in processing has completed.
+   */
+  async optInToMarketing(): Promise<void> {
+    this.update((state) => {
+      state.optedInToMarketing = true;
+      state.marketingConsentDecisionMade = true;
+    });
+
+    await this.#maybeResolveLocation();
+    this.#reconcilePreConsentEvents();
+  }
+
+  /**
+   * Opt out of marketing analytics.
+   *
+   * Independent of {@link optOut}. Discards queued marketing events and
+   * marketing event fragments.
+   */
+  optOutOfMarketing(): void {
+    this.update((state) => {
+      state.optedInToMarketing = false;
+      state.marketingConsentDecisionMade = true;
+    });
+
+    this.#clearQueuedEventsInLane(
+      AnalyticsQueueField.Event,
+      AnalyticsLane.Marketing,
+    );
+    this.#clearQueuedEventsInLane(
+      AnalyticsQueueField.PreConsent,
+      AnalyticsLane.Marketing,
+    );
+    this.#clearEventFragmentsInLane(AnalyticsLane.Marketing);
+  }
+
+  /**
+   * Reset the marketing consent decision back to undecided.
+   *
+   * Independent of {@link resetConsentDecision}.
+   */
+  resetMarketingConsentDecision(): void {
+    this.update((state) => {
+      state.optedInToMarketing = false;
+      state.marketingConsentDecisionMade = false;
+    });
+
+    this.#clearQueuedEventsInLane(
+      AnalyticsQueueField.Event,
+      AnalyticsLane.Marketing,
+    );
+    if (!this.#isCaptureAllowed(AnalyticsLane.Marketing)) {
+      this.#clearEventFragmentsInLane(AnalyticsLane.Marketing);
     }
   }
 }

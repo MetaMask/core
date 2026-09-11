@@ -26,6 +26,15 @@ const selectOptedIn = (state: AnalyticsControllerState): boolean =>
   state.optedIn;
 
 /**
+ * Selects the marketing opt-in status from the controller state.
+ *
+ * @param state - The controller state
+ * @returns Whether the user has opted in to marketing analytics
+ */
+const selectOptedInToMarketing = (state: AnalyticsControllerState): boolean =>
+  state.optedInToMarketing === true;
+
+/**
  * Selects whether analytics tracking is enabled.
  * Use this selector to determine if tracking should occur (e.g., in controller methods).
  *
@@ -45,6 +54,16 @@ const selectEnabled = (state: AnalyticsControllerState): boolean =>
  */
 const selectConsentDecisionMade = (state: AnalyticsControllerState): boolean =>
   state.consentDecisionMade ?? false;
+
+/**
+ * Selects whether the user has made a marketing consent decision.
+ *
+ * @param state - The controller state
+ * @returns Whether the user has made a marketing consent decision
+ */
+const selectMarketingConsentDecisionMade = (
+  state: AnalyticsControllerState,
+): boolean => state.marketingConsentDecisionMade ?? false;
 
 /**
  * Selects the in-progress event fragments from the controller state.
@@ -76,8 +95,10 @@ const selectEventFragmentById = (
 export const analyticsControllerSelectors = {
   selectAnalyticsId,
   selectOptedIn,
+  selectOptedInToMarketing,
   selectEnabled,
   selectConsentDecisionMade,
+  selectMarketingConsentDecisionMade,
   selectEventFragments,
   selectEventFragmentById,
 };

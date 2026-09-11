@@ -31,6 +31,35 @@ describe('analyticsControllerSelectors', () => {
     });
   });
 
+  describe('selectOptedInToMarketing', () => {
+    it.each([[true], [false]])(
+      'returns %s when optedInToMarketing is %s',
+      (optedInToMarketing) => {
+        const state: AnalyticsControllerState = {
+          optedIn: false,
+          optedInToMarketing,
+          analyticsId: defaultAnalyticsId,
+        };
+
+        const result =
+          analyticsControllerSelectors.selectOptedInToMarketing(state);
+
+        expect(result).toBe(optedInToMarketing);
+      },
+    );
+
+    it('defaults to false when the field is absent', () => {
+      const state: AnalyticsControllerState = {
+        optedIn: false,
+        analyticsId: defaultAnalyticsId,
+      };
+
+      expect(
+        analyticsControllerSelectors.selectOptedInToMarketing(state),
+      ).toBe(false);
+    });
+  });
+
   describe('selectEnabled', () => {
     it.each([
       [false, false],
@@ -89,6 +118,36 @@ describe('analyticsControllerSelectors', () => {
         analyticsControllerSelectors.selectConsentDecisionMade(state);
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('selectMarketingConsentDecisionMade', () => {
+    it.each([[true], [false]])(
+      'returns %s when marketingConsentDecisionMade is %s',
+      (marketingConsentDecisionMade) => {
+        const state: AnalyticsControllerState = {
+          optedIn: false,
+          marketingConsentDecisionMade,
+          analyticsId: defaultAnalyticsId,
+        };
+
+        expect(
+          analyticsControllerSelectors.selectMarketingConsentDecisionMade(
+            state,
+          ),
+        ).toBe(marketingConsentDecisionMade);
+      },
+    );
+
+    it('defaults to false when the field is absent', () => {
+      const state: AnalyticsControllerState = {
+        optedIn: false,
+        analyticsId: defaultAnalyticsId,
+      };
+
+      expect(
+        analyticsControllerSelectors.selectMarketingConsentDecisionMade(state),
+      ).toBe(false);
     });
   });
 

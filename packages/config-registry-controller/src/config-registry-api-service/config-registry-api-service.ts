@@ -10,11 +10,17 @@ import type { ConfigRegistryApiServiceMethodActions } from './config-registry-ap
 import type {
   FetchConfigOptions,
   FetchConfigResult,
+  FetchMarketingEventsResult,
+  MarketingEventsApiResponse,
   RegistryConfigApiResponse,
 } from './types.js';
-import { validateRegistryConfigApiResponse } from './types.js';
+import {
+  validateMarketingEventsApiResponse,
+  validateRegistryConfigApiResponse,
+} from './types.js';
 
-const ENDPOINT_PATH = '/config/networks';
+const NETWORKS_ENDPOINT_PATH = '/config/networks';
+const MARKETING_EVENTS_ENDPOINT_PATH = '/config/marketing-events';
 
 export enum ConfigRegistryApiEnv {
   DEV = 'dev',
@@ -30,7 +36,10 @@ export const serviceName = 'ConfigRegistryApiService';
 
 // === MESSENGER ===
 
-const MESSENGER_EXPOSED_METHODS = ['fetchConfig'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'fetchConfig',
+  'fetchMarketingEvents',
+] as const;
 
 /**
  * Actions that {@link ConfigRegistryApiService} exposes to other consumers.
@@ -66,14 +75,14 @@ export type ConfigRegistryApiServiceMessenger = Messenger<
 // === SERVICE DEFINITION ===
 
 /**
- * Returns the base URL for the config registry API for the given environment.
+ * Returns the origin for the config registry API for the given environment.
  *
- * @param env - The environment to get the URL for.
- * @returns The base URL for the environment.
+ * @param env - The environment to get the origin for.
+ * @returns The origin for the environment.
  */
-function getConfigRegistryUrl(env: ConfigRegistryApiEnv): string {
+function getConfigRegistryOrigin(env: ConfigRegistryApiEnv): string {
   const envPrefix = env === ConfigRegistryApiEnv.PRD ? '' : `${env}-`;
-  return `https://client-config.${envPrefix}api.cx.metamask.io/v1${ENDPOINT_PATH}`;
+  return `https://client-config.${envPrefix}api.cx.metamask.io/v1`;
 }
 
 export type ConfigRegistryApiServiceOptions = {
@@ -98,12 +107,17 @@ export class ConfigRegistryApiService {
 
   readonly #policy: ServicePolicy;
 
-  readonly #url: string;
+  readonly #networksUrl: string;
+
+  readonly #marketingEventsUrl: string;
 
   readonly #fetch: typeof fetch;
 
-  /** Cached response from the last successful fetch. Used when server returns 304. */
-  #cachedResponse: RegistryConfigApiResponse | null = null;
+  /** Cached networks response from the last successful fetch. Used when server returns 304. */
+  #cachedNetworksResponse: RegistryConfigApiResponse | null = null;
+
+  /** Cached marketing-events response from the last successful fetch. Used when server returns 304. */
+  #cachedMarketingEventsResponse: MarketingEventsApiResponse | null = null;
 
   /**
    * Construct a Config Registry API Service.
@@ -122,7 +136,9 @@ export class ConfigRegistryApiService {
   }: ConfigRegistryApiServiceOptions) {
     this.name = serviceName;
     this.#messenger = messenger;
-    this.#url = getConfigRegistryUrl(env);
+    const origin = getConfigRegistryOrigin(env);
+    this.#networksUrl = `${origin}${NETWORKS_ENDPOINT_PATH}`;
+    this.#marketingEventsUrl = `${origin}${MARKETING_EVENTS_ENDPOINT_PATH}`;
     this.#fetch = customFetch;
 
     this.#policy = createServicePolicy(policyOptions);
@@ -190,6 +206,47 @@ export class ConfigRegistryApiService {
   async fetchConfig(
     options: FetchConfigOptions = {},
   ): Promise<FetchConfigResult> {
+    return await this.#fetchValidatedConfig({
+      url: this.#networksUrl,
+      options,
+      validate: validateRegistryConfigApiResponse,
+      getCached: () => this.#cachedNetworksResponse,
+      setCached: (data) => {
+        this.#cachedNetworksResponse = data;
+      },
+    });
+  }
+
+  async fetchMarketingEvents(
+    options: FetchConfigOptions = {},
+  ): Promise<FetchMarketingEventsResult> {
+    return await this.#fetchValidatedConfig({
+      url: this.#marketingEventsUrl,
+      options,
+      validate: validateMarketingEventsApiResponse,
+      getCached: () => this.#cachedMarketingEventsResponse,
+      setCached: (data) => {
+        this.#cachedMarketingEventsResponse = data;
+      },
+    });
+  }
+
+  async #fetchValidatedConfig<ConfigPayload>({
+    url,
+    options,
+    validate,
+    getCached,
+    setCached,
+  }: {
+    url: string;
+    options: FetchConfigOptions;
+    validate: (data: unknown) => void;
+    getCached: () => ConfigPayload | null;
+    setCached: (data: ConfigPayload) => void;
+  }): Promise<
+    | { modified: false; etag?: string; data?: ConfigPayload }
+    | { modified: true; data: ConfigPayload; etag?: string }
+  > {
     const headers: HeadersInit = {
       'Cache-Control': 'no-cache',
     };
@@ -199,7 +256,7 @@ export class ConfigRegistryApiService {
     }
 
     const response = await this.#policy.execute(async () => {
-      const res = await this.#fetch(this.#url, {
+      const res = await this.#fetch(url, {
         headers,
       });
 
@@ -219,22 +276,23 @@ export class ConfigRegistryApiService {
 
     if (response.status === 304) {
       const etag = response.headers.get('ETag') ?? undefined;
+      const cached = getCached();
       return {
         modified: false,
         etag,
-        ...(this.#cachedResponse !== null && { data: this.#cachedResponse }),
+        ...(cached !== null && { data: cached }),
       };
     }
 
     const etag = response.headers.get('ETag') ?? undefined;
-    const jsonData = await response.json();
+    const jsonData: unknown = await response.json();
 
-    validateRegistryConfigApiResponse(jsonData);
+    validate(jsonData);
 
-    this.#cachedResponse = jsonData;
+    setCached(jsonData as ConfigPayload);
 
     return {
-      data: jsonData,
+      data: jsonData as ConfigPayload,
       etag,
       modified: true,
     };
