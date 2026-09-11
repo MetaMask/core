@@ -1,29 +1,6 @@
 {
-  /**
-   * Type checks everything the build does not: tests, fixtures and the config
-   * files at the root. `tsconfig.build.json` only covers `src` minus tests, and
-   * ts-jest runs in transpile-only mode because `isolatedModules` is set, so
-   * without this nothing checks the types in a test file.
-   */
-  "extends": "./tsconfig.json",
+  "extends": ["./tsconfig.json", "../../tsconfig.packages.lint.json"],
   "compilerOptions": {
-    /**
-     * Dependencies ship declarations that do not satisfy the strict flags used
-     * here, and their errors are not ours to fix.
-     */
-    "skipLibCheck": true,
-    /**
-     * Emit into a hidden, git ignored cache directory, matching how `lint:tsc`
-     * works in core. Emitting is what makes `tsBuildInfoFile` meaningful, so
-     * repeat runs only check what changed. Only declarations are written, since
-     * the JavaScript would be thrown away. `tsconfig.json` sets `noEmit` for the
-     * editor and `tsconfig.build.json` owns the real build, so both are
-     * overridden here rather than the other way round.
-     */
-    "noEmit": false,
-    "declaration": true,
-    "emitDeclarationOnly": true,
-    "incremental": true,
     "outDir": "./.tsc-lint-cache",
     "tsBuildInfoFile": "./.tsc-lint-cache/tsconfig.tsbuildinfo"
   },
@@ -33,5 +10,5 @@
    * the program, and those reference `lib="esnext"`, which widens built in
    * types like `ReadonlySet` well beyond the `lib` this package targets.
    */
-  "exclude": ["./dist/**/*", "./src/**/*.test-d.ts"]
+  "exclude": ["./src/**/*.test-d.ts"]
 }

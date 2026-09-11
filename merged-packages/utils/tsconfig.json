@@ -1,17 +1,10 @@
 {
+  "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "esModuleInterop": true,
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
-    "isolatedModules": true,
-    "lib": ["ES2022", "DOM"],
-    "module": "Node16",
-    "moduleResolution": "Node16",
-    "noEmit": true,
     "noErrorTruncation": true,
-    "noUncheckedIndexedAccess": true,
-    "strict": true,
-    "target": "ES2022"
+    "noUncheckedIndexedAccess": true
   },
-  "exclude": ["./dist/**/*"]
+  "include": ["../../types", "./src"]
 }
