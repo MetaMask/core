@@ -2,25 +2,43 @@
   "extends": "../../tsconfig.packages.json",
   "references": [
     {
+      "path": "../authenticated-user-storage"
+    },
+    {
       "path": "../base-controller"
     },
     {
-      "path": "../messenger"
+      "path": "../base-data-service"
     },
     {
-      "path": "../profile-sync-controller"
-    },
-    {
-      "path": "../polling-controller"
-    },
-    {
-      "path": "../transaction-controller"
+      "path": "../chomp-api-service"
     },
     {
       "path": "../controller-utils"
     },
     {
-      "path": "../base-data-service"
+      "path": "../delegation-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../money-account-balance-service"
+    },
+    {
+      "path": "../money-account-utils"
+    },
+    {
+      "path": "../polling-controller"
+    },
+    {
+      "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../transaction-controller"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

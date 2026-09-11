@@ -6,25 +6,43 @@
   },
   "references": [
     {
+      "path": "../authenticated-user-storage/tsconfig.build.json"
+    },
+    {
       "path": "../base-controller/tsconfig.build.json"
     },
     {
-      "path": "../messenger/tsconfig.build.json"
+      "path": "../base-data-service/tsconfig.build.json"
     },
     {
-      "path": "../profile-sync-controller/tsconfig.build.json"
-    },
-    {
-      "path": "../polling-controller/tsconfig.build.json"
-    },
-    {
-      "path": "../transaction-controller/tsconfig.build.json"
+      "path": "../chomp-api-service/tsconfig.build.json"
     },
     {
       "path": "../controller-utils/tsconfig.build.json"
     },
     {
-      "path": "../base-data-service/tsconfig.build.json"
+      "path": "../delegation-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../messenger/tsconfig.build.json"
+    },
+    {
+      "path": "../money-account-balance-service/tsconfig.build.json"
+    },
+    {
+      "path": "../money-account-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../polling-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../profile-sync-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../remote-feature-flag-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../transaction-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]
