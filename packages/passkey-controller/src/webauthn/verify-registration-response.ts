@@ -346,9 +346,7 @@ async function verifyPackedAttestation(
     );
   }
 
-  const clientDataHash = await sha256(
-    base64URLToBytes(clientDataJSONB64url),
-  );
+  const clientDataHash = await sha256(base64URLToBytes(clientDataJSONB64url));
   const signatureBase = concatBytes([authData, clientDataHash]);
 
   return verifySignature({
