@@ -4,6 +4,7 @@ import type {
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
+import type { Json } from '@metamask/utils';
 import {
   isCaipChainId,
   KnownCaipNamespace,
@@ -660,9 +661,11 @@ export class AccountsApiDataSource extends AbstractDataSource<
         continue;
       }
 
-      // Store balance as returned by API
+      // Store balance as returned by API, along with any network-specific
+      // metadata (e.g. Stellar trustline / native reserve fields).
       assetsBalance[accountId][normalizedAssetId] = {
         amount: item.balance,
+        ...(item.metadata ? { metadata: item.metadata as Json } : {}),
       };
     }
 
@@ -730,9 +733,11 @@ export class AccountsApiDataSource extends AbstractDataSource<
         continue;
       }
 
-      // Store balance as returned by API
+      // Store balance as returned by API, along with any network-specific
+      // metadata (e.g. Stellar trustline / native reserve fields).
       assetsBalance[accountId][normalizedAssetId] = {
         amount: item.balance,
+        ...(item.metadata ? { metadata: item.metadata as Json } : {}),
       };
     }
 

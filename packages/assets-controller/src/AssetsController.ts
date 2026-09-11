@@ -158,6 +158,7 @@ import {
   formatStateForTransactionPay,
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
+  getDefaultNativeAssetBalance,
 } from './utils/index.js';
 import type {
   BridgeExchangeRatesFormat,
@@ -2592,7 +2593,8 @@ export class AssetsController extends BaseController<
               nativeAssetId,
             )
           ) {
-            balances[accountId][nativeAssetId] = { amount: '0' };
+            balances[accountId][nativeAssetId] =
+              getDefaultNativeAssetBalance(nativeAssetId);
           }
         }
       }
@@ -2792,7 +2794,8 @@ export class AssetsController extends BaseController<
               if (
                 !Object.prototype.hasOwnProperty.call(effective, nativeAssetId)
               ) {
-                effective[nativeAssetId] = { amount: '0' } as AssetBalance;
+                effective[nativeAssetId] =
+                  getDefaultNativeAssetBalance(nativeAssetId);
               }
             }
 
@@ -2814,7 +2817,14 @@ export class AssetsController extends BaseController<
                 (balance as { amount: unknown }).amount,
                 assetDecimals,
               );
-              effective[assetId] = { ...balance, amount: newAmount };
+              // Keep existing metadata when the incoming update is
+              // amount-only (e.g. Account Activity websocket). Incoming
+              // metadata still wins when present.
+              effective[assetId] = {
+                ...previousBalance,
+                ...balance,
+                amount: newAmount,
+              };
               const oldAmount = previousBalance?.amount;
               const isNewDefaultNativeZero =
                 oldAmount === undefined &&

@@ -93,17 +93,31 @@ function createMockV6BalanceItem(
   assetId: string,
   balance: string,
   object: 'token' | 'defi' = 'token',
-  type: 'native' | 'erc20' = 'erc20',
+  type: string = 'erc20',
+  metadata?: V6BalanceItem['metadata'],
 ): V6BalanceItem {
-  return { accountId, object, type, assetId, balance } as V6BalanceItem;
+  return {
+    accountId,
+    object,
+    type,
+    assetId,
+    balance,
+    ...(metadata ? { metadata } : {}),
+  } as V6BalanceItem;
 }
 
 function createMockBalanceItem(
   accountId: string,
   assetId: string,
   balance: string,
+  metadata?: V5BalanceItem['metadata'],
 ): V5BalanceItem {
-  return { accountId, assetId, balance } as V5BalanceItem;
+  return {
+    accountId,
+    assetId,
+    balance,
+    ...(metadata ? { metadata } : {}),
+  } as V5BalanceItem;
 }
 
 function createDataRequest(
@@ -636,6 +650,80 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  it('fetch persists Stellar native and trustline metadata from v5 balances', async () => {
+    const STELLAR_CHAIN_ID = 'stellar:pubnet' as ChainId;
+    const stellarAddress =
+      'GCRTHNJHYCV4F4JOAIMUE2ALYPE3C7Q53XTSUVGYJ4UXYIKWZAK7FWPG';
+    const nativeAssetId = 'stellar:pubnet/slip44:148';
+    const usdcAssetId =
+      'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN';
+    const nativeMetadata = {
+      spendableBalance: '8944804518',
+      minimumReserveBalance: '200000000',
+      decimal: 7,
+    };
+    const trustlineMetadata = {
+      limit: '9223372036854775807',
+      authorized: true,
+      sponsored: false,
+    };
+
+    const { controller } = await setupController({
+      supportedChains: [1, STELLAR_CHAIN_ID as unknown as number],
+      remoteFeatureFlags: {
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
+          stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+        },
+      },
+      balances: [
+        createMockBalanceItem(
+          `${STELLAR_CHAIN_ID}:${stellarAddress}`,
+          nativeAssetId,
+          '914.4804518',
+          nativeMetadata,
+        ),
+        createMockBalanceItem(
+          `${STELLAR_CHAIN_ID}:${stellarAddress}`,
+          usdcAssetId,
+          '0',
+          trustlineMetadata,
+        ),
+      ],
+    });
+
+    const response = await controller.fetch(
+      createDataRequest({
+        chainIds: [STELLAR_CHAIN_ID],
+        accounts: [
+          createMockAccount({
+            address: stellarAddress,
+            type: 'stellar:ss58',
+            scopes: [STELLAR_CHAIN_ID],
+          }),
+        ],
+      }),
+    );
+
+    expect(
+      response.assetsBalance?.['mock-account-id']?.[
+        nativeAssetId as Caip19AssetId
+      ],
+    ).toStrictEqual({
+      amount: '914.4804518',
+      metadata: nativeMetadata,
+    });
+    expect(
+      response.assetsBalance?.['mock-account-id']?.[
+        usdcAssetId as Caip19AssetId
+      ],
+    ).toStrictEqual({
+      amount: '0',
+      metadata: trustlineMetadata,
+    });
+
+    controller.destroy();
+  });
+
   it('excludes staking contract asset IDs from v5 balance response', async () => {
     const stakingAssetId =
       'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df';
@@ -822,6 +910,85 @@ describe('AccountsApiDataSource', () => {
         response.assetsBalance?.['mock-account-id']?.['eip155:1/slip44:60']
           ?.amount,
       ).toBe('1000000000000000000');
+
+      controller.destroy();
+    });
+
+    it('persists Stellar native and trustline metadata from v6 balances', async () => {
+      const STELLAR_CHAIN_ID = 'stellar:pubnet' as ChainId;
+      const stellarAddress =
+        'GDZRSRB4DOK3372HO2OKYVJKGTL5MYF5VUSO5CD5CJJNQVG35HMBQT6U';
+      const nativeAssetId = 'stellar:pubnet/slip44:148';
+      const aquaAssetId =
+        'stellar:pubnet/asset:AQUA-GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA';
+      const nativeMetadata = {
+        spendableBalance: '8944803018',
+        minimumReserveBalance: '200000000',
+        decimal: 7,
+      };
+      const trustlineMetadata = {
+        limit: '9223372036854775807',
+        authorized: true,
+        sponsored: false,
+      };
+
+      const { controller } = await setupController({
+        supportedChains: [1, STELLAR_CHAIN_ID as unknown as number],
+        remoteFeatureFlags: {
+          assetsAccountsApiV6: { value: true },
+          [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
+            stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+          },
+        },
+        v6Balances: [
+          createMockV6BalanceItem(
+            `${STELLAR_CHAIN_ID}:${stellarAddress}`,
+            aquaAssetId,
+            '0',
+            'token',
+            'token',
+            trustlineMetadata,
+          ),
+          createMockV6BalanceItem(
+            `${STELLAR_CHAIN_ID}:${stellarAddress}`,
+            nativeAssetId,
+            '914.4803018',
+            'token',
+            'native',
+            nativeMetadata,
+          ),
+        ],
+      });
+
+      const response = await controller.fetch(
+        createDataRequest({
+          chainIds: [STELLAR_CHAIN_ID],
+          accounts: [
+            createMockAccount({
+              address: stellarAddress,
+              type: 'stellar:ss58',
+              scopes: [STELLAR_CHAIN_ID],
+            }),
+          ],
+        }),
+      );
+
+      expect(
+        response.assetsBalance?.['mock-account-id']?.[
+          aquaAssetId as Caip19AssetId
+        ],
+      ).toStrictEqual({
+        amount: '0',
+        metadata: trustlineMetadata,
+      });
+      expect(
+        response.assetsBalance?.['mock-account-id']?.[
+          nativeAssetId as Caip19AssetId
+        ],
+      ).toStrictEqual({
+        amount: '914.4803018',
+        metadata: nativeMetadata,
+      });
 
       controller.destroy();
     });

@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `apiUrls` option to `ApiPlatformClientOptions`, allowing API base URLs (accounts, prices, token, tokens) to be overridden per client instance, e.g. from client env vars; unspecified services fall back to the production `API_URLS` ([#10196](https://github.com/MetaMask/core/pull/10196))
+- Add optional `metadata` to `V5BalanceItem` and to the Account Activity `Balance` type ([#10194](https://github.com/MetaMask/core/pull/10194))
+- Add optional `sponsored`, `spendableBalance`, and `minimumReserveBalance` Stellar fields to `V6TokenMetadata` ([#10194](https://github.com/MetaMask/core/pull/10194))
 
 ### Changed
 
