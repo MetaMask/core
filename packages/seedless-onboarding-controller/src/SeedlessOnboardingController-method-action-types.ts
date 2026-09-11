@@ -184,48 +184,6 @@ export type SeedlessOnboardingControllerSetLockedAction = {
 };
 
 /**
- * Sync the latest global password to the controller.
- * reset vault with latest globalPassword,
- * persist the latest global password authPubKey
- *
- * @param params - The parameters for syncing the latest global password.
- * @param params.globalPassword - The latest global password.
- * @returns A promise that resolves to the success of the operation.
- */
-export type SeedlessOnboardingControllerSyncLatestGlobalPasswordAction = {
-  type: `SeedlessOnboardingController:syncLatestGlobalPassword`;
-  handler: SeedlessOnboardingController['syncLatestGlobalPassword'];
-};
-
-/**
- * @description Unlock the controller with the latest global password.
- *
- * @param params - The parameters for unlocking the controller.
- * @param params.maxKeyChainLength - The maximum chain length of the pwd encryption keys.
- * @param params.globalPassword - The latest global password.
- * @returns A promise that resolves to the success of the operation.
- */
-export type SeedlessOnboardingControllerSubmitGlobalPasswordAction = {
-  type: `SeedlessOnboardingController:submitGlobalPassword`;
-  handler: SeedlessOnboardingController['submitGlobalPassword'];
-};
-
-/**
- * @description Check if the current password is outdated compare to the global password.
- *
- * @param options - Optional options object.
- * @param options.globalAuthPubKey - The global auth public key to compare with the current auth public key.
- * If not provided, the global auth public key will be fetched from the backend.
- * @param options.skipCache - If true, bypass the cache and force a fresh check.
- * @param options.skipLock - Whether to skip the lock acquisition. (to prevent deadlock in case the caller already acquired the lock)
- * @returns A promise that resolves to true if the password is outdated, false otherwise.
- */
-export type SeedlessOnboardingControllerCheckIsPasswordOutdatedAction = {
-  type: `SeedlessOnboardingController:checkIsPasswordOutdated`;
-  handler: SeedlessOnboardingController['checkIsPasswordOutdated'];
-};
-
-/**
  * Check if the user is authenticated with the seedless onboarding flow by checking the token values in the state.
  *
  * This method will check the `accessToken` and `revokeToken` in the state, besides the social login authentication details.
@@ -253,6 +211,9 @@ export type SeedlessOnboardingControllerClearStateAction = {
  * Store the keyring encryption key in state, encrypted under the current
  * encryption key.
  *
+ * Remains lifecycle-neutral: the client calls this during recovery without
+ * advancing the lifecycle phase.
+ *
  * @param keyringEncryptionKey - The keyring encryption key.
  */
 export type SeedlessOnboardingControllerStoreKeyringEncryptionKeyAction = {
@@ -269,6 +230,100 @@ export type SeedlessOnboardingControllerStoreKeyringEncryptionKeyAction = {
 export type SeedlessOnboardingControllerLoadKeyringEncryptionKeyAction = {
   type: `SeedlessOnboardingController:loadKeyringEncryptionKey`;
   handler: SeedlessOnboardingController['loadKeyringEncryptionKey'];
+};
+
+/**
+ * Clear the password-change lifecycle.
+ *
+ * Used after a definitive remote failure (server did not commit) or once
+ * Keyring encryption-key synchronization is verified and all required local
+ * writes have succeeded. The controller clears the phase so the next unlock
+ * is normal.
+ *
+ * @returns A promise that resolves once the lifecycle has been cleared.
+ */
+export type SeedlessOnboardingControllerClearPasswordChangePhaseAction = {
+  type: `SeedlessOnboardingController:clearPasswordChangePhase`;
+  handler: SeedlessOnboardingController['clearPasswordChangePhase'];
+};
+
+/**
+ * Mark the password-change lifecycle as `KEY_SYNC_PENDING`.
+ *
+ * Called by the client coordinator before it synchronizes the current
+ * Keyring encryption key to Seedless. The controller only records the
+ * boundary; it does not perform or verify synchronization.
+ *
+ * @returns A promise that resolves once the phase has been persisted.
+ */
+export type SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction =
+  {
+    type: `SeedlessOnboardingController:markPasswordChangeKeySyncPending`;
+    handler: SeedlessOnboardingController['markPasswordChangeKeySyncPending'];
+  };
+
+/**
+ * Resolve the current password-sync state without consuming a password.
+ *
+ * Merges the legacy `checkIsPasswordOutdated` read with password-change
+ * recovery routing, so the client makes a single call at unlock (both on
+ * page render and on password submit) and routes UI from the returned status.
+ *
+ * Phase handling:
+ * - No phase (`undefined`): run the authoritative outdated check. `skipCache`
+ * is honored, so the client can read from cache on render and force a remote
+ * call on submit. Returns `InSync` or `PasswordOutdated` (another device
+ * changed the remote password).
+ * - `SEEDLESS_CHANGE_PENDING`: the remote outcome is ambiguous, so `skipCache`
+ * is ignored and a remote check is forced. Clears the phase (remote did not
+ * commit) or advances to `SEEDLESS_COMMITTED` (remote committed). Returns
+ * `InSync` or `EnterNewPassword`.
+ * - Other phases: return the next recovery step without mutating state.
+ *
+ * This method does not consume a password; the client prompts for the
+ * correct password and then calls `reconcilePassword`.
+ *
+ * @param options - The options.
+ * @param options.skipCache - Whether to bypass the outdated cache. Ignored
+ * for `SEEDLESS_CHANGE_PENDING`, which always forces a remote check.
+ * @returns The sync/recovery resolution. On any failure the last known phase
+ * is preserved and `PasswordSyncStatus.Unknown` is returned.
+ */
+export type SeedlessOnboardingControllerResolvePasswordSyncStateAction = {
+  type: `SeedlessOnboardingController:resolvePasswordSyncState`;
+  handler: SeedlessOnboardingController['resolvePasswordSyncState'];
+};
+
+/**
+ * Reconcile the local Seedless password with the remote password.
+ *
+ * For `SEEDLESS_COMMITTED` or `LOCAL_KEYRING_PENDING` it re-runs the existing
+ * password-sync flow (chain unlock + local vault rewrite)
+ * with the new password and advances the phase to `LOCAL_KEYRING_PENDING`.
+ * These operations are idempotent, so re-running them is safe whether or not
+ * the local Seedless vault was already rewritten. The controller is left
+ * unlocked.
+ *
+ * For no phase (`undefined`) it re-checks whether the remote password is
+ * outdated. If it is, it runs the same password-sync flow, advances to
+ * `LOCAL_KEYRING_PENDING`, and returns `ReconcileKeyring` so the client can
+ * reconcile the local Keyring (e.g. after another device changed the remote
+ * password). If the remote password is not outdated it is a no-op.
+ *
+ * The client remains responsible for the Keyring side (classifying the local
+ * Keyring via `KeyringController:verifyPassword` and running the old-Keyring
+ * or new-Keyring branch), because this controller does not depend on
+ * `KeyringController`. See
+ * [0003](./docs/0003-controller-owned-password-change-recovery-plan.md).
+ *
+ * @param params - The reconciliation parameters.
+ * @param params.globalPassword - The current global password.
+ * @returns The reconciliation result. On any failure the last known phase is
+ * preserved and `PasswordSyncStatus.Unknown` is returned.
+ */
+export type SeedlessOnboardingControllerReconcilePasswordAction = {
+  type: `SeedlessOnboardingController:reconcilePassword`;
+  handler: SeedlessOnboardingController['reconcilePassword'];
 };
 
 /**
@@ -376,13 +431,14 @@ export type SeedlessOnboardingControllerMethodActions =
   | SeedlessOnboardingControllerGetSecretDataBackupStateAction
   | SeedlessOnboardingControllerSubmitPasswordAction
   | SeedlessOnboardingControllerSetLockedAction
-  | SeedlessOnboardingControllerSyncLatestGlobalPasswordAction
-  | SeedlessOnboardingControllerSubmitGlobalPasswordAction
-  | SeedlessOnboardingControllerCheckIsPasswordOutdatedAction
   | SeedlessOnboardingControllerGetIsUserAuthenticatedAction
   | SeedlessOnboardingControllerClearStateAction
   | SeedlessOnboardingControllerStoreKeyringEncryptionKeyAction
   | SeedlessOnboardingControllerLoadKeyringEncryptionKeyAction
+  | SeedlessOnboardingControllerClearPasswordChangePhaseAction
+  | SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction
+  | SeedlessOnboardingControllerResolvePasswordSyncStateAction
+  | SeedlessOnboardingControllerReconcilePasswordAction
   | SeedlessOnboardingControllerRefreshAuthTokensAction
   | SeedlessOnboardingControllerRotateRefreshTokenAction
   | SeedlessOnboardingControllerRevokePendingRefreshTokensAction

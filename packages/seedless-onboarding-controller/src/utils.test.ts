@@ -7,9 +7,9 @@ import { SecretType } from './constants.js';
 import { SecretMetadata } from './SecretMetadata.js';
 import type { DecodedNodeAuthToken } from './types.js';
 import {
-  decodeNodeAuthToken,
-  decodeJWTToken,
   compareAndGetLatestToken,
+  decodeJWTToken,
+  decodeNodeAuthToken,
   getInvalidPrimarySecretDataTypeErrorData,
   getSecretTypeFromDataType,
 } from './utils.js';
