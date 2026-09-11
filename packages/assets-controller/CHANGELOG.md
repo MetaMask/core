@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controllers` from `^112.0.0` to `^112.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
 - Bump `@metamask/core-backend` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
 
+### Fixed
+
+- Remove spam assets from balances, metadata, and detected assets regardless of asset ID casing, so filtered spam tokens no longer appear in state ([#10172](https://github.com/MetaMask/core/pull/10172))
+
 ## [16.0.0]
 
 ### Changed
