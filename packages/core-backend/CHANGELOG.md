@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Accounts API `V2SupportedNetworksResponse` now uses CAIP-2 string arrays for both `fullSupport` and `partialSupport`, replacing decimal `fullSupport` and object-shaped `partialSupport.balances` ([#10144](https://github.com/MetaMask/core/pull/10144))
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.0` ([#10184](https://github.com/MetaMask/core/pull/10184))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
 ## [10.0.1]
 
 ### Changed

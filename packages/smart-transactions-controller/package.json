@@ -61,11 +61,11 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/network-controller": "^37.0.0",
     "@metamask/polling-controller": "^17.0.0",
-    "@metamask/profile-sync-controller": "^32.0.0",
+    "@metamask/profile-sync-controller": "^32.1.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/transaction-controller": "^70.0.0",
-    "@metamask/utils": "^11.12.0",
+    "@metamask/utils": "^12.0.0",
     "bignumber.js": "^9.1.2",
     "lodash-es": "^4.17.21",
     "reselect": "^5.1.1"

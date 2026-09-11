@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0]
+
 ### Added
 
 - Add `KycController.fetchSessionDisclaimers`, which fetches the idOS + KYC-provider disclaimers by `{ sessionId }` or `{ country }`. ([#10162](https://github.com/MetaMask/core/pull/10162))
@@ -19,7 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Rename `KycService.fetchSessionDisclaimers` to `fetchSessionDisclaimersBySessionId` ([#10162](https://github.com/MetaMask/core/pull/10162))
   - Rename `FetchSessionDisclaimersParams` to `FetchSessionDisclaimersBySessionIdParams`.
   - Rename the messenger action `KycService:fetchSessionDisclaimers` to `KycService:fetchSessionDisclaimersBySessionId`.
-- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.1.0` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10184](https://github.com/MetaMask/core/pull/10184))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
 ## [0.2.0]
 
@@ -43,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#10145](https://github.com/MetaMask/core/pull/10145))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.3.0...HEAD
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.2.0...@metamask/kyc-controller@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.1.0...@metamask/kyc-controller@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/kyc-controller@0.1.0
