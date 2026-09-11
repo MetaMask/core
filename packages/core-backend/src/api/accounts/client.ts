@@ -146,6 +146,7 @@ export class AccountsApiClient extends BaseApiClient {
 
   /**
    * Get list of supported networks (v2 endpoint).
+   * Returns CAIP-2 chain IDs in both `fullSupport` and `partialSupport`.
    *
    * @param options - Fetch options including cache settings.
    * @returns The list of supported networks.
