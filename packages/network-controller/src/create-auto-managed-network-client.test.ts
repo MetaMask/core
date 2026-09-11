@@ -1,8 +1,8 @@
 import { BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
 import { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 
-import { mockNetwork } from '../../../tests/mock-network.js';
 import { buildNetworkControllerMessenger } from '../tests/helpers.js';
+import { mockNetwork } from '../tests/mock-network.js';
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client.js';
 import * as createNetworkClientModule from './create-network-client.js';
 import { RpcServiceOptions } from './rpc-service/rpc-service.js';

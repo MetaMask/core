@@ -21,6 +21,9 @@
     },
     {
       "path": "../base-data-service"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

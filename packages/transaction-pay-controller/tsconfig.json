@@ -36,6 +36,9 @@
     },
     {
       "path": "../sentinel-api-service"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

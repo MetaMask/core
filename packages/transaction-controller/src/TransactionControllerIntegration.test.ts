@@ -35,12 +35,12 @@ import assert from 'assert';
 import { v4 as uuidV4 } from 'uuid';
 
 import { jestAdvanceTime } from '../../../tests/helpers.js';
-import { mockNetwork } from '../../../tests/mock-network.js';
 import {
   buildAddNetworkFields,
   buildCustomNetworkClientConfiguration,
   buildUpdateNetworkCustomRpcEndpointFields,
 } from '../../network-controller/tests/helpers.js';
+import { mockNetwork } from '../../network-controller/tests/mock-network.js';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import {
   buildEthGasPriceRequestMock,
