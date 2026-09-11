@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Normalize Lighter order timestamps from seconds to milliseconds for client date displays.
-- Accept omitted Lighter fill PnL only when the account's validated pre-trade position is zero; retain strict PnL validation for existing positions and malformed supplied values.
+- Normalize Lighter order timestamps from seconds to milliseconds for client date displays. ([#10187](https://github.com/MetaMask/core/pull/10187))
+- Accept omitted Lighter fill PnL only when the account's validated pre-trade position is zero; retain strict PnL validation for existing positions and malformed supplied values. ([#10187](https://github.com/MetaMask/core/pull/10187))
 
 ## [16.2.0]
 
