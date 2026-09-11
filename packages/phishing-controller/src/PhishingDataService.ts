@@ -686,21 +686,21 @@ export class PhishingDataService extends BaseDataService<
    * @returns The stalelist response.
    */
   async getStalelist(): Promise<DataResultWrapper<PhishingStalelist>> {
-    const jsonResponse = await this.fetchQuery({
+    // Validated inside the query function so that a malformed response is
+    // never committed to, or persisted from, the query cache. The struct has
+    // no optional fields, so its inferred type satisfies `fetchQuery`'s `Json`
+    // bound and types the result without a cast.
+    return await this.fetchQuery({
       queryKey: [`${this.name}:getStalelist`],
-      // Validated inside the query function so that a malformed response is
-      // never committed to, or persisted from, the query cache.
       queryFn: async ({ signal }) =>
         this.#validate(
           await this.#getJson(METAMASK_STALELIST_URL, { signal }),
           StalelistResponseStruct,
           'stalelist',
-        ) as Json,
+        ),
       staleTime: 0,
       gcTime: LIST_GC_TIME,
     });
-
-    return jsonResponse as DataResultWrapper<PhishingStalelist>;
   }
 
   /**
@@ -1083,7 +1083,7 @@ export class PhishingDataService extends BaseDataService<
     address: string,
   ): Promise<AddressScanResult> {
     const normalizedAddress = normalizeScanAddress(address);
-    const jsonResponse = await this.fetchQuery({
+    return await this.fetchQuery({
       queryKey: [`${this.name}:scanAddress`, chain, normalizedAddress],
       queryFn: async ({ signal }) =>
         this.#validate(
@@ -1094,18 +1094,18 @@ export class PhishingDataService extends BaseDataService<
           ),
           ScanAddressResponseStruct,
           'address scan',
-        ) as Json,
+        ),
       staleTime: SCAN_RESULT_STALE_TIME,
       gcTime: SCAN_RESULT_GC_TIME,
     });
-
-    return jsonResponse as AddressScanResult;
   }
 
   /**
    * Gets token approvals for an address with security enrichments via the
-   * security-alerts API. Approvals reflect live account state and are never
-   * cached.
+   * security-alerts API. Approvals reflect live account state, so they are
+   * always refetched and never retained in the query cache. EVM addresses are
+   * lowercased before being sent to the API; other addresses are used as
+   * given.
    *
    * @param chain - The chain name (e.g. `ethereum`).
    * @param address - The address to get approvals for.
@@ -1115,29 +1115,34 @@ export class PhishingDataService extends BaseDataService<
     chain: string,
     address: string,
   ): Promise<ApprovalsResponse> {
-    // Deliberately not routed through `fetchQuery`. Approvals reflect live,
-    // account-specific state that is never cached, so the query cache would
-    // provide no benefit while publishing the response on the messenger as a
-    // `cacheUpdated` payload. This matches the handling of non-cached POSTs
-    // elsewhere in the monorepo.
-    const jsonResponse = await this.executeWithPolicy(() =>
-      this.#postJson(
-        `${SECURITY_ALERTS_BASE_URL}${APPROVALS_ENDPOINT}`,
-        { chain, address },
-        { timeout: APPROVALS_TIMEOUT },
-      ),
-    );
+    const normalizedAddress = normalizeScanAddress(address);
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:getApprovals`, chain, normalizedAddress],
+      queryFn: async ({ signal }) => {
+        const response = this.#validate(
+          await this.#postJson(
+            `${SECURITY_ALERTS_BASE_URL}${APPROVALS_ENDPOINT}`,
+            { chain, address: normalizedAddress },
+            { signal, timeout: APPROVALS_TIMEOUT },
+          ),
+          ApprovalsResponseStruct,
+          'approvals',
+        );
+        // Approvals are validated individually so that one malformed entry
+        // does not empty the whole list.
+        return {
+          approvals: response.approvals.filter((approval) =>
+            is(approval, ApprovalStruct),
+          ),
+        } as Json;
+      },
+      // Live account state: always refetch and evict as soon as the call
+      // settles, as other data services do for uncached reads.
+      staleTime: 0,
+      gcTime: 0,
+    });
 
-    const response = this.#validate(
-      jsonResponse,
-      ApprovalsResponseStruct,
-      'approvals',
-    );
-    return {
-      approvals: response.approvals.filter((approval) =>
-        is(approval, ApprovalStruct),
-      ),
-    } as ApprovalsResponse;
+    return jsonResponse as ApprovalsResponse;
   }
 
   /**

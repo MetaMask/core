@@ -123,8 +123,10 @@ export type PhishingDataServiceScanAddressAction = {
 
 /**
  * Gets token approvals for an address with security enrichments via the
- * security-alerts API. Approvals reflect live account state and are never
- * cached.
+ * security-alerts API. Approvals reflect live account state, so they are
+ * always refetched and never retained in the query cache. EVM addresses are
+ * lowercased before being sent to the API; other addresses are used as
+ * given.
  *
  * @param chain - The chain name (e.g. `ethereum`).
  * @param address - The address to get approvals for.
