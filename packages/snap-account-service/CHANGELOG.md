@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `SnapAccountService` now reads `AccountsController` state to filter account data update events by Snap ownership ([#10057](https://github.com/MetaMask/core/pull/10057)).
+  - Filter account data update events (`notify:accountTransactionsUpdated`, `notify:accountBalancesUpdated`, and `notify:accountAssetListUpdated`) to the accounts that the originating Snap actually owns before republishing them.
+
 ## [3.0.0]
 
 ### Changed
