@@ -105,7 +105,14 @@ function deduplicationScore(item: MessengerCapabilityPacket): number {
     item.sourceFile.toLowerCase().includes(namespacePrefix)
       ? 1
       : 0;
-  return jsDocScore + homeScore;
+  // A capability declared in a package's own source is usually also visible in
+  // the `dist` built from it, and a cross-package import resolves to that
+  // `dist` rather than to the sibling's source. Prefer the source, which is
+  // what an engineer can actually read and edit. Projects that only ever see
+  // published packages score every candidate the same way, so nothing changes
+  // for them.
+  const sourceScore = /[\\/]dist[\\/]/u.test(item.sourceFile) ? 0 : 1;
+  return jsDocScore + homeScore + sourceScore;
 }
 
 const execFileAsync = promisify(execFile);
@@ -353,16 +360,11 @@ async function scanSources(
   sources: ScanSources,
 ): Promise<MessengerCapabilityPacket[]> {
   const project = createProject();
-  const sourceFiles = [];
+  const patterns: string[] = [];
 
   for (const dir of sources.scanDirs) {
     const root = await toGlobPath(projectPath, dir);
-    sourceFiles.push(
-      ...addSourceFiles(project, [
-        `${root}/**/*.ts`,
-        ...buildTsSourceExclusions(root),
-      ]),
-    );
+    patterns.push(`${root}/**/*.ts`, ...buildTsSourceExclusions(root));
   }
 
   if (sources.packagesDir) {
@@ -370,18 +372,18 @@ async function scanSources(
     // Anchored at each package's `src`, not at `packages` itself, so a package
     // whose name collides with an exclusion (`test`, `dist`) isn't dropped.
     const contentRoot = `${root}/*/src`;
-    sourceFiles.push(
-      ...addSourceFiles(project, [
-        `${contentRoot}/**/*.ts`,
-        ...buildTsSourceExclusions(contentRoot),
-      ]),
+    patterns.push(
+      `${contentRoot}/**/*.ts`,
+      ...buildTsSourceExclusions(contentRoot),
     );
   }
 
   if (sources.nodeModulesDir) {
     const root = await toGlobPath(sources.nodeModulesDir);
-    sourceFiles.push(...addSourceFiles(project, [`${root}/*/dist/**/*.d.cts`]));
+    patterns.push(`${root}/*/dist/**/*.d.cts`);
   }
+
+  const sourceFiles = addSourceFiles(project, patterns);
 
   // Matched paths are fully resolved, so the root they are made relative to
   // has to be resolved the same way or every source link becomes a `../..`
