@@ -1166,9 +1166,9 @@ describe('KycController', () => {
         async ({ controller, handlers, launcher, moonPayFrames }) => {
           handlers.checkKycRequired.mockRejectedValue(new Error('down'));
 
-          await expect(
-            moonPayFrames.options.onAuthenticated(),
-          ).rejects.toThrow('down');
+          await expect(moonPayFrames.options.onAuthenticated()).rejects.toThrow(
+            'down',
+          );
 
           expect(controller.state.phase).toBe('error');
           expect(launcher.launch).not.toHaveBeenCalled();
