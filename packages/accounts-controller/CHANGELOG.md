@@ -7,9 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `init` method and `AccountsController:init` messenger action ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - Loads accounts from the current keyring state, intended to pair with `clearState` for wallet reset flows (`clearState` then `init`).
+  - Idempotent: subsequent calls before `clearState` are no-ops.
+  - Fires `AccountsController:accountsAdded` for accounts newly discovered during initialization.
+  - Fires `AccountsController:initialized` (with current state as payload) when initialization completes.
+- Add `AccountsController:initialized` event - fired by `init()` when the controller finishes its first full account sync ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Add `AccountsController:uninitialized` event - fired by `clearState()` to signal that `init()` must be called again ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+
 ### Changed
 
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
+- `clearState()` now resets the initialized flag and fires `AccountsController:uninitialized` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+
+### Removed
+
+- **BREAKING:** Remove `updateAccounts` method and `AccountsController:updateAccounts` messenger action ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - Use `AccountsController:init` instead, it performs the same full keyring sync and additionally fires lifecycle events.
 
 ## [40.0.0]
 
