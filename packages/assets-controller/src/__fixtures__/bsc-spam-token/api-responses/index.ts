@@ -33,6 +33,19 @@ type BatchRecordingMock = {
 };
 
 /**
+ * Intercept `GET https://chainid.network/chains.json`, which
+ * `AssetsController` fetches on boot to fill native-asset gaps.
+ *
+ * @returns The nock scope.
+ */
+function mockChainIdNetwork(): nock.Scope {
+  return nock('https://chainid.network')
+    .persist()
+    .get('/chains.json')
+    .reply(200, []);
+}
+
+/**
  * Intercept `GET {ACCOUNTS}/v2/supportedNetworks`, which
  * `AccountsApiDataSource` reads to decide which chains it claims.
  *
@@ -171,7 +184,8 @@ function mockV3SpotPrices(): BatchRecordingMock {
  * Register every interceptor the fast fetch lane needs for this wallet:
  * Accounts API supported networks and balances, Tokens API supported networks
  * and assets, the Token API occurrence floors, and the Price API supported
- * networks and spot prices.
+ * networks and spot prices. Also answers `chainid.network/chains.json`, which
+ * `AssetsController` fetches on boot to fill native-asset gaps.
  *
  * All interceptors persist, so batch composition and cache misses cannot make a
  * test fail for want of an interceptor.
@@ -188,6 +202,7 @@ export function mockBscSpamApis(): {
   mockTokensSupportedNetworks();
   mockSuggestedOccurrenceFloors();
   mockPricesSupportedNetworks();
+  mockChainIdNetwork();
 
   const balances = mockV5MultiAccountBalances();
   const assets = mockV3Assets();
