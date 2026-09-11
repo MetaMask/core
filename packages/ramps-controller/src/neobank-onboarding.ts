@@ -33,15 +33,22 @@ export enum NeobankOnboardingStage {
   VendorTermsRequired = 'VendorTermsRequired',
   /** SumSub + idOS T&C (Terms 2) not accepted as a batch. */
   ProviderTermsRequired = 'ProviderTermsRequired',
-  /** KYC not started. */
+  /** KYC not started. Mobile mounts KYCPage; the page hook may launch SumSub. */
   KycNotStarted = 'KycNotStarted',
-  /** SumSub / document flow started but not finished. */
+  /**
+   * Document flow started, abandoned, or retryable SumSub failure.
+   * Mobile mounts KYCPage; the page hook should resume / relaunch SumSub.
+   * Do not launch the SDK from the router.
+   */
   KycStartedIncomplete = 'KycStartedIncomplete',
-  /** Terminal KYC failure / rejection. */
+  /** Terminal KYC failure / rejection (`userStatus === 'terminal-failure'`). */
   KycRejected = 'KycRejected',
-  /** Needs review / more information (EDD). */
+  /** Needs review / more information (EDD). Mobile mounts KYCPage, not a dead error. */
   KycNeedsReview = 'KycNeedsReview',
-  /** KYC submitted; vendor still deciding. */
+  /**
+   * KYC submitted or vendor is still deciding (`userStatus === 'pending'` or
+   * SumSub `vendorProcessing`). Processing UI — do not launch the SDK.
+   */
   KycPending = 'KycPending',
   /** Money Account wallet ownership proof not registered. */
   WalletNotSigned = 'WalletNotSigned',
@@ -129,8 +136,21 @@ function isSumSubInProgress(status: KycSumSubStatus): boolean {
     status === 'fetchingToken' ||
     status === 'launching' ||
     status === 'inProgress' ||
-    status === 'polling' ||
-    status === 'vendorProcessing'
+    status === 'polling'
+  );
+}
+
+/**
+ * Whether SumSub was started but the applicant can still resume (including a
+ * retryable SDK failure). Distinct from `vendorProcessing`, which must not
+ * relaunch the SDK.
+ *
+ * @param status - SumSub sub-flow status.
+ * @returns Whether Mobile should mount KYCPage and let the page hook launch.
+ */
+function isSumSubResumeRequired(status: KycSumSubStatus): boolean {
+  return (
+    isSumSubInProgress(status) || status === 'abandoned' || status === 'failed'
   );
 }
 
@@ -191,6 +211,9 @@ export function summarizeAutorampsForWallet(
  *
  * Priority follows the product funnel: identity / terms / KYC, then wallet
  * registration, then autoramp. Safe to call twice with the same inputs.
+ * This returns a stage only — Mobile mounts KYCPage when terms are done and
+ * documents are still needed; the page hook launches SumSub. Do not launch
+ * the SDK from a router method call.
  *
  * @param input - Refreshed KYC + wallet + autoramp signals.
  * @returns The onboarding stage.
@@ -226,15 +249,21 @@ export function deriveNeobankOnboardingStage(
   }
 
   if (kyc.userStatus !== 'completed') {
-    if (isSumSubInProgress(kyc.sumsubStatus) || kyc.sumsubStatus === 'failed') {
-      return kyc.sumsubStatus === 'failed'
-        ? NeobankOnboardingStage.KycRejected
-        : NeobankOnboardingStage.KycStartedIncomplete;
+    if (kyc.sumsubStatus === 'vendorProcessing') {
+      return NeobankOnboardingStage.KycPending;
+    }
+    if (isSumSubResumeRequired(kyc.sumsubStatus)) {
+      return NeobankOnboardingStage.KycStartedIncomplete;
     }
     if (kyc.phase === 'error') {
-      return NeobankOnboardingStage.KycRejected;
+      return NeobankOnboardingStage.LookupFailed;
     }
-    if (kyc.phase === 'submit' || kyc.phase === 'session') {
+    if (
+      kyc.phase === 'submit' ||
+      kyc.phase === 'session' ||
+      kyc.phase === 'form' ||
+      kyc.phase === 'check'
+    ) {
       return NeobankOnboardingStage.KycStartedIncomplete;
     }
     return NeobankOnboardingStage.KycNotStarted;

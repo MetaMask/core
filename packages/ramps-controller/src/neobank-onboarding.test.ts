@@ -325,36 +325,25 @@ describe('deriveNeobankOnboardingStage', () => {
     ).toBe(NeobankOnboardingStage.AutorampCreated);
   });
 
-  it('maps submit/session phases to KycStartedIncomplete', () => {
-    expect(
-      deriveNeobankOnboardingStage(
-        buildInput({
-          kyc: {
-            userStatus: 'not-started',
-            sumsubStatus: 'idle',
-            phase: 'submit',
-            hasVendorTerms: true,
-            hasProviderTerms: true,
-          },
-        }),
-      ),
-    ).toBe(NeobankOnboardingStage.KycStartedIncomplete);
-    expect(
-      deriveNeobankOnboardingStage(
-        buildInput({
-          kyc: {
-            userStatus: 'not-started',
-            sumsubStatus: 'idle',
-            phase: 'session',
-            hasVendorTerms: true,
-            hasProviderTerms: true,
-          },
-        }),
-      ),
-    ).toBe(NeobankOnboardingStage.KycStartedIncomplete);
+  it('maps submit/session/form/check phases to KycStartedIncomplete', () => {
+    for (const phase of ['submit', 'session', 'form', 'check'] as const) {
+      expect(
+        deriveNeobankOnboardingStage(
+          buildInput({
+            kyc: {
+              userStatus: 'not-started',
+              sumsubStatus: 'idle',
+              phase,
+              hasVendorTerms: true,
+              hasProviderTerms: true,
+            },
+          }),
+        ),
+      ).toBe(NeobankOnboardingStage.KycStartedIncomplete);
+    }
   });
 
-  it('maps error phase to KycRejected when status is incomplete', () => {
+  it('maps error phase to LookupFailed when status is incomplete', () => {
     expect(
       deriveNeobankOnboardingStage(
         buildInput({
@@ -367,10 +356,10 @@ describe('deriveNeobankOnboardingStage', () => {
           },
         }),
       ),
-    ).toBe(NeobankOnboardingStage.KycRejected);
+    ).toBe(NeobankOnboardingStage.LookupFailed);
   });
 
-  it('maps failed SumSub to KycRejected before completion', () => {
+  it('maps retryable SumSub failure to KycStartedIncomplete', () => {
     expect(
       deriveNeobankOnboardingStage(
         buildInput({
@@ -383,7 +372,39 @@ describe('deriveNeobankOnboardingStage', () => {
           },
         }),
       ),
-    ).toBe(NeobankOnboardingStage.KycRejected);
+    ).toBe(NeobankOnboardingStage.KycStartedIncomplete);
+  });
+
+  it('maps abandoned SumSub to KycStartedIncomplete', () => {
+    expect(
+      deriveNeobankOnboardingStage(
+        buildInput({
+          kyc: {
+            userStatus: 'not-started',
+            sumsubStatus: 'abandoned',
+            phase: 'done',
+            hasVendorTerms: true,
+            hasProviderTerms: true,
+          },
+        }),
+      ),
+    ).toBe(NeobankOnboardingStage.KycStartedIncomplete);
+  });
+
+  it('maps vendorProcessing SumSub to KycPending so the SDK is not relaunched', () => {
+    expect(
+      deriveNeobankOnboardingStage(
+        buildInput({
+          kyc: {
+            userStatus: 'not-started',
+            sumsubStatus: 'vendorProcessing',
+            phase: 'done',
+            hasVendorTerms: true,
+            hasProviderTerms: true,
+          },
+        }),
+      ),
+    ).toBe(NeobankOnboardingStage.KycPending);
   });
 
   it('returns LookupFailed when KYC is complete but wallet was skipped', () => {
