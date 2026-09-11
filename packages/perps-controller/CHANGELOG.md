@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
+### Fixed
+
+- Normalize Lighter order timestamps from seconds to milliseconds for client date displays. ([#10187](https://github.com/MetaMask/core/pull/10187))
+- Accept omitted Lighter fill PnL only when the account's validated pre-trade position is zero; retain strict PnL validation for existing positions and malformed supplied values. ([#10187](https://github.com/MetaMask/core/pull/10187))
+
 ## [17.0.0]
 
 ### Changed
