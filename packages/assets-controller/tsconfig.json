@@ -56,6 +56,9 @@
       "path": "../remote-feature-flag-controller"
     },
     {
+      "path": "../eth-json-rpc-provider"
+    },
+    {
       "path": "../utils"
     }
   ],

@@ -110,7 +110,6 @@ import {
   buildDefaultAssetsInfo,
   getDefaultAssetMetadata,
 } from './defaults.js';
-import { AssetsDataSourceError } from './errors.js';
 import { projectLogger, createModuleLogger } from './logger.js';
 import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware.js';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware.js';
@@ -125,6 +124,10 @@ import {
   isUnlockCleanupEnabled,
   tempHealAssetsInfoMetadata,
 } from './migrations/healAssetsInfoMetadata.js';
+import {
+  buildFastFetchSources,
+  executeAssetsPipeline,
+} from './pipeline/index.js';
 import type {
   AccountId,
   AssetPreferences,
@@ -142,10 +145,6 @@ import type {
   DataType,
   DataRequest,
   DataResponse,
-  FetchContext,
-  FetchNextFunction,
-  NextFunction,
-  Middleware,
   SubscriptionResponse,
   Asset,
 } from './types.js';
@@ -226,8 +225,6 @@ const TRACE_FULL_FETCH = 'AssetsFullFetch';
 /** Parent span that nests per-source timings; dashboard charts {@link TRACE_FULL_FETCH}. */
 const TRACE_FETCH_PIPELINE = 'AssetsFetchPipeline';
 const TRACE_BACKGROUND_FETCH = 'AssetsBackgroundFetch';
-const TRACE_DATA_SOURCE_TIMING = 'AssetsDataSourceTiming';
-const TRACE_DATA_SOURCE_ERROR = 'AssetsDataSourceError';
 const TRACE_UPDATE_PIPELINE = 'AssetsUpdatePipeline';
 /** Parent span that nests update enrichment; dashboard charts {@link TRACE_UPDATE_PIPELINE}. */
 const TRACE_UPDATE_PARENT = 'AssetsUpdateEnrichment';
@@ -1453,6 +1450,9 @@ export class AssetsController extends BaseController<
    * Execute middlewares with request/response context.
    * Returns response and exclusive duration per source (sum ≈ wall time).
    *
+   * Thin wrapper over {@link executeAssetsPipeline} that supplies the
+   * controller-owned state accessor and exception reporter.
+   *
    * @param params - Middleware execution options.
    * @param params.sources - Data sources or middlewares with getName() and assetsMiddleware.
    * @param params.request - The data request.
@@ -1472,132 +1472,11 @@ export class AssetsController extends BaseController<
     response: DataResponse;
     durationByDataSource: Record<string, number>;
   }> {
-    const {
-      sources,
-      request,
-      initialResponse = {},
-      parentContext,
-      trace,
-    } = params;
-    const names = sources.map((source) => source.getName());
-    const middlewares = sources.map((source) => source.assetsMiddleware);
-    const inclusive: number[] = [];
-    const wrapped = middlewares.map(
-      (middleware, i) =>
-        (async (
-          ctx: FetchContext,
-          next: FetchNextFunction,
-        ): Promise<{
-          request: DataRequest;
-          response: DataResponse;
-          getAssetsState: () => AssetsControllerStateInternal;
-        }> => {
-          const start = performance.now();
-          try {
-            return await middleware(ctx, next);
-          } finally {
-            inclusive[i] = performance.now() - start;
-          }
-        }) as Middleware,
-    );
-
-    const middlewareErrors: string[] = [];
-    const chain = wrapped.reduceRight<NextFunction>(
-      (next, middleware, index) =>
-        async (
-          ctx,
-        ): Promise<{
-          request: DataRequest;
-          response: DataResponse;
-          getAssetsState: () => AssetsControllerStateInternal;
-        }> => {
-          try {
-            return await middleware(ctx, next);
-          } catch (error) {
-            const sourceName = names[index] ?? `middleware_${index}`;
-            middlewareErrors.push(sourceName);
-            console.error('[AssetsController] Middleware failed:', error);
-            return next(ctx);
-          }
-        },
-      async (ctx) => ctx,
-    );
-
-    const result = await chain({
-      request,
-      response: initialResponse,
+    return executeAssetsPipeline({
+      ...params,
       getAssetsState: () => this.state as AssetsControllerStateInternal,
+      captureException: this.#captureException,
     });
-
-    const durationByDataSource: Record<string, number> = {};
-    for (let i = 0; i < inclusive.length; i++) {
-      const nextInc = i + 1 < inclusive.length ? (inclusive[i + 1] ?? 0) : 0;
-      const exclusive = Math.max(0, (inclusive[i] ?? 0) - nextInc);
-      const name = names[i];
-      if (name !== undefined) {
-        durationByDataSource[name] = exclusive;
-      }
-    }
-    if (result.durationByDataSource) {
-      for (const [key, ms] of Object.entries(result.durationByDataSource)) {
-        durationByDataSource[key] = ms;
-      }
-    }
-
-    // Emit per-source timing as subspans under the parent fetch/update span
-    // (no-op when `trace` is omitted — unlock/first-init only).
-    for (const [sourceName, durationMs] of Object.entries(
-      durationByDataSource,
-    )) {
-      emitTrace({
-        name: TRACE_DATA_SOURCE_TIMING,
-        trace,
-        data: {
-          source: sourceName,
-          duration_ms: durationMs,
-          chain_count: request.chainIds.length,
-          account_count: request.accountsWithSupportedChains.length,
-        },
-        tags: {
-          controller: 'AssetsController',
-          // String tag so Spans widgets can group by `source`.
-          source: sourceName,
-        },
-        parentContext,
-      });
-    }
-
-    // Failed middlewares: Issues (optional) + perf/Dashboard spans
-    if (middlewareErrors.length > 0) {
-      const failedSources = middlewareErrors.join(',');
-      const assetsError = new AssetsDataSourceError({
-        failedSources,
-        errorCount: middlewareErrors.length,
-        chainCount: request.chainIds.length,
-      });
-      try {
-        this.#captureException?.(assetsError);
-      } catch {
-        // Never let telemetry throw.
-      }
-      emitTrace({
-        name: TRACE_DATA_SOURCE_ERROR,
-        trace,
-        data: {
-          failed_sources: failedSources,
-          error_count: middlewareErrors.length,
-          chain_count: request.chainIds.length,
-        },
-        tags: {
-          controller: 'AssetsController',
-          severity: 'error',
-          error_type: assetsError.name,
-        },
-        parentContext,
-      });
-    }
-
-    return { response: result.response, durationByDataSource };
   }
 
   // ============================================================================
@@ -1662,24 +1541,19 @@ export class AssetsController extends BaseController<
       // Fast/slow pipelines use merge so partial API snapshots cannot wipe
       // tokens missing from the response (e.g. USDC when only native balance
       // is returned). Balances present in the response are still refreshed.
-      const fastSources = this.#isBasicFunctionality()
-        ? [
-            createParallelBalanceMiddleware([
-              this.#accountsApiDataSource,
-              this.#stakedBalanceDataSource,
-            ]),
-            // Graduation must run BEFORE the RPC fallback so it only sees
-            // AccountsApi/Websocket balances. RPC intentionally carries
-            // custom assets and must never trigger graduation.
+      const fastSources = buildFastFetchSources(
+        {
+          accountsApiDataSource: this.#accountsApiDataSource,
+          stakedBalanceDataSource: this.#stakedBalanceDataSource,
+          customAssetGraduationMiddleware:
             this.#customAssetGraduationMiddleware,
-            this.#rpcFallbackMiddleware,
-            this.#detectionMiddleware,
-            createParallelMiddleware([
-              this.#tokenDataSource,
-              this.#priceDataSource,
-            ]),
-          ]
-        : [this.#stakedBalanceDataSource, this.#detectionMiddleware];
+          rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
+          detectionMiddleware: this.#detectionMiddleware,
+          tokenDataSource: this.#tokenDataSource,
+          priceDataSource: this.#priceDataSource,
+        },
+        { isBasicFunctionality: this.#isBasicFunctionality() },
+      );
 
       const { response } = await withTrace({
         name: TRACE_FETCH_PIPELINE,

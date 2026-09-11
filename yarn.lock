@@ -5852,6 +5852,7 @@ __metadata:
     "@metamask/config-registry-controller": "npm:^4.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/core-backend": "npm:^10.0.1"
+    "@metamask/eth-json-rpc-provider": "npm:^7.0.0"
     "@metamask/keyring-api": "npm:^24.0.0"
     "@metamask/keyring-controller": "npm:^28.0.0"
     "@metamask/keyring-internal-api": "npm:^12.0.0"

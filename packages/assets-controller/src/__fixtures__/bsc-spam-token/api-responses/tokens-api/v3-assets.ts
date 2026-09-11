@@ -1,0 +1,891 @@
+const v3Assets = {
+  'eip155:56/erc20:0xe9e7cea3dedca5984780bafc599bd69add087d56': {
+    aggregators: [
+      'pancakeExtended',
+      'liFi',
+      'oneInch',
+      'squid',
+      'rango',
+      'sonarwatch',
+      'sushiSwap',
+      'trustWallet',
+      'binanceDex',
+    ],
+    assetId: 'eip155:56/erc20:0xe9e7cea3dedca5984780bafc599bd69add087d56',
+    decimals: 18,
+    erc20Permit: false,
+    fees: {
+      avgFee: 0,
+      maxFee: 0,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0xe9e7cea3dedca5984780bafc599bd69add087d56.png',
+    labels: ['badges:v1:stablecoin'],
+    name: 'BUSD',
+    occurrences: 9,
+    storage: {
+      balance: 1,
+      approval: 2,
+    },
+    symbol: 'BUSD',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x4f0ed527e8a95ecaa132af214dfd41f30b361600': {
+    aggregators: ['pancakeCoinMarketCap', 'oneInch', 'rango', 'sonarwatch'],
+    assetId: 'eip155:56/erc20:0x4f0ed527e8a95ecaa132af214dfd41f30b361600',
+    decimals: 18,
+    description: {
+      en: 'vBSWAP is Binance Smart Chain token used as incentive for Value DeFi BSC ecosystem users. Part of fees (decided by vGovernance) from Value DeFi BSC ecosystem are used to buyback and burn vBSWAP. Max supply of vBSWAP is 100000 and it will be distributed over period of 108 weeks with emission reduction by 10% every 4 weeks (eg. first four weeks total of 10600 vBSWAP tokens will be distributed to farmers, next four weeks 9540, etc',
+    },
+    erc20Permit: false,
+    fees: {
+      avgFee: 0,
+      maxFee: 0,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0x4f0ed527e8a95ecaa132af214dfd41f30b361600.png',
+    name: 'vBSWAP',
+    occurrences: 4,
+    storage: {
+      balance: 0,
+      approval: 1,
+    },
+    symbol: 'VBSWAP',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x5259639653f76f3385ba100ddb6290724891a95b': {
+    aggregators: ['rubic'],
+    assetId: 'eip155:56/erc20:0x5259639653f76f3385ba100ddb6290724891a95b',
+    decimals: 9,
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    name: 'LUNC',
+    occurrences: 1,
+    symbol: 'LUNC',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x55d398326f99059ff775485246999027b3197955': {
+    aggregators: [
+      'pancakeExtended',
+      'liFi',
+      'oneInch',
+      'rubic',
+      'squid',
+      'rango',
+      'sonarwatch',
+      'sushiSwap',
+      'trustWallet',
+    ],
+    assetId: 'eip155:56/erc20:0x55d398326f99059ff775485246999027b3197955',
+    decimals: 18,
+    description: {
+      en: 'Tether (USDT) is a cryptocurrency with a value meant to mirror the value of the U.S. dollar. The idea was to create a stable cryptocurrency that can be used like digital dollars. Coins that serve this purpose of being a stable dollar substitute are called “stable coins.” Tether is the most popular stable coin and even acts as a dollar replacement on many popular exchanges! According to their site, Tether converts cash into digital currency, to anchor or “tether” the value of the coin to the price of national currencies like the US dollar, the Euro, and the Yen. Like other cryptos it uses blockchain. Unlike other cryptos, it is [according to the official Tether site] “100% backed by USD” (USD is held in reserve). The primary use of Tether is that it offers some stability to the otherwise volatile crypto space and offers liquidity to exchanges who can’t deal in dollars and with banks (for example to the sometimes controversial but leading exchange <a href="https://www.coingecko.com/en/exchanges/bitfinex">Bitfinex</a>).The digital coins are issued by a company called Tether Limited that is governed by the laws of the British Virgin Islands, according to the legal part of its website. It is incorporated in Hong Kong. It has emerged that Jan Ludovicus van der Velde is the CEO of cryptocurrency exchange Bitfinex, which has been accused of being involved in the price manipulation of bitcoin, as well as tether. Many people trading on exchanges, including Bitfinex, will use tether to buy other cryptocurrencies like bitcoin. Tether Limited argues that using this method to buy virtual currencies allows users to move fiat in and out of an exchange more quickly and cheaply. Also, exchanges typically have rocky relationships with banks, and using Tether is a way to circumvent that.USDT is fairly simple to use. Once on exchanges like <a href="https://www.coingecko.com/en/exchanges/poloniex">Poloniex</a> or Bittrex, it can be used to purchase Bitcoin and other cryptocurrencies. It can be easily transferred from an exchange to any Omni Layer enabled wallet. Tether has no transaction fees, although external wallets and exchanges may charge one. In order to convert USDT to USD and vise versa through the Tether.to Platform, users must pay a small fee. Buying and selling Tether for Bitcoin can be done through a variety of exchanges like the ones mentioned previously or through the Tether.to platform, which also allows the conversion between USD to and from your bank account.',
+      ko: '미국 달러화를 기반으로 한 블록체인1) 기반 암호화폐실제 달러화 유보금과 1:1정도의 비율을 유지함으로써 가치의 변동성이 거의 없다는 것이 특징가치 변동이 심한 다른 암호화폐 거래 시 안정적인 자산 운용을 위한 역할을 수행하고 있음가치암호화폐 거래를 위한 실질적 기축통화와 1:1 비율로 가치를 형성하는 거래 수단 및 극심한 변동성을 가지고 있는 다른 암호화폐를 거래하기 위한 실질적인 화폐의 기능을 수행할 수 있는 목적으로 만들어진 암호화폐 입니다.이러한 역할을 수행할 수 있는 화폐는 신뢰성을 바탕으로 운영과 관리가 되어야 하며 이를 운영사인 Tether사에서 은행에 1:1비율로 보유하고 있는 미국 달러를 토대로 투명하게 정기적으로 재무 상태를 공개하며 운영을 하는 정책을 가지고 있지만 실질적으로 2017년 들어 의혹이 생길 만한 일들이 다소 발생하였고 이로 인하여 신뢰도가 어느정도 하락한 상태입니다.하지만 아직까지는 USD를 기반으로 한 안정적인 가치의 유지는 지속되고 있으며 여전히 거래 시장 또한 활발하게 움직이고 있는 상황입니다.',
+    },
+    erc20Permit: false,
+    fees: {
+      avgFee: 0,
+      maxFee: 0,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0x55d398326f99059ff775485246999027b3197955.png',
+    name: 'Tether USD',
+    occurrences: 9,
+    storage: {
+      balance: 1,
+      approval: 2,
+    },
+    symbol: 'USDT',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x4b97c9bee3677797034033337f32115115867a62': {
+    aggregators: ['rubic'],
+    assetId: 'eip155:56/erc20:0x4b97c9bee3677797034033337f32115115867a62',
+    decimals: 6,
+    erc20Permit: false,
+    honeypotStatus: {
+      honeypotIs: true,
+      goPlus: true,
+    },
+    name: '$$EURCoin',
+    occurrences: 1,
+    symbol: 'EURC',
+    isContractVerified: true,
+  },
+  'eip155:56/slip44:714': {
+    aggregators: [],
+    assetId: 'eip155:56/slip44:714',
+    decimals: 18,
+    description: {
+      en: 'Binance Coin is the cryptocurrency of the <a href="https://www.coingecko.com/en/exchanges/binance">Binance</a> platform. It is a trading platform exclusively for cryptocurrencies. The name "Binance" is a combination of binary and finance.Thus, the startup name shows that only cryptocurrencies can be traded against each other. It is not possible to trade crypto currencies against Fiat. The platform achieved an enormous success within a very short time and is focused on worldwide market with Malta headquarters. The cryptocurrency currently has a daily trading volume of 1.5 billion - 2 billion US dollars and is still increasing.In total, there will only be 200 million BNBs. Binance uses the <a href="https://www.coingecko.com/en/coins/all?asset_platform_id=279">ERC20 token standard</a> from <a href="https://www.coingecko.com/en/coins/ethereum">Ethereum</a> and has distributed it as follow: 50% sold on ICO, 40% to the team and 10% to Angel investors. The coin can be used to pay fees on Binance. These include trading fees, transaction fees, listing fees and others. Binance gives you a huge discount when fees are paid in BNB. The schedule of BNB fees discount is as follow: In the first year, 50% discount on all fees, second year 25% discount, third year 12.5% discount, fourth year 6.75 % discount, and from the fifth year onwards there is no discount. This structure is used to incentivize users to buy BNB and do trades within Binance.Binance announced in a buyback plan that it would buy back up to 100 million BNB in Q1 2018. The coins are then burned. This means that they are devaluated to increase the value of the remaining coins. This benefits investors. In the future, the cryptocurrency will remain an asset on the trading platform and will be used as gas.Other tokens that are issued by exchanges include <a href="https://www.coingecko.com/en/coins/bibox-token">Bibox Token</a>, <a href="https://www.coingecko.com/en/coins/okb">OKB</a>, <a href="https://www.coingecko.com/en/coins/huobi-token">Huobi Token</a>, and more.',
+    },
+    erc20Permit: false,
+    honeypotStatus: {},
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/slip44/714.png',
+    name: 'Binance Coin',
+    occurrences: 1,
+    symbol: 'BNB',
+    isContractVerified: false,
+  },
+  'eip155:56/erc20:0xfaa0fc7b803919b091dbe5ff709b2dabb61b93d9': {
+    aggregators: ['pancakeCoinMarketCap'],
+    assetId: 'eip155:56/erc20:0xfaa0fc7b803919b091dbe5ff709b2dabb61b93d9',
+    decimals: 18,
+    description: {
+      en: 'The first Experience-NFT marketplace, allowing creators to monetise their popularity by offering NFT tied to real life experiences, and giving people a new way to invest on their favourite personalities.',
+    },
+    erc20Permit: false,
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0xfaa0fc7b803919b091dbe5ff709b2dabb61b93d9.png',
+    name: 'Notable',
+    occurrences: 1,
+    storage: {
+      approval: 6,
+      balance: 5,
+    },
+    symbol: 'NBL',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0xb0a2416fd12711cbcfafb429031c0f7037fab970': {
+    aggregators: ['rubic'],
+    assetId: 'eip155:56/erc20:0xb0a2416fd12711cbcfafb429031c0f7037fab970',
+    decimals: 18,
+    erc20Permit: false,
+    fees: {
+      maxFee: 0,
+      avgFee: 0,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    name: 'Bee Token',
+    occurrences: 1,
+    storage: {
+      balance: 1,
+      approval: 2,
+    },
+    symbol: 'BEETOKEN',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0xb0eb3e295b44d7d405ba8026a9734a9ab354a8b2': {
+    aggregators: ['pancakeCoinMarketCap'],
+    assetId: 'eip155:56/erc20:0xb0eb3e295b44d7d405ba8026a9734a9ab354a8b2',
+    decimals: 8,
+    erc20Permit: false,
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0xb0eb3e295b44d7d405ba8026a9734a9ab354a8b2.png',
+    name: 'EarnGuild',
+    occurrences: 1,
+    storage: {
+      approval: 2,
+      balance: 0,
+    },
+    symbol: 'EARN',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x8632055b9caeebef7c7dccd95461608ca5378839': {
+    aggregators: ['pancakeCoinMarketCap'],
+    assetId: 'eip155:56/erc20:0x8632055b9caeebef7c7dccd95461608ca5378839',
+    decimals: 18,
+    erc20Permit: false,
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0x8632055b9caeebef7c7dccd95461608ca5378839.png',
+    name: 'TAU Token',
+    occurrences: 1,
+    storage: {
+      approval: 17,
+      balance: 18,
+    },
+    symbol: 'TAU',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x8899ec96ed8c96b5c86c23c3f069c3def75b6d97': {
+    aggregators: ['pancakeCoinMarketCap', 'rubic', 'rango', 'sonarwatch'],
+    assetId: 'eip155:56/erc20:0x8899ec96ed8c96b5c86c23c3f069c3def75b6d97',
+    decimals: 18,
+    description: {
+      en: 'Openfabric is a decentralized AI platform where the collaboration between AI innovators, data providers, businesses, and infrastructure providers will facilitate the creation and use of new intelligent algorithms and services.Openfabric AI is revolutionizing AI-Apps with its decentralized Layer 1 AI protocol, powered by blockchain and advanced cryptography.',
+    },
+    erc20Permit: false,
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0x8899ec96ed8c96b5c86c23c3f069c3def75b6d97.png',
+    name: 'Openfabric AI',
+    occurrences: 4,
+    storage: {
+      approval: 1,
+      balance: 0,
+    },
+    symbol: 'OFN',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x800a25741a414ea6e6e2b382435081a479a8cc3c': {
+    aggregators: ['pancakeCoinMarketCap', 'rango'],
+    assetId: 'eip155:56/erc20:0x800a25741a414ea6e6e2b382435081a479a8cc3c',
+    decimals: 18,
+    description: {
+      en: 'SEOR is the next generation of decentralized Web3.0 application technology development infrastructure, which aims to provide users and developers of Web3.0 with an easy-to-use blockchain technology development platform.    ',
+    },
+    erc20Permit: false,
+    fees: {
+      avgFee: 0,
+      maxFee: 0,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0x800a25741a414ea6e6e2b382435081a479a8cc3c.png',
+    name: 'SEOR Network',
+    occurrences: 2,
+    storage: {
+      balance: 0,
+      approval: 1,
+    },
+    symbol: 'SEOR',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d': {
+    aggregators: [
+      'pancakeExtended',
+      'liFi',
+      'oneInch',
+      'rubic',
+      'squid',
+      'rango',
+      'sonarwatch',
+      'sushiSwap',
+    ],
+    assetId: 'eip155:56/erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
+    decimals: 18,
+    description: {
+      en: 'USDC is a fully collateralized US dollar stablecoin. USDC is the bridge between dollars and trading on cryptocurrency exchanges. The technology behind CENTRE makes it possible to exchange value between people, businesses and financial institutions just like email between mail services and texts between SMS providers. We believe by removing artificial economic borders, we can create a more inclusive global economy.',
+    },
+    erc20Permit: false,
+    fees: {
+      avgFee: 0,
+      maxFee: 0,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d.png',
+    name: 'Binance-Peg USD Coin',
+    occurrences: 8,
+    storage: {
+      balance: 1,
+      approval: 2,
+    },
+    symbol: 'USDC',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0xa02a0b2d67d4fa48677a79cadc483e114049916d': {
+    aggregators: ['rubic'],
+    assetId: 'eip155:56/erc20:0xa02a0b2d67d4fa48677a79cadc483e114049916d',
+    decimals: 6,
+    erc20Permit: false,
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: true,
+    },
+    name: 'DRIP Reward Token ',
+    occurrences: 1,
+    storage: {
+      approval: 1,
+    },
+    symbol: 'RDRIP',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0xa18b59607b7286a6533fd8c7e8c9716eac9a5c73': {
+    aggregators: ['rubic'],
+    assetId: 'eip155:56/erc20:0xa18b59607b7286a6533fd8c7e8c9716eac9a5c73',
+    decimals: 18,
+    name: 'Aav Token',
+    occurrences: 1,
+    symbol: 'AAV',
+  },
+  'eip155:56/erc20:0xa7255c85232a42b5c602ed66c319da9af8433bb3': {
+    aggregators: ['rubic'],
+    assetId: 'eip155:56/erc20:0xa7255c85232a42b5c602ed66c319da9af8433bb3',
+    decimals: 9,
+    honeypotStatus: {
+      honeypotIs: true,
+      goPlus: true,
+    },
+    name: '$$$DOGECHAIN',
+    occurrences: 1,
+    storage: {
+      balance: 7,
+    },
+    symbol: 'CDOGE',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0xe6906717f129427eebade5406de68cadd57aa0c0': {
+    aggregators: ['pancakeCoinMarketCap', 'rango'],
+    assetId: 'eip155:56/erc20:0xe6906717f129427eebade5406de68cadd57aa0c0',
+    decimals: 18,
+    description: {
+      en: 'Galaxy Blitz is a Play-To-Earn combat strategy NFT game. The game is set in the future, as four unique highly evolved descendants of humanity fight for dominance in battles on both land and in space. Our team is dedicated to providing players with a cutting-edge experience and we see great potential in utilizing Augmented Reality (AR) to further improve immersion and the overall experience for our players. With that in mind AR has become a key component of our development plan and our pre-sale NFTs will all support AR at launch. Therefore allowing owners of Galaxy Blitz NFTs to bring their favorite Heroes, Spaceships and Superweapons to life regardless of where they are.',
+    },
+    erc20Permit: false,
+    fees: {
+      avgFee: 0,
+      maxFee: 0,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0xe6906717f129427eebade5406de68cadd57aa0c0.png',
+    name: 'Meta Interstellar Token',
+    occurrences: 2,
+    storage: {
+      balance: 2,
+      approval: 3,
+    },
+    symbol: 'MIT',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0xe57f73eb27da9d17f90c994744d842e95700c100': {
+    aggregators: ['pancakeCoinGecko', 'rango', 'sonarwatch'],
+    assetId: 'eip155:56/erc20:0xe57f73eb27da9d17f90c994744d842e95700c100',
+    decimals: 9,
+    description: {
+      en: 'What is the project about?The most memeable memecoin in existence. The dogs have had their day, it’s time for Pepe AI to take reign.What makes your project unique?We are PEPE with Draw PEPE AI running live, every PEPE drawn is watermark with our website for further marketing exposure.History of your project.Pepe AI is here to make memecoins great again. Launched stealth with no presale, zero taxes, LP locked and contract renounced, $PEPEAI is a coin for the people, forever. Fueled by pure memetic power, let $PEPEAI show you the way.What’s next for your project?More AI tools for Meme communities.What can your token be used for?To be paid for premium subscription for removal of watermark for AI images drawn by our AI tools.',
+    },
+    erc20Permit: false,
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0xe57f73eb27da9d17f90c994744d842e95700c100.png',
+    name: 'Pepe AI',
+    occurrences: 3,
+    storage: {
+      approval: 1,
+      balance: 0,
+    },
+    symbol: 'PEPEAI',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x69b14e8d3cebfdd8196bfe530954a0c226e5008e': {
+    aggregators: ['pancakeCoinMarketCap', 'oneInch', 'rango'],
+    assetId: 'eip155:56/erc20:0x69b14e8d3cebfdd8196bfe530954a0c226e5008e',
+    decimals: 9,
+    erc20Permit: false,
+    fees: {
+      avgFee: 0,
+      maxFee: 0,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0x69b14e8d3cebfdd8196bfe530954a0c226e5008e.png',
+    name: 'SPACEPI',
+    occurrences: 3,
+    storage: {
+      balance: 0,
+      approval: 1,
+    },
+    symbol: 'SPACEPI',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x58b5c4697dc70f3d889225260944cdd9c270c132': {
+    aggregators: ['rubic'],
+    assetId: 'eip155:56/erc20:0x58b5c4697dc70f3d889225260944cdd9c270c132',
+    decimals: 9,
+    erc20Permit: false,
+    fees: {
+      maxFee: 7700000,
+      avgFee: 550000,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: true,
+      goPlus: true,
+    },
+    name: 'axax.io',
+    occurrences: 1,
+    storage: {
+      balance: 2,
+      approval: 4,
+    },
+    symbol: 'AXAX.IO',
+    isContractVerified: false,
+  },
+  'eip155:56/erc20:0x94a8b4ee5cd64c79d0ee816f467ea73009f51aa0': {
+    aggregators: ['coinGecko', 'rubic', 'rango', 'sonarwatch'],
+    assetId: 'eip155:56/erc20:0x94a8b4ee5cd64c79d0ee816f467ea73009f51aa0',
+    decimals: 18,
+    erc20Permit: false,
+    fees: {
+      maxFee: 0,
+      avgFee: 0,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    name: 'Realio Network Token',
+    occurrences: 4,
+    storage: {
+      balance: 0,
+      approval: 1,
+    },
+    symbol: 'RIO',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x9452d45d33490234b8c96f42342f1be28c0fe097': {
+    aggregators: ['pancakeCoinMarketCap', 'rubic'],
+    assetId: 'eip155:56/erc20:0x9452d45d33490234b8c96f42342f1be28c0fe097',
+    decimals: 18,
+    erc20Permit: false,
+    fees: {
+      avgFee: 0,
+      maxFee: 0,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0x9452d45d33490234b8c96f42342f1be28c0fe097.png',
+    name: 'Swaperry',
+    occurrences: 2,
+    storage: {
+      balance: 0,
+      approval: 1,
+    },
+    symbol: 'PERRY',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0xbbcf57177d8752b21d080bf30a06ce20ad6333f8': {
+    aggregators: ['pancakeCoinMarketCap', 'rango', 'sonarwatch'],
+    assetId: 'eip155:56/erc20:0xbbcf57177d8752b21d080bf30a06ce20ad6333f8',
+    decimals: 18,
+    description: {
+      en: 'Zam.io is building a hybrid CeFi-DeFi financial ecosystem that bridges real capital to blockchain and accelerates the transition to the new decentralized economy. The ecosystem enables equity investors to extend their stocks portfolio to crypto markets using a platform for stablecoin loans secured by stocks as collateral (zMorgan Protocol).',
+    },
+    erc20Permit: false,
+    fees: {
+      avgFee: 0,
+      maxFee: 0,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0xbbcf57177d8752b21d080bf30a06ce20ad6333f8.png',
+    name: 'Zam.io',
+    occurrences: 3,
+    storage: {
+      balance: 1,
+      approval: 2,
+    },
+    symbol: 'ZAM',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0xbb7d61d2511fd2e63f02178ca9b663458af9fc63': {
+    aggregators: ['pancakeCoinMarketCap', 'rango', 'sonarwatch'],
+    assetId: 'eip155:56/erc20:0xbb7d61d2511fd2e63f02178ca9b663458af9fc63',
+    decimals: 18,
+    erc20Permit: false,
+    fees: {
+      maxFee: 0,
+      avgFee: 0,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0xbb7d61d2511fd2e63f02178ca9b663458af9fc63.png',
+    name: 'Exverse',
+    occurrences: 3,
+    storage: {
+      balance: 0,
+      approval: 1,
+    },
+    symbol: 'EXVG',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x7d220240cf958c5c47f2daac821db965f9837e82': {
+    aggregators: ['pancakeCoinMarketCap'],
+    assetId: 'eip155:56/erc20:0x7d220240cf958c5c47f2daac821db965f9837e82',
+    decimals: 9,
+    erc20Permit: false,
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0x7d220240cf958c5c47f2daac821db965f9837e82.png',
+    name: 'WEB5 Inu',
+    occurrences: 1,
+    storage: {
+      approval: 3,
+      balance: 1,
+    },
+    symbol: 'WEB5',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x7aa3a53360541283ffa9192972223b47a902dc0c': {
+    aggregators: ['rubic'],
+    assetId: 'eip155:56/erc20:0x7aa3a53360541283ffa9192972223b47a902dc0c',
+    decimals: 6,
+    erc20Permit: false,
+    honeypotStatus: {
+      honeypotIs: null,
+      goPlus: true,
+    },
+    name: '$$SafeGrowCoin',
+    occurrences: 1,
+    storage: {
+      balance: 0,
+      approval: 1,
+    },
+    symbol: 'SGC',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x77087ab5df23cfb52449a188e80e9096201c2097': {
+    aggregators: [
+      'pancakeCoinMarketCap',
+      'oneInch',
+      'rubic',
+      'rango',
+      'sonarwatch',
+    ],
+    assetId: 'eip155:56/erc20:0x77087ab5df23cfb52449a188e80e9096201c2097',
+    decimals: 18,
+    description: {
+      en: 'hi is leveraging blockchain technology to build services that are community powered. Members of hi are the key stakeholders of this ecosystem and the business is committed to maximize membership value - not profits. Our first product is a digital wallet that provides members with the most seamless payment experience via social messengers (initially Telegram and WhatsApp, next LINE, Facebook Messenger and others). For more information, visit hi.com.',
+    },
+    erc20Permit: false,
+    fees: {
+      avgFee: 0,
+      maxFee: 0,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0x77087ab5df23cfb52449a188e80e9096201c2097.png',
+    name: 'hi Dollar',
+    occurrences: 5,
+    storage: {
+      balance: 0,
+      approval: 1,
+    },
+    symbol: 'HI',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0xddc0dbd7dc799ae53a98a60b54999cb6ebb3abf0': {
+    aggregators: ['pancakeCoinMarketCap', 'rango', 'sonarwatch'],
+    assetId: 'eip155:56/erc20:0xddc0dbd7dc799ae53a98a60b54999cb6ebb3abf0',
+    decimals: 9,
+    description: {
+      en: '"SafeBLAST (BLAST) is both a UTILITY and a DEFLATIONARY token available on multiple blockchains. As a utility token, you can use BLAST for direct payment on goods and services where accepted worldwide. As a deflationary token, SafeBLAST is an Autonomous yield and Liquidity generation protocol. Every time someone transfers, buys or sells BLAST tokens on PancakeSwap, the total supply goes down.Every transaction also creates a passive effortless reward distribution for all token HODLers on the BNB Blockchain, which is where PancakeSwap transactions takes place. There is NO buy or sell tax on Centralized exchanges or Uniswap, which is why there is NO reward distribution either. Distribution is only to the wallets on Binance Chain (BNB Chain).Liquidity is also generated and locked automatically to support the ecosystem on PancakeSwap. As the circulating supply becomes limited, supply and demand will play a big role in the value growth, which is a win-win for BLAST holders."',
+    },
+    erc20Permit: false,
+    fees: {
+      avgFee: 9.999999999999996,
+      maxFee: 10,
+      minFee: 10,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0xddc0dbd7dc799ae53a98a60b54999cb6ebb3abf0.png',
+    name: 'SafeBlast',
+    occurrences: 3,
+    storage: {
+      balance: 7,
+      approval: 5,
+    },
+    symbol: 'BLAST',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0xdddf82fb98530243fcf8d4b8dc452f918c3ac4ac': {
+    aggregators: ['rubic'],
+    assetId: 'eip155:56/erc20:0xdddf82fb98530243fcf8d4b8dc452f918c3ac4ac',
+    decimals: 18,
+    fees: {
+      maxFee: 100,
+      avgFee: 100,
+      minFee: 100,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    name: 'shibainu-dividend.com',
+    occurrences: 1,
+    storage: {
+      balance: 5,
+      approval: 7,
+    },
+    symbol: 'SHIBA_DIVIDEND_TRACKER',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0xdf9e1a85db4f985d5bb5644ad07d9d7ee5673b5e': {
+    aggregators: ['pancakeCoinGecko', 'rango'],
+    assetId: 'eip155:56/erc20:0xdf9e1a85db4f985d5bb5644ad07d9d7ee5673b5e',
+    decimals: 18,
+    description: {
+      en: 'MM72 is a long-term project related to the resolution of the Non Performing Tokens problem.An innovative SWAP promises the conversion of non-performing tokens with values from a minimum of 10 to a maximum of 100 times the ascertained value (which in MM72 can never be absolute zero). ',
+    },
+    erc20Permit: false,
+    fees: {
+      avgFee: 0,
+      maxFee: 0,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0xdf9e1a85db4f985d5bb5644ad07d9d7ee5673b5e.png',
+    name: 'MM72',
+    occurrences: 2,
+    storage: {
+      balance: 0,
+      approval: 1,
+    },
+    symbol: 'MM72',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0xd5da8318ce7ca005e8f5285db0e750ca9256586e': {
+    aggregators: ['rubic'],
+    assetId: 'eip155:56/erc20:0xd5da8318ce7ca005e8f5285db0e750ca9256586e',
+    decimals: 6,
+    erc20Permit: false,
+    honeypotStatus: {
+      honeypotIs: true,
+    },
+    name: 'ACT',
+    occurrences: 1,
+    symbol: 'ACT',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0xd9ea58350bf120e2169a35fa1afc31975b07de01': {
+    aggregators: ['rubic'],
+    assetId: 'eip155:56/erc20:0xd9ea58350bf120e2169a35fa1afc31975b07de01',
+    decimals: 18,
+    erc20Permit: true,
+    fees: {
+      avgFee: 0,
+      maxFee: 0,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0xd9ea58350bf120e2169a35fa1afc31975b07de01.png',
+    name: 'Gains',
+    occurrences: 1,
+    storage: {
+      balance: 2,
+    },
+    symbol: 'GAINS',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0xd22202d23fe7de9e3dbe11a2a88f42f4cb9507cf': {
+    aggregators: ['pancakeCoinMarketCap'],
+    assetId: 'eip155:56/erc20:0xd22202d23fe7de9e3dbe11a2a88f42f4cb9507cf',
+    decimals: 8,
+    erc20Permit: false,
+    fees: {
+      avgFee: 384615.3846153846,
+      maxFee: 15000000,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: null,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0xd22202d23fe7de9e3dbe11a2a88f42f4cb9507cf.png',
+    name: 'Minereum BSC',
+    occurrences: 1,
+    symbol: 'MNEB',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x2b72867c32cf673f7b02d208b26889fed353b1f8': {
+    aggregators: ['pancakeCoinMarketCap', 'oneInch', 'rango', 'sonarwatch'],
+    assetId: 'eip155:56/erc20:0x2b72867c32cf673f7b02d208b26889fed353b1f8',
+    decimals: 8,
+    description: {
+      en: "## What is Magic Square (SQR)? Magic Square is an immersive Discovery & Engagement Platform for the Web3 Crypto Ecosystem, empowering users to explore a wide array of community-vetted apps and games. Discover exciting rewards, engaging giveaways, and unlock incredible use-to-earn opportunities within our platform. The native utility token SQR is hosted on BNB Smart Chain. SQR powers all aspects of the Magic Square ecosystem and allows for the seamless integration of users, developers, and validators.## What Makes Magic Square Unique?Magic Square is a vibrant community-driven app store for web3 applications, providing crypto users with a seamless and intuitive interface. Our primary objective is to foster widespread adoption of cryptocurrencies and decentralized apps by attracting new users to the ecosystem. With our user-friendly platform and diverse app selection, we simplify web3 interaction, empowering individuals to navigate the crypto world with ease. Checkout the Magic Store [here](https://magic.store/). At Magic Square, we go beyond just offering an app store. We provide a range of exciting features designed to enhance the community experience. These include Magic Boost, an affiliate platform that rewards users for spreading the word; Hot Offers, which provide exclusive web3 deals; a Referral Program that encourages users to invite others to join; Karma Rewards, recognizing and incentivizing active community participation; Project Validation, allowing users to have a say in shaping the platform. Join us in shaping the future of decentralized technologies. Together, we can unlock the true potential of web3 and create a more inclusive and accessible digital landscape. Magic Square is backed by World-Class Investors and Partners: Binance Labs, Republic Capital, Kucoin Labs, Gate.io, Huobi Ventures, IQ Protocol, GSR, Dao Maker, AlphaGrep, Crypto.com, Forty two, Gravity Ventures##Who Are the Founders of SQR Protocol?Magic Square is the visionary creation of Andrey Nayman, a renowned Ph.D. and former Managing Director at Radical Ventures. With over 15 years of expertise in FinTech and a profound understanding of blockchain development, Nayman has played a pivotal role in shaping the industry. Notably, he was an active participant in the Ethereum ICO, witnessing firsthand the transformative power of decentralized technologies. Under Nayman's guidance, Magic Square has evolved into a formidable project supported by a team of accomplished product developers and project managers. Together, they bring a wealth of experience and expertise to drive the success of this groundbreaking venture.##Where can you buy Magic Square?This information will be disclosed with the launch of the Public Sale, which is set for 2023. To learn more about this project check https://linktr.ee/MagicSquare.",
+    },
+    erc20Permit: true,
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0x2b72867c32cf673f7b02d208b26889fed353b1f8.png',
+    name: 'Magic Square',
+    occurrences: 4,
+    storage: {
+      approval: 1,
+      balance: 0,
+    },
+    symbol: 'SQR',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x2aa504586d6cab3c59fa629f74c586d78b93a025': {
+    aggregators: ['rubic'],
+    assetId: 'eip155:56/erc20:0x2aa504586d6cab3c59fa629f74c586d78b93a025',
+    decimals: 18,
+    erc20Permit: false,
+    fees: {
+      avgFee: 0.04,
+      maxFee: 2,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0x2aa504586d6cab3c59fa629f74c586d78b93a025.png',
+    name: 'ArenaPlay',
+    occurrences: 1,
+    storage: {
+      balance: 1,
+      approval: 2,
+    },
+    symbol: 'APC',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x003d87d02a2a01e9e8a20f507c83e15dd83a33d1': {
+    aggregators: ['pancakeExtended', 'rubic', 'rango', 'sonarwatch'],
+    assetId: 'eip155:56/erc20:0x003d87d02a2a01e9e8a20f507c83e15dd83a33d1',
+    decimals: 18,
+    erc20Permit: false,
+    fees: {
+      maxFee: 0,
+      avgFee: 0,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: null,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0x003d87d02a2a01e9e8a20f507c83e15dd83a33d1.png',
+    name: 'GT Protocol',
+    occurrences: 4,
+    storage: {
+      balance: 0,
+      approval: 1,
+    },
+    symbol: 'GTAI',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x0ccd575bf9378c06f6dca82f8122f570769f00c2': {
+    aggregators: ['pancakeCoinMarketCap', 'rango', 'sonarwatch'],
+    assetId: 'eip155:56/erc20:0x0ccd575bf9378c06f6dca82f8122f570769f00c2',
+    decimals: 18,
+    erc20Permit: false,
+    fees: {
+      avgFee: 0.9800000000000005,
+      maxFee: 1,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: false,
+      goPlus: false,
+    },
+    iconUrl:
+      'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/56/erc20/0x0ccd575bf9378c06f6dca82f8122f570769f00c2.png',
+    name: 'CryptoBlades Kingdoms',
+    occurrences: 3,
+    storage: {
+      approval: 4,
+      balance: 6,
+    },
+    symbol: 'KING',
+    isContractVerified: true,
+  },
+  'eip155:56/erc20:0x119e2ad8f0c85c6f61afdf0df69693028cdc10be': {
+    aggregators: ['rubic'],
+    assetId: 'eip155:56/erc20:0x119e2ad8f0c85c6f61afdf0df69693028cdc10be',
+    decimals: 18,
+    erc20Permit: false,
+    fees: {
+      maxFee: 75000000,
+      avgFee: 1500000,
+      minFee: 0,
+    },
+    honeypotStatus: {
+      honeypotIs: null,
+    },
+    name: 'Zepe.io',
+    occurrences: 1,
+    storage: {
+      balance: 6,
+      approval: 8,
+    },
+    symbol: 'ZEPE.IO',
+    isContractVerified: false,
+  },
+} as const;
+
+export default v3Assets;

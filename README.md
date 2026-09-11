@@ -300,6 +300,7 @@ linkStyle default opacity:0.5
   assets_controller --> remote_feature_flag_controller;
   assets_controller --> transaction_controller;
   assets_controller --> utils;
+  assets_controller --> eth_json_rpc_provider;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
   assets_controllers --> approval_controller;

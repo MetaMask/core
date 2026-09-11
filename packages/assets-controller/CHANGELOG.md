@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AccountsApiDataSource` now reads Accounts API `/v2/supportedNetworks` as CAIP-2 `fullSupport` and `partialSupport` string arrays, matching the current API payload
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
+### Fixed
+
+- Remove spam assets from balances, metadata, and detected assets regardless of asset ID casing, so filtered spam tokens no longer appear in state ([#10172](https://github.com/MetaMask/core/pull/10172))
+
 ## [16.0.0]
 
 ### Changed
