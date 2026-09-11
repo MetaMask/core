@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [28.0.2]
+
+### Fixed
+
+- Restore `EXACT_OUTPUT` Relay quotes for `predictDepositAndOrder` flows so Predict deposit-and-order trades keep a guaranteed output amount.
+
 ## [28.0.1]
 
 ### Changed
@@ -1534,7 +1540,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.2...HEAD
+[28.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.1...@metamask/transaction-pay-controller@28.0.2
 [28.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.0...@metamask/transaction-pay-controller@28.0.1
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.1.2...@metamask/transaction-pay-controller@28.0.0
 [27.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.1.1...@metamask/transaction-pay-controller@27.1.2

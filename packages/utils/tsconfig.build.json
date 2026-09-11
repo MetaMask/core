@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.packages.build.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["../../types", "./src"],
+  /**
+   * `exclude` replaces rather than extends, so the entries from
+   * `tsconfig.packages.build.json` are repeated here alongside the ones this
+   * package needs: type tests, fixtures and mocks are not published.
+   */
+  "exclude": [
+    "./jest.config.packages.ts",
+    "**/*.test.ts",
+    "**/*.tst.ts",
+    "**/jest.config.ts",
+    "./src/**/__fixtures__/**/*",
+    "./src/**/__mocks__/**/*",
+    "./src/**/__snapshots__/**/*"
+  ]
+}

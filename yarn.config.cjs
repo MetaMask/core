@@ -10,7 +10,6 @@
 // format, but also check the presence of certain files as well.
 
 /** @type {import('@yarnpkg/types')} */
-const { hasProperty } = require('@metamask/utils');
 const { defineConfig } = require('@yarnpkg/types');
 const { readFile } = require('fs/promises');
 const { get } = require('lodash');
@@ -23,7 +22,12 @@ const { inspect } = require('util');
  * Only intended as temporary measures to faciliate upgrades and releases.
  * This should trend towards empty.
  */
-const ALLOWED_INCONSISTENT_DEPENDENCIES = {};
+const ALLOWED_INCONSISTENT_DEPENDENCIES = {
+  // `@metamask/utils` has just moved into this repo at v12, but its dependents
+  // are still on the published v11. The bump happens in the follow up PR, which
+  // removes this entry again.
+  '@metamask/utils': ['^11.12.0'],
+};
 
 /**
  * These packages are allowed as peer dependencies without requiring installation as
@@ -81,7 +85,7 @@ module.exports = defineConfig({
       const workspaceBasename = getWorkspaceBasename(workspace);
       const isChildWorkspace = workspace.cwd !== '.';
       const isPrivate =
-        hasProperty(workspace.manifest, 'private') &&
+        Object.hasOwn(workspace.manifest, 'private') &&
         workspace.manifest.private === true;
       const dependenciesByIdentAndType = getDependenciesByIdentAndType(
         Yarn.dependencies({ workspace }),
@@ -423,7 +427,7 @@ async function workspaceFileExists(workspace, path) {
   try {
     await getWorkspaceFile(workspace, path);
   } catch (error) {
-    if (hasProperty(error, 'code') && error.code === 'ENOENT') {
+    if (Object.hasOwn(error, 'code') && error.code === 'ENOENT') {
       return false;
     }
     throw error;

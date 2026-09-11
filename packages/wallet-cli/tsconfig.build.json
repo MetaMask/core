@@ -28,6 +28,9 @@
     },
     {
       "path": "../foundryup/tsconfig.build.json"
+    },
+    {
+      "path": "../utils/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]
