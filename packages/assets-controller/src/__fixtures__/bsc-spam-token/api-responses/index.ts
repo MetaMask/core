@@ -176,14 +176,15 @@ function mockV3SpotPrices(): BatchRecordingMock {
  * All interceptors persist, so batch composition and cache misses cannot make a
  * test fail for want of an interceptor.
  *
- * @returns The recording mocks, for tests that assert on what was requested.
+ * @returns The recording mocks, and other utils
  */
 export function mockBscSpamApis(): {
+  accountsSupportedNetworks: nock.Scope;
   balances: { requestedAccountIds: string[][] };
   assets: BatchRecordingMock;
   prices: BatchRecordingMock;
 } {
-  mockAccountsSupportedNetworks();
+  const accountsSupportedNetworks = mockAccountsSupportedNetworks();
   mockTokensSupportedNetworks();
   mockSuggestedOccurrenceFloors();
   mockPricesSupportedNetworks();
@@ -192,7 +193,7 @@ export function mockBscSpamApis(): {
   const assets = mockV3Assets();
   const prices = mockV3SpotPrices();
 
-  return { balances, assets, prices };
+  return { accountsSupportedNetworks, balances, assets, prices };
 }
 
 /**

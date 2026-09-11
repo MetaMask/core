@@ -234,8 +234,7 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
     // Legitimate failing test, our middleware stack does not filter out spam
     // asset prices! This does eventually get cleaned up during unlock cleanup,
     // but worth flagging.
-    // eslint-disable-next-line jest/no-disabled-tests
-    it.skip('keeps the spam token out of prices', () => {
+    it.failing('keeps the spam token out of prices', () => {
       expect(PRICES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
     });
   });
