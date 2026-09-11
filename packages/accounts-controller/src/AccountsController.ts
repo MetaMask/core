@@ -691,6 +691,8 @@ export class AccountsController extends BaseController<
       return;
     }
 
+    log('Initializing...');
+
     const previousAccounts = this.state.internalAccounts.accounts;
     this.#sync();
 
@@ -714,6 +716,7 @@ export class AccountsController extends BaseController<
     }
 
     this.#initialized = true;
+    log('Initialized!');
     this.messenger.publish('AccountsController:initialized', this.state);
   }
 
@@ -811,10 +814,13 @@ export class AccountsController extends BaseController<
    * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
    */
   clearState(): void {
+    log('Clearing state');
+
     this.#initialized = false;
     this.update(() => {
       return getDefaultAccountsControllerState();
     });
+
     this.messenger.publish('AccountsController:uninitialized');
   }
 
