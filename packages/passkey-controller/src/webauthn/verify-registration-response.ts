@@ -1,6 +1,5 @@
 import { decodePartialCBOR } from '@levischuck/tiny-cbor';
-import { concatBytes } from '@metamask/utils';
-import { sha256 } from '@noble/hashes/sha2';
+import { concatBytes, sha256 } from '@metamask/utils';
 
 import type { AuthenticatorTransportFuture } from '../types.js';
 import {
@@ -166,7 +165,7 @@ export async function verifyRegistrationResponse(opts: {
   } = parsedAuthData;
 
   if (expectedRPIDs.length > 0) {
-    matchExpectedRPID(rpIdHash, expectedRPIDs);
+    await matchExpectedRPID(rpIdHash, expectedRPIDs);
   }
 
   // Make sure someone was physically present
@@ -347,7 +346,7 @@ async function verifyPackedAttestation(
     );
   }
 
-  const clientDataHash = sha256(base64URLToBytes(clientDataJSONB64url));
+  const clientDataHash = await sha256(base64URLToBytes(clientDataJSONB64url));
   const signatureBase = concatBytes([authData, clientDataHash]);
 
   return verifySignature({
