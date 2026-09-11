@@ -10022,10 +10022,7 @@ describe('RampsController', () => {
       };
 
       await withController(async ({ controller, rootMessenger }) => {
-        const handlers = registerHydrateHandlers(
-          rootMessenger,
-          staleKycState,
-        );
+        const handlers = registerHydrateHandlers(rootMessenger, staleKycState);
         handlers.refreshKycStatus.mockRejectedValue(new Error('network down'));
 
         const stage = await controller.hydrateNeobankStore({
