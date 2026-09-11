@@ -1132,7 +1132,9 @@ describe('SubscriptionService', () => {
 
         await expect(
           service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-        ).rejects.toThrow();
+        ).rejects.toThrow(
+          'At path: id -- Expected a string, but received: undefined',
+        );
       });
     });
   });

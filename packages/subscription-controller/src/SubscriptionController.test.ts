@@ -1968,11 +1968,14 @@ describe('SubscriptionController', () => {
             new SubscriptionServiceError('Failed to refresh subscriptions'),
           );
 
-          await expect(
-            rootMessenger.call('SubscriptionController:cancelSubscription', {
-              subscriptionId: MOCK_SUBSCRIPTION.id,
-            }),
-          ).resolves.toBeUndefined();
+          expect(
+            await rootMessenger.call(
+              'SubscriptionController:cancelSubscription',
+              {
+                subscriptionId: MOCK_SUBSCRIPTION.id,
+              },
+            ),
+          ).toBeUndefined();
 
           expect(controller.state.subscriptions).toStrictEqual([
             cancelledSubscription,
