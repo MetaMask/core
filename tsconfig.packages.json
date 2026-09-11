@@ -21,19 +21,7 @@
       "@metamask/profile-sync-controller/user-storage": [
         "${configDir}../profile-sync-controller/src/controllers/user-storage/index.ts"
       ],
-      /**
-       * `@metamask/utils` now lives in this repo, which means the `@metamask/*`
-       * entry below would resolve it to its source. Its dependents still declare
-       * the published version though, so they are pointed back at that copy
-       * until the follow up PR bumps them. Removing these two entries is what
-       * switches them over.
-       */
-      "@metamask/utils/node": [
-        "${configDir}/../../node_modules/@metamask/utils/dist/node.d.ts"
-      ],
-      "@metamask/utils": [
-        "${configDir}/../../node_modules/@metamask/utils/dist/index.d.ts"
-      ],
+      "@metamask/utils/node": ["${configDir}/../utils/src/node.ts"],
       "@metamask/*": ["${configDir}/../*/src/index.ts"]
     }
   }

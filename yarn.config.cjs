@@ -22,12 +22,7 @@ const { inspect } = require('util');
  * Only intended as temporary measures to faciliate upgrades and releases.
  * This should trend towards empty.
  */
-const ALLOWED_INCONSISTENT_DEPENDENCIES = {
-  // `@metamask/utils` has just moved into this repo at v12, but its dependents
-  // are still on the published v11. The bump happens in the follow up PR, which
-  // removes this entry again.
-  '@metamask/utils': ['^11.12.0'],
-};
+const ALLOWED_INCONSISTENT_DEPENDENCIES = {};
 
 /**
  * These packages are allowed as peer dependencies without requiring installation as
