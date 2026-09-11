@@ -2764,6 +2764,39 @@ describe('AssetsController', () => {
       });
     });
 
+    it('keeps existing metadata when a merge update omits it', async () => {
+      const stellarMetadata = {
+        spendableBalance: '8944804518',
+        minimumReserveBalance: '200000000',
+        decimal: 7,
+      };
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1', metadata: stellarMetadata },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'merge',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '2' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '2', metadata: stellarMetadata });
+      });
+    });
+
     it('updates state from AccountActivityService:balanceUpdated', async () => {
       const arbNative = 'eip155:42161/slip44:60' as Caip19AssetId;
       const initialState: Partial<AssetsControllerState> = {

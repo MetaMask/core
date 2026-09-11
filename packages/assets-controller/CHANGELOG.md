@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `metadata` on fungible `assetsBalance` entries from the Accounts API and Account Activity websocket ([#10194](https://github.com/MetaMask/core/pull/10194))
+
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))

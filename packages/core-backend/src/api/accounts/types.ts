@@ -19,6 +19,11 @@ export type V5BalanceItem = {
   assetId: string;
   balance: string;
   accountId: string;
+  /**
+   * Token-level metadata such as Stellar trustline / native reserve fields.
+   * Present when the upstream balance row carries it.
+   */
+  metadata?: V6TokenMetadata;
 };
 
 /** V5 Multi-account balances response */
@@ -100,14 +105,21 @@ export type V6BalanceMetadata = {
 };
 
 /**
- * Token-level metadata attached to an `object: token` row in the v6 balances
- * response, e.g. Stellar trustline metadata. Additional keys may be present.
+ * Token-level metadata attached to an `object: token` row in the v5/v6
+ * balances responses, e.g. Stellar trustline and native reserve metadata.
+ * Additional keys may be present.
  */
 export type V6TokenMetadata = {
   /** Stellar trustline limit. */
   limit?: string;
   /** Whether the Stellar trustline is authorized. */
   authorized?: boolean;
+  /** Whether the Stellar trustline is sponsored. */
+  sponsored?: boolean;
+  /** Stellar native spendable balance (unscaled stroops). */
+  spendableBalance?: string;
+  /** Stellar native minimum / reserve balance (unscaled stroops). */
+  minimumReserveBalance?: string;
   [key: string]: unknown;
 };
 

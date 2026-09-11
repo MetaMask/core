@@ -2814,7 +2814,14 @@ export class AssetsController extends BaseController<
                 (balance as { amount: unknown }).amount,
                 assetDecimals,
               );
-              effective[assetId] = { ...balance, amount: newAmount };
+              // Keep existing metadata when the incoming update is
+              // amount-only (e.g. Account Activity websocket). Incoming
+              // metadata still wins when present.
+              effective[assetId] = {
+                ...previousBalance,
+                ...balance,
+                amount: newAmount,
+              };
               const oldAmount = previousBalance?.amount;
               const isNewDefaultNativeZero =
                 oldAmount === undefined &&
