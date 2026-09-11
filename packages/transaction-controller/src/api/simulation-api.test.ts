@@ -194,5 +194,26 @@ describe('Simulation API Utils', () => {
         code: expect.any(String),
       });
     });
+
+    it('creates overrides when they are not already present', async () => {
+      const request = cloneDeep(REQUEST_MOCK);
+      request.overrides = undefined;
+      request.transactions[0].to =
+        DELEGATION_MANAGER_ADDRESSES[0].toUpperCase() as Hex;
+
+      await simulateTransactions(CHAIN_ID_MOCK, request);
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      const requestBody = JSON.parse(
+        fetchMock.mock.calls[1][1]?.body as string,
+      );
+
+      expect(requestBody.params[0].overrides).toStrictEqual({
+        [DELEGATION_MANAGER_ADDRESSES[0]]: {
+          code: expect.any(String),
+        },
+      });
+    });
   });
 });

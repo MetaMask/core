@@ -374,6 +374,44 @@ describe('Gas Fee Tokens Utils', () => {
       );
     });
 
+    it('returns empty gas fee tokens if the EIP-7702 public key is not provided', async () => {
+      const request = cloneDeep(REQUEST_MOCK);
+      request.publicKeyEIP7702 = undefined;
+
+      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [],
+        sponsorship: {
+          isSponsored: false,
+          error: null,
+        },
+      });
+
+      expect(await getGasFeeTokens(request)).toStrictEqual({
+        gasFeeTokens: [],
+        isGasFeeSponsored: false,
+      });
+    });
+
+    it('returns empty gas fee tokens if the upgrade contract address cannot be resolved', async () => {
+      const request = cloneDeep(REQUEST_MOCK);
+
+      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+      getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(undefined);
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [],
+        sponsorship: {
+          isSponsored: false,
+          error: null,
+        },
+      });
+
+      expect(await getGasFeeTokens(request)).toStrictEqual({
+        gasFeeTokens: [],
+        isGasFeeSponsored: false,
+      });
+    });
+
     it('forwards simulation config', async () => {
       const getSimulationConfigMock: GetSimulationConfig = jest.fn();
 

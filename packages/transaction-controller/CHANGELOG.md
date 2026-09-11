@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
 - Bump `@metamask/core-backend` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Add approval-time sponsorship/signing hooks to `TransactionController` and keep gas-fee-token preflight in the approval flow ([#10109](https://github.com/MetaMask/core/pull/10109))
 
 ## [70.0.0]
 
