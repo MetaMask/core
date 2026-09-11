@@ -641,12 +641,16 @@ const hdKeyringV2Builder: KeyringV2Builder = Object.assign(
 const simpleKeyringV2Builder: KeyringV2Builder = Object.assign(
   (keyring: Keyring): KeyringV2 =>
     new SimpleKeyringV2({
-      // @ts-expect-error TODO: `Keyring` here comes from `@metamask/keyring-utils`,
-      // which still depends on `@metamask/utils@^11`, while this package now
-      // depends on the workspace copy at v12. That leaves two distinct identities
-      // for the same type, so the cast no longer overlaps. Remove this once the
-      // keyring packages depend on v12.
-      legacyKeyring: keyring as SimpleKeyring,
+      // TODO: `Keyring` here comes from `@metamask/keyring-utils`, which still
+      // depends on `@metamask/utils@^11`, while this package depends on the
+      // workspace copy at v12. That leaves two distinct identities for the same
+      // type, so a direct cast does not overlap. Whether it overlaps at all
+      // depends on how `@metamask/utils` resolves: preview builds add a
+      // `portal:` resolution that collapses both copies onto the workspace one,
+      // which would make a `@ts-expect-error` here unused. Going through
+      // `unknown` holds in both. Drop the extra hop once the keyring packages
+      // depend on v12.
+      legacyKeyring: keyring as unknown as SimpleKeyring,
     }),
   { type: KeyringTypes.simple as string },
 );
