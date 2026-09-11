@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 - Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
+### Fixed
+
+- Now properly sends `:account*Removed` events during `clearState` ([#10150](https://github.com/MetaMask/core/pull/10150))
+
 ## [39.1.1]
 
 ### Changed

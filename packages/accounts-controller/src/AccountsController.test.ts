@@ -3421,6 +3421,90 @@ describe('AccountsController', () => {
       );
     });
 
+    it('publishes accountRemoved for each removed account', () => {
+      const { accountsController, accountsControllerMessenger } =
+        setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount2.id]: mockAccount2,
+              },
+              selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount2.address]: mockAccount2.id,
+            },
+          },
+        });
+
+      const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
+
+      accountsController.clearState();
+
+      expect(messengerSpy).toHaveBeenCalledWith(
+        'AccountsController:accountRemoved',
+        mockAccount.id,
+      );
+      expect(messengerSpy).toHaveBeenCalledWith(
+        'AccountsController:accountRemoved',
+        mockAccount2.id,
+      );
+    });
+
+    it('publishes accountsRemoved with all account ids', () => {
+      const { accountsController, accountsControllerMessenger } =
+        setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount2.id]: mockAccount2,
+              },
+              selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount2.address]: mockAccount2.id,
+            },
+          },
+        });
+
+      const accountsRemovedListener = jest.fn();
+      accountsControllerMessenger.subscribe(
+        'AccountsController:accountsRemoved',
+        accountsRemovedListener,
+      );
+
+      accountsController.clearState();
+
+      expect(accountsRemovedListener).toHaveBeenCalledTimes(1);
+      expect(accountsRemovedListener).toHaveBeenCalledWith(
+        expect.arrayContaining([mockAccount.id, mockAccount2.id]),
+      );
+    });
+
+    it('does not publish removal events when state is already empty', () => {
+      const { accountsController, accountsControllerMessenger } =
+        setupAccountsController({
+          initialState: getDefaultAccountsControllerState(),
+        });
+
+      const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
+
+      accountsController.clearState();
+
+      expect(messengerSpy).not.toHaveBeenCalledWith(
+        'AccountsController:accountRemoved',
+        expect.anything(),
+      );
+      expect(messengerSpy).not.toHaveBeenCalledWith(
+        'AccountsController:accountsRemoved',
+        expect.anything(),
+      );
+    });
+
     it('is a no-op when state is already empty', () => {
       const { accountsController } = setupAccountsController({
         initialState: getDefaultAccountsControllerState(),

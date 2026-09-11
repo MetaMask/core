@@ -763,9 +763,18 @@ export class AccountsController extends BaseController<
    * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
    */
   clearState(): void {
+    const removedIds = Object.keys(this.state.internalAccounts.accounts);
+
     this.update(() => {
       return getDefaultAccountsControllerState();
     });
+
+    for (const id of removedIds) {
+      this.messenger.publish('AccountsController:accountRemoved', id);
+    }
+    if (removedIds.length > 0) {
+      this.messenger.publish('AccountsController:accountsRemoved', removedIds);
+    }
   }
 
   /**
