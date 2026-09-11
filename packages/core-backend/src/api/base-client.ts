@@ -14,7 +14,7 @@ import {
   shouldRetry,
   HttpError,
 } from './shared-types.js';
-import type { ApiPlatformClientOptions } from './shared-types.js';
+import type { ApiPlatformClientOptions, ApiUrls } from './shared-types.js';
 
 // Auth query keys - shared for token management across clients
 export const authQueryKeys = {
@@ -47,6 +47,9 @@ export class BaseApiClient {
 
   protected readonly authTokenTimeout: number;
 
+  /** Resolved API base URLs (production defaults merged with any overrides). */
+  readonly apiUrls: ApiUrls;
+
   readonly #queryClientInstance: QueryClient;
 
   /**
@@ -78,6 +81,7 @@ export class BaseApiClient {
     this.getBearerToken = options.getBearerToken;
     this.authTokenTimeout =
       options.authTokenTimeout ?? DEFAULT_AUTH_TOKEN_TIMEOUT;
+    this.apiUrls = { ...API_URLS, ...options.apiUrls };
 
     this.#queryClientInstance =
       options.queryClient ??
@@ -213,5 +217,5 @@ export class BaseApiClient {
   }
 }
 
-// Re-export constants for use by API clients
-export { API_URLS, STALE_TIMES, GC_TIMES, HttpError };
+// Re-export cache timings for use by API clients
+export { STALE_TIMES, GC_TIMES };

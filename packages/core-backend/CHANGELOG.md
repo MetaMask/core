@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `apiUrls` option to `ApiPlatformClientOptions`, allowing API base URLs (accounts, prices, token, tokens) to be overridden per client instance, e.g. from client env vars; unspecified services fall back to the production `API_URLS` ([#10196](https://github.com/MetaMask/core/pull/10196))
+
 ### Changed
 
 - **BREAKING:** Accounts API `V2SupportedNetworksResponse` now uses CAIP-2 string arrays for both `fullSupport` and `partialSupport`, replacing decimal `fullSupport` and object-shaped `partialSupport.balances` ([#10144](https://github.com/MetaMask/core/pull/10144))

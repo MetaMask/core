@@ -17,12 +17,7 @@ import type {
   QueryFunctionContext,
 } from '@tanstack/query-core';
 
-import {
-  BaseApiClient,
-  API_URLS,
-  STALE_TIMES,
-  GC_TIMES,
-} from '../base-client.js';
+import { BaseApiClient, STALE_TIMES, GC_TIMES } from '../base-client.js';
 import { getQueryOptionsOverrides } from '../shared-types.js';
 import type { FetchOptions } from '../shared-types.js';
 import type {
@@ -72,7 +67,7 @@ export class TokenApiClient extends BaseApiClient {
     return {
       queryKey: ['token', 'networks'],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<NetworkInfo[]>(API_URLS.TOKEN, '/networks', { signal }),
+        this.fetch<NetworkInfo[]>(this.apiUrls.TOKEN, '/networks', { signal }),
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.SUPPORTED_NETWORKS,
       gcTime: options?.gcTime ?? GC_TIMES.EXTENDED,
@@ -103,7 +98,7 @@ export class TokenApiClient extends BaseApiClient {
     return {
       queryKey: ['token', 'networkByChainId', chainId],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<NetworkInfo>(API_URLS.TOKEN, `/networks/${chainId}`, {
+        this.fetch<NetworkInfo>(this.apiUrls.TOKEN, `/networks/${chainId}`, {
           signal,
         }),
       ...getQueryOptionsOverrides(options),
@@ -167,7 +162,7 @@ export class TokenApiClient extends BaseApiClient {
     return {
       queryKey: ['token', 'tokenList', { chainId, options: queryOptions }],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<TokenMetadata[]>(API_URLS.TOKEN, `/tokens/${chainId}`, {
+        this.fetch<TokenMetadata[]>(this.apiUrls.TOKEN, `/tokens/${chainId}`, {
           signal,
           params: {
             includeTokenFees: queryOptions?.includeTokenFees,
@@ -271,21 +266,25 @@ export class TokenApiClient extends BaseApiClient {
       queryFn: async ({
         signal,
       }: QueryFunctionContext): Promise<TokenMetadata> => {
-        return this.fetch<TokenMetadata>(API_URLS.TOKEN, `/token/${chainId}`, {
-          signal,
-          params: {
-            address: tokenAddress,
-            includeTokenFees: queryOptions?.includeTokenFees,
-            includeAssetType: queryOptions?.includeAssetType,
-            includeAggregators: queryOptions?.includeAggregators,
-            includeERC20Permit: queryOptions?.includeERC20Permit,
-            includeOccurrences: queryOptions?.includeOccurrences,
-            includeStorage: queryOptions?.includeStorage,
-            includeIconUrl: queryOptions?.includeIconUrl,
-            includeAddress: queryOptions?.includeAddress,
-            includeName: queryOptions?.includeName,
+        return this.fetch<TokenMetadata>(
+          this.apiUrls.TOKEN,
+          `/token/${chainId}`,
+          {
+            signal,
+            params: {
+              address: tokenAddress,
+              includeTokenFees: queryOptions?.includeTokenFees,
+              includeAssetType: queryOptions?.includeAssetType,
+              includeAggregators: queryOptions?.includeAggregators,
+              includeERC20Permit: queryOptions?.includeERC20Permit,
+              includeOccurrences: queryOptions?.includeOccurrences,
+              includeStorage: queryOptions?.includeStorage,
+              includeIconUrl: queryOptions?.includeIconUrl,
+              includeAddress: queryOptions?.includeAddress,
+              includeName: queryOptions?.includeName,
+            },
           },
-        });
+        );
       },
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.TOKEN_METADATA,
@@ -360,7 +359,7 @@ export class TokenApiClient extends BaseApiClient {
         signal,
       }: QueryFunctionContext): Promise<V1TokenDescriptionResponse> =>
         this.fetch<V1TokenDescriptionResponse>(
-          API_URLS.TOKEN,
+          this.apiUrls.TOKEN,
           `/token/${chainId}/description`,
           {
             signal,
@@ -434,7 +433,7 @@ export class TokenApiClient extends BaseApiClient {
         { chainIds: [...chainIds].sort(), options: queryOptions },
       ],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<TrendingToken[]>(API_URLS.TOKEN, '/v3/tokens/trending', {
+        this.fetch<TrendingToken[]>(this.apiUrls.TOKEN, '/v3/tokens/trending', {
           signal,
           params: {
             chainIds,
@@ -521,19 +520,23 @@ export class TokenApiClient extends BaseApiClient {
         { chainIds: [...chainIds].sort(), options: queryOptions },
       ],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<TrendingToken[]>(API_URLS.TOKEN, '/v3/tokens/top-gainers', {
-          signal,
-          params: {
-            chainIds,
-            sort: queryOptions?.sort,
-            blockRegion: queryOptions?.blockRegion,
-            minLiquidity: queryOptions?.minLiquidity,
-            minVolume24hUsd: queryOptions?.minVolume24hUsd,
-            maxVolume24hUsd: queryOptions?.maxVolume24hUsd,
-            minMarketCap: queryOptions?.minMarketCap,
-            maxMarketCap: queryOptions?.maxMarketCap,
+        this.fetch<TrendingToken[]>(
+          this.apiUrls.TOKEN,
+          '/v3/tokens/top-gainers',
+          {
+            signal,
+            params: {
+              chainIds,
+              sort: queryOptions?.sort,
+              blockRegion: queryOptions?.blockRegion,
+              minLiquidity: queryOptions?.minLiquidity,
+              minVolume24hUsd: queryOptions?.minVolume24hUsd,
+              maxVolume24hUsd: queryOptions?.maxVolume24hUsd,
+              minMarketCap: queryOptions?.minMarketCap,
+              maxMarketCap: queryOptions?.maxMarketCap,
+            },
           },
-        }),
+        ),
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.TRENDING,
       gcTime: options?.gcTime ?? GC_TIMES.SHORT,
@@ -606,7 +609,7 @@ export class TokenApiClient extends BaseApiClient {
         { chainIds: [...chainIds].sort(), options: queryOptions },
       ],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<TrendingToken[]>(API_URLS.TOKEN, '/v3/tokens/popular', {
+        this.fetch<TrendingToken[]>(this.apiUrls.TOKEN, '/v3/tokens/popular', {
           signal,
           params: {
             chainIds,
@@ -673,7 +676,7 @@ export class TokenApiClient extends BaseApiClient {
     return {
       queryKey: ['token', 'topAssets', chainId],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<TopAsset[]>(API_URLS.TOKEN, `/topAssets/${chainId}`, {
+        this.fetch<TopAsset[]>(this.apiUrls.TOKEN, `/topAssets/${chainId}`, {
           signal,
         }),
       ...getQueryOptionsOverrides(options),
@@ -715,7 +718,7 @@ export class TokenApiClient extends BaseApiClient {
       queryKey: ['token', 'v1SuggestedOccurrenceFloors'],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V1SuggestedOccurrenceFloorsResponse>(
-          API_URLS.TOKEN,
+          this.apiUrls.TOKEN,
           '/v1/suggestedOccurrenceFloors',
           { signal },
         ),
