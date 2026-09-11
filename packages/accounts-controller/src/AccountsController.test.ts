@@ -2991,7 +2991,9 @@ describe('AccountsController', () => {
         messenger,
       });
 
-      expect(() => accountsController.init()).toThrow('Unknown keyring unknown');
+      expect(() => accountsController.init()).toThrow(
+        'Unknown keyring unknown',
+      );
     });
 
     it.each([
@@ -3395,7 +3397,7 @@ describe('AccountsController', () => {
   });
 
   describe('init', () => {
-    function setupInitTest() {
+    function setupInitTest(): ReturnType<typeof setupAccountsController> {
       const messenger = buildMessenger();
       messenger.registerActionHandler(
         'KeyringController:getState',
@@ -3419,7 +3421,10 @@ describe('AccountsController', () => {
       const { accountsController, messenger } = setupInitTest();
 
       const initializedListener = jest.fn();
-      messenger.subscribe('AccountsController:initialized', initializedListener);
+      messenger.subscribe(
+        'AccountsController:initialized',
+        initializedListener,
+      );
 
       accountsController.init();
       accountsController.init();
@@ -3578,7 +3583,10 @@ describe('AccountsController', () => {
       const { accountsController, messenger } = setupInitTest();
 
       const initializedListener = jest.fn();
-      messenger.subscribe('AccountsController:initialized', initializedListener);
+      messenger.subscribe(
+        'AccountsController:initialized',
+        initializedListener,
+      );
 
       accountsController.init();
       accountsController.clearState();
@@ -4894,7 +4902,7 @@ describe('AccountsController', () => {
           mockGetKeyringByType.mockReturnValueOnce([]),
         );
 
-        const { accountsController } = setupAccountsController({
+        setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: { [mockAccount.id]: mockAccount },

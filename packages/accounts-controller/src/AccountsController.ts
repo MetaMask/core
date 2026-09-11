@@ -703,10 +703,7 @@ export class AccountsController extends BaseController<
     );
 
     if (addedAccounts.length > 0) {
-      this.messenger.publish(
-        'AccountsController:accountsAdded',
-        addedAccounts,
-      );
+      this.messenger.publish('AccountsController:accountsAdded', addedAccounts);
     }
 
     if (removedAccountIds.length > 0) {
