@@ -109,6 +109,7 @@ import {
   DEFAULT_TRACKED_ASSETS_BY_CHAIN,
   buildDefaultAssetsInfo,
   getDefaultAssetMetadata,
+  getDefaultTrackedAssetsForChain,
 } from './defaults.js';
 import { AssetsDataSourceError } from './errors.js';
 import { projectLogger, createModuleLogger } from './logger.js';
@@ -1258,12 +1259,19 @@ export class AssetsController extends BaseController<
 
     const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
 
+    const hasDefaultTrackedNativeAsset = getDefaultTrackedAssetsForChain(
+      caipChainId,
+    ).some((assetId) => assetId.includes('/slip44:'));
+
     // AccountActivity pushes live balance updates for its active chains; a
     // force getAssets would be redundant and can race the WebSocket path.
+    // Default-tracked native assets still need the full fetch pipeline because
+    // AccountActivity can miss their post-transaction balance updates.
     if (
       this.#accountActivityDataSource
         .getActiveChainsSync()
-        .includes(caipChainId)
+        .includes(caipChainId) &&
+      !hasDefaultTrackedNativeAsset
     ) {
       return;
     }
