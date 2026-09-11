@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [17.1.0]
 
-### Uncategorized
-
-- Release 1249.0.0 ([#10184](https://github.com/MetaMask/core/pull/10184))
-- Release 1248.0.0 ([#10166](https://github.com/MetaMask/core/pull/10166))
-
 ### Added
 
 - Add `MarketCategory.Memecoin` (`'memecoin'`) as a new UI-only filter category and expose it via `MARKET_CATEGORIES` and `MarketTypeFilter`. ([#10168](https://github.com/MetaMask/core/pull/10168))
