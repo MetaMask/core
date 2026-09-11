@@ -467,7 +467,10 @@ export type JsonRpcSuccess<Result extends Json = Json> = Omit<
 export const JsonRpcFailureStruct = object({
   id: JsonRpcIdStruct,
   jsonrpc: JsonRpcVersionStruct,
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- The assertion does not change assignability, but it does pin the emitted declaration to the named `JsonRpcError`. Without it TypeScript inlines the structure and leaks the unexported `ExactOptionalGuard` into the published types.
+  // The assertion does not change assignability, but it does pin the emitted
+  // declaration to the named `JsonRpcError`. Without it TypeScript inlines the
+  // structure and leaks the unexported `ExactOptionalGuard` into the published
+  // types.
   error: JsonRpcErrorStruct as Struct<JsonRpcError>,
 });
 

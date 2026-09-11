@@ -54,6 +54,9 @@
     },
     {
       "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

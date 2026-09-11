@@ -136,6 +136,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/transaction-pay-controller`](packages/transaction-pay-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
+- [`@metamask/utils`](packages/utils)
 - [`@metamask/wallet`](packages/wallet)
 - [`@metamask/wallet-cli`](packages/wallet-cli)
 
@@ -243,6 +244,7 @@ linkStyle default opacity:0.5
   transaction_controller(["@metamask/transaction-controller"]);
   transaction_pay_controller(["@metamask/transaction-pay-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
+  utils(["@metamask/utils"]);
   wallet(["@metamask/wallet"]);
   wallet_cli(["@metamask/wallet-cli"]);
   account_tree_controller --> accounts_controller;
