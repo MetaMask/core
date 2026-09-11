@@ -56,3 +56,14 @@ export function buildEmptyAssetsState(
     ...overrides,
   };
 }
+
+export function getIgnoringCase(
+  record: Record<string, unknown>,
+  assetId: string,
+): unknown {
+  const lowerId = assetId.toLowerCase();
+  const match = Object.keys(record).find(
+    (key) => key.toLowerCase() === lowerId,
+  );
+  return match === undefined ? undefined : record[match];
+}

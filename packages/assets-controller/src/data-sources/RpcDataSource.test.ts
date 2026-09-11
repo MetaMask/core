@@ -6,7 +6,7 @@ import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import {
-  createMockAssetControllerMessenger,
+  createMockMessengers,
   MockRootMessenger,
   registerRpcDataSourceActions,
 } from '../__fixtures__/MockAssetControllerMessenger.js';
@@ -157,8 +157,7 @@ async function withController<ReturnValue>(
     actionHandlerOverrides,
   } = controllerOptions;
 
-  const { rootMessenger, assetsControllerMessenger } =
-    createMockAssetControllerMessenger();
+  const { rootMessenger, assetsControllerMessenger } = createMockMessengers();
   const defaultNetworkState = networkState ?? createMockNetworkState();
 
   if (actionHandlerOverrides) {
@@ -291,11 +290,12 @@ describe('caipChainIdToHex', () => {
 
 describe('createRpcDataSource', () => {
   it('returns an instance of RpcDataSource', () => {
-    const { assetsControllerMessenger } = createMockAssetControllerMessenger();
+    const { assetsControllerMessenger } = createMockMessengers();
     const source = createRpcDataSource({
       messenger: assetsControllerMessenger,
       onActiveChainsUpdated: jest.fn(),
       getNativeAssetForChain: jest.fn(),
+      getAssetType: jest.fn(),
     });
     expect(source).toBeInstanceOf(RpcDataSource);
     source.destroy();
@@ -2038,10 +2038,11 @@ describe('RpcDataSource', () => {
 
   describe('destroy', () => {
     it('cleans up subscriptions and caches', () => {
-      const { rootMessenger, assetsControllerMessenger } =
-        createMockAssetControllerMessenger();
-      registerRpcDataSourceActions(rootMessenger, {
-        networkState: createMockNetworkState(),
+      const { assetsControllerMessenger } = createMockMessengers({
+        registerCustomRootActions: (rootMessenger) =>
+          registerRpcDataSourceActions(rootMessenger, {
+            networkState: createMockNetworkState(),
+          }),
       });
       const controller = new RpcDataSource({
         messenger: assetsControllerMessenger,

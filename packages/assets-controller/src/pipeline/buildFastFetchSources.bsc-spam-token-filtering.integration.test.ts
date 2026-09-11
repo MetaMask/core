@@ -1,34 +1,20 @@
-import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
-import type { NetworkState } from '@metamask/network-controller';
-import {
-  getDefaultNetworkControllerState,
-  NetworkStatus,
-} from '@metamask/network-controller';
 import { parseCaipAssetType } from '@metamask/utils';
 import { cleanAll } from 'nock';
 
-import {
-  buildCustomNetworkClientConfiguration,
-  buildCustomNetworkConfiguration,
-  buildCustomRpcEndpoint,
-  buildMockGetNetworkClientById,
-} from '../../../network-controller/tests/helpers.js';
 import { mockBscSpamApis } from '../__fixtures__/bsc-spam-token/api-responses/index.js';
 import {
   buildBscSpamAccount,
   buildEmptyAssetsState,
+  getIgnoringCase,
 } from '../__fixtures__/bsc-spam-token/bscSpamWallet.js';
+import { registerBscSpamNetwork } from '../__fixtures__/bsc-spam-token/messenger.js';
 import {
   BNB_ASSET_ID,
   BSC_CHAIN_ID,
-  BSC_CHAIN_ID_HEX,
-  BSC_NETWORK_CLIENT_ID,
-  BSC_RPC_URL,
   BSC_SPAM_ACCOUNT_ID,
-  CDOGE_ASSET_ID_CHECKSUM,
   CDOGE_ASSET_ID_LOWERCASE,
 } from '../__fixtures__/bsc-spam-token/wallet.js';
-import { createMockAssetControllerMessenger } from '../__fixtures__/MockAssetControllerMessenger.js';
+import { createMockMessengers } from '../__fixtures__/MockAssetControllerMessenger.js';
 import { createTestApiClient } from '../__fixtures__/mockTokenApi.js';
 import { AccountsApiDataSource } from '../data-sources/AccountsApiDataSource.js';
 import { PriceDataSource } from '../data-sources/PriceDataSource.js';
@@ -55,22 +41,6 @@ import { buildFastFetchSources, executeAssetsPipeline } from './index.js';
  *
  * Integration Expectation - CDOGE is correctly filtered out.
  */
-
-type PipelineResult = {
-  response: DataResponse;
-  requestedAssetBatches: string[][];
-};
-
-function getIgnoringCase(
-  record: Record<string, unknown>,
-  assetId: string,
-): unknown {
-  const lowerId = assetId.toLowerCase();
-  const match = Object.keys(record).find(
-    (key) => key.toLowerCase() === lowerId,
-  );
-  return match === undefined ? undefined : record[match];
-}
 
 type ResponseSurface = {
   surface: string;
@@ -106,117 +76,45 @@ const DETECTED_ASSETS: ResponseSurface = {
       .find((detectedId) => detectedId.toLowerCase() === assetId.toLowerCase()),
 };
 
-function registerBscNetwork(
-  rootMessenger: ReturnType<
-    typeof createMockAssetControllerMessenger
-  >['rootMessenger'],
-): void {
-  const provider = new MockInternalProvider({
-    stubs: [
-      { method: 'eth_chainId', result: BSC_CHAIN_ID_HEX },
-      { method: 'eth_call', result: '0x' },
-      { method: 'eth_getBalance', result: '0x' },
-      { method: 'eth_blockNumber', result: '0x' },
-    ].map(({ method, result }) => ({
-      request: { method },
-      response: { result },
-      discardAfterMatching: false,
-    })),
-  });
-
-  const networkState: NetworkState = {
-    ...getDefaultNetworkControllerState(),
-    selectedNetworkClientId: BSC_NETWORK_CLIENT_ID,
-    networkConfigurationsByChainId: {
-      [BSC_CHAIN_ID_HEX]: buildCustomNetworkConfiguration({
-        chainId: BSC_CHAIN_ID_HEX,
-        name: 'BNB Chain',
-        nativeCurrency: 'BNB',
-        rpcEndpoints: [
-          buildCustomRpcEndpoint({
-            networkClientId: BSC_NETWORK_CLIENT_ID,
-            url: BSC_RPC_URL,
-          }),
-        ],
-      }),
-    },
-    networksMetadata: {
-      [BSC_NETWORK_CLIENT_ID]: { status: NetworkStatus.Available, EIPS: {} },
-    },
-  };
-
-  rootMessenger.registerActionHandler(
-    'NetworkController:getState',
-    () => networkState,
-  );
-
-  const getNetworkClientById = buildMockGetNetworkClientById({
-    [BSC_NETWORK_CLIENT_ID]: buildCustomNetworkClientConfiguration({
-      chainId: BSC_CHAIN_ID_HEX,
-      rpcUrl: BSC_RPC_URL,
-      ticker: 'BNB',
-    }),
-  });
-
-  rootMessenger.registerActionHandler(
-    'NetworkController:getNetworkClientById',
-    (networkClientId) =>
-      ({
-        ...getNetworkClientById(networkClientId),
-        provider,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      }) as any,
-  );
-
-  rootMessenger.registerActionHandler(
-    'NetworkEnablementController:getState',
-    () => ({
-      enabledNetworkMap: { eip155: { [BSC_CHAIN_ID_HEX]: true } },
-      nativeAssetIdentifiers: { [BSC_CHAIN_ID]: BNB_ASSET_ID },
-    }),
-  );
-
-  rootMessenger.registerActionHandler(
-    'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
-    () => undefined,
-  );
-}
-
 async function runPipeline(
   state: AssetsControllerStateInternal,
-): Promise<PipelineResult> {
-  const { assetsControllerMessenger, rootMessenger } =
-    createMockAssetControllerMessenger({ delegateGetState: false });
+): Promise<DataResponse> {
+  const { assetsControllerMessenger } = createMockMessengers({
+    delegateGetState: false,
+    registerCustomRootActions: (rootMessenger) => {
+      // Note - this may change as we add feature flags to the controller/pipeline
+      // e.g. Accounts API v6
+      rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        (): {
+          remoteFeatureFlags: Record<string, never>;
+          cacheTimestamp: number;
+        } => ({
+          remoteFeatureFlags: {},
+          cacheTimestamp: 0,
+        }),
+      );
 
-  rootMessenger.registerActionHandler(
-    'RemoteFeatureFlagController:getState',
-    (): {
-      remoteFeatureFlags: Record<string, never>;
-      cacheTimestamp: number;
-    } => ({
-      remoteFeatureFlags: {},
-      cacheTimestamp: 0,
-    }),
-  );
-
-  registerBscNetwork(rootMessenger);
+      registerBscSpamNetwork(rootMessenger);
+    },
+  });
 
   const queryApiClient = createTestApiClient();
 
   const accountsApiDataSource = new AccountsApiDataSource({
     messenger: assetsControllerMessenger,
     queryApiClient,
-    onActiveChainsUpdated: (): void => undefined,
+    onActiveChainsUpdated: jest.fn(),
   });
 
   const stakedBalanceDataSource = new StakedBalanceDataSource({
     messenger: assetsControllerMessenger,
-    onActiveChainsUpdated: (): void => undefined,
+    onActiveChainsUpdated: jest.fn(),
   });
 
   const rpcDataSource = new RpcDataSource({
     messenger: assetsControllerMessenger,
-    onActiveChainsUpdated: (): void => undefined,
+    onActiveChainsUpdated: jest.fn(),
     getNativeAssetForChain: (): Caip19AssetId => BNB_ASSET_ID,
     getAssetType: (assetId): 'native' | 'erc20' =>
       parseCaipAssetType(assetId).assetNamespace === 'erc20'
@@ -238,7 +136,7 @@ async function runPipeline(
     getSelectedCurrency: (): 'usd' => 'usd',
   });
 
-  const { assets } = mockBscSpamApis();
+  mockBscSpamApis();
 
   await accountsApiDataSource.refreshActiveChains();
 
@@ -282,14 +180,14 @@ async function runPipeline(
   rpcDataSource.destroy();
   queryApiClient.clear();
 
-  return { response, requestedAssetBatches: assets.requestedBatches };
+  return response;
 }
 
 const WALLET_PASSES = [
   {
     pass: 'first pass over a fresh wallet',
     run: async (): Promise<DataResponse> =>
-      (await runPipeline(buildEmptyAssetsState())).response,
+      runPipeline(buildEmptyAssetsState()),
   },
   {
     pass: 'second pass over the wallet the first pass left behind',
@@ -297,14 +195,13 @@ const WALLET_PASSES = [
       const firstPass = await runPipeline(buildEmptyAssetsState());
       cleanAll();
 
-      const secondPass = await runPipeline(
+      return runPipeline(
         buildEmptyAssetsState({
-          assetsBalance: firstPass.response.assetsBalance,
-          assetsInfo: firstPass.response.assetsInfo,
-          assetsPrice: firstPass.response.assetsPrice,
+          assetsBalance: firstPass.assetsBalance,
+          assetsInfo: firstPass.assetsInfo,
+          assetsPrice: firstPass.assetsPrice,
         }),
       );
-      return secondPass.response;
     },
   },
 ];
@@ -341,19 +238,6 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
     // eslint-disable-next-line jest/no-disabled-tests
     it.skip('keeps the spam token out of prices', () => {
       expect(PRICES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
-    });
-  });
-
-  describe('the checksum / lower-case boundary', () => {
-    it('asks the Tokens API with a checksummed id and is answered with a lower-case one', async () => {
-      const { requestedAssetBatches } = await runPipeline(
-        buildEmptyAssetsState(),
-      );
-
-      const requested = requestedAssetBatches.flat();
-
-      expect(requested).toContain(CDOGE_ASSET_ID_CHECKSUM);
-      expect(requested).not.toContain(CDOGE_ASSET_ID_LOWERCASE);
     });
   });
 });

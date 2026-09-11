@@ -1,6 +1,7 @@
 import { defaultAbiCoder } from '@ethersproject/abi';
 import * as ProviderModule from '@ethersproject/providers';
 import { clientControllerSelectors } from '@metamask/client-controller';
+import type { KeyringControllerMessenger } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
   MOCK_ANY_NAMESPACE,
@@ -23,32 +24,31 @@ import { STAKING_INTERFACE } from '../data-sources/evm-rpc-services/services/Sta
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type TestMockType = any;
 
+type GlobalActions = MessengerActions<
+  AssetsControllerMessenger | KeyringControllerMessenger
+>;
+type GlobalEvents = MessengerEvents<
+  AssetsControllerMessenger | KeyringControllerMessenger
+>;
+
 export type MockRootMessenger = Messenger<
   MockAnyNamespace,
-  MessengerActions<AssetsControllerMessenger>,
-  MessengerEvents<AssetsControllerMessenger>
+  GlobalActions,
+  GlobalEvents
 >;
 
 const MAINNET_CHAIN_ID_HEX = '0x1';
 const MOCK_CHAIN_ID_CAIP = 'eip155:1';
 
-type MessengerWithPublish = {
-  publish: (event: string, ...args: unknown[]) => void;
-  registerActionHandler: (
-    action: string,
-    handler: (...args: unknown[]) => unknown,
-  ) => void;
-};
-
 /**
- * Register a mock `KeyringController:isUnlocked` handler. Updates unlock state
- * before `:unlock` / `:lock` events are delivered, matching KeyringController.
+ * Register a mock `KeyringController:isUnlocked` handler backed by the
+ * `:unlock` / `:lock` events.
  *
  * @param messenger - The root messenger to register handlers on.
  * @param initialUnlocked - Initial unlock state.
  */
 export function registerKeyringUnlockMock(
-  messenger: MessengerWithPublish,
+  messenger: MockRootMessenger,
   initialUnlocked = false,
 ): void {
   let isKeyringUnlocked = initialUnlocked;
@@ -57,28 +57,27 @@ export function registerKeyringUnlockMock(
     () => isKeyringUnlocked,
   );
 
-  const originalPublish = messenger.publish.bind(messenger);
-  messenger.publish = (event: string, ...args: unknown[]): void => {
-    if (event === 'KeyringController:unlock') {
-      isKeyringUnlocked = true;
-    } else if (event === 'KeyringController:lock') {
-      isKeyringUnlocked = false;
-    }
-    return originalPublish(event, ...args);
-  };
+  messenger.subscribe('KeyringController:unlock', () => {
+    isKeyringUnlocked = true;
+  });
+  messenger.subscribe('KeyringController:lock', () => {
+    isKeyringUnlocked = false;
+  });
 }
 
-export function createMockAssetControllerMessenger(options?: {
-  delegateGetState?: boolean;
-}): {
-  rootMessenger: MockRootMessenger;
-  assetsControllerMessenger: AssetsControllerMessenger;
-} {
-  const { delegateGetState = true } = options ?? {};
-
-  const rootMessenger: MockRootMessenger = new Messenger({
+export function createMockRootMessenger(): MockRootMessenger {
+  return new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
+}
+
+export function createMockAssetsControllerMessenger(
+  rootMessenger: MockRootMessenger,
+  options?: {
+    delegateGetState?: boolean;
+  },
+): AssetsControllerMessenger {
+  const { delegateGetState = true } = options ?? {};
 
   const assetsControllerMessenger: AssetsControllerMessenger = new Messenger({
     namespace: 'AssetsController',
@@ -141,10 +140,28 @@ export function createMockAssetControllerMessenger(options?: {
     ],
   });
 
-  return {
+  return assetsControllerMessenger;
+}
+
+export function createMockMessengers(options?: {
+  delegateGetState?: boolean;
+  registerCustomRootActions?: (rootMessenger: MockRootMessenger) => void;
+}): {
+  rootMessenger: MockRootMessenger;
+  assetsControllerMessenger: AssetsControllerMessenger;
+} {
+  const { delegateGetState = true, registerCustomRootActions } = options ?? {};
+
+  const rootMessenger = createMockRootMessenger();
+
+  registerCustomRootActions?.(rootMessenger);
+
+  const assetsControllerMessenger = createMockAssetsControllerMessenger(
     rootMessenger,
-    assetsControllerMessenger,
-  };
+    { delegateGetState },
+  );
+
+  return { rootMessenger, assetsControllerMessenger };
 }
 
 export function registerStakedMessengerActions(
@@ -298,17 +315,25 @@ export function createMockNetworkState(
   } as unknown as NetworkState;
 }
 
-export type RegisterAssetsControllerActionsOptions = {
+export type RegisterWalletLifecycleMocksOptions = {
+  isKeyringUnlocked?: boolean;
+  isAccountTreeInitialized?: boolean;
+  clientControllerState?: { isUiOpen: boolean };
+  remoteFeatureFlags?: FeatureFlags;
+};
+
+export type RegisterAccountMocksOptions = {
   accounts?: InternalAccount[];
   selectedAccount?: InternalAccount;
-  isAccountTreeInitialized?: boolean;
-  isKeyringUnlocked?: boolean;
-  enabledNetworkMap?: Record<string, Record<string, boolean>>;
-  nativeAssetIdentifiers?: Record<string, string>;
-  networkState?: NetworkState;
-  remoteFeatureFlags?: FeatureFlags;
-  clientControllerState?: { isUiOpen: boolean };
 };
+
+export type RegisterAssetsControllerActionsOptions =
+  RegisterWalletLifecycleMocksOptions &
+    RegisterAccountMocksOptions & {
+      enabledNetworkMap?: Record<string, Record<string, boolean>>;
+      nativeAssetIdentifiers?: Record<string, string>;
+      networkState?: NetworkState;
+    };
 
 /**
  * Build a mock internal account with sensible defaults.
@@ -339,15 +364,65 @@ export function createMockInternalAccount(
 }
 
 /**
- * Register mock action handlers for external controller actions that
- * AssetsController and its data sources call.
+ * Register the wallet-wide lifecycle mocks: keyring lock state, account-tree
+ * readiness, client UI state, and remote feature flags.
+ *
+ * Each of these mocks maintains its own state from the matching event, so it
+ * has to subscribe before the controller messenger is delegated to.
  *
  * @param rootMessenger - The root mock messenger.
- * @param opts - Action handler return value overrides.
+ * @param opts - Initial lifecycle state.
  */
-export function registerAssetsControllerActions(
+export function registerWalletLifecycleMocks(
   rootMessenger: MockRootMessenger,
-  opts: RegisterAssetsControllerActionsOptions = {},
+  opts: RegisterWalletLifecycleMocksOptions = {},
+): void {
+  registerKeyringUnlockMock(rootMessenger, opts.isKeyringUnlocked ?? false);
+
+  let isAccountTreeInitialized = opts.isAccountTreeInitialized ?? false;
+  rootMessenger.registerActionHandler(
+    'AccountTreeController:isInitialized',
+    () => isAccountTreeInitialized,
+  );
+  rootMessenger.subscribe('AccountTreeController:initialized', () => {
+    isAccountTreeInitialized = true;
+  });
+  rootMessenger.subscribe('AccountTreeController:uninitialized', () => {
+    isAccountTreeInitialized = false;
+  });
+
+  let clientControllerState = opts.clientControllerState ?? { isUiOpen: false };
+  rootMessenger.registerActionHandler(
+    'ClientController:getState',
+    () => clientControllerState,
+  );
+  rootMessenger.subscribe(
+    'ClientController:stateChange',
+    (isUiOpen: boolean) => {
+      clientControllerState = { isUiOpen };
+    },
+    clientControllerSelectors.selectIsUiOpen,
+  );
+
+  rootMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => ({
+      remoteFeatureFlags: opts.remoteFeatureFlags ?? {},
+      cacheTimestamp: 0,
+    }),
+  );
+}
+
+/**
+ * Register the account mocks AssetsController reads through
+ * AccountsController and AccountTreeController.
+ *
+ * @param rootMessenger - The root mock messenger.
+ * @param opts - The accounts to serve.
+ */
+export function registerAccountMocks(
+  rootMessenger: MockRootMessenger,
+  opts: RegisterAccountMocksOptions = {},
 ): void {
   const accounts = opts.accounts ?? [
     opts.selectedAccount ?? createMockInternalAccount(),
@@ -363,20 +438,21 @@ export function registerAssetsControllerActions(
     'AccountTreeController:getAccountsFromSelectedAccountGroup',
     () => accounts,
   );
+}
 
-  let isAccountTreeInitialized = opts.isAccountTreeInitialized ?? false;
-  rootMessenger.registerActionHandler(
-    'AccountTreeController:isInitialized',
-    () => isAccountTreeInitialized,
-  );
-  rootMessenger.subscribe('AccountTreeController:initialized', () => {
-    isAccountTreeInitialized = true;
-  });
-  rootMessenger.subscribe('AccountTreeController:uninitialized', () => {
-    isAccountTreeInitialized = false;
-  });
-
-  registerKeyringUnlockMock(rootMessenger, opts.isKeyringUnlocked ?? false);
+/**
+ * Register mock action handlers for external controller actions that
+ * AssetsController and its data sources call.
+ *
+ * @param rootMessenger - The root mock messenger.
+ * @param opts - Action handler return value overrides.
+ */
+export function registerAssetsControllerActions(
+  rootMessenger: MockRootMessenger,
+  opts: RegisterAssetsControllerActionsOptions = {},
+): void {
+  registerWalletLifecycleMocks(rootMessenger, opts);
+  registerAccountMocks(rootMessenger, opts);
 
   rootMessenger.registerActionHandler(
     'NetworkEnablementController:getState',
@@ -406,28 +482,7 @@ export function registerAssetsControllerActions(
   );
 
   rootMessenger.registerActionHandler(
-    'RemoteFeatureFlagController:getState',
-    () => ({
-      remoteFeatureFlags: opts.remoteFeatureFlags ?? {},
-      cacheTimestamp: 0,
-    }),
-  );
-
-  rootMessenger.registerActionHandler(
     'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
     () => undefined,
-  );
-
-  let clientControllerState = opts.clientControllerState ?? { isUiOpen: false };
-  rootMessenger.registerActionHandler(
-    'ClientController:getState',
-    () => clientControllerState,
-  );
-  rootMessenger.subscribe(
-    'ClientController:stateChanged',
-    (isUiOpen: boolean) => {
-      clientControllerState = { isUiOpen };
-    },
-    clientControllerSelectors.selectIsUiOpen,
   );
 }
