@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Add `uuid` `^8.3.2` as a dependency ([#9324](https://github.com/MetaMask/core/pull/9324))
+- Add `uuid` `^9.0.1` as a dependency ([#9324](https://github.com/MetaMask/core/pull/9324))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
 ## [2.0.0]
