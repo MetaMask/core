@@ -75,7 +75,7 @@
     "@nktkas/hyperliquid": "^0.33.1",
     "bignumber.js": "^9.1.2",
     "reselect": "^5.1.1",
-    "uuid": "^9.0.1"
+    "uuid": "^14.0.2"
   },
   "devDependencies": {
     "@metamask/account-tree-controller": "^10.0.1",
