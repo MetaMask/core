@@ -310,6 +310,7 @@ linkStyle default opacity:0.5
   assets_controllers --> remote_feature_flag_controller;
   assets_controllers --> storage_service;
   assets_controllers --> transaction_controller;
+  assets_controllers --> eth_block_tracker;
   assets_controllers --> eth_json_rpc_provider;
   authenticated_user_storage --> base_data_service;
   authenticated_user_storage --> controller_utils;

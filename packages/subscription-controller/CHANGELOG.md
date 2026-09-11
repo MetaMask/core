@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New messenger action `SubscriptionDelegationService:checkMoneyAccountBalance` compares Money Account convertible mUSD balance against pricing `unitAmount × minBillingCyclesForBalance`; `prepareDelegation` can gate on it via `checkBalance`.
   - Exports `CASH_SUBSCRIPTION_DELEGATION_TYPE` (`'cash-subscription'`) for AUS metadata (and for CHOMP intent metadata once chomp-api-service supports that type).
   - Only Money Account Plus is supported; Shield continues to use ERC-20 approval.
+  
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.0` ([#10184](https://github.com/MetaMask/core/pull/10184))
 
 ## [9.0.1]
 
