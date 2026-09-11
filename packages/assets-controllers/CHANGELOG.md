@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Move MockNetwork to `tests` in `network-controller` ([#10174](https://github.com/MetaMask/core/pull/10174))
+- Move FakeBlockTracker to eth-block-tracker (as MockPollingBlockTracker) ([#10121](https://github.com/MetaMask/core/pull/10121))
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.0` ([#10184](https://github.com/MetaMask/core/pull/10184))
