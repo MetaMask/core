@@ -292,6 +292,8 @@ const setup = (options?: {
   clientId?: BridgeClientId;
   keyringType?: string;
   mockTxHistory?: any;
+  isQuoteStatusManagerEnabled?: () => boolean;
+  onQuoteStatusManagerError?: (error: unknown) => void;
 }) => {
   const accountAddress = '0xAccount1' as const;
   const { messenger, transactions } = createMessengerHarness(
@@ -312,6 +314,8 @@ const setup = (options?: {
     fetchFn: (...args: any[]) => mockFetchFn(...args),
     config: { customBridgeApiBaseUrl: 'http://localhost' },
     traceFn: (_req: any, fn?: any): any => fn?.(),
+    isQuoteStatusManagerEnabled: options?.isQuoteStatusManagerEnabled,
+    onQuoteStatusManagerError: options?.onQuoteStatusManagerError as any,
   });
 
   const startPollingSpy = jest
@@ -744,6 +748,56 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     expect(stopPollingSpy).toHaveBeenCalledWith('poll-token-1');
   });
+
+  it.each([
+    { description: 'COMPLETED', orderStatus: IntentOrderStatus.COMPLETED },
+    { description: 'EXPIRED', orderStatus: IntentOrderStatus.EXPIRED },
+  ])(
+    'intent polling: does not report any quote status when the order reaches $description',
+    async ({ orderStatus }) => {
+      const onQuoteStatusManagerError = jest.fn();
+      const orderUid = 'order-uid-quote-status-1';
+      const { controller } = setup({
+        isQuoteStatusManagerEnabled: () => true,
+        onQuoteStatusManagerError,
+        mockTxHistory: {
+          [orderUid]: {
+            txMetaId: orderUid,
+            originalTransactionId: orderUid,
+            quoteId: 'intent-quote-1',
+            quote: minimalIntentQuoteResponse().quote,
+            account: '0xAccount1',
+            startTime: Date.now(),
+            status: {
+              status: StatusTypes.PENDING,
+              srcChain: { chainId: 1, txHash: '0xhash' },
+            },
+          },
+        },
+      });
+
+      jest
+        .spyOn(intentApi.IntentApiImpl.prototype, 'getOrderStatus')
+        .mockResolvedValue({
+          id: orderUid,
+          status: orderStatus,
+          txHash: '0xsettlementhash',
+          metadata: { txHashes: ['0xsettlementhash'] },
+        });
+
+      await controller._executePoll({ bridgeTxMetaId: orderUid });
+
+      // The backend owns the quote status of intent orders, so reaching a
+      // terminal order status must not create or update a tracking entry.
+      expect(controller.state.quoteUpdateStatusStore).toStrictEqual({});
+      expect(
+        controller.state.txHistory[orderUid]?.reportedSubmittedTxHash,
+      ).toBeUndefined();
+      expect(onQuoteStatusManagerError).not.toHaveBeenCalled();
+
+      controller.stopAllPolling();
+    },
+  );
 
   it('intent polling: stops polling when attempts reach MAX_ATTEMPTS', async () => {
     const orderUid = 'order-uid-3';
