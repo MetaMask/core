@@ -28,8 +28,8 @@ import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import assert from 'assert';
 
 import { SECONDS } from '../../../tests/constants.js';
-import { mockNetwork } from '../../../tests/mock-network.js';
 import { buildInfuraNetworkClientConfiguration } from '../../network-controller/tests/helpers.js';
+import { mockNetwork } from '../../network-controller/tests/mock-network.js';
 import type { AssetsContractControllerMessenger } from './AssetsContractController.js';
 import {
   AssetsContractController,
