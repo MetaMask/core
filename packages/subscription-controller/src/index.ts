@@ -48,6 +48,7 @@ export type {
   AuthUtils,
   CancelSubscriptionRequest,
   CancelType,
+  CancellationReasonCode,
   ISubscriptionService,
   StartCryptoSubscriptionRequest,
   StartDelegationCryptoSubscriptionRequest,
@@ -105,6 +106,7 @@ export type {
 } from './types.js';
 export {
   CANCEL_TYPES,
+  CANCELLATION_REASONS,
   CRYPTO_PAYMENT_METHOD_ERRORS,
   SUBSCRIPTION_STATUSES,
   PRODUCT_TYPES,

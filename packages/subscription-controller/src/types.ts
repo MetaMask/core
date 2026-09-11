@@ -128,6 +128,27 @@ export const CANCEL_TYPES = {
 
 export type CancelType = (typeof CANCEL_TYPES)[keyof typeof CANCEL_TYPES];
 
+/**
+ * API cancellation reason values and their client-facing text.
+ */
+export const CANCELLATION_REASONS = {
+  // Costs more than it's worth
+  TOO_EXPENSIVE: 'too_expensive',
+  // I wasn't using the benefits
+  NOT_USING_BENEFITS: 'not_using_benefits',
+  // The benefits weren't what I expected
+  BENEFITS_NOT_AS_EXPECTED: 'benefits_not_as_expected',
+  // Something didn't work
+  SOMETHING_DID_NOT_WORK: 'something_did_not_work',
+  // Unhappy with support
+  UNHAPPY_WITH_SUPPORT: 'unhappy_with_support',
+  // Other
+  OTHER: 'other',
+} as const;
+
+export type CancellationReasonCode =
+  (typeof CANCELLATION_REASONS)[keyof typeof CANCELLATION_REASONS];
+
 export const CRYPTO_PAYMENT_METHOD_ERRORS = {
   APPROVAL_TRANSACTION_TOO_OLD: 'approval_transaction_too_old',
   APPROVAL_TRANSACTION_REVERTED: 'approval_transaction_reverted',
@@ -375,6 +396,10 @@ export type CancelSubscriptionRequest = {
   subscriptionId: string;
   /** Whether to cancel at the end of the current period */
   cancelAtPeriodEnd?: boolean;
+  /** Stable reason code for the cancellation. */
+  cancellationReason?: CancellationReasonCode;
+  /** Optional free-text feedback for the cancellation. */
+  cancellationFeedback?: string;
 };
 
 export type AuthUtils = {
