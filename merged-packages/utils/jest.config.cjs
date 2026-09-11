@@ -27,7 +27,4 @@ module.exports = merge(baseConfig, {
       statements: 100,
     },
   },
-
-  // Reduce the default test timeout from 5s to 2.5s
-  testTimeout: 2500,
 });

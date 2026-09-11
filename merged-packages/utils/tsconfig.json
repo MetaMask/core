@@ -1,12 +1,6 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    /**
-     * These are stricter than the monorepo defaults and the sources were
-     * written against them, so they are set here rather than inherited away.
-     * `noUncheckedIndexedAccess` in particular is load bearing: several
-     * functions branch on an index access being `undefined`.
-     */
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
     "noErrorTruncation": true,
