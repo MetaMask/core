@@ -4,6 +4,7 @@ import {
   ChainId,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
+import { MockPollingBlockTracker } from '@metamask/eth-block-tracker';
 import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type {
@@ -26,7 +27,6 @@ import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import nock from 'nock';
 
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
 import { jestAdvanceTime } from '../../../tests/helpers.js';
 import { createMockInternalAccount } from '../../accounts-controller/tests/mocks.js';
 import {
@@ -781,7 +781,7 @@ describe('NftDetectionController', () => {
         type: NetworkClientType.Custom,
       },
       provider,
-      blockTracker: new FakeBlockTracker({ provider }),
+      blockTracker: new MockPollingBlockTracker({ provider }),
       destroy: () => {
         // do nothing
       },

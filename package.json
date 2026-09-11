@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1239.0.0",
+  "version": "1249.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -12,11 +12,12 @@
     "packages/*"
   ],
   "files": [],
+  "type": "module",
   "scripts": {
-    "build": "yarn ts-bridge --project tsconfig.build.json --verbose",
+    "build": "yarn tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
     "build:docs": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run build:docs",
-    "build:only-clean": "rimraf -g 'packages/*/dist'",
+    "build:only-clean": "rimraf -g 'packages/*/dist' 'packages/*/tsconfig.build.tsbuildinfo'",
     "build:types": "tsc --build tsconfig.build.json --verbose",
     "changelog:merge": "tsx scripts/merge-changelog-conflicts.ts",
     "changelog:update": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:update",
@@ -37,6 +38,8 @@
     "lint:misc:check": "yarn lint:misc --check",
     "lint:teams": "tsx scripts/lint-teams-json.ts",
     "lint:tsc": "tsc --build tsconfig.lint.json",
+    "lint:tsc:clean": "yarn lint:tsc:only-clean && yarn lint:tsc",
+    "lint:tsc:only-clean": "rimraf -g 'packages/*/.tsc-lint-cache' '.tsc-lint-cache'",
     "lint:tsconfigs": "tsx scripts/lint-tsconfigs/lint-tsconfigs.mts",
     "lint:tsconfigs:all": "yarn workspaces foreach --all --parallel --interlaced --verbose run lint:tsconfigs",
     "lint:tsconfigs:fix": "tsx scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
@@ -54,7 +57,7 @@
     "test": "yarn test:scripts --silent --collectCoverage=false --reporters=jest-silent-reporter && yarn test:scripts:shell && yarn test:packages",
     "test:clean": "yarn workspaces foreach --all --parallel --verbose run test:clean && yarn test",
     "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
-    "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.js --silent",
+    "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.cjs --silent",
     "test:scripts:shell": "node_modules/bats/bin/bats scripts/*.bats",
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
     "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
@@ -62,6 +65,7 @@
   "devDependencies": {
     "@actions/core": "^3.0.1",
     "@actions/github": "^9.1.1",
+    "@jest/globals": "^30.4.1",
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^6.1.0",
@@ -70,19 +74,16 @@
     "@metamask/eslint-config-jest": "^15.0.0",
     "@metamask/eslint-config-nodejs": "^15.0.0",
     "@metamask/eslint-config-typescript": "^15.0.0",
-    "@metamask/eth-block-tracker": "^15.0.1",
-    "@metamask/eth-json-rpc-provider": "^6.0.1",
-    "@metamask/json-rpc-engine": "^10.5.0",
-    "@metamask/network-controller": "^36.0.0",
+    "@metamask/network-controller": "^37.0.0",
     "@metamask/skills": "^0.1.0",
     "@metamask/utils": "^11.12.0",
-    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^30.0.0",
-    "@types/lodash": "^4.14.191",
-    "@types/node": "^16.18.54",
+    "@types/lodash": "^4.17.20",
+    "@types/node": "^22.13.14",
     "@types/semver": "^7",
     "@typescript-eslint/eslint-plugin": "^8.48.0",
     "@typescript-eslint/parser": "^8.48.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "@yarnpkg/cli": "^4.17.1",
     "@yarnpkg/core": "^4.9.0",
     "@yarnpkg/fslib": "^3.1.5",
@@ -111,14 +112,16 @@
     "rimraf": "^5.0.5",
     "semver": "^7.6.3",
     "simple-git-hooks": "^2.8.0",
+    "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
-    "typescript": "~5.3.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.48.0",
-    "uuid": "^8.3.2",
+    "uuid": "^9.0.1",
     "yargs": "^17.7.2"
   },
   "resolutions": {
     "@nktkas/hyperliquid@npm:^0.33.1": "patch:@nktkas/hyperliquid@npm%3A0.33.1#~/.yarn/patches/@nktkas-hyperliquid-npm-0.33.1-6a541fdd1d.patch",
+    "@typescript/old": "patch:typescript@npm%3A6.0.3#~/.yarn/patches/typescript-npm-6.0.3-585eecd158.patch",
     "elliptic@6.5.4": "^6.5.7",
     "fast-xml-parser@^4.3.4": "^4.4.1",
     "ws@7.4.6": "^7.5.10"
@@ -127,9 +130,9 @@
     "pre-push": "yarn lint"
   },
   "engines": {
-    "node": "^18.18 || >=20"
+    "node": "^22.14.0 || ^24"
   },
-  "packageManager": "yarn@4.16.0+sha256.ba05224324578801b9cc98170d64aa50b9a36733b440fb0942306da3fbbdc7d1",
+  "packageManager": "yarn@4.17.1+sha256.471ffb15e0523663865bbf46a69e7d157ecf532412eb436c48dfab6e3f2abe88",
   "lavamoat": {
     "allowScripts": {
       "$root$": true,

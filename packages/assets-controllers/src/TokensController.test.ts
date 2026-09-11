@@ -4025,13 +4025,7 @@ describe('TokensController', () => {
             controller.metadata,
             'persist',
           ),
-        ).toMatchInlineSnapshot(`
-          {
-            "allDetectedTokens": {},
-            "allIgnoredTokens": {},
-            "allTokens": {},
-          }
-        `);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 

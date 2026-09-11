@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "rootDir": "../.."
   },
   "references": [
@@ -64,6 +63,9 @@
     },
     {
       "path": "../eth-json-rpc-provider"
+    },
+    {
+      "path": "../eth-block-tracker"
     }
   ],
   "include": ["../../types", "./src", "../../tests"]

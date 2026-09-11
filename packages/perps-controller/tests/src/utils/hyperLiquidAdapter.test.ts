@@ -1,5 +1,8 @@
 import type { FrontendOrder } from '../../../src/types/hyperliquid-types.js';
-import { adaptOrderFromSDK } from '../../../src/utils/hyperLiquidAdapter.js';
+import {
+  adaptOrderFromSDK,
+  adaptMarketFromSDK,
+} from '../../../src/utils/hyperLiquidAdapter.js';
 
 /**
  * Builds a minimal valid `FrontendOrder` fixture, overridable per test.
@@ -102,4 +105,23 @@ describe('adaptOrderFromSDK', () => {
     expect(result.takeProfitPrice).toBeUndefined();
     expect(result.stopLossPrice).toBeUndefined();
   });
+});
+
+describe('adaptMarketFromSDK margin capability', () => {
+  it.each(['strictIsolated', 'noCross', undefined] as const)(
+    'preserves venue restriction %s',
+    (marginMode) => {
+      const market = {
+        name: 'BTC',
+        szDecimals: 3,
+        maxLeverage: 50,
+        marginTableId: 1,
+        marginMode,
+      };
+
+      const result = adaptMarketFromSDK(market);
+
+      expect(result.marginMode).toBe(marginMode);
+    },
+  );
 });

@@ -4,7 +4,7 @@ import type { TypedTransaction, TypedTxData } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { bytesToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import type { AuthorizationList, TransactionParams } from '../types.js';
 
