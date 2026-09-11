@@ -8,6 +8,7 @@ import type {
 import { create } from '@metamask/superstruct';
 
 import {
+  CANCELLATION_REASONS,
   Env,
   getEnvUrls,
   SubscriptionControllerErrorMessage,
@@ -991,7 +992,7 @@ describe('SubscriptionService', () => {
   describe('cancelSubscription', () => {
     it('should cancel subscription successfully', async () => {
       await withMockSubscriptionService(
-        async ({ service, fetchMock, getBearerToken }) => {
+        async ({ service, fetchMock, getBearerToken, env }) => {
           fetchMock.mockResolvedValue(
             createMockResponse({ jsonData: MOCK_SUBSCRIPTION }),
           );
@@ -1002,8 +1003,98 @@ describe('SubscriptionService', () => {
 
           expect(result).toStrictEqual(MOCK_SUBSCRIPTION);
           expect(getBearerToken).toHaveBeenCalledTimes(1);
+          expect(fetchMock).toHaveBeenCalledWith(
+            SUBSCRIPTION_URL(env, 'subscriptions/sub_123456789/cancel'),
+            {
+              method: 'POST',
+              headers: MOCK_HEADERS,
+              body: JSON.stringify({}),
+            },
+          );
         },
       );
+    });
+
+    it('should serialize cancellation reason and feedback without subscriptionId in the body', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({ jsonData: MOCK_SUBSCRIPTION }),
+        );
+
+        await service.cancelSubscription({
+          subscriptionId: 'sub_123456789',
+          cancelAtPeriodEnd: true,
+          cancellationReason: CANCELLATION_REASONS.OTHER,
+          cancellationFeedback: 'Not good for me',
+        });
+
+        expect(fetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(env, 'subscriptions/sub_123456789/cancel'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              cancelAtPeriodEnd: true,
+              cancellationReason: CANCELLATION_REASONS.OTHER,
+              cancellationFeedback: 'Not good for me',
+            }),
+          },
+        );
+      });
+    });
+
+    it.each(Object.values(CANCELLATION_REASONS))(
+      'should serialize cancellation reason %s',
+      async (cancellationReason) => {
+        await withMockSubscriptionService(
+          async ({ service, fetchMock, env }) => {
+            fetchMock.mockResolvedValue(
+              createMockResponse({ jsonData: MOCK_SUBSCRIPTION }),
+            );
+
+            await service.cancelSubscription({
+              subscriptionId: 'sub_123456789',
+              cancellationReason,
+            });
+
+            expect(fetchMock).toHaveBeenCalledWith(
+              SUBSCRIPTION_URL(env, 'subscriptions/sub_123456789/cancel'),
+              expect.objectContaining({
+                body: JSON.stringify({ cancellationReason }),
+              }),
+            );
+          },
+        );
+      },
+    );
+
+    it('should not include cancellation feedback in the query key', async () => {
+      await withMockSubscriptionService(async ({ service }) => {
+        const fetchQuerySpy = jest
+          .spyOn(
+            service as unknown as {
+              fetchQuery: SubscriptionService['fetchQuery'];
+            },
+            'fetchQuery',
+          )
+          .mockResolvedValue(MOCK_SUBSCRIPTION);
+        const feedback = 'private cancellation feedback';
+
+        await service.cancelSubscription({
+          subscriptionId: 'sub_123456789',
+          cancelAtPeriodEnd: true,
+          cancellationReason: CANCELLATION_REASONS.OTHER,
+          cancellationFeedback: feedback,
+        });
+
+        const queryKey = fetchQuerySpy.mock.calls[0]?.[0].queryKey;
+        expect(JSON.stringify(queryKey)).not.toContain(feedback);
+        expect(queryKey).toContainEqual({
+          subscriptionId: 'sub_123456789',
+          cancelAtPeriodEnd: true,
+          cancellationReason: CANCELLATION_REASONS.OTHER,
+        });
+      });
     });
 
     it('should throw SubscriptionServiceError for network errors', async () => {
@@ -1033,6 +1124,16 @@ describe('SubscriptionService', () => {
           expect(captureExceptionMock).toHaveBeenCalledTimes(1);
         },
       );
+    });
+
+    it('should throw when the cancellation response is invalid', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(createMockResponse({ jsonData: {} }));
+
+        await expect(
+          service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
+        ).rejects.toThrow();
+      });
     });
   });
 

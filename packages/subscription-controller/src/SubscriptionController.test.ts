@@ -15,6 +15,7 @@ import type { Hex } from '@metamask/utils';
 import { jestAdvanceTime } from '../../../tests/helpers.js';
 import { generateMockTxMeta } from '../tests/utils.js';
 import {
+  CANCELLATION_REASONS,
   controllerName,
   SubscriptionControllerErrorMessage,
 } from './constants.js';
@@ -1744,26 +1745,45 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller, rootMessenger, mockService }) => {
-          mockService.cancelSubscription.mockResolvedValue({
+          const cancellationRequest = {
+            subscriptionId: MOCK_SUBSCRIPTION.id,
+            cancellationReason: CANCELLATION_REASONS.OTHER,
+            cancellationFeedback: 'Not good for me',
+          };
+          const cancelledSubscription = {
             ...MOCK_SUBSCRIPTION,
             status: SUBSCRIPTION_STATUSES.canceled,
+          };
+          mockService.cancelSubscription.mockResolvedValue(
+            cancelledSubscription,
+          );
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [cancelledSubscription, mockSubscription2],
+            trialedProducts: [],
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
           });
           expect(
             await rootMessenger.call(
               'SubscriptionController:cancelSubscription',
-              {
-                subscriptionId: MOCK_SUBSCRIPTION.id,
-              },
+              cancellationRequest,
             ),
           ).toBeUndefined();
           expect(controller.state.subscriptions).toStrictEqual([
-            { ...MOCK_SUBSCRIPTION, status: SUBSCRIPTION_STATUSES.canceled },
+            cancelledSubscription,
             mockSubscription2,
           ]);
+          expect(controller.state.productEntitlements).toStrictEqual(
+            MOCK_PRODUCT_ENTITLEMENTS,
+          );
           expect(mockService.cancelSubscription).toHaveBeenCalledWith({
-            subscriptionId: MOCK_SUBSCRIPTION.id,
+            ...cancellationRequest,
           });
           expect(mockService.cancelSubscription).toHaveBeenCalledTimes(1);
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
+          expect(JSON.stringify(controller.state)).not.toContain(
+            cancellationRequest.cancellationFeedback,
+          );
         },
       );
     });
@@ -1832,6 +1852,7 @@ describe('SubscriptionController', () => {
             subscriptionId: 'sub_123456789',
           });
           expect(mockService.cancelSubscription).toHaveBeenCalledTimes(1);
+          expect(mockService.getSubscriptions).not.toHaveBeenCalled();
         },
       );
     });
@@ -1845,9 +1866,18 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller, rootMessenger, mockService }) => {
-          mockService.cancelSubscription.mockResolvedValue({
+          const cancelledSubscription = {
             ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
             status: SUBSCRIPTION_STATUSES.canceled,
+          };
+          mockService.cancelSubscription.mockResolvedValue(
+            cancelledSubscription,
+          );
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [cancelledSubscription],
+            trialedProducts: [],
+            productEntitlements: {},
           });
 
           await rootMessenger.call(
@@ -1865,6 +1895,7 @@ describe('SubscriptionController', () => {
           ]);
           expect(controller.state.benefits).toBeUndefined();
           expect(mockService.getBenefits).not.toHaveBeenCalled();
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -1878,9 +1909,21 @@ describe('SubscriptionController', () => {
           },
         },
         async ({ controller, rootMessenger, mockService }) => {
-          mockService.cancelSubscription.mockResolvedValue({
+          const cancelledSubscription = {
             ...MOCK_SUBSCRIPTION,
             status: SUBSCRIPTION_STATUSES.canceled,
+          };
+          mockService.cancelSubscription.mockResolvedValue(
+            cancelledSubscription,
+          );
+          mockService.getSubscriptions.mockResolvedValue({
+            customerId: 'cus_1',
+            subscriptions: [
+              cancelledSubscription,
+              MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+            ],
+            trialedProducts: [],
+            productEntitlements: MOCK_PRODUCT_ENTITLEMENTS,
           });
           mockService.getBenefits.mockRejectedValue(
             new SubscriptionServiceError('Failed to get benefits'),
@@ -1901,6 +1944,40 @@ describe('SubscriptionController', () => {
           ]);
           expect(controller.state.benefits).toStrictEqual(MOCK_BENEFITS_STATE);
           expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should preserve the cancelled subscription when the subscription refresh fails', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ controller, rootMessenger, mockService }) => {
+          const cancelledSubscription = {
+            ...MOCK_SUBSCRIPTION,
+            status: SUBSCRIPTION_STATUSES.canceled,
+          };
+          mockService.cancelSubscription.mockResolvedValue(
+            cancelledSubscription,
+          );
+          mockService.getSubscriptions.mockRejectedValue(
+            new SubscriptionServiceError('Failed to refresh subscriptions'),
+          );
+
+          await expect(
+            rootMessenger.call('SubscriptionController:cancelSubscription', {
+              subscriptionId: MOCK_SUBSCRIPTION.id,
+            }),
+          ).resolves.toBeUndefined();
+
+          expect(controller.state.subscriptions).toStrictEqual([
+            cancelledSubscription,
+          ]);
+          expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
         },
       );
     });

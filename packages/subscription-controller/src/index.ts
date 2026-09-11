@@ -106,7 +106,6 @@ export type {
 } from './types.js';
 export {
   CANCEL_TYPES,
-  CANCELLATION_REASONS,
   CRYPTO_PAYMENT_METHOD_ERRORS,
   SUBSCRIPTION_STATUSES,
   PRODUCT_TYPES,
@@ -120,6 +119,7 @@ export {
   MoneyAccountFeature,
   ShieldFeature,
 } from './types.js';
+export { CANCELLATION_REASONS } from './constants.js';
 export {
   selectHasEntitlement,
   selectIsActiveSubscriber,

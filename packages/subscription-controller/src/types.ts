@@ -1,6 +1,8 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { CaipAccountId, Hex } from '@metamask/utils';
 
+import type { CANCELLATION_REASONS } from './constants.js';
+
 /**
  * Error response from the Subscription API.
  */
@@ -127,24 +129,6 @@ export const CANCEL_TYPES = {
 } as const;
 
 export type CancelType = (typeof CANCEL_TYPES)[keyof typeof CANCEL_TYPES];
-
-/**
- * API cancellation reason values and their client-facing text.
- */
-export const CANCELLATION_REASONS = {
-  // Costs more than it's worth
-  TOO_EXPENSIVE: 'too_expensive',
-  // I wasn't using the benefits
-  NOT_USING_BENEFITS: 'not_using_benefits',
-  // The benefits weren't what I expected
-  BENEFITS_NOT_AS_EXPECTED: 'benefits_not_as_expected',
-  // Something didn't work
-  SOMETHING_DID_NOT_WORK: 'something_did_not_work',
-  // Unhappy with support
-  UNHAPPY_WITH_SUPPORT: 'unhappy_with_support',
-  // Other
-  OTHER: 'other',
-} as const;
 
 export type CancellationReasonCode =
   (typeof CANCELLATION_REASONS)[keyof typeof CANCELLATION_REASONS];
