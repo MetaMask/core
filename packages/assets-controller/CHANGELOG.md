@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AccountsApiDataSource` now treats Accounts API `/v2/supportedNetworks` `partialSupport` as active chains in addition to `fullSupport`, still gated by the Snaps assets migration feature flags ([#10144](https://github.com/MetaMask/core/pull/10144))
 - `AccountsApiDataSource` now reads Accounts API `/v2/supportedNetworks` as CAIP-2 `fullSupport` and `partialSupport` string arrays, matching the current API payload
 
+### Fixed
+
+- Fix post-transaction balance refreshes for default-tracked native assets on AccountActivity-active chains ([#10198](https://github.com/MetaMask/core/pull/10198))
+
 ## [16.0.0]
 
 ### Changed
