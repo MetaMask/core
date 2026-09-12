@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Map `musdConversion` local transactions as `send` instead of `convert` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Map `musdConversion` local transactions as `send` instead of `convert` ([#10217](https://github.com/MetaMask/core/pull/10217))
 
 ### Changed
 
