@@ -23,9 +23,9 @@ import {
   getFees,
   getNftPaymentTransfer,
   getTokenAmountFromTransfer,
-  getTokenMetadataFromKnownToken,
   parseValueTransfers,
 } from './helpers/transactions.js';
+import { getKnownTokenMetadata } from './helpers/token-metadata.js';
 
 /**
  * Maps an indexed API transaction into the shared activity item shape.
@@ -102,9 +102,17 @@ export function mapApiTransaction({
     const assetId = contractAddress
       ? formatAddressToAssetId(contractAddress, chainId)
       : undefined;
-    const token =
-      getTokenMetadataFromKnownToken(contractAddress, direction, chainId) ??
-      (assetId ? { direction, assetId } : undefined);
+
+    const tokenMetadata = getKnownTokenMetadata(chainId, contractAddress);
+    const token = assetId
+      ? {
+          direction,
+          assetType: 'erc20',
+          symbol: tokenMetadata?.symbol,
+          decimals: tokenMetadata?.decimals,
+          assetId: tokenMetadata?.assetId ?? assetId,
+        }
+      : undefined;
 
     return {
       type: 'approveSpendingCap',
