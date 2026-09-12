@@ -225,7 +225,8 @@ export function mapLocalTransaction(
 
     case TransactionType.tokenMethodSafeTransferFrom:
     case TransactionType.tokenMethodTransfer:
-    case TransactionType.tokenMethodTransferFrom: {
+    case TransactionType.tokenMethodTransferFrom:
+    case TransactionType.musdConversion: {
       return {
         type: 'send',
         ...common,
@@ -279,33 +280,6 @@ export function mapLocalTransaction(
           from,
         },
       };
-
-    case TransactionType.musdConversion: {
-      let conversionAmount: string | undefined;
-
-      if (txData && txData.length >= 138) {
-        try {
-          conversionAmount = BigInt(`0x${txData.slice(74, 138)}`).toString();
-        } catch {
-          conversionAmount = undefined;
-        }
-      }
-
-      return {
-        type: 'convert',
-        ...common,
-        data: {
-          from,
-          sourceToken: transactionGroup.sourceToken,
-          destinationToken: getContractTokenWithKnownMetadata({
-            amount: conversionAmount,
-            transaction: initialTransaction,
-            direction: 'in',
-            contractAddress: to,
-          }),
-        },
-      };
-    }
 
     case TransactionType.bridgeApproval:
     case TransactionType.shieldSubscriptionApprove:
