@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Point leftover `sdk`, `auth`, and `user-storage` subpath `package.json` files at the ESM build
+- Point leftover `sdk`, `auth`, and `user-storage` subpath `package.json` files at the ESM build ([#10218](https://github.com/MetaMask/core/pull/10218))
 
 ### Changed
 
