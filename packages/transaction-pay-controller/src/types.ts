@@ -280,19 +280,7 @@ export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
 
 /** Request to fetch an executable Solana-source Relay quote. */
 export type GetSolanaPayQuoteRequest = {
-  /** Source amount in atomic units. */
-  amount: string;
-
-  /** Destination EVM chain ID. */
-  destinationChainId: Hex;
-
-  /** Destination EVM token address. */
-  destinationCurrency: Hex;
-
-  /** Destination EVM account. */
-  recipient: Hex;
-
-  /** Target TransactionController transaction ID. */
+  /** Target TransactionController transaction ID used to derive the route. */
   transactionId: string;
 };
 
@@ -355,12 +343,23 @@ export type SolanaPayQuote = {
 
   /** Core-owned normalized fee, rent, reserve, and affordability policy. */
   preflight: SolanaPayPreflight;
+
+  /** Core-derived route policy; clients must not reconstruct these fields. */
+  route: {
+    atomicProductActionIncluded: boolean;
+    recipient: Hex;
+    targetAmountMinimum: string;
+    tradeType: 'EXACT_INPUT' | 'EXACT_OUTPUT';
+  };
 };
 
 /** Request passed to the client-owned Solana sign-and-broadcast boundary. */
 export type SolanaPaySignAndSendTransactionRequest = {
-  /** Canonical source account used by the Snap client request. */
-  accountId: CaipAccountId;
+  /** Wallet-local InternalAccount.id passed to the Snap request. */
+  accountId: TransactionPayIntent['sourceWalletAccountId'];
+
+  /** Canonical CAIP-10 source identity used for validation/diagnostics. */
+  caipAccountId: CaipAccountId;
 
   /** Opaque serialized transaction returned by the preflight callback. */
   preparedTransaction: string;
@@ -377,8 +376,11 @@ export type SolanaPaySignAndSendTransactionRequest = {
 
 /** Request used to prepare and price a Relay Solana transaction. */
 export type GetSolanaPayPreflightRequest = {
-  /** Canonical source account. */
-  accountId: CaipAccountId;
+  /** Wallet-local InternalAccount.id used to prepare the Snap transaction. */
+  accountId: TransactionPayIntent['sourceWalletAccountId'];
+
+  /** Canonical CAIP-10 source identity. */
+  caipAccountId: CaipAccountId;
 
   /** Relay correlation ID. */
   requestId: string;
@@ -405,8 +407,11 @@ export type SolanaPaySubmissionResult =
 
 /** Request used to observe a previously submitted Solana transaction. */
 export type GetSolanaPayTransactionStatusRequest = {
-  /** Canonical source account. */
-  accountId: CaipAccountId;
+  /** Wallet-local InternalAccount.id. */
+  accountId: TransactionPayIntent['sourceWalletAccountId'];
+
+  /** Canonical CAIP-10 source identity. */
+  caipAccountId: CaipAccountId;
 
   /** Canonical Solana chain scope. */
   scope: CaipChainId;

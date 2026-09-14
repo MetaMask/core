@@ -95,12 +95,14 @@ describe('TransactionPayPublishHook', () => {
     getControllerStateMock.mockReturnValue({
       payIntents: {
         [TRANSACTION_META_MOCK.id]: {
-          version: 1,
+          version: 2,
           sourceAccountId:
             'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+          sourceAmountRaw: '1000000',
           sourceAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
           sourceChainId:
             'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as CaipChainId,
+          sourceWalletAccountId: 'wallet-account-uuid',
         },
       },
       transactionData: {},
@@ -143,12 +145,14 @@ describe('TransactionPayPublishHook', () => {
       getControllerStateMock.mockReturnValue({
         payIntents: {
           [TRANSACTION_META_MOCK.id]: {
-            version: 1,
+            version: 2,
             sourceAccountId:
               'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+            sourceAmountRaw: '1000000',
             sourceAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
             sourceChainId:
               'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as CaipChainId,
+            sourceWalletAccountId: 'wallet-account-uuid',
           },
         },
         transactionData: {},

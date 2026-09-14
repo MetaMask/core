@@ -1,3 +1,6 @@
+import { Interface } from '@ethersproject/abi';
+import { TransactionType } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type {
   CaipAccountId,
   CaipAssetType,
@@ -5,8 +8,11 @@ import type {
   Hex,
 } from '@metamask/utils';
 
+import { PaymentOverride } from '../../constants.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
   SolanaPayPreflightData,
+  TransactionData,
   TransactionPayIntent,
 } from '../../types.js';
 import {
@@ -29,10 +35,12 @@ const SOLANA_NATIVE_RELAY_ADDRESS = '11111111111111111111111111111111';
 
 function getIntent(sourceAssetId: CaipAssetType): TransactionPayIntent {
   return {
-    version: 1,
+    version: 2,
     sourceAccountId: SOLANA_ACCOUNT,
+    sourceAmountRaw: '1000000',
     sourceAssetId,
     sourceChainId: SOLANA_CHAIN_ID,
+    sourceWalletAccountId: 'wallet-account-uuid',
   };
 }
 
@@ -98,105 +106,238 @@ function getQuote(): RelaySolanaQuote {
 
 describe('Solana Relay Pay', () => {
   describe('buildRelaySolanaQuoteRequest', () => {
-    it('builds an exact-input /quote/v2 request for an SPL token', () => {
-      expect(
-        buildRelaySolanaQuoteRequest(getIntent(SOLANA_USDC), {
-          amount: '1000000',
-          destinationChainId: '0xa4b1' as Hex,
-          destinationCurrency: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-          recipient: '0x1234567890123456789012345678901234567890',
-          transactionId: 'transaction-1',
-        }),
-      ).toStrictEqual({
+    const RECIPIENT = '0x1234567890123456789012345678901234567890' as Hex;
+    const TARGET_TOKEN = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' as Hex;
+    const TRANSACTION = {
+      id: 'transaction-1',
+      txParams: { from: RECIPIENT },
+    } as TransactionMeta;
+    const TRANSACTION_DATA: TransactionData = {
+      isLoading: false,
+      sourceAmounts: [
+        {
+          sourceAmountHuman: '1',
+          sourceAmountRaw: '1000000',
+          targetTokenAddress: TARGET_TOKEN,
+        },
+      ],
+      tokens: [
+        {
+          address: TARGET_TOKEN,
+          allowUnderMinimum: false,
+          amountFiat: '1',
+          amountHuman: '1',
+          amountRaw: '900000',
+          amountUsd: '1',
+          balanceFiat: '0',
+          balanceHuman: '0',
+          balanceRaw: '0',
+          balanceUsd: '0',
+          chainId: '0xa4b1' as Hex,
+          decimals: 6,
+          skipIfBalance: false,
+          symbol: 'USDC',
+        },
+      ],
+    };
+    const { getDelegationTransactionMock, messenger } = getMessengerMock();
+
+    beforeEach(() => {
+      getDelegationTransactionMock.mockResolvedValue({
+        data: '0x1234',
+        to: '0x9876543210987654321098765432109876543210',
+        value: '0x0',
+      });
+    });
+
+    it('derives an exact-input SPL route from Core transaction state', async () => {
+      const result = await buildRelaySolanaQuoteRequest(
+        getIntent(SOLANA_USDC),
+        TRANSACTION,
+        TRANSACTION_DATA,
+        messenger,
+      );
+
+      expect(result).toStrictEqual({
         amount: '1000000',
         destinationChainId: 42161,
-        destinationCurrency: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+        destinationCurrency: TARGET_TOKEN,
         originChainId: 792703809,
         originCurrency: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-        recipient: '0x1234567890123456789012345678901234567890',
+        recipient: RECIPIENT,
         refundTo: '7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
         tradeType: 'EXACT_INPUT',
         user: '7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
       });
     });
 
-    it('maps the CAIP native SOL asset to the Relay native sentinel', () => {
-      const result = buildRelaySolanaQuoteRequest(getIntent(SOLANA_NATIVE), {
-        amount: '100000000',
-        destinationChainId: '0x89' as Hex,
-        destinationCurrency: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
-        recipient: '0x1234567890123456789012345678901234567890',
-        transactionId: 'transaction-1',
-      });
+    it('maps the CAIP native SOL asset to the Relay native sentinel', async () => {
+      const result = await buildRelaySolanaQuoteRequest(
+        getIntent(SOLANA_NATIVE),
+        TRANSACTION,
+        TRANSACTION_DATA,
+        messenger,
+      );
 
       expect(result.originCurrency).toBe(SOLANA_NATIVE_RELAY_ADDRESS);
     });
 
-    it('rejects unsupported Solana networks', () => {
-      const intent = {
-        ...getIntent(SOLANA_USDC),
-        sourceChainId: 'solana:devnet' as CaipChainId,
-      };
-
-      expect(() =>
-        buildRelaySolanaQuoteRequest(intent, {
-          amount: '1',
-          destinationChainId: '0x1' as Hex,
-          destinationCurrency: '0x1234567890123456789012345678901234567890',
-          recipient: '0x1234567890123456789012345678901234567890',
-          transactionId: 'transaction-1',
-        }),
-      ).toThrow('Unsupported Solana source chain');
-    });
-
-    it('rejects a source account from a different chain', () => {
-      const intent = {
-        ...getIntent(SOLANA_USDC),
-        sourceAccountId: 'solana:other:account' as CaipAccountId,
-      };
-
-      expect(() =>
-        buildRelaySolanaQuoteRequest(intent, {
-          amount: '1',
-          destinationChainId: '0x1' as Hex,
-          destinationCurrency: '0x1234567890123456789012345678901234567890',
-          recipient: '0x1234567890123456789012345678901234567890',
-          transactionId: 'transaction-1',
-        }),
-      ).toThrow('Solana source account does not match source chain');
-    });
-
-    it('rejects a source asset from a different chain', () => {
-      const intent = {
-        ...getIntent(SOLANA_USDC),
-        sourceAssetId: 'solana:other/token:mint' as CaipAssetType,
-      };
-
-      expect(() =>
-        buildRelaySolanaQuoteRequest(intent, {
-          amount: '1',
-          destinationChainId: '0x1' as Hex,
-          destinationCurrency: '0x1234567890123456789012345678901234567890',
-          recipient: '0x1234567890123456789012345678901234567890',
-          transactionId: 'transaction-1',
-        }),
-      ).toThrow('Solana source asset does not match source chain');
-    });
-
-    it('rejects unsupported Solana CAIP asset namespaces', () => {
-      const intent = getIntent(
-        `${SOLANA_CHAIN_ID}/erc20:0x1234` as CaipAssetType,
+    it.each([
+      TransactionType.perpsDeposit,
+      TransactionType.perpsDepositAndOrder,
+      TransactionType.predictDeposit,
+      TransactionType.predictDepositAndOrder,
+    ])('embeds atomic product calls for %s', async (type) => {
+      const result = await buildRelaySolanaQuoteRequest(
+        getIntent(SOLANA_USDC),
+        { ...TRANSACTION, type },
+        TRANSACTION_DATA,
+        messenger,
       );
 
-      expect(() =>
-        buildRelaySolanaQuoteRequest(intent, {
-          amount: '1',
-          destinationChainId: '0x1' as Hex,
-          destinationCurrency: '0x1234567890123456789012345678901234567890',
-          recipient: '0x1234567890123456789012345678901234567890',
-          transactionId: 'transaction-1',
-        }),
-      ).toThrow('Unsupported Solana source asset');
+      expect(result).toMatchObject({
+        amount: '900000',
+        recipient: RECIPIENT,
+        tradeType: 'EXACT_OUTPUT',
+        txs: [
+          {
+            data: new Interface([
+              'function transfer(address to, uint256 amount)',
+            ]).encodeFunctionData('transfer', [RECIPIENT, '900000']),
+            to: TARGET_TOKEN,
+            value: '0x0',
+          },
+          {
+            data: '0x1234',
+            to: '0x9876543210987654321098765432109876543210',
+            value: '0x0',
+          },
+        ],
+      });
+    });
+
+    it('keeps Money Account explicitly non-atomic', async () => {
+      const result = await buildRelaySolanaQuoteRequest(
+        getIntent(SOLANA_USDC),
+        { ...TRANSACTION, type: TransactionType.predictDeposit },
+        {
+          ...TRANSACTION_DATA,
+          atomic: false,
+          paymentOverride: PaymentOverride.MoneyAccount,
+        },
+        messenger,
+      );
+
+      expect(result.tradeType).toBe('EXACT_INPUT');
+      expect(result.txs).toBeUndefined();
+      expect(getDelegationTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it('includes normalized destination authorization with atomic calls', async () => {
+      getDelegationTransactionMock.mockResolvedValue({
+        authorizationList: [
+          {
+            address: RECIPIENT,
+            chainId: '0xa4b1',
+            nonce: '0x1',
+            r: '0x1',
+            s: '0x2',
+            yParity: '0x1',
+          },
+        ],
+        data: '0x1234',
+        to: '0x9876543210987654321098765432109876543210',
+        value: '0x0',
+      });
+
+      const result = await buildRelaySolanaQuoteRequest(
+        getIntent(SOLANA_USDC),
+        { ...TRANSACTION, type: TransactionType.predictDeposit },
+        TRANSACTION_DATA,
+        messenger,
+      );
+
+      expect(result.authorizationList).toStrictEqual([
+        {
+          address: RECIPIENT,
+          chainId: 42161,
+          nonce: 1,
+          r: '0x1',
+          s: '0x2',
+          yParity: 1,
+        },
+      ]);
+    });
+
+    it('rejects a product route that is non-atomic outside Money Account', async () => {
+      await expect(
+        buildRelaySolanaQuoteRequest(
+          getIntent(SOLANA_USDC),
+          { ...TRANSACTION, type: TransactionType.predictDeposit },
+          { ...TRANSACTION_DATA, atomic: false },
+          messenger,
+        ),
+      ).rejects.toThrow('Unsupported non-atomic Solana Pay product route');
+    });
+
+    it('rejects a route without a target token', async () => {
+      await expect(
+        buildRelaySolanaQuoteRequest(
+          getIntent(SOLANA_USDC),
+          TRANSACTION,
+          { ...TRANSACTION_DATA, tokens: [] },
+          messenger,
+        ),
+      ).rejects.toThrow('Missing Solana Pay target token');
+    });
+
+    it('rejects an exact-input route without a Core-derived source amount', async () => {
+      const intent = { ...getIntent(SOLANA_USDC), sourceAmountRaw: undefined };
+      await expect(
+        buildRelaySolanaQuoteRequest(
+          intent,
+          TRANSACTION,
+          { ...TRANSACTION_DATA, sourceAmounts: undefined },
+          messenger,
+        ),
+      ).rejects.toThrow('Missing Solana Pay source amount');
+    });
+
+    it.each([
+      [
+        {
+          ...getIntent(SOLANA_USDC),
+          sourceChainId: 'solana:devnet' as CaipChainId,
+        },
+        'Unsupported Solana source chain',
+      ],
+      [
+        {
+          ...getIntent(SOLANA_USDC),
+          sourceAccountId: 'solana:other:account' as CaipAccountId,
+        },
+        'Solana source account does not match source chain',
+      ],
+      [
+        {
+          ...getIntent(SOLANA_USDC),
+          sourceAssetId: 'solana:other/token:mint' as CaipAssetType,
+        },
+        'Solana source asset does not match source chain',
+      ],
+      [
+        getIntent(`${SOLANA_CHAIN_ID}/erc20:0x1234` as CaipAssetType),
+        'Unsupported Solana source asset',
+      ],
+    ] as const)('rejects invalid source identity %#', async (intent, error) => {
+      await expect(
+        buildRelaySolanaQuoteRequest(
+          intent,
+          TRANSACTION,
+          TRANSACTION_DATA,
+          messenger,
+        ),
+      ).rejects.toThrow(error);
     });
   });
 
@@ -466,6 +607,24 @@ describe('Solana Relay Pay', () => {
       };
 
       expect(deriveSolanaPayOutcome(intent)).toMatchObject(expected);
+    });
+
+    it('does not succeed when a required atomic product action was omitted', () => {
+      const intent: TransactionPayIntent = {
+        ...getIntent(SOLANA_USDC),
+        atomicProductActionIncluded: false,
+        atomicProductActionRequired: true,
+        execution: {
+          followUpStatus: 'not-required',
+          providerNotificationStatus: 'succeeded',
+          relayStatus: 'success',
+          sourceStatus: 'confirmed',
+        },
+      };
+
+      expect(deriveSolanaPayOutcome(intent)).toStrictEqual({
+        type: 'submitted',
+      });
     });
   });
 
