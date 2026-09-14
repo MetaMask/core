@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
+### Fixed
+
+- Detect nested `perpsDepositAndOrder` and `predictDepositAndOrder` transactions when selecting `EXACT_OUTPUT` Relay quotes ([#10222](https://github.com/MetaMask/core/pull/10222))
+
 ## [28.0.2]
 
 ### Fixed

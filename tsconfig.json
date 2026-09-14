@@ -314,6 +314,9 @@
     },
     {
       "path": "./packages/wallet-framework-docs"
+    },
+    {
+      "path": "./packages/package-template"
     }
   ],
   "files": [],
