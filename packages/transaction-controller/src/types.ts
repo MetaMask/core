@@ -2278,8 +2278,8 @@ export type MetamaskPayIntent = {
   /** Wallet-local InternalAccount.id used by Snap requests. */
   sourceWalletAccountId: InternalAccount['id'];
 
-  /** Immutable source amount in atomic units, finalized by Core at quote time. */
-  sourceAmountRaw?: string;
+  /** Immutable source amount in atomic units for the prepared execution. */
+  sourceAmountRaw: string;
 
   /** Canonical CAIP-10 identity of the source account. */
   sourceAccountId: CaipAccountId;

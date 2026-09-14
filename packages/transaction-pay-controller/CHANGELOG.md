@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
 
+### Fixed
+
+- Use the immutable Solana intent source amount for exact-input routes instead of stale EVM payment-token source amounts.
+
 ## [30.1.0]
 
 ### Added

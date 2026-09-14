@@ -216,9 +216,9 @@ describe('Solana Relay Pay', () => {
       });
     });
 
-    it('keeps Money Account explicitly non-atomic', async () => {
+    it('uses the immutable Solana intent amount for Money Account despite stale EVM source amounts', async () => {
       const result = await buildRelaySolanaQuoteRequest(
-        getIntent(SOLANA_USDC),
+        { ...getIntent(SOLANA_USDC), sourceAmountRaw: '765432' },
         { ...TRANSACTION, type: TransactionType.predictDeposit },
         {
           ...TRANSACTION_DATA,
@@ -228,6 +228,7 @@ describe('Solana Relay Pay', () => {
         messenger,
       );
 
+      expect(result.amount).toBe('765432');
       expect(result.tradeType).toBe('EXACT_INPUT');
       expect(result.txs).toBeUndefined();
       expect(getDelegationTransactionMock).not.toHaveBeenCalled();
