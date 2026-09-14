@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add a transient, non-persisted per-account assets loading state (`assetsLoadingStatus`) that marks accounts as loading during account switches and unlock, with selectors to read it ([#10230](https://github.com/MetaMask/core/pull/10230))
+- Add a transient, non-persisted per-account assets loading state (`assetsLoadingStatus`) that marks accounts as loading while `getAssets` fetches their assets, with selectors to read it ([#10230](https://github.com/MetaMask/core/pull/10230))
 
 ### Changed
 

@@ -125,6 +125,7 @@ import {
   isUnlockCleanupEnabled,
   tempHealAssetsInfoMetadata,
 } from './migrations/healAssetsInfoMetadata.js';
+import { trackAssetsLoading } from './trackAssetsLoading.js';
 import type {
   AccountId,
   AssetPreferences,
@@ -767,10 +768,6 @@ export class AssetsController extends BaseController<
   /** Serializes account-switch fetch + subscribe to prevent overlapping races. */
   readonly #accountRefreshMutex = new Mutex();
 
-  #loadingTokenCounter = 0;
-
-  readonly #loadingTokens = new Map<AccountId, number>();
-
   /**
    * Active balance subscriptions keyed by account ID.
    * Each account has one logical subscription that may span multiple data sources.
@@ -1371,36 +1368,27 @@ export class AssetsController extends BaseController<
    * @param accounts - Selected accounts to refresh.
    */
   async #runStartupRefresh(accounts: InternalAccount[]): Promise<void> {
-    const loadingToken = this.#setAssetsLoadingStatus(accounts);
+    const releaseLock = await this.#accountRefreshMutex.acquire();
     try {
-      const releaseLock = await this.#accountRefreshMutex.acquire();
-      try {
-        await this.getAssets(accounts, {
-          chainIds: [...this.#enabledChains],
-          forceUpdate: true,
-        });
-        // Seed before subscribe so the price poll / update fetch sees natives
-        // and default tracked assets that were never returned by balance APIs.
-        this.#ensureNativeBalancesDefaultZero();
-        this.#ensureDefaultTrackedAssetsSeeded();
-        // Balances were just force-fetched — skip AccountsApi's subscribe-time poll.
-        this.#subscribeAssets({ skipInitialFetch: true });
-        this.#fetchMissingPricesWithoutCache(accounts, [
-          ...this.#enabledChains,
-        ]);
-      } catch (error) {
-        log('Failed to fetch assets on startup', error);
-        this.#ensureNativeBalancesDefaultZero();
-        this.#ensureDefaultTrackedAssetsSeeded();
-        this.#subscribeAssets({ skipInitialFetch: true });
-        this.#fetchMissingPricesWithoutCache(accounts, [
-          ...this.#enabledChains,
-        ]);
-      } finally {
-        releaseLock();
-      }
+      await this.getAssets(accounts, {
+        chainIds: [...this.#enabledChains],
+        forceUpdate: true,
+      });
+      // Seed before subscribe so the price poll / update fetch sees natives
+      // and default tracked assets that were never returned by balance APIs.
+      this.#ensureNativeBalancesDefaultZero();
+      this.#ensureDefaultTrackedAssetsSeeded();
+      // Balances were just force-fetched — skip AccountsApi's subscribe-time poll.
+      this.#subscribeAssets({ skipInitialFetch: true });
+      this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
+    } catch (error) {
+      log('Failed to fetch assets on startup', error);
+      this.#ensureNativeBalancesDefaultZero();
+      this.#ensureDefaultTrackedAssetsSeeded();
+      this.#subscribeAssets({ skipInitialFetch: true });
+      this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } finally {
-      this.#markAssetsLoaded(accounts, loadingToken);
+      releaseLock();
     }
   }
 
@@ -1627,6 +1615,7 @@ export class AssetsController extends BaseController<
   // PUBLIC API: QUERY METHODS
   // ============================================================================
 
+  @trackAssetsLoading
   async getAssets(
     accounts: InternalAccount[],
     options?: {
@@ -1819,37 +1808,6 @@ export class AssetsController extends BaseController<
 
     const result = this.#getAssetsFromState(accounts, chainIds, assetTypes);
     return result;
-  }
-
-  #setAssetsLoadingStatus(accounts: InternalAccount[]): number {
-    this.#loadingTokenCounter += 1;
-    const token = this.#loadingTokenCounter;
-    for (const account of accounts) {
-      this.#loadingTokens.set(account.id, token);
-    }
-    this.update((state) => {
-      for (const account of accounts) {
-        state.assetsLoadingStatus[account.id] = 'loading';
-      }
-    });
-    return token;
-  }
-
-  #markAssetsLoaded(accounts: InternalAccount[], token: number): void {
-    const ownedAccounts = accounts.filter(
-      (account) => this.#loadingTokens.get(account.id) === token,
-    );
-    if (ownedAccounts.length === 0) {
-      return;
-    }
-    this.update((state) => {
-      for (const account of ownedAccounts) {
-        state.assetsLoadingStatus[account.id] = 'loaded';
-      }
-    });
-    for (const account of ownedAccounts) {
-      this.#loadingTokens.delete(account.id);
-    }
   }
 
   async getAssetsBalance(
@@ -3685,28 +3643,21 @@ export class AssetsController extends BaseController<
       previousGroupId,
     });
 
-    const loadingToken = this.#setAssetsLoadingStatus(accounts);
+    const releaseLock = await this.#accountRefreshMutex.acquire();
     try {
-      const releaseLock = await this.#accountRefreshMutex.acquire();
-      try {
-        if (accounts.length > 0) {
-          await this.getAssets(accounts, {
-            chainIds: [...this.#enabledChains],
-            forceUpdate: true,
-          });
-        }
-
-        this.#ensureNativeBalancesDefaultZero();
-        this.#ensureDefaultTrackedAssetsSeeded();
-        this.#subscribeAssets({ skipInitialFetch: true });
-        this.#fetchMissingPricesWithoutCache(accounts, [
-          ...this.#enabledChains,
-        ]);
-      } finally {
-        releaseLock();
+      if (accounts.length > 0) {
+        await this.getAssets(accounts, {
+          chainIds: [...this.#enabledChains],
+          forceUpdate: true,
+        });
       }
+
+      this.#ensureNativeBalancesDefaultZero();
+      this.#ensureDefaultTrackedAssetsSeeded();
+      this.#subscribeAssets({ skipInitialFetch: true });
+      this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } finally {
-      this.#markAssetsLoaded(accounts, loadingToken);
+      releaseLock();
     }
   }
 

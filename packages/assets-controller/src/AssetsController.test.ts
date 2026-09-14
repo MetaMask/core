@@ -95,10 +95,11 @@ function createMockQueryApiClient(): ApiPlatformClient {
  * Fake accounts API client whose calls can be frozen and released one at a
  * time, so tests can hold specific fetches in flight while the rest of the
  * pipeline keeps running. `arm()` installs a fresh gate that the next gated
- * call waits on; `release()` resolves the oldest pending gate.
+ * call waits on; `release()` resolves the oldest pending gate and lets calls
+ * made after the release pass through.
  *
- * @returns The gated client plus `arm()`/`release()` controls and a counter
- * of calls currently frozen on a gate.
+ * @returns The gated client plus `arm()`/`release()` controls and a count of
+ * calls made while a gate was armed.
  */
 function createGatedQueryApiClient(): {
   client: ApiPlatformClient;
@@ -152,6 +153,9 @@ function createGatedQueryApiClient(): {
       const resolveGate = pendingGates.shift();
       if (resolveGate) {
         resolveGate();
+        // Calls made after this release pass through, while calls that
+        // already captured a pending gate stay frozen until it is released.
+        currentGate = Promise.resolve();
       } else {
         armed = false;
       }
@@ -3896,7 +3900,7 @@ describe('AssetsController', () => {
       );
     });
 
-    it('marks a queued account switch as loading immediately, while a previous refresh still holds the refresh mutex', async () => {
+    it('runs a queued account switch after the previous refresh finishes, marking its accounts loading then loaded', async () => {
       const { client, arm, release } = createGatedQueryApiClient();
 
       await withController(
@@ -3928,17 +3932,16 @@ describe('AssetsController', () => {
             'entropy:mock-keyring-id-1/1',
           );
 
-          // The queued switch is already marked loading for the new group's
-          // accounts, without waiting for the previous refresh to finish.
-          await waitFor(() =>
-            expect(controller.state.assetsLoadingStatus).toStrictEqual({
-              [MOCK_ACCOUNT_ID]: 'loading',
-              [accountB.id]: 'loading',
-            }),
-          );
+          // The queued switch has not fetched yet, so its accounts are not
+          // marked while the previous refresh still holds the mutex.
+          expect(
+            controller.state.assetsLoadingStatus[accountB.id],
+          ).toBeUndefined();
 
           release();
 
+          // Once the previous refresh finishes, the queued switch runs, marks
+          // its own accounts, and settles them.
           await waitFor(() =>
             expect(controller.state.assetsLoadingStatus).toStrictEqual({
               [MOCK_ACCOUNT_ID]: 'loaded',
@@ -3951,7 +3954,7 @@ describe('AssetsController', () => {
       );
     });
 
-    it('does not let an older refresh mark an account loaded while a newer queued refresh owns the marker', async () => {
+    it('does not let an older fetch mark an account loaded while a newer overlapping fetch owns the marker', async () => {
       const { client, arm, release, getGatedCallCount } =
         createGatedQueryApiClient();
 
@@ -3960,42 +3963,42 @@ describe('AssetsController', () => {
         async ({ controller, messenger }) => {
           await activateTracking(messenger);
 
-          // First switch is frozen mid-flight, holding the refresh mutex.
-          arm();
-          (messenger.publish as CallableFunction)(
-            'AccountTreeController:selectedAccountGroupChange',
-            'entropy:mock-keyring-id-1/1',
-            'entropy:mock-keyring-id-1/0',
-          );
-          await waitFor(() => expect(getGatedCallCount()).toBeGreaterThan(0));
-          const firstFetchCallCount = getGatedCallCount();
+          const account = createMockInternalAccount();
 
-          // A second switch back to the same account queues behind the mutex
-          // and takes ownership of the marker.
+          // Two overlapping getAssets calls for the same account: the older
+          // one is frozen mid-flight, then the newer one takes the marker.
           arm();
-          (messenger.publish as CallableFunction)(
-            'AccountTreeController:selectedAccountGroupChange',
-            'entropy:mock-keyring-id-1/2',
-            'entropy:mock-keyring-id-1/1',
+          const olderFetch = controller.getAssets([account], {
+            forceUpdate: true,
+          });
+          await waitFor(() => expect(getGatedCallCount()).toBeGreaterThan(0));
+
+          arm();
+          const newerFetch = controller.getAssets([account], {
+            forceUpdate: true,
+          });
+          await waitFor(() => expect(getGatedCallCount()).toBeGreaterThan(1));
+
+          await waitFor(() =>
+            expect(controller.state.assetsLoadingStatus[account.id]).toBe(
+              'loading',
+            ),
           );
 
           release();
+          await olderFetch;
 
-          // The older refresh settles, but the newer refresh (queued, in
-          // flight) still owns the marker, so the account stays loading.
-          await waitFor(() =>
-            expect(getGatedCallCount()).toBeGreaterThan(firstFetchCallCount),
-          );
-          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+          // The older fetch has settled, but the newer one still owns the
+          // marker, so the account stays loading.
+          expect(controller.state.assetsLoadingStatus[account.id]).toBe(
             'loading',
           );
 
           release();
+          await newerFetch;
 
-          await waitFor(() =>
-            expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
-              'loaded',
-            ),
+          expect(controller.state.assetsLoadingStatus[account.id]).toBe(
+            'loaded',
           );
         },
       );
@@ -4046,11 +4049,40 @@ describe('AssetsController', () => {
       );
     });
 
-    it('does not set the loading status for direct background fetches', async () => {
-      await withController(async ({ controller }) => {
-        const account = createMockInternalAccount();
+    it('marks the loading status for direct getAssets calls as well', async () => {
+      const { client, arm, release } = createGatedQueryApiClient();
 
-        await controller.getAssets([account], { forceUpdate: true });
+      await withController(
+        { queryApiClient: client },
+        async ({ controller, messenger }) => {
+          await activateTracking(messenger);
+
+          const account = createMockInternalAccount();
+
+          arm();
+          const fetchPromise = controller.getAssets([account], {
+            forceUpdate: true,
+          });
+
+          await waitFor(() =>
+            expect(controller.state.assetsLoadingStatus[account.id]).toBe(
+              'loading',
+            ),
+          );
+
+          release();
+          await fetchPromise;
+
+          expect(controller.state.assetsLoadingStatus[account.id]).toBe(
+            'loaded',
+          );
+        },
+      );
+    });
+
+    it('does not mark anything when getAssets is called with no accounts', async () => {
+      await withController(async ({ controller }) => {
+        await controller.getAssets([], { forceUpdate: true });
 
         expect(controller.state.assetsLoadingStatus).toStrictEqual({});
       });
