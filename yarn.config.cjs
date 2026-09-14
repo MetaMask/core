@@ -971,10 +971,55 @@ function getInconsistentDependenciesAndDevDependencies(
 }
 
 /**
+ * Given a set of version ranges for the same dependency, return the range which
+ * permits the highest minimum version.
+ *
+ * Returns `null` if any of the ranges cannot be compared, such as aliases
+ * (`npm:foo@^1.0.0`), protocols (`workspace:^`), or dist tags. In that case the
+ * caller is expected to ask a human to resolve the conflict instead.
+ *
+ * @param {string[]} ranges - The version ranges to compare.
+ * @returns {string | null} The highest range, or `null` if they are not all
+ * comparable.
+ */
+function getHighestRange(ranges) {
+  let highestRange = null;
+  let highestMinimumVersion = null;
+
+  for (const range of ranges) {
+    const minimumVersion = semver.validRange(range)
+      ? semver.minVersion(range)
+      : null;
+
+    if (minimumVersion === null) {
+      return null;
+    }
+
+    if (
+      highestMinimumVersion === null ||
+      semver.gt(minimumVersion, highestMinimumVersion)
+    ) {
+      highestRange = range;
+      highestMinimumVersion = minimumVersion;
+    }
+  }
+
+  return highestRange;
+}
+
+/**
  * Expect that across the entire monorepo all version ranges in `dependencies`
  * and `devDependencies` for the same dependency are the same (as long as it is
- * not a dependency on a workspace package). As it is impossible to compare NPM
- * version ranges, let the user decide if there are conflicts.
+ * not a dependency on a workspace package).
+ *
+ * Where every conflicting range is plain semver, the one permitting the highest
+ * minimum version wins and `yarn constraints --fix` will align the rest. That
+ * keeps a partial dependency bump from blocking a pull request on a change
+ * nobody has to think about. Dependabot security updates produce exactly this,
+ * since they walk manifests one at a time rather than as a workspace.
+ *
+ * Ranges that cannot be compared (aliases, protocols, dist tags) still fall
+ * through to an error for a human to resolve.
  *
  * @param {Yarn} Yarn - The Yarn "global".
  */
@@ -999,16 +1044,21 @@ function expectConsistentDependenciesAndDevDependencies(Yarn) {
         dependenciesByRange,
       );
     const dependencyRanges = [...dependenciesToConsider.keys()].sort();
+    const highestRange = getHighestRange(dependencyRanges);
 
     for (const dependencies of dependenciesToConsider.values()) {
       for (const dependency of dependencies) {
-        dependency.error(
-          `Expected version range for ${dependencyIdent} (in ${
-            dependency.type
-          }) to be consistent across monorepo. Pick one: ${inspect(
-            dependencyRanges,
-          )}`,
-        );
+        if (highestRange === null) {
+          dependency.error(
+            `Expected version range for ${dependencyIdent} (in ${
+              dependency.type
+            }) to be consistent across monorepo. Pick one: ${inspect(
+              dependencyRanges,
+            )}`,
+          );
+        } else {
+          dependency.update(highestRange);
+        }
       }
     }
   }
