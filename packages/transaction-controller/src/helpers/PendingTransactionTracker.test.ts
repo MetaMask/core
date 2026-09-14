@@ -223,6 +223,20 @@ describe('PendingTransactionTracker', () => {
       );
     });
 
+    it('does not poll externally published transactions as EVM transactions', () => {
+      pendingTransactionTracker = new PendingTransactionTracker(options);
+      options.getTransactions.mockReturnValue(
+        freeze(
+          [{ ...TRANSACTION_SUBMITTED_MOCK, isExternalPublish: true }],
+          true,
+        ),
+      );
+
+      pendingTransactionTracker.startIfPendingTransactions();
+
+      expect(transactionPoller.start).not.toHaveBeenCalled();
+    });
+
     it('does nothing if listener already added', () => {
       pendingTransactionTracker = new PendingTransactionTracker(options);
 

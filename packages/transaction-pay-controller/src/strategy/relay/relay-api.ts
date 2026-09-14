@@ -52,8 +52,8 @@ export async function fetchRelaySolanaQuote(
   body: RelaySolanaQuoteRequest,
   signal?: AbortSignal,
 ): Promise<RelaySolanaQuote> {
-  const { relayQuoteUrl } = getFeatureFlags(messenger);
-  const response = await relayFetch(relayQuoteUrl, {
+  const { relaySolanaQuoteUrl } = getFeatureFlags(messenger);
+  const response = await relayFetch(relaySolanaQuoteUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

@@ -562,7 +562,8 @@ export class PendingTransactionTracker {
         tx.status === TransactionStatus.submitted &&
         !tx.verifiedOnBlockchain &&
         !tx.isUserOperation &&
-        !tx.isStateOnly,
+        !tx.isStateOnly &&
+        !tx.isExternalPublish,
     );
   }
 

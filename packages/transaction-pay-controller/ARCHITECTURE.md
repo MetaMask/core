@@ -47,9 +47,11 @@ Quotes are retrieved from the [Relay API](https://docs.relay.link/what-is-relay)
 
 The resulting transaction deposits the necessary funds (on the source network), then a Relayer on the target chain immediately transfers the necessary funds and optionally executes any requested call data.
 
-For a Solana source, the controller uses Relay `/quote/v2` and validates the returned instruction and address-lookup-table payload instead of treating it as an EVM transaction. The client callback compiles that payload with current Solana network data and invokes its Snap `signAndSendTransaction` boundary once. Core persists an `attempting` checkpoint before the callback and never automatically invokes it again after a callback rejection or restart.
+For a Solana source, the controller uses a separate Relay `/quote/v2` endpoint while existing EVM Relay traffic remains on `/quote`. Core validates the instruction and address-lookup-table payload rather than treating it as an EVM transaction. A client callback compiles that payload with current Solana RPC data and returns an opaque prepared transaction, finalized network and priority fees, rent debit and rent-exemption requirement, source/native balances, and a preparation ID. Core normalizes the source amount, retained reserve, and affordability decision, then binds the one signing callback to that exact preparation.
 
-Solana source status, Relay settlement, and the best-effort Relay transaction-index notification are separate observations. `reconcileSolanaPay` and `recoverSolanaPay` only observe persisted attempts. `retrySolanaPayNotification` retries only provider notification and cannot resubmit the source transaction.
+The signing callback returns one of four explicit outcomes: submitted, user-rejected, guaranteed not-submitted, or ambiguous. Core persists an `attempting` checkpoint before invoking it and never automatically invokes it again. Only the ambiguous result enters source `unknown`; an unexpected callback rejection remains `attempting` for safe diagnosis.
+
+Solana source status, Relay settlement, the best-effort Relay transaction-index notification, and any required non-atomic Money Account follow-up are separate durable observations. `retrySolanaPayNotification` retries only provider notification and cannot resubmit the source transaction. `recoverSolanaPay` owns the non-signing polling loop and drives the parent transaction through standard submitted, rejected, failed, and confirmed lifecycle events. A required sponsored follow-up is checkpointed before its one callback attempt and must confirm before the intent becomes complete.
 
 ## Lifecycle
 
@@ -74,6 +76,6 @@ The high level interaction with the `TransactionPayController` is as follows:
 
 Transient state is grouped according to the associated transaction ID in the `transactionData` property. It includes required tokens, the selected payment token, retrieved quotes, and calculated totals, and is not persisted across restarts.
 
-Durable chain-agnostic source identity, execution checkpoints, source and target transaction identifiers, and provider correlation are stored as versioned intents in `payIntents`, keyed by the target transaction ID. Each intent is also mirrored to the target transaction's `metamaskPay.intent` metadata. This lets recovery correlate the persisted Pay state with the persisted transaction record without storing non-EVM identifiers in legacy EVM-only fields.
+Durable chain-agnostic source identity, discriminated business outcome, execution and follow-up checkpoints, source and target transaction identifiers, and provider correlation are stored as versioned intents in `payIntents`, keyed by the target transaction ID. Each intent is also mirrored to the target transaction's `metamaskPay.intent` metadata. This lets recovery correlate the persisted Pay state with the persisted transaction record without storing non-EVM identifiers in legacy EVM-only fields.
 
 The full Solana quote is transient. Once the source attempt starts, recovery uses only the persisted Relay request ID and source signature. A missing signature after an ambiguous callback remains `unknown`; quote refresh, notification retry, status reconciliation, and source resubmission are deliberately not interchangeable operations.

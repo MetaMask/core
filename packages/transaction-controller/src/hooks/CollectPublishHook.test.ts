@@ -76,7 +76,10 @@ describe('CollectPublishHook', () => {
         SIGNED_TX_2_MOCK,
       );
 
-      collectHook.success([TRANSACTION_HASH_MOCK, TRANSACTION_HASH_2_MOCK]);
+      collectHook.success([
+        { transactionHash: TRANSACTION_HASH_MOCK },
+        { transactionHash: TRANSACTION_HASH_2_MOCK },
+      ]);
 
       const result1 = await publishPromise1;
       const result2 = await publishPromise2;
@@ -99,7 +102,10 @@ describe('CollectPublishHook', () => {
         SIGNED_TX_MOCK,
       );
 
-      collectHook.success([TRANSACTION_HASH_MOCK, TRANSACTION_HASH_2_MOCK]);
+      collectHook.success([
+        { transactionHash: TRANSACTION_HASH_MOCK },
+        { transactionHash: TRANSACTION_HASH_2_MOCK },
+      ]);
 
       const result1 = await publishPromise1;
       const result2 = await publishPromise2;
@@ -108,7 +114,22 @@ describe('CollectPublishHook', () => {
       expect(result2.transactionHash).toBe(TRANSACTION_HASH_2_MOCK);
     });
 
-    it('throws if transaction hash count does not match hook call count', () => {
+    it('propagates an externally handled result', async () => {
+      const collectHook = new CollectPublishHook(1);
+      const publishPromise = collectHook.getHook()(
+        TRANSACTION_META_MOCK,
+        SIGNED_TX_MOCK,
+      );
+
+      collectHook.success([{ externallyHandled: true, outcome: 'submitted' }]);
+
+      expect(await publishPromise).toStrictEqual({
+        externallyHandled: true,
+        outcome: 'submitted',
+      });
+    });
+
+    it('throws if publish result count does not match hook call count', () => {
       const collectHook = new CollectPublishHook(2);
       const publishHook = collectHook.getHook();
 
@@ -121,8 +142,8 @@ describe('CollectPublishHook', () => {
       });
 
       expect(() => {
-        collectHook.success([TRANSACTION_HASH_MOCK]);
-      }).toThrow('Transaction hash count mismatch');
+        collectHook.success([{ transactionHash: TRANSACTION_HASH_MOCK }]);
+      }).toThrow('Publish result count mismatch');
     });
   });
 

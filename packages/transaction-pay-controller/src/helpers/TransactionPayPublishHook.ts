@@ -79,11 +79,21 @@ export class TransactionPayPublishHook {
         },
       );
 
-      await this.#messenger.call(
+      const status = await this.#messenger.call(
         'TransactionPayController:submitSolanaPay',
         transactionId,
       );
-      return EMPTY_RESULT;
+      const outcome = status.submissionOutcome ?? 'ambiguous';
+
+      return {
+        ...(outcome === 'not-submitted' && {
+          error:
+            status.sourceFailureReason ??
+            'Solana source transaction was not submitted',
+        }),
+        externallyHandled: true,
+        outcome,
+      };
     }
 
     // No-op quotes mark direct routes and cannot be executed by any strategy.

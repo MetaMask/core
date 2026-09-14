@@ -1,10 +1,14 @@
 import type {
   MetamaskPayExecution,
+  MetamaskPayOutcome,
   MetamaskPayRelayStatus,
 } from '@metamask/transaction-controller';
+import { BigNumber } from 'bignumber.js';
 
 import type {
   GetSolanaPayQuoteRequest,
+  SolanaPayPreflight,
+  SolanaPayPreflightData,
   TransactionPayIntent,
 } from '../../types.js';
 import {
@@ -54,6 +58,83 @@ export function buildRelaySolanaQuoteRequest(
 }
 
 /**
+ * Normalizes platform-provided Solana RPC observations into Core-owned policy.
+ *
+ * Native SOL must retain fees and rent in addition to the source amount. SPL
+ * sources evaluate token affordability separately from the native reserve.
+ *
+ * @param intent - Persisted source identity.
+ * @param sourceAmountRaw - Exact-input amount in atomic source units.
+ * @param data - Platform RPC and prepared-transaction observations.
+ * @returns Normalized client-consumable preflight.
+ */
+export function normalizeSolanaPayPreflight(
+  intent: TransactionPayIntent,
+  sourceAmountRaw: string,
+  data: SolanaPayPreflightData,
+): SolanaPayPreflight {
+  if (!data.preparationId || !data.preparedTransaction) {
+    throw new Error('Invalid Solana preflight preparation');
+  }
+
+  const sourceAmount = getAtomicValue('sourceAmountRaw', sourceAmountRaw);
+  const sourceBalance = getAtomicValue(
+    'sourceBalanceRaw',
+    data.sourceBalanceRaw,
+  );
+  const nativeBalance = getAtomicValue(
+    'nativeBalanceRaw',
+    data.nativeBalanceRaw,
+  );
+  const networkFee = getAtomicValue('networkFeeRaw', data.networkFeeRaw);
+  const priorityFee = getAtomicValue('priorityFeeRaw', data.priorityFeeRaw);
+  const rentDebit = getAtomicValue('rentDebitRaw', data.rentDebitRaw);
+  const rentExemptionRequirement = getAtomicValue(
+    'rentExemptionRequirementRaw',
+    data.rentExemptionRequirementRaw,
+  );
+  const totalFee = networkFee.plus(priorityFee);
+  const retainedReserve = totalFee
+    .plus(rentDebit)
+    .plus(rentExemptionRequirement);
+  const isNative = intent.sourceAssetId.endsWith(
+    `/${SOLANA_NATIVE_ASSET_REFERENCE}`,
+  );
+
+  if (isNative && !sourceBalance.isEqualTo(nativeBalance)) {
+    throw new Error('Invalid Solana preflight native balance mismatch');
+  }
+
+  const requiredSourceBalance = isNative
+    ? sourceAmount.plus(retainedReserve)
+    : sourceAmount;
+  const requiredNativeBalance = isNative
+    ? requiredSourceBalance
+    : retainedReserve;
+  const sourceShortfall = BigNumber.maximum(
+    requiredSourceBalance.minus(sourceBalance),
+    0,
+  );
+  const nativeShortfall = isNative
+    ? new BigNumber(0)
+    : BigNumber.maximum(requiredNativeBalance.minus(nativeBalance), 0);
+
+  return {
+    ...data,
+    affordability: {
+      isAffordable: sourceShortfall.isZero() && nativeShortfall.isZero(),
+      nativeShortfallRaw: nativeShortfall.toFixed(0),
+      sourceShortfallRaw: sourceShortfall.toFixed(0),
+    },
+    requiredNativeBalanceRaw: requiredNativeBalance.toFixed(0),
+    requiredSourceBalanceRaw: requiredSourceBalance.toFixed(0),
+    retainedReserveRaw: retainedReserve.toFixed(0),
+    sourceAmountRaw: sourceAmount.toFixed(0),
+    totalFeeRaw: totalFee.toFixed(0),
+  };
+}
+
+/**
  * Extracts and validates the single Relay Solana transaction handoff.
  *
  * Relay leaves item data untyped in its public schema. Runtime validation here
@@ -86,14 +167,110 @@ export function getRelaySolanaTransaction(
 /**
  * Returns the durable initial execution checkpoints for an executable quote.
  *
+ * @param requiresNonAtomicFollowUp - Whether target completion requires a sponsored follow-up.
  * @returns Initial one-attempt status axes.
  */
-export function getInitialSolanaPayExecution(): MetamaskPayExecution {
+export function getInitialSolanaPayExecution(
+  requiresNonAtomicFollowUp = false,
+): MetamaskPayExecution {
   return {
+    followUpStatus: requiresNonAtomicFollowUp ? 'not-started' : 'not-required',
     providerNotificationStatus: 'not-started',
     relayStatus: 'not-started',
     sourceStatus: 'not-started',
   };
+}
+
+/**
+ * Derives the durable business outcome from independent execution axes.
+ *
+ * @param intent - Persisted Pay intent and checkpoints.
+ * @returns Client-consumable outcome used for parent lifecycle transitions.
+ */
+export function deriveSolanaPayOutcome(
+  intent: TransactionPayIntent,
+): MetamaskPayOutcome {
+  const execution =
+    intent.execution ??
+    getInitialSolanaPayExecution(intent.requiresNonAtomicFollowUp);
+  const followUpStatus = execution.followUpStatus ?? 'not-required';
+
+  if (execution.submissionOutcome === 'user-rejected') {
+    return { type: 'user-rejected' };
+  }
+
+  if (execution.submissionOutcome === 'not-submitted') {
+    return {
+      guaranteedNotSubmitted: true,
+      reason: intent.sourceFailureReason,
+      type: 'source-failed',
+    };
+  }
+
+  if (execution.sourceStatus === 'failed') {
+    return {
+      guaranteedNotSubmitted: false,
+      reason: intent.sourceFailureReason,
+      type: 'source-failed',
+    };
+  }
+
+  if (execution.relayStatus === 'failure') {
+    return { reason: intent.relayFailureReason, type: 'relay-failed' };
+  }
+
+  if (execution.relayStatus === 'refund') {
+    return { reason: intent.relayFailureReason, type: 'refunded' };
+  }
+
+  if (
+    followUpStatus === 'failed' ||
+    followUpStatus === 'not-submitted' ||
+    followUpStatus === 'user-rejected'
+  ) {
+    return { type: 'follow-up-failed' };
+  }
+
+  if (
+    execution.sourceStatus === 'unknown' ||
+    execution.submissionOutcome === 'ambiguous'
+  ) {
+    return { phase: 'source', type: 'unknown' };
+  }
+
+  if (execution.relayStatus === 'unknown') {
+    return { phase: 'relay', type: 'unknown' };
+  }
+
+  if (followUpStatus === 'unknown') {
+    return { phase: 'follow-up', type: 'unknown' };
+  }
+
+  const isFollowUpComplete =
+    followUpStatus === 'not-required' || followUpStatus === 'confirmed';
+
+  if (
+    execution.sourceStatus === 'confirmed' &&
+    execution.relayStatus === 'success' &&
+    isFollowUpComplete
+  ) {
+    return { type: 'succeeded' };
+  }
+
+  if (execution.sourceStatus === 'attempting') {
+    return { type: 'attempting' };
+  }
+
+  if (
+    execution.submissionOutcome === 'submitted' ||
+    intent.sourceTransactionId !== undefined ||
+    ['submitted', 'pending', 'confirmed'].includes(execution.sourceStatus) ||
+    ['pending', 'success'].includes(execution.relayStatus)
+  ) {
+    return { type: 'submitted' };
+  }
+
+  return { type: 'not-started' };
 }
 
 /**
@@ -195,6 +372,16 @@ function isRelaySolanaInstructionKey(value: unknown): boolean {
     typeof value.isSigner === 'boolean' &&
     typeof value.isWritable === 'boolean'
   );
+}
+
+function getAtomicValue(name: string, value: string): BigNumber {
+  const amount = new BigNumber(value);
+
+  if (!amount.isFinite() || !amount.isInteger() || amount.isNegative()) {
+    throw new Error(`Invalid Solana preflight ${name}: ${value}`);
+  }
+
+  return amount;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

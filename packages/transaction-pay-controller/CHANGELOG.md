@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add a persisted, versioned Pay intent model with canonical CAIP source identity, one-attempt execution checkpoints, and provider correlation, mirrored to transaction metadata for restart recovery.
-- Add a client-consumable Solana Pay path for Relay `/quote/v2` SOL/SPL quotes, instruction and lookup-table handoff, one Snap sign-and-send callback attempt, and restart-safe source and Relay status reconciliation.
+- Add a client-consumable Solana Pay path for Relay `/quote/v2` SOL/SPL quotes, instruction and lookup-table preparation, normalized fee/rent/reserve affordability, one discriminated Snap sign-and-send callback attempt, and restart-safe source and Relay status reconciliation.
+- Add durable non-atomic Money Account follow-up checkpoints and eventful parent transaction outcomes for success, rejection, source failure, Relay failure, refund, and unknown status.
 
 ### Changed
 
