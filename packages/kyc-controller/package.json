@@ -1,6 +1,6 @@
 {
   "name": "@metamask/kyc-controller",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Shared KYC / identity verification controller used across MetaMask clients",
   "keywords": [
     "Ethereum",
@@ -57,9 +57,9 @@
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/geolocation-controller": "^2.0.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/profile-sync-controller": "^31.0.0",
+    "@metamask/profile-sync-controller": "^32.1.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/utils": "^11.12.0",
+    "@metamask/utils": "^12.0.0",
     "@noble/ciphers": "^1.3.0",
     "@noble/curves": "^1.9.2",
     "@noble/hashes": "^1.8.0",

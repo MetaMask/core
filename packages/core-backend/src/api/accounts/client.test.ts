@@ -42,8 +42,13 @@ describe('AccountsApiClient', () => {
 
     it('fetches v2 supported networks', async () => {
       const mockResponse: V2SupportedNetworksResponse = {
-        fullSupport: [1, 137],
-        partialSupport: { balances: [56] },
+        fullSupport: ['eip155:1', 'eip155:137', 'eip155:59144'],
+        partialSupport: [
+          'tron:728126428',
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1',
+          'stellar:pubnet',
+        ],
       };
       mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 

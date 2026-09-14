@@ -306,6 +306,8 @@ export type RampsControllerGetQuotesAction = {
  * If an order with the same internal order code already exists, the incoming
  * fields are merged on top of the existing order so that fields not present
  * in the update (e.g. paymentDetails from the Transak API) are preserved.
+ * Unchanged syncable payloads (including unchanged poll results) are ignored
+ * so `lastUpdatedAt` is not bumped and User Storage is not rewritten.
  *
  * @param order - The RampsOrder to add or update.
  */
@@ -322,6 +324,20 @@ export type RampsControllerAddOrderAction = {
 export type RampsControllerRemoveOrderAction = {
   type: `RampsController:removeOrder`;
   handler: RampsController['removeOrder'];
+};
+
+/**
+ * Bidirectionally syncs V2 ramps orders with User Storage.
+ * Hosts should call this on unlock / when ramps syncing is enabled.
+ *
+ * Overlapping calls are coalesced into the in-flight worker. After the worker
+ * settles, this method loops when `#orderSyncQueued` is still set so a
+ * request that arrived between the worker's last loop check and promise
+ * resolution is not dropped.
+ */
+export type RampsControllerSyncOrdersWithUserStorageAction = {
+  type: `RampsController:syncOrdersWithUserStorage`;
+  handler: RampsController['syncOrdersWithUserStorage'];
 };
 
 /**
@@ -832,6 +848,7 @@ export type RampsControllerMethodActions =
   | RampsControllerGetQuotesAction
   | RampsControllerAddOrderAction
   | RampsControllerRemoveOrderAction
+  | RampsControllerSyncOrdersWithUserStorageAction
   | RampsControllerAddAutorampAction
   | RampsControllerCreateAutorampAction
   | RampsControllerRegisterMoneyAccountWalletAction

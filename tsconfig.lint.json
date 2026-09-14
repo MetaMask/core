@@ -55,6 +55,9 @@
     },
     {
       "path": "./packages/storage-service/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/utils/tsconfig.lint.json"
     }
   ]
 }

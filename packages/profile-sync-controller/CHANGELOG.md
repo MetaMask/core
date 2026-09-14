@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
+## [32.1.0]
+
+### Added
+
+- Add `AuthenticationController.getPartnerIdentityToken` method and messenger action to mint a partner identity token (`POST /api/v2/oidc/token`). HTTP 422 throws `EmailRequiredError` when the profile has no verified email. ([#10164](https://github.com/MetaMask/core/pull/10164))
+
+## [32.0.0]
+
+### Added
+
+- Add `AuthenticationController.clearState()` to reset the controller to `defaultState` (unsigned, both pairing gates re-armed). Clients call this on wallet reset ([#10165](https://github.com/MetaMask/core/pull/10165))
+- Add `BACKUPANDSYNC_FEATURES.rampsSyncing` and `UserStorageController.isRampsSyncingEnabled` ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - Defaults to enabled (`true`); hosts can toggle Buy & sell order sync independently of account/contact sync
+
+### Changed
+
+- **BREAKING:** `UserStorageControllerState` now includes `isRampsSyncingEnabled`. Consumers that construct full state objects must include this field. ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - Prefer `isRampsSyncingEnabled ?? true` in selectors so wallets upgraded before this field existed keep ramps syncing on by default
+
 ## [31.0.0]
 
 ### Changed
@@ -941,7 +964,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@31.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.1.0...HEAD
+[32.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@32.0.0...@metamask/profile-sync-controller@32.1.0
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@31.0.0...@metamask/profile-sync-controller@32.0.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@30.0.0...@metamask/profile-sync-controller@31.0.0
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@29.0.0...@metamask/profile-sync-controller@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.3.0...@metamask/profile-sync-controller@29.0.0

@@ -63,16 +63,17 @@ function createMockAccount(
 }
 
 function createMockApiClient(
-  supportedChains: number[] = [1, 137],
+  supportedChains: (number | string)[] = [1, 137],
   balances: V5BalanceItem[] = [],
   unprocessedNetworks: string[] = [],
   v6Balances: V6BalanceItem[] = [],
+  partialSupport: (number | string)[] = [],
 ): MockApiClient {
   return {
     accounts: {
       fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
         fullSupport: supportedChains,
-        partialSupport: [],
+        partialSupport,
       }),
       fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
         balances,
@@ -141,7 +142,8 @@ type SetupResult = {
 
 async function setupController(
   options: {
-    supportedChains?: number[];
+    supportedChains?: (number | string)[];
+    partialSupport?: (number | string)[];
     balances?: V5BalanceItem[];
     unprocessedNetworks?: string[];
     fetchTimeoutMs?: number;
@@ -151,6 +153,7 @@ async function setupController(
 ): Promise<SetupResult> {
   const {
     supportedChains = [1, 137],
+    partialSupport = [],
     balances = [],
     unprocessedNetworks = [],
     fetchTimeoutMs,
@@ -196,6 +199,7 @@ async function setupController(
     balances,
     unprocessedNetworks,
     v6Balances,
+    partialSupport,
   );
 
   const controller = new AccountsApiDataSource({
@@ -279,7 +283,7 @@ describe('AccountsApiDataSource', () => {
     activeChainsUpdateHandler.mockClear();
     apiClient.accounts.fetchV2SupportedNetworks.mockClear();
     apiClient.accounts.fetchV2SupportedNetworks.mockResolvedValue({
-      fullSupport: [1, 137],
+      fullSupport: ['eip155:1', 'eip155:137'],
       partialSupport: [],
     });
 
@@ -474,6 +478,45 @@ describe('AccountsApiDataSource', () => {
     // Solana is staged on, Stellar is Off — only Solana joins EVM chains.
     const chains = await controller.getActiveChains();
     expect(chains).toStrictEqual([CHAIN_MAINNET, SOLANA_CHAIN_ID]);
+
+    controller.destroy();
+  });
+
+  it('treats v2 CAIP-2 fullSupport and partialSupport arrays as active chains', async () => {
+    const SOLANA_MAINNET = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+    const SOLANA_DEVNET = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1';
+    const TRON_MAINNET = 'tron:728126428';
+    const STELLAR_PUBNET = 'stellar:pubnet';
+    const { controller } = await setupController({
+      supportedChains: ['eip155:1', 'eip155:137', 'eip155:59144'],
+      partialSupport: [
+        TRON_MAINNET,
+        SOLANA_MAINNET,
+        SOLANA_DEVNET,
+        STELLAR_PUBNET,
+      ],
+      remoteFeatureFlags: {
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
+          stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+        },
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.tron]: {
+          stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+        },
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
+          stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+        },
+      },
+    });
+
+    expect(await controller.getActiveChains()).toStrictEqual([
+      CHAIN_MAINNET,
+      CHAIN_POLYGON,
+      'eip155:59144',
+      TRON_MAINNET,
+      SOLANA_MAINNET,
+      SOLANA_DEVNET,
+      STELLAR_PUBNET,
+    ]);
 
     controller.destroy();
   });

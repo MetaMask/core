@@ -2007,5 +2007,95 @@
     "@typescript-eslint/naming-convention": {
       "count": 1
     }
+  },
+  "packages/utils/src/assert.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/utils/src/caip-types.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "packages/utils/src/collections.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/utils/src/collections.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/utils/src/errors.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "packages/utils/src/errors.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/utils/src/fs.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 20
+    }
+  },
+  "packages/utils/src/fs.ts": {
+    "jsdoc/require-returns": {
+      "count": 1
+    }
+  },
+  "packages/utils/src/hashing.test.ts": {
+    "n/no-unsupported-features/node-builtins": {
+      "count": 9
+    }
+  },
+  "packages/utils/src/hashing.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/utils/src/json.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/utils/src/json.tst.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/utils/src/logging.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "packages/utils/src/misc.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/utils/src/misc.tst.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "packages/utils/src/mnemonic.ts": {
+    "jsdoc/tag-lines": {
+      "count": 1
+    }
+  },
+  "packages/utils/src/promise.ts": {
+    "jsdoc/tag-lines": {
+      "count": 1
+    }
+  },
+  "packages/utils/src/unitsConversion.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 29
+    }
   }
 }
