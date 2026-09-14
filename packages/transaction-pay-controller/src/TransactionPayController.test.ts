@@ -425,6 +425,7 @@ describe('TransactionPayController', () => {
       return {
         version: 2,
         sourceAccountId: SOLANA_ACCOUNT_ID,
+        sourceAmountRaw: '1000000',
         sourceAssetId: SOLANA_ASSET_ID,
         sourceChainId: SOLANA_CHAIN_ID,
         sourceWalletAccountId: 'wallet-account-uuid',

@@ -87,16 +87,15 @@ export async function buildRelaySolanaQuoteRequest(
     : undefined;
   const txs = atomicDestination?.txs;
   const tradeType = txs ? 'EXACT_OUTPUT' : 'EXACT_INPUT';
-  const sourceAmountRaw =
-    transactionData.sourceAmounts?.[0]?.sourceAmountRaw ??
-    intent.sourceAmountRaw;
+  const { sourceAmountRaw } = intent;
+  const amount = txs ? target.amountRaw : sourceAmountRaw;
 
-  if (!txs && !sourceAmountRaw) {
+  if (!amount) {
     throw new Error('Missing Solana Pay source amount');
   }
 
   return {
-    amount: txs ? target.amountRaw : (sourceAmountRaw as string),
+    amount,
     ...(atomicDestination?.authorizationList && {
       authorizationList: atomicDestination.authorizationList,
     }),
