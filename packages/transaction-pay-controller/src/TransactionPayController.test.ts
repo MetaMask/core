@@ -1,7 +1,13 @@
 /* eslint-disable no-new */
 
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
+import type {
+  CaipAccountId,
+  CaipAssetType,
+  CaipChainId,
+  Hex,
+} from '@metamask/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
@@ -14,6 +20,7 @@ import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils.js';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
+  TransactionPayIntent,
   TransactionPaySourceAmount,
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
@@ -25,6 +32,7 @@ import {
   getTransaction,
   subscribeAssetChanges,
   subscribeTransactionChanges,
+  updateTransaction,
 } from './utils/transaction.js';
 
 vi.mock(import('./actions/update-fiat-payment.js'));
@@ -44,6 +52,18 @@ const PAYMENT_TOKEN_MOCK = {
   balanceRaw: '0',
   chainId: CHAIN_ID_MOCK,
 } as TransactionPaymentToken;
+const SOLANA_PAY_INTENT_MOCK: TransactionPayIntent = {
+  version: 1,
+  sourceAccountId:
+    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z' as CaipAccountId,
+  sourceAssetId:
+    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as CaipAssetType,
+  sourceChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as CaipChainId,
+  requestId: 'relay-request-123',
+  sourceTransactionId:
+    '5KtPn3tE7mWcMgvBvXhXxF9xQmP9xNj7wT6oYxj3BbJpfK2p5yhx2S1QnW8gQwJm7U3F5v9hQmXk8b2mJ7dP4c',
+};
+
 describe('TransactionPayController', () => {
   const updateFiatPaymentMock = vi.mocked(updateFiatPayment);
   const updatePaymentTokenMock = vi.mocked(updatePaymentToken);
@@ -51,6 +71,7 @@ describe('TransactionPayController', () => {
     deriveFiatAssetForFiatPayment,
   );
   const getTransactionMock = vi.mocked(getTransaction);
+  const updateTransactionMock = vi.mocked(updateTransaction);
   const updateSourceAmountsMock = vi.mocked(updateSourceAmounts);
   const updateQuotesMock = vi.mocked(updateQuotes);
   const subscribeTransactionChangesMock = vi.mocked(
@@ -111,6 +132,128 @@ describe('TransactionPayController', () => {
 
       const getControllerState = subscribeAssetChangesMock.mock.calls[0][1];
       expect(getControllerState()).toBe(controller.state);
+    });
+
+    it('defaults persisted pay intents for legacy state', () => {
+      const controller = createController({
+        state: { transactionData: {} },
+      });
+
+      expect(controller.state.payIntents).toStrictEqual({});
+    });
+
+    it('rehydrates persisted pay intents', () => {
+      const controller = createController({
+        state: {
+          payIntents: {
+            [TRANSACTION_ID_MOCK]: SOLANA_PAY_INTENT_MOCK,
+          },
+        },
+      });
+
+      expect(controller.state.payIntents).toStrictEqual({
+        [TRANSACTION_ID_MOCK]: SOLANA_PAY_INTENT_MOCK,
+      });
+    });
+
+    it('persists pay intents without persisting transient transaction data', () => {
+      const controller = createController({
+        state: {
+          payIntents: {
+            [TRANSACTION_ID_MOCK]: SOLANA_PAY_INTENT_MOCK,
+          },
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              isLoading: true,
+              tokens: [],
+            },
+          },
+        },
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toStrictEqual({
+        payIntents: {
+          [TRANSACTION_ID_MOCK]: SOLANA_PAY_INTENT_MOCK,
+        },
+      });
+    });
+  });
+
+  describe('setPayIntent', () => {
+    it('persists a pay intent and projects it onto the transaction record', () => {
+      const controller = createController();
+
+      controller.setPayIntent({
+        transactionId: TRANSACTION_ID_MOCK,
+        intent: SOLANA_PAY_INTENT_MOCK,
+      });
+
+      expect(controller.state.payIntents[TRANSACTION_ID_MOCK]).toStrictEqual(
+        SOLANA_PAY_INTENT_MOCK,
+      );
+      expect(updateTransactionMock).toHaveBeenCalledWith(
+        {
+          transactionId: TRANSACTION_ID_MOCK,
+          messenger,
+          note: 'Set transaction pay intent',
+        },
+        expect.any(Function),
+      );
+
+      const updateTransactionCallback = updateTransactionMock.mock.calls[0][1];
+      const transaction = {
+        metamaskPay: {
+          chainId: CHAIN_ID_MOCK,
+          sourceHash: '0xabc' as Hex,
+          tokenAddress: TOKEN_ADDRESS_MOCK,
+        },
+      } as TransactionMeta;
+
+      updateTransactionCallback(transaction);
+
+      expect(transaction.metamaskPay).toStrictEqual({
+        chainId: CHAIN_ID_MOCK,
+        intent: SOLANA_PAY_INTENT_MOCK,
+        sourceHash: '0xabc',
+        tokenAddress: TOKEN_ADDRESS_MOCK,
+      });
+    });
+
+    it('does not project Solana identifiers into legacy EVM-only fields', () => {
+      const controller = createController();
+
+      controller.setPayIntent({
+        transactionId: TRANSACTION_ID_MOCK,
+        intent: SOLANA_PAY_INTENT_MOCK,
+      });
+
+      const updateTransactionCallback = updateTransactionMock.mock.calls[0][1];
+      const transaction = {} as TransactionMeta;
+
+      updateTransactionCallback(transaction);
+
+      expect(transaction.metamaskPay).toStrictEqual({
+        intent: SOLANA_PAY_INTENT_MOCK,
+      });
+    });
+
+    it('is callable via messenger action handler', () => {
+      const controller = createController();
+
+      messenger.call('TransactionPayController:setPayIntent', {
+        transactionId: TRANSACTION_ID_MOCK,
+        intent: SOLANA_PAY_INTENT_MOCK,
+      });
+
+      expect(controller.state.payIntents[TRANSACTION_ID_MOCK]).toStrictEqual(
+        SOLANA_PAY_INTENT_MOCK,
+      );
     });
   });
 

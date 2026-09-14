@@ -88,6 +88,7 @@ export type {
   IsAtomicBatchSupportedResultEntry,
   LegacyGasFeeEstimates,
   Log,
+  MetamaskPayIntent,
   MetamaskPayMetadata,
   NestedTransactionMetadata,
   NestedTransactionUpdate,

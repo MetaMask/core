@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add versioned, chain-agnostic Pay intent metadata for persisting CAIP source identity and execution correlation without changing legacy EVM Pay fields.
+
 ## [72.3.0]
 
 ### Added

@@ -68,6 +68,6 @@ The high level interaction with the `TransactionPayController` is as follows:
 
 ## State
 
-State is grouped according to the associated transaction ID in the `transactionData` property.
+Transient state is grouped according to the associated transaction ID in the `transactionData` property. It includes required tokens, the selected payment token, retrieved quotes, and calculated totals, and is not persisted across restarts.
 
-This transaction specific data includes any required tokens, selected payment token, retrieved quotes, and calculated totals.
+Durable chain-agnostic source identity and execution correlation are stored as versioned intents in `payIntents`, keyed by the target transaction ID. Each intent is also mirrored to the target transaction's `metamaskPay.intent` metadata. This lets recovery correlate the persisted Pay state with the persisted transaction record without storing non-EVM identifiers in legacy EVM-only fields.
