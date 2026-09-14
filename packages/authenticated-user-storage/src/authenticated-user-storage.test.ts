@@ -35,6 +35,7 @@ import {
 } from './authenticated-user-storage.js';
 import type { Environment } from './env.js';
 import { getUserStorageApiUrl } from './env.js';
+import type { UserAssetsBlob } from './types.js';
 import {
   ASSETS_WATCHLIST_MAX_ASSETS,
   normalizeUserAssetsBlob,
@@ -628,21 +629,12 @@ describe('AuthenticatedUserStorageService', () => {
       expect(result).toBeNull();
     });
 
-    it('throws when the API returns a non-200/404 status', async () => {
-      handleMockGetUserAssets({ status: 500 });
+    it.each([401, 500])('throws when the API returns a %s', async (status) => {
+      handleMockGetUserAssets({ status });
       const { service } = createService();
 
       await expect(service.getUserAssets()).rejects.toThrow(
-        'Failed to get user assets: 500',
-      );
-    });
-
-    it('throws when the API returns a 401', async () => {
-      handleMockGetUserAssets({ status: 401 });
-      const { service } = createService();
-
-      await expect(service.getUserAssets()).rejects.toThrow(
-        'Failed to get user assets: 401',
+        `Failed to get user assets: ${status}`,
       );
     });
 
@@ -734,31 +726,48 @@ describe('AuthenticatedUserStorageService', () => {
       ).rejects.toThrow('Failed to put user assets: 400');
     });
 
-    it('throws a structural error before sending the request when the blob is malformed', async () => {
-      const { service } = createService();
-      const malformed = {
-        version: 2,
-        importedAssets: [MOCK_USDC_ETH_ASSET_ID],
-        hiddenAssets: [],
-      } as unknown as Parameters<typeof service.setUserAssets>[0];
+    it.each([
+      {
+        name: 'the blob version is not 1',
+        blob: {
+          version: 2,
+          importedAssets: [MOCK_USDC_ETH_ASSET_ID],
+          hiddenAssets: [],
+        },
+        expectedError: /At path: version -- Expected the literal/u,
+      },
+      {
+        name: 'an importedAssets entry is not a CAIP-19 asset identifier',
+        blob: {
+          version: 1,
+          importedAssets: [MOCK_USDC_ETH_ASSET_ID, MOCK_INVALID_ASSET_ID],
+          hiddenAssets: [],
+        },
+        expectedError:
+          /At path: importedAssets\.1 -- Expected a value of type `CaipAssetType`/u,
+      },
+      {
+        name: 'a hiddenAssets entry is not a CAIP-19 asset identifier',
+        blob: {
+          version: 1,
+          importedAssets: [],
+          hiddenAssets: [MOCK_INVALID_ASSET_ID],
+        },
+        expectedError:
+          /At path: hiddenAssets\.0 -- Expected a value of type `CaipAssetType`/u,
+      },
+    ])(
+      'throws a structural error before sending the request when $name',
+      async ({ blob, expectedError }) => {
+        const { service } = createService();
 
-      await expect(service.setUserAssets(malformed)).rejects.toThrow(
-        /At path: version -- Expected the literal/u,
-      );
-    });
-
-    it('throws a structural error before sending the request when an entry is not a CAIP-19 asset identifier', async () => {
-      const { service } = createService();
-      const malformed = {
-        version: 1,
-        importedAssets: [MOCK_USDC_ETH_ASSET_ID, MOCK_INVALID_ASSET_ID],
-        hiddenAssets: [],
-      } as unknown as Parameters<typeof service.setUserAssets>[0];
-
-      await expect(service.setUserAssets(malformed)).rejects.toThrow(
-        /At path: importedAssets\.1 -- Expected a value of type `CaipAssetType`/u,
-      );
-    });
+        await expect(
+          service.setUserAssets(
+            blob as unknown as Parameters<typeof service.setUserAssets>[0],
+          ),
+        ).rejects.toThrow(expectedError);
+      },
+    );
 
     it('de-duplicates entries before sending the request', async () => {
       handleMockSetUserAssets(undefined, async (_, requestBody) => {
@@ -800,31 +809,52 @@ describe('AuthenticatedUserStorageService', () => {
     });
   });
 
-  describe('importTokens', () => {
-    it('creates a fresh blob when none exists (404)', async () => {
-      handleMockGetUserAssets({ status: 404 });
-      handleMockSetUserAssets(undefined, async (_, requestBody) => {
-        expect(requestBody).toStrictEqual({
+  describe('importTokens / hideTokens', () => {
+    it.each([
+      {
+        method: 'importTokens',
+        ids: [MOCK_USDC_ETH_ASSET_ID],
+        expectedBlob: {
           version: 1,
           importedAssets: [MOCK_USDC_ETH_ASSET_ID],
           hiddenAssets: [],
+        },
+      },
+      {
+        method: 'hideTokens',
+        ids: [MOCK_USDC_OP_ASSET_ID],
+        expectedBlob: {
+          version: 1,
+          importedAssets: [],
+          hiddenAssets: [MOCK_USDC_OP_ASSET_ID],
+        },
+      },
+    ] as const)(
+      '$method creates a fresh blob when none exists (404)',
+      async ({ method, ids, expectedBlob }) => {
+        handleMockGetUserAssets({ status: 404 });
+        handleMockSetUserAssets(undefined, async (_, requestBody) => {
+          expect(requestBody).toStrictEqual(expectedBlob);
         });
-      });
-      const { service } = createService();
+        const { service } = createService();
 
-      const result = await service.importTokens([MOCK_USDC_ETH_ASSET_ID]);
+        const result = await service[method]([...ids]);
 
-      expect(result).toStrictEqual({
-        version: 1,
-        importedAssets: [MOCK_USDC_ETH_ASSET_ID],
-        hiddenAssets: [],
-      });
-    });
+        expect(result).toStrictEqual(expectedBlob);
+      },
+    );
 
-    it('merges into the existing imported list, de-duplicating entries', async () => {
-      handleMockGetUserAssets();
-      handleMockSetUserAssets(undefined, async (_, requestBody) => {
-        expect(requestBody).toStrictEqual({
+    it.each([
+      {
+        method: 'importTokens',
+        addedList: 'importedAssets',
+        ids: [MOCK_USDC_ETH_ASSET_ID, MOCK_USDC_POLYGON_ASSET_ID],
+        expectedList: [
+          MOCK_USDC_ETH_ASSET_ID,
+          MOCK_USDC_BASE_ASSET_ID,
+          MOCK_USDC_POLYGON_ASSET_ID,
+        ],
+        expectedRequest: {
           version: 1,
           importedAssets: [
             MOCK_USDC_ETH_ASSET_ID,
@@ -832,26 +862,39 @@ describe('AuthenticatedUserStorageService', () => {
             MOCK_USDC_POLYGON_ASSET_ID,
           ],
           hiddenAssets: [MOCK_USDC_OP_ASSET_ID],
+        },
+      },
+      {
+        method: 'hideTokens',
+        addedList: 'hiddenAssets',
+        ids: [MOCK_USDC_OP_ASSET_ID, MOCK_USDC_POLYGON_ASSET_ID],
+        expectedList: [MOCK_USDC_OP_ASSET_ID, MOCK_USDC_POLYGON_ASSET_ID],
+        expectedRequest: {
+          version: 1,
+          importedAssets: [MOCK_USDC_ETH_ASSET_ID, MOCK_USDC_BASE_ASSET_ID],
+          hiddenAssets: [MOCK_USDC_OP_ASSET_ID, MOCK_USDC_POLYGON_ASSET_ID],
+        },
+      },
+    ] as const)(
+      '$method merges into the existing list, de-duplicating entries',
+      async ({ method, addedList, ids, expectedList, expectedRequest }) => {
+        handleMockGetUserAssets();
+        handleMockSetUserAssets(undefined, async (_, requestBody) => {
+          expect(requestBody).toStrictEqual(expectedRequest);
         });
-      });
-      const { service } = createService();
+        const { service } = createService();
 
-      const result = await service.importTokens([
-        MOCK_USDC_ETH_ASSET_ID,
-        MOCK_USDC_POLYGON_ASSET_ID,
-      ]);
+        const result = await service[method]([...ids]);
 
-      expect(result.importedAssets).toStrictEqual([
-        MOCK_USDC_ETH_ASSET_ID,
-        MOCK_USDC_BASE_ASSET_ID,
-        MOCK_USDC_POLYGON_ASSET_ID,
-      ]);
-    });
+        expect(result[addedList]).toStrictEqual(expectedList);
+      },
+    );
 
-    it('removes imported tokens from hiddenAssets (mutual exclusivity)', async () => {
-      handleMockGetUserAssets();
-      handleMockSetUserAssets(undefined, async (_, requestBody) => {
-        expect(requestBody).toStrictEqual({
+    it.each([
+      {
+        method: 'importTokens',
+        ids: [MOCK_USDC_OP_ASSET_ID],
+        expectedRequest: {
           version: 1,
           importedAssets: [
             MOCK_USDC_ETH_ASSET_ID,
@@ -859,139 +902,72 @@ describe('AuthenticatedUserStorageService', () => {
             MOCK_USDC_OP_ASSET_ID,
           ],
           hiddenAssets: [],
-        });
-      });
-      const { service } = createService();
-
-      const result = await service.importTokens([MOCK_USDC_OP_ASSET_ID]);
-
-      expect(result.importedAssets).toContain(MOCK_USDC_OP_ASSET_ID);
-      expect(result.hiddenAssets).toStrictEqual([]);
-    });
-
-    it('throws before any request when an entry is not a CAIP-19 asset identifier', async () => {
-      const getScope = nock(MOCK_USER_ASSETS_URL)
-        .get('')
-        .reply(200, MOCK_USER_ASSETS_BLOB);
-      const { service } = createService();
-
-      await expect(
-        service.importTokens([MOCK_INVALID_ASSET_ID]),
-      ).rejects.toThrow(
-        /At path: 0 -- Expected a value of type `CaipAssetType`/u,
-      );
-
-      expect(getScope.isDone()).toBe(false);
-    });
-
-    it('includes X-Client-Type header when clientType is provided', async () => {
-      handleMockGetUserAssets();
-      const scope = nock(MOCK_USER_ASSETS_URL, {
-        reqheaders: {
-          'x-client-type': 'extension',
         },
-      })
-        .put('')
-        .reply(200);
-      const { service } = createService();
-
-      await service.importTokens([MOCK_USDC_ETH_ASSET_ID], 'extension');
-
-      expect(scope.isDone()).toBe(true);
-    });
-  });
-
-  describe('hideTokens', () => {
-    it('creates a fresh blob when none exists (404)', async () => {
-      handleMockGetUserAssets({ status: 404 });
-      handleMockSetUserAssets(undefined, async (_, requestBody) => {
-        expect(requestBody).toStrictEqual({
-          version: 1,
-          importedAssets: [],
-          hiddenAssets: [MOCK_USDC_OP_ASSET_ID],
-        });
-      });
-      const { service } = createService();
-
-      const result = await service.hideTokens([MOCK_USDC_OP_ASSET_ID]);
-
-      expect(result).toStrictEqual({
-        version: 1,
-        importedAssets: [],
-        hiddenAssets: [MOCK_USDC_OP_ASSET_ID],
-      });
-    });
-
-    it('merges into the existing hidden list, de-duplicating entries', async () => {
-      handleMockGetUserAssets();
-      handleMockSetUserAssets(undefined, async (_, requestBody) => {
-        expect(requestBody).toStrictEqual({
-          version: 1,
-          importedAssets: [MOCK_USDC_ETH_ASSET_ID, MOCK_USDC_BASE_ASSET_ID],
-          hiddenAssets: [MOCK_USDC_OP_ASSET_ID, MOCK_USDC_POLYGON_ASSET_ID],
-        });
-      });
-      const { service } = createService();
-
-      const result = await service.hideTokens([
-        MOCK_USDC_OP_ASSET_ID,
-        MOCK_USDC_POLYGON_ASSET_ID,
-      ]);
-
-      expect(result.hiddenAssets).toStrictEqual([
-        MOCK_USDC_OP_ASSET_ID,
-        MOCK_USDC_POLYGON_ASSET_ID,
-      ]);
-    });
-
-    it('removes hidden tokens from importedAssets (mutual exclusivity)', async () => {
-      handleMockGetUserAssets();
-      handleMockSetUserAssets(undefined, async (_, requestBody) => {
-        expect(requestBody).toStrictEqual({
+      },
+      {
+        method: 'hideTokens',
+        ids: [MOCK_USDC_ETH_ASSET_ID],
+        expectedRequest: {
           version: 1,
           importedAssets: [MOCK_USDC_BASE_ASSET_ID],
           hiddenAssets: [MOCK_USDC_OP_ASSET_ID, MOCK_USDC_ETH_ASSET_ID],
-        });
-      });
-      const { service } = createService();
-
-      const result = await service.hideTokens([MOCK_USDC_ETH_ASSET_ID]);
-
-      expect(result.hiddenAssets).toStrictEqual([
-        MOCK_USDC_OP_ASSET_ID,
-        MOCK_USDC_ETH_ASSET_ID,
-      ]);
-      expect(result.importedAssets).toStrictEqual([MOCK_USDC_BASE_ASSET_ID]);
-    });
-
-    it('throws before any request when an entry is not a CAIP-19 asset identifier', async () => {
-      const getScope = nock(MOCK_USER_ASSETS_URL)
-        .get('')
-        .reply(200, MOCK_USER_ASSETS_BLOB);
-      const { service } = createService();
-
-      await expect(service.hideTokens([MOCK_INVALID_ASSET_ID])).rejects.toThrow(
-        /At path: 0 -- Expected a value of type `CaipAssetType`/u,
-      );
-
-      expect(getScope.isDone()).toBe(false);
-    });
-
-    it('includes X-Client-Type header when clientType is provided', async () => {
-      handleMockGetUserAssets();
-      const scope = nock(MOCK_USER_ASSETS_URL, {
-        reqheaders: {
-          'x-client-type': 'mobile',
         },
-      })
-        .put('')
-        .reply(200);
-      const { service } = createService();
+      },
+    ] as const)(
+      '$method removes the tokens from the opposite list (mutual exclusivity)',
+      async ({ method, ids, expectedRequest }) => {
+        handleMockGetUserAssets();
+        handleMockSetUserAssets(undefined, async (_, requestBody) => {
+          expect(requestBody).toStrictEqual(expectedRequest);
+        });
+        const { service } = createService();
 
-      await service.hideTokens([MOCK_USDC_ETH_ASSET_ID], 'mobile');
+        const result = await service[method]([...ids]);
 
-      expect(scope.isDone()).toBe(true);
-    });
+        expect(result.importedAssets).toStrictEqual(
+          expectedRequest.importedAssets,
+        );
+        expect(result.hiddenAssets).toStrictEqual(expectedRequest.hiddenAssets);
+      },
+    );
+
+    it.each(['importTokens', 'hideTokens'] as const)(
+      '%s throws before any request when an entry is not a CAIP-19 asset identifier',
+      async (method) => {
+        const getScope = nock(MOCK_USER_ASSETS_URL)
+          .get('')
+          .reply(200, MOCK_USER_ASSETS_BLOB);
+        const { service } = createService();
+
+        await expect(service[method]([MOCK_INVALID_ASSET_ID])).rejects.toThrow(
+          /At path: 0 -- Expected a value of type `CaipAssetType`/u,
+        );
+
+        expect(getScope.isDone()).toBe(false);
+      },
+    );
+
+    it.each([
+      { method: 'importTokens', clientType: 'extension' },
+      { method: 'hideTokens', clientType: 'mobile' },
+    ] as const)(
+      '$method includes the X-Client-Type header when clientType is provided',
+      async ({ method, clientType }) => {
+        handleMockGetUserAssets();
+        const scope = nock(MOCK_USER_ASSETS_URL, {
+          reqheaders: {
+            'x-client-type': clientType,
+          },
+        })
+          .put('')
+          .reply(200);
+        const { service } = createService();
+
+        await service[method]([MOCK_USDC_ETH_ASSET_ID], clientType);
+
+        expect(scope.isDone()).toBe(true);
+      },
+    );
   });
 
   describe('cache invalidation', () => {
@@ -1074,18 +1050,46 @@ describe('AuthenticatedUserStorageService', () => {
       expect(second).toStrictEqual(updatedBlob);
     });
 
-    it('invalidates getUserAssets cache after setUserAssets', async () => {
-      handleMockSetUserAssets();
-      handleMockGetUserAssets();
-      const { service } = createService();
-      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+    it.each([
+      {
+        mutator: 'setUserAssets',
+        seedGet: false,
+        run: (service: AuthenticatedUserStorageService): Promise<void> =>
+          service.setUserAssets(MOCK_USER_ASSETS_BLOB),
+      },
+      {
+        mutator: 'importTokens',
+        seedGet: true,
+        run: (
+          service: AuthenticatedUserStorageService,
+        ): Promise<UserAssetsBlob> =>
+          service.importTokens([MOCK_USDC_POLYGON_ASSET_ID]),
+      },
+      {
+        mutator: 'hideTokens',
+        seedGet: true,
+        run: (
+          service: AuthenticatedUserStorageService,
+        ): Promise<UserAssetsBlob> =>
+          service.hideTokens([MOCK_USDC_ETH_ASSET_ID]),
+      },
+    ])(
+      'invalidates the getUserAssets cache after $mutator',
+      async ({ seedGet, run }) => {
+        if (seedGet) {
+          handleMockGetUserAssets();
+        }
+        handleMockSetUserAssets();
+        const { service } = createService();
+        const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
 
-      await service.setUserAssets(MOCK_USER_ASSETS_BLOB);
+        await run(service);
 
-      expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: ['AuthenticatedUserStorageService:getUserAssets'],
-      });
-    });
+        expect(invalidateSpy).toHaveBeenCalledWith({
+          queryKey: ['AuthenticatedUserStorageService:getUserAssets'],
+        });
+      },
+    );
 
     it('causes a subsequent getUserAssets to refetch after setUserAssets', async () => {
       const updatedBlob = {
@@ -1109,32 +1113,6 @@ describe('AuthenticatedUserStorageService', () => {
       expect(getScope.isDone()).toBe(true);
       expect(first).toStrictEqual(MOCK_USER_ASSETS_BLOB);
       expect(second).toStrictEqual(updatedBlob);
-    });
-
-    it('invalidates getUserAssets cache after importTokens', async () => {
-      handleMockGetUserAssets();
-      handleMockSetUserAssets();
-      const { service } = createService();
-      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
-
-      await service.importTokens([MOCK_USDC_POLYGON_ASSET_ID]);
-
-      expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: ['AuthenticatedUserStorageService:getUserAssets'],
-      });
-    });
-
-    it('invalidates getUserAssets cache after hideTokens', async () => {
-      handleMockGetUserAssets();
-      handleMockSetUserAssets();
-      const { service } = createService();
-      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
-
-      await service.hideTokens([MOCK_USDC_ETH_ASSET_ID]);
-
-      expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: ['AuthenticatedUserStorageService:getUserAssets'],
-      });
     });
   });
 
