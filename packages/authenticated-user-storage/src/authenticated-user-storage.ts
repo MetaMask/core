@@ -28,6 +28,7 @@ import {
   assertUserAssetIds,
   assertUserAssetsBlob,
   assertUserAssetsBlobForWrite,
+  assertUserAssetsBlobNormalized,
   normalizeUserAssetsBlob,
 } from './validators.js';
 
@@ -494,6 +495,8 @@ export class AuthenticatedUserStorageService extends BaseDataService<
   ): Promise<void> {
     assertUserAssetsBlobForWrite(blob);
     const normalizedBlob = normalizeUserAssetsBlob(blob);
+    // Cannot reject user input: normalization already resolved conflicts.
+    assertUserAssetsBlobNormalized(normalizedBlob);
 
     const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/user-assets`;
 

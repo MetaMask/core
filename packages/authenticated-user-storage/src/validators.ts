@@ -8,6 +8,7 @@ import {
   number,
   optional,
   pattern,
+  refine,
   size,
   string,
   type,
@@ -261,6 +262,20 @@ const UserAssetsBlobWriteSchema = type({
 });
 
 /**
+ * Normalized write schema: additionally enforces mutual exclusivity — no
+ * identifier may appear in both lists. Applied to the normalized blob only,
+ * so it can never reject user input; normalization resolves conflicts first.
+ */
+const UserAssetsBlobNormalizedWriteSchema = refine(
+  UserAssetsBlobWriteSchema,
+  'MutuallyExclusiveUserAssets',
+  (blob) =>
+    blob.hiddenAssets.every(
+      (assetId) => !blob.importedAssets.includes(assetId),
+    ) || 'An identifier may not appear in both importedAssets and hiddenAssets',
+);
+
+/**
  * The authenticated user's custom tokens: mutually exclusive lists of
  * CAIP-19 asset identifiers the user chose to import or hide.
  */
@@ -289,6 +304,17 @@ export function assertUserAssetsBlobForWrite(
   data: unknown,
 ): asserts data is UserAssetsBlob {
   assert(data, UserAssetsBlobWriteSchema);
+}
+
+/**
+ * Asserts that a normalized `UserAssetsBlob` is safe to send: structurally
+ * valid and mutually exclusive (no identifier in both lists).
+ *
+ * @param blob - The normalized blob to validate.
+ * @throws A `StructError` if the blob is invalid or contains a conflict.
+ */
+export function assertUserAssetsBlobNormalized(blob: UserAssetsBlob): void {
+  assert(blob, UserAssetsBlobNormalizedWriteSchema);
 }
 
 /**

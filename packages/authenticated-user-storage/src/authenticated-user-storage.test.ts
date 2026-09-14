@@ -38,6 +38,7 @@ import { getUserStorageApiUrl } from './env.js';
 import type { UserAssetsBlob } from './types.js';
 import {
   ASSETS_WATCHLIST_MAX_ASSETS,
+  assertUserAssetsBlobNormalized,
   normalizeUserAssetsBlob,
 } from './validators.js';
 
@@ -120,6 +121,30 @@ describe('normalizeUserAssetsBlob()', () => {
       importedAssets: [MOCK_USDC_ETH_ASSET_ID, MOCK_USDC_ETH_ASSET_ID],
       hiddenAssets: [MOCK_USDC_ETH_ASSET_ID],
     });
+  });
+});
+
+describe('assertUserAssetsBlobNormalized', () => {
+  it('accepts a blob with no identifier in both lists', () => {
+    expect(() =>
+      assertUserAssetsBlobNormalized({
+        version: 1,
+        importedAssets: [MOCK_USDC_ETH_ASSET_ID],
+        hiddenAssets: [MOCK_USDC_OP_ASSET_ID],
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects a blob with an identifier in both lists', () => {
+    expect(() =>
+      assertUserAssetsBlobNormalized({
+        version: 1,
+        importedAssets: [MOCK_USDC_ETH_ASSET_ID],
+        hiddenAssets: [MOCK_USDC_ETH_ASSET_ID, MOCK_USDC_OP_ASSET_ID],
+      }),
+    ).toThrow(
+      'An identifier may not appear in both importedAssets and hiddenAssets',
+    );
   });
 });
 
