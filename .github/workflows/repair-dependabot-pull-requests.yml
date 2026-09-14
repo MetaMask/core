@@ -13,9 +13,8 @@ permissions:
 jobs:
   repair:
     name: Repair constraints, lockfile and changelogs
-    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && github.actor != 'metamaskbot' }}
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && github.actor != 'metamask-ci[bot]' }}
     runs-on: ubuntu-latest
-    environment: default-branch
     permissions:
       contents: read
       id-token: write
@@ -39,8 +38,8 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config user.name 'MetaMask Bot'
-          git config user.email 'metamaskbot@users.noreply.github.com'
+          git config user.name 'metamask-ci[bot]'
+          git config user.email '271559518+metamask-ci[bot]@users.noreply.github.com'
 
       - name: Get merge base
         id: merge-base
@@ -60,11 +59,11 @@ jobs:
           ALIGN_DEPENDENCY_RANGES: 'true'
         run: yarn constraints --fix
 
-      # Aligning ranges rewrites manifests but not the lockfile, so it has to be resolved again before deduplicating.
-      - name: Resolve the lockfile
+      # `--no-immutable` because the step above changed ranges, so this install has to be allowed to rewrite the lockfile. Without it Yarn fails with YN0028 in CI.
+      - name: Apply dependency range updates
         run: yarn install --no-immutable
 
-      - name: Deduplicate the lockfile
+      - name: Deduplicate dependency tree
         run: yarn dedupe
 
       - name: Write changelog entries for the bumped dependencies
