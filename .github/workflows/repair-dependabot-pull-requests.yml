@@ -1,7 +1,5 @@
 name: Repair Dependabot pull requests
 
-# Dependabot leaves dependency ranges disagreeing between packages, does not deduplicate `yarn.lock`, and does not write changelog entries. All three are mechanical, so repair them and push the result back.
-
 on:
   pull_request:
     # Deliberately not `synchronize`: this job pushes to the pull request branch, and reacting to its own push would loop.
@@ -57,7 +55,6 @@ jobs:
         with:
           is-high-risk-environment: false
 
-      # Opted into here and nowhere else, so that routine use of `yarn lint:fix` cannot fold a dependency bump into unrelated work.
       - name: Align dependency ranges
         env:
           ALIGN_DEPENDENCY_RANGES: 'true'
@@ -76,7 +73,7 @@ jobs:
           MERGE_BASE: ${{ steps.merge-base.outputs.merge-base }}
           CHANGELOG_BASE_REF: ${{ steps.merge-base.outputs.merge-base }}
         run: yarn changelog:validate --checkDeps --fix --currentPr "$PR_NUMBER" --fromRef "$MERGE_BASE"
-        # Entries may be written even when other validation errors remain, and we still want to commit those.
+        # Entries can be written even when other validation errors remain, and those are still worth committing.
         continue-on-error: true
 
       - name: Commit and push the repairs
