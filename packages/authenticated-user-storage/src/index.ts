@@ -27,6 +27,10 @@ export type {
   AuthenticatedUserStorageServicePutIdentitySharingConsentAction,
   AuthenticatedUserStorageServiceGetAssetsWatchlistAction,
   AuthenticatedUserStorageServiceSetAssetsWatchlistAction,
+  AuthenticatedUserStorageServiceGetUserAssetsAction,
+  AuthenticatedUserStorageServiceSetUserAssetsAction,
+  AuthenticatedUserStorageServiceImportTokensAction,
+  AuthenticatedUserStorageServiceHideTokensAction,
 } from './authenticated-user-storage-method-action-types.js';
 export { getUserStorageApiUrl } from './env.js';
 export type { Environment } from './env.js';
@@ -51,5 +55,6 @@ export type {
   PriceAlertPreference,
   NotificationPreferences,
   AssetsWatchlistBlob,
+  UserAssetsBlob,
   ClientType,
 } from './types.js';
