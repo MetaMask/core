@@ -138,10 +138,7 @@ export type { AssetsWatchlistBlob } from './validators.js';
 // User assets (custom tokens)
 // ---------------------------------------------------------------------------
 
-// `UserAssetsBlob` is inferred from `UserAssetsBlobSchema` in `./validators`
-// and re-exported here so the public type surface remains in `./types`.
-// Keeping the runtime schema and the static type co-located in one file
-// keeps the two in lock-step.
+// Re-exported from './validators' so the public type surface stays in './types'.
 export type { UserAssetsBlob } from './validators.js';
 
 // ---------------------------------------------------------------------------

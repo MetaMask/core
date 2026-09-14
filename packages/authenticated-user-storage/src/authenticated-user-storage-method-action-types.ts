@@ -97,23 +97,12 @@ export type AuthenticatedUserStorageServiceGetUserAssetsAction = {
 
 /**
  * Creates or updates the user-assets (custom tokens) blob for the
- * authenticated user.
+ * authenticated user. The blob is normalized (de-duplicated, conflicts
+ * resolved fail-open in favor of `importedAssets`) before it is sent.
  *
- * The blob is normalized before it is sent: entries are de-duplicated
- * (order-preserving) and conflicts between `importedAssets` and
- * `hiddenAssets` are resolved "fail-open" — an identifier present in both
- * lists stays in `importedAssets` (the user's intent to import wins) and is
- * removed from `hiddenAssets`, so the write is never rejected because of a
- * conflict.
- *
- * @param blob - The full user-assets blob. Every entry of
- * `importedAssets` and `hiddenAssets` must be a CAIP-19 asset identifier
- * (e.g. `eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`);
- * this is enforced by `assertUserAssetsBlobForWrite` before the request
- * is sent.
+ * @param blob - The full user-assets blob, with CAIP-19 asset identifiers.
  * @param clientType - Optional client type header.
- * @throws A `StructError` from `@metamask/superstruct` if `blob` is
- * structurally invalid; an `HttpError` from `@metamask/controller-utils`
+ * @throws A `StructError` if `blob` is structurally invalid; an `HttpError`
  * if the API responds with a non-2xx status.
  */
 export type AuthenticatedUserStorageServiceSetUserAssetsAction = {
@@ -122,26 +111,15 @@ export type AuthenticatedUserStorageServiceSetUserAssetsAction = {
 };
 
 /**
- * Imports custom tokens for the authenticated user.
+ * Imports custom tokens: adds the given identifiers to `importedAssets`
+ * (de-duplicated, order preserved) and removes them from `hiddenAssets`.
+ * Creates a fresh blob if none exists yet.
  *
- * Adds the given CAIP-19 asset identifiers to `importedAssets`
- * (de-duplicated, existing order preserved) and removes them from
- * `hiddenAssets`, since the two lists are mutually exclusive and the
- * user's intent to import wins ("fail-open"). If no user-assets blob
- * exists yet (404), a fresh one is created.
- *
- * This is a convenience wrapper around `getUserAssets` and
- * `setUserAssets`; the SDK handles deduplication and mutual exclusivity
- * internally as a safeguard, so callers never need to read-modify-write
- * the blob themselves.
- *
- * @param ids - The CAIP-19 asset identifiers of the tokens to import
- * (e.g. `eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`).
+ * @param ids - The CAIP-19 asset identifiers of the tokens to import.
  * @param clientType - Optional client type header.
  * @returns The resolved user-assets blob that was persisted.
- * @throws A `StructError` from `@metamask/superstruct` if any entry of
- * `ids` is not a CAIP-19 asset identifier; an `HttpError` from
- * `@metamask/controller-utils` if the API responds with a non-2xx status.
+ * @throws A `StructError` if any entry of `ids` is not a CAIP-19 asset
+ * identifier; an `HttpError` if the API responds with a non-2xx status.
  */
 export type AuthenticatedUserStorageServiceImportTokensAction = {
   type: `AuthenticatedUserStorageService:importTokens`;
@@ -149,25 +127,15 @@ export type AuthenticatedUserStorageServiceImportTokensAction = {
 };
 
 /**
- * Hides custom tokens for the authenticated user.
+ * Hides custom tokens: adds the given identifiers to `hiddenAssets`
+ * (de-duplicated, order preserved) and removes them from
+ * `importedAssets`. Creates a fresh blob if none exists yet.
  *
- * Adds the given CAIP-19 asset identifiers to `hiddenAssets`
- * (de-duplicated, existing order preserved) and removes them from
- * `importedAssets`, since the two lists are mutually exclusive. If no
- * user-assets blob exists yet (404), a fresh one is created.
- *
- * This is a convenience wrapper around `getUserAssets` and
- * `setUserAssets`; the SDK handles deduplication and mutual exclusivity
- * internally as a safeguard, so callers never need to read-modify-write
- * the blob themselves.
- *
- * @param ids - The CAIP-19 asset identifiers of the tokens to hide
- * (e.g. `eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`).
+ * @param ids - The CAIP-19 asset identifiers of the tokens to hide.
  * @param clientType - Optional client type header.
  * @returns The resolved user-assets blob that was persisted.
- * @throws A `StructError` from `@metamask/superstruct` if any entry of
- * `ids` is not a CAIP-19 asset identifier; an `HttpError` from
- * `@metamask/controller-utils` if the API responds with a non-2xx status.
+ * @throws A `StructError` if any entry of `ids` is not a CAIP-19 asset
+ * identifier; an `HttpError` if the API responds with a non-2xx status.
  */
 export type AuthenticatedUserStorageServiceHideTokensAction = {
   type: `AuthenticatedUserStorageService:hideTokens`;
