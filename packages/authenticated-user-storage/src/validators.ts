@@ -12,6 +12,7 @@ import {
   string,
   type,
 } from '@metamask/superstruct';
+import { CaipAssetTypeStruct } from '@metamask/utils';
 
 import type {
   AgenticCliPreference,
@@ -234,4 +235,127 @@ export function assertAssetsWatchlistBlobForWrite(
   data: unknown,
 ): asserts data is AssetsWatchlistBlob {
   assert(data, AssetsWatchlistBlobWriteSchema);
+}
+
+// ---------------------------------------------------------------------------
+// User assets (custom tokens)
+// ---------------------------------------------------------------------------
+
+/**
+ * The shape we accept on the way **in** from the server. Lenient by design:
+ * a malformed payload throws, but a well-formed payload whose entries are
+ * not valid CAIP-19 asset identifiers is still considered valid so we don't
+ * reject existing server-side data.
+ */
+const UserAssetsBlobSchema = type({
+  version: literal(1),
+  importedAssets: array(string()),
+  hiddenAssets: array(string()),
+});
+
+/**
+ * The shape we accept on the way **out** to the server. Strict by design:
+ * every entry must be a CAIP-19 asset identifier
+ * (e.g. `eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`),
+ * enforced via {@link CaipAssetTypeStruct} from `@metamask/utils`.
+ * Validation failures throw a `StructError` before the request is sent.
+ */
+const UserAssetsBlobWriteSchema = type({
+  version: literal(1),
+  importedAssets: array(CaipAssetTypeStruct),
+  hiddenAssets: array(CaipAssetTypeStruct),
+});
+
+/**
+ * The authenticated user's custom tokens: a mutable per-user singleton blob
+ * recording which assets the user chose to import and which they chose to
+ * hide.
+ *
+ * Each entry is a CAIP-19 asset identifier
+ * (e.g. `eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`).
+ *
+ * The `version` literal is carried inside the blob (not in the URL) so the
+ * schema can evolve in a backwards-compatible way; bumping the version
+ * indicates a different blob shape.
+ *
+ * `importedAssets` and `hiddenAssets` are mutually exclusive by contract: a
+ * given identifier may appear in at most one of the two lists. Conflicts are
+ * resolved "fail-open" by {@link normalizeUserAssetsBlob}: the user's intent
+ * to import wins, so a conflicting identifier stays in `importedAssets` and
+ * is removed from `hiddenAssets` rather than the write being rejected.
+ *
+ * Inferred from {@link UserAssetsBlobSchema} so the runtime schema and the
+ * static type stay in lock-step. The stricter CAIP-19 constraint on writes is
+ * enforced by {@link UserAssetsBlobWriteSchema} and is not encoded in this
+ * static type (the read side is deliberately lenient).
+ */
+export type UserAssetsBlob = Infer<typeof UserAssetsBlobSchema>;
+
+/**
+ * Asserts that the given value is a valid `UserAssetsBlob` (read-side,
+ * lenient).
+ *
+ * @param data - The unknown value to validate.
+ * @throws If the value does not match the expected schema.
+ */
+export function assertUserAssetsBlob(
+  data: unknown,
+): asserts data is UserAssetsBlob {
+  assert(data, UserAssetsBlobSchema);
+}
+
+/**
+ * Asserts that the given value is a valid `UserAssetsBlob` for **writes**.
+ * In addition to the structural checks performed by
+ * {@link assertUserAssetsBlob}, this enforces that every entry of
+ * `importedAssets` and `hiddenAssets` is a CAIP-19 asset identifier.
+ *
+ * @param data - The unknown value to validate.
+ * @throws A `StructError` if the value does not match the expected schema
+ * (including the CAIP-19 constraint).
+ */
+export function assertUserAssetsBlobForWrite(
+  data: unknown,
+): asserts data is UserAssetsBlob {
+  assert(data, UserAssetsBlobWriteSchema);
+}
+
+/**
+ * Asserts that every entry of the given list is a CAIP-19 asset identifier
+ * (e.g. `eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`).
+ *
+ * Used to fail fast on invalid input to the high-level
+ * `importTokens`/`hideTokens` methods, before any network request is made.
+ *
+ * @param ids - The list of identifiers to validate.
+ * @throws A `StructError` if any entry is not a CAIP-19 asset identifier.
+ */
+export function assertUserAssetIds(ids: string[]): void {
+  assert(ids, array(CaipAssetTypeStruct));
+}
+
+/**
+ * Normalizes a `UserAssetsBlob` into the canonical form that is safe to
+ * persist: entries are de-duplicated (order-preserving, first occurrence
+ * wins) and conflicts between the two lists are resolved "fail-open".
+ *
+ * Fail-open conflict resolution: if a CAIP-19 asset identifier appears in
+ * both `importedAssets` and `hiddenAssets`, the user's intent to import wins —
+ * the identifier is kept in `importedAssets` and removed from
+ * `hiddenAssets`. The write is never rejected because of a conflict.
+ *
+ * This is a pure function; the result is what {@link
+ * AuthenticatedUserStorageService.setUserAssets} sends to the API, and the
+ * same rule is expected of the server as defense-in-depth.
+ *
+ * @param blob - The blob to normalize.
+ * @returns A new, normalized blob; the input is not mutated.
+ */
+export function normalizeUserAssetsBlob(blob: UserAssetsBlob): UserAssetsBlob {
+  const importedAssets = [...new Set(blob.importedAssets)];
+  const importedAssetIds = new Set(importedAssets);
+  const hiddenAssets = [...new Set(blob.hiddenAssets)].filter(
+    (assetId) => !importedAssetIds.has(assetId),
+  );
+  return { version: 1, importedAssets, hiddenAssets };
 }

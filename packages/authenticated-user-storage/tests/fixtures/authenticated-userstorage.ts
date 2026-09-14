@@ -7,6 +7,8 @@ import {
   MOCK_DELEGATION_RESPONSE,
   MOCK_NOTIFICATION_PREFERENCES,
   MOCK_NOTIFICATION_PREFERENCES_URL,
+  MOCK_USER_ASSETS_BLOB,
+  MOCK_USER_ASSETS_URL,
 } from '../mocks/authenticated-userstorage.js';
 
 type MockReply = {
@@ -95,6 +97,32 @@ export function handleMockSetAssetsWatchlist(
 ): nock.Scope {
   const reply = mockReply ?? { status: 200 };
   const interceptor = nock(MOCK_ASSETS_WATCHLIST_URL).persist().put('');
+
+  if (callback) {
+    return interceptor.reply(reply.status, async (uri, requestBody) => {
+      return callback(uri, requestBody);
+    });
+  }
+  return interceptor.reply(reply.status, reply.body);
+}
+
+export function handleMockGetUserAssets(mockReply?: MockReply): nock.Scope {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_USER_ASSETS_BLOB,
+  };
+  return nock(MOCK_USER_ASSETS_URL)
+    .persist()
+    .get('')
+    .reply(reply.status, reply.body);
+}
+
+export function handleMockSetUserAssets(
+  mockReply?: MockReply,
+  callback?: (uri: string, requestBody: nock.Body) => Promise<void>,
+): nock.Scope {
+  const reply = mockReply ?? { status: 200 };
+  const interceptor = nock(MOCK_USER_ASSETS_URL).persist().put('');
 
   if (callback) {
     return interceptor.reply(reply.status, async (uri, requestBody) => {

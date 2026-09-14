@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getUserAssets`, `setUserAssets`, `importTokens`, and `hideTokens` methods to `AuthenticatedUserStorageService` for managing the authenticated user's custom tokens, along with corresponding messenger actions (`AuthenticatedUserStorageService:getUserAssets`, `AuthenticatedUserStorageService:setUserAssets`, `AuthenticatedUserStorageService:importTokens`, `AuthenticatedUserStorageService:hideTokens`) and the `UserAssetsBlob` type ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - Backed by the new `GET`/`PUT /preferences/user-assets` API endpoints; `getUserAssets` returns the blob or `null` on 404, mirroring `getAssetsWatchlist`.
+  - Every write is normalized: entries are de-duplicated (order-preserving) and conflicts between `importedAssets` and `hiddenAssets` are resolved "fail-open" — an identifier present in both lists stays in `importedAssets` (the user's intent to import wins) and is removed from `hiddenAssets`.
+  - `importTokens`/`hideTokens` are high-level wrappers that fetch the current blob, merge with deduplication and mutual exclusivity, persist, and return the resolved blob.
+  - Writes enforce that every entry is a CAIP-19 asset identifier, throwing a superstruct `StructError` before the request is sent.
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
