@@ -309,6 +309,9 @@
     },
     {
       "path": "./packages/wallet/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/package-template/tsconfig.build.json"
     }
   ],
   "files": [],
