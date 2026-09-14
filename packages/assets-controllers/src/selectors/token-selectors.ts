@@ -8,7 +8,6 @@ import type { NetworkState } from '@metamask/network-controller';
 import { hexToBigInt, parseCaipAssetType } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { createSelector, weakMapMemoize } from 'reselect';
-import { TokenRwaData } from 'src/token-service';
 
 import { shouldIncludeNativeToken } from '../constants.js';
 import type { CurrencyRateState } from '../CurrencyRateController.js';
@@ -16,6 +15,7 @@ import type { MultichainAssetsControllerState } from '../MultichainAssetsControl
 import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController/index.js';
 import type { MultichainBalancesControllerState } from '../MultichainBalancesController/index.js';
 import { getNativeTokenAddress } from '../token-prices-service/codefi-v2.js';
+import { TokenRwaData } from '../token-service.js';
 import type { TokenBalancesControllerState } from '../TokenBalancesController.js';
 import type {
   Token,
@@ -461,7 +461,11 @@ const selectAllMultichainAssets = createAssetListSelector(
   },
 );
 
-export const selectAllAssets = createAssetListSelector(
+// TS2742: The inferred type of 'selectAllAssets' cannot be named without a
+// reference to '../../../../node_modules/@metamask/account-tree-controller/dist/wallet.js'.
+// This is likely not portable. A type annotation is necessary.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const selectAllAssets: any = createAssetListSelector(
   [
     selectAllEvmAssets,
     selectAllMultichainAssets,

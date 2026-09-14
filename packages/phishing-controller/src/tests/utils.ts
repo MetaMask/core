@@ -116,6 +116,7 @@ export const createMockStateChangePayload = (
 ) => ({
   transactions,
   transactionBatches: [],
+  batchTransactionCounts: {},
   methodData: {},
   lastFetchedBlockNumbers: {},
   submitHistory: [],

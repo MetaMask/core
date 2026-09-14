@@ -72,7 +72,7 @@ export class AccountTreeSnapshot {
    * Filters groups within one wallet. Other wallets are left unchanged.
    *
    * Throws if `walletId` does not identify a wallet in the snapshot.
-   * Removes the wallet if no groups remain after filtering — this prevents a
+   * Removes the wallet if no groups remain after filtering - this prevents a
    * mnemonic wallet with zero selected groups from still transferring its secret.
    *
    * **Mnemonic wallets:** group indices must remain contiguous starting at 0
@@ -172,6 +172,58 @@ export class AccountTreeSnapshot {
   }
 
   /**
+   * Returns a new snapshot with all secret material removed - mnemonic
+   * {@link AccountWalletMnemonicPayload.value | values} and private-key group
+   * {@link AccountWalletPrivateKeyGroupEntry.value | values} are omitted.
+   * Wallet and group metadata (names, pin, hidden) are preserved.
+   *
+   * Useful when only metadata (names, layout) needs to be applied and secrets
+   * are already present in the vault.
+   *
+   * @returns A secrets-stripped snapshot.
+   */
+  stripSecrets(): AccountTreeSnapshot {
+    const entries = this.#entries.map((wallet): AccountTreeWalletEntry => {
+      if (wallet.type === AccountWalletPayloadType.Mnemonic) {
+        const { value: _value, ...rest } = wallet;
+        return rest;
+      }
+      return {
+        ...wallet,
+        groups: wallet.groups.map(
+          ({ value: _value, ...group }): AccountWalletPrivateKeyGroupEntry =>
+            group,
+        ),
+      };
+    });
+    return new AccountTreeSnapshot(entries, this.#idMap);
+  }
+
+  /**
+   * Returns a new snapshot with all metadata reset to defaults - wallet names
+   * are cleared and group metadata (`name`, `pinned`, `hidden`) is reset.
+   * Secret values are preserved.
+   *
+   * Useful when importing secrets into a vault in a separate step from applying
+   * metadata - the metadata can be re-applied later from the original snapshot.
+   *
+   * @returns A metadata-stripped snapshot.
+   */
+  stripMetadata(): AccountTreeSnapshot {
+    const entries = this.#entries.map((wallet): AccountTreeWalletEntry => {
+      const { metadata: _walletMetadata, ...walletRest } = wallet;
+      return {
+        ...walletRest,
+        groups: wallet.groups.map((group) => {
+          const { metadata: _groupMetadata, ...groupRest } = group;
+          return groupRest as typeof group;
+        }),
+      } as AccountTreeWalletEntry; // Looks like the compiler is not able to infer this correctly, but we just remove the `metadata` field out of any entry.
+    });
+    return new AccountTreeSnapshot(entries, this.#idMap);
+  }
+
+  /**
    * Converts a payload ID (wallet or group) to the corresponding local
    * `AccountTreeController` ID.
    *
@@ -226,7 +278,7 @@ export class AccountTreeSnapshot {
    * versions and wallet types fail closed with an error instead of returning a
    * partial snapshot.
    *
-   * The returned snapshot has no ID map — {@link toLocalId} / {@link toPayloadId}
+   * The returned snapshot has no ID map - {@link toLocalId} / {@link toPayloadId}
    * return `undefined`. Pass an {@link IdMap} to the constructor when you need
    * the map.
    *

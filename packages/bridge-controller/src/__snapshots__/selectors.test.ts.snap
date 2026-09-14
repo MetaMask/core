@@ -101,6 +101,10 @@ exports[`Bridge Selectors selectBridgeQuotes should return sorted quotes with me
         "usd": "2.099927",
         "valueInCurrency": "419.985546",
       },
+      "cost": {
+        "usd": "8.900073",
+        "valueInCurrency": "1758.014454",
+      },
       "priceImpact": {
         "usd": "7.9",
         "valueInCurrency": "1564.2",
@@ -349,6 +353,10 @@ exports[`Bridge Selectors selectBridgeQuotes should return sorted quotes with me
       "adjustedReturn": {
         "usd": "2.099927",
         "valueInCurrency": "419.985546",
+      },
+      "cost": {
+        "usd": "8.900073",
+        "valueInCurrency": "1758.014454",
       },
       "priceImpact": {
         "usd": "8.9",

@@ -9,12 +9,14 @@ export type {
   SupportedCurrency,
   MarketDataDetails,
   ApiPlatformClientOptions,
+  ApiUrls,
   FetchOptions,
 } from './shared-types.js';
 export {
   API_URLS,
   STALE_TIMES,
   GC_TIMES,
+  DEFAULT_AUTH_TOKEN_TIMEOUT,
   RETRY_CONFIG,
   calculateRetryDelay,
   getQueryOptionsOverrides,

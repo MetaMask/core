@@ -1,4 +1,9 @@
 import { Messenger } from '@metamask/messenger';
+import {
+  StorageServiceGetItemAction,
+  StorageServiceRemoveItemAction,
+  StorageServiceSetItemAction,
+} from '@metamask/storage-service';
 import { object, number, string, array } from '@metamask/superstruct';
 import {
   CaipAssetType,
@@ -22,7 +27,10 @@ export const serviceName = 'ExampleDataService';
 
 export type ExampleDataServiceActions =
   | ExampleDataServiceMethodActions
-  | DataServiceInvalidateQueriesAction<typeof serviceName>;
+  | DataServiceInvalidateQueriesAction<typeof serviceName>
+  | StorageServiceGetItemAction
+  | StorageServiceSetItemAction
+  | StorageServiceRemoveItemAction;
 
 export type ExampleDataServiceEvents =
   | DataServiceCacheUpdatedEvent<typeof serviceName>
@@ -137,10 +145,8 @@ export class ExampleDataService extends BaseDataService<
             `${this.#accountsBaseUrl}/v4/multiaccount/transactions?limit=3&accountAddresses=${caipAddress}`,
           );
 
-          // eslint-disable-next-line no-restricted-syntax
           if (pageParam && 'after' in pageParam) {
             url.searchParams.set('after', pageParam.after);
-            // eslint-disable-next-line no-restricted-syntax
           } else if (pageParam && 'before' in pageParam) {
             url.searchParams.set('before', pageParam.before);
           }

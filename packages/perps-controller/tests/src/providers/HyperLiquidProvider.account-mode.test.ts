@@ -440,6 +440,8 @@ describe('HyperLiquidProvider', () => {
       subscribeToOrderFills: jest.fn().mockReturnValue(jest.fn()), // Returns function directly
       clearAll: jest.fn(),
       isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
+      getCachedPositionsForDex: jest.fn().mockReturnValue(null),
+      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
       getCachedPositions: jest.fn().mockReturnValue([]),
       updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
@@ -1047,9 +1049,6 @@ describe('HyperLiquidProvider', () => {
           leverage: number;
           isBuy: boolean;
         }): Promise<number>;
-        getPositions(): Promise<
-          { symbol: string; size: string; marginUsed: string }[]
-        >;
       }
 
       let testableProvider: ProviderWithMarginCalc;
@@ -1060,13 +1059,13 @@ describe('HyperLiquidProvider', () => {
 
       it('calculates total margin when increasing existing long position', async () => {
         // Arrange
-        jest.spyOn(testableProvider, 'getPositions').mockResolvedValue([
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
           {
             symbol: 'BTC',
             size: '1.0', // Existing long position
             marginUsed: '5000',
           },
-        ]);
+        ] as never);
 
         // Act
         const result = await testableProvider.calculateHip3RequiredMargin({
@@ -1088,13 +1087,13 @@ describe('HyperLiquidProvider', () => {
 
       it('calculates incremental margin when reversing position', async () => {
         // Arrange
-        jest.spyOn(testableProvider, 'getPositions').mockResolvedValue([
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
           {
             symbol: 'BTC',
             size: '1.0', // Existing long position
             marginUsed: '5000',
           },
-        ]);
+        ] as never);
 
         // Act
         const result = await testableProvider.calculateHip3RequiredMargin({
@@ -1116,7 +1115,7 @@ describe('HyperLiquidProvider', () => {
 
       it('calculates margin for new position when no existing position', async () => {
         // Arrange
-        jest.spyOn(testableProvider, 'getPositions').mockResolvedValue([]);
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([]);
 
         // Act
         const result = await testableProvider.calculateHip3RequiredMargin({
@@ -1137,13 +1136,13 @@ describe('HyperLiquidProvider', () => {
 
       it('calculates total margin when increasing existing short position', async () => {
         // Arrange
-        jest.spyOn(testableProvider, 'getPositions').mockResolvedValue([
+        mockSubscriptionService.getCachedPositionsForDex.mockReturnValue([
           {
             symbol: 'ETH',
             size: '-5.0', // Existing short position
             marginUsed: '3000',
           },
-        ]);
+        ] as never);
 
         // Act
         const result = await testableProvider.calculateHip3RequiredMargin({

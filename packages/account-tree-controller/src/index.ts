@@ -41,6 +41,7 @@ export type {
   AccountTreeControllerSyncWithUserStorageAction,
   AccountTreeControllerSyncWithUserStorageAtLeastOnceAction,
   AccountTreeControllerInitAction,
+  AccountTreeControllerIsInitializedAction,
   AccountTreeControllerReinitAction,
   AccountTreeControllerExportStateAction,
   AccountTreeControllerImportStateAction,

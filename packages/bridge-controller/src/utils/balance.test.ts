@@ -2,10 +2,10 @@ import { BigNumber } from '@ethersproject/bignumber';
 import { AddressZero } from '@ethersproject/constants';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
+import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Provider } from '@metamask/network-controller';
 
-import { FakeProvider } from '../../../../tests/fake-provider.js';
 import * as balanceUtils from './balance.js';
 import { fetchTokenBalance } from './balance.js';
 
@@ -30,7 +30,7 @@ jest.mock('@ethersproject/providers', () => {
 describe('balance', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    global.ethereumProvider = new FakeProvider();
+    global.ethereumProvider = new MockInternalProvider();
   });
 
   describe('calcLatestSrcBalance', () => {
@@ -199,14 +199,14 @@ describe('balance', () => {
 });
 
 describe('fetchTokenBalance', () => {
-  let mockProvider: FakeProvider;
+  let mockProvider: MockInternalProvider;
   const mockAddress = '0x1234567890123456789012345678901234567890';
   const mockUserAddress = '0x9876543210987654321098765432109876543210';
   const mockBalance = BigNumber.from(1000);
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockProvider = new FakeProvider();
+    mockProvider = new MockInternalProvider();
 
     // Mock Web3Provider
     (Web3Provider as unknown as jest.Mock).mockImplementation(() => ({

@@ -26,9 +26,9 @@ export type KycServiceGetGeoCountryAction = {
  * @param params.country - ISO 3166-1 alpha-3 country code.
  * @returns The disclaimers.
  */
-export type KycServiceFetchDisclaimersAction = {
-  type: `KycService:fetchDisclaimers`;
-  handler: KycService['fetchDisclaimers'];
+export type KycServiceFetchVendorDisclaimersAction = {
+  type: `KycService:fetchVendorDisclaimers`;
+  handler: KycService['fetchVendorDisclaimers'];
 };
 
 /**
@@ -88,23 +88,41 @@ export type KycServiceSubmitVendorDisclaimersAction = {
 };
 
 /**
+ * Fetches the global idOS + KYC-provider disclaimer catalog
+ * (`GET /disclaimers?country=`). Carries no consent state — per-document
+ * `consented` flags and `credentialReusabilityConsentGiven` are
+ * session-scoped via {@link fetchSessionDisclaimersBySessionId}. Vendor T&Cs continue to
+ * come from {@link fetchVendorDisclaimers}.
+ *
+ * @param params - The parameters.
+ * @param params.country - ISO 3166-1 alpha-3 country code.
+ * @returns The catalog documents.
+ */
+export type KycServiceFetchSessionDisclaimersByCountryAction = {
+  type: `KycService:fetchSessionDisclaimersByCountry`;
+  handler: KycService['fetchSessionDisclaimersByCountry'];
+};
+
+/**
  * Fetches the session-scoped idOS + KYC-provider disclaimer catalog
- * (`GET /sessions/{sessionId}/disclaimers`). Requires an existing UKYC
- * session; vendor T&Cs continue to come from {@link fetchDisclaimers}.
+ * (`GET /sessions/{sessionId}/disclaimers`), including per-session
+ * `consented` flags and `credentialReusabilityConsentGiven`. For the
+ * pre-session global catalog use {@link fetchSessionDisclaimersByCountry}.
+ * Vendor T&Cs continue to come from {@link fetchVendorDisclaimers}.
  *
  * @param params - The parameters.
  * @param params.sessionId - The UKYC session id.
  * @returns The catalog, including which documents are already consented.
  */
-export type KycServiceFetchSessionDisclaimersAction = {
-  type: `KycService:fetchSessionDisclaimers`;
-  handler: KycService['fetchSessionDisclaimers'];
+export type KycServiceFetchSessionDisclaimersBySessionIdAction = {
+  type: `KycService:fetchSessionDisclaimersBySessionId`;
+  handler: KycService['fetchSessionDisclaimersBySessionId'];
 };
 
 /**
  * Records idOS + KYC-provider consents for a UKYC session
  * (`POST /sessions/{sessionId}/disclaimers`). `key`/`version` pairs must
- * match the current catalog from {@link fetchSessionDisclaimers}. A 409
+ * match the current catalog from {@link fetchSessionDisclaimersBySessionId}. A 409
  * means those document versions were already recorded for the session.
  *
  * @param params - The consent parameters.
@@ -218,12 +236,13 @@ export type KycServiceGetSessionStatusAction = {
  */
 export type KycServiceMethodActions =
   | KycServiceGetGeoCountryAction
-  | KycServiceFetchDisclaimersAction
+  | KycServiceFetchVendorDisclaimersAction
   | KycServiceCreateSessionAction
   | KycServiceCheckKycRequiredAction
   | KycServiceCreateVendorCustomerAction
   | KycServiceSubmitVendorDisclaimersAction
-  | KycServiceFetchSessionDisclaimersAction
+  | KycServiceFetchSessionDisclaimersByCountryAction
+  | KycServiceFetchSessionDisclaimersBySessionIdAction
   | KycServiceSubmitSessionDisclaimersAction
   | KycServiceFetchKycStatusAction
   | KycServiceFetchIdosEnclaveJwksAction

@@ -57,6 +57,7 @@ describe('transactionController', () => {
 
     expect(instance).toBeInstanceOf(TransactionController);
     expect(rootMessenger.call('TransactionController:getState')).toStrictEqual({
+      batchTransactionCounts: {},
       methodData: {},
       transactions: [],
       transactionBatches: [],

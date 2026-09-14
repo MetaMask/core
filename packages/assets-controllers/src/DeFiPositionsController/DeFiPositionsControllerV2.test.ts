@@ -312,7 +312,7 @@ describe('DeFiPositionsControllerV2', () => {
           network.startsWith('eip155:'),
         ),
         includeDeFiBalances: true,
-        forceFetchDeFiPositions: true,
+        forceFetchDeFiPositions: false,
         includePrices: true,
         vsCurrency: 'usd',
       },
@@ -386,7 +386,7 @@ describe('DeFiPositionsControllerV2', () => {
       {
         networks: [...expectedEvmNetworks, ...expectedSolanaNetworks],
         includeDeFiBalances: true,
-        forceFetchDeFiPositions: true,
+        forceFetchDeFiPositions: false,
         includePrices: true,
         vsCurrency: 'usd',
       },
@@ -894,8 +894,23 @@ describe('DeFiPositionsControllerV2', () => {
 
     expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledWith(
       expect.any(Array),
-      expect.objectContaining({ vsCurrency: 'usd' }),
+      expect.objectContaining({
+        vsCurrency: 'usd',
+        forceFetchDeFiPositions: true,
+      }),
       { staleTime: 0 },
+    );
+  });
+
+  it('passes forceFetchDeFiPositions: false when forceRefresh is omitted', async () => {
+    const { controller, mockFetchV6MultiAccountBalances } = setupController();
+
+    await controller.fetchDeFiPositions();
+
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ forceFetchDeFiPositions: false }),
+      {},
     );
   });
 

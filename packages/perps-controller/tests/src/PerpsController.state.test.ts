@@ -11,10 +11,6 @@ import {
 } from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
-jest.mock('@myx-trade/sdk', () => ({
-  MyxClient: jest.fn(),
-  OrderStatusEnum: { Successful: 9 },
-}));
 
 import {
   PERPS_EVENT_PROPERTY,
@@ -29,15 +25,12 @@ import {
   PerpsController,
   getDefaultPerpsControllerState,
   InitializationState,
-  firstNonEmpty,
-  resolveMyxAuthConfig,
 } from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import { PerpsAnalyticsEvent } from '../../src/types/index.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
-jest.mock('../../src/providers/MYXProvider');
 
 // Mock transaction controller utility
 const mockAddTransaction = jest.fn();
@@ -284,14 +277,6 @@ class TestablePerpsController extends PerpsController {
 
   testHasStandaloneProvider() {
     return this.hasStandaloneProvider();
-  }
-
-  testRegisterMYXProvider(MYXProvider) {
-    this.registerMYXProvider(MYXProvider);
-  }
-
-  testHandleMYXImportError(error) {
-    this.handleMYXImportError(error);
   }
 }
 
@@ -1158,7 +1143,7 @@ describe('PerpsController', () => {
           ...MOCK_PREFS_BASE.perps,
           watchlistMarkets: {
             hyperliquid: { testnet: [], mainnet: [] },
-            myx: { testnet: [], mainnet: [] },
+            lighter: { testnet: [], mainnet: [] },
           },
         },
       };
@@ -1214,7 +1199,7 @@ describe('PerpsController', () => {
           ...MOCK_PREFS_BASE.perps,
           watchlistMarkets: {
             hyperliquid: { testnet: [], mainnet: [] },
-            myx: { testnet: [], mainnet: [] },
+            lighter: { testnet: [], mainnet: [] },
           },
         },
       };
@@ -1327,7 +1312,7 @@ describe('PerpsController', () => {
                 testnet: ['BTC', 'ETH'],
                 mainnet: ['SOL'],
               },
-              myx: { testnet: [], mainnet: [] },
+              lighter: { testnet: [], mainnet: [] },
             },
           },
         };
@@ -1375,7 +1360,7 @@ describe('PerpsController', () => {
             ...MOCK_PREFS_BASE.perps,
             watchlistMarkets: {
               hyperliquid: { testnet: [], mainnet: [] },
-              myx: { testnet: [], mainnet: [] },
+              lighter: { testnet: [], mainnet: [] },
             },
           },
         };

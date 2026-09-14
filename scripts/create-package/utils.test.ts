@@ -1,15 +1,16 @@
+import { jest } from '@jest/globals';
 import * as commentJson from 'comment-json';
-import execa from 'execa';
-import fs from 'fs';
+import type { Stats } from 'fs';
 import path from 'path';
-import { format } from 'prettier';
 
 import { MonorepoFiles } from './constants.js';
-import * as fsUtils from './fs-utils.js';
 import type { PackageData } from './utils.js';
-import { finalizeAndWriteData, readMonorepoFiles } from './utils.js';
 
-jest.mock('fs', () => ({
+// `jest.mock` does not apply to ES modules, so the module registry is stubbed
+// with `jest.unstable_mockModule` and the modules under test are imported
+// dynamically afterwards. `utils.ts` reaches for the default and the named
+// exports of `fs`, so the mock exposes the same object as both.
+const fsMock = {
   existsSync: jest.fn(),
   promises: {
     mkdir: jest.fn(),
@@ -17,18 +18,26 @@ jest.mock('fs', () => ({
     writeFile: jest.fn(),
     stat: jest.fn(),
   },
-}));
+};
 
-jest.mock('execa', () => jest.fn());
+jest.unstable_mockModule('fs', () => ({ ...fsMock, default: fsMock }));
 
-jest.mock('prettier', () => ({
+jest.unstable_mockModule('execa', () => ({ default: jest.fn() }));
+
+jest.unstable_mockModule('prettier', () => ({
   format: jest.fn(),
 }));
 
-jest.mock('./fs-utils', () => ({
+jest.unstable_mockModule('./fs-utils.js', () => ({
   readAllFiles: jest.fn(),
   writeFiles: jest.fn(),
 }));
+
+const { default: fs } = await import('fs');
+const { default: execa } = await import('execa');
+const { format } = await import('prettier');
+const fsUtils = await import('./fs-utils.js');
+const { finalizeAndWriteData, readMonorepoFiles } = await import('./utils.js');
 
 describe('create-package/utils', () => {
   describe('readMonorepoFiles', () => {
@@ -43,20 +52,24 @@ describe('create-package/utils', () => {
     });
 
     it('should read the expected monorepo files', async () => {
-      (fs.promises.readFile as jest.Mock).mockImplementation(
-        async (filePath: string) => {
-          switch (path.basename(filePath)) {
-            case MonorepoFiles.TsConfig:
-              return tsConfig;
-            case MonorepoFiles.TsConfigBuild:
-              return tsConfigBuild;
-            case MonorepoFiles.PackageJson:
-              return packageJson;
-            default:
-              throw new Error(`Unexpected file: ${path.basename(filePath)}`);
-          }
-        },
-      );
+      // `readFile` is overloaded, which `mockImplementation` cannot match, so
+      // it is narrowed to the single signature `utils.ts` relies on.
+      const readFile = jest.mocked(
+        fs.promises.readFile,
+      ) as unknown as jest.Mock<(filePath: string) => Promise<string>>;
+
+      readFile.mockImplementation(async (filePath) => {
+        switch (path.basename(filePath)) {
+          case MonorepoFiles.TsConfig:
+            return tsConfig;
+          case MonorepoFiles.TsConfigBuild:
+            return tsConfigBuild;
+          case MonorepoFiles.PackageJson:
+            return packageJson;
+          default:
+            throw new Error(`Unexpected file: ${path.basename(filePath)}`);
+        }
+      });
 
       const monorepoFileData = await readMonorepoFiles();
 
@@ -91,18 +104,18 @@ describe('create-package/utils', () => {
       const mockError = new Error('Not found') as NodeJS.ErrnoException;
       mockError.code = 'ENOENT';
 
-      jest.spyOn(fs.promises, 'stat').mockRejectedValue(mockError);
+      jest.mocked(fs.promises.stat).mockRejectedValue(mockError);
 
-      (fsUtils.readAllFiles as jest.Mock).mockResolvedValueOnce({
+      jest.mocked(fsUtils.readAllFiles).mockResolvedValueOnce({
         'src/index.ts': 'export default 42;',
         'src/index.test.ts': 'export default 42;',
         'mock1.file':
-          'CURRENT_YEAR NODE_VERSIONS PACKAGE_NAME PACKAGE_DESCRIPTION PACKAGE_DIRECTORY_NAME',
-        'mock2.file': 'CURRENT_YEAR NODE_VERSIONS PACKAGE_NAME',
+          'CURRENT_YEAR NODE_VERSIONS @metamask/package-template PACKAGE_DESCRIPTION PACKAGE_DIRECTORY_NAME',
+        'mock2.file': 'CURRENT_YEAR NODE_VERSIONS @metamask/package-template',
         'mock3.file': 'PACKAGE_DESCRIPTION PACKAGE_DIRECTORY_NAME',
       });
 
-      (format as jest.Mock).mockImplementation((input) => input);
+      jest.mocked(format).mockImplementation(async (input) => input);
 
       await finalizeAndWriteData(packageData, monorepoFileData);
 
@@ -164,6 +177,85 @@ describe('create-package/utils', () => {
       });
     });
 
+    it('removes the "private" field from the template package.json', async () => {
+      const packageData: PackageData = {
+        name: '@metamask/foo',
+        description: 'A foo package.',
+        directoryName: 'foo',
+        nodeVersions: '>=18.0.0',
+        currentYear: '2023',
+      };
+
+      const monorepoFileData = {
+        tsConfig: { references: [] },
+        tsConfigBuild: { references: [] },
+        nodeVersions: '>=18.0.0',
+      };
+
+      const mockError = new Error('Not found') as NodeJS.ErrnoException;
+      mockError.code = 'ENOENT';
+      jest.mocked(fs.promises.stat).mockRejectedValue(mockError);
+
+      jest.mocked(fsUtils.readAllFiles).mockResolvedValueOnce({
+        'package.json': JSON.stringify({
+          name: '@metamask/package-template',
+          private: true,
+          version: '1.0.0',
+        }),
+      });
+
+      jest.mocked(format).mockImplementation(async (input) => input);
+
+      await finalizeAndWriteData(packageData, monorepoFileData);
+
+      expect(fsUtils.writeFiles).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          'package.json': JSON.stringify(
+            { name: '@metamask/foo', version: '1.0.0' },
+            null,
+            2,
+          ),
+        }),
+      );
+    });
+
+    it('excludes generated files from the template directory', async () => {
+      const packageData: PackageData = {
+        name: '@metamask/foo',
+        description: 'A foo package.',
+        directoryName: 'foo',
+        nodeVersions: '>=18.0.0',
+        currentYear: '2023',
+      };
+
+      const monorepoFileData = {
+        tsConfig: { references: [] },
+        tsConfigBuild: { references: [] },
+        nodeVersions: '>=18.0.0',
+      };
+
+      const mockError = new Error('Not found') as NodeJS.ErrnoException;
+      mockError.code = 'ENOENT';
+      jest.mocked(fs.promises.stat).mockRejectedValue(mockError);
+
+      jest.mocked(fsUtils.readAllFiles).mockResolvedValueOnce({
+        'src/index.ts': 'export default 42;',
+        'dist/index.js': 'export default 42;',
+        'dist/index.d.ts': 'export default 42;',
+        'coverage/lcov.info': '',
+        'tsconfig.tsbuildinfo': '{}',
+      });
+
+      jest.mocked(format).mockImplementation(async (input) => input);
+
+      await finalizeAndWriteData(packageData, monorepoFileData);
+
+      expect(fsUtils.writeFiles).toHaveBeenCalledWith(expect.any(String), {
+        'src/index.ts': 'export default 42;',
+      });
+    });
+
     it('throws if the package directory already exists', async () => {
       const packageData: PackageData = {
         name: '@metamask/foo',
@@ -183,7 +275,7 @@ describe('create-package/utils', () => {
         nodeVersions: '20.0.0',
       };
 
-      (fs.promises.stat as jest.Mock).mockResolvedValue({});
+      jest.mocked(fs.promises.stat).mockResolvedValue({} as Stats);
 
       await expect(
         finalizeAndWriteData(packageData, monorepoFileData),
@@ -197,7 +289,7 @@ describe('create-package/utils', () => {
       const mockError = new Error('Permission denied') as NodeJS.ErrnoException;
       mockError.code = 'EACCES';
 
-      jest.spyOn(fs.promises, 'stat').mockRejectedValue(mockError);
+      jest.mocked(fs.promises.stat).mockRejectedValue(mockError);
 
       const packageData: PackageData = {
         name: '@metamask/foo',

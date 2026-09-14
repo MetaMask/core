@@ -6,8 +6,10 @@ import {
   OIDC_TOKEN_URL,
   PAIR_IDENTIFIERS,
   PAIR_PROFILES_URL,
+  PAIR_SOCIAL_IDENTIFIER_URL,
   PROFILE_LINEAGE_URL,
   CUSTOMER_SERVICE_TOKEN_URL,
+  PARTNER_IDENTITY_TOKEN_URL,
 } from '../authentication-jwt-bearer/services.js';
 
 export const MOCK_NONCE_URL = NONCE_URL(Env.PRD);
@@ -16,8 +18,14 @@ export const MOCK_OIDC_TOKEN_URL = OIDC_TOKEN_URL(Env.PRD);
 export const MOCK_SIWE_LOGIN_URL = SIWE_LOGIN_URL(Env.PRD);
 export const MOCK_PAIR_IDENTIFIERS_URL = PAIR_IDENTIFIERS(Env.PRD);
 export const MOCK_PAIR_PROFILES_URL = PAIR_PROFILES_URL(Env.PRD);
+export const MOCK_PAIR_SOCIAL_IDENTIFIER_URL = PAIR_SOCIAL_IDENTIFIER_URL(
+  Env.PRD,
+);
 export const MOCK_PROFILE_LINEAGE_URL = PROFILE_LINEAGE_URL(Env.PRD);
 export const MOCK_CUSTOMER_SERVICE_TOKEN_URL = CUSTOMER_SERVICE_TOKEN_URL(
+  Env.PRD,
+);
+export const MOCK_PARTNER_IDENTITY_TOKEN_URL = PARTNER_IDENTITY_TOKEN_URL(
   Env.PRD,
 );
 
@@ -72,6 +80,13 @@ export const MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE = {
   token_type: 'bearer',
 };
 
+export const MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE = {
+  access_token: MOCK_ACCESS_JWT,
+  refresh_token: 'ory_rt_mock_refresh_token',
+  expires_in: 3600,
+  token_type: 'bearer',
+};
+
 export const MOCK_PAIR_PROFILES_RESPONSE = {
   profile: {
     identifier_id: MOCK_SRP_LOGIN_RESPONSE.profile.identifier_id,
@@ -79,6 +94,17 @@ export const MOCK_PAIR_PROFILES_RESPONSE = {
     profile_id: MOCK_SRP_LOGIN_RESPONSE.profile.profile_id,
   },
   profile_aliases: [],
+};
+
+export const MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE = {
+  expires_in: 3600,
+  profile: {
+    created_at: '2024-01-15T10:30:00Z',
+    identifier_id: MOCK_SRP_LOGIN_RESPONSE.profile.identifier_id,
+    identifier_type: 'GOOGLE',
+    profile_id: MOCK_SRP_LOGIN_RESPONSE.profile.profile_id,
+  },
+  token: MOCK_JWT,
 };
 
 export const MOCK_USER_PROFILE_LINEAGE_RESPONSE = {

@@ -1,5 +1,5 @@
 import { validateMnemonic } from '@metamask/scure-bip39';
-import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
+import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english.js';
 
 const REDACTED = '[redacted]';
 

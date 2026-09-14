@@ -15,7 +15,9 @@ import {
   ORIGIN_METAMASK,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
+import { MockPollingBlockTracker } from '@metamask/eth-block-tracker';
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
+import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -42,8 +44,6 @@ import assert from 'assert';
 // eslint-disable-next-line import-x/namespace
 import * as uuidModule from 'uuid';
 
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
-import { FakeProvider } from '../../../tests/fake-provider.js';
 import { flushPromises, jestAdvanceTime } from '../../../tests/helpers.js';
 import {
   buildCustomNetworkClientConfiguration,
@@ -198,9 +198,7 @@ function buildMockBlockTracker(
   latestBlockNumber: string,
   provider: InternalProvider,
 ): BlockTracker {
-  const fakeBlockTracker = new FakeBlockTracker({ provider });
-  fakeBlockTracker.mockLatestBlockNumber(latestBlockNumber);
-  return fakeBlockTracker;
+  return new MockPollingBlockTracker({ provider, latestBlockNumber });
 }
 
 /**
@@ -862,7 +860,7 @@ describe('TransactionController', () => {
               chainId: CHAIN_ID_MOCK,
             },
             id: NETWORK_CLIENT_ID_MOCK,
-            provider: new FakeProvider(),
+            provider: new MockInternalProvider(),
           } as unknown as NetworkClientConfiguration;
         }),
         checkForPendingTransactionAndStartPolling: jest.fn(),
@@ -942,6 +940,7 @@ describe('TransactionController', () => {
     it('sets default state', () => {
       const { controller } = setupController();
       expect(controller.state).toStrictEqual({
+        batchTransactionCounts: {},
         methodData: {},
         transactions: [],
         transactionBatches: [],
@@ -8681,6 +8680,7 @@ describe('TransactionController', () => {
         ),
       ).toMatchInlineSnapshot(`
         {
+          "batchTransactionCounts": {},
           "lastFetchedBlockNumbers": {},
           "methodData": {},
           "submitHistory": [],
@@ -8721,6 +8721,7 @@ describe('TransactionController', () => {
         ),
       ).toMatchInlineSnapshot(`
         {
+          "batchTransactionCounts": {},
           "methodData": {},
           "transactionBatches": [],
           "transactions": [],

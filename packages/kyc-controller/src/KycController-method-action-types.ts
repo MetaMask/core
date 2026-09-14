@@ -54,6 +54,29 @@ export type KycControllerLoadDisclaimersAction = {
 };
 
 /**
+ * Fetches the idOS + KYC-provider disclaimer catalog. Pass exactly one of
+ * `sessionId` or `country`:
+ *
+ * - `{ sessionId }` → {@link KycService.fetchSessionDisclaimersBySessionId}
+ * (`GET /sessions/{sessionId}/disclaimers`)
+ * - `{ country }` → {@link KycService.fetchSessionDisclaimersByCountry}
+ * (`GET /disclaimers?country=`)
+ *
+ * A session-id fetch also writes the catalog to `sessionDisclaimers`.
+ *
+ * @param params - The parameters. Provide exactly one of `sessionId` or
+ * `country`.
+ * @param params.sessionId - The UKYC session id.
+ * @param params.country - ISO 3166-1 alpha-3 country code.
+ * @returns The catalog. Session fetches include consent state; country
+ * fetches do not.
+ */
+export type KycControllerFetchSessionDisclaimersAction = {
+  type: `KycController:fetchSessionDisclaimers`;
+  handler: KycController['fetchSessionDisclaimers'];
+};
+
+/**
  * Captures terms acceptance for the currently loaded disclaimers and creates
  * a session.
  *
@@ -62,10 +85,12 @@ export type KycControllerLoadDisclaimersAction = {
  * @param params.product - The consuming feature the flow runs for. See
  * {@link initialize} for how the product drives the automatic post
  * authentication continuation.
- * @param params.sumsubTncSigned - Whether Sumsub T&C were accepted (T&C2).
- * Required for every vendor so callers explicitly declare acceptance.
- * @param params.idosTncSigned - Whether idOS T&C were accepted (T&C2).
- * Required for every vendor so callers explicitly declare acceptance.
+ * @param params.providerDisclaimersAccepted - Sumsub disclaimer documents the
+ * customer accepted (`{ key, version }` records). Required for every vendor
+ * so callers explicitly declare acceptance.
+ * @param params.idosDisclaimersAccepted - idOS disclaimer documents the
+ * customer accepted (`{ key, version }` records). Required for every vendor
+ * so callers explicitly declare acceptance.
  * @param params.credentialReusabilityConsentGiven - Whether the customer
  * consented to reuse existing idOS credentials. Used when recording
  * session-scoped disclaimers on the consents path. Defaults to `false`.
@@ -209,6 +234,10 @@ export type KycControllerStartSumSubAction = {
  * stores it on state, publishes {@link KycControllerStatusChangedEvent}, and
  * schedules short-interval polling while the status is `pending`.
  *
+ * Skipped when `userStatus` is already `completed`: a follow-up
+ * `GET /kyc/status` can still read a stale `pending` (for example after
+ * `session_not_in_valid_state`) and must not undo that decision.
+ *
  * @returns The latest status payload.
  */
 export type KycControllerRefreshKycStatusAction = {
@@ -258,6 +287,7 @@ export type KycControllerMethodActions =
   | KycControllerInitializeAction
   | KycControllerCreateVendorCustomerAction
   | KycControllerLoadDisclaimersAction
+  | KycControllerFetchSessionDisclaimersAction
   | KycControllerAcceptTermsAndStartSessionAction
   | KycControllerClearSavedTermsAction
   | KycControllerHandleFrameMessageAction

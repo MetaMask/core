@@ -1837,13 +1837,12 @@ async function withController<ReturnValue>(
       'ConnectivityController:getState',
     ],
     events: [
-      // eslint-disable-next-line no-restricted-syntax -- awaiting upstream :stateChanged migration
       'NetworkController:stateChange',
-      // eslint-disable-next-line no-restricted-syntax -- awaiting upstream :stateChanged migration
+
       'NetworkEnablementController:stateChange',
-      // eslint-disable-next-line no-restricted-syntax -- awaiting upstream :stateChanged migration
+
       'ConnectivityController:stateChange',
-      // eslint-disable-next-line no-restricted-syntax -- awaiting upstream :stateChanged migration
+
       'ClientController:stateChange',
       'KeyringController:unlock',
       'KeyringController:lock',

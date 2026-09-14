@@ -2,7 +2,10 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import { TransactionType } from '@metamask/transaction-controller';
+import {
+  hasTransactionType,
+  TransactionType,
+} from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   TransactionMeta,
@@ -375,7 +378,10 @@ async function getSingleQuote(
     const hasTransactions = Boolean(body.txs?.length);
     const requiresExactOutput =
       hasTransactions ||
-      transaction.type === TransactionType.perpsDepositAndOrder;
+      hasTransactionType(transaction, [
+        TransactionType.perpsDepositAndOrder,
+        TransactionType.predictDepositAndOrder,
+      ]);
     const finalBody: RelayQuoteRequest = {
       ...body,
       amount:
@@ -726,6 +732,7 @@ async function normalizeQuote(
     messenger,
     request,
     fullRequest.transaction,
+    fullRequest.accountSupports7702,
   );
 
   const targetNetwork = {
@@ -864,6 +871,7 @@ function getFiatRates(
  * @param messenger - Controller messenger.
  * @param request - Quote request.
  * @param transaction - Original transaction metadata.
+ * @param accountSupports7702 - Whether the source account supports EIP-7702.
  * @returns Total source network cost in USD and fiat.
  */
 async function calculateSourceNetworkCost(
@@ -871,6 +879,7 @@ async function calculateSourceNetworkCost(
   messenger: TransactionPayControllerMessenger,
   request: QuoteRequest,
   transaction: TransactionMeta,
+  accountSupports7702: boolean | undefined,
 ): Promise<
   TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] & {
     gasLimits: number[];
@@ -905,6 +914,7 @@ async function calculateSourceNetworkCost(
   }
 
   if (
+    accountSupports7702 &&
     transaction.isGasFeeSponsored &&
     request.sourceChainId === transaction.chainId &&
     request.targetChainId === transaction.chainId
@@ -1005,6 +1015,14 @@ async function calculateSourceNetworkCost(
   const result = { estimate, max, gasLimits, is7702 };
 
   if (new BigNumber(nativeBalance).isGreaterThanOrEqualTo(max.raw)) {
+    return result;
+  }
+
+  if (accountSupports7702 === false) {
+    log('Skipping gas station as account does not support EIP-7702', {
+      from,
+    });
+
     return result;
   }
 

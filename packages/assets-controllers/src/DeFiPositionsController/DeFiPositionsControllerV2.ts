@@ -266,7 +266,7 @@ export class DeFiPositionsControllerV2 extends BaseController<
     const queryOptions = {
       networks,
       includeDeFiBalances: true,
-      forceFetchDeFiPositions: true,
+      forceFetchDeFiPositions: options?.forceRefresh === true,
       includePrices: true,
       vsCurrency,
     };

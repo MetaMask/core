@@ -10,8 +10,8 @@ describe('ProviderRouter', () => {
 
   describe('constructor', () => {
     it('sets default provider from options', () => {
-      const customRouter = new ProviderRouter({ defaultProvider: 'myx' });
-      expect(customRouter.getDefaultProvider()).toBe('myx');
+      const customRouter = new ProviderRouter({ defaultProvider: 'lighter' });
+      expect(customRouter.getDefaultProvider()).toBe('lighter');
     });
 
     it('sets default strategy to default_provider', () => {
@@ -29,17 +29,17 @@ describe('ProviderRouter', () => {
 
   describe('selectProvider', () => {
     it('returns explicit providerId when provided', () => {
-      const result = router.selectProvider({ providerId: 'myx' });
-      expect(result).toBe('myx');
+      const result = router.selectProvider({ providerId: 'lighter' });
+      expect(result).toBe('lighter');
     });
 
     it('returns explicit providerId even when symbol is provided', () => {
       router.updateProviderMarkets('hyperliquid', ['BTC', 'ETH']);
       const result = router.selectProvider({
         symbol: 'BTC',
-        providerId: 'myx',
+        providerId: 'lighter',
       });
-      expect(result).toBe('myx');
+      expect(result).toBe('lighter');
     });
 
     it('returns default provider when no providerId is specified', () => {
@@ -53,21 +53,21 @@ describe('ProviderRouter', () => {
     });
 
     it('uses specified provider when provided', () => {
-      const result = router.selectProvider({ providerId: 'myx' });
-      expect(result).toBe('myx');
+      const result = router.selectProvider({ providerId: 'lighter' });
+      expect(result).toBe('lighter');
     });
   });
 
   describe('getProvidersForMarket', () => {
     beforeEach(() => {
       router.updateProviderMarkets('hyperliquid', ['BTC', 'ETH', 'SOL']);
-      router.updateProviderMarkets('myx', ['BTC', 'ETH', 'ARB']);
+      router.updateProviderMarkets('lighter', ['BTC', 'ETH', 'ARB']);
     });
 
     it('returns all providers that support a market', () => {
       const providers = router.getProvidersForMarket('BTC');
       expect(providers).toContain('hyperliquid');
-      expect(providers).toContain('myx');
+      expect(providers).toContain('lighter');
       expect(providers).toHaveLength(2);
     });
 
@@ -116,23 +116,23 @@ describe('ProviderRouter', () => {
 
     it('does not affect other providers', () => {
       router.updateProviderMarkets('hyperliquid', ['BTC']);
-      router.updateProviderMarkets('myx', ['BTC']);
+      router.updateProviderMarkets('lighter', ['BTC']);
       router.clearProviderMarkets('hyperliquid');
 
-      expect(router.getProvidersForMarket('BTC')).toEqual(['myx']);
+      expect(router.getProvidersForMarket('BTC')).toEqual(['lighter']);
     });
   });
 
   describe('setDefaultProvider', () => {
     it('updates the default provider', () => {
-      router.setDefaultProvider('myx');
-      expect(router.getDefaultProvider()).toBe('myx');
+      router.setDefaultProvider('lighter');
+      expect(router.getDefaultProvider()).toBe('lighter');
     });
 
     it('affects subsequent selectProvider calls', () => {
-      router.setDefaultProvider('myx');
+      router.setDefaultProvider('lighter');
       const result = router.selectProvider({ symbol: 'BTC' });
-      expect(result).toBe('myx');
+      expect(result).toBe('lighter');
     });
   });
 
@@ -160,21 +160,21 @@ describe('ProviderRouter', () => {
 
     it('returns all providers with registered markets', () => {
       router.updateProviderMarkets('hyperliquid', ['BTC']);
-      router.updateProviderMarkets('myx', ['ETH']);
+      router.updateProviderMarkets('lighter', ['ETH']);
 
       const providers = router.getRegisteredProviders();
       expect(providers).toContain('hyperliquid');
-      expect(providers).toContain('myx');
+      expect(providers).toContain('lighter');
       expect(providers).toHaveLength(2);
     });
 
     it('does not include cleared providers', () => {
       router.updateProviderMarkets('hyperliquid', ['BTC']);
-      router.updateProviderMarkets('myx', ['ETH']);
+      router.updateProviderMarkets('lighter', ['ETH']);
       router.clearProviderMarkets('hyperliquid');
 
       const providers = router.getRegisteredProviders();
-      expect(providers).toEqual(['myx']);
+      expect(providers).toEqual(['lighter']);
     });
   });
 });

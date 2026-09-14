@@ -12,7 +12,9 @@ jest.mock('@tanstack/react-query', () => ({
 
 describe('useQuery', () => {
   it('calls the underlying TanStack query function', () => {
-    const options = { queryKey: ['foo'] };
+    const options = {
+      queryKey: ['foo'] as const,
+    };
     expect(() => useQuery(options)).not.toThrow();
     expect(useQueryTanStack).toHaveBeenCalledWith({
       staleTime: 0,
@@ -25,7 +27,7 @@ describe('useQuery', () => {
 describe('useInfiniteQuery', () => {
   it('calls the underlying TanStack query function', () => {
     const options = {
-      queryKey: ['foo'],
+      queryKey: ['foo'] as const,
       initialPageParam: undefined,
       getNextPageParam: (): undefined => undefined,
     };

@@ -34,10 +34,11 @@ export const toCurrencyValues = (
     quote: { src, dest, feeData, priceData },
   } = quote;
 
-  const { adjustedReturn, priceImpact } = priceData ?? {};
+  const { adjustedReturn, priceImpact, cost } = priceData ?? {};
 
   const priceImpactFiat = toCurrency(priceImpact, usdToFiatExchangeRate);
   const adjustedReturnFiat = toCurrency(adjustedReturn, usdToFiatExchangeRate);
+  const costFiat = toCurrency(cost, usdToFiatExchangeRate);
 
   const minAmountValueInCurrency = toCurrency(
     {
@@ -68,13 +69,16 @@ export const toCurrencyValues = (
               ),
             ]),
         ),
-      ...((priceImpactFiat ?? adjustedReturnFiat) && {
+      ...((priceImpactFiat ?? adjustedReturnFiat ?? costFiat) && {
         priceData: {
           ...(priceImpactFiat && {
             priceImpact: priceImpactFiat,
           }),
           ...(adjustedReturnFiat && {
             adjustedReturn: adjustedReturnFiat,
+          }),
+          ...(costFiat && {
+            cost: costFiat,
           }),
         },
       }),

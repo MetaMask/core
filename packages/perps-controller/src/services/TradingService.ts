@@ -149,6 +149,21 @@ export class TradingService {
   }
 
   /**
+   * Build properties that identify the submitted order intent.
+   *
+   * @param params - Order parameters containing placement type and reduce-only intent.
+   * @returns Properties shared by every trade lifecycle event.
+   */
+  #buildTradeIntentProperties(
+    params: Pick<OrderParams, 'orderType' | 'reduceOnly'>,
+  ): PerpsAnalyticsProperties {
+    return {
+      [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.orderType,
+      [PERPS_EVENT_PROPERTY.REDUCE_ONLY]: params.reduceOnly === true,
+    };
+  }
+
+  /**
    * Emit a transaction event with status=submitted before the provider round-trip.
    * Fired for trade, close, cancel and risk-management operations.
    *
@@ -202,7 +217,7 @@ export class TradingService {
       [PERPS_EVENT_PROPERTY.DIRECTION]: params.isBuy
         ? PERPS_EVENT_VALUE.DIRECTION.LONG
         : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-      [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.orderType,
+      ...this.#buildTradeIntentProperties(params),
       [PERPS_EVENT_PROPERTY.LEVERAGE]: parseFloat(String(params.leverage ?? 1)),
       [PERPS_EVENT_PROPERTY.ORDER_SIZE]: trackedOrderSize,
       [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: duration,
@@ -612,7 +627,7 @@ export class TradingService {
         [PERPS_EVENT_PROPERTY.DIRECTION]: params.isBuy
           ? PERPS_EVENT_VALUE.DIRECTION.LONG
           : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-        [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.orderType,
+        ...this.#buildTradeIntentProperties(params),
         [PERPS_EVENT_PROPERTY.LEVERAGE]: parseFloat(
           String(params.leverage ?? 1),
         ),
@@ -1262,7 +1277,7 @@ export class TradingService {
           [PERPS_EVENT_PROPERTY.DIRECTION]: params.newOrder.isBuy
             ? PERPS_EVENT_VALUE.DIRECTION.LONG
             : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-          [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.newOrder.orderType,
+          ...this.#buildTradeIntentProperties(params.newOrder),
           [PERPS_EVENT_PROPERTY.LEVERAGE]: params.newOrder.leverage ?? 1,
           [PERPS_EVENT_PROPERTY.ORDER_SIZE]: params.newOrder.size,
           [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
@@ -1288,7 +1303,7 @@ export class TradingService {
             [PERPS_EVENT_PROPERTY.DIRECTION]: params.newOrder.isBuy
               ? PERPS_EVENT_VALUE.DIRECTION.LONG
               : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-            [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.newOrder.orderType,
+            ...this.#buildTradeIntentProperties(params.newOrder),
             [PERPS_EVENT_PROPERTY.LEVERAGE]: params.newOrder.leverage ?? 1,
             [PERPS_EVENT_PROPERTY.ORDER_SIZE]: params.newOrder.size,
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
@@ -1311,7 +1326,7 @@ export class TradingService {
         [PERPS_EVENT_PROPERTY.DIRECTION]: params.newOrder.isBuy
           ? PERPS_EVENT_VALUE.DIRECTION.LONG
           : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-        [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.newOrder.orderType,
+        ...this.#buildTradeIntentProperties(params.newOrder),
         [PERPS_EVENT_PROPERTY.LEVERAGE]: params.newOrder.leverage ?? 1,
         [PERPS_EVENT_PROPERTY.ORDER_SIZE]: params.newOrder.size,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
@@ -2367,6 +2382,9 @@ export class TradingService {
     const { provider, position, trackingData, context } = options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
+    const flipIntentProperties = this.#buildTradeIntentProperties({
+      orderType: 'market',
+    });
 
     try {
       this.#deps.tracer.trace({
@@ -2411,7 +2429,7 @@ export class TradingService {
         [PERPS_EVENT_PROPERTY.DIRECTION]: oppositeDirection
           ? PERPS_EVENT_VALUE.DIRECTION.LONG
           : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-        [PERPS_EVENT_PROPERTY.ORDER_TYPE]: 'market',
+        ...flipIntentProperties,
         [PERPS_EVENT_PROPERTY.LEVERAGE]: position.leverage?.value || 1,
         [PERPS_EVENT_PROPERTY.ORDER_SIZE]: positionSize,
         [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
@@ -2449,7 +2467,7 @@ export class TradingService {
             [PERPS_EVENT_PROPERTY.DIRECTION]: oppositeDirection
               ? PERPS_EVENT_VALUE.DIRECTION.LONG
               : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-            [PERPS_EVENT_PROPERTY.ORDER_TYPE]: 'market',
+            ...flipIntentProperties,
             [PERPS_EVENT_PROPERTY.LEVERAGE]: position.leverage?.value || 1,
             [PERPS_EVENT_PROPERTY.ORDER_SIZE]: positionSize,
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
@@ -2480,6 +2498,7 @@ export class TradingService {
           {
             [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
             [PERPS_EVENT_PROPERTY.ASSET]: position.symbol,
+            ...flipIntentProperties,
             [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
             [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]:
@@ -2521,6 +2540,7 @@ export class TradingService {
       this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.TradeTransaction, {
         [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
         [PERPS_EVENT_PROPERTY.ASSET]: position.symbol,
+        ...flipIntentProperties,
         [PERPS_EVENT_PROPERTY.ACTION]: failFlipAction,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: errorMessage,

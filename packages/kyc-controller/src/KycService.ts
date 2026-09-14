@@ -29,6 +29,7 @@ import type { KycServiceMethodActions } from './KycService-method-action-types.j
 import type {
   KycConsentRecord,
   KycDisclaimer,
+  KycDisclaimersCatalog,
   KycSessionDisclaimers,
   KycSessionStatus,
   KycUserStatusResponse,
@@ -48,12 +49,13 @@ export const serviceName = 'KycService';
 
 const MESSENGER_EXPOSED_METHODS = [
   'getGeoCountry',
-  'fetchDisclaimers',
+  'fetchVendorDisclaimers',
   'createSession',
   'checkKycRequired',
   'createVendorCustomer',
   'submitVendorDisclaimers',
-  'fetchSessionDisclaimers',
+  'fetchSessionDisclaimersByCountry',
+  'fetchSessionDisclaimersBySessionId',
   'submitSessionDisclaimers',
   'fetchKycStatus',
   'fetchIdosEnclaveJwks',
@@ -253,14 +255,31 @@ const KycUserStatusResponseStruct = type({
   errorCode: optional(string()),
 });
 
-const ConsentDocumentStruct = type({
+const CatalogDocumentFields = {
   key: string(),
   version: string(),
   title: string(),
   url: string(),
+} as const;
+
+const CatalogDocumentStruct = type(CatalogDocumentFields);
+
+// Session documents also report whether that version was already consented to.
+const ConsentDocumentStruct = type({
+  ...CatalogDocumentFields,
   consented: boolean(),
 });
 
+/**
+ * Global catalog from `GET /disclaimers` (no per-document `consented` flag and
+ * no credential-reuse flag).
+ */
+const GlobalDisclaimersResponseStruct = type({
+  idOS: array(CatalogDocumentStruct),
+  kycProvider: array(CatalogDocumentStruct),
+});
+
+/** Session catalog from `GET`/`POST /sessions/{id}/disclaimers`. */
 const SessionDisclaimersResponseStruct = type({
   idOS: array(ConsentDocumentStruct),
   kycProvider: array(ConsentDocumentStruct),
@@ -300,11 +319,16 @@ export type CreateVendorCustomerParams = {
 export type SubmitVendorDisclaimersParams = {
   /** Identity vendor whose T&Cs were accepted (currently `iron`). */
   vendor: KycVendor;
-  /** Disclaimer ids from {@link KycService.fetchDisclaimers}. */
+  /** Disclaimer ids from {@link KycService.fetchVendorDisclaimers}. */
   disclaimerIds: string[];
 };
 
-export type FetchSessionDisclaimersParams = {
+export type FetchSessionDisclaimersByCountryParams = {
+  /** ISO 3166-1 alpha-3 country code for `GET /disclaimers?country=`. */
+  country: string;
+};
+
+export type FetchSessionDisclaimersBySessionIdParams = {
   /** UKYC session id from {@link KycService.createUkycSession}. */
   sessionId: string;
 };
@@ -378,13 +402,21 @@ export type GetSessionStatusParams = {
  * `fetch` when provided), and the auth bearer token and geolocation come from
  * other controllers via the messenger.
  *
- * It extends {@link BaseDataService}, so every request is routed through
- * `fetchQuery`: it is wrapped in the shared service policy (retries, circuit
- * breaker) and its result is exposed via the service's `QueryClient`. Read-only
- * endpoints (`fetchDisclaimers`, `fetchIdosEnclaveJwks`, `fetchIdosRelayJwks`) are cached
- * with a `staleTime`; vendor-disclaimer, session-scoped disclaimer,
- * session-creating, and status-polling endpoints opt out of caching
+ * It extends {@link BaseDataService}, so read-only endpoints are routed through
+ * `fetchQuery`: they are wrapped in the shared service policy (retries, circuit
+ * breaker) and their results are exposed via the service's `QueryClient`.
+ * `fetchDisclaimers` and `fetchJwks` are cached with a `staleTime`;
+ * session-scoped disclaimer and status-polling reads opt out of caching
  * (`staleTime`/`gcTime` of `0`) so they never serve a stale result.
+ *
+ * Write endpoints (every `POST`) deliberately bypass `fetchQuery`. The query
+ * cache is built for idempotent reads: it deduplicates concurrent requests
+ * sharing a `queryKey`, retains responses for replay, and publishes them on the
+ * messenger via `cacheUpdated`. None of that is safe for calls that create
+ * sessions, customers, or consents — two overlapping `createVendorCustomer`
+ * calls would collapse into a single `POST`, and session tokens would be
+ * broadcast as cache payloads. Writes therefore call `#requestJson` directly,
+ * which also means they are not retried by the service policy.
  */
 export class KycService extends BaseDataService<
   typeof serviceName,
@@ -469,7 +501,7 @@ export class KycService extends BaseDataService<
     // Guard nullish/empty geolocation with the documented domain error rather
     // than letting `assert(location, string())` surface a superstruct
     // assertion error (which would change how the failure reads in
-    // `disclaimersError`).
+    // `vendorError`).
     const alpha2 =
       typeof location === 'string' ? location.split('-')[0].toUpperCase() : '';
     if (!alpha2 || alpha2 === 'UNKNOWN') {
@@ -497,7 +529,7 @@ export class KycService extends BaseDataService<
    * @param params.country - ISO 3166-1 alpha-3 country code.
    * @returns The disclaimers.
    */
-  async fetchDisclaimers({
+  async fetchVendorDisclaimers({
     vendor = 'moonpay',
     country,
   }: {
@@ -507,7 +539,7 @@ export class KycService extends BaseDataService<
     const url = new URL(`/vendors/${vendor}/disclaimers`, this.#baseUrl);
     url.searchParams.set('country', country);
     const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchDisclaimers`, vendor, country],
+      queryKey: [`${this.name}:fetchVendorDisclaimers`, vendor, country],
       queryFn: async () => this.#requestJson(url, { method: 'GET' }),
       staleTime: inMilliseconds(5, Duration.Minute),
     });
@@ -528,21 +560,9 @@ export class KycService extends BaseDataService<
     params: CreateSessionParams,
   ): Promise<Infer<typeof CreateSessionResponseStruct>> {
     const url = new URL('/vendors/moonpay/sessions', this.#baseUrl);
-    const data = await this.fetchQuery({
-      queryKey: [
-        `${this.name}:createSession`,
-        params.email,
-        params.termsAcceptedAt,
-        params.disclaimerIds,
-      ],
-      queryFn: async () =>
-        this.#requestJson(url, {
-          method: 'POST',
-          body: JSON.stringify(params),
-        }),
-      // A session-creating mutation must never serve a stale/cached result.
-      staleTime: 0,
-      gcTime: 0,
+    const data = await this.#requestJson(url, {
+      method: 'POST',
+      body: JSON.stringify(params),
     });
     return this.#validateResponse(
       data,
@@ -587,22 +607,9 @@ export class KycService extends BaseDataService<
       }
     }
 
-    const data = await this.fetchQuery({
-      queryKey: [
-        `${this.name}:checkKycRequired`,
-        vendor,
-        params.accessToken ?? null,
-        params.country ?? null,
-        capabilities,
-      ],
-      queryFn: async () =>
-        this.#requestJson(url, {
-          method: 'POST',
-          body: JSON.stringify(body),
-        }),
-      // The requirement can change server-side, so always re-check.
-      staleTime: 0,
-      gcTime: 0,
+    const data = await this.#requestJson(url, {
+      method: 'POST',
+      body: JSON.stringify(body),
     });
     const { required } = this.#validateResponse(
       data,
@@ -627,20 +634,9 @@ export class KycService extends BaseDataService<
     params: CreateVendorCustomerParams,
   ): Promise<VendorCustomerResponse> {
     const url = new URL(`/vendors/${params.vendor}/customers`, this.#baseUrl);
-    const data = await this.fetchQuery({
-      queryKey: [
-        `${this.name}:createVendorCustomer`,
-        params.vendor,
-        params.email,
-      ],
-      queryFn: async () =>
-        this.#requestJson(url, {
-          method: 'POST',
-          body: JSON.stringify({ email: params.email }),
-        }),
-      // Customer creation/resume must never serve a stale/cached result.
-      staleTime: 0,
-      gcTime: 0,
+    const data = await this.#requestJson(url, {
+      method: 'POST',
+      body: JSON.stringify({ email: params.email }),
     });
     return this.#validateResponse(
       data,
@@ -668,19 +664,9 @@ export class KycService extends BaseDataService<
       `/vendors/${encodeURIComponent(params.vendor)}/disclaimers`,
       this.#baseUrl,
     );
-    const data = await this.fetchQuery({
-      queryKey: [
-        `${this.name}:submitVendorDisclaimers`,
-        params.vendor,
-        params.disclaimerIds,
-      ],
-      queryFn: async () =>
-        this.#requestJson(url, {
-          method: 'POST',
-          body: JSON.stringify({ disclaimerIds: params.disclaimerIds }),
-        }),
-      staleTime: 0,
-      gcTime: 0,
+    const data = await this.#requestJson(url, {
+      method: 'POST',
+      body: JSON.stringify({ disclaimerIds: params.disclaimerIds }),
     });
     return this.#validateResponse(
       data,
@@ -690,23 +676,60 @@ export class KycService extends BaseDataService<
   }
 
   /**
+   * Fetches the global idOS + KYC-provider disclaimer catalog
+   * (`GET /disclaimers?country=`). Carries no consent state — per-document
+   * `consented` flags and `credentialReusabilityConsentGiven` are
+   * session-scoped via {@link fetchSessionDisclaimersBySessionId}. Vendor T&Cs continue to
+   * come from {@link fetchVendorDisclaimers}.
+   *
+   * @param params - The parameters.
+   * @param params.country - ISO 3166-1 alpha-3 country code.
+   * @returns The catalog documents.
+   */
+  async fetchSessionDisclaimersByCountry({
+    country,
+  }: FetchSessionDisclaimersByCountryParams): Promise<KycDisclaimersCatalog> {
+    if (country.length !== 3) {
+      throw new Error(
+        `KycService.fetchSessionDisclaimersByCountry: country must be an ISO 3166-1 alpha-3 code (received "${country}").`,
+      );
+    }
+
+    const url = new URL('/disclaimers', this.#baseUrl);
+    url.searchParams.set('country', country);
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchSessionDisclaimersByCountry`, country],
+      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
+      staleTime: 0,
+      gcTime: 0,
+    });
+    return this.#validateResponse(
+      data,
+      GlobalDisclaimersResponseStruct,
+      'disclaimers',
+    );
+  }
+
+  /**
    * Fetches the session-scoped idOS + KYC-provider disclaimer catalog
-   * (`GET /sessions/{sessionId}/disclaimers`). Requires an existing UKYC
-   * session; vendor T&Cs continue to come from {@link fetchDisclaimers}.
+   * (`GET /sessions/{sessionId}/disclaimers`), including per-session
+   * `consented` flags and `credentialReusabilityConsentGiven`. For the
+   * pre-session global catalog use {@link fetchSessionDisclaimersByCountry}.
+   * Vendor T&Cs continue to come from {@link fetchVendorDisclaimers}.
    *
    * @param params - The parameters.
    * @param params.sessionId - The UKYC session id.
    * @returns The catalog, including which documents are already consented.
    */
-  async fetchSessionDisclaimers(
-    params: FetchSessionDisclaimersParams,
-  ): Promise<KycSessionDisclaimers> {
+  async fetchSessionDisclaimersBySessionId({
+    sessionId,
+  }: FetchSessionDisclaimersBySessionIdParams): Promise<KycSessionDisclaimers> {
     const url = new URL(
-      `/sessions/${encodeURIComponent(params.sessionId)}/disclaimers`,
+      `/sessions/${encodeURIComponent(sessionId)}/disclaimers`,
       this.#baseUrl,
     );
     const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchSessionDisclaimers`, params.sessionId],
+      queryKey: [`${this.name}:fetchSessionDisclaimersBySessionId`, sessionId],
       queryFn: async () => this.#requestJson(url, { method: 'GET' }),
       // Consent state can change after a POST, so always re-fetch.
       staleTime: 0,
@@ -722,7 +745,7 @@ export class KycService extends BaseDataService<
   /**
    * Records idOS + KYC-provider consents for a UKYC session
    * (`POST /sessions/{sessionId}/disclaimers`). `key`/`version` pairs must
-   * match the current catalog from {@link fetchSessionDisclaimers}. A 409
+   * match the current catalog from {@link fetchSessionDisclaimersBySessionId}. A 409
    * means those document versions were already recorded for the session.
    *
    * @param params - The consent parameters.
@@ -735,26 +758,14 @@ export class KycService extends BaseDataService<
       `/sessions/${encodeURIComponent(params.sessionId)}/disclaimers`,
       this.#baseUrl,
     );
-    const data = await this.fetchQuery({
-      queryKey: [
-        `${this.name}:submitSessionDisclaimers`,
-        params.sessionId,
-        params.idOS,
-        params.kycProvider,
-        params.credentialReusabilityConsentGiven,
-      ],
-      queryFn: async () =>
-        this.#requestJson(url, {
-          method: 'POST',
-          body: JSON.stringify({
-            idOS: params.idOS,
-            kycProvider: params.kycProvider,
-            credentialReusabilityConsentGiven:
-              params.credentialReusabilityConsentGiven,
-          }),
-        }),
-      staleTime: 0,
-      gcTime: 0,
+    const data = await this.#requestJson(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        idOS: params.idOS,
+        kycProvider: params.kycProvider,
+        credentialReusabilityConsentGiven:
+          params.credentialReusabilityConsentGiven,
+      }),
     });
     return this.#validateResponse(
       data,
@@ -868,23 +879,16 @@ export class KycService extends BaseDataService<
     params: CreateUkycSessionParams,
   ): Promise<UkycSessionResponse> {
     const url = new URL('/sessions', this.#baseUrl);
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:createUkycSession`, params.jwtToken],
-      queryFn: async () =>
-        this.#requestJson(url, {
-          method: 'POST',
-          body: JSON.stringify({
-            vendorId: params.vendor ?? 'moonpay',
-            vendorUserId: 'mockedId',
-            jwtToken: params.jwtToken,
-            sessionClientPublicKey: params.sessionClientPublicKey,
-            residenceCountry: params.residenceCountry,
-            vendorMetadata: params.vendorMetadata ?? {},
-          }),
-        }),
-      // A session-creating mutation must never serve a stale/cached result.
-      staleTime: 0,
-      gcTime: 0,
+    const data = await this.#requestJson(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        vendorId: params.vendor ?? 'moonpay',
+        vendorUserId: 'mockedId',
+        jwtToken: params.jwtToken,
+        sessionClientPublicKey: params.sessionClientPublicKey,
+        residenceCountry: params.residenceCountry,
+        vendorMetadata: params.vendorMetadata ?? {},
+      }),
     });
     return this.#validateResponse(
       data,
@@ -909,18 +913,12 @@ export class KycService extends BaseDataService<
       `/sessions/${encodeURIComponent(params.sessionId)}/authorizations`,
       this.#baseUrl,
     );
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:setAuthorizations`, params.sessionId],
-      queryFn: async () =>
-        this.#requestJson(url, {
-          method: 'POST',
-          body: JSON.stringify({
-            wrappedEncryptionDataKey: params.wrappedEncryptionDataKey,
-            wrappedUkycCapabilityToken: params.wrappedUkycCapabilityToken,
-          }),
-        }),
-      staleTime: 0,
-      gcTime: 0,
+    const data = await this.#requestJson(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        wrappedEncryptionDataKey: params.wrappedEncryptionDataKey,
+        wrappedUkycCapabilityToken: params.wrappedUkycCapabilityToken,
+      }),
     });
     return this.#validateResponse(
       data,
@@ -943,13 +941,7 @@ export class KycService extends BaseDataService<
       `/sessions/${encodeURIComponent(sessionId)}/journey`,
       this.#baseUrl,
     );
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:createJourney`, sessionId],
-      queryFn: async () => this.#requestJson(url, { method: 'POST' }),
-      // Journeys are (re)created on demand; do not reuse a cached token.
-      staleTime: 0,
-      gcTime: 0,
-    });
+    const data = await this.#requestJson(url, { method: 'POST' });
     return this.#validateResponse(
       data,
       ApplicantAccessTokenResponseStruct,
@@ -1025,8 +1017,9 @@ export class KycService extends BaseDataService<
   /**
    * Performs a single JSON request.
    *
-   * This is meant to be used as the `queryFn` for {@link fetchQuery}, which
-   * wraps it in the shared service policy (retries, circuit breaker). Requests
+   * Read endpoints pass this as the `queryFn` to {@link fetchQuery}, which
+   * wraps it in the shared service policy (retries, circuit breaker). Write
+   * endpoints call it directly, so they are executed exactly once. Requests
    * are authenticated with the wallet bearer token by default; pass
    * `{ authenticated: false }` for calls to services that do not expect it
    * (e.g. the idOS enclave or idOS relay JWKS endpoints).

@@ -18,9 +18,9 @@ function pathExistsSync(filePath) {
  * This builds and copies the ramps-controller files to the mobile app's node_modules
  */
 
-const rampsControllerPath = __dirname;
+const rampsControllerPath = import.meta.dirname;
 const mobileNodeModulesPath = path.join(
-  __dirname,
+  import.meta.dirname,
   '..',
   '..',
   '..',
@@ -56,7 +56,13 @@ try {
 }
 
 // Check if mobile app exists
-const mobilePath = path.join(__dirname, '..', '..', '..', 'metamask-mobile');
+const mobilePath = path.join(
+  import.meta.dirname,
+  '..',
+  '..',
+  '..',
+  'metamask-mobile',
+);
 if (!pathExistsSync(mobilePath)) {
   console.error('❌ MetaMask mobile app not found at expected location.');
   process.exit(1);

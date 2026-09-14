@@ -11,7 +11,10 @@ import type {
   KeyringControllerWithKeyringV2UnsafeAction,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { SeedlessOnboardingControllerGetStateAction } from '@metamask/seedless-onboarding-controller';
+import type {
+  SeedlessOnboardingControllerGetAccessTokenAction,
+  SeedlessOnboardingControllerGetStateAction,
+} from '@metamask/seedless-onboarding-controller';
 import type { Json } from '@metamask/utils';
 
 import type {
@@ -22,12 +25,15 @@ import type {
   SrpLoginTag,
   UserProfile,
   UserProfileLineage,
+  OidcTokenAudience,
+  OidcTokenClaims,
 } from '../../sdk/index.js';
 import {
   assertMessageStartsWithMetamask,
   AuthType,
   Env,
   JwtBearerAuth,
+  PairConflictError,
 } from '../../sdk/index.js';
 import type { MetaMetricsAuth } from '../../shared/types/services.js';
 import {
@@ -59,10 +65,24 @@ export type AuthenticationControllerState = {
    * `true` to mirror that runtime default.
    */
   needsProfilePairing?: boolean;
+  /**
+   * Client gate for social identifier pairing. Defaults to `true` (fresh
+   * install / upgrade), set to `false` after a successful or 409
+   * `POST /api/v2/profile/pair/identifier`, left `true` on other failures
+   * so the next `performSignIn` retries, and cleared without an API call
+   * when the user never logged in with a social provider.
+   *
+   * Optional in the type so partial-state selectors stay assignable to
+   * `AuthenticationControllerState`. The controller seeds it via
+   * `defaultState` at construction; consumers should read `undefined` as
+   * `true` to mirror that runtime default.
+   */
+  needsSocialPairing?: boolean;
 };
 export const defaultState: AuthenticationControllerState = {
   isSignedIn: false,
   needsProfilePairing: true,
+  needsSocialPairing: true,
 };
 const metadata: StateMetadata<AuthenticationControllerState> = {
   isSignedIn: {
@@ -72,6 +92,12 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
     usedInUi: true,
   },
   needsProfilePairing: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  needsSocialPairing: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
@@ -109,6 +135,12 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
 
 type ControllerConfig = {
   env: Env;
+  /**
+   * When `true`, `performSignIn` attempts to attach the Google/Apple/
+   * Telegram social identifier to the primary SRP profile. Defaults to
+   * `() => false`.
+   */
+  isSocialPairingEnabled: () => boolean;
 };
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -119,8 +151,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'refreshCanonicalProfileId',
   'getUserProfileLineage',
   'getCustomerServiceToken',
+  'getPartnerIdentityToken',
   'isSignedIn',
   'requestProfilePairing',
+  'clearState',
 ] as const;
 
 export type Actions =
@@ -157,7 +191,8 @@ export type Events =
 type AllowedActions =
   | KeyringControllerGetStateAction
   | KeyringControllerWithKeyringV2UnsafeAction
-  | SeedlessOnboardingControllerGetStateAction;
+  | SeedlessOnboardingControllerGetStateAction
+  | SeedlessOnboardingControllerGetAccessTokenAction;
 
 type AllowedEvents = KeyringControllerLockEvent | KeyringControllerUnlockEvent;
 
@@ -183,13 +218,15 @@ export class AuthenticationController extends BaseController<
 
   readonly #config: ControllerConfig = {
     env: Env.PRD,
+    isSocialPairingEnabled: () => false,
   };
 
   #isUnlocked = false;
 
-  // Bumped by `requestProfilePairing`. `performSignIn` snapshots this
-  // before its first await; if it changes mid-flight we must NOT clear
-  // `needsProfilePairing` (the rearm signal wins).
+  /**
+   * Bumped by `requestProfilePairing` and `clearState` so an in-flight
+   * `performSignIn` can't clear `needsProfilePairing` afterwards.
+   */
   #profilePairingRequestEpoch = 0;
 
   readonly #keyringController = {
@@ -236,6 +273,8 @@ export class AuthenticationController extends BaseController<
     this.#config = {
       ...this.#config,
       ...config,
+      isSocialPairingEnabled:
+        config?.isSocialPairingEnabled ?? this.#config.isSocialPairingEnabled,
     };
 
     this.#metametrics = metametrics;
@@ -389,28 +428,45 @@ export class AuthenticationController extends BaseController<
    */
   #resolveSocialIdentifierType(): LoginIdentifierType {
     try {
-      const { vault, authConnection } = this.messenger.call(
-        'SeedlessOnboardingController:getState',
+      return this.#identifierTypeFromSeedlessState(
+        this.messenger.call('SeedlessOnboardingController:getState'),
       );
-      if (vault === null || vault === undefined) {
-        return 'SRP';
-      }
-
-      // Match provider strings from SeedlessOnboarding state rather than
-      // importing AuthConnection — a value import would load that package
-      // (and its heavy deps) whenever this controller is imported.
-      switch (authConnection) {
-        case 'google':
-          return 'GOOGLE';
-        case 'apple':
-          return 'APPLE';
-        case 'telegram':
-          return 'TELEGRAM';
-        default:
-          return 'SRP';
-      }
     } catch {
       return 'SRP';
+    }
+  }
+
+  /**
+   * Maps SeedlessOnboarding vault + `authConnection` to a login identifier
+   * type. Does not catch messenger errors — callers decide whether a
+   * missing controller is `SRP` or a retryable failure.
+   *
+   * @param state - SeedlessOnboarding slice used for the mapping.
+   * @param state.vault - Encrypted social vault, if present.
+   * @param state.authConnection - Social provider id (`google` / `apple` /
+   * `telegram`).
+   * @returns The social provider identifier type, or `SRP`.
+   */
+  #identifierTypeFromSeedlessState(state: {
+    vault?: string | null;
+    authConnection?: string;
+  }): LoginIdentifierType {
+    if (state.vault === null || state.vault === undefined) {
+      return 'SRP';
+    }
+
+    // Match provider strings from SeedlessOnboarding state rather than
+    // importing AuthConnection — a value import would load that package
+    // (and its heavy deps) whenever this controller is imported.
+    switch (state.authConnection) {
+      case 'google':
+        return 'GOOGLE';
+      case 'apple':
+        return 'APPLE';
+      case 'telegram':
+        return 'TELEGRAM';
+      default:
+        return 'SRP';
     }
   }
 
@@ -440,7 +496,122 @@ export class AuthenticationController extends BaseController<
       }
     }
 
+    try {
+      await this.#trySocialPairing(accessTokens[0]);
+    } catch {
+      // noop
+    }
+
     return accessTokens;
+  }
+
+  /**
+   * Attaches a Google/Apple/Telegram social identifier to the primary SRP
+   * profile via `POST /api/v2/profile/pair/identifier`.
+   *
+   * Runs only when `isSocialPairingEnabled()` is true and
+   * `needsSocialPairing` is not `false` (`undefined` is treated as true).
+   * No social provider (`authConnection` unset) → clear the flag (nothing
+   * to pair). Social provider set but vault missing → skip (onboarding
+   * still in flight). Google without email → skip (API requires it).
+   * Telegram never sends `email` (the field holds a display name, not an
+   * address). Missing social JWT → skip. 409 Conflict → clear the flag
+   * (identifier already owned; retry is pointless). Other errors
+   * propagate so the caller can swallow them and leave the flag set for
+   * retry.
+   *
+   * @param primaryAccessToken - Primary SRP OIDC access token used as the
+   * Bearer credential. The profile associated with this JWT becomes the
+   * canonical owner of the social identifier.
+   */
+  async #trySocialPairing(primaryAccessToken?: string): Promise<void> {
+    if (
+      !this.#config.isSocialPairingEnabled() ||
+      this.state.needsSocialPairing === false ||
+      !primaryAccessToken
+    ) {
+      return;
+    }
+
+    let seedlessState: {
+      vault?: string | null;
+      authConnection?: string;
+      socialLoginEmail?: string;
+    };
+    try {
+      seedlessState = this.messenger.call(
+        'SeedlessOnboardingController:getState',
+      );
+    } catch {
+      // Controller missing or getState failed — retry next performSignIn.
+      return;
+    }
+
+    // `SRP` here does not describe the vault: it is the mapping's "no social
+    // identity" result, returned when there is no seedless vault or the
+    // provider is unrecognised. In both cases there is nothing to pair.
+    const identifierType = this.#identifierTypeFromSeedlessState(seedlessState);
+    if (identifierType === 'SRP') {
+      const { vault, authConnection } = seedlessState;
+      // Vault not written yet but a social provider is already known —
+      // onboarding is still in flight. Do not clear; retry next sign-in.
+      if ((vault === null || vault === undefined) && Boolean(authConnection)) {
+        return;
+      }
+      this.#clearNeedsSocialPairing();
+      return;
+    }
+
+    // Email policy follows the API contract: GOOGLE requires `email` (400
+    // without it), APPLE accepts it optionally, TELEGRAM must not send it
+    // (clients store a display name in `socialLoginEmail` for Telegram).
+    // Clients request the `email` scope for Google, so a missing value is a
+    // defensive case rather than an expected one; returning here leaves
+    // `needsSocialPairing` set so the next sign-in retries instead of
+    // sending a request that would fail.
+    const { socialLoginEmail } = seedlessState;
+    let email: string | undefined;
+    if (identifierType === 'GOOGLE') {
+      if (!socialLoginEmail) {
+        return;
+      }
+      email = socialLoginEmail;
+    } else if (identifierType === 'APPLE') {
+      email = socialLoginEmail;
+    }
+
+    const socialJwt = await this.messenger.call(
+      'SeedlessOnboardingController:getAccessToken',
+    );
+    if (socialJwt === undefined || socialJwt === '') {
+      return;
+    }
+
+    try {
+      await this.#auth.pairSocialIdentifier(
+        {
+          identifierType,
+          socialJwt,
+          ...(email ? { email } : {}),
+        },
+        primaryAccessToken,
+      );
+      this.#clearNeedsSocialPairing();
+    } catch (error) {
+      if (error instanceof PairConflictError) {
+        this.#clearNeedsSocialPairing();
+        return;
+      }
+      throw error;
+    }
+  }
+
+  #clearNeedsSocialPairing(): void {
+    if (this.state.needsSocialPairing !== false) {
+      this.update((state) => {
+        state.needsSocialPairing = false;
+      });
+    }
   }
 
   /**
@@ -566,6 +737,15 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
+   * Resets the controller to `defaultState`. Clients call this on wallet reset
+   * so the next wallet starts unsigned with both pairing gates re-armed.
+   */
+  public clearState(): void {
+    this.#profilePairingRequestEpoch += 1;
+    this.update(() => ({ ...defaultState }));
+  }
+
+  /**
    * Returns a bearer token for the specified SRP, logging in if needed.
    *
    * When called without `entropySourceId`, returns the primary (first) SRP's
@@ -674,6 +854,33 @@ export class AuthenticationController extends BaseController<
     this.#assertIsUnlocked('getCustomerServiceToken');
     const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getCustomerServiceToken(resolvedId);
+  }
+
+  /**
+   * Mints a partner identity token for the specified SRP, logging in if needed.
+   *
+   * Calls `POST /api/v2/oidc/token` with the Hydra login bearer and returns
+   * the minted `access_token`. Email on live tokens is under JWT `ext`.
+   * HTTP 422 throws `EmailRequiredError` when this profile has no
+   * verified email.
+   *
+   * @param claims - Claim names to embed. Only `email` is supported.
+   * @param audience - Partner audience (`kyc` or `iron`).
+   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+   * @returns The partner identity access token.
+   */
+  public async getPartnerIdentityToken(
+    claims: OidcTokenClaims,
+    audience: OidcTokenAudience,
+    entropySourceId?: string,
+  ): Promise<string> {
+    this.#assertIsUnlocked('getPartnerIdentityToken');
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
+    return await this.#auth.getPartnerIdentityToken(
+      claims,
+      audience,
+      resolvedId,
+    );
   }
 
   public isSignedIn(): boolean {

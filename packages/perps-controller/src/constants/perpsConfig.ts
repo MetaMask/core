@@ -654,8 +654,6 @@ export const FUNDING_RATE_CONFIG = {
 export const PROVIDER_CONFIG = {
   /** Default perpetual DEX provider when no explicit selection exists */
   DefaultProvider: 'hyperliquid' as const,
-  /** Force MYX to testnet only (mainnet credentials not yet available) */
-  MYX_TESTNET_ONLY: false,
   /**
    * Force Lighter to testnet only. Off: Lighter follows the global network
    * toggle — mainnet reads AND writes are enabled (the initial rollout
@@ -701,10 +699,10 @@ export function getProviderNetworkKey(state: {
 
 /**
  * Build a provider:network cache key for a specific provider id.
- * Accounts for MYX_TESTNET_ONLY: MYX is always on testnet regardless of the
- * global network flag.
+ * Accounts for LIGHTER_TESTNET_ONLY: when set, Lighter stays on testnet
+ * regardless of the global network flag.
  *
- * @param providerId - The provider identifier (e.g. "hyperliquid", "myx").
+ * @param providerId - The provider identifier (e.g. "hyperliquid", "lighter").
  * @param isTestnet - Global testnet flag from controller state.
  * @returns Cache key in the format "provider:mainnet" or "provider:testnet".
  */
@@ -713,9 +711,7 @@ export function buildProviderCacheKey(
   isTestnet: boolean,
 ): string {
   let effectiveTestnet = isTestnet;
-  if (providerId === 'myx') {
-    effectiveTestnet = PROVIDER_CONFIG.MYX_TESTNET_ONLY || isTestnet;
-  } else if (providerId === 'lighter') {
+  if (providerId === 'lighter') {
     effectiveTestnet = PROVIDER_CONFIG.LIGHTER_TESTNET_ONLY || isTestnet;
   }
   return `${providerId}:${effectiveTestnet ? 'testnet' : 'mainnet'}`;
