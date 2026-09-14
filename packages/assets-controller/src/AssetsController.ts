@@ -767,6 +767,10 @@ export class AssetsController extends BaseController<
   /** Serializes account-switch fetch + subscribe to prevent overlapping races. */
   readonly #accountRefreshMutex = new Mutex();
 
+  #loadingTokenCounter = 0;
+
+  readonly #loadingTokens = new Map<AccountId, number>();
+
   /**
    * Active balance subscriptions keyed by account ID.
    * Each account has one logical subscription that may span multiple data sources.
@@ -1366,7 +1370,7 @@ export class AssetsController extends BaseController<
    * @param accounts - Selected accounts to refresh.
    */
   async #runStartupRefresh(accounts: InternalAccount[]): Promise<void> {
-    this.#setAssetsLoadingStatus(accounts);
+    const loadingToken = this.#setAssetsLoadingStatus(accounts);
     try {
       const releaseLock = await this.#accountRefreshMutex.acquire();
       try {
@@ -1395,7 +1399,7 @@ export class AssetsController extends BaseController<
         releaseLock();
       }
     } finally {
-      this.#markAssetsLoaded(accounts);
+      this.#markAssetsLoaded(accounts, loadingToken);
     }
   }
 
@@ -1816,22 +1820,35 @@ export class AssetsController extends BaseController<
     return result;
   }
 
-  #setAssetsLoadingStatus(accounts: InternalAccount[]): void {
+  #setAssetsLoadingStatus(accounts: InternalAccount[]): number {
+    this.#loadingTokenCounter += 1;
+    const token = this.#loadingTokenCounter;
+    for (const account of accounts) {
+      this.#loadingTokens.set(account.id, token);
+    }
     this.update((state) => {
       for (const account of accounts) {
         state.assetsLoadingStatus[account.id] = 'loading';
       }
     });
+    return token;
   }
 
-  #markAssetsLoaded(accounts: InternalAccount[]): void {
+  #markAssetsLoaded(accounts: InternalAccount[], token: number): void {
+    const ownedAccounts = accounts.filter(
+      (account) => this.#loadingTokens.get(account.id) === token,
+    );
+    if (ownedAccounts.length === 0) {
+      return;
+    }
     this.update((state) => {
-      for (const account of accounts) {
-        if (state.assetsLoadingStatus[account.id] === 'loading') {
-          state.assetsLoadingStatus[account.id] = 'loaded';
-        }
+      for (const account of ownedAccounts) {
+        state.assetsLoadingStatus[account.id] = 'loaded';
       }
     });
+    for (const account of ownedAccounts) {
+      this.#loadingTokens.delete(account.id);
+    }
   }
 
   async getAssetsBalance(
@@ -3667,7 +3684,7 @@ export class AssetsController extends BaseController<
       previousGroupId,
     });
 
-    this.#setAssetsLoadingStatus(accounts);
+    const loadingToken = this.#setAssetsLoadingStatus(accounts);
     try {
       const releaseLock = await this.#accountRefreshMutex.acquire();
       try {
@@ -3688,7 +3705,7 @@ export class AssetsController extends BaseController<
         releaseLock();
       }
     } finally {
-      this.#markAssetsLoaded(accounts);
+      this.#markAssetsLoaded(accounts, loadingToken);
     }
   }
 

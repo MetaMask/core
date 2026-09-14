@@ -3909,6 +3909,76 @@ describe('AssetsController', () => {
       );
     });
 
+    it('does not let an older refresh mark an account loaded while a newer queued refresh owns the marker', async () => {
+      const { client, arm, release } = createGatedQueryApiClient();
+
+      await withController(
+        { queryApiClient: client },
+        async ({ controller, messenger }) => {
+          await activateTracking(messenger);
+
+          let settleSecondFetch!: () => void;
+          const secondFetch = new Promise<
+            Awaited<ReturnType<typeof controller.getAssets>>
+          >((resolve): void => {
+            settleSecondFetch = (): void => resolve({});
+          });
+          const realGetAssets = controller.getAssets.bind(controller);
+          let fetchCallCount = 0;
+          const getAssetsSpy = jest
+            .spyOn(controller, 'getAssets')
+            .mockImplementation(
+              (...args: Parameters<typeof controller.getAssets>) => {
+                fetchCallCount += 1;
+                return fetchCallCount === 1
+                  ? realGetAssets(...args)
+                  : secondFetch;
+              },
+            );
+
+          // First switch is frozen mid-flight, holding the refresh mutex.
+          arm();
+          (messenger.publish as CallableFunction)(
+            'AccountTreeController:selectedAccountGroupChange',
+            'entropy:mock-keyring-id-1/1',
+            'entropy:mock-keyring-id-1/0',
+          );
+          await flushPromises();
+
+          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+            'loading',
+          );
+
+          // A second switch back to the same account queues behind the mutex
+          // and takes ownership of the marker.
+          (messenger.publish as CallableFunction)(
+            'AccountTreeController:selectedAccountGroupChange',
+            'entropy:mock-keyring-id-1/2',
+            'entropy:mock-keyring-id-1/1',
+          );
+          await flushPromises();
+
+          release();
+          await flushPromises();
+
+          // The older refresh has settled, but the newer refresh (queued, in
+          // flight) still owns the marker, so the account stays loading.
+          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+            'loading',
+          );
+
+          settleSecondFetch();
+          await flushPromises();
+
+          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+            'loaded',
+          );
+
+          getAssetsSpy.mockRestore();
+        },
+      );
+    });
+
     it('marks accounts as loading on unlock, then loaded once the fetch settles', async () => {
       const { client, arm, release } = createGatedQueryApiClient();
 
