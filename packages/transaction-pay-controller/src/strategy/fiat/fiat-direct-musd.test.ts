@@ -188,7 +188,7 @@ describe('fiat-direct-musd', () => {
       );
       expect(result).toStrictEqual(
         expect.objectContaining({
-          areFeesIncludedInSourceAmount: true,
+          areFeesIncludedInSourceAmount: false,
           fees: expect.objectContaining({
             metaMask: { fiat: '0', usd: '0' },
             provider: { fiat: '0.5', usd: '0.5' },
@@ -231,7 +231,7 @@ describe('fiat-direct-musd', () => {
         transactionId: TRANSACTION_ID_MOCK,
       });
 
-      // Direct mUSD checkout is fee-inclusive: isFeeExcludedFromFiat = false.
+      // Direct mUSD is fee-on-top: isFeeExcludedFromFiat = true.
       expect(callMock).toHaveBeenCalledWith(
         'RampsController:transakGetBuyQuote',
         DEFAULT_FIAT_CURRENCY,
@@ -239,7 +239,7 @@ describe('fiat-direct-musd', () => {
         'eip155:143',
         '/payments/debit-credit-card',
         '10',
-        false,
+        true,
       );
       expect(result).toStrictEqual(
         expect.objectContaining({

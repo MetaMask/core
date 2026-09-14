@@ -76,14 +76,15 @@ export async function getDirectMusdFiatQuote({
     });
 
     // When Transak Native is the resolved provider, prefer its own quote's fee
-    // so the estimate matches what Transak Native will charge. Direct mUSD
-    // checkout is fee-inclusive, so request the native quote in that mode.
+    // so the estimate matches what Transak Native will charge. Direct mUSD is
+    // fee-on-top (the fee is added to the entered amount), so request the native
+    // quote in that mode.
     const nativeRampsFee = await getNativeTransakRampsFee({
       adjustedAmount,
       fiatAsset: MUSD_MONAD_FIAT_ASSET,
       fiatPaymentMethod,
       fiatQuote,
-      isFeeExcludedFromFiat: false,
+      isFeeExcludedFromFiat: true,
       messenger,
     });
 
@@ -222,7 +223,10 @@ function combineDirectMusdFiatQuote({
     .toString(10);
 
   return {
-    areFeesIncludedInSourceAmount: true,
+    // Direct mUSD is fee-on-top: the fee is added to the entered amount, so the
+    // fees are NOT already inside the source amount and the total becomes
+    // amount + fees (see calculateTotals).
+    areFeesIncludedInSourceAmount: false,
     dust: { fiat: '0', usd: '0' },
     estimatedDuration: 0,
     fees: {
