@@ -1,0 +1,115 @@
+name: Repair Dependabot pull requests
+
+# Dependabot opens pull requests that cannot merge on their own:
+#
+# - Its security updates walk manifests one at a time rather than treating the
+#   Yarn workspace as one project, so they leave a dependency's version range
+#   disagreeing between packages and fail `yarn constraints`.
+# - It does not deduplicate `yarn.lock`, so `yarn lint:dependencies` fails.
+# - It does not write changelog entries, so `Check changelog` fails.
+#
+# All three are mechanical, so this repairs them and pushes the result back to
+# the pull request rather than asking a human to do it by hand.
+
+on:
+  pull_request:
+    # Deliberately not `synchronize`: this workflow pushes to the pull request
+    # branch, and reacting to our own push would loop.
+    types:
+      - opened
+      - reopened
+
+permissions:
+  contents: read
+
+jobs:
+  repair:
+    name: Repair constraints, lockfile and changelogs
+    # The trigger above already rules out reacting to our own push; the actor
+    # check is a second line of defence. `[dependabot skip]` on the commit below
+    # is what stops Dependabot rebasing over this work.
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && github.actor != 'metamaskbot' }}
+    runs-on: ubuntu-latest
+    environment: default-branch
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      # Runs triggered by Dependabot get a read-only `GITHUB_TOKEN` and no
+      # access to repository secrets, so the push has to be authorised by an
+      # OIDC token exchange instead.
+      - name: Get access token
+        id: get-token
+        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        with:
+          token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
+          permissions: |
+            contents: write
+            pull_requests: write
+
+      - name: Check out the pull request branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Configure Git
+        run: |
+          git config user.name 'MetaMask Bot'
+          git config user.email 'metamaskbot@users.noreply.github.com'
+
+      - name: Get merge base
+        id: merge-base
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          echo "merge-base=$(git merge-base HEAD "refs/remotes/origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
+
+      - name: Set up environment
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          is-high-risk-environment: false
+
+      # Aligns any dependency whose range Dependabot left disagreeing between
+      # packages. Opted into here and nowhere else, so that routine use of
+      # `yarn lint:fix` cannot fold a dependency bump into unrelated work.
+      - name: Align dependency ranges
+        env:
+          ALIGN_DEPENDENCY_RANGES: 'true'
+        run: yarn constraints --fix
+
+      # Aligning ranges rewrites manifests but not the lockfile, so it has to be
+      # resolved again before deduplicating.
+      - name: Resolve the lockfile
+        run: yarn install --no-immutable
+
+      - name: Deduplicate the lockfile
+        run: yarn dedupe
+
+      - name: Write changelog entries for the bumped dependencies
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          MERGE_BASE: ${{ steps.merge-base.outputs.merge-base }}
+          CHANGELOG_BASE_REF: ${{ steps.merge-base.outputs.merge-base }}
+        run: yarn changelog:validate --checkDeps --fix --currentPr "$PR_NUMBER" --fromRef "$MERGE_BASE"
+        # Changelogs may be written even when other validation errors remain, and
+        # we still want to commit what was written.
+        continue-on-error: true
+
+      - name: Commit and push the repairs
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          TOKEN: ${{ steps.get-token.outputs.token }}
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet; then
+            echo 'Nothing to repair.'
+            exit 0
+          fi
+
+          git add -- '**/package.json' package.json yarn.lock '**/CHANGELOG.md'
+          git commit -m '[dependabot skip] chore: align dependency ranges, deduplicate lockfile and update changelogs'
+          git push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:$PR_HEAD_REF"
