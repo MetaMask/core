@@ -1,4 +1,4 @@
-# `@metamask/kyc-controller`
+# KYC Controller `@metamask/kyc-controller`
 
 Shared KYC / identity verification controller used across MetaMask clients
 
@@ -9,6 +9,14 @@ Shared KYC / identity verification controller used across MetaMask clients
 or
 
 `npm install @metamask/kyc-controller`
+
+## Development
+
+To rebuild the package automatically whenever you change a source file, run the `build:watch` script from core repository root folder:
+
+`yarn workspace @metamask/kyc-controller run build:watch`
+
+This watches `src/**/*.ts` and re-runs the build on each change (it also performs an initial build on start), which is useful when developing against a client that consumes this package locally.
 
 ## Contributing
 

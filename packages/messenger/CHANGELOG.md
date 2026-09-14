@@ -7,11 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Remove the unused `@metamask/utils` dependency ([#10185](https://github.com/MetaMask/core/pull/10185))
+
+## [3.0.0]
+
 ### Added
 
 - Add `delegateAll` method for exhaustive delegation with compile-time checking ([#8338](https://github.com/MetaMask/core/pull/8338))
   - Unlike `delegate`, this method requires all external actions and events to be listed, producing a TypeScript error showing exactly which items are missing.
 - Add `MessengerNamespace` utility type to extract the namespace from a Messenger type ([#8338](https://github.com/MetaMask/core/pull/8338))
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+### Fixed
+
+- Defer re-entrant publishes of the same event so subscribers no longer receive a stale payload ([#9840](https://github.com/MetaMask/core/pull/9840))
+  - When a subscriber publishes the same event it is currently handling (directly, or indirectly through a delegated messenger), that nested publish is now queued and delivered after the in-progress publish finishes, rather than inline. Previously the in-progress publish would resume afterwards and re-deliver its now-stale payload to the subscribers it had not yet reached.
 
 ## [2.0.0]
 
@@ -122,7 +142,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Existing `RestrictedMessenger` instances should be replaced with a `Messenger` with the `parent` constructor parameter set to the global messenger. We can now use the same class everywhere, passing capabilities using `delegate`.
   - See this ADR for details: https://github.com/MetaMask/decisions/blob/main/decisions/core/0012-messenger-delegation.md
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/messenger@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/messenger@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@2.0.0...@metamask/messenger@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.2.0...@metamask/messenger@2.0.0
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.1.1...@metamask/messenger@1.2.0
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.1.0...@metamask/messenger@1.1.1

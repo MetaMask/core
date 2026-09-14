@@ -169,6 +169,11 @@ export type BridgeHistoryItem = {
   startTime: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
   slippagePercentage: number;
+  /**
+   * Whether the user explicitly overrode the default slippage setting.
+   * Optional for history items created before this field was persisted.
+   */
+  customSlippage?: boolean;
   completionTime?: number; // timestamp in ms
   pricingData?: {
     /**
@@ -292,6 +297,7 @@ export type StartPollingForBridgeTxStatusArgs = {
   quoteResponse: QuoteResponseV1 & QuoteMetadata;
   startTime: BridgeHistoryItem['startTime'];
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];
+  customSlippage?: BridgeHistoryItem['customSlippage'];
   initialDestAssetBalance?: BridgeHistoryItem['initialDestAssetBalance'];
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
   approvalTxId?: BridgeHistoryItem['approvalTxId'];

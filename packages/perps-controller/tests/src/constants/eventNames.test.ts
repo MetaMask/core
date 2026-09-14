@@ -5,6 +5,12 @@ import {
 import { PerpsAnalyticsEvent } from '../../../src/types/index.js';
 
 describe('PERPS_EVENT_PROPERTY', () => {
+  describe('PREVIOUS_LEVERAGE', () => {
+    it('exports PREVIOUS_LEVERAGE as previous_leverage', () => {
+      expect(PERPS_EVENT_PROPERTY.PREVIOUS_LEVERAGE).toBe('previous_leverage');
+    });
+  });
+
   describe('advanced chart analytics property keys', () => {
     it('exports CHART_LIBRARY key', () => {
       expect(PERPS_EVENT_PROPERTY.CHART_LIBRARY).toBe('chart_library');
@@ -85,8 +91,13 @@ describe('PERPS_EVENT_PROPERTY', () => {
       expect(PERPS_EVENT_PROPERTY.SEARCH_QUERY).toBe('search_query');
       expect(PERPS_EVENT_PROPERTY.RESULTS_COUNT).toBe('results_count');
       expect(PERPS_EVENT_PROPERTY.RESULT_RANK).toBe('result_rank');
+      // Search intent — distinct from PERPS_MODE (Lite/Pro UI)
       expect(PERPS_EVENT_PROPERTY.MODE).toBe('mode');
       expect(PERPS_EVENT_PROPERTY.CURRENT_TOKEN).toBe('current_token');
+    });
+
+    it('exports PERPS_MODE for Lite/Pro interface mode', () => {
+      expect(PERPS_EVENT_PROPERTY.PERPS_MODE).toBe('perps_mode');
     });
 
     it('exports sort / filter and time-on-screen keys', () => {
@@ -310,6 +321,35 @@ describe('PERPS_EVENT_VALUE.INTERACTION_TYPE extensions', () => {
   });
 });
 
+describe('Scale analytics constants', () => {
+  it('exports Scale property keys', () => {
+    expect(PERPS_EVENT_PROPERTY.SCALE_ORDER_COUNT).toBe('scale_order_count');
+    expect(PERPS_EVENT_PROPERTY.SCALE_RANGE_PCT).toBe('scale_range_pct');
+    expect(PERPS_EVENT_PROPERTY.SCALE_SKEW).toBe('scale_skew');
+    expect(PERPS_EVENT_PROPERTY.REDUCE_ONLY).toBe('reduce_only');
+  });
+
+  it('exports Scale interaction values', () => {
+    expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.SCALE_CONFIG_CHANGED).toBe(
+      'scale_config_changed',
+    );
+    expect(
+      PERPS_EVENT_VALUE.INTERACTION_TYPE.SCALE_VALIDATION_ERROR_SHOWN,
+    ).toBe('scale_validation_error_shown');
+  });
+
+  it('exports Scale setting values', () => {
+    expect(PERPS_EVENT_VALUE.SETTING_TYPE.SCALE_START_PRICE).toBe(
+      'start_price',
+    );
+    expect(PERPS_EVENT_VALUE.SETTING_TYPE.SCALE_END_PRICE).toBe('end_price');
+    expect(PERPS_EVENT_VALUE.SETTING_TYPE.SCALE_TOTAL_ORDERS).toBe(
+      'total_orders',
+    );
+    expect(PERPS_EVENT_VALUE.SETTING_TYPE.SCALE_SIZE_SKEW).toBe('size_skew');
+  });
+});
+
 describe('PERPS_EVENT_VALUE.BUTTON_CLICKED extensions', () => {
   it('exports WATCHLIST', () => {
     expect(PERPS_EVENT_VALUE.BUTTON_CLICKED.WATCHLIST).toBe('watchlist');
@@ -342,6 +382,12 @@ describe('PERPS_EVENT_VALUE consolidated contract entries', () => {
     expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.FILTER_APPLIED).toBe(
       'filter_applied',
     );
+    expect(
+      PERPS_EVENT_VALUE.INTERACTION_TYPE.CHASE_BACKGROUNDED_CONVERTED,
+    ).toBe('chase_backgrounded_converted');
+    expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.CHASE_TERMINATED).toBe(
+      'chase_terminated',
+    );
     expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.SEARCH_RESULT_TAPPED).toBe(
       'search_result_tapped',
     );
@@ -361,6 +407,12 @@ describe('PERPS_EVENT_VALUE consolidated contract entries', () => {
 
   it('exports ACTION.ABANDON_ORDER', () => {
     expect(PERPS_EVENT_VALUE.ACTION.ABANDON_ORDER).toBe('abandon_order');
+  });
+
+  it('exports the Chase background notification schema value', () => {
+    expect(PERPS_EVENT_VALUE.NOTIFICATION_TYPE.CHASE_BACKGROUNDED).toBe(
+      'chase_backgrounded',
+    );
   });
 
   it('exports new BUTTON_CLICKED values', () => {

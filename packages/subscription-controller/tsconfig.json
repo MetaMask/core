@@ -1,8 +1,5 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
     {
       "path": "../base-controller"
@@ -24,6 +21,9 @@
     },
     {
       "path": "../base-data-service"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

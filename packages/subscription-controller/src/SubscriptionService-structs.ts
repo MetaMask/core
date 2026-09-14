@@ -2,26 +2,57 @@ import {
   array,
   boolean,
   enums,
+  lazy,
+  literal,
   nullable,
   number,
+  object,
   optional,
   string,
   type,
   union,
 } from '@metamask/superstruct';
+import type { Struct } from '@metamask/superstruct';
 import { StrictHexStruct, CaipAccountIdStruct } from '@metamask/utils';
 
 import {
   CANCEL_TYPES,
+  CRYPTO_AUTH_METHODS,
   CRYPTO_PAYMENT_METHOD_ERRORS,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,
+  MoneyAccountFeature,
+  ShieldFeature,
   SUBSCRIPTION_STATUSES,
 } from './types.js';
+import type { TokenPaymentInfo } from './types.js';
 
 const ProductTypeStruct = enums(Object.values(PRODUCT_TYPES));
-const PaymentTypeStruct = enums(Object.values(PAYMENT_TYPES));
+const CryptoAuthMethodStruct = enums(Object.values(CRYPTO_AUTH_METHODS));
+const ShieldEntitlementsStruct = type({
+  [ShieldFeature.ShieldClaim]: boolean(),
+  [ShieldFeature.PrioritySupport]: boolean(),
+});
+const MoneyAccountEntitlementsStruct = type({
+  [MoneyAccountFeature.SwapFeeWaiver]: boolean(),
+  [MoneyAccountFeature.PerpsFeeWaiver]: boolean(),
+  [MoneyAccountFeature.PredictFreeTx]: boolean(),
+  [MoneyAccountFeature.PremiumApy]: boolean(),
+});
+const ProductEntitlementsStruct = type({
+  [PRODUCT_TYPES.SHIELD]: optional(
+    type({
+      entitlements: ShieldEntitlementsStruct,
+    }),
+  ),
+  [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: optional(
+    type({
+      plan: string(),
+      entitlements: MoneyAccountEntitlementsStruct,
+    }),
+  ),
+});
 const RecurringIntervalStruct = enums(Object.values(RECURRING_INTERVALS));
 const SubscriptionStatusStruct = enums(Object.values(SUBSCRIPTION_STATUSES));
 const CancelTypeStruct = enums(Object.values(CANCEL_TYPES));
@@ -84,8 +115,44 @@ export const GetSubscriptionsResponseStruct = type({
   customerId: optional(string()),
   subscriptions: array(SubscriptionStruct),
   trialedProducts: array(ProductTypeStruct),
+  productEntitlements: optional(ProductEntitlementsStruct),
   lastSubscription: optional(SubscriptionStruct),
   rewardAccountId: optional(CaipAccountIdStruct),
+});
+
+const SwapsBenefitUsageStruct = type({
+  feeBips: nullable(string()),
+  capMicroUsd: optional(number()),
+  consumedMicroUsd: optional(number()),
+  remainingMicroUsd: nullable(number()),
+  exhausted: boolean(),
+});
+
+const PerpsBenefitUsageStruct = type({
+  builderFeeBips: nullable(string()),
+  builderCode: nullable(string()),
+  capMicroUsd: optional(number()),
+  consumedMicroUsd: optional(number()),
+  remainingMicroUsd: nullable(number()),
+  exhausted: boolean(),
+});
+
+const PredictBenefitUsageStruct = type({
+  builderCode: nullable(string()),
+  capTxCount: optional(number()),
+  consumedTxCount: optional(number()),
+  remainingTxCount: nullable(number()),
+  exhausted: boolean(),
+});
+
+export const SubscriptionBenefitsResponseStruct = type({
+  eligible: boolean(),
+  billingPeriodId: nullable(string()),
+  products: type({
+    swaps: SwapsBenefitUsageStruct,
+    perps: PerpsBenefitUsageStruct,
+    predict: PredictBenefitUsageStruct,
+  }),
 });
 
 export const StartSubscriptionResponseStruct = type({
@@ -125,26 +192,52 @@ const ProductPricingStruct = type({
   prices: array(ProductPriceStruct),
 });
 
-const TokenPaymentInfoStruct = type({
-  symbol: string(),
-  address: StrictHexStruct,
-  decimals: number(),
-  conversionRate: type({
-    usd: string(),
-  }),
+const TokenPaymentInfoConversionRateStruct = type({
+  usd: string(),
 });
+
+const TokenPaymentInfoStruct: Struct<TokenPaymentInfo> = lazy(() =>
+  union([
+    object({
+      symbol: string(),
+      address: StrictHexStruct,
+      decimals: number(),
+      conversionRate: optional(TokenPaymentInfoConversionRateStruct),
+      isVaultShare: literal(true),
+      accountantAddress: StrictHexStruct,
+      sources: optional(array(TokenPaymentInfoStruct)),
+    }),
+    object({
+      symbol: string(),
+      address: StrictHexStruct,
+      decimals: number(),
+      conversionRate: optional(TokenPaymentInfoConversionRateStruct),
+      isVaultShare: optional(literal(false)),
+      sources: optional(array(TokenPaymentInfoStruct)),
+    }),
+  ]),
+) as Struct<TokenPaymentInfo>;
 
 const ChainPaymentInfoStruct = type({
   chainId: StrictHexStruct,
   paymentAddress: StrictHexStruct,
+  delegateAddress: optional(StrictHexStruct),
   tokens: array(TokenPaymentInfoStruct),
   isSponsorshipSupported: optional(boolean()),
 });
 
-const PricingPaymentMethodStruct = type({
-  type: PaymentTypeStruct,
-  chains: optional(array(ChainPaymentInfoStruct)),
-});
+const PricingPaymentMethodStruct = union([
+  object({
+    type: enums([PAYMENT_TYPES.byCard]),
+    products: optional(array(ProductTypeStruct)),
+  }),
+  object({
+    type: enums([PAYMENT_TYPES.byCrypto]),
+    cryptoAuthMethod: optional(CryptoAuthMethodStruct),
+    products: optional(array(ProductTypeStruct)),
+    chains: optional(array(ChainPaymentInfoStruct)),
+  }),
+]);
 
 export const PricingResponseStruct = type({
   products: array(ProductPricingStruct),

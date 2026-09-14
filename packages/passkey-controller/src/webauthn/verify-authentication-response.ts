@@ -1,6 +1,5 @@
 import { decodePartialCBOR } from '@levischuck/tiny-cbor';
-import { concatBytes } from '@metamask/utils';
-import { sha256 } from '@noble/hashes/sha2';
+import { concatBytes, sha256 } from '@metamask/utils';
 
 import type { AuthenticatorTransportFuture } from '../types.js';
 import { base64URLToBytes } from '../utils/encoding.js';
@@ -158,8 +157,10 @@ export async function verifyAuthenticationResponse(opts: {
     parseAuthenticatorData(authDataBuffer);
   const { rpIdHash, flags, counter } = parsedAuthData;
 
-  const matchedRPID =
-    expectedRPIDs.length > 0 ? matchExpectedRPID(rpIdHash, expectedRPIDs) : '';
+  let matchedRPID = '';
+  if (expectedRPIDs.length > 0) {
+    matchedRPID = await matchExpectedRPID(rpIdHash, expectedRPIDs);
+  }
 
   // WebAuthn only requires the user presence flag be true
   if (!flags.up) {
@@ -173,7 +174,7 @@ export async function verifyAuthenticationResponse(opts: {
     );
   }
 
-  const clientDataHash = sha256(
+  const clientDataHash = await sha256(
     base64URLToBytes(assertionResponse.clientDataJSON),
   );
   const signatureBase = concatBytes([authDataBuffer, clientDataHash]);

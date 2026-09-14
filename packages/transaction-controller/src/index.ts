@@ -145,7 +145,7 @@ export {
   getLayer1FeeFromReceipt,
   getOperatorFeeFromReceipt,
 } from './utils/receipt-fees.js';
-export { getEffectiveRecipient } from './utils/recipient.js';
+export { getEffectiveRecipient, getSendRecipients } from './utils/recipient.js';
 export { CHAIN_IDS } from './constants.js';
 export { HARDFORK } from './utils/prepare.js';
 export { getAccountAddressRelationship } from './api/accounts-api.js';

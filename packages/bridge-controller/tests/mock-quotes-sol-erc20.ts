@@ -1,4 +1,4 @@
-import { merge } from 'lodash';
+import { merge } from 'lodash-es';
 
 import { toQuoteResponseV2 } from '../src/coercers/quote-response-v1-to-v2.js';
 import type { DeepPartial } from '../src/types.js';

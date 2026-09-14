@@ -15,7 +15,9 @@ import {
   ORIGIN_METAMASK,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
+import { MockPollingBlockTracker } from '@metamask/eth-block-tracker';
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
+import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -42,8 +44,6 @@ import assert from 'assert';
 // eslint-disable-next-line import-x/namespace
 import * as uuidModule from 'uuid';
 
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
-import { FakeProvider } from '../../../tests/fake-provider.js';
 import { flushPromises, jestAdvanceTime } from '../../../tests/helpers.js';
 import {
   buildCustomNetworkClientConfiguration,
@@ -198,9 +198,7 @@ function buildMockBlockTracker(
   latestBlockNumber: string,
   provider: InternalProvider,
 ): BlockTracker {
-  const fakeBlockTracker = new FakeBlockTracker({ provider });
-  fakeBlockTracker.mockLatestBlockNumber(latestBlockNumber);
-  return fakeBlockTracker;
+  return new MockPollingBlockTracker({ provider, latestBlockNumber });
 }
 
 /**
@@ -862,7 +860,7 @@ describe('TransactionController', () => {
               chainId: CHAIN_ID_MOCK,
             },
             id: NETWORK_CLIENT_ID_MOCK,
-            provider: new FakeProvider(),
+            provider: new MockInternalProvider(),
           } as unknown as NetworkClientConfiguration;
         }),
         checkForPendingTransactionAndStartPolling: jest.fn(),
@@ -942,6 +940,7 @@ describe('TransactionController', () => {
     it('sets default state', () => {
       const { controller } = setupController();
       expect(controller.state).toStrictEqual({
+        batchTransactionCounts: {},
         methodData: {},
         transactions: [],
         transactionBatches: [],
@@ -1273,6 +1272,55 @@ describe('TransactionController', () => {
       expect(incompleteTransaction?.error?.message).toBe(
         'Transaction incomplete at startup',
       );
+    });
+
+    it('fails signed transactions even when isSimulationEnabled throws', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+
+      const mockedTransactions = [
+        {
+          id: '111',
+          chainId: toHex(5),
+          status: TransactionStatus.signed,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '222',
+          chainId: toHex(1),
+          status: TransactionStatus.approved,
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const mockedControllerState = {
+        transactions: mockedTransactions,
+        methodData: {},
+        lastFetchedBlockNumbers: {},
+      };
+
+      const { controller } = setupController({
+        options: {
+          isSimulationEnabled: () => {
+            throw new Error('Handler not registered');
+          },
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: mockedControllerState as any,
+        },
+      });
+
+      await flushPromises();
+
+      const { transactions } = controller.state;
+
+      expect(transactions[0].status).toBe(TransactionStatus.failed);
+      expect(transactions[1].status).toBe(TransactionStatus.failed);
     });
 
     it('removes unapproved transactions', async () => {
@@ -2660,6 +2708,30 @@ describe('TransactionController', () => {
           },
           tokenBalanceChanges: [],
         });
+      });
+
+      it('passes the transaction meta to the isSimulationEnabled callback', async () => {
+        const isSimulationEnabled = jest.fn().mockReturnValue(true);
+
+        const { controller } = setupController({
+          options: { isSimulationEnabled },
+        });
+
+        const { transactionMeta } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(isSimulationEnabled).toHaveBeenCalledWith(
+          expect.objectContaining({ id: transactionMeta.id }),
+        );
       });
 
       it('unless approval not required', async () => {
@@ -8608,6 +8680,7 @@ describe('TransactionController', () => {
         ),
       ).toMatchInlineSnapshot(`
         {
+          "batchTransactionCounts": {},
           "lastFetchedBlockNumbers": {},
           "methodData": {},
           "submitHistory": [],
@@ -8648,6 +8721,7 @@ describe('TransactionController', () => {
         ),
       ).toMatchInlineSnapshot(`
         {
+          "batchTransactionCounts": {},
           "methodData": {},
           "transactionBatches": [],
           "transactions": [],

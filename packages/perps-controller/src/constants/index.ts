@@ -8,4 +8,4 @@ export * from './orderTypes.js';
 export * from './perpsConfig.js';
 export * from './transactionsHistoryConfig.js';
 export * from './performanceMetrics.js';
-export * from './myxConfig.js';
+export * from './lighterConfig.js';

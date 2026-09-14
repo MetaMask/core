@@ -13,10 +13,6 @@ import {
 } from '../helpers/serviceMocks.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
-jest.mock('@myx-trade/sdk', () => ({
-  MyxClient: jest.fn(),
-  OrderStatusEnum: { Successful: 9 },
-}));
 
 import {
   PerpsController,
@@ -29,10 +25,10 @@ import type {
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsProviderType,
+  TwapOrder,
 } from '../../src/types/index.js';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
-jest.mock('../../src/providers/MYXProvider');
 
 // Mock transaction controller utility
 const mockAddTransaction = jest.fn();
@@ -105,6 +101,7 @@ const mockMarketDataServiceInstance = {
   calculateLiquidationPrice: jest.fn(),
   getMaxLeverage: jest.fn(),
   calculateFees: jest.fn().mockResolvedValue({ totalFee: 0 }),
+  previewPositionModify: jest.fn(),
   getAvailableDexs: jest.fn().mockResolvedValue([]),
   getBlockExplorerUrl: jest.fn(),
   getOrderFills: jest.fn(),
@@ -340,16 +337,6 @@ class TestablePerpsController extends PerpsController {
   public testHasStandaloneProvider(): boolean {
     return this.hasStandaloneProvider();
   }
-
-  public testRegisterMYXProvider(
-    MYXProvider: new (opts: Record<string, unknown>) => PerpsProvider,
-  ) {
-    this.registerMYXProvider(MYXProvider as never);
-  }
-
-  public testHandleMYXImportError(error: unknown) {
-    this.handleMYXImportError(error);
-  }
 }
 
 describe('PerpsController', () => {
@@ -492,6 +479,7 @@ describe('PerpsController', () => {
     mockProvider.getMarkets.mockResolvedValue([]);
     mockProvider.getOpenOrders.mockResolvedValue([]);
     mockProvider.getFunding.mockResolvedValue([]);
+    mockProvider.getTwapOrders.mockResolvedValue([]);
     mockProvider.getOrderFills.mockResolvedValue([]);
     mockProvider.getOrders.mockResolvedValue([]);
     mockProvider.calculateLiquidationPrice.mockResolvedValue('0');
@@ -769,6 +757,73 @@ describe('PerpsController', () => {
           context: expect.any(Object),
         }),
       );
+    });
+  });
+
+  describe('Strategy lifecycle', () => {
+    const twapOrder: TwapOrder = {
+      orderId: '987',
+      symbol: 'ETH',
+      side: 'buy',
+      size: '1',
+      executedSize: '0.4',
+      remainingSize: '0.6',
+      executedNotional: '1200',
+      averagePrice: '3000',
+      fillProgressBps: 4000,
+      timeProgressBps: 5000,
+      elapsedTimeMilliseconds: 300_000,
+      durationMinutes: 10,
+      randomize: true,
+      reduceOnly: false,
+      status: 'active',
+      startedAt: 1,
+      lastUpdated: 2,
+      fills: [],
+    };
+
+    const chaseOrder = {
+      handle: 'chase-1',
+      symbol: 'ETH',
+      side: 'buy' as const,
+      originalSize: '1',
+      remainingSize: '1',
+      arrivalPrice: '2999.1',
+      restingPrice: '2999.1',
+      restingOrderId: '55',
+      distanceChasedBps: 0,
+      repricings: 0,
+      startedAt: 1,
+      status: 'active' as const,
+    };
+
+    it('reads Chase lifecycle state from the active provider', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockProvider.getChaseOrders.mockResolvedValue([chaseOrder]);
+
+      await expect(controller.getChaseOrders()).resolves.toStrictEqual([
+        chaseOrder,
+      ]);
+    });
+
+    it('reads TWAP lifecycle state from the active provider', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockProvider.getTwapOrders.mockResolvedValue([twapOrder]);
+
+      expect(await controller.getTwapOrders()).toStrictEqual([twapOrder]);
+    });
+
+    it('suspends Chase loops through the active provider', async () => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      const backgrounded = { ...chaseOrder, status: 'backgrounded' as const };
+      mockProvider.suspendChaseOrders.mockResolvedValue([backgrounded]);
+
+      await expect(controller.suspendChaseOrders()).resolves.toStrictEqual([
+        backgrounded,
+      ]);
     });
   });
 

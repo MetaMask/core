@@ -404,7 +404,7 @@ export class ChompApiService extends BaseDataService<
    * The result is scoped to the authenticated profile and consumers use it
    * to decide whether an association already exists, so it is always fetched
    * fresh (`staleTime: 0`) and evicted as soon as the call settles
-   * (`cacheTime: 0`). The query key carries a SHA-256 digest of the bearer
+   * (`gcTime: 0`). The query key carries a SHA-256 digest of the bearer
    * token — the same token the request is made with — so concurrent calls
    * only share an in-flight request when they are for the same profile. The
    * digest, not the token, is used because query keys leave the service via
@@ -422,7 +422,7 @@ export class ChompApiService extends BaseDataService<
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:getAssociatedAddresses`, profileKey],
       staleTime: 0,
-      cacheTime: 0,
+      gcTime: 0,
       queryFn: async () => {
         const response = await fetch(
           new URL('/v1/auth/address', this.#baseUrl),

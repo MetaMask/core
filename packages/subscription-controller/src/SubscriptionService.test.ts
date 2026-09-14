@@ -5,8 +5,10 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { create } from '@metamask/superstruct';
 
 import {
+  CANCELLATION_REASONS,
   Env,
   getEnvUrls,
   SubscriptionControllerErrorMessage,
@@ -14,6 +16,7 @@ import {
 } from './constants.js';
 import * as constants from './constants.js';
 import { SubscriptionServiceError } from './errors.js';
+import { SubscriptionBenefitsResponseStruct } from './SubscriptionService-structs.js';
 import {
   serviceName,
   SUBSCRIPTION_URL,
@@ -24,6 +27,7 @@ import type {
   StartSubscriptionRequest,
   StartCryptoSubscriptionRequest,
   Subscription,
+  SubscriptionBenefitsResponse,
   PricingResponse,
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCryptoRequest,
@@ -63,6 +67,58 @@ const MOCK_SUBSCRIPTION: Subscription = {
   },
   isEligibleForSupport: true,
   cancelType: CANCEL_TYPES.ALLOWED_AT_PERIOD_END,
+};
+
+const MOCK_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
+  eligible: true,
+  billingPeriodId: 'bp_2026_08_15',
+  products: {
+    swaps: {
+      feeBips: '0',
+      capMicroUsd: 500_000_000,
+      consumedMicroUsd: 100_000_000,
+      remainingMicroUsd: 400_000_000,
+      exhausted: false,
+    },
+    perps: {
+      builderFeeBips: '0',
+      builderCode: '<builder-code>',
+      capMicroUsd: 1_500_000_000,
+      consumedMicroUsd: 500_000_000,
+      remainingMicroUsd: 1_000_000_000,
+      exhausted: false,
+    },
+    predict: {
+      builderCode: '<builder-code>',
+      capTxCount: 3,
+      consumedTxCount: 1,
+      remainingTxCount: 2,
+      exhausted: false,
+    },
+  },
+};
+
+const MOCK_INELIGIBLE_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
+  eligible: false,
+  billingPeriodId: null,
+  products: {
+    swaps: {
+      feeBips: null,
+      remainingMicroUsd: null,
+      exhausted: false,
+    },
+    perps: {
+      builderFeeBips: null,
+      builderCode: null,
+      remainingMicroUsd: null,
+      exhausted: false,
+    },
+    predict: {
+      builderCode: null,
+      remainingTxCount: null,
+      exhausted: false,
+    },
+  },
 };
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token-12345';
@@ -381,7 +437,343 @@ describe('SubscriptionService', () => {
     });
   });
 
+  describe('SubscriptionBenefitsResponseStruct', () => {
+    it('accepts an eligible benefits response', () => {
+      expect(
+        create(MOCK_BENEFITS_RESPONSE, SubscriptionBenefitsResponseStruct),
+      ).toStrictEqual(MOCK_BENEFITS_RESPONSE);
+    });
+
+    it('accepts an ineligible benefits response', () => {
+      expect(
+        create(
+          MOCK_INELIGIBLE_BENEFITS_RESPONSE,
+          SubscriptionBenefitsResponseStruct,
+        ),
+      ).toStrictEqual(MOCK_INELIGIBLE_BENEFITS_RESPONSE);
+    });
+
+    it('rejects an eligible response without products', () => {
+      expect(() =>
+        create(
+          { eligible: true, billingPeriodId: 'bp_2026_08_15' },
+          SubscriptionBenefitsResponseStruct,
+        ),
+      ).toThrow(/products/u);
+    });
+
+    it('rejects an ineligible response without products', () => {
+      expect(() =>
+        create(
+          { eligible: false, billingPeriodId: null },
+          SubscriptionBenefitsResponseStruct,
+        ),
+      ).toThrow(/products/u);
+    });
+  });
+
+  describe('getBenefits', () => {
+    it('should fetch eligible benefits successfully', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, getBearerToken, getSessionProfile }) => {
+          fetchMock.mockResolvedValue(
+            createMockResponse({ jsonData: MOCK_BENEFITS_RESPONSE }),
+          );
+
+          const result = await service.getBenefits();
+
+          expect(result).toStrictEqual(MOCK_BENEFITS_RESPONSE);
+          expect(getBearerToken).toHaveBeenCalledTimes(1);
+          expect(getSessionProfile).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should fetch ineligible benefits successfully', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({ jsonData: MOCK_INELIGIBLE_BENEFITS_RESPONSE }),
+        );
+
+        const result = await service.getBenefits();
+
+        expect(result).toStrictEqual(MOCK_INELIGIBLE_BENEFITS_RESPONSE);
+      });
+    });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, captureExceptionMock, testUrl }) => {
+          const networkError = new Error('Network error');
+          fetchMock.mockRejectedValue(networkError);
+
+          const error = await service
+            .getBenefits()
+            .catch((rejection) => rejection);
+
+          expect(error).toBeInstanceOf(SubscriptionServiceError);
+          const serviceError = error as SubscriptionServiceError;
+          expect(serviceError.message).toBe(
+            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetBenefits} (url: ${testUrl}/v1/benefits)`,
+          );
+          expect(serviceError.cause).toBe(networkError);
+          expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should throw SubscriptionServiceError for non-ok responses', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, captureExceptionMock, testUrl }) => {
+          fetchMock.mockResolvedValue(
+            createMockResponse({
+              ok: false,
+              status: 500,
+              jsonData: { message: 'Internal Server Error' },
+            }),
+          );
+
+          const requestPromise = service.getBenefits();
+
+          await expect(requestPromise).rejects.toThrow(
+            SubscriptionServiceError,
+          );
+          await expect(requestPromise).rejects.toThrow(
+            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetBenefits} (url: ${testUrl}/v1/benefits)`,
+          );
+          expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should handle authentication errors', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock }) => {
+          const requestPromise = service.getBenefits();
+
+          await expect(requestPromise).rejects.toThrow(
+            SubscriptionServiceError,
+          );
+          await expect(requestPromise).rejects.toThrow(
+            'Failed to get authorization header. Wallet is locked',
+          );
+          expect(fetchMock).not.toHaveBeenCalled();
+        },
+        {
+          getBearerToken: jest
+            .fn()
+            .mockRejectedValue(new Error('Wallet is locked')),
+        },
+      );
+    });
+
+    it('should reject malformed responses', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: { eligible: true, billingPeriodId: 'bp_2026_08_15' },
+          }),
+        );
+
+        await expect(service.getBenefits()).rejects.toThrow(/products/u);
+      });
+    });
+  });
+
   describe('getSubscriptions', () => {
+    it('returns product entitlements from the subscriptions response', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        const productEntitlements = {
+          [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+            plan: 'premium',
+            entitlements: {
+              perpsFeeWaiver: false,
+              predictFreeTx: true,
+              premiumApy: true,
+              swapFeeWaiver: true,
+            },
+          },
+          [PRODUCT_TYPES.SHIELD]: {
+            entitlements: {
+              prioritySupport: false,
+              shieldClaim: true,
+            },
+          },
+        };
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements,
+            },
+          }),
+        );
+
+        const result = await service.getSubscriptions();
+
+        expect(result.productEntitlements).toStrictEqual(productEntitlements);
+      });
+    });
+
+    it('rejects malformed product entitlements', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements: {
+                [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+                  plan: 'premium',
+                  entitlements: {
+                    perpsFeeWaiver: false,
+                    predictFreeTx: true,
+                    premiumApy: 'yes',
+                    swapFeeWaiver: true,
+                  },
+                },
+              },
+            },
+          }),
+        );
+
+        await expect(service.getSubscriptions()).rejects.toThrow(
+          'Expected a value of type `boolean`',
+        );
+      });
+    });
+
+    it('accepts Shield product entitlements when Money Account is absent', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        const productEntitlements = {
+          [PRODUCT_TYPES.SHIELD]: {
+            entitlements: {
+              prioritySupport: false,
+              shieldClaim: true,
+            },
+          },
+        };
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements,
+            },
+          }),
+        );
+
+        const result = await service.getSubscriptions();
+
+        expect(result.productEntitlements).toStrictEqual(productEntitlements);
+      });
+    });
+
+    it('accepts Money Account product entitlements when Shield is absent', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        const productEntitlements = {
+          [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+            plan: 'premium',
+            entitlements: {
+              perpsFeeWaiver: false,
+              predictFreeTx: true,
+              premiumApy: true,
+              swapFeeWaiver: true,
+            },
+          },
+        };
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements,
+            },
+          }),
+        );
+
+        const result = await service.getSubscriptions();
+
+        expect(result.productEntitlements).toStrictEqual(productEntitlements);
+      });
+    });
+
+    it('rejects product entitlements with missing required features', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements: {
+                [PRODUCT_TYPES.SHIELD]: {
+                  entitlements: {
+                    shieldClaim: true,
+                  },
+                },
+              },
+            },
+          }),
+        );
+
+        await expect(service.getSubscriptions()).rejects.toThrow(
+          'prioritySupport',
+        );
+      });
+    });
+
+    it('rejects Money Account entitlements with a missing plan', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements: {
+                [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+                  entitlements: {
+                    perpsFeeWaiver: false,
+                    predictFreeTx: true,
+                    premiumApy: true,
+                    swapFeeWaiver: true,
+                  },
+                },
+              },
+            },
+          }),
+        );
+
+        await expect(service.getSubscriptions()).rejects.toThrow('plan');
+      });
+    });
+
+    it('rejects Money Account entitlements with missing required features', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements: {
+                [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+                  plan: 'premium',
+                  entitlements: {
+                    premiumApy: true,
+                    swapFeeWaiver: true,
+                  },
+                },
+              },
+            },
+          }),
+        );
+
+        await expect(service.getSubscriptions()).rejects.toThrow(
+          'perpsFeeWaiver',
+        );
+      });
+    });
+
     it('should fetch subscriptions successfully', async () => {
       await withMockSubscriptionService(
         async ({ service, fetchMock, getBearerToken, getSessionProfile }) => {
@@ -600,7 +992,7 @@ describe('SubscriptionService', () => {
   describe('cancelSubscription', () => {
     it('should cancel subscription successfully', async () => {
       await withMockSubscriptionService(
-        async ({ service, fetchMock, getBearerToken }) => {
+        async ({ service, fetchMock, getBearerToken, env }) => {
           fetchMock.mockResolvedValue(
             createMockResponse({ jsonData: MOCK_SUBSCRIPTION }),
           );
@@ -611,8 +1003,98 @@ describe('SubscriptionService', () => {
 
           expect(result).toStrictEqual(MOCK_SUBSCRIPTION);
           expect(getBearerToken).toHaveBeenCalledTimes(1);
+          expect(fetchMock).toHaveBeenCalledWith(
+            SUBSCRIPTION_URL(env, 'subscriptions/sub_123456789/cancel'),
+            {
+              method: 'POST',
+              headers: MOCK_HEADERS,
+              body: JSON.stringify({}),
+            },
+          );
         },
       );
+    });
+
+    it('should serialize cancellation reason and feedback without subscriptionId in the body', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({ jsonData: MOCK_SUBSCRIPTION }),
+        );
+
+        await service.cancelSubscription({
+          subscriptionId: 'sub_123456789',
+          cancelAtPeriodEnd: true,
+          cancellationReason: CANCELLATION_REASONS.OTHER,
+          cancellationFeedback: 'Not good for me',
+        });
+
+        expect(fetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(env, 'subscriptions/sub_123456789/cancel'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              cancelAtPeriodEnd: true,
+              cancellationReason: CANCELLATION_REASONS.OTHER,
+              cancellationFeedback: 'Not good for me',
+            }),
+          },
+        );
+      });
+    });
+
+    it.each(Object.values(CANCELLATION_REASONS))(
+      'should serialize cancellation reason %s',
+      async (cancellationReason) => {
+        await withMockSubscriptionService(
+          async ({ service, fetchMock, env }) => {
+            fetchMock.mockResolvedValue(
+              createMockResponse({ jsonData: MOCK_SUBSCRIPTION }),
+            );
+
+            await service.cancelSubscription({
+              subscriptionId: 'sub_123456789',
+              cancellationReason,
+            });
+
+            expect(fetchMock).toHaveBeenCalledWith(
+              SUBSCRIPTION_URL(env, 'subscriptions/sub_123456789/cancel'),
+              expect.objectContaining({
+                body: JSON.stringify({ cancellationReason }),
+              }),
+            );
+          },
+        );
+      },
+    );
+
+    it('should not include cancellation feedback in the query key', async () => {
+      await withMockSubscriptionService(async ({ service }) => {
+        const fetchQuerySpy = jest
+          .spyOn(
+            service as unknown as {
+              fetchQuery: SubscriptionService['fetchQuery'];
+            },
+            'fetchQuery',
+          )
+          .mockResolvedValue(MOCK_SUBSCRIPTION);
+        const feedback = 'private cancellation feedback';
+
+        await service.cancelSubscription({
+          subscriptionId: 'sub_123456789',
+          cancelAtPeriodEnd: true,
+          cancellationReason: CANCELLATION_REASONS.OTHER,
+          cancellationFeedback: feedback,
+        });
+
+        const queryKey = fetchQuerySpy.mock.calls[0]?.[0].queryKey;
+        expect(JSON.stringify(queryKey)).not.toContain(feedback);
+        expect(queryKey).toContainEqual({
+          subscriptionId: 'sub_123456789',
+          cancelAtPeriodEnd: true,
+          cancellationReason: CANCELLATION_REASONS.OTHER,
+        });
+      });
     });
 
     it('should throw SubscriptionServiceError for network errors', async () => {
@@ -642,6 +1124,18 @@ describe('SubscriptionService', () => {
           expect(captureExceptionMock).toHaveBeenCalledTimes(1);
         },
       );
+    });
+
+    it('should throw when the cancellation response is invalid', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(createMockResponse({ jsonData: {} }));
+
+        await expect(
+          service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
+        ).rejects.toThrow(
+          'At path: id -- Expected a string, but received: undefined',
+        );
+      });
     });
   });
 
@@ -757,12 +1251,99 @@ describe('SubscriptionService', () => {
         expect(result).toStrictEqual(response);
       });
     });
+
+    it('throws when products array is empty', async () => {
+      const fetchMock = jest.fn();
+      const { service } = createService({ fetchMock });
+      const request: StartCryptoSubscriptionRequest = {
+        ...MOCK_CRYPTO_REQUEST,
+        products: [],
+      };
+
+      await expect(
+        service.startSubscriptionWithCrypto(request),
+      ).rejects.toThrow(
+        SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      [
+        'delegation without delegationHash',
+        { cryptoAuthMethod: 'delegation' as const },
+      ],
+      [
+        'ERC-20 without rawTransaction',
+        { cryptoAuthMethod: 'erc20_approval' as const },
+      ],
+      ['omitted method without rawTransaction', {}],
+      [
+        'both rawTransaction and delegationHash',
+        { rawTransaction: '0xdeadbeef' as const, delegationHash: '0xabc' },
+      ],
+      [
+        'delegation with both fields',
+        {
+          cryptoAuthMethod: 'delegation' as const,
+          rawTransaction: '0xdeadbeef' as const,
+          delegationHash: '0xabc' as const,
+        },
+      ],
+      [
+        'ERC-20 with only delegationHash',
+        {
+          cryptoAuthMethod: 'erc20_approval' as const,
+          delegationHash: '0xabc' as const,
+        },
+      ],
+    ])(
+      'rejects %s without posting',
+      async (
+        _case: string,
+        overrides: {
+          cryptoAuthMethod?: string;
+          rawTransaction?: string;
+          delegationHash?: string;
+        },
+      ) => {
+        const fetchMock = jest.fn();
+        const { service } = createService({ fetchMock });
+        const { rawTransaction: _rawTransaction, ...base } =
+          MOCK_CRYPTO_REQUEST;
+        // Intentionally invalid combos: runtime still rejects unsound callers.
+        const request = {
+          ...base,
+          ...overrides,
+        } as StartCryptoSubscriptionRequest;
+
+        await expect(
+          service.startSubscriptionWithCrypto(request),
+        ).rejects.toThrow(
+          SubscriptionServiceErrorMessage.InvalidCryptoAuthCombo,
+        );
+        expect(fetchMock).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('getPricing', () => {
     const mockPricingResponse: PricingResponse = {
       products: [],
       paymentMethods: [],
+    };
+
+    const mockSpotToken = {
+      symbol: 'USDC',
+      address: '0xa9f2867708c727fe250fb0d1fbeb4b4c8e1818e8',
+      decimals: 9,
+      conversionRate: { usd: '1.0' },
+    };
+
+    const mockCryptoChain = {
+      chainId: '0x1',
+      paymentAddress: '0x00000000000000000000000000000000000000a2',
+      tokens: [mockSpotToken],
     };
 
     it('should fetch pricing successfully', async () => {
@@ -776,6 +1357,61 @@ describe('SubscriptionService', () => {
       const result = await service.getPricing();
 
       expect(result).toStrictEqual(mockPricingResponse);
+    });
+
+    it('rejects vault share tokens that omit accountantAddress', async () => {
+      const fetchMock = jest.fn();
+      const { service } = createService({ fetchMock });
+
+      fetchMock.mockResolvedValue(
+        createMockResponse({
+          jsonData: {
+            products: [],
+            paymentMethods: [
+              {
+                type: PAYMENT_TYPES.byCrypto,
+                chains: [
+                  {
+                    ...mockCryptoChain,
+                    tokens: [
+                      {
+                        symbol: 'pvmUSD',
+                        address: '0x1C8a336051D2024E318A229d01F9F6CF96efD316',
+                        decimals: 6,
+                        isVaultShare: true,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      );
+
+      await expect(service.getPricing()).rejects.toThrow(/union/u);
+    });
+
+    it('rejects card payment methods that include crypto-only fields', async () => {
+      const fetchMock = jest.fn();
+      const { service } = createService({ fetchMock });
+
+      fetchMock.mockResolvedValue(
+        createMockResponse({
+          jsonData: {
+            products: [],
+            paymentMethods: [
+              {
+                type: PAYMENT_TYPES.byCard,
+                cryptoAuthMethod: 'delegation',
+                chains: [mockCryptoChain],
+              },
+            ],
+          },
+        }),
+      );
+
+      await expect(service.getPricing()).rejects.toThrow(/union/u);
     });
   });
 
@@ -1263,6 +1899,213 @@ describe('SubscriptionService', () => {
         expect(url).toContain('balanceCategory=100-999');
         expect(url).not.toMatch(/balanceCategory=100-999&balanceCategory=/u);
       }
+    });
+  });
+
+  describe('multi-product support', () => {
+    const MOCK_MONEY_ACCOUNT_PRICING_RESPONSE: PricingResponse = {
+      products: [
+        {
+          name: PRODUCT_TYPES.SHIELD,
+          prices: [
+            {
+              interval: RECURRING_INTERVALS.month,
+              unitAmount: 900,
+              unitDecimals: 2,
+              currency: 'usd',
+              trialPeriodDays: 14,
+              minBillingCycles: 12,
+              minBillingCyclesForBalance: 1,
+            },
+          ],
+        },
+        {
+          name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+          prices: [
+            {
+              interval: RECURRING_INTERVALS.month,
+              unitAmount: 499,
+              unitDecimals: 2,
+              currency: 'usd',
+              trialPeriodDays: 0,
+              minBillingCycles: 12,
+              minBillingCyclesForBalance: 1,
+            },
+          ],
+        },
+      ],
+      paymentMethods: [
+        {
+          type: PAYMENT_TYPES.byCard,
+          products: [PRODUCT_TYPES.SHIELD],
+        },
+        {
+          type: PAYMENT_TYPES.byCrypto,
+          cryptoAuthMethod: 'erc20_approval',
+          products: [PRODUCT_TYPES.SHIELD],
+          chains: [
+            {
+              chainId: '0x1',
+              paymentAddress: '0x00000000000000000000000000000000000000a2',
+              tokens: [
+                {
+                  symbol: 'USDC',
+                  address: '0xa9f2867708c727fe250fb0d1fbeb4b4c8e1818e8',
+                  decimals: 9,
+                  conversionRate: { usd: '1.0' },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          type: PAYMENT_TYPES.byCrypto,
+          cryptoAuthMethod: 'delegation',
+          products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+          chains: [
+            {
+              chainId: '0x8f',
+              paymentAddress: '0x00000000000000000000000000000000000000a1',
+              delegateAddress: '0x00000000000000000000000000000000000000c0',
+              tokens: [
+                {
+                  symbol: 'pvmUSD',
+                  address: '0x1C8a336051D2024E318A229d01F9F6CF96efD316',
+                  decimals: 6,
+                  isVaultShare: true,
+                  accountantAddress:
+                    '0x98A45D90E81849a5743241d3ff765F9Fd788206a',
+                  sources: [
+                    {
+                      symbol: 'mUSD',
+                      address: '0xacA92E438df0B2401fF60dA7E4337B687a2435DA',
+                      decimals: 6,
+                      conversionRate: { usd: '1.0' },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    it('should validate Money Account pricing responses', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({ jsonData: MOCK_MONEY_ACCOUNT_PRICING_RESPONSE }),
+        );
+
+        const result = await service.getPricing();
+
+        expect(result).toStrictEqual(MOCK_MONEY_ACCOUNT_PRICING_RESPONSE);
+      });
+    });
+
+    it('should forward delegation-based Money Account crypto subscriptions', async () => {
+      const delegationRequest: StartCryptoSubscriptionRequest = {
+        products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+        isTrialRequested: false,
+        recurringInterval: RECURRING_INTERVALS.month,
+        billingCycles: 12,
+        chainId: '0x8f',
+        payerAddress: '0x0000000000000000000000000000000000000001',
+        tokenSymbol: 'pvmUSD',
+        cryptoAuthMethod: 'delegation',
+        delegationHash: '0xabc',
+      };
+
+      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptionId: 'sub_money_account',
+              status: SUBSCRIPTION_STATUSES.active,
+            },
+          }),
+        );
+
+        await service.startSubscriptionWithCrypto(delegationRequest);
+
+        expect(fetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(env, 'subscriptions/crypto'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify(delegationRequest),
+          },
+        );
+      });
+    });
+
+    it('should return dual-product subscription responses', async () => {
+      const moneyAccountSubscription: Subscription = {
+        ...MOCK_SUBSCRIPTION,
+        id: 'sub_money_account',
+        products: [
+          {
+            name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+            currency: 'usd',
+            unitAmount: 499,
+            unitDecimals: 2,
+          },
+        ],
+        paymentMethod: {
+          type: PAYMENT_TYPES.byCrypto,
+          crypto: {
+            payerAddress: '0x0000000000000000000000000000000000000001',
+            chainId: '0x8f',
+            tokenSymbol: 'pvmUSD',
+          },
+        },
+      };
+
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              customerId: 'cus_1',
+              subscriptions: [MOCK_SUBSCRIPTION, moneyAccountSubscription],
+              trialedProducts: [PRODUCT_TYPES.SHIELD],
+            },
+          }),
+        );
+
+        const result = await service.getSubscriptions();
+
+        expect(result.subscriptions).toHaveLength(2);
+        expect(result.trialedProducts).toStrictEqual([PRODUCT_TYPES.SHIELD]);
+      });
+    });
+
+    it('should return Money Account eligibility responses', async () => {
+      const moneyAccountEligibility: SubscriptionEligibility = {
+        product: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+        canSubscribe: true,
+        canViewEntryModal: false,
+        cohorts: [],
+        assignedCohort: null,
+        hasAssignedCohortExpired: false,
+      };
+
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: [
+              createMockEligibilityResponse(),
+              moneyAccountEligibility,
+            ],
+          }),
+        );
+
+        const results = await service.getSubscriptionsEligibilities();
+
+        expect(results).toStrictEqual([
+          createMockEligibilityResponse(),
+          moneyAccountEligibility,
+        ]);
+      });
     });
   });
 

@@ -28,8 +28,8 @@ import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import assert from 'assert';
 
 import { SECONDS } from '../../../tests/constants.js';
-import { mockNetwork } from '../../../tests/mock-network.js';
 import { buildInfuraNetworkClientConfiguration } from '../../network-controller/tests/helpers.js';
+import { mockNetwork } from '../../network-controller/tests/mock-network.js';
 import type { AssetsContractControllerMessenger } from './AssetsContractController.js';
 import {
   AssetsContractController,
@@ -111,6 +111,15 @@ async function setupAssetContractControllers({
     }),
   );
 
+  messenger.registerActionHandler('ConfigRegistryController:getState', () => ({
+    configs: {
+      networks: {},
+    },
+    lastFetched: 0,
+    etag: '',
+    version: '1',
+  }));
+
   const networkControllerMessenger: NetworkControllerMessenger = new Messenger({
     namespace: 'NetworkController',
     parent: messenger,
@@ -119,6 +128,8 @@ async function setupAssetContractControllers({
   messenger.delegate({
     messenger: networkControllerMessenger,
     actions: [
+      'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
+      'ConfigRegistryController:getState',
       'ConnectivityController:getState',
       'RemoteFeatureFlagController:getState',
     ],

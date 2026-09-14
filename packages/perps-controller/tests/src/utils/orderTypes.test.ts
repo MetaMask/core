@@ -1,4 +1,4 @@
-import type { Order } from '../../../src/types/index.js';
+import type { Order, PositionTriggerOrder } from '../../../src/types/index.js';
 import type {
   OrderType,
   TriggerOrderType,
@@ -13,6 +13,7 @@ import {
   getTriggerExecution,
   isLimitExecutionOrderType,
   isTriggerOrderType,
+  resolvePositionTriggerSummaryPrice,
 } from '../../../src/utils/orderTypes.js';
 
 const createOrder = (overrides: Partial<Order> = {}): Order => ({
@@ -344,6 +345,70 @@ describe('orderTypes', () => {
       expect(result?.triggerPrice).toBe('45000');
       expect(result?.isPartial).toBe(false);
       expect(result?.reduceOnly).toBe(false);
+    });
+  });
+
+  describe('resolvePositionTriggerSummaryPrice', () => {
+    const createTriggerOrder = (
+      overrides: Partial<PositionTriggerOrder> = {},
+    ): PositionTriggerOrder => ({
+      orderId: '901',
+      direction: 'take_profit',
+      orderType: 'take_profit_limit',
+      triggerPrice: '60000',
+      size: '0.04',
+      isPartial: true,
+      reduceOnly: true,
+      ...overrides,
+    });
+
+    it('reports the price of a lone trigger order, partial or not', () => {
+      expect(
+        resolvePositionTriggerSummaryPrice({
+          triggerOrders: [createTriggerOrder()],
+        }),
+      ).toBe('60000');
+    });
+
+    it('prefers the lone trigger order over a differing scanned price', () => {
+      expect(
+        resolvePositionTriggerSummaryPrice({
+          triggerOrders: [createTriggerOrder({ triggerPrice: '61000' })],
+          scannedPrice: '60000',
+        }),
+      ).toBe('61000');
+    });
+
+    it('keeps the scanned price when several trigger orders share a direction', () => {
+      expect(
+        resolvePositionTriggerSummaryPrice({
+          triggerOrders: [
+            createTriggerOrder({ orderId: '901', triggerPrice: '60000' }),
+            createTriggerOrder({ orderId: '902', triggerPrice: '61000' }),
+          ],
+          scannedPrice: '59000',
+        }),
+      ).toBe('59000');
+    });
+
+    it('reports nothing when several trigger orders share a direction and none was scanned', () => {
+      expect(
+        resolvePositionTriggerSummaryPrice({
+          triggerOrders: [
+            createTriggerOrder({ orderId: '901', triggerPrice: '60000' }),
+            createTriggerOrder({ orderId: '902', triggerPrice: '61000' }),
+          ],
+        }),
+      ).toBeUndefined();
+    });
+
+    it('keeps the scanned price when there is no trigger order, which is how a pending order TP/SL still reports', () => {
+      expect(
+        resolvePositionTriggerSummaryPrice({
+          triggerOrders: [],
+          scannedPrice: '60000',
+        }),
+      ).toBe('60000');
     });
   });
 });

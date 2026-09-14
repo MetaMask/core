@@ -70,6 +70,7 @@ const PositionStruct = structType({
   tokenAddress: string(),
   chain: string(),
   positionAmount: number(),
+  isOpen: optional(boolean()),
   boughtUsd: number(),
   soldUsd: number(),
   realizedPnl: number(),

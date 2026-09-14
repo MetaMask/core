@@ -2,7 +2,7 @@ import type { Transaction } from '@metamask/core-backend';
 import type { BlockTracker } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import { isEqual } from 'lodash';
+import { isEqual } from 'lodash-es';
 
 import { projectLogger } from '../logger.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';

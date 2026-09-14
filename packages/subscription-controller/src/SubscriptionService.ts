@@ -32,10 +32,12 @@ import {
   StartCryptoSubscriptionResponseStruct,
   StartSubscriptionResponseStruct,
   SubscriptionApiGeneralResponseStruct,
+  SubscriptionBenefitsResponseStruct,
   SubscriptionEligibilityArrayStruct,
   SubscriptionStruct,
   UpdatePaymentMethodCardResponseStruct,
 } from './SubscriptionService-structs.js';
+import { CRYPTO_AUTH_METHODS } from './types.js';
 import type {
   AssignCohortRequest,
   BillingPortalResponse,
@@ -52,6 +54,7 @@ import type {
   SubmitUserEventRequest,
   Subscription,
   SubscriptionApiGeneralResponse,
+  SubscriptionBenefitsResponse,
   SubscriptionEligibility,
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCardResponse,
@@ -65,6 +68,7 @@ export const SUBSCRIPTION_URL = (env: Env, path: string): string =>
 
 const MESSENGER_EXPOSED_METHODS = [
   'getSubscriptions',
+  'getBenefits',
   'cancelSubscription',
   'unCancelSubscription',
   'startSubscriptionWithCard',
@@ -201,6 +205,27 @@ export class SubscriptionService extends BaseDataService<
   }
 
   /**
+   * Fetches the user's subscription benefits.
+   *
+   * @returns The benefits response.
+   */
+  async getBenefits(): Promise<SubscriptionBenefitsResponse> {
+    const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
+    const jsonResponse = await this.#fetchJson({
+      profileKey,
+      bearerToken,
+      methodName: 'getBenefits',
+      requestParams: null,
+      path: 'benefits',
+      method: 'POST',
+      body: {},
+      errorMessage: SubscriptionServiceErrorMessage.FailedToGetBenefits,
+    });
+
+    return create(jsonResponse, SubscriptionBenefitsResponseStruct);
+  }
+
+  /**
    * Cancels a subscription.
    *
    * @param params - The cancel subscription request.
@@ -215,11 +240,17 @@ export class SubscriptionService extends BaseDataService<
       profileKey,
       bearerToken,
       methodName: 'cancelSubscription',
-      requestParams: params,
+      requestParams: {
+        subscriptionId: params.subscriptionId,
+        cancelAtPeriodEnd: params.cancelAtPeriodEnd,
+        cancellationReason: params.cancellationReason,
+      },
       path,
       method: 'POST',
       body: {
         cancelAtPeriodEnd: params.cancelAtPeriodEnd,
+        cancellationReason: params.cancellationReason,
+        cancellationFeedback: params.cancellationFeedback,
       },
       errorMessage: SubscriptionServiceErrorMessage.FailedToCancelSubscription,
     });
@@ -255,7 +286,8 @@ export class SubscriptionService extends BaseDataService<
   }
 
   /**
-   * Starts a subscription with a card payment method.
+   * Starts a card-paid subscription checkout session for the requested products
+   * (e.g. Shield or Money Account Plus).
    *
    * @param request - The start subscription request.
    * @returns The checkout session response.
@@ -290,10 +322,21 @@ export class SubscriptionService extends BaseDataService<
    *
    * @param request - The start crypto subscription request.
    * @returns The created subscription response.
+   * @throws If `products` is empty.
+   * @throws If the request does not use exactly one of `rawTransaction`
+   * (ERC-20 approval) or `delegationHash` (delegation).
    */
   async startSubscriptionWithCrypto(
     request: StartCryptoSubscriptionRequest,
   ): Promise<StartCryptoSubscriptionResponse> {
+    if (request.products.length === 0) {
+      throw new SubscriptionServiceError(
+        SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+      );
+    }
+
+    this.#assertValidCryptoAuthCombo(request);
+
     const { profileKey, bearerToken } = await this.#getAuthenticatedContext();
     const jsonResponse = await this.#fetchJson({
       profileKey,
@@ -569,7 +612,7 @@ export class SubscriptionService extends BaseDataService<
           requestParams as Json,
         ],
         staleTime: 0,
-        cacheTime: 0,
+        gcTime: 0,
         queryFn: async () => {
           const response = await this.#fetch(url.toString(), {
             method,
@@ -607,6 +650,34 @@ export class SubscriptionService extends BaseDataService<
         {
           cause: errorToCapture,
         },
+      );
+    }
+  }
+
+  /**
+   * Ensures the request uses exactly one crypto auth method: ERC-20 approval
+   * (`rawTransaction`, default) or delegation (`delegationHash`).
+   *
+   * @param request - The start crypto subscription request.
+   * @throws If both, neither, or a mismatched combo of auth fields is provided.
+   */
+  #assertValidCryptoAuthCombo(request: StartCryptoSubscriptionRequest): void {
+    const method =
+      request.cryptoAuthMethod ?? CRYPTO_AUTH_METHODS.ERC20_APPROVAL;
+    const hasRawTransaction = Boolean(request.rawTransaction);
+    const hasDelegationHash = Boolean(request.delegationHash);
+    const isValidErc20Approval =
+      method === CRYPTO_AUTH_METHODS.ERC20_APPROVAL &&
+      hasRawTransaction &&
+      !hasDelegationHash;
+    const isValidDelegation =
+      method === CRYPTO_AUTH_METHODS.DELEGATION &&
+      hasDelegationHash &&
+      !hasRawTransaction;
+
+    if (!isValidErc20Approval && !isValidDelegation) {
+      throw new SubscriptionServiceError(
+        SubscriptionServiceErrorMessage.InvalidCryptoAuthCombo,
       );
     }
   }

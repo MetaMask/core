@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "resolveJsonModule": true,
     "outDir": "./dist",
     "rootDir": "./src"
@@ -27,6 +26,9 @@
     },
     {
       "path": "../multichain-transactions-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../utils/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

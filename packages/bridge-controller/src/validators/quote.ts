@@ -156,6 +156,7 @@ export const QuoteSchemaV2 = intersection([
             'usd',
             'valueInCurrency',
           ]),
+          cost: pick(AmountsAndAssetSchema, ['usd', 'valueInCurrency']),
         }),
       ),
     ),

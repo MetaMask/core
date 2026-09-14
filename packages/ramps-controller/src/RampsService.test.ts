@@ -48,6 +48,34 @@ describe('RampsService', () => {
       expect(geolocationResponse).toBe('us-tx');
     });
 
+    it('sends client identity query params when constructor options are set', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          clientProduct: 'metamask-mobile',
+          clientVersion: '8.9.0',
+        })
+        .reply(200, 'us-tx');
+      const { rootMessenger } = getService({
+        options: {
+          clientProduct: 'metamask-mobile',
+          clientVersion: '8.9.0',
+        },
+      });
+
+      const geolocationPromise = rootMessenger.call(
+        'RampsService:getGeolocation',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const geolocationResponse = await geolocationPromise;
+
+      expect(geolocationResponse).toBe('us-tx');
+    });
+
     it('uses the production URL when environment is Production', async () => {
       nock('https://on-ramp.api.cx.metamask.io')
         .get('/geolocation')
@@ -1255,6 +1283,12 @@ describe('RampsService', () => {
             },
           },
         ],
+        sorted: [
+          {
+            sortBy: '1',
+            ids: ['/providers/paypal-staging'],
+          },
+        ],
       };
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/us/providers')
@@ -1275,6 +1309,7 @@ describe('RampsService', () => {
       expect(providersResponse.providers[0]?.id).toBe(
         '/providers/paypal-staging',
       );
+      expect(providersResponse.sorted).toStrictEqual(mockProviders.sorted);
     });
 
     it('normalizes region case', async () => {
@@ -1297,6 +1332,31 @@ describe('RampsService', () => {
       const providersResponse = await providersPromise;
 
       expect(providersResponse.providers).toStrictEqual([]);
+      expect(providersResponse.sorted).toStrictEqual([]);
+    });
+
+    it('defaults sorted to an empty array when ranking metadata is not an array', async () => {
+      const mockProviders = {
+        providers: [],
+        sorted: { sortBy: '1', ids: ['/providers/paypal-staging'] },
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockProviders);
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('us');
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const providersResponse = await providersPromise;
+
+      expect(providersResponse.providers).toStrictEqual([]);
+      expect(providersResponse.sorted).toStrictEqual([]);
     });
 
     it('preserves provider limits from the API response', async () => {

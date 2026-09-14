@@ -52,7 +52,7 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 import { produce } from 'immer';
-import { isEqual, union } from 'lodash';
+import { isEqual, union } from 'lodash-es';
 
 import type {
   AccountTrackerControllerUpdateNativeBalancesAction,
@@ -129,7 +129,7 @@ export function mergeUpdateBalancesOptions(
 const metadata: StateMetadata<TokenBalancesControllerState> = {
   tokenBalances: {
     includeInStateLogs: false,
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },

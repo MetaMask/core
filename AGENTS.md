@@ -127,7 +127,7 @@ For more on these commands, see:
 ### Linting and formatting
 
 - Run `yarn lint` to check for code quality issues across the monorepo.
-- Run `yarn validate:changelog` to check for formatting issues in changelogs.
+- Run `yarn changelog:validate` to check for formatting issues in changelogs.
 - Run `yarn lint:fix` to automatically fix fixable violations.
 
 ### Building packages
@@ -158,7 +158,7 @@ Each consumer-facing change to a package should be accompanied by one or more en
   - Do not simply reuse the PR title in the entry, but describe exact changes to the API or usable surface area of the project.
   - When there are multiple upgrades to a package in the same release, combine them into a single entry.
   - Each changelog entry should describe one kind of change; if an entry describes too many things, split it up.
-- After updating a changelog, run `yarn validate:changelog` and fix any errors reported.
+- After updating a changelog, run `yarn changelog:validate` and fix any errors reported.
 
 ## Creating releases
 

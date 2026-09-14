@@ -289,7 +289,6 @@ export class AccountActivityService {
         this.#handleWebSocketStateChange(connectionInfo),
     );
     this.#messenger.subscribe(
-      // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
       // Promise result intentionally not awaited
       // eslint-disable-next-line @typescript-eslint/no-misused-promises

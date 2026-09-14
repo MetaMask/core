@@ -7,9 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [6.1.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+
+### Fixed
+
+- Keep the previously selected value for a threshold feature flag when the segmentation identifier is unavailable, instead of exposing the unresolved threshold array ([#10123](https://github.com/MetaMask/core/pull/10123))
+  - `getMetaMetricsId` and `getCanonicalProfileId` may legitimately return an empty string, as they do when `init` runs before whatever backs them is ready. Previously `init` would then replace resolved threshold values with the raw arrays, flipping those flags for the end user until the next fetch. Flags with no previously selected value, as on a fresh install, still fall back to the raw array.
+
+## [6.1.0]
+
 ### Added
 
+- Add optional `force` argument to `updateRemoteFeatureFlags` to fetch even when the cache has not expired ([#9966](https://github.com/MetaMask/core/pull/9966))
+  - Defaults to `false`. Does not fetch when the controller is disabled.
+
+## [6.0.0]
+
+### Added
+
+- **BREAKING:** Add required `getCanonicalProfileId` constructor option to `RemoteFeatureFlagController` for threshold flag segmentation ([#9325](https://github.com/MetaMask/core/pull/9325))
+  - By default, canonical profile ID is used, but MetaMetrics ID can be used when the flag name is present in `metaMetricsFlags`, typically for scenarios when canonical profile ID is unavailable.
+- Add optional `metaMetricsFlags` constructor option to `RemoteFeatureFlagController` to segment flags by MetaMetrics ID ([#9325](https://github.com/MetaMask/core/pull/9325))
+  - Flags with names present in `metaMetricsFlags` are segmented by MetaMetrics ID; all others segment by canonical profile ID.
 - Add optional `defaultFeatureFlags` constructor option to `RemoteFeatureFlagController` for client-side defaults as the lowest-precedence layer under processed remote flags and local overrides ([#9747](https://github.com/MetaMask/core/pull/9747))
+
+### Changed
+
+- **BREAKING:** Add `RemoteFeatureFlagController.init` method ([#9816](https://github.com/MetaMask/core/pull/9816))
+  - This must be called during initialization to ensure `remoteFeatureFlags` is properly recomputed.
+- **BREAKING:** Stop redacting IDs from `rawRemoteFeatureFlags` ([#9816](https://github.com/MetaMask/core/pull/9816))
+  - Existing `rawRemoteFeatureFlags` properties should be deleted in a migration, so they do not get used for recomputing flags (which would not work properly with a redacted input).
+
+### Fixed
+
+- Restore remote flag value when overrides are removed/cleared ([#9816](https://github.com/MetaMask/core/pull/9816))
+  - Previously the underlying remote value would be removed as well.
 
 ## [5.0.0]
 
@@ -246,7 +300,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of the RemoteFeatureFlagController. ([#4931](https://github.com/MetaMask/core/pull/4931))
   - This controller manages the retrieval and caching of remote feature flags. It fetches feature flags from a remote API, caches them, and provides methods to access and manage these flags. The controller ensures that feature flags are refreshed based on a specified interval and handles cases where the controller is disabled or the network is unavailable.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@6.1.1...@metamask/remote-feature-flag-controller@7.0.0
+[6.1.1]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@6.1.0...@metamask/remote-feature-flag-controller@6.1.1
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@6.0.0...@metamask/remote-feature-flag-controller@6.1.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@5.0.0...@metamask/remote-feature-flag-controller@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.2.2...@metamask/remote-feature-flag-controller@5.0.0
 [4.2.2]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.2.1...@metamask/remote-feature-flag-controller@4.2.2
 [4.2.1]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.2.0...@metamask/remote-feature-flag-controller@4.2.1

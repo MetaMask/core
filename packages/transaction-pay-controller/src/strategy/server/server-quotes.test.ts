@@ -201,14 +201,15 @@ describe('server-quotes', () => {
     );
   });
 
-  it('maps max-amount transactions to EXACT_INPUT quote requests', async () => {
-    await getServerQuotes({
+  it('maps max-amount transactions to input-based EXACT_INPUT quotes', async () => {
+    const result = await getServerQuotes({
       accountSupports7702: true,
       messenger,
       requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
       transaction: TRANSACTION_META_MOCK,
     });
 
+    expect(result[0].isInputBased).toBe(true);
     expect(fetchServerQuoteMock).toHaveBeenCalledWith(
       messenger,
       expect.objectContaining({
@@ -412,6 +413,7 @@ describe('server-quotes', () => {
           },
           targetNetwork: { fiat: '0', usd: '0' },
         },
+        isInputBased: false,
         original: {
           client: {
             gasLimits: [],

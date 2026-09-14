@@ -4,7 +4,6 @@ import type {
   ServicePolicy,
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import { SDK } from '@metamask/profile-sync-controller';
 import type { IDisposable } from 'cockatiel';
 
 import type { ConfigRegistryApiServiceMethodActions } from './config-registry-api-service-method-action-types.js';
@@ -16,6 +15,12 @@ import type {
 import { validateRegistryConfigApiResponse } from './types.js';
 
 const ENDPOINT_PATH = '/config/networks';
+
+export enum ConfigRegistryApiEnv {
+  DEV = 'dev',
+  UAT = 'uat',
+  PRD = 'prod',
+}
 
 /**
  * The name of the {@link ConfigRegistryApiService}, used to namespace the
@@ -66,8 +71,8 @@ export type ConfigRegistryApiServiceMessenger = Messenger<
  * @param env - The environment to get the URL for.
  * @returns The base URL for the environment.
  */
-function getConfigRegistryUrl(env: SDK.Env): string {
-  const envPrefix = env === SDK.Env.PRD ? '' : `${env}-`;
+function getConfigRegistryUrl(env: ConfigRegistryApiEnv): string {
+  const envPrefix = env === ConfigRegistryApiEnv.PRD ? '' : `${env}-`;
   return `https://client-config.${envPrefix}api.cx.metamask.io/v1${ENDPOINT_PATH}`;
 }
 
@@ -77,7 +82,7 @@ export type ConfigRegistryApiServiceOptions = {
    * independently and register its actions.
    */
   messenger: ConfigRegistryApiServiceMessenger;
-  env?: SDK.Env;
+  env?: ConfigRegistryApiEnv;
   fetch?: typeof fetch;
   /**
    * Options to pass to `createServicePolicy`, which wraps each request.
@@ -111,7 +116,7 @@ export class ConfigRegistryApiService {
    */
   constructor({
     messenger,
-    env = SDK.Env.UAT,
+    env = ConfigRegistryApiEnv.UAT,
     fetch: customFetch = globalThis.fetch,
     policyOptions = {},
   }: ConfigRegistryApiServiceOptions) {

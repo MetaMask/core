@@ -22,27 +22,27 @@ const UUID_V4_VALUE_RANGE_BIGINT = MAX_UUID_V4_BIGINT - MIN_UUID_V4_BIGINT;
 
 /**
  * Calculates a deterministic threshold value between 0 and 1 for A/B testing.
- * This function hashes the user's MetaMetrics ID combined with the feature flag name
+ * This function hashes the segmentation ID combined with the feature flag name
  * to ensure consistent group assignment across sessions while varying across different flags.
  *
- * @param metaMetricsId - The user's MetaMetrics ID (must be non-empty)
+ * @param segmentationId - The identifier used for threshold segmentation (must be non-empty)
  * @param featureFlagName - The feature flag name to create unique threshold per flag
  * @returns A promise that resolves to a number between 0 and 1
- * @throws Error if metaMetricsId is empty
+ * @throws Error if segmentationId is empty
  */
 export async function calculateThresholdForFlag(
-  metaMetricsId: string,
+  segmentationId: string,
   featureFlagName: string,
 ): Promise<number> {
-  if (!metaMetricsId) {
-    throw new Error('MetaMetrics ID cannot be empty');
+  if (!segmentationId) {
+    throw new Error('Segmentation ID cannot be empty');
   }
 
   if (!featureFlagName) {
     throw new Error('Feature flag name cannot be empty');
   }
 
-  const seed = metaMetricsId + featureFlagName;
+  const seed = segmentationId + featureFlagName;
 
   // Hash the combined seed
   const encoder = new TextEncoder();

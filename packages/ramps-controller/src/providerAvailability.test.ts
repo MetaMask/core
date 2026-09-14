@@ -1,6 +1,7 @@
 import {
   getProvidersServingAsset,
   isFiatDepositAvailable,
+  normalizeRampsAssetId,
   providerServesAsset,
   regionHasProviderForAsset,
 } from './providerAvailability.js';
@@ -24,7 +25,14 @@ const buildProvider = (
   ...(supportedCryptoCurrencies ? { supportedCryptoCurrencies } : {}),
 });
 
+const SOLANA_ASSET_ID =
+  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+
 describe('providerServesAsset', () => {
+  it('leaves non-EVM asset references case-sensitive', () => {
+    expect(normalizeRampsAssetId(SOLANA_ASSET_ID)).toBe(SOLANA_ASSET_ID);
+  });
+
   it('returns true when the provider lists the asset', () => {
     const provider = buildProvider('moonpay', 'aggregator', {
       [ASSET_ID]: true,

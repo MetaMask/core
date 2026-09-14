@@ -10,7 +10,6 @@
 // format, but also check the presence of certain files as well.
 
 /** @type {import('@yarnpkg/types')} */
-const { hasProperty } = require('@metamask/utils');
 const { defineConfig } = require('@yarnpkg/types');
 const { readFile } = require('fs/promises');
 const { get } = require('lodash');
@@ -23,9 +22,7 @@ const { inspect } = require('util');
  * Only intended as temporary measures to faciliate upgrades and releases.
  * This should trend towards empty.
  */
-const ALLOWED_INCONSISTENT_DEPENDENCIES = {
-  '@tanstack/query-core': ['^4.43.0'],
-};
+const ALLOWED_INCONSISTENT_DEPENDENCIES = {};
 
 /**
  * These packages are allowed as peer dependencies without requiring installation as
@@ -83,7 +80,7 @@ module.exports = defineConfig({
       const workspaceBasename = getWorkspaceBasename(workspace);
       const isChildWorkspace = workspace.cwd !== '.';
       const isPrivate =
-        hasProperty(workspace.manifest, 'private') &&
+        Object.hasOwn(workspace.manifest, 'private') &&
         workspace.manifest.private === true;
       const dependenciesByIdentAndType = getDependenciesByIdentAndType(
         Yarn.dependencies({ workspace }),
@@ -91,6 +88,9 @@ module.exports = defineConfig({
 
       // All packages must have a name.
       expectWorkspaceField(workspace, 'name');
+
+      // All workspaces must specify "type: module".
+      expectWorkspaceField(workspace, 'type', 'module');
 
       if (isChildWorkspace) {
         // All non-root packages must have a name that matches its directory
@@ -147,21 +147,33 @@ module.exports = defineConfig({
         }
 
         // All non-root packages must have a "build" script. All packages that
-        // do not exclusively deploy documentation sites must use `ts-bridge`.
+        // do not exclusively deploy documentation sites must use `tsc`.
         if (DOCSITE_PACKAGES.includes(workspace.ident)) {
           expectWorkspaceField(workspace, 'scripts.build');
         } else {
           expectWorkspaceField(
             workspace,
             'scripts.build',
-            'ts-bridge --project tsconfig.build.json --verbose --clean --no-references',
+            'tsc --project tsconfig.build.json',
           );
 
           // All non-root packages must have the same "build:all" script.
           expectWorkspaceField(
             workspace,
             'scripts.build:all',
-            'ts-bridge --project tsconfig.build.json --verbose --clean',
+            'tsc --build tsconfig.build.json --verbose',
+          );
+
+          expectWorkspaceField(
+            workspace,
+            'scripts.build:clean',
+            'yarn build:only-clean && yarn build',
+          );
+
+          expectWorkspaceField(
+            workspace,
+            'scripts.build:only-clean',
+            `rimraf './dist' './tsconfig.build.tsbuildinfo'`,
           );
         }
 
@@ -264,15 +276,8 @@ module.exports = defineConfig({
         expectYarnPackageManager(workspace);
       }
 
-      // All packages must specify a minimum Node.js version of 18.18.
-      // @metamask/wallet-cli depends on `better-sqlite3`, which only ships
-      // prebuilt binaries for Node 20+; bumping its declared minimum keeps the
-      // engines field honest.
-      if (workspace.ident === '@metamask/wallet-cli') {
-        expectWorkspaceField(workspace, 'engines.node', '>=20');
-      } else {
-        expectWorkspaceField(workspace, 'engines.node', '^18.18 || >=20');
-      }
+      // All packages must specify a minimum Node.js version of 22.
+      expectWorkspaceField(workspace, 'engines.node', '^22.14.0 || ^24');
 
       // All non-root public packages should be published to the NPM registry;
       // all non-root private packages should not.
@@ -417,7 +422,7 @@ async function workspaceFileExists(workspace, path) {
   try {
     await getWorkspaceFile(workspace, path);
   } catch (error) {
-    if (hasProperty(error, 'code') && error.code === 'ENOENT') {
+    if (Object.hasOwn(error, 'code') && error.code === 'ENOENT') {
       return false;
     }
     throw error;
@@ -559,35 +564,16 @@ async function expectWorkspaceLicense(workspace) {
 function expectCorrectWorkspaceExports(workspace) {
   // All non-root packages must provide the location of the ESM-compatible
   // JavaScript entrypoint and its matching type declaration file.
-  expectWorkspaceField(
-    workspace,
-    'exports["."].import.types',
-    './dist/index.d.mts',
-  );
-  expectWorkspaceField(
-    workspace,
-    'exports["."].import.default',
-    './dist/index.mjs',
-  );
+  expectWorkspaceField(workspace, 'exports["."].types', './dist/index.d.ts');
+  expectWorkspaceField(workspace, 'exports["."].default', './dist/index.js');
 
-  // All non-root package must provide the location of the CommonJS-compatible
-  // entrypoint and its matching type declaration file.
-  expectWorkspaceField(
-    workspace,
-    'exports["."].require.types',
-    './dist/index.d.cts',
-  );
-  expectWorkspaceField(
-    workspace,
-    'exports["."].require.default',
-    './dist/index.cjs',
-  );
-  expectWorkspaceField(workspace, 'main', './dist/index.cjs');
-  expectWorkspaceField(workspace, 'types', './dist/index.d.cts');
+  // Packages should not provide separate CommonJS/ESM exports.
+  expectWorkspaceField(workspace, 'exports["."].require', null);
+  expectWorkspaceField(workspace, 'exports["."].import', null);
 
-  // Types should not be set in the export object directly, but rather in the
-  // `import` and `require` subfields.
-  expectWorkspaceField(workspace, 'exports["."].types', null);
+  // Packages should not provide a "main" or "types" field.
+  expectWorkspaceField(workspace, 'main', null);
+  expectWorkspaceField(workspace, 'types', null);
 
   // All non-root packages must export a `package.json` file.
   expectWorkspaceField(
@@ -595,6 +581,36 @@ function expectCorrectWorkspaceExports(workspace) {
     'exports["./package.json"]',
     './package.json',
   );
+
+  const nonRootExports = Object.keys(workspace.manifest.exports).filter(
+    (key) => key !== '.' && key !== './package.json',
+  );
+
+  for (const key of nonRootExports) {
+    const prefix = `exports["${key}"]`;
+    expectWorkspaceField(workspace, `${prefix}.types`);
+    expectWorkspaceField(workspace, `${prefix}.default`);
+
+    const typesValue = get(workspace.manifest, `${prefix}.types`);
+    if (
+      typesValue &&
+      (typeof typesValue !== 'string' || !typesValue.endsWith('.d.ts'))
+    ) {
+      workspace.error(
+        `Expected package's "${prefix}.types" field to end with ".d.ts", but it was "${typesValue}".`,
+      );
+    }
+
+    const importValue = get(workspace.manifest, `${prefix}.default`);
+    if (
+      importValue &&
+      (typeof importValue !== 'string' || !importValue.endsWith('.js'))
+    ) {
+      workspace.error(
+        `Expected package's "${prefix}.default" field to end with ".js", but it was "${importValue}".`,
+      );
+    }
+  }
 }
 
 /**

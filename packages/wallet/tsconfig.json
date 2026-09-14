@@ -1,8 +1,5 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
     {
       "path": "../accounts-controller"
@@ -15,6 +12,9 @@
     },
     {
       "path": "../claims-controller"
+    },
+    {
+      "path": "../config-registry-controller"
     },
     {
       "path": "../base-controller"
@@ -57,6 +57,9 @@
     },
     {
       "path": "../transaction-controller"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

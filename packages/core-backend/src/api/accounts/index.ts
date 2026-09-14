@@ -15,7 +15,6 @@ export type {
   V6BalanceMetadata,
   V6TokenMetadata,
   V6BalanceItem,
-  V6AccountBalancesEntry,
   V6BalancesResponse,
   V1SupportedNetworksResponse,
   V2SupportedNetworksResponse,

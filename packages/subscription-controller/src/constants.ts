@@ -2,6 +2,24 @@ import { SUBSCRIPTION_STATUSES } from './types.js';
 
 export const controllerName = 'SubscriptionController';
 
+/**
+ * API cancellation reason values and their client-facing text.
+ */
+export const CANCELLATION_REASONS = {
+  // Costs more than it's worth
+  TOO_EXPENSIVE: 'too_expensive',
+  // I wasn't using the benefits
+  NOT_USING_BENEFITS: 'not_using_benefits',
+  // The benefits weren't what I expected
+  BENEFITS_NOT_AS_EXPECTED: 'benefits_not_as_expected',
+  // Something didn't work
+  SOMETHING_DID_NOT_WORK: 'something_did_not_work',
+  // Unhappy with support
+  UNHAPPY_WITH_SUPPORT: 'unhappy_with_support',
+  // Other
+  OTHER: 'other',
+} as const;
+
 export enum Env {
   DEV = 'dev',
   UAT = 'uat',
@@ -46,15 +64,18 @@ export enum SubscriptionControllerErrorMessage {
   PaymentMethodNotCrypto = `${controllerName} - Payment method is not crypto`,
   ProductPriceNotFound = `${controllerName} - Product price not found`,
   SubscriptionNotValidForCryptoApproval = `${controllerName} - Subscription is not valid for crypto approval`,
+  CryptoApprovalRequiresShieldApprove = `${controllerName} - Crypto approval is only supported for Shield ERC-20 approve transactions`,
   LinkRewardsFailed = `${controllerName} - Failed to link rewards`,
 }
 
 export enum SubscriptionServiceErrorMessage {
   FailedToGetSubscriptions = 'Failed to get subscriptions',
+  FailedToGetBenefits = 'Failed to get benefits',
   FailedToCancelSubscription = 'Failed to cancel subscription',
   FailedToUncancelSubscription = 'Failed to uncancel subscription',
   FailedToStartSubscriptionWithCard = 'Failed to start subscription with card',
   FailedToStartSubscriptionWithCrypto = 'Failed to start subscription with crypto',
+  InvalidCryptoAuthCombo = 'Crypto subscription requires exactly one of rawTransaction (erc20_approval) or delegationHash (delegation)',
   FailedToUpdatePaymentMethodCard = 'Failed to update payment method card',
   FailedToUpdatePaymentMethodCrypto = 'Failed to update payment method crypto',
   FailedToGetSubscriptionsEligibilities = 'Failed to get subscriptions eligibilities',

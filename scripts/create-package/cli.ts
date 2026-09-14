@@ -26,7 +26,7 @@ export default async function cli(
       // Trim all strings and ensure they are not empty.
       for (const key in args) {
         if (typeof args[key] === 'string') {
-          args[key] = (args[key] as string).trim();
+          args[key] = args[key].trim();
 
           if (args[key] === '') {
             throw new Error(

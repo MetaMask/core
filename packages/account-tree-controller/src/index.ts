@@ -17,6 +17,8 @@ export type {
   AccountTreeControllerAccountGroupCreatedEvent,
   AccountTreeControllerAccountGroupUpdatedEvent,
   AccountTreeControllerAccountGroupRemovedEvent,
+  AccountTreeControllerInitializedEvent,
+  AccountTreeControllerUninitializedEvent,
   AccountTreeControllerEvents,
   AccountTreeControllerMessenger,
 } from './types.js';
@@ -39,7 +41,10 @@ export type {
   AccountTreeControllerSyncWithUserStorageAction,
   AccountTreeControllerSyncWithUserStorageAtLeastOnceAction,
   AccountTreeControllerInitAction,
+  AccountTreeControllerIsInitializedAction,
   AccountTreeControllerReinitAction,
+  AccountTreeControllerExportStateAction,
+  AccountTreeControllerImportStateAction,
 } from './AccountTreeController-method-action-types.js';
 
 export type { AccountContext } from './AccountTreeController.js';
@@ -48,3 +53,27 @@ export {
   AccountTreeController,
   getDefaultAccountTreeControllerState,
 } from './AccountTreeController.js';
+
+export type {
+  AccountTreePayload,
+  AccountTreePayloadStructType,
+  AccountWalletMnemonicPayload,
+  AccountWalletPrivateKeyPayload,
+  AccountWalletMnemonicGroupEntry,
+  AccountWalletPrivateKeyGroupEntry,
+  AccountWalletPayloadId,
+  AccountGroupPayloadId,
+  AccountTreeSnapshotWallet,
+  AccountTreeSnapshotGroup,
+  ExportStateOptions,
+} from './state/payload.js';
+
+export {
+  AccountWalletPayloadType,
+  AccountWalletPrivateKeyEncoding,
+  AccountTreePayloadStruct,
+  assertAccountTreePayload,
+} from './state/payload.js';
+
+export { AccountTreeSnapshot } from './state/snapshot.js';
+export { IdMap } from './state/id-map.js';

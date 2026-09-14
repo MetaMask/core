@@ -80,13 +80,13 @@ export type CurrencyRateMessenger = Messenger<
 const metadata: StateMetadata<CurrencyRateState> = {
   currentCurrency: {
     includeInStateLogs: true,
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
   currencyRates: {
     includeInStateLogs: true,
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     usedInUi: true,
   },

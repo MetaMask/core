@@ -16,6 +16,9 @@ import {
   MetricsSwapType,
   MetaMetricsSwapsEventSource,
   FeatureId,
+  UnifiedSwapBridgeEventName,
+  FailurePhase,
+  SwapBridgeErrorCode,
 } from '@metamask/bridge-controller';
 import type {
   AccountHardwareType,
@@ -27,6 +30,9 @@ import type {
   TradeData,
   RequestMetadata,
   BatchSellTradesResponse,
+  RequiredEventContextFromClient,
+  HashPresenceProperties,
+  FailureTelemetryProperties,
 } from '@metamask/bridge-controller';
 import {
   TransactionStatus,
@@ -42,6 +48,120 @@ import {
   getActualBridgeReceivedAmount,
   getActualSwapReceivedAmount,
 } from './swap-received-amount.js';
+
+/**
+ * Classify a thrown value from submit (sign/broadcast) catch paths.
+ *
+ * @param error - The thrown value from submit.
+ * @returns The Mixpanel `error_code`.
+ */
+export const getSubmitErrorCode = (error: unknown): SwapBridgeErrorCode => {
+  if (error === undefined || error === null) {
+    return SwapBridgeErrorCode.MissingErrorObject;
+  }
+  if (error instanceof Error) {
+    return SwapBridgeErrorCode.Unknown;
+  }
+  return SwapBridgeErrorCode.NonErrorRejection;
+};
+
+/**
+ * @param sourceHash - Source tx hash if known at emit time.
+ * @param destinationHash - Destination tx hash if known at emit time.
+ * @returns Boolean hash-presence properties.
+ */
+export const getHashPresenceProperties = (
+  sourceHash?: string | null,
+  destinationHash?: string | null,
+): HashPresenceProperties => {
+  return {
+    source_hash_present: Boolean(sourceHash),
+    destination_hash_present: Boolean(destinationHash),
+  };
+};
+
+/**
+ * Prefer destination_execution over source_execution over poll.
+ *
+ * @param hashPresence - Hash presence at emit time.
+ * @returns The Mixpanel `failure_phase` for a status/polling Failed event.
+ */
+export const getStatusFailurePhase = (
+  hashPresence: HashPresenceProperties,
+): FailurePhase => {
+  if (hashPresence.destination_hash_present) {
+    return FailurePhase.DestinationExecution;
+  }
+  if (hashPresence.source_hash_present) {
+    return FailurePhase.SourceExecution;
+  }
+  return FailurePhase.Poll;
+};
+
+/**
+ * Align `failure_phase` with combined hash presence without turning a
+ * no-hash `broadcast` failure into `poll`.
+ *
+ * @param phase - Phase from the emitting path.
+ * @param hashPresence - Combined history + caller hash flags.
+ * @returns The Mixpanel `failure_phase`.
+ */
+export const promoteFailurePhase = (
+  phase: FailurePhase,
+  hashPresence: HashPresenceProperties,
+): FailurePhase => {
+  if (hashPresence.destination_hash_present) {
+    return FailurePhase.DestinationExecution;
+  }
+  if (
+    hashPresence.source_hash_present &&
+    (phase === FailurePhase.Broadcast ||
+      phase === FailurePhase.Poll ||
+      phase === FailurePhase.Unknown)
+  ) {
+    return FailurePhase.SourceExecution;
+  }
+  return phase;
+};
+
+/**
+ * Mixpanel properties for Failed events in the `broadcast` phase (no tx hash yet).
+ *
+ * @param error - The thrown value from the submit/broadcast catch.
+ * @returns Phase, error code, and hash-presence flags.
+ */
+export const getBroadcastFailureProperties = (
+  error: unknown,
+): FailureTelemetryProperties => {
+  return {
+    failure_phase: FailurePhase.Broadcast,
+    error_code: getSubmitErrorCode(error),
+    source_hash_present: false,
+    destination_hash_present: false,
+  };
+};
+
+/**
+ * Mixpanel properties for Failed events derived from history hashes.
+ *
+ * Used for poll Failed and TransactionController Failed once a history
+ * item exists. Not poll-only.
+ *
+ * @param sourceHash - Source tx hash from history if known.
+ * @param destinationHash - Destination tx hash from history if known.
+ * @returns Phase, error code, and hash-presence flags.
+ */
+export const getFailurePropertiesFromHistory = (
+  sourceHash?: string | null,
+  destinationHash?: string | null,
+): FailureTelemetryProperties => {
+  const hashPresence = getHashPresenceProperties(sourceHash, destinationHash);
+  return {
+    ...hashPresence,
+    failure_phase: getStatusFailurePhase(hashPresence),
+    error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
+  };
+};
 
 export const getTxStatusesFromHistory = ({
   status,
@@ -192,6 +312,7 @@ export const getPriceImpactFromQuote = (
  * @param tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
  * @param batchSellTrades - The batch sell trades response
  * @param batchId - The batch ID of the transaction batch.
+ * @param quotesReceivedContext - The client context captured when quotes were received.
  * @returns The properties for the pre-confirmation event
  */
 export const getPreConfirmationPropertiesFromQuote = (
@@ -204,6 +325,7 @@ export const getPreConfirmationPropertiesFromQuote = (
   tokenSecurityTypeDestination?: string | null,
   batchSellTrades?: BatchSellTradesResponse | null,
   batchId?: Hex,
+  quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
 ) => {
   const { quote } = quoteResponse;
   return {
@@ -225,7 +347,9 @@ export const getPreConfirmationPropertiesFromQuote = (
     usd_amount_source: Number(quoteResponse?.sentAmount?.usd ?? 0),
     stx_enabled: isStxEnabled,
     action_type: MetricsActionType.SWAPBRIDGE_V1,
-    custom_slippage: false, // TODO detect whether the user changed the default slippage
+    slippage_limit:
+      quotesReceivedContext?.slippage_limit ?? quote.slippage ?? 0,
+    custom_slippage: quotesReceivedContext?.custom_slippage ?? false,
     location,
     ...(abTests &&
       Object.keys(abTests).length > 0 && {
@@ -259,12 +383,29 @@ export const getRequestMetadataFromHistory = (
   historyItem: BridgeHistoryItem,
   account?: AccountsControllerState['internalAccounts']['accounts'][string],
 ): RequestMetadata => {
-  const { quote, slippagePercentage, isStxEnabled } = historyItem;
+  const {
+    quote,
+    slippagePercentage,
+    isStxEnabled,
+    customSlippage,
+    batchSellData,
+    featureId,
+  } = historyItem;
   const accountHardwareType = getAccountHardwareType(account);
+  const isBatchSell =
+    Boolean(batchSellData) || featureId === FeatureId.BATCH_SELL;
+  const isUnifiedSwapBridge =
+    featureId === undefined || featureId === FeatureId.UNIFIED_SWAP_BRIDGE;
+  let inferredCustomSlippage = false;
+  if (isBatchSell) {
+    inferredCustomSlippage = isCustomSlippage(slippagePercentage ?? 0);
+  } else if (!isUnifiedSwapBridge) {
+    inferredCustomSlippage = isCustomSlippage(slippagePercentage);
+  }
 
   return {
-    slippage_limit: slippagePercentage,
-    custom_slippage: isCustomSlippage(slippagePercentage),
+    slippage_limit: slippagePercentage ?? 0,
+    custom_slippage: customSlippage ?? inferredCustomSlippage,
     usd_amount_source: Number(historyItem.pricingData?.amountSentInUsd ?? 0),
     swap_type: getSwapType(quote.srcChainId, quote.destChainId),
     account_hardware_type: accountHardwareType,
@@ -306,6 +447,7 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     token_symbol_source: transactionMeta.sourceTokenSymbol ?? '',
     token_symbol_destination: transactionMeta.destinationTokenSymbol ?? '',
     usd_amount_source: 0,
+    slippage_limit: 0,
     stx_enabled: false,
     token_address_source:
       formatAddressToAssetId(
@@ -343,5 +485,12 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     usd_actual_gas: 0,
     action_type: MetricsActionType.SWAPBRIDGE_V1,
     ...(transactionMeta.batchId ? { batch_id: transactionMeta.batchId } : {}),
+    ...getHashPresenceProperties(transactionMeta.hash, undefined),
+    failure_phase: transactionMeta.hash
+      ? FailurePhase.SourceExecution
+      : FailurePhase.Broadcast,
+    error_code: transactionMeta.error
+      ? SwapBridgeErrorCode.Unknown
+      : SwapBridgeErrorCode.MissingErrorObject,
   };
 };

@@ -1,4 +1,4 @@
-import { SiweMessage } from 'siwe';
+import { SiweMessage } from '@signinwithethereum/siwe';
 
 import { ValidationError } from '../errors.js';
 import { validateLoginResponse } from '../utils/validate-login-response.js';
@@ -8,6 +8,7 @@ import {
   authorizeOIDC,
   getCustomerServiceToken,
   getNonce,
+  getPartnerIdentityToken,
   getUserProfileLineage,
 } from './services.js';
 import type {
@@ -16,6 +17,8 @@ import type {
   AuthType,
   IBaseAuth,
   LoginResponse,
+  OidcTokenAudience,
+  OidcTokenClaims,
   UserProfile,
   UserProfileLineage,
 } from './types.js';
@@ -79,6 +82,20 @@ export class SIWEJwtBearerAuth implements IBaseAuth {
   async getCustomerServiceToken(): Promise<string> {
     const accessToken = await this.getAccessToken();
     return await getCustomerServiceToken(this.#config.env, accessToken);
+  }
+
+  async getPartnerIdentityToken(
+    claims: OidcTokenClaims,
+    audience: OidcTokenAudience,
+    _entropySourceId?: string,
+  ): Promise<string> {
+    const accessToken = await this.getAccessToken();
+    return await getPartnerIdentityToken(
+      this.#config.env,
+      accessToken,
+      claims,
+      audience,
+    );
   }
 
   async signMessage(message: string): Promise<string> {

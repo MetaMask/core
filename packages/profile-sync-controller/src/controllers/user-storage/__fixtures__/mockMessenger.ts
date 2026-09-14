@@ -7,6 +7,7 @@ import type {
   NotNamespacedBy,
 } from '@metamask/messenger';
 
+import { signMessageWithMessageSigningKey } from '../../../shared/utils/message-signing.js';
 import { MOCK_LOGIN_RESPONSE } from '../../authentication/mocks/index.js';
 import type {
   AllowedActions,
@@ -14,6 +15,8 @@ import type {
   UserStorageControllerMessenger,
 } from '../index.js';
 import { MOCK_STORAGE_KEY_SIGNATURE } from '../mocks/index.js';
+
+const MOCK_HD_SEED = new Uint8Array(64).fill(1);
 
 const controllerName = 'UserStorageController';
 
@@ -83,7 +86,7 @@ export function createCustomUserStorageMessenger(props?: {
     messenger,
     actions: [
       'KeyringController:getState',
-      'SnapController:handleRequest',
+      'KeyringController:withKeyringV2Unsafe',
       'AuthenticationController:getBearerToken',
       'AuthenticationController:getSessionProfile',
       'AuthenticationController:isSignedIn',
@@ -120,10 +123,8 @@ export function mockUserStorageMessenger(
   const { baseMessenger, messenger } =
     overrideMessengers ?? createCustomUserStorageMessenger();
 
-  const mockSnapGetPublicKey = jest.fn().mockResolvedValue('MOCK_PUBLIC_KEY');
-  const mockSnapSignMessage = jest
-    .fn()
-    .mockResolvedValue(MOCK_STORAGE_KEY_SIGNATURE);
+  const mockSignMessage = jest.mocked(signMessageWithMessageSigningKey);
+  mockSignMessage.mockReset().mockResolvedValue(MOCK_STORAGE_KEY_SIGNATURE);
 
   const mockAuthGetBearerToken = typedMockFn(
     'AuthenticationController:getBearerToken',
@@ -162,27 +163,32 @@ export function mockUserStorageMessenger(
     ],
   });
 
+  const mockWithKeyringV2Unsafe = jest
+    .fn()
+    .mockImplementation(
+      async (
+        _selector: { id: string },
+        operation: (context: {
+          keyring: { type: string; seed?: Uint8Array };
+          metadata: { id: string; name: string };
+        }) => Promise<unknown>,
+      ) => {
+        return operation({
+          keyring: { type: 'hd', seed: MOCK_HD_SEED },
+          metadata: { id: 'mock', name: '' },
+        });
+      },
+    );
+
   const mockAccountsListAccounts = jest.fn();
 
-  jest.spyOn(messenger, 'call').mockImplementation((...args) => {
+  jest.spyOn(messenger, 'call').mockImplementation((...args: unknown[]) => {
     const typedArgs = args as unknown as CallParams;
     const [actionType] = typedArgs;
 
-    if (actionType === 'SnapController:handleRequest') {
-      const [, params] = typedArgs;
-      if (params.request.method === 'getPublicKey') {
-        return mockSnapGetPublicKey();
-      }
-
-      if (params.request.method === 'signMessage') {
-        return mockSnapSignMessage();
-      }
-
-      throw new Error(
-        `MOCK_FAIL - unsupported SnapController:handleRequest call: ${
-          params.request.method as string
-        }`,
-      );
+    if (actionType === 'KeyringController:withKeyringV2Unsafe') {
+      const [, selector, operation] = typedArgs;
+      return mockWithKeyringV2Unsafe(selector, operation);
     }
 
     if (actionType === 'AuthenticationController:getBearerToken') {
@@ -213,8 +219,7 @@ export function mockUserStorageMessenger(
   return {
     baseMessenger,
     messenger,
-    mockSnapGetPublicKey,
-    mockSnapSignMessage,
+    mockSignMessage,
     mockAuthGetBearerToken,
     mockAuthGetSessionProfile,
     mockAuthPerformSignIn,
@@ -223,6 +228,7 @@ export function mockUserStorageMessenger(
     mockKeyringAddAccounts,
     mockKeyringGetState,
     mockWithKeyringSelector,
+    mockWithKeyringV2Unsafe,
     mockAccountsListAccounts,
   };
 }

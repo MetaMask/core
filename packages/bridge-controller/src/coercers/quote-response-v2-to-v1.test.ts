@@ -216,10 +216,10 @@ describe('quote-response-v1 compatibility', () => {
     });
 
     it('should return a valid QuoteResponseV1 with V2 input (remove metadata)', () => {
-      const quoteResponseV1WithMetadata = mergeQuoteMetadata(
-        mockBridgeQuotesErc20Erc20V1[0],
-        MOCK_QUOTE_METADATA,
-      );
+      const quoteResponseV1WithMetadata = {
+        ...mockBridgeQuotesErc20Erc20V1[0],
+        ...MOCK_QUOTE_METADATA,
+      };
 
       // Build input data by converting V1 to V2
       const quoteResponseV2 = mergeQuoteMetadata(
@@ -271,10 +271,10 @@ describe('quote-response-v1 compatibility', () => {
     });
 
     it('should return a valid QuoteResponseV1 with V1 input and metadata', () => {
-      const quoteResponse = mergeQuoteMetadata(
-        mockBridgeQuotesErc20Erc20V1[0],
-        MOCK_QUOTE_METADATA,
-      );
+      const quoteResponse = {
+        ...mockBridgeQuotesErc20Erc20V1[0],
+        ...MOCK_QUOTE_METADATA,
+      };
 
       // Convert to V1
       const quoteResponseV1 = toQuoteResponseV1(quoteResponse);

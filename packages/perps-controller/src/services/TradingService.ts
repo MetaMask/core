@@ -30,6 +30,7 @@ import type {
   UpdatePositionTPSLParams,
   PerpsAnalyticsProperties,
   PerpsPlatformDependencies,
+  PerpsFeeResolution,
 } from '../types/index.js';
 import { ensureError } from '../utils/errorUtils.js';
 import { isLimitExecutionOrderType } from '../utils/orderTypes.js';
@@ -75,6 +76,9 @@ export class TradingService {
    * Set via setControllerDependencies() after construction.
    */
   #controllerDeps: TradingServiceControllerDeps | null = null;
+
+  /** Serializes provider fee context so concurrent orders cannot share it. */
+  #feeContextTail: Promise<void> = Promise.resolve();
 
   /**
    * Create a new TradingService instance
@@ -145,6 +149,21 @@ export class TradingService {
   }
 
   /**
+   * Build properties that identify the submitted order intent.
+   *
+   * @param params - Order parameters containing placement type and reduce-only intent.
+   * @returns Properties shared by every trade lifecycle event.
+   */
+  #buildTradeIntentProperties(
+    params: Pick<OrderParams, 'orderType' | 'reduceOnly'>,
+  ): PerpsAnalyticsProperties {
+    return {
+      [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.orderType,
+      [PERPS_EVENT_PROPERTY.REDUCE_ONLY]: params.reduceOnly === true,
+    };
+  }
+
+  /**
    * Emit a transaction event with status=submitted before the provider round-trip.
    * Fired for trade, close, cancel and risk-management operations.
    *
@@ -184,6 +203,12 @@ export class TradingService {
       result?.success === true
         ? PERPS_EVENT_VALUE.STATUS.EXECUTED
         : PERPS_EVENT_VALUE.STATUS.FAILED;
+    const trackedOrderSize = parseFloat(
+      result?.filledSize ??
+        result?.acceptedSize ??
+        result?.submittedSize ??
+        params.size,
+    );
 
     // Build base properties
     const properties: PerpsAnalyticsProperties = {
@@ -192,11 +217,9 @@ export class TradingService {
       [PERPS_EVENT_PROPERTY.DIRECTION]: params.isBuy
         ? PERPS_EVENT_VALUE.DIRECTION.LONG
         : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-      [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.orderType,
+      ...this.#buildTradeIntentProperties(params),
       [PERPS_EVENT_PROPERTY.LEVERAGE]: parseFloat(String(params.leverage ?? 1)),
-      [PERPS_EVENT_PROPERTY.ORDER_SIZE]: parseFloat(
-        result?.filledSize ?? params.size,
-      ),
+      [PERPS_EVENT_PROPERTY.ORDER_SIZE]: trackedOrderSize,
       [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: duration,
     };
 
@@ -215,8 +238,13 @@ export class TradingService {
     }
     // Trigger limit placements carry a real limit price too, so the companion
     // property must not go missing when order_type is stop_limit/take_profit_limit.
-    if (isLimitExecutionOrderType(params.orderType) && params.price) {
-      properties[PERPS_EVENT_PROPERTY.LIMIT_PRICE] = parseFloat(params.price);
+    const limitPrice = result?.weightedAverageLimitPrice ?? params.price;
+    if (
+      limitPrice &&
+      (result?.weightedAverageLimitPrice ||
+        isLimitExecutionOrderType(params.orderType))
+    ) {
+      properties[PERPS_EVENT_PROPERTY.LIMIT_PRICE] = parseFloat(limitPrice);
     }
     if (params.trackingData?.source) {
       properties[PERPS_EVENT_PROPERTY.SOURCE] = params.trackingData.source;
@@ -246,12 +274,16 @@ export class TradingService {
     }
 
     // Calculate order value in USD (size * price)
-    const orderSize = parseFloat(result?.filledSize ?? params.size);
     const assetPrice = result?.averagePrice
       ? parseFloat(result.averagePrice)
       : params.trackingData?.marketPrice;
-    if (assetPrice && orderSize) {
-      properties[PERPS_EVENT_PROPERTY.ORDER_VALUE] = orderSize * assetPrice;
+    let orderValuePrice = assetPrice;
+    if (!result?.averagePrice && result?.weightedAverageLimitPrice) {
+      orderValuePrice = parseFloat(result.weightedAverageLimitPrice);
+    }
+    if (orderValuePrice && trackedOrderSize) {
+      properties[PERPS_EVENT_PROPERTY.ORDER_VALUE] =
+        trackedOrderSize * orderValuePrice;
     }
 
     // Add success-specific properties
@@ -312,45 +344,59 @@ export class TradingService {
     // Emit an additional partially filled trade event when the fill is partial,
     // mirroring the close path so the fill's partiality is visible in analytics
     // rather than hidden behind a status=executed event. Classification is based
-    // on the provider's final submitted size (post precision rounding, USD
-    // recalculation, and $10-minimum retry), not the caller's pre-normalization
-    // params.size — the provider transforms the size before submission and a
+    // on the provider's accepted size, falling back to its final submitted size
+    // when no accepted-size distinction applies. This avoids counting rejected
+    // Scale rungs as unfilled exposure. Both values are post-normalization, so a
     // complete fill of the normalized size must not look partial. When the
-    // provider did not report a submitted size we do not classify (rather than
-    // guess from params.size). The partial event mirrors the close schema:
-    // order_size = submitted size, amount_filled = filled, remaining = the rest.
+    // provider reports neither value we do not classify rather than guess from
+    // params.size. The partial event mirrors the close schema: order_size =
+    // accepted size, amount_filled = filled, remaining = the rest.
     // Compare and subtract the decimal size strings with arbitrary-precision
     // math (BigNumber): routing them through parseFloat can introduce
     // binary-float artifacts that collapse distinct values (misclassifying the
     // fill) or leave e-17 dust in remaining_amount. Only convert to Number for
     // the emitted analytics values, after the exact decimal subtraction.
-    const submittedSize =
-      result?.submittedSize === undefined
+    const acceptedSizeString = result?.acceptedSize ?? result?.submittedSize;
+    const acceptedSize =
+      acceptedSizeString === undefined
         ? undefined
-        : new BigNumber(result.submittedSize);
+        : new BigNumber(acceptedSizeString);
     const filledSize =
       result?.filledSize === undefined
         ? undefined
         : new BigNumber(result.filledSize);
     if (
       result?.success === true &&
-      submittedSize !== undefined &&
+      acceptedSize !== undefined &&
       filledSize !== undefined &&
-      submittedSize.isFinite() &&
+      acceptedSize.isFinite() &&
       filledSize.isFinite() &&
       filledSize.gt(0) &&
-      filledSize.lt(submittedSize)
+      filledSize.lt(acceptedSize)
     ) {
-      this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.TradeTransaction, {
+      const partialProperties: PerpsAnalyticsProperties = {
         ...properties,
         [PERPS_EVENT_PROPERTY.STATUS]:
           PERPS_EVENT_VALUE.STATUS.PARTIALLY_FILLED,
-        [PERPS_EVENT_PROPERTY.ORDER_SIZE]: submittedSize.toNumber(),
+        [PERPS_EVENT_PROPERTY.ORDER_SIZE]: acceptedSize.toNumber(),
         [PERPS_EVENT_PROPERTY.AMOUNT_FILLED]: filledSize.toNumber(),
-        [PERPS_EVENT_PROPERTY.REMAINING_AMOUNT]: submittedSize
+        [PERPS_EVENT_PROPERTY.REMAINING_AMOUNT]: acceptedSize
           .minus(filledSize)
           .toNumber(),
-      });
+      };
+      if (result.weightedAverageLimitPrice !== undefined) {
+        const acceptedOrderValue = acceptedSize.times(
+          result.weightedAverageLimitPrice,
+        );
+        if (acceptedOrderValue.isFinite()) {
+          partialProperties[PERPS_EVENT_PROPERTY.ORDER_VALUE] =
+            acceptedOrderValue.toNumber();
+        }
+      }
+      this.#deps.metrics.trackPerpsEvent(
+        PerpsAnalyticsEvent.TradeTransaction,
+        partialProperties,
+      );
     }
 
     this.#deps.metrics.trackPerpsEvent(
@@ -429,25 +475,35 @@ export class TradingService {
    *
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
-   * @param options.feeDiscountBips - The fee discount bips value.
+   * @param options.feeResolution - The resolved fee and attribution source.
    * @param options.operation - The operation value.
    * @returns The result of the operation.
    */
   async #withFeeDiscount<TResult>(options: {
     provider: PerpsProvider;
-    feeDiscountBips?: number;
+    feeResolution?: PerpsFeeResolution;
     operation: () => Promise<TResult>;
   }): Promise<TResult> {
-    const { provider, feeDiscountBips, operation } = options;
+    const { provider, feeResolution, operation } = options;
+    const previous = this.#feeContextTail;
+    let release: () => void = () => undefined;
+    this.#feeContextTail = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
 
     try {
-      // Set discount context in provider for this operation
-      if (feeDiscountBips !== undefined && provider.setUserFeeDiscount) {
-        provider.setUserFeeDiscount(feeDiscountBips);
+      if (provider.setUserFeeResolution) {
+        provider.setUserFeeResolution(feeResolution);
+      } else if (provider.setUserFeeDiscount) {
+        provider.setUserFeeDiscount(feeResolution?.discountBips);
+      }
+      if (feeResolution) {
         this.#deps.debugLogger.log(
-          'TradingService: Fee discount set in provider',
+          'TradingService: Fee resolution set in provider',
           {
-            feeDiscountBips,
+            feeDiscountBips: feeResolution.discountBips,
+            feeSource: feeResolution.source,
           },
         );
       }
@@ -456,12 +512,15 @@ export class TradingService {
       return await operation();
     } finally {
       // Always clear discount context, even on exception
-      if (provider.setUserFeeDiscount) {
+      if (provider.setUserFeeResolution) {
+        provider.setUserFeeResolution(undefined);
+      } else if (provider.setUserFeeDiscount) {
         provider.setUserFeeDiscount(undefined);
-        this.#deps.debugLogger.log(
-          'TradingService: Fee discount cleared from provider',
-        );
       }
+      this.#deps.debugLogger.log(
+        'TradingService: Fee resolution cleared from provider',
+      );
+      release();
     }
   }
 
@@ -541,11 +600,12 @@ export class TradingService {
       });
 
       // Calculate fee discount at execution time (fresh, secure)
-      const feeDiscountBips = await this.#calculateFeeDiscountWithMeasurement();
+      const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
 
-      this.#deps.debugLogger.log('TradingService: Fee discount calculated', {
-        feeDiscountBips,
-        hasDiscount: feeDiscountBips !== undefined,
+      this.#deps.debugLogger.log('TradingService: Fee resolution calculated', {
+        feeDiscountBips: feeResolution?.discountBips,
+        feeSource: feeResolution?.source,
+        hasDiscount: feeResolution?.discountBips !== undefined,
       });
 
       this.#deps.debugLogger.log(
@@ -567,7 +627,7 @@ export class TradingService {
         [PERPS_EVENT_PROPERTY.DIRECTION]: params.isBuy
           ? PERPS_EVENT_VALUE.DIRECTION.LONG
           : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-        [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.orderType,
+        ...this.#buildTradeIntentProperties(params),
         [PERPS_EVENT_PROPERTY.LEVERAGE]: parseFloat(
           String(params.leverage ?? 1),
         ),
@@ -606,7 +666,7 @@ export class TradingService {
       }, PERPS_CONSTANTS.PlaceOrderTimeoutMs);
       const result = await this.#withFeeDiscount({
         provider,
-        feeDiscountBips,
+        feeResolution,
         operation: () => provider.placeOrder(params),
       });
       if (orderSubmissionThresholdTimeoutId !== undefined) {
@@ -1110,7 +1170,9 @@ export class TradingService {
    *
    * @returns The result of the operation.
    */
-  async #calculateFeeDiscountWithMeasurement(): Promise<number | undefined> {
+  async #calculateFeeDiscountWithMeasurement(): Promise<
+    PerpsFeeResolution | undefined
+  > {
     // Check if controller dependencies are available
     if (!this.#controllerDeps) {
       this.#deps.debugLogger.log(
@@ -1124,8 +1186,7 @@ export class TradingService {
     const orderExecutionFeeDiscountStartTime = this.#deps.performance.now();
 
     // Calculate fee discount using messenger pattern (service handles controller access internally)
-    const discountBips =
-      await rewardsIntegrationService.calculateUserFeeDiscount();
+    const resolution = await rewardsIntegrationService.resolveFee();
 
     const orderExecutionFeeDiscountDuration =
       this.#deps.performance.now() - orderExecutionFeeDiscountStartTime;
@@ -1140,12 +1201,13 @@ export class TradingService {
     this.#deps.debugLogger.log(
       'TradingService: Fee discount API call completed',
       {
-        discountBips,
+        discountBips: resolution.discountBips,
+        source: resolution.source,
         duration: `${orderExecutionFeeDiscountDuration.toFixed(0)}ms`,
       },
     );
 
-    return discountBips;
+    return resolution;
   }
 
   /**
@@ -1189,12 +1251,12 @@ export class TradingService {
       });
 
       // Calculate fee discount only if required dependencies are available
-      const feeDiscountBips = await this.#calculateFeeDiscountWithMeasurement();
+      const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
 
       // Execute order edit with fee discount management
       const result = await this.#withFeeDiscount({
         provider,
-        feeDiscountBips,
+        feeResolution,
         operation: () => provider.editOrder(params),
       });
 
@@ -1215,7 +1277,7 @@ export class TradingService {
           [PERPS_EVENT_PROPERTY.DIRECTION]: params.newOrder.isBuy
             ? PERPS_EVENT_VALUE.DIRECTION.LONG
             : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-          [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.newOrder.orderType,
+          ...this.#buildTradeIntentProperties(params.newOrder),
           [PERPS_EVENT_PROPERTY.LEVERAGE]: params.newOrder.leverage ?? 1,
           [PERPS_EVENT_PROPERTY.ORDER_SIZE]: params.newOrder.size,
           [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
@@ -1241,7 +1303,7 @@ export class TradingService {
             [PERPS_EVENT_PROPERTY.DIRECTION]: params.newOrder.isBuy
               ? PERPS_EVENT_VALUE.DIRECTION.LONG
               : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-            [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.newOrder.orderType,
+            ...this.#buildTradeIntentProperties(params.newOrder),
             [PERPS_EVENT_PROPERTY.LEVERAGE]: params.newOrder.leverage ?? 1,
             [PERPS_EVENT_PROPERTY.ORDER_SIZE]: params.newOrder.size,
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
@@ -1264,7 +1326,7 @@ export class TradingService {
         [PERPS_EVENT_PROPERTY.DIRECTION]: params.newOrder.isBuy
           ? PERPS_EVENT_VALUE.DIRECTION.LONG
           : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-        [PERPS_EVENT_PROPERTY.ORDER_TYPE]: params.newOrder.orderType,
+        ...this.#buildTradeIntentProperties(params.newOrder),
         [PERPS_EVENT_PROPERTY.LEVERAGE]: params.newOrder.leverage ?? 1,
         [PERPS_EVENT_PROPERTY.ORDER_SIZE]: params.newOrder.size,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
@@ -1706,12 +1768,12 @@ export class TradingService {
       });
 
       // Calculate fee discount with measurement
-      const feeDiscountBips = await this.#calculateFeeDiscountWithMeasurement();
+      const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
 
       // Execute position close with fee discount management
       result = await this.#withFeeDiscount({
         provider,
-        feeDiscountBips,
+        feeResolution,
         operation: () => provider.closePosition(params),
       });
 
@@ -1857,12 +1919,11 @@ export class TradingService {
 
       // Use batch close if provider supports it (provider handles filtering)
       if (provider.closePositions) {
-        const feeDiscountBips =
-          await this.#calculateFeeDiscountWithMeasurement();
+        const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
 
         operationResult = await this.#withFeeDiscount({
           provider,
-          feeDiscountBips,
+          feeResolution,
           operation: async () => {
             if (!provider.closePositions) {
               throw new Error('closePositions method not available');
@@ -2067,12 +2128,12 @@ export class TradingService {
       });
 
       // Get fee discount from rewards
-      const feeDiscountBips = await this.#calculateFeeDiscountWithMeasurement();
+      const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
 
       // Execute with fee discount management
       result = await this.#withFeeDiscount({
         provider,
-        feeDiscountBips,
+        feeResolution,
         operation: () => provider.updatePositionTPSL(params),
       });
 
@@ -2321,6 +2382,9 @@ export class TradingService {
     const { provider, position, trackingData, context } = options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
+    const flipIntentProperties = this.#buildTradeIntentProperties({
+      orderType: 'market',
+    });
 
     try {
       this.#deps.tracer.trace({
@@ -2365,15 +2429,20 @@ export class TradingService {
         [PERPS_EVENT_PROPERTY.DIRECTION]: oppositeDirection
           ? PERPS_EVENT_VALUE.DIRECTION.LONG
           : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-        [PERPS_EVENT_PROPERTY.ORDER_TYPE]: 'market',
+        ...flipIntentProperties,
         [PERPS_EVENT_PROPERTY.LEVERAGE]: position.leverage?.value || 1,
         [PERPS_EVENT_PROPERTY.ORDER_SIZE]: positionSize,
         [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
         ...this.#buildAttributionProperties(trackingData),
       });
 
+      const feeResolution = await this.#calculateFeeDiscountWithMeasurement();
       // Place flip order (HyperLiquid handles margin transfer automatically)
-      const result = await provider.placeOrder(orderParams);
+      const result = await this.#withFeeDiscount({
+        provider,
+        feeResolution,
+        operation: () => provider.placeOrder(orderParams),
+      });
 
       const completionDuration = this.#deps.performance.now() - startTime;
 
@@ -2398,7 +2467,7 @@ export class TradingService {
             [PERPS_EVENT_PROPERTY.DIRECTION]: oppositeDirection
               ? PERPS_EVENT_VALUE.DIRECTION.LONG
               : PERPS_EVENT_VALUE.DIRECTION.SHORT,
-            [PERPS_EVENT_PROPERTY.ORDER_TYPE]: 'market',
+            ...flipIntentProperties,
             [PERPS_EVENT_PROPERTY.LEVERAGE]: position.leverage?.value || 1,
             [PERPS_EVENT_PROPERTY.ORDER_SIZE]: positionSize,
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
@@ -2429,6 +2498,7 @@ export class TradingService {
           {
             [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
             [PERPS_EVENT_PROPERTY.ASSET]: position.symbol,
+            ...flipIntentProperties,
             [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
             [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]:
@@ -2470,6 +2540,7 @@ export class TradingService {
       this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.TradeTransaction, {
         [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
         [PERPS_EVENT_PROPERTY.ASSET]: position.symbol,
+        ...flipIntentProperties,
         [PERPS_EVENT_PROPERTY.ACTION]: failFlipAction,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: errorMessage,

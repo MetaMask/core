@@ -9,9 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Upgrade `@tanstack/query-core` and `@tanstack/react-query` from `^4.43.0` to `^5.62.16` ([#9563](https://github.com/MetaMask/core/pull/9563))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/utils` from `^11.11.0` to `^11.12.0` ([#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/base-data-service` from `^1.0.0` to `^2.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [1.0.0]
+
+### Changed
+
+- **BREAKING:** Upgrade `@tanstack/query-core` and `@tanstack/react-query` from `^4.43.0` to `^5.62.16` ([#9563](https://github.com/MetaMask/core/pull/9563), [#9941](https://github.com/MetaMask/core/pull/9941), [#9953](https://github.com/MetaMask/core/pull/9953))
   - `createUIQueryClient`'s `invalidateQueries` override now matches the TanStack Query v5 signature (`filters`, `options`) instead of the v4 overload style that relied on `parseFilterArgs`.
   - Consumers must migrate to TanStack Query v5 APIs (for example `gcTime` instead of `cacheTime`, and `initialPageParam` for infinite queries).
+  - `TError` in both hooks now defaults to `DefaultError`.
 - **BREAKING:** Constrain `createUIQueryClient`'s messenger-like type to match the given data services ([#9475](https://github.com/MetaMask/core/pull/9475))
   - The messenger-like object that `createUIQueryClient` takes must minimally support actions or `:cacheUpdated:${hash}` events which are namespaced by the provided data service names.
   - If you're passing a messenger, it should "just work" as long as your messenger supports the right actions and events.
@@ -19,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - If you're passing a messenger adapter directly (it is not defined in its own variable), then it should also "just work".
 - The types for `createUIQueryClient` no longer check that the provided messenger's actions are JSON-compatible ([#9475](https://github.com/MetaMask/core/pull/9475))
   - If you are experiencing any errors calling actions through the query client, check to make sure their parameters are JSON-compatible.
+- Bump `@metamask/base-data-service` from `^0.1.3` to `^1.0.0` ([#9972](https://github.com/MetaMask/core/pull/9972))
 
 ## [0.2.2]
 
@@ -50,7 +70,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8039](https://github.com/MetaMask/core/pull/8039), [#8292](https://github.com/MetaMask/core/pull/8292))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@1.0.0...@metamask/react-data-query@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.2...@metamask/react-data-query@1.0.0
 [0.2.2]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.1...@metamask/react-data-query@0.2.2
 [0.2.1]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.0...@metamask/react-data-query@0.2.1
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.1.0...@metamask/react-data-query@0.2.0

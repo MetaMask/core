@@ -7,9 +7,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
+
+## [22.0.0]
+
 ### Added
 
+- Add V2 ramps order syncing with User Storage ([#9474](https://github.com/MetaMask/core/pull/9474))
+  - Synchronize orders across clients for the same SRP using timestamp-based last-write-wins conflict resolution, soft-delete tombstones, and incremental add/update/delete pushes
+  - Feature key: `rampsOrders`; hosts call `RampsController:syncOrdersWithUserStorage` on unlock when Backup & Sync + ramps syncing are enabled
+  - Persist optional `lastUpdatedAt` on local `RampsOrder` entries for LWW (not returned by the V2 API)
+  - Strip `paymentDetails` from remote payloads (PII stays local-only)
+  - Soft deletes use remote tombstones; retention matches contact sync (no remote purge/compaction)
+  - Mid-sync local mutations coalesce into a follow-up full sync pass so uploads are not dropped during `performBatchSetStorage`
+  - Polling via `getOrder` → `addOrder` stamps `lastUpdatedAt` and writes to User Storage only when the syncable payload changed
+  - Normalize ISO and numeric-string `createdAt` values from Portfolio and older clients to epoch milliseconds
+  - Optional `onOrderSyncErroneousSituation` (full sync and incremental push/delete) and `trace` callbacks
+
+### Changed
+
+- **BREAKING:** `RampsControllerMessenger` now requires these actions to be delegated for order syncing ([#9474](https://github.com/MetaMask/core/pull/9474)):
+  - `UserStorageController:getState`
+  - `UserStorageController:performGetStorageAllFeatureEntries`
+  - `UserStorageController:performBatchSetStorage`
+  - `AuthenticationController:isSignedIn`
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
+
+## [21.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/profile-sync-controller` from `^30.0.0` to `^31.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/remote-feature-flag-controller` from `^6.1.1` to `^7.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [20.3.0]
+
+### Added
+
+- Add `NeoBankService` for MetaMask Ramp API neo-bank-proxy endpoints under the `/neobank` prefix on the Ramp API host, including messenger actions for `getAutoramp`, `registerPixAddress`, `getAutorampQuote`, `createAutoramp`, `getAutorampQuoteForAutoramp`, `attachAutorampQuote`, `getCustomerByExternalId`, `getMoonpayCustomerId`, `getWalletRegistrationStatus`, and `registerSelfHostedWallet`. Mutating POSTs do not retry (to avoid duplicate Pix/autoramp creates without a stable `Idempotency-Key`); GETs still retry 429/5xx/network errors. Optional `Idempotency-Key` is forwarded when callers supply one. Also exports `mapNeoBankAutorampToRemoteSnapshot`, `AutorampRemoteSnapshot`, and wallet-registration HTTP types (`WalletRegistrationError`, `RegistrationStatus`, `RegistrationOutcome`). ([#10031](https://github.com/MetaMask/core/pull/10031))
+- Add `RampsController` autoramp last-seen cursor and Money Account wallet registration: persisted `autoramps` state, `createAutoramp` / `refreshAutoramp(s)` / `applyAutorampStatusFromPush`, `registerMoneyAccountWallet`, and `RampsController:autorampStatusChanged`. MoonPay remains the source of truth; hosts should call `refreshAutoramps` on resume to catch webhooks missed while the app was closed. Hosts must delegate `RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS` (`AuthenticationController:getSessionProfile`, `KeyringController:signPersonalMessage`, `RemoteFeatureFlagController:getState`) plus the NeoBank actions listed in `RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS`. ([#10032](https://github.com/MetaMask/core/pull/10032))
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^6.1.0` to `^6.1.1` ([#10129](https://github.com/MetaMask/core/pull/10129))
+- Bump `@metamask/profile-sync-controller` from `^29.0.0` to `^30.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
+
+## [20.2.0]
+
+### Added
+
+- Add optional `clientProduct` and `clientVersion` constructor options on `RampsService` and `TransakService`, sent on every on-ramp API fetch as `clientProduct` / `clientVersion` query params so the API can evaluate version-gated feature flags per client. Identity travels in the URL (not headers) because the on-ramp CDN cache key is the URL. Also exports the `RampsClientIdentity` type, the `addRampsClientIdentityParams` helper, and the param name constants. ([#9983](https://github.com/MetaMask/core/pull/9983))
+
+## [20.1.0]
+
+### Added
+
+- Add `getPaymentMethodsForContext(options)` and `RampsController:getPaymentMethodsForContext` messenger action for context-scoped payment-method retrieval aligned with `getQuotes` provider resolution ([#9801](https://github.com/MetaMask/core/pull/9801))
+  - Supports explicit `providers`, selected-provider (UB2) context, and headless auto-select / restrict paths, including `moneyHeadlessAllProviders` widening with allowlist pick-survivor intersection.
+  - Request-only by default (`updateState` unset/false): does not mutate Buy `paymentMethods.data` / `.selected`.
+  - Fans out per contributing provider and dedupes by canonical payment id, keeping the first-seen entry. Payment-method metadata is provider-invariant: the API serves it from a per-region catalog and the `provider` query narrows that catalog by id-set membership without rewriting fields, so colliding entries carry identical values.
+  - Returns a single provider's payment-method list unchanged; deduping applies only to multi-provider fan-out.
+  - Normalizes stored region codes before stateful context writes while keeping missing-region checks fail-closed.
+  - Partial provider failures still return methods from successful fetches.
+  - Throws when `updateState: true` resolves more than one provider, before any payment-method fetch is issued. The shared Buy catalog has one slot per region, token, and selected provider, so a fan-out write cannot be ordered against a concurrent one. Callers wanting a multi-provider catalog must pass `updateState: false` and read the returned `methods`.
+- Export `normalizeRampsAssetId()` so consuming clients can canonicalize CAIP-19 asset ids the way the Ramps API expects instead of maintaining duplicate copies of the rule ([#9801](https://github.com/MetaMask/core/pull/9801))
+  - Lowercases `eip155` asset ids, matching the namespace case-insensitively, and passes other namespaces through verbatim so case-sensitive references (Solana base58, bitcoin bech32) are preserved.
 - Export `TERMINAL_ORDER_STATUSES` and `isTerminalOrderStatus()` so consuming clients can share the controller's terminal order status set instead of maintaining duplicate copies. ([#9679](https://github.com/MetaMask/core/pull/9679))
+
+### Changed
+
+- Preserve backend provider ranking metadata in `RampsService.getProviders` and `RampsController.getProviders` responses. ([#9955](https://github.com/MetaMask/core/pull/9955))
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
+- Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.1.0` ([#9945](https://github.com/MetaMask/core/pull/9945), [#9980](https://github.com/MetaMask/core/pull/9980))
+
+### Fixed
+
+- `providerServesAsset()` and `getProvidersServingAsset()` no longer lowercase non-EVM CAIP-19 asset references when matching a provider's `supportedCryptoCurrencies` ([#9801](https://github.com/MetaMask/core/pull/9801))
+  - Solana base58 and bitcoin bech32 references are case-sensitive, so lowercasing both sides could report a provider as serving an asset it does not serve. EVM ids still match regardless of checksum casing.
 
 ## [20.0.0]
 
@@ -517,7 +601,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@22.0.0...HEAD
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@21.0.0...@metamask/ramps-controller@22.0.0
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.3.0...@metamask/ramps-controller@21.0.0
+[20.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.2.0...@metamask/ramps-controller@20.3.0
+[20.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.1.0...@metamask/ramps-controller@20.2.0
+[20.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@20.0.0...@metamask/ramps-controller@20.1.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@19.0.0...@metamask/ramps-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@18.0.1...@metamask/ramps-controller@19.0.0
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@18.0.0...@metamask/ramps-controller@18.0.1

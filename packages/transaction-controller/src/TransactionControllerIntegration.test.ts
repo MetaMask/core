@@ -27,8 +27,7 @@ import {
 } from '@metamask/network-controller';
 import type {
   NetworkClientConfiguration,
-  NetworkControllerActions,
-  NetworkControllerEvents,
+  NetworkControllerMessenger,
   NetworkControllerOptions,
 } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
@@ -36,12 +35,12 @@ import assert from 'assert';
 import { v4 as uuidV4 } from 'uuid';
 
 import { jestAdvanceTime } from '../../../tests/helpers.js';
-import { mockNetwork } from '../../../tests/mock-network.js';
 import {
   buildAddNetworkFields,
   buildCustomNetworkClientConfiguration,
   buildUpdateNetworkCustomRpcEndpointFields,
 } from '../../network-controller/tests/helpers.js';
+import { mockNetwork } from '../../network-controller/tests/mock-network.js';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import {
   buildEthGasPriceRequestMock,
@@ -79,7 +78,7 @@ type AllTransactionControllerEvents =
 
 type AllActions =
   | AllTransactionControllerActions
-  | NetworkControllerActions
+  | MessengerActions<NetworkControllerMessenger>
   | ConnectivityControllerGetStateAction
   | ApprovalControllerActions
   | AccountsControllerActions
@@ -89,7 +88,7 @@ type AllActions =
 
 type AllEvents =
   | AllTransactionControllerEvents
-  | NetworkControllerEvents
+  | MessengerEvents<NetworkControllerMessenger>
   | ApprovalControllerEvents;
 
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
@@ -210,10 +209,8 @@ const setupController = async (
 
   const networkControllerMessenger = new Messenger<
     'NetworkController',
-    | NetworkControllerActions
-    | ConnectivityControllerGetStateAction
-    | RemoteFeatureFlagControllerGetStateAction,
-    NetworkControllerEvents,
+    MessengerActions<NetworkControllerMessenger>,
+    MessengerEvents<NetworkControllerMessenger>,
     typeof rootMessenger
   >({
     namespace: 'NetworkController',
@@ -222,10 +219,20 @@ const setupController = async (
   rootMessenger.delegate({
     messenger: networkControllerMessenger,
     actions: [
+      'ConfigRegistryController:getState',
       'ConnectivityController:getState',
       'RemoteFeatureFlagController:getState',
     ],
   });
+  rootMessenger.registerActionHandler(
+    'ConfigRegistryController:getState',
+    () => ({
+      configs: { networks: {} },
+      version: '1',
+      etag: '',
+      lastFetched: 0,
+    }),
+  );
   const networkController = new NetworkController({
     messenger: networkControllerMessenger,
     infuraProjectId,

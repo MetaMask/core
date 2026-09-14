@@ -68,7 +68,7 @@ import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import { EventEmitter } from 'events';
-import { cloneDeep, mapValues, merge, noop, pickBy, sortBy } from 'lodash';
+import { cloneDeep, mapValues, merge, noop, pickBy, sortBy } from 'lodash-es';
 import { v1 as random } from 'uuid';
 
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow.js';
@@ -205,6 +205,12 @@ import {
  * the state and which parts should be persisted.
  */
 const metadata: StateMetadata<TransactionControllerState> = {
+  batchTransactionCounts: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
   transactions: {
     includeInStateLogs: true,
     persist: true,
@@ -281,6 +287,9 @@ export type MethodData = {
  * Transaction controller state
  */
 export type TransactionControllerState = {
+  /** Number of transactions to sign for each active batch. */
+  batchTransactionCounts: Record<string, number>;
+
   /** A list of TransactionMeta objects. */
   transactions: TransactionMeta[];
 
@@ -374,7 +383,7 @@ export type TransactionControllerOptions = {
   isFirstTimeInteractionEnabled?: () => boolean;
 
   /** Whether new transactions will be automatically simulated. */
-  isSimulationEnabled?: () => boolean;
+  isSimulationEnabled?: (transactionMeta?: TransactionMeta) => boolean;
 
   /** Whether timeout checking is enabled for a transaction. */
   isTimeoutEnabled?: (transactionMeta: TransactionMeta) => boolean;
@@ -660,6 +669,7 @@ export enum ApprovalState {
  */
 function getDefaultTransactionControllerState(): TransactionControllerState {
   return {
+    batchTransactionCounts: {},
     methodData: {},
     transactions: [],
     transactionBatches: [],
@@ -750,7 +760,7 @@ export class TransactionController extends BaseController<
 
   readonly #isFirstTimeInteractionEnabled: () => boolean;
 
-  readonly #isSimulationEnabled: () => boolean;
+  readonly #isSimulationEnabled: (transactionMeta?: TransactionMeta) => boolean;
 
   readonly #isSwapsDisabled: boolean;
 
@@ -4039,7 +4049,7 @@ export class TransactionController extends BaseController<
         validateTxParams(transactionMeta.txParams);
       }
 
-      if (!skipResimulateCheck && this.#isSimulationEnabled()) {
+      if (!skipResimulateCheck && this.#isSimulationEnabled(transactionMeta)) {
         resimulateResponse = shouldResimulate(
           originalTransactionMeta,
           transactionMeta,
@@ -4109,7 +4119,7 @@ export class TransactionController extends BaseController<
     this.#simulationRequestTokens.set(transactionId, simulationRequestToken);
 
     try {
-      const isSimulationEnabled = this.#isSimulationEnabled();
+      const isSimulationEnabled = this.#isSimulationEnabled(transactionMeta);
       const isBalanceChangesSkipped =
         this.#isBalanceChangesSkipped(transactionMeta);
 
@@ -4327,7 +4337,7 @@ export class TransactionController extends BaseController<
 
     await updateGas({
       isCustomNetwork,
-      isSimulationEnabled: this.#isSimulationEnabled(),
+      isSimulationEnabled: this.#isSimulationEnabled(transactionMeta),
       getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messenger,
       txMeta: transactionMeta,
@@ -4388,6 +4398,7 @@ export class TransactionController extends BaseController<
         {
           transactionId: transactionMeta.id,
           skipValidation: true,
+          skipResimulateCheck: true,
         },
         (draftTransactionMeta) => {
           draftTransactionMeta.status = TransactionStatus.failed;

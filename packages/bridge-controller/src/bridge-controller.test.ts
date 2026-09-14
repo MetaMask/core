@@ -54,10 +54,12 @@ import * as fetchUtils from './utils/fetch.js';
 import {
   BatchSellMetricsEventName,
   BatchSellMetricsLocation,
+  FailurePhase,
   InputAmountPreset,
   MetaMetricsSwapsEventSource,
   MetricsActionType,
   MetricsSwapType,
+  SwapBridgeErrorCode,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants.js';
 import { FeatureId } from './validators/feature-flags.js';
@@ -2180,8 +2182,7 @@ describe('BridgeController', function () {
         );
 
         // Trigger the fetch + abort rejection
-        jest.advanceTimersByTime(1000);
-        await flushPromises();
+        await jest.advanceTimersByTimeAsync(1000);
 
         // Early return path: no post-fetch updates
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
@@ -3558,6 +3559,10 @@ describe('BridgeController', function () {
               .assetId,
             security_warnings: [],
             feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
+            failure_phase: FailurePhase.SourceExecution,
+            error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
+            source_hash_present: true,
+            destination_hash_present: false,
           },
         );
         expect(messengerCallMock).toHaveBeenCalledTimes(0);
@@ -3607,6 +3612,10 @@ describe('BridgeController', function () {
               stx_enabled: false,
               usd_amount_source: 100,
               feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
+              failure_phase: FailurePhase.Broadcast,
+              error_code: SwapBridgeErrorCode.Unknown,
+              source_hash_present: false,
+              destination_hash_present: false,
             },
           );
           expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);

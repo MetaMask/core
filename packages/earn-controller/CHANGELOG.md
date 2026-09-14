@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+
+## [13.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/account-tree-controller` from `^9.0.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^10.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/controller-utils` from `^12.3.0` to `^13.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [12.2.7]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.7.0` to `^69.8.0` ([#10080](https://github.com/MetaMask/core/pull/10080))
+- Bump `@metamask/account-tree-controller` from `^8.0.0` to `^9.0.0` ([#10088](https://github.com/MetaMask/core/pull/10088), [#10139](https://github.com/MetaMask/core/pull/10139))
+
+## [12.2.6]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^69.5.2` to `^69.6.0` ([#9960](https://github.com/MetaMask/core/pull/9960))
+- Bump `@metamask/network-controller` from `^35.0.1` to `^36.0.0` ([#9969](https://github.com/MetaMask/core/pull/9969))
+
+## [12.2.5]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.6.1` to `^8.0.0` ([#9886](https://github.com/MetaMask/core/pull/9886))
+
+### Fixed
+
+- Avoid duplicate `refreshEarnEligibility`/`refreshPooledStakes`/`refreshLendingPositions` calls when `AccountTreeController:selectedAccountGroupChange` fires with an address that was already just refreshed (e.g. immediately after `init()` during startup hydration) ([#9804](https://github.com/MetaMask/core/pull/9804))
+- Only eagerly prefetch pooled staking data for Ethereum Mainnet on startup/network change, no longer also prefetching the Hoodi testnet by default; Hoodi remains fully supported via explicit `chainId` calls ([#9804](https://github.com/MetaMask/core/pull/9804))
+
 ## [12.2.4]
 
 ### Changed
@@ -492,7 +536,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.7...@metamask/earn-controller@13.0.0
+[12.2.7]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.6...@metamask/earn-controller@12.2.7
+[12.2.6]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.5...@metamask/earn-controller@12.2.6
+[12.2.5]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.4...@metamask/earn-controller@12.2.5
 [12.2.4]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.3...@metamask/earn-controller@12.2.4
 [12.2.3]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.2...@metamask/earn-controller@12.2.3
 [12.2.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.1...@metamask/earn-controller@12.2.2

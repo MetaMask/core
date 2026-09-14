@@ -3,6 +3,7 @@ import type {
   AnalyticsControllerGetStateAction,
   AnalyticsControllerTrackEventAction,
 } from '@metamask/analytics-controller';
+import { ConfigRegistryApiEnv } from '@metamask/config-registry-controller';
 import { Messenger } from '@metamask/messenger';
 import {
   ClientConfigApiService,
@@ -94,6 +95,9 @@ function buildInstanceOptions(
   infuraProjectId: string,
 ): WalletOptions['instanceOptions'] {
   return {
+    configRegistryApiService: {
+      env: ConfigRegistryApiEnv.PRD,
+    },
     approvalController: {
       // The daemon is headless, so there is no UI to open: requests are
       // resolved by the auto-approval subscription (see `subscribeToAutoApproval`)
