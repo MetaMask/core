@@ -1147,6 +1147,29 @@ describe('RpcDataSource', () => {
       });
     });
 
+    it('copies fetch errors onto the context response', async () => {
+      // RpcFallbackMiddleware relies on these errors to tell which chains the
+      // RPC read actually failed on, so it can discard their failure stubs.
+      await withController(async ({ controller }) => {
+        const context: Context = {
+          request: createDataRequest(),
+          response: {},
+          getAssetsState: jest.fn(),
+        };
+        const next = jest
+          .fn()
+          .mockImplementation((ctx: Context) => Promise.resolve(ctx));
+        jest.spyOn(controller, 'fetch').mockResolvedValue({
+          assetsBalance: {},
+          errors: { [MOCK_CHAIN_ID_CAIP]: 'RPC fetch failed' },
+        });
+        await controller.assetsMiddleware(context, next);
+        expect(context.response.errors).toStrictEqual({
+          [MOCK_CHAIN_ID_CAIP]: 'RPC fetch failed',
+        });
+      });
+    });
+
     it('calls next(context) unchanged when fetch returns errors for all chains', async () => {
       await withController(async ({ controller }) => {
         const context: Context = {

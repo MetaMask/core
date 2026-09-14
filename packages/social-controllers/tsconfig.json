@@ -1,14 +1,21 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
-    { "path": "../base-controller" },
-    { "path": "../base-data-service" },
-    { "path": "../controller-utils" },
-    { "path": "../messenger" },
-    { "path": "../profile-sync-controller" }
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../base-data-service"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../profile-sync-controller"
+    }
   ],
   "include": ["../../types", "./src"]
 }

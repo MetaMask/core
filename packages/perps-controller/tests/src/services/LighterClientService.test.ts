@@ -18,6 +18,22 @@ const ORDER_BOOK = {
   supportedQuoteDecimals: 6,
 };
 
+const ORDER_BOOK_DETAIL = {
+  ...ORDER_BOOK,
+  lastTradePrice: 100000,
+  defaultInitialMarginFraction: 100,
+  minInitialMarginFraction: 100,
+  maintenanceMarginFraction: 50,
+  dailyTradesCount: 1,
+  dailyBaseTokenVolume: 1,
+  dailyQuoteTokenVolume: 1,
+  dailyPriceLow: 1,
+  dailyPriceHigh: 1,
+  dailyPriceChange: 0,
+  openInterest: 1,
+  dailyChart: {},
+};
+
 const VALID_TRADE_WIRE = {
   trade_id: 1,
   tx_hash: '0xabc',
@@ -104,6 +120,94 @@ describe('LighterClientService', () => {
       await service.getOrderBooks();
       await service.getOrderBooks(true);
       expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('accepts zero minimum amounts reported for inactive markets', async () => {
+      const inactiveMarket = {
+        ...ORDER_BOOK,
+        status: 'inactive',
+        minBaseAmount: '0.0000',
+        minQuoteAmount: '0.000000',
+      };
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({ code: 200, orderBooks: [inactiveMarket] }),
+      );
+
+      const markets = await buildService(false).getOrderBooks();
+
+      expect(markets).toStrictEqual([inactiveMarket]);
+    });
+
+    it.each(['minBaseAmount', 'minQuoteAmount'] as const)(
+      'rejects a zero %s for an active market',
+      async (field) => {
+        fetchMock.mockResolvedValue(
+          mockJsonResponse({
+            code: 200,
+            orderBooks: [{ ...ORDER_BOOK, [field]: '0.0000' }],
+          }),
+        );
+
+        await expect(buildService().getOrderBooks()).rejects.toThrow(
+          'Invalid Lighter venue data',
+        );
+      },
+    );
+
+    it('rejects negative minimum amounts for inactive markets', async () => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          orderBooks: [
+            { ...ORDER_BOOK, status: 'inactive', minBaseAmount: '-0.0001' },
+          ],
+        }),
+      );
+
+      await expect(buildService().getOrderBooks()).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
+    });
+  });
+
+  describe('getOrderBookDetails', () => {
+    it('accepts zero margin fractions reported for inactive markets', async () => {
+      const inactiveMarket = {
+        ...ORDER_BOOK_DETAIL,
+        status: 'inactive',
+        minBaseAmount: '0.0000',
+        minQuoteAmount: '0.000000',
+        defaultInitialMarginFraction: 0,
+        minInitialMarginFraction: 0,
+        maintenanceMarginFraction: 0,
+      };
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({ code: 200, orderBookDetails: [inactiveMarket] }),
+      );
+
+      const response = await buildService(false).getOrderBookDetails();
+
+      expect(response).toStrictEqual({
+        code: 200,
+        orderBookDetails: [inactiveMarket],
+      });
+    });
+
+    it.each([
+      'defaultInitialMarginFraction',
+      'minInitialMarginFraction',
+      'maintenanceMarginFraction',
+    ] as const)('rejects a zero %s for an active market', async (field) => {
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          orderBookDetails: [{ ...ORDER_BOOK_DETAIL, [field]: 0 }],
+        }),
+      );
+
+      await expect(buildService().getOrderBookDetails()).rejects.toThrow(
+        'Invalid Lighter venue data',
+      );
     });
   });
 
@@ -238,7 +342,6 @@ describe('LighterClientService', () => {
       ['negative size', { size: '-0.1' }],
       ['zero price', { price: '0' }],
       ['negative position magnitude', { taker_position_size_before: '-0.1' }],
-      ['missing account pnl', { ask_account_pnl: undefined }],
       ['missing maker role', { is_maker_ask: undefined }],
       [
         'missing position sign context',
@@ -255,6 +358,28 @@ describe('LighterClientService', () => {
       await expect(
         buildService().getTrades(28, 'auth-token', { limit: 50 }),
       ).rejects.toThrow('Invalid Lighter venue data');
+    });
+
+    it('accepts omitted account pnl fields for later participant-side validation', async () => {
+      const {
+        ask_account_pnl: _askPnl,
+        bid_account_pnl: _bidPnl,
+        ...trade
+      } = VALID_TRADE_WIRE;
+      fetchMock.mockResolvedValue(
+        mockJsonResponse({
+          code: 200,
+          trades: [trade],
+        }),
+      );
+
+      const response = await buildService().getTrades(28, 'auth-token', {
+        limit: 50,
+      });
+
+      expect(response.trades).toHaveLength(1);
+      expect(response.trades[0]).not.toHaveProperty('askAccountPnl');
+      expect(response.trades[0]).not.toHaveProperty('bidAccountPnl');
     });
   });
 
@@ -469,6 +594,49 @@ describe('LighterClientService', () => {
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining('/api/v1/accountsByL1Address?l1_address=0xabc'),
         expect.anything(),
+      );
+    });
+
+    it('accepts sparse account-discovery balances without weakening full account reads', async () => {
+      const discoveryAccount = {
+        code: 0,
+        account_type: 0,
+        index: 629696,
+        l1_address: '0xabc',
+        cancel_all_time: 0,
+        total_order_count: 0,
+        pending_order_count: 0,
+        status: 0,
+        collateral: '5.000000',
+        available_balance: '',
+      };
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({
+          code: 200,
+          l1_address: '0xabc',
+          sub_accounts: [discoveryAccount],
+        }),
+      );
+      const service = buildService(false);
+
+      const discovered = await service.getAccountsByL1Address('0xabc');
+      expect(discovered).toStrictEqual(
+        expect.objectContaining({
+          subAccounts: [
+            expect.objectContaining({
+              accountType: 0,
+              index: 629696,
+              l1Address: '0xabc',
+            }),
+          ],
+        }),
+      );
+
+      fetchMock.mockResolvedValueOnce(
+        mockJsonResponse({ code: 200, accounts: [discoveryAccount] }),
+      );
+      await expect(service.getAccountByIndex(629696)).rejects.toThrow(
+        'Invalid Lighter venue data',
       );
     });
 

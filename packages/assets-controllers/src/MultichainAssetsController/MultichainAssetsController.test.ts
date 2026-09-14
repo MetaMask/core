@@ -2212,13 +2212,7 @@ describe('MultichainAssetsController', () => {
           controller.metadata,
           'persist',
         ),
-      ).toMatchInlineSnapshot(`
-        {
-          "accountsAssets": {},
-          "allIgnoredAssets": {},
-          "assetsMetadata": {},
-        }
-      `);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('exposes expected state to UI', () => {

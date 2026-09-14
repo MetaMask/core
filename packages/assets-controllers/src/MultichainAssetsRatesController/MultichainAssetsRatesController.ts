@@ -153,7 +153,7 @@ export type MultichainAssetsRatesPollingInput = {
 const metadata: StateMetadata<MultichainAssetsRatesControllerState> = {
   conversionRates: {
     includeInStateLogs: false,
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     usedInUi: true,
   },

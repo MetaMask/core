@@ -31,7 +31,7 @@ import {
   hydrate,
 } from '@tanstack/query-core';
 import deepEqual from 'fast-deep-equal';
-import { debounce, DebouncedFunc } from 'lodash';
+import { debounce, DebouncedFunc } from 'lodash-es';
 
 import {
   createServicePolicy,
@@ -41,7 +41,7 @@ import {
 import { processQueryResponse } from './utils.js';
 
 // Data service queries use the following format: ['ServiceActionName', ...params]
-export type QueryKey = [string, ...Json[]];
+export type QueryKey = [string, ...Json[]] | readonly [string, ...Json[]];
 
 /**
  * The supertype of all messengers, scoped to a namespace.

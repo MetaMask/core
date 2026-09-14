@@ -464,7 +464,6 @@ export class NetworkConnectionBannerController extends BaseController<
     // Lifecycle: evaluate RPC health (and run the banner escalation timers)
     // only while the client UI is open on an unlocked wallet.
     this.messenger.subscribe(
-      // eslint-disable-next-line no-restricted-syntax -- awaiting upstream :stateChanged migration
       'ClientController:stateChange',
       (isUiOpen) => {
         this.#isUiOpen = isUiOpen;

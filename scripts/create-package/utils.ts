@@ -1,6 +1,7 @@
 import * as commentJson from 'comment-json';
 import execa from 'execa';
 import { promises as fs } from 'fs';
+import { createRequire } from 'module';
 import path from 'path';
 import { format as prettierFormat } from 'prettier';
 import type { Options as PrettierOptions } from 'prettier';
@@ -9,8 +10,8 @@ import { MonorepoFiles, Placeholders } from './constants.js';
 import type { FileMap } from './fs-utils.js';
 import { readAllFiles, writeFiles } from './fs-utils.js';
 
-const PACKAGE_TEMPLATE_DIR = path.join(__dirname, 'package-template');
-const REPO_ROOT = path.join(__dirname, '..', '..');
+const PACKAGE_TEMPLATE_DIR = path.join(import.meta.dirname, 'package-template');
+const REPO_ROOT = path.join(import.meta.dirname, '..', '..');
 const REPO_TS_CONFIG = path.join(REPO_ROOT, MonorepoFiles.TsConfig);
 const REPO_TS_CONFIG_BUILD = path.join(REPO_ROOT, MonorepoFiles.TsConfigBuild);
 const REPO_PACKAGE_JSON = path.join(REPO_ROOT, MonorepoFiles.PackageJson);
@@ -21,10 +22,10 @@ const allPlaceholdersRegex = new RegExp(
   'gu',
 );
 
-// Our lint config really hates this, but it works.
-// eslint-disable-next-line
-const prettierRc = require(
-  path.join(REPO_ROOT, '.prettierrc.js'),
+// The Prettier config is CommonJS, so it is loaded through `createRequire`
+// rather than an `import`, which would need to be asynchronous.
+const prettierRc = createRequire(import.meta.url)(
+  path.join(REPO_ROOT, '.prettierrc.cjs'),
 ) as PrettierOptions;
 
 /**

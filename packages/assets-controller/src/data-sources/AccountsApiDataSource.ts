@@ -125,6 +125,38 @@ function decimalToChainId(decimalChainId: number | string): ChainId {
 }
 
 /**
+ * Collect chain ids from Accounts API `/v2/supportedNetworks`.
+ *
+ * `fullSupport` and `partialSupport` are CAIP-2 arrays. The older
+ * `{ balances: number[] }` `partialSupport` object is still read so mixed
+ * deploys keep working until every environment has rolled forward.
+ *
+ * @param response - The v2 supported-networks payload.
+ * @param response.fullSupport - Fully supported chain ids (CAIP-2 or decimals).
+ * @param response.partialSupport - Partially supported chain ids, as a CAIP-2
+ * array or legacy `{ balances }` object.
+ * @returns Unique normalized chain ids, `fullSupport` first then `partialSupport`.
+ */
+function collectSupportedNetworkIds(response: {
+  fullSupport?: (number | string)[];
+  partialSupport?: (number | string)[] | { balances?: (number | string)[] };
+}): ChainId[] {
+  const fullSupport = response.fullSupport ?? [];
+  const { partialSupport } = response;
+  const partialIds = Array.isArray(partialSupport)
+    ? partialSupport
+    : (partialSupport?.balances ?? []);
+
+  return [
+    ...new Set(
+      [...fullSupport, ...partialIds].map((rawChainId) =>
+        decimalToChainId(rawChainId),
+      ),
+    ),
+  ];
+}
+
+/**
  * Convert a CAIP-2 chain ID from the API response to our ChainId type.
  * Handles both formats: "eip155:1" or just "1" (decimal).
  * Uses @metamask/utils for CAIP parsing.
@@ -248,7 +280,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
     // react to remote feature flag changes so newly-enabled chains are picked up
     // (and disabled ones dropped) without waiting for the periodic refresh.
     this.#messenger.subscribe(
-      // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
       // Promise result intentionally not awaited
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -368,17 +399,17 @@ export class AccountsApiDataSource extends AbstractDataSource<
   async #fetchActiveChains(): Promise<ChainId[]> {
     const response = await this.#apiClient.accounts.fetchV2SupportedNetworks();
 
-    // Use fullSupport networks as active chains, gated by the Snaps →
-    // AssetsController migration FF: non-migration namespaces (e.g. `eip155`)
-    // are always surfaced, while migration networks (Solana, Stellar, Tron) are
-    // only surfaced once their per-network stage reaches
+    // Use fullSupport and partialSupport as active chains, gated by the
+    // Snaps → AssetsController migration FF: non-migration namespaces
+    // (e.g. `eip155`) are always surfaced, while migration networks (Solana,
+    // Stellar, Tron) are only surfaced once their per-network stage reaches
     // ReadAssetsControllerWithFallback.
     const { remoteFeatureFlags } = this.#messenger.call(
       'RemoteFeatureFlagController:getState',
     );
-    return response.fullSupport
-      .map(decimalToChainId)
-      .filter((chainId) => shouldSupportChain(chainId, remoteFeatureFlags));
+    return collectSupportedNetworkIds(response).filter((chainId) =>
+      shouldSupportChain(chainId, remoteFeatureFlags),
+    );
   }
 
   // ============================================================================
@@ -424,9 +455,17 @@ export class AccountsApiDataSource extends AbstractDataSource<
         return response;
       }
 
-      const fetchOptions = request.forceUpdate
-        ? { staleTime: 0, gcTime: 0 }
-        : undefined;
+      const fetchOptions =
+        request.forceUpdate || request.bypassServerCache
+          ? {
+              staleTime: 0,
+              gcTime: 0,
+              // Also defeats the API's server-side cache (via a random
+              // bypassServerCache query param) so a post-transaction refresh cannot
+              // be answered with a pre-transaction snapshot.
+              ...(request.bypassServerCache ? { bypassServerCache: true } : {}),
+            }
+          : undefined;
 
       // Feature-flagged: v6 endpoint with a fallback to legacy v5. The flag is
       // read here (not cached) so a runtime toggle can revert v6 -> v5.
@@ -485,7 +524,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
    */
   async #fetchV5Balances(
     accountIds: string[],
-    fetchOptions: { staleTime: number; gcTime: number } | undefined,
+    fetchOptions:
+      | { staleTime: number; gcTime: number; bypassServerCache?: boolean }
+      | undefined,
     request: DataRequest,
   ): Promise<{
     unprocessedNetworks: string[];
@@ -522,7 +563,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
    */
   async #fetchV6Balances(
     accountIds: string[],
-    fetchOptions: { staleTime: number; gcTime: number } | undefined,
+    fetchOptions:
+      | { staleTime: number; gcTime: number; bypassServerCache?: boolean }
+      | undefined,
     request: DataRequest,
   ): Promise<{
     unprocessedNetworks: string[];

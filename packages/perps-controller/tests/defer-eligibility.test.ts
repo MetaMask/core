@@ -10,7 +10,6 @@ import type { PerpsControllerMessenger } from '../src/PerpsController.js';
 import type { PerpsPlatformDependencies } from '../src/types/index.js';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
-jest.mock('@myx-trade/sdk', () => ({}));
 
 type RootMessenger = Messenger<
   MockAnyNamespace,

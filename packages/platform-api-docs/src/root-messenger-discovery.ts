@@ -5,12 +5,13 @@ import type {
   Type,
   TypeAliasDeclaration,
 } from 'ts-morph';
-import { Node as NodeGuards, Project, ts } from 'ts-morph';
+import { Node as NodeGuards } from 'ts-morph';
 
 import {
   classifyMessengerCapabilityTypeDeclaration,
   extractFromMessengerCapabilityTypeDeclaration,
 } from './extraction.js';
+import { createProject } from './ts-project.js';
 import type { MessengerCapabilityPacket } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -81,29 +82,6 @@ export function parseRootCapabilitiesTypeReference(
 }
 
 /**
- * Create a ts-morph Project for resolving root messenger types.
- *
- * No file list is loaded: this strategy opens only the entry files and lets
- * the checker pull in the rest.
- *
- * @returns A new ts-morph Project.
- */
-function createRootMessengerProject(): TsMorphProject {
-  return new Project({
-    compilerOptions: {
-      noEmit: true,
-      // We need symbol resolution, not full typechecking, so a project's own
-      // strictness settings shouldn't be able to fail the docs build.
-      strict: false,
-      skipLibCheck: true,
-      target: ts.ScriptTarget.ESNext,
-      module: ts.ModuleKind.ESNext,
-      moduleResolution: ts.ModuleResolutionKind.NodeJs,
-    },
-  });
-}
-
-/**
  * A `<file>#<TypeName>` string, passed from the command line, refers to an
  * messenger actions or events collection type. This function reads the file and
  * looks up the matching type alias.
@@ -133,9 +111,9 @@ function resolveMessengerCapabilitiesTypeReference({
 
   let sourceFile;
   try {
-    sourceFile =
-      project.getSourceFile(absolutePath) ??
-      project.addSourceFileAtPath(absolutePath);
+    // `addSourceFileAtPath` is idempotent: the two references often name the
+    // same file, and the second call returns the source file added by the first.
+    sourceFile = project.addSourceFileAtPath(absolutePath);
   } catch {
     throw new Error(
       `Could not read ${absolutePath}, which was named by ${commandLineOptionName}.`,
@@ -477,7 +455,7 @@ export function discoverFromRootMessengerCapabilitiesTypes({
   capabilityPackets: MessengerCapabilityPacket[];
   skippedCapabilities: SkippedCapabilities;
 } {
-  const project = createRootMessengerProject();
+  const project = createProject();
   const capabilityPacketCollections = [
     [rootActionsTypeReference, 'action', '--root-actions'],
     [rootEventsTypeReference, 'event', '--root-events'],

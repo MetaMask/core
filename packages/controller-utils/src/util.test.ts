@@ -1,10 +1,10 @@
+import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import { assert, JsonRpcParams } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import BN from 'bn.js';
 import nock from 'nock';
 
-import { FakeProvider } from '../../../tests/fake-provider.js';
 import { MAX_SAFE_CHAIN_ID } from './constants.js';
 import * as util from './util.js';
 
@@ -652,7 +652,7 @@ describe('util', () => {
           }
         }
         const result = await util.query(
-          new MockEthQuery(new FakeProvider()),
+          new MockEthQuery(new MockInternalProvider()),
           'getBlockByHash',
           ['0x1234'],
         );
@@ -669,9 +669,11 @@ describe('util', () => {
           }
         }
         await expect(
-          util.query(new MockEthQuery(new FakeProvider()), 'getBlockByHash', [
-            '0x1234',
-          ]),
+          util.query(
+            new MockEthQuery(new MockInternalProvider()),
+            'getBlockByHash',
+            ['0x1234'],
+          ),
         ).rejects.toThrow('uh oh');
       });
     });
@@ -691,7 +693,7 @@ describe('util', () => {
           }
         }
         const result = await util.query(
-          new MockEthQuery(new FakeProvider()),
+          new MockEthQuery(new MockInternalProvider()),
           'eth_getBlockByHash',
           ['0x1234'],
         );
@@ -709,7 +711,7 @@ describe('util', () => {
         }
         await expect(
           util.query(
-            new MockEthQuery(new FakeProvider()),
+            new MockEthQuery(new MockInternalProvider()),
             'eth_getBlockByHash',
             ['0x1234'],
           ),

@@ -92,6 +92,7 @@ export enum MarketCategory {
   Etf = 'etf',
   Commodity = 'commodity',
   Forex = 'forex',
+  Memecoin = 'memecoin',
 }
 
 export type MarketType = `${MarketCategory}`;
@@ -118,6 +119,7 @@ export type TerminalAssetMetadata = {
 export type MarketTypeFilter =
   | 'all'
   | 'crypto'
+  | 'memecoin'
   | 'stock'
   | 'pre-ipo'
   | 'index'
@@ -127,13 +129,19 @@ export type MarketTypeFilter =
   | 'new';
 
 /**
- * Ordered list of the 7 data-model market categories for UI pills.
+ * Ordered list of data-model market categories for UI pills.
  * Does not include the 'all' or 'new' sentinel values — those are applied
  * via dedicated UI controls, not the category pills.
+ *
+ * Note: 'memecoin' is a derived category (marketType === 'crypto' &&
+ * tags.includes('memecoin')). It overlaps with 'crypto' by design —
+ * memecoins appear under both pills.
+ *
  * Kept in sync with {@link MarketTypeFilter} via `satisfies`.
  */
 export const MARKET_CATEGORIES = [
   'crypto',
+  'memecoin',
   'stock',
   'pre-ipo',
   'index',
@@ -227,6 +235,9 @@ export type TPSLTrackingData = {
   perpDiscoverySource?: string;
 };
 
+/** Collateral mode requested for a new order. */
+export type MarginMode = 'isolated' | 'cross';
+
 // MetaMask Perps API order parameters for PerpsController
 export type OrderParams = {
   symbol: string; // Asset identifier (e.g., 'ETH', 'BTC', 'xyz:TSLA')
@@ -299,6 +310,12 @@ export type OrderParams = {
   grouping?: 'na' | 'normalTpsl' | 'positionTpsl'; // Override grouping (defaults: 'na' without TP/SL, 'normalTpsl' with TP/SL)
   currentPrice?: number; // Current market price (avoids extra API call if provided)
   leverage?: number; // Leverage to apply for the order (e.g., 10 for 10x leverage)
+  /**
+   * Explicit collateral mode. Requires leverage. HyperLiquid validates market
+   * support and refuses mode changes with an open position or resting order.
+   * Omit to retain the existing isolated-leverage behavior.
+   */
+  marginMode?: MarginMode;
   existingPositionLeverage?: number; // Existing position leverage for validation (protocol constraint)
 
   // Optional tracking data for MetaMetrics events
@@ -582,7 +599,6 @@ export type AccountState = {
   /**
    * Total USD equity on this venue — collateral + unrealized PnL. Live MTM.
    * HL: crossMarginSummary.accountValue + spot(USDC) − spot.hold
-   * MYX: walletBalance + marginUsed + unrealizedPnl
    */
   totalBalance: string;
   /**
@@ -590,7 +606,6 @@ export type AccountState = {
    * with no internal transfer required.
    * HL Unified: withdrawable + freeSpotUSDC
    * HL Standard: withdrawable
-   * MYX: walletBalance
    */
   spendableBalance: string;
   /**
@@ -601,7 +616,6 @@ export type AccountState = {
    * withdraw — no client-side spot→perps sweep is performed.
    * HL Unified: withdrawable + freeSpotUSDC (USDC only; `freeSpotUSDC = spot.total - spot.hold`, and HL withdraw3 draws from the unified ledger server-side)
    * HL Standard: withdrawable (perps-clearinghouse only; spot is a separate ledger)
-   * MYX: walletBalance
    */
   withdrawableBalance: string;
   marginUsed: string;
@@ -737,6 +751,7 @@ export type MarketInfo = {
   szDecimals: number; // HyperLiquid: size decimals
   maxLeverage: number; // HyperLiquid: max leverage
   marginTableId: number; // HyperLiquid: margin requirements table ID
+  marginMode?: 'strictIsolated' | 'noCross'; // HyperLiquid market capability
   onlyIsolated?: true; // HyperLiquid: isolated margin only (optional, only when true)
   isDelisted?: true; // HyperLiquid: delisted status (optional, only when true)
   minimumOrderSize?: number; // Minimum order size in USD (protocol-specific)
@@ -1094,17 +1109,6 @@ export type HyperLiquidCredentials = {
   subscriptionBuilderAddressMainnet?: string;
 };
 
-export type MYXCredentials = {
-  /** Whether MYX provider is enabled via local env var. */
-  enabled?: boolean;
-  appIdTestnet?: string;
-  apiSecretTestnet?: string;
-  brokerAddressTestnet?: string;
-  appIdMainnet?: string;
-  apiSecretMainnet?: string;
-  brokerAddressMainnet?: string;
-};
-
 export type LighterCredentials = {
   /** Whether Lighter provider is enabled via local env var. */
   enabled?: boolean;
@@ -1130,7 +1134,6 @@ export type LighterCredentials = {
 
 export type PerpsProviderCredentials = {
   hyperliquid?: HyperLiquidCredentials;
-  myx?: MYXCredentials;
   lighter?: LighterCredentials;
 };
 
@@ -2112,11 +2115,11 @@ export type PerpsProvider = {
  * Provider identifier type for multi-provider support.
  * Add new providers here as they are implemented.
  */
-export type PerpsProviderType = 'hyperliquid' | 'myx' | 'lighter';
+export type PerpsProviderType = 'hyperliquid' | 'lighter';
 
 /**
  * Active provider mode for PerpsController state.
- * - Direct providers: 'hyperliquid', 'myx'
+ * - Direct providers: 'hyperliquid', 'lighter'
  * - 'aggregated': Multi-provider aggregation mode
  */
 export type PerpsActiveProviderMode = PerpsProviderType | 'aggregated';

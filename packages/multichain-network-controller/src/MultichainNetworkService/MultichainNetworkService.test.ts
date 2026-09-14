@@ -1,6 +1,6 @@
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { CaipAccountId } from '@metamask/utils';
-import { chunk } from 'lodash';
+import { chunk } from 'lodash-es';
 
 import {
   MULTICHAIN_ACCOUNTS_CLIENT_HEADER,

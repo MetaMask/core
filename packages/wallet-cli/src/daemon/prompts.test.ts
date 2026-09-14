@@ -1,16 +1,17 @@
 // `@inquirer/confirm` and `@inquirer/password` are ESM-only and `prompts.ts`
-// reaches them via dynamic `import()`. Use jest's ESM mock API and dynamic
-// imports to mirror that. The import statements below tag this file as a
-// module for the `import-x/unambiguous` lint rule, even though they import
-// only types.
+// reaches them via dynamic `import()`. The tests compile to CommonJS, which
+// turns those into `require()`, so the plain mock API applies to them and the
+// real ESM-only packages are never loaded. The import statements below tag
+// this file as a module for the `import-x/unambiguous` lint rule, even though
+// they import only types.
 import type Confirm from '@inquirer/confirm';
 import type Password from '@inquirer/password';
 
-jest.unstable_mockModule('@inquirer/confirm', () => ({
+jest.mock('@inquirer/confirm', () => ({
   __esModule: true,
   default: jest.fn(),
 }));
-jest.unstable_mockModule('@inquirer/password', () => ({
+jest.mock('@inquirer/password', () => ({
   __esModule: true,
   default: jest.fn(),
 }));

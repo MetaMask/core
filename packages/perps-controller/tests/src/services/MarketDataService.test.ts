@@ -813,12 +813,15 @@ describe('MarketDataService', () => {
       const result = await marketDataService.getMaxLeverage({
         provider: mockProvider,
         asset: 'BTC',
-        providerId: 'myx',
+        providerId: 'lighter',
         context: mockContext,
       });
 
       expect(result).toBe(17);
-      expect(mockProvider.getMaxLeverage).toHaveBeenCalledWith('BTC', 'myx');
+      expect(mockProvider.getMaxLeverage).toHaveBeenCalledWith(
+        'BTC',
+        'lighter',
+      );
     });
 
     it('handles max leverage errors', async () => {

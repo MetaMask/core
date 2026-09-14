@@ -1,6 +1,6 @@
 import { toHex } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
-import { clone, cloneDeep } from 'lodash';
+import { clone, cloneDeep } from 'lodash-es';
 
 import type { GasFeeEstimates } from '../../../gas-fee-controller/src/index.js';
 import type {

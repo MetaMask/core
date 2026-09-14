@@ -1,0 +1,102 @@
+{
+  "name": "@metamask/utils",
+  "version": "12.0.0",
+  "description": "Various JavaScript/TypeScript utilities of wide relevance to the MetaMask codebase",
+  "keywords": [
+    "Ethereum",
+    "MetaMask"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/utils#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/core.git"
+  },
+  "files": [
+    "dist",
+    "dist/"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "default": "./dist/node.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "build:all": "tsc --build tsconfig.build.json --verbose",
+    "build:clean": "yarn build:only-clean && yarn build",
+    "build:docs": "typedoc",
+    "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/utils",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/utils",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "test": "yarn test:unit && yarn test:types",
+    "test:clean": "yarn test:unit:clean && yarn test:types",
+    "test:types": "tstyche",
+    "test:unit": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:unit:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:unit:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:verbose": "yarn test:unit:verbose && yarn test:types",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "dependencies": {
+    "@ethereumjs/tx": "^5.4.0",
+    "@metamask/scure-bip39": "^2.1.1",
+    "@metamask/superstruct": "^3.4.1",
+    "@noble/hashes": "^1.8.0",
+    "@scure/base": "^1.2.6",
+    "@types/debug": "^4.1.7",
+    "@types/lodash": "^4.17.20",
+    "debug": "^4.3.4",
+    "lodash": "^4.17.21",
+    "pony-cause": "^2.1.10",
+    "semver": "^7.6.3",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^6.1.0",
+    "@types/jest": "^30.0.0",
+    "@types/jest-when": "^3.5.3",
+    "@types/uuid": "^9.0.8",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "deepmerge": "^4.2.2",
+    "jest": "^30.4.2",
+    "jest-when": "^3.7.0",
+    "rimraf": "^5.0.5",
+    "stdio-mock": "^1.2.0",
+    "ts-jest": "^29.4.11",
+    "tstyche": "^7.2.3",
+    "tsx": "^4.20.5",
+    "typedoc": "^0.25.13",
+    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "web3": "^4.16.0"
+  },
+  "engines": {
+    "node": "^22.14.0 || ^24"
+  },
+  "lavamoat": {
+    "allowScripts": {
+      "@lavamoat/preinstall-always-fail": false,
+      "eslint-plugin-import-x>unrs-resolver": false,
+      "jest>@jest/core>jest-haste-map>@parcel/watcher": false
+    }
+  }
+}

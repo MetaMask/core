@@ -1,6 +1,8 @@
 export {
   KycController,
   getDefaultKycControllerState,
+  getDefaultKycProviderDisclaimersAccepted,
+  getDefaultKycVendorDisclaimersAccepted,
   controllerName,
 } from './KycController.js';
 export type {
@@ -12,6 +14,7 @@ export type {
   KycControllerState,
   KycControllerStateChangeEvent,
   KycControllerStatusChangedEvent,
+  FetchSessionDisclaimersParams,
 } from './KycController.js';
 export type {
   KycControllerAcceptTermsAndStartSessionAction,
@@ -22,6 +25,7 @@ export type {
   KycControllerClearSavedTermsAction,
   KycControllerClearStateAction,
   KycControllerCreateVendorCustomerAction,
+  KycControllerFetchSessionDisclaimersAction,
   KycControllerGetCustomerIdentityAction,
   KycControllerGetKycStatusAction,
   KycControllerGetSessionStatusAction,
@@ -42,8 +46,8 @@ export type {
   CreateSessionParams,
   CreateUkycSessionParams,
   EncryptionSchema,
-  FetchDisclaimersCatalogParams,
-  FetchSessionDisclaimersParams,
+  FetchSessionDisclaimersByCountryParams,
+  FetchSessionDisclaimersBySessionIdParams,
   GetSessionStatusParams,
   VendorCustomerResponse,
   JwksResponse,
@@ -65,12 +69,12 @@ export type {
   KycServiceCreateJourneyAction,
   KycServiceCreateSessionAction,
   KycServiceCreateUkycSessionAction,
-  KycServiceFetchVendorDisclaimersAction,
-  KycServiceFetchDisclaimersCatalogAction,
   KycServiceFetchIdosEnclaveJwksAction,
   KycServiceFetchIdosRelayJwksAction,
   KycServiceFetchKycStatusAction,
-  KycServiceFetchSessionDisclaimersAction,
+  KycServiceFetchSessionDisclaimersByCountryAction,
+  KycServiceFetchSessionDisclaimersBySessionIdAction,
+  KycServiceFetchVendorDisclaimersAction,
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceSetAuthorizationsAction,
@@ -94,6 +98,7 @@ export type {
 } from './crypto.js';
 
 export type {
+  KycCatalogDocument,
   KycConsentDocument,
   KycConsentRecord,
   KycCustomerIdentity,
@@ -101,14 +106,19 @@ export type {
   KycDisclaimersCatalog,
   KycPhase,
   KycProduct,
+  KycProviderDisclaimersAccepted,
   KycSessionDisclaimers,
   KycSessionStatus,
   KycSumSubLaunchParams,
   KycSumSubLauncher,
+  KycSumSubSdkStatus,
   KycSumSubStatus,
   KycUserStatus,
   KycUserStatusResponse,
   KycVendor,
+  KycIronVendorDisclaimersAccepted,
+  KycMoonpayVendorDisclaimersAccepted,
+  KycVendorDisclaimersAccepted,
   KycVendorSigning,
 } from './types.js';
 

@@ -13,7 +13,7 @@
  * 2. Venue-key (Schnorr/ECgFp5) signatures over L2 transactions, produced
  *    inside the injected signer bridge from client-managed key material.
  *
- * Signature routing mirrors MYXWalletService: through
+ * Signature routing goes through
  * `KeyringController:signPersonalMessage` when a messenger is available,
  * or through an injected `LighterPersonalSigner` for headless use.
  */

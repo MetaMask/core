@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "rootDir": "../.."
   },
   "references": [
@@ -16,6 +15,9 @@
     },
     {
       "path": "../keyring-controller"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

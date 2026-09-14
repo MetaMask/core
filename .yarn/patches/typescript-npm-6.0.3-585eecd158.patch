@@ -1,0 +1,15 @@
+diff --git a/package.json b/package.json
+index 202f5f7353c0ba60756102dc03ca58cdcf4333c5..17d4e72004937d35c9b564584215969a36571c93 100644
+--- a/package.json
++++ b/package.json
+@@ -21,10 +21,6 @@
+     },
+     "main": "./lib/typescript.js",
+     "typings": "./lib/typescript.d.ts",
+-    "bin": {
+-        "tsc": "./bin/tsc",
+-        "tsserver": "./bin/tsserver"
+-    },
+     "engines": {
+         "node": ">=14.17"
+     },
