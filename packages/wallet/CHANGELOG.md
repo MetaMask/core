@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Change license from `(MIT OR Apache-2.0)` to the ConsenSys Software Inc. Non-Commercial Use license ([#10074](https://github.com/MetaMask/core/pull/10074))
+  - The `license` field in `package.json` is now `SEE LICENSE IN LICENSE`, and `LICENSE.MIT` and `LICENSE.APACHE2` have been removed.
+  - Use of this package is now limited to Non-Commercial Use as defined in `LICENSE`. If your use falls outside of that, reach out to communications@metamask.io.
 - Bump `@metamask/claims-controller` from `^0.6.0` to `^0.6.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
 - Bump `@metamask/shield-controller` from `^6.0.0` to `^6.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
 - Bump `@metamask/subscription-controller` from `^8.0.0` to `^8.0.1` ([#9972](https://github.com/MetaMask/core/pull/9972))
