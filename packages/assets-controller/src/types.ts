@@ -408,6 +408,18 @@ export type DataResponse = {
  */
 export type AssetsUpdateMode = 'full' | 'merge' | 'update';
 
+/**
+ * User-visible moments for which an assets fetch is surfaced as a loading
+ * state in {@link AssetsControllerState.assetsLoadingStatus}.
+ *
+ * - **accountSwitch**: The selected account group changed (e.g. the user
+ *   switched accounts), so balances for the newly selected accounts are
+ *   being fetched.
+ * - **unlock**: The wallet was unlocked (or tracking started after unlock),
+ *   so balances are being fetched before anything is renderable.
+ */
+export type AssetsLoadingTrigger = 'accountSwitch' | 'unlock';
+
 // ============================================================================
 // DATA SOURCE <-> CONTROLLER (DIRECT CALLS, NO MESSENGER PER SOURCE)
 // ============================================================================

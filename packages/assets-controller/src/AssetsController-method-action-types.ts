@@ -5,6 +5,34 @@
 
 import type { AssetsController } from './AssetsController.js';
 
+/**
+ * Fetch assets for the given accounts, publishing a transient per-account
+ * loading state while user-visible fetches are in flight.
+ *
+ * When `options.trigger` is set, each requested account is marked in
+ * `state.assetsLoadingStatus` with the trigger for the duration of the
+ * fetch (set before the fetch starts, removed when it settles — success or
+ * failure). This exists so the UI can show a loading indicator during
+ * user-visible moments (account switch, unlock) without inferring it from
+ * balance state. Pass a trigger **only** for those moments; background
+ * fetches (polling, price refreshes, post-transaction refreshes) must omit
+ * it so the indicator does not flap.
+ *
+ * @param accounts - Accounts to fetch assets for.
+ * @param options - Fetch options.
+ * @param options.chainIds - Chains to fetch for; defaults to enabled chains.
+ * @param options.assetTypes - Asset types to fetch (fungible, native).
+ * @param options.forceUpdate - Skip cache and fetch fresh data.
+ * @param options.bypassServerCache - Also bypass server-side HTTP caches.
+ * @param options.dataTypes - Data types to fetch (balances, info, prices).
+ * @param options.assetsForPriceUpdate - Asset IDs to fetch prices for.
+ * @param options.updateMode - `'merge'` to combine with existing state
+ * instead of replacing it.
+ * @param options.trigger - User-visible moment this fetch belongs to; when
+ * set, per-account loading status is published while the fetch is in
+ * flight. Omit for background fetches.
+ * @returns The combined assets per account, read from state after the fetch.
+ */
 export type AssetsControllerGetAssetsAction = {
   type: `AssetsController:getAssets`;
   handler: AssetsController['getAssets'];

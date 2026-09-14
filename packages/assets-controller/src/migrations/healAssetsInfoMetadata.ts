@@ -99,9 +99,11 @@ export type AssetsInfoHealingPatch = {
 
 const log = createModuleLogger(projectLogger, 'tempHealAssetsInfoMetadata');
 
-export type TempHealAssetsInfoMetadataOptions = {
+export type TempHealAssetsInfoMetadataOptions<
+  State extends AssetsControllerStateInternal = AssetsControllerStateInternal,
+> = {
   /** Current `AssetsController` state the healing patch is computed against. */
-  state: AssetsControllerStateInternal;
+  state: State;
   /**
    * Host-provided getter for the untrusted legacy state root (see
    * `AssetsControllerOptions.tempMigrateAssetsInfoMetadataAssets3346`).
@@ -121,11 +123,13 @@ export type TempHealAssetsInfoMetadataOptions = {
  * @returns Updated controller state with the healing patch applied, or the
  * original state when there is nothing to heal or healing fails.
  */
-export function tempHealAssetsInfoMetadata({
+export function tempHealAssetsInfoMetadata<
+  State extends AssetsControllerStateInternal = AssetsControllerStateInternal,
+>({
   state,
   getMigrationState,
   captureException,
-}: TempHealAssetsInfoMetadataOptions): AssetsControllerStateInternal {
+}: TempHealAssetsInfoMetadataOptions<State>): State {
   const reportError = (error: unknown): void => {
     log('Failed to heal assetsInfo metadata', error);
     captureException?.(

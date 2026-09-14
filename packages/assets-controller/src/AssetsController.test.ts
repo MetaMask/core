@@ -1,5 +1,6 @@
-import { clientControllerSelectors } from '@metamask/client-controller';
 /* eslint-disable jest/unbound-method */
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { clientControllerSelectors } from '@metamask/client-controller';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -87,6 +88,63 @@ function createMockQueryApiClient(): ApiPlatformClient {
       ),
     },
   } as unknown as ApiPlatformClient;
+}
+
+/**
+ * A query API client whose Accounts API calls can be frozen mid-flight so a
+ * forced `getAssets()` run is observable while in flight.
+ *
+ * While "armed", every Accounts API network/balance call returns a promise
+ * that stays pending until `release()` is called, then resolves with a valid
+ * (empty) response shape. While "disarmed", calls resolve immediately.
+ *
+ * @returns The gated client plus `arm()`/`release()` controls.
+ */
+function createGatedQueryApiClient(): {
+  client: ApiPlatformClient;
+  arm: () => void;
+  release: () => void;
+} {
+  let armed = false;
+  let releaseGate: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    releaseGate = resolve;
+  });
+
+  const gatedCall =
+    <Result>(value: () => Result): (() => Promise<Result>) =>
+    () =>
+      armed ? gate.then(value) : Promise.resolve(value());
+
+  const client = {
+    ...createMockQueryApiClient(),
+    accounts: {
+      fetchV2SupportedNetworks: gatedCall(() => ({
+        fullSupport: ['eip155:1'],
+        partialSupport: [],
+      })),
+      fetchV5MultiAccountBalances: gatedCall(() => ({
+        balances: [],
+        unprocessedNetworks: [],
+      })),
+      fetchV6MultiAccountBalances: gatedCall(() => ({
+        accounts: [],
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+      })),
+    },
+  } as unknown as ApiPlatformClient;
+
+  return {
+    client,
+    arm: (): void => {
+      armed = true;
+    },
+    release: (): void => {
+      armed = false;
+      releaseGate();
+    },
+  };
 }
 
 type AllActions = MessengerActions<AssetsControllerMessenger>;
@@ -334,6 +392,7 @@ describe('AssetsController', () => {
         customAssets: {},
         assetPreferences: {},
         selectedCurrency: 'usd',
+        assetsLoadingStatus: {},
       });
     });
 
@@ -363,6 +422,7 @@ describe('AssetsController', () => {
           customAssets: {},
           assetPreferences: {},
           selectedCurrency: 'usd',
+          assetsLoadingStatus: {},
         });
       });
     });
@@ -520,6 +580,7 @@ describe('AssetsController', () => {
           assetsPrice: {},
           customAssets: {},
           selectedCurrency: 'usd',
+          assetsLoadingStatus: {},
         });
 
         // Action handlers should be registered
@@ -3762,6 +3823,229 @@ describe('AssetsController', () => {
         expect(getAssetsSpy).not.toHaveBeenCalled();
         getAssetsSpy.mockRestore();
       });
+    });
+  });
+
+  describe('assets loading status', () => {
+    it('marks each requested account as loading while a triggered getAssets is in flight, then clears it', async () => {
+      const { client, arm, release } = createGatedQueryApiClient();
+
+      await withController(
+        { queryApiClient: client },
+        async ({ controller }) => {
+          const accountA = createMockInternalAccount();
+          const accountB = createMockInternalAccount({
+            id: 'mock-account-id-2',
+          });
+
+          // Let the Accounts API data source finish its construction-time
+          // supported-networks lookup so the armed fetch is gated on the
+          // balances call (deterministic in-flight window).
+          await flushPromises();
+
+          arm();
+          const fetchPromise = controller.getAssets([accountA, accountB], {
+            forceUpdate: true,
+            trigger: 'accountSwitch',
+          });
+          await flushPromises();
+
+          // In flight: both accounts are marked loading with the trigger.
+          expect(controller.state.assetsLoadingStatus).toStrictEqual({
+            [accountA.id]: 'accountSwitch',
+            [accountB.id]: 'accountSwitch',
+          });
+
+          release();
+          await fetchPromise;
+
+          // Settled: the transient entries are removed.
+          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
+        },
+      );
+    });
+
+    it('clears the loading status when a triggered getAssets rejects', async () => {
+      await withController(async ({ controller }) => {
+        const account = createMockInternalAccount();
+        // Force the fetch to fail before the pipeline runs.
+        const customAssetsSpy = jest
+          .spyOn(controller, 'getCustomAssets')
+          .mockImplementation(() => {
+            throw new Error('fetch failed');
+          });
+
+        await expect(
+          controller.getAssets([account], {
+            forceUpdate: true,
+            trigger: 'accountSwitch',
+          }),
+        ).rejects.toThrow('fetch failed');
+
+        expect(controller.state.assetsLoadingStatus).toStrictEqual({});
+        customAssetsSpy.mockRestore();
+      });
+    });
+
+    it('does not set the loading status for fetches without a trigger (polling/refresh paths)', async () => {
+      const { client, arm, release } = createGatedQueryApiClient();
+
+      await withController(
+        { queryApiClient: client },
+        async ({ controller }) => {
+          const account = createMockInternalAccount();
+
+          await flushPromises();
+
+          arm();
+          const fetchPromise = controller.getAssets([account], {
+            forceUpdate: true,
+          });
+          await flushPromises();
+
+          // In flight, but no trigger: no loading status is published.
+          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
+
+          release();
+          await fetchPromise;
+
+          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
+        },
+      );
+    });
+
+    it('marks accounts as loading with the unlock trigger when tracking restarts after unlock', async () => {
+      const { client, arm, release } = createGatedQueryApiClient();
+
+      await withController(
+        {
+          queryApiClient: client,
+          clientControllerState: { isUiOpen: true },
+        },
+        async ({ controller, messenger }) => {
+          // Start tracking with the gate disarmed so the first startup
+          // refresh settles and the Accounts API active chains are known.
+          await activateTracking(messenger);
+          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
+
+          // Lock, then unlock with the gate armed: #start() runs a fresh
+          // #runStartupRefresh() -> getAssets(trigger: 'unlock'), frozen
+          // mid-flight by the gated balances call.
+          messenger.publish('KeyringController:lock');
+          arm();
+          messenger.publish('KeyringController:unlock');
+          await flushPromises();
+
+          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+            'unlock',
+          );
+
+          release();
+          await flushPromises();
+
+          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
+        },
+      );
+    });
+
+    it('marks accounts as loading with the accountSwitch trigger on selected group change', async () => {
+      const { client, arm, release } = createGatedQueryApiClient();
+
+      await withController(
+        { queryApiClient: client },
+        async ({ controller, messenger }) => {
+          // Start tracking with the gate disarmed so the startup refresh settles.
+          await activateTracking(messenger);
+          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
+
+          arm();
+          (messenger.publish as CallableFunction)(
+            'AccountTreeController:selectedAccountGroupChange',
+            'entropy:mock-keyring-id-1/1',
+            'entropy:mock-keyring-id-1/0',
+          );
+          await flushPromises();
+
+          // The group-change refresh is frozen mid-flight by the gated client.
+          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+            'accountSwitch',
+          );
+
+          release();
+          await flushPromises();
+
+          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
+        },
+      );
+    });
+
+    it('emits state change events when the loading status is set and cleared', async () => {
+      const { client, arm, release } = createGatedQueryApiClient();
+
+      await withController(
+        { queryApiClient: client },
+        async ({ controller, messenger }) => {
+          const stateChanges: AssetsControllerState[] = [];
+          messenger.subscribe('AssetsController:stateChanged', (state) => {
+            stateChanges.push(state);
+          });
+
+          const account = createMockInternalAccount();
+
+          await flushPromises();
+
+          arm();
+          const fetchPromise = controller.getAssets([account], {
+            forceUpdate: true,
+            trigger: 'accountSwitch',
+          });
+          await flushPromises();
+
+          const whileLoading = stateChanges.find(
+            (state) =>
+              state.assetsLoadingStatus[account.id] === 'accountSwitch',
+          );
+          expect(whileLoading).toBeDefined();
+
+          release();
+          await fetchPromise;
+
+          const afterCleared = stateChanges.at(-1);
+          expect(afterCleared?.assetsLoadingStatus[account.id]).toBeUndefined();
+        },
+      );
+    });
+
+    it('does not persist the loading status in the persisted state snapshot', async () => {
+      const { client, arm, release } = createGatedQueryApiClient();
+
+      await withController(
+        { queryApiClient: client },
+        async ({ controller }) => {
+          const account = createMockInternalAccount();
+
+          await flushPromises();
+
+          arm();
+          const fetchPromise = controller.getAssets([account], {
+            forceUpdate: true,
+            trigger: 'accountSwitch',
+          });
+          await flushPromises();
+
+          // Transient state: excluded from the persisted snapshot even while
+          // an entry is present.
+          const persisted = deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'persist',
+          );
+          expect(persisted).not.toHaveProperty('assetsLoadingStatus');
+
+          release();
+          await fetchPromise;
+        },
+      );
     });
   });
 

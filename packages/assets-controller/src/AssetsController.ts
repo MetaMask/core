@@ -139,6 +139,7 @@ import type {
   AssetBalance,
   AccountWithSupportedChains,
   AssetType,
+  AssetsLoadingTrigger,
   DataType,
   DataRequest,
   DataResponse,
@@ -261,6 +262,13 @@ export type AssetsControllerState = {
   assetPreferences: { [assetId: string]: AssetPreferences };
   /** Currently-active ISO 4217 currency code */
   selectedCurrency: SupportedCurrency;
+  /**
+   * Transient per-account loading state for user-visible asset fetches
+   * (account switch, unlock). An entry is present while the fetch for that
+   * account is in flight and its value is the trigger; entries are removed
+   * when the fetch settles. Never persisted.
+   */
+  assetsLoadingStatus: Record<AccountId, AssetsLoadingTrigger>;
 };
 
 /**
@@ -283,6 +291,8 @@ export function getDefaultAssetsControllerState(): AssetsControllerState {
     customAssets: {},
     assetPreferences: {},
     selectedCurrency: 'usd',
+    // Transient loading state — never restored from persisted state.
+    assetsLoadingStatus: {},
   };
 }
 
@@ -502,6 +512,14 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     persist: true,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  assetsLoadingStatus: {
+    // Transient in-flight fetch markers (account switch, unlock). Never
+    // persisted — a restarted client always starts with no fetch in flight.
+    persist: false,
+    includeInStateLogs: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
 };
@@ -1362,6 +1380,7 @@ export class AssetsController extends BaseController<
       await this.getAssets(accounts, {
         chainIds: [...this.#enabledChains],
         forceUpdate: true,
+        trigger: 'unlock',
       });
       // Seed before subscribe so the price poll / update fetch sees natives
       // and default tracked assets that were never returned by balance APIs.
@@ -1604,6 +1623,34 @@ export class AssetsController extends BaseController<
   // PUBLIC API: QUERY METHODS
   // ============================================================================
 
+  /**
+   * Fetch assets for the given accounts, publishing a transient per-account
+   * loading state while user-visible fetches are in flight.
+   *
+   * When `options.trigger` is set, each requested account is marked in
+   * `state.assetsLoadingStatus` with the trigger for the duration of the
+   * fetch (set before the fetch starts, removed when it settles — success or
+   * failure). This exists so the UI can show a loading indicator during
+   * user-visible moments (account switch, unlock) without inferring it from
+   * balance state. Pass a trigger **only** for those moments; background
+   * fetches (polling, price refreshes, post-transaction refreshes) must omit
+   * it so the indicator does not flap.
+   *
+   * @param accounts - Accounts to fetch assets for.
+   * @param options - Fetch options.
+   * @param options.chainIds - Chains to fetch for; defaults to enabled chains.
+   * @param options.assetTypes - Asset types to fetch (fungible, native).
+   * @param options.forceUpdate - Skip cache and fetch fresh data.
+   * @param options.bypassServerCache - Also bypass server-side HTTP caches.
+   * @param options.dataTypes - Data types to fetch (balances, info, prices).
+   * @param options.assetsForPriceUpdate - Asset IDs to fetch prices for.
+   * @param options.updateMode - `'merge'` to combine with existing state
+   * instead of replacing it.
+   * @param options.trigger - User-visible moment this fetch belongs to; when
+   * set, per-account loading status is published while the fetch is in
+   * flight. Omit for background fetches.
+   * @returns The combined assets per account, read from state after the fetch.
+   */
   async getAssets(
     accounts: InternalAccount[],
     options?: {
@@ -1621,6 +1668,58 @@ export class AssetsController extends BaseController<
       assetsForPriceUpdate?: Caip19AssetId[];
       /** When set to `'merge'`, fetch result is merged with existing state instead of replacing. Use for partial fetches (e.g. newly added chains). */
       updateMode?: AssetsUpdateMode;
+      /**
+       * User-visible moment this fetch belongs to. When set, per-account
+       * loading status is published in `state.assetsLoadingStatus` while the
+       * fetch is in flight. Omit for background fetches.
+       */
+      trigger?: AssetsLoadingTrigger;
+    },
+  ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
+    const { trigger } = options ?? {};
+
+    if (!trigger || accounts.length === 0) {
+      return this.#getAssetsInternal(accounts, options);
+    }
+
+    this.#setAssetsLoadingStatus(accounts, trigger);
+    try {
+      return await this.#getAssetsInternal(accounts, options);
+    } finally {
+      this.#clearAssetsLoadingStatus(accounts, trigger);
+    }
+  }
+
+  /**
+   * Fetch pipeline and state read for {@link AssetsController.getAssets}.
+   * Kept separate so the public method stays a thin loading-state lifecycle
+   * wrapper around this fetch logic.
+   *
+   * @param accounts - Accounts to fetch assets for.
+   * @param options - Fetch options (forwarded from `getAssets`).
+   * @param options.chainIds - Chains to fetch for; defaults to enabled chains.
+   * @param options.assetTypes - Asset types to fetch (fungible, native).
+   * @param options.forceUpdate - Skip cache and fetch fresh data.
+   * @param options.bypassServerCache - Also bypass server-side HTTP caches.
+   * @param options.dataTypes - Data types to fetch (balances, info, prices).
+   * @param options.assetsForPriceUpdate - Asset IDs to fetch prices for.
+   * @param options.updateMode - `'merge'` to combine with existing state
+   * instead of replacing it.
+   * @param options.trigger - User-visible moment this fetch belongs to
+   * (loading status is handled by the `getAssets` wrapper).
+   * @returns The combined assets per account, read from state after the fetch.
+   */
+  async #getAssetsInternal(
+    accounts: InternalAccount[],
+    options?: {
+      chainIds?: ChainId[];
+      assetTypes?: AssetType[];
+      forceUpdate?: boolean;
+      bypassServerCache?: boolean;
+      dataTypes?: DataType[];
+      assetsForPriceUpdate?: Caip19AssetId[];
+      updateMode?: AssetsUpdateMode;
+      trigger?: AssetsLoadingTrigger;
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
     const chainIds = options?.chainIds ?? [...this.#enabledChains];
@@ -1796,6 +1895,46 @@ export class AssetsController extends BaseController<
 
     const result = this.#getAssetsFromState(accounts, chainIds, assetTypes);
     return result;
+  }
+
+  /**
+   * Mark the given accounts as loading for a user-visible fetch trigger.
+   *
+   * @param accounts - Accounts whose fetch is starting.
+   * @param trigger - The user-visible moment the fetch belongs to.
+   */
+  #setAssetsLoadingStatus(
+    accounts: InternalAccount[],
+    trigger: AssetsLoadingTrigger,
+  ): void {
+    this.update((state) => {
+      for (const account of accounts) {
+        state.assetsLoadingStatus[account.id] = trigger;
+      }
+    });
+  }
+
+  /**
+   * Clear the loading marker this fetch set for the given accounts.
+   *
+   * Only removes entries still pointing at `trigger`, so a newer fetch for
+   * the same account (a different trigger) is never clobbered by an older
+   * fetch settling.
+   *
+   * @param accounts - Accounts whose fetch settled.
+   * @param trigger - The trigger the entries were set with.
+   */
+  #clearAssetsLoadingStatus(
+    accounts: InternalAccount[],
+    trigger: AssetsLoadingTrigger,
+  ): void {
+    this.update((state) => {
+      for (const account of accounts) {
+        if (state.assetsLoadingStatus[account.id] === trigger) {
+          delete state.assetsLoadingStatus[account.id];
+        }
+      }
+    });
   }
 
   async getAssetsBalance(
@@ -3637,6 +3776,7 @@ export class AssetsController extends BaseController<
         await this.getAssets(accounts, {
           chainIds: [...this.#enabledChains],
           forceUpdate: true,
+          trigger: 'accountSwitch',
         });
       }
 
