@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: integrate `@metamask/utils` into `packages/` ([#10185](https://github.com/MetaMask/core/pull/10185))
-
 ### Added
 
 - Add stable cancellation reason codes and optional free-text feedback to the subscription cancellation request ([#10189](https://github.com/MetaMask/core/pull/10189))
