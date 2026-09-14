@@ -6,6 +6,22 @@
 import type { TransactionPayController } from './TransactionPayController.js';
 
 /**
+ * Persists a versioned Pay intent and projects it onto the target
+ * transaction record for restart recovery.
+ *
+ * The chain-agnostic source identity remains in the additive intent model;
+ * legacy EVM-only Pay metadata is preserved unchanged.
+ *
+ * @param request - Pay intent and target transaction ID.
+ * @param request.intent - Durable Pay intent.
+ * @param request.transactionId - ID of the target transaction.
+ */
+export type TransactionPayControllerSetPayIntentAction = {
+  type: `TransactionPayController:setPayIntent`;
+  handler: TransactionPayController['setPayIntent'];
+};
+
+/**
  * Sets the transaction configuration.
  *
  * The callback receives the current configuration properties and can mutate
@@ -141,6 +157,7 @@ export type TransactionPayControllerPolymarketSubmitDepositWalletBatchAction = {
  * Union of all TransactionPayController action types.
  */
 export type TransactionPayControllerMethodActions =
+  | TransactionPayControllerSetPayIntentAction
   | TransactionPayControllerSetTransactionConfigAction
   | TransactionPayControllerUpdatePaymentTokenAction
   | TransactionPayControllerUpdateFiatPaymentAction
