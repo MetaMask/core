@@ -276,10 +276,13 @@ function syncTransaction({
         tx.isExternalSign = hasQuotes;
       }
 
+      const intent = tx.metamaskPay?.intent;
+
       tx.metamaskPay = {
         bridgeFeeFiat: totals.fees.provider.usd,
         chainId: paymentToken?.chainId,
         isPostQuote,
+        ...(intent && { intent }),
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
         strategy,
         targetFiat: totals.targetAmount.usd,

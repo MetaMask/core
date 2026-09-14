@@ -4,7 +4,13 @@ import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
-import type { Hex, Json } from '@metamask/utils';
+import type {
+  CaipAccountId,
+  CaipAssetType,
+  CaipChainId,
+  Hex,
+  Json,
+} from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
 import type { TransactionControllerMessenger } from './TransactionController.js';
@@ -2158,6 +2164,32 @@ export type AssetsFiatValues = {
   sending?: string;
 };
 
+/**
+ * Durable MetaMask Pay intent for a chain-agnostic payment source.
+ *
+ * The target transaction is the TransactionController record containing this
+ * intent, or the key of this intent in TransactionPayController state.
+ */
+export type MetamaskPayIntent = {
+  /** Schema version of the persisted intent. */
+  version: 1;
+
+  /** Canonical CAIP-10 identity of the source account. */
+  sourceAccountId: CaipAccountId;
+
+  /** Canonical CAIP-19 identity of the source asset. */
+  sourceAssetId: CaipAssetType;
+
+  /** Explicit CAIP-2 identity of the source chain. */
+  sourceChainId: CaipChainId;
+
+  /** Provider request ID used to reconcile execution after restart. */
+  requestId?: string;
+
+  /** Chain-native source transaction identifier, such as a Solana signature. */
+  sourceTransactionId?: string;
+};
+
 /** Metadata specific to the MetaMask Pay feature. */
 export type MetamaskPayMetadata = {
   /** Total fee from any bridge transactions, in fiat currency. */
@@ -2179,6 +2211,9 @@ export type MetamaskPayMetadata = {
    * When true, the token represents the destination rather than source.
    */
   isPostQuote?: boolean;
+
+  /** Durable chain-agnostic payment intent. */
+  intent?: MetamaskPayIntent;
 
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;

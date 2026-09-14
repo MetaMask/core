@@ -18,6 +18,7 @@ import type {
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
+  SetPayIntentRequest,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -34,6 +35,7 @@ import { updateSourceAmounts } from './utils/source-amounts.js';
 import {
   subscribeAssetChanges,
   subscribeTransactionChanges,
+  updateTransaction,
 } from './utils/transaction.js';
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -44,12 +46,19 @@ const MESSENGER_EXPOSED_METHODS = [
   'getStrategy',
   'polymarketGetDepositWalletAddress',
   'polymarketSubmitDepositWalletBatch',
+  'setPayIntent',
   'setTransactionConfig',
   'updateFiatPayment',
   'updatePaymentToken',
 ] as const;
 
 const stateMetadata: StateMetadata<TransactionPayControllerState> = {
+  payIntents: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
+    persist: true,
+    usedInUi: true,
+  },
   transactionData: {
     includeInDebugSnapshot: false,
     includeInStateLogs: true,
@@ -59,6 +68,7 @@ const stateMetadata: StateMetadata<TransactionPayControllerState> = {
 };
 
 const getDefaultState = (): TransactionPayControllerState => ({
+  payIntents: {},
   transactionData: {},
 });
 
@@ -137,6 +147,35 @@ export class TransactionPayController extends BaseController<
       getStrategies: this.#getStrategiesWithFallback.bind(this),
       messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
+    });
+  }
+
+  /**
+   * Persists a versioned Pay intent and projects it onto the target
+   * transaction record for restart recovery.
+   *
+   * The chain-agnostic source identity remains in the additive intent model;
+   * legacy EVM-only Pay metadata is preserved unchanged.
+   *
+   * @param request - Pay intent and target transaction ID.
+   * @param request.intent - Durable Pay intent.
+   * @param request.transactionId - ID of the target transaction.
+   */
+  setPayIntent({ transactionId, intent }: SetPayIntentRequest): void {
+    updateTransaction(
+      {
+        transactionId,
+        messenger: this.messenger,
+        note: 'Set transaction pay intent',
+      },
+      (transaction) => {
+        transaction.metamaskPay ??= {};
+        transaction.metamaskPay.intent = { ...intent };
+      },
+    );
+
+    this.update((state) => {
+      state.payIntents[transactionId] = { ...intent };
     });
   }
 

@@ -44,6 +44,7 @@ import type {
 import type {
   BatchTransaction,
   BatchTransactionParams,
+  MetamaskPayIntent,
   TransactionControllerAddTransactionAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
@@ -312,9 +313,24 @@ export type TransactionPayControllerOptions = {
   state?: Partial<TransactionPayControllerState>;
 };
 
+/** Durable, versioned Pay intent stored for restart recovery. */
+export type TransactionPayIntent = MetamaskPayIntent;
+
+/** Request to persist a Pay intent for a target transaction. */
+export type SetPayIntentRequest = {
+  /** Durable Pay intent. */
+  intent: TransactionPayIntent;
+
+  /** ID of the target TransactionController transaction. */
+  transactionId: string;
+};
+
 /** State of the TransactionPayController. */
 export type TransactionPayControllerState = {
-  /** State relating to each transaction, keyed by transaction ID. */
+  /** Durable Pay intents keyed by target transaction ID. */
+  payIntents: Record<string, TransactionPayIntent>;
+
+  /** Transient state relating to each transaction, keyed by transaction ID. */
   transactionData: Record<string, TransactionData>;
 };
 
