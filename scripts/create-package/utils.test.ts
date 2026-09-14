@@ -251,10 +251,9 @@ describe('create-package/utils', () => {
 
       await finalizeAndWriteData(packageData, monorepoFileData);
 
-      expect(fsUtils.writeFiles).toHaveBeenCalledWith(
-        expect.any(String),
-        { 'src/index.ts': 'export default 42;' },
-      );
+      expect(fsUtils.writeFiles).toHaveBeenCalledWith(expect.any(String), {
+        'src/index.ts': 'export default 42;',
+      });
     });
 
     it('throws if the package directory already exists', async () => {

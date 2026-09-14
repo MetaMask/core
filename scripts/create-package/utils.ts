@@ -205,7 +205,9 @@ async function processTemplateFiles(
   const templateFiles = await readAllFiles(PACKAGE_TEMPLATE_DIR);
 
   for (const [relativePath, content] of Object.entries(templateFiles)) {
-    if (TEMPLATE_IGNORE_PATTERNS.some((pattern) => pattern.test(relativePath))) {
+    if (
+      TEMPLATE_IGNORE_PATTERNS.some((pattern) => pattern.test(relativePath))
+    ) {
       continue;
     }
 
