@@ -12,6 +12,9 @@
     },
     {
       "path": "../network-controller"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

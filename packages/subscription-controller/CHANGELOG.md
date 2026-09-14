@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add stable cancellation reason codes and optional free-text feedback to the subscription cancellation request ([#10189](https://github.com/MetaMask/core/pull/10189))
+
 ### Changed
 
-- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.0` ([#10184](https://github.com/MetaMask/core/pull/10184))
+- Refresh subscriptions, product entitlements, and benefits after a successful subscription cancellation ([#10189](https://github.com/MetaMask/core/pull/10189))
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
 ## [9.0.1]
 
