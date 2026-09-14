@@ -11,6 +11,7 @@ updates:
       default-days: 3
     allow:
       - dependency-name: '@metamask/*'
+      - dependency-name: '@lavamoat/*'
     versioning-strategy: 'increase'
 
   - package-ecosystem: 'github-actions'
