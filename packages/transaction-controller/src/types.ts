@@ -271,6 +271,9 @@ export type TransactionMeta = {
    */
   isExternalSign?: boolean;
 
+  /** Whether publication and confirmation are owned by an external handler. */
+  isExternalPublish?: boolean;
+
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
 
@@ -1799,13 +1802,12 @@ export type TransactionBatchSingleRequest = {
     id: string;
 
     /** Optional callback to be invoked once the transaction is published. */
-    onPublish?: (request: {
-      /** Updated signature for the transaction, if applicable. */
-      newSignature?: Hex;
-
-      /** Hash of the transaction on the network. */
-      transactionHash?: string;
-    }) => void;
+    onPublish?: (
+      request: PublishHookResult & {
+        /** Updated signature for the transaction, if applicable. */
+        newSignature?: Hex;
+      },
+    ) => void;
 
     /** Signed transaction data. */
     signedTransaction: Hex;
@@ -1969,15 +1971,35 @@ export type UpdateCustodialTransactionRequest = {
   type?: TransactionEnvelopeType;
 };
 
-/**
- * Data returned from custom logic to publish a transaction.
- */
-export type PublishHookResult = {
-  /**
-   * The hash of the transaction on the network.
-   */
-  transactionHash?: string;
-};
+/** Outcome of a transaction published by an external non-EVM handler. */
+export type ExternallyHandledPublishOutcome =
+  | 'submitted'
+  | 'user-rejected'
+  | 'not-submitted'
+  | 'ambiguous';
+
+/** Data returned from custom logic to publish a transaction. */
+export type PublishHookResult =
+  | {
+      /** External handling was not used; the EVM hash may suppress fallback. */
+      externallyHandled?: false;
+
+      /** Hash of the transaction on the network. */
+      transactionHash?: string;
+    }
+  | {
+      /** Prevents fallback to `eth_sendRawTransaction`. */
+      externallyHandled: true;
+
+      /** Explicit result of the external publication attempt. */
+      outcome: ExternallyHandledPublishOutcome;
+
+      /** Stable error detail for guaranteed non-submission. */
+      error?: string;
+
+      /** Externally handled publication does not require an EVM hash. */
+      transactionHash?: never;
+    };
 
 /**
  * Custom logic to publish a transaction.
@@ -2021,10 +2043,7 @@ export type PublishBatchHookRequest = {
 export type PublishBatchHookResult =
   | {
       /** Result data for each transaction in the batch. */
-      results: {
-        /** Hash of the transaction on the network. */
-        transactionHash: Hex;
-      }[];
+      results: PublishHookResult[];
     }
   | undefined;
 
@@ -2166,6 +2185,8 @@ export type MetamaskPaySourceStatus =
   | 'pending'
   | 'confirmed'
   | 'failed'
+  | 'user-rejected'
+  | 'not-submitted'
   | 'unknown';
 
 /** Status observed independently for MetaMask Pay Relay settlement. */
@@ -2184,6 +2205,43 @@ export type MetamaskPayProviderNotificationStatus =
   | 'succeeded'
   | 'failed';
 
+/** Durable, monotonic business outcome for a MetaMask Pay intent. */
+export type MetamaskPayOutcome =
+  | { type: 'not-started' }
+  | { type: 'attempting' }
+  | { type: 'submitted' }
+  | { type: 'user-rejected' }
+  | {
+      type: 'source-failed';
+      guaranteedNotSubmitted: boolean;
+      reason?: string;
+    }
+  | { type: 'relay-failed'; reason?: string }
+  | { type: 'refunded'; reason?: string }
+  | { type: 'follow-up-failed' }
+  | { type: 'unknown'; phase: 'source' | 'relay' | 'follow-up' }
+  | { type: 'succeeded' };
+
+/** Durable result of a single externally handled submission callback. */
+export type MetamaskPaySubmissionOutcome =
+  | 'submitted'
+  | 'user-rejected'
+  | 'not-submitted'
+  | 'ambiguous';
+
+/** Status of the required non-atomic sponsored follow-up transaction. */
+export type MetamaskPayFollowUpStatus =
+  | 'not-required'
+  | 'not-started'
+  | 'attempting'
+  | 'submitted'
+  | 'pending'
+  | 'confirmed'
+  | 'failed'
+  | 'user-rejected'
+  | 'not-submitted'
+  | 'unknown';
+
 /** Durable checkpoints for one source submission attempt. */
 export type MetamaskPayExecution = {
   /** Status observed independently for the source-chain transaction. */
@@ -2194,6 +2252,12 @@ export type MetamaskPayExecution = {
 
   /** Status of the optional Relay transaction-index notification. */
   providerNotificationStatus: MetamaskPayProviderNotificationStatus;
+
+  /** Result returned by the single source submission callback. */
+  submissionOutcome?: MetamaskPaySubmissionOutcome;
+
+  /** Status of a required non-atomic sponsored follow-up. */
+  followUpStatus?: MetamaskPayFollowUpStatus;
 };
 
 /**
@@ -2221,14 +2285,26 @@ export type MetamaskPayIntent = {
   /** Chain-native source transaction identifier, such as a Solana signature. */
   sourceTransactionId?: string;
 
+  /** Stable source submission failure or interruption detail. */
+  sourceFailureReason?: string;
+
   /** Durable one-attempt execution checkpoints. */
   execution?: MetamaskPayExecution;
+
+  /** Core-derived business outcome used by lifecycle consumers. */
+  outcome?: MetamaskPayOutcome;
 
   /** Destination transaction identifier observed from Relay settlement. */
   targetTransactionId?: string;
 
   /** Provider failure classification observed during reconciliation. */
   relayFailureReason?: string;
+
+  /** Whether Relay success must be followed by a sponsored target submission. */
+  requiresNonAtomicFollowUp?: boolean;
+
+  /** Transaction ID returned by the sponsored follow-up callback. */
+  followUpTransactionId?: string;
 };
 
 /** Metadata specific to the MetaMask Pay feature. */

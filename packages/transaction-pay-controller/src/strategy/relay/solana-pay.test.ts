@@ -5,11 +5,16 @@ import type {
   Hex,
 } from '@metamask/utils';
 
-import type { TransactionPayIntent } from '../../types.js';
+import type {
+  SolanaPayPreflightData,
+  TransactionPayIntent,
+} from '../../types.js';
 import {
   buildRelaySolanaQuoteRequest,
+  deriveSolanaPayOutcome,
   getRelaySolanaTransaction,
   mapRelayStatus,
+  normalizeSolanaPayPreflight,
 } from './solana-pay.js';
 import type { RelaySolanaQuote, RelaySolanaTransaction } from './types.js';
 
@@ -294,6 +299,173 @@ describe('Solana Relay Pay', () => {
       expect(() => getRelaySolanaTransaction(quote)).toThrow(
         'Invalid Relay Solana transaction payload',
       );
+    });
+  });
+
+  describe('normalizeSolanaPayPreflight', () => {
+    const PREFLIGHT_DATA: SolanaPayPreflightData = {
+      preparedTransaction: 'base64-transaction',
+      preparationId: 'preparation-123',
+      nativeBalanceRaw: '100000',
+      networkFeeRaw: '5000',
+      priorityFeeRaw: '1000',
+      rentDebitRaw: '2000',
+      rentExemptionRequirementRaw: '3000',
+      sourceBalanceRaw: '2000000',
+    };
+
+    it('retains finalized fees and rent for an affordable SPL payment', () => {
+      expect(
+        normalizeSolanaPayPreflight(
+          getIntent(SOLANA_USDC),
+          '1000000',
+          PREFLIGHT_DATA,
+        ),
+      ).toStrictEqual({
+        affordability: {
+          isAffordable: true,
+          nativeShortfallRaw: '0',
+          sourceShortfallRaw: '0',
+        },
+        preparedTransaction: 'base64-transaction',
+        preparationId: 'preparation-123',
+        nativeBalanceRaw: '100000',
+        networkFeeRaw: '5000',
+        priorityFeeRaw: '1000',
+        rentDebitRaw: '2000',
+        rentExemptionRequirementRaw: '3000',
+        requiredNativeBalanceRaw: '11000',
+        requiredSourceBalanceRaw: '1000000',
+        retainedReserveRaw: '11000',
+        sourceAmountRaw: '1000000',
+        sourceBalanceRaw: '2000000',
+        totalFeeRaw: '6000',
+      });
+    });
+
+    it('includes the retained reserve in native SOL affordability', () => {
+      expect(
+        normalizeSolanaPayPreflight(getIntent(SOLANA_NATIVE), '95000', {
+          ...PREFLIGHT_DATA,
+          nativeBalanceRaw: '100000',
+          sourceBalanceRaw: '100000',
+        }),
+      ).toMatchObject({
+        affordability: {
+          isAffordable: false,
+          nativeShortfallRaw: '0',
+          sourceShortfallRaw: '6000',
+        },
+        requiredNativeBalanceRaw: '106000',
+        requiredSourceBalanceRaw: '106000',
+        retainedReserveRaw: '11000',
+      });
+    });
+
+    it('rejects inconsistent native SOL balance observations', () => {
+      expect(() =>
+        normalizeSolanaPayPreflight(getIntent(SOLANA_NATIVE), '1', {
+          ...PREFLIGHT_DATA,
+          nativeBalanceRaw: '2',
+          sourceBalanceRaw: '1',
+        }),
+      ).toThrow('Invalid Solana preflight native balance mismatch');
+    });
+
+    it('reports source and native shortfalls independently for SPL', () => {
+      expect(
+        normalizeSolanaPayPreflight(getIntent(SOLANA_USDC), '1000000', {
+          ...PREFLIGHT_DATA,
+          nativeBalanceRaw: '10000',
+          sourceBalanceRaw: '900000',
+        }),
+      ).toMatchObject({
+        affordability: {
+          isAffordable: false,
+          nativeShortfallRaw: '1000',
+          sourceShortfallRaw: '100000',
+        },
+      });
+    });
+
+    it('rejects an unbound prepared transaction', () => {
+      expect(() =>
+        normalizeSolanaPayPreflight(getIntent(SOLANA_USDC), '1000000', {
+          ...PREFLIGHT_DATA,
+          preparationId: '',
+        }),
+      ).toThrow('Invalid Solana preflight preparation');
+    });
+
+    it.each([
+      ['networkFeeRaw', '-1'],
+      ['priorityFeeRaw', '1.5'],
+      ['rentDebitRaw', 'abc'],
+      ['rentExemptionRequirementRaw', ''],
+      ['sourceBalanceRaw', '-2'],
+      ['nativeBalanceRaw', 'NaN'],
+    ] as const)('rejects invalid atomic input %s', (field, value) => {
+      expect(() =>
+        normalizeSolanaPayPreflight(getIntent(SOLANA_USDC), '1000000', {
+          ...PREFLIGHT_DATA,
+          [field]: value,
+        }),
+      ).toThrow(`Invalid Solana preflight ${field}`);
+    });
+  });
+
+  describe('deriveSolanaPayOutcome', () => {
+    it.each([
+      [
+        {
+          submissionOutcome: 'user-rejected',
+          sourceStatus: 'user-rejected',
+        },
+        { type: 'user-rejected' },
+      ],
+      [
+        {
+          submissionOutcome: 'not-submitted',
+          sourceStatus: 'not-submitted',
+        },
+        { guaranteedNotSubmitted: true, type: 'source-failed' },
+      ],
+      [
+        { sourceStatus: 'failed' },
+        { guaranteedNotSubmitted: false, type: 'source-failed' },
+      ],
+      [{ relayStatus: 'failure' }, { type: 'relay-failed' }],
+      [{ relayStatus: 'refund' }, { type: 'refunded' }],
+      [{ followUpStatus: 'failed' }, { type: 'follow-up-failed' }],
+      [
+        { submissionOutcome: 'ambiguous', sourceStatus: 'unknown' },
+        { phase: 'source', type: 'unknown' },
+      ],
+      [{ relayStatus: 'unknown' }, { phase: 'relay', type: 'unknown' }],
+      [{ followUpStatus: 'unknown' }, { phase: 'follow-up', type: 'unknown' }],
+      [
+        {
+          followUpStatus: 'confirmed',
+          relayStatus: 'success',
+          sourceStatus: 'confirmed',
+        },
+        { type: 'succeeded' },
+      ],
+      [{ sourceStatus: 'attempting' }, { type: 'attempting' }],
+      [{ sourceStatus: 'submitted' }, { type: 'submitted' }],
+    ] as const)('derives %# from durable axes', (overrides, expected) => {
+      const intent: TransactionPayIntent = {
+        ...getIntent(SOLANA_USDC),
+        execution: {
+          followUpStatus: 'not-required',
+          providerNotificationStatus: 'not-started',
+          relayStatus: 'not-started',
+          sourceStatus: 'not-started',
+          ...overrides,
+        },
+      };
+
+      expect(deriveSolanaPayOutcome(intent)).toMatchObject(expected);
     });
   });
 

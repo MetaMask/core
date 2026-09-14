@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add versioned, chain-agnostic Pay intent metadata for persisting CAIP source identity, one-attempt execution checkpoints, and provider correlation without changing legacy EVM Pay fields.
+- Add versioned, chain-agnostic Pay intent metadata for persisting CAIP source identity, discriminated outcomes, one-attempt execution checkpoints, and provider correlation without changing legacy EVM Pay fields.
+- Add externally handled publish results so non-EVM hooks can suppress EVM RPC fallback while preserving submitted, rejected, failed, and confirmed transaction lifecycle events.
 
 ### Changed
 

@@ -18,7 +18,9 @@ import type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
   TransactionControllerEstimateGasAction,
+  TransactionControllerConfirmTransactionAction,
   TransactionControllerEstimateGasBatchAction,
+  TransactionControllerFailTransactionAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
 } from '@metamask/transaction-controller';
@@ -142,8 +144,16 @@ export function getMessengerMock({
     TransactionControllerGetGasFeeTokensAction['handler']
   > = jest.fn();
 
+  const confirmTransactionMock: jest.MockedFn<
+    TransactionControllerConfirmTransactionAction['handler']
+  > = jest.fn();
+
   const estimateGasMock: jest.MockedFn<
     TransactionControllerEstimateGasAction['handler']
+  > = jest.fn();
+
+  const failTransactionMock: jest.MockedFn<
+    TransactionControllerFailTransactionAction['handler']
   > = jest.fn();
 
   const estimateGasBatchMock: jest.MockedFn<
@@ -290,8 +300,18 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'TransactionController:confirmTransaction',
+      confirmTransactionMock,
+    );
+
+    messenger.registerActionHandler(
       'TransactionController:estimateGas',
       estimateGasMock,
+    );
+
+    messenger.registerActionHandler(
+      'TransactionController:failTransaction',
+      failTransactionMock,
     );
 
     messenger.registerActionHandler(
@@ -321,7 +341,9 @@ export function getMessengerMock({
     addTransactionMock,
     getAssetsControllerStateMock,
     addTransactionBatchMock,
+    confirmTransactionMock,
     estimateGasMock,
+    failTransactionMock,
     estimateGasBatchMock,
     findNetworkClientIdByChainIdMock,
     getAccountTrackerControllerStateMock,

@@ -687,6 +687,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'approveTransactionsWithSameNonce',
   'clearUnapprovedTransactions',
   'confirmExternalTransaction',
+  'confirmTransaction',
   'emulateNewTransaction',
   'emulateTransactionUpdate',
   'estimateGas',
@@ -1770,6 +1771,41 @@ export class TransactionController extends BaseController<
   ): TransactionMeta {
     // Return the transaction unchanged
     return this.#getTransactionOrThrow(transactionID);
+  }
+
+  /**
+   * Marks an existing externally handled transaction as confirmed and emits
+   * the standard lifecycle events.
+   *
+   * @param transactionId - Existing transaction ID.
+   */
+  confirmTransaction(transactionId: string): void {
+    const transactionMeta = this.#getTransactionOrThrow(transactionId);
+
+    if (transactionMeta.status === TransactionStatus.confirmed) {
+      return;
+    }
+
+    const updatedTransactionMeta = this.#updateTransactionInternal(
+      { transactionId },
+      (draftTransactionMeta) => {
+        draftTransactionMeta.status = TransactionStatus.confirmed;
+      },
+    );
+
+    this.#onTransactionStatusChange(updatedTransactionMeta);
+    this.messenger.publish(
+      `${controllerName}:transactionConfirmed`,
+      updatedTransactionMeta,
+    );
+    this.messenger.publish(
+      `${controllerName}:transactionFinished`,
+      updatedTransactionMeta,
+    );
+    this.#internalEvents.emit(
+      `${transactionId}:finished`,
+      updatedTransactionMeta,
+    );
   }
 
   /**
@@ -3057,6 +3093,12 @@ export class TransactionController extends BaseController<
         resultCallbacks?.success();
         return finalMeta.hash as string;
 
+      case TransactionStatus.rejected: {
+        const error = finalMeta.error as Error;
+        resultCallbacks?.error(error);
+        throw error;
+      }
+
       default: {
         const internalError = rpcErrors.internal(
           `MetaMask Tx Signature: Unknown problem: ${JSON.stringify(
@@ -3206,10 +3248,25 @@ export class TransactionController extends BaseController<
         publishHook = extraTransactionsPublishHook.getHook();
       }
 
-      const { transactionHash: hash } = await publishHook(
-        transactionMeta,
-        rawTx ?? '0x',
-      );
+      const publishResult = await publishHook(transactionMeta, rawTx ?? '0x');
+      const { transactionHash: hash } = publishResult;
+
+      if (publishResult.externallyHandled) {
+        if (publishResult.outcome === 'user-rejected') {
+          this.#rejectTransaction(transactionId);
+          return ApprovalState.NotApproved;
+        }
+
+        if (publishResult.outcome === 'not-submitted') {
+          this.#failTransaction(
+            transactionMeta,
+            new Error(
+              publishResult.error ?? 'External transaction was not submitted',
+            ),
+          );
+          return ApprovalState.NotApproved;
+        }
+      }
 
       // eslint-disable-next-line require-atomic-updates
       transactionMeta = this.#updateTransactionInternal(
@@ -3218,6 +3275,7 @@ export class TransactionController extends BaseController<
         },
         (draftTxMeta) => {
           draftTxMeta.hash = hash;
+          draftTxMeta.isExternalPublish = publishResult.externallyHandled;
           draftTxMeta.status = TransactionStatus.submitted;
           draftTxMeta.submittedTime ??= new Date().getTime();
           if (shouldUpdatePreTxBalance) {
@@ -4469,27 +4527,31 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
     signedTx: string,
   ): Promise<PublishHookResult> {
-    let transactionHash: string | undefined;
+    let result: PublishHookResult = {};
 
     await this.#trace(
       { name: 'Publish', parentContext: traceContext },
       async () => {
         const publishHook = publishHookOverride ?? this.#publish;
 
-        ({ transactionHash } = await publishHook(transactionMeta, signedTx));
+        result = await publishHook(transactionMeta, signedTx);
 
-        // eslint-disable-next-line require-atomic-updates
-        transactionHash ??= await this.#publishTransaction({
-          ...transactionMeta,
-          networkClientId,
-          rawTx: signedTx,
-        });
+        if (!result.externallyHandled && !result.transactionHash) {
+          // eslint-disable-next-line require-atomic-updates
+          result = {
+            transactionHash: await this.#publishTransaction({
+              ...transactionMeta,
+              networkClientId,
+              rawTx: signedTx,
+            }),
+          };
+        }
       },
     );
 
-    log('Publish successful', transactionHash);
+    log('Publish successful', result);
 
-    return { transactionHash };
+    return result;
   }
 
   async #getGasFeeTokens(transaction: TransactionMeta): Promise<{

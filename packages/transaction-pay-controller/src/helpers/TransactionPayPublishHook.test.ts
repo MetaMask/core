@@ -7,6 +7,7 @@ import type { CaipChainId } from '@metamask/utils';
 import { TransactionPayStrategy } from '../index.js';
 import { getMessengerMock } from '../tests/messenger-mock.js';
 import type {
+  SolanaPayStatus,
   TransactionPayControllerState,
   TransactionPayQuote,
 } from '../types.js';
@@ -105,13 +106,84 @@ describe('TransactionPayPublishHook', () => {
       transactionData: {},
     } as TransactionPayControllerState);
 
+    submitSolanaPayMock.mockResolvedValue({
+      outcome: { type: 'submitted' },
+      providerNotificationStatus: 'succeeded',
+      relayStatus: 'pending',
+      requestId: 'relay-request-123',
+      sourceStatus: 'submitted',
+      submissionOutcome: 'submitted',
+    });
+
     const result = await runHook();
 
     expect(submitSolanaPayMock).toHaveBeenCalledTimes(1);
     expect(submitSolanaPayMock).toHaveBeenCalledWith(TRANSACTION_META_MOCK.id);
     expect(executeMock).not.toHaveBeenCalled();
-    expect(result).toStrictEqual({ transactionHash: undefined });
+    expect(result).toStrictEqual({
+      externallyHandled: true,
+      outcome: 'submitted',
+    });
   });
+
+  it.each([
+    ['user-rejected', undefined, undefined],
+    [
+      'not-submitted',
+      'Snap rejected before broadcast',
+      'Snap rejected before broadcast',
+    ],
+    ['not-submitted', undefined, 'Solana source transaction was not submitted'],
+    ['ambiguous', undefined, undefined],
+    [undefined, undefined, undefined],
+  ] as const)(
+    'propagates externally handled %s outcome',
+    async (outcome, sourceFailureReason, expectedError) => {
+      const effectiveOutcome = outcome ?? 'ambiguous';
+      getControllerStateMock.mockReturnValue({
+        payIntents: {
+          [TRANSACTION_META_MOCK.id]: {
+            version: 1,
+            sourceAccountId:
+              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+            sourceAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+            sourceChainId:
+              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as CaipChainId,
+          },
+        },
+        transactionData: {},
+      } as TransactionPayControllerState);
+
+      let payOutcome: SolanaPayStatus['outcome'] = {
+        phase: 'source',
+        type: 'unknown',
+      };
+      if (effectiveOutcome === 'user-rejected') {
+        payOutcome = { type: 'user-rejected' };
+      } else if (effectiveOutcome === 'not-submitted') {
+        payOutcome = { type: 'source-failed', guaranteedNotSubmitted: true };
+      }
+
+      submitSolanaPayMock.mockResolvedValue({
+        outcome: payOutcome,
+        providerNotificationStatus: 'not-started',
+        relayStatus: 'not-started',
+        requestId: 'relay-request-123',
+        sourceFailureReason,
+        sourceStatus:
+          effectiveOutcome === 'ambiguous' ? 'unknown' : effectiveOutcome,
+        submissionOutcome: outcome,
+      });
+
+      const result = await runHook();
+
+      expect(result).toStrictEqual({
+        ...(expectedError && { error: expectedError }),
+        externallyHandled: true,
+        outcome: effectiveOutcome,
+      });
+    },
+  );
 
   it('executes strategy with quotes', async () => {
     await runHook();

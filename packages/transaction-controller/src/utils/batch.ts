@@ -757,14 +757,10 @@ async function addTransactionBatchWithHook(
       throw new Error('Publish batch hook did not return a result');
     }
 
-    const transactionHashes = result.results.map(
-      ({ transactionHash }) => transactionHash,
-    );
-
-    collectHook.success(transactionHashes);
+    collectHook.success(result.results);
     resultCallbacks?.success();
 
-    log('Completed batch transaction with hook', transactionHashes);
+    log('Completed batch transaction with hook', result.results);
 
     return {
       batchId,

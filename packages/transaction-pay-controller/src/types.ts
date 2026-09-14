@@ -38,7 +38,9 @@ import type {
   AuthorizationList,
   TransactionControllerAddTransactionBatchAction,
   TransactionControllerEstimateGasAction,
+  TransactionControllerConfirmTransactionAction,
   TransactionControllerEstimateGasBatchAction,
+  TransactionControllerFailTransactionAction,
   TransactionControllerUnapprovedTransactionAddedEvent,
 } from '@metamask/transaction-controller';
 import type {
@@ -54,7 +56,13 @@ import type {
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { CaipAccountId, CaipChainId, Hex, Json } from '@metamask/utils';
+import type {
+  CaipAccountId,
+  CaipAssetType,
+  CaipChainId,
+  Hex,
+  Json,
+} from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type {
@@ -87,8 +95,10 @@ export type AllowedActions =
   | SentinelApiServiceActions
   | TransactionControllerAddTransactionAction
   | TransactionControllerAddTransactionBatchAction
+  | TransactionControllerConfirmTransactionAction
   | TransactionControllerEstimateGasAction
   | TransactionControllerEstimateGasBatchAction
+  | TransactionControllerFailTransactionAction
   | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction;
@@ -301,23 +311,112 @@ export type GetSolanaPayQuoteRequest = {
   transactionId: string;
 };
 
-/** Relay /quote/v2 response containing an SVM instruction handoff. */
-export type SolanaPayQuote = RelaySolanaQuote;
+/** Platform observations used by Core to normalize Solana affordability. */
+export type SolanaPayPreflightData = {
+  /** Opaque serialized transaction prepared by the platform callback. */
+  preparedTransaction: string;
+
+  /** Opaque identity binding submission to this exact preparation. */
+  preparationId: string;
+
+  /** Available native SOL balance in lamports. */
+  nativeBalanceRaw: string;
+
+  /** Finalized base network fee in lamports, excluding priority fee. */
+  networkFeeRaw: string;
+
+  /** Finalized priority fee in lamports. */
+  priorityFeeRaw: string;
+
+  /** Rent debited by the prepared transaction in lamports. */
+  rentDebitRaw: string;
+
+  /** Lamports that must remain to satisfy rent exemption. */
+  rentExemptionRequirementRaw: string;
+
+  /** Available balance of the selected source asset in atomic units. */
+  sourceBalanceRaw: string;
+};
+
+/** Core-normalized Solana quote preflight policy. */
+export type SolanaPayPreflight = SolanaPayPreflightData & {
+  /** Affordability decision and exact atomic shortfalls. */
+  affordability: {
+    isAffordable: boolean;
+    nativeShortfallRaw: string;
+    sourceShortfallRaw: string;
+  };
+
+  /** Native balance required by the transaction and retained reserve. */
+  requiredNativeBalanceRaw: string;
+
+  /** Source-asset balance required, including reserve for native SOL. */
+  requiredSourceBalanceRaw: string;
+
+  /** Fees and rent retained in addition to the source amount. */
+  retainedReserveRaw: string;
+
+  /** Exact-input source amount in atomic units. */
+  sourceAmountRaw: string;
+
+  /** Finalized base and priority fee total in lamports. */
+  totalFeeRaw: string;
+};
+
+/** Client-consumable Relay quote and normalized Solana preflight. */
+export type SolanaPayQuote = {
+  /** Raw provider quote retained for execution and provider diagnostics. */
+  providerQuote: RelaySolanaQuote;
+
+  /** Core-owned normalized fee, rent, reserve, and affordability policy. */
+  preflight: SolanaPayPreflight;
+};
 
 /** Request passed to the client-owned Solana sign-and-broadcast boundary. */
 export type SolanaPaySignAndSendTransactionRequest = {
   /** Canonical source account used by the Snap client request. */
   accountId: CaipAccountId;
 
+  /** Opaque serialized transaction returned by the preflight callback. */
+  preparedTransaction: string;
+
+  /** Opaque identity binding submission to the displayed preflight. */
+  preparationId: string;
+
   /** Relay correlation ID. */
   requestId: string;
 
   /** Canonical Solana chain scope used by the Snap client request. */
   scope: CaipChainId;
+};
 
-  /** Relay instructions and LUT addresses to compile with a fresh blockhash. */
+/** Request used to prepare and price a Relay Solana transaction. */
+export type GetSolanaPayPreflightRequest = {
+  /** Canonical source account. */
+  accountId: CaipAccountId;
+
+  /** Relay correlation ID. */
+  requestId: string;
+
+  /** Canonical Solana chain scope. */
+  scope: CaipChainId;
+
+  /** Canonical source asset whose balances are being evaluated. */
+  sourceAssetId: CaipAssetType;
+
+  /** Exact-input source amount in atomic units. */
+  sourceAmountRaw: string;
+
+  /** Relay instruction and LUT handoff to prepare with current RPC data. */
   transaction: RelaySolanaTransaction;
 };
+
+/** Discriminated result of one client-owned submission callback invocation. */
+export type SolanaPaySubmissionResult =
+  | { outcome: 'submitted'; transactionId: string }
+  | { outcome: 'user-rejected' }
+  | { outcome: 'not-submitted'; reason?: string }
+  | { outcome: 'ambiguous'; reason?: string };
 
 /** Request used to observe a previously submitted Solana transaction. */
 export type GetSolanaPayTransactionStatusRequest = {
@@ -331,25 +430,66 @@ export type GetSolanaPayTransactionStatusRequest = {
   transactionId: string;
 };
 
+/** Request for the required one-shot sponsored target follow-up. */
+export type SolanaPayFollowUpRequest = {
+  /** Relay request ID that settled the source payment. */
+  requestId: string;
+
+  /** Relay destination transaction ID, when available. */
+  relayTransactionId?: string;
+
+  /** Target transaction whose sponsored follow-up must be submitted. */
+  transaction: TransactionMeta;
+};
+
+/** Request used to observe a sponsored non-atomic follow-up. */
+export type GetSolanaPayFollowUpStatusRequest = {
+  /** Target parent transaction. */
+  transaction: TransactionMeta;
+
+  /** Submitted follow-up transaction ID. */
+  transactionId: string;
+};
+
 /** Client-owned Solana operations required by TransactionPayController. */
 export type SolanaPayCallbacks = {
   /**
-   * Compiles the Relay instruction/LUT handoff, then invokes
-   * `SnapController:handleRequest` with `signAndSendTransaction` exactly once.
-   * The callback returns the base58 transaction signature.
+   * Prepares the instruction/LUT handoff with current RPC data and returns raw
+   * fee, rent, and balance observations. Core owns normalization and policy.
+   */
+  getPreflight: (
+    request: GetSolanaPayPreflightRequest,
+  ) => Promise<SolanaPayPreflightData>;
+
+  /**
+   * Invokes `SnapController:handleRequest` with `signAndSendTransaction`
+   * exactly once and returns an explicit completion outcome.
    */
   signAndSendTransaction: (
     request: SolanaPaySignAndSendTransactionRequest,
-  ) => Promise<{ transactionId: string }>;
+  ) => Promise<SolanaPaySubmissionResult>;
 
   /** Observes source-chain status without submitting or resubmitting. */
   getTransactionStatus: (
     request: GetSolanaPayTransactionStatusRequest,
   ) => Promise<'pending' | 'confirmed' | 'failed' | 'unknown'>;
+
+  /** Submits a required sponsored non-atomic follow-up exactly once. */
+  submitNonAtomicFollowUp?: (
+    request: SolanaPayFollowUpRequest,
+  ) => Promise<SolanaPaySubmissionResult>;
+
+  /** Observes a submitted sponsored follow-up without resubmitting it. */
+  getNonAtomicFollowUpStatus?: (
+    request: GetSolanaPayFollowUpStatusRequest,
+  ) => Promise<'pending' | 'confirmed' | 'failed' | 'unknown'>;
 };
 
 /** Independent durable observations returned by reconciliation. */
 export type SolanaPayStatus = {
+  /** Core-derived durable business outcome. */
+  outcome: NonNullable<TransactionPayIntent['outcome']>;
+
   /** Provider failure classification, when supplied by Relay. */
   failureReason?: string;
 
@@ -368,6 +508,28 @@ export type SolanaPayStatus = {
 
   /** Source-chain observation status. */
   sourceStatus: MetamaskPaySourceStatus;
+
+  /** Status of a required sponsored non-atomic follow-up. */
+  followUpStatus?:
+    | 'not-required'
+    | 'not-started'
+    | 'attempting'
+    | 'submitted'
+    | 'pending'
+    | 'confirmed'
+    | 'failed'
+    | 'user-rejected'
+    | 'not-submitted'
+    | 'unknown';
+
+  /** Follow-up transaction ID, when submitted. */
+  followUpTransactionId?: string;
+
+  /** Durable completion outcome of the single submission callback. */
+  submissionOutcome?: SolanaPaySubmissionResult['outcome'];
+
+  /** Stable source submission failure or interruption detail. */
+  sourceFailureReason?: string;
 
   /** Base58 source transaction signature, when known. */
   sourceTransactionId?: string;

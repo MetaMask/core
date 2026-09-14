@@ -30,6 +30,7 @@ const mockErrorResponse = (status: number, body: unknown): jest.SpyInstance =>
   } as Response);
 
 const QUOTE_URL_MOCK = 'https://proxy.test/relay/quote';
+const SOLANA_QUOTE_URL_MOCK = 'https://proxy.test/relay/quote/v2';
 const EXECUTE_URL_MOCK = 'https://proxy.test/relay/execute';
 
 const MESSENGER_MOCK = {} as Parameters<typeof fetchRelayQuote>[0];
@@ -40,6 +41,7 @@ describe('relay-api', () => {
 
     getFeatureFlagsMock.mockReturnValue({
       relayQuoteUrl: QUOTE_URL_MOCK,
+      relaySolanaQuoteUrl: SOLANA_QUOTE_URL_MOCK,
       relayExecuteUrl: EXECUTE_URL_MOCK,
     } as FeatureFlags);
   });
@@ -161,7 +163,7 @@ describe('relay-api', () => {
         SOLANA_QUOTE_REQUEST_MOCK,
       );
 
-      expect(fetchMock).toHaveBeenCalledWith(QUOTE_URL_MOCK, {
+      expect(fetchMock).toHaveBeenCalledWith(SOLANA_QUOTE_URL_MOCK, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(SOLANA_QUOTE_REQUEST_MOCK),

@@ -38,9 +38,9 @@ export type TransactionPayControllerGetSolanaPayQuoteAction = {
 /**
  * Performs at most one client-owned Solana sign-and-broadcast attempt.
  *
- * The `attempting` checkpoint is persisted before invoking the callback. Any
- * callback rejection is treated as ambiguous and becomes `unknown`; neither
- * this method nor recovery will invoke the callback again.
+ * The `attempting` checkpoint is persisted before invoking the callback.
+ * The callback must resolve with a discriminated completion outcome; only an
+ * explicit ambiguous outcome becomes `unknown`. No outcome is resubmitted.
  *
  * @param transactionId - Target TransactionController transaction ID.
  * @returns The latest independent source, notification, and Relay statuses.
