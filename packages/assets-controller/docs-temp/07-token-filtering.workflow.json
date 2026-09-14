@@ -1,0 +1,350 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Where A Spam Token Gets Filtered Out",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "three-moments",
+        "label": "Three separate moments",
+        "focus": ["ws_cut", "en_cut", "un_cut"],
+        "note": "Two cuts edit an in-flight response; only the unlock cleanup edits state that was already saved."
+      },
+      {
+        "id": "websocket",
+        "label": "A websocket airdrop",
+        "focus": ["ws_in", "ws_pick", "ws_judge", "ws_cut"],
+        "note": "Runs before DetectionMiddleware, so a below-floor airdrop is never detected, enriched, priced or persisted."
+      },
+      {
+        "id": "enrichment",
+        "label": "The enrichment stage",
+        "focus": ["en_in", "en_pick", "en_judge", "en_cut"],
+        "note": "Lives in the parallel Token and Price stage, so it is the one filter both the fetch and event stacks share."
+      },
+      {
+        "id": "unlock",
+        "label": "The unlock sweep",
+        "focus": ["un_in", "un_gate", "un_pick", "un_judge", "un_cut"],
+        "note": "Repairs state that older builds, a loosened API or a websocket gap already let through."
+      }
+    ],
+    "legend": {
+      "entries": {
+        "messagebus": {
+          "label": "Trigger"
+        },
+        "backend": {
+          "label": "In-process step"
+        },
+        "cloud": {
+          "label": "Token API call"
+        },
+        "database": {
+          "label": "State"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "push",
+      "label": "On a websocket push"
+    },
+    {
+      "id": "enrich",
+      "label": "In the enrichment stage"
+    },
+    {
+      "id": "unlock",
+      "label": "On keyring unlock",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "arrive",
+      "label": "What arrives",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "judge",
+      "label": "What gets judged",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "cut",
+      "label": "What is removed",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "security"
+    }
+  ],
+  "mainPath": ["en_in", "en_pick", "en_judge", "en_cut", "state"],
+  "semanticChecks": {
+    "allowedRoots": ["ws_in", "en_in", "un_in"],
+    "allowedTerminals": ["state"]
+  },
+  "nodes": [
+    {
+      "id": "ws_in",
+      "lane": "push",
+      "col": 0,
+      "type": "messagebus",
+      "label": "AccountActivity",
+      "sublabel": "balance push",
+      "width": 136
+    },
+    {
+      "id": "ws_gate",
+      "lane": "push",
+      "col": 1,
+      "type": "backend",
+      "label": "Basic functionality",
+      "sublabel": "off means no filter",
+      "width": 136
+    },
+    {
+      "id": "ws_pick",
+      "lane": "push",
+      "col": 2,
+      "type": "backend",
+      "label": "New ERC-20s",
+      "sublabel": "unknown to state",
+      "width": 136
+    },
+    {
+      "id": "ws_judge",
+      "lane": "push",
+      "col": 3,
+      "type": "cloud",
+      "label": "Occurrence floor",
+      "sublabel": "fail open",
+      "width": 136
+    },
+    {
+      "id": "ws_cut",
+      "lane": "push",
+      "col": 4,
+      "type": "backend",
+      "label": "Cut pre-detection",
+      "sublabel": "never persisted",
+      "width": 136
+    },
+    {
+      "id": "en_in",
+      "lane": "enrich",
+      "col": 0,
+      "type": "messagebus",
+      "label": "Metadata wanted",
+      "sublabel": "both pipelines",
+      "width": 136
+    },
+    {
+      "id": "en_pick",
+      "lane": "enrich",
+      "col": 2,
+      "type": "backend",
+      "label": "Detected only",
+      "sublabel": "heals are exempt",
+      "width": 136
+    },
+    {
+      "id": "en_judge",
+      "lane": "enrich",
+      "col": 3,
+      "type": "cloud",
+      "label": "Floor or Blockaid",
+      "sublabel": "fail open",
+      "width": 136
+    },
+    {
+      "id": "en_cut",
+      "lane": "enrich",
+      "col": 4,
+      "type": "backend",
+      "label": "Cut from response",
+      "sublabel": "stub metadata too",
+      "width": 136
+    },
+    {
+      "id": "un_in",
+      "lane": "unlock",
+      "col": 0,
+      "type": "messagebus",
+      "label": "Keyring unlock",
+      "sublabel": "before tracking",
+      "width": 136
+    },
+    {
+      "id": "un_gate",
+      "lane": "unlock",
+      "col": 1,
+      "type": "backend",
+      "label": "Three gates",
+      "sublabel": "all must pass",
+      "width": 136
+    },
+    {
+      "id": "un_pick",
+      "lane": "unlock",
+      "col": 2,
+      "type": "backend",
+      "label": "Saved ERC-20s",
+      "sublabel": "Accounts API chains",
+      "width": 136
+    },
+    {
+      "id": "un_judge",
+      "lane": "unlock",
+      "col": 3,
+      "type": "cloud",
+      "label": "Occurrence floor",
+      "sublabel": "no delete on error",
+      "width": 136
+    },
+    {
+      "id": "un_cut",
+      "lane": "unlock",
+      "col": 4,
+      "type": "backend",
+      "label": "Cut from state",
+      "sublabel": "info, balance, price",
+      "width": 136
+    },
+    {
+      "id": "state",
+      "lane": "enrich",
+      "col": 5,
+      "type": "database",
+      "label": "Assets state",
+      "sublabel": "what the UI reads",
+      "width": 136
+    }
+  ],
+  "edges": [
+    {
+      "id": "ws-1",
+      "from": "ws_in",
+      "to": "ws_gate",
+      "label": "new balance"
+    },
+    {
+      "id": "ws-2",
+      "from": "ws_gate",
+      "to": "ws_pick",
+      "label": "on"
+    },
+    {
+      "id": "ws-3",
+      "from": "ws_pick",
+      "to": "ws_judge",
+      "label": "candidates"
+    },
+    {
+      "id": "ws-4",
+      "from": "ws_judge",
+      "to": "ws_cut",
+      "label": "below floor",
+      "role": "error"
+    },
+    {
+      "id": "ws-5",
+      "from": "ws_cut",
+      "to": "state",
+      "label": "survivors"
+    },
+    {
+      "id": "en-1",
+      "from": "en_in",
+      "to": "en_pick",
+      "label": "detected assets",
+      "variant": "emphasis"
+    },
+    {
+      "id": "en-2",
+      "from": "en_pick",
+      "to": "en_judge",
+      "label": "candidates",
+      "variant": "emphasis"
+    },
+    {
+      "id": "en-3",
+      "from": "en_judge",
+      "to": "en_cut",
+      "label": "spam",
+      "role": "error"
+    },
+    {
+      "id": "en-4",
+      "from": "en_cut",
+      "to": "state",
+      "label": "survivors",
+      "variant": "emphasis"
+    },
+    {
+      "id": "un-1",
+      "from": "un_in",
+      "to": "un_gate",
+      "label": "unlocked"
+    },
+    {
+      "id": "un-2",
+      "from": "un_gate",
+      "to": "un_pick",
+      "label": "all pass"
+    },
+    {
+      "id": "un-3",
+      "from": "un_pick",
+      "to": "un_judge",
+      "label": "batches of 50"
+    },
+    {
+      "id": "un-4",
+      "from": "un_judge",
+      "to": "un_cut",
+      "label": "below floor",
+      "role": "error"
+    },
+    {
+      "id": "un-5",
+      "from": "un_cut",
+      "to": "state",
+      "label": "rewritten"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "What a token has to clear",
+      "items": [
+        "EVM ERC-20: occurrence count at or above its chain's suggested floor, default 3",
+        "Non-EVM token: a clean Blockaid verdict from PhishingController bulkScanTokens",
+        "Native assets, user-imported custom assets and mUSD are never judged at all"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "The two failure modes differ on purpose",
+      "items": [
+        "Both pipeline filters fail open: a Token API error keeps every candidate",
+        "The unlock sweep fails the other way: a failed call deletes nothing",
+        "Deleting a real holding is worse than briefly showing one that is spam"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Why a third pass exists",
+      "items": [
+        "The pipeline filters only see assets moving through them right now",
+        "Tokens saved by older builds, a loosened API or a fail-open never get re-judged",
+        "Gated behind assetsUnifyState.useUnlockCleanup so it can be turned off remotely"
+      ]
+    }
+  ]
+}
