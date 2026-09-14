@@ -1070,7 +1070,9 @@ function expectConsistentDependenciesAndDevDependencies(Yarn) {
 
     for (const dependencies of dependenciesToConsider.values()) {
       for (const dependency of dependencies) {
-        if (highestRange === null || !ALIGN_DEPENDENCY_RANGES) {
+        if (highestRange !== null && ALIGN_DEPENDENCY_RANGES) {
+          dependency.update(highestRange);
+        } else {
           dependency.error(
             `Expected version range for ${dependencyIdent} (in ${
               dependency.type
@@ -1078,8 +1080,6 @@ function expectConsistentDependenciesAndDevDependencies(Yarn) {
               dependencyRanges,
             )}`,
           );
-        } else {
-          dependency.update(highestRange);
         }
       }
     }
