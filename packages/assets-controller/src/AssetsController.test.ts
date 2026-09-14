@@ -3827,136 +3827,13 @@ describe('AssetsController', () => {
   });
 
   describe('assets loading status', () => {
-    it('marks each requested account as loading while a triggered getAssets is in flight, then clears it', async () => {
-      const { client, arm, release } = createGatedQueryApiClient();
-
-      await withController(
-        { queryApiClient: client },
-        async ({ controller }) => {
-          const accountA = createMockInternalAccount();
-          const accountB = createMockInternalAccount({
-            id: 'mock-account-id-2',
-          });
-
-          // Let the Accounts API data source finish its construction-time
-          // supported-networks lookup so the armed fetch is gated on the
-          // balances call (deterministic in-flight window).
-          await flushPromises();
-
-          arm();
-          const fetchPromise = controller.getAssets([accountA, accountB], {
-            forceUpdate: true,
-            trigger: 'accountSwitch',
-          });
-          await flushPromises();
-
-          // In flight: both accounts are marked loading with the trigger.
-          expect(controller.state.assetsLoadingStatus).toStrictEqual({
-            [accountA.id]: 'accountSwitch',
-            [accountB.id]: 'accountSwitch',
-          });
-
-          release();
-          await fetchPromise;
-
-          // Settled: the transient entries are removed.
-          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
-        },
-      );
-    });
-
-    it('clears the loading status when a triggered getAssets rejects', async () => {
-      await withController(async ({ controller }) => {
-        const account = createMockInternalAccount();
-        // Force the fetch to fail before the pipeline runs.
-        const customAssetsSpy = jest
-          .spyOn(controller, 'getCustomAssets')
-          .mockImplementation(() => {
-            throw new Error('fetch failed');
-          });
-
-        await expect(
-          controller.getAssets([account], {
-            forceUpdate: true,
-            trigger: 'accountSwitch',
-          }),
-        ).rejects.toThrow('fetch failed');
-
-        expect(controller.state.assetsLoadingStatus).toStrictEqual({});
-        customAssetsSpy.mockRestore();
-      });
-    });
-
-    it('does not set the loading status for fetches without a trigger (polling/refresh paths)', async () => {
-      const { client, arm, release } = createGatedQueryApiClient();
-
-      await withController(
-        { queryApiClient: client },
-        async ({ controller }) => {
-          const account = createMockInternalAccount();
-
-          await flushPromises();
-
-          arm();
-          const fetchPromise = controller.getAssets([account], {
-            forceUpdate: true,
-          });
-          await flushPromises();
-
-          // In flight, but no trigger: no loading status is published.
-          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
-
-          release();
-          await fetchPromise;
-
-          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
-        },
-      );
-    });
-
-    it('marks accounts as loading with the unlock trigger when tracking restarts after unlock', async () => {
-      const { client, arm, release } = createGatedQueryApiClient();
-
-      await withController(
-        {
-          queryApiClient: client,
-          clientControllerState: { isUiOpen: true },
-        },
-        async ({ controller, messenger }) => {
-          // Start tracking with the gate disarmed so the first startup
-          // refresh settles and the Accounts API active chains are known.
-          await activateTracking(messenger);
-          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
-
-          // Lock, then unlock with the gate armed: #start() runs a fresh
-          // #runStartupRefresh() -> getAssets(trigger: 'unlock'), frozen
-          // mid-flight by the gated balances call.
-          messenger.publish('KeyringController:lock');
-          arm();
-          messenger.publish('KeyringController:unlock');
-          await flushPromises();
-
-          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
-            'unlock',
-          );
-
-          release();
-          await flushPromises();
-
-          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
-        },
-      );
-    });
-
-    it('marks accounts as loading with the accountSwitch trigger on selected group change', async () => {
+    it('marks the selected accounts as loading on account switch, then loaded once the fetch settles', async () => {
       const { client, arm, release } = createGatedQueryApiClient();
 
       await withController(
         { queryApiClient: client },
         async ({ controller, messenger }) => {
-          // Start tracking with the gate disarmed so the startup refresh settles.
           await activateTracking(messenger);
-          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
 
           arm();
           (messenger.publish as CallableFunction)(
@@ -3966,57 +3843,119 @@ describe('AssetsController', () => {
           );
           await flushPromises();
 
-          // The group-change refresh is frozen mid-flight by the gated client.
           expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
-            'accountSwitch',
+            'loading',
           );
 
           release();
           await flushPromises();
 
-          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
+          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+            'loaded',
+          );
         },
       );
     });
 
-    it('emits state change events when the loading status is set and cleared', async () => {
+    it('marks a queued account switch as loading immediately, while a previous refresh still holds the refresh mutex', async () => {
       const { client, arm, release } = createGatedQueryApiClient();
 
       await withController(
         { queryApiClient: client },
-        async ({ controller, messenger }) => {
-          const stateChanges: AssetsControllerState[] = [];
-          messenger.subscribe('AssetsController:stateChanged', (state) => {
-            stateChanges.push(state);
-          });
-
-          const account = createMockInternalAccount();
-
-          await flushPromises();
+        async ({ controller, messenger, getSelectedAccountsMock }) => {
+          await activateTracking(messenger);
 
           arm();
-          const fetchPromise = controller.getAssets([account], {
-            forceUpdate: true,
-            trigger: 'accountSwitch',
-          });
+          (messenger.publish as CallableFunction)(
+            'AccountTreeController:selectedAccountGroupChange',
+            'entropy:mock-keyring-id-1/1',
+            'entropy:mock-keyring-id-1/0',
+          );
           await flushPromises();
 
-          const whileLoading = stateChanges.find(
-            (state) =>
-              state.assetsLoadingStatus[account.id] === 'accountSwitch',
+          // First switch is frozen mid-flight and holds the refresh mutex.
+          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+            'loading',
           );
-          expect(whileLoading).toBeDefined();
+
+          const accountB = createMockInternalAccount({
+            id: 'mock-account-id-2',
+          });
+          getSelectedAccountsMock.mockReturnValue([accountB]);
+          (messenger.publish as CallableFunction)(
+            'AccountTreeController:selectedAccountGroupChange',
+            'entropy:mock-keyring-id-1/2',
+            'entropy:mock-keyring-id-1/1',
+          );
+          await flushPromises();
+
+          // The queued switch is already marked loading for the new group's
+          // accounts, without waiting for the previous refresh to finish.
+          expect(controller.state.assetsLoadingStatus).toStrictEqual({
+            [MOCK_ACCOUNT_ID]: 'loading',
+            [accountB.id]: 'loading',
+          });
 
           release();
-          await fetchPromise;
+          await flushPromises();
 
-          const afterCleared = stateChanges.at(-1);
-          expect(afterCleared?.assetsLoadingStatus[account.id]).toBeUndefined();
+          expect(controller.state.assetsLoadingStatus).toStrictEqual({
+            [MOCK_ACCOUNT_ID]: 'loaded',
+            [accountB.id]: 'loaded',
+          });
+
+          getSelectedAccountsMock.mockClear();
         },
       );
     });
 
-    it('does not persist the loading status in the persisted state snapshot', async () => {
+    it('marks accounts as loading on unlock, then loaded once the fetch settles', async () => {
+      const { client, arm, release } = createGatedQueryApiClient();
+
+      await withController(
+        {
+          queryApiClient: client,
+          clientControllerState: { isUiOpen: true },
+        },
+        async ({ controller, messenger }) => {
+          await activateTracking(messenger);
+
+          messenger.publish('KeyringController:lock');
+          arm();
+          messenger.publish('KeyringController:unlock');
+          await flushPromises();
+
+          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+            'loading',
+          );
+
+          release();
+          await flushPromises();
+
+          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+            'loaded',
+          );
+        },
+      );
+    });
+
+    it('marks accounts as loaded even when the startup fetch fails', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockRejectedValue(new Error('fetch failed'));
+
+        await activateTracking(messenger);
+
+        expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+          'loaded',
+        );
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+
+    it('does not set the loading status for direct background fetches', async () => {
       const { client, arm, release } = createGatedQueryApiClient();
 
       await withController(
@@ -4029,23 +3968,70 @@ describe('AssetsController', () => {
           arm();
           const fetchPromise = controller.getAssets([account], {
             forceUpdate: true,
-            trigger: 'accountSwitch',
           });
           await flushPromises();
 
-          // Transient state: excluded from the persisted snapshot even while
-          // an entry is present.
-          const persisted = deriveStateFromMetadata(
-            controller.state,
-            controller.metadata,
-            'persist',
-          );
-          expect(persisted).not.toHaveProperty('assetsLoadingStatus');
+          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
 
           release();
           await fetchPromise;
+
+          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
         },
       );
+    });
+
+    it('emits state change events when the loading status is set and settled', async () => {
+      const { client, arm, release } = createGatedQueryApiClient();
+
+      await withController(
+        { queryApiClient: client },
+        async ({ messenger }) => {
+          const stateChanges: AssetsControllerState[] = [];
+          messenger.subscribe('AssetsController:stateChanged', (state) => {
+            stateChanges.push(state);
+          });
+
+          await activateTracking(messenger);
+
+          arm();
+          (messenger.publish as CallableFunction)(
+            'AccountTreeController:selectedAccountGroupChange',
+            'entropy:mock-keyring-id-1/1',
+            'entropy:mock-keyring-id-1/0',
+          );
+          await flushPromises();
+
+          const whileLoading = stateChanges.find(
+            (state) => state.assetsLoadingStatus[MOCK_ACCOUNT_ID] === 'loading',
+          );
+          expect(whileLoading).toBeDefined();
+
+          release();
+          await flushPromises();
+
+          expect(
+            stateChanges.at(-1)?.assetsLoadingStatus[MOCK_ACCOUNT_ID],
+          ).toBe('loaded');
+        },
+      );
+    });
+
+    it('does not persist the loading status in the persisted state snapshot', async () => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
+
+        expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+          'loaded',
+        );
+
+        const persisted = deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        );
+        expect(persisted).not.toHaveProperty('assetsLoadingStatus');
+      });
     });
   });
 

@@ -93,7 +93,7 @@ export type {
   DataRequest,
   DataResponse,
   AssetsUpdateMode,
-  AssetsLoadingTrigger,
+  AssetsLoadingStatus,
   // Middleware types
   Context,
   NextFunction,

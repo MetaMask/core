@@ -19,25 +19,23 @@ const createState = (
 
 describe('loading selectors', () => {
   describe('getAccountLoadingStatus', () => {
-    it('returns the trigger for an account with an in-flight fetch', () => {
+    it('returns the loading status for a loading account', () => {
       const state = createState({
-        [ACCOUNT_ID_A]: 'accountSwitch',
-        [ACCOUNT_ID_B]: 'unlock',
+        [ACCOUNT_ID_A]: 'loading',
+        [ACCOUNT_ID_B]: 'loaded',
       });
 
-      expect(getAccountLoadingStatus(state, ACCOUNT_ID_A)).toBe(
-        'accountSwitch',
-      );
-      expect(getAccountLoadingStatus(state, ACCOUNT_ID_B)).toBe('unlock');
+      expect(getAccountLoadingStatus(state, ACCOUNT_ID_A)).toBe('loading');
+      expect(getAccountLoadingStatus(state, ACCOUNT_ID_B)).toBe('loaded');
     });
 
-    it('returns undefined when the account is not loading', () => {
-      const state = createState({ [ACCOUNT_ID_A]: 'accountSwitch' });
+    it('returns undefined when the account has no loading status', () => {
+      const state = createState({ [ACCOUNT_ID_A]: 'loading' });
 
       expect(getAccountLoadingStatus(state, ACCOUNT_ID_B)).toBeUndefined();
     });
 
-    it('returns undefined when no account is loading', () => {
+    it('returns undefined when no account has a loading status', () => {
       const state = createState({});
 
       expect(getAccountLoadingStatus(state, ACCOUNT_ID_A)).toBeUndefined();
@@ -45,23 +43,23 @@ describe('loading selectors', () => {
   });
 
   describe('isAccountLoading', () => {
-    it('returns true while the account has an in-flight fetch', () => {
+    it('returns true only while the account is loading', () => {
       const state = createState({
-        [ACCOUNT_ID_A]: 'accountSwitch',
-        [ACCOUNT_ID_B]: 'unlock',
+        [ACCOUNT_ID_A]: 'loading',
+        [ACCOUNT_ID_B]: 'loaded',
       });
 
       expect(isAccountLoading(state, ACCOUNT_ID_A)).toBe(true);
-      expect(isAccountLoading(state, ACCOUNT_ID_B)).toBe(true);
+      expect(isAccountLoading(state, ACCOUNT_ID_B)).toBe(false);
     });
 
-    it('returns false when the account is not loading', () => {
-      const state = createState({ [ACCOUNT_ID_A]: 'accountSwitch' });
+    it('returns false when the account has no loading status', () => {
+      const state = createState({ [ACCOUNT_ID_A]: 'loading' });
 
       expect(isAccountLoading(state, ACCOUNT_ID_B)).toBe(false);
     });
 
-    it('returns false when no account is loading', () => {
+    it('returns false when no account has a loading status', () => {
       const state = createState({});
 
       expect(isAccountLoading(state, ACCOUNT_ID_A)).toBe(false);
@@ -69,19 +67,19 @@ describe('loading selectors', () => {
   });
 
   describe('getAccountsLoadingStatus', () => {
-    it('returns loading entries only for the requested account ids', () => {
+    it('returns statuses only for the requested account ids', () => {
       const state = createState({
-        [ACCOUNT_ID_A]: 'accountSwitch',
-        [ACCOUNT_ID_B]: 'unlock',
+        [ACCOUNT_ID_A]: 'loading',
+        [ACCOUNT_ID_B]: 'loaded',
       });
 
       expect(
         getAccountsLoadingStatus(state, [ACCOUNT_ID_A, ACCOUNT_ID_C]),
-      ).toStrictEqual({ [ACCOUNT_ID_A]: 'accountSwitch' });
+      ).toStrictEqual({ [ACCOUNT_ID_A]: 'loading' });
     });
 
-    it('returns an empty record when none of the requested accounts are loading', () => {
-      const state = createState({ [ACCOUNT_ID_B]: 'unlock' });
+    it('returns an empty record when none of the requested accounts have a status', () => {
+      const state = createState({ [ACCOUNT_ID_B]: 'loaded' });
 
       expect(
         getAccountsLoadingStatus(state, [ACCOUNT_ID_A, ACCOUNT_ID_C]),
@@ -89,7 +87,7 @@ describe('loading selectors', () => {
     });
 
     it('returns an empty record for an empty account list', () => {
-      const state = createState({ [ACCOUNT_ID_A]: 'accountSwitch' });
+      const state = createState({ [ACCOUNT_ID_A]: 'loading' });
 
       expect(getAccountsLoadingStatus(state, [])).toStrictEqual({});
     });
@@ -98,17 +96,17 @@ describe('loading selectors', () => {
   describe('isAnyAccountLoading', () => {
     it('returns true when any requested account is loading', () => {
       const state = createState({
-        [ACCOUNT_ID_A]: 'accountSwitch',
-        [ACCOUNT_ID_B]: 'unlock',
+        [ACCOUNT_ID_A]: 'loading',
+        [ACCOUNT_ID_B]: 'loaded',
       });
 
-      expect(isAnyAccountLoading(state, [ACCOUNT_ID_B, ACCOUNT_ID_C])).toBe(
+      expect(isAnyAccountLoading(state, [ACCOUNT_ID_A, ACCOUNT_ID_C])).toBe(
         true,
       );
     });
 
     it('returns false when none of the requested accounts are loading', () => {
-      const state = createState({ [ACCOUNT_ID_A]: 'accountSwitch' });
+      const state = createState({ [ACCOUNT_ID_A]: 'loaded' });
 
       expect(isAnyAccountLoading(state, [ACCOUNT_ID_B, ACCOUNT_ID_C])).toBe(
         false,
@@ -118,7 +116,10 @@ describe('loading selectors', () => {
     it('defaults to all accounts when no account ids are given', () => {
       expect(isAnyAccountLoading(createState({}))).toBe(false);
       expect(
-        isAnyAccountLoading(createState({ [ACCOUNT_ID_C]: 'accountSwitch' })),
+        isAnyAccountLoading(createState({ [ACCOUNT_ID_C]: 'loaded' })),
+      ).toBe(false);
+      expect(
+        isAnyAccountLoading(createState({ [ACCOUNT_ID_C]: 'loading' })),
       ).toBe(true);
     });
   });
