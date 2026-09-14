@@ -1,4 +1,4 @@
-# `PACKAGE_NAME`
+# `@metamask/package-template`
 
 PACKAGE_DESCRIPTION
 
