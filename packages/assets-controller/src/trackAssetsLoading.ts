@@ -1,41 +1,25 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import type { AssetsController } from './AssetsController.js';
 import type { AccountId, AssetsLoadingStatus } from './types.js';
 
-type AssetsLoadingStateUpdater = {
+/**
+ * The controller surface the loading tracker needs. `update` is spelled out
+ * here because it is protected on the controller and so cannot be picked.
+ */
+type AssetsLoadingStateUpdater = Pick<AssetsController, 'state'> & {
   update: (
     callback: (state: {
       assetsLoadingStatus: Record<AccountId, AssetsLoadingStatus>;
+      assetsLoadingTokens: Record<AccountId, number>;
     }) => void,
   ) => void;
 };
 
-const loadingTokens = new WeakMap<
-  AssetsLoadingStateUpdater,
-  Map<AccountId, number>
->();
 let loadingTokenCounter = 0;
 
 /**
- * Get the per-controller ownership token map, creating it on first use.
- *
- * @param controller - The controller whose token map to get.
- * @returns The map of account ID to the token of the invocation that
- * currently owns that account's loading marker.
- */
-function getTokens(
-  controller: AssetsLoadingStateUpdater,
-): Map<AccountId, number> {
-  let tokens = loadingTokens.get(controller);
-  if (tokens === undefined) {
-    tokens = new Map();
-    loadingTokens.set(controller, tokens);
-  }
-  return tokens;
-}
-
-/**
- * Mark the given accounts as `'loading'` and return an ownership token that
+ * Mark the given accounts as `'loading'` and record an ownership token that
  * identifies this invocation as the owner of those markers.
  *
  * @param controller - The controller whose state should be updated.
@@ -51,12 +35,9 @@ function markAssetsLoading(
   }
   loadingTokenCounter += 1;
   const token = loadingTokenCounter;
-  const tokens = getTokens(controller);
-  for (const account of accounts) {
-    tokens.set(account.id, token);
-  }
   controller.update((state) => {
     for (const account of accounts) {
+      state.assetsLoadingTokens[account.id] = token;
       state.assetsLoadingStatus[account.id] = 'loading';
     }
   });
@@ -70,7 +51,7 @@ function markAssetsLoading(
  *
  * @param controller - The controller whose state should be updated.
  * @param accounts - The accounts the invocation fetched.
- * @param token - The ownership token returned by {@link markAssetsLoading}.
+ * @param token - The ownership token recorded by {@link markAssetsLoading}.
  */
 function markAssetsSettled(
   controller: AssetsLoadingStateUpdater,
@@ -80,9 +61,8 @@ function markAssetsSettled(
   if (token === 0) {
     return;
   }
-  const tokens = getTokens(controller);
   const ownedAccounts = accounts.filter(
-    (account) => tokens.get(account.id) === token,
+    (account) => controller.state.assetsLoadingTokens[account.id] === token,
   );
   if (ownedAccounts.length === 0) {
     return;
@@ -90,18 +70,17 @@ function markAssetsSettled(
   controller.update((state) => {
     for (const account of ownedAccounts) {
       state.assetsLoadingStatus[account.id] = 'loaded';
+      delete state.assetsLoadingTokens[account.id];
     }
   });
-  for (const account of ownedAccounts) {
-    tokens.delete(account.id);
-  }
 }
 
 /**
  * Method decorator that tracks a per-account assets loading status around the
  * decorated fetch method: the requested accounts are marked `'loading'` when
  * the method is invoked and settle to `'loaded'` once it completes, whether it
- * succeeded or failed.
+ * succeeded or failed. Calls that do not force an update are cache reads and
+ * are not tracked.
  *
  * @param target - The decorated fetch method.
  * @param _context - The decorator context.
@@ -109,7 +88,7 @@ function markAssetsSettled(
  */
 export function trackAssetsLoading<
   This,
-  Args extends [InternalAccount[], ...unknown[]],
+  Args extends [InternalAccount[], { forceUpdate?: boolean }?, ...unknown[]],
   Return,
 >(
   target: (this: This, ...args: Args) => Promise<Return>,
@@ -119,7 +98,10 @@ export function trackAssetsLoading<
   >,
 ): (this: This, ...args: Args) => Promise<Return> {
   return async function (this: This, ...args: Args): Promise<Return> {
-    const [accounts] = args;
+    const [accounts, options] = args;
+    if (options?.forceUpdate !== true) {
+      return target.call(this, ...args);
+    }
     const controller = this as unknown as AssetsLoadingStateUpdater;
     const token = markAssetsLoading(controller, accounts);
     try {

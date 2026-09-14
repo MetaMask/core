@@ -264,6 +264,7 @@ export type AssetsControllerState = {
   /** Currently-active ISO 4217 currency code */
   selectedCurrency: SupportedCurrency;
   assetsLoadingStatus: Record<AccountId, AssetsLoadingStatus>;
+  assetsLoadingTokens: Record<AccountId, number>;
 };
 
 /**
@@ -287,6 +288,7 @@ export function getDefaultAssetsControllerState(): AssetsControllerState {
     assetPreferences: {},
     selectedCurrency: 'usd',
     assetsLoadingStatus: {},
+    assetsLoadingTokens: {},
   };
 }
 
@@ -513,6 +515,12 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     includeInStateLogs: true,
     includeInDebugSnapshot: true,
     usedInUi: true,
+  },
+  assetsLoadingTokens: {
+    persist: false,
+    includeInStateLogs: false,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
   },
 };
 
