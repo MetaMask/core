@@ -39,6 +39,7 @@ import {
   getTokenFiatRate,
 } from '../../utils/token.js';
 import { getRelayQuotes } from './relay-quotes.js';
+import { validateRelayQuotes } from './relay-validation.js';
 import type { RelayQuote, RelayTransactionStep } from './types.js';
 
 jest.mock('../../utils/token', () => ({
@@ -3930,6 +3931,8 @@ describe('Relay Quotes Utils', () => {
         });
       });
 
+      const validateRelayQuotesMock = jest.mocked(validateRelayQuotes);
+
       it('promotes a subsidized non-atomic max Money Account quote to an atomic exact-output quote', async () => {
         mockRelayResponses();
         const originalRequest = cloneDeep(MONEY_ACCOUNT_MAX_REQUEST);
@@ -4174,6 +4177,198 @@ describe('Relay Quotes Utils', () => {
           }),
         ).rejects.toMatchObject({
           info: expect.objectContaining({ reason: 'atomic-promotion-failed' }),
+        });
+      });
+
+      it('wraps validation failure on a promoted batch as atomic-promotion-failed', async () => {
+        mockRelayResponses();
+        validateRelayQuotesMock.mockRejectedValueOnce(
+          new Error('validation boom'),
+        );
+
+        await expect(
+          getRelayQuotes({
+            accountSupports7702: true,
+            messenger,
+            requests: [MONEY_ACCOUNT_MAX_REQUEST],
+            transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+          }),
+        ).rejects.toMatchObject({
+          info: expect.objectContaining({ reason: 'atomic-promotion-failed' }),
+        });
+      });
+
+      it('rethrows validation failure unwrapped when no quote was promoted', async () => {
+        mockRelayResponses(buildRelayQuote({ subsidizedAmountUsd: '0' }));
+        validateRelayQuotesMock.mockRejectedValueOnce(
+          new Error('validation boom'),
+        );
+
+        await expect(
+          getRelayQuotes({
+            accountSupports7702: true,
+            messenger,
+            requests: [MONEY_ACCOUNT_MAX_REQUEST],
+            transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+          }),
+        ).rejects.toThrow('validation boom');
+      });
+
+      it('rethrows validation failure unwrapped for a plain non-max quote', async () => {
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+        validateRelayQuotesMock.mockRejectedValueOnce(
+          new Error('validation boom'),
+        );
+
+        await expect(
+          getRelayQuotes({
+            accountSupports7702: true,
+            messenger,
+            requests: [QUOTE_REQUEST_MOCK],
+            transaction: TRANSACTION_META_MOCK,
+          }),
+        ).rejects.toThrow('validation boom');
+      });
+
+      it('rejects an already-atomic max quote upstream without terminal wrapping', async () => {
+        mockRelayResponses(buildRelayQuote({ subsidizedAmountUsd: '0' }));
+
+        await expect(
+          getRelayQuotes({
+            accountSupports7702: true,
+            messenger,
+            requests: [{ ...MONEY_ACCOUNT_MAX_REQUEST, atomic: true }],
+            transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+          }),
+        ).rejects.toThrow(
+          'Max amount quotes do not support included transactions',
+        );
+      });
+
+      it('throws atomic-promotion-failed when the discovery target is not a positive integer', async () => {
+        mockRelayResponses(buildRelayQuote({ amountOut: '0' }));
+
+        await expect(
+          getRelayQuotes({
+            accountSupports7702: true,
+            messenger,
+            requests: [MONEY_ACCOUNT_MAX_REQUEST],
+            transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+          }),
+        ).rejects.toMatchObject({
+          info: expect.objectContaining({ reason: 'atomic-promotion-failed' }),
+        });
+      });
+
+      it('throws atomic-promotion-failed when amount data returns no updates', async () => {
+        mockRelayResponses();
+        getAmountDataMock.mockResolvedValue({ updates: [] });
+
+        await expect(
+          getRelayQuotes({
+            accountSupports7702: true,
+            messenger,
+            requests: [MONEY_ACCOUNT_MAX_REQUEST],
+            transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+          }),
+        ).rejects.toMatchObject({
+          info: expect.objectContaining({ reason: 'atomic-promotion-failed' }),
+        });
+      });
+
+      it('throws atomic-promotion-failed when nested transactions are missing', async () => {
+        mockRelayResponses();
+
+        await expect(
+          getRelayQuotes({
+            accountSupports7702: true,
+            messenger,
+            requests: [MONEY_ACCOUNT_MAX_REQUEST],
+            transaction: {
+              ...MONEY_ACCOUNT_MAX_TRANSACTION,
+              nestedTransactions: [],
+            },
+          }),
+        ).rejects.toMatchObject({
+          info: expect.objectContaining({ reason: 'atomic-promotion-failed' }),
+        });
+      });
+
+      it('throws atomic-promotion-failed when an amount update references a missing nested transaction', async () => {
+        mockRelayResponses();
+        getAmountDataMock.mockResolvedValue({
+          updates: [
+            {
+              data: UPDATED_DEPOSIT_DATA,
+              nestedTransactionIndex: 5,
+            },
+          ],
+        });
+
+        await expect(
+          getRelayQuotes({
+            accountSupports7702: true,
+            messenger,
+            requests: [MONEY_ACCOUNT_MAX_REQUEST],
+            transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+          }),
+        ).rejects.toMatchObject({
+          info: expect.objectContaining({ reason: 'atomic-promotion-failed' }),
+        });
+      });
+
+      it('throws atomic-promotion-failed when required assets are missing', async () => {
+        mockRelayResponses();
+
+        await expect(
+          getRelayQuotes({
+            accountSupports7702: true,
+            messenger,
+            requests: [MONEY_ACCOUNT_MAX_REQUEST],
+            transaction: {
+              ...MONEY_ACCOUNT_MAX_TRANSACTION,
+              requiredAssets: [],
+            },
+          }),
+        ).rejects.toMatchObject({
+          info: expect.objectContaining({ reason: 'atomic-promotion-failed' }),
+        });
+      });
+
+      it('throws atomic-promotion-failed when the discovery target changes shape before promotion', async () => {
+        mockRelayResponses(buildRelayQuote({ amountOut: '099000000' }));
+
+        await expect(
+          getRelayQuotes({
+            accountSupports7702: true,
+            messenger,
+            requests: [MONEY_ACCOUNT_MAX_REQUEST],
+            transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+          }),
+        ).rejects.toMatchObject({
+          info: expect.objectContaining({ reason: 'atomic-promotion-failed' }),
+        });
+      });
+
+      it('throws atomic-promotion-failed with string detail when promotion fails with a non-error', async () => {
+        mockRelayResponses();
+        getAmountDataMock.mockRejectedValueOnce('boom-string' as never);
+
+        await expect(
+          getRelayQuotes({
+            accountSupports7702: true,
+            messenger,
+            requests: [MONEY_ACCOUNT_MAX_REQUEST],
+            transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+          }),
+        ).rejects.toMatchObject({
+          info: expect.objectContaining({
+            detail: ['boom-string'],
+            reason: 'atomic-promotion-failed',
+          }),
         });
       });
     });

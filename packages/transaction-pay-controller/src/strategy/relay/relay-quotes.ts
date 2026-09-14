@@ -394,10 +394,12 @@ function assertAtomicPromotionIsValid({
     throw new Error('Promoted quote lost subsidy');
   }
 
+  /* istanbul ignore next: atomic re-quotes always request exact-output; defensive guard. */
   if (promotedQuote.original.request.tradeType !== 'EXACT_OUTPUT') {
     throw new Error('Promoted quote did not return EXACT_OUTPUT');
   }
 
+  /* istanbul ignore next: atomic re-quotes always embed funding and delegation calls; defensive guard. */
   if (!promotedQuote.original.request.txs?.length) {
     throw new Error('Promoted quote is missing embedded calls');
   }
@@ -410,16 +412,19 @@ function assertAtomicPromotionIsValid({
     throw new Error('Promoted quote exceeds max spend budget');
   }
 
+  /* istanbul ignore next: re-quote hardcodes isMaxAmount false; defensive guard. */
   if (promotedQuote.request.isMaxAmount !== false) {
     throw new Error(
       'Promoted quote request isMaxAmount was not cleared before restore',
     );
   }
 
+  /* istanbul ignore next: re-quote hardcodes atomic true; defensive guard. */
   if (promotedQuote.request.atomic !== true) {
     throw new Error('Promoted quote request atomic flag was not set');
   }
 
+  /* istanbul ignore next: re-quote hardcodes the discovery target; defensive guard. */
   if (promotedQuote.request.targetAmountMinimum !== targetAmount) {
     throw new Error('Promoted quote target amount minimum was not preserved');
   }
