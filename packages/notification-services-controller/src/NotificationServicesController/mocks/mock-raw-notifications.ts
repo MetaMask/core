@@ -875,7 +875,6 @@ export function createMockPlatformNotification(): NormalisedAPINotification {
       title: 'This is a Platform Notification!',
       body: 'Teams can now build out their own notifications, and add an optional CTA (like this one below).',
       cta: {
-        content: 'Get Started',
         link: 'https://metamask.io/get-started',
       },
     },

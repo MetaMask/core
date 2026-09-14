@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `createOnChainPushNotificationMessage` now derives its `title`, `description`, and `ctaLink` from the notification's `template` field and no longer accepts a `translations` argument. ([#9140](https://github.com/MetaMask/core/pull/9140))
-  - Update call sites to drop the second `translations` argument: `createOnChainPushNotificationMessage(notification)`.
-  - `ctaLink` is now populated from `template.cta.link` when present.
-- **BREAKING:** Remove the `createOnChainPushNotificationMessages` function and the `TranslationKeys` type. Push notification copy is now provided by the API via the notification `template`, so client-side translation keys are no longer required. ([#9140](https://github.com/MetaMask/core/pull/9140))
+- **BREAKING:** Remove `createOnChainPushNotificationMessage`, `createOnChainPushNotificationMessages`, and the `TranslationKeys` type. Push notification copy is now provided by the Notification API via `template`, so client-side translation keys are no longer required. ([#9184](https://github.com/MetaMask/core/pull/9184))
+- Regenerated `schema.ts` from the latest Notification API OpenAPI spec. ([#9184](https://github.com/MetaMask/core/pull/9184))
+  - `OnChainNotificationV4` now includes optional `template` (`OnChainTemplate`: required `title`, optional `body`).
+  - `LocalizedNotificationCTA` no longer includes `content`; it is `link` only.
 - Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
