@@ -25,6 +25,7 @@ import {
   deriveSolanaPayOutcome,
   getInitialSolanaPayExecution,
   getRelaySolanaTransaction,
+  isSolanaPayProductTransaction,
   mapRelayStatus,
   normalizeSolanaPayPreflight,
 } from './strategy/relay/solana-pay.js';
@@ -248,6 +249,18 @@ export class TransactionPayController extends BaseController<
    * @param request.transactionId - ID of the target transaction.
    */
   setPayIntent({ transactionId, intent }: SetPayIntentRequest): void {
+    const existing = this.state.payIntents[transactionId];
+
+    if (
+      existing?.sourceChainId.startsWith('solana:') &&
+      (existing.requestId ||
+        getSolanaPayExecution(existing).sourceStatus !== 'not-started')
+    ) {
+      throw new Error(
+        'TransactionPayController: Solana source snapshot is immutable',
+      );
+    }
+
     this.#persistPayIntent(transactionId, intent, 'Set transaction pay intent');
   }
 
@@ -258,7 +271,7 @@ export class TransactionPayController extends BaseController<
    * the full instruction payload remains transient because recovery only
    * observes an existing attempt and never resubmits it.
    *
-   * @param request - Source amount and EVM destination details.
+   * @param request - Target transaction whose route Core derives.
    * @returns The Relay Solana quote for client display and confirmation.
    */
   async getSolanaPayQuote(
@@ -272,49 +285,77 @@ export class TransactionPayController extends BaseController<
       );
     }
 
-    const quoteRequest = buildRelaySolanaQuoteRequest(intent, request);
+    const transaction = getTransaction(request.transactionId, this.messenger);
+    const transactionData = this.state.transactionData[request.transactionId];
+
+    if (!transaction || !transactionData) {
+      throw new Error('TransactionPayController: Transaction data missing');
+    }
+
+    const quoteRequest = await buildRelaySolanaQuoteRequest(
+      intent,
+      transaction,
+      transactionData,
+      this.messenger,
+    );
     const providerQuote = await fetchRelaySolanaQuote(
       this.messenger,
       quoteRequest,
     );
-    const transaction = getRelaySolanaTransaction(providerQuote);
+    const sourceTransaction = getRelaySolanaTransaction(providerQuote);
+    const sourceAmountRaw = providerQuote.details.currencyIn.amount;
 
-    if (providerQuote.details.currencyIn.amount !== quoteRequest.amount) {
+    if (
+      quoteRequest.tradeType === 'EXACT_INPUT' &&
+      sourceAmountRaw !== quoteRequest.amount
+    ) {
       throw new Error(
         'TransactionPayController: Relay Solana source amount mismatch',
       );
     }
 
     const preflightData = await this.#requireSolanaCallbacks().getPreflight({
-      accountId: intent.sourceAccountId,
+      accountId: intent.sourceWalletAccountId,
+      caipAccountId: intent.sourceAccountId,
       requestId: providerQuote.requestId,
       scope: intent.sourceChainId,
-      sourceAmountRaw: quoteRequest.amount,
+      sourceAmountRaw,
       sourceAssetId: intent.sourceAssetId,
-      transaction,
+      transaction: sourceTransaction,
     });
+    const atomicProductActionIncluded = Boolean(quoteRequest.txs?.length);
     const quote: SolanaPayQuote = {
       preflight: normalizeSolanaPayPreflight(
         intent,
-        quoteRequest.amount,
+        sourceAmountRaw,
         preflightData,
       ),
       providerQuote,
+      route: {
+        atomicProductActionIncluded,
+        recipient: quoteRequest.recipient,
+        targetAmountMinimum: transactionData.tokens[0].amountRaw,
+        tradeType: quoteRequest.tradeType,
+      },
     };
-    const transactionData = this.state.transactionData[request.transactionId];
     const requiresNonAtomicFollowUp =
-      transactionData?.atomic === false &&
+      transactionData.atomic === false &&
       transactionData.paymentOverride === PaymentOverride.MoneyAccount;
 
     this.#persistPayIntent(
       request.transactionId,
       {
         ...intent,
+        atomicProductActionIncluded,
+        atomicProductActionRequired:
+          isSolanaPayProductTransaction(transaction) &&
+          !requiresNonAtomicFollowUp,
         execution: getInitialSolanaPayExecution(requiresNonAtomicFollowUp),
         followUpTransactionId: undefined,
         relayFailureReason: undefined,
         requestId: providerQuote.requestId,
         requiresNonAtomicFollowUp,
+        sourceAmountRaw,
         sourceFailureReason: undefined,
         sourceTransactionId: undefined,
         targetTransactionId: undefined,
@@ -374,7 +415,8 @@ export class TransactionPayController extends BaseController<
     );
 
     const submission = await solana.signAndSendTransaction({
-      accountId: intent.sourceAccountId,
+      accountId: intent.sourceWalletAccountId,
+      caipAccountId: intent.sourceAccountId,
       preparedTransaction: quote.preflight.preparedTransaction,
       preparationId: quote.preflight.preparationId,
       requestId: intent.requestId,
@@ -546,7 +588,8 @@ export class TransactionPayController extends BaseController<
     ) {
       const sourceResult = await observePromise(
         this.#requireSolanaCallbacks().getTransactionStatus({
-          accountId: intent.sourceAccountId,
+          accountId: intent.sourceWalletAccountId,
+          caipAccountId: intent.sourceAccountId,
           scope: intent.sourceChainId,
           transactionId: intent.sourceTransactionId,
         }),

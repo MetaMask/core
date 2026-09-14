@@ -2268,7 +2268,13 @@ export type MetamaskPayExecution = {
  */
 export type MetamaskPayIntent = {
   /** Schema version of the persisted intent. */
-  version: 1;
+  version: 2;
+
+  /** Wallet-local InternalAccount.id used by Snap requests. */
+  sourceWalletAccountId: InternalAccount['id'];
+
+  /** Immutable source amount in atomic units, finalized by Core at quote time. */
+  sourceAmountRaw?: string;
 
   /** Canonical CAIP-10 identity of the source account. */
   sourceAccountId: CaipAccountId;
@@ -2299,6 +2305,12 @@ export type MetamaskPayIntent = {
 
   /** Provider failure classification observed during reconciliation. */
   relayFailureReason?: string;
+
+  /** Whether the parent product action must execute atomically in the Relay route. */
+  atomicProductActionRequired?: boolean;
+
+  /** Whether the verified quote included the required atomic product action. */
+  atomicProductActionIncluded?: boolean;
 
   /** Whether Relay success must be followed by a sponsored target submission. */
   requiresNonAtomicFollowUp?: boolean;

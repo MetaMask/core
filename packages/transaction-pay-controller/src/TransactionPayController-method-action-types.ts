@@ -27,7 +27,7 @@ export type TransactionPayControllerSetPaySourceAction = {
  * the full instruction payload remains transient because recovery only
  * observes an existing attempt and never resubmits it.
  *
- * @param request - Source amount and EVM destination details.
+ * @param request - Target transaction whose route Core derives.
  * @returns The Relay Solana quote for client display and confirmation.
  */
 export type TransactionPayControllerGetSolanaPayQuoteAction = {

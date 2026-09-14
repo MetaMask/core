@@ -1,14 +1,23 @@
+import { Interface } from '@ethersproject/abi';
+import {
+  hasTransactionType,
+  TransactionType,
+} from '@metamask/transaction-controller';
 import type {
   MetamaskPayExecution,
   MetamaskPayOutcome,
   MetamaskPayRelayStatus,
+  TransactionMeta,
 } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import { PaymentOverride } from '../../constants.js';
 import type {
-  GetSolanaPayQuoteRequest,
   SolanaPayPreflight,
   SolanaPayPreflightData,
+  TransactionData,
+  TransactionPayControllerMessenger,
   TransactionPayIntent,
 } from '../../types.js';
 import {
@@ -31,28 +40,74 @@ const HEX_BYTES_REGEX = /^(?:[\da-f]{2})*$/iu;
  * Builds the Relay /quote/v2 request for a persisted Solana Pay intent.
  *
  * @param intent - Persisted chain-agnostic source identity.
- * @param request - Destination and amount selected by the client.
- * @returns A Relay Solana exact-input request.
+ * @param transaction - Parent product transaction.
+ * @param transactionData - Core-owned Pay quote inputs.
+ * @param messenger - Controller messenger used for destination delegation.
+ * @returns A Relay Solana request derived entirely by Core.
  */
-export function buildRelaySolanaQuoteRequest(
+export async function buildRelaySolanaQuoteRequest(
   intent: TransactionPayIntent,
-  request: GetSolanaPayQuoteRequest,
-): RelaySolanaQuoteRequest {
+  transaction: TransactionMeta,
+  transactionData: TransactionData,
+  messenger: TransactionPayControllerMessenger,
+): Promise<RelaySolanaQuoteRequest> {
   if (intent.sourceChainId !== SOLANA_MAINNET_CAIP_CHAIN_ID) {
     throw new Error(`Unsupported Solana source chain: ${intent.sourceChainId}`);
   }
 
   const sourceAccount = getSourceAccount(intent);
+  const target = transactionData.tokens[0];
+
+  if (!target) {
+    throw new Error('Missing Solana Pay target token');
+  }
+
+  const recipient = transaction.txParams.from as Hex;
+  const isMoneyAccount =
+    transactionData.atomic === false &&
+    transactionData.paymentOverride === PaymentOverride.MoneyAccount;
+  const isAtomicProduct =
+    isSolanaPayProductTransaction(transaction) && !isMoneyAccount;
+
+  if (
+    isSolanaPayProductTransaction(transaction) &&
+    transactionData.atomic === false &&
+    !isMoneyAccount
+  ) {
+    throw new Error('Unsupported non-atomic Solana Pay product route');
+  }
+
+  const atomicDestination = isAtomicProduct
+    ? await buildAtomicProductTransactions(
+        transaction,
+        target.address,
+        target.amountRaw,
+        messenger,
+      )
+    : undefined;
+  const txs = atomicDestination?.txs;
+  const tradeType = txs ? 'EXACT_OUTPUT' : 'EXACT_INPUT';
+  const sourceAmountRaw =
+    transactionData.sourceAmounts?.[0]?.sourceAmountRaw ??
+    intent.sourceAmountRaw;
+
+  if (!txs && !sourceAmountRaw) {
+    throw new Error('Missing Solana Pay source amount');
+  }
 
   return {
-    amount: request.amount,
-    destinationChainId: Number(request.destinationChainId),
-    destinationCurrency: request.destinationCurrency,
+    amount: txs ? target.amountRaw : (sourceAmountRaw as string),
+    ...(atomicDestination?.authorizationList && {
+      authorizationList: atomicDestination.authorizationList,
+    }),
+    destinationChainId: Number(target.chainId),
+    destinationCurrency: target.address,
     originChainId: RELAY_SOLANA_CHAIN_ID,
     originCurrency: getOriginCurrency(intent),
-    recipient: request.recipient,
+    recipient,
     refundTo: sourceAccount,
-    tradeType: 'EXACT_INPUT',
+    tradeType,
+    ...(txs && { txs }),
     user: sourceAccount,
   };
 }
@@ -248,11 +303,14 @@ export function deriveSolanaPayOutcome(
 
   const isFollowUpComplete =
     followUpStatus === 'not-required' || followUpStatus === 'confirmed';
+  const isAtomicProductActionComplete =
+    !intent.atomicProductActionRequired || intent.atomicProductActionIncluded;
 
   if (
     execution.sourceStatus === 'confirmed' &&
     execution.relayStatus === 'success' &&
-    isFollowUpComplete
+    isFollowUpComplete &&
+    isAtomicProductActionComplete
   ) {
     return { type: 'succeeded' };
   }
@@ -372,6 +430,61 @@ function isRelaySolanaInstructionKey(value: unknown): boolean {
     typeof value.isSigner === 'boolean' &&
     typeof value.isWritable === 'boolean'
   );
+}
+
+export function isSolanaPayProductTransaction(
+  transaction: TransactionMeta,
+): boolean {
+  return hasTransactionType(transaction, [
+    TransactionType.perpsDeposit,
+    TransactionType.perpsDepositAndOrder,
+    TransactionType.predictDeposit,
+    TransactionType.predictDepositAndOrder,
+  ]);
+}
+
+async function buildAtomicProductTransactions(
+  transaction: TransactionMeta,
+  targetTokenAddress: Hex,
+  targetAmountMinimum: string,
+  messenger: TransactionPayControllerMessenger,
+): Promise<{
+  authorizationList: RelaySolanaQuoteRequest['authorizationList'];
+  txs: NonNullable<RelaySolanaQuoteRequest['txs']>;
+}> {
+  const delegation = await messenger.call(
+    'TransactionPayController:getDelegationTransaction',
+    { transaction },
+  );
+  const recipient = transaction.txParams.from as Hex;
+
+  return {
+    authorizationList: delegation.authorizationList?.map((authorization) => ({
+      ...authorization,
+      chainId: Number(authorization.chainId),
+      nonce: Number(authorization.nonce),
+      r: authorization.r as Hex,
+      s: authorization.s as Hex,
+      yParity: Number(authorization.yParity),
+    })),
+    txs: [
+      {
+        data: new Interface([
+          'function transfer(address to, uint256 amount)',
+        ]).encodeFunctionData('transfer', [
+          recipient,
+          targetAmountMinimum,
+        ]) as Hex,
+        to: targetTokenAddress,
+        value: '0x0',
+      },
+      {
+        data: delegation.data,
+        to: delegation.to,
+        value: delegation.value,
+      },
+    ],
+  };
 }
 
 function getAtomicValue(name: string, value: string): BigNumber {

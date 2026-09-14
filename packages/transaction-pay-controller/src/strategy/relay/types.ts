@@ -35,13 +35,26 @@ export type RelayQuoteRequest = {
 
 export type RelaySolanaQuoteRequest = {
   amount: string;
+  authorizationList?: {
+    address: Hex;
+    chainId: number;
+    nonce: number;
+    r: Hex;
+    s: Hex;
+    yParity: number;
+  }[];
   destinationChainId: number;
   destinationCurrency: Hex;
   originChainId: number;
   originCurrency: string;
   recipient: Hex;
   refundTo: string;
-  tradeType: 'EXACT_INPUT';
+  tradeType: 'EXACT_INPUT' | 'EXACT_OUTPUT';
+  txs?: {
+    to: Hex;
+    data: Hex;
+    value: Hex;
+  }[];
   user: string;
 };
 
