@@ -1,0 +1,5974 @@
+{
+  ".github/actions/check-merge-queue-changelogs/check-changelog-diff.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 7
+    }
+  },
+  ".prettierrc.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "jest.config.packages.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 3
+    }
+  },
+  "jest.config.scripts.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "packages/account-tree-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/account-tree-controller/src/AccountTreeController.test.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "n/no-callback-literal": {
+      "count": 4
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 4
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 9
+    }
+  },
+  "packages/account-tree-controller/src/AccountTreeController.ts": {
+    "no-negated-condition": {
+      "count": 3
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 7
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/analytics/segment.ts": {
+    "no-negated-condition": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/service/atomic-sync-queue.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/service/index.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 29
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/service/index.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "typescript/prefer-optional-chain": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 7
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/syncing/group.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 7
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/syncing/legacy.test.ts": {
+    "typescript/unbound-method": {
+      "count": 7
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/syncing/metadata.ts": {
+    "id-length": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/syncing/wallet.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/types.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/user-storage/network-operations.test.ts": {
+    "typescript/unbound-method": {
+      "count": 7
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/user-storage/network-utils.test.ts": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/user-storage/network-utils.ts": {
+    "id-length": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/user-storage/validation.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/utils/controller.test.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/rules/entropy.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/rules/keyring.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/rules/snap.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/account-tree-controller/src/state/export.test.ts": {
+    "n/no-callback-literal": {
+      "count": 3
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/state/import.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/state/payload.ts": {
+    "no-redeclare": {
+      "count": 2
+    }
+  },
+  "packages/account-tree-controller/src/state/roundtrip.test.ts": {
+    "n/no-callback-literal": {
+      "count": 2
+    }
+  },
+  "packages/account-tree-controller/src/state/snapshot.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/state/utils.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/state/utils.ts": {
+    "jsdoc/check-tag-names": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/type-utils.ts": {
+    "id-length": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/tests/mockMessenger.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/accounts-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/accounts-controller/src/AccountsController.test.ts": {
+    "typescript/unbound-method": {
+      "count": 9
+    }
+  },
+  "packages/accounts-controller/tests/mocks.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/address-book-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/address-book-controller/src/AddressBookController.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/address-book-controller/src/AddressBookController.ts": {
+    "no-param-reassign": {
+      "count": 2
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/ai-controllers/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/ai-controllers/src/AiDigestController.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 9
+    }
+  },
+  "packages/ai-controllers/src/AiDigestService.test.ts": {
+    "no-undef": {
+      "count": 3
+    },
+    "typescript/promise-function-async": {
+      "count": 33
+    }
+  },
+  "packages/analytics-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/analytics-controller/src/AnalyticsController.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 9
+    }
+  },
+  "packages/analytics-controller/src/AnalyticsController.ts": {
+    "jsdoc/check-tag-names": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 11
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/analytics-data-regulation-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/announcement-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/app-metadata-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/approval-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/approval-controller/src/ApprovalController.test.ts": {
+    "id-denylist": {
+      "count": 3
+    },
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 22
+    },
+    "typescript/promise-function-async": {
+      "count": 26
+    }
+  },
+  "packages/approval-controller/src/ApprovalController.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 4
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 6
+    },
+    "typescript/promise-function-async": {
+      "count": 5
+    }
+  },
+  "packages/assets-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/assets-controller/src/AssetsController.test.ts": {
+    "id-length": {
+      "count": 15
+    },
+    "no-undef": {
+      "count": 5
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 9
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/AssetsController.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 10
+    },
+    "typescript/promise-function-async": {
+      "count": 4
+    }
+  },
+  "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
+    "no-undef": {
+      "count": 4
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/__fixtures__/spamWalletState.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/assets-controller/src/data-sources/AccountActivityDataSource.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/assets-controller/src/data-sources/AccountsApiDataSource.test.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "no-undef": {
+      "count": 13
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 7
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/data-sources/AccountsApiDataSource.ts": {
+    "typescript/promise-function-async": {
+      "count": 3
+    }
+  },
+  "packages/assets-controller/src/data-sources/PriceDataSource.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/data-sources/PriceDataSource.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 5
+    }
+  },
+  "packages/assets-controller/src/data-sources/RpcDataSource.test.ts": {
+    "id-length": {
+      "count": 5
+    },
+    "no-undef": {
+      "count": 4
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 17
+    },
+    "typescript/promise-function-async": {
+      "count": 7
+    }
+  },
+  "packages/assets-controller/src/data-sources/RpcDataSource.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/assets-controller/src/data-sources/SnapDataSource.test.ts": {
+    "no-undef": {
+      "count": 33
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/data-sources/SnapDataSource.ts": {
+    "jsdoc/check-tag-names": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/assets-controller/src/data-sources/StakedBalanceDataSource.test.ts": {
+    "id-length": {
+      "count": 3
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    }
+  },
+  "packages/assets-controller/src/data-sources/StakedBalanceDataSource.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/data-sources/TokenDataSource.test.ts": {
+    "no-unsafe-optional-chaining": {
+      "count": 4
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    }
+  },
+  "packages/assets-controller/src/data-sources/TokenDataSource.ts": {
+    "typescript/promise-function-async": {
+      "count": 5
+    }
+  },
+  "packages/assets-controller/src/data-sources/evm-rpc-services/clients/MulticallClient.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 26
+    },
+    "typescript/unbound-method": {
+      "count": 6
+    }
+  },
+  "packages/assets-controller/src/data-sources/evm-rpc-services/clients/MulticallClient.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/assets-controller/src/data-sources/evm-rpc-services/clients/TokensApiClient.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 6
+    }
+  },
+  "packages/assets-controller/src/data-sources/evm-rpc-services/clients/TokensApiClient.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/data-sources/evm-rpc-services/services/BalanceFetcher.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 6
+    },
+    "typescript/unbound-method": {
+      "count": 4
+    }
+  },
+  "packages/assets-controller/src/data-sources/evm-rpc-services/services/StakedBalanceFetcher.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/unbound-method": {
+      "count": 4
+    }
+  },
+  "packages/assets-controller/src/data-sources/evm-rpc-services/services/TokenDetector.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 6
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 14
+    }
+  },
+  "packages/assets-controller/src/defaults.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 11
+    }
+  },
+  "packages/assets-controller/src/middlewares/CustomAssetGraduationMiddleware.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 18
+    }
+  },
+  "packages/assets-controller/src/middlewares/DetectionMiddleware.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 14
+    }
+  },
+  "packages/assets-controller/src/middlewares/DetectionMiddleware.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/assets-controller/src/middlewares/ParallelMiddleware.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 3
+    }
+  },
+  "packages/assets-controller/src/middlewares/ParallelMiddleware.ts": {
+    "typescript/promise-function-async": {
+      "count": 3
+    }
+  },
+  "packages/assets-controller/src/middlewares/RpcFallbackMiddleware.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    }
+  },
+  "packages/assets-controller/src/migrations/healAssetsInfoMetadata.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/assets-controller/src/selectors/balance.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/selectors/balance.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    }
+  },
+  "packages/assets-controller/src/utils/dedupingBatchFetcher.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/utils/fetchWithTimeout.test.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/utils/formatStateForTransactionPay.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    }
+  },
+  "packages/assets-controller/src/utils/native-assets.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/utils/normalizeAssetId.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/assets-controller/src/utils/snaps-assets-migration.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/assets-controller/src/utils/trace.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 6
+    }
+  },
+  "packages/assets-controllers/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/assets-controllers/jest.environment.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-shadow": {
+      "count": 2
+    },
+    "no-undef": {
+      "count": 3
+    },
+    "node/global-require": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/AccountTrackerController.test.ts": {
+    "no-undef": {
+      "count": 3
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/AccountTrackerController.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/AssetsContractController.test.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 5
+    }
+  },
+  "packages/assets-controllers/src/AssetsContractController.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 5
+    }
+  },
+  "packages/assets-controllers/src/AssetsContractControllerWithNetworkClientId.test.ts": {
+    "import/extensions": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/CurrencyRateController.test.ts": {
+    "no-undef": {
+      "count": 22
+    }
+  },
+  "packages/assets-controllers/src/CurrencyRateController.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/DeFiPositionsController/DeFiPositionsController.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/DeFiPositionsController/DeFiPositionsController.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    },
+    "typescript/no-misused-promises": {
+      "count": 2
+    }
+  },
+  "packages/assets-controllers/src/DeFiPositionsController/DeFiPositionsControllerV2.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 5
+    }
+  },
+  "packages/assets-controllers/src/DeFiPositionsController/DeFiPositionsControllerV2.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/DeFiPositionsController/fetch-positions.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/DeFiPositionsController/group-defi-positions.ts": {
+    "id-length": {
+      "count": 3
+    }
+  },
+  "packages/assets-controllers/src/MultichainAssetsController/MultichainAssetsController.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 40
+    },
+    "typescript/promise-function-async": {
+      "count": 3
+    }
+  },
+  "packages/assets-controllers/src/MultichainAssetsController/MultichainAssetsController.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/MultichainAssetsRatesController/MultichainAssetsRatesController.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/assets-controllers/src/MultichainAssetsRatesController/MultichainAssetsRatesController.ts": {
+    "id-length": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/MultichainBalancesController/MultichainBalancesController.test.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/MultichainBalancesController/MultichainBalancesController.ts": {
+    "typescript/no-misused-promises": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/NftController.test.ts": {
+    "id-denylist": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 4
+    },
+    "typescript/promise-function-async": {
+      "count": 4
+    }
+  },
+  "packages/assets-controllers/src/NftController.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "no-negated-condition": {
+      "count": 1
+    },
+    "no-param-reassign": {
+      "count": 2
+    },
+    "typescript/no-misused-promises": {
+      "count": 2
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 6
+    },
+    "typescript/prefer-optional-chain": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/assets-controllers/src/NftDetectionController.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/assets-controllers/src/NftDetectionController.ts": {
+    "no-unmodified-loop-condition": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/RatesController/RatesController.test.ts": {
+    "no-undef": {
+      "count": 2
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/assets-controllers/src/RatesController/RatesController.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/Standards/ERC20Standard.test.ts": {
+    "jest/no-commented-out-tests": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/assets-controllers/src/Standards/ERC20Standard.ts": {
+    "id-denylist": {
+      "count": 8
+    }
+  },
+  "packages/assets-controllers/src/Standards/NftStandards/ERC1155/ERC1155Standard.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/Standards/NftStandards/ERC1155/ERC1155Standard.ts": {
+    "typescript/promise-function-async": {
+      "count": 4
+    }
+  },
+  "packages/assets-controllers/src/Standards/NftStandards/ERC721/ERC721Standard.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/assets-controllers/src/Standards/NftStandards/ERC721/ERC721Standard.ts": {
+    "id-denylist": {
+      "count": 4
+    },
+    "typescript/promise-function-async": {
+      "count": 4
+    }
+  },
+  "packages/assets-controllers/src/TokenBalancesController.test.ts": {
+    "no-undef": {
+      "count": 8
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 24
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/TokenBalancesController.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/assets-controllers/src/TokenDetectionController.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 17
+    },
+    "typescript/promise-function-async": {
+      "count": 3
+    }
+  },
+  "packages/assets-controllers/src/TokenDetectionController.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/TokenListController.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/TokenListController.ts": {
+    "typescript/promise-function-async": {
+      "count": 5
+    }
+  },
+  "packages/assets-controllers/src/TokenListService.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/assets-controllers/src/TokenRatesController.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    },
+    "typescript/unbound-method": {
+      "count": 26
+    }
+  },
+  "packages/assets-controllers/src/TokenRatesController.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 7
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/assets-controllers/src/TokenSearchDiscoveryDataController/TokenSearchDiscoveryDataController.test.ts": {
+    "n/no-callback-literal": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    },
+    "typescript/promise-function-async": {
+      "count": 4
+    }
+  },
+  "packages/assets-controllers/src/TokenSearchDiscoveryDataController/TokenSearchDiscoveryDataController.ts": {
+    "no-negated-condition": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/TokensController.test.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 6
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/TokensController.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "no-negated-condition": {
+      "count": 3
+    },
+    "no-param-reassign": {
+      "count": 1
+    },
+    "no-unused-vars": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 13
+    },
+    "typescript/prefer-optional-chain": {
+      "count": 3
+    },
+    "typescript/promise-function-async": {
+      "count": 3
+    }
+  },
+  "packages/assets-controllers/src/__fixtures__/account-api-v4-mocks.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/assets-controllers/src/assetsUtil.test.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/assetsUtil.ts": {
+    "no-negated-condition": {
+      "count": 2
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 6
+    }
+  },
+  "packages/assets-controllers/src/balances.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 102
+    }
+  },
+  "packages/assets-controllers/src/balances.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "no-negated-condition": {
+      "count": 2
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 13
+    }
+  },
+  "packages/assets-controllers/src/crypto-compare-service/crypto-compare.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "no-param-reassign": {
+      "count": 4
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/assets-controllers/src/multi-chain-accounts-service/api-balance-fetcher.test.ts": {
+    "no-import-assign": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 54
+    }
+  },
+  "packages/assets-controllers/src/multi-chain-accounts-service/api-balance-fetcher.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/multi-chain-accounts-service/multi-chain-accounts.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/assets-controllers/src/multi-chain-accounts-service/multi-chain-accounts.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 4
+    }
+  },
+  "packages/assets-controllers/src/multicall.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/prefer-promise-reject-errors": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 5
+    },
+    "typescript/unbound-method": {
+      "count": 7
+    }
+  },
+  "packages/assets-controllers/src/multicall.ts": {
+    "id-length": {
+      "count": 2
+    }
+  },
+  "packages/assets-controllers/src/rpc-service/rpc-balance-fetcher.test.ts": {
+    "id-length": {
+      "count": 17
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 25
+    }
+  },
+  "packages/assets-controllers/src/selectors/stringify-balance.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/selectors/token-selectors.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/selectors/token-selectors.ts": {
+    "no-negated-condition": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 25
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 2
+    }
+  },
+  "packages/assets-controllers/src/token-prices-service/abstract-token-prices-service.ts": {
+    "id-length": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/token-prices-service/codefi-v2.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 11
+    }
+  },
+  "packages/assets-controllers/src/token-prices-service/codefi-v2.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 3
+    }
+  },
+  "packages/assets-controllers/src/types/vendor/multiformats.d.ts": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/utils/create-batch-handler.test.ts": {
+    "id-length": {
+      "count": 2
+    }
+  },
+  "packages/assets-controllers/src/utils/create-batch-handler.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/utils/formatters.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 9
+    }
+  },
+  "packages/assets-controllers/src/utils/timeout-with-retry.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/utils/timeout-with-retry.ts": {
+    "id-denylist": {
+      "count": 3
+    },
+    "id-length": {
+      "count": 1
+    }
+  },
+  "packages/authenticated-user-storage/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/base-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/base-data-service/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/base-data-service/src/BaseDataService.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/base-data-service/src/createServicePolicy.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 5
+    }
+  },
+  "packages/bitcoin-regtest-up/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/bitcoin-regtest-up/src/bin/bitcoin-regtest-up.ts": {
+    "n/hashbang": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 3
+    }
+  },
+  "packages/bitcoin-regtest-up/src/install.test.ts": {
+    "no-undef": {
+      "count": 4
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/bitcoin-regtest-up/src/install.ts": {
+    "no-undef": {
+      "count": 4
+    }
+  },
+  "packages/bridge-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/bridge-controller/src/bridge-controller.sse.batch.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 5
+    }
+  },
+  "packages/bridge-controller/src/bridge-controller.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 8
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/src/coercers/quote-response-v2-to-v1.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/src/selectors.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 6
+    }
+  },
+  "packages/bridge-controller/src/selectors.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/src/types.ts": {
+    "id-length": {
+      "count": 3
+    }
+  },
+  "packages/bridge-controller/src/utils/assets.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/bridge-controller/src/utils/balance.test.ts": {
+    "no-undef": {
+      "count": 8
+    }
+  },
+  "packages/bridge-controller/src/utils/balance.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/src/utils/feature-flags.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/src/utils/fetch-server-events.ts": {
+    "id-denylist": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/src/utils/fetch.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/src/utils/metrics/properties.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/bridge-controller/src/utils/metrics/types.ts": {
+    "id-length": {
+      "count": 4
+    }
+  },
+  "packages/bridge-controller/src/utils/quote-fees.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 2
+    }
+  },
+  "packages/bridge-controller/src/utils/quote-metadata/types.ts": {
+    "no-redeclare": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/src/utils/slippage.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/src/utils/snaps.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/bridge-controller/src/utils/swaps.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    }
+  },
+  "packages/bridge-controller/src/utils/swaps.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/src/utils/trade-utils.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 5
+    }
+  },
+  "packages/bridge-controller/src/utils/trade-utils.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/src/validators/quote-response.ts": {
+    "no-redeclare": {
+      "count": 1
+    }
+  },
+  "packages/bridge-controller/tests/mock-sse.ts": {
+    "no-shadow": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/bridge-status-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/bridge-status-controller/src/bridge-status-controller.intent-manager.test.ts": {
+    "import/extensions": {
+      "count": 1
+    }
+  },
+  "packages/bridge-status-controller/src/bridge-status-controller.intent.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/bridge-status-controller/src/bridge-status-controller.intent.ts": {
+    "jsdoc/require-param": {
+      "count": 1
+    }
+  },
+  "packages/bridge-status-controller/src/bridge-status-controller.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 10
+    },
+    "typescript/promise-function-async": {
+      "count": 5
+    }
+  },
+  "packages/bridge-status-controller/src/bridge-status-controller.ts": {
+    "jsdoc/require-param": {
+      "count": 1
+    },
+    "jsdoc/require-returns": {
+      "count": 1
+    }
+  },
+  "packages/bridge-status-controller/src/quote-status-manager/quote-status-api-service.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/bridge-status-controller/src/quote-status-manager/quotes-status-manager.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 8
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/bridge-status-controller/src/quote-status-manager/quotes-status-manager.ts": {
+    "typescript/prefer-optional-chain": {
+      "count": 1
+    }
+  },
+  "packages/bridge-status-controller/src/quote-status-manager/utils.ts": {
+    "jsdoc/require-returns": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/bridge-status-controller/src/utils/bridge-status.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/bridge-status-controller/src/utils/metrics.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    }
+  },
+  "packages/bridge-status-controller/src/utils/snaps.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 4
+    }
+  },
+  "packages/bridge-status-controller/src/utils/swap-received-amount.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/bridge-status-controller/src/utils/transaction.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 5
+    },
+    "typescript/unbound-method": {
+      "count": 2
+    }
+  },
+  "packages/build-utils/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/chain-agnostic-permission/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/chain-agnostic-permission/src/caip25Permission.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/chain-agnostic-permission/src/caip25Permission.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 9
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 2
+    }
+  },
+  "packages/chain-agnostic-permission/src/operators/caip-permission-operator-accounts.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 8
+    }
+  },
+  "packages/chain-agnostic-permission/src/operators/caip-permission-operator-accounts.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 5
+    }
+  },
+  "packages/chain-agnostic-permission/src/operators/caip-permission-operator-permittedChains.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/chain-agnostic-permission/src/operators/caip-permission-operator-session-scopes.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/chain-agnostic-permission/src/scope/assert.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/chain-agnostic-permission/src/scope/authorization.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/chain-agnostic-permission/src/scope/errors.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 5
+    }
+  },
+  "packages/chain-agnostic-permission/src/scope/filter.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/chain-agnostic-permission/src/scope/supported.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 5
+    }
+  },
+  "packages/chain-agnostic-permission/src/scope/transform.ts": {
+    "no-negated-condition": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/chain-agnostic-permission/src/scope/validation.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 2
+    }
+  },
+  "packages/chomp-api-service/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/chomp-api-service/src/types.ts": {
+    "id-length": {
+      "count": 6
+    }
+  },
+  "packages/claims-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/client-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/client-utils/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/compliance-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/composable-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/config-registry-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/connectivity-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/connectivity-controller/src/ConnectivityController.test.ts": {
+    "typescript/unbound-method": {
+      "count": 5
+    }
+  },
+  "packages/controller-utils/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/controller-utils/jest.environment.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 3
+    },
+    "node/global-require": {
+      "count": 1
+    }
+  },
+  "packages/controller-utils/src/create-service-policy.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 5
+    }
+  },
+  "packages/controller-utils/src/siwe.test.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/controller-utils/src/siwe.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/controller-utils/src/types.ts": {
+    "no-redeclare": {
+      "count": 6
+    },
+    "typescript/no-duplicate-enum-values": {
+      "count": 4
+    }
+  },
+  "packages/controller-utils/src/util.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/controller-utils/src/util.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "radix": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/core-backend/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/core-backend/src/api/accounts/client.ts": {
+    "typescript/promise-function-async": {
+      "count": 5
+    }
+  },
+  "packages/core-backend/src/api/prices/client.ts": {
+    "typescript/promise-function-async": {
+      "count": 10
+    }
+  },
+  "packages/core-backend/src/api/shared-types.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/core-backend/src/api/test-utils.ts": {
+    "no-undef": {
+      "count": 9
+    }
+  },
+  "packages/core-backend/src/api/token/client.ts": {
+    "typescript/promise-function-async": {
+      "count": 8
+    }
+  },
+  "packages/core-backend/src/api/tokens/client.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/core-backend/src/ws/AccountActivityService.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/core-backend/src/ws/AccountActivityService.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/core-backend/src/ws/BackendWebSocketService.test.ts": {
+    "no-undef": {
+      "count": 4
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/core-backend/src/ws/BackendWebSocketService.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/core-backend/src/ws/ohlcv/OHLCVService.test.ts": {
+    "id-length": {
+      "count": 5
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 5
+    },
+    "typescript/promise-function-async": {
+      "count": 7
+    }
+  },
+  "packages/core-backend/src/ws/ohlcv/OHLCVService.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/cryptography/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/delegation-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/delegation-controller/src/DelegationController.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    }
+  },
+  "packages/delegation-controller/src/DelegationController.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/earn-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/earn-controller/src/EarnController.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 8
+    },
+    "typescript/unbound-method": {
+      "count": 28
+    }
+  },
+  "packages/earn-controller/src/EarnController.ts": {
+    "no-negated-condition": {
+      "count": 3
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 4
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/earn-controller/src/selectors.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/earn-controller/src/selectors.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/eip-5792-middleware/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/eip-5792-middleware/src/hooks/getCallsStatus.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/eip-5792-middleware/src/hooks/getCapabilities.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/eip-5792-middleware/src/hooks/processSendCalls.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 14
+    }
+  },
+  "packages/eip-5792-middleware/src/hooks/processSendCalls.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 10
+    },
+    "typescript/no-misused-promises": {
+      "count": 1
+    }
+  },
+  "packages/eip-5792-middleware/src/methods/wallet_getCallsStatus.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/eip-5792-middleware/src/methods/wallet_getCapabilities.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/eip-5792-middleware/src/methods/wallet_sendCalls.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    }
+  },
+  "packages/eip-5792-middleware/src/utils.test.ts": {
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "packages/eip-5792-middleware/src/utils.ts": {
+    "id-length": {
+      "count": 1
+    }
+  },
+  "packages/eip-7702-internal-rpc-middleware/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/eip1193-permission-middleware/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/eip1193-permission-middleware/src/index.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/eip1193-permission-middleware/src/wallet-getPermissions.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/eip1193-permission-middleware/src/wallet-getPermissions.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/eip1193-permission-middleware/src/wallet-requestPermissions.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/eip1193-permission-middleware/src/wallet-requestPermissions.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/eip1193-permission-middleware/src/wallet-revokePermissions.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/eip1193-permission-middleware/src/wallet-revokePermissions.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/eth-block-tracker/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/eth-block-tracker/src/PollingBlockTracker.test.ts": {
+    "typescript/unbound-method": {
+      "count": 4
+    }
+  },
+  "packages/eth-block-tracker/src/PollingBlockTracker.ts": {
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/eth-block-tracker/tests/setupAfterEnv.ts": {
+    "id-length": {
+      "count": 1
+    }
+  },
+  "packages/eth-json-rpc-middleware/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/eth-json-rpc-middleware/src/block-cache.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 10
+    }
+  },
+  "packages/eth-json-rpc-middleware/src/block-ref-rewrite.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    },
+    "typescript/unbound-method": {
+      "count": 3
+    }
+  },
+  "packages/eth-json-rpc-middleware/src/inflight-cache.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/eth-json-rpc-middleware/src/methods/wallet-get-granted-execution-permissions.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 8
+    }
+  },
+  "packages/eth-json-rpc-middleware/src/methods/wallet-get-supported-execution-permissions.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/eth-json-rpc-middleware/src/methods/wallet-request-execution-permissions.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/eth-json-rpc-middleware/src/methods/wallet-revoke-execution-permission.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/eth-json-rpc-middleware/src/providerAsMiddleware.test.ts": {
+    "typescript/unbound-method": {
+      "count": 4
+    }
+  },
+  "packages/eth-json-rpc-middleware/src/utils/normalize.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/eth-json-rpc-middleware/src/utils/timeout.test.ts": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "packages/eth-json-rpc-middleware/src/utils/validation.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/eth-json-rpc-middleware/test/setupAfterEnv.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/eth-json-rpc-provider/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/eth-json-rpc-provider/src/index.ts": {
+    "no-redeclare": {
+      "count": 1
+    }
+  },
+  "packages/eth-json-rpc-provider/src/internal-provider.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/eth-json-rpc-provider/src/mock-internal-provider.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/foundryup/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/foundryup/src/cli.ts": {
+    "n/hashbang": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/foundryup/src/download.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/foundryup/src/extract.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 4
+    }
+  },
+  "packages/foundryup/src/foundryup.test.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/foundryup/src/index.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "n/hashbang": {
+      "count": 1
+    },
+    "n/prefer-global/process": {
+      "count": 1
+    }
+  },
+  "packages/foundryup/src/options.ts": {
+    "n/prefer-global/process": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/foundryup/src/types.ts": {
+    "id-length": {
+      "count": 5
+    }
+  },
+  "packages/foundryup/src/utils.ts": {
+    "id-denylist": {
+      "count": 2
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/foundryup/types/node_fs.d.ts": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "packages/foundryup/types/unzipper.d.ts": {
+    "import/no-unassigned-import": {
+      "count": 1
+    }
+  },
+  "packages/gas-fee-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/gas-fee-controller/src/GasFeeController.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 7
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/gas-fee-controller/src/GasFeeController.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 11
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/gas-fee-controller/src/determineGasFeeCalculations.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/gas-fee-controller/src/gas-util.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/gator-permissions-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/gator-permissions-controller/src/GatorPermissionsController.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 11
+    }
+  },
+  "packages/gator-permissions-controller/src/GatorPermissionsController.ts": {
+    "jsdoc/require-param": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/gator-permissions-controller/src/decodePermission/utils.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 16
+    }
+  },
+  "packages/gator-permissions-controller/src/permissionOnChainStatus.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/geolocation-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/geolocation-controller/src/GeolocationController.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 7
+    }
+  },
+  "packages/geolocation-controller/src/geolocation-api-service/geolocation-api-service.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 16
+    }
+  },
+  "packages/java-tron-up/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/java-tron-up/src/bin/java-tron-up.ts": {
+    "n/hashbang": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 3
+    }
+  },
+  "packages/java-tron-up/src/install.test.ts": {
+    "no-undef": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/java-tron-up/src/install.ts": {
+    "no-undef": {
+      "count": 4
+    }
+  },
+  "packages/json-rpc-engine/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/json-rpc-engine/src/asV2Middleware.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/json-rpc-engine/src/v2/JsonRpcEngineV2.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 16
+    }
+  },
+  "packages/json-rpc-engine/src/v2/JsonRpcEngineV2.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "no-redeclare": {
+      "count": 1
+    }
+  },
+  "packages/json-rpc-engine/src/v2/JsonRpcServer.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/json-rpc-engine/src/v2/asLegacyMiddleware.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 6
+    }
+  },
+  "packages/json-rpc-engine/src/v2/asLegacyMiddleware.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/json-rpc-engine/src/v2/compatibility-utils.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/json-rpc-engine/src/v2/createMethodMiddleware.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 8
+    }
+  },
+  "packages/json-rpc-engine/src/v2/createMethodMiddleware.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/json-rpc-engine/src/v2/createOriginMiddleware.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/json-rpc-engine/src/v2/createScaffoldMiddleware.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/json-rpc-engine/tests/utils.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/json-rpc-engine/v2.js": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "packages/json-rpc-middleware-stream/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/json-rpc-middleware-stream/src/createStreamMiddleware.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/json-rpc-middleware-stream/src/index.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/keyring-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/keyring-controller/src/KeyringController.test.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 5
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 19
+    }
+  },
+  "packages/keyring-controller/src/KeyringController.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 5
+    }
+  },
+  "packages/keyring-controller/tests/mocks/mockEncryptor.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/kyc-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/kyc-controller/scripts/mint-ukyc-test-token.ts": {
+    "n/prefer-global/process": {
+      "count": 1
+    }
+  },
+  "packages/kyc-controller/src/KycController.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/kyc-controller/src/KycService.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/kyc-controller/src/crypto.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/kyc-controller/src/ukyc/jwtChain.ts": {
+    "id-length": {
+      "count": 1
+    }
+  },
+  "packages/local-node-utils/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/local-node-utils/src/cache-directory.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/local-node-utils/src/command.test.ts": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "packages/local-node-utils/src/integration.test.ts": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "packages/local-node-utils/src/package-json.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/logging-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/logging-controller/src/LoggingController.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/logging-controller/src/LoggingController.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/message-manager/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/message-manager/src/AbstractMessageManager.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 4
+    },
+    "typescript/promise-function-async": {
+      "count": 4
+    }
+  },
+  "packages/message-manager/src/AbstractMessageManager.ts": {
+    "id-denylist": {
+      "count": 2
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 19
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/message-manager/src/DecryptMessageManager.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 3
+    }
+  },
+  "packages/message-manager/src/DecryptMessageManager.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/message-manager/src/EncryptionPublicKeyManager.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/message-manager/src/EncryptionPublicKeyManager.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/message-manager/src/utils.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 1
+    },
+    "no-unused-vars": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 4
+    }
+  },
+  "packages/messenger-cli/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/messenger-cli/src/check.test.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "packages/messenger-cli/src/cli.test.ts": {
+    "jsdoc/require-param": {
+      "count": 1
+    },
+    "n/no-unsupported-features/node-builtins": {
+      "count": 1
+    },
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "packages/messenger-cli/src/cli.ts": {
+    "n/hashbang": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "packages/messenger-cli/src/fix.test.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "packages/messenger-cli/src/parse-source.test.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "packages/messenger-cli/src/parse-source.ts": {
+    "jsdoc/require-param": {
+      "count": 1
+    }
+  },
+  "packages/messenger/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/messenger/src/Messenger.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "no-unused-vars": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/money-account-api-data-service/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/money-account-api-data-service/src/money-account-api-data-service.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/money-account-api-data-service/src/money-account-api-data-service.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    }
+  },
+  "packages/money-account-balance-service/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/money-account-balance-service/src/money-account-balance-service.test.ts": {
+    "id-length": {
+      "count": 1
+    }
+  },
+  "packages/money-account-balance-service/src/money-account-balance-service.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/money-account-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/money-account-controller/src/MoneyAccountController.test.ts": {
+    "n/no-callback-literal": {
+      "count": 6
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/money-account-controller/src/MoneyAccountController.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/money-account-upgrade-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/money-account-upgrade-controller/src/MoneyAccountUpgradeController.test.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 9
+    }
+  },
+  "packages/money-account-upgrade-controller/src/steps/associate-address.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/money-account-upgrade-controller/src/steps/build-delegations.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    }
+  },
+  "packages/money-account-upgrade-controller/src/steps/eip-7702-authorization.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 5
+    }
+  },
+  "packages/money-account-upgrade-controller/src/steps/eip-7702-authorization.ts": {
+    "id-length": {
+      "count": 3
+    }
+  },
+  "packages/money-account-upgrade-controller/src/steps/register-intents.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/money-account-utils/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/multichain-account-service/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/multichain-account-service/src/MultichainAccountService.test.ts": {
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "packages/multichain-account-service/src/MultichainAccountService.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/multichain-account-service/src/MultichainAccountWallet.test.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 11
+    }
+  },
+  "packages/multichain-account-service/src/MultichainAccountWallet.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/multichain-account-service/src/providers/BaseBip44AccountProvider.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/multichain-account-service/src/providers/BtcAccountProvider.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/multichain-account-service/src/providers/EvmAccountProvider.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/multichain-account-service/src/providers/EvmAccountProvider.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/multichain-account-service/src/providers/SnapAccountProvider.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 4
+    }
+  },
+  "packages/multichain-account-service/src/providers/SnapAccountProvider.ts": {
+    "typescript/promise-function-async": {
+      "count": 9
+    }
+  },
+  "packages/multichain-account-service/src/providers/SnapKeyringClient.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/multichain-account-service/src/providers/SolAccountProvider.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/multichain-account-service/src/providers/TrxAccountProvider.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/multichain-account-service/src/providers/utils.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/multichain-account-service/src/providers/utils.ts": {
+    "id-length": {
+      "count": 2
+    }
+  },
+  "packages/multichain-account-service/src/tests/accounts.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 7
+    }
+  },
+  "packages/multichain-api-middleware/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/multichain-api-middleware/src/handlers/index.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 3
+    }
+  },
+  "packages/multichain-api-middleware/src/handlers/wallet-createSession.test.ts": {
+    "id-denylist": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/multichain-api-middleware/src/handlers/wallet-createSession.ts": {
+    "id-denylist": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 2
+    }
+  },
+  "packages/multichain-api-middleware/src/handlers/wallet-getSession.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/multichain-api-middleware/src/handlers/wallet-getSession.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/multichain-api-middleware/src/handlers/wallet-invokeMethod.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/multichain-api-middleware/src/handlers/wallet-invokeMethod.ts": {
+    "id-denylist": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/multichain-api-middleware/src/handlers/wallet-revokeSession.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/multichain-api-middleware/src/handlers/wallet-revokeSession.ts": {
+    "id-denylist": {
+      "count": 1
+    },
+    "no-negated-condition": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/multichain-api-middleware/src/middlewares/MultichainMiddlewareManager.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 7
+    }
+  },
+  "packages/multichain-api-middleware/src/middlewares/MultichainSubscriptionManager.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/multichain-api-middleware/src/middlewares/MultichainSubscriptionManager.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 7
+    }
+  },
+  "packages/multichain-api-middleware/src/middlewares/multichainMethodCallValidatorMiddleware.test.ts": {
+    "id-length": {
+      "count": 6
+    },
+    "no-undef": {
+      "count": 10
+    }
+  },
+  "packages/multichain-api-middleware/src/middlewares/multichainMethodCallValidatorMiddleware.ts": {
+    "id-length": {
+      "count": 4
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/multichain-network-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/multichain-network-controller/src/MultichainNetworkService/MultichainNetworkService.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 7
+    }
+  },
+  "packages/multichain-network-controller/src/MultichainNetworkService/MultichainNetworkService.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/multichain-transactions-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/multichain-transactions-controller/src/MultichainTransactionsController.test.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "packages/multichain-transactions-controller/src/MultichainTransactionsController.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 4
+    },
+    "typescript/no-misused-promises": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/name-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/name-controller/src/NameController.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 7
+    }
+  },
+  "packages/name-controller/src/NameController.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 16
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/name-controller/src/providers/ens.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/name-controller/src/providers/ens.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "packages/name-controller/src/providers/etherscan.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/name-controller/src/providers/etherscan.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "packages/name-controller/src/providers/lens.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/name-controller/src/providers/lens.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "packages/name-controller/src/providers/token.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/name-controller/src/providers/token.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "packages/name-controller/src/util.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "jsdoc/require-returns": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/name-controller/src/utils.test.ts": {
+    "no-undef": {
+      "count": 3
+    }
+  },
+  "packages/network-connection-banner-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/network-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/network-controller/src/NetworkController.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/network-controller/src/create-auto-managed-network-client.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/network-controller/src/create-network-client-tests/ethereum-spec/other-methods.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/network-controller/src/create-network-client-tests/ex-ethereum-spec/other-methods.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/network-controller/src/create-network-client.ts": {
+    "no-undef": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/network-controller/src/rpc-service/rpc-service.test.ts": {
+    "jsdoc/require-returns": {
+      "count": 1
+    }
+  },
+  "packages/network-controller/tests/NetworkController.test.ts": {
+    "jsdoc/require-returns": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 8
+    }
+  },
+  "packages/network-controller/tests/network-client/block-hash-in-response.ts": {
+    "typescript/promise-function-async": {
+      "count": 7
+    }
+  },
+  "packages/network-controller/tests/network-client/block-param.ts": {
+    "typescript/promise-function-async": {
+      "count": 19
+    }
+  },
+  "packages/network-controller/tests/network-client/helpers.ts": {
+    "no-undef": {
+      "count": 4
+    },
+    "typescript/promise-function-async": {
+      "count": 3
+    }
+  },
+  "packages/network-controller/tests/network-client/no-block-param.ts": {
+    "typescript/promise-function-async": {
+      "count": 4
+    }
+  },
+  "packages/network-controller/tests/network-client/not-handled-by-middleware.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/network-enablement-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/network-enablement-controller/src/NetworkEnablementController.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/network-enablement-controller/src/NetworkEnablementController.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    }
+  },
+  "packages/network-enablement-controller/src/selectors.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/network-enablement-controller/src/services/Slip44Service.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/notification-services-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/notification-services-controller/jest.environment.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 3
+    },
+    "node/global-require": {
+      "count": 1
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.test.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/services/api-notifications.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/services/feature-announcements.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/types/notification-api/notification-api.ts": {
+    "id-length": {
+      "count": 4
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/types/type-utils.ts": {
+    "id-length": {
+      "count": 1
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesPushController/NotificationServicesPushController.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesPushController/services/services.test.ts": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesPushController/web/push-utils.test.ts": {
+    "no-import-assign": {
+      "count": 3
+    },
+    "no-undef": {
+      "count": 3
+    }
+  },
+  "packages/notification-services-controller/src/NotificationServicesPushController/web/push-utils.ts": {
+    "id-length": {
+      "count": 2
+    }
+  },
+  "packages/notification-services-controller/src/shared/to-raw-notification.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/package-template/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/passkey-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/passkey-controller/src/PasskeyController.test.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 8
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/passkey-controller/src/PasskeyController.ts": {
+    "typescript/promise-function-async": {
+      "count": 7
+    }
+  },
+  "packages/passkey-controller/src/constants.ts": {
+    "no-redeclare": {
+      "count": 1
+    }
+  },
+  "packages/passkey-controller/src/webauthn/verify-registration-response.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/permission-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/permission-controller/src/Caveat.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/permission-controller/src/PermissionController.test.ts": {
+    "id-length": {
+      "count": 4
+    },
+    "typescript/promise-function-async": {
+      "count": 11
+    },
+    "typescript/unbound-method": {
+      "count": 26
+    }
+  },
+  "packages/permission-controller/src/PermissionController.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/permission-controller/src/createRestrictedMethodMessenger.test.ts": {
+    "id-length": {
+      "count": 1
+    }
+  },
+  "packages/permission-log-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/permission-log-controller/tests/helpers.ts": {
+    "jsdoc/require-returns": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/perps-controller/src/PerpsController.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 9
+    },
+    "typescript/promise-function-async": {
+      "count": 12
+    }
+  },
+  "packages/perps-controller/src/providers/AggregatedPerpsProvider.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/src/providers/HyperLiquidProvider.ts": {
+    "id-length": {
+      "count": 3
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    },
+    "typescript/prefer-optional-chain": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 18
+    }
+  },
+  "packages/perps-controller/src/providers/LighterProvider.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 7
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "typescript/prefer-optional-chain": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/src/selectors.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/src/services/AccountService.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/src/services/AggregatedOrderBookConnection.ts": {
+    "id-length": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/src/services/HyperLiquidClientService.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/src/services/HyperLiquidSubscriptionService.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 7
+    }
+  },
+  "packages/perps-controller/src/services/MarketDataService.ts": {
+    "typescript/promise-function-async": {
+      "count": 3
+    }
+  },
+  "packages/perps-controller/src/services/TerminalMarketService.ts": {
+    "typescript/prefer-optional-chain": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/src/services/TradingService.ts": {
+    "typescript/promise-function-async": {
+      "count": 8
+    }
+  },
+  "packages/perps-controller/src/types/lighter-types.ts": {
+    "id-length": {
+      "count": 8
+    }
+  },
+  "packages/perps-controller/src/utils/coalescePerpsRestRequest.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/src/utils/errorUtils.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/src/utils/hyperLiquidAdapter.ts": {
+    "jsdoc/require-param": {
+      "count": 1
+    },
+    "jsdoc/require-returns": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/src/utils/orderCalculations.ts": {
+    "no-unneeded-ternary": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/src/utils/wait.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/defer-eligibility.test.ts": {
+    "no-undef": {
+      "count": 3
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 3
+    }
+  },
+  "packages/perps-controller/tests/e2e/advanced-orders.e2e.ts": {
+    "no-undef": {
+      "count": 17
+    }
+  },
+  "packages/perps-controller/tests/e2e/lighter.e2e.ts": {
+    "no-undef": {
+      "count": 11
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/e2e/lighter/nodeWasmBridge.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-orders.test.ts": {
+    "id-length": {
+      "count": 9
+    },
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 26
+    },
+    "typescript/promise-function-async": {
+      "count": 34
+    },
+    "typescript/unbound-method": {
+      "count": 9
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.test.ts": {
+    "no-undef": {
+      "count": 30
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 22
+    },
+    "typescript/unbound-method": {
+      "count": 5
+    }
+  },
+  "packages/perps-controller/tests/src/services/AggregatedOrderBookConnection.test.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/services/LighterClientService.test.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/services/LighterWalletService.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/services/TerminalMarketService.test.ts": {
+    "no-unsafe-optional-chaining": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 29
+    },
+    "typescript/unbound-method": {
+      "count": 4
+    }
+  },
+  "packages/perps-controller/tests/src/utils/coalescePerpsRestRequest.test.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/tests/src/utils/hyperLiquidAdapter.advanced-orders.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/utils/lighterAdapter.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/phishing-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/phishing-controller/src/BulkTokenScan.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/phishing-controller/src/CacheManager.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/phishing-controller/src/CacheManager.ts": {
+    "id-length": {
+      "count": 3
+    }
+  },
+  "packages/phishing-controller/src/PathTrie.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/phishing-controller/src/PathTrie.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/phishing-controller/src/PhishingController.test.ts": {
+    "no-undef": {
+      "count": 21
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 19
+    }
+  },
+  "packages/phishing-controller/src/PhishingController.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 14
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 6
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/phishing-controller/src/PhishingDetector.test.ts": {
+    "id-length": {
+      "count": 4
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/phishing-controller/src/PhishingDetector.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/phishing-controller/src/tests/utils.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 5
+    }
+  },
+  "packages/phishing-controller/src/utils.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/phishing-controller/src/utils.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 5
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "packages/platform-api-docs/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/platform-api-docs/site/docusaurus.config.ts": {
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/platform-api-docs/src/cli.test.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/platform-api-docs/src/cli.ts": {
+    "n/hashbang": {
+      "count": 1
+    },
+    "n/no-unsupported-features/node-builtins": {
+      "count": 2
+    },
+    "no-undef": {
+      "count": 3
+    }
+  },
+  "packages/polling-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/polling-controller/src/AbstractPollingController.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 4
+    }
+  },
+  "packages/polling-controller/src/StaticIntervalPollingController.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/preferences-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/profile-metrics-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/profile-metrics-controller/src/ProfileMetricsService.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/profile-metrics-controller/src/ProofOfOwnershipService.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/profile-sync-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/profile-sync-controller/jest.environment.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 3
+    },
+    "node/global-require": {
+      "count": 1
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/authentication/AuthenticationController.test.ts": {
+    "id-length": {
+      "count": 4
+    },
+    "jest/no-conditional-expect": {
+      "count": 3
+    },
+    "no-new": {
+      "count": 1
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/authentication/AuthenticationController.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/authentication/__fixtures__/mockServices.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/user-storage/UserStorageController.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 24
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/user-storage/UserStorageController.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 12
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/user-storage/__fixtures__/mockMessenger.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 8
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/user-storage/__fixtures__/mockServices.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 7
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/user-storage/__fixtures__/test-utils.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/user-storage/contact-syncing/__fixtures__/test-utils.ts": {
+    "no-undef": {
+      "count": 6
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/user-storage/contact-syncing/controller-integration.test.ts": {
+    "id-length": {
+      "count": 3
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/user-storage/contact-syncing/controller-integration.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "no-negated-condition": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 4
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 4
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/user-storage/contact-syncing/setup-subscriptions.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/user-storage/contact-syncing/sync-utils.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/user-storage/contact-syncing/types.ts": {
+    "id-length": {
+      "count": 5
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/user-storage/contact-syncing/utils.ts": {
+    "typescript/prefer-nullish-coalescing": {
+      "count": 3
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/user-storage/mocks/mockResponses.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 8
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/user-storage/mocks/mockStorage.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/profile-sync-controller/src/controllers/user-storage/utils.ts": {
+    "id-length": {
+      "count": 2
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/__fixtures__/test-utils.ts": {
+    "no-undef": {
+      "count": 2
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 4
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/__fixtures__/userstorage.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 6
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/flow-siwe.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/flow-srp.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/services.test.ts": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/authentication.test.ts": {
+    "no-new": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/authentication.ts": {
+    "id-denylist": {
+      "count": 2
+    },
+    "id-length": {
+      "count": 6
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/errors.ts": {
+    "id-length": {
+      "count": 2
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/mocks/userstorage.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/user-storage.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/user-storage.ts": {
+    "id-length": {
+      "count": 10
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/utils/eip-6963-metamask-provider.test.ts": {
+    "no-undef": {
+      "count": 3
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/utils/eip-6963-metamask-provider.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "no-undef": {
+      "count": 3
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/utils/messaging-signing-snap-requests.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/profile-sync-controller/src/shared/encryption/cache.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/profile-sync-controller/src/shared/encryption/encryption.test.ts": {
+    "jest/valid-expect-in-promise": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 4
+    }
+  },
+  "packages/profile-sync-controller/src/shared/encryption/encryption.ts": {
+    "id-length": {
+      "count": 16
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/profile-sync-controller/src/shared/encryption/utils.ts": {
+    "no-undef": {
+      "count": 2
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 4
+    }
+  },
+  "packages/profile-sync-controller/src/shared/storage-schema.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/profile-sync-controller/src/shared/types/encryption.ts": {
+    "id-length": {
+      "count": 3
+    }
+  },
+  "packages/profile-sync-controller/src/shared/utils/event-queue.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/ramps-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/ramps-controller/src/NeoBankService.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/ramps-controller/src/RampsController.order-syncing.test.ts": {
+    "no-undef": {
+      "count": 17
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/ramps-controller/src/RampsController.test.ts": {
+    "no-undef": {
+      "count": 4
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 5
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/ramps-controller/src/RampsController.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 5
+    }
+  },
+  "packages/ramps-controller/src/RampsService.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/ramps-controller/src/TransakService.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/ramps-controller/src/order-syncing/controller-integration.test.ts": {
+    "id-length": {
+      "count": 3
+    }
+  },
+  "packages/ramps-controller/src/order-syncing/types.ts": {
+    "id-length": {
+      "count": 1
+    }
+  },
+  "packages/ramps-controller/src/order-syncing/utils.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/rate-limit-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/rate-limit-controller/src/RateLimitController.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/react-data-query/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/remote-feature-flag-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/remote-feature-flag-controller/src/client-config-api-service/client-config-api-service.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/remote-feature-flag-controller/src/client-config-api-service/client-config-api-service.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/remote-feature-flag-controller/src/remote-feature-flag-controller.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    },
+    "typescript/unbound-method": {
+      "count": 11
+    }
+  },
+  "packages/sample-controllers/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/seedless-onboarding-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/seedless-onboarding-controller/src/SeedlessOnboardingController.test.ts": {
+    "no-undef": {
+      "count": 5
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 17
+    }
+  },
+  "packages/seedless-onboarding-controller/src/SeedlessOnboardingController.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/seedless-onboarding-controller/src/utils.test.ts": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "packages/seedless-onboarding-controller/tests/mocks/toprf.ts": {
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/seedless-onboarding-controller/tests/mocks/toprfEncryptor.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/seedless-onboarding-controller/tests/mocks/utils.ts": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "packages/seedless-onboarding-controller/tests/mocks/vaultEncryptor.ts": {
+    "no-undef": {
+      "count": 8
+    }
+  },
+  "packages/selected-network-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/selected-network-controller/src/SelectedNetworkController.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 4
+    }
+  },
+  "packages/selected-network-controller/src/SelectedNetworkMiddleware.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/selected-network-controller/tests/SelectedNetworkController.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 4
+    },
+    "typescript/unbound-method": {
+      "count": 4
+    }
+  },
+  "packages/selected-network-controller/tests/SelectedNetworkMiddleware.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/sentinel-api-service/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/sentinel-api-service/src/sentinel-api-service.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/sentinel-api-service/src/types.ts": {
+    "id-length": {
+      "count": 2
+    }
+  },
+  "packages/shield-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/shield-controller/src/shield-api-service.test.ts": {
+    "no-undef": {
+      "count": 3
+    }
+  },
+  "packages/shield-controller/src/shield-api-service.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/shield-controller/tests/utils.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/signature-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/signature-controller/src/SignatureController.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 5
+    },
+    "typescript/promise-function-async": {
+      "count": 3
+    }
+  },
+  "packages/signature-controller/src/SignatureController.ts": {
+    "no-case-declarations": {
+      "count": 3
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 15
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/signature-controller/src/utils/decoding-api.test.ts": {
+    "no-undef": {
+      "count": 3
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/signature-controller/src/utils/decoding-api.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/signature-controller/src/utils/delegations.test.ts": {
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "packages/signature-controller/src/utils/normalize.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 1
+    },
+    "no-unused-vars": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/signature-controller/src/utils/validation.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/signature-controller/src/utils/validation.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "no-unused-vars": {
+      "count": 2
+    },
+    "radix": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 7
+    },
+    "typescript/no-base-to-string": {
+      "count": 1
+    }
+  },
+  "packages/smart-transactions-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/smart-transactions-controller/src/SmartTransactionsController.test.ts": {
+    "jsdoc/require-param": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 12
+    }
+  },
+  "packages/smart-transactions-controller/src/SmartTransactionsController.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 10
+    },
+    "typescript/no-floating-promises": {
+      "count": 4
+    }
+  },
+  "packages/smart-transactions-controller/src/featureFlags/feature-flags.ts": {
+    "id-length": {
+      "count": 1
+    }
+  },
+  "packages/smart-transactions-controller/src/selectors.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/smart-transactions-controller/src/utils.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 7
+    }
+  },
+  "packages/smart-transactions-controller/src/utils.ts": {
+    "jsdoc/require-param-description": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 10
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "packages/smart-transactions-controller/tests/helpers.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/snap-account-service/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/snap-account-service/src/SnapAccountService.test.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 11
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/snap-account-service/src/SnapAccountService.ts": {
+    "jsdoc/require-returns": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "packages/snap-account-service/src/SnapPlatformWatcher.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/snap-account-service/src/SnapTracker.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    }
+  },
+  "packages/social-controllers/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/social-controllers/src/SocialService.test.ts": {
+    "no-undef": {
+      "count": 3
+    },
+    "typescript/promise-function-async": {
+      "count": 44
+    }
+  },
+  "packages/social-controllers/src/SocialService.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 9
+    }
+  },
+  "packages/solana-test-validator-up/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/solana-test-validator-up/src/bin/solana-test-validator-up.ts": {
+    "no-undef": {
+      "count": 3
+    }
+  },
+  "packages/solana-test-validator-up/src/install.test.ts": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "packages/solana-test-validator-up/src/install.ts": {
+    "no-undef": {
+      "count": 4
+    }
+  },
+  "packages/stellar-quickstart-up/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/storage-service/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/storage-service/src/StorageService.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 8
+    }
+  },
+  "packages/subscription-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/subscription-controller/src/SubscriptionController.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/subscription-controller/src/SubscriptionController.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/subscription-controller/src/SubscriptionService-structs.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/subscription-controller/src/SubscriptionService.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/subscription-controller/src/types.ts": {
+    "no-redeclare": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/transaction-controller/src/TransactionController.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    },
+    "typescript/promise-function-async": {
+      "count": 6
+    }
+  },
+  "packages/transaction-controller/src/TransactionController.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 19
+    }
+  },
+  "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/src/api/simulation-api.test.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/transaction-controller/src/gas-flows/LineaGasFeeFlow.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/src/gas-flows/LineaGasFeeFlow.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/transaction-controller/src/gas-flows/MantleLayer1GasFeeFlow.test.ts": {
+    "no-undef": {
+      "count": 8
+    }
+  },
+  "packages/transaction-controller/src/gas-flows/OracleLayer1GasFeeFlow.test.ts": {
+    "no-undef": {
+      "count": 4
+    },
+    "typescript/unbound-method": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/src/gas-flows/OracleLayer1GasFeeFlow.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/transaction-controller/src/gas-flows/RandomisedEstimationsGasFeeFlow.test.ts": {
+    "no-undef": {
+      "count": 8
+    },
+    "typescript/unbound-method": {
+      "count": 5
+    }
+  },
+  "packages/transaction-controller/src/helpers/GasFeePoller.ts": {
+    "typescript/promise-function-async": {
+      "count": 3
+    }
+  },
+  "packages/transaction-controller/src/helpers/MultichainTrackingHelper.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/src/helpers/PendingTransactionTracker.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 3
+    },
+    "typescript/unbound-method": {
+      "count": 11
+    }
+  },
+  "packages/transaction-controller/src/helpers/PendingTransactionTracker.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/src/helpers/TransactionPoller.test.ts": {
+    "typescript/unbound-method": {
+      "count": 4
+    }
+  },
+  "packages/transaction-controller/src/helpers/TransactionPoller.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/transaction-controller/src/hooks/CollectPublishHook.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/src/hooks/SequentialPublishBatchHook.test.ts": {
+    "typescript/unbound-method": {
+      "count": 15
+    }
+  },
+  "packages/transaction-controller/src/types.ts": {
+    "id-length": {
+      "count": 7
+    }
+  },
+  "packages/transaction-controller/src/utils/balance-changes.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/transaction-controller/src/utils/balance-changes.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    }
+  },
+  "packages/transaction-controller/src/utils/batch.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 5
+    },
+    "typescript/promise-function-async": {
+      "count": 5
+    },
+    "typescript/unbound-method": {
+      "count": 5
+    }
+  },
+  "packages/transaction-controller/src/utils/batch.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/src/utils/eip7702.ts": {
+    "id-length": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/src/utils/feature-flags.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/transaction-controller/src/utils/first-time-interaction.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 8
+    }
+  },
+  "packages/transaction-controller/src/utils/first-time-interaction.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/transaction-controller/src/utils/gas-flow.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/src/utils/gas.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 5
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/src/utils/nonce.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/transaction-controller/src/utils/provider.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    }
+  },
+  "packages/transaction-controller/src/utils/provider.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/transaction-controller/src/utils/recipient.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/transaction-controller/src/utils/swaps.test.ts": {
+    "typescript/unbound-method": {
+      "count": 3
+    }
+  },
+  "packages/transaction-controller/src/utils/swaps.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/transaction-controller/src/utils/utils.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    }
+  },
+  "packages/transaction-controller/src/utils/utils.ts": {
+    "id-length": {
+      "count": 2
+    }
+  },
+  "packages/transaction-controller/src/utils/validation.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    }
+  },
+  "packages/transaction-pay-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/transaction-pay-controller/src/TransactionPayController.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/transaction-pay-controller/src/TransactionPayController.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 5
+    }
+  },
+  "packages/transaction-pay-controller/src/helpers/TransactionPayPublishHook.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 5
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/across/AcrossStrategy.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 47
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/across/across-actions.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 6
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/across/across-actions.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/across/across-quotes.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 70
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/across/across-quotes.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/across/across-submit.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 53
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/across/across-submit.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/across/transactions.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 6
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/fiat/fiat-direct-musd.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/fiat/fiat-quotes.test.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/fiat/fiat-quotes.ts": {
+    "jsdoc/check-tag-names": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/fiat/fiat-submit-simple.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/fiat/fiat-submit-with-transaction-data.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/fiat/fiat-submit.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 9
+    },
+    "typescript/promise-function-async": {
+      "count": 5
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/fiat/fiat-submit.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/fiat/utils.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/RelayStrategy.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-activation.test.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 11
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-withdraw.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/polymarket/withdraw.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-api.test.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-max-gas-station.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-quotes.test.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 221
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-quotes.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-submit-execute.test.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 19
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-submit-execute.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-submit.test.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 58
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-submit.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-validation.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 32
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-validation.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/types.ts": {
+    "id-length": {
+      "count": 4
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/server/server-api.test.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/server/server-quotes.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 24
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/server/server-quotes.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/server/server-submit.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 25
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/server/server-submit.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/server/types.ts": {
+    "id-length": {
+      "count": 4
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/feature-flags.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/gas.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 20
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/ma-vault-deposit.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 6
+    },
+    "typescript/promise-function-async": {
+      "count": 13
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/ma-vault-deposit.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/provider.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 10
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/provider.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/quote-gas.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/quotes.test.ts": {
+    "id-length": {
+      "count": 5
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 23
+    },
+    "typescript/promise-function-async": {
+      "count": 9
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/quotes.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/required-tokens.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/simulation.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 9
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/simulation.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/token.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 31
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/token.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/transaction.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 51
+    },
+    "typescript/promise-function-async": {
+      "count": 5
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/transaction.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/validation.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 9
+    }
+  },
+  "packages/user-operation-controller/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/user-operation-controller/src/BlockTrackerPollingController.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/user-operation-controller/src/UserOperationController.test.ts": {
+    "no-new": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 6
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 9
+    }
+  },
+  "packages/user-operation-controller/src/UserOperationController.ts": {
+    "id-length": {
+      "count": 3
+    },
+    "jsdoc/require-returns": {
+      "count": 2
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 19
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/prefer-promise-reject-errors": {
+      "count": 1
+    }
+  },
+  "packages/user-operation-controller/src/helpers/Bundler.test.ts": {
+    "jsdoc/require-returns": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 3
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/user-operation-controller/src/helpers/Bundler.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 1
+    }
+  },
+  "packages/user-operation-controller/src/helpers/PendingUserOperationTracker.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 11
+    },
+    "typescript/unbound-method": {
+      "count": 4
+    }
+  },
+  "packages/user-operation-controller/src/helpers/PendingUserOperationTracker.ts": {
+    "id-length": {
+      "count": 3
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 6
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/user-operation-controller/src/helpers/SnapSmartContractAccount.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/user-operation-controller/src/utils/gas-fees.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 5
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 2
+    }
+  },
+  "packages/user-operation-controller/src/utils/gas.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    },
+    "typescript/unbound-method": {
+      "count": 2
+    }
+  },
+  "packages/user-operation-controller/src/utils/gas.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/user-operation-controller/src/utils/transaction.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/user-operation-controller/src/utils/transaction.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/user-operation-controller/src/utils/validation.test.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 1
+    }
+  },
+  "packages/user-operation-controller/src/utils/validation.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 8
+    }
+  },
+  "packages/utils/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/utils/src/bytes.test.ts": {
+    "no-undef": {
+      "count": 6
+    }
+  },
+  "packages/utils/src/bytes.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/utils/src/errors.test.ts": {
+    "no-undef": {
+      "count": 3
+    }
+  },
+  "packages/utils/src/fs.ts": {
+    "jsdoc/require-returns": {
+      "count": 1
+    }
+  },
+  "packages/utils/src/json.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/utils/src/json.tst.ts": {
+    "id-length": {
+      "count": 2
+    }
+  },
+  "packages/utils/src/transaction-types.ts": {
+    "id-length": {
+      "count": 2
+    }
+  },
+  "packages/wallet-cli/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/wallet-cli/jest.config.e2e.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 3
+    }
+  },
+  "packages/wallet-cli/jest.environment.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 3
+    },
+    "node/global-require": {
+      "count": 1
+    }
+  },
+  "packages/wallet-cli/src/commands/daemon/call.test.ts": {
+    "no-undef": {
+      "count": 7
+    },
+    "prefer-promise-reject-errors": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/wallet-cli/src/commands/daemon/call.ts": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "packages/wallet-cli/src/commands/daemon/list.test.ts": {
+    "no-undef": {
+      "count": 7
+    },
+    "prefer-promise-reject-errors": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/wallet-cli/src/commands/daemon/list.ts": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "packages/wallet-cli/src/commands/daemon/status.test.ts": {
+    "prefer-promise-reject-errors": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/wallet-cli/src/commands/wallet/unlock.test.ts": {
+    "no-undef": {
+      "count": 18
+    },
+    "prefer-promise-reject-errors": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/wallet-cli/src/daemon/auto-approval.test.ts": {
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/wallet-cli/src/daemon/daemon-client.test.ts": {
+    "no-undef": {
+      "count": 3
+    },
+    "prefer-promise-reject-errors": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "typescript/unbound-method": {
+      "count": 4
+    }
+  },
+  "packages/wallet-cli/src/daemon/daemon-entry.test.ts": {
+    "no-undef": {
+      "count": 50
+    }
+  },
+  "packages/wallet-cli/src/daemon/daemon-entry.ts": {
+    "no-undef": {
+      "count": 14
+    }
+  },
+  "packages/wallet-cli/src/daemon/daemon-spawn.test.ts": {
+    "no-undef": {
+      "count": 7
+    },
+    "typescript/unbound-method": {
+      "count": 2
+    }
+  },
+  "packages/wallet-cli/src/daemon/daemon-spawn.ts": {
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/wallet-cli/src/daemon/rpc-socket-server.test.ts": {
+    "no-undef": {
+      "count": 10
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 3
+    },
+    "typescript/unbound-method": {
+      "count": 4
+    }
+  },
+  "packages/wallet-cli/src/daemon/rpc-socket-server.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/wallet-cli/src/daemon/send-transaction.test.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 14
+    }
+  },
+  "packages/wallet-cli/src/daemon/socket-line.test.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "no-undef": {
+      "count": 5
+    },
+    "typescript/unbound-method": {
+      "count": 1
+    }
+  },
+  "packages/wallet-cli/src/daemon/socket.integration.test.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/wallet-cli/src/daemon/stop-daemon.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    }
+  },
+  "packages/wallet-cli/src/daemon/utils.test.ts": {
+    "no-undef": {
+      "count": 8
+    }
+  },
+  "packages/wallet-cli/src/daemon/utils.ts": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "packages/wallet-cli/src/daemon/wallet-factory.integration.test.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/wallet-cli/src/daemon/wallet-factory.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 2
+    },
+    "typescript/unbound-method": {
+      "count": 15
+    }
+  },
+  "packages/wallet-cli/src/daemon/wallet-factory.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/wallet-cli/tests/helpers.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/wallet-cli/tests/lifecycle.e2e.test.ts": {
+    "no-undef": {
+      "count": 3
+    }
+  },
+  "packages/wallet-cli/tests/wallet-send.e2e.test.ts": {
+    "no-undef": {
+      "count": 8
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/wallet-framework-docs/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/wallet-framework-docs/site/docusaurus.config.ts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "packages/wallet/jest.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "packages/wallet/src/Wallet.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/wallet/src/initialization/initialization.ts": {
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/wallet/src/initialization/instances/approval-controller/approval-controller.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/wallet/src/initialization/instances/gas-fee-controller/gas-fee-controller.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "packages/wallet/src/initialization/instances/transaction-controller/transaction-controller.test.ts": {
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "scripts/close-stale-release-prs.mts": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "scripts/create-package/cli.test.ts": {
+    "no-shadow": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "scripts/create-package/commands.test.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "scripts/create-package/index.test.ts": {
+    "no-shadow": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 3
+    }
+  },
+  "scripts/create-package/index.ts": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "scripts/create-package/utils.test.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "scripts/create-package/utils.ts": {
+    "n/no-unsupported-features/node-builtins": {
+      "count": 1
+    }
+  },
+  "scripts/get-changed-workspaces.mts": {
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "scripts/lib/changelog-conflicts.test.ts": {
+    "no-shadow": {
+      "count": 1
+    }
+  },
+  "scripts/lib/changelog-conflicts.ts": {
+    "n/no-unsupported-features/node-builtins": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "scripts/lib/workspaces.mts": {
+    "jsdoc/require-param": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "scripts/lint-teams-json.ts": {
+    "n/no-unsupported-features/node-builtins": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "scripts/lint-tsconfigs/lint-tsconfigs.mts": {
+    "no-undef": {
+      "count": 3
+    }
+  },
+  "scripts/lint-tsconfigs/utils.mts": {
+    "n/no-unsupported-features/node-builtins": {
+      "count": 1
+    }
+  },
+  "scripts/manage-codeowners.ts": {
+    "n/hashbang": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 1
+    }
+  },
+  "scripts/manage-codeowners/main.ts": {
+    "n/no-unsupported-features/node-builtins": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "scripts/merge-changelog-conflicts.test.ts": {
+    "no-shadow": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 5
+    }
+  },
+  "scripts/merge-changelog-conflicts.ts": {
+    "no-undef": {
+      "count": 2
+    }
+  },
+  "scripts/update-readme-content.ts": {
+    "n/hashbang": {
+      "count": 1
+    },
+    "n/no-unsupported-features/node-builtins": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 3
+    }
+  },
+  "tests/helpers.ts": {
+    "id-length": {
+      "count": 1
+    }
+  },
+  "tests/scripts-setup.ts": {
+    "jest/require-top-level-describe": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 3
+    }
+  },
+  "tests/setupAfterEnv/matchers.ts": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/promise-function-async": {
+      "count": 1
+    }
+  },
+  "tests/setupAfterEnv/nock.ts": {
+    "jest/require-top-level-describe": {
+      "count": 2
+    }
+  },
+  "types/@metamask/contract-metadata.d.ts": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "types/@metamask/eth-json-rpc-filters.d.ts": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "types/@metamask/ethjs-provider-http.d.ts": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "types/@metamask/ethjs-unit.d.ts": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "types/@metamask/metamask-eth-abis.d.ts": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "types/eth-chainlist.d.ts": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "types/eth-ens-namehash.d.ts": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "types/eth-json-rpc-infura/src/createProvider.d.ts": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "types/ethereum-ens-network-map.d.ts": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "types/ethjs-query.d.ts": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "types/global.d.ts": {
+    "id-length": {
+      "count": 1
+    },
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "types/psl.d.ts": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "types/single-call-balance-checker-abi.d.ts": {
+    "import/unambiguous": {
+      "count": 1
+    }
+  },
+  "yarn.config.cjs": {
+    "import/unambiguous": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 10
+    }
+  }
+}
