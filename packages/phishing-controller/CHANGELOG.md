@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Fix dev-only lint errors in product-safety packages ([#10163](https://github.com/MetaMask/core/pull/10163))
+
 ### Added
 
 - Add `extractSignatureAddresses` utility, plus `ExtractedSignatureAddresses` and `ExtractSignatureAddressesOptions` types, to collect the `address`-typed values from an EIP-712 typed-data message for real-time address scanning ([#10170](https://github.com/MetaMask/core/pull/10170))
