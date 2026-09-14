@@ -13,7 +13,7 @@ permissions:
 jobs:
   repair:
     name: Repair constraints, lockfile and changelogs
-    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && github.actor != 'metamask-ci[bot]' }}
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
