@@ -10,12 +10,12 @@ import { MonorepoFiles, Placeholders } from './constants.js';
 import type { FileMap } from './fs-utils.js';
 import { readAllFiles, writeFiles } from './fs-utils.js';
 
-const PACKAGE_TEMPLATE_DIR = path.join(import.meta.dirname, 'package-template');
 const REPO_ROOT = path.join(import.meta.dirname, '..', '..');
 const REPO_TS_CONFIG = path.join(REPO_ROOT, MonorepoFiles.TsConfig);
 const REPO_TS_CONFIG_BUILD = path.join(REPO_ROOT, MonorepoFiles.TsConfigBuild);
 const REPO_PACKAGE_JSON = path.join(REPO_ROOT, MonorepoFiles.PackageJson);
 const PACKAGES_PATH = path.join(REPO_ROOT, 'packages');
+const PACKAGE_TEMPLATE_DIR = path.join(PACKAGES_PATH, 'package-template');
 
 const allPlaceholdersRegex = new RegExp(
   Object.values(Placeholders).join('|'),

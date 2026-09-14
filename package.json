@@ -9,8 +9,7 @@
   },
   "workspaces": [
     "examples/*",
-    "packages/*",
-    "scripts/create-package/package-template"
+    "packages/*"
   ],
   "files": [],
   "type": "module",

@@ -8313,9 +8313,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/package-template@workspace:scripts/create-package/package-template":
+"@metamask/package-template@workspace:packages/package-template":
   version: 0.0.0-use.local
-  resolution: "@metamask/package-template@workspace:scripts/create-package/package-template"
+  resolution: "@metamask/package-template@workspace:packages/package-template"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@types/jest": "npm:^30.0.0"
