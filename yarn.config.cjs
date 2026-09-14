@@ -292,7 +292,7 @@ module.exports = defineConfig({
 
       // All non-root public packages should be published to the NPM registry;
       // all non-root private packages should not.
-      if (isPrivate) {
+      if (isPrivate && !isTemplate) {
         workspace.unset('publishConfig');
       } else {
         expectWorkspaceField(workspace, 'publishConfig.access', 'public');

@@ -172,6 +172,19 @@ function updateTsConfigs(
 }
 
 /**
+ * Update the `package.json` content to remove the "private" field from the
+ * template.
+ *
+ * @param content - The raw JSON content of the template `package.json`.
+ * @returns A JSON string with the private field removed.
+ */
+function updatePackageJson(content: string): string {
+  const packageJson = JSON.parse(content) as PackageJson;
+  delete packageJson.private;
+  return JSON.stringify(packageJson, null, 2);
+}
+
+/**
  * Reads the template files and updates them with the specified package data.
  *
  * @param packageData - The package data.
@@ -185,6 +198,10 @@ async function processTemplateFiles(
 
   for (const [relativePath, content] of Object.entries(templateFiles)) {
     result[relativePath] = processTemplateContent(packageData, content);
+
+    if (relativePath === './package.json') {
+      result[relativePath] = updatePackageJson(result[relativePath]);
+    }
   }
 
   return result;

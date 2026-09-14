@@ -1,6 +1,7 @@
 {
   "name": "@metamask/package-template",
   "version": "0.0.0",
+  "private": true,
   "description": "PACKAGE_DESCRIPTION",
   "keywords": [
     "Ethereum",
