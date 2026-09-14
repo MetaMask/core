@@ -201,10 +201,11 @@ export {
 } from './selectors/balance.js';
 
 export {
+  getAccountGroupLoadingStatus,
   getAccountLoadingStatus,
-  getAccountsLoadingStatus,
+  getIsAssetsLoadingForSelectedAccountGroup,
+  isAccountGroupLoading,
   isAccountLoading,
-  isAnyAccountLoading,
 } from './selectors/loading.js';
 
 export type {

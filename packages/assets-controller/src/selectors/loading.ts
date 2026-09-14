@@ -1,5 +1,8 @@
+import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
+
 import type { AssetsControllerState } from '../AssetsController.js';
 import type { AccountId, AssetsLoadingStatus } from '../types.js';
+import { getAccountIdsForGroup } from './balance.js';
 
 /**
  * Get the loading status for a single account.
@@ -13,7 +16,7 @@ export function getAccountLoadingStatus(
   state: Pick<AssetsControllerState, 'assetsLoadingStatus'>,
   accountId: AccountId,
 ): AssetsLoadingStatus | undefined {
-  return state.assetsLoadingStatus?.[accountId];
+  return state.assetsLoadingStatus[accountId];
 }
 
 /**
@@ -31,20 +34,22 @@ export function isAccountLoading(
 }
 
 /**
- * Get the loading statuses for a set of accounts.
+ * Get the loading statuses for every account in an account group.
  *
  * @param state - AssetsController state slice.
- * @param accountIds - The account ids to report on.
- * @returns A record containing an entry for each requested account that has
- * a loading status, keyed by account id.
+ * @param accountTreeState - AccountTreeController state slice.
+ * @param groupId - The account group id.
+ * @returns A record containing an entry for each account in the group that
+ * has a loading status, keyed by account id.
  */
-export function getAccountsLoadingStatus(
+export function getAccountGroupLoadingStatus(
   state: Pick<AssetsControllerState, 'assetsLoadingStatus'>,
-  accountIds: AccountId[],
+  accountTreeState: AccountTreeControllerState,
+  groupId: string,
 ): Record<AccountId, AssetsLoadingStatus> {
+  const loadingStatus = state.assetsLoadingStatus;
   const result: Record<AccountId, AssetsLoadingStatus> = {};
-  const loadingStatus = state.assetsLoadingStatus ?? {};
-  for (const accountId of accountIds) {
+  for (const accountId of getAccountIdsForGroup(accountTreeState, groupId)) {
     const status = loadingStatus[accountId];
     if (status !== undefined) {
       result[accountId] = status;
@@ -54,18 +59,38 @@ export function getAccountsLoadingStatus(
 }
 
 /**
- * Check whether any of the given accounts is loading. When `accountIds` is
- * omitted, checks every account with a loading status in state.
+ * Check whether any account in an account group is currently loading.
  *
  * @param state - AssetsController state slice.
- * @param accountIds - Optional account ids to restrict the check to.
- * @returns True if at least one of the accounts is loading.
+ * @param accountTreeState - AccountTreeController state slice.
+ * @param groupId - The account group id.
+ * @returns True while at least one account in the group is loading.
  */
-export function isAnyAccountLoading(
+export function isAccountGroupLoading(
   state: Pick<AssetsControllerState, 'assetsLoadingStatus'>,
-  accountIds?: AccountId[],
+  accountTreeState: AccountTreeControllerState,
+  groupId: string,
 ): boolean {
-  const loadingStatus = state.assetsLoadingStatus ?? {};
-  const ids = accountIds ?? Object.keys(loadingStatus);
-  return ids.some((accountId) => loadingStatus[accountId] === 'loading');
+  const loadingStatus = state.assetsLoadingStatus;
+  return getAccountIdsForGroup(accountTreeState, groupId).some(
+    (accountId) => loadingStatus[accountId] === 'loading',
+  );
+}
+
+/**
+ * Check whether the selected account group is currently loading its assets.
+ *
+ * @param state - AssetsController state slice.
+ * @param accountTreeState - AccountTreeController state slice.
+ * @returns True while any account in the selected account group is loading.
+ */
+export function getIsAssetsLoadingForSelectedAccountGroup(
+  state: Pick<AssetsControllerState, 'assetsLoadingStatus'>,
+  accountTreeState: AccountTreeControllerState,
+): boolean {
+  const groupId = accountTreeState.selectedAccountGroup;
+  if (!groupId) {
+    return false;
+  }
+  return isAccountGroupLoading(state, accountTreeState, groupId);
 }

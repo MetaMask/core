@@ -936,13 +936,14 @@ export class AssetsController extends BaseController<
     // TEMPORARY: heal assetsInfo metadata wiped by a prior defect
     // (see extension migration #215 / ASSETS-3346). Remove in a future release.
     if (tempMigrateAssetsInfoMetadataAssets3346) {
-      this.update(() =>
-        tempHealAssetsInfoMetadata({
+      this.update(() => ({
+        ...this.state,
+        ...tempHealAssetsInfoMetadata({
           state: this.state,
           getMigrationState: tempMigrateAssetsInfoMetadataAssets3346,
           captureException,
         }),
-      );
+      }));
     }
 
     this.#initializeNativeAssetsMap(queryApiClient);

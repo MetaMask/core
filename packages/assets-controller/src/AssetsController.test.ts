@@ -13,6 +13,7 @@ import type {
 import type { NetworkState } from '@metamask/network-controller';
 
 import { registerKeyringUnlockMock } from './__fixtures__/MockAssetControllerMessenger.js';
+import { waitFor } from './__fixtures__/test-utils.js';
 import {
   AssetsController,
   getDefaultAssetsControllerState,
@@ -91,30 +92,34 @@ function createMockQueryApiClient(): ApiPlatformClient {
 }
 
 /**
- * A query API client whose Accounts API calls can be frozen mid-flight so a
- * forced `getAssets()` run is observable while in flight.
+ * Fake accounts API client whose calls can be frozen and released one at a
+ * time, so tests can hold specific fetches in flight while the rest of the
+ * pipeline keeps running. `arm()` installs a fresh gate that the next gated
+ * call waits on; `release()` resolves the oldest pending gate.
  *
- * While "armed", every Accounts API network/balance call returns a promise
- * that stays pending until `release()` is called, then resolves with a valid
- * (empty) response shape. While "disarmed", calls resolve immediately.
- *
- * @returns The gated client plus `arm()`/`release()` controls.
+ * @returns The gated client plus `arm()`/`release()` controls and a counter
+ * of calls currently frozen on a gate.
  */
 function createGatedQueryApiClient(): {
   client: ApiPlatformClient;
   arm: () => void;
   release: () => void;
+  getGatedCallCount: () => number;
 } {
   let armed = false;
-  let releaseGate: () => void = () => undefined;
-  const gate = new Promise<void>((resolve) => {
-    releaseGate = resolve;
-  });
+  let gatedCallCount = 0;
+  const pendingGates: (() => void)[] = [];
+  let currentGate = new Promise<void>(() => undefined);
 
   const gatedCall =
     <Result>(value: () => Result): (() => Promise<Result>) =>
-    () =>
-      armed ? gate.then(value) : Promise.resolve(value());
+    () => {
+      if (!armed) {
+        return Promise.resolve(value());
+      }
+      gatedCallCount += 1;
+      return currentGate.then(value);
+    };
 
   const client = {
     ...createMockQueryApiClient(),
@@ -139,12 +144,44 @@ function createGatedQueryApiClient(): {
     client,
     arm: (): void => {
       armed = true;
+      currentGate = new Promise<void>((resolve) => {
+        pendingGates.push(resolve);
+      });
     },
     release: (): void => {
-      armed = false;
-      releaseGate();
+      const resolveGate = pendingGates.shift();
+      if (resolveGate) {
+        resolveGate();
+      } else {
+        armed = false;
+      }
     },
+    getGatedCallCount: (): number => gatedCallCount,
   };
+}
+
+/**
+ * Fake accounts API client whose balance endpoints always fail, to test how
+ * the loading status settles when a fetch errors out.
+ *
+ * @returns The failing client.
+ */
+function createFailingQueryApiClient(): ApiPlatformClient {
+  return {
+    ...createMockQueryApiClient(),
+    accounts: {
+      fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+        fullSupport: ['eip155:1'],
+        partialSupport: [],
+      }),
+      fetchV5MultiAccountBalances: jest
+        .fn()
+        .mockRejectedValue(new Error('fetch failed')),
+      fetchV6MultiAccountBalances: jest
+        .fn()
+        .mockRejectedValue(new Error('fetch failed')),
+    },
+  } as unknown as ApiPlatformClient;
 }
 
 type AllActions = MessengerActions<AssetsControllerMessenger>;
@@ -3841,17 +3878,19 @@ describe('AssetsController', () => {
             'entropy:mock-keyring-id-1/1',
             'entropy:mock-keyring-id-1/0',
           );
-          await flushPromises();
 
-          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
-            'loading',
+          await waitFor(() =>
+            expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+              'loading',
+            ),
           );
 
           release();
-          await flushPromises();
 
-          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
-            'loaded',
+          await waitFor(() =>
+            expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+              'loaded',
+            ),
           );
         },
       );
@@ -3871,11 +3910,12 @@ describe('AssetsController', () => {
             'entropy:mock-keyring-id-1/1',
             'entropy:mock-keyring-id-1/0',
           );
-          await flushPromises();
 
           // First switch is frozen mid-flight and holds the refresh mutex.
-          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
-            'loading',
+          await waitFor(() =>
+            expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+              'loading',
+            ),
           );
 
           const accountB = createMockInternalAccount({
@@ -3887,22 +3927,24 @@ describe('AssetsController', () => {
             'entropy:mock-keyring-id-1/2',
             'entropy:mock-keyring-id-1/1',
           );
-          await flushPromises();
 
           // The queued switch is already marked loading for the new group's
           // accounts, without waiting for the previous refresh to finish.
-          expect(controller.state.assetsLoadingStatus).toStrictEqual({
-            [MOCK_ACCOUNT_ID]: 'loading',
-            [accountB.id]: 'loading',
-          });
+          await waitFor(() =>
+            expect(controller.state.assetsLoadingStatus).toStrictEqual({
+              [MOCK_ACCOUNT_ID]: 'loading',
+              [accountB.id]: 'loading',
+            }),
+          );
 
           release();
-          await flushPromises();
 
-          expect(controller.state.assetsLoadingStatus).toStrictEqual({
-            [MOCK_ACCOUNT_ID]: 'loaded',
-            [accountB.id]: 'loaded',
-          });
+          await waitFor(() =>
+            expect(controller.state.assetsLoadingStatus).toStrictEqual({
+              [MOCK_ACCOUNT_ID]: 'loaded',
+              [accountB.id]: 'loaded',
+            }),
+          );
 
           getSelectedAccountsMock.mockClear();
         },
@@ -3910,31 +3952,13 @@ describe('AssetsController', () => {
     });
 
     it('does not let an older refresh mark an account loaded while a newer queued refresh owns the marker', async () => {
-      const { client, arm, release } = createGatedQueryApiClient();
+      const { client, arm, release, getGatedCallCount } =
+        createGatedQueryApiClient();
 
       await withController(
         { queryApiClient: client },
         async ({ controller, messenger }) => {
           await activateTracking(messenger);
-
-          let settleSecondFetch!: () => void;
-          const secondFetch = new Promise<
-            Awaited<ReturnType<typeof controller.getAssets>>
-          >((resolve): void => {
-            settleSecondFetch = (): void => resolve({});
-          });
-          const realGetAssets = controller.getAssets.bind(controller);
-          let fetchCallCount = 0;
-          const getAssetsSpy = jest
-            .spyOn(controller, 'getAssets')
-            .mockImplementation(
-              (...args: Parameters<typeof controller.getAssets>) => {
-                fetchCallCount += 1;
-                return fetchCallCount === 1
-                  ? realGetAssets(...args)
-                  : secondFetch;
-              },
-            );
 
           // First switch is frozen mid-flight, holding the refresh mutex.
           arm();
@@ -3943,38 +3967,36 @@ describe('AssetsController', () => {
             'entropy:mock-keyring-id-1/1',
             'entropy:mock-keyring-id-1/0',
           );
-          await flushPromises();
-
-          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
-            'loading',
-          );
+          await waitFor(() => expect(getGatedCallCount()).toBeGreaterThan(0));
+          const firstFetchCallCount = getGatedCallCount();
 
           // A second switch back to the same account queues behind the mutex
           // and takes ownership of the marker.
+          arm();
           (messenger.publish as CallableFunction)(
             'AccountTreeController:selectedAccountGroupChange',
             'entropy:mock-keyring-id-1/2',
             'entropy:mock-keyring-id-1/1',
           );
-          await flushPromises();
 
           release();
-          await flushPromises();
 
-          // The older refresh has settled, but the newer refresh (queued, in
+          // The older refresh settles, but the newer refresh (queued, in
           // flight) still owns the marker, so the account stays loading.
+          await waitFor(() =>
+            expect(getGatedCallCount()).toBeGreaterThan(firstFetchCallCount),
+          );
           expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
             'loading',
           );
 
-          settleSecondFetch();
-          await flushPromises();
+          release();
 
-          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
-            'loaded',
+          await waitFor(() =>
+            expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+              'loaded',
+            ),
           );
-
-          getAssetsSpy.mockRestore();
         },
       );
     });
@@ -3993,14 +4015,29 @@ describe('AssetsController', () => {
           messenger.publish('KeyringController:lock');
           arm();
           messenger.publish('KeyringController:unlock');
-          await flushPromises();
 
-          expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
-            'loading',
+          await waitFor(() =>
+            expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+              'loading',
+            ),
           );
 
           release();
-          await flushPromises();
+
+          await waitFor(() =>
+            expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
+              'loaded',
+            ),
+          );
+        },
+      );
+    });
+
+    it('marks accounts as loaded even when the startup fetch fails', async () => {
+      await withController(
+        { queryApiClient: createFailingQueryApiClient() },
+        async ({ controller, messenger }) => {
+          await activateTracking(messenger);
 
           expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
             'loaded',
@@ -4009,46 +4046,14 @@ describe('AssetsController', () => {
       );
     });
 
-    it('marks accounts as loaded even when the startup fetch fails', async () => {
-      await withController(async ({ controller, messenger }) => {
-        const getAssetsSpy = jest
-          .spyOn(controller, 'getAssets')
-          .mockRejectedValue(new Error('fetch failed'));
-
-        await activateTracking(messenger);
-
-        expect(controller.state.assetsLoadingStatus[MOCK_ACCOUNT_ID]).toBe(
-          'loaded',
-        );
-
-        getAssetsSpy.mockRestore();
-      });
-    });
-
     it('does not set the loading status for direct background fetches', async () => {
-      const { client, arm, release } = createGatedQueryApiClient();
+      await withController(async ({ controller }) => {
+        const account = createMockInternalAccount();
 
-      await withController(
-        { queryApiClient: client },
-        async ({ controller }) => {
-          const account = createMockInternalAccount();
+        await controller.getAssets([account], { forceUpdate: true });
 
-          await flushPromises();
-
-          arm();
-          const fetchPromise = controller.getAssets([account], {
-            forceUpdate: true,
-          });
-          await flushPromises();
-
-          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
-
-          release();
-          await fetchPromise;
-
-          expect(controller.state.assetsLoadingStatus).toStrictEqual({});
-        },
-      );
+        expect(controller.state.assetsLoadingStatus).toStrictEqual({});
+      });
     });
 
     it('emits state change events when the loading status is set and settled', async () => {
@@ -4070,19 +4075,23 @@ describe('AssetsController', () => {
             'entropy:mock-keyring-id-1/1',
             'entropy:mock-keyring-id-1/0',
           );
-          await flushPromises();
 
-          const whileLoading = stateChanges.find(
-            (state) => state.assetsLoadingStatus[MOCK_ACCOUNT_ID] === 'loading',
+          await waitFor(() =>
+            expect(
+              stateChanges.find(
+                (state) =>
+                  state.assetsLoadingStatus[MOCK_ACCOUNT_ID] === 'loading',
+              ),
+            ).toBeDefined(),
           );
-          expect(whileLoading).toBeDefined();
 
           release();
-          await flushPromises();
 
-          expect(
-            stateChanges.at(-1)?.assetsLoadingStatus[MOCK_ACCOUNT_ID],
-          ).toBe('loaded');
+          await waitFor(() =>
+            expect(
+              stateChanges.at(-1)?.assetsLoadingStatus[MOCK_ACCOUNT_ID],
+            ).toBe('loaded'),
+          );
         },
       );
     });
