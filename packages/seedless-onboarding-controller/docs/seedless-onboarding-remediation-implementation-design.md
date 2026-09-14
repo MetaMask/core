@@ -2,7 +2,7 @@
 
 ## Background context
 
-This document defines the implementation plan and design for remediating production accounts affected by inconsistent seedless onboarding backup state.
+This document defines the implementation plan and design for remediating production accounts affected by [inconsistent seedless onboarding backup state](https://docs.google.com/document/d/1Z2-hBnrYC4Q5d35_maG3uUyn297ODgmrikZDJljRqBE/edit?tab=t.0#heading=h.ic7lth3mlv9b).
 
 During seedless onboarding, the primary SRP is written to the metadata service before the TOPRF key shares and local vault are fully persisted. If key-share persistence fails, the metadata write and local backup-state update can remain even though the initialization is incomplete. A later retry can generate a different TOPRF key, skip writing the SRP because local state reports it as already backed up, and persist the new key instead. The resulting recoverable key can point to secret metadata without the primary SRP, preventing wallet rehydration on another device.
 
@@ -40,8 +40,10 @@ It is limited to repairing existing affected accounts. It does not define the ro
 
 ### Primary SRP classification
 
-- **v1:** `type` identifies whether an item contains a mnemonic or private keys, but does not identify whether a mnemonic is primary or imported. The repair compares every v1 mnemonic with the local primary SRP. A matching item is classified as `PrimarySrp`; if there is no match, the local primary SRP is added as a new v2 item.
-- **v2:** `dataType` explicitly identifies the item's role. The item marked `PrimarySrp` must match the local primary SRP, and the repair corrects the classification if it does not.
+This section describes the existing classification behavior. The repair-specific checks and corrections are defined later in `Identify affected accounts` and `Repair workflow`.
+
+- **v1:** `type` identifies whether an item contains a mnemonic or private keys. It does not say whether a mnemonic is the primary SRP or an imported SRP. The existing logic orders the items by client creation time and treats the oldest mnemonic as the primary SRP.
+- **v2:** `dataType` explicitly identifies the item's role. The existing logic uses the item marked `PrimarySrp` as the primary SRP. The `type` field still identifies whether the item contains a mnemonic or private keys.
 
 ## Solution overview
 
