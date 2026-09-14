@@ -110,8 +110,8 @@ describe('create-package/utils', () => {
         'src/index.ts': 'export default 42;',
         'src/index.test.ts': 'export default 42;',
         'mock1.file':
-          'CURRENT_YEAR NODE_VERSIONS PACKAGE_NAME PACKAGE_DESCRIPTION PACKAGE_DIRECTORY_NAME',
-        'mock2.file': 'CURRENT_YEAR NODE_VERSIONS PACKAGE_NAME',
+          'CURRENT_YEAR NODE_VERSIONS @metamask/package-template PACKAGE_DESCRIPTION PACKAGE_DIRECTORY_NAME',
+        'mock2.file': 'CURRENT_YEAR NODE_VERSIONS @metamask/package-template',
         'mock3.file': 'PACKAGE_DESCRIPTION PACKAGE_DIRECTORY_NAME',
       });
 
@@ -175,6 +175,49 @@ describe('create-package/utils', () => {
       expect(execa).toHaveBeenCalledWith('yarn', ['readme-content:update'], {
         cwd: expect.any(String),
       });
+    });
+
+    it('removes the "private" field from the template package.json', async () => {
+      const packageData: PackageData = {
+        name: '@metamask/foo',
+        description: 'A foo package.',
+        directoryName: 'foo',
+        nodeVersions: '>=18.0.0',
+        currentYear: '2023',
+      };
+
+      const monorepoFileData = {
+        tsConfig: { references: [] },
+        tsConfigBuild: { references: [] },
+        nodeVersions: '>=18.0.0',
+      };
+
+      const mockError = new Error('Not found') as NodeJS.ErrnoException;
+      mockError.code = 'ENOENT';
+      jest.mocked(fs.promises.stat).mockRejectedValue(mockError);
+
+      jest.mocked(fsUtils.readAllFiles).mockResolvedValueOnce({
+        'package.json': JSON.stringify({
+          name: '@metamask/package-template',
+          private: true,
+          version: '1.0.0',
+        }),
+      });
+
+      jest.mocked(format).mockImplementation(async (input) => input);
+
+      await finalizeAndWriteData(packageData, monorepoFileData);
+
+      expect(fsUtils.writeFiles).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          'package.json': JSON.stringify(
+            { name: '@metamask/foo', version: '1.0.0' },
+            null,
+            2,
+          ),
+        }),
+      );
     });
 
     it('throws if the package directory already exists', async () => {

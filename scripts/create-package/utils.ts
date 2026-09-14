@@ -199,7 +199,7 @@ async function processTemplateFiles(
   for (const [relativePath, content] of Object.entries(templateFiles)) {
     result[relativePath] = processTemplateContent(packageData, content);
 
-    if (relativePath === './package.json') {
+    if (relativePath === 'package.json') {
       result[relativePath] = updatePackageJson(result[relativePath]);
     }
   }
