@@ -1,5 +1,8 @@
 import { generateEIP7702BatchTransaction } from '@metamask/transaction-controller';
-import type { TransactionMeta, TransactionParams } from '@metamask/transaction-controller';
+import type {
+  TransactionMeta,
+  TransactionParams,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
 

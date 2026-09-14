@@ -196,7 +196,13 @@ async function maybePromoteSubsidizedMaxMoneyAccountQuote({
   fullRequest: PayStrategyGetQuotesRequest;
   request: QuoteRequest;
 }): Promise<TransactionPayQuote<RelayQuote>> {
-  if (!shouldAttemptAtomicPromotion(request, fullRequest.transaction, discoveryQuote)) {
+  if (
+    !shouldAttemptAtomicPromotion(
+      request,
+      fullRequest.transaction,
+      discoveryQuote,
+    )
+  ) {
     return discoveryQuote;
   }
 
@@ -205,7 +211,9 @@ async function maybePromoteSubsidizedMaxMoneyAccountQuote({
       discoveryQuote.original.details.currencyOut.amount,
     );
 
-    const transactionClone = cloneTransactionForPromotion(fullRequest.transaction);
+    const transactionClone = cloneTransactionForPromotion(
+      fullRequest.transaction,
+    );
     const promotionTransaction = await applyAmountDataUpdates({
       amount: targetAmount,
       messenger: fullRequest.messenger,
@@ -433,10 +441,7 @@ function getPromotedSourceCost({
     request.sourceTokenAddress.toLowerCase() ===
     getNativeToken(request.sourceChainId).toLowerCase();
 
-  if (
-    !sourceTokenIsNative &&
-    !promotedQuote.fees.isSourceGasFeeToken
-  ) {
+  if (!sourceTokenIsNative && !promotedQuote.fees.isSourceGasFeeToken) {
     return sourceAmount;
   }
 

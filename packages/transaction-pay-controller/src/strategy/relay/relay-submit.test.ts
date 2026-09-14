@@ -2336,8 +2336,7 @@ describe('Relay Submit Utils', () => {
         quote.request.isMaxAmount = true;
         quote.request.recipient = RECIPIENT_MOCK;
         quote.request.targetChainId = NON_ATOMIC_TARGET_CHAIN_ID_MOCK;
-        quote.request.targetTokenAddress =
-          NON_ATOMIC_TARGET_TOKEN_ADDRESS_MOCK;
+        quote.request.targetTokenAddress = NON_ATOMIC_TARGET_TOKEN_ADDRESS_MOCK;
         quote.original.details.currencyOut = {
           ...quote.original.details.currencyOut,
           currency: {
@@ -2361,12 +2360,8 @@ describe('Relay Submit Utils', () => {
         // Relay execute is invoked exactly once with the promoted quote's
         // embedded calldata, not any stale parent calldata.
         expect(submitViaRelayExecuteMock).toHaveBeenCalledTimes(1);
-        const [
-          executedQuote,
-          ,
-          ,
-          executedAllParams,
-        ] = submitViaRelayExecuteMock.mock.calls[0];
+        const [executedQuote, , , executedAllParams] =
+          submitViaRelayExecuteMock.mock.calls[0];
         expect(executedQuote.request.atomic).toBe(true);
         expect(executedQuote.request.isMaxAmount).toBe(true);
         expect(executedAllParams).toStrictEqual([

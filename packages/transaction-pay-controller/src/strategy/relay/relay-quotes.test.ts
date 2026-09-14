@@ -18,11 +18,11 @@ import {
   POLYGON_USDCE_ADDRESS,
 } from '../../constants.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
+import type { TransactionPayControllerGetAmountDataAction } from '../../TransactionPayController-method-action-types.js';
 import type {
   GetDelegationTransactionCallback,
   QuoteRequest,
 } from '../../types.js';
-import type { TransactionPayControllerGetAmountDataAction } from '../../TransactionPayController-method-action-types.js';
 import {
   DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
   DEFAULT_RELAY_QUOTE_URL,
@@ -3946,10 +3946,10 @@ describe('Relay Quotes Utils', () => {
         expect(getAmountDataMock).toHaveBeenCalledWith({
           amount: DISCOVERY_OUTPUT_RAW,
           transaction: expect.objectContaining({
-            nestedTransactions: [
-              expect.objectContaining({ data: '0xaaaa' }),
+            nestedTransactions: [expect.objectContaining({ data: '0xaaaa' })],
+            requiredAssets: [
+              expect.objectContaining({ amount: toHex(OLD_DEPOSIT_RAW) }),
             ],
-            requiredAssets: [expect.objectContaining({ amount: toHex(OLD_DEPOSIT_RAW) })],
           }),
         });
 
@@ -3991,7 +3991,9 @@ describe('Relay Quotes Utils', () => {
         expect(result[0].isInputBased).toBe(false);
         expect(result[0].sourceAmount.raw).toBe(DISCOVERY_OUTPUT_RAW);
         expect(MONEY_ACCOUNT_MAX_REQUEST).toStrictEqual(originalRequest);
-        expect(MONEY_ACCOUNT_MAX_TRANSACTION).toStrictEqual(originalTransaction);
+        expect(MONEY_ACCOUNT_MAX_TRANSACTION).toStrictEqual(
+          originalTransaction,
+        );
       });
 
       it('does not attempt promotion when the discovery quote is not subsidized', async () => {
