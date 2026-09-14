@@ -21,6 +21,74 @@ export type TransactionPayControllerSetPaySourceAction = {
 };
 
 /**
+ * Fetches and stores an executable Relay /quote/v2 Solana quote.
+ *
+ * The provider request ID is persisted before the quote can be published;
+ * the full instruction payload remains transient because recovery only
+ * observes an existing attempt and never resubmits it.
+ *
+ * @param request - Source amount and EVM destination details.
+ * @returns The Relay Solana quote for client display and confirmation.
+ */
+export type TransactionPayControllerGetSolanaPayQuoteAction = {
+  type: `TransactionPayController:getSolanaPayQuote`;
+  handler: TransactionPayController['getSolanaPayQuote'];
+};
+
+/**
+ * Performs at most one client-owned Solana sign-and-broadcast attempt.
+ *
+ * The `attempting` checkpoint is persisted before invoking the callback. Any
+ * callback rejection is treated as ambiguous and becomes `unknown`; neither
+ * this method nor recovery will invoke the callback again.
+ *
+ * @param transactionId - Target TransactionController transaction ID.
+ * @returns The latest independent source, notification, and Relay statuses.
+ */
+export type TransactionPayControllerSubmitSolanaPayAction = {
+  type: `TransactionPayController:submitSolanaPay`;
+  handler: TransactionPayController['submitSolanaPay'];
+};
+
+/**
+ * Retries only Relay's transaction-index notification.
+ *
+ * This method never invokes the signing callback and notification failure
+ * does not alter source or settlement observations.
+ *
+ * @param transactionId - Target TransactionController transaction ID.
+ * @returns The latest durable status.
+ */
+export type TransactionPayControllerRetrySolanaPayNotificationAction = {
+  type: `TransactionPayController:retrySolanaPayNotification`;
+  handler: TransactionPayController['retrySolanaPayNotification'];
+};
+
+/**
+ * Reconciles source-chain and Relay status without signing, notifying, or
+ * resubmitting. It can recover a source signature from Relay after callback
+ * loss and persists each observation for the next restart.
+ *
+ * @param transactionId - Target TransactionController transaction ID.
+ * @returns The latest durable status.
+ */
+export type TransactionPayControllerReconcileSolanaPayAction = {
+  type: `TransactionPayController:reconcileSolanaPay`;
+  handler: TransactionPayController['reconcileSolanaPay'];
+};
+
+/**
+ * Resumes observation for all persisted, non-terminal Solana Pay intents.
+ * Source submission and provider notification are intentionally excluded.
+ *
+ * @returns Latest statuses keyed by target transaction ID.
+ */
+export type TransactionPayControllerRecoverSolanaPayAction = {
+  type: `TransactionPayController:recoverSolanaPay`;
+  handler: TransactionPayController['recoverSolanaPay'];
+};
+
+/**
  * Sets the transaction configuration.
  *
  * The callback receives the current configuration properties and can mutate
@@ -156,7 +224,12 @@ export type TransactionPayControllerPolymarketSubmitDepositWalletBatchAction = {
  * Union of all TransactionPayController action types.
  */
 export type TransactionPayControllerMethodActions =
-  | TransactionPayControllerSetPaySourceAction
+  | TransactionPayControllerSetPayIntentAction
+  | TransactionPayControllerGetSolanaPayQuoteAction
+  | TransactionPayControllerSubmitSolanaPayAction
+  | TransactionPayControllerRetrySolanaPayNotificationAction
+  | TransactionPayControllerReconcileSolanaPayAction
+  | TransactionPayControllerRecoverSolanaPayAction
   | TransactionPayControllerSetTransactionConfigAction
   | TransactionPayControllerUpdatePaymentTokenAction
   | TransactionPayControllerUpdateFiatPaymentAction

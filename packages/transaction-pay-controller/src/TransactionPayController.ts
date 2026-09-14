@@ -13,13 +13,29 @@ import {
   TransactionPayStrategy,
 } from './constants.js';
 import { QuoteRefresher } from './helpers/QuoteRefresher.js';
+import { RELAY_SOLANA_CHAIN_ID } from './strategy/relay/constants.js';
+import {
+  fetchRelaySolanaQuote,
+  getRelayStatus,
+  notifyRelayTransaction,
+} from './strategy/relay/relay-api.js';
+import {
+  buildRelaySolanaQuoteRequest,
+  getInitialSolanaPayExecution,
+  getRelaySolanaTransaction,
+  mapRelayStatus,
+} from './strategy/relay/solana-pay.js';
 import type {
   GetAmountDataCallback,
   GetBalanceCallback,
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
+  GetSolanaPayQuoteRequest,
   PolymarketCallbacks,
-  SetPaySourceRequest,
+  SetPayIntentRequest,
+  SolanaPayCallbacks,
+  SolanaPayQuote,
+  SolanaPayStatus,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -27,6 +43,7 @@ import type {
   TransactionPayFiatOptions,
   TransactionPayControllerOptions,
   TransactionPayControllerState,
+  TransactionPayIntent,
   UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
 } from './types.js';
@@ -44,11 +61,16 @@ const MESSENGER_EXPOSED_METHODS = [
   'getDelegationTransaction',
   'getFiatOptions',
   'getPaymentOverrideData',
+  'getSolanaPayQuote',
   'getStrategy',
   'polymarketGetDepositWalletAddress',
+  'reconcileSolanaPay',
+  'recoverSolanaPay',
+  'retrySolanaPayNotification',
   'polymarketSubmitDepositWalletBatch',
   'setPaySource',
   'setTransactionConfig',
+  'submitSolanaPay',
   'updateFiatPayment',
   'updatePaymentToken',
 ] as const;
@@ -65,6 +87,31 @@ const stateMetadata: StateMetadata<TransactionPayControllerState> = {
 const getDefaultState = (): TransactionPayControllerState => ({
   transactionData: {},
 });
+
+type PromiseResult<Value> =
+  | { status: 'fulfilled'; value: Value }
+  | { status: 'rejected' };
+
+function observePromise<Value>(
+  promise: Promise<Value>,
+): Promise<PromiseResult<Value>> {
+  return promise.then(
+    (value) => ({ status: 'fulfilled', value }),
+    () => ({ status: 'rejected' }),
+  );
+}
+
+function getSolanaPayExecution(
+  intent: TransactionPayIntent,
+): NonNullable<TransactionPayIntent['execution']> {
+  return intent.execution ?? getInitialSolanaPayExecution();
+}
+
+function isTerminalRelayStatus(
+  status: NonNullable<TransactionPayIntent['execution']>['relayStatus'],
+): boolean {
+  return ['success', 'failure', 'refund'].includes(status);
+}
 
 export class TransactionPayController extends BaseController<
   typeof CONTROLLER_NAME,
@@ -91,6 +138,8 @@ export class TransactionPayController extends BaseController<
 
   readonly #polymarket?: PolymarketCallbacks;
 
+  readonly #solana?: SolanaPayCallbacks;
+
   constructor({
     fiatOptions,
     getAmountData,
@@ -101,6 +150,7 @@ export class TransactionPayController extends BaseController<
     getStrategies,
     messenger,
     polymarket,
+    solana,
     state,
   }: TransactionPayControllerOptions) {
     super({
@@ -118,6 +168,7 @@ export class TransactionPayController extends BaseController<
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
     this.#polymarket = polymarket;
+    this.#solana = solana;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -154,25 +205,332 @@ export class TransactionPayController extends BaseController<
    * @param request.source - Chain-agnostic payment source metadata.
    * @param request.transactionId - ID of the target transaction.
    */
-  setPaySource({ transactionId, source }: SetPaySourceRequest): void {
-    const accountChainId = parseCaipAccountId(source.sourceAccountId).chainId;
-    const assetChainId = parseCaipAssetType(source.sourceAssetId).chainId;
+  setPayIntent({ transactionId, intent }: SetPayIntentRequest): void {
+    this.#persistPayIntent(transactionId, intent, 'Set transaction pay intent');
+  }
 
-    if (accountChainId !== assetChainId) {
-      throw new Error('Pay source account and asset must use the same chain');
+  /**
+   * Fetches and stores an executable Relay /quote/v2 Solana quote.
+   *
+   * The provider request ID is persisted before the quote can be published;
+   * the full instruction payload remains transient because recovery only
+   * observes an existing attempt and never resubmits it.
+   *
+   * @param request - Source amount and EVM destination details.
+   * @returns The Relay Solana quote for client display and confirmation.
+   */
+  async getSolanaPayQuote(
+    request: GetSolanaPayQuoteRequest,
+  ): Promise<SolanaPayQuote> {
+    const intent = this.#requireSolanaPayIntent(request.transactionId);
+
+    if (getSolanaPayExecution(intent).sourceStatus !== 'not-started') {
+      throw new Error(
+        'TransactionPayController: Solana source attempt already started',
+      );
     }
 
-    updateTransaction(
+    const quoteRequest = buildRelaySolanaQuoteRequest(intent, request);
+    const quote = await fetchRelaySolanaQuote(this.messenger, quoteRequest);
+
+    getRelaySolanaTransaction(quote);
+
+    this.#persistPayIntent(
+      request.transactionId,
       {
-        transactionId,
-        messenger: this.messenger,
-        note: 'Set transaction pay source',
+        ...intent,
+        execution: getInitialSolanaPayExecution(),
+        relayFailureReason: undefined,
+        requestId: quote.requestId,
+        sourceTransactionId: undefined,
+        targetTransactionId: undefined,
       },
-      (transaction) => {
-        transaction.metamaskPay ??= {};
-        transaction.metamaskPay.source = { ...source };
-      },
+      'Set Solana pay quote checkpoint',
     );
+
+    this.#updateTransactionData(request.transactionId, (transactionData) => {
+      transactionData.solanaPayQuote = quote;
+    });
+
+    return quote;
+  }
+
+  /**
+   * Performs at most one client-owned Solana sign-and-broadcast attempt.
+   *
+   * The `attempting` checkpoint is persisted before invoking the callback. Any
+   * callback rejection is treated as ambiguous and becomes `unknown`; neither
+   * this method nor recovery will invoke the callback again.
+   *
+   * @param transactionId - Target TransactionController transaction ID.
+   * @returns The latest independent source, notification, and Relay statuses.
+   */
+  async submitSolanaPay(transactionId: string): Promise<SolanaPayStatus> {
+    const intent = this.#requireSolanaPayIntent(transactionId);
+    const execution = getSolanaPayExecution(intent);
+
+    if (execution.sourceStatus !== 'not-started') {
+      return await this.reconcileSolanaPay(transactionId);
+    }
+
+    const quote = this.state.transactionData[transactionId]?.solanaPayQuote;
+
+    if (!quote || quote.requestId !== intent.requestId) {
+      throw new Error('TransactionPayController: Missing Solana Pay quote');
+    }
+
+    const solana = this.#requireSolanaCallbacks();
+    const transaction = getRelaySolanaTransaction(quote);
+
+    this.#updatePayIntent(
+      transactionId,
+      (current) => ({
+        ...current,
+        execution: {
+          ...getSolanaPayExecution(current),
+          sourceStatus: 'attempting',
+        },
+      }),
+      'Start Solana source attempt',
+    );
+
+    const submission = await observePromise(
+      solana.signAndSendTransaction({
+        accountId: intent.sourceAccountId,
+        requestId: intent.requestId,
+        scope: intent.sourceChainId,
+        transaction,
+      }),
+    );
+
+    if (submission.status === 'rejected') {
+      this.#updatePayIntent(
+        transactionId,
+        (current) => ({
+          ...current,
+          execution: {
+            ...getSolanaPayExecution(current),
+            sourceStatus: 'unknown',
+          },
+        }),
+        'Mark Solana source attempt ambiguous',
+      );
+      return this.#getSolanaPayStatus(transactionId);
+    }
+
+    this.#updatePayIntent(
+      transactionId,
+      (current) => ({
+        ...current,
+        execution: {
+          ...getSolanaPayExecution(current),
+          providerNotificationStatus: 'pending',
+          sourceStatus: 'submitted',
+        },
+        sourceTransactionId: submission.value.transactionId,
+      }),
+      'Record Solana source transaction',
+    );
+
+    await this.retrySolanaPayNotification(transactionId);
+    return await this.reconcileSolanaPay(transactionId);
+  }
+
+  /**
+   * Retries only Relay's transaction-index notification.
+   *
+   * This method never invokes the signing callback and notification failure
+   * does not alter source or settlement observations.
+   *
+   * @param transactionId - Target TransactionController transaction ID.
+   * @returns The latest durable status.
+   */
+  async retrySolanaPayNotification(
+    transactionId: string,
+  ): Promise<SolanaPayStatus> {
+    const intent = this.#requireSolanaPayIntent(transactionId);
+
+    if (!intent.requestId || !intent.sourceTransactionId) {
+      throw new Error(
+        'TransactionPayController: Missing Solana notification correlation',
+      );
+    }
+
+    this.#updatePayIntent(
+      transactionId,
+      (current) => ({
+        ...current,
+        execution: {
+          ...getSolanaPayExecution(current),
+          providerNotificationStatus: 'pending',
+        },
+      }),
+      'Start Relay source notification',
+    );
+
+    const notification = await observePromise(
+      notifyRelayTransaction({
+        chainId: String(RELAY_SOLANA_CHAIN_ID),
+        requestId: intent.requestId,
+        txHash: intent.sourceTransactionId,
+      }),
+    );
+
+    this.#updatePayIntent(
+      transactionId,
+      (current) => ({
+        ...current,
+        execution: {
+          ...getSolanaPayExecution(current),
+          providerNotificationStatus:
+            notification.status === 'fulfilled' ? 'succeeded' : 'failed',
+        },
+      }),
+      'Record Relay source notification result',
+    );
+
+    return this.#getSolanaPayStatus(transactionId);
+  }
+
+  /**
+   * Reconciles source-chain and Relay status without signing, notifying, or
+   * resubmitting. It can recover a source signature from Relay after callback
+   * loss and persists each observation for the next restart.
+   *
+   * @param transactionId - Target TransactionController transaction ID.
+   * @returns The latest durable status.
+   */
+  async reconcileSolanaPay(transactionId: string): Promise<SolanaPayStatus> {
+    const initialIntent = this.#requireSolanaPayIntent(transactionId);
+
+    if (!initialIntent.requestId) {
+      throw new Error('TransactionPayController: Missing Relay request ID');
+    }
+
+    const relayResult = await observePromise(
+      getRelayStatus(initialIntent.requestId),
+    );
+
+    this.#updatePayIntent(
+      transactionId,
+      (current) => {
+        if (relayResult.status === 'rejected') {
+          const execution = getSolanaPayExecution(current);
+          return {
+            ...current,
+            execution: {
+              ...execution,
+              relayStatus: isTerminalRelayStatus(execution.relayStatus)
+                ? execution.relayStatus
+                : 'unknown',
+            },
+          };
+        }
+
+        const [observedSourceTransactionId] = relayResult.value.inTxHashes;
+        const sourceTransactionId =
+          current.sourceTransactionId ?? observedSourceTransactionId;
+        const [targetTransactionId] = relayResult.value.txHashes.slice(-1);
+
+        return {
+          ...current,
+          execution: {
+            ...getSolanaPayExecution(current),
+            relayStatus: mapRelayStatus(relayResult.value.status),
+            ...(!sourceTransactionId &&
+              getSolanaPayExecution(current).sourceStatus === 'attempting' && {
+                sourceStatus: 'unknown' as const,
+              }),
+          },
+          relayFailureReason:
+            relayResult.value.failReason ?? relayResult.value.refundFailReason,
+          sourceTransactionId,
+          targetTransactionId,
+        };
+      },
+      'Reconcile Relay Solana status',
+    );
+
+    const intent = this.#requireSolanaPayIntent(transactionId);
+    const { sourceStatus } = getSolanaPayExecution(intent);
+
+    if (
+      intent.sourceTransactionId &&
+      sourceStatus !== 'confirmed' &&
+      sourceStatus !== 'failed'
+    ) {
+      const sourceResult = await observePromise(
+        this.#requireSolanaCallbacks().getTransactionStatus({
+          accountId: intent.sourceAccountId,
+          scope: intent.sourceChainId,
+          transactionId: intent.sourceTransactionId,
+        }),
+      );
+
+      this.#updatePayIntent(
+        transactionId,
+        (current) => ({
+          ...current,
+          execution: {
+            ...getSolanaPayExecution(current),
+            sourceStatus:
+              sourceResult.status === 'fulfilled'
+                ? sourceResult.value
+                : 'unknown',
+          },
+        }),
+        'Reconcile Solana source status',
+      );
+    }
+
+    const status = this.#getSolanaPayStatus(transactionId);
+
+    if (
+      status.sourceStatus === 'confirmed' &&
+      status.relayStatus === 'success'
+    ) {
+      updateTransaction(
+        {
+          transactionId,
+          messenger: this.messenger,
+          note: 'Complete Solana pay intent',
+        },
+        (transaction) => {
+          transaction.isIntentComplete = true;
+        },
+      );
+    }
+
+    return status;
+  }
+
+  /**
+   * Resumes observation for all persisted, non-terminal Solana Pay intents.
+   * Source submission and provider notification are intentionally excluded.
+   *
+   * @returns Latest statuses keyed by target transaction ID.
+   */
+  async recoverSolanaPay(): Promise<Record<string, SolanaPayStatus>> {
+    const results: Record<string, SolanaPayStatus> = {};
+
+    for (const [transactionId, intent] of Object.entries(
+      this.state.payIntents,
+    )) {
+      const execution = getSolanaPayExecution(intent);
+
+      if (
+        !intent.sourceChainId.startsWith('solana:') ||
+        !intent.requestId ||
+        (['confirmed', 'failed'].includes(execution.sourceStatus) &&
+          isTerminalRelayStatus(execution.relayStatus))
+      ) {
+        continue;
+      }
+
+      results[transactionId] = await this.reconcileSolanaPay(transactionId);
+    }
+
+    return results;
   }
 
   /**
@@ -348,6 +706,69 @@ export class TransactionPayController extends BaseController<
       throw new Error('TransactionPayController: Polymarket callbacks missing');
     }
     return this.#polymarket;
+  }
+
+  #requireSolanaCallbacks(): SolanaPayCallbacks {
+    if (!this.#solana) {
+      throw new Error('TransactionPayController: Solana callbacks missing');
+    }
+    return this.#solana;
+  }
+
+  #requireSolanaPayIntent(transactionId: string): TransactionPayIntent {
+    const intent = this.state.payIntents[transactionId];
+
+    if (!intent?.sourceChainId.startsWith('solana:')) {
+      throw new Error('TransactionPayController: Solana Pay intent missing');
+    }
+
+    return intent;
+  }
+
+  #getSolanaPayStatus(transactionId: string): SolanaPayStatus {
+    const intent = this.#requireSolanaPayIntent(transactionId);
+    const execution = getSolanaPayExecution(intent);
+
+    return {
+      failureReason: intent.relayFailureReason,
+      providerNotificationStatus: execution.providerNotificationStatus,
+      relayStatus: execution.relayStatus,
+      requestId: intent.requestId as string,
+      sourceStatus: execution.sourceStatus,
+      sourceTransactionId: intent.sourceTransactionId,
+      targetTransactionId: intent.targetTransactionId,
+    };
+  }
+
+  #updatePayIntent(
+    transactionId: string,
+    updateIntent: (intent: TransactionPayIntent) => TransactionPayIntent,
+    note: string,
+  ): void {
+    const intent = this.#requireSolanaPayIntent(transactionId);
+    this.#persistPayIntent(transactionId, updateIntent(intent), note);
+  }
+
+  #persistPayIntent(
+    transactionId: string,
+    intent: TransactionPayIntent,
+    note: string,
+  ): void {
+    updateTransaction(
+      {
+        transactionId,
+        messenger: this.messenger,
+        note,
+      },
+      (transaction) => {
+        transaction.metamaskPay ??= {};
+        transaction.metamaskPay.intent = { ...intent };
+      },
+    );
+
+    this.update((state) => {
+      state.payIntents[transactionId] = { ...intent };
+    });
   }
 
   #removeTransactionData(transactionId: string): void {

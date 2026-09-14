@@ -33,6 +33,36 @@ export type RelayQuoteRequest = {
   };
 };
 
+export type RelaySolanaQuoteRequest = {
+  amount: string;
+  destinationChainId: number;
+  destinationCurrency: Hex;
+  originChainId: number;
+  originCurrency: string;
+  recipient: Hex;
+  refundTo: string;
+  tradeType: 'EXACT_INPUT';
+  user: string;
+};
+
+export type RelaySolanaInstructionKey = {
+  pubkey: string;
+  isSigner: boolean;
+  isWritable: boolean;
+};
+
+export type RelaySolanaInstruction = {
+  programId: string;
+  keys: RelaySolanaInstructionKey[];
+  data: string;
+};
+
+export type RelaySolanaTransaction = {
+  chainId: number;
+  instructions: RelaySolanaInstruction[];
+  addressLookupTableAddresses?: string[];
+};
+
 export type RelayQuote = {
   details: {
     currencyIn: {
@@ -157,6 +187,24 @@ export type RelayHyperliquidDepositStep = {
   depositAddress?: string;
 };
 
+export type RelaySolanaQuote = Pick<RelayQuote, 'details' | 'fees'> & {
+  requestId: string;
+  request?: RelaySolanaQuoteRequest;
+  steps: {
+    id: string;
+    items: {
+      check: {
+        endpoint: string;
+        method: 'GET' | 'POST';
+      };
+      data: RelaySolanaTransaction;
+      status: 'complete' | 'incomplete';
+    }[];
+    kind: 'transaction';
+    requestId: string;
+  }[];
+};
+
 type RelayQuoteMetamaskBase = {
   isExecute?: boolean;
   isMaxGasStation?: boolean;
@@ -222,6 +270,10 @@ export type RelayStatusResponse = {
   updatedAt: number;
   originChainId: number;
   destinationChainId: number;
+  quoteCreatedAt?: number;
+  failReason?: string;
+  refundFailReason?: string;
+  details?: Record<string, unknown>;
 };
 
 export type RelayCompletionOutcome = {

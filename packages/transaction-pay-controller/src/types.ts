@@ -44,7 +44,9 @@ import type {
 import type {
   BatchTransaction,
   BatchTransactionParams,
-  MetamaskPaySource,
+  MetamaskPayIntent,
+  MetamaskPayRelayStatus,
+  MetamaskPaySourceStatus,
   TransactionControllerAddTransactionAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
@@ -52,7 +54,7 @@ import type {
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { Hex, Json } from '@metamask/utils';
+import type { CaipAccountId, CaipChainId, Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type {
@@ -60,6 +62,10 @@ import type {
   PaymentOverride,
   TransactionPayStrategy,
 } from './constants.js';
+import type {
+  RelaySolanaQuote,
+  RelaySolanaTransaction,
+} from './strategy/relay/types.js';
 import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types.js';
 
 export type AllowedActions =
@@ -277,6 +283,99 @@ export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
   'Money Keyring',
 ];
 
+/** Request to fetch an executable Solana-source Relay quote. */
+export type GetSolanaPayQuoteRequest = {
+  /** Source amount in atomic units. */
+  amount: string;
+
+  /** Destination EVM chain ID. */
+  destinationChainId: Hex;
+
+  /** Destination EVM token address. */
+  destinationCurrency: Hex;
+
+  /** Destination EVM account. */
+  recipient: Hex;
+
+  /** Target TransactionController transaction ID. */
+  transactionId: string;
+};
+
+/** Relay /quote/v2 response containing an SVM instruction handoff. */
+export type SolanaPayQuote = RelaySolanaQuote;
+
+/** Request passed to the client-owned Solana sign-and-broadcast boundary. */
+export type SolanaPaySignAndSendTransactionRequest = {
+  /** Canonical source account used by the Snap client request. */
+  accountId: CaipAccountId;
+
+  /** Relay correlation ID. */
+  requestId: string;
+
+  /** Canonical Solana chain scope used by the Snap client request. */
+  scope: CaipChainId;
+
+  /** Relay instructions and LUT addresses to compile with a fresh blockhash. */
+  transaction: RelaySolanaTransaction;
+};
+
+/** Request used to observe a previously submitted Solana transaction. */
+export type GetSolanaPayTransactionStatusRequest = {
+  /** Canonical source account. */
+  accountId: CaipAccountId;
+
+  /** Canonical Solana chain scope. */
+  scope: CaipChainId;
+
+  /** Base58 Solana transaction signature. */
+  transactionId: string;
+};
+
+/** Client-owned Solana operations required by TransactionPayController. */
+export type SolanaPayCallbacks = {
+  /**
+   * Compiles the Relay instruction/LUT handoff, then invokes
+   * `SnapController:handleRequest` with `signAndSendTransaction` exactly once.
+   * The callback returns the base58 transaction signature.
+   */
+  signAndSendTransaction: (
+    request: SolanaPaySignAndSendTransactionRequest,
+  ) => Promise<{ transactionId: string }>;
+
+  /** Observes source-chain status without submitting or resubmitting. */
+  getTransactionStatus: (
+    request: GetSolanaPayTransactionStatusRequest,
+  ) => Promise<'pending' | 'confirmed' | 'failed' | 'unknown'>;
+};
+
+/** Independent durable observations returned by reconciliation. */
+export type SolanaPayStatus = {
+  /** Provider failure classification, when supplied by Relay. */
+  failureReason?: string;
+
+  /** Status of the Relay transaction-index notification. */
+  providerNotificationStatus:
+    | 'not-started'
+    | 'pending'
+    | 'succeeded'
+    | 'failed';
+
+  /** Relay request ID. */
+  requestId: string;
+
+  /** Relay settlement status. */
+  relayStatus: MetamaskPayRelayStatus;
+
+  /** Source-chain observation status. */
+  sourceStatus: MetamaskPaySourceStatus;
+
+  /** Base58 source transaction signature, when known. */
+  sourceTransactionId?: string;
+
+  /** Destination transaction identifier, when Relay reports one. */
+  targetTransactionId?: string;
+};
+
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {
   /** Optional callback to re-encode nested transaction calldata for a given amount. */
@@ -308,6 +407,9 @@ export type TransactionPayControllerOptions = {
 
   /** Callbacks for the Polymarket relayer; required only for the Polymarket deposit-wallet flow. */
   polymarket?: PolymarketCallbacks;
+
+  /** Client-owned Solana compilation, Snap submission, and observation operations. */
+  solana?: SolanaPayCallbacks;
 
   /** Initial state of the controller. */
   state?: Partial<TransactionPayControllerState>;
@@ -401,6 +503,9 @@ export type TransactionData = {
 
   /** Quotes retrieved for the transaction. */
   quotes?: TransactionPayQuote<Json>[];
+
+  /** Transient executable Relay /quote/v2 response for a Solana source. */
+  solanaPayQuote?: SolanaPayQuote;
 
   /** Most relevant structured validation error from the latest quote attempt. */
   quoteError?: QuoteErrorInfo;

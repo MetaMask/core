@@ -31,6 +31,7 @@ import type {
   TransactionPayControllerGetPaymentOverrideDataAction,
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerPolymarketGetDepositWalletAddressAction,
+  TransactionPayControllerSubmitSolanaPayAction,
   TransactionPayControllerPolymarketSubmitDepositWalletBatchAction,
 } from '../TransactionPayController-method-action-types.js';
 import type { TransactionPayControllerGetStateAction } from '../types.js';
@@ -127,6 +128,10 @@ export function getMessengerMock({
 
   const polymarketGetDepositWalletAddressMock: jest.MockedFn<
     TransactionPayControllerPolymarketGetDepositWalletAddressAction['handler']
+  > = jest.fn();
+
+  const submitSolanaPayMock: jest.MockedFn<
+    TransactionPayControllerSubmitSolanaPayAction['handler']
   > = jest.fn();
 
   const polymarketSubmitDepositWalletBatchMock: jest.MockedFn<
@@ -270,6 +275,11 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'TransactionPayController:submitSolanaPay',
+      submitSolanaPayMock,
+    );
+
+    messenger.registerActionHandler(
       'TransactionPayController:polymarketSubmitDepositWalletBatch',
       polymarketSubmitDepositWalletBatchMock,
     );
@@ -336,6 +346,7 @@ export function getMessengerMock({
     polymarketSubmitDepositWalletBatchMock,
     publish,
     simulateTransactionsMock,
+    submitSolanaPayMock,
     updateTransactionMock,
   };
 }

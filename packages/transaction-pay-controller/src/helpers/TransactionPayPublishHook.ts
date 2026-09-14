@@ -65,6 +65,26 @@ export class TransactionPayPublishHook {
     );
 
     const transactionData = controllerState.transactionData?.[transactionId];
+    const payIntent = controllerState.payIntents?.[transactionId];
+
+    if (payIntent?.sourceChainId.startsWith('solana:')) {
+      updateTransaction(
+        {
+          transactionId,
+          messenger: this.#messenger,
+          note: 'Set submittedTime at Solana pay publish hook start',
+        },
+        (transaction) => {
+          transaction.submittedTime = new Date().getTime();
+        },
+      );
+
+      await this.#messenger.call(
+        'TransactionPayController:submitSolanaPay',
+        transactionId,
+      );
+      return EMPTY_RESULT;
+    }
 
     // No-op quotes mark direct routes and cannot be executed by any strategy.
     const quotes = (

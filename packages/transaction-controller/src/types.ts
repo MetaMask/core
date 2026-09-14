@@ -2158,13 +2158,77 @@ export type AssetsFiatValues = {
   sending?: string;
 };
 
-/** Chain-agnostic source metadata for a MetaMask Pay transaction. */
-export type MetamaskPaySource = {
+/** Status observed independently for a MetaMask Pay source transaction. */
+export type MetamaskPaySourceStatus =
+  | 'not-started'
+  | 'attempting'
+  | 'submitted'
+  | 'pending'
+  | 'confirmed'
+  | 'failed'
+  | 'unknown';
+
+/** Status observed independently for MetaMask Pay Relay settlement. */
+export type MetamaskPayRelayStatus =
+  | 'not-started'
+  | 'pending'
+  | 'success'
+  | 'failure'
+  | 'refund'
+  | 'unknown';
+
+/** Status of MetaMask Pay provider notification delivery. */
+export type MetamaskPayProviderNotificationStatus =
+  | 'not-started'
+  | 'pending'
+  | 'succeeded'
+  | 'failed';
+
+/** Durable checkpoints for one source submission attempt. */
+export type MetamaskPayExecution = {
+  /** Status observed independently for the source-chain transaction. */
+  sourceStatus: MetamaskPaySourceStatus;
+
+  /** Status observed independently for Relay settlement. */
+  relayStatus: MetamaskPayRelayStatus;
+
+  /** Status of the optional Relay transaction-index notification. */
+  providerNotificationStatus: MetamaskPayProviderNotificationStatus;
+};
+
+/**
+ * Durable MetaMask Pay intent for a chain-agnostic payment source.
+ *
+ * The target transaction is the TransactionController record containing this
+ * intent, or the key of this intent in TransactionPayController state.
+ */
+export type MetamaskPayIntent = {
+  /** Schema version of the persisted intent. */
+  version: 1;
+
   /** Canonical CAIP-10 identity of the source account. */
   sourceAccountId: CaipAccountId;
 
   /** Canonical CAIP-19 identity of the source asset. */
   sourceAssetId: CaipAssetType;
+
+  /** Explicit CAIP-2 identity of the source chain. */
+  sourceChainId: CaipChainId;
+
+  /** Provider request ID used to reconcile execution after restart. */
+  requestId?: string;
+
+  /** Chain-native source transaction identifier, such as a Solana signature. */
+  sourceTransactionId?: string;
+
+  /** Durable one-attempt execution checkpoints. */
+  execution?: MetamaskPayExecution;
+
+  /** Destination transaction identifier observed from Relay settlement. */
+  targetTransactionId?: string;
+
+  /** Provider failure classification observed during reconciliation. */
+  relayFailureReason?: string;
 };
 
 /** Metadata specific to the MetaMask Pay feature. */

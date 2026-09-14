@@ -9,6 +9,12 @@ import { updatePaymentToken } from './actions/update-payment-token.js';
 import { PaymentOverride, TransactionPayStrategy } from './constants.js';
 import { TransactionPayController } from './index.js';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils.js';
+import {
+  fetchRelaySolanaQuote,
+  getRelayStatus,
+  notifyRelayTransaction,
+} from './strategy/relay/relay-api.js';
+import type { RelaySolanaQuote } from './strategy/relay/types.js';
 import { getMessengerMock } from './tests/messenger-mock.js';
 import type {
   TransactionPayControllerMessenger,
@@ -30,6 +36,7 @@ import {
 jest.mock('./actions/update-fiat-payment');
 jest.mock('./actions/update-payment-token');
 jest.mock('./strategy/fiat/utils');
+jest.mock('./strategy/relay/relay-api');
 jest.mock('./utils/source-amounts');
 jest.mock('./utils/quotes');
 jest.mock('./utils/transaction');
@@ -39,18 +46,90 @@ const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_META_MOCK = { id: TRANSACTION_ID_MOCK } as TransactionMeta;
 const TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
-const SOLANA_PAY_SOURCE_MOCK: TransactionPaySource = {
-  sourceAccountId:
-    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z' as CaipAccountId,
-  sourceAssetId:
-    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as CaipAssetType,
+const SOLANA_CHAIN_ID =
+  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as CaipChainId;
+const SOLANA_ACCOUNT_ID =
+  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z' as CaipAccountId;
+const SOLANA_ASSET_ID =
+  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as CaipAssetType;
+const SOLANA_TRANSACTION_ID =
+  '5KtPn3tE7mWcMgvBvXhXxF9xQmP9xNj7wT6oYxj3BbJpfK2p5yhx2S1QnW8gQwJm7U3F5v9hQmXk8b2mJ7dP4c';
+const SOLANA_PAY_INTENT_MOCK: TransactionPayIntent = {
+  version: 1,
+  sourceAccountId: SOLANA_ACCOUNT_ID,
+  sourceAssetId: SOLANA_ASSET_ID,
+  sourceChainId: SOLANA_CHAIN_ID,
+  requestId: 'relay-request-123',
+  sourceTransactionId: SOLANA_TRANSACTION_ID,
 };
+
+const SOLANA_QUOTE_MOCK: RelaySolanaQuote = {
+  requestId: 'relay-request-123',
+  details: {
+    currencyIn: {
+      amount: '1000000',
+      amountFormatted: '1',
+      amountUsd: '1',
+      currency: { chainId: 792703809, decimals: 6 },
+    },
+    currencyOut: {
+      amount: '999000',
+      amountFormatted: '0.999',
+      amountUsd: '0.999',
+      currency: { chainId: 42161, decimals: 6 },
+      minimumAmount: '995000',
+    },
+    timeEstimate: 15,
+    totalImpact: { usd: '0.001' },
+  },
+  fees: { relayer: { amountUsd: '0.001' } },
+  steps: [
+    {
+      id: 'deposit',
+      kind: 'transaction',
+      requestId: 'relay-request-123',
+      items: [
+        {
+          check: {
+            endpoint:
+              'https://api.relay.link/intents/status/v3?requestId=relay-request-123',
+            method: 'GET',
+          },
+          data: {
+            chainId: 792703809,
+            instructions: [
+              {
+                programId: '11111111111111111111111111111111',
+                keys: [
+                  {
+                    pubkey: '7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+                    isSigner: true,
+                    isWritable: true,
+                  },
+                ],
+                data: '02000000',
+              },
+            ],
+            addressLookupTableAddresses: [
+              'HZaWndaNWHFDd9Dhk5PQcJmR4aLQv3Y5nVf2gQmMEz2x',
+            ],
+          },
+          status: 'incomplete',
+        },
+      ],
+    },
+  ],
+};
+
 describe('TransactionPayController', () => {
   const updateFiatPaymentMock = jest.mocked(updateFiatPayment);
   const updatePaymentTokenMock = jest.mocked(updatePaymentToken);
   const deriveFiatAssetForFiatPaymentMock = jest.mocked(
     deriveFiatAssetForFiatPayment,
   );
+  const fetchRelaySolanaQuoteMock = jest.mocked(fetchRelaySolanaQuote);
+  const getRelayStatusMock = jest.mocked(getRelayStatus);
+  const notifyRelayTransactionMock = jest.mocked(notifyRelayTransaction);
   const getTransactionMock = jest.mocked(getTransaction);
   const updateTransactionMock = jest.mocked(updateTransaction);
   const updateSourceAmountsMock = jest.mocked(updateSourceAmounts);
@@ -99,6 +178,16 @@ describe('TransactionPayController', () => {
 
     getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
     updateQuotesMock.mockResolvedValue(true);
+    fetchRelaySolanaQuoteMock.mockResolvedValue(SOLANA_QUOTE_MOCK);
+    notifyRelayTransactionMock.mockResolvedValue();
+    getRelayStatusMock.mockResolvedValue({
+      destinationChainId: 42161,
+      inTxHashes: [SOLANA_TRANSACTION_ID],
+      originChainId: 792703809,
+      status: 'pending',
+      txHashes: [],
+      updatedAt: 1,
+    });
   });
 
   describe('constructor', () => {
@@ -234,6 +323,411 @@ describe('TransactionPayController', () => {
       });
 
       expect(updateTransactionMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Solana Pay', () => {
+    const GET_QUOTE_REQUEST = {
+      amount: '1000000',
+      destinationChainId: '0xa4b1' as Hex,
+      destinationCurrency: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' as Hex,
+      recipient: '0x1234567890123456789012345678901234567890' as Hex,
+      transactionId: TRANSACTION_ID_MOCK,
+    };
+
+    function getUnquotedIntent(): TransactionPayIntent {
+      return {
+        version: 1,
+        sourceAccountId: SOLANA_ACCOUNT_ID,
+        sourceAssetId: SOLANA_ASSET_ID,
+        sourceChainId: SOLANA_CHAIN_ID,
+      };
+    }
+
+    it('rejects quote requests without a persisted Solana intent', async () => {
+      const controller = createController();
+
+      await expect(
+        controller.getSolanaPayQuote(GET_QUOTE_REQUEST),
+      ).rejects.toThrow('Solana Pay intent missing');
+    });
+
+    it('fetches a production Relay quote and persists its request checkpoint', async () => {
+      const controller = createController({
+        state: {
+          payIntents: { [TRANSACTION_ID_MOCK]: getUnquotedIntent() },
+        },
+      });
+
+      const quote = await controller.getSolanaPayQuote(GET_QUOTE_REQUEST);
+
+      expect(fetchRelaySolanaQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({
+          originChainId: 792703809,
+          originCurrency: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+          tradeType: 'EXACT_INPUT',
+        }),
+      );
+      expect(quote).toBe(SOLANA_QUOTE_MOCK);
+      expect(controller.state.payIntents[TRANSACTION_ID_MOCK]).toMatchObject({
+        requestId: 'relay-request-123',
+        execution: {
+          providerNotificationStatus: 'not-started',
+          relayStatus: 'not-started',
+          sourceStatus: 'not-started',
+        },
+      });
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].solanaPayQuote,
+      ).toBe(SOLANA_QUOTE_MOCK);
+    });
+
+    it('rejects submission when the transient quote is unavailable', async () => {
+      const controller = createController({
+        solana: {
+          getTransactionStatus: jest.fn(),
+          signAndSendTransaction: jest.fn(),
+        },
+        state: {
+          payIntents: {
+            [TRANSACTION_ID_MOCK]: {
+              ...getUnquotedIntent(),
+              requestId: 'relay-request-123',
+              execution: {
+                providerNotificationStatus: 'not-started',
+                relayStatus: 'not-started',
+                sourceStatus: 'not-started',
+              },
+            },
+          },
+        },
+      });
+
+      await expect(
+        controller.submitSolanaPay(TRANSACTION_ID_MOCK),
+      ).rejects.toThrow('Missing Solana Pay quote');
+    });
+
+    it('rejects submission when Solana callbacks are not configured', async () => {
+      const controller = createController({
+        state: {
+          payIntents: { [TRANSACTION_ID_MOCK]: getUnquotedIntent() },
+        },
+      });
+      await controller.getSolanaPayQuote(GET_QUOTE_REQUEST);
+
+      await expect(
+        controller.submitSolanaPay(TRANSACTION_ID_MOCK),
+      ).rejects.toThrow('Solana callbacks missing');
+    });
+
+    it('invokes the sign-and-send callback once and never resubmits', async () => {
+      const signAndSendTransaction = jest.fn().mockResolvedValue({
+        transactionId: SOLANA_TRANSACTION_ID,
+      });
+      const getTransactionStatus = jest.fn().mockResolvedValue('pending');
+      const controller = createController({
+        solana: { getTransactionStatus, signAndSendTransaction },
+        state: {
+          payIntents: { [TRANSACTION_ID_MOCK]: getUnquotedIntent() },
+        },
+      });
+      await controller.getSolanaPayQuote(GET_QUOTE_REQUEST);
+
+      await controller.submitSolanaPay(TRANSACTION_ID_MOCK);
+      await controller.submitSolanaPay(TRANSACTION_ID_MOCK);
+
+      expect(signAndSendTransaction).toHaveBeenCalledTimes(1);
+      expect(signAndSendTransaction).toHaveBeenCalledWith({
+        accountId: SOLANA_ACCOUNT_ID,
+        requestId: 'relay-request-123',
+        scope: SOLANA_CHAIN_ID,
+        transaction: SOLANA_QUOTE_MOCK.steps[0].items[0].data,
+      });
+      expect(
+        controller.state.payIntents[TRANSACTION_ID_MOCK].sourceTransactionId,
+      ).toBe(SOLANA_TRANSACTION_ID);
+    });
+
+    it('persists an ambiguous callback rejection and never resubmits', async () => {
+      const signAndSendTransaction = jest
+        .fn()
+        .mockRejectedValue(new Error('Snap callback lost'));
+      const controller = createController({
+        solana: {
+          getTransactionStatus: jest.fn(),
+          signAndSendTransaction,
+        },
+        state: {
+          payIntents: { [TRANSACTION_ID_MOCK]: getUnquotedIntent() },
+        },
+      });
+      getRelayStatusMock.mockResolvedValue({
+        destinationChainId: 42161,
+        inTxHashes: [],
+        originChainId: 792703809,
+        status: 'waiting',
+        txHashes: [],
+        updatedAt: 1,
+      });
+      await controller.getSolanaPayQuote(GET_QUOTE_REQUEST);
+
+      const firstStatus = await controller.submitSolanaPay(TRANSACTION_ID_MOCK);
+      const recoveredStatus =
+        await controller.submitSolanaPay(TRANSACTION_ID_MOCK);
+
+      expect(firstStatus.sourceStatus).toBe('unknown');
+      expect(recoveredStatus.sourceStatus).toBe('unknown');
+      expect(signAndSendTransaction).toHaveBeenCalledTimes(1);
+      await expect(
+        controller.getSolanaPayQuote(GET_QUOTE_REQUEST),
+      ).rejects.toThrow('Solana source attempt already started');
+      expect(fetchRelaySolanaQuoteMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects notification retry without stable request and source correlation', async () => {
+      const controller = createController({
+        state: {
+          payIntents: { [TRANSACTION_ID_MOCK]: getUnquotedIntent() },
+        },
+      });
+
+      await expect(
+        controller.retrySolanaPayNotification(TRANSACTION_ID_MOCK),
+      ).rejects.toThrow('Missing Solana notification correlation');
+    });
+
+    it('retries provider notification without resubmitting', async () => {
+      const signAndSendTransaction = jest.fn().mockResolvedValue({
+        transactionId: SOLANA_TRANSACTION_ID,
+      });
+      const controller = createController({
+        solana: {
+          getTransactionStatus: jest.fn().mockResolvedValue('pending'),
+          signAndSendTransaction,
+        },
+        state: {
+          payIntents: { [TRANSACTION_ID_MOCK]: getUnquotedIntent() },
+        },
+      });
+      notifyRelayTransactionMock.mockRejectedValueOnce(
+        new Error('index unavailable'),
+      );
+      await controller.getSolanaPayQuote(GET_QUOTE_REQUEST);
+
+      const submissionStatus =
+        await controller.submitSolanaPay(TRANSACTION_ID_MOCK);
+      const notificationStatus =
+        await controller.retrySolanaPayNotification(TRANSACTION_ID_MOCK);
+
+      expect(submissionStatus.providerNotificationStatus).toBe('failed');
+      expect(notificationStatus.providerNotificationStatus).toBe('succeeded');
+      expect(notifyRelayTransactionMock).toHaveBeenCalledTimes(2);
+      expect(signAndSendTransaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('marks unavailable source and Relay observations as unknown', async () => {
+      const controller = createController({
+        solana: {
+          getTransactionStatus: jest
+            .fn()
+            .mockRejectedValue(new Error('RPC unavailable')),
+          signAndSendTransaction: jest.fn(),
+        },
+        state: {
+          payIntents: {
+            [TRANSACTION_ID_MOCK]: {
+              ...SOLANA_PAY_INTENT_MOCK,
+              execution: {
+                providerNotificationStatus: 'succeeded',
+                relayStatus: 'pending',
+                sourceStatus: 'submitted',
+              },
+            },
+          },
+        },
+      });
+      getRelayStatusMock.mockRejectedValue(new Error('Relay unavailable'));
+
+      const status = await controller.reconcileSolanaPay(TRANSACTION_ID_MOCK);
+
+      expect(status.relayStatus).toBe('unknown');
+      expect(status.sourceStatus).toBe('unknown');
+    });
+
+    it('does not erase a terminal Relay observation when status is unavailable', async () => {
+      const controller = createController({
+        solana: {
+          getTransactionStatus: jest.fn().mockResolvedValue('pending'),
+          signAndSendTransaction: jest.fn(),
+        },
+        state: {
+          payIntents: {
+            [TRANSACTION_ID_MOCK]: {
+              ...SOLANA_PAY_INTENT_MOCK,
+              execution: {
+                providerNotificationStatus: 'succeeded',
+                relayStatus: 'success',
+                sourceStatus: 'pending',
+              },
+            },
+          },
+        },
+      });
+      getRelayStatusMock.mockRejectedValue(new Error('Relay unavailable'));
+
+      const status = await controller.reconcileSolanaPay(TRANSACTION_ID_MOCK);
+
+      expect(status.relayStatus).toBe('success');
+      expect(status.sourceStatus).toBe('pending');
+    });
+
+    it('rejects reconciliation without Relay correlation', async () => {
+      const controller = createController({
+        state: {
+          payIntents: { [TRANSACTION_ID_MOCK]: getUnquotedIntent() },
+        },
+      });
+
+      await expect(
+        controller.reconcileSolanaPay(TRANSACTION_ID_MOCK),
+      ).rejects.toThrow('Missing Relay request ID');
+    });
+
+    it('recovers a callback-lost source signature and reconciles both status axes', async () => {
+      const signAndSendTransaction = jest.fn();
+      const controller = createController({
+        solana: {
+          getTransactionStatus: jest.fn().mockResolvedValue('confirmed'),
+          signAndSendTransaction,
+        },
+        state: {
+          payIntents: {
+            [TRANSACTION_ID_MOCK]: {
+              ...getUnquotedIntent(),
+              requestId: 'relay-request-123',
+              execution: {
+                providerNotificationStatus: 'not-started',
+                relayStatus: 'pending',
+                sourceStatus: 'attempting',
+              },
+            },
+          },
+        },
+      });
+      getRelayStatusMock.mockResolvedValue({
+        destinationChainId: 42161,
+        inTxHashes: [SOLANA_TRANSACTION_ID],
+        originChainId: 792703809,
+        status: 'success',
+        txHashes: ['0xtarget'],
+        updatedAt: 1,
+      });
+
+      const statuses = await controller.recoverSolanaPay();
+
+      expect(statuses[TRANSACTION_ID_MOCK]).toMatchObject({
+        relayStatus: 'success',
+        sourceStatus: 'confirmed',
+        sourceTransactionId: SOLANA_TRANSACTION_ID,
+        targetTransactionId: '0xtarget',
+      });
+      expect(signAndSendTransaction).not.toHaveBeenCalled();
+
+      const completionCall = updateTransactionMock.mock.calls.find(
+        ([request]) => request.note === 'Complete Solana pay intent',
+      );
+      const transaction = {} as TransactionMeta;
+      completionCall?.[1](transaction);
+      expect(transaction.isIntentComplete).toBe(true);
+    });
+
+    it('skips intents that cannot or no longer need recovery', async () => {
+      const controller = createController({
+        state: {
+          payIntents: {
+            'non-solana': {
+              ...getUnquotedIntent(),
+              sourceChainId: 'eip155:1' as CaipChainId,
+            },
+            'missing-request': getUnquotedIntent(),
+            terminal: {
+              ...SOLANA_PAY_INTENT_MOCK,
+              execution: {
+                providerNotificationStatus: 'succeeded',
+                relayStatus: 'refund',
+                sourceStatus: 'confirmed',
+              },
+            },
+          },
+        },
+      });
+
+      expect(await controller.recoverSolanaPay()).toStrictEqual({});
+      expect(getRelayStatusMock).not.toHaveBeenCalled();
+    });
+
+    it('preserves source failure separately from pending Relay settlement', async () => {
+      const controller = createController({
+        solana: {
+          getTransactionStatus: jest.fn().mockResolvedValue('failed'),
+          signAndSendTransaction: jest.fn(),
+        },
+        state: {
+          payIntents: {
+            [TRANSACTION_ID_MOCK]: {
+              ...SOLANA_PAY_INTENT_MOCK,
+              execution: {
+                providerNotificationStatus: 'succeeded',
+                relayStatus: 'pending',
+                sourceStatus: 'submitted',
+              },
+            },
+          },
+        },
+      });
+
+      const status = await controller.reconcileSolanaPay(TRANSACTION_ID_MOCK);
+
+      expect(status.sourceStatus).toBe('failed');
+      expect(status.relayStatus).toBe('pending');
+    });
+
+    it('preserves Relay failure separately from confirmed source submission', async () => {
+      const controller = createController({
+        solana: {
+          getTransactionStatus: jest.fn().mockResolvedValue('confirmed'),
+          signAndSendTransaction: jest.fn(),
+        },
+        state: {
+          payIntents: {
+            [TRANSACTION_ID_MOCK]: {
+              ...SOLANA_PAY_INTENT_MOCK,
+              execution: {
+                providerNotificationStatus: 'succeeded',
+                relayStatus: 'pending',
+                sourceStatus: 'submitted',
+              },
+            },
+          },
+        },
+      });
+      getRelayStatusMock.mockResolvedValue({
+        destinationChainId: 42161,
+        failReason: 'DESTINATION_TX_FAILED',
+        inTxHashes: [SOLANA_TRANSACTION_ID],
+        originChainId: 792703809,
+        status: 'failure',
+        txHashes: [],
+        updatedAt: 1,
+      });
+
+      const status = await controller.reconcileSolanaPay(TRANSACTION_ID_MOCK);
+
+      expect(status.sourceStatus).toBe('confirmed');
+      expect(status.relayStatus).toBe('failure');
+      expect(status.failureReason).toBe('DESTINATION_TX_FAILED');
     });
   });
 
