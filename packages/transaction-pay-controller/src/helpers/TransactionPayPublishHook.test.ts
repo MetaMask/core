@@ -2,6 +2,7 @@ import type {
   PublishHookResult,
   TransactionMeta,
 } from '@metamask/transaction-controller';
+import type { CaipChainId } from '@metamask/utils';
 
 import { TransactionPayStrategy } from '../index.js';
 import { getMessengerMock } from '../tests/messenger-mock.js';
@@ -35,6 +36,7 @@ describe('TransactionPayPublishHook', () => {
     getControllerStateMock,
     getKeyringControllerStateMock,
     getTransactionControllerStateMock,
+    submitSolanaPayMock,
     updateTransactionMock,
   } = getMessengerMock();
 
@@ -86,6 +88,29 @@ describe('TransactionPayPublishHook', () => {
     getTransactionControllerStateMock.mockReturnValue({
       transactions: [TRANSACTION_META_MOCK],
     });
+  });
+
+  it('routes a persisted Solana intent through the controller submission boundary', async () => {
+    getControllerStateMock.mockReturnValue({
+      payIntents: {
+        [TRANSACTION_META_MOCK.id]: {
+          version: 1,
+          sourceAccountId:
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+          sourceAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+          sourceChainId:
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as CaipChainId,
+        },
+      },
+      transactionData: {},
+    } as TransactionPayControllerState);
+
+    const result = await runHook();
+
+    expect(submitSolanaPayMock).toHaveBeenCalledTimes(1);
+    expect(submitSolanaPayMock).toHaveBeenCalledWith(TRANSACTION_META_MOCK.id);
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(result).toStrictEqual({ transactionHash: undefined });
   });
 
   it('executes strategy with quotes', async () => {

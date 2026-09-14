@@ -1,11 +1,13 @@
 import type { TransactionPayControllerMessenger } from '../../types.js';
 import { getFeatureFlags } from '../../utils/feature-flags.js';
-import { RELAY_STATUS_URL } from './constants.js';
+import { RELAY_STATUS_URL, RELAY_TRANSACTIONS_INDEX_URL } from './constants.js';
 import type {
   RelayExecuteRequest,
   RelayExecuteResponse,
   RelayQuote,
   RelayQuoteRequest,
+  RelaySolanaQuote,
+  RelaySolanaQuoteRequest,
   RelayStatusResponse,
 } from './types.js';
 
@@ -35,6 +37,54 @@ export async function fetchRelayQuote(
   quote.request = body;
 
   return quote;
+}
+
+/**
+ * Fetch an executable Solana quote from Relay /quote/v2.
+ *
+ * @param messenger - Controller messenger.
+ * @param body - Solana quote request.
+ * @param signal - Optional abort signal.
+ * @returns The validated-at-consumption quote response with its request attached.
+ */
+export async function fetchRelaySolanaQuote(
+  messenger: TransactionPayControllerMessenger,
+  body: RelaySolanaQuoteRequest,
+  signal?: AbortSignal,
+): Promise<RelaySolanaQuote> {
+  const { relayQuoteUrl } = getFeatureFlags(messenger);
+  const response = await relayFetch(relayQuoteUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  });
+  const quote = (await response.json()) as RelaySolanaQuote;
+  quote.request = body;
+  return quote;
+}
+
+/**
+ * Notifies Relay about a wallet-broadcast source transaction.
+ *
+ * This operation is deliberately separate from signing/broadcasting so it can
+ * be retried without ever resubmitting the source transaction.
+ *
+ * @param request - Stable source transaction correlation.
+ * @param request.chainId - Relay numeric source chain ID.
+ * @param request.requestId - Relay request correlation ID.
+ * @param request.txHash - Base58 source transaction signature.
+ */
+export async function notifyRelayTransaction(request: {
+  chainId: string;
+  requestId: string;
+  txHash: string;
+}): Promise<void> {
+  await relayFetch(RELAY_TRANSACTIONS_INDEX_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  });
 }
 
 /**

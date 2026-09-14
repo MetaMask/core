@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add validated chain-agnostic Pay source metadata to persisted transaction records while keeping ordinary Pay selection state transient ([#10272](https://github.com/MetaMask/core/pull/10272))
+- Add a persisted, versioned Pay intent model with canonical CAIP source identity, one-attempt execution checkpoints, and provider correlation, mirrored to transaction metadata for restart recovery.
+- Add a client-consumable Solana Pay path for Relay `/quote/v2` SOL/SPL quotes, instruction and lookup-table handoff, one Snap sign-and-send callback attempt, and restart-safe source and Relay status reconciliation.
 
 ### Changed
 
