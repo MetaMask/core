@@ -602,6 +602,7 @@ linkStyle default opacity:0.5
   phishing_controller --> messenger;
   phishing_controller --> storage_service;
   phishing_controller --> transaction_controller;
+  phishing_controller --> utils;
   platform_api_docs --> utils;
   polling_controller --> base_controller;
   polling_controller --> utils;
