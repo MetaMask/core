@@ -11,6 +11,9 @@
   "references": [
     {
       "path": "../messenger"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "../../tests", "./src", "./tests"]

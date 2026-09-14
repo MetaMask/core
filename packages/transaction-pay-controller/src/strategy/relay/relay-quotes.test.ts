@@ -4097,6 +4097,68 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
+    it('requests exact output for Predict deposit-and-order flows', async () => {
+      const predictDepositAndOrderRequest: QuoteRequest = {
+        ...QUOTE_REQUEST_MOCK,
+        targetChainId: CHAIN_ID_ARBITRUM,
+        targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [predictDepositAndOrderRequest],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.predictDepositAndOrder,
+        },
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body).toStrictEqual(
+        expect.objectContaining({
+          amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
+          tradeType: 'EXACT_OUTPUT',
+        }),
+      );
+    });
+
+    it('requests exact input for Predict deposits without embedded transactions', async () => {
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.predictDeposit,
+        },
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body).toStrictEqual(
+        expect.objectContaining({
+          amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
+          tradeType: 'EXACT_INPUT',
+        }),
+      );
+    });
+
     it('requests exact input for non-Hyperliquid targets without embedded transactions', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,

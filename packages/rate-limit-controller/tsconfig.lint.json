@@ -10,6 +10,9 @@
     },
     {
       "path": "../messenger/tsconfig.lint.json"
+    },
+    {
+      "path": "../utils/tsconfig.lint.json"
     }
   ]
 }

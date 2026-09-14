@@ -375,7 +375,8 @@ async function getSingleQuote(
     const hasTransactions = Boolean(body.txs?.length);
     const requiresExactOutput =
       hasTransactions ||
-      transaction.type === TransactionType.perpsDepositAndOrder;
+      transaction.type === TransactionType.perpsDepositAndOrder ||
+      transaction.type === TransactionType.predictDepositAndOrder;
     const finalBody: RelayQuoteRequest = {
       ...body,
       amount:
