@@ -6457,10 +6457,10 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/create-release-branch": "npm:^4.2.2"
     "@metamask/network-controller": "npm:^37.0.0"
-    "@metamask/oxlint-config": "npm:@metamask-previews/oxlint-config@0.0.0-preview-9c7b55f"
-    "@metamask/oxlint-config-jest": "npm:@metamask-previews/oxlint-config-jest@0.0.0-preview-9c7b55f"
-    "@metamask/oxlint-config-nodejs": "npm:@metamask-previews/oxlint-config-nodejs@0.0.0-preview-9c7b55f"
-    "@metamask/oxlint-config-typescript": "npm:@metamask-previews/oxlint-config-typescript@0.0.0-preview-9c7b55f"
+    "@metamask/oxlint-config": "npm:@metamask-previews/oxlint-config@0.0.0-preview-41780a9"
+    "@metamask/oxlint-config-jest": "npm:@metamask-previews/oxlint-config-jest@0.0.0-preview-41780a9"
+    "@metamask/oxlint-config-nodejs": "npm:@metamask-previews/oxlint-config-nodejs@0.0.0-preview-41780a9"
+    "@metamask/oxlint-config-typescript": "npm:@metamask-previews/oxlint-config-typescript@0.0.0-preview-41780a9"
     "@metamask/skills": "npm:^0.1.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/jest": "npm:^30.0.0"
@@ -8103,45 +8103,45 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/oxlint-config-jest@npm:@metamask-previews/oxlint-config-jest@0.0.0-preview-9c7b55f":
-  version: 0.0.0-preview-9c7b55f
-  resolution: "@metamask-previews/oxlint-config-jest@npm:0.0.0-preview-9c7b55f"
+"@metamask/oxlint-config-jest@npm:@metamask-previews/oxlint-config-jest@0.0.0-preview-41780a9":
+  version: 0.0.0-preview-41780a9
+  resolution: "@metamask-previews/oxlint-config-jest@npm:0.0.0-preview-41780a9"
   peerDependencies:
     "@metamask/oxlint-config": ^0.0.0
     oxlint: ^1.82.0
-  checksum: 10/3810f14659ecb40fddcc023e76d2ae2d98a3115eecc5957e0721ba91562e27f760d2ea6d9e7f8fd16913f9b180f2e58c75ebad5d42ad542e98606e7ed1ae8fc9
+  checksum: 10/e9a8c7513c3744e14d5eb34190495aa41f64723a7347bec71b0aa228097cc9a8cb5924ef48d7868126b009653c18424be75dc37d2a35382527ecfb5f635b97c4
   languageName: node
   linkType: hard
 
-"@metamask/oxlint-config-nodejs@npm:@metamask-previews/oxlint-config-nodejs@0.0.0-preview-9c7b55f":
-  version: 0.0.0-preview-9c7b55f
-  resolution: "@metamask-previews/oxlint-config-nodejs@npm:0.0.0-preview-9c7b55f"
+"@metamask/oxlint-config-nodejs@npm:@metamask-previews/oxlint-config-nodejs@0.0.0-preview-41780a9":
+  version: 0.0.0-preview-41780a9
+  resolution: "@metamask-previews/oxlint-config-nodejs@npm:0.0.0-preview-41780a9"
   peerDependencies:
     "@metamask/oxlint-config": ^0.0.0
     oxlint: ^1.82.0
-  checksum: 10/b856842067a3be3bea56ac1690a3caec4c6f3fa578e49283b2a11b0e659bcdee532c19cc9ce743bf52a18a96c3354c6da8e20215f02705c3380aea9fb2f17765
+  checksum: 10/b6f245593cbc73956e758b3c532749fe7682c79971d9ed47d7bf0a0e7f9441935c299cb11064e7001c767575355bc061afa617c4edbc3494714c4a932dbe306b
   languageName: node
   linkType: hard
 
-"@metamask/oxlint-config-typescript@npm:@metamask-previews/oxlint-config-typescript@0.0.0-preview-9c7b55f":
-  version: 0.0.0-preview-9c7b55f
-  resolution: "@metamask-previews/oxlint-config-typescript@npm:0.0.0-preview-9c7b55f"
+"@metamask/oxlint-config-typescript@npm:@metamask-previews/oxlint-config-typescript@0.0.0-preview-41780a9":
+  version: 0.0.0-preview-41780a9
+  resolution: "@metamask-previews/oxlint-config-typescript@npm:0.0.0-preview-41780a9"
   peerDependencies:
     "@metamask/oxlint-config": ^0.0.0
     oxlint: ^1.82.0
     oxlint-tsgolint: ^7.0.2001
-  checksum: 10/79c3e13cd826b0eeda28790d1255745e3f4dfe5cb9d80eee1a4fa175f19e98778871ddce24ebc099d8212ddac341857b54939cfc7aeff5756a3995b0f536dbfe
+  checksum: 10/87eae143cfc66ddd99e303ee05329fd936abc54aee36c22d9aa5374e9394883880b9d5a7f8ae0ed584106a705d1cbf85891edaa5f5c6e949b29ba96a8b378e03
   languageName: node
   linkType: hard
 
-"@metamask/oxlint-config@npm:@metamask-previews/oxlint-config@0.0.0-preview-9c7b55f":
-  version: 0.0.0-preview-9c7b55f
-  resolution: "@metamask-previews/oxlint-config@npm:0.0.0-preview-9c7b55f"
+"@metamask/oxlint-config@npm:@metamask-previews/oxlint-config@0.0.0-preview-41780a9":
+  version: 0.0.0-preview-41780a9
+  resolution: "@metamask-previews/oxlint-config@npm:0.0.0-preview-41780a9"
   dependencies:
     deepmerge: "npm:^4.3.1"
   peerDependencies:
     oxlint: ^1.82.0
-  checksum: 10/59ee62338f4ed896b2b8586c608e121d6e281798964c44992f8a4a904aada5130f9832e54249d0c6674d164a04ee8482ec1574c9cebc5b1599e9c82484cac19e
+  checksum: 10/1032c18779c560a3389a8c639c470ae44e4cf6958435cef015a7f677a9980f39676a6cd8d13705d8545eaba3906e32a36848859374949a37158159e0bd278222
   languageName: node
   linkType: hard
 
