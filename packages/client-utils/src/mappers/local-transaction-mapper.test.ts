@@ -11,7 +11,6 @@ const {
   from,
   to,
   baseUsdc,
-  lineaDai,
   lineaMusd,
   wethContractAddress,
   mainnetUsdt,
@@ -354,30 +353,22 @@ describe('mapLocalTransaction', () => {
       'eip155:1/slip44:60',
     );
   });
-  it('maps an mUSD conversion to a Convert activity', () => {
+  it('maps an mUSD conversion to a Send activity', () => {
     const item = mapLocalTransaction(
       localTransactionFixtures.mapInputs.mapsAnMusdConversionToA,
     );
     expect(item).toStrictEqual({
-      type: 'convert',
+      type: 'send',
       chainId: 'eip155:59144',
       status: 'success',
       timestamp: 1779805800000,
       hash: '0xmusdconversion',
       data: {
         from,
-        sourceToken: {
-          assetId: formatAddressToAssetId(lineaDai, 'eip155:59144'),
-          decimals: 18,
-          direction: 'out',
-          symbol: 'DAI',
-        },
-        destinationToken: {
-          amount: '100099',
+        to: lineaMusd,
+        token: {
           assetId: formatAddressToAssetId(lineaMusd, 'eip155:59144'),
-          decimals: 6,
-          direction: 'in',
-          symbol: 'mUSD',
+          direction: 'out',
         },
       },
     });
@@ -961,8 +952,8 @@ describe('mapLocalTransaction', () => {
     });
 
     expect(item).toMatchObject({
-      type: 'convert',
-      data: { from: '', destinationToken: undefined },
+      type: 'send',
+      data: { from: '', token: undefined },
     });
   });
   it('maps an mUSD conversion for an unknown destination token without optional metadata fields', () => {
@@ -988,18 +979,18 @@ describe('mapLocalTransaction', () => {
     });
 
     expect(item).toMatchObject({
-      type: 'convert',
+      type: 'send',
       data: {
-        destinationToken: {
-          direction: 'in',
+        token: {
+          direction: 'out',
         },
       },
     });
-    expect(
-      item.type === 'convert' ? item.data.destinationToken : undefined,
-    ).toStrictEqual({ direction: 'in' });
+    expect(item.type === 'send' ? item.data.token : undefined).toStrictEqual({
+      direction: 'out',
+    });
   });
-  it('maps an mUSD conversion with transferInformation amount to convert decimals from transferInformation', () => {
+  it('maps an mUSD conversion with transferInformation amount to send decimals from transferInformation', () => {
     const base = localTransactionFixtures.mapInputs.mapsAnMusdConversionToA;
     const item = mapLocalTransaction({
       ...base,
@@ -1013,58 +1004,27 @@ describe('mapLocalTransaction', () => {
     });
 
     expect(item).toMatchObject({
-      type: 'convert',
+      type: 'send',
       data: {
-        destinationToken: {
-          direction: 'in',
+        token: {
+          direction: 'out',
           amount: '100000',
           decimals: 6,
         },
       },
     });
   });
-  it('maps an mUSD conversion with no calldata to a convert without a destination amount', () => {
+  it('maps an mUSD conversion with no calldata to a send without a token amount', () => {
     const item = mapLocalTransaction(
       localTransactionFixtures.mapInputs.mapsAnMusdConversionWithNo,
     );
     expect(item).toMatchObject({
-      type: 'convert',
-      data: { destinationToken: { direction: 'in', symbol: 'mUSD' } },
+      type: 'send',
+      data: { token: { direction: 'out' } },
     });
-    expect(
-      item.type === 'convert' ? item.data.destinationToken?.amount : 'unset',
-    ).toBeUndefined();
+    expect(item.type === 'send' ? item.data.token?.amount : 'unset').toBeUndefined();
   });
-  it('maps an mUSD conversion with invalid calldata amount to a convert without a destination amount', () => {
-    const base = localTransactionFixtures.mapInputs.mapsAnMusdConversionToA;
-    const invalidAmountData = `0x${'0'.repeat(72)}zz${'0'.repeat(64)}`;
-    const item = mapLocalTransaction({
-      ...base,
-      initialTransaction: {
-        ...base.initialTransaction,
-        txParams: {
-          ...base.initialTransaction.txParams,
-          data: invalidAmountData,
-        },
-      },
-      primaryTransaction: {
-        ...base.primaryTransaction,
-        txParams: {
-          ...base.primaryTransaction.txParams,
-          data: invalidAmountData,
-        },
-      },
-    });
-
-    expect(item).toMatchObject({
-      type: 'convert',
-      data: { destinationToken: { direction: 'in', symbol: 'mUSD' } },
-    });
-    expect(
-      item.type === 'convert' ? item.data.destinationToken?.amount : 'unset',
-    ).toBeUndefined();
-  });
-  it('maps an mUSD conversion without a destination contract to a convert without a destination token', () => {
+  it('maps an mUSD conversion without a destination contract to a send without a token', () => {
     const base = localTransactionFixtures.mapInputs.mapsAnMusdConversionWithNo;
     const item = mapLocalTransaction({
       ...base,
@@ -1079,8 +1039,8 @@ describe('mapLocalTransaction', () => {
     });
 
     expect(item).toMatchObject({
-      type: 'convert',
-      data: { destinationToken: undefined },
+      type: 'send',
+      data: { token: undefined },
     });
   });
   it('maps a token approve with no calldata to an approve spending cap', () => {
