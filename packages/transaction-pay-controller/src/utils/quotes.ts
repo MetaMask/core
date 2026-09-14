@@ -760,6 +760,21 @@ async function getQuotes(
 
       if (
         isQuoteError(caughtError) &&
+        caughtError.info.reason === 'atomic-promotion-failed'
+      ) {
+        log('Terminal atomic-promotion-failed, aborting remaining strategies', {
+          strategy: name,
+          transactionId,
+        });
+        return {
+          batchTransactions: [],
+          error: caughtError.info,
+          quotes: [],
+        };
+      }
+
+      if (
+        isQuoteError(caughtError) &&
         caughtError.info.reason === 'insufficient-source-balance' &&
         caughtError.quotes?.length
       ) {

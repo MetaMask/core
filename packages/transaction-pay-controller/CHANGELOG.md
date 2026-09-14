@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Subsidized (fixed-spread) max direct Money Account Relay deposits now use `EXACT_OUTPUT` quoting with vault calls embedded atomically in the Relay quote.
+  - A new `atomic-promotion-failed` quote error reason is added; failed atomic promotions are terminal and will block rather than silently fall back.
+  - Non-subsidized max behavior is unchanged.
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
 ## [28.0.2]
