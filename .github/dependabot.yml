@@ -7,8 +7,16 @@ updates:
     directory: '/'
     schedule:
       interval: 'daily'
+    # Mirrors `npmMinimalAgeGate` in `.yarnrc.yml`, which refuses to install any
+    # package published less than 3 days ago. Proposing a fresher version than
+    # that would only produce a pull request that cannot install. The exclusions
+    # match `npmPreapprovedPackages`, which are exempt from the gate.
     cooldown:
       default-days: 3
+      exclude:
+        - '@metamask/*'
+        - '@metamask-previews/*'
+        - '@lavamoat/*'
     allow:
       - dependency-name: '@metamask/*'
     versioning-strategy: 'increase'
