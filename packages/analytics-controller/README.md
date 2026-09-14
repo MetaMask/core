@@ -16,16 +16,16 @@ The AnalyticsController provides a unified interface for tracking analytics even
 
 ## State
 
-| Field                          | Type      | Description                                              | Persisted |
-| ------------------------------ | --------- | -------------------------------------------------------- | --------- |
-| `analyticsId`                  | `string`  | UUIDv4 identifier (client platform-generated)            | Yes       |
-| `optedIn`                      | `boolean` | Product analytics opt-in status                          | Yes       |
-| `consentDecisionMade`          | `boolean` | Whether a product consent decision has been made         | Yes       |
-| `optedInToMarketing`           | `boolean` | Marketing analytics opt-in status                        | Yes       |
-| `marketingConsentDecisionMade` | `boolean` | Whether a marketing consent decision has been made       | Yes       |
-| `marketingEventNames`          | `string[]`| Cached marketing event names (empty until a source is wired) | Yes       |
-| `eventQueue`                   | `object`  | Optional persisted delivery queue                        | Yes       |
-| `eventFragments`               | `object`  | Optional in-progress event fragments                     | Yes       |
+| Field                          | Type       | Description                                                  | Persisted |
+| ------------------------------ | ---------- | ------------------------------------------------------------ | --------- |
+| `analyticsId`                  | `string`   | UUIDv4 identifier (client platform-generated)                | Yes       |
+| `optedIn`                      | `boolean`  | Product analytics opt-in status                              | Yes       |
+| `consentDecisionMade`          | `boolean`  | Whether a product consent decision has been made             | Yes       |
+| `optedInToMarketing`           | `boolean`  | Marketing analytics opt-in status                            | Yes       |
+| `marketingConsentDecisionMade` | `boolean`  | Whether a marketing consent decision has been made           | Yes       |
+| `marketingEventNames`          | `string[]` | Cached marketing event names (empty until a source is wired) | Yes       |
+| `eventQueue`                   | `object`   | Optional persisted delivery queue                            | Yes       |
+| `eventFragments`               | `object`   | Optional in-progress event fragments                         | Yes       |
 
 ### Client Platform Responsibilities
 

@@ -730,9 +730,7 @@ export class AnalyticsController extends BaseController<
     this.#platformAdapter = platformAdapter;
     this.#initPromise = undefined;
     this.#locationResolvePromise = undefined;
-    this.#marketingEventNames = new Set(
-      initialState.marketingEventNames ?? [],
-    );
+    this.#marketingEventNames = new Set(initialState.marketingEventNames ?? []);
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -957,12 +955,15 @@ export class AnalyticsController extends BaseController<
     return AnalyticsLane.Product;
   }
 
-  #laneFromFragmentNames(
+  #laneFromFragment(
     fragment: Pick<
       AnalyticsEventFragment,
       'initialEvent' | 'successEvent' | 'failureEvent'
     >,
   ): AnalyticsLane {
+    // Classify from declared event names only. Caller-supplied
+    // `context.marketing` is not trusted: `#setEventFragment` stamps that flag
+    // from names after the write.
     const names = [
       fragment.initialEvent,
       fragment.successEvent,
@@ -974,19 +975,6 @@ export class AnalyticsController extends BaseController<
     )
       ? AnalyticsLane.Marketing
       : AnalyticsLane.Product;
-  }
-
-  #laneFromFragment(
-    fragment: Pick<
-      AnalyticsEventFragment,
-      'initialEvent' | 'successEvent' | 'failureEvent' | 'context'
-    >,
-  ): AnalyticsLane {
-    if (typeof fragment.context?.marketing === 'boolean') {
-      return this.#laneFromContext(fragment.context);
-    }
-
-    return this.#laneFromFragmentNames(fragment);
   }
 
   #consent(lane: AnalyticsLane): {
@@ -1031,10 +1019,7 @@ export class AnalyticsController extends BaseController<
     return nextQueue;
   }
 
-  #replaceQueue(
-    field: AnalyticsQueue,
-    nextQueue: Record<string, Json>,
-  ): void {
+  #replaceQueue(field: AnalyticsQueue, nextQueue: Record<string, Json>): void {
     const currentQueue = this.state[field] as Record<string, Json>;
     const currentKeys = Object.keys(currentQueue);
     const nextKeys = Object.keys(nextQueue);
@@ -1263,9 +1248,7 @@ export class AnalyticsController extends BaseController<
         continue;
       }
 
-      const { optedIn } = this.#consent(
-        this.#laneFromQueuedEvent(queuedEvent),
-      );
+      const { optedIn } = this.#consent(this.#laneFromQueuedEvent(queuedEvent));
 
       if (optedIn) {
         remainingQueue[messageId] = queuedEvent as unknown as Json;
@@ -1339,9 +1322,7 @@ export class AnalyticsController extends BaseController<
    *
    * @param queue - The pre-consent event queue to replay.
    */
-  #replayPreConsentEvents(
-    queue: Record<string, AnalyticsQueuedEvent>,
-  ): void {
+  #replayPreConsentEvents(queue: Record<string, AnalyticsQueuedEvent>): void {
     for (const queuedEvent of Object.values(queue)) {
       const eventToReplay = this.#enrichPreConsentEvent(queuedEvent);
 
@@ -1502,9 +1483,7 @@ export class AnalyticsController extends BaseController<
       return;
     }
 
-    if (
-      Object.keys(eventFragments).length === Object.keys(fragments).length
-    ) {
+    if (Object.keys(eventFragments).length === Object.keys(fragments).length) {
       return;
     }
 
@@ -1533,7 +1512,7 @@ export class AnalyticsController extends BaseController<
     const fragmentWithMarketingContext: AnalyticsEventFragment = {
       ...fragment,
       context: this.#withMarketingContext(
-        this.#laneFromFragmentNames(fragment),
+        this.#laneFromFragment(fragment),
         fragment.context,
       ),
     };
@@ -1825,9 +1804,7 @@ export class AnalyticsController extends BaseController<
   createEventFragment(
     options: AnalyticsEventFragmentOptions = {},
   ): ReadonlyAnalyticsEventFragment | undefined {
-    if (
-      this.#shouldIgnoreEventFragmentCall('createEventFragment', options)
-    ) {
+    if (this.#shouldIgnoreEventFragmentCall('createEventFragment', options)) {
       return undefined;
     }
 
@@ -1881,10 +1858,7 @@ export class AnalyticsController extends BaseController<
   ): void {
     const fragment = this.#getEventFragment(id);
     if (
-      this.#shouldIgnoreEventFragmentCall(
-        'upsertEventFragment',
-        fragment ?? {},
-      )
+      this.#shouldIgnoreEventFragmentCall('upsertEventFragment', fragment ?? {})
     ) {
       return;
     }
@@ -1977,7 +1951,9 @@ export class AnalyticsController extends BaseController<
     { abandoned = false, context }: AnalyticsEventFragmentFinalizeOptions = {},
   ): void {
     const fragment = this.#getEventFragment(id);
-    if (this.#shouldIgnoreEventFragmentCall('finalizeEventFragment', fragment)) {
+    if (
+      this.#shouldIgnoreEventFragmentCall('finalizeEventFragment', fragment)
+    ) {
       return;
     }
 

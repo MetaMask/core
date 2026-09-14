@@ -195,8 +195,7 @@ export type AnalyticsControllerResetConsentDecisionAction = {
 /**
  * Opt in to marketing analytics.
  *
- * Independent of {@link AnalyticsController.optIn}. Replays queued marketing
- * events.
+ * Independent of {@link optIn}. Replays queued marketing events.
  *
  * @returns A promise that resolves once opt-in processing has completed.
  */
@@ -208,8 +207,8 @@ export type AnalyticsControllerOptInToMarketingAction = {
 /**
  * Opt out of marketing analytics.
  *
- * Independent of {@link AnalyticsController.optOut}. Discards queued marketing
- * events and marketing event fragments.
+ * Independent of {@link optOut}. Discards queued marketing events and
+ * marketing event fragments.
  */
 export type AnalyticsControllerOptOutOfMarketingAction = {
   type: `AnalyticsController:optOutOfMarketing`;
@@ -219,7 +218,7 @@ export type AnalyticsControllerOptOutOfMarketingAction = {
 /**
  * Reset the marketing consent decision back to undecided.
  *
- * Independent of {@link AnalyticsController.resetConsentDecision}.
+ * Independent of {@link resetConsentDecision}.
  */
 export type AnalyticsControllerResetMarketingConsentDecisionAction = {
   type: `AnalyticsController:resetMarketingConsentDecision`;

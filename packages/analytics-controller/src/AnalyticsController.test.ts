@@ -1537,9 +1537,13 @@ describe('AnalyticsController', () => {
 
       controller.trackEvent(createTestEvent('test_event'));
 
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, withMarketingFlag(false, {
-        location: fullLocationContext,
-      }));
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        withMarketingFlag(false, {
+          location: fullLocationContext,
+        }),
+      );
     });
 
     it('adds location to identify events', async () => {
@@ -1569,9 +1573,13 @@ describe('AnalyticsController', () => {
 
       controller.trackView('home');
 
-      expect(mockAdapter.view).toHaveBeenCalledWith('home', undefined, withMarketingFlag(false, {
-        location: fullLocationContext,
-      }));
+      expect(mockAdapter.view).toHaveBeenCalledWith(
+        'home',
+        undefined,
+        withMarketingFlag(false, {
+          location: fullLocationContext,
+        }),
+      );
     });
 
     it('preserves unrelated caller context', async () => {
@@ -1586,10 +1594,14 @@ describe('AnalyticsController', () => {
         app: { name: 'MetaMask' },
       });
 
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, withMarketingFlag(false, {
-        app: { name: 'MetaMask' },
-        location: fullLocationContext,
-      }));
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        withMarketingFlag(false, {
+          app: { name: 'MetaMask' },
+          location: fullLocationContext,
+        }),
+      );
     });
 
     it('preserves caller location fields the controller does not resolve', async () => {
@@ -1622,9 +1634,13 @@ describe('AnalyticsController', () => {
         location: { country_code: 'FR' },
       });
 
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, withMarketingFlag(false, {
-        location: fullLocationContext,
-      }));
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        withMarketingFlag(false, {
+          location: fullLocationContext,
+        }),
+      );
     });
 
     it('replaces a non-record caller location', async () => {
@@ -1639,9 +1655,13 @@ describe('AnalyticsController', () => {
         location: 'Seattle',
       });
 
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, withMarketingFlag(false, {
-        location: fullLocationContext,
-      }));
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        withMarketingFlag(false, {
+          location: fullLocationContext,
+        }),
+      );
     });
 
     it('omits fields the geolocation API could not determine', async () => {
@@ -3175,7 +3195,9 @@ describe('AnalyticsController', () => {
         const fragment = controller.createEventFragment({
           id: 'signature-1',
           properties: { signature_type: 'personal_sign' },
-          context: withMarketingFlag(false, { referrer: { url: 'https://dapp.test' } }),
+          context: withMarketingFlag(false, {
+            referrer: { url: 'https://dapp.test' },
+          }),
         });
         expect(fragment).toBeDefined();
 
@@ -3206,7 +3228,9 @@ describe('AnalyticsController', () => {
           failureEvent: 'Signature Rejected',
           properties: { signature_type: 'personal_sign' },
           sensitiveProperties: { eip712_primary_type: 'Permit' },
-          context: withMarketingFlag(false, { referrer: { url: 'https://dapp.test' } }),
+          context: withMarketingFlag(false, {
+            referrer: { url: 'https://dapp.test' },
+          }),
           persist: true,
         });
 
@@ -3217,7 +3241,9 @@ describe('AnalyticsController', () => {
           failureEvent: 'Signature Rejected',
           properties: { signature_type: 'personal_sign' },
           sensitiveProperties: { eip712_primary_type: 'Permit' },
-          context: withMarketingFlag(false, { referrer: { url: 'https://dapp.test' } }),
+          context: withMarketingFlag(false, {
+            referrer: { url: 'https://dapp.test' },
+          }),
           persist: true,
           createdAt: expect.any(Number),
           lastUpdated: expect.any(Number),
@@ -3235,7 +3261,9 @@ describe('AnalyticsController', () => {
           initialEvent: 'Signature Requested',
           successEvent: 'Signature Approved',
           properties: { signature_type: 'personal_sign' },
-          context: withMarketingFlag(false, { referrer: { url: 'https://dapp.test' } }),
+          context: withMarketingFlag(false, {
+            referrer: { url: 'https://dapp.test' },
+          }),
         });
 
         expect(mockAdapter.track).toHaveBeenCalledTimes(1);
@@ -3400,7 +3428,9 @@ describe('AnalyticsController', () => {
         const { controller } = await setupFragmentController();
         controller.createEventFragment({
           id: 'signature-1',
-          context: withMarketingFlag(false, { referrer: { url: 'https://dapp.test' } }),
+          context: withMarketingFlag(false, {
+            referrer: { url: 'https://dapp.test' },
+          }),
         });
 
         controller.updateEventFragment('signature-1', {
@@ -3467,7 +3497,9 @@ describe('AnalyticsController', () => {
           id: 'signature-1',
           properties: { signature_type: 'personal_sign' },
           sensitiveProperties: { eip712_primary_type: 'Permit' },
-          context: withMarketingFlag(false, { referrer: { url: 'https://dapp.test' } }),
+          context: withMarketingFlag(false, {
+            referrer: { url: 'https://dapp.test' },
+          }),
         });
 
         const fragment = controller.getEventFragmentById('signature-1');
@@ -3603,7 +3635,10 @@ describe('AnalyticsController', () => {
         expect(mockAdapter.track).toHaveBeenCalledWith(
           'Signature Approved',
           undefined,
-          withMarketingFlag(false, { referrer: { url: 'https://other.test' }, keep: 'me' }),
+          withMarketingFlag(false, {
+            referrer: { url: 'https://other.test' },
+            keep: 'me',
+          }),
         );
       });
 
@@ -3890,11 +3925,8 @@ describe('AnalyticsController', () => {
       });
 
       it('keeps a fragment replaced during init even when the leftover ID was expired', async () => {
-        const {
-          geolocationHandler,
-          geolocationRequested,
-          resolveGeolocation,
-        } = createBlockingGeolocationHandler();
+        const { geolocationHandler, geolocationRequested, resolveGeolocation } =
+          createBlockingGeolocationHandler();
         const mockAdapter = createMockAdapter();
         const analyticsId = '11111111-2222-4333-8444-555555555555';
         const now = 1_800_000_000_000;
@@ -3945,11 +3977,8 @@ describe('AnalyticsController', () => {
       });
 
       it('keeps fragments created while init is in flight and still drops stale non-persistent ones', async () => {
-        const {
-          geolocationHandler,
-          geolocationRequested,
-          resolveGeolocation,
-        } = createBlockingGeolocationHandler();
+        const { geolocationHandler, geolocationRequested, resolveGeolocation } =
+          createBlockingGeolocationHandler();
         const mockAdapter = createMockAdapter();
         const analyticsId = '11111111-2222-4333-8444-555555555555';
 
@@ -4000,11 +4029,8 @@ describe('AnalyticsController', () => {
       });
 
       it('keeps a fragment that reuses an ID from a stale leftover during init', async () => {
-        const {
-          geolocationHandler,
-          geolocationRequested,
-          resolveGeolocation,
-        } = createBlockingGeolocationHandler();
+        const { geolocationHandler, geolocationRequested, resolveGeolocation } =
+          createBlockingGeolocationHandler();
         const mockAdapter = createMockAdapter();
         const analyticsId = '11111111-2222-4333-8444-555555555555';
         const staleCreatedAt = 1700000000000;
@@ -4560,6 +4586,71 @@ describe('AnalyticsController', () => {
         }),
       ).toBeUndefined();
       expect(controller.state.eventFragments).toBeUndefined();
+    });
+
+    it('classifies createEventFragment by event names, not caller context.marketing', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: true,
+          ...withMarketingList,
+        },
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: true,
+      });
+
+      // Reused marketing stamp must not force the marketing consent lane when
+      // the declared events are product-only.
+      const fragment = controller.createEventFragment({
+        id: 'product-1',
+        successEvent: productEvent,
+        context: withMarketingFlag(true, { page: { path: '/settings' } }),
+      });
+
+      expect(fragment).toStrictEqual(
+        expect.objectContaining({
+          id: 'product-1',
+          successEvent: productEvent,
+          context: withMarketingFlag(false, { page: { path: '/settings' } }),
+        }),
+      );
+      expect(
+        controller.state.eventFragments?.['product-1']?.context,
+      ).toStrictEqual(
+        withMarketingFlag(false, { page: { path: '/settings' } }),
+      );
+    });
+
+    it('allows a marketing fragment when only marketing consent is on even if caller stamps marketing false', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          ...withMarketingList,
+        },
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: true,
+      });
+
+      const fragment = controller.createEventFragment({
+        id: 'marketing-1',
+        successEvent: marketingEvent,
+        context: withMarketingFlag(false),
+      });
+
+      expect(fragment).toStrictEqual(
+        expect.objectContaining({
+          id: 'marketing-1',
+          successEvent: marketingEvent,
+          context: withMarketingFlag(true),
+        }),
+      );
     });
 
     it('stops emitting marketing events after optOutOfMarketing', async () => {

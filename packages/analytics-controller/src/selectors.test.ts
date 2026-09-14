@@ -54,9 +54,9 @@ describe('analyticsControllerSelectors', () => {
         analyticsId: defaultAnalyticsId,
       };
 
-      expect(
-        analyticsControllerSelectors.selectOptedInToMarketing(state),
-      ).toBe(false);
+      expect(analyticsControllerSelectors.selectOptedInToMarketing(state)).toBe(
+        false,
+      );
     });
   });
 
