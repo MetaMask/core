@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "types": ["jest"]
+    "baseUrl": "./"
   },
   "references": [
     {
