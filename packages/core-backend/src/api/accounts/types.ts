@@ -171,12 +171,10 @@ export type V1SupportedNetworksResponse = {
   supportedNetworks: number[];
 };
 
-/** V2 Supported networks response */
+/** V2 Supported networks response (CAIP-2 chain IDs). */
 export type V2SupportedNetworksResponse = {
-  fullSupport: number[];
-  partialSupport: {
-    balances: number[];
-  };
+  fullSupport: string[];
+  partialSupport: string[];
 };
 
 /** Active networks response */

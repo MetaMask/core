@@ -9,6 +9,9 @@
     },
     {
       "path": "../transaction-controller"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src", "./test"]

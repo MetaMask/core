@@ -14,9 +14,9 @@ module.exports = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
-  // Fixtures hold data rather than logic, and `*.test-d.ts` files are type
-  // tests run by `tsd` rather than Jest, so neither counts towards coverage.
-  coveragePathIgnorePatterns: ['/__fixtures__/', '\\.test-d\\.ts$'],
+  // Fixtures hold data rather than logic, and `*.tst.ts` files are type
+  // tests run by `tstyche` rather than Jest, so neither counts towards coverage.
+  coveragePathIgnorePatterns: ['/__fixtures__/', '\\.tst\\.ts$'],
 
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
