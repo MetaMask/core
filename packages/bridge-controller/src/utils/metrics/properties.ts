@@ -16,9 +16,9 @@ import type {
   AccountHardwareType,
   InputKeys,
   InputValues,
-  QuoteWarning,
   RequestParams,
 } from './types.js';
+import type { QuoteWarning } from '../quote-warnings/types.js';
 
 export const toInputChangedPropertyKey: Partial<
   Record<keyof QuoteRequest, InputKeys>

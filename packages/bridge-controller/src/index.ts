@@ -25,13 +25,14 @@ export type {
   RequestMetadata,
   TxStatusData,
   QuoteFetchData,
-  QuoteWarning,
   InputPrimaryDenominationData,
   HashPresenceData,
   FailureTelemetryData,
   HashPresenceProperties,
   FailureTelemetryProperties,
 } from './utils/metrics/types.js';
+
+export type { QuoteWarning } from './utils/quote-warnings/types.js';
 
 export {
   getAccountHardwareType,

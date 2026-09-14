@@ -19,6 +19,7 @@ import type {
   FailurePhase,
   SwapBridgeErrorCode,
 } from './constants.js';
+import { QuoteWarning } from '../quote-warnings/types.js';
 
 /**
  * These properties map to properties required by the segment-schema. For example: https://github.com/Consensys/segment-schema/blob/main/libraries/properties/cross-chain-swaps-action.yaml
@@ -122,17 +123,6 @@ export type InputValues = {
   slippage: number;
   token_amount_source: string;
 };
-
-export type QuoteWarning =
-  | 'low_return'
-  | 'no_quotes'
-  | 'insufficient_gas_balance'
-  | 'insufficient_gas_for_selected_quote'
-  | 'insufficient_balance'
-  | 'market_closed'
-  | 'price_impact'
-  | 'quote_expired'
-  | 'tx_alert';
 
 type BatchSellChainProperties = {
   chain_id_source: CaipChainId;
