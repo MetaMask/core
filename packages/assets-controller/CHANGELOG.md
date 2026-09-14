@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add a transient, non-persisted per-account assets loading state. `AssetsControllerState` now includes `assetsLoadingStatus: Record<AccountId, AssetsLoadingTrigger>` (`'accountSwitch' | 'unlock'`), populated while `getAssets` runs for user-visible moments and cleared when the fetch settles; the field is never persisted. `getAssets` accepts a new optional `trigger` option that opts a fetch into this behavior — only account switches and unlock-time startup refreshes pass it ([#PR](https://github.com/MetaMask/core/pull/PR))
-- Add loading-state selectors `getAccountLoadingStatus`, `isAccountLoading`, `getAccountsLoadingStatus`, and `isAnyAccountLoading` for the UX layer to read `assetsLoadingStatus` ([#PR](https://github.com/MetaMask/core/pull/PR))
+- Add a transient, non-persisted per-account assets loading state. `AssetsControllerState` now includes `assetsLoadingStatus: Record<AccountId, AssetsLoadingTrigger>` (`'accountSwitch' | 'unlock'`), populated while `getAssets` runs for user-visible moments and cleared when the fetch settles; the field is never persisted. `getAssets` accepts a new optional `trigger` option that opts a fetch into this behavior — only account switches and unlock-time startup refreshes pass it ([#10229](https://github.com/MetaMask/core/pull/10229))
+- Add loading-state selectors `getAccountLoadingStatus`, `isAccountLoading`, `getAccountsLoadingStatus`, and `isAnyAccountLoading` for the UX layer to read `assetsLoadingStatus` ([#10229](https://github.com/MetaMask/core/pull/10229))
 
 ### Changed
 
