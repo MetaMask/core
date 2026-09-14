@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Use the native Transak buy quote's fee for the MM Pay fiat estimate when Transak Native is the resolved provider, falling back to the aggregator quote's fee when native is unavailable or the lookup fails ([#9317](https://github.com/MetaMask/core/pull/9317))
 - Keep direct Monad mUSD on-ramp fees visible while treating them as included in the entered fiat total. ([#9317](https://github.com/MetaMask/core/pull/9317))
 
 ## [27.1.0]

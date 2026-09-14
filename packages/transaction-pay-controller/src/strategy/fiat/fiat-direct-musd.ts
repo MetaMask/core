@@ -22,6 +22,7 @@ import { buildCaipAssetType, getTokenInfo } from '../../utils/token.js';
 import { MUSD_MONAD_FIAT_ASSET } from './constants.js';
 import type { FiatQuote } from './types.js';
 import {
+  getNativeTransakRampsFee,
   getRampsQuote,
   getRawSourceAmountFromOrderCryptoAmount,
   resolveSourceAmountRaw,
@@ -74,6 +75,18 @@ export async function getDirectMusdFiatQuote({
       walletAddress: moneyAccountAddress,
     });
 
+    // When Transak Native is the resolved provider, prefer its own quote's fee
+    // so the estimate matches what Transak Native will charge. Direct mUSD
+    // checkout is fee-inclusive, so request the native quote in that mode.
+    const nativeRampsFee = await getNativeTransakRampsFee({
+      adjustedAmount,
+      fiatAsset: MUSD_MONAD_FIAT_ASSET,
+      fiatPaymentMethod,
+      fiatQuote,
+      isFeeExcludedFromFiat: false,
+      messenger,
+    });
+
     messenger.call('TransactionPayController:updateFiatPayment', {
       callback: (fiatPayment: TransactionFiatPayment) => {
         fiatPayment.rampsQuote = fiatQuote;
@@ -96,6 +109,7 @@ export async function getDirectMusdFiatQuote({
       fiatQuote,
       messenger,
       moneyAccountAddress,
+      nativeRampsFee,
       requiredToken,
     });
   } catch (error) {
@@ -165,12 +179,14 @@ function combineDirectMusdFiatQuote({
   fiatQuote,
   messenger,
   moneyAccountAddress,
+  nativeRampsFee,
   requiredToken,
 }: {
   amountFiat: string;
   fiatQuote: RampsQuote;
   messenger: PayStrategyGetQuotesRequest['messenger'];
   moneyAccountAddress: Hex;
+  nativeRampsFee: BigNumber | null;
   requiredToken: TransactionPayRequiredToken;
 }): TransactionPayQuote<FiatQuote> {
   const tokenInfo = getTokenInfo(
@@ -187,8 +203,16 @@ function combineDirectMusdFiatQuote({
     cryptoAmount: fiatQuote.quote.amountOut,
     decimals: tokenInfo.decimals,
   });
-  const rampsProviderFee = getSafeFee(fiatQuote.quote.providerFee).toString(10);
-  const rampsNetworkFee = getSafeFee(fiatQuote.quote.networkFee).toString(10);
+  // Transak Native returns a single total fee, so the aggregator's separate
+  // provider/network split collapses: the whole native fee sits in the provider
+  // bucket and the source-network fee is zero. The `providerFiat` total stays
+  // correct either way.
+  const rampsProviderFee = (
+    nativeRampsFee ?? getSafeFee(fiatQuote.quote.providerFee)
+  ).toString(10);
+  const rampsNetworkFee = nativeRampsFee
+    ? '0'
+    : getSafeFee(fiatQuote.quote.networkFee).toString(10);
   const rampsTotalFee = new BigNumber(rampsProviderFee)
     .plus(rampsNetworkFee)
     .toString(10);
