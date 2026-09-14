@@ -7,8 +7,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: make package template a proper Yarn workspace ([#10087](https://github.com/MetaMask/core/pull/10087))
-
 [Unreleased]: https://github.com/MetaMask/core/
