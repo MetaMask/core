@@ -220,6 +220,43 @@ describe('create-package/utils', () => {
       );
     });
 
+    it('excludes generated files from the template directory', async () => {
+      const packageData: PackageData = {
+        name: '@metamask/foo',
+        description: 'A foo package.',
+        directoryName: 'foo',
+        nodeVersions: '>=18.0.0',
+        currentYear: '2023',
+      };
+
+      const monorepoFileData = {
+        tsConfig: { references: [] },
+        tsConfigBuild: { references: [] },
+        nodeVersions: '>=18.0.0',
+      };
+
+      const mockError = new Error('Not found') as NodeJS.ErrnoException;
+      mockError.code = 'ENOENT';
+      jest.mocked(fs.promises.stat).mockRejectedValue(mockError);
+
+      jest.mocked(fsUtils.readAllFiles).mockResolvedValueOnce({
+        'src/index.ts': 'export default 42;',
+        'dist/index.js': 'export default 42;',
+        'dist/index.d.ts': 'export default 42;',
+        'coverage/lcov.info': '',
+        'tsconfig.tsbuildinfo': '{}',
+      });
+
+      jest.mocked(format).mockImplementation(async (input) => input);
+
+      await finalizeAndWriteData(packageData, monorepoFileData);
+
+      expect(fsUtils.writeFiles).toHaveBeenCalledWith(
+        expect.any(String),
+        { 'src/index.ts': 'export default 42;' },
+      );
+    });
+
     it('throws if the package directory already exists', async () => {
       const packageData: PackageData = {
         name: '@metamask/foo',
