@@ -2208,6 +2208,91 @@ describe('AssetsController', () => {
       });
     });
 
+    describe('when the response repeats data already in state', () => {
+      const repeatedMetadata: FungibleAssetMetadata = {
+        type: 'erc20',
+        symbol: 'USDC',
+        name: 'USD Coin',
+        decimals: 6,
+      };
+      const repeatedPrice = {
+        assetPriceType: 'fungible',
+        price: 1,
+        usdPrice: 1,
+        lastUpdated: 1_700_000_000_000,
+      } as const;
+      const repeatedState: Partial<AssetsControllerState> = {
+        assetsInfo: { [MOCK_ASSET_ID]: repeatedMetadata },
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1000000' },
+            [MOCK_NATIVE_ASSET_ID]: { amount: '0' },
+          },
+        },
+        assetsPrice: { [MOCK_ASSET_ID]: repeatedPrice },
+      };
+      const repeatedResponse: DataResponse = {
+        assetsInfo: { [MOCK_ASSET_ID]: { ...repeatedMetadata } },
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1000000' },
+            [MOCK_NATIVE_ASSET_ID]: { amount: '0' },
+          },
+        },
+        assetsPrice: { [MOCK_ASSET_ID]: { ...repeatedPrice } },
+      };
+
+      it('does not publish stateChange', async () => {
+        await withController(
+          { state: repeatedState, isBasicFunctionality: () => false },
+          async ({ controller, messenger }) => {
+            await flushPromises();
+            const stateChangeListener = jest.fn();
+            messenger.subscribe(
+              'AssetsController:stateChange',
+              stateChangeListener,
+            );
+
+            await controller.handleAssetsUpdate(repeatedResponse, 'TestSource');
+
+            expect(stateChangeListener).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('still publishes stateChange once a single amount changes', async () => {
+        await withController(
+          { state: repeatedState, isBasicFunctionality: () => false },
+          async ({ controller, messenger }) => {
+            await flushPromises();
+            const stateChangeListener = jest.fn();
+            messenger.subscribe(
+              'AssetsController:stateChange',
+              stateChangeListener,
+            );
+
+            await controller.handleAssetsUpdate(
+              {
+                ...repeatedResponse,
+                assetsBalance: {
+                  [MOCK_ACCOUNT_ID]: {
+                    [MOCK_ASSET_ID]: { amount: '2000000' },
+                    [MOCK_NATIVE_ASSET_ID]: { amount: '0' },
+                  },
+                },
+              },
+              'TestSource',
+            );
+
+            expect(stateChangeListener).toHaveBeenCalledTimes(1);
+            expect(
+              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+            ).toStrictEqual({ amount: '2000000' });
+          },
+        );
+      });
+    });
+
     it('reconciles a stale native type stored as erc20 when assetsInfo includes the asset', async () => {
       // Native (zero-address ERC-20) mis-stored as erc20 by an older version.
       const imxAssetId =

@@ -2708,12 +2708,6 @@ export class AssetsController extends BaseController<
           for (const [key, value] of Object.entries(
             normalizedResponse.assetsInfo,
           )) {
-            if (
-              !isEqual(previousState.assetsInfo[key as Caip19AssetId], value)
-            ) {
-              changedMetadata.push(key);
-            }
-
             const existing = metadata[key] as FungibleAssetMetadata | undefined;
             const incoming = value as FungibleAssetMetadata;
 
@@ -2722,17 +2716,28 @@ export class AssetsController extends BaseController<
             // the API). Preserve richer metadata already in state (e.g. from
             // pendingMetadata set by addCustomAsset) so that the correct
             // decimals/symbol/name/image are not overwritten with empty values.
-            if (existing && !incoming.symbol && !incoming.name) {
-              metadata[key] = {
-                ...existing,
-                ...incoming,
-                symbol: existing.symbol,
-                name: existing.name,
-                decimals: existing.decimals ?? incoming.decimals,
-                image: existing.image ?? incoming.image,
-              };
-            } else {
-              metadata[key] = value;
+            const nextMetadata =
+              existing && !incoming.symbol && !incoming.name
+                ? {
+                    ...existing,
+                    ...incoming,
+                    symbol: existing.symbol,
+                    name: existing.name,
+                    decimals: existing.decimals ?? incoming.decimals,
+                    image: existing.image ?? incoming.image,
+                  }
+                : value;
+
+            // Immer detects changes by reference, so assigning a deep-equal
+            // object still emits a patch and publishes a no-op stateChange.
+            if (
+              !isEqual(
+                previousState.assetsInfo[key as Caip19AssetId],
+                nextMetadata,
+              )
+            ) {
+              changedMetadata.push(key);
+              metadata[key] = nextMetadata;
             }
           }
         }
@@ -2829,7 +2834,12 @@ export class AssetsController extends BaseController<
                 });
               }
             }
-            balances[accountId] = effective;
+            // `mergeAccountBalances` always returns a new object. Comparing
+            // against the raw (possibly `undefined`) entry keeps a first-time
+            // account write while skipping an unchanged repeat.
+            if (!isEqual(previousState.assetsBalance[accountId], effective)) {
+              balances[accountId] = effective;
+            }
           }
         }
 
@@ -2837,7 +2847,9 @@ export class AssetsController extends BaseController<
           for (const [key, value] of Object.entries(
             normalizedResponse.assetsPrice,
           )) {
-            prices[key] = value;
+            if (!isEqual(previousPrices[key as Caip19AssetId], value)) {
+              prices[key] = value;
+            }
           }
         }
       });

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Skip `#updateState` assignments whose metadata, balances, or prices are deep-equal to current state so Immer does not publish no-op `stateChange` events
+
 ## [15.1.0]
 
 ### Changed
