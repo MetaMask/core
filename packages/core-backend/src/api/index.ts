@@ -9,6 +9,7 @@ export type {
   SupportedCurrency,
   MarketDataDetails,
   ApiPlatformClientOptions,
+  ApiUrls,
   FetchOptions,
 } from './shared-types.js';
 export {
