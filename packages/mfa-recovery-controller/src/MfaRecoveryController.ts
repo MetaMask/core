@@ -5,60 +5,58 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
+import { bytesToHex } from '@metamask/utils';
 
 import {
-  bytesToSecretHex,
+  decodeHex,
+  decryptFromPublic,
+  encryptToPublic,
   generateSigningKey,
   hash,
   randomId,
-  sign,
+  unixNow,
+  wrapKeyId,
 } from './crypto.js';
-import { MfaRecoveryError, MutationRepairPendingError } from './errors.js';
+import { IncompleteMutationError, MfaRecoveryError } from './errors.js';
 import {
   isFulfilledResult,
   isMutationReceipt,
   selectHighestConsistentVersion,
   verifyMutationReceipt,
 } from './escrow-utils.js';
-import { getIdentifierAuthMode } from './identifier-auth.js';
+import {
+  authorizeKeyBoundIdentifier,
+  getIdentifierAuthMode,
+  MIN_IDENTIFIERS,
+} from './identifier-auth.js';
+import type { AuthorizedEscrow } from './identifier-auth.js';
 import type { MfaRecoveryControllerMethodActions } from './MfaRecoveryController-method-action-types.js';
-import { assertValidPendingOperation } from './pending-operation-validation.js';
+import {
+  assertValidPendingOperation,
+  pendingPayloadHasIdentifiers,
+  pendingPayloadHasRecoverySecret,
+} from './pending-operation-validation.js';
 import { assertAbortAllowed, getRecoveryPhase } from './state-machine.js';
 import type {
   AuthControllerToken,
-  EscrowAuthChallenge,
+  EcPublicJwk,
   Identifier,
-  IdentifierAuthorization,
   Mutation,
   MutationPayload,
   MutationReceipt,
+  PendingMutationPayload,
   PendingOperation,
   PendingOperationEncryptor,
+  PendingRegisterPayload,
+  PendingUpdateIdentifiersPayload,
+  PendingUpdateRecoverySecretPayload,
   RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
   RecoveryPhase,
   RecoveredSecret,
-  RegisterPayload,
-  UpdateIdentifiersPayload,
+  WrappedSecret,
   WritingPendingOperation,
-} from './types.js';
-
-export type {
-  AuthControllerToken,
-  EncryptedPendingOperation,
-  Identifier,
-  IdentifierAuthorization,
-  Mutation,
-  MutationPayload,
-  MutationReceipt,
-  PendingOperation,
-  PendingOperationEncryptor,
-  RecoveryAuthProvider,
-  RecoveryEscrowProvider,
-  RecoveryIdentifierAuthProvider,
-  RecoveryPhase,
-  RecoveredSecret,
 } from './types.js';
 
 const CONTROLLER_NAME = 'MfaRecoveryController';
@@ -72,11 +70,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'abort',
   'getPhase',
 ] as const;
-
-type AuthorizedEscrow = {
-  escrow: RecoveryEscrowProvider;
-  authorization: IdentifierAuthorization;
-};
 
 export type MfaRecoveryControllerState = {
   /**
@@ -163,18 +156,28 @@ export type MfaRecoveryControllerOptions = {
   pendingOperationEncryptor: PendingOperationEncryptor;
 
   /**
-   * Collects a provider-specific response for an escrow-challenge identifier
-   * (for example an Email/SMS OTP).
-   */
-  collectChallengeResponse: (
-    challenge: EscrowAuthChallenge,
-  ) => Promise<unknown>;
-
-  /**
-   * Clock used for AuthController token expiry checks. Defaults to `Date.now`.
+   * Clock used for AuthController token expiry checks. Unix seconds.
+   * Defaults to {@link unixNow}.
    */
   now?: () => number;
 };
+
+type MutateParams =
+  | {
+      operation: 'register';
+      payload: PendingRegisterPayload;
+      identifier: null;
+    }
+  | {
+      operation: 'updateRecoverySecret';
+      payload: PendingUpdateRecoverySecretPayload;
+      identifier: Identifier;
+    }
+  | {
+      operation: 'updateIdentifiers';
+      payload: PendingUpdateIdentifiersPayload;
+      identifier: Identifier;
+    };
 
 /**
  * Coordinates MFA recovery secret replication across independent escrows.
@@ -190,13 +193,7 @@ export class MfaRecoveryController extends BaseController<
 
   readonly #escrows: RecoveryEscrowProvider[];
 
-  readonly #escrowIds: string[];
-
   readonly #encryptor: PendingOperationEncryptor;
-
-  readonly #collectChallengeResponse: (
-    challenge: EscrowAuthChallenge,
-  ) => Promise<unknown>;
 
   readonly #now: () => number;
 
@@ -209,8 +206,7 @@ export class MfaRecoveryController extends BaseController<
     identifierAuthProvider,
     escrows,
     pendingOperationEncryptor,
-    collectChallengeResponse,
-    now = (): number => Date.now(),
+    now = unixNow,
   }: MfaRecoveryControllerOptions) {
     if (escrows.length === 0) {
       throw new MfaRecoveryError(
@@ -236,9 +232,7 @@ export class MfaRecoveryController extends BaseController<
     this.#authProvider = authProvider;
     this.#identifierAuthProvider = identifierAuthProvider;
     this.#escrows = [...escrows];
-    this.#escrowIds = [...escrowIds];
     this.#encryptor = pendingOperationEncryptor;
-    this.#collectChallengeResponse = collectChallengeResponse;
     this.#now = now;
 
     this.messenger.registerMethodActionHandlers(
@@ -251,25 +245,21 @@ export class MfaRecoveryController extends BaseController<
    * Creates version 1 of a recovery record.
    *
    * @param recoverySecret - Secret replicated in full to every escrow.
-   * @param identifiers - Ownership-approved identifier set. Must be non-empty.
+   * @param identifiers - Ownership-approved identifier set. Must contain at
+   * least two identifiers.
    */
   async register(
     recoverySecret: Uint8Array,
     identifiers: Identifier[],
   ): Promise<void> {
     this.#assertKnownIdentifierTypes(identifiers);
-    if (identifiers.length === 0) {
-      throw new MfaRecoveryError(
-        'Registration requires at least one identifier',
-        'empty_identifiers',
-      );
-    }
-    await this.#runRecoveryMutation({
+    this.#assertMinIdentifiers(identifiers);
+    await this.#mutate({
       operation: 'register',
       payload: {
         epoch: 0,
-        recoverySecret: bytesToSecretHex(recoverySecret),
         identifiers,
+        recoverySecret: bytesToHex(recoverySecret),
       },
       identifier: null,
     });
@@ -288,11 +278,11 @@ export class MfaRecoveryController extends BaseController<
     epoch: number,
   ): Promise<void> {
     this.#assertKnownIdentifierTypes([identifier]);
-    await this.#runRecoveryMutation({
+    await this.#mutate({
       operation: 'updateRecoverySecret',
       payload: {
         epoch,
-        recoverySecret: bytesToSecretHex(recoverySecret),
+        recoverySecret: bytesToHex(recoverySecret),
       },
       identifier,
     });
@@ -302,7 +292,8 @@ export class MfaRecoveryController extends BaseController<
    * Replaces the complete identifier set.
    *
    * @param identifier - Currently registered identifier used to authorize.
-   * @param identifiers - New non-empty identifier set.
+   * @param identifiers - New identifier set. Must contain at least two
+   * identifiers.
    * @param epoch - Current recovery version, used as `expectedVersion`.
    */
   async updateIdentifiers(
@@ -311,13 +302,8 @@ export class MfaRecoveryController extends BaseController<
     epoch: number,
   ): Promise<void> {
     this.#assertKnownIdentifierTypes([identifier, ...identifiers]);
-    if (identifiers.length === 0) {
-      throw new MfaRecoveryError(
-        'Identifier list must be non-empty',
-        'empty_identifiers',
-      );
-    }
-    await this.#runRecoveryMutation({
+    this.#assertMinIdentifiers(identifiers);
+    await this.#mutate({
       operation: 'updateIdentifiers',
       payload: { epoch, identifiers },
       identifier,
@@ -336,9 +322,12 @@ export class MfaRecoveryController extends BaseController<
     return await this.#withLock(async () => {
       this.#assertKnownIdentifierTypes([identifier]);
       const requestId = randomId();
+      const ephemeral = generateSigningKey();
+      const pkE = JSON.parse(ephemeral.publicKey) as EcPublicJwk;
       const requestHash = await hash({
         operation: 'getRecoverySecret',
         requestId,
+        pkE,
       });
       const available = await this.#getAvailableEscrows();
       if (available.length === 0) {
@@ -353,10 +342,29 @@ export class MfaRecoveryController extends BaseController<
         requestHash,
       });
       const results = await Promise.allSettled(
-        authorizedEscrows.map(async ({ escrow, authorization }) => ({
-          escrowId: escrow.id,
-          ...(await escrow.getSecret(authorization, requestId)),
-        })),
+        authorizedEscrows.map(async ({ escrow, authorization }) => {
+          const response = await escrow.getSecret(
+            authorization,
+            requestId,
+            pkE,
+          );
+          if (response.wrapKeyId !== wrapKeyId(escrow.wrapPublicKey)) {
+            throw new MfaRecoveryError(
+              'Unexpected wrap key',
+              'wrap_key_mismatch',
+            );
+          }
+          return {
+            escrowId: escrow.id,
+            recoverySecret: decryptFromPublic(
+              ephemeral.privateKey,
+              escrow.wrapPublicKey,
+              response.recoverySecret.ciphertext,
+            ),
+            version: response.version,
+            lastMutationId: response.lastMutationId,
+          };
+        }),
       );
       const selected = selectHighestConsistentVersion(results);
       return {
@@ -371,7 +379,7 @@ export class MfaRecoveryController extends BaseController<
    */
   async resume(): Promise<void> {
     await this.#withLock(async () => {
-      await this.#repairPendingMutation(this.#escrows);
+      await this.#repairPendingMutation();
     });
   }
 
@@ -396,24 +404,17 @@ export class MfaRecoveryController extends BaseController<
     return getRecoveryPhase(await this.#loadPending());
   }
 
-  async #runRecoveryMutation({
-    operation,
-    payload,
-    identifier,
-  }: {
-    operation: Mutation['operation'];
-    payload: MutationPayload;
-    identifier: Identifier | null;
-  }): Promise<void> {
+  async #mutate(params: MutateParams): Promise<void> {
+    const { operation, payload, identifier } = params;
     await this.#withLock(async () => {
-      const configured = this.#escrows;
-      await this.#repairPendingMutation(configured);
+      await this.#repairPendingMutation();
+
       const profileId = await this.#authProvider.getAuthenticatedProfileId();
-      const targets = await this.#requireAllEscrows(configured);
-      const audiences = [...this.#escrowIds];
+      const audiences = this.#escrows.map((escrow) => escrow.id);
       const currentVersion = this.#resolveCurrentRecoveryVersion(payload);
       const payloadHash = await hash(payload);
-      const mutation = await this.#createMutation({
+
+      const mutationFields = {
         id: randomId(),
         profileId,
         operation,
@@ -421,190 +422,130 @@ export class MfaRecoveryController extends BaseController<
         newVersion: currentVersion + 1,
         payloadHash,
         audiences,
-      });
+      };
+      const mutation: Mutation = {
+        ...mutationFields,
+        requestHash: await hash(mutationFields),
+      };
 
-      await this.#persistPending({
+      const pending: PendingOperation = {
         phase: 'authorizing',
         mutation,
         payload,
         identifier,
-      });
+      };
+      await this.#persistPending(pending);
 
+      const authControllerToken = await this.#authorizeMutation(
+        mutation,
+        payload,
+      );
       await this.#replicateMutation({
-        escrows: targets,
-        pending: {
-          phase: 'writing',
-          mutation,
-          authControllerToken: await this.#authorizeMutation(mutation, payload),
-          payload,
-          identifier,
-          receipts: [],
-        },
+        ...pending,
+        phase: 'writing',
+        authControllerToken,
+        receipts: [],
       });
     });
-  }
-
-  async #createMutation(
-    fields: Omit<Mutation, 'requestHash'>,
-  ): Promise<Mutation> {
-    return {
-      ...fields,
-      requestHash: await hash({
-        id: fields.id,
-        profileId: fields.profileId,
-        operation: fields.operation,
-        expectedVersion: fields.expectedVersion,
-        newVersion: fields.newVersion,
-        payloadHash: fields.payloadHash,
-        audiences: fields.audiences,
-      }),
-    };
   }
 
   async #authorizeMutation(
     mutation: Mutation,
-    payload: MutationPayload,
+    payload: PendingMutationPayload,
   ): Promise<AuthControllerToken> {
-    const identifiers =
-      mutation.operation === 'register' ||
-      mutation.operation === 'updateIdentifiers'
-        ? (payload as RegisterPayload | UpdateIdentifiersPayload).identifiers
-        : undefined;
     return await this.#authProvider.authorizeRecoveryRequest({
       requestHash: mutation.requestHash,
       ...(mutation.operation === 'register' ? {} : { requireTwoFactor: true }),
-      ...(identifiers === undefined ? {} : { identifiers }),
+      ...(pendingPayloadHasIdentifiers(payload)
+        ? { identifiers: payload.identifiers }
+        : {}),
     });
   }
 
-  async #repairPendingMutation(
-    escrows: RecoveryEscrowProvider[],
-  ): Promise<void> {
-    const saved = await this.#loadPending();
-    if (!saved) {
+  async #repairPendingMutation(): Promise<void> {
+    const pending = await this.#loadPending();
+    if (!pending) {
       return;
     }
-    if (saved.phase === 'authorizing') {
-      const availableEscrows = await this.#requireAllEscrows(escrows);
+
+    if (pending.phase === 'authorizing') {
       await this.#replicateMutation({
-        escrows: availableEscrows,
-        pending: {
-          phase: 'writing',
-          mutation: saved.mutation,
-          authControllerToken: await this.#authorizeMutation(
-            saved.mutation,
-            saved.payload,
-          ),
-          payload: saved.payload,
-          identifier: saved.identifier,
-          receipts: [],
-        },
-        availabilityChecked: true,
+        ...pending,
+        phase: 'writing',
+        authControllerToken: await this.#authorizeMutation(
+          pending.mutation,
+          pending.payload,
+        ),
+        receipts: [],
       });
       return;
     }
 
-    await this.#replicateMutation({ escrows, pending: saved });
+    // writing phase
+    await this.#replicateMutation(pending);
   }
 
-  async #replicateMutation({
-    escrows,
-    pending,
-    availabilityChecked = false,
-  }: {
-    escrows: RecoveryEscrowProvider[];
-    pending: WritingPendingOperation;
-    availabilityChecked?: boolean;
-  }): Promise<void> {
+  async #replicateMutation(pending: WritingPendingOperation): Promise<void> {
     const { mutation, payload, identifier } = pending;
-    const entries = escrows.map((escrow) => ({
-      escrow,
-      id: this.#getConfiguredEscrowId(escrow),
-    }));
-    pending.receipts.forEach((receipt) => {
-      const entry = entries.find((item) => item.id === receipt.escrowId);
-      if (entry === undefined) {
-        throw new MfaRecoveryError(
-          'Receipt escrow is not configured',
-          'unknown_receipt_escrow',
-        );
-      }
-      if (!verifyMutationReceipt(receipt, mutation, entry.escrow, entry.id)) {
-        throw new MfaRecoveryError(
-          'Invalid mutation receipt',
-          'invalid_receipt',
-        );
-      }
-    });
-    const acknowledged = new Set(
-      pending.receipts.map((receipt) => receipt.escrowId),
-    );
-    const targets = entries
-      .filter((entry) => !acknowledged.has(entry.id))
-      .map((entry) => entry.escrow);
-    if (targets.length === 0) {
+    const remainingEscrows = this.#getRemainingEscrows(pending);
+    if (remainingEscrows.length === 0) {
       await this.#clearPending();
       return;
     }
-    const availableTargets = availabilityChecked
-      ? targets
-      : await this.#requireAllEscrows(targets);
-    const refreshedToken = this.#tokenNeedsRefresh(pending.authControllerToken)
-      ? await this.#authorizeMutation(mutation, payload)
-      : pending.authControllerToken;
-    const effectivePending =
-      refreshedToken === pending.authControllerToken
-        ? pending
-        : { ...pending, authControllerToken: refreshedToken };
-    const authorizations =
+
+    const availableEscrows = await this.#getAvailableEscrows(remainingEscrows);
+    if (availableEscrows.length !== remainingEscrows.length) {
+      throw new MfaRecoveryError(
+        'All configured escrows are required for mutation',
+        'escrow_unavailable',
+      );
+    }
+
+    const authControllerToken =
+      pending.authControllerToken.expiresAt <= this.#now()
+        ? await this.#authorizeMutation(mutation, payload)
+        : pending.authControllerToken;
+    const writing = { ...pending, authControllerToken };
+    const authorizedEscrows =
       mutation.operation === 'register'
-        ? undefined
+        ? null
         : await this.#authorizeIdentifier({
-            escrows: availableTargets,
+            escrows: remainingEscrows,
             identifier: identifier as Identifier,
             requestHash: mutation.requestHash,
           });
     if (
-      authorizations !== undefined &&
-      authorizations.length !== availableTargets.length
+      authorizedEscrows !== null &&
+      authorizedEscrows.length !== remainingEscrows.length
     ) {
       throw new MfaRecoveryError(
         'Unable to authorize every escrow',
         'identifier_auth_failed',
       );
     }
-    await this.#persistPending(effectivePending);
+    const payloads = remainingEscrows.map((escrow) =>
+      this.#payloadForEscrow(writing, escrow),
+    );
+
+    await this.#persistPending(writing);
     const results = await Promise.allSettled(
-      availableTargets.map((escrow, index) =>
+      remainingEscrows.map((escrow, index) =>
         escrow.applyMutation(
           mutation,
-          effectivePending.authControllerToken,
-          authorizations?.[index]?.authorization ?? null,
-          payload,
+          writing.authControllerToken,
+          authorizedEscrows?.[index]?.authorization ?? null,
+          payloads[index],
         ),
       ),
     );
 
-    const receipts: MutationReceipt[] = [...effectivePending.receipts];
-    let hasInvalidReceipt = false;
-    results.forEach((result, index) => {
-      if (!isFulfilledResult(result)) {
-        return;
-      }
-      const entry = {
-        escrow: availableTargets[index],
-        id: this.#getConfiguredEscrowId(availableTargets[index]),
-      };
-      if (
-        !isMutationReceipt(result.value) ||
-        !verifyMutationReceipt(result.value, mutation, entry.escrow, entry.id)
-      ) {
-        hasInvalidReceipt = true;
-        return;
-      }
-      receipts.push(result.value);
-    });
-    await this.#persistPending({ ...effectivePending, receipts });
+    const { receipts, hasInvalidReceipt } = this.#collectMutationReceipts(
+      results,
+      remainingEscrows,
+      mutation,
+      writing.receipts,
+    );
+    await this.#persistPending({ ...writing, receipts });
 
     if (hasInvalidReceipt) {
       throw new MfaRecoveryError('Invalid mutation receipt', 'invalid_receipt');
@@ -612,11 +553,68 @@ export class MfaRecoveryController extends BaseController<
 
     if (
       new Set(receipts.map((receipt) => receipt.escrowId)).size !==
-      escrows.length
+      this.#escrows.length
     ) {
-      throw new MutationRepairPendingError(mutation.id);
+      throw new IncompleteMutationError(mutation.id);
     }
     await this.#clearPending();
+  }
+
+  #getRemainingEscrows(
+    pending: WritingPendingOperation,
+  ): RecoveryEscrowProvider[] {
+    const { mutation } = pending;
+    const remainingEscrows: RecoveryEscrowProvider[] = [];
+    for (const escrow of this.#escrows) {
+      const receipt = pending.receipts.find(
+        (item) => item.escrowId === escrow.id,
+      );
+      if (receipt === undefined) {
+        remainingEscrows.push(escrow);
+        continue;
+      }
+      if (!verifyMutationReceipt(receipt, mutation, escrow)) {
+        throw new MfaRecoveryError(
+          'Invalid mutation receipt',
+          'invalid_receipt',
+        );
+      }
+    }
+    if (
+      remainingEscrows.length + pending.receipts.length !==
+      this.#escrows.length
+    ) {
+      throw new MfaRecoveryError(
+        'Receipt escrow is not configured',
+        'unknown_receipt_escrow',
+      );
+    }
+    return remainingEscrows;
+  }
+
+  #collectMutationReceipts(
+    results: PromiseSettledResult<MutationReceipt>[],
+    escrows: RecoveryEscrowProvider[],
+    mutation: Mutation,
+    existingReceipts: MutationReceipt[],
+  ): { receipts: MutationReceipt[]; hasInvalidReceipt: boolean } {
+    const receipts = [...existingReceipts];
+    let hasInvalidReceipt = false;
+    results.forEach((result, index) => {
+      if (!isFulfilledResult(result)) {
+        return;
+      }
+      const escrow = escrows[index];
+      if (
+        !isMutationReceipt(result.value) ||
+        !verifyMutationReceipt(result.value, mutation, escrow)
+      ) {
+        hasInvalidReceipt = true;
+        return;
+      }
+      receipts.push(result.value);
+    });
+    return { receipts, hasInvalidReceipt };
   }
 
   async #authorizeIdentifier({
@@ -628,92 +626,52 @@ export class MfaRecoveryController extends BaseController<
     identifier: Identifier;
     requestHash: string;
   }): Promise<AuthorizedEscrow[]> {
-    const mode = getIdentifierAuthMode(identifier.type);
-    if (mode === 'key-bound') {
-      const proofKey = await generateSigningKey();
-      const token =
-        await this.#identifierAuthProvider.getKeyBoundIdentifierToken({
-          identifier,
-          proofPublicKey: proofKey.publicKey,
-          requestHash,
-        });
-      const challengeResults = await Promise.allSettled(
-        escrows.map((escrow) => escrow.generateChallenge(proofKey.publicKey)),
-      );
-      const challenges = challengeResults.flatMap((result, index) =>
-        isFulfilledResult(result)
-          ? [{ escrow: escrows[index], challenge: result.value }]
-          : [],
-      );
-      const authorizationResults = await Promise.allSettled(
-        challenges.map(async ({ escrow, challenge }) => {
-          const message = await hash([token, challenge.id, requestHash]);
-          return {
-            escrow,
-            authorization: {
-              kind: 'key-bound' as const,
-              token,
-              proof: {
-                challengeId: challenge.id,
-                requestHash,
-                signature: await sign(proofKey.privateKey, message),
-              },
-            },
-          };
-        }),
-      );
-      return authorizationResults
-        .filter(isFulfilledResult)
-        .map((result) => result.value);
-    }
-
-    const challengeResults = await Promise.allSettled(
-      escrows.map((escrow) =>
-        escrow.beginIdentifierAuthentication({ identifier, requestHash }),
-      ),
-    );
-    const challenges = challengeResults.flatMap((result, index) =>
-      isFulfilledResult(result)
-        ? [{ escrow: escrows[index], challenge: result.value }]
-        : [],
-    );
-    const responseResults = await Promise.allSettled(
-      challenges.map(async (entry) => ({
-        ...entry,
-        response: await this.#collectChallengeResponse(entry.challenge),
-      })),
-    );
-    const responses = responseResults
-      .filter(isFulfilledResult)
-      .map((result) => result.value);
-    const grantResults = await Promise.allSettled(
-      responses.map(async ({ escrow, challenge, response }) => ({
-        escrow,
-        grant: await escrow.completeIdentifierAuthentication(
-          challenge.id,
-          response,
-        ),
-      })),
-    );
-    return grantResults.filter(isFulfilledResult).map(({ value }) => ({
-      escrow: value.escrow,
-      authorization: {
-        kind: 'escrow-challenge' as const,
-        grant: value.grant,
-      },
-    }));
+    getIdentifierAuthMode(identifier.type);
+    return await authorizeKeyBoundIdentifier({
+      escrows,
+      identifier,
+      requestHash,
+      identifierAuthProvider: this.#identifierAuthProvider,
+    });
   }
 
-  #resolveCurrentRecoveryVersion(payload: MutationPayload): number {
+  #payloadForEscrow(
+    pending: WritingPendingOperation,
+    escrow: RecoveryEscrowProvider,
+  ): MutationPayload {
+    const { payload } = pending;
+    if (!pendingPayloadHasRecoverySecret(payload)) {
+      return {
+        epoch: payload.epoch,
+        identifiers: payload.identifiers,
+      };
+    }
+    const recoverySecret = this.#wrapRecoverySecret(
+      decodeHex(payload.recoverySecret),
+      escrow.wrapPublicKey,
+    );
+    if (pendingPayloadHasIdentifiers(payload)) {
+      return {
+        epoch: payload.epoch,
+        identifiers: payload.identifiers,
+        recoverySecret,
+      };
+    }
+    return { epoch: payload.epoch, recoverySecret };
+  }
+
+  #resolveCurrentRecoveryVersion(payload: { epoch: number }): number {
     if (!Number.isInteger(payload.epoch) || payload.epoch < 0) {
       throw new MfaRecoveryError('Invalid epoch', 'invalid_epoch');
     }
     return payload.epoch;
   }
 
-  async #getAvailableEscrows(): Promise<RecoveryEscrowProvider[]> {
+  async #getAvailableEscrows(
+    escrows: RecoveryEscrowProvider[] = this.#escrows,
+  ): Promise<RecoveryEscrowProvider[]> {
     const flags = await Promise.allSettled(
-      this.#escrows.map(async (escrow) => ({
+      escrows.map(async (escrow) => ({
         escrow,
         available: await escrow.isAvailable(),
       })),
@@ -725,32 +683,34 @@ export class MfaRecoveryController extends BaseController<
     );
   }
 
-  async #requireAllEscrows(
-    escrows: RecoveryEscrowProvider[],
-  ): Promise<RecoveryEscrowProvider[]> {
-    const available = await Promise.all(
-      escrows.map(async (escrow) => ({
-        escrow,
-        available: await escrow.isAvailable(),
-      })),
-    );
-    if (available.some((item) => !item.available)) {
-      throw new MfaRecoveryError(
-        'All configured escrows are required for mutation',
-        'escrow_unavailable',
-      );
-    }
-    return escrows;
-  }
-
-  #tokenNeedsRefresh(token: AuthControllerToken): boolean {
-    return token.expiresAt <= this.#now();
-  }
-
   #assertKnownIdentifierTypes(identifiers: Identifier[]): void {
     for (const identifier of identifiers) {
       getIdentifierAuthMode(identifier.type);
     }
+  }
+
+  #assertMinIdentifiers(identifiers: Identifier[]): void {
+    if (identifiers.length < MIN_IDENTIFIERS) {
+      throw new MfaRecoveryError(
+        `Requires at least ${MIN_IDENTIFIERS} identifiers`,
+        'empty_identifiers',
+      );
+    }
+  }
+
+  #wrapRecoverySecret(
+    plaintext: Uint8Array,
+    wrapPublicKey: string,
+  ): WrappedSecret {
+    const ephemeral = generateSigningKey();
+    return {
+      pkE: JSON.parse(ephemeral.publicKey) as EcPublicJwk,
+      ciphertext: encryptToPublic(
+        ephemeral.privateKey,
+        wrapPublicKey,
+        plaintext,
+      ),
+    };
   }
 
   async #loadPending(): Promise<PendingOperation | null> {
@@ -761,19 +721,23 @@ export class MfaRecoveryController extends BaseController<
     const pending = (await this.#encryptor.decrypt(
       pendingOperation,
     )) as unknown;
-    await assertValidPendingOperation(pending, this.#escrowIds);
+    await this.#assertPending(pending);
     return pending as PendingOperation;
   }
 
-  #getConfiguredEscrowId(escrow: RecoveryEscrowProvider): string {
-    return this.#escrowIds[this.#escrows.indexOf(escrow)];
-  }
-
   async #persistPending(operation: PendingOperation): Promise<void> {
+    await this.#assertPending(operation);
     const encrypted = await this.#encryptor.encrypt(operation);
     this.update((state) => {
       state.pendingOperation = encrypted;
     });
+  }
+
+  async #assertPending(pending: unknown): Promise<void> {
+    await assertValidPendingOperation(
+      pending,
+      this.#escrows.map((escrow) => escrow.id),
+    );
   }
 
   async #clearPending(): Promise<void> {

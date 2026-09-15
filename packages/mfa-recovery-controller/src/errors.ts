@@ -1,5 +1,5 @@
 /**
- * Errors thrown by {@link MfaRecoveryController}.
+ * Errors thrown by `MfaRecoveryController`.
  */
 export class MfaRecoveryError extends Error {
   readonly code: string;
@@ -13,17 +13,18 @@ export class MfaRecoveryError extends Error {
 }
 
 /**
- * Thrown when a mutation was applied at some but not all configured escrows.
- * Call {@link MfaRecoveryController.resume} to retry the same mutation.
+ * Thrown when a mutation is not acknowledged by every configured escrow.
+ * Call `MfaRecoveryController.resume()` to retry the same mutation.
  */
-export class MutationRepairPendingError extends MfaRecoveryError {
+export class IncompleteMutationError extends MfaRecoveryError {
   readonly mutationId: string;
 
   constructor(mutationId: string) {
     super(
       `Mutation ${mutationId} is not acknowledged by every escrow`,
-      'mutation_repair_pending',
+      'incomplete_mutation',
     );
+    this.name = 'IncompleteMutationError';
     this.mutationId = mutationId;
   }
 }

@@ -12,10 +12,13 @@ export type Identifier = {
 export type PoPChallenge = {
   id: string;
   escrowId: string;
+  /**
+   * Unix time in seconds.
+   */
   expiresAt: number;
 };
 
-export type IdentifierAuthMode = 'key-bound' | 'escrow-challenge';
+export type IdentifierAuthMode = 'key-bound';
 
 export type KeyBoundIdentifierToken = {
   identifier: Identifier;
@@ -30,28 +33,15 @@ export type ProofOfPossession = {
   signature: string;
 };
 
-export type EscrowAuthChallenge = {
-  id: string;
-  escrowId: string;
-  identifier: Identifier;
-  requestHash: string;
-  expiresAt: number;
+/**
+ * Identifier proof presented to an escrow. Only key-bound proofs are wired;
+ * escrow-challenge grants land with MFA-605 / MFA-606 / MFA-568.
+ */
+export type IdentifierAuthorization = {
+  kind: 'key-bound';
+  token: KeyBoundIdentifierToken;
+  proof: ProofOfPossession;
 };
-
-export type EscrowIdentifierGrant = {
-  id: string;
-};
-
-export type IdentifierAuthorization =
-  | {
-      kind: 'key-bound';
-      token: KeyBoundIdentifierToken;
-      proof: ProofOfPossession;
-    }
-  | {
-      kind: 'escrow-challenge';
-      grant: EscrowIdentifierGrant;
-    };
 
 export type MutationOperation =
   | 'register'
@@ -76,6 +66,9 @@ export type AuthControllerToken = {
   identifiersHash?: string;
   identifierOwnershipApproved?: true;
   issuer: string;
+  /**
+   * Unix time in seconds.
+   */
   expiresAt: number;
   signature: string;
 };
@@ -85,18 +78,45 @@ export type MutationReceipt = {
   requestHash: string;
   escrowId: string;
   version: number;
+  /**
+   * SHA-256 of the uncompressed receipt public key, as `0x` hex.
+   */
+  receiptKeyId: string;
   signature: string;
+};
+
+/**
+ * P-256 public JWK used as an ephemeral wrap key (`pkE`).
+ */
+export type EcPublicJwk = {
+  kty: 'EC';
+  crv: 'P-256';
+  x: string;
+  y: string;
+};
+
+/**
+ * Recovery secret wrapped to one escrow wrap key for transit.
+ * `ciphertext` is unprefixed hex of `nonce || ChaCha20-Poly1305(ciphertext+tag)`.
+ */
+export type WrappedSecret = {
+  pkE: EcPublicJwk;
+  ciphertext: string;
+};
+
+export type WrappedSecretOutput = {
+  ciphertext: string;
 };
 
 export type RegisterPayload = {
   epoch: number;
-  recoverySecret: string;
+  recoverySecret: WrappedSecret;
   identifiers: Identifier[];
 };
 
 export type UpdateRecoverySecretPayload = {
   epoch: number;
-  recoverySecret: string;
+  recoverySecret: WrappedSecret;
 };
 
 export type UpdateIdentifiersPayload = {
@@ -104,24 +124,68 @@ export type UpdateIdentifiersPayload = {
   identifiers: Identifier[];
 };
 
+/**
+ * Escrow `applyMutation` body. Recovery secrets are wrapped to that escrow's
+ * wrap key; do not confuse with {@link PendingMutationPayload}.
+ */
 export type MutationPayload =
   | RegisterPayload
   | UpdateRecoverySecretPayload
   | UpdateIdentifiersPayload;
 
-export type AuthorizingPendingOperation = {
-  phase: 'authorizing';
-  mutation: Mutation;
-  payload: MutationPayload;
-  identifier: Identifier | null;
+/**
+ * 0x-hex of a plaintext recovery secret. Encrypted pending state stores this
+ * logical value; each escrow receives a {@link WrappedSecret} only at apply.
+ */
+export type PendingRecoverySecretHex = string;
+
+/**
+ * Logical register payload stored in encrypted pending state.
+ */
+export type PendingRegisterPayload = {
+  epoch: number;
+  identifiers: Identifier[];
+  recoverySecret: PendingRecoverySecretHex;
 };
 
-export type WritingPendingOperation = {
-  phase: 'writing';
+/**
+ * Logical secret-update payload stored in encrypted pending state.
+ */
+export type PendingUpdateRecoverySecretPayload = {
+  epoch: number;
+  recoverySecret: PendingRecoverySecretHex;
+};
+
+/**
+ * Logical identifier-update payload stored in encrypted pending state.
+ */
+export type PendingUpdateIdentifiersPayload = {
+  epoch: number;
+  identifiers: Identifier[];
+};
+
+/**
+ * Logical mutation payload persisted in encrypted pending state. Distinct from
+ * {@link MutationPayload}, which is the per-escrow apply body.
+ */
+export type PendingMutationPayload =
+  | PendingRegisterPayload
+  | PendingUpdateRecoverySecretPayload
+  | PendingUpdateIdentifiersPayload;
+
+type PendingOperationBase = {
   mutation: Mutation;
-  authControllerToken: AuthControllerToken;
-  payload: MutationPayload;
   identifier: Identifier | null;
+  payload: PendingMutationPayload;
+};
+
+export type AuthorizingPendingOperation = PendingOperationBase & {
+  phase: 'authorizing';
+};
+
+export type WritingPendingOperation = PendingOperationBase & {
+  phase: 'writing';
+  authControllerToken: AuthControllerToken;
   receipts: MutationReceipt[];
 };
 
@@ -133,7 +197,8 @@ export type RecoveryPhase = 'idle' | PendingOperation['phase'];
 
 /**
  * Encoded ciphertext of {@link PendingOperation}. Wallet secure storage
- * encrypts this value; a raw recovery secret is never persisted in the clear.
+ * encrypts this blob (including any hex recovery secret). A raw recovery
+ * secret is never persisted in BaseController state.
  *
  * The recovery spec's pseudocode represents this as `Uint8Array`, but the
  * controller stores the encoded ciphertext as a string so BaseController state
@@ -141,10 +206,11 @@ export type RecoveryPhase = 'idle' | PendingOperation['phase'];
  */
 export type EncryptedPendingOperation = string;
 
-export type RecoverySecretResponse = {
-  recoverySecret: Uint8Array;
+export type GetRecoverySecretResponse = {
+  recoverySecret: WrappedSecretOutput;
   version: number;
   lastMutationId: string;
+  wrapKeyId: string;
 };
 
 /**
@@ -183,20 +249,19 @@ export type RecoveryIdentifierAuthProvider = {
  */
 export type RecoveryEscrowProvider = {
   readonly id: string;
+  /**
+   * P-256 wrap public JWK JSON. Mutation payloads are encrypted to this key;
+   * `getSecret` responses are encrypted to the request's ephemeral key using
+   * the corresponding wrap private key.
+   */
+  readonly wrapPublicKey: string;
   isAvailable: () => Promise<boolean>;
-  generateChallenge: (publicKey: string) => Promise<PoPChallenge>;
-  beginIdentifierAuthentication: (params: {
-    identifier: Identifier;
-    requestHash: string;
-  }) => Promise<EscrowAuthChallenge>;
-  completeIdentifierAuthentication: (
-    challengeId: string,
-    response: unknown,
-  ) => Promise<EscrowIdentifierGrant>;
+  generateChallenge: () => Promise<PoPChallenge>;
   getSecret: (
     authorization: IdentifierAuthorization,
     requestId: string,
-  ) => Promise<RecoverySecretResponse>;
+    pkE: EcPublicJwk,
+  ) => Promise<GetRecoverySecretResponse>;
   applyMutation: (
     mutation: Mutation,
     authControllerToken: AuthControllerToken,

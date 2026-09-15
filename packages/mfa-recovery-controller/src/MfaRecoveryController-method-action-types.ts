@@ -9,7 +9,8 @@ import type { MfaRecoveryController } from './MfaRecoveryController.js';
  * Creates version 1 of a recovery record.
  *
  * @param recoverySecret - Secret replicated in full to every escrow.
- * @param identifiers - Ownership-approved identifier set. Must be non-empty.
+ * @param identifiers - Ownership-approved identifier set. Must contain at
+ * least two identifiers.
  */
 export type MfaRecoveryControllerRegisterAction = {
   type: `MfaRecoveryController:register`;
@@ -32,7 +33,8 @@ export type MfaRecoveryControllerUpdateRecoverySecretAction = {
  * Replaces the complete identifier set.
  *
  * @param identifier - Currently registered identifier used to authorize.
- * @param identifiers - New non-empty identifier set.
+ * @param identifiers - New identifier set. Must contain at least two
+ * identifiers.
  * @param epoch - Current recovery version, used as `expectedVersion`.
  */
 export type MfaRecoveryControllerUpdateIdentifiersAction = {

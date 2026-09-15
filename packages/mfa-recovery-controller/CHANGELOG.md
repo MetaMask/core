@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Wrap recovery secrets in mutation payloads and `getSecret` responses with escrow-wrap-v1 (`pkE` + ChaCha20-Poly1305 ciphertext), and bind `getSecret` request hashes to the client's ephemeral `pkE`
+- **BREAKING:** Wrap mutation recovery secrets to each escrow's wrap key at apply time, store the logical secret as hex inside encrypted pending state, and send each escrow only its own `{ pkE, ciphertext }` wrap
+- **BREAKING:** Require at least two identifiers on `register` and `updateIdentifiers`, reject `emailOtp` / `smsOtp` until escrow-challenge OTP is implemented, and omit `RecoveryEscrowProvider` OTP challenge methods until then
 - **BREAKING:** Return `{ recoverySecret, epoch }` from `getRecoverySecret` so clients can pass the selected version into later mutations
 - **BREAKING:** Require `RecoveryEscrowProvider.verifyReceipt` to receive the expected escrow id so receipt verification is explicitly bound to the configured escrow target
 - **BREAKING:** Bind mutation version allocation to payload `epoch` on `register`, `updateRecoverySecret`, and `updateIdentifiers`, and remove unauthenticated `RecoveryEscrowProvider.getRecoveryMetadata` lookups

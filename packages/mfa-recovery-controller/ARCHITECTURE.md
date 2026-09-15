@@ -7,8 +7,8 @@ crash can finish the same write.
 
 ## Architecture
 
-The controller is a coordinator. Auth, identifier proofs, escrow I/O,
-encryption, and OTP collection are all injected.
+The controller is a coordinator. Auth, identifier proofs, escrow I/O, and
+encryption are injected. OTP collection is not wired yet.
 
 ```mermaid
 flowchart LR
@@ -18,7 +18,6 @@ flowchart LR
   Auth["RecoveryAuthProvider"]
   IdP["RecoveryIdentifierAuthProvider"]
   Enc["PendingOperationEncryptor"]
-  Collect["collectChallengeResponse"]
   EA["Escrow A"]
   EB["Escrow B"]
 
@@ -27,23 +26,29 @@ flowchart LR
   Ctrl --> Auth
   Ctrl --> IdP
   Ctrl --> Enc
-  Ctrl --> Collect
   Ctrl --> EA
   Ctrl --> EB
 ```
 
-| Piece                      | Role                                                                      |
-| -------------------------- | ------------------------------------------------------------------------- |
-| `pendingOperation`         | Only persisted field: encrypted `authorizing` / `writing` blob, or `null` |
-| `escrows[]`                | Build-time replica set; mutations require **all** of them                 |
-| `authProvider`             | Profile id + request-bound AuthController token                           |
-| `identifierAuthProvider`   | Key-bound IdP assertion (passkey / OIDC / SIWE)                           |
-| `collectChallengeResponse` | OTP (or similar) for email/SMS identifiers                                |
-| `#withLock`                | Serializes public methods so two mutations cannot interleave              |
+| Piece                    | Role                                                                      |
+| ------------------------ | ------------------------------------------------------------------------- |
+| `pendingOperation`       | Only persisted field: encrypted `authorizing` / `writing` blob, or `null` |
+| `escrows[]`              | Build-time replica set; mutations require **all** of them                 |
+| `authProvider`           | Profile id + request-bound AuthController token                           |
+| `identifierAuthProvider` | Key-bound IdP assertion (passkey / OIDC / SIWE)                           |
+| `#withLock`              | Serializes public methods so two mutations cannot interleave              |
 
 Identifier types pick the auth mode from a trusted table, not a client flag:
-`passkey` / `oidc` / `siwe` → key-bound; `emailOtp` / `smsOtp` → escrow
-challenge.
+`passkey` / `oidc` / `siwe` → key-bound. `emailOtp` / `smsOtp` escrow-challenge
+is not wired yet (MFA-605 / MFA-606 / MFA-568).
+
+`register` and `updateIdentifiers` require at least two identifiers.
+
+Recovery secrets are wrapped in transit with escrow-wrap-v1 (P-256 ECDH, HKDF,
+ChaCha20-Poly1305). Encrypted pending state stores `PendingMutationPayload`
+(secret as 0x-hex). At apply, each escrow receives a `MutationPayload` with
+only the `{ pkE, ciphertext }` pair wrapped to its own wrap key. Reads send
+the client's ephemeral `pkE` in the `getSecret` request hash.
 
 Public surface: `register`, `updateRecoverySecret`, `updateIdentifiers`,
 `getRecoverySecret`, `resume`, `abort`, `getPhase`.
@@ -104,7 +109,7 @@ sequenceDiagram
   alt all receipts valid
     M->>M: clear pending → idle
   else some replicas missing
-    M-->>C: MutationRepairPendingError (call resume)
+    M-->>C: IncompleteMutationError (call resume)
   end
 ```
 
@@ -158,9 +163,7 @@ flowchart TD
   Mode -->|passkey / oidc / siwe| KB[IdP key-bound token]
   KB --> Chal[each escrow generateChallenge]
   Chal --> PoP[sign PoP over token + challenge + requestHash]
-  Mode -->|emailOtp / smsOtp| Beg[escrow beginIdentifierAuthentication]
-  Beg --> OTP[collectChallengeResponse]
-  OTP --> Grant[escrow completeIdentifierAuthentication]
+  Mode -->|emailOtp / smsOtp| Todo[TODO MFA-605 / MFA-606 / MFA-568]
 ```
 
 On **mutation**, every target escrow must authorize or the write does not
@@ -181,5 +184,5 @@ flowchart TD
   Skip --> Write
   Write --> All{receipts for every configured escrow?}
   All -->|yes| Clear[clear pending]
-  All -->|no| PendingErr[MutationRepairPendingError]
+  All -->|no| PendingErr[IncompleteMutationError]
 ```

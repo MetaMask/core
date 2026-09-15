@@ -1,16 +1,25 @@
+import { bytesToHex } from '@metamask/utils';
+
 import {
   canonicalizeIdentifiers,
+  decodeHex,
+  decryptFromPublic,
+  encryptToPublic,
+  generateSigningKey,
   hash,
   hashMutationReceipt,
-  secretHexToBytes,
+  unixNow,
   verifySignature,
+  wrapKeyId,
 } from '../src/crypto.js';
 import { MfaRecoveryError } from '../src/errors.js';
-import { getIdentifierAuthMode } from '../src/identifier-auth.js';
+import {
+  MIN_IDENTIFIERS,
+  getIdentifierAuthMode,
+} from '../src/identifier-auth.js';
 import type {
   AuthControllerToken,
-  EscrowAuthChallenge,
-  EscrowIdentifierGrant,
+  EcPublicJwk,
   Identifier,
   IdentifierAuthorization,
   KeyBoundIdentifierToken,
@@ -23,10 +32,11 @@ import type {
   RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
-  RecoverySecretResponse,
+  GetRecoverySecretResponse,
   RegisterPayload,
   UpdateIdentifiersPayload,
   UpdateRecoverySecretPayload,
+  WrappedSecret,
 } from '../src/types.js';
 
 type RecoveryRecord = {
@@ -40,13 +50,7 @@ type RecoveryRecord = {
 
 type StoredPoPChallenge = PoPChallenge & { consumed: boolean };
 
-type StoredEscrowAuth = EscrowAuthChallenge & {
-  completed: boolean;
-  consumed: boolean;
-  grant?: EscrowIdentifierGrant;
-};
-
-const CHALLENGE_TTL_MS = 5 * 60 * 1000;
+const CHALLENGE_TTL_SECS = 5 * 60;
 
 /**
  * In-memory AuthController used in tests.
@@ -54,7 +58,7 @@ const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 export class StubAuthProvider implements RecoveryAuthProvider {
   profileId = 'profile-1';
 
-  now: () => number = () => Date.now();
+  now: () => number = unixNow;
 
   async getAuthenticatedProfileId(): Promise<string> {
     return this.profileId;
@@ -80,7 +84,7 @@ export class StubAuthProvider implements RecoveryAuthProvider {
             identifierOwnershipApproved: true as const,
           }),
       issuer: 'stub-auth',
-      expiresAt: this.now() + 60 * 60 * 1000,
+      expiresAt: this.now() + 60 * 60,
       signature: 'stub-auth-signature',
     };
   }
@@ -121,7 +125,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
 
   invalidReceipts = false;
 
-  now: () => number = () => Date.now();
+  now: () => number = unixNow;
 
   readonly #records = new Map<string, RecoveryRecord>();
 
@@ -129,22 +133,19 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
 
   readonly #popChallenges = new Map<string, StoredPoPChallenge>();
 
-  readonly #escrowAuth = new Map<string, StoredEscrowAuth>();
-
-  readonly #grants = new Map<
-    string,
-    {
-      identifier: Identifier;
-      requestHash: string;
-      expiresAt: number;
-      consumed: boolean;
-    }
-  >();
-
   readonly id: string;
 
-  constructor(id: string) {
+  readonly wrapPublicKey: string;
+
+  readonly #wrapPrivateKey: string;
+
+  constructor(
+    id: string,
+    wrapKey: { publicKey: string; privateKey: string } = generateSigningKey(),
+  ) {
     this.id = id;
+    this.wrapPublicKey = wrapKey.publicKey;
+    this.#wrapPrivateKey = wrapKey.privateKey;
   }
 
   async isAvailable(): Promise<boolean> {
@@ -155,7 +156,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     const challenge: StoredPoPChallenge = {
       id: `${this.id}-pop-${this.#popChallenges.size + 1}`,
       escrowId: this.id,
-      expiresAt: this.now() + CHALLENGE_TTL_MS,
+      expiresAt: this.now() + CHALLENGE_TTL_SECS,
       consumed: false,
     };
     this.#popChallenges.set(challenge.id, challenge);
@@ -164,62 +165,6 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       escrowId: challenge.escrowId,
       expiresAt: challenge.expiresAt,
     };
-  }
-
-  async beginIdentifierAuthentication(params: {
-    identifier: Identifier;
-    requestHash: string;
-  }): Promise<EscrowAuthChallenge> {
-    if (getIdentifierAuthMode(params.identifier.type) !== 'escrow-challenge') {
-      throw new MfaRecoveryError(
-        'Identifier type is not escrow-challenge',
-        'invalid_auth_mode',
-      );
-    }
-    const challenge: StoredEscrowAuth = {
-      id: `${this.id}-otp-${this.#escrowAuth.size + 1}`,
-      escrowId: this.id,
-      identifier: params.identifier,
-      requestHash: params.requestHash,
-      expiresAt: this.now() + CHALLENGE_TTL_MS,
-      completed: false,
-      consumed: false,
-    };
-    this.#escrowAuth.set(challenge.id, challenge);
-    return {
-      id: challenge.id,
-      escrowId: challenge.escrowId,
-      identifier: challenge.identifier,
-      requestHash: challenge.requestHash,
-      expiresAt: challenge.expiresAt,
-    };
-  }
-
-  async completeIdentifierAuthentication(
-    challengeId: string,
-    _response: unknown,
-  ): Promise<EscrowIdentifierGrant> {
-    const challenge = this.#escrowAuth.get(challengeId);
-    if (
-      challenge === undefined ||
-      challenge.expiresAt <= this.now() ||
-      challenge.completed
-    ) {
-      throw new MfaRecoveryError(
-        'Invalid escrow auth challenge',
-        'invalid_challenge',
-      );
-    }
-    challenge.completed = true;
-    const grant = { id: `${challenge.id}-grant` };
-    challenge.grant = grant;
-    this.#grants.set(grant.id, {
-      identifier: challenge.identifier,
-      requestHash: challenge.requestHash,
-      expiresAt: challenge.expiresAt,
-      consumed: false,
-    });
-    return grant;
   }
 
   /**
@@ -241,7 +186,8 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
   async getSecret(
     authorization: IdentifierAuthorization,
     requestId: string,
-  ): Promise<RecoverySecretResponse> {
+    pkE: EcPublicJwk,
+  ): Promise<GetRecoverySecretResponse> {
     if (this.failGetSecret) {
       throw new MfaRecoveryError(
         'Injected getSecret failure',
@@ -251,6 +197,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     const requestHash = await hash({
       operation: 'getRecoverySecret',
       requestId,
+      pkE,
     });
     const { profileId } = await this.#verifyIdentifierAuthorization(
       authorization,
@@ -261,9 +208,16 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       throw new MfaRecoveryError('No recovery record', 'not_registered');
     }
     return {
-      recoverySecret: secretHexToBytes(record.recoverySecret),
+      recoverySecret: {
+        ciphertext: encryptToPublic(
+          this.#wrapPrivateKey,
+          JSON.stringify(pkE),
+          decodeHex(record.recoverySecret),
+        ),
+      },
       version: record.version,
       lastMutationId: record.lastMutationId,
+      wrapKeyId: wrapKeyId(this.wrapPublicKey),
     };
   }
 
@@ -310,6 +264,13 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
         throw new MfaRecoveryError('Invalid registration', 'invalid_register');
       }
       const registerPayload = payload as RegisterPayload;
+      const recoverySecret = this.#unwrapPayloadSecret(
+        registerPayload.recoverySecret,
+      );
+      await this.#assertPayloadHash(mutation, {
+        ...registerPayload,
+        recoverySecret,
+      });
       await this.#assertIdentifierOwnership(
         authControllerToken,
         registerPayload.identifiers,
@@ -321,7 +282,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       const next: RecoveryRecord = {
         profileId: mutation.profileId,
         identifiers: registerPayload.identifiers,
-        recoverySecret: registerPayload.recoverySecret,
+        recoverySecret,
         version: mutation.newVersion,
         lastMutationId: mutation.id,
         appliedMutations: {
@@ -361,11 +322,17 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     }
 
     if (mutation.operation === 'updateRecoverySecret') {
-      record.recoverySecret = (
-        payload as UpdateRecoverySecretPayload
-      ).recoverySecret;
+      const recoverySecret = this.#unwrapPayloadSecret(
+        (payload as UpdateRecoverySecretPayload).recoverySecret,
+      );
+      await this.#assertPayloadHash(mutation, {
+        epoch: payload.epoch,
+        recoverySecret,
+      });
+      record.recoverySecret = recoverySecret;
     } else {
       const { identifiers } = payload as UpdateIdentifiersPayload;
+      await this.#assertPayloadHash(mutation, payload);
       await this.#assertIdentifierOwnership(authControllerToken, identifiers);
       this.#assertIdentifiersAvailable(mutation.profileId, identifiers);
       this.#replaceIdentifierIndex(
@@ -397,7 +364,8 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       receipt.requestHash === mutation.requestHash &&
       receipt.escrowId === expectedEscrowId &&
       expectedEscrowId === this.id &&
-      receipt.version === mutation.newVersion
+      receipt.version === mutation.newVersion &&
+      receipt.receiptKeyId === wrapKeyId(this.wrapPublicKey)
     );
   }
 
@@ -430,18 +398,16 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
   }
 
   async #signReceipt(mutation: Mutation): Promise<MutationReceipt> {
-    const signature = await hashMutationReceipt({
-      escrowId: this.id,
+    const unsigned = {
       mutationId: mutation.id,
       requestHash: mutation.requestHash,
+      escrowId: this.id,
       version: mutation.newVersion,
-    });
+      receiptKeyId: wrapKeyId(this.wrapPublicKey),
+    };
     return {
-      mutationId: mutation.id,
-      requestHash: mutation.requestHash,
-      escrowId: this.id,
-      version: mutation.newVersion,
-      signature,
+      ...unsigned,
+      signature: await hashMutationReceipt(unsigned),
     };
   }
 
@@ -487,7 +453,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
         'ownership_not_approved',
       );
     }
-    if (identifiers.length === 0) {
+    if (identifiers.length < MIN_IDENTIFIERS) {
       throw new MfaRecoveryError('Empty identifier list', 'empty_identifiers');
     }
   }
@@ -496,63 +462,34 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     authorization: IdentifierAuthorization,
     requestHash: string,
   ): Promise<{ profileId: string }> {
-    let identifier: Identifier;
-    if (authorization.kind === 'key-bound') {
-      const { token, proof } = authorization;
-      identifier = token.identifier;
-      if (getIdentifierAuthMode(identifier.type) !== 'key-bound') {
-        throw new MfaRecoveryError(
-          'Not a key-bound identifier',
-          'invalid_auth_mode',
-        );
-      }
-      if (
-        token.requestHash !== requestHash ||
-        proof.requestHash !== requestHash
-      ) {
-        throw new MfaRecoveryError(
-          'Request hash mismatch',
-          'request_hash_mismatch',
-        );
-      }
-      const challenge = this.#popChallenges.get(proof.challengeId);
-      if (
-        challenge === undefined ||
-        challenge.consumed ||
-        challenge.escrowId !== this.id ||
-        challenge.expiresAt <= this.now()
-      ) {
-        throw new MfaRecoveryError(
-          'Invalid PoP challenge',
-          'invalid_challenge',
-        );
-      }
-      const message = await hash([token, proof.challengeId, requestHash]);
-      if (
-        !(await verifySignature(token.proofPublicKey, proof.signature, message))
-      ) {
-        throw new MfaRecoveryError('Invalid PoP signature', 'invalid_pop');
-      }
-      challenge.consumed = true;
-    } else {
-      const grant = this.#grants.get(authorization.grant.id);
-      if (
-        grant === undefined ||
-        grant.consumed ||
-        grant.requestHash !== requestHash ||
-        grant.expiresAt <= this.now()
-      ) {
-        throw new MfaRecoveryError('Invalid escrow grant', 'invalid_grant');
-      }
-      grant.consumed = true;
-      identifier = grant.identifier;
-      if (getIdentifierAuthMode(identifier.type) !== 'escrow-challenge') {
-        throw new MfaRecoveryError(
-          'Not an escrow-challenge identifier',
-          'invalid_auth_mode',
-        );
-      }
+    const { token, proof } = authorization;
+    const { identifier } = token;
+    getIdentifierAuthMode(identifier.type);
+    if (
+      token.requestHash !== requestHash ||
+      proof.requestHash !== requestHash
+    ) {
+      throw new MfaRecoveryError(
+        'Request hash mismatch',
+        'request_hash_mismatch',
+      );
     }
+    const challenge = this.#popChallenges.get(proof.challengeId);
+    if (
+      challenge === undefined ||
+      challenge.consumed ||
+      challenge.escrowId !== this.id ||
+      challenge.expiresAt <= this.now()
+    ) {
+      throw new MfaRecoveryError('Invalid PoP challenge', 'invalid_challenge');
+    }
+    const message = await hash([token, proof.challengeId, requestHash]);
+    if (
+      !(await verifySignature(token.proofPublicKey, proof.signature, message))
+    ) {
+      throw new MfaRecoveryError('Invalid PoP signature', 'invalid_pop');
+    }
+    challenge.consumed = true;
 
     const profileId = this.#identifierIndex.get(
       canonicalIdentifier(identifier),
@@ -589,6 +526,28 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     for (const identifier of next) {
       this.#identifierIndex.set(canonicalIdentifier(identifier), profileId);
     }
+  }
+
+  async #assertPayloadHash(
+    mutation: Mutation,
+    payload: unknown,
+  ): Promise<void> {
+    if ((await hash(payload)) !== mutation.payloadHash) {
+      throw new MfaRecoveryError(
+        'Mutation payload does not match payloadHash',
+        'payload_mismatch',
+      );
+    }
+  }
+
+  #unwrapPayloadSecret(wrapped: WrappedSecret): string {
+    return bytesToHex(
+      decryptFromPublic(
+        this.#wrapPrivateKey,
+        JSON.stringify(wrapped.pkE),
+        wrapped.ciphertext,
+      ),
+    );
   }
 }
 

@@ -8,9 +8,16 @@ import {
   stringToBytes,
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import { p256 } from '@noble/curves/p256';
+import { chacha20poly1305 } from '@noble/ciphers/chacha';
+import { p256 } from '@noble/curves/nist';
+import { hkdf } from '@noble/hashes/hkdf';
+import { sha256 as sha256Sync } from '@noble/hashes/sha2';
 
-import type { Identifier } from './types.js';
+import type { EcPublicJwk, Identifier } from './types.js';
+
+const WRAP_INFO = new TextEncoder().encode('escrow-wrap-v1');
+const CHACHA_KEY_LEN = 32;
+const CHACHA_NONCE_LEN = 12;
 
 /**
  * Recursively sorts object keys so hashes are independent of property order.
@@ -55,7 +62,16 @@ export function canonicalizeIdentifiers(identifiers: Identifier[]): unknown {
  * @returns A random 0x-prefixed id.
  */
 export function randomId(): Hex {
-  return bytesToHex(globalThis.crypto.getRandomValues(new Uint8Array(16)));
+  return bytesToHex(randomBytes(16));
+}
+
+/**
+ * Unix time in seconds. AuthController tokens and PoP challenges use this unit.
+ *
+ * @returns Seconds since the Unix epoch.
+ */
+export function unixNow(): number {
+  return Math.floor(Date.now() / 1000);
 }
 
 /**
@@ -63,11 +79,11 @@ export function randomId(): Hex {
  *
  * @returns JWK-encoded public and private keys.
  */
-export async function generateSigningKey(): Promise<{
+export function generateSigningKey(): {
   publicKey: string;
   privateKey: string;
-}> {
-  const privateKeyBytes = p256.utils.randomPrivateKey();
+} {
+  const privateKeyBytes = p256.utils.randomSecretKey();
   const publicKeyBytes = p256.getPublicKey(privateKeyBytes, false);
   const publicJwk = {
     kty: 'EC',
@@ -136,50 +152,129 @@ export async function verifySignature(
 }
 
 /**
- * Receipt domain-separated digest from the recovery ADR.
+ * Unsigned mutation-receipt digest. SHA-256 of canonical JSON of the receipt
+ * fields excluding `signature`.
  *
- * @param receiptFields - Receipt fields covered by the signature.
- * @param receiptFields.escrowId - Escrow that issued the receipt.
- * @param receiptFields.mutationId - Mutation id.
- * @param receiptFields.requestHash - Mutation request hash.
- * @param receiptFields.version - Applied version.
+ * @param receipt - Receipt fields covered by the signature.
+ * @param receipt.escrowId - Escrow that issued the receipt.
+ * @param receipt.mutationId - Mutation id.
+ * @param receipt.receiptKeyId - SHA-256 of the uncompressed receipt public key.
+ * @param receipt.requestHash - Mutation request hash.
+ * @param receipt.version - Applied version.
  * @returns Hex digest.
  */
-export async function hashMutationReceipt(receiptFields: {
+export async function hashMutationReceipt(receipt: {
   escrowId: string;
   mutationId: string;
+  receiptKeyId: string;
   requestHash: string;
   version: number;
 }): Promise<Hex> {
-  return await hash([
-    'mfa-recovery-mutation-receipt-v1',
-    receiptFields.escrowId,
-    receiptFields.mutationId,
-    receiptFields.requestHash,
-    receiptFields.version,
-  ]);
+  return await hash({
+    escrowId: receipt.escrowId,
+    mutationId: receipt.mutationId,
+    receiptKeyId: receipt.receiptKeyId,
+    requestHash: receipt.requestHash,
+    version: receipt.version,
+  });
 }
 
 /**
- * Converts bytes to 0x-prefixed hex.
+ * Decodes hex that may or may not have a `0x` prefix.
  *
- * @param bytes - Secret bytes.
- * @returns Hex string.
+ * @param hexString - Hex string.
+ * @returns Raw bytes.
  */
-export function bytesToSecretHex(bytes: Uint8Array): Hex {
-  return bytesToHex(bytes);
-}
-
-/**
- * Converts a 0x-prefixed hex secret to bytes.
- *
- * @param secretHex - Hex string.
- * @returns Secret bytes.
- */
-export function secretHexToBytes(secretHex: string): Uint8Array {
+export function decodeHex(hexString: string): Uint8Array {
   return hexToBytes(
-    (secretHex.startsWith('0x') ? secretHex : `0x${secretHex}`) as Hex,
+    (hexString.startsWith('0x') ? hexString : `0x${hexString}`) as Hex,
   );
+}
+
+/**
+ * SHA-256 of the uncompressed P-256 wrap public key, as `0x` hex.
+ *
+ * @param wrapPublicKey - Wrap public JWK JSON.
+ * @returns Key id matching cubist `wrapKeyId`.
+ */
+export function wrapKeyId(wrapPublicKey: string): Hex {
+  return bytesToHex(sha256Sync(publicKeyBytesFromJwk(wrapPublicKey)));
+}
+
+/**
+ * Encrypts plaintext to a P-256 public key using escrow-wrap-v1.
+ *
+ * @param privateKey - Sender P-256 private JWK JSON.
+ * @param publicKey - Recipient P-256 public JWK JSON.
+ * @param plaintext - Bytes to encrypt.
+ * @returns Unprefixed hex of `nonce || ciphertext+tag`.
+ */
+export function encryptToPublic(
+  privateKey: string,
+  publicKey: string,
+  plaintext: Uint8Array,
+): string {
+  const key = deriveTransportKey(privateKey, publicKey);
+  const nonce = randomBytes(CHACHA_NONCE_LEN);
+  const ciphertext = chacha20poly1305(key, nonce).encrypt(plaintext);
+  return bytesToHex(concatBytes([nonce, ciphertext])).slice(2);
+}
+
+/**
+ * Decrypts escrow-wrap-v1 ciphertext produced by {@link encryptToPublic}.
+ *
+ * @param privateKey - Recipient P-256 private JWK JSON.
+ * @param publicKey - Sender P-256 public JWK JSON.
+ * @param ciphertextHex - Unprefixed or `0x` hex of `nonce || ciphertext+tag`.
+ * @returns Plaintext bytes.
+ */
+export function decryptFromPublic(
+  privateKey: string,
+  publicKey: string,
+  ciphertextHex: string,
+): Uint8Array {
+  const key = deriveTransportKey(privateKey, publicKey);
+  const blob = decodeHex(ciphertextHex);
+  if (blob.length < CHACHA_NONCE_LEN) {
+    throw new Error('Wrapped secret is truncated');
+  }
+  return chacha20poly1305(key, blob.subarray(0, CHACHA_NONCE_LEN)).decrypt(
+    blob.subarray(CHACHA_NONCE_LEN),
+  );
+}
+
+function deriveTransportKey(privateKey: string, publicKey: string): Uint8Array {
+  const privateBytes = privateKeyBytesFromJwk(privateKey);
+  const publicBytes = publicKeyBytesFromJwk(publicKey);
+  const shared = p256.getSharedSecret(privateBytes, publicBytes);
+  // noble returns a compressed point (33 bytes). Cubist uses the 32-byte x-coordinate.
+  const ikm = shared.slice(1, 33);
+  return hkdf(sha256Sync, ikm, undefined, WRAP_INFO, CHACHA_KEY_LEN);
+}
+
+function privateKeyBytesFromJwk(privateKey: string): Uint8Array {
+  const jwk = JSON.parse(privateKey) as { d?: string };
+  if (typeof jwk.d !== 'string') {
+    throw new Error('Invalid P-256 private JWK');
+  }
+  return fromBase64Url(jwk.d);
+}
+
+function publicKeyBytesFromJwk(publicKey: string): Uint8Array {
+  const jwk = JSON.parse(publicKey) as EcPublicJwk;
+  if (
+    jwk.kty !== 'EC' ||
+    jwk.crv !== 'P-256' ||
+    typeof jwk.x !== 'string' ||
+    typeof jwk.y !== 'string'
+  ) {
+    throw new Error('Invalid P-256 public JWK');
+  }
+  return concatBytes([
+    new Uint8Array([0x04]),
+    fromBase64Url(jwk.x),
+    fromBase64Url(jwk.y),
+  ]);
 }
 
 /**
@@ -193,6 +288,14 @@ function toBase64Url(bytes: Uint8Array): string {
     .replace(/\+/gu, '-')
     .replace(/\//gu, '_')
     .replace(/[=]+$/u, '');
+}
+
+/**
+ * @param length - Number of bytes to generate.
+ * @returns CSPRNG bytes.
+ */
+function randomBytes(length: number): Uint8Array {
+  return globalThis.crypto.getRandomValues(new Uint8Array(length));
 }
 
 /**

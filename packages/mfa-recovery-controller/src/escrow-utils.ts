@@ -41,6 +41,7 @@ export function isMutationReceipt(value: unknown): value is MutationReceipt {
     typeof value.version === 'number' &&
     Number.isInteger(value.version) &&
     value.version >= 0 &&
+    typeof value.receiptKeyId === 'string' &&
     typeof value.signature === 'string'
   );
 }
@@ -54,20 +55,18 @@ export function isMutationReceipt(value: unknown): value is MutationReceipt {
  * @param receipt - Receipt returned by an escrow.
  * @param mutation - Mutation the receipt must acknowledge.
  * @param escrow - Expected target escrow provider.
- * @param expectedEscrowId - Build-configured identity of the target escrow.
  * @returns Whether the receipt is valid for the target.
  */
 export function verifyMutationReceipt(
   receipt: MutationReceipt,
   mutation: Mutation,
   escrow: RecoveryEscrowProvider,
-  expectedEscrowId: string,
 ): boolean {
-  if (receipt.escrowId !== expectedEscrowId) {
+  if (receipt.escrowId !== escrow.id) {
     return false;
   }
   try {
-    return escrow.verifyReceipt(receipt, mutation, expectedEscrowId);
+    return escrow.verifyReceipt(receipt, mutation, escrow.id);
   } catch {
     return false;
   }

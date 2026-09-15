@@ -1,17 +1,17 @@
 import { hash } from './crypto.js';
 import { MfaRecoveryError } from './errors.js';
 import { isMutationReceipt } from './escrow-utils.js';
-import { getIdentifierAuthMode } from './identifier-auth.js';
+import { MIN_IDENTIFIERS, getIdentifierAuthMode } from './identifier-auth.js';
 import { assertSameAudienceIds } from './state-machine.js';
 import type {
   AuthControllerToken,
   Identifier,
   Mutation,
-  MutationPayload,
   MutationReceipt,
-  RegisterPayload,
-  UpdateIdentifiersPayload,
-  UpdateRecoverySecretPayload,
+  PendingMutationPayload,
+  PendingRegisterPayload,
+  PendingUpdateIdentifiersPayload,
+  PendingUpdateRecoverySecretPayload,
 } from './types.js';
 
 /**
@@ -61,15 +61,13 @@ export async function assertValidPendingOperation(
   assertSameAudienceIds(mutation.audiences, escrowIds);
 
   const { payload } = pending;
-  if (!isMutationPayload(mutation.operation, payload)) {
+  if (!isPendingPayload(mutation.operation, payload)) {
     throwInvalidPendingOperation();
   }
-  const payloadIdentifiers =
-    mutation.operation === 'updateRecoverySecret'
-      ? []
-      : (payload as RegisterPayload | UpdateIdentifiersPayload).identifiers;
-  for (const identifier of payloadIdentifiers) {
-    getIdentifierAuthMode(identifier.type);
+  if (pendingPayloadHasIdentifiers(payload)) {
+    for (const identifier of payload.identifiers) {
+      getIdentifierAuthMode(identifier.type);
+    }
   }
 
   if (
@@ -105,7 +103,7 @@ export async function assertValidPendingOperation(
     throwInvalidPendingOperation();
   }
 
-  if (pending.phase !== 'writing') {
+  if (pending.phase === 'authorizing') {
     return;
   }
   if (
@@ -136,40 +134,62 @@ function isMutationOperation(value: unknown): value is Mutation['operation'] {
   );
 }
 
-function isMutationPayload(
+/**
+ * @param payload - Logical pending mutation payload.
+ * @returns Whether the payload includes an identifier set.
+ */
+export function pendingPayloadHasIdentifiers(
+  payload: PendingMutationPayload,
+): payload is PendingRegisterPayload | PendingUpdateIdentifiersPayload {
+  return Object.prototype.hasOwnProperty.call(payload, 'identifiers');
+}
+
+/**
+ * @param payload - Logical pending mutation payload.
+ * @returns Whether the payload includes a hex recovery secret.
+ */
+export function pendingPayloadHasRecoverySecret(
+  payload: PendingMutationPayload,
+): payload is PendingRegisterPayload | PendingUpdateRecoverySecretPayload {
+  return Object.prototype.hasOwnProperty.call(payload, 'recoverySecret');
+}
+
+function isPendingPayload(
   operation: Mutation['operation'],
   payload: unknown,
-): payload is MutationPayload {
-  if (!isRecord(payload)) {
+): payload is PendingMutationPayload {
+  if (!isRecord(payload) || !isNonNegativeInteger(payload.epoch)) {
     return false;
   }
-  if (!isNonNegativeInteger(payload.epoch)) {
-    return false;
-  }
+  const keys = Object.keys(payload);
   if (operation === 'updateRecoverySecret') {
     return (
-      Object.keys(payload).every(
-        (key) => key === 'epoch' || key === 'recoverySecret',
-      ) &&
-      typeof (payload as UpdateRecoverySecretPayload).recoverySecret ===
-        'string'
+      keys.every((key) => key === 'epoch' || key === 'recoverySecret') &&
+      isHexSecret(payload.recoverySecret)
     );
   }
-  const { identifiers } = payload as RegisterPayload | UpdateIdentifiersPayload;
-  return (
-    Object.keys(payload).every((key) =>
-      operation === 'register'
-        ? key === 'epoch' || key === 'recoverySecret' || key === 'identifiers'
-        : key === 'epoch' || key === 'identifiers',
-    ) &&
-    (operation === 'register'
-      ? payload.epoch === 0 &&
-        typeof (payload as RegisterPayload).recoverySecret === 'string'
-      : true) &&
-    Array.isArray(identifiers) &&
-    identifiers.length > 0 &&
-    identifiers.every(isIdentifier)
-  );
+  if (
+    !Array.isArray(payload.identifiers) ||
+    payload.identifiers.length < MIN_IDENTIFIERS ||
+    !payload.identifiers.every(isIdentifier)
+  ) {
+    return false;
+  }
+  if (operation === 'register') {
+    return (
+      payload.epoch === 0 &&
+      isHexSecret(payload.recoverySecret) &&
+      keys.every(
+        (key) =>
+          key === 'epoch' || key === 'identifiers' || key === 'recoverySecret',
+      )
+    );
+  }
+  return keys.every((key) => key === 'epoch' || key === 'identifiers');
+}
+
+function isHexSecret(value: unknown): value is string {
+  return typeof value === 'string' && /^0x(?:[0-9a-fA-F]{2})+$/u.test(value);
 }
 
 function isNonNegativeInteger(value: unknown): value is number {
@@ -200,11 +220,11 @@ function isAuthControllerToken(value: unknown): value is AuthControllerToken {
       value.identifierOwnershipApproved === true) &&
     typeof value.issuer === 'string' &&
     typeof value.expiresAt === 'number' &&
-    Number.isFinite(value.expiresAt) &&
+    Number.isInteger(value.expiresAt) &&
+    value.expiresAt >= 0 &&
     typeof value.signature === 'string'
   );
 }
-
 
 function isMutationReceiptArray(value: unknown): value is MutationReceipt[] {
   if (!Array.isArray(value)) {

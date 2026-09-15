@@ -20,24 +20,33 @@ export type {
   MfaRecoveryControllerUpdateIdentifiersAction,
   MfaRecoveryControllerUpdateRecoverySecretAction,
 } from './MfaRecoveryController-method-action-types.js';
-export { MfaRecoveryError, MutationRepairPendingError } from './errors.js';
+export { IncompleteMutationError, MfaRecoveryError } from './errors.js';
 export {
   IDENTIFIER_AUTH_MODES,
+  MIN_IDENTIFIERS,
   getIdentifierAuthMode,
 } from './identifier-auth.js';
 export type {
   AuthControllerToken,
+  EcPublicJwk,
   EncryptedPendingOperation,
   Identifier,
   IdentifierAuthorization,
   Mutation,
   MutationPayload,
   MutationReceipt,
+  PendingMutationPayload,
   PendingOperation,
   PendingOperationEncryptor,
+  PendingRecoverySecretHex,
+  PendingRegisterPayload,
+  PendingUpdateIdentifiersPayload,
+  PendingUpdateRecoverySecretPayload,
   RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
   RecoveryPhase,
   RecoveredSecret,
+  WrappedSecret,
+  WrappedSecretOutput,
 } from './types.js';
