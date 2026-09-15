@@ -44,6 +44,19 @@ const EMPTY_QUOTE = {
 const quoteResponseV2 = getMockBridgeQuotesErc20Erc20V2()[0];
 const normalizedAmounts = toNormalizedAmounts(quoteResponseV2);
 
+const quoteResponseV2WithReserve = structuredClone(quoteResponseV2);
+quoteResponseV2WithReserve.quote.feeData.reserve = [
+  {
+    amount: '15000000',
+    asset: {
+      assetId: 'stellar:pubnet/slip44:148',
+      symbol: 'XLM',
+      name: 'Stellar Lumens',
+      decimals: 7,
+    },
+  },
+];
+
 const v2PartialMetadata = {
   quote: {
     feeData: {
@@ -107,21 +120,9 @@ const legacyQuoteMetadata = {
 
 describe('toNormalizedAmounts', () => {
   it('normalizes a quote-carried native reserve', () => {
-    const quote = structuredClone(quoteResponseV2);
-    quote.quote.feeData.reserve = [
-      {
-        amount: '15000000',
-        asset: {
-          assetId: 'stellar:pubnet/slip44:148',
-          symbol: 'XLM',
-          name: 'Stellar Lumens',
-          decimals: 7,
-        },
-      },
-    ];
-
     expect(
-      toNormalizedAmounts(quote).quote.feeData.reserve?.[0].normalizedAmount,
+      toNormalizedAmounts(quoteResponseV2WithReserve).quote?.feeData
+        ?.reserve?.[0]?.normalizedAmount,
     ).toBe('1.5');
   });
 });
@@ -188,6 +189,17 @@ describe('mergeQuoteMetadata', () => {
       quoteResponse: { a: 1 },
       quoteMetadata: { b: 2 } as QuoteMetadata,
       mergedQuote: { a: 1, b: 2, ...EMPTY_QUOTE },
+    },
+    {
+      title: 'preserves quote-carried native reserve',
+      quoteResponse: quoteResponseV2WithReserve,
+      quoteMetadata: {},
+      mergedQuote: merge(
+        {},
+        EMPTY_QUOTE,
+        quoteResponseV2WithReserve,
+        toNormalizedAmounts(quoteResponseV2WithReserve),
+      ),
     },
   ])(
     'merged quote $title (Phase 1)',
