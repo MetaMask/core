@@ -4624,6 +4624,48 @@ describe('AnalyticsController', () => {
       );
     });
 
+    it('keeps a stamped marketing fragment when marketingEventNames is empty', async () => {
+      const now = Date.now();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          // List missing/empty: name lookup would treat this as product.
+          eventFragments: {
+            'marketing-1': {
+              id: 'marketing-1',
+              successEvent: marketingEvent,
+              properties: {},
+              sensitiveProperties: {},
+              createdAt: now,
+              lastUpdated: now,
+              persist: true,
+              context: withMarketingFlag(true),
+            },
+          },
+        },
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: true,
+        skipInit: true,
+      });
+
+      controller.optOut();
+
+      expect(controller.state.eventFragments).toStrictEqual({
+        'marketing-1': expect.objectContaining({
+          id: 'marketing-1',
+          context: withMarketingFlag(true),
+        }),
+      });
+
+      controller.optOutOfMarketing();
+
+      expect(controller.state.eventFragments).toStrictEqual({});
+    });
+
     it('allows a marketing fragment when only marketing consent is on even if caller stamps marketing false', async () => {
       const { controller } = await setupController({
         state: {

@@ -961,15 +961,12 @@ export class AnalyticsController extends BaseController<
     return AnalyticsLane.Product;
   }
 
-  #laneFromFragment(
+  #laneFromFragmentNames(
     fragment: Pick<
       AnalyticsEventFragment,
       'initialEvent' | 'successEvent' | 'failureEvent'
     >,
   ): AnalyticsLane {
-    // Classify from declared event names only. Caller-supplied
-    // `context.marketing` is not trusted: `#setEventFragment` stamps that flag
-    // from names after the write.
     const names = [
       fragment.initialEvent,
       fragment.successEvent,
@@ -981,6 +978,24 @@ export class AnalyticsController extends BaseController<
     )
       ? AnalyticsLane.Marketing
       : AnalyticsLane.Product;
+  }
+
+  #laneFromFragment(
+    fragment: Pick<
+      AnalyticsEventFragment,
+      'initialEvent' | 'successEvent' | 'failureEvent' | 'context'
+    >,
+  ): AnalyticsLane {
+    // Prefer the capture-time stamp so persisted fragments keep their lane
+    // even if `marketingEventNames` is missing or changed. Fall back to names
+    // for legacy unstamped fragments. Callers must not pass untrusted context
+    // into create gating: {@link createEventFragment} classifies from names
+    // only, and {@link #setEventFragment} stamps from names on write.
+    if (typeof fragment.context?.marketing === 'boolean') {
+      return this.#laneFromContext(fragment.context);
+    }
+
+    return this.#laneFromFragmentNames(fragment);
   }
 
   #consent(lane: AnalyticsLane): {
@@ -1518,7 +1533,7 @@ export class AnalyticsController extends BaseController<
     const fragmentWithMarketingContext: AnalyticsEventFragment = {
       ...fragment,
       context: this.#withMarketingContext(
-        this.#laneFromFragment(fragment),
+        this.#laneFromFragmentNames(fragment),
         fragment.context,
       ),
     };
@@ -1611,7 +1626,7 @@ export class AnalyticsController extends BaseController<
     method: string,
     fragment?: Pick<
       AnalyticsEventFragment,
-      'initialEvent' | 'successEvent' | 'failureEvent'
+      'initialEvent' | 'successEvent' | 'failureEvent' | 'context'
     >,
   ): boolean {
     if (!this.#isEventFragmentsEnabled) {
@@ -1810,7 +1825,16 @@ export class AnalyticsController extends BaseController<
   createEventFragment(
     options: AnalyticsEventFragmentOptions = {},
   ): ReadonlyAnalyticsEventFragment | undefined {
-    if (this.#shouldIgnoreEventFragmentCall('createEventFragment', options)) {
+    // Classify create from event names only. Do not pass caller `context` into
+    // the consent gate: a reused `marketing` stamp must not pick the lane.
+    // `#setEventFragment` stamps from names after the write.
+    if (
+      this.#shouldIgnoreEventFragmentCall('createEventFragment', {
+        initialEvent: options.initialEvent,
+        successEvent: options.successEvent,
+        failureEvent: options.failureEvent,
+      })
+    ) {
       return undefined;
     }
 
