@@ -63,6 +63,21 @@ export type RpcServiceOptions = {
    */
   fetchOptions?: FetchOptions;
   /**
+   * Returns extra headers to include in the request. Called immediately before
+   * each HTTP request (including each retry attempt), so a value that changes
+   * over the lifetime of the service, such as a credential that expires, is
+   * read again rather than captured once.
+   *
+   * These headers take precedence over those in `fetchOptions` and over those
+   * passed to {@link RpcService.request}. Because a service is bound to a
+   * single endpoint, they are only ever sent to {@link endpointUrl}.
+   *
+   * If this rejects, the request attempt fails with that error. A caller that
+   * would rather make the request without the headers should resolve with
+   * `undefined` instead of rejecting.
+   */
+  getRequestHeaders?: () => Promise<Record<string, string> | undefined>;
+  /**
    * A `loglevel` logger.
    */
   logger?: Pick<Logger, 'warn'>;
@@ -361,6 +376,11 @@ export class RpcService {
   readonly #fetchOptions: FetchOptions;
 
   /**
+   * Returns extra headers to include in the request.
+   */
+  readonly #getRequestHeaders: RpcServiceOptions['getRequestHeaders'];
+
+  /**
    * A `loglevel` logger.
    */
   readonly #logger: RpcServiceOptions['logger'];
@@ -382,11 +402,13 @@ export class RpcService {
       fetch: givenFetch,
       logger,
       fetchOptions = {},
+      getRequestHeaders,
       policyOptions = {},
       isOffline,
     } = options;
 
     this.#fetch = givenFetch;
+    this.#getRequestHeaders = getRequestHeaders;
     const normalizedUrl = getNormalizedEndpointUrl(endpointUrl);
     this.#fetchOptions = this.#getDefaultFetchOptions(
       normalizedUrl,
@@ -709,7 +731,17 @@ export class RpcService {
               // ServicePolicy is just wrong.
               `(attempt ${context.attempt + 1})`,
             );
-            response = await this.#fetch(this.endpointUrl, fetchOptions);
+            // Resolved per attempt so that a header which changes over the
+            // lifetime of this service is never stale, and deliberately after
+            // the log above so that a credential does not reach the log.
+            const additionalHeaders = await this.#getRequestHeaders?.();
+            const completeFetchOptions = additionalHeaders
+              ? deepmerge(fetchOptions, { headers: additionalHeaders })
+              : fetchOptions;
+            response = await this.#fetch(
+              this.endpointUrl,
+              completeFetchOptions,
+            );
             if (!response.ok) {
               throw new HttpError(response.status);
             }

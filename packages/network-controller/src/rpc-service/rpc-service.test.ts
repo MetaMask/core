@@ -939,6 +939,238 @@ describe('RpcService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
+    it('adds the headers returned by `getRequestHeaders` to the request', async () => {
+      const scope = nock('https://rpc.example.chain', {
+        reqheaders: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer some-token',
+        },
+      })
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(200, {
+          id: 1,
+          jsonrpc: '2.0',
+          result: '0x1',
+        });
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl: 'https://rpc.example.chain',
+        isOffline: (): boolean => false,
+        getRequestHeaders: async (): Promise<Record<string, string>> => ({
+          Authorization: 'Bearer some-token',
+        }),
+      });
+
+      await service.request({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_chainId',
+        params: [],
+      });
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('prefers the headers returned by `getRequestHeaders` over the service and request headers', async () => {
+      const scope = nock('https://rpc.example.chain', {
+        reqheaders: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          // Overrides the Basic credential derived from the URL.
+          Authorization: 'Bearer some-token',
+          // Overrides the header given to `request`.
+          'X-Foo': 'Baz',
+        },
+      })
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(200, {
+          id: 1,
+          jsonrpc: '2.0',
+          result: '0x1',
+        });
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl: 'https://username:password@rpc.example.chain',
+        isOffline: (): boolean => false,
+        getRequestHeaders: async (): Promise<Record<string, string>> => ({
+          Authorization: 'Bearer some-token',
+          'X-Foo': 'Baz',
+        }),
+      });
+
+      await service.request(
+        {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        },
+        {
+          headers: {
+            'X-Foo': 'Bar',
+          },
+        },
+      );
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('leaves the request headers alone if `getRequestHeaders` returns undefined', async () => {
+      const scope = nock('https://rpc.example.chain', {
+        badheaders: ['Authorization'],
+        reqheaders: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+      })
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(200, {
+          id: 1,
+          jsonrpc: '2.0',
+          result: '0x1',
+        });
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl: 'https://rpc.example.chain',
+        isOffline: (): boolean => false,
+        getRequestHeaders: async (): Promise<undefined> => undefined,
+      });
+
+      await service.request({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_chainId',
+        params: [],
+      });
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('calls `getRequestHeaders` before each request, so that a refreshed header is picked up', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      const firstScope = nock(endpointUrl, {
+        reqheaders: { Authorization: 'Bearer token-1' },
+      })
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(200, { id: 1, jsonrpc: '2.0', result: '0x1' });
+      const secondScope = nock(endpointUrl, {
+        reqheaders: { Authorization: 'Bearer token-2' },
+      })
+        .post('/', {
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(200, { id: 2, jsonrpc: '2.0', result: '0x1' });
+      let tokenCount = 0;
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+        isOffline: (): boolean => false,
+        getRequestHeaders: async (): Promise<Record<string, string>> => {
+          tokenCount += 1;
+          return { Authorization: `Bearer token-${tokenCount}` };
+        },
+      });
+
+      await service.request({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_chainId',
+        params: [],
+      });
+      await service.request({
+        id: 2,
+        jsonrpc: '2.0',
+        method: 'eth_chainId',
+        params: [],
+      });
+
+      expect(firstScope.isDone()).toBe(true);
+      expect(secondScope.isDone()).toBe(true);
+    });
+
+    it('calls `getRequestHeaders` before each retry attempt', async () => {
+      const mockFetch = jest.fn(() => {
+        throw new TypeError('fetch failed');
+      });
+      const getRequestHeaders = jest.fn(async () => ({
+        Authorization: 'Bearer some-token',
+      }));
+      const service = new RpcService({
+        fetch: mockFetch,
+        btoa,
+        endpointUrl: 'https://rpc.example.chain',
+        isOffline: (): boolean => false,
+        getRequestHeaders,
+      });
+      service.onRetry(() => {
+        jest.advanceTimersToNextTimer();
+      });
+
+      await ignoreRejection(
+        service.request({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        }),
+      );
+
+      // The initial attempt plus 4 retries.
+      expect(mockFetch).toHaveBeenCalledTimes(5);
+      expect(getRequestHeaders).toHaveBeenCalledTimes(5);
+    });
+
+    it('does not make the request if `getRequestHeaders` rejects', async () => {
+      const mockFetch = jest.fn();
+      const service = new RpcService({
+        fetch: mockFetch,
+        btoa,
+        endpointUrl: 'https://rpc.example.chain',
+        isOffline: (): boolean => false,
+        getRequestHeaders: async (): Promise<never> => {
+          throw new Error('could not read the headers');
+        },
+      });
+
+      await expect(
+        service.request({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        }),
+      ).rejects.toThrow('could not read the headers');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
     it('returns the JSON-decoded response if the request succeeds', async () => {
       const endpointUrl = 'https://rpc.example.chain';
       nock(endpointUrl)
