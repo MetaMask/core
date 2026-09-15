@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add a `getInfuraAuthToken` option to `NetworkController`, which presents the token it returns as a bearer credential in the `Authorization` header on requests to the built-in Infura endpoints ([#10252](https://github.com/MetaMask/core/pull/10252))
+  - The token is read immediately before each request, so a refreshed token is used by the next request.
+  - Only the built-in Infura endpoints reached through `infuraProjectId` present the token. Custom RPC endpoints and failover endpoints never do, even when hosted by Infura, so a user supplied Infura key is never paired with it.
+  - Because the token identifies the user, the caller decides when to withhold it. Resolve with `undefined` rather than rejecting in the states where no token can be read, such as while the wallet is locked.
 - Add a `getRequestHeaders` option to `RpcServiceOptions`, which can be supplied per endpoint through `NetworkControllerOptions.getRpcServiceOptions` ([#10252](https://github.com/MetaMask/core/pull/10252))
   - The callback runs immediately before each HTTP request, including each retry attempt, so headers that change over the lifetime of a network client are read again rather than captured once.
   - Its headers take precedence over those in `fetchOptions` and those passed to `request`. Because an RPC service is bound to a single endpoint, they only ever reach that endpoint.
