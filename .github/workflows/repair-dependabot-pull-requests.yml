@@ -19,6 +19,9 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    # Every install in this job is meant to rewrite the lockfile, and Dependabot's own lockfile does not always satisfy an immutable install to begin with. CI defaults this to true, which fails with YN0028.
+    env:
+      YARN_ENABLE_IMMUTABLE_INSTALLS: 'false'
     steps:
       # Dependabot runs get a read-only `GITHUB_TOKEN` and no repository secrets, so the push is authorised by an OIDC exchange instead.
       - name: Get access token
@@ -63,9 +66,8 @@ jobs:
           ALIGN_DEPENDENCY_RANGES: 'true'
         run: yarn constraints --fix
 
-      # `--no-immutable` because the step above changed ranges, so this install has to be allowed to rewrite the lockfile. Without it Yarn fails with YN0028 in CI.
       - name: Apply dependency range updates
-        run: yarn install --no-immutable
+        run: yarn install
 
       - name: Commit the aligned ranges
         run: |
