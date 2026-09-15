@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add per-asset buy limits support: `ProviderLimits` now carries an optional `assets` map keyed by CAIP-19 asset id (`ProviderAssetLimitsMap`), matching the per-token limits the v2 regions providers endpoint publishes for providers that configure token-specific minimum/maximum purchase amounts
+- Add `getProviderBuyLimit` helper, which resolves a provider's effective buy limit for a fiat currency, payment method, and deposit asset, intersecting the token-agnostic fiat limits with the per-asset limits (including their per-payment-method breakdown) the same way the ramps API enforces buy limits server-side
+
 ### Changed
 
 - Add an optional fee-exclusion argument to native Transak buy quotes while preserving fee exclusion as the default. ([#9317](https://github.com/MetaMask/core/pull/9317))

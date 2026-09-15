@@ -96,6 +96,9 @@ export type {
   ProviderLogos,
   ProviderBrowserType,
   ProviderLimit,
+  ProviderAssetPaymentLimit,
+  ProviderAssetLimits,
+  ProviderAssetLimitsMap,
   ProviderFiatLimits,
   ProviderLimits,
   ProviderSortOrder,
@@ -135,6 +138,8 @@ export {
   RAMPS_CLIENT_PRODUCT_PARAM,
   RAMPS_CLIENT_VERSION_PARAM,
 } from './client-identity.js';
+export type { GetProviderBuyLimitOptions } from './providerLimits.js';
+export { getProviderBuyLimit } from './providerLimits.js';
 export type {
   RampsServiceGetDefaultRedirectCallbackUrlAction,
   RampsServiceGetGeolocationAction,
