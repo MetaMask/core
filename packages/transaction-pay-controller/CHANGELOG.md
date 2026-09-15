@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reserve source-network fees from native-token Relay Max quotes when the paying account does not support EIP-7702.
 - Detect nested `perpsDepositAndOrder` and `predictDepositAndOrder` transactions when selecting `EXACT_OUTPUT` Relay quotes ([#10222](https://github.com/MetaMask/core/pull/10222))
 
 ## [28.0.2]

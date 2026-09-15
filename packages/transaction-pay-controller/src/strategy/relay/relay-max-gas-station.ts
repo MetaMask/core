@@ -88,6 +88,18 @@ export async function getRelayMaxGasStationQuote(
     return phase1Quote;
   }
 
+  if (
+    !fullRequest.accountSupports7702 &&
+    request.sourceTokenAddress.toLowerCase() ===
+      getNativeToken(sourceChainId).toLowerCase()
+  ) {
+    return getNativeMaxQuoteWithReservedFees(
+      phase1Quote,
+      new BigNumber(sourceTokenAmount),
+      context,
+    );
+  }
+
   const nativeBalanceCheck = checkEnoughNativeBalanceIfSourceGasFeeTokenNotUsed(
     phase1Quote,
     messenger,
@@ -216,6 +228,38 @@ export async function getRelayMaxGasStationQuote(
   markQuoteAsMaxGasStation(phase2Quote);
 
   return phase2Quote;
+}
+
+async function getNativeMaxQuoteWithReservedFees(
+  phase1Quote: TransactionPayQuote<RelayQuote>,
+  sourceAmount: BigNumber,
+  context: MaxAmountQuoteContext,
+): Promise<TransactionPayQuote<RelayQuote>> {
+  const networkFee = new BigNumber(
+    phase1Quote.fees.sourceNetwork.max.raw,
+  );
+  const adjustedSourceAmount = getAdjustedSourceAmount(
+    sourceAmount,
+    networkFee,
+  );
+
+  if (!networkFee.isGreaterThan(0) || !adjustedSourceAmount.isGreaterThan(0)) {
+    return fallbackToPhase1(
+      phase1Quote,
+      'Unable to reserve native network fees',
+    );
+  }
+
+  const adjustedQuote = await getAdjustedPhase2Quote(
+    adjustedSourceAmount,
+    {
+      amount: networkFee,
+      source: GasCostEstimateSource.Quote,
+    },
+    context,
+  );
+
+  return adjustedQuote ?? phase1Quote;
 }
 
 function checkEnoughNativeBalanceIfSourceGasFeeTokenNotUsed(

@@ -224,6 +224,42 @@ describe('relay-max-gas-station', () => {
     expect(result).toBe(phase1Quote);
   });
 
+  it('reserves network fees when max source token is native and account does not support EIP-7702', async () => {
+    const phase1Quote = makeQuote({
+      sourceAmountRaw: '100000',
+      sourceNetworkGasRaw: '100',
+    });
+    const phase2Quote = makeQuote({
+      sourceAmountRaw: '99900',
+      sourceNetworkGasRaw: '100',
+    });
+    const getSingleQuote = jest
+      .fn()
+      .mockResolvedValueOnce(phase1Quote)
+      .mockResolvedValueOnce(phase2Quote);
+    getTokenBalanceMock.mockReturnValue('100000');
+    const nativeToken = getNativeTokenMock();
+    const request = {
+      ...BASE_REQUEST,
+      sourceTokenAddress: nativeToken,
+      sourceTokenAmount: '100000',
+    };
+
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenCalledTimes(2);
+    expect(getSingleQuote).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ sourceTokenAmount: '99900' }),
+      expect.any(Object),
+    );
+    expect(result).toBe(phase2Quote);
+  });
+
   it('returns phase-1 quote when source chain is not gas-station eligible', async () => {
     const phase1Quote = makeQuote();
     const getSingleQuote = jest.fn().mockResolvedValue(phase1Quote);
