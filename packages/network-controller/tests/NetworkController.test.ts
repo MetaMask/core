@@ -997,6 +997,41 @@ describe('NetworkController', () => {
     });
   });
 
+  describe('getInfuraAuthToken', () => {
+    it('hands the given function to the network clients it creates', async () => {
+      const createAutoManagedNetworkClientSpy = jest.spyOn(
+        createAutoManagedNetworkClientModule,
+        'createAutoManagedNetworkClient',
+      );
+      const getInfuraAuthToken = jest.fn(async () => 'some-token');
+
+      await withController({ getInfuraAuthToken }, () => {
+        // The controller creates its network clients on construction.
+      });
+
+      expect(createAutoManagedNetworkClientSpy).toHaveBeenCalled();
+      for (const [options] of createAutoManagedNetworkClientSpy.mock.calls) {
+        expect(options.getInfuraAuthToken).toBe(getInfuraAuthToken);
+      }
+    });
+
+    it('hands nothing to the network clients when the option is omitted', async () => {
+      const createAutoManagedNetworkClientSpy = jest.spyOn(
+        createAutoManagedNetworkClientModule,
+        'createAutoManagedNetworkClient',
+      );
+
+      await withController({}, () => {
+        // The controller creates its network clients on construction.
+      });
+
+      expect(createAutoManagedNetworkClientSpy).toHaveBeenCalled();
+      for (const [options] of createAutoManagedNetworkClientSpy.mock.calls) {
+        expect(options.getInfuraAuthToken).toBeUndefined();
+      }
+    });
+  });
+
   describe('init', () => {
     it('auto-enables networks that are set as auto-enabled in the config registry', async () => {
       const networkConfig = buildMockConfigRegistryControllerNetwork({

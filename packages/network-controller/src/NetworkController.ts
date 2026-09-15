@@ -796,6 +796,21 @@ export type NetworkControllerOptions = {
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   /**
+   * Returns the token to present as a bearer credential on requests to the
+   * built-in Infura endpoints, or `undefined` to make them without one.
+   *
+   * Called immediately before each request, so a refreshed token is used by the
+   * next request. Only the built-in Infura endpoints reached through
+   * `infuraProjectId` present the token; custom RPC endpoints and failover
+   * endpoints never do, even when hosted by Infura.
+   *
+   * Because the token identifies the user, the caller is responsible for
+   * withholding it when the user has not consented to being identified, and for
+   * resolving with `undefined` rather than rejecting in the states where no
+   * token can be read, such as while the wallet is locked.
+   */
+  getInfuraAuthToken?: () => Promise<string | undefined>;
+  /**
    * Configuration for the "RPC Service Unavailable" and "RPC Service Degraded"
    * analytics events the controller emits via the `AnalyticsController:trackEvent`
    * action when an RPC endpoint becomes unavailable or degraded. Both the option
@@ -1305,6 +1320,8 @@ export class NetworkController extends BaseController<
 
   readonly #getBlockTrackerOptions: NetworkControllerOptions['getBlockTrackerOptions'];
 
+  readonly #getInfuraAuthToken: NetworkControllerOptions['getInfuraAuthToken'];
+
   readonly #analyticsOptions: ResolvedNetworkControllerAnalyticsOptions;
 
   #networkConfigurationsByNetworkClientId: Map<
@@ -1328,6 +1345,7 @@ export class NetworkController extends BaseController<
       log,
       getRpcServiceOptions,
       getBlockTrackerOptions,
+      getInfuraAuthToken,
       analyticsOptions,
     } = options;
     const initialState = {
@@ -1372,6 +1390,7 @@ export class NetworkController extends BaseController<
     this.#log = log;
     this.#getRpcServiceOptions = getRpcServiceOptions;
     this.#getBlockTrackerOptions = getBlockTrackerOptions;
+    this.#getInfuraAuthToken = getInfuraAuthToken;
     this.#analyticsOptions = {
       isRpcEndpointUrlPublic: (): boolean => false,
       rpcServiceEventsSampleRate: 0,
@@ -2865,6 +2884,7 @@ export class NetworkController extends BaseController<
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
+          getInfuraAuthToken: this.#getInfuraAuthToken,
           messenger: this.messenger,
           rpcFailoverMode: this.#rpcFailoverMode,
           logger: this.#log,
@@ -2884,6 +2904,7 @@ export class NetworkController extends BaseController<
           },
           getRpcServiceOptions: this.#getRpcServiceOptions,
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
+          getInfuraAuthToken: this.#getInfuraAuthToken,
           messenger: this.messenger,
           rpcFailoverMode: this.#rpcFailoverMode,
           logger: this.#log,
@@ -3050,6 +3071,7 @@ export class NetworkController extends BaseController<
               },
               getRpcServiceOptions: this.#getRpcServiceOptions,
               getBlockTrackerOptions: this.#getBlockTrackerOptions,
+              getInfuraAuthToken: this.#getInfuraAuthToken,
               messenger: this.messenger,
               rpcFailoverMode: this.#rpcFailoverMode,
               logger: this.#log,
@@ -3069,6 +3091,7 @@ export class NetworkController extends BaseController<
             },
             getRpcServiceOptions: this.#getRpcServiceOptions,
             getBlockTrackerOptions: this.#getBlockTrackerOptions,
+            getInfuraAuthToken: this.#getInfuraAuthToken,
             messenger: this.messenger,
             rpcFailoverMode: this.#rpcFailoverMode,
             logger: this.#log,
