@@ -105,6 +105,27 @@ const legacyQuoteMetadata = {
   },
 };
 
+describe('toNormalizedAmounts', () => {
+  it('normalizes a quote-carried native reserve', () => {
+    const quote = structuredClone(quoteResponseV2);
+    quote.quote.feeData.reserve = [
+      {
+        amount: '15000000',
+        asset: {
+          assetId: 'stellar:pubnet/slip44:148',
+          symbol: 'XLM',
+          name: 'Stellar Lumens',
+          decimals: 7,
+        },
+      },
+    ];
+
+    expect(
+      toNormalizedAmounts(quote).quote.feeData.reserve?.[0].normalizedAmount,
+    ).toBe('1.5');
+  });
+});
+
 describe('mergeQuoteMetadata', () => {
   // PHASE 1
   it.each([

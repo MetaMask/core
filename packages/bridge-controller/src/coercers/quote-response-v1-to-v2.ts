@@ -77,6 +77,10 @@ const QuoteV2FromV1 = coerce(QuoteSchemaV2, QuoteSchema, (value) => {
     intent,
     ...restQuote
   } = value;
+  const migratedFeeData = feeData as typeof feeData & {
+    network?: Infer<typeof QuoteSchemaV2>['feeData']['network'];
+    reserve?: Infer<typeof QuoteSchemaV2>['feeData']['reserve'];
+  };
 
   const srcAssetV2 = toBridgeAssetV2(srcAsset);
 
@@ -123,6 +127,12 @@ const QuoteV2FromV1 = coerce(QuoteSchemaV2, QuoteSchema, (value) => {
             asset: toBridgeAssetV2(feeData[FeeType.TX_FEE].asset),
           },
         ],
+      }),
+      ...(migratedFeeData.network?.length && {
+        network: migratedFeeData.network,
+      }),
+      ...(migratedFeeData.reserve?.length && {
+        reserve: migratedFeeData.reserve,
       }),
     },
     steps: steps?.map(toStepV2),

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `quote.feeData.reserve` on V2 quotes for native minimum-balance requirements
+  - Sibling of `feeData.network`, not a `FeeType`, so fee aggregators do not treat it as spendable
+  - Normalized via `toNormalizedAmounts`; preserved when coercing V1 ↔ V2
+
 ## [80.2.1]
 
 ### Changed

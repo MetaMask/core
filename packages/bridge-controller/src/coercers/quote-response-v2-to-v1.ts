@@ -118,6 +118,9 @@ const QuoteV1FromV2 = coerce(QuoteSchema, QuoteSchemaV2, (value) => {
           asset: toBridgeAssetV1(feeData[FeeType.TX_FEE][0].asset),
         },
       }),
+      ...(feeData.reserve?.length && {
+        reserve: feeData.reserve,
+      }),
     },
     ...(dest.walletAddress && /* istanbul ignore next */ {
       destWalletAddress: dest.walletAddress,
