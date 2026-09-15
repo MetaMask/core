@@ -16,6 +16,7 @@ import type {
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   KeyringControllerGetStateAction,
+  KeyringControllerRemoveAccountAction,
   KeyringControllerVerifyPasswordAction,
   KeyringControllerWithControllerAction,
   KeyringControllerWithKeyringV2Action,
@@ -26,6 +27,7 @@ import type {
   MultichainAccountServiceCreateMultichainAccountGroupAction,
   MultichainAccountServiceCreateMultichainAccountGroupsAction,
   MultichainAccountServiceCreateMultichainAccountWalletAction,
+  MultichainAccountServiceRemoveMultichainAccountWalletAction,
 } from '@metamask/multichain-account-service';
 import type { MultichainAccountServiceWalletStatusChangeEvent } from '@metamask/multichain-account-service';
 import type {
@@ -93,6 +95,7 @@ export type AllowedActions =
   | AccountsControllerListMultichainAccountsAction
   | AccountsControllerSetSelectedAccountAction
   | KeyringControllerGetStateAction
+  | KeyringControllerRemoveAccountAction
   | KeyringControllerVerifyPasswordAction
   | SnapControllerGetSnapAction
   | UserStorageController.UserStorageControllerGetStateAction
@@ -104,6 +107,7 @@ export type AllowedActions =
   | MultichainAccountServiceCreateMultichainAccountGroupAction
   | MultichainAccountServiceCreateMultichainAccountGroupsAction
   | MultichainAccountServiceCreateMultichainAccountWalletAction
+  | MultichainAccountServiceRemoveMultichainAccountWalletAction
   | KeyringControllerWithControllerAction
   | KeyringControllerWithKeyringV2Action
   | KeyringControllerWithKeyringV2UnsafeAction;
