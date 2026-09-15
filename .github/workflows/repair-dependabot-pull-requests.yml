@@ -16,7 +16,7 @@ jobs:
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     # The token exchange policy keys on this claim. It cannot be `default-branch`, which is restricted to `main` and so rejects a `pull_request` ref before the job starts.
-    environment: dependabot-repair
+    environment: dependabot
     permissions:
       contents: read
       id-token: write
@@ -30,6 +30,7 @@ jobs:
           permissions: |
             contents: write
 
+      # Explicitly the head branch, because on a `pull_request` event the default checkout is the merge ref and we push this branch back. Full history is for the merge base below.
       - name: Check out the pull request branch
         uses: actions/checkout@v7
         with:
