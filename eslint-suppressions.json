@@ -2048,11 +2048,6 @@
       "count": 1
     }
   },
-  "packages/utils/src/hashing.test.ts": {
-    "n/no-unsupported-features/node-builtins": {
-      "count": 9
-    }
-  },
   "packages/utils/src/hashing.ts": {
     "no-restricted-syntax": {
       "count": 3
