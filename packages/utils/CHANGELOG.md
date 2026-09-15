@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Narrowed three public type signatures from `any` to `unknown` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Narrowed three public type signatures from `any` to `unknown` ([#10249](https://github.com/MetaMask/core/pull/10249))
   - `assert` now accepts `value: unknown`, `FrozenMap.forEach` and `FrozenSet.forEach` now accept `thisArg?: unknown`, and `getKnownPropertyNames` now accepts `Partial<Record<Key, unknown>>`.
   - This is not a breaking change. `unknown` accepts every value that `any` did, so no call site needs to change.
 - This package was migrated from `MetaMask/utils` to the `MetaMask/core` monorepo ([#10175](https://github.com/MetaMask/core/pull/10175))
