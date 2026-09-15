@@ -75,7 +75,7 @@ async function submitViaRelayExecuteInternal(
   return FALLBACK_HASH;
 }
 
-function isSubsidizedRelayQuote(quote: RelayQuote): boolean {
+export function isSubsidizedRelayQuote(quote: RelayQuote): boolean {
   return Number(quote.fees?.subsidized?.amountUsd ?? '0') > 0;
 }
 

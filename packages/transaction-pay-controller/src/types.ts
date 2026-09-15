@@ -496,6 +496,7 @@ export type TransactionPaySourceAmount = {
  * and `detail` on {@link QuoteErrorInfo}.
  */
 export type QuoteErrorReason =
+  | 'atomic-promotion-failed'
   | 'balance-unavailable'
   | 'insufficient-source-balance'
   | 'insufficient-transfer-balance'
