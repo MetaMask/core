@@ -31,6 +31,7 @@ export const networkController: InitializationConfiguration<
       actions: [
         'AnalyticsController:getState',
         'AnalyticsController:trackEvent',
+        'AuthenticationController:getBearerToken',
         'ConfigRegistryController:getState',
         'ConfigRegistryController:getNetworkConfigByCaip2ChainId',
         'ConnectivityController:getState',

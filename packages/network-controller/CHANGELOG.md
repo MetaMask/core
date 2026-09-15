@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Present the MetaMask authentication token as a bearer credential in the `Authorization` header on requests to built-in Infura RPC endpoints ([#9927](https://github.com/MetaMask/core/pull/9927))
+  - The token is retrieved through `AuthenticationController:getBearerToken`. Because it identifies the user, it is only presented when the user has opted in to analytics (`AnalyticsController` state `optedIn`).
+  - Only endpoints of type `infura` (those reached through `infuraProjectId`) present the token. Custom RPC endpoints and failover endpoints never do, even when hosted by Infura, so a user-supplied Infura key is never paired with it.
+  - The token is read once per request, so a refreshed token is picked up on the next request. If the call throws, which it does while the wallet is locked, the request is made without the credential.
+- Add `@metamask/profile-sync-controller` as a dependency at `^32.1.1` ([#9927](https://github.com/MetaMask/core/pull/9927))
+
 ### Changed
 
+- **BREAKING:** `NetworkControllerMessenger` now requires the `AuthenticationController:getBearerToken` action to be delegated from the root messenger ([#9927](https://github.com/MetaMask/core/pull/9927))
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 

@@ -126,6 +126,8 @@ type RpcApiMiddleware = JsonRpcMiddleware<
  * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
  * @param args.getBlockTrackerOptions - Factory for constructing block tracker
  * options. See {@link NetworkControllerOptions.getBlockTrackerOptions}.
+ * @param args.getInfuraAuthToken - Returns the token to present as a bearer
+ * credential on requests to a built-in Infura endpoint.
  * @param args.messenger - The network controller messenger.
  * @param args.rpcFailoverMode - The RPC failover mode to apply: `disabled`
  * (failover off), `enabled` (divert to the configured failover URLs when the
@@ -139,6 +141,7 @@ export function createNetworkClient({
   configuration,
   getRpcServiceOptions,
   getBlockTrackerOptions,
+  getInfuraAuthToken,
   messenger,
   rpcFailoverMode,
   logger,
@@ -151,6 +154,7 @@ export function createNetworkClient({
   getBlockTrackerOptions: (
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
+  getInfuraAuthToken?: () => Promise<string | undefined>;
   messenger: NetworkControllerMessenger;
   rpcFailoverMode: RpcFailoverMode;
   logger?: Logger;
@@ -164,6 +168,7 @@ export function createNetworkClient({
     primaryEndpointUrl,
     configuration,
     getRpcServiceOptions,
+    getInfuraAuthToken,
     messenger,
     rpcFailoverMode,
     logger,
@@ -219,6 +224,44 @@ export function createNetworkClient({
   };
 
   return { configuration, provider, blockTracker, destroy };
+}
+
+/**
+ * Wraps a `fetch` so that every request presents the token returned by
+ * `getInfuraAuthToken` as a bearer credential in the `Authorization` header.
+ *
+ * The token is read once per request, so a token refreshed during the lifetime
+ * of a network client is used on the next request. If no token is available, or
+ * reading it throws, the request is made without the credential.
+ *
+ * @param fetchImplementation - The `fetch` to wrap.
+ * @param getInfuraAuthToken - Returns the token to present.
+ * @returns The wrapped `fetch`.
+ */
+function withInfuraAuthToken(
+  fetchImplementation: typeof fetch,
+  getInfuraAuthToken: () => Promise<string | undefined>,
+): typeof fetch {
+  return async (input, init) => {
+    let token: string | undefined;
+    try {
+      token = await getInfuraAuthToken();
+    } catch {
+      token = undefined;
+    }
+
+    if (!token) {
+      return await fetchImplementation(input, init);
+    }
+
+    return await fetchImplementation(input, {
+      ...init,
+      // These headers can be spread safely because `RpcService` builds them by
+      // deep-merging plain objects, so they never arrive as a `Headers`
+      // instance or as a list of pairs.
+      headers: { ...init?.headers, Authorization: `Bearer ${token}` },
+    });
+  };
 }
 
 /**
@@ -282,6 +325,8 @@ function getAvailableEndpoints({
  * @param args.configuration - The network configuration.
  * @param args.getRpcServiceOptions - Factory for constructing RPC service
  * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
+ * @param args.getInfuraAuthToken - Returns the token to present as a bearer
+ * credential on requests to a built-in Infura endpoint.
  * @param args.messenger - The network controller messenger.
  * @param args.rpcFailoverMode - The RPC failover mode to apply: `disabled`
  * (failover off), `enabled` (divert to the configured failover URLs when the
@@ -295,6 +340,7 @@ function createRpcServiceChain({
   primaryEndpointUrl,
   configuration,
   getRpcServiceOptions,
+  getInfuraAuthToken,
   messenger,
   rpcFailoverMode,
   logger,
@@ -305,6 +351,7 @@ function createRpcServiceChain({
   getRpcServiceOptions?: (
     rpcEndpointUrl: string,
   ) => RpcServiceOptionsWithDefaults;
+  getInfuraAuthToken?: () => Promise<string | undefined>;
   messenger: NetworkControllerMessenger;
   rpcFailoverMode: RpcFailoverMode;
   logger?: Logger;
@@ -340,6 +387,11 @@ function createRpcServiceChain({
 
   const rpcServiceConfigurations = availableEndpoints.map((endpoint) => {
     const overriddenOptions = getRpcServiceOptions?.(endpoint.url) ?? {};
+    // Only the primary endpoint of an `infura`-type client is reached through
+    // our project ID. A custom endpoint may point at Infura with somebody
+    // else's key, and failover endpoints belong to other providers.
+    const isBuiltInInfuraEndpoint =
+      configuration.type === NetworkClientType.Infura && !endpoint.isFailover;
     return {
       fetch: globalThis.fetch.bind(globalThis),
       btoa: globalThis.btoa.bind(globalThis),
@@ -353,6 +405,14 @@ function createRpcServiceChain({
         ...(overriddenOptions.policyOptions ?? {}),
       },
       ...overriddenOptions,
+      ...(isBuiltInInfuraEndpoint && getInfuraAuthToken
+        ? {
+            fetch: withInfuraAuthToken(
+              overriddenOptions.fetch ?? globalThis.fetch.bind(globalThis),
+              getInfuraAuthToken,
+            ),
+          }
+        : {}),
       endpointUrl: endpoint.url,
       logger,
     };

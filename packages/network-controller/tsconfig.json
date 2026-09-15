@@ -35,6 +35,9 @@
       "path": "../messenger"
     },
     {
+      "path": "../profile-sync-controller"
+    },
+    {
       "path": "../remote-feature-flag-controller"
     },
     {
