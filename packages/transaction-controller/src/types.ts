@@ -2117,6 +2117,20 @@ export type AfterAddHook = (request: {
 }>;
 
 /**
+ * Preparation logic to execute before deciding whether to sign locally.
+ * Runs even when {@link ShouldSignHook} returns false and can optionally update
+ * the transaction by returning the `updateTransaction` callback.
+ */
+export type BeforeSignHook = (request: {
+  transactionMeta: TransactionMeta;
+}) => Promise<
+  | {
+      updateTransaction?: (transaction: TransactionMeta) => void;
+    }
+  | undefined
+>;
+
+/**
  * Custom logic to determine whether a transaction should be treated as sponsored.
  */
 export type IsSponsoredHook = (request: {
@@ -2131,20 +2145,6 @@ export type ShouldSignHook = (request: {
   transactionMeta: TransactionMeta;
   isSponsored: boolean;
 }) => Promise<boolean>;
-
-/**
- * Preparation logic to execute before deciding whether to sign locally.
- * Runs even when {@link ShouldSignHook} returns false and can optionally update
- * the transaction by returning the `updateTransaction` callback.
- */
-export type BeforeSignHook = (request: {
-  transactionMeta: TransactionMeta;
-}) => Promise<
-  | {
-      updateTransaction?: (transaction: TransactionMeta) => void;
-    }
-  | undefined
->;
 
 /**
  * The total fiat values of the transaction, to support client metrics.
