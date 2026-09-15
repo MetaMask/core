@@ -1,3 +1,4 @@
+import { BigNumber } from 'bignumber.js';
 import { merge } from 'lodash-es';
 
 import { getMockBridgeQuotesErc20Erc20V2 } from '../../../tests/mock-quotes-erc20-erc20.js';
@@ -8,6 +9,7 @@ import {
 } from '../../index.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
 import { mergeQuoteMetadata } from './merge.js';
+import { toCurrencyValues } from './to-currency-values.js';
 import { toNormalizedAmounts } from './to-normalized-amounts.js';
 import { QuoteMetadataMigrationPhase } from './types.js';
 import type { QuoteMetadata } from './types.js';
@@ -124,6 +126,29 @@ describe('toNormalizedAmounts', () => {
       toNormalizedAmounts(quoteResponseV2WithReserve).quote?.feeData
         ?.reserve?.[0]?.normalizedAmount,
     ).toBe('1.5');
+  });
+});
+
+describe('toCurrencyValues', () => {
+  it('derives fiat for a quote-carried native reserve without treating it as a FeeType', () => {
+    const quote = structuredClone(quoteResponseV2WithReserve);
+    quote.quote.feeData.reserve = [
+      {
+        amount: '15000000',
+        usd: '1.5',
+        asset: {
+          assetId: 'stellar:pubnet/slip44:148' as const,
+          symbol: 'XLM',
+          name: 'Stellar Lumens',
+          decimals: 7,
+        },
+      },
+    ];
+
+    expect(
+      toCurrencyValues(quote, new BigNumber(2)).quote?.feeData?.reserve?.[0]
+        ?.valueInCurrency,
+    ).toBe('3');
   });
 });
 

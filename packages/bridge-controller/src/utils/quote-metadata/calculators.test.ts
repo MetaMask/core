@@ -231,6 +231,9 @@ describe('Quote Metadata Utils', () => {
                 asset: {
                   assetId:
                     'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85' as const,
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
                 },
               },
             ],

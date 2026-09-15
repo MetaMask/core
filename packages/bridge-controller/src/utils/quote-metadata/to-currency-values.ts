@@ -59,16 +59,26 @@ export const toCurrencyValues = (
       },
       feeData:
         feeData &&
-        Object.fromEntries(
-          Object.values(FeeType)
-            .filter((feeType) => feeData[feeType])
-            .map((feeType) => [
-              feeType,
-              feeData[feeType]?.map((fee) =>
-                toCurrency(fee, usdToFiatExchangeRate),
+        ({
+          ...Object.fromEntries(
+            Object.values(FeeType)
+              .filter((feeType) => feeData[feeType])
+              .map((feeType) => [
+                feeType,
+                feeData[feeType]?.map((fee) =>
+                  toCurrency(fee, usdToFiatExchangeRate),
+                ),
+              ]),
+          ),
+          ...(feeData.reserve && {
+            reserve: feeData.reserve
+              .map((reserve) => toCurrency(reserve, usdToFiatExchangeRate))
+              .filter(
+                (value): value is NonNullable<typeof value> =>
+                  value !== undefined,
               ),
-            ]),
-        ),
+          }),
+        } as DeepPartial<QuoteResponse['quote']['feeData']>),
       ...((priceImpactFiat ?? adjustedReturnFiat ?? costFiat) && {
         priceData: {
           ...(priceImpactFiat && {
