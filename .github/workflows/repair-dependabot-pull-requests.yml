@@ -15,6 +15,8 @@ jobs:
     name: Repair constraints, lockfile and changelogs
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
     runs-on: ubuntu-latest
+    # The token exchange policy keys on this claim. It cannot be `default-branch`, which is restricted to `main` and so rejects a `pull_request` ref before the job starts. `dependabot-repair` carries no branch policy, mirroring `pr-comment` in metamask-extension.
+    environment: dependabot-repair
     permissions:
       contents: read
       id-token: write
@@ -27,7 +29,6 @@ jobs:
           token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
           permissions: |
             contents: write
-            pull_requests: write
 
       - name: Check out the pull request branch
         uses: actions/checkout@v7
