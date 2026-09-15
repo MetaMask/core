@@ -8,6 +8,7 @@ export default createConfig({
   extends: [base],
 
   options: {
+    reportUnusedDisableDirectives: 'error',
     typeAware: true,
   },
 
