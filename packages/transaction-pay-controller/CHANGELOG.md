@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Use the native Transak buy quote's fee for the MM Pay fiat estimate when Transak Native is the resolved provider, falling back to the aggregator quote's fee when native is unavailable or the lookup fails ([#9317](https://github.com/MetaMask/core/pull/9317))
+  - The fee is read via the stateless `TransakService:getBuyQuote` action so the estimate does not write the shared native buy-quote state used by Unified Buy; clients must delegate `TransakService:getBuyQuote` to the `TransactionPayController` messenger.
+- Charge direct Monad mUSD on-ramp fees on top of the entered amount (fee-on-top), so the total is the entered amount plus fees ([#9317](https://github.com/MetaMask/core/pull/9317))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
 ### Fixed

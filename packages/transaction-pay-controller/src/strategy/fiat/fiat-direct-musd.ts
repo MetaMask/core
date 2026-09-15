@@ -22,6 +22,7 @@ import { buildCaipAssetType, getTokenInfo } from '../../utils/token.js';
 import { MUSD_MONAD_FIAT_ASSET } from './constants.js';
 import type { FiatQuote } from './types.js';
 import {
+  getNativeTransakRampsFee,
   getRampsQuote,
   getRawSourceAmountFromOrderCryptoAmount,
   resolveSourceAmountRaw,
@@ -74,6 +75,19 @@ export async function getDirectMusdFiatQuote({
       walletAddress: moneyAccountAddress,
     });
 
+    // When Transak Native is the resolved provider, prefer its own quote's fee
+    // so the estimate matches what Transak Native will charge. Direct mUSD is
+    // fee-on-top (the fee is added to the entered amount), so request the native
+    // quote in that mode.
+    const nativeRampsFee = await getNativeTransakRampsFee({
+      adjustedAmount,
+      fiatAsset: MUSD_MONAD_FIAT_ASSET,
+      fiatPaymentMethod,
+      fiatQuote,
+      isFeeExcludedFromFiat: true,
+      messenger,
+    });
+
     messenger.call('TransactionPayController:updateFiatPayment', {
       callback: (fiatPayment: TransactionFiatPayment) => {
         fiatPayment.rampsQuote = fiatQuote;
@@ -96,6 +110,7 @@ export async function getDirectMusdFiatQuote({
       fiatQuote,
       messenger,
       moneyAccountAddress,
+      nativeRampsFee,
       requiredToken,
     });
   } catch (error) {
@@ -165,12 +180,14 @@ function combineDirectMusdFiatQuote({
   fiatQuote,
   messenger,
   moneyAccountAddress,
+  nativeRampsFee,
   requiredToken,
 }: {
   amountFiat: string;
   fiatQuote: RampsQuote;
   messenger: PayStrategyGetQuotesRequest['messenger'];
   moneyAccountAddress: Hex;
+  nativeRampsFee: BigNumber | null;
   requiredToken: TransactionPayRequiredToken;
 }): TransactionPayQuote<FiatQuote> {
   const tokenInfo = getTokenInfo(
@@ -187,21 +204,48 @@ function combineDirectMusdFiatQuote({
     cryptoAmount: fiatQuote.quote.amountOut,
     decimals: tokenInfo.decimals,
   });
-  const rampsProviderFee = getRampsProviderFee(fiatQuote).toString(10);
+  // Transak Native returns a single total fee, so the aggregator's separate
+  // provider/network split collapses: the whole native fee sits in the provider
+  // bucket and the source-network fee is zero. The `providerFiat` total stays
+  // correct either way.
+  const rampsProviderFee = (
+    nativeRampsFee ?? getSafeFee(fiatQuote.quote.providerFee)
+  ).toString(10);
+  const rampsNetworkFee = nativeRampsFee
+    ? '0'
+    : getSafeFee(fiatQuote.quote.networkFee).toString(10);
+  const rampsTotalFee = new BigNumber(rampsProviderFee)
+    .plus(rampsNetworkFee)
+    .toString(10);
+  const targetAmountFiat = getDirectMusdTargetAmountFiat(fiatQuote);
   const sourceAmountHuman = new BigNumber(sourceAmountRaw)
     .shiftedBy(-tokenInfo.decimals)
     .toString(10);
 
   return {
+    // Direct mUSD is fee-on-top: the fee is added to the entered amount, so the
+    // fees are NOT already inside the source amount and the total becomes
+    // amount + fees (see calculateTotals).
+    areFeesIncludedInSourceAmount: false,
     dust: { fiat: '0', usd: '0' },
     estimatedDuration: 0,
     fees: {
       metaMask: { fiat: '0', usd: '0' },
       provider: { fiat: rampsProviderFee, usd: rampsProviderFee },
-      providerFiat: { fiat: rampsProviderFee, usd: rampsProviderFee },
+      providerFiat: { fiat: rampsTotalFee, usd: rampsTotalFee },
       sourceNetwork: {
-        estimate: { fiat: '0', human: '0', raw: '0', usd: '0' },
-        max: { fiat: '0', human: '0', raw: '0', usd: '0' },
+        estimate: {
+          fiat: rampsNetworkFee,
+          human: '0',
+          raw: '0',
+          usd: rampsNetworkFee,
+        },
+        max: {
+          fiat: rampsNetworkFee,
+          human: '0',
+          raw: '0',
+          usd: rampsNetworkFee,
+        },
       },
       targetNetwork: { fiat: '0', usd: '0' },
     },
@@ -228,12 +272,22 @@ function combineDirectMusdFiatQuote({
       usd: amountFiat,
     },
     strategy: TransactionPayStrategy.Fiat,
-    targetAmount: { fiat: amountFiat, usd: amountFiat },
+    targetAmount: { fiat: targetAmountFiat, usd: targetAmountFiat },
   };
 }
 
-function getRampsProviderFee(fiatQuote: RampsQuote): BigNumber {
-  return new BigNumber(fiatQuote.quote.providerFee ?? 0).plus(
-    fiatQuote.quote.networkFee ?? 0,
-  );
+function getDirectMusdTargetAmountFiat(fiatQuote: RampsQuote): string {
+  const amountOutInFiat = new BigNumber(fiatQuote.quote.amountOutInFiat ?? NaN);
+  if (amountOutInFiat.isFinite() && amountOutInFiat.isGreaterThanOrEqualTo(0)) {
+    return amountOutInFiat.toString(10);
+  }
+
+  return new BigNumber(fiatQuote.quote.amountOut).toString(10);
+}
+
+function getSafeFee(value: BigNumber.Value | undefined): BigNumber {
+  const fee = new BigNumber(value ?? 0);
+  return fee.isFinite() && fee.isGreaterThanOrEqualTo(0)
+    ? fee
+    : new BigNumber(0);
 }

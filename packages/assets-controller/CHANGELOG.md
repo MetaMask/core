@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AccountsApiDataSource` now treats Accounts API `/v2/supportedNetworks` `partialSupport` as active chains in addition to `fullSupport`, still gated by the Snaps assets migration feature flags ([#10144](https://github.com/MetaMask/core/pull/10144))
 - `AccountsApiDataSource` now reads Accounts API `/v2/supportedNetworks` as CAIP-2 `fullSupport` and `partialSupport` string arrays, matching the current API payload
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/phishing-controller` from `^18.0.0` to `^18.1.0` ([#10234](https://github.com/MetaMask/core/pull/10234))
 
 ## [16.0.0]
 
