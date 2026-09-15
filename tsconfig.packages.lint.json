@@ -4,6 +4,12 @@
    */
   "compilerOptions": {
     "emitDeclarationOnly": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    /**
+     * Test files may pull in files from outside of their package, such as
+     * `tests/helpers.ts`. Without a `rootDir` that covers them, their
+     * declarations are emitted outside of `outDir`, landing in the repo itself.
+     */
+    "rootDir": "."
   }
 }
