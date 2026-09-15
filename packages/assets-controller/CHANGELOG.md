@@ -7,14 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.1.0]
+
+### Added
+
+- Add optional `metadata` on fungible `assetsBalance` entries from the Accounts API and Account Activity websocket ([#10194](https://github.com/MetaMask/core/pull/10194))
+- Register the Solana, Stellar and Tron native assets (SOL, XLM, TRX) so accounts holding no assets on those networks now surface a zero-balance native entry, matching the existing EVM behavior ([#10194](https://github.com/MetaMask/core/pull/10194))
+
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
-- Bump `@metamask/assets-controllers` from `^112.0.0` to `^112.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
-- Bump `@metamask/core-backend` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/assets-controllers` from `^112.0.0` to `^112.0.2` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10242](https://github.com/MetaMask/core/pull/10242))
+- Bump `@metamask/core-backend` from `^10.0.0` to `^11.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10242](https://github.com/MetaMask/core/pull/10242))
 - `AccountsApiDataSource` now treats Accounts API `/v2/supportedNetworks` `partialSupport` as active chains in addition to `fullSupport`, still gated by the Snaps assets migration feature flags ([#10144](https://github.com/MetaMask/core/pull/10144))
 - `AccountsApiDataSource` now reads Accounts API `/v2/supportedNetworks` as CAIP-2 `fullSupport` and `partialSupport` string arrays, matching the current API payload
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/phishing-controller` from `^18.0.0` to `^18.1.0` ([#10234](https://github.com/MetaMask/core/pull/10234))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.0.1` ([#10242](https://github.com/MetaMask/core/pull/10242))
 
 ### Fixed
 
@@ -1051,7 +1060,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.0...HEAD
+[16.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.0.0...@metamask/assets-controller@16.1.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@15.1.0...@metamask/assets-controller@16.0.0
 [15.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@15.0.0...@metamask/assets-controller@15.1.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.3...@metamask/assets-controller@15.0.0

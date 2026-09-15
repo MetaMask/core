@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [70.0.1]
+
 ### Changed
 
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
-- Bump `@metamask/core-backend` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/core-backend` from `^10.0.0` to `^11.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10242](https://github.com/MetaMask/core/pull/10242))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
 ## [70.0.0]
@@ -2748,7 +2750,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.0.1...HEAD
+[70.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.0.0...@metamask/transaction-controller@70.0.1
 [70.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.8.1...@metamask/transaction-controller@70.0.0
 [69.8.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.8.0...@metamask/transaction-controller@69.8.1
 [69.8.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.7.0...@metamask/transaction-controller@69.8.0
