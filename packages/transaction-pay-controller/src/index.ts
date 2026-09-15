@@ -16,7 +16,9 @@ export type {
   QuoteErrorReason,
   SetPaySourceRequest,
   SolanaPayCallbacks,
+  SolanaPayErrorCode,
   SolanaPayFollowUpRequest,
+  SolanaPayLifecyclePayload,
   SolanaPayOutcome,
   SolanaPayPreflight,
   SolanaPayPreflightData,
@@ -24,6 +26,7 @@ export type {
   SolanaPaySignAndSendTransactionRequest,
   SolanaPayStatus,
   SolanaPaySubmissionResult,
+  SolanaPaySupportDiagnostics,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -35,6 +38,7 @@ export type {
   TransactionPayControllerGetStateAction,
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
+  TransactionPayControllerSolanaPayLifecycleEvent,
   TransactionPayControllerState,
   TransactionPayControllerStateChangeEvent,
   TransactionPaymentToken,
@@ -51,6 +55,7 @@ export type {
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetFiatOptionsAction,
   TransactionPayControllerGetSolanaPayQuoteAction,
+  TransactionPayControllerGetSolanaPaySupportDiagnosticsAction,
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerNotifyRelayOfSolanaTransactionAction,
   TransactionPayControllerReconcileSolanaPayAction,
@@ -65,4 +70,8 @@ export type {
 } from './TransactionPayController-method-action-types.js';
 export { PaymentOverride, TransactionPayStrategy } from './constants.js';
 export { TransactionPayController } from './TransactionPayController.js';
+export {
+  getSolanaPaySupportDiagnostics,
+  SolanaPayError,
+} from './solana-pay-diagnostics.js';
 export { TransactionPayPublishHook } from './helpers/TransactionPayPublishHook.js';

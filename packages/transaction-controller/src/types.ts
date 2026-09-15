@@ -2178,6 +2178,23 @@ export type AssetsFiatValues = {
   sending?: string;
 };
 
+/** Stable non-sensitive Solana Pay failure classification. */
+export type MetamaskPaySolanaErrorCode =
+  | 'user_rejected'
+  | 'quote_expired'
+  | 'preflight_failed'
+  | 'construction_failed'
+  | 'submission_unknown'
+  | 'source_status_unknown'
+  | 'source_transaction_failed'
+  | 'settlement_failed'
+  | 'settlement_refunded'
+  | 'settlement_status_unknown'
+  | 'follow_up_failed'
+  | 'follow_up_status_unknown'
+  | 'sponsorship_unavailable'
+  | 'provider_notification_failed';
+
 /** Chain-agnostic source metadata for a MetaMask Pay transaction. */
 export type MetamaskPaySource = {
   /** Canonical CAIP-10 identity of the source account. */
@@ -2220,6 +2237,9 @@ export type MetamaskPaySolanaFollowUpStatus =
   | 'unknown';
 
 type MetamaskPaySolanaExecutionBase = {
+  /** Stable non-sensitive failure classification for support and metrics. */
+  errorCode?: MetamaskPaySolanaErrorCode;
+
   /** Wallet-local InternalAccount.id used by Snap requests. */
   sourceWalletAccountId: string;
 
