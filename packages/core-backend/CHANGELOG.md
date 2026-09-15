@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: integrate `@metamask/utils` into `packages/` ([#10185](https://github.com/MetaMask/core/pull/10185))
+
 ### Added
 
 - Add optional `apiUrls` option to `ApiPlatformClientOptions`, allowing API base URLs (accounts, prices, token, tokens) to be overridden per client instance, e.g. from client env vars; unspecified services fall back to the production `API_URLS` ([#10196](https://github.com/MetaMask/core/pull/10196))
