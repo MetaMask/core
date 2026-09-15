@@ -31,10 +31,14 @@ jest.mock('uuid', () => {
   };
 });
 
-// `v4` is overloaded, and `jest.spyOn` resolves to the last overload, which
-// returns a `Uint8Array`. Only the string-returning form is used here.
+// `v4` is overloaded, and `jest.spyOn` would otherwise resolve to the last
+// overload, which returns a `Uint8Array`. Narrowing the module to the signature
+// actually used here picks the string-returning one. Same object at runtime, so
+// the spy still patches the real `uuid` namespace.
+const uuidModule: { v4: (options?: uuid.Version4Options) => string } = uuid;
+
 const mockUuidV4 = (value: string): void => {
-  jest.spyOn(uuid, 'v4').mockReturnValue(value as never);
+  jest.spyOn(uuidModule, 'v4').mockReturnValue(value);
 };
 
 describe('fs', () => {
