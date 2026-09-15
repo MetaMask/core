@@ -1,9 +1,9 @@
+import { normalizeRampsAssetId } from './providerAvailability.js';
 import type {
   Provider,
   ProviderAssetLimits,
   ProviderLimit,
 } from './RampsService.js';
-import { normalizeRampsAssetId } from './providerAvailability.js';
 
 /**
  * The canonical payment method id path prefix, which the v2 API strips from

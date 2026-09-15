@@ -4,10 +4,7 @@ import type { Provider, ProviderLimit } from './RampsService.js';
 const ETH_ASSET_ID = 'eip155:1/slip44:60';
 const BNB_ASSET_ID = 'eip155:56/slip44:714';
 
-const buildLimit = (
-  minAmount: number,
-  maxAmount: number,
-): ProviderLimit => ({
+const buildLimit = (minAmount: number, maxAmount: number): ProviderLimit => ({
   minAmount,
   maxAmount,
   feeFixedRate: 0.1,
