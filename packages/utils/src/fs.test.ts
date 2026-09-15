@@ -3,10 +3,7 @@ import { when } from 'jest-when';
 import os from 'os';
 import path from 'path';
 import util from 'util';
-// The namespace object is required so the tests below can
-// `jest.spyOn(uuid, 'v4')`, which a named import cannot support.
-// eslint-disable-next-line import-x/namespace -- import-x cannot read named exports out of uuid's CommonJS build.
-import * as uuid from 'uuid';
+import { v4 } from 'uuid';
 
 import {
   createSandbox,
@@ -22,14 +19,20 @@ import {
 
 const { withinSandbox } = createSandbox('utils');
 
-// Clone the `uuid` module so that we can spy on its exports
+// Wrap the real `v4` so it behaves normally until a test overrides it.
 jest.mock('uuid', () => {
-  return {
-    // This is how to mock an ES-compatible module in Jest.
-    __esModule: true,
-    ...jest.requireActual('uuid'),
-  };
+  const actual = jest.requireActual('uuid');
+  // This is how to mock an ES-compatible module in Jest.
+  return { __esModule: true, ...actual, v4: jest.fn(actual.v4) };
 });
+
+// `v4` is overloaded; naming the signature used here avoids resolving to the
+// last overload, which returns a `Uint8Array`.
+const v4Mock = jest.mocked<() => string>(v4);
+
+const mockUuidV4 = (value: string): void => {
+  v4Mock.mockReturnValue(value);
+};
 
 describe('fs', () => {
   describe('readFile', () => {
@@ -687,7 +690,7 @@ describe('fs', () => {
     });
 
     it('does not create the sandbox directory immediately', async () => {
-      jest.spyOn(uuid, 'v4').mockReturnValue('AAAA-AAAA-AAAA-AAAA');
+      mockUuidV4('AAAA-AAAA-AAAA-AAAA');
       createSandbox('utils-fs');
 
       const sandboxDirectoryPath = path.join(
@@ -704,7 +707,7 @@ describe('fs', () => {
     describe('withinSandbox', () => {
       it('creates the sandbox directory and keeps it around before its given function ends', async () => {
         expect.assertions(1);
-        jest.spyOn(uuid, 'v4').mockReturnValue('AAAA-AAAA-AAAA-AAAA');
+        mockUuidV4('AAAA-AAAA-AAAA-AAAA');
         const { withinSandbox: withinTestSandbox } = createSandbox('utils-fs');
 
         await withinTestSandbox(async () => {
@@ -720,7 +723,7 @@ describe('fs', () => {
       });
 
       it('removes the sandbox directory after its given function ends', async () => {
-        jest.spyOn(uuid, 'v4').mockReturnValue('AAAA-AAAA-AAAA-AAAA');
+        mockUuidV4('AAAA-AAAA-AAAA-AAAA');
         const { withinSandbox: withinTestSandbox } = createSandbox('utils-fs');
 
         await withinTestSandbox(async () => {
@@ -738,7 +741,7 @@ describe('fs', () => {
       });
 
       it('throws if the sandbox directory already exists', async () => {
-        jest.spyOn(uuid, 'v4').mockReturnValue('AAAA-AAAA-AAAA-AAAA');
+        mockUuidV4('AAAA-AAAA-AAAA-AAAA');
         const { withinSandbox: withinTestSandbox } = createSandbox('utils-fs');
 
         const sandboxDirectoryPath = path.join(
