@@ -26,6 +26,7 @@ function isError(error: unknown): error is Error {
  * @returns A boolean.
  */
 export function isErrorWithCode(error: unknown): error is { code: string } {
+  // eslint-disable-next-line no-restricted-syntax -- `in` is deliberate: error classes commonly define `code` on their prototype, which an own-property check such as `hasProperty` would miss.
   return typeof error === 'object' && error !== null && 'code' in error;
 }
 
@@ -39,6 +40,7 @@ export function isErrorWithCode(error: unknown): error is { code: string } {
 export function isErrorWithMessage(
   error: unknown,
 ): error is { message: string } {
+  // eslint-disable-next-line no-restricted-syntax -- `in` is deliberate: `message` lives on `Error.prototype` when an error is constructed without one, so an own-property check such as `hasProperty` would reject real errors.
   return typeof error === 'object' && error !== null && 'message' in error;
 }
 
@@ -50,6 +52,7 @@ export function isErrorWithMessage(
  * @returns A boolean.
  */
 export function isErrorWithStack(error: unknown): error is { stack: string } {
+  // eslint-disable-next-line no-restricted-syntax -- `in` is deliberate: `stack` may be inherited rather than an own property, so an own-property check such as `hasProperty` would reject real errors.
   return typeof error === 'object' && error !== null && 'stack' in error;
 }
 
