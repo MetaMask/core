@@ -395,7 +395,10 @@ export function extractProviderCode(
  * Provider codes that identify Transak's native (non-aggregator) integration.
  * Matches the codes emitted by `TransakService` for production and staging.
  */
-const NATIVE_TRANSAK_PROVIDER_CODES = ['transak-native', 'transak-native-staging'];
+const NATIVE_TRANSAK_PROVIDER_CODES = [
+  'transak-native',
+  'transak-native-staging',
+];
 
 /**
  * When the resolved ramps provider is Transak Native, fetches the native
@@ -457,9 +460,12 @@ export async function getNativeTransakRampsFee({
     const fee = new BigNumber(nativeQuote.totalFee ?? NaN);
 
     if (!fee.isFinite() || fee.isLessThan(0)) {
-      log('Native Transak quote returned an unusable fee; using aggregator fee', {
-        totalFee: nativeQuote.totalFee,
-      });
+      log(
+        'Native Transak quote returned an unusable fee; using aggregator fee',
+        {
+          totalFee: nativeQuote.totalFee,
+        },
+      );
       return null;
     }
 
