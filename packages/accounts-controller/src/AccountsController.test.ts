@@ -3958,6 +3958,47 @@ describe('AccountsController', () => {
         accountsController.listMultichainAccounts(invalidCaip2),
       ).toThrow(`Invalid CAIP-2 chain ID: ${invalidCaip2}`);
     });
+
+    it('does not throw when an account has an undefined `scopes` field and excludes it from chain-filtered results', () => {
+      // Regression test: a legacy or partially-migrated internal account can be
+      // persisted without a `scopes` field (its runtime value is `undefined`),
+      // even though the type declares it required. Filtering by a chain ID must
+      // not throw for such an account; it declares no scopes, so it matches no
+      // chain and is simply excluded.
+      const mockAccountWithoutScopes = {
+        ...createMockInternalAccount({
+          id: 'mock-account-without-scopes-id',
+          address: '0x9999999999999999999999999999999999999999',
+          name: 'Legacy Account',
+        }),
+        scopes: undefined,
+      } as unknown as InternalAccount;
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockAccountWithoutScopes.id]: mockAccountWithoutScopes,
+            },
+            selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
+            [mockAccountWithoutScopes.address]: mockAccountWithoutScopes.id,
+          },
+        },
+      });
+
+      expect(() =>
+        accountsController.listMultichainAccounts(BtcScope.Mainnet),
+      ).not.toThrow();
+      // The well-formed account is still returned for its scope; the account
+      // with undefined `scopes` is excluded rather than throwing.
+      expect(
+        accountsController.listMultichainAccounts(EthScope.Eoa),
+      ).toStrictEqual([mockAccount]);
+    });
   });
 
   describe('setSelectedAccount', () => {

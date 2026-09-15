@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/messenger` from `^2.0.0` to `^3.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 - Bump `@metamask/network-controller` from `^36.0.0` to `^37.0.0` ([#10160](https://github.com/MetaMask/core/pull/10160))
 
+### Fixed
+
+- Prevent `listMultichainAccounts` from throwing a `TypeError` when an internal account has an undefined `scopes` field ([#41962](https://github.com/MetaMask/metamask-extension/issues/41962))
+
 ## [39.1.1]
 
 ### Changed
