@@ -31,6 +31,12 @@ jest.mock('uuid', () => {
   };
 });
 
+// `v4` is overloaded, and `jest.spyOn` resolves to the last overload, which
+// returns a `Uint8Array`. Only the string-returning form is used here.
+const mockUuidV4 = (value: string): void => {
+  jest.spyOn(uuid, 'v4').mockReturnValue(value as never);
+};
+
 describe('fs', () => {
   describe('readFile', () => {
     it('reads the contents of the given file as a UTF-8-encoded string', async () => {
@@ -687,7 +693,7 @@ describe('fs', () => {
     });
 
     it('does not create the sandbox directory immediately', async () => {
-      jest.spyOn(uuid, 'v4').mockReturnValue('AAAA-AAAA-AAAA-AAAA');
+      mockUuidV4('AAAA-AAAA-AAAA-AAAA');
       createSandbox('utils-fs');
 
       const sandboxDirectoryPath = path.join(
@@ -704,7 +710,7 @@ describe('fs', () => {
     describe('withinSandbox', () => {
       it('creates the sandbox directory and keeps it around before its given function ends', async () => {
         expect.assertions(1);
-        jest.spyOn(uuid, 'v4').mockReturnValue('AAAA-AAAA-AAAA-AAAA');
+        mockUuidV4('AAAA-AAAA-AAAA-AAAA');
         const { withinSandbox: withinTestSandbox } = createSandbox('utils-fs');
 
         await withinTestSandbox(async () => {
@@ -720,7 +726,7 @@ describe('fs', () => {
       });
 
       it('removes the sandbox directory after its given function ends', async () => {
-        jest.spyOn(uuid, 'v4').mockReturnValue('AAAA-AAAA-AAAA-AAAA');
+        mockUuidV4('AAAA-AAAA-AAAA-AAAA');
         const { withinSandbox: withinTestSandbox } = createSandbox('utils-fs');
 
         await withinTestSandbox(async () => {
@@ -738,7 +744,7 @@ describe('fs', () => {
       });
 
       it('throws if the sandbox directory already exists', async () => {
-        jest.spyOn(uuid, 'v4').mockReturnValue('AAAA-AAAA-AAAA-AAAA');
+        mockUuidV4('AAAA-AAAA-AAAA-AAAA');
         const { withinSandbox: withinTestSandbox } = createSandbox('utils-fs');
 
         const sandboxDirectoryPath = path.join(
