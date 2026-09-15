@@ -408,6 +408,8 @@ export type DataResponse = {
  */
 export type AssetsUpdateMode = 'full' | 'merge' | 'update';
 
+export type AssetsLoadingStatus = 'loading' | 'loaded';
+
 // ============================================================================
 // DATA SOURCE <-> CONTROLLER (DIRECT CALLS, NO MESSENGER PER SOURCE)
 // ============================================================================
