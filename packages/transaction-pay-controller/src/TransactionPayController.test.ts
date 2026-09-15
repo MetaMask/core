@@ -456,6 +456,32 @@ describe('TransactionPayController', () => {
       expect(transaction.metamaskPay?.solanaExecution).toBeUndefined();
     });
 
+    it('continues an admitted Solana execution after rollout is disabled', async () => {
+      const transaction = getTransactionMeta();
+      const signAndSendTransaction = jest.fn().mockResolvedValue({
+        outcome: 'submitted',
+        transactionId: SOLANA_TRANSACTION_ID,
+      });
+      applyTransactionUpdates(transaction);
+      const controller = createController({
+        solana: getSolanaCallbacks({ signAndSendTransaction }),
+        state: getControllerState(),
+      });
+      await controller.getSolanaPayQuote({
+        sourceAmountRaw: '1000000',
+        sourceWalletAccountId: 'wallet-account-uuid',
+        transactionId: TRANSACTION_ID_MOCK,
+      });
+      isSolanaPayEnabledMock.mockReturnValue(false);
+
+      await controller.submitSolanaPay(TRANSACTION_ID_MOCK);
+
+      expect(signAndSendTransaction).toHaveBeenCalledTimes(1);
+      expect(transaction.metamaskPay?.solanaExecution?.phase).toBe(
+        'submitted',
+      );
+    });
+
     it('exposes privacy-safe support diagnostics for the transaction-owned execution', () => {
       const transaction = getTransactionMeta();
       transaction.metamaskPay = {
