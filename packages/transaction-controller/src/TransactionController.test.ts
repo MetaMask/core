@@ -964,6 +964,39 @@ describe('TransactionController', () => {
       );
     });
 
+    it('updates transaction batch gas fee estimates when the poller emits a batch update', async () => {
+      const batchId = BATCH_ID_MOCK;
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactionBatches: [{ id: batchId } as never],
+          },
+        },
+      });
+      const batchUpdateHandler = gasFeePollerMock.hub.on.mock.calls.find(
+        ([event]) => event === 'transaction-batch-updated',
+      )?.[1] as (request: {
+        transactionBatchId: Hex;
+        gasFeeEstimates?: GasFeeEstimates;
+      }) => void;
+
+      batchUpdateHandler({
+        transactionBatchId: batchId,
+        gasFeeEstimates: {
+          type: GasFeeEstimateType.FeeMarket,
+        } as GasFeeEstimates,
+      });
+
+      expect(controller.state.transactionBatches).toContainEqual(
+        expect.objectContaining({
+          id: batchId,
+          gasFeeEstimates: {
+            type: GasFeeEstimateType.FeeMarket,
+          },
+        }),
+      );
+    });
+
     it('provides only test flow if option set', () => {
       setupController({
         options: {
@@ -2409,6 +2442,143 @@ describe('TransactionController', () => {
       });
     });
 
+    describe('with sponsored approval hooks', () => {
+      it('calls isSponsored hook before reserving a nonce', async () => {
+        const callOrder: string[] = [];
+
+        const isSponsoredHook = jest
+          .fn()
+          .mockImplementation(async (): Promise<boolean> => {
+            callOrder.push('isSponsored');
+            expect(getNonceLockSpy).not.toHaveBeenCalled();
+            return false;
+          });
+
+        const shouldSignHook = jest
+          .fn()
+          .mockImplementation(async (): Promise<boolean> => {
+            callOrder.push('shouldSign');
+            expect(getNonceLockSpy).not.toHaveBeenCalled();
+            return true;
+          });
+
+        getNonceLockSpy.mockImplementation(
+          async (): Promise<{
+            nextNonce: Hex;
+            releaseLock: () => Promise<void>;
+          }> => {
+            callOrder.push('getNonceLock');
+            return {
+              nextNonce: NONCE_MOCK,
+              releaseLock: () => Promise.resolve(),
+            };
+          },
+        );
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            hooks: {
+              isSponsored: isSponsoredHook,
+              shouldSign: shouldSignHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(isSponsoredHook).toHaveBeenCalledTimes(1);
+        expect(shouldSignHook).toHaveBeenCalledTimes(1);
+        expect(callOrder).toStrictEqual([
+          'isSponsored',
+          'shouldSign',
+          'getNonceLock',
+        ]);
+      });
+
+      it('skips nonce reservation when shouldSign resolves false', async () => {
+        const isSponsoredHook = jest.fn().mockResolvedValue(false);
+        const shouldSignHook = jest.fn().mockResolvedValue(false);
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            hooks: {
+              isSponsored: isSponsoredHook,
+              shouldSign: shouldSignHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(isSponsoredHook).toHaveBeenCalledTimes(1);
+        expect(shouldSignHook).toHaveBeenCalledTimes(1);
+        expect(getNonceLockSpy).not.toHaveBeenCalled();
+      });
+
+      it('still runs beforeSign when shouldSign resolves false', async () => {
+        const beforeSignHook = jest.fn().mockResolvedValueOnce({});
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            hooks: {
+              beforeSign: beforeSignHook,
+              shouldSign: jest.fn().mockResolvedValue(false),
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(beforeSignHook).toHaveBeenCalledTimes(1);
+        expect(getNonceLockSpy).not.toHaveBeenCalled();
+      });
+    });
+
     describe('with beforeSign hook', () => {
       it('calls beforeSign hook', async () => {
         const beforeSignHook = jest.fn().mockResolvedValueOnce({});
@@ -3791,6 +3961,35 @@ describe('TransactionController', () => {
         ).rejects.toThrow(
           providerErrors.unauthorized({ data: { origin: expectedOrigin } }),
         );
+      });
+
+      it('reads internal accounts while validating an approved transaction', async () => {
+        const { controller, rootMessenger } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        rootMessenger.unregisterActionHandler('AccountsController:getState');
+        rootMessenger.registerActionHandler(
+          'AccountsController:getState',
+          () => ({
+            internalAccounts: {
+              accounts: {
+                [INTERNAL_ACCOUNT_MOCK.id]: INTERNAL_ACCOUNT_MOCK,
+              },
+            },
+          }),
+        );
+
+        const { result } = await controller.addTransaction(
+          { from: ACCOUNT_MOCK, to: ACCOUNT_MOCK },
+          { networkClientId: NETWORK_CLIENT_ID_MOCK },
+        );
+
+        await result;
       });
     });
 
@@ -9039,6 +9238,40 @@ describe('TransactionController', () => {
         expect(transaction.status).toBe(TransactionStatus.failed);
 
         expect(approvedEventListener).not.toHaveBeenCalled();
+      });
+
+      it('publishes transactionApproved with a nonce after signing approval', async () => {
+        const { controller, messenger, mockTransactionApprovalRequest } =
+          setupController();
+
+        const approvedEventListener = jest.fn();
+
+        messenger.subscribe(
+          'TransactionController:transactionApproved',
+          approvedEventListener,
+        );
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x21000',
+            gasPrice: '0x1',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        mockTransactionApprovalRequest.approve();
+
+        await result;
+
+        expect(approvedEventListener).toHaveBeenCalledTimes(1);
+        expect(
+          approvedEventListener.mock.calls[0][0].transactionMeta.txParams.nonce,
+        ).toBeDefined();
       });
     });
 
