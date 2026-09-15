@@ -208,6 +208,43 @@ describe('Quote Metadata Utils', () => {
       expect(result.usd).toBeUndefined();
     });
 
+    it('does not add quote-carried native reserve to sent amount', () => {
+      const mockQuote = getMockBridgeQuotesErc20Erc20V1({
+        quote: {
+          srcTokenAmount: '1000000000',
+          srcAsset: {
+            decimals: 6,
+            assetId:
+              'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+          },
+          feeData: {
+            metabridge: {
+              amount: '100000000',
+              asset: {
+                assetId:
+                  'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+              },
+            },
+            reserve: [
+              {
+                amount: '15000000',
+                asset: {
+                  assetId: 'stellar:pubnet/slip44:148' as const,
+                  symbol: 'XLM',
+                  name: 'Stellar Lumens',
+                  decimals: 7,
+                },
+              },
+            ],
+          },
+        },
+      })[0].quote;
+
+      const result = calcSentAmount(mockQuote, {});
+
+      expect(result.amount).toBe('1100');
+    });
+
     it('should handle zero values', () => {
       const zeroQuote = getMockBridgeQuotesErc20Erc20V1({
         quote: {
