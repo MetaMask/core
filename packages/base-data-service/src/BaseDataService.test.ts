@@ -140,6 +140,149 @@ describe('BaseDataService', () => {
     expect(page2.data).not.toStrictEqual(page3.data);
   });
 
+  it('replaces an already-cached page in place when fetching it again', async () => {
+    cleanAll();
+    const messenger = new Messenger({ namespace: serviceName });
+    const service = new ExampleDataService(messenger);
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    const page2Body = {
+      data: [
+        {
+          hash: '0xcecd28aa5bd781ffd2a6d960578ffc6c89ac390e8d02baebc977a827956394e9',
+          timestamp: '2025-12-29T11:51:08.000Z',
+        },
+      ],
+      pageInfo: {
+        count: 1,
+        hasNextPage: false,
+        hasPreviousPage: true,
+        startCursor: 'page1-cursor',
+        endCursor: 'page3-cursor',
+      },
+    };
+    mockTransactionsPage2({ status: 200, body: page2Body });
+    mockTransactionsPage2({ status: 200, body: page2Body });
+
+    const page2 = await service.getActivity(TEST_ADDRESS, {
+      after: TRANSACTIONS_PAGE_2_CURSOR,
+    });
+    expect(page2.data).toHaveLength(1);
+
+    // A refetch re-requests a page that is already present in the cache.
+    const page2Again = await service.getActivity(TEST_ADDRESS, {
+      after: TRANSACTIONS_PAGE_2_CURSOR,
+    });
+    expect(page2Again.data).toStrictEqual(page2.data);
+
+    const queryKey = ['ExampleDataService:getActivity', TEST_ADDRESS];
+    const hash = hashKey(queryKey);
+    const cacheUpdate = publishSpy.mock.calls
+      .filter(([event]) => event === `ExampleDataService:cacheUpdated:${hash}`)
+      .at(-1)?.[1] as {
+      state: { queries: [{ state: { data: { pages: unknown[] } } }] };
+    };
+
+    // The cache must hold each page exactly once.
+    expect(cacheUpdate.state.queries[0].state.data.pages).toHaveLength(1);
+  });
+
+  it('replaces an already-cached page in place when fetching it again in the forward direction', async () => {
+    cleanAll();
+    const messenger = new Messenger({ namespace: serviceName });
+    const service = new ExampleDataService(messenger);
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    const page2Body = {
+      data: [
+        {
+          hash: '0xcecd28aa5bd781ffd2a6d960578ffc6c89ac390e8d02baebc977a827956394e9',
+          timestamp: '2025-12-29T11:51:08.000Z',
+        },
+      ],
+      pageInfo: {
+        count: 1,
+        hasNextPage: true,
+        hasPreviousPage: false,
+        startCursor: null,
+        endCursor: TRANSACTIONS_PAGE_2_CURSOR,
+      },
+    };
+    mockTransactionsPage2({ status: 200, body: page2Body });
+    mockTransactionsPage2({ status: 200, body: page2Body });
+
+    const page2 = await service.getActivity(TEST_ADDRESS, {
+      after: TRANSACTIONS_PAGE_2_CURSOR,
+    });
+    expect(page2.data).toHaveLength(1);
+
+    // A refetch re-requests a page that is already present in the cache.
+    const page2Again = await service.getActivity(TEST_ADDRESS, {
+      after: TRANSACTIONS_PAGE_2_CURSOR,
+    });
+    expect(page2Again.data).toStrictEqual(page2.data);
+
+    const queryKey = ['ExampleDataService:getActivity', TEST_ADDRESS];
+    const hash = hashKey(queryKey);
+    const cacheUpdate = publishSpy.mock.calls
+      .filter(([event]) => event === `ExampleDataService:cacheUpdated:${hash}`)
+      .at(-1)?.[1] as {
+      state: { queries: [{ state: { data: { pages: unknown[] } } }] };
+    };
+
+    // The cache must hold each page exactly once.
+    expect(cacheUpdate.state.queries[0].state.data.pages).toHaveLength(1);
+  });
+
+  it('does not corrupt the cache when refetching a page with no adjacent pages', async () => {
+    cleanAll();
+    const messenger = new Messenger({ namespace: serviceName });
+    const service = new ExampleDataService(messenger);
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    const pageBody = {
+      data: [
+        {
+          hash: '0xcecd28aa5bd781ffd2a6d960578ffc6c89ac390e8d02baebc977a827956394e9',
+          timestamp: '2025-12-29T11:51:08.000Z',
+        },
+      ],
+      pageInfo: {
+        count: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+        startCursor: null,
+        endCursor: null,
+      },
+    };
+    mockTransactionsPage2({ status: 200, body: pageBody });
+    mockTransactionsPage2({ status: 200, body: pageBody });
+
+    const page = await service.getActivity(TEST_ADDRESS, {
+      after: TRANSACTIONS_PAGE_2_CURSOR,
+    });
+    expect(page.data).toHaveLength(1);
+
+    // Refetch a page whose getNextPageParam and getPreviousPageParam both
+    // return null. query-core skips the fetch entirely, so no duplicate is
+    // added and the cache must not be corrupted by pop/shift.
+    const pageAgain = await service.getActivity(TEST_ADDRESS, {
+      after: TRANSACTIONS_PAGE_2_CURSOR,
+    });
+    expect(pageAgain.data).toStrictEqual(page.data);
+
+    const queryKey = ['ExampleDataService:getActivity', TEST_ADDRESS];
+    const hash = hashKey(queryKey);
+    const cacheUpdate = publishSpy.mock.calls
+      .filter(([event]) => event === `ExampleDataService:cacheUpdated:${hash}`)
+      .at(-1)?.[1] as {
+      state: { queries: [{ state: { data: { pages: unknown[] } } }] };
+    };
+
+    // The cache must still hold the single page.
+    expect(cacheUpdate.state.queries[0].state.data.pages).toHaveLength(1);
+  });
+
   it('emits `:cacheUpdated` events when cache is updated', async () => {
     const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
