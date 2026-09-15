@@ -662,6 +662,10 @@ describe('AccountsApiDataSource', () => {
       minimumReserveBalance: '200000000',
       decimal: 7,
     };
+    const persistedNativeMetadata = {
+      spendableBalance: '8944804518',
+      minimumReserveBalance: '200000000',
+    };
     const trustlineMetadata = {
       limit: '9223372036854775807',
       authorized: true,
@@ -710,7 +714,7 @@ describe('AccountsApiDataSource', () => {
       ],
     ).toStrictEqual({
       amount: '914.4804518',
-      metadata: nativeMetadata,
+      metadata: persistedNativeMetadata,
     });
     expect(
       response.assetsBalance?.['mock-account-id']?.[
@@ -926,6 +930,10 @@ describe('AccountsApiDataSource', () => {
         minimumReserveBalance: '200000000',
         decimal: 7,
       };
+      const persistedNativeMetadata = {
+        spendableBalance: '8944803018',
+        minimumReserveBalance: '200000000',
+      };
       const trustlineMetadata = {
         limit: '9223372036854775807',
         authorized: true,
@@ -987,7 +995,7 @@ describe('AccountsApiDataSource', () => {
         ],
       ).toStrictEqual({
         amount: '914.4803018',
-        metadata: nativeMetadata,
+        metadata: persistedNativeMetadata,
       });
 
       controller.destroy();

@@ -11,6 +11,7 @@ import type {
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 
 import type { AssetsControllerMessenger } from '../AssetsController.js';
+import { waitFor } from '../__fixtures__/test-utils.js';
 import type { ChainId, Caip19AssetId } from '../types.js';
 import {
   AccountActivityDataSource,
@@ -281,9 +282,9 @@ describe('AccountActivityDataSource', () => {
         updates: [createBalanceUpdate()],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
       const [response, request] = onAssetsUpdate.mock.calls[0];
       // `processAccountActivityBalanceUpdates` builds null-prototype objects
       // (`Object.create(null)`), so `toStrictEqual` (which checks prototypes)
@@ -330,9 +331,9 @@ describe('AccountActivityDataSource', () => {
         ],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
       const [response] = onAssetsUpdate.mock.calls[0];
       expect(response.assetsBalance[account.id][ETH_ASSET]).toStrictEqual({
         amount: '0.00000114526056',
@@ -378,9 +379,9 @@ describe('AccountActivityDataSource', () => {
         ],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
       const [response] = onAssetsUpdate.mock.calls[0];
       expect(response.assetsBalance[account.id][STELLAR_USDC]).toStrictEqual({
         amount: '0.0201421',
@@ -401,9 +402,9 @@ describe('AccountActivityDataSource', () => {
         updates: [createBalanceUpdate()],
       });
 
-      await Promise.resolve();
-
-      expect(getAssetType).toHaveBeenCalledWith(ETH_ASSET);
+      await waitFor(() => {
+        expect(getAssetType).toHaveBeenCalledWith(ETH_ASSET);
+      });
 
       cleanup();
     });
@@ -425,8 +426,9 @@ describe('AccountActivityDataSource', () => {
         ],
       });
 
-      await Promise.resolve();
-
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
       const [response] = onAssetsUpdate.mock.calls[0];
       expect(response.assetsBalance[account.id]).toHaveProperty(
         USDC_ASSET_CHECKSUMMED,
@@ -452,8 +454,9 @@ describe('AccountActivityDataSource', () => {
         updates: [createBalanceUpdate({ asset: { type: malformedAssetId } })],
       });
 
-      await Promise.resolve();
-
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
       const [response] = onAssetsUpdate.mock.calls[0];
       expect(response.assetsBalance[account.id]).toHaveProperty(
         malformedAssetId,
@@ -476,9 +479,9 @@ describe('AccountActivityDataSource', () => {
         ...override,
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(onAssetsUpdate).not.toHaveBeenCalled();
+      });
 
       cleanup();
     });
@@ -498,9 +501,9 @@ describe('AccountActivityDataSource', () => {
         updates: [createBalanceUpdate()],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(onAssetsUpdate).not.toHaveBeenCalled();
+      });
 
       cleanup();
     });
@@ -517,9 +520,9 @@ describe('AccountActivityDataSource', () => {
         updates: [createBalanceUpdate()],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
 
       cleanup();
     });
@@ -539,9 +542,9 @@ describe('AccountActivityDataSource', () => {
         updates: [createBalanceUpdate()],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
 
       cleanup();
     });
@@ -561,9 +564,9 @@ describe('AccountActivityDataSource', () => {
         updates: [createBalanceUpdate()],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(onAssetsUpdate).not.toHaveBeenCalled();
+      });
 
       cleanup();
     });
@@ -581,9 +584,9 @@ describe('AccountActivityDataSource', () => {
         updates: [createBalanceUpdate()],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
       const [response] = onAssetsUpdate.mock.calls[0];
       expect(response.assetsBalance).toHaveProperty('selected-id');
 
@@ -602,9 +605,9 @@ describe('AccountActivityDataSource', () => {
         updates: [createBalanceUpdate()],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(onAssetsUpdate).not.toHaveBeenCalled();
+      });
 
       cleanup();
     });
@@ -623,9 +626,9 @@ describe('AccountActivityDataSource', () => {
         ],
       });
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(onAssetsUpdate).not.toHaveBeenCalled();
+      });
 
       cleanup();
     });
@@ -644,10 +647,9 @@ describe('AccountActivityDataSource', () => {
         }),
       ).not.toThrow();
 
-      await Promise.resolve();
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
 
       cleanup();
     });
@@ -667,9 +669,9 @@ describe('AccountActivityDataSource', () => {
         }),
       ).not.toThrow();
 
-      await Promise.resolve();
-
-      expect(onAssetsUpdate).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(onAssetsUpdate).not.toHaveBeenCalled();
+      });
 
       cleanup();
     });
