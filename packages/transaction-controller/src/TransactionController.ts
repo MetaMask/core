@@ -416,16 +416,6 @@ export type TransactionControllerOptions = {
     ) => Promise<boolean>;
 
     /**
-     * Additional logic to determine whether a transaction is sponsored.
-     */
-    isSponsored: IsSponsoredHook;
-
-    /**
-     * Additional logic to determine whether a transaction should be signed locally.
-     */
-    shouldSign: ShouldSignHook;
-
-    /**
      * Additional logic to execute before publishing a transaction.
      * Return false to prevent the broadcast of the transaction.
      */
@@ -436,11 +426,21 @@ export type TransactionControllerOptions = {
      */
     beforeSign?: BeforeSignHook;
 
+    /**
+     * Additional logic to determine whether a transaction is sponsored.
+     */
+    isSponsored: IsSponsoredHook;
+
     /** Alternate logic to publish a transaction. */
     publish?: (
       transactionMeta: TransactionMeta,
     ) => Promise<{ transactionHash: string }>;
     publishBatch?: PublishBatchHook;
+
+    /**
+     * Additional logic to determine whether a transaction should be signed locally.
+     */
+    shouldSign: ShouldSignHook;
   };
 };
 
