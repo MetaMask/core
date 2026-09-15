@@ -54,8 +54,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkKycRequired',
   'createVendorCustomer',
   'submitVendorDisclaimers',
-  'fetchDisclaimersCatalog',
-  'fetchSessionDisclaimers',
+  'fetchSessionDisclaimersByCountry',
+  'fetchSessionDisclaimersBySessionId',
   'submitSessionDisclaimers',
   'fetchKycStatus',
   'fetchIdosEnclaveJwks',
@@ -323,12 +323,12 @@ export type SubmitVendorDisclaimersParams = {
   disclaimerIds: string[];
 };
 
-export type FetchDisclaimersCatalogParams = {
+export type FetchSessionDisclaimersByCountryParams = {
   /** ISO 3166-1 alpha-3 country code for `GET /disclaimers?country=`. */
   country: string;
 };
 
-export type FetchSessionDisclaimersParams = {
+export type FetchSessionDisclaimersBySessionIdParams = {
   /** UKYC session id from {@link KycService.createUkycSession}. */
   sessionId: string;
 };
@@ -679,26 +679,26 @@ export class KycService extends BaseDataService<
    * Fetches the global idOS + KYC-provider disclaimer catalog
    * (`GET /disclaimers?country=`). Carries no consent state — per-document
    * `consented` flags and `credentialReusabilityConsentGiven` are
-   * session-scoped via {@link fetchSessionDisclaimers}. Vendor T&Cs continue to
+   * session-scoped via {@link fetchSessionDisclaimersBySessionId}. Vendor T&Cs continue to
    * come from {@link fetchVendorDisclaimers}.
    *
    * @param params - The parameters.
    * @param params.country - ISO 3166-1 alpha-3 country code.
    * @returns The catalog documents.
    */
-  async fetchDisclaimersCatalog({
+  async fetchSessionDisclaimersByCountry({
     country,
-  }: FetchDisclaimersCatalogParams): Promise<KycDisclaimersCatalog> {
+  }: FetchSessionDisclaimersByCountryParams): Promise<KycDisclaimersCatalog> {
     if (country.length !== 3) {
       throw new Error(
-        `KycService.fetchDisclaimersCatalog: country must be an ISO 3166-1 alpha-3 code (received "${country}").`,
+        `KycService.fetchSessionDisclaimersByCountry: country must be an ISO 3166-1 alpha-3 code (received "${country}").`,
       );
     }
 
     const url = new URL('/disclaimers', this.#baseUrl);
     url.searchParams.set('country', country);
     const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchDisclaimersCatalog`, country],
+      queryKey: [`${this.name}:fetchSessionDisclaimersByCountry`, country],
       queryFn: async () => this.#requestJson(url, { method: 'GET' }),
       staleTime: 0,
       gcTime: 0,
@@ -714,22 +714,22 @@ export class KycService extends BaseDataService<
    * Fetches the session-scoped idOS + KYC-provider disclaimer catalog
    * (`GET /sessions/{sessionId}/disclaimers`), including per-session
    * `consented` flags and `credentialReusabilityConsentGiven`. For the
-   * pre-session global catalog use {@link fetchDisclaimersCatalog}. Vendor
-   * T&Cs continue to come from {@link fetchVendorDisclaimers}.
+   * pre-session global catalog use {@link fetchSessionDisclaimersByCountry}.
+   * Vendor T&Cs continue to come from {@link fetchVendorDisclaimers}.
    *
    * @param params - The parameters.
    * @param params.sessionId - The UKYC session id.
    * @returns The catalog, including which documents are already consented.
    */
-  async fetchSessionDisclaimers({
+  async fetchSessionDisclaimersBySessionId({
     sessionId,
-  }: FetchSessionDisclaimersParams): Promise<KycSessionDisclaimers> {
+  }: FetchSessionDisclaimersBySessionIdParams): Promise<KycSessionDisclaimers> {
     const url = new URL(
       `/sessions/${encodeURIComponent(sessionId)}/disclaimers`,
       this.#baseUrl,
     );
     const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchSessionDisclaimers`, sessionId],
+      queryKey: [`${this.name}:fetchSessionDisclaimersBySessionId`, sessionId],
       queryFn: async () => this.#requestJson(url, { method: 'GET' }),
       // Consent state can change after a POST, so always re-fetch.
       staleTime: 0,
@@ -745,7 +745,7 @@ export class KycService extends BaseDataService<
   /**
    * Records idOS + KYC-provider consents for a UKYC session
    * (`POST /sessions/{sessionId}/disclaimers`). `key`/`version` pairs must
-   * match the current catalog from {@link fetchSessionDisclaimers}. A 409
+   * match the current catalog from {@link fetchSessionDisclaimersBySessionId}. A 409
    * means those document versions were already recorded for the session.
    *
    * @param params - The consent parameters.

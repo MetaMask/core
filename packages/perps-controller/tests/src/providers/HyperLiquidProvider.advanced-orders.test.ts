@@ -1,6 +1,8 @@
 /* eslint-disable */
 jest.mock('@nktkas/hyperliquid', () => ({}));
 
+import type { MetaResponse } from '@nktkas/hyperliquid';
+
 import { ORDER_SLIPPAGE_CONFIG } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
@@ -118,6 +120,7 @@ const mockValidateBalance = validateBalance as jest.MockedFunction<
 // Mock factory functions - defined once, reused everywhere
 // These reduce duplication and make tests more maintainable
 const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
+  twapHistory: jest.fn().mockResolvedValue([]),
   clearinghouseState: jest.fn().mockResolvedValue({
     marginSummary: {
       totalMarginUsed: '500',
@@ -522,6 +525,322 @@ describe('HyperLiquidProvider', () => {
         ['BTC', 0],
         ['ETH', 1],
       ],
+    });
+  });
+
+  describe('explicit margin mode', () => {
+    const order: OrderParams = {
+      symbol: 'BTC',
+      isBuy: true,
+      size: '0.1',
+      orderType: 'market',
+      currentPrice: 50000,
+      leverage: 5,
+    };
+
+    it.each(['cross', 'isolated', undefined] as const)(
+      'submits %s through updateLeverage',
+      async (marginMode) => {
+        const info = createMockInfoClient({
+          clearinghouseState: jest
+            .fn()
+            .mockResolvedValue({ assetPositions: [] }),
+          frontendOpenOrders: jest.fn().mockResolvedValue([]),
+        });
+        mockClientService.getInfoClient.mockReturnValue(
+          info as unknown as ReturnType<
+            HyperLiquidClientService['getInfoClient']
+          >,
+        );
+
+        const result = await provider.placeOrder({ ...order, marginMode });
+
+        expect(result).toMatchObject({ success: true });
+        expect(
+          mockClientService.getExchangeClient().updateLeverage,
+        ).toHaveBeenCalledWith({
+          asset: 0,
+          isCross: marginMode === 'cross',
+          leverage: 5,
+        });
+      },
+    );
+
+    it('rejects an invalid runtime mode before signing', async () => {
+      const result = await provider.placeOrder({
+        ...order,
+        marginMode: 'invalid' as OrderParams['marginMode'],
+      });
+
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_MARGIN_MODE_INVALID);
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it.each([undefined, 0, 1.5])(
+      'rejects explicit mode with leverage %s',
+      async (leverage) => {
+        const result = await provider.validateOrder({
+          ...order,
+          marginMode: 'cross',
+          leverage,
+        });
+
+        expect(result).toEqual({
+          isValid: false,
+          error: PERPS_ERROR_CODES.ORDER_LEVERAGE_INVALID,
+        });
+      },
+    );
+
+    it.each([
+      { onlyIsolated: true },
+      { marginMode: 'strictIsolated' },
+      { marginMode: 'noCross' },
+    ] satisfies Partial<MetaResponse['universe'][number]>[])(
+      'rejects unsupported Cross capability %j',
+      async (capability) => {
+        const info = createMockInfoClient({
+          meta: jest.fn().mockResolvedValue({
+            universe: [
+              {
+                name: 'BTC',
+                szDecimals: 3,
+                maxLeverage: 50,
+                marginTableId: 1,
+                ...capability,
+              } satisfies MetaResponse['universe'][number],
+            ],
+          }),
+        });
+        mockClientService.getInfoClient.mockReturnValue(
+          info as unknown as ReturnType<
+            HyperLiquidClientService['getInfoClient']
+          >,
+        );
+
+        const result = await provider.placeOrder({
+          ...order,
+          marginMode: 'cross',
+        });
+
+        expect(result.error).toBe(
+          PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+        );
+        expect(
+          mockClientService.getExchangeClient().updateLeverage,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it('keeps HIP-3 Cross unavailable while its transfers assume isolated', async () => {
+      const info = createMockInfoClient({
+        meta: jest.fn().mockResolvedValue({
+          universe: [
+            {
+              name: 'xyz:XYZ100',
+              szDecimals: 3,
+              maxLeverage: 20,
+              marginTableId: 1,
+            } satisfies MetaResponse['universe'][number],
+          ],
+        }),
+      });
+      mockClientService.getInfoClient.mockReturnValue(
+        info as unknown as ReturnType<
+          HyperLiquidClientService['getInfoClient']
+        >,
+      );
+
+      const result = await provider.validateOrder({
+        ...order,
+        symbol: 'xyz:XYZ100',
+        marginMode: 'cross',
+      });
+
+      expect(result).toEqual({
+        isValid: false,
+        error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+      });
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rejects a mode change with an open position', async () => {
+      const result = await provider.placeOrder({
+        ...order,
+        marginMode: 'isolated',
+      });
+
+      expect(result.error).toBe(
+        PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN,
+      );
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('allows an order in the existing position mode', async () => {
+      const result = await provider.placeOrder({
+        ...order,
+        marginMode: 'cross',
+      });
+
+      expect(result.success).toBe(true);
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).toHaveBeenCalledWith({ asset: 0, isCross: true, leverage: 5 });
+    });
+
+    it('fails closed when fresh positions cannot be read', async () => {
+      const info = createMockInfoClient({
+        clearinghouseState: jest.fn().mockRejectedValue(new Error('offline')),
+      });
+      mockClientService.getInfoClient.mockReturnValue(
+        info as unknown as ReturnType<
+          HyperLiquidClientService['getInfoClient']
+        >,
+      );
+
+      const result = await provider.placeOrder({
+        ...order,
+        marginMode: 'cross',
+      });
+
+      expect(result.error).toBe(PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE);
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+    });
+
+    it.each(['cross', 'isolated'])(
+      'checks %s mode for a resting order',
+      async (existingMode) => {
+        const activeAssetData = jest
+          .fn()
+          .mockResolvedValue({ leverage: { type: existingMode, value: 5 } });
+        const info = createMockInfoClient({
+          clearinghouseState: jest
+            .fn()
+            .mockResolvedValue({ assetPositions: [] }),
+          frontendOpenOrders: jest.fn().mockResolvedValue([{ coin: 'BTC' }]),
+          activeAssetData,
+        });
+        mockClientService.getInfoClient.mockReturnValue(
+          info as unknown as ReturnType<
+            HyperLiquidClientService['getInfoClient']
+          >,
+        );
+
+        const result = await provider.validateOrder({
+          ...order,
+          marginMode: 'cross',
+        });
+
+        expect(result.isValid).toBe(existingMode === 'cross');
+        if (existingMode === 'isolated')
+          expect(result.error).toBe(
+            PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN,
+          );
+        expect(activeAssetData).toHaveBeenCalled();
+      },
+    );
+
+    it('fails closed when the resting-order asset mode cannot be read', async () => {
+      const activeAssetData = jest
+        .fn()
+        .mockRejectedValue(new Error('asset mode offline'));
+      const info = createMockInfoClient({
+        clearinghouseState: jest.fn().mockResolvedValue({ assetPositions: [] }),
+        frontendOpenOrders: jest.fn().mockResolvedValue([{ coin: 'BTC' }]),
+        activeAssetData,
+      });
+      mockClientService.getInfoClient.mockReturnValue(
+        info as unknown as ReturnType<
+          HyperLiquidClientService['getInfoClient']
+        >,
+      );
+
+      const result = await provider.placeOrder({
+        ...order,
+        marginMode: 'cross',
+      });
+
+      expect(result.success).toBe(false);
+      expect(activeAssetData).toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rechecks the venue book at placement after a successful preview', async () => {
+      const clearinghouseState = jest
+        .fn()
+        .mockResolvedValue({ assetPositions: [] });
+      const info = createMockInfoClient({
+        clearinghouseState,
+        frontendOpenOrders: jest.fn().mockResolvedValue([]),
+      });
+      mockClientService.getInfoClient.mockReturnValue(
+        info as unknown as ReturnType<
+          HyperLiquidClientService['getInfoClient']
+        >,
+      );
+      const preview = await provider.validateOrder({
+        ...order,
+        marginMode: 'isolated',
+      });
+      expect(preview.isValid).toBe(true);
+      clearinghouseState.mockResolvedValue(
+        await createMockInfoClient().clearinghouseState(),
+      );
+
+      const placed = await provider.placeOrder({
+        ...order,
+        marginMode: 'isolated',
+      });
+
+      expect(placed.error).toBe(
+        PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN,
+      );
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockClientService.getExchangeClient().order,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when fresh orders cannot be read', async () => {
+      const info = createMockInfoClient({
+        clearinghouseState: jest.fn().mockResolvedValue({ assetPositions: [] }),
+        frontendOpenOrders: jest
+          .fn()
+          .mockRejectedValue(new Error('orders offline')),
+      });
+      mockClientService.getInfoClient.mockReturnValue(
+        info as unknown as ReturnType<
+          HyperLiquidClientService['getInfoClient']
+        >,
+      );
+
+      const result = await provider.placeOrder({
+        ...order,
+        marginMode: 'cross',
+      });
+
+      expect(result.success).toBe(false);
+      expect(
+        mockClientService.getExchangeClient().updateLeverage,
+      ).not.toHaveBeenCalled();
     });
   });
 

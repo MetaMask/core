@@ -2575,6 +2575,10 @@ export class PerpsController extends BaseController<
       },
       stateManager: {
         update: (updater: (state: PerpsControllerState) => void) =>
+          // Using `@ts-ignore` instead of `@ts-expect-error` since this error
+          // comes and goes after unrelated changes.
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore: TS2589: Type instantiation is excessively deep and possibly infinite.
           this.update(updater),
         getState: (): PerpsControllerState => this.#getControllerState(),
       },

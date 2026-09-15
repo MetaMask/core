@@ -1,5 +1,5 @@
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import { simulateTransactions } from '../api/simulation-api.js';
 import type {

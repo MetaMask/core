@@ -5,7 +5,7 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import { PaymentOverride } from '../../constants.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';

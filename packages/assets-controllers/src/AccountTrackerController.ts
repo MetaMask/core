@@ -42,7 +42,7 @@ import type {
 import { assert, KnownCaipNamespace } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import { cloneDeep, isEqual } from 'lodash';
+import { cloneDeep, isEqual } from 'lodash-es';
 
 import type { AccountTrackerControllerMethodActions } from './AccountTrackerController-method-action-types.js';
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController.js';

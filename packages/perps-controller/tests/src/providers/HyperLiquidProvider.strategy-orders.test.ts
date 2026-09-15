@@ -1,4 +1,5 @@
 import { HyperliquidError } from '@nktkas/hyperliquid';
+import type { MetaResponse } from '@nktkas/hyperliquid';
 
 import { BUILDER_FEE_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
 import {
@@ -727,6 +728,317 @@ describe('HyperLiquidProvider - strategy order types', () => {
       accountValue: withdrawable,
       totalMarginUsed: '0',
     },
+  });
+
+  describe('native TWAP margin-mode occupancy', () => {
+    const order: OrderParams = {
+      ...baseOrder,
+      orderType: 'market',
+      leverage: 5,
+      marginMode: 'cross',
+    };
+    const setupOccupancy = (
+      history: unknown[],
+      existingMode = 'isolated',
+    ): ReturnType<typeof useStrategyClients> =>
+      useStrategyClients({
+        info: {
+          clearinghouseState: jest
+            .fn()
+            .mockResolvedValue(createClearinghouseBalance('10000')),
+          frontendOpenOrders: jest.fn().mockResolvedValue([]),
+          twapHistory: jest.fn().mockResolvedValue(history),
+          activeAssetData: jest
+            .fn()
+            .mockResolvedValue({ leverage: { type: existingMode, value: 5 } }),
+        },
+      });
+
+    it.each(['activated', 'waitingForTrigger', 'futureVenueStatus'])(
+      'blocks conflicting mode for %s schedules with no fills',
+      async (status) => {
+        const { exchangeClient } = setupOccupancy([
+          { ...activeEthTwapHistory[0], status: { status } },
+        ]);
+
+        const result = await provider.placeOrder(order);
+
+        expect(result).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN,
+        });
+        expect(exchangeClient.updateLeverage).not.toHaveBeenCalled();
+        expect(exchangeClient.order).not.toHaveBeenCalled();
+      },
+    );
+
+    it('allows matching mode while a native TWAP remains active', async () => {
+      const { infoClient } = setupOccupancy(activeEthTwapHistory, 'cross');
+
+      const result = await provider.validateOrder(order);
+
+      expect(result.isValid).toBe(true);
+      expect(infoClient.activeAssetData).toHaveBeenCalledWith(
+        expect.objectContaining({ coin: 'ETH' }),
+      );
+    });
+
+    it.each(['finished', 'stopped', 'terminated', 'error'])(
+      'allows mode changes after a %s terminal update supersedes activation',
+      async (status) => {
+        const terminal = {
+          ...activeEthTwapHistory[0],
+          time: activeEthTwapHistory[0].time + 1,
+          status: { status },
+        };
+        // Deliberately newest first; stale activation must not overwrite it.
+        const { infoClient } = setupOccupancy([
+          terminal,
+          ...activeEthTwapHistory,
+        ]);
+
+        const result = await provider.validateOrder(order);
+
+        expect(result.isValid).toBe(true);
+        expect(infoClient.activeAssetData).not.toHaveBeenCalled();
+      },
+    );
+
+    it('compares mixed venue timestamp units before selecting a schedule status', async () => {
+      const terminal = {
+        ...activeEthTwapHistory[0],
+        time: activeEthTwapHistory[0].time + 1,
+        status: { status: 'finished' },
+      };
+      const activation = {
+        ...activeEthTwapHistory[0],
+        time: activeEthTwapHistory[0].time * 1000,
+      };
+      const { infoClient } = setupOccupancy([activation, terminal]);
+
+      expect((await provider.validateOrder(order)).isValid).toBe(true);
+      expect(infoClient.activeAssetData).not.toHaveBeenCalled();
+    });
+
+    it('ignores active TWAP schedules for another asset', async () => {
+      const { infoClient } = setupOccupancy([
+        {
+          ...activeEthTwapHistory[0],
+          state: { ...activeEthTwapHistory[0].state, coin: 'BTC' },
+        },
+      ]);
+
+      expect((await provider.validateOrder(order)).isValid).toBe(true);
+      expect(infoClient.activeAssetData).not.toHaveBeenCalled();
+    });
+
+    it('fails closed if fresh TWAP history is unavailable', async () => {
+      const { infoClient, exchangeClient } = setupOccupancy([]);
+      infoClient.twapHistory.mockRejectedValue(
+        new Error('TWAP history offline'),
+      );
+
+      const result = await provider.placeOrder(order);
+
+      expect(result.success).toBe(false);
+      expect(exchangeClient.updateLeverage).not.toHaveBeenCalled();
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('rechecks TWAP occupancy between preview and placement', async () => {
+      const { infoClient, exchangeClient } =
+        setupOccupancy(activeEthTwapHistory);
+      infoClient.twapHistory.mockResolvedValueOnce([]);
+      expect((await provider.validateOrder(order)).isValid).toBe(true);
+
+      const result = await provider.placeOrder(order);
+
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN,
+      });
+      expect(infoClient.twapHistory).toHaveBeenCalledTimes(2);
+      expect(exchangeClient.updateLeverage).not.toHaveBeenCalled();
+    });
+
+    it('preserves omitted-mode requests without a new history read', async () => {
+      const { infoClient } = setupOccupancy(activeEthTwapHistory);
+
+      expect(
+        (await provider.validateOrder({ ...order, marginMode: undefined }))
+          .isValid,
+      ).toBe(true);
+      expect(infoClient.twapHistory).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('explicit margin mode across order types', () => {
+    const orderShapes: Pick<
+      OrderParams,
+      | 'orderType'
+      | 'twapDuration'
+      | 'scaleMinPrice'
+      | 'scaleMaxPrice'
+      | 'scaleNumOrders'
+      | 'triggerPrice'
+    >[] = [
+      { orderType: 'stop_market', triggerPrice: '3100' },
+      { orderType: 'twap', twapDuration: 30 },
+      {
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      },
+      { orderType: 'chase' },
+    ];
+
+    afterEach(async () => {
+      await provider.disconnect();
+    });
+
+    describe.each(orderShapes)('$orderType', (shape) => {
+      it('rejects a mode change while an unfilled native TWAP is active before signing', async () => {
+        const { exchangeClient, infoClient } = useStrategyClients({
+          info: {
+            clearinghouseState: jest
+              .fn()
+              .mockResolvedValue(createClearinghouseBalance('10000')),
+            frontendOpenOrders: jest.fn().mockResolvedValue([]),
+            twapHistory: jest.fn().mockResolvedValue(activeEthTwapHistory),
+            activeAssetData: jest
+              .fn()
+              .mockResolvedValue({ leverage: { type: 'isolated', value: 5 } }),
+          },
+        });
+
+        const result = await provider.placeOrder({
+          ...baseOrder,
+          ...shape,
+          leverage: 5,
+          marginMode: 'cross',
+        });
+
+        expect(result).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_ORDER_OPEN,
+        });
+        expect(infoClient.twapHistory).toHaveBeenCalled();
+        expect(exchangeClient.updateLeverage).not.toHaveBeenCalled();
+        expect(exchangeClient.order).not.toHaveBeenCalled();
+        expect(exchangeClient.twapOrder).not.toHaveBeenCalled();
+      });
+
+      it.each(['cross', 'isolated', undefined] as const)(
+        'forwards %s mode at the SDK boundary',
+        async (marginMode) => {
+          const { exchangeClient } = useStrategyClients({
+            info: {
+              clearinghouseState: jest
+                .fn()
+                .mockResolvedValue(createClearinghouseBalance('10000')),
+              frontendOpenOrders: jest.fn().mockResolvedValue([]),
+            },
+            exchange: {
+              order: jest
+                .fn()
+                .mockImplementation((request: { orders: unknown[] }) =>
+                  Promise.resolve({
+                    status: 'ok',
+                    response: {
+                      data: {
+                        statuses: request.orders.map((_, index) => ({
+                          resting: { oid: 55 + index },
+                        })),
+                      },
+                    },
+                  }),
+                ),
+            },
+          });
+
+          const result = await provider.placeOrder({
+            ...baseOrder,
+            ...shape,
+            leverage: 5,
+            marginMode,
+          });
+
+          expect(result.success).toBe(true);
+          expect(exchangeClient.updateLeverage).toHaveBeenCalledWith({
+            asset: 1,
+            isCross: marginMode === 'cross',
+            leverage: 5,
+          });
+          expect(
+            shape.orderType === 'twap'
+              ? exchangeClient.twapOrder
+              : exchangeClient.order,
+          ).toHaveBeenCalled();
+        },
+      );
+
+      it.each([
+        {
+          reason: 'a conflicting mode',
+          restricted: false,
+          marginMode: 'isolated',
+          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_POSITION_OPEN,
+        },
+        {
+          reason: 'an unsupported market',
+          restricted: true,
+          marginMode: 'cross',
+          error: PERPS_ERROR_CODES.ORDER_MARGIN_MODE_UNSUPPORTED,
+        },
+      ] as const)(
+        'rejects $reason before signatures or submission',
+        async ({ restricted, marginMode, error }) => {
+          // The default venue fixture already holds a Cross ETH position.
+          const { exchangeClient } = useStrategyClients(
+            restricted
+              ? {
+                  info: {
+                    meta: jest.fn().mockResolvedValue({
+                      universe: [
+                        {
+                          name: 'ETH',
+                          szDecimals: 3,
+                          maxLeverage: 50,
+                          marginTableId: 1,
+                          marginMode: 'noCross',
+                        } satisfies MetaResponse['universe'][number],
+                      ],
+                    }),
+                  },
+                }
+              : {},
+          );
+
+          const result = await provider.placeOrder({
+            ...baseOrder,
+            ...shape,
+            leverage: 5,
+            marginMode,
+          });
+
+          expect(result.success).toBe(false);
+          expect(result.error).toBe(error);
+          for (const method of [
+            'updateLeverage',
+            'approveBuilderFee',
+            'setReferrer',
+            'userSetAbstraction',
+            'agentSetAbstraction',
+            'sendAsset',
+            'order',
+            'twapOrder',
+          ]) {
+            expect(exchangeClient[method]).not.toHaveBeenCalled();
+          }
+        },
+      );
+    });
   });
 
   describe('Builder fee policy', () => {

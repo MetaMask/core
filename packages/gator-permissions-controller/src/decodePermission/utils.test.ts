@@ -372,7 +372,7 @@ describe('extractExpiryFromCaveatTerms', () => {
   });
 
   it('throws if timestampBeforeThreshold is zero', () => {
-    const terms = `0x${'0'.repeat(64)}`;
+    const terms = `0x${'0'.repeat(64)}` as const;
 
     expect(() => extractExpiryFromCaveatTerms(terms)).toThrow(
       'Invalid expiry: timestampBeforeThreshold must be greater than 0',

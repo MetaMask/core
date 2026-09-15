@@ -2,7 +2,7 @@ import { toChecksumAddress } from '@ethereumjs/util';
 import { getNativeTokenAddress } from '@metamask/assets-controllers';
 import { numberToHex } from '@metamask/utils';
 import { parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
-import { isEqual } from 'lodash';
+import { isEqual } from 'lodash-es';
 
 import type {
   AssetBalance,

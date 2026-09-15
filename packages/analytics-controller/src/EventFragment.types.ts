@@ -1,7 +1,7 @@
 import type {
   AnalyticsContext,
   AnalyticsEventProperties,
-} from './AnalyticsPlatformAdapter.types';
+} from './AnalyticsPlatformAdapter.types.js';
 
 /**
  * A bag of analytics properties that accumulates across a user journey.

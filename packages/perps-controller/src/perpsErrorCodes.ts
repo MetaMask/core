@@ -1,7 +1,11 @@
 /**
- * Error codes for PerpsController
- * These codes are returned to the UI layer for translation
- * Extracted to separate file to avoid circular dependencies with translatePerpsError
+ * Error codes for PerpsController.
+ * These codes are returned to the UI layer for translation.
+ * Extracted to a separate file to avoid circular dependencies with translatePerpsError.
+ *
+ * Adding a code is a minor, not a breaking change. Clients must handle unknown
+ * codes in a catch-all (else / default / fallback translation) rather than an
+ * exhaustive `Record<PerpsErrorCode, …>`.
  */
 export const PERPS_ERROR_CODES = {
   CLIENT_NOT_INITIALIZED: 'CLIENT_NOT_INITIALIZED',
@@ -43,6 +47,10 @@ export const PERPS_ERROR_CODES = {
   ORDER_PRICE_REQUIRED: 'ORDER_PRICE_REQUIRED',
   ORDER_SIZE_MIN: 'ORDER_SIZE_MIN',
   ORDER_LEVERAGE_INVALID: 'ORDER_LEVERAGE_INVALID',
+  ORDER_MARGIN_MODE_INVALID: 'ORDER_MARGIN_MODE_INVALID',
+  ORDER_MARGIN_MODE_UNSUPPORTED: 'ORDER_MARGIN_MODE_UNSUPPORTED',
+  ORDER_MARGIN_MODE_POSITION_OPEN: 'ORDER_MARGIN_MODE_POSITION_OPEN',
+  ORDER_MARGIN_MODE_ORDER_OPEN: 'ORDER_MARGIN_MODE_ORDER_OPEN',
   ORDER_LEVERAGE_BELOW_POSITION: 'ORDER_LEVERAGE_BELOW_POSITION',
   ORDER_MAX_VALUE_EXCEEDED: 'ORDER_MAX_VALUE_EXCEEDED',
   // Validation errors - trigger placement (stop / take profit) and partial TP/SL

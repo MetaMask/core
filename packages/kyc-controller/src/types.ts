@@ -101,6 +101,9 @@ export type KycPhase =
  *   already approved on the relay (`kycStatus`) while the vendor is still
  *   finalizing its own decision (`finalStatus`). There is nothing left for the
  *   applicant to do, so the SDK is not launched; see `statusMessage`.
+ * - `abandoned` — the applicant closed the SDK before submitting. Unlike
+ *   `failed`, nothing went wrong, so `error` is left unset and consumers should
+ *   offer a retry rather than report a problem.
  */
 export type KycSumSubStatus =
   | 'idle'
@@ -110,8 +113,37 @@ export type KycSumSubStatus =
   | 'inProgress'
   | 'polling'
   | 'complete'
+  | 'abandoned'
   | 'failed'
   | 'vendorProcessing';
+
+/**
+ * Status strings a SumSub SDK reports, through either the status-change
+ * callback or the `launch` result. Distinct from {@link KycSumSubStatus},
+ * which tracks the controller's own sub-flow.
+ *
+ * - `Ready` — initialized and presented; no step reported yet.
+ * - `Failed` — the SDK itself could not run.
+ * - `Initial` — no verification step has been passed.
+ * - `Incomplete` — some but not all verification steps have been passed.
+ * - `Pending` — the applicant submitted and review is pending.
+ * - `TemporarilyDeclined` — the applicant was declined but may resubmit.
+ * - `FinallyRejected` — the applicant was rejected for good.
+ * - `Approved` — the applicant was approved.
+ * - `ActionCompleted` — an applicant action (e.g. a liveness check) finished.
+ * - `Completed` — normalized completion reported by non-native launchers.
+ */
+export type KycSumSubSdkStatus =
+  | 'Ready'
+  | 'Failed'
+  | 'Initial'
+  | 'Incomplete'
+  | 'Pending'
+  | 'TemporarilyDeclined'
+  | 'FinallyRejected'
+  | 'Approved'
+  | 'ActionCompleted'
+  | 'Completed';
 
 /**
  * The status of a UKYC session, returned by the `GET /sessions/{id}/status`

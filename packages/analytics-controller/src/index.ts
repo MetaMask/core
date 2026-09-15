@@ -20,7 +20,7 @@ export type {
   AnalyticsUserTraits,
   AnalyticsPlatformAdapter,
   AnalyticsTrackingEvent,
-} from './AnalyticsPlatformAdapter.types';
+} from './AnalyticsPlatformAdapter.types.js';
 
 // Export event fragment types
 export type {

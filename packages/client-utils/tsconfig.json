@@ -1,12 +1,18 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
-    { "path": "../controller-utils" },
-    { "path": "../core-backend" },
-    { "path": "../transaction-controller" }
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../core-backend"
+    },
+    {
+      "path": "../transaction-controller"
+    },
+    {
+      "path": "../utils"
+    }
   ],
   "include": ["../../types", "./src", "./test"]
 }

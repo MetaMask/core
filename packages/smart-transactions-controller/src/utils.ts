@@ -7,7 +7,7 @@ import type {
 } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
-import _ from 'lodash';
+import { camelCase, isArray, isObject, mapKeys, mapValues } from 'lodash-es';
 
 // Ignoring TypeScript errors here because this import is disallowed for production builds, because
 // the `package.json` file is above the root directory.
@@ -135,19 +135,19 @@ export const getStxProcessingTime = (
 export const mapKeysToCamel = (
   obj: Record<string, any>,
 ): Record<string, any> => {
-  if (!_.isObject(obj)) {
+  if (!isObject(obj)) {
     return obj;
   }
-  const mappedValues = _.mapValues(obj, (val: Record<string, any>) => {
-    if (_.isArray(val)) {
+  const mappedValues = mapValues(obj, (val: Record<string, any>) => {
+    if (isArray(val)) {
       return val.map(mapKeysToCamel);
-    } else if (_.isObject(val)) {
+    } else if (isObject(val)) {
       return mapKeysToCamel(val);
     }
     return val;
   });
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  return _.mapKeys(mappedValues, (value, key) => _.camelCase(key));
+  return mapKeys(mappedValues, (value, key) => camelCase(key));
 };
 
 export async function handleFetch(request: string, options?: RequestInit) {

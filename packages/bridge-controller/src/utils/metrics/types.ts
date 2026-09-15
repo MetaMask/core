@@ -325,7 +325,7 @@ type RequiredEventContextFromClientBase = {
     Pick<QuoteFetchData, 'price_impact'> & {
       error_message: string;
       batch_id?: string;
-    } & FailureTelemetryData;
+    } & FailureTelemetryProperties;
   [UnifiedSwapBridgeEventName.PollingStatusUpdated]: {
     polling_status: PollingStatus;
     retry_attempts: number;

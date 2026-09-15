@@ -99,7 +99,7 @@ graph TB
 
 Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
-`initialize`, `loadDisclaimers`, `acceptTermsAndStartSession`,
+`initialize`, `loadDisclaimers`, `fetchSessionDisclaimers`, `acceptTermsAndStartSession`,
 `createVendorCustomer`, `clearSavedTerms`, `handleFrameMessage`,
 `buildCheckFrameUrl`, `buildAuthFrameUrl`, `buildResetFrameUrl`,
 `checkKycRequired`, `getKycStatus`, `getCustomerIdentity`, `refreshKycStatus`,
@@ -122,29 +122,29 @@ Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 `getGeoCountry`, `fetchVendorDisclaimers`, `createSession`, `checkKycRequired`,
-`createVendorCustomer`, `submitVendorDisclaimers`, `fetchDisclaimersCatalog`, `fetchSessionDisclaimers`, `submitSessionDisclaimers`,
+`createVendorCustomer`, `submitVendorDisclaimers`, `fetchSessionDisclaimersByCountry`, `fetchSessionDisclaimersBySessionId`, `submitSessionDisclaimers`,
 `fetchKycStatus`, `fetchIdosEnclaveJwks`, `fetchIdosRelayJwks`, `createUkycSession`, `setAuthorizations`,
 `createJourney`, `getSessionStatus`.
 
 Endpoints:
 
-| Method                     | HTTP   | Endpoint                                     | Purpose                                                                                |
-| -------------------------- | ------ | -------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `getGeoCountry`            | —      | (geolocation action)                         | Resolve alpha-3 country                                                                |
-| `fetchVendorDisclaimers`   | `GET`  | `/vendors/{vendor}/disclaimers?country=`     | Vendor T&Cs to accept (`vendor` defaults to `moonpay`)                                 |
-| `createSession`            | `POST` | `/vendors/moonpay/sessions`                  | Create MoonPay vendor session                                                          |
-| `checkKycRequired`         | `POST` | `/vendors/{vendor}/kyc-required`             | Is KYC required? (normalizes `required` → `kycRequired`)                               |
-| `createVendorCustomer`     | `POST` | `/vendors/{vendor}/customers`                | Create or resume an empty-shell vendor customer                                        |
-| `submitVendorDisclaimers`  | `POST` | `/vendors/{vendor}/disclaimers`              | Record vendor T&C signings (`disclaimerIds`)                                           |
-| `fetchDisclaimersCatalog`  | `GET`  | `/disclaimers?country=`                      | Global idOS + KYC-provider catalog (no consent state)                                  |
-| `fetchSessionDisclaimers`  | `GET`  | `/sessions/{id}/disclaimers`                 | Session-scoped catalog, with `consented` flags + credential-reuse flag                 |
-| `submitSessionDisclaimers` | `POST` | `/sessions/{id}/disclaimers`                 | Record `{ idOS, kycProvider, credentialReusabilityConsentGiven }` consents             |
-| `fetchKycStatus`           | `GET`  | `/kyc/status`                                | User-keyed simplified KYC status                                                       |
-| `fetchIdosEnclaveJwks`     | `GET`  | `{idosEnclaveBaseUrl}/.well-known/jwks.json` | idOS enclave JWKS for `encryptionDataKey` attestation                                  |
-| `fetchIdosRelayJwks`       | `GET`  | `{idosRelayBaseUrl}/.well-known/jwks.json`   | idOS relay JWKS for `ukycCapabilityToken` attestation                                  |
-| `createUkycSession`        | `POST` | `/sessions`                                  | Start SumSub sub-flow; registers session client public key; returns encryption schemas |
-| `setAuthorizations`        | `POST` | `/sessions/{id}/authorizations`              | Submit wrapped `data_encryption_key` and wrapped `ukyc_capability_token`               |
-| `createJourney`            | `POST` | `/sessions/{id}/journey`                     | Create verification journey → applicant token                                          |
+| Method                               | HTTP   | Endpoint                                     | Purpose                                                                                |
+| ------------------------------------ | ------ | -------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `getGeoCountry`                      | —      | (geolocation action)                         | Resolve alpha-3 country                                                                |
+| `fetchVendorDisclaimers`             | `GET`  | `/vendors/{vendor}/disclaimers?country=`     | Vendor T&Cs to accept (`vendor` defaults to `moonpay`)                                 |
+| `createSession`                      | `POST` | `/vendors/moonpay/sessions`                  | Create MoonPay vendor session                                                          |
+| `checkKycRequired`                   | `POST` | `/vendors/{vendor}/kyc-required`             | Is KYC required? (normalizes `required` → `kycRequired`)                               |
+| `createVendorCustomer`               | `POST` | `/vendors/{vendor}/customers`                | Create or resume an empty-shell vendor customer                                        |
+| `submitVendorDisclaimers`            | `POST` | `/vendors/{vendor}/disclaimers`              | Record vendor T&C signings (`disclaimerIds`)                                           |
+| `fetchSessionDisclaimersByCountry`   | `GET`  | `/disclaimers?country=`                      | Global idOS + KYC-provider catalog (no consent state)                                  |
+| `fetchSessionDisclaimersBySessionId` | `GET`  | `/sessions/{id}/disclaimers`                 | Session-scoped catalog, with `consented` flags + credential-reuse flag                 |
+| `submitSessionDisclaimers`           | `POST` | `/sessions/{id}/disclaimers`                 | Record `{ idOS, kycProvider, credentialReusabilityConsentGiven }` consents             |
+| `fetchKycStatus`                     | `GET`  | `/kyc/status`                                | User-keyed simplified KYC status                                                       |
+| `fetchIdosEnclaveJwks`               | `GET`  | `{idosEnclaveBaseUrl}/.well-known/jwks.json` | idOS enclave JWKS for `encryptionDataKey` attestation                                  |
+| `fetchIdosRelayJwks`                 | `GET`  | `{idosRelayBaseUrl}/.well-known/jwks.json`   | idOS relay JWKS for `ukycCapabilityToken` attestation                                  |
+| `createUkycSession`                  | `POST` | `/sessions`                                  | Start SumSub sub-flow; registers session client public key; returns encryption schemas |
+| `setAuthorizations`                  | `POST` | `/sessions/{id}/authorizations`              | Submit wrapped `data_encryption_key` and wrapped `ukyc_capability_token`               |
+| `createJourney`                      | `POST` | `/sessions/{id}/journey`                     | Create verification journey → applicant token                                          |
 
 ### 2.3 `crypto.ts`
 
