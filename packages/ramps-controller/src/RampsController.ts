@@ -59,6 +59,7 @@ import {
   normalizeRampsAssetId,
   providerServesAsset,
 } from './providerAvailability.js';
+import { getProviderBuyLimit } from './providerLimits.js';
 import type { RampsControllerMethodActions } from './RampsController-method-action-types.js';
 import type { RampsErrorCode } from './rampsErrorCodes.js';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
@@ -2608,6 +2609,8 @@ export class RampsController extends BaseController<
     const selectedQuote = this.#pickWidenedQuote(response, {
       amount: options.amount,
       fiat: normalizedFiat,
+      assetId: normalizedAssetId,
+      action,
       providers: widenedProviderCatalog,
       allowlist: providerAllowlist,
     });
@@ -2638,14 +2641,21 @@ export class RampsController extends BaseController<
    * Every provider class is eligible (native, in-app WebView aggregator, and
    * external-browser / custom-action). When the feature flag payload carries a
    * provider allowlist, candidates from unlisted providers are dropped first.
-   * Enforces per-provider fiat limits up front, then orders by reliability and
-   * falls back to price using the server-provided `sorted` order. Returns
-   * `undefined` when no quote survives.
+   * Enforces per-provider limits up front — intersecting the fiat limits with
+   * the per-asset limits for buy quotes, so providers whose minimum varies
+   * per token are judged by the limit for the requested asset — then orders
+   * by reliability and falls back to price using the server-provided `sorted`
+   * order. Returns `undefined` when no quote survives.
    *
    * @param response - The multi-provider quotes response.
    * @param options - Selection inputs.
    * @param options.amount - Fiat amount, for the limit-fit check.
    * @param options.fiat - Lowercased fiat short code, for the limit lookup.
+   * @param options.assetId - CAIP-19 asset id of the requested asset, for the
+   * per-asset limit lookup.
+   * @param options.action - The ramp action the quotes were fetched for. Only
+   * buy quotes are checked against the per-asset limits, which are a buy
+   * dimension; sell quotes keep the fiat-map check.
    * @param options.providers - Provider catalog for the limit lookup.
    * @param options.allowlist - Optional provider ids (either `/providers/x`
    * or bare form) the pick is restricted to.
@@ -2656,11 +2666,15 @@ export class RampsController extends BaseController<
     {
       amount,
       fiat,
+      assetId,
+      action,
       providers,
       allowlist,
     }: {
       amount: number;
       fiat: string;
+      assetId: string;
+      action: RampAction;
       providers: Provider[];
       allowlist?: string[];
     },
@@ -2679,7 +2693,18 @@ export class RampsController extends BaseController<
 
     const fitsProviderLimits = (quote: Quote): boolean => {
       const provider = providerByCode.get(quote.provider);
-      const limit = provider?.limits?.fiat?.[fiat]?.[quote.quote.paymentMethod];
+      if (!provider) {
+        return true;
+      }
+      const limit =
+        action === 'buy'
+          ? getProviderBuyLimit({
+              provider,
+              fiatCurrency: fiat,
+              paymentMethodId: quote.quote.paymentMethod,
+              assetId,
+            })
+          : provider.limits?.fiat?.[fiat]?.[quote.quote.paymentMethod];
       if (!limit) {
         // No published limits for this provider/payment method: treat as
         // eligible and let the provider enforce limits at checkout.

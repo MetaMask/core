@@ -94,15 +94,55 @@ export type ProviderLimit = {
 };
 
 /**
+ * Per-payment-method entry of a provider's per-asset limits.
+ */
+export type ProviderAssetPaymentLimit = ProviderLimit & {
+  /**
+   * Payment method id the limit applies to (e.g., "debit-credit-card").
+   * Canonicalized to the bare form (no `/payments/` prefix) when the API
+   * serves canonical ids, but either form may appear.
+   */
+  payment: string;
+};
+
+/**
+ * Per-asset (per-token) fiat limits for a provider, as exposed by the
+ * regions providers endpoint.
+ */
+export type ProviderAssetLimits = ProviderLimit & {
+  /**
+   * Optional per-payment-method breakdown. When present, an entry for the
+   * payment method is authoritative for it; the asset-level limits apply to
+   * payment methods without an entry.
+   */
+  payments?: ProviderAssetPaymentLimit[];
+};
+
+/**
  * Fiat buy limits keyed by lowercased fiat short code, then payment method id.
  */
 export type ProviderFiatLimits = Record<string, Record<string, ProviderLimit>>;
+
+/**
+ * Per-asset buy limits keyed by CAIP-19 asset id, using the same asset ids
+ * (and casing) as the provider's `supportedCryptoCurrencies` map. Only
+ * assets with a meaningful configured limit are published.
+ */
+export type ProviderAssetLimitsMap = Record<string, ProviderAssetLimits>;
 
 /**
  * Provider limits exposed by the regions providers endpoint.
  */
 export type ProviderLimits = {
   fiat?: ProviderFiatLimits;
+  /**
+   * Token-specific limits, which the API publishes in addition to the
+   * token-agnostic `fiat` limits when the provider configures them (e.g.
+   * Coinbase: 2 EUR minimum for ETH but 5 EUR for other tokens). Prefer
+   * `getProviderBuyLimit` for lookups: it combines both dimensions the way
+   * the ramps API does when enforcing limits server-side.
+   */
+  assets?: ProviderAssetLimitsMap;
 };
 
 /**

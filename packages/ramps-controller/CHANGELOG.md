@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add per-asset buy limits support: `ProviderLimits` now carries an optional `assets` map keyed by CAIP-19 asset id (`ProviderAssetLimitsMap`), matching the per-token limits the v2 regions providers endpoint publishes for providers that configure token-specific minimum/maximum purchase amounts ([#10254](https://github.com/MetaMask/core/pull/10254))
+- Add `getProviderBuyLimit` helper, which resolves a provider's effective buy limit for a fiat currency, payment method, and deposit asset, intersecting the token-agnostic fiat limits with the per-asset limits (including their per-payment-method breakdown) the same way the ramps API enforces buy limits server-side ([#10254](https://github.com/MetaMask/core/pull/10254))
+
 ### Changed
+
+- Enforce per-asset buy limits when picking the single best quote on the widened all-providers `getQuotes` path: for buy quotes, a provider is now skipped when its published limits for the requested asset (fiat ∩ per-asset) do not fit the amount, instead of only checking the token-agnostic fiat limits, so providers whose minimum varies per token are judged correctly ([#10254](https://github.com/MetaMask/core/pull/10254))
 
 - Add an optional fee-exclusion argument to native Transak buy quotes while preserving fee exclusion as the default. ([#9317](https://github.com/MetaMask/core/pull/9317))
 - Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
