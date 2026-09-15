@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add independent marketing consent and classify named events by lane ([#10232](https://github.com/MetaMask/core/pull/10232))
+  - New state and methods: `optedInToMarketing`, `optInToMarketing` / `optOutOfMarketing` / `resetMarketingConsentDecision`, and a persisted `marketingEventNames` list (remote loading arrives in a later phase)
+  - Named `track` / `view` payloads stamp `context.marketing` (`true` or `false`) at capture so Segment can tell marketing events from product events
+  - Queues and fragments follow that lane. A fragment that declares both marketing and product event names is treated as marketing
+
 ### Changed
 
 - Bump `uuid` from `^8.3.2` to `^11.1.1` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243))

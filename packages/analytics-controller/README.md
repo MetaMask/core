@@ -16,12 +16,16 @@ The AnalyticsController provides a unified interface for tracking analytics even
 
 ## State
 
-| Field            | Type      | Description                                   | Persisted |
-| ---------------- | --------- | --------------------------------------------- | --------- |
-| `analyticsId`    | `string`  | UUIDv4 identifier (client platform-generated) | Yes       |
-| `optedIn`        | `boolean` | User opt-in status                            | Yes       |
-| `eventQueue`     | `object`  | Optional persisted delivery queue             | Yes       |
-| `eventFragments` | `object`  | Optional in-progress event fragments          | Yes       |
+| Field                          | Type       | Description                                                  | Persisted |
+| ------------------------------ | ---------- | ------------------------------------------------------------ | --------- |
+| `analyticsId`                  | `string`   | UUIDv4 identifier (client platform-generated)                | Yes       |
+| `optedIn`                      | `boolean`  | Product analytics opt-in status                              | Yes       |
+| `consentDecisionMade`          | `boolean`  | Whether a product consent decision has been made             | Yes       |
+| `optedInToMarketing`           | `boolean`  | Marketing analytics opt-in status                            | Yes       |
+| `marketingConsentDecisionMade` | `boolean`  | Whether a marketing consent decision has been made           | Yes       |
+| `marketingEventNames`          | `string[]` | Cached marketing event names (empty until a source is wired) | Yes       |
+| `eventQueue`                   | `object`   | Optional persisted delivery queue                            | Yes       |
+| `eventFragments`               | `object`   | Optional in-progress event fragments                         | Yes       |
 
 ### Client Platform Responsibilities
 
@@ -29,6 +33,12 @@ The AnalyticsController provides a unified interface for tracking analytics even
 2. **Load state before controller init**: Read from storage, provide to constructor
 3. **Subscribe to state changes**: Persist changes to isolated storage
 4. **Persist to isolated storage**: Keep analytics settings separate from main state (protects against state corruption)
+
+Named events in `marketingEventNames` are governed only by `optedInToMarketing`. Every other named payload is governed only by `optedIn`. Queues, fragments, and delivery use the same machinery for both lanes. `identify` has no event name, so it follows `optedIn`.
+
+Until a later phase loads marketing event names from a remote source, `marketingEventNames` stays empty unless the client seeds or persists a list. With an empty list, every named event is treated as product, so marketing consent has no classification impact yet.
+
+Named `track` and `view` payloads are classified once at capture. That lane is stamped on `context.marketing` (`true` or `false`) so a Segment source can tell marketing events from product events without reading properties. Queues and fragments then follow the stamp. `identify` does not set this flag. Destinations should treat a missing `context.marketing` as product, since older app versions never send the field.
 
 ## Anonymous Events Feature
 
