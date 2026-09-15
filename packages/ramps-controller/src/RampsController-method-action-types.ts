@@ -618,6 +618,8 @@ export type RampsControllerTransakGetUserDetailsAction = {
  * @param network - The blockchain network identifier.
  * @param paymentMethod - The payment method identifier.
  * @param fiatAmount - The fiat amount as a string.
+ * @param isFeeExcludedFromFiat - Whether fees are added to the fiat amount.
+ * Defaults to true to preserve Unified Buy's native Transak behavior.
  * @returns The buy quote with pricing and fee details.
  */
 export type RampsControllerTransakGetBuyQuoteAction = {

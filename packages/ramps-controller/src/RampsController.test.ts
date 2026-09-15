@@ -11771,6 +11771,8 @@ describe('RampsController', () => {
         nonce: 1,
         cryptoLiquidityProvider: 'provider-1',
         notes: [],
+        requestedAssetId: 'BTC',
+        requestedChainId: 'bitcoin',
       };
 
       it('fetches buy quote and updates state on success', async () => {
@@ -11807,6 +11809,8 @@ describe('RampsController', () => {
                 "notes": [],
                 "paymentMethod": "credit_debit_card",
                 "quoteId": "quote-1",
+                "requestedAssetId": "BTC",
+                "requestedChainId": "bitcoin",
                 "slippage": 0.5,
                 "totalFee": 1,
               },
@@ -11815,6 +11819,61 @@ describe('RampsController', () => {
               "selected": null,
             }
           `);
+        });
+      });
+
+      it('forwards fee-inclusive behavior when requested', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const getBuyQuote = jest.fn().mockResolvedValue(mockBuyQuote);
+          rootMessenger.registerActionHandler(
+            'TransakService:getBuyQuote',
+            getBuyQuote,
+          );
+
+          await controller.transakGetBuyQuote(
+            'USD',
+            'MUSD',
+            'monad',
+            'credit_debit_card',
+            '15',
+            false,
+          );
+
+          expect(getBuyQuote).toHaveBeenCalledWith(
+            'USD',
+            'MUSD',
+            'monad',
+            'credit_debit_card',
+            '15',
+            false,
+          );
+        });
+      });
+
+      it('defaults Unified Buy native quotes to fee exclusion', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const getBuyQuote = jest.fn().mockResolvedValue(mockBuyQuote);
+          rootMessenger.registerActionHandler(
+            'TransakService:getBuyQuote',
+            getBuyQuote,
+          );
+
+          await controller.transakGetBuyQuote(
+            'USD',
+            'BTC',
+            'bitcoin',
+            'credit_debit_card',
+            '100',
+          );
+
+          expect(getBuyQuote).toHaveBeenCalledWith(
+            'USD',
+            'BTC',
+            'bitcoin',
+            'credit_debit_card',
+            '100',
+            true,
+          );
         });
       });
 
@@ -12310,6 +12369,8 @@ describe('RampsController', () => {
         nonce: 1,
         cryptoLiquidityProvider: 'provider-1',
         notes: [],
+        requestedAssetId: 'BTC',
+        requestedChainId: 'bitcoin',
       };
 
       it('calls messenger with correct arguments and returns URL', async () => {
@@ -12374,6 +12435,8 @@ describe('RampsController', () => {
         nonce: 1,
         cryptoLiquidityProvider: 'provider-1',
         notes: [],
+        requestedAssetId: 'BTC',
+        requestedChainId: 'bitcoin',
       };
 
       it('calls messenger with correct arguments and returns the widget URL', async () => {
