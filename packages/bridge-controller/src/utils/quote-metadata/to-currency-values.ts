@@ -71,11 +71,9 @@ export const toCurrencyValues = (
               ]),
           ),
           ...(feeData.reserve && {
-            reserve: feeData.reserve
-              .map(
-                (reserve) =>
-                  toCurrency(reserve, usdToFiatExchangeRate) ?? {},
-              ),
+            reserve: feeData.reserve.map(
+              (reserve) => toCurrency(reserve, usdToFiatExchangeRate) ?? {},
+            ),
           }),
         } as DeepPartial<QuoteResponse['quote']['feeData']>),
       ...((priceImpactFiat ?? adjustedReturnFiat ?? costFiat) && {
