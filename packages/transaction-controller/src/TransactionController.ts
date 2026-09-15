@@ -422,7 +422,8 @@ export type TransactionControllerOptions = {
     beforePublish?: (transactionMeta: TransactionMeta) => Promise<boolean>;
 
     /**
-     * Additional logic to execute before signing a transaction.
+     * Preparation logic to execute before deciding whether to sign locally.
+     * Runs even when `shouldSign` returns false.
      */
     beforeSign?: BeforeSignHook;
 
@@ -438,7 +439,8 @@ export type TransactionControllerOptions = {
     publishBatch?: PublishBatchHook;
 
     /**
-     * Additional logic to determine whether a transaction should be signed locally.
+     * Policy logic to determine whether to reserve a nonce and sign locally.
+     * Use `beforeSign` for transaction preparation instead.
      */
     shouldSign: ShouldSignHook;
   };

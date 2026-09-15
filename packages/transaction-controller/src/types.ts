@@ -2124,7 +2124,8 @@ export type IsSponsoredHook = (request: {
 }) => Promise<boolean>;
 
 /**
- * Custom logic to determine whether a transaction should be signed locally.
+ * Policy logic to determine whether to reserve a nonce and sign locally.
+ * Use {@link BeforeSignHook} for transaction preparation instead.
  */
 export type ShouldSignHook = (request: {
   transactionMeta: TransactionMeta;
@@ -2132,8 +2133,9 @@ export type ShouldSignHook = (request: {
 }) => Promise<boolean>;
 
 /**
- * Custom logic to be executed before a transaction is signed.
- * Can optionally update the transaction by returning the `updateTransaction` callback.
+ * Preparation logic to execute before deciding whether to sign locally.
+ * Runs even when {@link ShouldSignHook} returns false and can optionally update
+ * the transaction by returning the `updateTransaction` callback.
  */
 export type BeforeSignHook = (request: {
   transactionMeta: TransactionMeta;
