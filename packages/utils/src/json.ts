@@ -344,6 +344,7 @@ export const JsonRpcRequestStruct = object({
 });
 
 export type InferWithParams<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `Struct<any>` is superstruct's idiom for "any struct". `Struct<unknown>` does not work: `Struct` holds `refiner` as a property, which puts the value type in a contravariant position, so no concrete struct satisfies the constraint.
   Type extends Struct<any>,
   Params extends JsonRpcParams,
 > = Infer<Type> & {

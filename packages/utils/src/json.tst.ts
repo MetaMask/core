@@ -133,6 +133,7 @@ describe('Json', () => {
   test('has known edge cases', () => {
     // The Json type doesn't protect against the `any` type. Passing `any`
     // explicitly is the point of the test, so it must not be removed.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- The `any` under test cannot be replaced without inverting what this assertion checks.
     expect<any>().type.toBeAssignableTo<Json>();
 
     // The Json type gets confused by interfaces. This interface is valid Json,

@@ -35,6 +35,12 @@ import {
   toCaipAssetType,
   toCaipChainId,
 } from './caip-types.js';
+import type {
+  CaipAccountId,
+  CaipAssetId,
+  CaipAssetType,
+  CaipChainId,
+} from './caip-types.js';
 
 describe('isCaipChainId', () => {
   it.each(CAIP_CHAIN_ID_FIXTURES)(
@@ -326,7 +332,7 @@ describe('parseCaipChainId', () => {
     'foo:',
     'foo:foobarbazquzfoobarbazquzfoobarbazquzfoobarbazquzfoobarbazquzfoobarbazquz',
   ])('throws for invalid input %s', (input) => {
-    expect(() => parseCaipChainId(input as any)).toThrow(
+    expect(() => parseCaipChainId(input as CaipChainId)).toThrow(
       'Invalid CAIP chain ID.',
     );
   });
@@ -406,7 +412,7 @@ describe('parseCaipAccountId', () => {
     'eip155:1',
     'eip155:1:',
   ])('throws for invalid input %s', (input) => {
-    expect(() => parseCaipAccountId(input as any)).toThrow(
+    expect(() => parseCaipAccountId(input as CaipAccountId)).toThrow(
       'Invalid CAIP account ID.',
     );
   });
@@ -483,7 +489,7 @@ describe('parseCaipAssetType', () => {
     'eip155:1',
     'eip155:1:',
   ])('throws for invalid input %s', (input) => {
-    expect(() => parseCaipAssetType(input as any)).toThrow(
+    expect(() => parseCaipAssetType(input as CaipAssetType)).toThrow(
       'Invalid CAIP asset type.',
     );
   });
@@ -536,7 +542,7 @@ describe('parseCaipAssetId', () => {
     'eip155:1',
     'eip155:1:',
   ])('throws for invalid input %s', (input) => {
-    expect(() => parseCaipAssetId(input as any)).toThrow(
+    expect(() => parseCaipAssetId(input as CaipAssetId)).toThrow(
       'Invalid CAIP asset ID.',
     );
   });

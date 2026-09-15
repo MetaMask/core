@@ -81,7 +81,7 @@ export class AssertionError extends Error {
  * the `message` argument, this argument is ignored.
  */
 export function assert(
-  value: any,
+  value: unknown,
   message: string | Error = 'Assertion failed.',
   ErrorWrapper: AssertionErrorConstructor = AssertionError,
 ): asserts value {
