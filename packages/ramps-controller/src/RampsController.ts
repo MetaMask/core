@@ -13,6 +13,7 @@ import type {
 } from '@metamask/profile-sync-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Json } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import type { Draft } from 'immer';
 
 import type {
@@ -1017,6 +1018,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getPaymentMethodsForContext',
   'setSelectedPaymentMethod',
   'getQuotes',
+  'getQuoteWithFees',
   'addOrder',
   'removeOrder',
   'addAutoramp',
@@ -1103,6 +1105,29 @@ function contextStillMatches(
       context.assetId &&
     (state.providers.selected?.id.trim() ?? '') === context.providerId
   );
+}
+
+/**
+ * Provider codes that identify Transak's native (non-aggregator) integration,
+ * in the bare form produced by {@link normalizeHeadlessProviderId}.
+ */
+const NATIVE_TRANSAK_PROVIDER_CODES = [
+  'transak-native',
+  'transak-native-staging',
+];
+
+/**
+ * Coerces a quote fee value to a non-negative BigNumber, treating a missing or
+ * invalid value as zero.
+ *
+ * @param value - Raw fee value from a quote.
+ * @returns The fee as a non-negative BigNumber.
+ */
+function getSafeRampsFee(value: number | string | undefined): BigNumber {
+  const fee = new BigNumber(value ?? 0);
+  return fee.isFinite() && fee.isGreaterThanOrEqualTo(0)
+    ? fee
+    : new BigNumber(0);
 }
 
 export class RampsController extends BaseController<
@@ -2630,6 +2655,168 @@ export class RampsController extends BaseController<
         ...response.success.filter((quote) => quote !== selectedQuote),
       ],
     };
+  }
+
+  /**
+   * Fetches the best on-ramp quote for a request and, when the resolved
+   * provider is Transak Native, reconciles its fees to match what Transak
+   * Native actually charges.
+   *
+   * The aggregator `/quotes` estimate of Transak's fee does not match the
+   * native integration. When the resolved provider is Transak Native this
+   * fetches the native buy quote (an unauthenticated, API-key-only lookup, so
+   * it is safe at estimate time) and rewrites the returned quote's fee fields
+   * to its `totalFee`, keeping the aggregator's `networkFee` on the network
+   * line and placing the remainder in the provider fee so the breakdown
+   * survives and `providerFee + networkFee` still equals the native total. A
+   * non-native provider, a failed lookup, or an unusable native fee returns the
+   * aggregator quote unchanged.
+   *
+   * Consumers (e.g. `TransactionPayController`) call this instead of owning the
+   * provider check, asset-id parsing, and second native quote themselves.
+   *
+   * @param options - Quote options; see {@link getQuotes}, plus the fee mode.
+   * @param options.amount - Fiat amount for the quote.
+   * @param options.assetId - CAIP-19 asset id being bought.
+   * @param options.fiat - Optional fiat currency; defaults like {@link getQuotes}.
+   * @param options.paymentMethods - Optional payment method ids.
+   * @param options.walletAddress - Wallet address receiving the on-ramped asset.
+   * @param options.isFeeExcludedFromFiat - Whether Transak adds its fee on top
+   * of the fiat amount (`true`, fee-on-top) or carves it out (`false`). Must
+   * mirror the eventual checkout mode so the estimate equals the charge.
+   * Defaults to `true`.
+   * @param options.providers - See {@link getQuotes}.
+   * @param options.autoSelectProvider - See {@link getQuotes}.
+   * @param options.restrictToKnownOrNativeProviders - See {@link getQuotes}.
+   * @param options.preferredProviderIds - See {@link getQuotes}.
+   * @param options.region - See {@link getQuotes}.
+   * @param options.redirectUrl - See {@link getQuotes}.
+   * @param options.action - See {@link getQuotes}.
+   * @param options.forceRefresh - See {@link getQuotes}.
+   * @param options.ttl - See {@link getQuotes}.
+   * @returns The best quote with native-reconciled fees, or `undefined` when
+   * no quote is available.
+   */
+  async getQuoteWithFees(options: {
+    amount: number;
+    assetId: string;
+    fiat?: string;
+    paymentMethods?: string[];
+    walletAddress: string;
+    isFeeExcludedFromFiat?: boolean;
+    providers?: string[];
+    autoSelectProvider?: boolean;
+    restrictToKnownOrNativeProviders?: boolean;
+    preferredProviderIds?: string[];
+    region?: string;
+    redirectUrl?: string;
+    action?: RampAction;
+    forceRefresh?: boolean;
+    ttl?: number;
+  }): Promise<Quote | undefined> {
+    const { isFeeExcludedFromFiat = true, ...quoteOptions } = options;
+
+    const response = await this.getQuotes(quoteOptions);
+    const quote = response.success?.[0];
+
+    if (!quote) {
+      return undefined;
+    }
+
+    return this.#reconcileNativeTransakFee(quote, {
+      amount: options.amount,
+      assetId: options.assetId,
+      fiat: options.fiat,
+      paymentMethod: options.paymentMethods?.[0],
+      isFeeExcludedFromFiat,
+    });
+  }
+
+  /**
+   * Rewrites a quote's fees to Transak Native's own total when the resolved
+   * provider is Transak Native, so an estimate matches the native charge.
+   * Returns the quote unchanged for a non-native provider, a failed native
+   * lookup, or an unusable native fee.
+   *
+   * @param quote - The resolved aggregator quote.
+   * @param context - Native lookup inputs.
+   * @param context.amount - Fiat amount for the native quote.
+   * @param context.assetId - CAIP-19 asset id being bought.
+   * @param context.fiat - Fiat currency for the native quote.
+   * @param context.paymentMethod - Payment method id for the native quote.
+   * @param context.isFeeExcludedFromFiat - Fee mode for the native quote.
+   * @returns The quote with reconciled fees, or the original quote.
+   */
+  async #reconcileNativeTransakFee(
+    quote: Quote,
+    {
+      amount,
+      assetId,
+      fiat,
+      paymentMethod,
+      isFeeExcludedFromFiat,
+    }: {
+      amount: number;
+      assetId: string;
+      fiat?: string;
+      paymentMethod?: string;
+      isFeeExcludedFromFiat: boolean;
+    },
+  ): Promise<Quote> {
+    // `normalizeHeadlessProviderId` strips the `/providers/` prefix and
+    // lowercases, so `/providers/transak-native` and `transak-native` both match
+    // the native codes below (and the aggregator `transak` does not).
+    const providerCode = normalizeHeadlessProviderId(quote.provider);
+
+    if (!NATIVE_TRANSAK_PROVIDER_CODES.includes(providerCode)) {
+      return quote;
+    }
+
+    const fiatCurrency = fiat ?? this.state.userRegion?.country?.currency;
+
+    if (!fiatCurrency || !paymentMethod) {
+      return quote;
+    }
+
+    try {
+      const network = assetId.split('/')[0];
+
+      const nativeQuote = await this.messenger.call(
+        'TransakService:getBuyQuote',
+        fiatCurrency,
+        assetId,
+        network,
+        paymentMethod,
+        String(amount),
+        isFeeExcludedFromFiat,
+      );
+
+      const nativeTotalFee = new BigNumber(nativeQuote.totalFee ?? NaN);
+
+      if (!nativeTotalFee.isFinite() || nativeTotalFee.isLessThan(0)) {
+        return quote;
+      }
+
+      // Transak Native returns a single total fee, so keep the aggregator's
+      // network fee on the network line (clamped to the native total) and put
+      // the remainder in the provider fee. The breakdown survives and
+      // `providerFee + networkFee` still equals the native total.
+      const aggregatorNetworkFee = getSafeRampsFee(quote.quote.networkFee);
+      const networkFee = BigNumber.min(aggregatorNetworkFee, nativeTotalFee);
+      const providerFee = nativeTotalFee.minus(networkFee);
+
+      return {
+        ...quote,
+        quote: {
+          ...quote.quote,
+          providerFee: providerFee.toString(10),
+          networkFee: networkFee.toString(10),
+          totalFees: nativeTotalFee.toString(10),
+        },
+      };
+    } catch {
+      return quote;
+    }
   }
 
   /**

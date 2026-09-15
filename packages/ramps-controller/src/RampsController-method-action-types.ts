@@ -302,6 +302,27 @@ export type RampsControllerGetQuotesAction = {
 };
 
 /**
+ * Fetches the best on-ramp quote and reconciles its fees so they match what the
+ * resolved provider actually charges. When the resolved provider is Transak
+ * Native, the returned quote's `providerFee`/`networkFee`/`totalFees` reflect
+ * the native buy quote's total fee (the aggregator `networkFee` is kept on the
+ * network line and the remainder placed in the provider fee). A non-native
+ * provider, a failed native lookup, or an unusable native fee returns the
+ * aggregator quote unchanged. Callers consume the fee fields directly and do
+ * not need to know about the native lookup.
+ *
+ * @param options - Quote options; see {@link RampsControllerGetQuotesAction},
+ * plus `isFeeExcludedFromFiat` to mirror the eventual checkout fee mode
+ * (defaults to `true`, fee-on-top).
+ * @returns The best quote with reconciled fees, or `undefined` when none is
+ * available.
+ */
+export type RampsControllerGetQuoteWithFeesAction = {
+  type: `RampsController:getQuoteWithFees`;
+  handler: RampsController['getQuoteWithFees'];
+};
+
+/**
  * Adds or updates a V2 order in controller state.
  * If an order with the same internal order code already exists, the incoming
  * fields are merged on top of the existing order so that fields not present
@@ -848,6 +869,7 @@ export type RampsControllerMethodActions =
   | RampsControllerGetPaymentMethodsForContextAction
   | RampsControllerSetSelectedPaymentMethodAction
   | RampsControllerGetQuotesAction
+  | RampsControllerGetQuoteWithFeesAction
   | RampsControllerAddOrderAction
   | RampsControllerRemoveOrderAction
   | RampsControllerSyncOrdersWithUserStorageAction

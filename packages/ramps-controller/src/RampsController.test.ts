@@ -441,6 +441,301 @@ describe('RampsController', () => {
     });
   });
 
+  describe('getQuoteWithFees', () => {
+    const GQF_ASSET_ID = 'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b';
+    const GQF_NETWORK = 'eip155:143';
+    const GQF_PAYMENT_METHOD = '/payments/debit-credit-card';
+    const GQF_WALLET = '0x1234567890abcdef1234567890abcdef12345678';
+
+    /**
+     * Builds a single-quote `QuotesResponse` for the given provider and fees.
+     *
+     * @param provider - Provider id for the quote.
+     * @param fees - Optional provider/network fee overrides.
+     * @param fees.providerFee - Provider fee on the quote.
+     * @param fees.networkFee - Network fee on the quote.
+     * @returns A quotes response with a single success quote.
+     */
+    function buildQuotesResponse(
+      provider: string,
+      fees: { providerFee?: number; networkFee?: number } = {},
+    ): QuotesResponse {
+      return {
+        success: [
+          {
+            provider,
+            quote: {
+              amountIn: 15,
+              amountOut: 14.25,
+              amountOutInFiat: 14.3,
+              networkFee: fees.networkFee ?? 0.2,
+              paymentMethod: GQF_PAYMENT_METHOD,
+              providerFee: fees.providerFee ?? 0.5,
+            },
+          },
+        ],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+    }
+
+    /**
+     * Calls `RampsController:getQuoteWithFees` with default MM Pay-style options.
+     *
+     * @param messenger - The restricted controller messenger.
+     * @param overrides - Option overrides.
+     * @param overrides.isFeeExcludedFromFiat - Fee mode override.
+     * @param overrides.providers - Explicit provider ids override.
+     * @returns The reconciled quote, or undefined.
+     */
+    async function callGetQuoteWithFees(
+      messenger: RampsControllerMessenger,
+      overrides: { isFeeExcludedFromFiat?: boolean; providers?: string[] } = {},
+    ): Promise<Quote | undefined> {
+      return messenger.call('RampsController:getQuoteWithFees', {
+        amount: 15,
+        assetId: GQF_ASSET_ID,
+        fiat: 'USD',
+        paymentMethods: [GQF_PAYMENT_METHOD],
+        providers: ['/providers/transak-native'],
+        region: 'US',
+        walletAddress: GQF_WALLET,
+        ...overrides,
+      });
+    }
+
+    it('reconciles a Transak Native quote to the native total fee and keeps the network split', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
+          buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => ({ totalFee: 0.9 }) as never,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        // Native total 0.9: aggregator network fee (0.2) stays on the network
+        // line, the remainder (0.7) goes to the provider fee, and the total is
+        // the native total.
+        expect(quote?.quote.providerFee).toBe('0.7');
+        expect(quote?.quote.networkFee).toBe('0.2');
+        expect(quote?.quote.totalFees).toBe('0.9');
+      });
+    });
+
+    it('clamps the network split when the native total is below the aggregator network fee', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
+          buildQuotesResponse('/providers/transak-native', { networkFee: 1 }),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => ({ totalFee: 0.3 }) as never,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(quote?.quote.networkFee).toBe('0.3');
+        expect(quote?.quote.providerFee).toBe('0');
+        expect(quote?.quote.totalFees).toBe('0.3');
+      });
+    });
+
+    it('requests the native quote in fee-on-top mode by default', async () => {
+      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
+          buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        await callGetQuoteWithFees(messenger);
+
+        expect(getBuyQuote).toHaveBeenCalledWith(
+          'USD',
+          GQF_ASSET_ID,
+          GQF_NETWORK,
+          GQF_PAYMENT_METHOD,
+          '15',
+          true,
+        );
+      });
+    });
+
+    it('forwards a fee-inclusive request when isFeeExcludedFromFiat is false', async () => {
+      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
+          buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        await callGetQuoteWithFees(messenger, { isFeeExcludedFromFiat: false });
+
+        expect(getBuyQuote).toHaveBeenCalledWith(
+          'USD',
+          GQF_ASSET_ID,
+          GQF_NETWORK,
+          GQF_PAYMENT_METHOD,
+          '15',
+          false,
+        );
+      });
+    });
+
+    it('leaves a non-native quote unchanged and does not fetch a native quote', async () => {
+      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
+          buildQuotesResponse('/providers/moonpay'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger, {
+          providers: ['/providers/moonpay'],
+        });
+
+        expect(getBuyQuote).not.toHaveBeenCalled();
+        expect(quote?.quote.providerFee).toBe(0.5);
+        expect(quote?.quote.networkFee).toBe(0.2);
+      });
+    });
+
+    it('falls back to the aggregator quote when the native lookup fails', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
+          buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => {
+            throw new Error('native lookup failed');
+          },
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(quote?.quote.providerFee).toBe(0.5);
+        expect(quote?.quote.networkFee).toBe(0.2);
+      });
+    });
+
+    it('falls back to the aggregator quote when the native fee is unusable', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
+          buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => ({ totalFee: -1 }) as never,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(quote?.quote.providerFee).toBe(0.5);
+        expect(quote?.quote.networkFee).toBe(0.2);
+      });
+    });
+
+    it('returns undefined when no quote is available', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => ({
+            success: [],
+            sorted: [],
+            error: [],
+            customActions: [],
+          }),
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(quote).toBeUndefined();
+      });
+    });
+
+    it('does not write the shared Unified Buy native buy-quote state', async () => {
+      await withController(async ({ controller, messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
+          buildQuotesResponse('/providers/transak-native'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => ({ totalFee: 0.9 }) as never,
+        );
+
+        const before = JSON.parse(
+          JSON.stringify(controller.state.nativeProviders.transak.buyQuote),
+        );
+
+        await callGetQuoteWithFees(messenger);
+
+        // The native lookup must use the stateless `TransakService:getBuyQuote`,
+        // not the stateful `transakGetBuyQuote`, so Unified Buy's shared
+        // buy-quote resource is left untouched.
+        expect(controller.state.nativeProviders.transak.buyQuote).toStrictEqual(
+          before,
+        );
+      });
+    });
+
+    it('does not treat the aggregator Transak provider as native', async () => {
+      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
+          buildQuotesResponse('/providers/transak'),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger, {
+          providers: ['/providers/transak'],
+        });
+
+        expect(getBuyQuote).not.toHaveBeenCalled();
+        expect(quote?.quote.providerFee).toBe(0.5);
+        expect(quote?.quote.networkFee).toBe(0.2);
+      });
+    });
+
+    it('puts the whole native total on the network line when it equals the aggregator network fee', async () => {
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
+          buildQuotesResponse('/providers/transak-native', { networkFee: 0.2 }),
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          async () => ({ totalFee: 0.2 }) as never,
+        );
+
+        const quote = await callGetQuoteWithFees(messenger);
+
+        expect(quote?.quote.networkFee).toBe('0.2');
+        expect(quote?.quote.providerFee).toBe('0');
+        expect(quote?.quote.totalFees).toBe('0.2');
+      });
+    });
+  });
+
   describe('getQuotes all-providers widening', () => {
     const SCOPE_ASSET_ID = 'eip155:1/slip44:60';
     const SCOPE_PAYMENT_METHOD = '/payments/debit-credit-card';
