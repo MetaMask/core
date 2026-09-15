@@ -229,10 +229,8 @@ describe('Quote Metadata Utils', () => {
               {
                 amount: '15000000',
                 asset: {
-                  assetId: 'stellar:pubnet/slip44:148' as const,
-                  symbol: 'XLM',
-                  name: 'Stellar Lumens',
-                  decimals: 7,
+                  assetId:
+                    'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85' as const,
                 },
               },
             ],
