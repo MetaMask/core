@@ -184,7 +184,7 @@ function getRequest({
         return rampsQuotes;
       }
 
-      if (action === 'RampsController:transakGetBuyQuote') {
+      if (action === 'TransakService:getBuyQuote') {
         if (throwsOnTransakBuyQuote) {
           throw throwsOnTransakBuyQuote;
         }
@@ -335,7 +335,7 @@ describe('getFiatQuotes', () => {
       // Relay path stays fee-on-top, so the native quote is requested with
       // isFeeExcludedFromFiat = true, in USD, for the adjusted amount.
       expect(callMock).toHaveBeenCalledWith(
-        'RampsController:transakGetBuyQuote',
+        'TransakService:getBuyQuote',
         'USD',
         FIAT_ASSET_CAIP_ID_MOCK,
         'eip155:137',
@@ -387,7 +387,7 @@ describe('getFiatQuotes', () => {
 
       expect(
         callMock.mock.calls.filter(
-          (call) => call[0] === 'RampsController:transakGetBuyQuote',
+          (call) => call[0] === 'TransakService:getBuyQuote',
         ),
       ).toHaveLength(0);
       // aggregator fee retained

@@ -32,6 +32,7 @@ import type {
   RampsControllerGetOrderAction,
   RampsControllerGetQuotesAction,
   RampsControllerTransakGetBuyQuoteAction,
+  TransakServiceGetBuyQuoteAction,
 } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SentinelApiServiceActions } from '@metamask/sentinel-api-service';
@@ -75,6 +76,7 @@ export type AllowedActions =
   | RampsControllerGetOrderAction
   | RampsControllerGetQuotesAction
   | RampsControllerTransakGetBuyQuoteAction
+  | TransakServiceGetBuyQuoteAction
   | RemoteFeatureFlagControllerGetStateAction
   | TokenBalancesControllerGetStateAction
   | TokenRatesControllerGetStateAction

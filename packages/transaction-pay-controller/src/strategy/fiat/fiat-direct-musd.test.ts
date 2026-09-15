@@ -95,7 +95,7 @@ function getQuotesMessenger({
         };
       }
 
-      if (action === 'RampsController:transakGetBuyQuote') {
+      if (action === 'TransakService:getBuyQuote') {
         if (transakError) {
           throw transakError;
         }
@@ -233,7 +233,7 @@ describe('fiat-direct-musd', () => {
 
       // Direct mUSD is fee-on-top: isFeeExcludedFromFiat = true.
       expect(callMock).toHaveBeenCalledWith(
-        'RampsController:transakGetBuyQuote',
+        'TransakService:getBuyQuote',
         DEFAULT_FIAT_CURRENCY,
         MUSD_CAIP_ASSET_ID_MOCK,
         'eip155:143',
@@ -302,7 +302,7 @@ describe('fiat-direct-musd', () => {
 
       expect(
         callMock.mock.calls.filter(
-          (call) => call[0] === 'RampsController:transakGetBuyQuote',
+          (call) => call[0] === 'TransakService:getBuyQuote',
         ),
       ).toHaveLength(0);
       expect(result).toStrictEqual(

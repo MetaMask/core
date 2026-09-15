@@ -448,7 +448,7 @@ export async function getNativeTransakRampsFee({
     const network = assetId.split('/')[0];
 
     const nativeQuote = await messenger.call(
-      'RampsController:transakGetBuyQuote',
+      'TransakService:getBuyQuote',
       DEFAULT_FIAT_CURRENCY,
       assetId,
       network,
