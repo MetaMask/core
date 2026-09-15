@@ -1,6 +1,7 @@
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import { NATIVE_TOKEN_ADDRESS } from '../../constants.js';
 import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyGetQuotesRequest,
@@ -88,11 +89,7 @@ export async function getRelayMaxGasStationQuote(
     return phase1Quote;
   }
 
-  if (
-    !fullRequest.accountSupports7702 &&
-    request.sourceTokenAddress.toLowerCase() ===
-      getNativeToken(sourceChainId).toLowerCase()
-  ) {
+  if (!fullRequest.accountSupports7702 && isNativeSourceToken(request)) {
     return getNativeMaxQuoteWithReservedFees(
       phase1Quote,
       new BigNumber(sourceTokenAmount),
@@ -228,6 +225,16 @@ export async function getRelayMaxGasStationQuote(
   markQuoteAsMaxGasStation(phase2Quote);
 
   return phase2Quote;
+}
+
+function isNativeSourceToken(request: QuoteRequest): boolean {
+  const sourceTokenAddress = request.sourceTokenAddress.toLowerCase();
+
+  return (
+    sourceTokenAddress ===
+      getNativeToken(request.sourceChainId).toLowerCase() ||
+    sourceTokenAddress === NATIVE_TOKEN_ADDRESS.toLowerCase()
+  );
 }
 
 async function getNativeMaxQuoteWithReservedFees(

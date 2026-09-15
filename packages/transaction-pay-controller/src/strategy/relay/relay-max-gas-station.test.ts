@@ -5,6 +5,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { CHAIN_ID_POLYGON, NATIVE_TOKEN_ADDRESS } from '../../constants.js';
 import { TransactionPayStrategy } from '../../index.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
@@ -252,6 +253,40 @@ describe('relay-max-gas-station', () => {
     );
 
     expect(getSingleQuote).toHaveBeenCalledTimes(2);
+    expect(getSingleQuote).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ sourceTokenAmount: '99900' }),
+      expect.any(Object),
+    );
+    expect(result).toBe(phase2Quote);
+  });
+
+  it('reserves network fees when Polygon native Max uses the Relay address', async () => {
+    const phase1Quote = makeQuote({
+      sourceAmountRaw: '100000',
+      sourceNetworkGasRaw: '100',
+    });
+    const phase2Quote = makeQuote({
+      sourceAmountRaw: '99900',
+      sourceNetworkGasRaw: '100',
+    });
+    const getSingleQuote = jest
+      .fn()
+      .mockResolvedValueOnce(phase1Quote)
+      .mockResolvedValueOnce(phase2Quote);
+    const request = {
+      ...BASE_REQUEST,
+      sourceChainId: CHAIN_ID_POLYGON,
+      sourceTokenAddress: NATIVE_TOKEN_ADDRESS,
+      sourceTokenAmount: '100000',
+    };
+
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
     expect(getSingleQuote).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ sourceTokenAmount: '99900' }),
