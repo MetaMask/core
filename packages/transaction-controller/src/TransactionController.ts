@@ -1257,8 +1257,7 @@ export class TransactionController extends BaseController<
     } else {
       const newTransactionMeta = cloneDeep(addedTransactionMeta);
 
-      // eslint-disable-next-line no-void
-      void this.#updateGasProperties(newTransactionMeta)
+      this.#updateGasProperties(newTransactionMeta)
         .then(() => {
           this.#updateTransactionInternal(
             {
