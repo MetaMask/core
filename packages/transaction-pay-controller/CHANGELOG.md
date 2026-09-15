@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The fee is read via the stateless `TransakService:getBuyQuote` action so the estimate does not write the shared native buy-quote state used by Unified Buy; clients must delegate `TransakService:getBuyQuote` to the `TransactionPayController` messenger.
 - Charge direct Monad mUSD on-ramp fees on top of the entered amount (fee-on-top), so the total is the entered amount plus fees ([#9317](https://github.com/MetaMask/core/pull/9317))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/assets-controller` from `^16.0.0` to `^16.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242))
 
 ### Fixed
 
