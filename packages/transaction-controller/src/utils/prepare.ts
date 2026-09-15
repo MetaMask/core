@@ -104,7 +104,13 @@ function normalizeAuthorizationList(
  * @returns The processed hexadecimal string.
  */
 function removeLeadingZeroes(value: Hex | undefined): Hex | undefined {
-  return value === '0x0'
-    ? '0x'
-    : ((value?.replace?.(/^0x(00)+/u, '0x') as Hex | undefined) ?? value);
+  if (!value) {
+    return value;
+  }
+
+  if (value === '0x0') {
+    return '0x';
+  }
+
+  return (value.replace?.(/^0x(00)+/u, '0x') as Hex) ?? value;
 }
