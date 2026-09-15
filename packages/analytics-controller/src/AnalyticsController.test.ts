@@ -4879,6 +4879,47 @@ describe('AnalyticsController', () => {
       expect(controller.state.eventQueue).not.toHaveProperty('identify');
     });
 
+    it('treats queued identify as product even when context.marketing is true', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          ...withMarketingList,
+          eventQueue: {
+            identify: {
+              type: 'identify',
+              userId: '550e8400-e29b-41d4-a716-446655440000',
+              messageId: 'identify',
+              timestamp: '2026-01-01T00:00:01.000Z',
+              context: withMarketingFlag(true),
+            },
+            marketing: {
+              type: 'track',
+              eventName: marketingEvent,
+              messageId: 'marketing',
+              timestamp: '2026-01-01T00:00:02.000Z',
+              context: withMarketingFlag(true),
+            },
+          },
+        },
+        isGeolocationEnabled: false,
+        isEventQueuePersistenceEnabled: true,
+        skipInit: true,
+      });
+
+      controller.optOut();
+
+      expect(controller.state.eventQueue).toStrictEqual({
+        marketing: expect.objectContaining({
+          eventName: marketingEvent,
+        }),
+      });
+      expect(controller.state.eventQueue).not.toHaveProperty('identify');
+    });
+
     it('filters unstamped queued events by event name', async () => {
       const { controller } = await setupController({
         state: {

@@ -940,6 +940,12 @@ export class AnalyticsController extends BaseController<
   }
 
   #laneFromQueuedEvent(queuedEvent: AnalyticsQueuedEvent): AnalyticsLane {
+    // Identify has no event name and is always product, even if a caller
+    // supplied `context.marketing`. Check type before trusting the stamp.
+    if (queuedEvent.type === 'identify') {
+      return AnalyticsLane.Product;
+    }
+
     if (typeof queuedEvent.context?.marketing === 'boolean') {
       return this.#laneFromContext(queuedEvent.context);
     }
