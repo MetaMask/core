@@ -1207,7 +1207,6 @@ describe('submitFiatQuotes', () => {
         'TransactionController:addTransactionBatch',
         expect.objectContaining({
           from: MONEY_ACCOUNT_ADDRESS,
-          isGasFeeSponsored: true,
           isInternal: true,
           networkClientId: 'network-client-id-mock',
           origin: 'metamask',

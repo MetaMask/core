@@ -19,7 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
 - Bump `@metamask/core-backend` from `^10.0.0` to `^11.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10242](https://github.com/MetaMask/core/pull/10242))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
-- Add approval-time sponsorship/signing hooks to `TransactionController` and keep gas-fee-token preflight in the approval flow ([#10109](https://github.com/MetaMask/core/pull/10109))
+- **BREAKING:** Add required approval-time `isSponsored` and `shouldSign` hooks to `TransactionController`, and remove `isGasFeeSponsored` and `isExternalSign` as transaction lifecycle properties ([#10109](https://github.com/MetaMask/core/pull/10109))
+  - Consumers must supply both hooks to determine sponsorship and local signing at approval time.
+  - Remove `isGasFeeSponsored` from `TransactionMeta`, `AddTransactionOptions`, and `TransactionBatchRequest`.
+  - Remove `isExternalSign` from `TransactionMeta`.
 
 ## [70.0.0]
 

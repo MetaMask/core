@@ -53,10 +53,7 @@ export async function getGasFeeTokens({
   publicKeyEIP7702,
   transactionMeta,
   getSimulationConfig,
-}: GetGasFeeTokensRequest): Promise<{
-  gasFeeTokens: GasFeeToken[];
-  isGasFeeSponsored: boolean;
-}> {
+}: GetGasFeeTokensRequest): Promise<GasFeeToken[]> {
   const { delegationAddress, txParams } = transactionMeta;
   const { authorizationList: authorizationListRequest } = txParams;
   const data = txParams.data as Hex;
@@ -109,14 +106,14 @@ export async function getGasFeeTokens({
 
     log('Response', response);
 
-    const result = parseGasFeeTokens(response);
+    const gasFeeTokens = parseGasFeeTokens(response);
 
-    log('Gas fee tokens', result);
+    log('Gas fee tokens', gasFeeTokens);
 
-    return result;
+    return gasFeeTokens;
   } catch (error) {
     log('Failed to gas fee tokens', error);
-    return { gasFeeTokens: [], isGasFeeSponsored: false };
+    return [];
   }
 }
 
@@ -174,7 +171,6 @@ export async function checkGasFeeTokenBeforePublish({
       );
 
       updateTransaction(transaction.id, (tx) => {
-        tx.isExternalSign = false;
         tx.selectedGasFeeToken = undefined;
       });
 
@@ -182,10 +178,7 @@ export async function checkGasFeeTokenBeforePublish({
     }
   }
 
-  const gasFeeTokens = await fetchGasFeeTokens({
-    ...transaction,
-    isExternalSign: true,
-  });
+  const gasFeeTokens = await fetchGasFeeTokens(transaction);
 
   const isSelectedGasFeeTokenAvailable = gasFeeTokens?.some(
     (token) =>
@@ -195,7 +188,6 @@ export async function checkGasFeeTokenBeforePublish({
   if (!isSelectedGasFeeTokenAvailable) {
     updateTransaction(transaction.id, (tx) => {
       tx.gasFeeTokens = gasFeeTokens;
-      tx.isExternalSign = false;
     });
 
     throw new Error('Gas fee token not found and insufficient native balance');
@@ -203,7 +195,6 @@ export async function checkGasFeeTokenBeforePublish({
 
   updateTransaction(transaction.id, (tx) => {
     tx.gasFeeTokens = gasFeeTokens;
-    tx.isExternalSign = true;
     tx.txParams.nonce = undefined;
   });
 
@@ -215,36 +206,28 @@ export async function checkGasFeeTokenBeforePublish({
  * Extract gas fee tokens from a simulation response.
  *
  * @param response - The simulation response.
- * @returns gasFeeTokens: An array of gas fee tokens. isGasFeeSponsored: Whether the transaction is sponsored
+ * @returns An array of gas fee tokens.
  */
-function parseGasFeeTokens(response: SimulationResponse): {
-  gasFeeTokens: GasFeeToken[];
-  isGasFeeSponsored: boolean;
-} {
+function parseGasFeeTokens(response: SimulationResponse): GasFeeToken[] {
   const feeLevel = response.transactions?.[0]
     ?.fees?.[0] as Required<SimulationResponseTransaction>['fees'][0];
 
-  const isGasFeeSponsored = response.sponsorship?.isSponsored ?? false;
-
   const tokenFees = feeLevel?.tokenFees ?? [];
 
-  return {
-    gasFeeTokens: tokenFees.map((tokenFee) => ({
-      amount: tokenFee.balanceNeededToken,
-      balance: tokenFee.currentBalanceToken,
-      decimals: tokenFee.token.decimals,
-      fee: tokenFee.serviceFee,
-      gas: feeLevel.gas,
-      gasTransfer: tokenFee.transferEstimate,
-      maxFeePerGas: feeLevel.maxFeePerGas,
-      maxPriorityFeePerGas: feeLevel.maxPriorityFeePerGas,
-      rateWei: tokenFee.rateWei,
-      recipient: tokenFee.feeRecipient,
-      symbol: tokenFee.token.symbol,
-      tokenAddress: tokenFee.token.address,
-    })),
-    isGasFeeSponsored,
-  };
+  return tokenFees.map((tokenFee) => ({
+    amount: tokenFee.balanceNeededToken,
+    balance: tokenFee.currentBalanceToken,
+    decimals: tokenFee.token.decimals,
+    fee: tokenFee.serviceFee,
+    gas: feeLevel.gas,
+    gasTransfer: tokenFee.transferEstimate,
+    maxFeePerGas: feeLevel.maxFeePerGas,
+    maxPriorityFeePerGas: feeLevel.maxPriorityFeePerGas,
+    rateWei: tokenFee.rateWei,
+    recipient: tokenFee.feeRecipient,
+    symbol: tokenFee.token.symbol,
+    tokenAddress: tokenFee.token.address,
+  }));
 }
 
 /**

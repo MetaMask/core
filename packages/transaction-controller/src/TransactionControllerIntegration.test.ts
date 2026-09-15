@@ -330,7 +330,10 @@ const setupController = async (
     disableSwaps: false,
     isAutomaticGasFeeUpdateEnabled: () => true,
     getPermittedAccounts: async () => [ACCOUNT_MOCK],
-    hooks: {},
+    hooks: {
+      isSponsored: async () => false,
+      shouldSign: async () => true,
+    },
     messenger,
     ...givenOptions,
   };

@@ -913,24 +913,6 @@ async function calculateSourceNetworkCost(
     };
   }
 
-  if (
-    accountSupports7702 &&
-    transaction.isGasFeeSponsored &&
-    request.sourceChainId === transaction.chainId &&
-    request.targetChainId === transaction.chainId
-  ) {
-    log('Zeroing source network fees for sponsored same-chain Relay route');
-
-    // Gas limit is zero as sponsored transactions go through the EIP-7702
-    // gas station hook and do not require user-paid gas.
-    return {
-      estimate: ZERO_AMOUNT,
-      max: ZERO_AMOUNT,
-      gasLimits: [0],
-      is7702: true,
-    };
-  }
-
   const txSteps = quote.steps.filter(
     (step): step is RelayTransactionStep => step.kind === 'transaction',
   );

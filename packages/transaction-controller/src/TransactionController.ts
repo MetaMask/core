@@ -418,12 +418,12 @@ export type TransactionControllerOptions = {
     /**
      * Additional logic to determine whether a transaction is sponsored.
      */
-    isSponsored?: IsSponsoredHook;
+    isSponsored: IsSponsoredHook;
 
     /**
      * Additional logic to determine whether a transaction should be signed locally.
      */
-    shouldSign?: ShouldSignHook;
+    shouldSign: ShouldSignHook;
 
     /**
      * Additional logic to execute before publishing a transaction.
@@ -849,22 +849,8 @@ export class TransactionController extends BaseController<
       /* istanbul ignore next */
       hooks?.beforeCheckPendingTransaction ??
       ((): Promise<boolean> => Promise.resolve(true));
-    this.#isSponsored =
-      hooks?.isSponsored ??
-      (async ({
-        transactionMeta,
-      }: {
-        transactionMeta: TransactionMeta;
-      }): Promise<boolean> => Boolean(transactionMeta.isGasFeeSponsored));
-    this.#shouldSign =
-      hooks?.shouldSign ??
-      (async ({
-        transactionMeta,
-        isSponsored: _isSponsored,
-      }: {
-        transactionMeta: TransactionMeta;
-        isSponsored: boolean;
-      }): Promise<boolean> => !transactionMeta.isExternalSign);
+    this.#isSponsored = hooks.isSponsored;
+    this.#shouldSign = hooks.shouldSign;
     this.#beforePublish =
       hooks?.beforePublish ?? ((): Promise<boolean> => Promise.resolve(true));
     this.#beforeSign =
@@ -1116,7 +1102,6 @@ export class TransactionController extends BaseController<
       gasFeeToken,
       excludeNativeTokenForFee,
       isGasFeeIncluded,
-      isGasFeeSponsored,
       isInternal = false,
       isStateOnly,
       nestedTransactions,
@@ -1222,8 +1207,6 @@ export class TransactionController extends BaseController<
       id: random(),
       isGasFeeTokenIgnoredIfBalance,
       isGasFeeIncluded,
-      isGasFeeSponsored,
-      ...(isGasFeeSponsored ? { isExternalSign: true } : {}),
       // To avoid the property to be set as undefined.
       ...(excludeNativeTokenForFee === undefined
         ? {}
@@ -3171,8 +3154,7 @@ export class TransactionController extends BaseController<
       await checkGasFeeTokenBeforePublish({
         messenger: this.messenger,
         networkClientId,
-        fetchGasFeeTokens: async (tx) =>
-          (await this.#getGasFeeTokens(tx)).gasFeeTokens,
+        fetchGasFeeTokens: (tx) => this.#getGasFeeTokens(tx),
         transaction: transactionMeta,
         updateTransaction: (txId, fn) =>
           this.#updateTransactionInternal({ transactionId: txId }, fn),
@@ -3187,20 +3169,17 @@ export class TransactionController extends BaseController<
         isSponsored,
       });
 
-      // eslint-disable-next-line require-atomic-updates
-      transactionMeta = this.#updateTransactionInternal(
-        {
-          transactionId,
-        },
-        (draftTxMeta) => {
-          draftTxMeta.isGasFeeSponsored = isSponsored;
-          draftTxMeta.isExternalSign = !shouldSign;
-
-          if (!shouldSign) {
+      if (!shouldSign) {
+        // eslint-disable-next-line require-atomic-updates
+        transactionMeta = this.#updateTransactionInternal(
+          {
+            transactionId,
+          },
+          (draftTxMeta) => {
             draftTxMeta.txParams.nonce = undefined;
-          }
-        },
-      );
+          },
+        );
+      }
 
       let rawTx: string | undefined;
 
@@ -3246,7 +3225,7 @@ export class TransactionController extends BaseController<
         return ApprovalState.SkippedViaBeforePublishHook;
       }
 
-      if (!rawTx && !transactionMeta.isExternalSign) {
+      if (!rawTx && shouldSign) {
         return ApprovalState.NotApproved;
       }
 
@@ -3793,8 +3772,7 @@ export class TransactionController extends BaseController<
       await checkGasFeeTokenBeforePublish({
         messenger: this.messenger,
         networkClientId,
-        fetchGasFeeTokens: async (tx) =>
-          (await this.#getGasFeeTokens(tx)).gasFeeTokens,
+        fetchGasFeeTokens: (tx) => this.#getGasFeeTokens(tx),
         transaction: transactionMeta,
         updateTransaction: (txId, fn) =>
           this.#updateTransactionInternal({ transactionId: txId }, fn),
@@ -3803,13 +3781,7 @@ export class TransactionController extends BaseController<
       transactionMeta = this.#getTransactionOrThrow(transactionId);
     }
 
-    const { chainId, isExternalSign, txParams } = transactionMeta;
-
-    if (isExternalSign) {
-      log('Skipping sign as signed externally');
-      return undefined;
-    }
-
+    const { chainId, txParams } = transactionMeta;
     const { authorizationList, from } = txParams;
 
     const signedAuthorizationList = await signAuthorizationList({
@@ -4209,7 +4181,6 @@ export class TransactionController extends BaseController<
     };
     let gasUsed: Hex | undefined;
     let gasFeeTokens: GasFeeToken[] = [];
-    let isGasFeeSponsored = false;
     let simulationRevert: Revert | undefined;
 
     const simulationRequestToken = Symbol(transactionId);
@@ -4256,11 +4227,7 @@ export class TransactionController extends BaseController<
       }
 
       if (isSimulationEnabled) {
-        const gasFeeTokensResponse =
-          await this.#getGasFeeTokens(transactionMeta);
-
-        gasFeeTokens = gasFeeTokensResponse?.gasFeeTokens ?? [];
-        isGasFeeSponsored = gasFeeTokensResponse?.isGasFeeSponsored ?? false;
+        gasFeeTokens = await this.#getGasFeeTokens(transactionMeta);
       }
 
       if (
@@ -4291,12 +4258,6 @@ export class TransactionController extends BaseController<
         },
         (txMeta) => {
           txMeta.gasFeeTokens = gasFeeTokens;
-          txMeta.isGasFeeSponsored =
-            txMeta.isGasFeeSponsored ?? isGasFeeSponsored;
-
-          if (txMeta.isGasFeeSponsored) {
-            txMeta.isExternalSign = true;
-          }
 
           if (!this.#isBalanceChangesSkipped(txMeta)) {
             txMeta.gasUsed = gasUsed;
@@ -4589,10 +4550,7 @@ export class TransactionController extends BaseController<
     return { transactionHash };
   }
 
-  async #getGasFeeTokens(transaction: TransactionMeta): Promise<{
-    gasFeeTokens: GasFeeToken[];
-    isGasFeeSponsored: boolean;
-  }> {
+  async #getGasFeeTokens(transaction: TransactionMeta): Promise<GasFeeToken[]> {
     const { chainId } = transaction;
 
     return await getGasFeeTokens({
@@ -4628,7 +4586,6 @@ export class TransactionController extends BaseController<
     const transaction = {
       chainId,
       delegationAddress,
-      isExternalSign: true,
       txParams: {
         data,
         from,
@@ -4637,8 +4594,6 @@ export class TransactionController extends BaseController<
       },
     } as TransactionMeta;
 
-    const result = await this.#getGasFeeTokens(transaction);
-
-    return result.gasFeeTokens;
+    return await this.#getGasFeeTokens(transaction);
   }
 }

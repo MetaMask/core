@@ -2605,38 +2605,8 @@ describe('Relay Quotes Utils', () => {
         );
       });
 
-      it('zeroes source network fees and gas limits when parent sponsorship applies', async () => {
-        successfulFetchMock.mockResolvedValue({
-          ok: true,
-          json: async () => QUOTE_MOCK,
-        } as never);
-
-        const result = await getRelayQuotes({
-          accountSupports7702: true,
-          messenger,
-          requests: [
-            {
-              ...QUOTE_REQUEST_MOCK,
-              targetChainId: QUOTE_REQUEST_MOCK.sourceChainId,
-            },
-          ],
-          transaction: {
-            ...TRANSACTION_META_MOCK,
-            chainId: QUOTE_REQUEST_MOCK.sourceChainId,
-            isGasFeeSponsored: true,
-          },
-        });
-
-        const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
-
-        expect(result[0].fees.sourceNetwork.estimate).toStrictEqual(zeroAmount);
-        expect(result[0].fees.sourceNetwork.max).toStrictEqual(zeroAmount);
-        expect(result[0].original.metamask.gasLimits).toStrictEqual([0]);
-        expect(result[0].original.metamask.is7702).toBe(true);
-      });
-
       it.each([1, 2])(
-        'charges source gas for %i calls when the payer cannot use same-chain parent sponsorship',
+        'charges source gas for %i calls when the payer does not support EIP-7702',
         async (callCount) => {
           const quote = cloneDeep(QUOTE_MOCK);
           if (callCount === 2) {
@@ -2668,7 +2638,6 @@ describe('Relay Quotes Utils', () => {
                 from: '0x1234567890123456789012345678901234567892',
               },
               chainId: QUOTE_REQUEST_MOCK.sourceChainId,
-              isGasFeeSponsored: true,
             },
           });
 
