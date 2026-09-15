@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/phishing-controller` from `^18.0.0` to `^18.1.0` ([#10234](https://github.com/MetaMask/core/pull/10234))
 - Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.0.1` ([#10242](https://github.com/MetaMask/core/pull/10242))
 
+### Fixed
+
+- Fix post-transaction balance refreshes for default-tracked native assets on AccountActivity-active chains ([#10198](https://github.com/MetaMask/core/pull/10198))
+
 ## [16.0.0]
 
 ### Changed
