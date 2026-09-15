@@ -131,13 +131,13 @@ describe('createWallet', () => {
       await instanceOptions.transactionController?.hooks.isSponsored({
         transactionMeta: {} as never,
       }),
-    ).toBe(false);
+    ).toStrictEqual({ isSponsored: false });
     expect(
       await instanceOptions.transactionController?.hooks.shouldSign({
         isSponsored: false,
         transactionMeta: {} as never,
       }),
-    ).toBe(true);
+    ).toStrictEqual({ shouldSign: true });
     expect(ClientConfigApiService).toHaveBeenCalled();
 
     await dispose();

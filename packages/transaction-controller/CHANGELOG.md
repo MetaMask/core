@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/core-backend` from `^10.0.0` to `^11.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10242](https://github.com/MetaMask/core/pull/10242))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - **BREAKING:** Add required approval-time `isSponsored` and `shouldSign` hooks to `TransactionController`, and remove `isGasFeeSponsored` and `isExternalSign` as transaction lifecycle properties ([#10109](https://github.com/MetaMask/core/pull/10109))
-  - Consumers must supply both hooks to determine sponsorship and local signing at approval time.
+  - Consumers must supply both hooks to determine sponsorship and local signing at approval time, returning `{ isSponsored }` and `{ shouldSign }` result objects respectively.
   - Remove `isGasFeeSponsored` from `TransactionMeta`, `AddTransactionOptions`, and `TransactionBatchRequest`.
   - Remove `isExternalSign` from `TransactionMeta`.
 

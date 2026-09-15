@@ -2135,7 +2135,7 @@ export type BeforeSignHook = (request: {
  */
 export type IsSponsoredHook = (request: {
   transactionMeta: TransactionMeta;
-}) => Promise<boolean>;
+}) => Promise<{ isSponsored: boolean }>;
 
 /**
  * Policy logic to determine whether to reserve a nonce and sign locally.
@@ -2144,7 +2144,7 @@ export type IsSponsoredHook = (request: {
 export type ShouldSignHook = (request: {
   transactionMeta: TransactionMeta;
   isSponsored: boolean;
-}) => Promise<boolean>;
+}) => Promise<{ shouldSign: boolean }>;
 
 /**
  * The total fiat values of the transaction, to support client metrics.

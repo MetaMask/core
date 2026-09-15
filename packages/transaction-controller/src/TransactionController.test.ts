@@ -605,8 +605,8 @@ describe('TransactionController', () => {
       publicKeyEIP7702: '0x1234',
       ...givenOptions,
       hooks: {
-        isSponsored: async () => false,
-        shouldSign: async () => true,
+        isSponsored: async () => ({ isSponsored: false }),
+        shouldSign: async () => ({ shouldSign: true }),
         ...givenOptions.hooks,
       },
     };
@@ -2437,18 +2437,18 @@ describe('TransactionController', () => {
 
         const isSponsoredHook = jest
           .fn()
-          .mockImplementation(async (): Promise<boolean> => {
+          .mockImplementation(async (): Promise<{ isSponsored: boolean }> => {
             callOrder.push('isSponsored');
             expect(getNonceLockSpy).not.toHaveBeenCalled();
-            return false;
+            return { isSponsored: false };
           });
 
         const shouldSignHook = jest
           .fn()
-          .mockImplementation(async (): Promise<boolean> => {
+          .mockImplementation(async (): Promise<{ shouldSign: boolean }> => {
             callOrder.push('shouldSign');
             expect(getNonceLockSpy).not.toHaveBeenCalled();
-            return true;
+            return { shouldSign: true };
           });
 
         getNonceLockSpy.mockImplementation(
@@ -2500,8 +2500,12 @@ describe('TransactionController', () => {
       });
 
       it('skips nonce reservation when shouldSign resolves false', async () => {
-        const isSponsoredHook = jest.fn().mockResolvedValue(false);
-        const shouldSignHook = jest.fn().mockResolvedValue(false);
+        const isSponsoredHook = jest
+          .fn()
+          .mockResolvedValue({ isSponsored: false });
+        const shouldSignHook = jest
+          .fn()
+          .mockResolvedValue({ shouldSign: false });
 
         const { controller } = setupController({
           messengerOptions: {
@@ -2543,8 +2547,8 @@ describe('TransactionController', () => {
           },
           options: {
             hooks: {
-              isSponsored: jest.fn().mockResolvedValue(true),
-              shouldSign: jest.fn().mockResolvedValue(false),
+              isSponsored: jest.fn().mockResolvedValue({ isSponsored: true }),
+              shouldSign: jest.fn().mockResolvedValue({ shouldSign: false }),
             },
           },
         });
@@ -2581,7 +2585,7 @@ describe('TransactionController', () => {
           options: {
             hooks: {
               beforeSign: beforeSignHook,
-              shouldSign: jest.fn().mockResolvedValue(false),
+              shouldSign: jest.fn().mockResolvedValue({ shouldSign: false }),
             },
           },
         });
@@ -3460,7 +3464,7 @@ describe('TransactionController', () => {
         const { controller, mockTransactionApprovalRequest } = setupController({
           options: {
             hooks: {
-              shouldSign: async () => false,
+              shouldSign: async () => ({ shouldSign: false }),
             },
           },
         });

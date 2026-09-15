@@ -142,8 +142,8 @@ function buildInstanceOptions(
       // Publishing still uses the controller's built-in path through the wired
       // `NetworkController` provider.
       hooks: {
-        isSponsored: async () => false,
-        shouldSign: async () => true,
+        isSponsored: async () => ({ isSponsored: false }),
+        shouldSign: async () => ({ shouldSign: true }),
       },
     },
   };
