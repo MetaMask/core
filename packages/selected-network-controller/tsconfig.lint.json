@@ -1,0 +1,27 @@
+{
+  "extends": ["./tsconfig.json", "../../tsconfig.packages.lint.json"],
+  "compilerOptions": {
+    "outDir": "./.tsc-lint-cache",
+    "tsBuildInfoFile": "./.tsc-lint-cache/tsconfig.tsbuildinfo"
+  },
+  "references": [
+    {
+      "path": "../messenger/tsconfig.lint.json"
+    },
+    {
+      "path": "../base-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../json-rpc-engine/tsconfig.lint.json"
+    },
+    {
+      "path": "../network-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../permission-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../utils/tsconfig.lint.json"
+    }
+  ]
+}
