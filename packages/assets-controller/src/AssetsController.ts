@@ -2823,9 +2823,7 @@ export class AssetsController extends BaseController<
                 (previousBalance as FungibleAssetBalance | undefined)?.metadata;
               effective[assetId] = {
                 amount: newAmount,
-                ...(newMetadata === undefined
-                  ? {}
-                  : { metadata: newMetadata }),
+                ...(newMetadata === undefined ? {} : { metadata: newMetadata }),
               };
               const oldAmount = previousBalance?.amount;
               const isNewDefaultNativeZero =

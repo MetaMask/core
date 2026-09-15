@@ -1,4 +1,4 @@
-import type { V5BalanceItem, V6BalanceItem, V6TokenBalanceMetadata } from '@metamask/core-backend';
+import type { V5BalanceItem, V6BalanceItem } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
 import type {
   RemoteFeatureFlagControllerGetStateAction,
@@ -665,7 +665,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
       // metadata (e.g. Stellar trustline / native reserve fields).
       assetsBalance[accountId][normalizedAssetId] = {
         amount: item.balance,
-        ...(item.metadata ? { metadata: item.metadata as V6TokenBalanceMetadata } : {}),
+        ...(item.metadata ? { metadata: item.metadata } : {}),
       };
     }
 

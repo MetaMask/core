@@ -10,8 +10,8 @@ import type {
 } from '@metamask/messenger';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 
-import type { AssetsControllerMessenger } from '../AssetsController.js';
 import { waitFor } from '../__fixtures__/test-utils.js';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
 import type { ChainId, Caip19AssetId } from '../types.js';
 import {
   AccountActivityDataSource,

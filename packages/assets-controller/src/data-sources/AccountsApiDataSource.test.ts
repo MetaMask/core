@@ -657,12 +657,9 @@ describe('AccountsApiDataSource', () => {
     const nativeAssetId = 'stellar:pubnet/slip44:148';
     const usdcAssetId =
       'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN';
+    // The Accounts API client parses balance-row metadata, so the data source
+    // only ever sees the `V6TokenBalanceMetadata` fields.
     const nativeMetadata = {
-      spendableBalance: '8944804518',
-      minimumReserveBalance: '200000000',
-      decimal: 7,
-    };
-    const persistedNativeMetadata = {
       spendableBalance: '8944804518',
       minimumReserveBalance: '200000000',
     };
@@ -714,7 +711,7 @@ describe('AccountsApiDataSource', () => {
       ],
     ).toStrictEqual({
       amount: '914.4804518',
-      metadata: persistedNativeMetadata,
+      metadata: nativeMetadata,
     });
     expect(
       response.assetsBalance?.['mock-account-id']?.[
@@ -925,12 +922,9 @@ describe('AccountsApiDataSource', () => {
       const nativeAssetId = 'stellar:pubnet/slip44:148';
       const aquaAssetId =
         'stellar:pubnet/asset:AQUA-GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA';
+      // The Accounts API client parses balance-row metadata, so the data
+      // source only ever sees the `V6TokenBalanceMetadata` fields.
       const nativeMetadata = {
-        spendableBalance: '8944803018',
-        minimumReserveBalance: '200000000',
-        decimal: 7,
-      };
-      const persistedNativeMetadata = {
         spendableBalance: '8944803018',
         minimumReserveBalance: '200000000',
       };
@@ -995,7 +989,7 @@ describe('AccountsApiDataSource', () => {
         ],
       ).toStrictEqual({
         amount: '914.4803018',
-        metadata: persistedNativeMetadata,
+        metadata: nativeMetadata,
       });
 
       controller.destroy();
