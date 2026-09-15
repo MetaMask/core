@@ -72,10 +72,9 @@ export const toCurrencyValues = (
           ),
           ...(feeData.reserve && {
             reserve: feeData.reserve
-              .map((reserve) => toCurrency(reserve, usdToFiatExchangeRate))
-              .filter(
-                (value): value is NonNullable<typeof value> =>
-                  value !== undefined,
+              .map(
+                (reserve) =>
+                  toCurrency(reserve, usdToFiatExchangeRate) ?? {},
               ),
           }),
         } as DeepPartial<QuoteResponse['quote']['feeData']>),
