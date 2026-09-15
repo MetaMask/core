@@ -599,6 +599,36 @@ describe('RampsController', () => {
       });
     });
 
+    it('uses the resolved quote payment method for the native lookup, not the request list', async () => {
+      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        const quotesResponse = buildQuotesResponse('/providers/transak-native');
+        // The aggregator priced a method other than the caller's list head.
+        quotesResponse.success[0].quote.paymentMethod =
+          '/payments/sepa-bank-transfer';
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => quotesResponse,
+        );
+        rootMessenger.registerActionHandler(
+          'TransakService:getBuyQuote',
+          getBuyQuote,
+        );
+
+        await callGetQuoteWithFees(messenger);
+
+        expect(getBuyQuote).toHaveBeenCalledWith(
+          'USD',
+          GQF_ASSET_ID,
+          GQF_NETWORK,
+          '/payments/sepa-bank-transfer',
+          '15',
+          true,
+        );
+      });
+    });
+
     it('leaves a non-native quote unchanged and does not fetch a native quote', async () => {
       const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
 

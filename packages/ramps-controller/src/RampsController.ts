@@ -2727,7 +2727,11 @@ export class RampsController extends BaseController<
       amount: options.amount,
       assetId: options.assetId,
       fiat: options.fiat,
-      paymentMethod: options.paymentMethods?.[0],
+      // Use the resolved quote's own payment method, not the request list: the
+      // aggregator may price a method other than `paymentMethods[0]` (or the
+      // caller may omit the list), and the native lookup must match the quote
+      // being reconciled.
+      paymentMethod: quote.quote.paymentMethod,
       isFeeExcludedFromFiat,
     });
   }
