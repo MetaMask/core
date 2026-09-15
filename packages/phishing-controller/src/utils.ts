@@ -2,8 +2,6 @@ import { bytesToHex } from '@noble/hashes/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 
 import { deleteFromTrie, insertToTrie, deepCopyPathTrie } from './PathTrie.js';
-import type { Hotlist, PhishingListState } from './PhishingController.js';
-import { ListKeys, phishingListKeyNameMap } from './PhishingController.js';
 import type {
   PhishingDetectorList,
   PhishingDetectorConfiguration,
@@ -12,13 +10,15 @@ import {
   ADDRESS_SCAN_SUPPORTED_CHAINS,
   APPROVAL_SUPPORTED_CHAINS,
   DEFAULT_CHAIN_ID_TO_NAME,
+  ListKeys,
+  phishingListKeyNameMap,
   TOKEN_SCAN_SUPPORTED_CHAINS,
 } from './types.js';
 import type {
   AddressScanSupportedChain,
   ApprovalSupportedChain,
-  TokenScanCacheData,
-  TokenScanResult,
+  Hotlist,
+  PhishingListState,
   TokenScanSupportedChain,
 } from './types.js';
 
@@ -121,6 +121,16 @@ export const applyDiffs = (
 
   for (const { isRemoval, targetList, url, timestamp } of diffsToApply) {
     const targetListType = splitStringByPeriod(targetList)[1];
+    // Diffs for list types this client does not know about (for example a
+    // list introduced server-side after this release) are ignored rather than
+    // failing the whole update. They do not advance `lastUpdated`, matching
+    // how diffs for other list keys are treated.
+    if (
+      targetListType !== 'blocklistPaths' &&
+      !Object.hasOwn(listSets, targetListType)
+    ) {
+      continue;
+    }
     if (timestamp > latestDiffTimestamp) {
       latestDiffTimestamp = timestamp;
     }
@@ -428,6 +438,21 @@ export const getPhishingDetectionScanUrlParam = (
   return [scanUrlParam, true];
 };
 
+const EVM_ADDRESS_REGEX = /^0x[0-9a-fA-F]{40}$/u;
+
+/**
+ * Normalizes an address for use in scan requests and cache keys. EVM addresses
+ * are case-insensitive and are lowercased so that differently-cased inputs
+ * share one cache entry and match the API's lowercase response keys. Any other
+ * address (for example a base58 Solana address) is case-sensitive and is
+ * returned unchanged.
+ *
+ * @param address - The address to normalize.
+ * @returns The normalized address.
+ */
+export const normalizeScanAddress = (address: string): string =>
+  EVM_ADDRESS_REGEX.test(address) ? address.toLowerCase() : address;
+
 export const getPathnameFromUrl = (url: string): string => {
   try {
     const { pathname } = new URL(url);
@@ -483,25 +508,6 @@ export const generateParentDomains = (
   }
 
   return domains;
-};
-
-/**
- * Builds a cache key for a token scan result.
- *
- * @param chainId - The chain ID.
- * @param address - The token address.
- * @param caseSensitive - When `true`, the address is kept as-is (for chains
- * like Solana where addresses are case-sensitive). When `false` (default),
- * the address is lowercased (appropriate for EVM).
- * @returns The cache key.
- */
-export const buildCacheKey = (
-  chainId: string,
-  address: string,
-  caseSensitive = false,
-) => {
-  const normalizedAddress = caseSensitive ? address : address.toLowerCase();
-  return `${chainId.toLowerCase()}:${normalizedAddress}`;
 };
 
 /**
@@ -583,45 +589,3 @@ export const getAddressScanSupportedChain = (
  */
 export const isAddressScanSupportedChainId = (chainId: string): boolean =>
   getAddressScanSupportedChain(chainId) !== null;
-
-/**
- * Split tokens into cached results and tokens that need to be fetched.
- *
- * @param cache - Cache-like object with get method.
- * @param cache.get - Method to retrieve cached data by key.
- * @param chainId - The chain ID.
- * @param tokens - Array of token addresses.
- * @param caseSensitive - When `true`, token addresses are kept as-is (for
- * chains like Solana where addresses are case-sensitive). When `false`
- * (default), addresses are lowercased (appropriate for EVM).
- * @returns Object containing cached results and tokens to fetch.
- */
-export const splitCacheHits = (
-  cache: { get: (key: string) => TokenScanCacheData | undefined },
-  chainId: string,
-  tokens: string[],
-  caseSensitive = false,
-): {
-  cachedResults: Record<string, TokenScanResult>;
-  tokensToFetch: string[];
-} => {
-  const cachedResults: Record<string, TokenScanResult> = {};
-  const tokensToFetch: string[] = [];
-
-  for (const address of tokens) {
-    const normalizedAddress = caseSensitive ? address : address.toLowerCase();
-    const key = buildCacheKey(chainId, normalizedAddress, caseSensitive);
-    const hit = cache.get(key);
-    if (hit) {
-      cachedResults[normalizedAddress] = {
-        result_type: hit.result_type,
-        chain: chainId,
-        address: normalizedAddress,
-      };
-    } else {
-      tokensToFetch.push(normalizedAddress);
-    }
-  }
-
-  return { cachedResults, tokensToFetch };
-};

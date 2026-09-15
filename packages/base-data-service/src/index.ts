@@ -24,7 +24,10 @@ export type {
   QueryKey,
   PersistenceConfiguration,
 } from './BaseDataService.js';
-export { BaseDataService } from './BaseDataService.js';
+export {
+  BaseDataService,
+  DEFAULT_HYDRATION_TIMEOUT,
+} from './BaseDataService.js';
 
 export {
   DEFAULT_CIRCUIT_BREAK_DURATION,

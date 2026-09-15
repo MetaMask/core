@@ -10,7 +10,14 @@ import type {
   StorageServiceRemoveItemAction,
   StorageServiceSetItemAction,
 } from '@metamask/storage-service';
-import { Struct } from '@metamask/superstruct';
+import {
+  array,
+  is,
+  number,
+  Struct,
+  type as objectType,
+  unknown,
+} from '@metamask/superstruct';
 import { Duration, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import {
@@ -114,6 +121,13 @@ const QUERY_CLIENT_DEFAULTS: DefaultOptions = {
 export const STORAGE_SERVICE_KEY = 'cache';
 
 /**
+ * How long a query waits for cache rehydration to finish after `init` has been
+ * called before proceeding without it. Rehydration is an optimization: a slow
+ * or hung storage read must never block queries indefinitely.
+ */
+export const DEFAULT_HYDRATION_TIMEOUT = inMilliseconds(1, Duration.Second);
+
+/**
  * Options for persistence configuration.
  */
 export type PersistenceConfiguration = {
@@ -131,12 +145,34 @@ export type PersistenceConfiguration = {
    * The maximum number of milliseconds to wait between persistence writes.
    */
   maxWriteDelay?: number;
+  /**
+   * The maximum number of milliseconds queries wait for cache rehydration to
+   * finish after `init` has been called, measured from the first query that
+   * waits. Once exceeded, queries proceed without the persisted cache.
+   * Defaults to {@link DEFAULT_HYDRATION_TIMEOUT}.
+   */
+  hydrationTimeout?: number;
+  /**
+   * Decides whether a persisted query is restored into the cache during
+   * rehydration. Queries for which this returns `false` are discarded. Use it
+   * to validate persisted data before it can be served from the cache.
+   * Defaults to restoring every persisted query.
+   */
+  shouldHydrateQuery?: (query: DehydratedState['queries'][number]) => boolean;
 };
 
 type PersistedCache = {
   state: DehydratedState;
   timestamp: number;
 };
+
+const PersistedCacheStruct = objectType({
+  timestamp: number(),
+  state: objectType({
+    queries: array(unknown()),
+    mutations: array(unknown()),
+  }),
+});
 
 export class BaseDataService<
   ServiceName extends string,
@@ -166,6 +202,10 @@ export class BaseDataService<
   readonly #debouncedPersist?: DebouncedFunc<() => void>;
 
   readonly #persistenceConfig?: PersistenceConfiguration;
+
+  #initializationPromise?: Promise<void>;
+
+  #boundedInitialization?: Promise<void>;
 
   constructor({
     name,
@@ -284,6 +324,10 @@ export class BaseDataService<
     queryFn: QueryFunction<TQueryFnData, TQueryKey>;
     responseStruct?: TDataStruct;
   }): Promise<TData> {
+    if (this.#initializationPromise) {
+      await this.#waitForInitialization(this.#initializationPromise);
+    }
+
     return this.#queryClient.fetchQuery({
       ...options,
       queryFn: async (context) => {
@@ -336,6 +380,10 @@ export class BaseDataService<
       },
     pageParam?: TPageParam,
   ): Promise<TData> {
+    if (this.#initializationPromise) {
+      await this.#waitForInitialization(this.#initializationPromise);
+    }
+
     const cache = this.#queryClient.getQueryCache();
 
     const query = cache.find<
@@ -391,6 +439,18 @@ export class BaseDataService<
   }
 
   /**
+   * The retry and circuit-breaker policy that wraps every query made through
+   * this service. Subclasses can run uncached requests under the same policy
+   * with `this.policy.execute(...)`, or observe its `onBreak`, `onDegraded`,
+   * and `onRetry` events.
+   *
+   * @returns The service policy.
+   */
+  protected get policy(): ServicePolicy {
+    return this.#policy;
+  }
+
+  /**
    * Invalidate queries serviced by this data service.
    *
    * @param filters - Optional filter for selecting specific queries.
@@ -408,10 +468,45 @@ export class BaseDataService<
    * Initialize the service, rehydrating the cache with persisted data if possible.
    */
   init(): void {
-    this.#loadCache().catch(
+    this.#initializationPromise ??= this.#loadCache().catch(
       /* istanbul ignore next */
       (error) => this.#messenger.captureException?.(error),
     );
+  }
+
+  /**
+   * Waits for cache rehydration to finish, giving up after the configured
+   * hydration timeout so that a slow or hung storage read cannot block queries
+   * indefinitely. A late rehydration is still applied by TanStack, which only
+   * overwrites entries older than the persisted ones.
+   *
+   * The deadline is shared by every waiting query rather than started per
+   * query: all of them resume in the same turn, so lookups that are batched
+   * together stay batched, and once the deadline has passed no later query
+   * waits again while storage remains unresponsive.
+   *
+   * Callers must only await this when `init` has been called: an asynchronous
+   * hop before a query starts changes its timing relative to callers' own
+   * timers, so services without persistence keep starting queries
+   * synchronously.
+   *
+   * @param initialization - The pending rehydration.
+   */
+  async #waitForInitialization(initialization: Promise<void>): Promise<void> {
+    if (!this.#boundedInitialization) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      this.#boundedInitialization = Promise.race([
+        initialization,
+        new Promise<void>((resolve) => {
+          timer = setTimeout(
+            resolve,
+            this.#persistenceConfig?.hydrationTimeout ??
+              DEFAULT_HYDRATION_TIMEOUT,
+          );
+        }),
+      ]).finally(() => clearTimeout(timer));
+    }
+    await this.#boundedInitialization;
   }
 
   /**
@@ -512,6 +607,14 @@ export class BaseDataService<
       return;
     }
 
+    if (!is(untypedCache, PersistedCacheStruct)) {
+      await this.#externalMessenger.call(
+        'StorageService:removeItem',
+        this.name,
+        STORAGE_SERVICE_KEY,
+      );
+      return;
+    }
     const cache = untypedCache as unknown as PersistedCache;
 
     if (Date.now() - cache.timestamp >= this.#persistenceConfig.maxAge) {
@@ -523,6 +626,15 @@ export class BaseDataService<
       return;
     }
 
-    hydrate(this.#queryClient, cache.state);
+    const { shouldHydrateQuery } = this.#persistenceConfig;
+    hydrate(
+      this.#queryClient,
+      shouldHydrateQuery
+        ? {
+            ...cache.state,
+            queries: cache.state.queries.filter(shouldHydrateQuery),
+          }
+        : cache.state,
+    );
   }
 }

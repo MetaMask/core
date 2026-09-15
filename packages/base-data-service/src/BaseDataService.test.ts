@@ -26,7 +26,10 @@ import {
   TRANSACTIONS_PAGE_2_CURSOR,
   TRANSACTIONS_PAGE_3_CURSOR,
 } from '../tests/mocks.js';
-import { STORAGE_SERVICE_KEY } from './BaseDataService.js';
+import {
+  DEFAULT_HYDRATION_TIMEOUT,
+  STORAGE_SERVICE_KEY,
+} from './BaseDataService.js';
 
 const TEST_ADDRESS = '0x4bbeEB066eD09B7AEd07bF39EEe0460DFa261520';
 
@@ -354,6 +357,19 @@ describe('BaseDataService', () => {
     });
   });
 
+  describe('policy', () => {
+    it('exposes the service policy to subclasses', async () => {
+      const service = new ExampleDataService(createServiceMessenger());
+      const policy = service.getPolicy();
+
+      expect(await policy.execute(() => 'ok')).toBe('ok');
+      expect(typeof policy.onBreak).toBe('function');
+      expect(typeof policy.onDegraded).toBe('function');
+
+      service.destroy();
+    });
+  });
+
   describe('persistence', () => {
     it('persists the cache using the StorageService', async () => {
       const setItem = jest.fn();
@@ -504,6 +520,214 @@ describe('BaseDataService', () => {
       expect(result).toHaveLength(3);
 
       expect(getItem).toHaveBeenCalledWith(serviceName, STORAGE_SERVICE_KEY);
+    });
+
+    it('waits for cache initialization before fetching a query', async () => {
+      cleanAll();
+      const networkScope = mockAssets();
+      const activityScope = mockTransactionsPage1();
+      let resolveGetItem: ((value: { result: null }) => void) | undefined;
+      const getItem = jest.fn(
+        () =>
+          new Promise<{ result: null }>((resolve) => {
+            resolveGetItem = resolve;
+          }),
+      );
+      const rootMessenger = createRootMessenger({
+        actionHandlers: {
+          'StorageService:getItem': getItem,
+        },
+      });
+      const messenger = createServiceMessenger(rootMessenger);
+      const service = new ExampleDataService(messenger);
+
+      service.init();
+      const resultPromise = service.getAssets(MOCK_ASSETS);
+      await new Promise(setImmediate);
+
+      expect(networkScope.isDone()).toBe(false);
+      resolveGetItem?.({ result: null });
+      expect(await resultPromise).toHaveLength(3);
+      expect(networkScope.isDone()).toBe(true);
+
+      expect(await service.getActivity(TEST_ADDRESS)).toHaveProperty('data');
+      expect(activityScope.isDone()).toBe(true);
+
+      service.destroy();
+    });
+
+    it('proceeds with a query when rehydration exceeds the hydration timeout', async () => {
+      cleanAll();
+      const networkScope = mockAssets();
+      const getItem = jest.fn(
+        () => new Promise<{ result: null }>(() => undefined),
+      );
+      const rootMessenger = createRootMessenger({
+        actionHandlers: {
+          'StorageService:getItem': getItem,
+        },
+      });
+      const messenger = createServiceMessenger(rootMessenger);
+      const service = new ExampleDataService(messenger);
+
+      service.init();
+      const resultPromise = service.getAssets(MOCK_ASSETS);
+      await new Promise(setImmediate);
+      expect(networkScope.isDone()).toBe(false);
+
+      jest.advanceTimersByTime(DEFAULT_HYDRATION_TIMEOUT);
+
+      expect(await resultPromise).toHaveLength(3);
+      expect(networkScope.isDone()).toBe(true);
+
+      service.destroy();
+    });
+
+    it('does not wait again once the hydration timeout has elapsed', async () => {
+      cleanAll();
+      const networkScope = mockAssets();
+      const getItem = jest.fn(
+        () => new Promise<{ result: null }>(() => undefined),
+      );
+      const rootMessenger = createRootMessenger({
+        actionHandlers: {
+          'StorageService:getItem': getItem,
+        },
+      });
+      const messenger = createServiceMessenger(rootMessenger);
+      const service = new ExampleDataService(messenger);
+
+      service.init();
+      const first = service.getAssets(MOCK_ASSETS);
+      await new Promise(setImmediate);
+      jest.advanceTimersByTime(DEFAULT_HYDRATION_TIMEOUT);
+      expect(await first).toHaveLength(3);
+      expect(networkScope.isDone()).toBe(true);
+
+      // A later query must not start a fresh wait while storage still hangs.
+      const secondScope = mockAssets();
+      await service.invalidateQueries({
+        queryKey: ['ExampleDataService:getAssets', MOCK_ASSETS],
+      });
+      expect(await service.getAssets(MOCK_ASSETS)).toHaveLength(3);
+      expect(secondScope.isDone()).toBe(true);
+
+      service.destroy();
+    });
+
+    it('honors a custom hydrationTimeout', async () => {
+      cleanAll();
+      const networkScope = mockAssets();
+      const getItem = jest.fn(
+        () => new Promise<{ result: null }>(() => undefined),
+      );
+      const rootMessenger = createRootMessenger({
+        actionHandlers: {
+          'StorageService:getItem': getItem,
+        },
+      });
+      const messenger = createServiceMessenger(rootMessenger);
+      const service = new ExampleDataService(messenger, {
+        persistenceConfig: { maxAge: 1000, hydrationTimeout: 50 },
+      });
+
+      service.init();
+      const resultPromise = service.getAssets(MOCK_ASSETS);
+      await new Promise(setImmediate);
+      expect(networkScope.isDone()).toBe(false);
+
+      jest.advanceTimersByTime(50);
+
+      expect(await resultPromise).toHaveLength(3);
+      expect(networkScope.isDone()).toBe(true);
+
+      service.destroy();
+    });
+
+    it('discards a persisted cache that fails shape validation', async () => {
+      const getItem = jest.fn().mockResolvedValue({
+        result: { state: { queries: 'not-an-array' } },
+      });
+      const removeItem = jest.fn();
+      const rootMessenger = createRootMessenger({
+        actionHandlers: {
+          'StorageService:getItem': getItem,
+          'StorageService:removeItem': removeItem,
+        },
+      });
+      const messenger = createServiceMessenger(rootMessenger);
+      const publishSpy = jest.spyOn(messenger, 'publish');
+      const service = new ExampleDataService(messenger);
+
+      service.init();
+      await new Promise(setImmediate);
+
+      expect(removeItem).toHaveBeenCalledWith(serviceName, STORAGE_SERVICE_KEY);
+      expect(publishSpy).not.toHaveBeenCalled();
+    });
+
+    it('skips persisted queries rejected by shouldHydrateQuery', async () => {
+      cleanAll();
+      const networkScope = mockAssets();
+      const getItem = jest.fn().mockResolvedValue({
+        result: {
+          state: {
+            queries: [
+              {
+                queryHash: hashKey([
+                  'ExampleDataService:getAssets',
+                  MOCK_ASSETS,
+                ]),
+                queryKey: ['ExampleDataService:getAssets', MOCK_ASSETS],
+                state: {
+                  data: [
+                    {
+                      assetId: 'eip155:1/slip44:60',
+                      decimals: 18,
+                      name: 'Ethereum',
+                      symbol: 'ETH',
+                    },
+                  ],
+                  dataUpdateCount: 1,
+                  dataUpdatedAt: Date.now(),
+                  error: null,
+                  errorUpdateCount: 0,
+                  errorUpdatedAt: 0,
+                  fetchFailureCount: 0,
+                  fetchFailureReason: null,
+                  fetchMeta: null,
+                  fetchStatus: 'idle',
+                  isInvalidated: false,
+                  status: 'success',
+                },
+              },
+            ],
+            mutations: [],
+          },
+          timestamp: Date.now(),
+        },
+      });
+      const rootMessenger = createRootMessenger({
+        actionHandlers: {
+          'StorageService:getItem': getItem,
+        },
+      });
+      const messenger = createServiceMessenger(rootMessenger);
+      const shouldHydrateQuery = jest.fn(() => false);
+      const service = new ExampleDataService(messenger, {
+        persistenceConfig: { maxAge: 1000, shouldHydrateQuery },
+      });
+
+      service.init();
+      await new Promise(setImmediate);
+
+      const result = await service.getAssets(MOCK_ASSETS);
+
+      expect(shouldHydrateQuery).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(3);
+      expect(networkScope.isDone()).toBe(true);
+
+      service.destroy();
     });
 
     it('discards the cache if it has expired', async () => {
