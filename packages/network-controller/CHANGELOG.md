@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add a `getRequestHeaders` option to `RpcServiceOptions`, which can be supplied per endpoint through `NetworkControllerOptions.getRpcServiceOptions` ([#10252](https://github.com/MetaMask/core/pull/10252))
+  - The callback runs immediately before each HTTP request, including each retry attempt, so headers that change over the lifetime of a network client are read again rather than captured once.
+  - Its headers take precedence over those in `fetchOptions` and those passed to `request`. Because an RPC service is bound to a single endpoint, they only ever reach that endpoint.
+  - If the callback rejects, the request attempt fails with that error. Resolve with `undefined` to make the request without the headers instead.
+
 ### Changed
 
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
