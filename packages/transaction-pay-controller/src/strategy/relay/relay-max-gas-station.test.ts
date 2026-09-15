@@ -5,6 +5,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { CHAIN_ID_POLYGON, NATIVE_TOKEN_ADDRESS } from '../../constants.js';
 import { TransactionPayStrategy } from '../../index.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
@@ -214,6 +215,123 @@ describe('relay-max-gas-station', () => {
     getTokenBalanceMock.mockReturnValue('100');
 
     const request = { ...BASE_REQUEST };
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenCalledTimes(1);
+    expect(result).toBe(phase1Quote);
+  });
+
+  it('reserves network fees when max source token is native and account does not support EIP-7702', async () => {
+    const phase1Quote = makeQuote({
+      sourceAmountRaw: '100000',
+      sourceNetworkGasRaw: '100',
+    });
+    const phase2Quote = makeQuote({
+      sourceAmountRaw: '99900',
+      sourceNetworkGasRaw: '100',
+    });
+    const getSingleQuote = jest
+      .fn()
+      .mockResolvedValueOnce(phase1Quote)
+      .mockResolvedValueOnce(phase2Quote);
+    getTokenBalanceMock.mockReturnValue('100000');
+    const nativeToken = getNativeTokenMock();
+    const request = {
+      ...BASE_REQUEST,
+      sourceTokenAddress: nativeToken,
+      sourceTokenAmount: '100000',
+    };
+
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenCalledTimes(2);
+    expect(getSingleQuote).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ sourceTokenAmount: '99900' }),
+      expect.any(Object),
+    );
+    expect(result).toBe(phase2Quote);
+  });
+
+  it('reserves network fees when Polygon native Max uses the Relay address', async () => {
+    const phase1Quote = makeQuote({
+      sourceAmountRaw: '100000',
+      sourceNetworkGasRaw: '100',
+    });
+    const phase2Quote = makeQuote({
+      sourceAmountRaw: '99900',
+      sourceNetworkGasRaw: '100',
+    });
+    const getSingleQuote = jest
+      .fn()
+      .mockResolvedValueOnce(phase1Quote)
+      .mockResolvedValueOnce(phase2Quote);
+    const request = {
+      ...BASE_REQUEST,
+      sourceChainId: CHAIN_ID_POLYGON,
+      sourceTokenAddress: NATIVE_TOKEN_ADDRESS,
+      sourceTokenAmount: '100000',
+    };
+
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ sourceTokenAmount: '99900' }),
+      expect.any(Object),
+    );
+    expect(result).toBe(phase2Quote);
+  });
+
+  it('returns phase-1 quote when the adjusted native Max quote fails', async () => {
+    const phase1Quote = makeQuote({
+      sourceAmountRaw: '100000',
+      sourceNetworkGasRaw: '100',
+    });
+    const getSingleQuote = jest
+      .fn()
+      .mockResolvedValueOnce(phase1Quote)
+      .mockRejectedValueOnce(new Error('adjusted quote failed'));
+    const request = {
+      ...BASE_REQUEST,
+      sourceTokenAddress: getNativeTokenMock(),
+      sourceTokenAmount: '100000',
+    };
+
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenCalledTimes(2);
+    expect(result).toBe(phase1Quote);
+  });
+
+  it('returns phase-1 quote when native network fees consume the Max amount', async () => {
+    const phase1Quote = makeQuote({
+      sourceAmountRaw: '100',
+      sourceNetworkGasRaw: '100',
+    });
+    const getSingleQuote = jest.fn().mockResolvedValue(phase1Quote);
+    const request = {
+      ...BASE_REQUEST,
+      sourceTokenAddress: getNativeTokenMock(),
+      sourceTokenAmount: '100',
+    };
+
     const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),

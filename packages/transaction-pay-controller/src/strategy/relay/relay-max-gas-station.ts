@@ -1,6 +1,7 @@
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import { NATIVE_TOKEN_ADDRESS } from '../../constants.js';
 import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyGetQuotesRequest,
@@ -86,6 +87,14 @@ export async function getRelayMaxGasStationQuote(
 
   if (phase1Quote.original.metamask?.isExecute) {
     return phase1Quote;
+  }
+
+  if (!fullRequest.accountSupports7702 && isNativeSourceToken(request)) {
+    return getNativeMaxQuoteWithReservedFees(
+      phase1Quote,
+      new BigNumber(sourceTokenAmount),
+      context,
+    );
   }
 
   const nativeBalanceCheck = checkEnoughNativeBalanceIfSourceGasFeeTokenNotUsed(
@@ -216,6 +225,46 @@ export async function getRelayMaxGasStationQuote(
   markQuoteAsMaxGasStation(phase2Quote);
 
   return phase2Quote;
+}
+
+function isNativeSourceToken(request: QuoteRequest): boolean {
+  const sourceTokenAddress = request.sourceTokenAddress.toLowerCase();
+
+  return (
+    sourceTokenAddress ===
+      getNativeToken(request.sourceChainId).toLowerCase() ||
+    sourceTokenAddress === NATIVE_TOKEN_ADDRESS.toLowerCase()
+  );
+}
+
+async function getNativeMaxQuoteWithReservedFees(
+  phase1Quote: TransactionPayQuote<RelayQuote>,
+  sourceAmount: BigNumber,
+  context: MaxAmountQuoteContext,
+): Promise<TransactionPayQuote<RelayQuote>> {
+  const networkFee = new BigNumber(phase1Quote.fees.sourceNetwork.max.raw);
+  const adjustedSourceAmount = getAdjustedSourceAmount(
+    sourceAmount,
+    networkFee,
+  );
+
+  if (!networkFee.isGreaterThan(0) || !adjustedSourceAmount.isGreaterThan(0)) {
+    return fallbackToPhase1(
+      phase1Quote,
+      'Unable to reserve native network fees',
+    );
+  }
+
+  const adjustedQuote = await getAdjustedPhase2Quote(
+    adjustedSourceAmount,
+    {
+      amount: networkFee,
+      source: GasCostEstimateSource.Quote,
+    },
+    context,
+  );
+
+  return adjustedQuote ?? phase1Quote;
 }
 
 function checkEnoughNativeBalanceIfSourceGasFeeTokenNotUsed(
