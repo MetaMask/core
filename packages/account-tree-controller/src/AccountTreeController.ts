@@ -64,6 +64,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'setAccountGroupHidden',
   'getAccountWalletObject',
   'getAccountWalletObjects',
+  'removeAccountWallet',
   'getAccountGroupObject',
   'clearState',
   'syncWithUserStorage',
@@ -478,6 +479,15 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Gets the entropy source ID of the primary HD keyring.
+   *
+   * @returns The primary entropy source ID, or `undefined` if no HD keyring exists.
+   */
+  #getPrimaryEntropySource() {
+    return this.#getEntropyRule().getPrimaryEntropySource();
+  }
+
+  /**
    * Rule for Snap-base wallets.
    *
    * @returns The rule for snap-based wallets.
@@ -810,6 +820,119 @@ export class AccountTreeController extends BaseController<
       state.accountGroupsMetadata[groupId].lastSelected = 0;
 
       group.metadata.lastSelected = 0;
+    }
+  }
+
+  /**
+   * Removes an account wallet and all of its underlying accounts.
+   *
+   * The account tree is a derived view of AccountsController state, so this
+   * method intentionally does not mutate tree nodes directly. Account removal
+   * causes AccountsController to publish `accountsRemoved`, which lets
+   * `#handleAccountsRemoved` consistently prune tree nodes, reverse mappings,
+   * metadata, and selection state.
+   *
+   * @param walletId - Account wallet ID.
+   * @throws If the account tree has not been initialized.
+   * @throws If the wallet does not exist.
+   * @throws If the wallet belongs to the primary HD keyring.
+   */
+  async removeAccountWallet(walletId: AccountWalletId): Promise<void> {
+    if (!this.#initialized) {
+      throw new Error('Account tree is not initialized');
+    }
+
+    this.#assertAccountWalletExists(walletId);
+    const wallet = this.state.accountTree.wallets[walletId];
+
+    if (wallet.type === AccountWalletType.Entropy) {
+      // Handle removal of entropy-based account wallets.
+      if (wallet.metadata.entropy.id === this.#getPrimaryEntropySource()) {
+        throw new Error('Cannot remove the primary account wallet');
+      }
+
+      await this.messenger.call(
+        'MultichainAccountService:removeMultichainAccountWallet',
+        wallet.metadata.entropy.id,
+      );
+    } else {
+      // Handle removal of non-entropy-based account wallets (Snap accounts, hardware wallets, etc.).
+
+      // Snapshot IDs before the first removal. Each removeAccount call can
+      // synchronously publish accountsRemoved and mutate wallet.groups.
+      const accountIds = Object.values(wallet.groups).flatMap((group) => [
+        ...group.accounts,
+      ]);
+      const failures: { accountId: AccountId; error: unknown }[] = [];
+
+      for (const accountId of accountIds) {
+        const account = this.messenger.call(
+          'AccountsController:getAccount',
+          accountId,
+        );
+        if (!account) {
+          failures.push({
+            accountId,
+            error: new Error('Account not found'),
+          });
+          continue;
+        }
+
+        try {
+          // For Snaps, SnapKeyring removes its local account before notifying the Snap
+          // and catches Snap-side failures, so this also provides forced cleanup
+          // for Snap accounts.
+          //
+          // For hardware wallets, removal is local and does not require the device
+          // to be connected.
+          await this.messenger.call(
+            'KeyringController:removeAccount',
+            account.address,
+          );
+        } catch (error) {
+          failures.push({ accountId, error });
+        }
+      }
+
+      if (failures.length > 0) {
+        log(`[${walletId}] Failed to remove one or more wallet accounts`, {
+          failures,
+        });
+      }
+    }
+
+    // Successful account removal normally prunes the wallet through
+    // #handleAccountsRemoved. A leftover is diagnostic only: deletion is
+    // best-effort and may already have produced irreversible side effects.
+    const remainingWallet = this.getAccountWalletObject(walletId);
+    if (remainingWallet) {
+      const remainingAccountIds = Object.values(remainingWallet.groups).flatMap(
+        (group) => group.accounts,
+      );
+      if (remainingAccountIds.length > 0) {
+        log(`[${walletId}] Account wallet removal is incomplete`, {
+          remainingAccountIds,
+        });
+        // Stable message so it stays groupable if reported later. Wallet IDs
+        // are safe to log in the extra argument: entropy wallets use a ULID,
+        // keyring wallets use a keyring type, and Snap wallets use a Snap ID.
+        console.error('Account wallet removal is incomplete', {
+          walletId,
+          remainingAccountIds,
+        });
+      } else {
+        // This cannot occur through the normal event flow because
+        // #handleAccountsRemoved prunes an empty wallet atomically. Keep the
+        // diagnostic for externally restored or otherwise inconsistent state.
+        /* istanbul ignore next */
+        log(
+          `[${walletId}] Account wallet remains in the tree without accounts`,
+        );
+        /* istanbul ignore next */
+        console.error('Account wallet remains in the tree without accounts', {
+          walletId,
+        });
+      }
     }
   }
 

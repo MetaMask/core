@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `AccountTreeController:removeAccountWallet`([#10253](https://github.com/MetaMask/core/pull/10253))
+  - It removes all accounts in a non-primary wallet.
+  - It rejects removal of the primary HD wallet.
+  - We now need those new actions on the messenger `MultichainAccountService:removeMultichainAccountWallet` and `KeyringController:removeAccount`.
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
