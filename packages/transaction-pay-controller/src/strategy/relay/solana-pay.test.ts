@@ -626,7 +626,15 @@ describe('Solana Relay Pay', () => {
     ['refund', 'refund'],
     ['refunded', 'refund'],
     ['waiting', 'pending'],
+    ['depositing', 'pending'],
+    ['pending', 'pending'],
+    ['submitted', 'pending'],
+    ['delayed', 'pending'],
   ] as const)('maps Relay status %s to %s', (relayStatus, expected) => {
     expect(mapRelayStatus(relayStatus)).toBe(expected);
+  });
+
+  it('fails closed for an unrecognized Relay status', () => {
+    expect(mapRelayStatus('new-provider-status' as 'waiting')).toBe('unknown');
   });
 });

@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add validated chain-agnostic Pay source metadata and a phase-aware external Solana execution checkpoint to persisted transaction records while keeping ordinary Pay selection state transient ([#10272](https://github.com/MetaMask/core/pull/10272), [#10273](https://github.com/MetaMask/core/pull/10273))
 - Add the Relay `/quote/v2` Solana instruction/LUT path, normalized preflight, and one source sign-and-broadcast attempt with status-only recovery ([#10273](https://github.com/MetaMask/core/pull/10273))
 - Add the separate one-sponsored Money Account destination follow-up and atomic Perps/Predict destination calls ([#10273](https://github.com/MetaMask/core/pull/10273))
+- Add fail-closed Solana Pay admission, privacy-safe lifecycle events, and stable support diagnostics for source, settlement, notification, follow-up, and recovery outcomes ([#10274](https://github.com/MetaMask/core/pull/10274))
 
 ### Changed
 

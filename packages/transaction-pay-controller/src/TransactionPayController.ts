@@ -17,6 +17,12 @@ import {
   TransactionPayStrategy,
 } from './constants.js';
 import { QuoteRefresher } from './helpers/QuoteRefresher.js';
+import {
+  getSolanaPaySupportDiagnostics,
+  isSolanaPayLifecycleTransition,
+  SolanaPayError,
+  withSolanaPayErrorCode,
+} from './solana-pay-diagnostics.js';
 import { RELAY_SOLANA_CHAIN_ID } from './strategy/relay/constants.js';
 import {
   fetchRelaySolanaQuote,
@@ -41,9 +47,12 @@ import type {
   PolymarketCallbacks,
   SetPaySourceRequest,
   SolanaPayCallbacks,
+  SolanaPayErrorCode,
+  SolanaPayLifecyclePayload,
   SolanaPayQuote,
   SolanaPayStatus,
   SolanaPaySubmissionResult,
+  SolanaPaySupportDiagnostics,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -59,6 +68,7 @@ import {
   getRelayPollingInterval,
   getRelayPollingTimeout,
   getStrategyOrder,
+  isSolanaPayEnabled,
 } from './utils/feature-flags.js';
 import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
@@ -75,6 +85,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getFiatOptions',
   'getPaymentOverrideData',
   'getSolanaPayQuote',
+  'getSolanaPaySupportDiagnostics',
   'getStrategy',
   'polymarketGetDepositWalletAddress',
   'reconcileSolanaPay',
@@ -152,6 +163,7 @@ function getSolanaPayStatus(
   }
 
   return {
+    errorCode: execution.errorCode,
     followUpStatus: execution.followUpStatus,
     followUpTransactionId: execution.followUpTransactionId,
     notificationStatus: execution.notificationStatus,
@@ -168,6 +180,20 @@ function getSolanaPayStatus(
   };
 }
 
+function getSolanaPaySubmissionErrorCode(
+  submission: Exclude<SolanaPaySubmissionResult, { outcome: 'submitted' }>,
+): SolanaPayErrorCode {
+  if (submission.outcome === 'user-rejected') {
+    return 'user_rejected';
+  }
+
+  if (submission.outcome === 'ambiguous') {
+    return 'submission_unknown';
+  }
+
+  return submission.errorCode ?? 'preflight_failed';
+}
+
 function getFollowUpStatusFromSubmission(
   outcome: SolanaPaySubmissionResult['outcome'],
 ): MetamaskPaySolanaExecution['followUpStatus'] {
@@ -178,21 +204,32 @@ function getFollowUpStatusFromSubmission(
   return outcome === 'ambiguous' ? 'unknown' : 'failed';
 }
 
-function getSolanaPayFailure(status: SolanaPayStatus): string | undefined {
+function getSolanaPayFailure(
+  status: SolanaPayStatus,
+): SolanaPayError | undefined {
   if (status.outcome === 'source-failed') {
-    return status.sourceFailureReason ?? 'Solana source transaction failed';
+    return new SolanaPayError(
+      status.errorCode ?? 'source_transaction_failed',
+      'Solana source transaction failed',
+    );
   }
 
   if (status.outcome === 'relay-failed') {
-    return status.relayFailureReason ?? 'Relay settlement failed';
+    return new SolanaPayError('settlement_failed', 'Relay settlement failed');
   }
 
   if (status.outcome === 'refunded') {
-    return status.relayFailureReason ?? 'Relay settlement refunded';
+    return new SolanaPayError(
+      'settlement_refunded',
+      'Relay settlement refunded',
+    );
   }
 
   if (status.outcome === 'follow-up-failed') {
-    return 'Solana pay non-atomic follow-up failed';
+    return new SolanaPayError(
+      'follow_up_failed',
+      'Solana pay non-atomic follow-up failed',
+    );
   }
 
   return undefined;
@@ -331,6 +368,10 @@ export class TransactionPayController extends BaseController<
       );
     }
 
+    if (!isSolanaPayEnabled(this.messenger)) {
+      throw new Error('TransactionPayController: Solana Pay is disabled');
+    }
+
     const quoteRequest = await buildRelaySolanaQuoteRequest(
       source,
       request.sourceAmountRaw,
@@ -407,6 +448,20 @@ export class TransactionPayController extends BaseController<
   }
 
   /**
+   * Returns a privacy-safe support projection for a durable Solana execution.
+   *
+   * @param transactionId - Target TransactionController transaction ID.
+   * @returns Stable categorical diagnostics without raw transaction details.
+   */
+  getSolanaPaySupportDiagnostics(
+    transactionId: string,
+  ): SolanaPaySupportDiagnostics {
+    const { execution, source } =
+      this.#requireSolanaExecution(transactionId);
+    return getSolanaPaySupportDiagnostics(source, execution);
+  }
+
+  /**
    * Performs at most one client-owned Solana sign-and-broadcast attempt.
    *
    * The `attempting` checkpoint is persisted before invoking the callback.
@@ -459,6 +514,7 @@ export class TransactionPayController extends BaseController<
         transactionId,
         {
           ...execution,
+          errorCode: getSolanaPaySubmissionErrorCode(submission),
           phase,
           sourceFailureReason:
             submission.outcome === 'user-rejected'
@@ -543,6 +599,13 @@ export class TransactionPayController extends BaseController<
    * @returns Latest durable status.
    */
   async reconcileSolanaPay(transactionId: string): Promise<SolanaPayStatus> {
+    return await this.#reconcileSolanaPay(transactionId, false);
+  }
+
+  async #reconcileSolanaPay(
+    transactionId: string,
+    isRecovery: boolean,
+  ): Promise<SolanaPayStatus> {
     const { execution: initialExecution, source } =
       this.#requireSolanaExecution(transactionId);
     const relayResult = await observePromise(
@@ -593,6 +656,7 @@ export class TransactionPayController extends BaseController<
           : updated;
       },
       'Observe Relay Solana status',
+      isRecovery,
     );
 
     const { execution } = this.#requireSolanaExecution(transactionId);
@@ -622,10 +686,11 @@ export class TransactionPayController extends BaseController<
               : 'unknown',
         }),
         'Observe Solana source status',
+        isRecovery,
       );
     }
 
-    await this.#advanceNonAtomicFollowUp(transactionId);
+    await this.#advanceNonAtomicFollowUp(transactionId, isRecovery);
 
     const status = this.#getSolanaPayStatus(transactionId);
     this.#updateSolanaParentLifecycle(transactionId, status);
@@ -839,7 +904,7 @@ export class TransactionPayController extends BaseController<
     const startTime = Date.now();
 
     while (true) {
-      const status = await this.reconcileSolanaPay(transactionId);
+      const status = await this.#reconcileSolanaPay(transactionId, true);
 
       if (isTerminalSolanaPayOutcome(status)) {
         return status;
@@ -857,7 +922,10 @@ export class TransactionPayController extends BaseController<
     }
   }
 
-  async #advanceNonAtomicFollowUp(transactionId: string): Promise<void> {
+  async #advanceNonAtomicFollowUp(
+    transactionId: string,
+    isRecovery: boolean,
+  ): Promise<void> {
     let { execution, transaction } =
       this.#requireSolanaExecution(transactionId);
 
@@ -883,6 +951,7 @@ export class TransactionPayController extends BaseController<
         transactionId,
         { ...execution, followUpStatus: 'attempting' },
         'Start one sponsored Money Account destination follow-up',
+        isRecovery,
       );
 
       const result = await submitFollowUp({
@@ -901,6 +970,7 @@ export class TransactionPayController extends BaseController<
             result.outcome === 'submitted' ? result.transactionId : undefined,
         }),
         `Record Money Account destination follow-up: ${result.outcome}`,
+        isRecovery,
       );
 
       ({ execution, transaction } =
@@ -935,6 +1005,7 @@ export class TransactionPayController extends BaseController<
             result.status === 'fulfilled' ? result.value : 'unknown',
         }),
         'Observe Money Account destination follow-up',
+        isRecovery,
       );
     }
   }
@@ -955,7 +1026,7 @@ export class TransactionPayController extends BaseController<
       this.messenger.call(
         'TransactionController:failTransaction',
         transactionId,
-        new Error(failure),
+        failure,
       );
       return;
     }
@@ -1049,9 +1120,12 @@ export class TransactionPayController extends BaseController<
   }
 
   #getSolanaPayStatus(transactionId: string): SolanaPayStatus {
-    return getSolanaPayStatus(
-      this.#requireSolanaExecution(transactionId).execution,
-    );
+    const { execution, source } =
+      this.#requireSolanaExecution(transactionId);
+    const status = getSolanaPayStatus(execution);
+    const diagnostics = getSolanaPaySupportDiagnostics(source, execution);
+
+    return { ...status, errorCode: diagnostics.errorCode };
   }
 
   #updateSolanaExecution(
@@ -1060,12 +1134,14 @@ export class TransactionPayController extends BaseController<
       execution: MetamaskPaySolanaExecution,
     ) => MetamaskPaySolanaExecution,
     note: string,
+    isRecovery = false,
   ): void {
     const { execution } = this.#requireSolanaExecution(transactionId);
     this.#persistSolanaExecution(
       transactionId,
       updateExecution(execution),
       note,
+      isRecovery,
     );
   }
 
@@ -1073,14 +1149,38 @@ export class TransactionPayController extends BaseController<
     transactionId: string,
     execution: MetamaskPaySolanaExecution,
     note: string,
+    isRecovery = false,
   ): void {
+    const transaction = this.#requireTransaction(transactionId);
+    const source = this.#requireSolanaPaySource(transaction);
+    const previousExecution = transaction.metamaskPay?.solanaExecution;
+    const previousDiagnostics = previousExecution
+      ? getSolanaPaySupportDiagnostics(source, previousExecution)
+      : undefined;
+    const persistedExecution = withSolanaPayErrorCode(execution);
+    const nextDiagnostics = getSolanaPaySupportDiagnostics(
+      source,
+      persistedExecution,
+    );
+
     updateTransaction(
       { transactionId, messenger: this.messenger, note },
-      (transaction) => {
-        transaction.metamaskPay ??= {};
-        transaction.metamaskPay.solanaExecution = { ...execution };
+      (current) => {
+        current.metamaskPay ??= {};
+        current.metamaskPay.solanaExecution = { ...persistedExecution };
       },
     );
+
+    if (isSolanaPayLifecycleTransition(previousDiagnostics, nextDiagnostics)) {
+      const payload: SolanaPayLifecyclePayload = {
+        ...nextDiagnostics,
+        isRecovery,
+      };
+      this.messenger.publish(
+        'TransactionPayController:solanaPayLifecycle',
+        payload,
+      );
+    }
   }
 
   #removeTransactionData(transactionId: string): void {

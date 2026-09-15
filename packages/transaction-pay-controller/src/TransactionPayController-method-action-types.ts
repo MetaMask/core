@@ -29,6 +29,17 @@ export type TransactionPayControllerGetSolanaPayQuoteAction = {
 };
 
 /**
+ * Returns a privacy-safe support projection for a durable Solana execution.
+ *
+ * @param transactionId - Target TransactionController transaction ID.
+ * @returns Stable categorical diagnostics without raw transaction details.
+ */
+export type TransactionPayControllerGetSolanaPaySupportDiagnosticsAction = {
+  type: `TransactionPayController:getSolanaPaySupportDiagnostics`;
+  handler: TransactionPayController['getSolanaPaySupportDiagnostics'];
+};
+
+/**
  * Performs at most one client-owned Solana sign-and-broadcast attempt.
  *
  * The `attempting` checkpoint is persisted before invoking the callback.
@@ -215,6 +226,7 @@ export type TransactionPayControllerPolymarketSubmitDepositWalletBatchAction = {
 export type TransactionPayControllerMethodActions =
   | TransactionPayControllerSetPaySourceAction
   | TransactionPayControllerGetSolanaPayQuoteAction
+  | TransactionPayControllerGetSolanaPaySupportDiagnosticsAction
   | TransactionPayControllerSubmitSolanaPayAction
   | TransactionPayControllerNotifyRelayOfSolanaTransactionAction
   | TransactionPayControllerReconcileSolanaPayAction

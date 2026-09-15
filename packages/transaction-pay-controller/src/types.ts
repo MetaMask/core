@@ -46,6 +46,7 @@ import type {
 import type {
   BatchTransaction,
   BatchTransactionParams,
+  MetamaskPaySolanaErrorCode,
   MetamaskPaySolanaExecution,
   MetamaskPaySolanaFollowUpStatus,
   MetamaskPaySolanaNotificationStatus,
@@ -277,8 +278,39 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerMethodActions;
 
+export type SolanaPayErrorCode = MetamaskPaySolanaErrorCode;
+
+/** Privacy-safe projection of a durable Solana execution checkpoint. */
+export type SolanaPaySupportDiagnostics = {
+  errorCode?: SolanaPayErrorCode;
+  followUpStatus: MetamaskPaySolanaFollowUpStatus;
+  followUpTransactionIdPresent: boolean;
+  notificationStatus: MetamaskPaySolanaNotificationStatus;
+  outcome: SolanaPayOutcome;
+  phase: MetamaskPaySolanaExecution['phase'];
+  provider: 'relay';
+  relayStatus: MetamaskPaySolanaRelayStatus;
+  requestIdPresent: boolean;
+  sourceAssetClass: 'native' | 'token';
+  sourceStatus: MetamaskPaySolanaSourceStatus;
+  sourceTransactionIdPresent: boolean;
+  targetTransactionIdPresent: boolean;
+};
+
+/** Privacy-safe lifecycle payload for client-owned analytics. */
+export type SolanaPayLifecyclePayload = SolanaPaySupportDiagnostics & {
+  isRecovery: boolean;
+};
+
+/** Emitted for categorical external Solana lifecycle transitions. */
+export type TransactionPayControllerSolanaPayLifecycleEvent = {
+  type: `${typeof CONTROLLER_NAME}:solanaPayLifecycle`;
+  payload: [SolanaPayLifecyclePayload];
+};
+
 export type TransactionPayControllerEvents =
-  TransactionPayControllerStateChangeEvent;
+  | TransactionPayControllerStateChangeEvent
+  | TransactionPayControllerSolanaPayLifecycleEvent;
 
 export type TransactionPayControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,
@@ -366,7 +398,14 @@ export type SolanaPaySignAndSendTransactionRequest = {
 export type SolanaPaySubmissionResult =
   | { outcome: 'submitted'; transactionId: string }
   | { outcome: 'user-rejected' }
-  | { outcome: 'not-submitted'; reason?: string }
+  | {
+      outcome: 'not-submitted';
+      errorCode?: Extract<
+        SolanaPayErrorCode,
+        'quote_expired' | 'preflight_failed' | 'construction_failed'
+      >;
+      reason?: string;
+    }
   | { outcome: 'ambiguous'; reason?: string };
 
 export type GetSolanaPayTransactionStatusRequest = {
@@ -419,6 +458,7 @@ export type SolanaPayOutcome =
   | 'succeeded';
 
 export type SolanaPayStatus = {
+  errorCode?: SolanaPayErrorCode;
   outcome: SolanaPayOutcome;
   phase: MetamaskPaySolanaExecution['phase'];
   requestId: string;

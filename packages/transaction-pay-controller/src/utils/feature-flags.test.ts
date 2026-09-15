@@ -39,6 +39,7 @@ import {
   getEIP7702UpgradeContractAddress,
   isRelayExecuteEnabled,
   isRelayValidationEnabled,
+  isSolanaPayEnabled,
   getFeatureFlags,
   getGasBuffer,
   getHyperliquidActivationFeeConfig,
@@ -560,6 +561,46 @@ describe('Feature Flags Utils', () => {
       expect(
         getEIP7702UpgradeContractAddress(messenger, CHAIN_ID_MOCK),
       ).toBeUndefined();
+    });
+  });
+
+  describe('isSolanaPayEnabled', () => {
+    it('defaults to disabled', () => {
+      expect(isSolanaPayEnabled(messenger)).toBe(false);
+    });
+
+    it('returns true only when the Relay Solana capability is enabled', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: {
+                solana: { enabled: true },
+              },
+            },
+          },
+        },
+      });
+
+      expect(isSolanaPayEnabled(messenger)).toBe(true);
+    });
+
+    it('rejects truthy malformed values', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: {
+                solana: { enabled: 'true' },
+              },
+            },
+          },
+        },
+      });
+
+      expect(isSolanaPayEnabled(messenger)).toBe(false);
     });
   });
 
