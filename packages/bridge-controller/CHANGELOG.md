@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `quote.feeData.reserve` on V2 quotes for native minimum-balance requirements ([#10241](https://github.com/MetaMask/core/pull/10241))
+  - Sibling of `feeData.network`, not a `FeeType`, so fee aggregators do not treat it as spendable
+  - Normalized via `toNormalizedAmounts`; preserved when coercing V1 ↔ V2 and when merging quote metadata in `V1Data`
+  - Optional on V1 `QuoteSchema` as well so `toQuoteResponseV1` does not strip it
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))

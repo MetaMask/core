@@ -1,3 +1,4 @@
+import { BigNumber } from 'bignumber.js';
 import { merge } from 'lodash-es';
 
 import { getMockBridgeQuotesErc20Erc20V2 } from '../../../tests/mock-quotes-erc20-erc20.js';
@@ -8,6 +9,7 @@ import {
 } from '../../index.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
 import { mergeQuoteMetadata } from './merge.js';
+import { toCurrencyValues } from './to-currency-values.js';
 import { toNormalizedAmounts } from './to-normalized-amounts.js';
 import { QuoteMetadataMigrationPhase } from './types.js';
 import type { QuoteMetadata } from './types.js';
@@ -43,6 +45,19 @@ const EMPTY_QUOTE = {
 
 const quoteResponseV2 = getMockBridgeQuotesErc20Erc20V2()[0];
 const normalizedAmounts = toNormalizedAmounts(quoteResponseV2);
+
+const quoteResponseV2WithReserve = structuredClone(quoteResponseV2);
+quoteResponseV2WithReserve.quote.feeData.reserve = [
+  {
+    amount: '15000000',
+    asset: {
+      assetId: 'stellar:pubnet/slip44:148',
+      symbol: 'XLM',
+      name: 'Stellar Lumens',
+      decimals: 7,
+    },
+  },
+];
 
 const v2PartialMetadata = {
   quote: {
@@ -104,6 +119,38 @@ const legacyQuoteMetadata = {
     valueInCurrency: '401',
   },
 };
+
+describe('toNormalizedAmounts', () => {
+  it('normalizes a quote-carried native reserve', () => {
+    expect(
+      toNormalizedAmounts(quoteResponseV2WithReserve).quote?.feeData
+        ?.reserve?.[0]?.normalizedAmount,
+    ).toBe('1.5');
+  });
+});
+
+describe('toCurrencyValues', () => {
+  it('derives fiat for a quote-carried native reserve without treating it as a FeeType', () => {
+    const quote = structuredClone(quoteResponseV2WithReserve);
+    quote.quote.feeData.reserve = [
+      {
+        amount: '15000000',
+        usd: '1.5',
+        asset: {
+          assetId: 'stellar:pubnet/slip44:148' as const,
+          symbol: 'XLM',
+          name: 'Stellar Lumens',
+          decimals: 7,
+        },
+      },
+    ];
+
+    expect(
+      toCurrencyValues(quote, new BigNumber(2)).quote?.feeData?.reserve?.[0]
+        ?.valueInCurrency,
+    ).toBe('3');
+  });
+});
 
 describe('mergeQuoteMetadata', () => {
   // PHASE 1
@@ -167,6 +214,17 @@ describe('mergeQuoteMetadata', () => {
       quoteResponse: { a: 1 },
       quoteMetadata: { b: 2 } as QuoteMetadata,
       mergedQuote: { a: 1, b: 2, ...EMPTY_QUOTE },
+    },
+    {
+      title: 'preserves quote-carried native reserve',
+      quoteResponse: quoteResponseV2WithReserve,
+      quoteMetadata: {},
+      mergedQuote: merge(
+        {},
+        EMPTY_QUOTE,
+        quoteResponseV2WithReserve,
+        toNormalizedAmounts(quoteResponseV2WithReserve),
+      ),
     },
   ])(
     'merged quote $title (Phase 1)',

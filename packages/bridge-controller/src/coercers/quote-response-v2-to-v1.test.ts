@@ -215,6 +215,28 @@ describe('quote-response-v1 compatibility', () => {
       expect(quoteResponseV1).toStrictEqual(quoteResponse);
     });
 
+    it('preserves native reserve from a V2 quote', () => {
+      const quoteResponseV2 = structuredClone(
+        toQuoteResponseV2(mockBridgeQuotesErc20Erc20V1[0]),
+      );
+      const reserve = [
+        {
+          amount: '15000000',
+          asset: {
+            assetId: 'stellar:pubnet/slip44:148' as const,
+            symbol: 'XLM',
+            name: 'Stellar Lumens',
+            decimals: 7,
+          },
+        },
+      ];
+      quoteResponseV2.quote.feeData.reserve = reserve;
+
+      expect(
+        toQuoteResponseV1(quoteResponseV2).quote.feeData.reserve,
+      ).toStrictEqual(reserve);
+    });
+
     it('should return a valid QuoteResponseV1 with V2 input (remove metadata)', () => {
       const quoteResponseV1WithMetadata = {
         ...mockBridgeQuotesErc20Erc20V1[0],
