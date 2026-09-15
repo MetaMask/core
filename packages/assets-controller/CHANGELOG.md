@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `TokenDataSource` spam filtering now removes filtered assets from `assetsBalance` and `detectedAssets` using case-insensitive asset ID matching (previously only `assetsInfo` was matched case-insensitively), so spam tokens whose IDs arrive in a different case than state no longer survive in the pipeline response and persist to state ([#10172](https://github.com/MetaMask/core/pull/10172))
+
 ## [16.1.0]
 
 ### Added
@@ -24,10 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@metamask/phishing-controller` from `^18.0.0` to `^18.1.0` ([#10234](https://github.com/MetaMask/core/pull/10234))
 - Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.0.1` ([#10242](https://github.com/MetaMask/core/pull/10242))
-
-### Fixed
-
-- Remove spam assets from balances, metadata, and detected assets regardless of asset ID casing, so filtered spam tokens no longer appear in state ([#10172](https://github.com/MetaMask/core/pull/10172))
 
 ## [16.0.0]
 
