@@ -62,14 +62,14 @@ The monorepo uses a hierarchical configuration approach for different tools. For
 - `jest.config.scripts.js` defines shared Jest settings for all directories in `scripts/`.
 - `packages/**/jest.config.js` (and `scripts/create-package/package-template/jest.config.js`) customizes Jest settings for each package.
 
-#### ESLint
+#### Oxlint
 
-- `eslint.config.mjs` configures ESLint for the entire monorepo.
-- `eslint-suppressions.json` isn't a config file per se, but defines ESLint errors that are being ignored (temporarily).
+- `oxlint.config.ts` configures Oxlint for the entire monorepo.
+- `oxlint-suppressions.json` isn't a config file per se, but defines Oxlint errors that are being ignored (temporarily).
 
-#### Prettier
+#### Oxfmt
 
-- `.prettierrc.js` configures Prettier for the entire repo.
+- `.oxfmtrc.json` configures Oxlint for the entire repo.
 
 #### TypeDoc
 
