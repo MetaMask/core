@@ -334,7 +334,9 @@ describe('EntropyRule', () => {
         ],
       }));
 
-      expect(rule.getPrimaryEntropySource()).toBe(MOCK_HD_KEYRING_1.metadata.id);
+      expect(rule.getPrimaryEntropySource()).toBe(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
     });
 
     it('skips non-HD keyrings before the first HD keyring', () => {
@@ -355,7 +357,9 @@ describe('EntropyRule', () => {
         ],
       }));
 
-      expect(rule.getPrimaryEntropySource()).toBe(MOCK_HD_KEYRING_1.metadata.id);
+      expect(rule.getPrimaryEntropySource()).toBe(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
     });
 
     it('returns undefined when there is no HD keyring', () => {
