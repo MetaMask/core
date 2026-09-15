@@ -950,15 +950,11 @@ export class AnalyticsController extends BaseController<
       return this.#laneFromContext(queuedEvent.context);
     }
 
-    if (queuedEvent.type === 'track') {
-      return this.#laneFromName(queuedEvent.eventName);
-    }
-
     if (queuedEvent.type === 'view') {
       return this.#laneFromName(queuedEvent.name);
     }
 
-    return AnalyticsLane.Product;
+    return this.#laneFromName(queuedEvent.eventName);
   }
 
   #laneFromFragmentNames(
