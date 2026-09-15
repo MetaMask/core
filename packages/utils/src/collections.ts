@@ -33,7 +33,7 @@ class FrozenMap<Key, Value> implements ReadonlyMap<Key, Value> {
 
   public forEach(
     callbackfn: (value: Value, key: Key, map: this) => void,
-    thisArg?: any,
+    thisArg?: unknown,
   ): void {
     // We have to wrap the specified callback in order to prevent it from
     // receiving a reference to the inner map.
@@ -98,7 +98,7 @@ class FrozenSet<Value> implements ReadonlySet<Value> {
 
   public forEach(
     callbackfn: (value: Value, value2: Value, set: this) => void,
-    thisArg?: any,
+    thisArg?: unknown,
   ): void {
     // We have to wrap the specified callback in order to prevent it from
     // receiving a reference to the inner set.

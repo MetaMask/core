@@ -103,7 +103,9 @@ describe('hasProperty', () => {
     exampleErrorWithCode.code = 999;
 
     // Establish that trying to check for a custom property on an error results in failure
-    expect(exampleErrorWithCode).type.not.toBeAssignableTo<{ code: any }>();
+    expect(exampleErrorWithCode).type.not.toBeAssignableTo<{
+      code: unknown;
+    }>();
 
     if (hasProperty(exampleErrorWithCode, 'code')) {
       expect(exampleErrorWithCode.code).type.toBe<unknown>();

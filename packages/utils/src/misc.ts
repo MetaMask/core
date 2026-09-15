@@ -120,7 +120,7 @@ export const hasProperty = <
  * derived from the object itself.
  */
 export function getKnownPropertyNames<Key extends PropertyKey>(
-  object: Partial<Record<Key, any>>,
+  object: Partial<Record<Key, unknown>>,
 ): Key[] {
   return Object.getOwnPropertyNames(object) as Key[];
 }

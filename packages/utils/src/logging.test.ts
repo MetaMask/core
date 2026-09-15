@@ -19,7 +19,7 @@ describe('logging', () => {
       log.enabled = true;
       // Typecast: The Debugger type is wrong and does not include a `useColors`
       // property.
-      (log as any).useColors = false;
+      (log as unknown as { useColors: boolean }).useColors = false;
 
       log('Some message');
 
@@ -38,7 +38,7 @@ describe('logging', () => {
       log.enabled = true;
       // Typecast: The Debugger type is wrong and does not include a `useColors`
       // property.
-      (log as any).useColors = false;
+      (log as unknown as { useColors: boolean }).useColors = false;
 
       log('Some message');
 
