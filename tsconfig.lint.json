@@ -307,6 +307,9 @@
     },
     {
       "path": "./packages/wallet-framework-docs/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/package-template/tsconfig.lint.json"
     }
   ]
 }
