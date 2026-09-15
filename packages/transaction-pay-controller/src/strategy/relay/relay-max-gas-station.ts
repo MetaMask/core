@@ -235,9 +235,7 @@ async function getNativeMaxQuoteWithReservedFees(
   sourceAmount: BigNumber,
   context: MaxAmountQuoteContext,
 ): Promise<TransactionPayQuote<RelayQuote>> {
-  const networkFee = new BigNumber(
-    phase1Quote.fees.sourceNetwork.max.raw,
-  );
+  const networkFee = new BigNumber(phase1Quote.fees.sourceNetwork.max.raw);
   const adjustedSourceAmount = getAdjustedSourceAmount(
     sourceAmount,
     networkFee,

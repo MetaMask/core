@@ -260,6 +260,53 @@ describe('relay-max-gas-station', () => {
     expect(result).toBe(phase2Quote);
   });
 
+  it('returns phase-1 quote when the adjusted native Max quote fails', async () => {
+    const phase1Quote = makeQuote({
+      sourceAmountRaw: '100000',
+      sourceNetworkGasRaw: '100',
+    });
+    const getSingleQuote = jest
+      .fn()
+      .mockResolvedValueOnce(phase1Quote)
+      .mockRejectedValueOnce(new Error('adjusted quote failed'));
+    const request = {
+      ...BASE_REQUEST,
+      sourceTokenAddress: getNativeTokenMock(),
+      sourceTokenAmount: '100000',
+    };
+
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenCalledTimes(2);
+    expect(result).toBe(phase1Quote);
+  });
+
+  it('returns phase-1 quote when native network fees consume the Max amount', async () => {
+    const phase1Quote = makeQuote({
+      sourceAmountRaw: '100',
+      sourceNetworkGasRaw: '100',
+    });
+    const getSingleQuote = jest.fn().mockResolvedValue(phase1Quote);
+    const request = {
+      ...BASE_REQUEST,
+      sourceTokenAddress: getNativeTokenMock(),
+      sourceTokenAmount: '100',
+    };
+
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenCalledTimes(1);
+    expect(result).toBe(phase1Quote);
+  });
+
   it('returns phase-1 quote when source chain is not gas-station eligible', async () => {
     const phase1Quote = makeQuote();
     const getSingleQuote = jest.fn().mockResolvedValue(phase1Quote);
