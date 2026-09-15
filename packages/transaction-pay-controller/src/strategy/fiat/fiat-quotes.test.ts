@@ -856,16 +856,19 @@ describe('getFiatQuotes', () => {
 
       await getFiatQuotes(request);
 
-      expect(callMock).toHaveBeenCalledWith('RampsController:getQuoteWithFees', {
-        amount: 10,
-        assetId: MUSD_CAIP_ID_MOCK,
-        autoSelectProvider: true,
-        fiat: DEFAULT_FIAT_CURRENCY,
-        isFeeExcludedFromFiat: true,
-        paymentMethods: ['/payments/debit-credit-card'],
-        restrictToKnownOrNativeProviders: true,
-        walletAddress: MONEY_ACCOUNT_ADDRESS,
-      });
+      expect(callMock).toHaveBeenCalledWith(
+        'RampsController:getQuoteWithFees',
+        {
+          amount: 10,
+          assetId: MUSD_CAIP_ID_MOCK,
+          autoSelectProvider: true,
+          fiat: DEFAULT_FIAT_CURRENCY,
+          isFeeExcludedFromFiat: true,
+          paymentMethods: ['/payments/debit-credit-card'],
+          restrictToKnownOrNativeProviders: true,
+          walletAddress: MONEY_ACCOUNT_ADDRESS,
+        },
+      );
     });
 
     it('builds a direct pure-fiat quote without calling Relay', async () => {

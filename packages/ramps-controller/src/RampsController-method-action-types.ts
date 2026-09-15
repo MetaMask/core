@@ -302,20 +302,44 @@ export type RampsControllerGetQuotesAction = {
 };
 
 /**
- * Fetches the best on-ramp quote and reconciles its fees so they match what the
- * resolved provider actually charges. When the resolved provider is Transak
- * Native, the returned quote's `providerFee`/`networkFee`/`totalFees` reflect
- * the native buy quote's total fee (the aggregator `networkFee` is kept on the
- * network line and the remainder placed in the provider fee). A non-native
- * provider, a failed native lookup, or an unusable native fee returns the
- * aggregator quote unchanged. Callers consume the fee fields directly and do
- * not need to know about the native lookup.
+ * Fetches the best on-ramp quote for a request and, when the resolved
+ * provider is Transak Native, reconciles its fees to match what Transak
+ * Native actually charges.
  *
- * @param options - Quote options; see {@link RampsControllerGetQuotesAction},
- * plus `isFeeExcludedFromFiat` to mirror the eventual checkout fee mode
- * (defaults to `true`, fee-on-top).
- * @returns The best quote with reconciled fees, or `undefined` when none is
- * available.
+ * The aggregator `/quotes` estimate of Transak's fee does not match the
+ * native integration. When the resolved provider is Transak Native this
+ * fetches the native buy quote (an unauthenticated, API-key-only lookup, so
+ * it is safe at estimate time) and rewrites the returned quote's fee fields
+ * to its `totalFee`, keeping the aggregator's `networkFee` on the network
+ * line and placing the remainder in the provider fee so the breakdown
+ * survives and `providerFee + networkFee` still equals the native total. A
+ * non-native provider, a failed lookup, or an unusable native fee returns the
+ * aggregator quote unchanged.
+ *
+ * Consumers (e.g. `TransactionPayController`) call this instead of owning the
+ * provider check, asset-id parsing, and second native quote themselves.
+ *
+ * @param options - Quote options; see {@link getQuotes}, plus the fee mode.
+ * @param options.amount - Fiat amount for the quote.
+ * @param options.assetId - CAIP-19 asset id being bought.
+ * @param options.fiat - Optional fiat currency; defaults like {@link getQuotes}.
+ * @param options.paymentMethods - Optional payment method ids.
+ * @param options.walletAddress - Wallet address receiving the on-ramped asset.
+ * @param options.isFeeExcludedFromFiat - Whether Transak adds its fee on top
+ * of the fiat amount (`true`, fee-on-top) or carves it out (`false`). Must
+ * mirror the eventual checkout mode so the estimate equals the charge.
+ * Defaults to `true`.
+ * @param options.providers - See {@link getQuotes}.
+ * @param options.autoSelectProvider - See {@link getQuotes}.
+ * @param options.restrictToKnownOrNativeProviders - See {@link getQuotes}.
+ * @param options.preferredProviderIds - See {@link getQuotes}.
+ * @param options.region - See {@link getQuotes}.
+ * @param options.redirectUrl - See {@link getQuotes}.
+ * @param options.action - See {@link getQuotes}.
+ * @param options.forceRefresh - See {@link getQuotes}.
+ * @param options.ttl - See {@link getQuotes}.
+ * @returns The best quote with native-reconciled fees, or `undefined` when
+ * no quote is available.
  */
 export type RampsControllerGetQuoteWithFeesAction = {
   type: `RampsController:getQuoteWithFees`;

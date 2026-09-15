@@ -507,8 +507,9 @@ describe('RampsController', () => {
 
     it('reconciles a Transak Native quote to the native total fee and keeps the network split', async () => {
       await withController(async ({ messenger, rootMessenger }) => {
-        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
-          buildQuotesResponse('/providers/transak-native'),
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
         );
         rootMessenger.registerActionHandler(
           'TransakService:getBuyQuote',
@@ -528,8 +529,10 @@ describe('RampsController', () => {
 
     it('clamps the network split when the native total is below the aggregator network fee', async () => {
       await withController(async ({ messenger, rootMessenger }) => {
-        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
-          buildQuotesResponse('/providers/transak-native', { networkFee: 1 }),
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () =>
+            buildQuotesResponse('/providers/transak-native', { networkFee: 1 }),
         );
         rootMessenger.registerActionHandler(
           'TransakService:getBuyQuote',
@@ -548,8 +551,9 @@ describe('RampsController', () => {
       const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
 
       await withController(async ({ messenger, rootMessenger }) => {
-        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
-          buildQuotesResponse('/providers/transak-native'),
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
         );
         rootMessenger.registerActionHandler(
           'TransakService:getBuyQuote',
@@ -573,8 +577,9 @@ describe('RampsController', () => {
       const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
 
       await withController(async ({ messenger, rootMessenger }) => {
-        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
-          buildQuotesResponse('/providers/transak-native'),
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
         );
         rootMessenger.registerActionHandler(
           'TransakService:getBuyQuote',
@@ -598,8 +603,9 @@ describe('RampsController', () => {
       const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
 
       await withController(async ({ messenger, rootMessenger }) => {
-        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
-          buildQuotesResponse('/providers/moonpay'),
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/moonpay'),
         );
         rootMessenger.registerActionHandler(
           'TransakService:getBuyQuote',
@@ -618,8 +624,9 @@ describe('RampsController', () => {
 
     it('falls back to the aggregator quote when the native lookup fails', async () => {
       await withController(async ({ messenger, rootMessenger }) => {
-        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
-          buildQuotesResponse('/providers/transak-native'),
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
         );
         rootMessenger.registerActionHandler(
           'TransakService:getBuyQuote',
@@ -637,8 +644,9 @@ describe('RampsController', () => {
 
     it('falls back to the aggregator quote when the native fee is unusable', async () => {
       await withController(async ({ messenger, rootMessenger }) => {
-        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
-          buildQuotesResponse('/providers/transak-native'),
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
         );
         rootMessenger.registerActionHandler(
           'TransakService:getBuyQuote',
@@ -672,8 +680,9 @@ describe('RampsController', () => {
 
     it('does not write the shared Unified Buy native buy-quote state', async () => {
       await withController(async ({ controller, messenger, rootMessenger }) => {
-        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
-          buildQuotesResponse('/providers/transak-native'),
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak-native'),
         );
         rootMessenger.registerActionHandler(
           'TransakService:getBuyQuote',
@@ -699,8 +708,9 @@ describe('RampsController', () => {
       const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
 
       await withController(async ({ messenger, rootMessenger }) => {
-        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
-          buildQuotesResponse('/providers/transak'),
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => buildQuotesResponse('/providers/transak'),
         );
         rootMessenger.registerActionHandler(
           'TransakService:getBuyQuote',
@@ -719,8 +729,12 @@ describe('RampsController', () => {
 
     it('puts the whole native total on the network line when it equals the aggregator network fee', async () => {
       await withController(async ({ messenger, rootMessenger }) => {
-        rootMessenger.registerActionHandler('RampsService:getQuotes', async () =>
-          buildQuotesResponse('/providers/transak-native', { networkFee: 0.2 }),
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () =>
+            buildQuotesResponse('/providers/transak-native', {
+              networkFee: 0.2,
+            }),
         );
         rootMessenger.registerActionHandler(
           'TransakService:getBuyQuote',
