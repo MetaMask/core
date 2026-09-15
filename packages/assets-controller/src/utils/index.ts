@@ -26,4 +26,7 @@ export type {
 export {
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
+  getDefaultNativeAssetBalance,
+  NATIVE_ASSETS,
+  STELLAR_NATIVE_ZERO_BALANCE_METADATA,
 } from './native-assets.js';
