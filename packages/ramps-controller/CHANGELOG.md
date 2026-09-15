@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Enforce per-asset buy limits when picking the single best quote on the widened all-providers `getQuotes` path: for buy quotes, a provider is now skipped when its published limits for the requested asset (fiat ∩ per-asset) do not fit the amount, instead of only checking the token-agnostic fiat limits, so providers whose minimum varies per token are judged correctly
+
 - Add an optional fee-exclusion argument to native Transak buy quotes while preserving fee exclusion as the default. ([#9317](https://github.com/MetaMask/core/pull/9317))
 - Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
 

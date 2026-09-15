@@ -259,6 +259,36 @@ describe('getProviderBuyLimit', () => {
     });
   });
 
+  it('returns the per-payment entry without the payment field when no fiat limit is published', () => {
+    const provider = buildProvider({
+      assets: {
+        [BNB_ASSET_ID]: {
+          ...buildLimit(5, 4000),
+          payments: [
+            {
+              payment: 'debit-credit-card',
+              ...buildLimit(10, 2000),
+            },
+          ],
+        },
+      },
+    });
+
+    expect(
+      getProviderBuyLimit({
+        provider,
+        fiatCurrency: 'eur',
+        paymentMethodId: 'debit-credit-card',
+        assetId: BNB_ASSET_ID,
+      }),
+    ).toStrictEqual({
+      minAmount: 10,
+      maxAmount: 2000,
+      feeFixedRate: 0.1,
+      feeDynamicRate: 0.2,
+    });
+  });
+
   it('falls back to the fiat limit when the asset has no published limits', () => {
     const fiatLimit = buildLimit(2, 6400);
     const provider = buildProvider({

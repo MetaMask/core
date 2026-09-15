@@ -801,6 +801,146 @@ describe('RampsController', () => {
       );
     });
 
+    it('skips a provider whose per-asset minimum does not fit the amount even when the fiat minimum does', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90), appBrowserQuote(REVOLUT, 80)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([
+              // MoonPay's fiat minimum (2) fits the $100 amount, but its
+              // minimum for the requested asset (200) does not, so it is
+              // skipped (TRAM-3994: token-agnostic minimums are wrong for
+              // most tokens).
+              buildScopeProvider(MOONPAY, 'aggregator', {
+                fiat: {
+                  usd: {
+                    [SCOPE_PAYMENT_METHOD]: {
+                      minAmount: 2,
+                      maxAmount: 1000,
+                      feeFixedRate: 0,
+                      feeDynamicRate: 0,
+                    },
+                  },
+                },
+                assets: {
+                  [SCOPE_ASSET_ID]: {
+                    minAmount: 200,
+                    maxAmount: 1000,
+                    feeFixedRate: 0,
+                    feeDynamicRate: 0,
+                  },
+                },
+              }),
+              // Revolut publishes no limits, so it stays eligible.
+              buildScopeProvider(REVOLUT, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          expect(quotes.success[0]?.provider).toBe(REVOLUT);
+        },
+      );
+    });
+
+    it('keeps a provider whose per-asset minimum fits the amount eligible', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([
+              buildScopeProvider(MOONPAY, 'aggregator', {
+                fiat: {
+                  usd: {
+                    [SCOPE_PAYMENT_METHOD]: {
+                      minAmount: 2,
+                      maxAmount: 1000,
+                      feeFixedRate: 0,
+                      feeDynamicRate: 0,
+                    },
+                  },
+                },
+                assets: {
+                  [SCOPE_ASSET_ID]: {
+                    minAmount: 50,
+                    maxAmount: 1000,
+                    feeFixedRate: 0,
+                    feeDynamicRate: 0,
+                  },
+                },
+              }),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          // The $100 amount is above the asset minimum (50), so MoonPay is
+          // not excluded.
+          expect(quotes.success[0]?.provider).toBe(MOONPAY);
+        },
+      );
+    });
+
+    it('keeps a quote from a provider absent from the catalog eligible', async () => {
+      // A stale providers state can make the API return a quote for a
+      // provider the catalog does not list. With no published limits to
+      // check, the quote stays eligible.
+      const UNKNOWN = '/providers/unknown';
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(UNKNOWN, 99), appBrowserQuote(REVOLUT, 80)],
+        sorted: [{ sortBy: 'reliability', ids: [UNKNOWN, REVOLUT] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([
+              buildScopeProvider(REVOLUT, 'aggregator', fiatLimit(2, 1000)),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          expect(quotes.success[0]?.provider).toBe(UNKNOWN);
+        },
+      );
+    });
+
     it('returns an empty success list when no quote fits the published provider limits', async () => {
       const response: QuotesResponse = {
         success: [appBrowserQuote(MOONPAY, 90)],

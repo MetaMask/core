@@ -47,6 +47,23 @@ function findLimitForPaymentMethod<LimitEntry>(
 }
 
 /**
+ * Strips the fields that only exist on per-asset limit entries, so a
+ * per-asset limit is always returned in the uniform {@link ProviderLimit}
+ * shape regardless of which entry it came from.
+ *
+ * @param assetLimits - The per-asset limits entry.
+ * @returns The entry's limits.
+ */
+function toProviderLimit(assetLimits: ProviderAssetLimits): ProviderLimit {
+  return {
+    minAmount: assetLimits.minAmount,
+    maxAmount: assetLimits.maxAmount,
+    feeFixedRate: assetLimits.feeFixedRate,
+    feeDynamicRate: assetLimits.feeDynamicRate,
+  };
+}
+
+/**
  * Finds the per-payment-method limit for a payment method in a provider's
  * per-asset limits. Mirrors the ramps API: a non-empty `payments` breakdown
  * is authoritative, so a payment method without an entry has no asset
@@ -62,11 +79,13 @@ function findAssetLimitForPaymentMethod(
 ): ProviderLimit | undefined {
   if (assetLimits.payments?.length) {
     const target = normalizePaymentMethodId(paymentMethodId);
-    return assetLimits.payments.find(
-      (entry) => normalizePaymentMethodId(entry.payment) === target,
+    const entry = assetLimits.payments.find(
+      (paymentLimit) =>
+        normalizePaymentMethodId(paymentLimit.payment) === target,
     );
+    return entry ? toProviderLimit(entry) : undefined;
   }
-  return assetLimits;
+  return toProviderLimit(assetLimits);
 }
 
 /**
@@ -136,6 +155,13 @@ export type GetProviderBuyLimitOptions = {
  * Without this, providers whose minimum varies per token (e.g. Coinbase: 2
  * EUR for ETH but 5 EUR for most other tokens) advertise a minimum that is
  * wrong for most tokens.
+ *
+ * The API gates its own per-crypto enforcement on a per-provider list
+ * (`ENFORCE_CRYPTO_PAYMENT_LIMITS_PROVIDERS`) that is invisible to clients,
+ * so this helper intersects for every provider that publishes asset limits.
+ * For a non-enforced provider the result can therefore be stricter than the
+ * API's quotes — the safe direction, since it matches the limit the
+ * provider's own checkout enforces.
  *
  * @param options - The options.
  * @param options.provider - The provider to look up limits for.
