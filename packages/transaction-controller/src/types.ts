@@ -2138,12 +2138,12 @@ export type IsSponsoredHook = (request: {
 }) => Promise<{ isSponsored: boolean }>;
 
 /**
- * Policy logic to determine whether to reserve a nonce and sign locally.
- * Use {@link BeforeSignHook} for transaction preparation instead.
+ * Policy logic to determine whether to reserve a nonce and sign locally for a
+ * non-sponsored transaction. Use {@link BeforeSignHook} for transaction
+ * preparation instead.
  */
 export type ShouldSignHook = (request: {
   transactionMeta: TransactionMeta;
-  isSponsored: boolean;
 }) => Promise<{ shouldSign: boolean }>;
 
 /**

@@ -134,7 +134,6 @@ describe('createWallet', () => {
     ).toStrictEqual({ isSponsored: false });
     expect(
       await instanceOptions.transactionController?.hooks.shouldSign({
-        isSponsored: false,
         transactionMeta: {} as never,
       }),
     ).toStrictEqual({ shouldSign: true });

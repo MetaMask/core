@@ -3166,10 +3166,9 @@ export class TransactionController extends BaseController<
       transactionMeta = this.#getTransactionOrThrow(transactionId);
 
       const { isSponsored } = await this.#isSponsored({ transactionMeta });
-      const { shouldSign } = await this.#shouldSign({
-        transactionMeta,
-        isSponsored,
-      });
+      const shouldSign = isSponsored
+        ? false
+        : (await this.#shouldSign({ transactionMeta })).shouldSign;
 
       if (!shouldSign) {
         // eslint-disable-next-line require-atomic-updates
