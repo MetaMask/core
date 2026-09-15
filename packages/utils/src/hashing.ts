@@ -34,7 +34,6 @@ function isArrayBufferBacked(
 export async function sha256(bytes: Uint8Array): Promise<Uint8Array> {
   // Use crypto.subtle.digest whenever possible as it is faster.
   if (
-    'crypto' in globalThis &&
     typeof globalThis.crypto === 'object' &&
     globalThis.crypto.subtle?.digest &&
     isArrayBufferBacked(bytes)
@@ -57,7 +56,6 @@ export async function sha256(bytes: Uint8Array): Promise<Uint8Array> {
 export async function sha512(bytes: Uint8Array): Promise<Uint8Array> {
   // Use crypto.subtle.digest whenever possible as it is faster.
   if (
-    'crypto' in globalThis &&
     typeof globalThis.crypto === 'object' &&
     globalThis.crypto.subtle?.digest &&
     isArrayBufferBacked(bytes)
@@ -80,7 +78,6 @@ export async function sha512(bytes: Uint8Array): Promise<Uint8Array> {
 export async function sha384(bytes: Uint8Array): Promise<Uint8Array> {
   // Use crypto.subtle.digest whenever possible as it is faster.
   if (
-    'crypto' in globalThis &&
     typeof globalThis.crypto === 'object' &&
     globalThis.crypto.subtle?.digest &&
     isArrayBufferBacked(bytes)
