@@ -15,6 +15,7 @@ jobs:
     name: Repair constraints, lockfile and changelogs
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
     runs-on: ubuntu-latest
+    environment: dependabot
     permissions:
       contents: read
       id-token: write
@@ -27,8 +28,8 @@ jobs:
           token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
           permissions: |
             contents: write
-            pull_requests: write
 
+      # Explicitly the head branch, because on a `pull_request` event the default checkout is the merge ref and we push this branch back. Full history is for the merge base below.
       - name: Check out the pull request branch
         uses: actions/checkout@v7
         with:
@@ -41,13 +42,16 @@ jobs:
           git config user.name 'metamask-ci[bot]'
           git config user.email '271559518+metamask-ci[bot]@users.noreply.github.com'
 
-      - name: Get merge base
-        id: merge-base
+      - name: Get merge base and starting commit
+        id: refs
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           set -euo pipefail
-          echo "merge-base=$(git merge-base HEAD "refs/remotes/origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
+          {
+            echo "merge-base=$(git merge-base HEAD "refs/remotes/origin/$BASE_REF")"
+            echo "start-sha=$(git rev-parse HEAD)"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Set up environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -63,30 +67,47 @@ jobs:
       - name: Apply dependency range updates
         run: yarn install --no-immutable
 
+      - name: Commit the aligned ranges
+        run: |
+          set -euo pipefail
+          git add -- package.json '**/package.json' yarn.lock
+          git diff --cached --quiet || git commit -m '[dependabot skip] chore: align dependency ranges across the monorepo'
+
       - name: Deduplicate dependency tree
         run: yarn dedupe
+
+      - name: Commit the deduplicated lockfile
+        run: |
+          set -euo pipefail
+          git add -- yarn.lock
+          git diff --cached --quiet || git commit -m '[dependabot skip] chore: deduplicate yarn.lock'
 
       - name: Write changelog entries for the bumped dependencies
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          MERGE_BASE: ${{ steps.merge-base.outputs.merge-base }}
-          CHANGELOG_BASE_REF: ${{ steps.merge-base.outputs.merge-base }}
+          MERGE_BASE: ${{ steps.refs.outputs.merge-base }}
+          CHANGELOG_BASE_REF: ${{ steps.refs.outputs.merge-base }}
         run: yarn changelog:validate --checkDeps --fix --currentPr "$PR_NUMBER" --fromRef "$MERGE_BASE"
         # Entries can be written even when other validation errors remain, and those are still worth committing.
         continue-on-error: true
 
-      - name: Commit and push the repairs
+      - name: Commit the changelog entries
+        run: |
+          set -euo pipefail
+          git add -- '**/CHANGELOG.md'
+          git diff --cached --quiet || git commit -m '[dependabot skip] chore: add changelog entries for bumped dependencies'
+
+      - name: Push the repairs
         env:
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          START_SHA: ${{ steps.refs.outputs.start-sha }}
           TOKEN: ${{ steps.get-token.outputs.token }}
         run: |
           set -euo pipefail
 
-          if git diff --quiet; then
+          if [ "$(git rev-parse HEAD)" = "$START_SHA" ]; then
             echo 'Nothing to repair.'
             exit 0
           fi
 
-          git add -- '**/package.json' package.json yarn.lock '**/CHANGELOG.md'
-          git commit -m '[dependabot skip] chore: align dependency ranges, deduplicate lockfile and update changelogs'
           git push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:$PR_HEAD_REF"
