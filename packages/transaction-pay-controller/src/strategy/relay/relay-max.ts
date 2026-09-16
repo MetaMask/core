@@ -1,3 +1,6 @@
+import { toHex } from '@metamask/controller-utils';
+import { TransactionType } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -8,6 +11,8 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { prefixError } from '../../utils/error-prefix.js';
+import { isAtomicMaxPromotionEnabled } from '../../utils/feature-flags.js';
 import {
   getGasStationEligibility,
   getGasStationCostInSourceTokenRaw,
@@ -17,9 +22,12 @@ import {
   getTokenBalance,
   getTokenInfo,
 } from '../../utils/token.js';
+import { QuoteError } from '../../utils/validation.js';
+import { ATOMIC_PROMOTION_FAILURE_PREFIX } from './constants.js';
+import { isSubsidizedRelayQuote } from './relay-submit-execute.js';
 import type { RelayQuote, RelayTransactionStep } from './types.js';
 
-const log = createModuleLogger(projectLogger, 'relay-max-gas-station');
+const log = createModuleLogger(projectLogger, 'relay-max');
 
 const PROBE_AMOUNT_PERCENTAGE = 0.25;
 
@@ -465,4 +473,251 @@ function markQuoteAsMaxGasStation(
     ...quote.original.metamask,
     isMaxGasStation: true,
   };
+}
+
+export async function maybePromoteSubsidizedMaxMoneyAccountQuote({
+  discoveryQuote,
+  fullRequest,
+  getSingleQuote,
+  request,
+}: {
+  discoveryQuote: TransactionPayQuote<RelayQuote>;
+  fullRequest: PayStrategyGetQuotesRequest;
+  getSingleQuote: GetSingleQuoteFn;
+  request: QuoteRequest;
+}): Promise<TransactionPayQuote<RelayQuote>> {
+  if (
+    !shouldAttemptAtomicPromotion(
+      request,
+      fullRequest.transaction,
+      discoveryQuote,
+      fullRequest.messenger,
+    )
+  ) {
+    return discoveryQuote;
+  }
+
+  try {
+    const targetAmount = validatePositiveIntegerString(
+      discoveryQuote.original.details.currencyOut.amount,
+    );
+
+    const transactionClone = cloneTransactionForPromotion(
+      fullRequest.transaction,
+    );
+    const promotionTransaction = await applyAmountDataUpdates({
+      amount: targetAmount,
+      messenger: fullRequest.messenger,
+      transaction: transactionClone,
+    });
+
+    const promotedQuote = await getSingleQuote(
+      {
+        ...request,
+        atomic: true,
+        isMaxAmount: false,
+        targetAmountMinimum: targetAmount,
+      },
+      {
+        ...fullRequest,
+        transaction: promotionTransaction,
+      },
+    );
+
+    assertAtomicPromotionIsValid({
+      discoveryQuote,
+      promotedQuote,
+      targetAmount,
+    });
+
+    return {
+      ...promotedQuote,
+      request: {
+        ...promotedQuote.request,
+        atomic: true,
+        isMaxAmount: true,
+      },
+    };
+  } catch (error) {
+    return throwAtomicPromotionFailed(error);
+  }
+}
+
+export function throwAtomicPromotionFailed(error: unknown): never {
+  const prefixed = prefixError(error, ATOMIC_PROMOTION_FAILURE_PREFIX);
+  throw new QuoteError({
+    detail: [prefixed.message],
+    message: prefixed.message,
+    reason: 'no-quotes',
+  });
+}
+
+export function isPromotedSubsidizedMaxMoneyAccountQuote(
+  quote: TransactionPayQuote<RelayQuote>,
+): boolean {
+  return (
+    quote.request.isMaxAmount === true &&
+    quote.request.atomic === true &&
+    isSubsidizedRelayQuote(quote.original)
+  );
+}
+
+function shouldAttemptAtomicPromotion(
+  request: QuoteRequest,
+  transaction: TransactionMeta,
+  discoveryQuote: TransactionPayQuote<RelayQuote>,
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  return (
+    isAtomicMaxPromotionEnabled(messenger, transaction) &&
+    request.isMaxAmount === true &&
+    request.isPostQuote !== true &&
+    request.atomic !== true &&
+    isSubsidizedRelayQuote(discoveryQuote.original)
+  );
+}
+
+function validatePositiveIntegerString(value: string): string {
+  const amount = new BigNumber(value);
+
+  if (!amount.isFinite() || !amount.isInteger() || !amount.isGreaterThan(0)) {
+    throw new Error(`Invalid target amount: ${value}`);
+  }
+
+  return amount.toFixed(0);
+}
+
+function cloneTransactionForPromotion(
+  transaction: TransactionMeta,
+): TransactionMeta {
+  return {
+    ...transaction,
+    nestedTransactions: transaction.nestedTransactions?.map(
+      (nestedTransaction) => ({
+        ...nestedTransaction,
+      }),
+    ),
+    requiredAssets: transaction.requiredAssets?.map((requiredAsset) => ({
+      ...requiredAsset,
+    })),
+  };
+}
+
+async function applyAmountDataUpdates({
+  amount,
+  messenger,
+  transaction,
+}: {
+  amount: string;
+  messenger: TransactionPayControllerMessenger;
+  transaction: TransactionMeta;
+}): Promise<TransactionMeta> {
+  const { updates } = await messenger.call(
+    'TransactionPayController:getAmountData',
+    {
+      amount,
+      transaction,
+    },
+  );
+
+  if (!updates.length) {
+    throw new Error('getAmountData returned no updates for atomic promotion');
+  }
+
+  const nestedTransactions = transaction.nestedTransactions?.map(
+    (nestedTransaction) => ({
+      ...nestedTransaction,
+    }),
+  );
+
+  if (!nestedTransactions?.length) {
+    throw new Error('Missing nested transactions for atomic promotion');
+  }
+
+  for (const { nestedTransactionIndex, data } of updates) {
+    if (!nestedTransactions[nestedTransactionIndex]) {
+      throw new Error(
+        'getAmountData returned an unusable nested transaction update',
+      );
+    }
+
+    nestedTransactions[nestedTransactionIndex].data = data;
+  }
+
+  const requiredAssets = transaction.requiredAssets?.map((requiredAsset) => ({
+    ...requiredAsset,
+  }));
+
+  if (!requiredAssets?.[0]) {
+    throw new Error('Missing required assets for atomic promotion');
+  }
+
+  requiredAssets[0].amount = toHex(BigInt(amount));
+
+  return {
+    ...transaction,
+    nestedTransactions,
+    requiredAssets,
+  };
+}
+
+function assertAtomicPromotionIsValid({
+  discoveryQuote,
+  promotedQuote,
+  targetAmount,
+}: {
+  discoveryQuote: TransactionPayQuote<RelayQuote>;
+  promotedQuote: TransactionPayQuote<RelayQuote>;
+  targetAmount: string;
+}): void {
+  if (!isSubsidizedRelayQuote(promotedQuote.original)) {
+    throw new Error('Promoted quote lost subsidy');
+  }
+
+  if (discoveryQuote.original.details.currencyOut.amount !== targetAmount) {
+    throw new Error('Discovery quote target amount changed before promotion');
+  }
+}
+
+export async function maybeDemoteUnsubsidizedAtomicQuote({
+  fullRequest,
+  getSingleQuote,
+  quote,
+  request,
+}: {
+  fullRequest: PayStrategyGetQuotesRequest;
+  getSingleQuote: GetSingleQuoteFn;
+  quote: TransactionPayQuote<RelayQuote>;
+  request: QuoteRequest;
+}): Promise<TransactionPayQuote<RelayQuote>> {
+  if (
+    !shouldAttemptAtomicDemotion(
+      request,
+      fullRequest.transaction,
+      fullRequest.messenger,
+    )
+  ) {
+    return quote;
+  }
+
+  if (isSubsidizedRelayQuote(quote.original)) {
+    return quote;
+  }
+
+  return getSingleQuote({ ...request, atomic: false }, fullRequest);
+}
+
+function shouldAttemptAtomicDemotion(
+  request: QuoteRequest,
+  transaction: TransactionMeta,
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  return (
+    isAtomicMaxPromotionEnabled(messenger, transaction) &&
+    request.isMaxAmount !== true &&
+    request.isPostQuote !== true &&
+    request.atomic !== false &&
+    transaction.type !== TransactionType.perpsDepositAndOrder &&
+    transaction.type !== TransactionType.predictDepositAndOrder
+  );
 }

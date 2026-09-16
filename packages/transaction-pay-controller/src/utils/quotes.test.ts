@@ -483,10 +483,10 @@ describe('Quotes Utils', () => {
       expect(secondStrategy.getQuotes).toHaveBeenCalled();
     });
 
-    it('short-circuits and does not try next strategy when QuoteError has terminal atomic-promotion-failed reason', async () => {
+    it('short-circuits and does not try next strategy when QuoteError has terminal prefixed atomic promotion failure', async () => {
       const terminalError = new QuoteError({
-        message: 'Atomic quote promotion failed',
-        reason: 'atomic-promotion-failed',
+        message: 'Atomic promotion failed: test probe',
+        reason: 'no-quotes',
       });
 
       const firstStrategy = {
@@ -531,8 +531,8 @@ describe('Quotes Utils', () => {
       expect(transactionDataMock).toMatchObject({
         quotes: [],
         quoteError: {
-          message: 'Atomic quote promotion failed',
-          reason: 'atomic-promotion-failed',
+          message: 'Atomic promotion failed: test probe',
+          reason: 'no-quotes',
         },
         isLoading: false,
       });
@@ -588,7 +588,7 @@ describe('Quotes Utils', () => {
       });
     });
 
-    it('terminal atomic-promotion-failed wins over an earlier ordinary no-quotes error', async () => {
+    it('terminal prefixed atomic promotion failure wins over an earlier ordinary no-quotes error', async () => {
       const firstStrategy = {
         supports: jest.fn().mockReturnValue(true),
         getQuotes: jest.fn().mockRejectedValue(
@@ -604,8 +604,8 @@ describe('Quotes Utils', () => {
         supports: jest.fn().mockReturnValue(true),
         getQuotes: jest.fn().mockRejectedValue(
           new QuoteError({
-            message: 'Atomic quote promotion failed',
-            reason: 'atomic-promotion-failed',
+            message: 'Atomic promotion failed: test probe',
+            reason: 'no-quotes',
           }),
         ),
         execute: jest.fn(),
@@ -653,8 +653,8 @@ describe('Quotes Utils', () => {
       expect(transactionDataMock).toMatchObject({
         quotes: [],
         quoteError: {
-          message: 'Atomic quote promotion failed',
-          reason: 'atomic-promotion-failed',
+          message: 'Atomic promotion failed: test probe',
+          reason: 'no-quotes',
         },
       });
     });
@@ -1574,7 +1574,7 @@ describe('Quotes Utils', () => {
       it('publishes fail-closed state (empty quotes, terminal error, isLoading false) and skips subsequent strategies when atomic promotion fails on a refresh with a prior executable quote in state', async () => {
         // Seed a prior executable quote in state so this call is a refresh, not
         // an initial fetch — proving the block cannot leave the previous quote
-        // selected once a terminal atomic-promotion-failed surfaces.
+        // selected once a terminal prefixed promotion failure surfaces.
         const priorQuote = {
           ...QUOTE_MOCK,
           strategy: TransactionPayStrategy.Relay,
@@ -1584,8 +1584,8 @@ describe('Quotes Utils', () => {
           supports: jest.fn().mockReturnValue(true),
           getQuotes: jest.fn().mockRejectedValue(
             new QuoteError({
-              message: 'Atomic quote promotion failed',
-              reason: 'atomic-promotion-failed',
+              message: 'Atomic promotion failed: test probe',
+              reason: 'no-quotes',
             }),
           ),
           getBatchTransactions: jest.fn(),
@@ -1642,8 +1642,8 @@ describe('Quotes Utils', () => {
         expect(transactionDataMock).toMatchObject({
           quotes: [],
           quoteError: {
-            message: 'Atomic quote promotion failed',
-            reason: 'atomic-promotion-failed',
+            message: 'Atomic promotion failed: test probe',
+            reason: 'no-quotes',
           },
           isLoading: false,
         });

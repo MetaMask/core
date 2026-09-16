@@ -56,8 +56,6 @@ import {
   normalizeTokenAddress,
   TokenAddressTarget,
 } from '../../utils/token.js';
-import { QuoteError } from '../../utils/validation.js';
-import { isMoneyAccountDepositTransaction } from '../fiat/utils.js';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
 import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
 import {
@@ -66,8 +64,13 @@ import {
   isPredictWithdraw,
 } from './polymarket/withdraw.js';
 import { fetchRelayQuote } from './relay-api.js';
-import { getRelayMaxGasStationQuote } from './relay-max-gas-station.js';
-import { isSubsidizedRelayQuote } from './relay-submit-execute.js';
+import {
+  getRelayMaxGasStationQuote,
+  isPromotedSubsidizedMaxMoneyAccountQuote,
+  maybeDemoteUnsubsidizedAtomicQuote,
+  maybePromoteSubsidizedMaxMoneyAccountQuote,
+  throwAtomicPromotionFailed,
+} from './relay-max.js';
 import { validateRelayQuotes } from './relay-validation.js';
 import type {
   RelayQuote,
@@ -145,21 +148,38 @@ export async function getRelayQuotes(
       ),
     );
 
-    await validateRelayQuotes({
-      messenger: request.messenger,
-      quotes,
-      signal: request.signal,
-      transaction: request.transaction,
-    });
+    const promotedQuotes = quotes.filter(
+      isPromotedSubsidizedMaxMoneyAccountQuote,
+    );
+    const otherQuotes = quotes.filter(
+      (quote) => !isPromotedSubsidizedMaxMoneyAccountQuote(quote),
+    );
+
+    if (otherQuotes.length > 0) {
+      await validateRelayQuotes({
+        messenger: request.messenger,
+        quotes: otherQuotes,
+        signal: request.signal,
+        transaction: request.transaction,
+      });
+    }
+
+    if (promotedQuotes.length > 0) {
+      try {
+        await validateRelayQuotes({
+          messenger: request.messenger,
+          quotes: promotedQuotes,
+          signal: request.signal,
+          transaction: request.transaction,
+        });
+      } catch (error) {
+        throwAtomicPromotionFailed(error);
+      }
+    }
 
     return quotes;
   } catch (error) {
     log('Error fetching quotes', { error });
-
-    if (quotes.some(isPromotedSubsidizedMaxMoneyAccountQuote)) {
-      throwAtomicPromotionFailed(error);
-    }
-
     throw error;
   }
 }
@@ -171,7 +191,13 @@ async function getQuoteWithMaxAmountHandling(
   const { isMaxAmount } = request;
 
   if (!isMaxAmount) {
-    return getQuoteWithPostQuoteGasHandling(request, fullRequest);
+    const quote = await getQuoteWithPostQuoteGasHandling(request, fullRequest);
+    return maybeDemoteUnsubsidizedAtomicQuote({
+      fullRequest,
+      getSingleQuote,
+      quote,
+      request,
+    });
   }
 
   const discoveryQuote = await getRelayMaxGasStationQuote(
@@ -183,276 +209,9 @@ async function getQuoteWithMaxAmountHandling(
   return maybePromoteSubsidizedMaxMoneyAccountQuote({
     discoveryQuote,
     fullRequest,
+    getSingleQuote,
     request,
   });
-}
-
-async function maybePromoteSubsidizedMaxMoneyAccountQuote({
-  discoveryQuote,
-  fullRequest,
-  request,
-}: {
-  discoveryQuote: TransactionPayQuote<RelayQuote>;
-  fullRequest: PayStrategyGetQuotesRequest;
-  request: QuoteRequest;
-}): Promise<TransactionPayQuote<RelayQuote>> {
-  if (
-    !shouldAttemptAtomicPromotion(
-      request,
-      fullRequest.transaction,
-      discoveryQuote,
-    )
-  ) {
-    return discoveryQuote;
-  }
-
-  try {
-    const targetAmount = validatePositiveIntegerString(
-      discoveryQuote.original.details.currencyOut.amount,
-    );
-
-    const transactionClone = cloneTransactionForPromotion(
-      fullRequest.transaction,
-    );
-    const promotionTransaction = await applyAmountDataUpdates({
-      amount: targetAmount,
-      messenger: fullRequest.messenger,
-      transaction: transactionClone,
-    });
-
-    const promotedQuote = await getSingleQuote(
-      {
-        ...request,
-        atomic: true,
-        isMaxAmount: false,
-        targetAmountMinimum: targetAmount,
-      },
-      {
-        ...fullRequest,
-        transaction: promotionTransaction,
-      },
-    );
-
-    if (
-      request.sourceTokenAddress.toLowerCase() ===
-        getNativeToken(request.sourceChainId).toLowerCase() &&
-      new BigNumber(promotedQuote.fees.sourceNetwork.max.raw)
-        .plus(new BigNumber(promotedQuote.sourceAmount.raw))
-        .isGreaterThan(new BigNumber(request.sourceTokenAmount))
-    ) {
-      throw new Error('Promoted quote exceeds max spend budget');
-    }
-
-    assertAtomicPromotionIsValid({
-      discoveryQuote,
-      promotedQuote,
-      request,
-      targetAmount,
-    });
-
-    return {
-      ...promotedQuote,
-      request: {
-        ...promotedQuote.request,
-        atomic: true,
-        isMaxAmount: true,
-      },
-    };
-  } catch (error) {
-    return throwAtomicPromotionFailed(error);
-  }
-}
-
-function throwAtomicPromotionFailed(error: unknown): never {
-  throw new QuoteError({
-    detail: [error instanceof Error ? error.message : String(error)],
-    message: 'Atomic quote promotion failed',
-    reason: 'atomic-promotion-failed',
-  });
-}
-
-function isPromotedSubsidizedMaxMoneyAccountQuote(
-  quote: TransactionPayQuote<RelayQuote>,
-): boolean {
-  return (
-    quote.request.isMaxAmount === true &&
-    quote.request.atomic === true &&
-    isSubsidizedRelayQuote(quote.original)
-  );
-}
-
-function shouldAttemptAtomicPromotion(
-  request: QuoteRequest,
-  transaction: TransactionMeta,
-  discoveryQuote: TransactionPayQuote<RelayQuote>,
-): boolean {
-  return (
-    isMoneyAccountDepositTransaction(transaction) &&
-    request.isMaxAmount === true &&
-    request.isPostQuote !== true &&
-    request.atomic !== true &&
-    isSubsidizedRelayQuote(discoveryQuote.original)
-  );
-}
-
-function validatePositiveIntegerString(value: string): string {
-  const amount = new BigNumber(value);
-
-  if (!amount.isFinite() || !amount.isInteger() || !amount.isGreaterThan(0)) {
-    throw new Error(`Invalid target amount: ${value}`);
-  }
-
-  return amount.toFixed(0);
-}
-
-function cloneTransactionForPromotion(
-  transaction: TransactionMeta,
-): TransactionMeta {
-  return {
-    ...transaction,
-    nestedTransactions: transaction.nestedTransactions?.map(
-      (nestedTransaction) => ({
-        ...nestedTransaction,
-      }),
-    ),
-    requiredAssets: transaction.requiredAssets?.map((requiredAsset) => ({
-      ...requiredAsset,
-    })),
-  };
-}
-
-async function applyAmountDataUpdates({
-  amount,
-  messenger,
-  transaction,
-}: {
-  amount: string;
-  messenger: TransactionPayControllerMessenger;
-  transaction: TransactionMeta;
-}): Promise<TransactionMeta> {
-  const { updates } = await messenger.call(
-    'TransactionPayController:getAmountData',
-    {
-      amount,
-      transaction,
-    },
-  );
-
-  if (!updates.length) {
-    throw new Error('getAmountData returned no updates for atomic promotion');
-  }
-
-  const nestedTransactions = transaction.nestedTransactions?.map(
-    (nestedTransaction) => ({
-      ...nestedTransaction,
-    }),
-  );
-
-  if (!nestedTransactions?.length) {
-    throw new Error('Missing nested transactions for atomic promotion');
-  }
-
-  for (const { nestedTransactionIndex, data } of updates) {
-    if (!nestedTransactions[nestedTransactionIndex]) {
-      throw new Error(
-        'getAmountData returned an unusable nested transaction update',
-      );
-    }
-
-    nestedTransactions[nestedTransactionIndex].data = data;
-  }
-
-  const requiredAssets = transaction.requiredAssets?.map((requiredAsset) => ({
-    ...requiredAsset,
-  }));
-
-  if (!requiredAssets?.[0]) {
-    throw new Error('Missing required assets for atomic promotion');
-  }
-
-  requiredAssets[0].amount = toHex(BigInt(amount));
-
-  return {
-    ...transaction,
-    nestedTransactions,
-    requiredAssets,
-  };
-}
-
-function assertAtomicPromotionIsValid({
-  discoveryQuote,
-  promotedQuote,
-  request,
-  targetAmount,
-}: {
-  discoveryQuote: TransactionPayQuote<RelayQuote>;
-  promotedQuote: TransactionPayQuote<RelayQuote>;
-  request: QuoteRequest;
-  targetAmount: string;
-}): void {
-  if (!isSubsidizedRelayQuote(promotedQuote.original)) {
-    throw new Error('Promoted quote lost subsidy');
-  }
-
-  /* istanbul ignore next: atomic re-quotes always request exact-output; defensive guard. */
-  if (promotedQuote.original.request.tradeType !== 'EXACT_OUTPUT') {
-    throw new Error('Promoted quote did not return EXACT_OUTPUT');
-  }
-
-  /* istanbul ignore next: atomic re-quotes always embed funding and delegation calls; defensive guard. */
-  if (!promotedQuote.original.request.txs?.length) {
-    throw new Error('Promoted quote is missing embedded calls');
-  }
-
-  const sourceCost = getPromotedSourceCost({ promotedQuote, request });
-
-  const budget = new BigNumber(request.sourceTokenAmount);
-
-  if (sourceCost.isGreaterThan(budget)) {
-    throw new Error('Promoted quote exceeds max spend budget');
-  }
-
-  /* istanbul ignore next: re-quote hardcodes isMaxAmount false; defensive guard. */
-  if (promotedQuote.request.isMaxAmount !== false) {
-    throw new Error(
-      'Promoted quote request isMaxAmount was not cleared before restore',
-    );
-  }
-
-  /* istanbul ignore next: re-quote hardcodes atomic true; defensive guard. */
-  if (promotedQuote.request.atomic !== true) {
-    throw new Error('Promoted quote request atomic flag was not set');
-  }
-
-  /* istanbul ignore next: re-quote hardcodes the discovery target; defensive guard. */
-  if (promotedQuote.request.targetAmountMinimum !== targetAmount) {
-    throw new Error('Promoted quote target amount minimum was not preserved');
-  }
-
-  if (discoveryQuote.original.details.currencyOut.amount !== targetAmount) {
-    throw new Error('Discovery quote target amount changed before promotion');
-  }
-}
-
-function getPromotedSourceCost({
-  promotedQuote,
-  request,
-}: {
-  promotedQuote: TransactionPayQuote<RelayQuote>;
-  request: QuoteRequest;
-}): BigNumber {
-  const sourceAmount = new BigNumber(promotedQuote.sourceAmount.raw);
-  const sourceTokenIsNative =
-    request.sourceTokenAddress.toLowerCase() ===
-    getNativeToken(request.sourceChainId).toLowerCase();
-
-  if (!sourceTokenIsNative && !promotedQuote.fees.isSourceGasFeeToken) {
-    return sourceAmount;
-  }
-
-  return sourceAmount.plus(
-    new BigNumber(promotedQuote.fees.sourceNetwork.max.raw),
-  );
 }
 
 /**
