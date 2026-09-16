@@ -489,6 +489,8 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     }
 
     for (const [entropySource, accounts] of byEntropy) {
+      // We need to sort accounts by descending group index to ensure that the
+      // last account in the HD keyring is deleted first.
       accounts.sort(
         (a, b) => b.options.entropy.groupIndex - a.options.entropy.groupIndex,
       );
