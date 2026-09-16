@@ -8,6 +8,7 @@ import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { MultichainAccountServiceMessenger } from '../types.js';
+import type { DeleteAccountsResult } from './BaseBip44AccountProvider.js';
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider.js';
 
 /**
@@ -200,11 +201,11 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
    * batch also preserves provider-specific ordering (EVM last-to-first).
    *
    * @param ids - The ids of the accounts to delete.
-   * @returns A promise that resolves when the accounts are deleted.
+   * @returns Whether every requested id was deleted.
    */
   async deleteAccounts(
     ids: Bip44Account<KeyringAccount>['id'][],
-  ): Promise<void> {
+  ): Promise<DeleteAccountsResult> {
     return this.provider.deleteAccounts(ids);
   }
 

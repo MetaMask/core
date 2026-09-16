@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `Bip44AccountProvider.deleteAccounts` ([#10263](https://github.com/MetaMask/core/pull/10263))
   - Default implementation deletes sequentially via `deleteAccount` and is best-effort: one failure does not skip the rest.
-  - Failures are reported together via `DeleteAccountsError`.
+  - Failures are returned as `{ ok: false, failures }` rather than thrown.
 
 ### Changed
 

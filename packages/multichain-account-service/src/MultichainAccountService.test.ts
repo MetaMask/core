@@ -1058,7 +1058,7 @@ describe('MultichainAccountService', () => {
       ).toThrow('Unknown wallet, no wallet matching this entropy source');
     });
 
-    it('continues with remaining providers and removes the wallet when one provider deleteAccounts call throws', async () => {
+    it('continues with remaining providers and removes the wallet when one provider deleteAccounts call fails', async () => {
       const mockEvmAccount = makeWalletAccount(MOCK_HD_ACCOUNT_1);
       const mockSolAccount = makeWalletAccount(MOCK_SOL_ACCOUNT_1);
 
@@ -1092,7 +1092,7 @@ describe('MultichainAccountService', () => {
       expect(sentryError.context?.failures).toStrictEqual([
         expect.objectContaining({
           provider: SOL_ACCOUNT_PROVIDER_NAME,
-          accountId: mockSolAccount.id,
+          id: mockSolAccount.id,
         }),
       ]);
       expect(() =>
@@ -1128,12 +1128,12 @@ describe('MultichainAccountService', () => {
         expect.arrayContaining([
           expect.objectContaining({
             provider: EVM_ACCOUNT_PROVIDER_NAME,
-            accountId: mockEvmAccount.id,
+            id: mockEvmAccount.id,
             error: 'evm keyring locked',
           }),
           expect.objectContaining({
             provider: SOL_ACCOUNT_PROVIDER_NAME,
-            accountId: mockSolAccount.id,
+            id: mockSolAccount.id,
             error: 'snap is unavailable',
           }),
         ]),
@@ -1170,14 +1170,14 @@ describe('MultichainAccountService', () => {
         mockEvmAccount.id,
       ]);
       // The Sol provider failure is reported as a provider-level failure with
-      // no specific `accountId`.
+      // no specific `id`.
       expect(captureExceptionSpy).toHaveBeenCalledTimes(1);
       const sentryError = captureExceptionSpy.mock
         .calls[0]?.[0] as SentryError<RemoveMultichainAccountWalletFailureContext>;
       expect(sentryError.context?.failures).toStrictEqual([
         {
           provider: SOL_ACCOUNT_PROVIDER_NAME,
-          accountId: undefined,
+          id: undefined,
           error: 'snap keyring unavailable',
         },
       ]);
@@ -1217,7 +1217,7 @@ describe('MultichainAccountService', () => {
       );
     });
 
-    it('reports a provider-level failure when deleteAccounts throws a non-DeleteAccountsError', async () => {
+    it('reports a provider-level failure when deleteAccounts throws unexpectedly', async () => {
       const mockEvmAccount = makeWalletAccount(MOCK_HD_ACCOUNT_1);
 
       const { service, messenger, mocks } = await setup({
@@ -1238,7 +1238,7 @@ describe('MultichainAccountService', () => {
       expect(sentryError.context?.failures).toStrictEqual([
         {
           provider: EVM_ACCOUNT_PROVIDER_NAME,
-          accountId: undefined,
+          id: undefined,
           error: 'provider exploded',
         },
       ]);
@@ -1756,7 +1756,7 @@ describe('MultichainAccountService', () => {
     it('forwards deleteAccounts() to the wrapped provider regardless of enabled state', async () => {
       const deleteAccountsSpy = jest
         .spyOn(solProvider, 'deleteAccounts')
-        .mockResolvedValue(undefined);
+        .mockResolvedValue({ ok: true });
       const ids = [MOCK_HD_ACCOUNT_1.id];
 
       await wrapper.deleteAccounts(ids);

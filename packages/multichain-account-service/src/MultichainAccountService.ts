@@ -27,7 +27,6 @@ import { EvmAccountProvider } from './providers/EvmAccountProvider.js';
 import {
   EvmAccountProviderConfig,
   Bip44AccountProvider,
-  DeleteAccountsError,
   EVM_ACCOUNT_PROVIDER_NAME,
   BtcAccountProviderConfig,
   TrxAccountProviderConfig,
@@ -58,7 +57,7 @@ export type RemoveMultichainAccountWalletFailure = {
   provider: string;
   // Omitted for provider-level failures (e.g. enumerating a provider's
   // accounts threw before any specific account could be targeted).
-  accountId?: Bip44Account<KeyringAccount>['id'];
+  id?: Bip44Account<KeyringAccount>['id'];
   error: unknown;
 };
 
@@ -617,22 +616,23 @@ export class MultichainAccountService {
       }
 
       try {
-        await provider.deleteAccounts(owned.map((account) => account.id));
-      } catch (error) {
-        if (error instanceof DeleteAccountsError) {
-          for (const failure of error.failures) {
+        const result = await provider.deleteAccounts(
+          owned.map((account) => account.id),
+        );
+        if (!result.ok) {
+          for (const failure of result.failures) {
             failures.push({
               provider: provider.getName(),
-              accountId: failure.accountId,
+              id: failure.id,
               error: failure.error,
             });
           }
-        } else {
-          failures.push({
-            provider: provider.getName(),
-            error,
-          });
         }
+      } catch (error) {
+        failures.push({
+          provider: provider.getName(),
+          error,
+        });
       }
     }
 
@@ -642,9 +642,9 @@ export class MultichainAccountService {
       // failure in `context`. The shape is pinned by
       // `RemoveMultichainAccountWalletFailureContext`.
       const context: RemoveMultichainAccountWalletFailureContext = {
-        failures: failures.map(({ provider, accountId, error }) => ({
+        failures: failures.map(({ provider, id, error }) => ({
           provider,
-          accountId,
+          id,
           error: toErrorMessage(error),
         })),
       };

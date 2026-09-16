@@ -11,7 +11,6 @@ import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 
 import {
   AccountProviderWrapper,
-  DeleteAccountsError,
   EvmAccountProvider,
 } from '../providers/index.js';
 import { GroupIndexRange } from '../utils.js';
@@ -113,17 +112,18 @@ export function setupBip44AccountProvider({
   );
   mocks.createAccounts.mockResolvedValue([]);
   mocks.deleteAccounts.mockImplementation(async (ids: string[]) => {
-    const failures: { accountId: string; error: unknown }[] = [];
+    const failures: { id: string; error: unknown }[] = [];
     for (const id of ids) {
       try {
         await mocks.deleteAccount(id);
       } catch (error) {
-        failures.push({ accountId: id, error });
+        failures.push({ id, error });
       }
     }
     if (failures.length > 0) {
-      throw new DeleteAccountsError(failures);
+      return { ok: false, failures };
     }
+    return { ok: true };
   });
   mocks.init.mockImplementation(
     (accountIds: Bip44Account<KeyringAccount>['id'][]) => {

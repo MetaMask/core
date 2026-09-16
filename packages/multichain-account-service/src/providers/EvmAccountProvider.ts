@@ -25,12 +25,15 @@ import { traceFallback } from '../analytics/index.js';
 import { TraceName } from '../analytics/traces.js';
 import { projectLogger as log, WARNING_PREFIX } from '../logger.js';
 import type { MultichainAccountServiceMessenger } from '../types.js';
-import type { DeleteAccountsFailure } from './BaseBip44AccountProvider.js';
+import type {
+  DeleteAccountsFailure,
+  DeleteAccountsResult,
+} from './BaseBip44AccountProvider.js';
 import {
   assertAreBip44Accounts,
   assertIsBip44Account,
   BaseBip44AccountProvider,
-  DeleteAccountsError,
+  toDeleteAccountsResult,
 } from './BaseBip44AccountProvider.js';
 import { withRetry, withTimeout } from './utils.js';
 
@@ -466,10 +469,11 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
    * an ascending pass would throw for every account but the last one.
    *
    * @param ids - The ids of the accounts to delete.
+   * @returns Whether every requested id was deleted.
    */
   async deleteAccounts(
     ids: Bip44Account<KeyringAccount>['id'][],
-  ): Promise<void> {
+  ): Promise<DeleteAccountsResult> {
     const failures: DeleteAccountsFailure[] = [];
     const byEntropy = new Map<
       EntropySourceId,
@@ -484,7 +488,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
         group.push(account);
         byEntropy.set(entropySource, group);
       } catch (error) {
-        failures.push({ accountId: id, error });
+        failures.push({ id, error });
       }
     }
 
@@ -512,7 +516,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
                 // NOTE: This failure will be reported immediately, rather than waiting
                 // for the overall `withKeyringV2` call to complete. It won't be reported
                 // multiple times for this account.
-                failures.push({ accountId: account.id, error });
+                failures.push({ id: account.id, error });
               }
             }
           },
@@ -529,13 +533,11 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
         // keyring got rolled back. Both leave the accounts in place, so report
         // the ones that were successfully deleted (but got rolled back).
         for (const id of pending) {
-          failures.push({ accountId: id, error });
+          failures.push({ id, error });
         }
       }
     }
 
-    if (failures.length > 0) {
-      throw new DeleteAccountsError(failures);
-    }
+    return toDeleteAccountsResult(failures);
   }
 }

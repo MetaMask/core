@@ -32,7 +32,6 @@ import {
   MockAccountBuilder,
 } from '../tests/index.js';
 import type { MultichainAccountServiceMessenger } from '../types.js';
-import { DeleteAccountsError } from './BaseBip44AccountProvider.js';
 import { BtcAccountProvider } from './BtcAccountProvider.js';
 import type { SnapAccountProviderConfig } from './SnapAccountProvider.js';
 import {
@@ -1022,7 +1021,9 @@ describe('SnapAccountProvider', () => {
       );
       provider.init(accounts.map((account) => account.id));
 
-      await provider.deleteAccounts(accounts.map((account) => account.id));
+      expect(
+        await provider.deleteAccounts(accounts.map((account) => account.id)),
+      ).toStrictEqual({ ok: true });
 
       expect(keyring.deleteAccount.mock.calls.flat()).toStrictEqual([
         MOCK_HD_ACCOUNT_1.id,
@@ -1030,7 +1031,7 @@ describe('SnapAccountProvider', () => {
       ]);
     });
 
-    it('continues after a per-account failure and throws DeleteAccountsError', async () => {
+    it('continues after a per-account failure and returns ok: false', async () => {
       const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
       const { provider, keyring, messenger } = setup({ accounts });
       messenger.registerActionHandler('AccountsController:getAccount', (id) =>
@@ -1041,9 +1042,17 @@ describe('SnapAccountProvider', () => {
         .mockRejectedValueOnce(new Error('snap is unavailable'))
         .mockResolvedValueOnce(undefined);
 
-      await expect(
-        provider.deleteAccounts(accounts.map((account) => account.id)),
-      ).rejects.toBeInstanceOf(DeleteAccountsError);
+      expect(
+        await provider.deleteAccounts(accounts.map((account) => account.id)),
+      ).toStrictEqual({
+        ok: false,
+        failures: [
+          {
+            id: MOCK_HD_ACCOUNT_1.id,
+            error: expect.objectContaining({ message: 'snap is unavailable' }),
+          },
+        ],
+      });
 
       expect(keyring.deleteAccount).toHaveBeenCalledTimes(2);
       expect(keyring.deleteAccount).toHaveBeenNthCalledWith(

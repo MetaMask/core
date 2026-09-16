@@ -29,7 +29,6 @@ import {
   mockAsInternalAccount,
   RootMessenger,
 } from '../tests/index.js';
-import { DeleteAccountsError } from './BaseBip44AccountProvider.js';
 import {
   EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   EVM_ACCOUNT_PROVIDER_NAME,
@@ -888,7 +887,9 @@ describe('EvmAccountProvider', () => {
       );
       const deleteAccountSpy = jest.spyOn(keyring, 'deleteAccount');
 
-      await provider.deleteAccounts(accounts.map((account) => account.id));
+      expect(
+        await provider.deleteAccounts(accounts.map((account) => account.id)),
+      ).toStrictEqual({ ok: true });
 
       expect(withKeyringV2Spy).toHaveBeenCalledTimes(1);
       expect(withKeyringV2Spy).toHaveBeenCalledWith(
@@ -909,9 +910,19 @@ describe('EvmAccountProvider', () => {
       });
       const deleteAccountSpy = jest.spyOn(keyring, 'deleteAccount');
 
-      await expect(
-        provider.deleteAccounts(['unknown-id', MOCK_HD_ACCOUNT_1.id]),
-      ).rejects.toBeInstanceOf(DeleteAccountsError);
+      expect(
+        await provider.deleteAccounts(['unknown-id', MOCK_HD_ACCOUNT_1.id]),
+      ).toStrictEqual({
+        ok: false,
+        failures: [
+          {
+            id: 'unknown-id',
+            error: expect.objectContaining({
+              message: 'Unable to find account: unknown-id',
+            }),
+          },
+        ],
+      });
 
       expect(deleteAccountSpy).toHaveBeenCalledWith(MOCK_HD_ACCOUNT_1.id);
       expect(provider.getAccounts()).toStrictEqual([]);
@@ -938,9 +949,17 @@ describe('EvmAccountProvider', () => {
         }
       });
 
-      await expect(
-        provider.deleteAccounts(accounts.map((account) => account.id)),
-      ).rejects.toBeInstanceOf(DeleteAccountsError);
+      expect(
+        await provider.deleteAccounts(accounts.map((account) => account.id)),
+      ).toStrictEqual({
+        ok: false,
+        failures: [
+          {
+            id: 'mock-evm-id-1',
+            error: expect.objectContaining({ message: 'cannot delete last' }),
+          },
+        ],
+      });
 
       expect(deleteAccountSpy.mock.calls.flat()).toStrictEqual([
         'mock-evm-id-1',
@@ -963,13 +982,13 @@ describe('EvmAccountProvider', () => {
         },
       );
 
-      await expect(
-        provider.deleteAccounts([MOCK_HD_ACCOUNT_1.id]),
-      ).rejects.toMatchObject({
-        name: 'DeleteAccountsError',
+      expect(
+        await provider.deleteAccounts([MOCK_HD_ACCOUNT_1.id]),
+      ).toStrictEqual({
+        ok: false,
         failures: [
           {
-            accountId: MOCK_HD_ACCOUNT_1.id,
+            id: MOCK_HD_ACCOUNT_1.id,
             error: expect.objectContaining({ message: 'keyring unavailable' }),
           },
         ],
@@ -987,6 +1006,7 @@ describe('EvmAccountProvider', () => {
           .get(),
       );
       const { provider, keyring, messenger } = setup({ accounts });
+      const error = new Error('failed to persist keyring state');
       messenger.unregisterActionHandler('KeyringController:withKeyringV2');
       messenger.registerActionHandler(
         'KeyringController:withKeyringV2',
@@ -997,26 +1017,24 @@ describe('EvmAccountProvider', () => {
           keyring.accounts.push(
             ...accounts.map(({ metadata, ...account }) => account),
           );
-          throw new Error('failed to persist keyring state');
+          throw error;
         },
       );
 
-      await expect(
-        provider.deleteAccounts(accounts.map((account) => account.id)),
-      ).rejects.toMatchObject({
-        name: 'DeleteAccountsError',
+      expect(
+        await provider.deleteAccounts(accounts.map((account) => account.id)),
+      ).toStrictEqual({
+        ok: false,
         failures: [
+          // Order is reversed to match the order in which deletions are attempted
+          // (for EVM accounts, we try to remove the last ones first).
           {
-            accountId: 'mock-evm-id-1',
-            error: expect.objectContaining({
-              message: 'failed to persist keyring state',
-            }),
+            id: 'mock-evm-id-1',
+            error,
           },
           {
-            accountId: 'mock-evm-id-0',
-            error: expect.objectContaining({
-              message: 'failed to persist keyring state',
-            }),
+            id: 'mock-evm-id-0',
+            error,
           },
         ],
       });
@@ -1051,17 +1069,19 @@ describe('EvmAccountProvider', () => {
         },
       );
 
-      await expect(
-        provider.deleteAccounts(accounts.map((account) => account.id)),
-      ).rejects.toMatchObject({
-        name: 'DeleteAccountsError',
+      expect(
+        await provider.deleteAccounts(accounts.map((account) => account.id)),
+      ).toStrictEqual({
+        ok: false,
         failures: [
+          // Per-account failures are recorded as they happen, so this one comes
+          // before the group-level failure reported once `withKeyringV2` threw.
           {
-            accountId: 'mock-evm-id-0',
+            id: 'mock-evm-id-0',
             error: expect.objectContaining({ message: 'cannot delete last' }),
           },
           {
-            accountId: 'mock-evm-id-1',
+            id: 'mock-evm-id-1',
             error: expect.objectContaining({
               message: 'failed to persist keyring state',
             }),

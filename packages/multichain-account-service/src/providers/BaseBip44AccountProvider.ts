@@ -47,22 +47,30 @@ export function assertAreBip44Accounts(
  * A single account deletion that failed during {@link Bip44AccountProvider.deleteAccounts}.
  */
 export type DeleteAccountsFailure = {
-  accountId: string;
+  id: string;
   error: unknown;
 };
 
 /**
- * Thrown when one or more accounts could not be deleted during a batch
- * `deleteAccounts` call. Remaining accounts are still attempted (best-effort).
+ * Result of a batch {@link Bip44AccountProvider.deleteAccounts} call.
+ *
+ * Failures are expected (the operation is best-effort), so they are returned
+ * rather than thrown. `{ ok: true }` means every requested id was deleted.
  */
-export class DeleteAccountsError extends Error {
-  readonly failures: DeleteAccountsFailure[];
+export type DeleteAccountsResult =
+  | { ok: true }
+  | { ok: false; failures: DeleteAccountsFailure[] };
 
-  constructor(failures: DeleteAccountsFailure[]) {
-    super('Failed to delete one or more accounts');
-    this.name = 'DeleteAccountsError';
-    this.failures = failures;
-  }
+/**
+ * Builds a {@link DeleteAccountsResult} from the collected per-id failures.
+ *
+ * @param failures - Failures recorded during the batch, if any.
+ * @returns `{ ok: true }` when `failures` is empty, otherwise `{ ok: false, failures }`.
+ */
+export function toDeleteAccountsResult(
+  failures: DeleteAccountsFailure[],
+): DeleteAccountsResult {
+  return failures.length > 0 ? { ok: false, failures } : { ok: true };
 }
 
 export type Bip44AccountProvider<
@@ -117,12 +125,13 @@ export type Bip44AccountProvider<
    * Providers may reorder or batch internally (e.g. the EVM provider must
    * delete from the highest group index down). The default implementation
    * deletes sequentially via {@link deleteAccount} and is best-effort: a
-   * failure for one id does not skip the rest. If any deletion fails, a
-   * {@link DeleteAccountsError} is thrown with every per-id failure.
+   * failure for one id does not skip the rest. If any deletion fails, the
+   * result is `{ ok: false, failures }` with every per-id failure.
    *
    * @param ids - The ids of the accounts to delete.
+   * @returns Whether every requested id was deleted.
    */
-  deleteAccounts(ids: Account['id'][]): Promise<void>;
+  deleteAccounts(ids: Account['id'][]): Promise<DeleteAccountsResult>;
   /**
    * Re-synchronize MetaMask accounts and the providers accounts if needed.
    *
@@ -300,21 +309,20 @@ export abstract class BaseBip44AccountProvider<
    * should override.
    *
    * @param ids - The ids of the accounts to delete.
+   * @returns Whether every requested id was deleted.
    */
-  async deleteAccounts(ids: Account['id'][]): Promise<void> {
+  async deleteAccounts(ids: Account['id'][]): Promise<DeleteAccountsResult> {
     const failures: DeleteAccountsFailure[] = [];
 
     for (const id of ids) {
       try {
         await this.deleteAccount(id);
       } catch (error) {
-        failures.push({ accountId: id, error });
+        failures.push({ id, error });
       }
     }
 
-    if (failures.length > 0) {
-      throw new DeleteAccountsError(failures);
-    }
+    return toDeleteAccountsResult(failures);
   }
 
   abstract discoverAccounts({
