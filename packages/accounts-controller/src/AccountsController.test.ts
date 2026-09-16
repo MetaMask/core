@@ -32,7 +32,7 @@ import type {
 } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { CaipChainId } from '@metamask/utils';
-import type { V4Options } from 'uuid';
+import type { Version4Options } from 'uuid';
 import { v4 as uuidV4 } from 'uuid';
 
 import {
@@ -67,7 +67,9 @@ type RootMessenger = Messenger<
 >;
 
 jest.mock('uuid');
-const mockUUID = jest.mocked(uuidV4);
+// `v4` is overloaded; naming the signature used here avoids resolving to the
+// last overload, which returns a `Uint8Array`.
+const mockUUID = jest.mocked<() => string>(uuidV4);
 const actualUUID = jest.requireActual('uuid').v4; // We also use uuid.v4 in our mocks
 
 const defaultState: AccountsControllerState = {
@@ -181,7 +183,7 @@ class MockNormalAccountUUID {
     }
   }
 
-  mock(options?: V4Options | undefined): string {
+  mock(options?: Version4Options | undefined): string {
     const accountId = actualUUID(options);
 
     // If not found, we returns the generated UUID

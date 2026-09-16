@@ -93,7 +93,9 @@ type AllEvents =
 
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
-const uuidV4Mock = jest.mocked(uuidV4);
+// `v4` is overloaded; naming the signature used here avoids resolving to the
+// last overload, which returns a `Uint8Array`.
+const uuidV4Mock = jest.mocked<() => string>(uuidV4);
 
 const createMockInternalAccount = ({
   id = uuidV4(),
