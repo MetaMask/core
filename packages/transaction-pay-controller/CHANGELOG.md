@@ -7,15 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Update lint:tsc to run against all packages & remove it from CI ([#10215](https://github.com/MetaMask/core/pull/10215))
-- chore: integrate `@metamask/utils` into `packages/` ([#10185](https://github.com/MetaMask/core/pull/10185))
+## [29.0.0]
 
 ### Changed
 
+- **BREAKING:** `TransactionPayControllerMessenger` now requires `RampsController:getQuoteWithFees` to be delegated in place of `RampsController:getQuotes` ([#9317](https://github.com/MetaMask/core/pull/9317), [#10238](https://github.com/MetaMask/core/pull/10238))
+  - Clients that do not add this delegation will throw when a fiat quote is requested.
 - Use the native Transak buy quote's fee for the MM Pay fiat estimate when Transak Native is the resolved provider, falling back to the aggregator quote's fee when native is unavailable or the lookup fails ([#9317](https://github.com/MetaMask/core/pull/9317))
-  - The native lookup and fee reconciliation are owned by `RampsController:getQuoteWithFees`; clients must delegate `RampsController:getQuoteWithFees` to the `TransactionPayController` messenger (the previously required `TransakService:getBuyQuote` delegation is no longer needed) ([#10238](https://github.com/MetaMask/core/pull/10238)).
+  - The native lookup and fee reconciliation are now owned by `RampsController:getQuoteWithFees` ([#10238](https://github.com/MetaMask/core/pull/10238)).
 - Charge direct Monad mUSD on-ramp fees on top of the entered amount (fee-on-top), so the total is the entered amount plus fees ([#9317](https://github.com/MetaMask/core/pull/9317))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@metamask/assets-controller` from `^16.0.0` to `^16.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242))
@@ -1561,7 +1560,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.0.0...HEAD
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.2...@metamask/transaction-pay-controller@29.0.0
 [28.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.1...@metamask/transaction-pay-controller@28.0.2
 [28.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.0...@metamask/transaction-pay-controller@28.0.1
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.1.2...@metamask/transaction-pay-controller@28.0.0
