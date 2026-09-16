@@ -909,7 +909,10 @@ export class AuthenticationController extends BaseController<
    * A cache-refresh failure does not undo successful enrollment. Email
    * enrollment invalidates the primary SRP session *after* refresh so the
    * credentials call can reuse the still-valid access token; the next token
-   * fetch then includes the newly verified email claim.
+   * fetch then includes the newly verified email claim. That invalidation
+   * happens even if the session ends mid-request: the enrollment succeeded
+   * on the server, so a token cached across a lock must not be reused
+   * without the new claim.
    *
    * @param request - Flow identifier, platform or email proof, and trace reason.
    * @returns The refreshed credentials, or the existing cache if refresh fails.
@@ -934,7 +937,15 @@ export class AuthenticationController extends BaseController<
           primaryEntropySourceId,
         ),
     );
-    this.#assertAuthSessionEpoch(sessionEpoch, 'completeCredentialEnrollment');
+
+    try {
+      this.#assertAuthSessionEpoch(sessionEpoch, 'completeCredentialEnrollment');
+    } catch (error) {
+      if (type === 'email_otp') {
+        this.#invalidateSrpSession(primaryEntropySourceId);
+      }
+      throw error;
+    }
 
     try {
       return await this.refreshEnrolledCredentials();
