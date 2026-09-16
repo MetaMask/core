@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Update lint:tsc to run against all packages & remove it from CI ([#10215](https://github.com/MetaMask/core/pull/10215))
+
 ### Added
 
 - Add `RampsController:getQuoteWithFees`, which returns the best on-ramp quote with its fees reconciled to the resolved provider ([#10238](https://github.com/MetaMask/core/pull/10238))
@@ -36,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `RampsControllerMessenger` now requires these actions to be delegated for order syncing ([#9474](https://github.com/MetaMask/core/pull/9474)):
+- **BREAKING:** `RampsControllerMessenger` now requires these actions to be delegated for order syncing: ([#9474](https://github.com/MetaMask/core/pull/9474))
   - `UserStorageController:getState`
   - `UserStorageController:performGetStorageAllFeatureEntries`
   - `UserStorageController:performBatchSetStorage`
