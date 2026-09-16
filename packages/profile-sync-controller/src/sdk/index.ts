@@ -1,4 +1,5 @@
 export * from './authentication.js';
+export * from './authentication-jwt-bearer/mfa/types.js';
 export * from './user-storage.js';
 export * from './errors.js';
 export * from './utils/messaging-signing-snap-requests.js';

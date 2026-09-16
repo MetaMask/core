@@ -4,12 +4,21 @@ import type { Eip1193Provider } from 'ethers';
 import type { Env } from '../shared/env.js';
 import { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe.js';
 import { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp.js';
+import type {
+  EnrolledCredential,
+  EnrollmentChallenge,
+  EnrollmentProof,
+  MfaCredentialType,
+  StepUpChallenge,
+  StepUpProof,
+} from './authentication-jwt-bearer/mfa/types.js';
 import {
   getNonce,
   pairIdentifiers,
 } from './authentication-jwt-bearer/services.js';
 import type { PairProfilesResponse } from './authentication-jwt-bearer/services.js';
 import type {
+  AccessToken,
   UserProfile,
   Pair,
   PairSocialIdentifierParams,
@@ -100,6 +109,60 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
       audience,
       entropySourceId,
     );
+  }
+
+  async beginMfaEnrollment(
+    type: MfaCredentialType,
+    email?: string,
+    entropySourceId?: string,
+  ): Promise<EnrollmentChallenge> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.beginMfaEnrollment(type, email, entropySourceId);
+  }
+
+  async completeMfaEnrollment(
+    type: MfaCredentialType,
+    flowId: string,
+    proof: EnrollmentProof,
+    entropySourceId?: string,
+  ): Promise<void> {
+    this.#assertSRP(this.#type, this.#sdk);
+    await this.#sdk.completeMfaEnrollment(type, flowId, proof, entropySourceId);
+  }
+
+  async beginMfaVerification(
+    type: MfaCredentialType,
+    entropySourceId?: string,
+  ): Promise<StepUpChallenge> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.beginMfaVerification(type, entropySourceId);
+  }
+
+  async completeMfaVerification(
+    type: MfaCredentialType,
+    flowId: string,
+    proof: StepUpProof,
+    entropySourceId?: string,
+  ): ReturnType<SRPJwtBearerAuth['completeMfaVerification']> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.completeMfaVerification(
+      type,
+      flowId,
+      proof,
+      entropySourceId,
+    );
+  }
+
+  async getMfaCredentials(
+    entropySourceId?: string,
+  ): Promise<EnrolledCredential[]> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.getMfaCredentials(entropySourceId);
+  }
+
+  async exchangeMfaAssertion(assertionJwt: string): Promise<AccessToken> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.exchangeMfaAssertion(assertionJwt);
   }
 
   async pairSrpProfiles(

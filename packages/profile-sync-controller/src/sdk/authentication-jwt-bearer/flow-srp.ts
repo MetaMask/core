@@ -1,7 +1,7 @@
 import type { Eip1193Provider } from 'ethers';
 
 import type { MetaMetricsAuth } from '../../shared/types/services.js';
-import { ValidationError, RateLimitedError } from '../errors.js';
+import { MfaError, ValidationError, RateLimitedError } from '../errors.js';
 import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider.js';
 import {
   MESSAGE_SIGNING_SNAP,
@@ -10,6 +10,21 @@ import {
   isSnapConnected,
 } from '../utils/messaging-signing-snap-requests.js';
 import { validateLoginResponse } from '../utils/validate-login-response.js';
+import {
+  getMfaCredentials,
+  mfaEnroll,
+  mfaEnrollComplete,
+  mfaVerify,
+  mfaVerifyComplete,
+} from './mfa/services.js';
+import type {
+  EnrolledCredential,
+  EnrollmentChallenge,
+  EnrollmentProof,
+  MfaCredentialType,
+  StepUpChallenge,
+  StepUpProof,
+} from './mfa/types.js';
 import {
   authenticate,
   authorizeOIDC,
@@ -23,6 +38,7 @@ import {
 import type { PairProfilesResponse } from './services.js';
 import type {
   AuthConfig,
+  AccessToken,
   AuthSigningOptions,
   AuthStorageOptions,
   AuthType,
@@ -209,6 +225,161 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       accessToken,
       claims,
       audience,
+    );
+  }
+
+  /**
+   * Begins enrollment of an MFA credential for the primary profile.
+   *
+   * @param type - Credential type to enroll.
+   * @param email - Email address, required for email OTP.
+   * @param entropySourceId - Entropy source whose profile owns the credential.
+   * @returns Enrollment challenge for the client ceremony.
+   */
+  async beginMfaEnrollment(
+    type: MfaCredentialType,
+    email?: string,
+    entropySourceId?: string,
+  ): Promise<EnrollmentChallenge> {
+    const accessToken = await this.getAccessToken(entropySourceId);
+    const result = await mfaEnroll(this.#config.env, accessToken, {
+      credential_type: type,
+      ...(email ? { identifier: email } : {}),
+    });
+
+    if (type === 'passkey') {
+      if (!result.publicKey) {
+        throw new MfaError(
+          'invalid_response',
+          'Passkey enrollment response is missing creation data',
+        );
+      }
+      return {
+        type,
+        flowId: result.flowId,
+        expiresAt: result.expiresAt,
+        publicKey: result.publicKey,
+      };
+    }
+    return {
+      type,
+      flowId: result.flowId,
+      expiresAt: result.expiresAt,
+      emailSent: true,
+    };
+  }
+
+  /**
+   * Completes enrollment of an MFA credential.
+   *
+   * @param type - Credential type being enrolled.
+   * @param flowId - Identifier returned by the begin call.
+   * @param proof - Platform attestation or email code.
+   * @param entropySourceId - Entropy source whose profile owns the credential.
+   */
+  async completeMfaEnrollment(
+    type: MfaCredentialType,
+    flowId: string,
+    proof: EnrollmentProof,
+    entropySourceId?: string,
+  ): Promise<void> {
+    const accessToken = await this.getAccessToken(entropySourceId);
+    await mfaEnrollComplete(this.#config.env, accessToken, {
+      credential_type: type,
+      flow_id: flowId,
+      ...(proof.type === 'passkey'
+        ? { passkey_attestation: proof.attestation }
+        : { otp_code: proof.code }),
+    });
+  }
+
+  /**
+   * Begins step-up verification with an enrolled credential.
+   *
+   * @param type - Credential type to verify.
+   * @param entropySourceId - Entropy source whose profile owns the credential.
+   * @returns Verification challenge for the client ceremony.
+   */
+  async beginMfaVerification(
+    type: MfaCredentialType,
+    entropySourceId?: string,
+  ): Promise<StepUpChallenge> {
+    const accessToken = await this.getAccessToken(entropySourceId);
+    const result = await mfaVerify(this.#config.env, accessToken, {
+      credential_type: type,
+    });
+
+    if (type === 'passkey') {
+      if (!result.publicKey) {
+        throw new MfaError(
+          'invalid_response',
+          'Passkey verification response is missing request data',
+        );
+      }
+      return {
+        type,
+        flowId: result.flowId,
+        expiresAt: result.expiresAt,
+        publicKey: result.publicKey,
+      };
+    }
+    return {
+      type,
+      flowId: result.flowId,
+      expiresAt: result.expiresAt,
+      deliverySent: true,
+    };
+  }
+
+  /**
+   * Completes step-up verification with an enrolled credential.
+   *
+   * @param type - Credential type being verified.
+   * @param flowId - Identifier returned by the begin call.
+   * @param proof - Platform assertion or email code.
+   * @param entropySourceId - Entropy source whose profile owns the credential.
+   * @returns Authentication assertion issued after verification.
+   */
+  async completeMfaVerification(
+    type: MfaCredentialType,
+    flowId: string,
+    proof: StepUpProof,
+    entropySourceId?: string,
+  ): ReturnType<typeof mfaVerifyComplete> {
+    const accessToken = await this.getAccessToken(entropySourceId);
+    return await mfaVerifyComplete(this.#config.env, accessToken, {
+      credential_type: type,
+      flow_id: flowId,
+      ...(proof.type === 'passkey'
+        ? { passkey_assertion: proof.assertion }
+        : { otp_code: proof.code }),
+    });
+  }
+
+  /**
+   * Gets credentials enrolled on the primary profile.
+   *
+   * @param entropySourceId - Entropy source whose profile owns the credentials.
+   * @returns Supported enrolled credentials.
+   */
+  async getMfaCredentials(
+    entropySourceId?: string,
+  ): Promise<EnrolledCredential[]> {
+    const accessToken = await this.getAccessToken(entropySourceId);
+    return await getMfaCredentials(this.#config.env, accessToken);
+  }
+
+  /**
+   * Exchanges an MFA assertion for an elevated access token.
+   *
+   * @param assertionJwt - AAL2 authentication assertion.
+   * @returns Elevated access token.
+   */
+  async exchangeMfaAssertion(assertionJwt: string): Promise<AccessToken> {
+    return await authorizeOIDC(
+      assertionJwt,
+      this.#config.env,
+      this.#config.platform,
     );
   }
 
