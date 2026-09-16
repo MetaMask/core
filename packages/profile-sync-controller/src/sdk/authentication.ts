@@ -4,6 +4,7 @@ import type { Eip1193Provider } from 'ethers';
 import type { Env } from '../shared/env.js';
 import { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe.js';
 import { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp.js';
+import type { MfaAssertion } from './authentication-jwt-bearer/mfa/services.js';
 import type {
   EnrolledCredential,
   EnrollmentChallenge,
@@ -143,7 +144,7 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     flowId: string,
     proof: StepUpProof,
     entropySourceId?: string,
-  ): ReturnType<SRPJwtBearerAuth['completeMfaVerification']> {
+  ): Promise<MfaAssertion> {
     this.#assertSRP(this.#type, this.#sdk);
     return await this.#sdk.completeMfaVerification(
       type,

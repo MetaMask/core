@@ -6,6 +6,8 @@ import {
   MaxPasskeysReachedError,
   MfaError,
   MfaFlowExpiredError,
+  MfaIdentityMissingError,
+  MfaRateLimitedError,
   MfaUnavailableError,
   MfaVerificationFailedError,
   TooManyAttemptsError,
@@ -136,16 +138,10 @@ describe('MFA services', () => {
         challenge: 'dmVyaWZ5LWNoYWxsZW5nZQ',
       }),
     );
-    expect(completion).toStrictEqual(
-      expect.objectContaining({
-        token: MOCK_MFA_VERIFY_COMPLETE_RESPONSE.token,
-        expiresIn: 900,
-        profile: expect.objectContaining({
-          canonicalProfileId:
-            MOCK_MFA_VERIFY_COMPLETE_RESPONSE.profile.profile_id,
-        }),
-      }),
-    );
+    expect(completion).toStrictEqual({
+      token: MOCK_MFA_VERIFY_COMPLETE_RESPONSE.token,
+      expiresIn: 900,
+    });
     const body = JSON.parse(mockFetch.mock.calls[1][1].body);
     expect(body.passkey_assertion).toBe(JSON.stringify(assertion));
   });
@@ -226,10 +222,38 @@ describe('MFA services', () => {
     ).toBeNull();
     expect(
       toEnrolledCredential({
+        credential_type: 'passkey',
+        status: 'revoked',
+      }),
+    ).toBeNull();
+    expect(
+      toEnrolledCredential({
         credential_type: 'email_otp',
         status: 'pending',
       }),
     ).toBeNull();
+  });
+
+  it('derives email verification from status when the server omits it', () => {
+    expect(
+      toEnrolledCredential({
+        credential_type: 'email_otp',
+        status: 'active',
+        email: { address: 'user@example.com' },
+      }),
+    ).toStrictEqual({
+      type: 'email_otp',
+      status: 'active',
+      email: 'user@example.com',
+      verified: true,
+    });
+    expect(
+      toEnrolledCredential({
+        credential_type: 'email_otp',
+        status: 'pending',
+        email: { address: 'user@example.com' },
+      }),
+    ).toMatchObject({ verified: false });
   });
 
   it.each([
@@ -238,7 +262,7 @@ describe('MFA services', () => {
     ['credential_not_enrolled', CredentialNotEnrolledError, 409],
     ['flow_expired', MfaFlowExpiredError, 400],
     ['invalid_flow', MfaFlowExpiredError, 400],
-    ['mfa_identity_missing', MfaFlowExpiredError, 409],
+    ['mfa_identity_missing', MfaIdentityMissingError, 409],
     ['invalid_code', MfaVerificationFailedError, 400],
     ['invalid_attestation', MfaVerificationFailedError, 400],
     ['invalid_assertion', MfaVerificationFailedError, 400],
@@ -258,38 +282,65 @@ describe('MFA services', () => {
     ).rejects.toBeInstanceOf(ErrorClass);
   });
 
-  it('maps resend cooldown and parses Retry-After', async () => {
-    mockFetch.mockResolvedValue(
-      response(
-        { code: 'otp_resend_cooldown', message: 'Wait before retrying' },
-        { status: 429, headers: { 'Retry-After': '12' } },
-      ),
-    );
+  it('maps resend cooldown and parses a Retry-After delay or date', async () => {
+    const retryAt = new Date(Date.now() + 30_000);
+    mockFetch
+      .mockResolvedValueOnce(
+        response(
+          { code: 'otp_resend_cooldown', message: 'Wait before retrying' },
+          { status: 429, headers: { 'Retry-After': '12' } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        response(
+          { code: 'otp_resend_cooldown', message: 'Wait before retrying' },
+          { status: 429, headers: { 'Retry-After': retryAt.toUTCString() } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        response(
+          { code: 'otp_resend_cooldown', message: 'Wait before retrying' },
+          { status: 429 },
+        ),
+      );
 
-    await expect(
-      mfaVerify(Env.PRD, 'access-token', {
-        credential_type: 'email_otp',
-      }),
-    ).rejects.toMatchObject({
+    const verifyEmail = async (): Promise<unknown> =>
+      await mfaVerify(Env.PRD, 'access-token', { credential_type: 'email_otp' });
+
+    await expect(verifyEmail()).rejects.toMatchObject({
       mfaCode: 'otp_resend_cooldown',
       retryAfterMs: 12_000,
     });
+    const dated = await verifyEmail().catch((error) => error);
+    expect(dated.retryAfterMs).toBeGreaterThan(0);
+    expect(dated.retryAfterMs).toBeLessThanOrEqual(30_000);
+    // The human-readable message is never parsed for a delay.
+    await expect(verifyEmail()).rejects.toMatchObject({
+      mfaCode: 'otp_resend_cooldown',
+      retryAfterMs: undefined,
+    });
   });
 
-  it('falls back to status and message cooldown mappings', async () => {
+  it('maps code-less 429 and 502 responses by status', async () => {
     mockFetch
       .mockResolvedValueOnce(
-        response({ message: 'Retry after 8 seconds' }, { status: 429 }),
+        response(
+          { message: 'Slow down' },
+          { status: 429, headers: { 'Retry-After': '8' } },
+        ),
       )
       .mockResolvedValueOnce(
         response({ message: 'Unavailable' }, { status: 502 }),
       );
 
-    await expect(
-      mfaVerify(Env.PRD, 'access-token', {
-        credential_type: 'email_otp',
-      }),
-    ).rejects.toMatchObject({ retryAfterMs: 8_000 });
+    const rateLimited = await mfaVerify(Env.PRD, 'access-token', {
+      credential_type: 'email_otp',
+    }).catch((error) => error);
+    expect(rateLimited).toBeInstanceOf(MfaRateLimitedError);
+    expect(rateLimited).toMatchObject({
+      mfaCode: 'rate_limited',
+      retryAfterMs: 8_000,
+    });
     await expect(
       mfaVerify(Env.PRD, 'access-token', {
         credential_type: 'email_otp',
@@ -323,12 +374,34 @@ describe('MFA services', () => {
     ).rejects.toMatchObject({ mfaCode: 'server_error' });
   });
 
+  it('recognises a rejected token even without a JSON error body', async () => {
+    mockFetch.mockResolvedValue(
+      new globalThis.Response('', {
+        status: 401,
+        headers: { 'Content-Type': 'text/plain' },
+      }),
+    );
+
+    await expect(
+      getMfaCredentials(Env.PRD, 'access-token'),
+    ).rejects.toMatchObject({
+      mfaCode: 'authentication_required',
+      status: 401,
+    });
+  });
+
   it('rejects malformed success and error responses', async () => {
     mockFetch
       .mockResolvedValueOnce(response({ flow_id: 'missing-expiration' }))
       .mockResolvedValueOnce(
         new globalThis.Response('not-json', {
           status: 500,
+          headers: { 'Content-Type': 'text/plain' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new globalThis.Response('not-json', {
+          status: 200,
           headers: { 'Content-Type': 'text/plain' },
         }),
       );
@@ -342,13 +415,21 @@ describe('MFA services', () => {
       mfaEnroll(Env.PRD, 'access-token', {
         credential_type: 'passkey',
       }),
-    ).rejects.toMatchObject({ mfaCode: 'invalid_response' });
+    ).rejects.toMatchObject({ mfaCode: 'invalid_response', status: 500 });
+    await expect(
+      mfaEnroll(Env.PRD, 'access-token', {
+        credential_type: 'passkey',
+      }),
+    ).rejects.toMatchObject({ mfaCode: 'invalid_response', status: 200 });
   });
 
   it('rejects malformed embedded JSON and expiration dates', async () => {
     expect(() => parsePasskeyCreateData('{')).toThrow(
       /MFA\[invalid_response\]/u,
     );
+    expect(() =>
+      parsePasskeyCreateData('{"publicKey":{"challenge":"only"}}'),
+    ).toThrow(/MFA\[invalid_response\].*\[publicKey\.rp\]/u);
     expect(() =>
       parsePasskeyRequestData('{"publicKey":{"challenge":1}}'),
     ).toThrow(/MFA\[invalid_response\]/u);
@@ -366,10 +447,12 @@ describe('MFA services', () => {
     ).rejects.toBeInstanceOf(MfaError);
   });
 
-  it('maps network failures to an unavailable error', async () => {
+  it('maps network failures to an unavailable error without a status', async () => {
     mockFetch.mockRejectedValue(new Error('offline'));
-    await expect(
-      getMfaCredentials(Env.PRD, 'access-token'),
-    ).rejects.toBeInstanceOf(MfaUnavailableError);
+    const error = await getMfaCredentials(Env.PRD, 'access-token').catch(
+      (caught) => caught,
+    );
+    expect(error).toBeInstanceOf(MfaUnavailableError);
+    expect(error.status).toBeUndefined();
   });
 });

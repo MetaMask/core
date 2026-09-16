@@ -104,8 +104,7 @@ export const MOCK_MFA_VERIFY_COMPLETE_RESPONSE = {
     profile_id: 'f88227bd-b615-41a3-b0be-467dd781a4ad',
     identifier_id:
       'da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb',
-    identifier_type: 'PASSKEY',
-    metametrics_id: '561ec651-a844-4b36-a451-04d6eac35740',
+    identifier_type: 'SRP',
   },
   profile_aliases: [],
 };

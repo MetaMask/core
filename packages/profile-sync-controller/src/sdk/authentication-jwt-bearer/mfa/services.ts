@@ -10,6 +10,8 @@ import {
   MaxPasskeysReachedError,
   MfaError,
   MfaFlowExpiredError,
+  MfaIdentityMissingError,
+  MfaRateLimitedError,
   MfaUnavailableError,
   MfaVerificationFailedError,
   OtpResendCooldownError,
@@ -17,11 +19,11 @@ import {
 } from '../../errors.js';
 import {
   AuthenticationResponseJSONStruct,
-  AuthenticationResponseStruct,
   MfaCredentialsResponseStruct,
   MfaEnrollCompleteResponseStruct,
   MfaEnrollResponseStruct,
   MfaErrorResponseStruct,
+  MfaVerifyCompleteResponseStruct,
   MfaVerifyResponseStruct,
   PasskeyCreateDataStruct,
   PasskeyRequestDataStruct,
@@ -33,11 +35,11 @@ import type {
   AuthenticationResponseJSON,
   EnrolledCredential,
   MfaCredential,
+  MfaCredentialStatus,
   MfaCredentialType,
   MfaEnrollCompleteRequest,
   MfaEnrollRequest,
   MfaVerifyCompleteRequest,
-  MfaVerifyCompleteResponse,
   MfaVerifyRequest,
   PublicKeyCredentialCreationOptionsJSON as PasskeyCreationOptions,
   PublicKeyCredentialRequestOptionsJSON as PasskeyRequestOptions,
@@ -69,6 +71,13 @@ type VerificationServiceResult = {
   flowId: string;
   expiresAt: number;
   publicKey?: PasskeyRequestOptions;
+};
+
+export type MfaAssertion = {
+  /** AAL2 assertion JWT to exchange at Hydra for an elevated access token. */
+  token: string;
+  /** Assertion lifetime in seconds. */
+  expiresIn: number;
 };
 
 type EnrollmentCompletionParams = {
@@ -161,93 +170,105 @@ export function parsePasskeyRequestData(value: string): PasskeyRequestOptions {
   }
 }
 
-function parseRetryAfter(
-  response: Response,
-  message: string,
-): number | undefined {
+/**
+ * Reads a `Retry-After` header as a delay. The human-readable error message is
+ * deliberately not parsed: the API documents it as unstable.
+ *
+ * @param response - The throttled response.
+ * @returns The delay in milliseconds, or undefined without a usable header.
+ */
+function parseRetryAfter(response: Response): number | undefined {
   const header = response.headers.get('Retry-After');
-  if (header) {
-    const seconds = Number(header);
-    if (!Number.isNaN(seconds)) {
-      return Math.max(0, seconds * 1000);
-    }
-    const date = Date.parse(header);
-    if (!Number.isNaN(date)) {
-      return Math.max(0, date - Date.now());
-    }
+  if (!header) {
+    return undefined;
   }
+  const seconds = Number(header);
+  if (!Number.isNaN(seconds)) {
+    return Math.max(0, seconds * 1000);
+  }
+  const date = Date.parse(header);
+  return Number.isNaN(date) ? undefined : Math.max(0, date - Date.now());
+}
 
-  const match =
-    /(?:retry|wait)(?:\s+after|\s+for)?\s+(\d+)\s*(?:s|sec|seconds?)/iu.exec(
-      message,
-    );
-  return match?.[1] ? Number(match[1]) * 1000 : undefined;
+async function readErrorBody(
+  response: Response,
+): Promise<{ code?: string; message: string } | undefined> {
+  try {
+    const body: unknown = await response.json();
+    assertValidMfaResponse(body, MfaErrorResponseStruct);
+    return body;
+  } catch {
+    return undefined;
+  }
 }
 
 async function throwMfaError(
   response: Response,
   errorPrefix: string,
 ): Promise<never> {
-  let body: unknown;
-  try {
-    body = await response.json();
-    assertValidMfaResponse(body, MfaErrorResponseStruct);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new MfaError('invalid_response', `${errorPrefix}: ${message}`, {
-      status: response.status,
-    });
+  const { status } = response;
+  const body = await readErrorBody(response);
+
+  // A rejected token must be recognised even when a gateway answers without
+  // the service's JSON error body, so the caller can invalidate its session.
+  if (status === HTTP_STATUS_CODES.UNAUTHORIZED) {
+    throw new MfaError(
+      'authentication_required',
+      `${errorPrefix}: ${body?.message ?? 'Unauthorized'}`,
+      { status },
+    );
+  }
+  if (!body) {
+    throw new MfaError(
+      'invalid_response',
+      `${errorPrefix}: Unexpected error response (HTTP ${status})`,
+      { status },
+    );
   }
 
   const message = `${errorPrefix}: ${body.message}`;
   const { code } = body;
-  if (response.status === HTTP_STATUS_CODES.UNAUTHORIZED) {
-    throw new MfaError('authentication_required', message, {
-      status: response.status,
-    });
-  }
   switch (code) {
     case 'credential_already_enrolled':
     case 'email_already_enrolled':
-      throw new CredentialAlreadyEnrolledError(code, message, response.status);
+      throw new CredentialAlreadyEnrolledError(code, message, status);
     case 'credential_not_enrolled':
-      throw new CredentialNotEnrolledError(message, response.status);
+      throw new CredentialNotEnrolledError(message, status);
     case 'flow_expired':
     case 'invalid_flow':
+      throw new MfaFlowExpiredError(code, message, status);
     case 'mfa_identity_missing':
-      throw new MfaFlowExpiredError(code, message, response.status);
+      throw new MfaIdentityMissingError(message, status);
     case 'invalid_code':
     case 'invalid_attestation':
     case 'invalid_assertion':
-      throw new MfaVerificationFailedError(code, message, response.status);
+      throw new MfaVerificationFailedError(code, message, status);
     case 'too_many_attempts':
-      throw new TooManyAttemptsError(message, response.status);
+      throw new TooManyAttemptsError(message, status);
     case 'max_passkeys_reached':
-      throw new MaxPasskeysReachedError(message, response.status);
+      throw new MaxPasskeysReachedError(message, status);
     case 'max_identifiers_reached':
-      throw new MaxIdentifiersReachedError(message, response.status);
+      throw new MaxIdentifiersReachedError(message, status);
     case 'otp_resend_cooldown':
       throw new OtpResendCooldownError(
         message,
-        parseRetryAfter(response, body.message),
-        response.status,
+        parseRetryAfter(response),
+        status,
       );
     case 'kratos_unavailable':
-      throw new MfaUnavailableError(message, response.status);
+      throw new MfaUnavailableError(message, status);
     default:
-      if (response.status === HTTP_STATUS_CODES.TOO_MANY_REQUESTS) {
-        throw new OtpResendCooldownError(
+      if (status === HTTP_STATUS_CODES.TOO_MANY_REQUESTS) {
+        throw new MfaRateLimitedError(
           message,
-          parseRetryAfter(response, body.message),
-          response.status,
+          parseRetryAfter(response),
+          status,
         );
       }
-      if (response.status === HTTP_STATUS_CODES.BAD_GATEWAY) {
-        throw new MfaUnavailableError(message, response.status);
+      if (status === HTTP_STATUS_CODES.BAD_GATEWAY) {
+        throw new MfaUnavailableError(message, status);
       }
-      throw new MfaError(code ?? 'server_error', message, {
-        status: response.status,
-      });
+      throw new MfaError(code ?? 'server_error', message, { status });
   }
 }
 
@@ -384,27 +405,13 @@ export async function mfaVerify(
  * @param env - Authentication environment.
  * @param accessToken - Primary profile access token.
  * @param params - Flow identifier and verification proof.
- * @returns Authentication assertion and profile details.
+ * @returns The AAL2 assertion JWT and its lifetime in seconds.
  */
 export async function mfaVerifyComplete(
   env: Env,
   accessToken: string,
   params: VerificationCompletionParams,
-): Promise<{
-  token: string;
-  expiresIn: number;
-  profile: {
-    identifierId: string;
-    metaMetricsId: string;
-    profileId: string;
-    canonicalProfileId: string;
-  };
-  profileAliases: {
-    aliasProfileId: string;
-    canonicalProfileId: string;
-    identifierIds: { id: string; type: string }[];
-  }[];
-}> {
+): Promise<MfaAssertion> {
   let body: MfaVerifyCompleteRequest = {
     credential_type: params.credential_type,
     flow_id: params.flow_id,
@@ -425,81 +432,59 @@ export async function mfaVerifyComplete(
     method: 'POST',
     body,
   });
-  assertValidMfaResponse(json, AuthenticationResponseStruct);
-  return mapAuthenticationResponse(json);
+  assertValidMfaResponse(json, MfaVerifyCompleteResponseStruct);
+  return { token: json.token, expiresIn: json.expires_in };
 }
 
-function mapAuthenticationResponse(json: MfaVerifyCompleteResponse): {
-  token: string;
-  expiresIn: number;
-  profile: {
-    identifierId: string;
-    metaMetricsId: string;
-    profileId: string;
-    canonicalProfileId: string;
-  };
-  profileAliases: {
-    aliasProfileId: string;
-    canonicalProfileId: string;
-    identifierIds: { id: string; type: string }[];
-  }[];
-} {
-  return {
-    token: json.token,
-    expiresIn: json.expires_in,
-    profile: {
-      identifierId: json.profile.identifier_id,
-      metaMetricsId: json.profile.metametrics_id ?? '',
-      profileId: json.profile.profile_id,
-      canonicalProfileId: json.profile.profile_id,
-    },
-    profileAliases: (json.profile_aliases ?? []).map((alias) => ({
-      aliasProfileId: alias.alias_profile_id,
-      canonicalProfileId: alias.canonical_profile_id,
-      identifierIds: alias.identifier_ids ?? [],
-    })),
-  };
+function isSupportedStatus(status: string): status is MfaCredentialStatus {
+  return status === 'active' || status === 'pending';
 }
 
 /**
  * Maps a server credential to its public controller representation.
  *
+ * Unknown credential types or statuses are dropped so the server can extend
+ * either without invalidating the whole list.
+ *
  * @param credential - Validated server credential.
- * @returns A supported credential, or null for an unknown future type.
+ * @returns A supported credential, or null when it cannot be represented.
  */
 export function toEnrolledCredential(
   credential: MfaCredential,
 ): EnrolledCredential | null {
-  if (credential.credential_type === 'passkey') {
-    const enrolledAt = parseEnrolledAt(credential.enrolled_at);
+  const { credential_type: type, status } = credential;
+  if (!isSupportedStatus(status)) {
+    log.warn(`Ignoring MFA credential with unsupported status: ${status}`);
+    return null;
+  }
+
+  const enrolledAt = parseEnrolledAt(credential.enrolled_at);
+  const base = {
+    status,
+    ...(enrolledAt === undefined ? {} : { enrolledAt }),
+  };
+
+  if (type === 'passkey') {
     return {
-      type: 'passkey',
-      status: credential.status,
-      ...(enrolledAt === undefined ? {} : { enrolledAt }),
+      type,
+      ...base,
       ...(credential.passkey?.display_name
         ? { displayName: credential.passkey.display_name }
         : {}),
     };
   }
 
-  if (
-    credential.credential_type === 'email_otp' &&
-    credential.email?.address !== undefined &&
-    credential.email.verified !== undefined
-  ) {
-    const enrolledAt = parseEnrolledAt(credential.enrolled_at);
+  if (type === 'email_otp' && credential.email?.address !== undefined) {
     return {
-      type: 'email_otp',
-      status: credential.status,
-      ...(enrolledAt === undefined ? {} : { enrolledAt }),
+      type,
+      ...base,
       email: credential.email.address,
-      verified: credential.email.verified,
+      // The spec marks `verified` optional; an active row is verified.
+      verified: credential.email.verified ?? status === 'active',
     };
   }
 
-  log.warn(
-    `Ignoring unsupported or incomplete MFA credential: ${credential.credential_type}`,
-  );
+  log.warn(`Ignoring unsupported or incomplete MFA credential: ${type}`);
   return null;
 }
 

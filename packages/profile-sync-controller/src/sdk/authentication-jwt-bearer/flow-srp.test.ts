@@ -362,7 +362,6 @@ describe('SRP MFA methods', () => {
       type: 'email_otp',
       flowId: 'email-flow',
       expiresAt: 2000,
-      emailSent: true,
     });
     expect(mockMfaEnroll).toHaveBeenLastCalledWith(Env.DEV, accessToken, {
       credential_type: 'email_otp',
@@ -447,7 +446,6 @@ describe('SRP MFA methods', () => {
       type: 'email_otp',
       flowId: 'email-flow',
       expiresAt: 2000,
-      deliverySent: true,
     });
   });
 

@@ -17,6 +17,7 @@ import {
   mfaVerify,
   mfaVerifyComplete,
 } from './mfa/services.js';
+import type { MfaAssertion } from './mfa/services.js';
 import type {
   EnrolledCredential,
   EnrollmentChallenge,
@@ -265,7 +266,6 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       type,
       flowId: result.flowId,
       expiresAt: result.expiresAt,
-      emailSent: true,
     };
   }
 
@@ -327,7 +327,6 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       type,
       flowId: result.flowId,
       expiresAt: result.expiresAt,
-      deliverySent: true,
     };
   }
 
@@ -338,14 +337,14 @@ export class SRPJwtBearerAuth implements IBaseAuth {
    * @param flowId - Identifier returned by the begin call.
    * @param proof - Platform assertion or email code.
    * @param entropySourceId - Entropy source whose profile owns the credential.
-   * @returns Authentication assertion issued after verification.
+   * @returns AAL2 assertion issued after verification.
    */
   async completeMfaVerification(
     type: MfaCredentialType,
     flowId: string,
     proof: StepUpProof,
     entropySourceId?: string,
-  ): ReturnType<typeof mfaVerifyComplete> {
+  ): Promise<MfaAssertion> {
     const accessToken = await this.getAccessToken(entropySourceId);
     return await mfaVerifyComplete(this.#config.env, accessToken, {
       credential_type: type,
