@@ -9,15 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `Bip44AccountProvider.deleteAccounts` ([#XXXX](https://github.com/MetaMask/core/pull/XXXXX))
+- Add `Bip44AccountProvider.deleteAccounts` ([#10263](https://github.com/MetaMask/core/pull/10263))
   - Default implementation deletes sequentially via `deleteAccount` and is best-effort: one failure does not skip the rest.
   - Failures are reported together via `DeleteAccountsError`.
-  - `EvmAccountProvider.deleteAccounts` deletes from the highest group index down under one keyring lock per entropy source, which the HD keyring requires.
 
 ### Changed
 
-- `MultichainAccountService.removeMultichainAccountWallet` now deletes through `deleteAccounts` per provider ([#10253](https://github.com/MetaMask/core/pull/10253))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
+### Fixed
+
+- Fix `removeMultichainAccountWallet` for `EvmAccountProvider` ([#10263](https://github.com/MetaMask/core/pull/10263))
+  - `EvmAccountProvider.deleteAccounts` deletes from the highest group index down under one keyring lock per entropy source, which the HD keyring requires.
+  - Also, now deletes through `deleteAccounts` per provider.
 
 ## [14.0.0]
 
