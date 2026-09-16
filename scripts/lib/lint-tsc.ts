@@ -29,12 +29,22 @@ const SUPPRESSIONS_FILE_NAME = 'tsc-suppressions.json';
 export async function lintTsc(argv: readonly string[]): Promise<void> {
   const suppressionsFilePath = path.join(REPO_ROOT, SUPPRESSIONS_FILE_NAME);
 
-  const { all: output } = await execa(
+  const { all, exitCode } = await execa(
     'tsc',
     ['--build', 'tsconfig.lint.json', '--pretty', 'false'],
     { cwd: REPO_ROOT, reject: false, all: true, preferLocal: true },
   );
-  const errors = parseTscOutput(output ?? '');
+  const output = all ?? '';
+  const errors = parseTscOutput(output);
+
+  // `tsc` exits non-zero whenever it reports type errors, which are expected
+  // here and may well be suppressed. But if it failed without reporting any,
+  // something else went wrong — a missing config, a crash — and that must not
+  // be mistaken for a clean run.
+  if (exitCode !== 0 && errors.length === 0) {
+    console.log(output);
+    throw new Error('`tsc` failed without reporting any type errors.');
+  }
 
   if (argv.includes('--update')) {
     const suppressions = buildSuppressions(errors);
