@@ -140,12 +140,10 @@ describe('lintTsc', () => {
   });
 
   it('throws when tsc fails without reporting any type errors', async () => {
-    jest
-      .mocked(execa)
-      .mockResolvedValue({
-        all: 'error TS6053: not found',
-        exitCode: 1,
-      } as never);
+    jest.mocked(execa).mockResolvedValue({
+      all: 'error TS6053: not found',
+      exitCode: 1,
+    } as never);
     jest.mocked(tscSuppressions.parseTscOutput).mockReturnValue([]);
 
     await expect(lintTsc([])).rejects.toThrow(
