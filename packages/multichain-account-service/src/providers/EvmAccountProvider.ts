@@ -493,6 +493,9 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
         (a, b) => b.options.entropy.groupIndex - a.options.entropy.groupIndex,
       );
 
+      // IDs whose keyring deletion succeeded (or was never attempted).
+      const pending = new Set(accounts.map((account) => account.id));
+
       try {
         await this.withKeyringV2<Keyring>(
           { id: entropySource },
@@ -500,18 +503,31 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
             for (const account of accounts) {
               try {
                 await keyring.deleteAccount(account.id);
-                this.accounts.delete(account.id);
               } catch (error) {
+                // Remove from the set of pending deletions since this account failed.
+                pending.delete(account.id);
+                // We also add the reason why it failed now.
+                // NOTE: This failure will be reported immediately, rather than waiting
+                // for the overall `withKeyringV2` call to complete. It won't be reported
+                // multiple times for this account.
                 failures.push({ accountId: account.id, error });
               }
             }
           },
         );
+
+        // At this point, we have the guarantee that all deletions that could succeed
+        // have been attempted, so we can safely remove the successfully deleted accounts
+        // from local tracking.
+        for (const id of pending) {
+          this.accounts.delete(id);
+        }
       } catch (error) {
-        for (const account of accounts) {
-          if (this.accounts.has(account.id)) {
-            failures.push({ accountId: account.id, error });
-          }
+        // Either the keyring was never reached, or persisting failed and every
+        // keyring got rolled back. Both leave the accounts in place, so report
+        // the ones that were successfully deleted (but got rolled back).
+        for (const id of pending) {
+          failures.push({ accountId: id, error });
         }
       }
     }
