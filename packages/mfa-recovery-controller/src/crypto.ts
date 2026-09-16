@@ -4,7 +4,6 @@ import {
   bytesToHex,
   concatBytes,
   hexToBytes,
-  sha256,
   stringToBytes,
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
@@ -35,8 +34,8 @@ export function canonicalize(value: unknown): string {
  * @param value - Value to hash.
  * @returns Hex digest.
  */
-export async function hash(value: unknown): Promise<Hex> {
-  return bytesToHex(await sha256(stringToBytes(canonicalize(value))));
+export function hash(value: unknown): Hex {
+  return bytesToHex(sha256Sync(stringToBytes(canonicalize(value))));
 }
 
 /**
@@ -107,39 +106,39 @@ export function generateSigningKey(): {
  * @param message - Message string; hashed with SHA-256 before ECDSA.
  * @returns Compact IEEE P1363 hex signature (`r‖s`).
  */
-export async function sign(privateKey: string, message: string): Promise<Hex> {
+export function sign(privateKey: string, message: string): Hex {
   const jwk = JSON.parse(privateKey) as { d?: string };
   if (typeof jwk.d !== 'string') {
     throw new Error('Invalid P-256 private JWK');
   }
-  const digest = await sha256(stringToBytes(message));
   return bytesToHex(
-    p256.sign(digest, fromBase64Url(jwk.d)).toCompactRawBytes(),
+    p256
+      .sign(sha256Sync(stringToBytes(message)), fromBase64Url(jwk.d))
+      .toBytes('compact'),
   );
 }
 
 /**
- * Verifies a proof signature against a public key.
+ * Verifies a P-256 signature against a public key.
  *
  * @param publicKey - JWK JSON public key.
  * @param signature - Compact IEEE P1363 hex signature.
  * @param message - Message string; hashed with SHA-256 before ECDSA.
  * @returns Whether the signature is valid.
  */
-export async function verifySignature(
+export function verifySignature(
   publicKey: string,
   signature: string,
   message: string,
-): Promise<boolean> {
+): boolean {
   const jwk = JSON.parse(publicKey) as { x?: string; y?: string };
   if (typeof jwk.x !== 'string' || typeof jwk.y !== 'string') {
     return false;
   }
   try {
-    const digest = await sha256(stringToBytes(message));
     return p256.verify(
       hexToBytes(signature as Hex),
-      digest,
+      sha256Sync(stringToBytes(message)),
       concatBytes([
         new Uint8Array([0x04]),
         fromBase64Url(jwk.x),
@@ -163,14 +162,14 @@ export async function verifySignature(
  * @param receipt.version - Applied version.
  * @returns Hex digest.
  */
-export async function hashMutationReceipt(receipt: {
+export function hashMutationReceipt(receipt: {
   escrowId: string;
   mutationId: string;
   receiptKeyId: string;
   requestHash: string;
   version: number;
-}): Promise<Hex> {
-  return await hash({
+}): Hex {
+  return hash({
     escrowId: receipt.escrowId,
     mutationId: receipt.mutationId,
     receiptKeyId: receipt.receiptKeyId,

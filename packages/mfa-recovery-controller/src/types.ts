@@ -109,20 +109,16 @@ export type WrappedSecretOutput = {
 };
 
 export type RegisterPayload = {
-  epoch: number;
   recoverySecret: WrappedSecret;
   identifiers: Identifier[];
 };
 
-export type UpdateRecoverySecretPayload = {
-  epoch: number;
-  recoverySecret: WrappedSecret;
-};
+export type UpdateRecoverySecretPayload = Pick<
+  RegisterPayload,
+  'recoverySecret'
+>;
 
-export type UpdateIdentifiersPayload = {
-  epoch: number;
-  identifiers: Identifier[];
-};
+export type UpdateIdentifiersPayload = Pick<RegisterPayload, 'identifiers'>;
 
 /**
  * Escrow `applyMutation` body. Recovery secrets are wrapped to that escrow's
@@ -143,7 +139,6 @@ export type PendingRecoverySecretHex = string;
  * Logical register payload stored in encrypted pending state.
  */
 export type PendingRegisterPayload = {
-  epoch: number;
   identifiers: Identifier[];
   recoverySecret: PendingRecoverySecretHex;
 };
@@ -151,18 +146,18 @@ export type PendingRegisterPayload = {
 /**
  * Logical secret-update payload stored in encrypted pending state.
  */
-export type PendingUpdateRecoverySecretPayload = {
-  epoch: number;
-  recoverySecret: PendingRecoverySecretHex;
-};
+export type PendingUpdateRecoverySecretPayload = Pick<
+  PendingRegisterPayload,
+  'recoverySecret'
+>;
 
 /**
  * Logical identifier-update payload stored in encrypted pending state.
  */
-export type PendingUpdateIdentifiersPayload = {
-  epoch: number;
-  identifiers: Identifier[];
-};
+export type PendingUpdateIdentifiersPayload = Pick<
+  PendingRegisterPayload,
+  'identifiers'
+>;
 
 /**
  * Logical mutation payload persisted in encrypted pending state. Distinct from
@@ -269,8 +264,8 @@ export type RecoveryEscrowProvider = {
     payload: MutationPayload,
   ) => Promise<MutationReceipt>;
   /**
-   * Verifies a receipt cryptographically using the build-pinned key for the
-   * expected escrow and confirms it targets that escrow.
+   * Verifies a receipt cryptographically using the build-pinned receipt key
+   * and confirms it targets the expected escrow.
    *
    * @param receipt - Receipt returned by an escrow.
    * @param mutation - Mutation acknowledged by the receipt.

@@ -81,16 +81,16 @@ export async function assertValidPendingOperation(
     getIdentifierAuthMode(pending.identifier.type);
   }
 
-  if (payload.epoch !== mutation.expectedVersion) {
+  if (mutation.operation === 'register' && mutation.expectedVersion !== 0) {
     throwInvalidPendingOperation();
   }
-  if ((await hash(payload)) !== mutation.payloadHash) {
+  if ((hash(payload)) !== mutation.payloadHash) {
     throw new MfaRecoveryError(
       'Pending payload does not match mutation',
       'payload_mismatch',
     );
   }
-  const requestHash = await hash({
+  const requestHash = hash({
     id: mutation.id,
     profileId: mutation.profileId,
     operation: mutation.operation,
@@ -158,13 +158,13 @@ function isPendingPayload(
   operation: Mutation['operation'],
   payload: unknown,
 ): payload is PendingMutationPayload {
-  if (!isRecord(payload) || !isNonNegativeInteger(payload.epoch)) {
+  if (!isRecord(payload)) {
     return false;
   }
   const keys = Object.keys(payload);
   if (operation === 'updateRecoverySecret') {
     return (
-      keys.every((key) => key === 'epoch' || key === 'recoverySecret') &&
+      keys.every((key) => key === 'recoverySecret') &&
       isHexSecret(payload.recoverySecret)
     );
   }
@@ -177,23 +177,15 @@ function isPendingPayload(
   }
   if (operation === 'register') {
     return (
-      payload.epoch === 0 &&
       isHexSecret(payload.recoverySecret) &&
-      keys.every(
-        (key) =>
-          key === 'epoch' || key === 'identifiers' || key === 'recoverySecret',
-      )
+      keys.every((key) => key === 'identifiers' || key === 'recoverySecret')
     );
   }
-  return keys.every((key) => key === 'epoch' || key === 'identifiers');
+  return keys.every((key) => key === 'identifiers');
 }
 
 function isHexSecret(value: unknown): value is string {
   return typeof value === 'string' && /^0x(?:[0-9a-fA-F]{2})+$/u.test(value);
-}
-
-function isNonNegativeInteger(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 
 function isIdentifier(value: unknown): value is Identifier {

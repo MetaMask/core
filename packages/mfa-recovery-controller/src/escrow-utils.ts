@@ -49,8 +49,8 @@ export function isMutationReceipt(value: unknown): value is MutationReceipt {
 /**
  * Verifies a receipt against its expected target escrow.
  *
- * The provider performs cryptographic verification using its build-pinned
- * configuration; the target identity check is performed here as well.
+ * The provider checks the ECDSA receipt signature with its build-pinned
+ * receipt key; the target identity check is performed here as well.
  *
  * @param receipt - Receipt returned by an escrow.
  * @param mutation - Mutation the receipt must acknowledge.

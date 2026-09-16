@@ -13,7 +13,12 @@ import {
   StubIdentifierAuthProvider,
   passthroughEncryptor,
 } from '../tests/stubs.js';
-import { canonicalizeIdentifiers, hash, unixNow, wrapKeyId } from './crypto.js';
+import {
+  canonicalizeIdentifiers,
+  generateSigningKey,
+  hash,
+  unixNow,
+} from './crypto.js';
 import { IncompleteMutationError } from './errors.js';
 import type {
   MfaRecoveryControllerMessenger,
@@ -22,7 +27,6 @@ import type {
 import { MfaRecoveryController } from './MfaRecoveryController.js';
 import type {
   Identifier,
-  MutationReceipt,
   RecoveryEscrowProvider,
   RegisterPayload,
   WritingPendingOperation,
@@ -568,15 +572,10 @@ describe('MfaRecoveryController', () => {
       await withController(async ({ controller, escrowA, escrowB }) => {
         await controller.register(SECRET, IDENTIFIERS);
         const pending = await getValidWritingPending([escrowA, escrowB]);
-        pending.receipts = [escrowA, escrowB].map(
-          (escrow): MutationReceipt => ({
-            mutationId: pending.mutation.id,
-            requestHash: pending.mutation.requestHash,
-            escrowId: escrow.id,
-            version: pending.mutation.newVersion,
-            receiptKeyId: wrapKeyId(escrow.wrapPublicKey),
-            signature: '0xsignature',
-          }),
+        pending.receipts = await Promise.all(
+          [escrowA, escrowB].map(async (escrow) =>
+            escrow.createReceipt(pending.mutation),
+          ),
         );
         const encrypted = await passthroughEncryptor.encrypt(pending);
         const availabilityA = jest.spyOn(escrowA, 'isAvailable');
@@ -648,11 +647,10 @@ describe('MfaRecoveryController', () => {
     it('resumes an authorizing mutation', async () => {
       await withController(async ({ options }) => {
         const payload = {
-          epoch: 0,
           identifiers: IDENTIFIERS,
           recoverySecret: bytesToHex(SECRET),
         };
-        const payloadHash = await hash(payload);
+        const payloadHash = hash(payload);
         const fields = {
           id: '0xmutauth',
           profileId: 'profile-1',
@@ -664,7 +662,7 @@ describe('MfaRecoveryController', () => {
         };
         const mutation = {
           ...fields,
-          requestHash: await hash(fields),
+          requestHash: hash(fields),
         };
         const authorizing = await passthroughEncryptor.encrypt({
           phase: 'authorizing',
@@ -690,8 +688,8 @@ describe('MfaRecoveryController', () => {
     it('resumes a persisted authorizing updateIdentifiers mutation', async () => {
       await withController(async ({ controller, options }) => {
         await controller.register(SECRET, IDENTIFIERS);
-        const payload = { epoch: REGISTERED_EPOCH, identifiers: IDENTIFIERS };
-        const payloadHash = await hash(payload);
+        const payload = { identifiers: IDENTIFIERS };
+        const payloadHash = hash(payload);
         const mutationFields = {
           id: '0xmutidentifiers',
           profileId: 'profile-1',
@@ -703,7 +701,7 @@ describe('MfaRecoveryController', () => {
         };
         const mutation = {
           ...mutationFields,
-          requestHash: await hash(mutationFields),
+          requestHash: hash(mutationFields),
         };
         const authorizing = {
           phase: 'authorizing' as const,
@@ -741,7 +739,6 @@ describe('MfaRecoveryController', () => {
         async ({ controller, options, escrowA, escrowB }) => {
           await controller.register(SECRET, IDENTIFIERS);
           const payload = {
-            epoch: REGISTERED_EPOCH,
             recoverySecret: bytesToHex(SECRET_2),
           };
           const mutation = {
@@ -750,11 +747,11 @@ describe('MfaRecoveryController', () => {
             operation: 'updateRecoverySecret' as const,
             expectedVersion: 1,
             newVersion: 2,
-            payloadHash: await hash(payload),
+            payloadHash: hash(payload),
             audiences: ['escrow-a', 'escrow-b'],
             requestHash: '0x',
           };
-          mutation.requestHash = await hash({
+          mutation.requestHash = hash({
             id: mutation.id,
             profileId: mutation.profileId,
             operation: mutation.operation,
@@ -764,22 +761,8 @@ describe('MfaRecoveryController', () => {
             audiences: mutation.audiences,
           });
           const receipts = [
-            {
-              mutationId: mutation.id,
-              requestHash: mutation.requestHash,
-              escrowId: 'escrow-a',
-              version: 2,
-              receiptKeyId: wrapKeyId(escrowA.wrapPublicKey),
-              signature: '0x',
-            },
-            {
-              mutationId: mutation.id,
-              requestHash: mutation.requestHash,
-              escrowId: 'escrow-b',
-              version: 2,
-              receiptKeyId: wrapKeyId(escrowB.wrapPublicKey),
-              signature: '0x',
-            },
+            await escrowA.createReceipt(mutation),
+            await escrowB.createReceipt(mutation),
           ];
           const writing = await passthroughEncryptor.encrypt({
             phase: 'writing',
@@ -822,7 +805,6 @@ describe('MfaRecoveryController', () => {
             requestHash: '0x',
           },
           payload: {
-            epoch: 0,
             recoverySecret: bytesToHex(SECRET),
             identifiers: IDENTIFIERS,
           },
@@ -861,7 +843,6 @@ describe('MfaRecoveryController', () => {
             signature: 'stub-auth-signature',
           },
           payload: {
-            epoch: 0,
             recoverySecret: bytesToHex(SECRET),
             identifiers: IDENTIFIERS,
           },
@@ -882,11 +863,10 @@ describe('MfaRecoveryController', () => {
     it('rejects a receipt from an unknown escrow', async () => {
       await withController(async ({ options }) => {
         const payload = {
-          epoch: 0,
           identifiers: IDENTIFIERS,
           recoverySecret: bytesToHex(SECRET),
         };
-        const payloadHash = await hash(payload);
+        const payloadHash = hash(payload);
         const mutation = {
           id: '0xmut',
           profileId: 'profile-1',
@@ -897,7 +877,7 @@ describe('MfaRecoveryController', () => {
           audiences: ['escrow-a', 'escrow-b'],
           requestHash: '',
         };
-        mutation.requestHash = await hash({
+        mutation.requestHash = hash({
           id: mutation.id,
           profileId: mutation.profileId,
           operation: mutation.operation,
@@ -912,7 +892,7 @@ describe('MfaRecoveryController', () => {
           authControllerToken: {
             profileId: 'profile-1',
             requestHash: mutation.requestHash,
-            identifiersHash: await hash(
+            identifiersHash: hash(
               canonicalizeIdentifiers(payload.identifiers),
             ),
             identifierOwnershipApproved: true,
@@ -948,11 +928,10 @@ describe('MfaRecoveryController', () => {
       await withController(async ({ options, escrowA }) => {
         escrowA.invalidReceipts = true;
         const payload = {
-          epoch: 0,
           identifiers: IDENTIFIERS,
           recoverySecret: bytesToHex(SECRET),
         };
-        const payloadHash = await hash(payload);
+        const payloadHash = hash(payload);
         const mutation = {
           id: '0xmut',
           profileId: 'profile-1',
@@ -963,7 +942,7 @@ describe('MfaRecoveryController', () => {
           audiences: ['escrow-a', 'escrow-b'],
           requestHash: '',
         };
-        mutation.requestHash = await hash({
+        mutation.requestHash = hash({
           id: mutation.id,
           profileId: mutation.profileId,
           operation: mutation.operation,
@@ -978,7 +957,7 @@ describe('MfaRecoveryController', () => {
           authControllerToken: {
             profileId: 'profile-1',
             requestHash: mutation.requestHash,
-            identifiersHash: await hash(
+            identifiersHash: hash(
               canonicalizeIdentifiers(payload.identifiers),
             ),
             identifierOwnershipApproved: true,
@@ -1154,7 +1133,6 @@ describe('MfaRecoveryController', () => {
         name: 'an invalid recovery secret encoding',
         mutate: (pending: Record<string, unknown>): void => {
           pending.payload = {
-            epoch: REGISTERED_EPOCH,
             recoverySecret: '0xzz',
           };
         },
@@ -1173,7 +1151,6 @@ describe('MfaRecoveryController', () => {
           const mutation = pending.mutation as Record<string, unknown>;
           mutation.operation = 'register';
           pending.payload = {
-            epoch: 0,
             recoverySecret: bytesToHex(SECRET),
             identifiers: [PASSKEY],
           };
@@ -1203,14 +1180,6 @@ describe('MfaRecoveryController', () => {
           const mutation = pending.mutation as Record<string, unknown>;
           mutation.expectedVersion = 4;
           mutation.newVersion = 6;
-        },
-      },
-      {
-        name: 'an epoch that does not match expectedVersion',
-        mutate: (pending: Record<string, unknown>): void => {
-          const mutation = pending.mutation as Record<string, unknown>;
-          mutation.expectedVersion = 2;
-          mutation.newVersion = 3;
         },
       },
       {
@@ -1387,10 +1356,9 @@ async function getValidWritingPending(
   escrows: RecoveryEscrowProvider[],
 ): Promise<WritingPendingOperation> {
   const payload = {
-    epoch: REGISTERED_EPOCH,
     recoverySecret: bytesToHex(SECRET_2),
   };
-  const payloadHash = await hash(payload);
+  const payloadHash = hash(payload);
   const fields = {
     id: '0xvalid-pending',
     profileId: 'profile-1',
@@ -1404,11 +1372,11 @@ async function getValidWritingPending(
     phase: 'writing',
     mutation: {
       ...fields,
-      requestHash: await hash(fields),
+      requestHash: hash(fields),
     },
     authControllerToken: {
       profileId: 'profile-1',
-      requestHash: await hash(fields),
+      requestHash: hash(fields),
       twoFactor: true,
       issuer: 'stub-auth',
       expiresAt: unixNow() + 60,
@@ -1425,8 +1393,17 @@ async function withController<ReturnValue>(
 ): Promise<ReturnValue> {
   const rootMessenger = getRootMessenger();
   const controllerMessenger = getMessenger(rootMessenger);
-  const escrowA = new StubEscrowProvider('escrow-a');
-  const escrowB = new StubEscrowProvider('escrow-b');
+  const replicaIds = ['escrow-a', 'escrow-b'];
+  const escrowA = new StubEscrowProvider(
+    'escrow-a',
+    generateSigningKey(),
+    replicaIds,
+  );
+  const escrowB = new StubEscrowProvider(
+    'escrow-b',
+    generateSigningKey(),
+    replicaIds,
+  );
   const options = {
     ...getOptions(escrowA, escrowB),
     messenger: controllerMessenger,

@@ -45,10 +45,10 @@ is not wired yet (MFA-605 / MFA-606 / MFA-568).
 `register` and `updateIdentifiers` require at least two identifiers.
 
 Recovery secrets are wrapped in transit with escrow-wrap-v1 (P-256 ECDH, HKDF,
-ChaCha20-Poly1305). Encrypted pending state stores `PendingMutationPayload`
-(secret as 0x-hex). At apply, each escrow receives a `MutationPayload` with
-only the `{ pkE, ciphertext }` pair wrapped to its own wrap key. Reads send
-the client's ephemeral `pkE` in the `getSecret` request hash.
+ChaCha20-Poly1305). Pending state stores the secret as 0x-hex; `payloadHash`
+is the hash of that pending payload. At apply, each escrow gets
+`{ pkE, ciphertext }` wrapped to its own wrap key. Reads bind the client's
+ephemeral `pkE` into the `getSecret` request hash.
 
 Public surface: `register`, `updateRecoverySecret`, `updateIdentifiers`,
 `getRecoverySecret`, `resume`, `abort`, `getPhase`.
@@ -95,7 +95,7 @@ sequenceDiagram
   M->>M: lock + repair any pending mutation
   M->>A: getAuthenticatedProfileId
   M->>E: require every escrow available
-  M->>M: expectedVersion from payload.epoch
+  M->>M: expectedVersion from caller epoch (register uses 0)
   M->>M: persist pending = authorizing
   M->>A: authorizeRecoveryRequest (AuthController token)
   alt not register
@@ -115,9 +115,16 @@ sequenceDiagram
 
 Versioning:
 
-- `register` uses payload `epoch` `0` → version `0 → 1`
-- updates use the caller-supplied payload `epoch` as the current version, then
+- Version lives on the mutation (`expectedVersion` / `newVersion`), which is
+  what escrows apply. `epoch` is only the client-facing name for the current
+  replica version returned by `getRecoverySecret`.
+- `register` uses expectedVersion `0` → version `0 → 1`
+- updates take the caller-supplied `epoch` as `expectedVersion`, then
   `n → n+1`. Escrows reject a mismatch.
+- Mutation `audiences` is the full configured replica-id list, in that order.
+  Each replica should require an exact match to its configured set (a
+  cubist-only deploy is `["cubist"]`; adding another escrow means every replica
+  is rebuilt with the expanded list).
 
 `resume()` is the same write path without creating a new mutation: authorizing
 pending gets a fresh token then replicates; writing pending retries only

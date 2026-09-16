@@ -162,7 +162,9 @@ export type MfaRecoveryControllerOptions = {
   now?: () => number;
 };
 
-type MutateParams =
+type MutateParams = {
+  epoch: number;
+} & (
   | {
       operation: 'register';
       payload: PendingRegisterPayload;
@@ -177,7 +179,8 @@ type MutateParams =
       operation: 'updateIdentifiers';
       payload: PendingUpdateIdentifiersPayload;
       identifier: Identifier;
-    };
+    }
+);
 
 /**
  * Coordinates MFA recovery secret replication across independent escrows.
@@ -257,11 +260,11 @@ export class MfaRecoveryController extends BaseController<
     await this.#mutate({
       operation: 'register',
       payload: {
-        epoch: 0,
         identifiers,
         recoverySecret: bytesToHex(recoverySecret),
       },
       identifier: null,
+      epoch: 0,
     });
   }
 
@@ -281,10 +284,10 @@ export class MfaRecoveryController extends BaseController<
     await this.#mutate({
       operation: 'updateRecoverySecret',
       payload: {
-        epoch,
         recoverySecret: bytesToHex(recoverySecret),
       },
       identifier,
+      epoch,
     });
   }
 
@@ -305,8 +308,9 @@ export class MfaRecoveryController extends BaseController<
     this.#assertMinIdentifiers(identifiers);
     await this.#mutate({
       operation: 'updateIdentifiers',
-      payload: { epoch, identifiers },
+      payload: { identifiers },
       identifier,
+      epoch,
     });
   }
 
@@ -324,7 +328,7 @@ export class MfaRecoveryController extends BaseController<
       const requestId = randomId();
       const ephemeral = generateSigningKey();
       const pkE = JSON.parse(ephemeral.publicKey) as EcPublicJwk;
-      const requestHash = await hash({
+      const requestHash = hash({
         operation: 'getRecoverySecret',
         requestId,
         pkE,
@@ -405,14 +409,14 @@ export class MfaRecoveryController extends BaseController<
   }
 
   async #mutate(params: MutateParams): Promise<void> {
-    const { operation, payload, identifier } = params;
+    const { operation, payload, identifier, epoch } = params;
     await this.#withLock(async () => {
       await this.#repairPendingMutation();
 
       const profileId = await this.#authProvider.getAuthenticatedProfileId();
       const audiences = this.#escrows.map((escrow) => escrow.id);
-      const currentVersion = this.#resolveCurrentRecoveryVersion(payload);
-      const payloadHash = await hash(payload);
+      const currentVersion = this.#resolveCurrentRecoveryVersion(epoch);
+      const payloadHash = hash(payload);
 
       const mutationFields = {
         id: randomId(),
@@ -425,7 +429,7 @@ export class MfaRecoveryController extends BaseController<
       };
       const mutation: Mutation = {
         ...mutationFields,
-        requestHash: await hash(mutationFields),
+        requestHash: hash(mutationFields),
       };
 
       const pending: PendingOperation = {
@@ -642,7 +646,6 @@ export class MfaRecoveryController extends BaseController<
     const { payload } = pending;
     if (!pendingPayloadHasRecoverySecret(payload)) {
       return {
-        epoch: payload.epoch,
         identifiers: payload.identifiers,
       };
     }
@@ -652,19 +655,18 @@ export class MfaRecoveryController extends BaseController<
     );
     if (pendingPayloadHasIdentifiers(payload)) {
       return {
-        epoch: payload.epoch,
         identifiers: payload.identifiers,
         recoverySecret,
       };
     }
-    return { epoch: payload.epoch, recoverySecret };
+    return { recoverySecret };
   }
 
-  #resolveCurrentRecoveryVersion(payload: { epoch: number }): number {
-    if (!Number.isInteger(payload.epoch) || payload.epoch < 0) {
+  #resolveCurrentRecoveryVersion(epoch: number): number {
+    if (!Number.isInteger(epoch) || epoch < 0) {
       throw new MfaRecoveryError('Invalid epoch', 'invalid_epoch');
     }
-    return payload.epoch;
+    return epoch;
   }
 
   async #getAvailableEscrows(

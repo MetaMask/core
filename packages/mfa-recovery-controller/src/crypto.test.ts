@@ -33,7 +33,7 @@ describe('crypto', () => {
   });
 
   it('hashes independently of key order', async () => {
-    expect(await hash({ b: 1, a: 2 })).toBe(await hash({ a: 2, b: 1 }));
+    expect(hash({ b: 1, a: 2 })).toBe(hash({ a: 2, b: 1 }));
   });
 
   it('decodes hex with or without a 0x prefix', () => {
@@ -45,20 +45,14 @@ describe('crypto', () => {
 
   it('round-trips a P-256 proof signature', async () => {
     const key = generateSigningKey();
-    const signature = await sign(key.privateKey, 'hello');
+    const signature = sign(key.privateKey, 'hello');
 
-    expect(await verifySignature(key.publicKey, signature, 'hello')).toBe(true);
-    expect(await verifySignature(key.publicKey, signature, 'other')).toBe(
-      false,
-    );
-    expect(await verifySignature(key.publicKey, '0x00', 'hello')).toBe(false);
-    expect(await verifySignature(key.publicKey, 'not-hex', 'hello')).toBe(
-      false,
-    );
-    expect(await verifySignature('{}', signature, 'hello')).toBe(false);
-    await expect(sign('{}', 'hello')).rejects.toThrow(
-      'Invalid P-256 private JWK',
-    );
+    expect(verifySignature(key.publicKey, signature, 'hello')).toBe(true);
+    expect(verifySignature(key.publicKey, signature, 'other')).toBe(false);
+    expect(verifySignature(key.publicKey, '0x00', 'hello')).toBe(false);
+    expect(verifySignature(key.publicKey, 'not-hex', 'hello')).toBe(false);
+    expect(verifySignature('{}', signature, 'hello')).toBe(false);
+    expect(() => sign('{}', 'hello')).toThrow('Invalid P-256 private JWK');
   });
 
   it('sorts identifiers for ownership hashes', () => {
@@ -120,8 +114,8 @@ describe('crypto', () => {
       receiptKeyId: '0xabc',
     };
 
-    expect(await hashMutationReceipt(receipt)).toBe(
-      await hashMutationReceipt({
+    expect(hashMutationReceipt(receipt)).toBe(
+      hashMutationReceipt({
         version: 1,
         receiptKeyId: '0xabc',
         requestHash: '0x2',
@@ -129,8 +123,8 @@ describe('crypto', () => {
         escrowId: 'cubist',
       }),
     );
-    expect(await hashMutationReceipt(receipt)).toBe(
-      await hash({
+    expect(hashMutationReceipt(receipt)).toBe(
+      hash({
         escrowId: 'cubist',
         mutationId: '0x1',
         receiptKeyId: '0xabc',
@@ -138,6 +132,29 @@ describe('crypto', () => {
         version: 1,
       }),
     );
+  });
+
+  it('verifies a mutation receipt signature', async () => {
+    const key = generateSigningKey();
+    const unsigned = {
+      mutationId: '0x1',
+      requestHash: '0x2',
+      escrowId: 'cubist',
+      version: 1,
+      receiptKeyId: wrapKeyId(key.publicKey),
+    };
+    const signature = sign(key.privateKey, hashMutationReceipt(unsigned));
+
+    expect(
+      verifySignature(key.publicKey, signature, hashMutationReceipt(unsigned)),
+    ).toBe(true);
+    expect(
+      verifySignature(
+        key.publicKey,
+        signature,
+        hashMutationReceipt({ ...unsigned, version: 2 }),
+      ),
+    ).toBe(false);
   });
 
   it('rejects truncated wrap ciphertext and invalid JWKs', () => {

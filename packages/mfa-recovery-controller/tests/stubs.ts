@@ -8,6 +8,7 @@ import {
   generateSigningKey,
   hash,
   hashMutationReceipt,
+  sign,
   unixNow,
   verifySignature,
   wrapKeyId,
@@ -72,7 +73,7 @@ export class StubAuthProvider implements RecoveryAuthProvider {
     const identifiersHash =
       params.identifiers === undefined
         ? undefined
-        : await hash(canonicalizeIdentifiers(params.identifiers));
+        : hash(canonicalizeIdentifiers(params.identifiers));
     return {
       profileId: this.profileId,
       requestHash: params.requestHash,
@@ -104,7 +105,7 @@ export class StubIdentifierAuthProvider implements RecoveryIdentifierAuthProvide
       proofPublicKey: params.proofPublicKey,
       requestHash: params.requestHash,
       providerAssertion: {
-        bound: await hash({
+        bound: hash({
           proofPublicKey: params.proofPublicKey,
           requestHash: params.requestHash,
         }),
@@ -137,15 +138,30 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
 
   readonly wrapPublicKey: string;
 
+  /**
+   * P-256 receipt public JWK JSON. Distinct from {@link wrapPublicKey}, matching
+   * cubist WRAP_KEY vs RECEIPT_KEY.
+   */
+  readonly receiptPublicKey: string;
+
   readonly #wrapPrivateKey: string;
+
+  readonly #receiptPrivateKey: string;
+
+  readonly #replicaIds: string[];
 
   constructor(
     id: string,
     wrapKey: { publicKey: string; privateKey: string } = generateSigningKey(),
+    replicaIds: string[] = [id],
   ) {
     this.id = id;
     this.wrapPublicKey = wrapKey.publicKey;
     this.#wrapPrivateKey = wrapKey.privateKey;
+    const receiptKey = generateSigningKey();
+    this.receiptPublicKey = receiptKey.publicKey;
+    this.#receiptPrivateKey = receiptKey.privateKey;
+    this.#replicaIds = [...replicaIds];
   }
 
   async isAvailable(): Promise<boolean> {
@@ -194,7 +210,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
         'get_secret_failed',
       );
     }
-    const requestHash = await hash({
+    const requestHash = hash({
       operation: 'getRecoverySecret',
       requestId,
       pkE,
@@ -268,7 +284,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
         registerPayload.recoverySecret,
       );
       await this.#assertPayloadHash(mutation, {
-        ...registerPayload,
+        identifiers: registerPayload.identifiers,
         recoverySecret,
       });
       await this.#assertIdentifierOwnership(
@@ -326,7 +342,6 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
         (payload as UpdateRecoverySecretPayload).recoverySecret,
       );
       await this.#assertPayloadHash(mutation, {
-        epoch: payload.epoch,
         recoverySecret,
       });
       record.recoverySecret = recoverySecret;
@@ -359,14 +374,37 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     if (this.invalidReceipts) {
       return false;
     }
-    return (
-      receipt.mutationId === mutation.id &&
-      receipt.requestHash === mutation.requestHash &&
-      receipt.escrowId === expectedEscrowId &&
-      expectedEscrowId === this.id &&
-      receipt.version === mutation.newVersion &&
-      receipt.receiptKeyId === wrapKeyId(this.wrapPublicKey)
+    if (
+      receipt.mutationId !== mutation.id ||
+      receipt.requestHash !== mutation.requestHash ||
+      receipt.escrowId !== expectedEscrowId ||
+      expectedEscrowId !== this.id ||
+      receipt.version !== mutation.newVersion ||
+      receipt.receiptKeyId !== wrapKeyId(this.receiptPublicKey)
+    ) {
+      return false;
+    }
+    return verifySignature(
+      this.receiptPublicKey,
+      receipt.signature,
+      hashMutationReceipt({
+        escrowId: receipt.escrowId,
+        mutationId: receipt.mutationId,
+        receiptKeyId: receipt.receiptKeyId,
+        requestHash: receipt.requestHash,
+        version: receipt.version,
+      }),
     );
+  }
+
+  /**
+   * Test helper: sign a mutation receipt with this replica's receipt key.
+   *
+   * @param mutation - Mutation the receipt acknowledges.
+   * @returns Signed receipt.
+   */
+  async createReceipt(mutation: Mutation): Promise<MutationReceipt> {
+    return await this.#signReceipt(mutation);
   }
 
   /**
@@ -403,11 +441,11 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       requestHash: mutation.requestHash,
       escrowId: this.id,
       version: mutation.newVersion,
-      receiptKeyId: wrapKeyId(this.wrapPublicKey),
+      receiptKeyId: wrapKeyId(this.receiptPublicKey),
     };
     return {
       ...unsigned,
-      signature: await hashMutationReceipt(unsigned),
+      signature: sign(this.#receiptPrivateKey, hashMutationReceipt(unsigned)),
     };
   }
 
@@ -415,7 +453,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     mutation: Mutation,
     token: AuthControllerToken,
   ): Promise<void> {
-    const requestHash = await hash({
+    const requestHash = hash({
       id: mutation.id,
       profileId: mutation.profileId,
       operation: mutation.operation,
@@ -430,13 +468,20 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       token.profileId !== mutation.profileId ||
       token.signature !== 'stub-auth-signature' ||
       token.expiresAt <= this.now() ||
-      !mutation.audiences.includes(this.id)
+      !this.#hasExactAudiences(mutation.audiences)
     ) {
       throw new MfaRecoveryError(
         'Invalid mutation authorization',
         'invalid_mutation_auth',
       );
     }
+  }
+
+  #hasExactAudiences(audiences: string[]): boolean {
+    return (
+      audiences.length === this.#replicaIds.length &&
+      audiences.every((id, index) => id === this.#replicaIds[index])
+    );
   }
 
   async #assertIdentifierOwnership(
@@ -446,7 +491,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     if (
       token.identifierOwnershipApproved !== true ||
       token.identifiersHash !==
-        (await hash(canonicalizeIdentifiers(identifiers)))
+        (hash(canonicalizeIdentifiers(identifiers)))
     ) {
       throw new MfaRecoveryError(
         'Identifier ownership not approved',
@@ -483,10 +528,8 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     ) {
       throw new MfaRecoveryError('Invalid PoP challenge', 'invalid_challenge');
     }
-    const message = await hash([token, proof.challengeId, requestHash]);
-    if (
-      !(await verifySignature(token.proofPublicKey, proof.signature, message))
-    ) {
+    const message = hash([token, proof.challengeId, requestHash]);
+    if (!verifySignature(token.proofPublicKey, proof.signature, message)) {
       throw new MfaRecoveryError('Invalid PoP signature', 'invalid_pop');
     }
     challenge.consumed = true;
@@ -532,7 +575,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     mutation: Mutation,
     payload: unknown,
   ): Promise<void> {
-    if ((await hash(payload)) !== mutation.payloadHash) {
+    if ((hash(payload)) !== mutation.payloadHash) {
       throw new MfaRecoveryError(
         'Mutation payload does not match payloadHash',
         'payload_mismatch',

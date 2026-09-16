@@ -70,7 +70,7 @@ export async function authorizeKeyBoundIdentifier({
   );
   const authorizationResults = await Promise.allSettled(
     challenges.map(async ({ escrow, challenge }) => {
-      const message = await hash([token, challenge.id, requestHash]);
+      const message = hash([token, challenge.id, requestHash]);
       return {
         escrow,
         authorization: {
@@ -79,7 +79,7 @@ export async function authorizeKeyBoundIdentifier({
           proof: {
             challengeId: challenge.id,
             requestHash,
-            signature: await sign(proofKey.privateKey, message),
+            signature: sign(proofKey.privateKey, message),
           },
         },
       };
