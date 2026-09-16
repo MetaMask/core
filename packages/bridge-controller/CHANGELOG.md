@@ -9,9 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export `calcNormalizedTokenAmount` and `calcAtomicTokenAmount` conversion utils
-- Export `AmountsAndAsset` type
-- Add utils to support fee validation when a quote's fees are denominated in multiple assets
+- Export `calcNormalizedTokenAmount` and `calcAtomicTokenAmount` conversion utils and `AmountsAndAsset` type ([#10277](https://github.com/MetaMask/core/pull/10277))
+- Add utils to support fee validation when a quote's fees are denominated in multiple assets ([#10277](https://github.com/MetaMask/core/pull/10277))
   - `hasSufficientGasForQuote` returns true if the wallet's balances are greater than or equal to the quote's network fees
   - `hasNetworkFee` returns true if any of the network fee object's amounts are defined and non-zero
 

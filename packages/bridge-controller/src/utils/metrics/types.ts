@@ -7,6 +7,7 @@ import type {
   StatusTypes,
 } from '../../types.js';
 import type { FeatureId } from '../../validators/feature-flags.js';
+import { QuoteWarning } from '../quote-warnings/types.js';
 import type {
   UnifiedSwapBridgeEventName,
   BatchSellMetricsEventName,
@@ -19,7 +20,6 @@ import type {
   FailurePhase,
   SwapBridgeErrorCode,
 } from './constants.js';
-import { QuoteWarning } from '../quote-warnings/types.js';
 
 /**
  * These properties map to properties required by the segment-schema. For example: https://github.com/Consensys/segment-schema/blob/main/libraries/properties/cross-chain-swaps-action.yaml

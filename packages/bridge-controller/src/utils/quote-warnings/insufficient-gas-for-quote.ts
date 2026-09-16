@@ -1,10 +1,11 @@
-import type { QuoteResponse } from '../../validators/quote-response.js';
 import type { CaipAssetType } from '@metamask/utils';
-import type { AmountsAndAsset } from '../../validators/amount-and-asset.js';
-import { sumAmountsByAssetId } from '../number-formatters.js';
-import { isNativeAddress } from '../bridge.js';
-import { balanceGte } from './utils.js';
+
 import type { DeepPartial } from '../../types.js';
+import type { AmountsAndAsset } from '../../validators/amount-and-asset.js';
+import type { QuoteResponse } from '../../validators/quote-response.js';
+import { isNativeAddress } from '../bridge.js';
+import { sumAmountsByAssetId } from '../number-formatters.js';
+import { balanceGte } from './utils.js';
 
 /**
  * Checks if the balance of the wallet is greater than or equal to the total fees

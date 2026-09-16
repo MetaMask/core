@@ -11,6 +11,7 @@ import {
   formatAddressToAssetId,
   formatChainIdToCaip,
 } from '../caip-formatters.js';
+import type { QuoteWarning } from '../quote-warnings/types.js';
 import { MetricsSwapType } from './constants.js';
 import type {
   AccountHardwareType,
@@ -18,7 +19,6 @@ import type {
   InputValues,
   RequestParams,
 } from './types.js';
-import type { QuoteWarning } from '../quote-warnings/types.js';
 
 export const toInputChangedPropertyKey: Partial<
   Record<keyof QuoteRequest, InputKeys>

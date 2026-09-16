@@ -1,8 +1,9 @@
-import { BigNumber } from 'bignumber.js';
-import { assetIdsMatch } from '../assets.js';
 import type { CaipAssetType } from '@metamask/utils';
-import type { AmountsAndAsset } from '../../validators/amount-and-asset.js';
+import { BigNumber } from 'bignumber.js';
+
 import type { DeepPartial } from '../../types.js';
+import type { AmountsAndAsset } from '../../validators/amount-and-asset.js';
+import { assetIdsMatch } from '../assets.js';
 
 /**
  * Compares balances to a list of fees aggregated by assetId

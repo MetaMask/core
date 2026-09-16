@@ -1,7 +1,8 @@
+import { BigNumber } from 'bignumber.js';
+
 import type { DeepPartial } from '../../types.js';
 import type { QuoteResponse } from '../../validators/quote-response.js';
 import { sumAmounts } from '../number-formatters.js';
-import { BigNumber } from 'bignumber.js';
 
 /**
  * Checks if the network fee is defined and greater than 0
