@@ -259,6 +259,24 @@ describe('MfaRecoveryController', () => {
   });
 
   describe('getRecoverySecret', () => {
+    it('refuses to read while a mutation is writing', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        escrowA.failNextApplyCount = 1;
+        await expect(
+          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+
+        await expect(controller.getRecoverySecret(PASSKEY)).rejects.toThrow(
+          'A pending mutation must be resumed or aborted first',
+        );
+
+        await controller.resume();
+        const recovered = await controller.getRecoverySecret(PASSKEY);
+        expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET_2));
+      });
+    });
+
     it('returns the selected epoch so a later update can be formed', async () => {
       await withController(async ({ controller }) => {
         await controller.register(SECRET, IDENTIFIERS);

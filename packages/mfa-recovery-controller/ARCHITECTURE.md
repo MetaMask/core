@@ -160,8 +160,8 @@ sequenceDiagram
   end
 ```
 
-If a mutation is stuck in `writing`, replicas can already disagree. A read in
-that window can look like corruption; finish with `resume()` first.
+`getRecoverySecret` refuses while phase is `writing`. Replicas can disagree
+in that window; finish with `resume()` first.
 
 ## Identifier auth (inside writes and reads)
 
