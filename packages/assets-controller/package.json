@@ -84,6 +84,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
+    "@metamask/eth-json-rpc-provider": "^7.0.0",
     "@types/jest": "^30.0.0",
     "@types/lodash-es": "^4.17.12",
     "@typescript/native": "npm:typescript@^7.0.2",

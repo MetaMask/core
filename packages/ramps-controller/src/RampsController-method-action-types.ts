@@ -302,6 +302,51 @@ export type RampsControllerGetQuotesAction = {
 };
 
 /**
+ * Fetches the best on-ramp quote for a request and, when the resolved
+ * provider is Transak Native, reconciles its fees to match what Transak
+ * Native actually charges.
+ *
+ * The aggregator `/quotes` estimate of Transak's fee does not match the
+ * native integration. When the resolved provider is Transak Native this
+ * fetches the native buy quote (an unauthenticated, API-key-only lookup, so
+ * it is safe at estimate time) and rewrites the returned quote's fee fields
+ * to its `totalFee`, keeping the aggregator's `networkFee` on the network
+ * line and placing the remainder in the provider fee so the breakdown
+ * survives and `providerFee + networkFee` still equals the native total. A
+ * non-native provider, a failed lookup, or an unusable native fee returns the
+ * aggregator quote unchanged.
+ *
+ * Consumers (e.g. `TransactionPayController`) call this instead of owning the
+ * provider check, asset-id parsing, and second native quote themselves.
+ *
+ * @param options - Quote options; see {@link getQuotes}, plus the fee mode.
+ * @param options.amount - Fiat amount for the quote.
+ * @param options.assetId - CAIP-19 asset id being bought.
+ * @param options.fiat - Optional fiat currency; defaults like {@link getQuotes}.
+ * @param options.paymentMethods - Optional payment method ids.
+ * @param options.walletAddress - Wallet address receiving the on-ramped asset.
+ * @param options.isFeeExcludedFromFiat - Whether Transak adds its fee on top
+ * of the fiat amount (`true`, fee-on-top) or carves it out (`false`). Must
+ * mirror the eventual checkout mode so the estimate equals the charge.
+ * Defaults to `true`.
+ * @param options.providers - See {@link getQuotes}.
+ * @param options.autoSelectProvider - See {@link getQuotes}.
+ * @param options.restrictToKnownOrNativeProviders - See {@link getQuotes}.
+ * @param options.preferredProviderIds - See {@link getQuotes}.
+ * @param options.region - See {@link getQuotes}.
+ * @param options.redirectUrl - See {@link getQuotes}.
+ * @param options.action - See {@link getQuotes}.
+ * @param options.forceRefresh - See {@link getQuotes}.
+ * @param options.ttl - See {@link getQuotes}.
+ * @returns The best quote with native-reconciled fees, or `undefined` when
+ * no quote is available.
+ */
+export type RampsControllerGetQuoteWithFeesAction = {
+  type: `RampsController:getQuoteWithFees`;
+  handler: RampsController['getQuoteWithFees'];
+};
+
+/**
  * Adds or updates a V2 order in controller state.
  * If an order with the same internal order code already exists, the incoming
  * fields are merged on top of the existing order so that fields not present
@@ -848,6 +893,7 @@ export type RampsControllerMethodActions =
   | RampsControllerGetPaymentMethodsForContextAction
   | RampsControllerSetSelectedPaymentMethodAction
   | RampsControllerGetQuotesAction
+  | RampsControllerGetQuoteWithFeesAction
   | RampsControllerAddOrderAction
   | RampsControllerRemoveOrderAction
   | RampsControllerSyncOrdersWithUserStorageAction

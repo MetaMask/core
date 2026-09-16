@@ -498,8 +498,10 @@ describe('TransactionController Integration', () => {
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
+            buildEthGetBlockByNumberRequestMock('0x1'),
             buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+            buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
           ],
@@ -513,6 +515,9 @@ describe('TransactionController Integration', () => {
           { networkClientId: 'sepolia' },
         );
         expect(transactionController.state.transactions).toHaveLength(1);
+        expect(transactionController.state.transactions[0].txParams.gas).toBe(
+          '0x5208',
+        );
         expect(transactionController.state.transactions[0].status).toBe(
           'unapproved',
         );
@@ -1066,6 +1071,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_3_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_3_MOCK),
             buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
