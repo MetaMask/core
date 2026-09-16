@@ -59,7 +59,11 @@ export class CredentialNotEnrolledError extends MfaError {
  * The begin/complete flow is stale or unknown; the client must restart it.
  */
 export class MfaFlowExpiredError extends MfaError {
-  constructor(code: 'flow_expired' | 'invalid_flow', message: string, status?: number) {
+  constructor(
+    code: 'flow_expired' | 'invalid_flow',
+    message: string,
+    status?: number,
+  ) {
     super(code, message, { status });
     this.name = 'MfaFlowExpiredError';
   }
