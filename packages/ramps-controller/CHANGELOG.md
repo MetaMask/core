@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [23.0.0]
 
-### Uncategorized
-
-- Update lint:tsc to run against all packages & remove it from CI ([#10215](https://github.com/MetaMask/core/pull/10215))
-
 ### Added
 
 - Add `RampsController:getQuoteWithFees`, which returns the best on-ramp quote with its fees reconciled to the resolved provider ([#10238](https://github.com/MetaMask/core/pull/10238))
@@ -21,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** The publicly exported `TransakBuyQuote` type now requires `requestedAssetId` and `requestedChainId` ([#9317](https://github.com/MetaMask/core/pull/9317))
 - Add an optional fee-exclusion argument to native Transak buy quotes while preserving fee exclusion as the default. ([#9317](https://github.com/MetaMask/core/pull/9317))
 - Add `bignumber.js` as a dependency, used by `getQuoteWithFees` for fee reconciliation ([#10238](https://github.com/MetaMask/core/pull/10238))
 - Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
@@ -42,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `RampsControllerMessenger` now requires these actions to be delegated for order syncing: ([#9474](https://github.com/MetaMask/core/pull/9474))
+- **BREAKING:** `RampsControllerMessenger` now requires these actions to be delegated for order syncing ([#9474](https://github.com/MetaMask/core/pull/9474)):
   - `UserStorageController:getState`
   - `UserStorageController:performGetStorageAllFeatureEntries`
   - `UserStorageController:performBatchSetStorage`

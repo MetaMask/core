@@ -9,16 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [29.0.0]
 
-### Uncategorized
-
-- Update lint:tsc to run against all packages & remove it from CI ([#10215](https://github.com/MetaMask/core/pull/10215))
-- chore: integrate `@metamask/utils` into `packages/` ([#10185](https://github.com/MetaMask/core/pull/10185))
-
 ### Changed
 
-- Use the native Transak buy quote's fee for the MM Pay fiat estimate when Transak Native is the resolved provider, falling back to the aggregator quote's fee when native is unavailable or the lookup fails ([#9317](https://github.com/MetaMask/core/pull/9317))
-  - The native lookup and fee reconciliation are owned by `RampsController:getQuoteWithFees`; clients must delegate `RampsController:getQuoteWithFees` to the `TransactionPayController` messenger (the previously required `TransakService:getBuyQuote` delegation is no longer needed) ([#10238](https://github.com/MetaMask/core/pull/10238)).
-- Charge direct Monad mUSD on-ramp fees on top of the entered amount (fee-on-top), so the total is the entered amount plus fees ([#9317](https://github.com/MetaMask/core/pull/9317))
+- **BREAKING:** The `TransactionPayController` messenger now requires `RampsController:getQuoteWithFees` in place of `RampsController:getQuotes`; clients that do not update this delegation will throw when requesting fiat quotes ([#9317](https://github.com/MetaMask/core/pull/9317), [#10238](https://github.com/MetaMask/core/pull/10238))
+- **BREAKING:** Direct Monad mUSD quotes now split native provider and source-network fees across `fees.provider` and `fees.sourceNetwork`, instead of placing the combined fee in `fees.provider` with a zero source-network fee; `targetAmount` now prefers `amountOutInFiat` when present ([#9317](https://github.com/MetaMask/core/pull/9317), [#10238](https://github.com/MetaMask/core/pull/10238))
+- Move native Transak fee lookup and reconciliation into `RampsController:getQuoteWithFees`, while preserving existing fee-on-top totals and falling back to the aggregator quote when native fee data is unavailable or unusable ([#9317](https://github.com/MetaMask/core/pull/9317), [#10238](https://github.com/MetaMask/core/pull/10238))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@metamask/assets-controller` from `^16.0.0` to `^16.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242))
 - Bump `@metamask/assets-controllers` from `^112.0.1` to `^112.0.2` ([#10242](https://github.com/MetaMask/core/pull/10242))
