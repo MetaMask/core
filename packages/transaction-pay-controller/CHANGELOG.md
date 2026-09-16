@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [29.0.0]
 
+### Added
+
+- Add optional `TransactionPayQuote.areFeesIncludedInSourceAmount` so totals can avoid double-counting fees already included in the source amount: when `true`, those quote fees are subtracted from the overall total; when `false` or omitted, they remain as separate fee components (direct mUSD quotes set `false` for fee-on-top pricing) ([#9317](https://github.com/MetaMask/core/pull/9317))
+
 ### Changed
 
 - **BREAKING:** The `TransactionPayController` messenger now requires `RampsController:getQuoteWithFees` in place of `RampsController:getQuotes`; clients that do not update this delegation will throw when requesting fiat quotes ([#9317](https://github.com/MetaMask/core/pull/9317), [#10238](https://github.com/MetaMask/core/pull/10238))
