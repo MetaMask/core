@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [29.0.0]
 
-### Uncategorized
 ### Changed
 
 - **BREAKING:** Remove `createOnChainPushNotificationMessage`, `createOnChainPushNotificationMessages`, and the `TranslationKeys` type. Push notification copy is now provided by the Notification API via `template`, so client-side translation keys are no longer required. ([#9184](https://github.com/MetaMask/core/pull/9184))
