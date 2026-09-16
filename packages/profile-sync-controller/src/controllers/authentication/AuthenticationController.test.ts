@@ -2538,12 +2538,60 @@ describe('MFA credential enrollment', () => {
         }),
       );
 
-      await expect(refresh).rejects.toThrow('wallet is locked');
+      await expect(refresh).rejects.toThrow('the authenticated session ended');
       expect(controller.state.enrolledCredentials).toStrictEqual([]);
     } finally {
       fetchSpy.mockRestore();
     }
   });
+
+  it.each([
+    [
+      'sign-out',
+      (controller: AuthenticationController): void =>
+        controller.performSignOut(),
+    ],
+    [
+      'wallet reset',
+      (controller: AuthenticationController): void => controller.clearState(),
+    ],
+  ])(
+    'does not restore the previous profile credentials if %s happens during refresh',
+    async (_name, endSession) => {
+      let release!: (value: Awaited<ReturnType<typeof fetch>>) => void;
+      let requestStartedResolve: (() => void) | undefined;
+      const requestStarted = new Promise<void>((resolve) => {
+        requestStartedResolve = resolve;
+      });
+      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementationOnce(
+        async (): ReturnType<typeof fetch> =>
+          await new Promise((resolve) => {
+            release = resolve;
+            requestStartedResolve?.();
+          }),
+      );
+      const { controller } = createController();
+      try {
+        // Mirrors the non-awaited post-sign-in warm-up.
+        const refresh = controller.refreshEnrolledCredentials();
+        await requestStarted;
+        endSession(controller);
+        release(
+          new globalThis.Response(
+            JSON.stringify(MOCK_MFA_CREDENTIALS_RESPONSE),
+            { status: 200 },
+          ),
+        );
+
+        await expect(refresh).rejects.toThrow(
+          'the authenticated session ended',
+        );
+        expect(controller.state.enrolledCredentials).toStrictEqual([]);
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    },
+  );
 
   it('keeps the existing cache when post-enrollment refresh fails', async () => {
     mockEndpointMfaEnrollComplete();

@@ -274,6 +274,12 @@ export class AuthenticationController extends BaseController<
   #isUnlocked = false;
 
   /**
+   * Bumped whenever the authenticated session ends, so an in-flight MFA
+   * ceremony started under the previous session cannot apply its result.
+   */
+  #authSessionEpoch = 0;
+
+  /**
    * Bumped by `requestProfilePairing` and `clearState` so an in-flight
    * `performSignIn` can't clear `needsProfilePairing` afterwards.
    */
@@ -289,6 +295,7 @@ export class AuthenticationController extends BaseController<
       });
 
       this.messenger.subscribe('KeyringController:lock', () => {
+        this.#authSessionEpoch += 1;
         this.#isUnlocked = false;
         this.#clearEnrolledCredentials();
       });
@@ -397,6 +404,14 @@ export class AuthenticationController extends BaseController<
   #assertIsUnlocked(methodName: string): void {
     if (!this.#isUnlocked) {
       throw new Error(`${methodName} - unable to proceed, wallet is locked`);
+    }
+  }
+
+  #assertAuthSessionEpoch(epoch: number, methodName: string): void {
+    if (!this.#isUnlocked || this.#authSessionEpoch !== epoch) {
+      throw new Error(
+        `${methodName} - unable to proceed, the authenticated session ended`,
+      );
     }
   }
 
@@ -837,6 +852,7 @@ export class AuthenticationController extends BaseController<
    */
   public async refreshEnrolledCredentials(): Promise<EnrolledCredential[]> {
     this.#assertIsUnlocked('refreshEnrolledCredentials');
+    const sessionEpoch = this.#authSessionEpoch;
     const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
     const credentials = await this.#runMfaRequest(
       'MFA Credentials Refresh',
@@ -844,7 +860,7 @@ export class AuthenticationController extends BaseController<
       'all',
       async () => await this.#auth.getMfaCredentials(primaryEntropySourceId),
     );
-    this.#assertIsUnlocked('refreshEnrolledCredentials');
+    this.#assertAuthSessionEpoch(sessionEpoch, 'refreshEnrolledCredentials');
 
     // Skip the write when nothing changed so subscribers are not woken up by
     // a fresh-but-identical array.
@@ -869,9 +885,10 @@ export class AuthenticationController extends BaseController<
     request: BeginEnrollmentRequest,
   ): Promise<EnrollmentChallenge> {
     this.#assertIsUnlocked('beginCredentialEnrollment');
+    const sessionEpoch = this.#authSessionEpoch;
     assertValidMfaRequest(request, BeginEnrollmentRequestStruct);
     const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
-    return await this.#runMfaRequest(
+    const challenge = await this.#runMfaRequest(
       'MFA Enroll Begin',
       request.reason.operation,
       request.type,
@@ -882,6 +899,8 @@ export class AuthenticationController extends BaseController<
           primaryEntropySourceId,
         ),
     );
+    this.#assertAuthSessionEpoch(sessionEpoch, 'beginCredentialEnrollment');
+    return challenge;
   }
 
   /**
@@ -899,6 +918,7 @@ export class AuthenticationController extends BaseController<
     request: CompleteEnrollmentRequest,
   ): Promise<EnrolledCredential[]> {
     this.#assertIsUnlocked('completeCredentialEnrollment');
+    const sessionEpoch = this.#authSessionEpoch;
     assertValidMfaRequest(request, CompleteEnrollmentRequestStruct);
     const { type } = request.proof;
     const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
@@ -914,6 +934,7 @@ export class AuthenticationController extends BaseController<
           primaryEntropySourceId,
         ),
     );
+    this.#assertAuthSessionEpoch(sessionEpoch, 'completeCredentialEnrollment');
 
     try {
       return await this.refreshEnrolledCredentials();
@@ -941,6 +962,7 @@ export class AuthenticationController extends BaseController<
   }
 
   public performSignOut(): void {
+    this.#authSessionEpoch += 1;
     this.#clearEnrolledCredentials();
     this.update((state) => {
       state.isSignedIn = false;
@@ -954,6 +976,7 @@ export class AuthenticationController extends BaseController<
    */
   public clearState(): void {
     this.#profilePairingRequestEpoch += 1;
+    this.#authSessionEpoch += 1;
     this.#clearEnrolledCredentials();
     this.update(() => ({ ...defaultState }));
   }
