@@ -55,9 +55,8 @@ export type AssetsBalanceState = {
   assetsBalance: Record<string, Record<string, AssetBalanceEntry>>;
   /**
    * User-added custom assets per account: accountId -> CAIP-19 asset IDs.
-   * Not read by asset-scoped polls (`BalancePollingInput.assetIds`). Regular
-   * polls still include these so v5 supplemental/`customAssetsOnly` refreshes
-   * pins that have no `assetsBalance` row yet.
+   * Used to ensure RPC polling refreshes custom assets even when they have
+   * no entry in `assetsBalance` yet (e.g. zero balance, first fetch failed).
    */
   customAssets?: Record<string, string[]>;
 };
