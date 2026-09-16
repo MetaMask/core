@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [70.0.2]
+
 ### Uncategorized
 
 - Update lint:tsc to run against all packages & remove it from CI ([#10215](https://github.com/MetaMask/core/pull/10215))
@@ -2759,7 +2761,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.0.2...HEAD
+[70.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.0.1...@metamask/transaction-controller@70.0.2
 [70.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@70.0.0...@metamask/transaction-controller@70.0.1
 [70.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.8.1...@metamask/transaction-controller@70.0.0
 [69.8.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@69.8.0...@metamask/transaction-controller@69.8.1
