@@ -2464,7 +2464,7 @@ describe('TransactionController', () => {
           },
         );
 
-        const { controller } = setupController({
+        const { controller, messenger } = setupController({
           messengerOptions: {
             addTransactionApprovalRequest: {
               state: 'approved',
@@ -2477,6 +2477,11 @@ describe('TransactionController', () => {
             },
           },
         });
+        const statusUpdatedListener = jest.fn();
+        messenger.subscribe(
+          'TransactionController:transactionStatusUpdated',
+          statusUpdatedListener,
+        );
 
         await controller.addTransaction(
           {
@@ -2497,6 +2502,22 @@ describe('TransactionController', () => {
           'shouldSign',
           'getNonceLock',
         ]);
+        expect(statusUpdatedListener).toHaveBeenCalledTimes(3);
+        expect(statusUpdatedListener).toHaveBeenNthCalledWith(1, {
+          transactionMeta: expect.objectContaining({
+            status: TransactionStatus.approved,
+          }),
+        });
+        expect(statusUpdatedListener).toHaveBeenNthCalledWith(2, {
+          transactionMeta: expect.objectContaining({
+            status: TransactionStatus.signed,
+          }),
+        });
+        expect(statusUpdatedListener).toHaveBeenNthCalledWith(3, {
+          transactionMeta: expect.objectContaining({
+            status: TransactionStatus.submitted,
+          }),
+        });
       });
 
       it('skips shouldSign and nonce reservation when sponsored', async () => {
