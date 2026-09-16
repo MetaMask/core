@@ -2499,10 +2499,9 @@ describe('MFA credential enrollment', () => {
       await requestStarted;
       baseMessenger.publish('KeyringController:lock');
       release(
-        new globalThis.Response(
-          JSON.stringify(MOCK_MFA_CREDENTIALS_RESPONSE),
-          { status: 200 },
-        ),
+        new globalThis.Response(JSON.stringify(MOCK_MFA_CREDENTIALS_RESPONSE), {
+          status: 200,
+        }),
       );
 
       await expect(refresh).rejects.toThrow('wallet is locked');
