@@ -168,8 +168,8 @@ module.exports = defineConfig({
           expectWorkspaceField(workspace, 'sideEffects', false);
         }
 
-        // All non-root packages must set up ESM-only exports correctly (aside
-        // from tools).
+        // All non-root packages must expose a single unconditional entrypoint
+        // rather than separate CommonJS and ESM exports (aside from tools).
         if (!TOOLS.includes(workspace.ident)) {
           expectCorrectWorkspaceExports(workspace);
         }
