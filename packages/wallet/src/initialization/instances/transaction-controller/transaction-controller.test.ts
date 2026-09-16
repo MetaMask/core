@@ -11,7 +11,10 @@ import type {
   RootMessenger,
 } from '../../defaults.js';
 import { AlwaysOnlineAdapter } from '../connectivity-controller/always-online-adapter.js';
-import { transactionController } from './transaction-controller.js';
+import {
+  defaultTransactionControllerHooks,
+  transactionController,
+} from './transaction-controller.js';
 
 const controllers: TransactionController[] = [];
 const wallets: Wallet[] = [];
@@ -36,6 +39,19 @@ describe('transactionController', () => {
     }
 
     await Promise.all(wallets.splice(0).map((wallet) => wallet.destroy()));
+  });
+
+  it('uses local signing defaults', async () => {
+    expect(
+      await defaultTransactionControllerHooks.isSponsored({
+        transactionMeta: {} as never,
+      }),
+    ).toStrictEqual({ isSponsored: false });
+    expect(
+      await defaultTransactionControllerHooks.shouldSign({
+        transactionMeta: {} as never,
+      }),
+    ).toStrictEqual({ shouldSign: true });
   });
 
   it('is registered as a default initialization configuration', () => {

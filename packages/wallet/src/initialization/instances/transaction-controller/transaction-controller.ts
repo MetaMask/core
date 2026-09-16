@@ -1,10 +1,19 @@
 import { Messenger } from '@metamask/messenger';
-import type { TransactionControllerMessenger } from '@metamask/transaction-controller';
+import type {
+  TransactionControllerMessenger,
+  TransactionControllerOptions,
+} from '@metamask/transaction-controller';
 import { TransactionController } from '@metamask/transaction-controller';
 
 import type { InitializationConfiguration } from '../../types.js';
 
 export type { TransactionControllerInstanceOptions } from './types.js';
+
+export const defaultTransactionControllerHooks: TransactionControllerOptions['hooks'] =
+  {
+    isSponsored: async () => ({ isSponsored: false }),
+    shouldSign: async () => ({ shouldSign: true }),
+  };
 
 export const transactionController: InitializationConfiguration<
   TransactionController,
@@ -17,12 +26,7 @@ export const transactionController: InitializationConfiguration<
     return new TransactionController({
       ...rest,
       disableSwaps,
-      hooks: hooks ?? {
-        /* istanbul ignore next */
-        isSponsored: async () => ({ isSponsored: false }),
-        /* istanbul ignore next */
-        shouldSign: async () => ({ shouldSign: true }),
-      },
+      hooks: hooks ?? defaultTransactionControllerHooks,
       messenger,
       state,
     });
