@@ -319,6 +319,7 @@ function setup({
     consoleWarn: jest.SpyInstance;
   };
   mocks: {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     KeyringController: {
       keyrings: KeyringObject[];
       getState: jest.Mock;
@@ -326,15 +327,18 @@ function setup({
       verifyPassword: jest.Mock;
       withController: jest.Mock;
     };
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     MultichainAccountService: {
       removeMultichainAccountWallet: jest.Mock;
     };
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     AccountsController: {
       accounts: InternalAccount[];
       listMultichainAccounts: jest.Mock;
       getSelectedMultichainAccount: jest.Mock;
       getAccount: jest.Mock;
     };
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     UserStorageController: {
       performGetStorage: jest.Mock;
       performGetStorageAllFeatureEntries: jest.Mock;
@@ -342,6 +346,7 @@ function setup({
       performBatchSetStorage: jest.Mock;
       syncInternalAccountsWithUserStorage: jest.Mock;
     };
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     AuthenticationController: {
       getSessionProfile: jest.Mock;
     };
