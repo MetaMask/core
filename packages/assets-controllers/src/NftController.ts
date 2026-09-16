@@ -951,6 +951,13 @@ export class NftController extends BaseController<
               allNftsForUserPerChain[chainId][indexToUpdate] = {
                 ...existingEntry,
                 ...nftMetadata,
+                // Ownership is re-confirmed on the manual import path
+                // (Source.Custom reaches this code only after ownership has
+                // been verified on-chain), so restore the flag instead of
+                // preserving a stale `isCurrentlyOwned: false`.
+                ...(source === Source.Custom
+                  ? { isCurrentlyOwned: true }
+                  : {}),
               };
             }
           } else {
