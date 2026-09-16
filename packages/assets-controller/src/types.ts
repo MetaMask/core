@@ -276,6 +276,12 @@ export type AssetPrice = FungibleAssetPrice | NFTAssetPrice;
 export type FungibleAssetBalance = {
   /** Raw balance amount as string (e.g., "1000000000" for 1000 USDC) */
   amount: string;
+  /**
+   * Network-specific balance fields, when the source provides them. Stellar
+   * native rows carry `spendableBalance` / `minimumReserveBalance`, and
+   * trustlines carry `limit` / `authorized` / `sponsored`.
+   */
+  metadata?: Json;
 };
 
 /**

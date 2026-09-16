@@ -67,28 +67,28 @@ const TRANSACTION_MOCK = {
 } as unknown as TransactionMeta;
 
 function getQuotesMessenger({
-  quotes = [RAMPS_QUOTE_MOCK],
+  quote = RAMPS_QUOTE_MOCK,
   quoteError,
+  returnsQuote = true,
 }: {
-  quotes?: RampsQuote[];
+  quote?: RampsQuote;
   quoteError?: Error;
+  returnsQuote?: boolean;
 } = {}): {
   callMock: jest.Mock;
   messenger: PayStrategyGetQuotesRequest['messenger'];
 } {
   const callMock = jest.fn(
     (action: string, request?: Record<string, unknown>) => {
-      if (action === 'RampsController:getQuotes') {
+      // `getRampsQuote` calls `RampsController:getQuoteWithFees`, which returns
+      // the single best quote with fees already reconciled to the resolved
+      // provider (the native lookup and split now live in `RampsController`).
+      if (action === 'RampsController:getQuoteWithFees') {
         if (quoteError) {
           throw quoteError;
         }
 
-        return {
-          customActions: [],
-          error: [],
-          sorted: [],
-          success: quotes,
-        };
+        return returnsQuote ? quote : undefined;
       }
 
       if (action === 'TransactionPayController:updateFiatPayment') {
@@ -159,27 +159,34 @@ describe('fiat-direct-musd', () => {
         transactionId: TRANSACTION_ID_MOCK,
       });
 
-      expect(callMock).toHaveBeenNthCalledWith(1, 'RampsController:getQuotes', {
-        amount: 10,
-        assetId: MUSD_CAIP_ASSET_ID_MOCK,
-        autoSelectProvider: true,
-        fiat: DEFAULT_FIAT_CURRENCY,
-        paymentMethods: ['/payments/debit-credit-card'],
-        restrictToKnownOrNativeProviders: true,
-        walletAddress: MONEY_ACCOUNT_ADDRESS_MOCK,
-      });
+      expect(callMock).toHaveBeenNthCalledWith(
+        1,
+        'RampsController:getQuoteWithFees',
+        {
+          amount: 10,
+          assetId: MUSD_CAIP_ASSET_ID_MOCK,
+          autoSelectProvider: true,
+          fiat: DEFAULT_FIAT_CURRENCY,
+          isFeeExcludedFromFiat: true,
+          paymentMethods: ['/payments/debit-credit-card'],
+          restrictToKnownOrNativeProviders: true,
+          walletAddress: MONEY_ACCOUNT_ADDRESS_MOCK,
+        },
+      );
       expect(callMock).toHaveBeenCalledWith(
         'TransactionPayController:updateFiatPayment',
         expect.objectContaining({ transactionId: TRANSACTION_ID_MOCK }),
       );
       expect(result).toStrictEqual(
         expect.objectContaining({
+          areFeesIncludedInSourceAmount: false,
           fees: expect.objectContaining({
-            provider: { fiat: '0.7', usd: '0.7' },
+            metaMask: { fiat: '0', usd: '0' },
+            provider: { fiat: '0.5', usd: '0.5' },
             providerFiat: { fiat: '0.7', usd: '0.7' },
             sourceNetwork: {
-              estimate: { fiat: '0', human: '0', raw: '0', usd: '0' },
-              max: { fiat: '0', human: '0', raw: '0', usd: '0' },
+              estimate: { fiat: '0.2', human: '0', raw: '0', usd: '0.2' },
+              max: { fiat: '0.2', human: '0', raw: '0', usd: '0.2' },
             },
             targetNetwork: { fiat: '0', usd: '0' },
           }),
@@ -196,13 +203,171 @@ describe('fiat-direct-musd', () => {
           }),
           sourceAmount: { fiat: '10', human: '5', raw: '5000000', usd: '10' },
           strategy: TransactionPayStrategy.Fiat,
+          // No `amountOutInFiat` on the mock quote, so the fiat target falls
+          // back to the entered amount (not the crypto `amountOut`).
           targetAmount: { fiat: '10', usd: '10' },
         }),
       );
     });
 
+    it('maps the reconciled provider and network fees into the fee buckets', async () => {
+      // `getQuoteWithFees` reconciles a Transak Native quote into a split that
+      // keeps the network line populated (e.g. native total 0.9 split into a
+      // 0.85 provider fee and a 0.05 network fee). Direct mUSD maps both buckets
+      // straight through.
+      const { messenger } = getQuotesMessenger({
+        quote: {
+          ...RAMPS_QUOTE_MOCK,
+          quote: {
+            ...RAMPS_QUOTE_MOCK.quote,
+            networkFee: 0.05,
+            providerFee: 0.85,
+          },
+        },
+      });
+
+      const result = await getDirectMusdFiatQuote({
+        amountFiat: '10',
+        fiatPaymentMethod: '/payments/debit-credit-card',
+        messenger,
+        moneyAccountAddress: MONEY_ACCOUNT_ADDRESS_MOCK,
+        requiredToken: REQUIRED_TOKEN_MOCK,
+        transactionId: TRANSACTION_ID_MOCK,
+      });
+
+      expect(result).toStrictEqual(
+        expect.objectContaining({
+          fees: expect.objectContaining({
+            provider: { fiat: '0.85', usd: '0.85' },
+            providerFiat: { fiat: '0.9', usd: '0.9' },
+            sourceNetwork: {
+              estimate: { fiat: '0.05', human: '0', raw: '0', usd: '0.05' },
+              max: { fiat: '0.05', human: '0', raw: '0', usd: '0.05' },
+            },
+          }),
+        }),
+      );
+    });
+
+    it('treats unusable ramps fees as zero', async () => {
+      const { messenger } = getQuotesMessenger({
+        quote: {
+          ...RAMPS_QUOTE_MOCK,
+          quote: {
+            ...RAMPS_QUOTE_MOCK.quote,
+            networkFee: -1,
+            providerFee: -1,
+          },
+        },
+      });
+
+      const result = await getDirectMusdFiatQuote({
+        amountFiat: '10',
+        fiatPaymentMethod: '/payments/debit-credit-card',
+        messenger,
+        moneyAccountAddress: MONEY_ACCOUNT_ADDRESS_MOCK,
+        requiredToken: REQUIRED_TOKEN_MOCK,
+        transactionId: TRANSACTION_ID_MOCK,
+      });
+
+      expect(result).toStrictEqual(
+        expect.objectContaining({
+          fees: expect.objectContaining({
+            provider: { fiat: '0', usd: '0' },
+            providerFiat: { fiat: '0', usd: '0' },
+          }),
+        }),
+      );
+    });
+
+    it('keeps $15 charged while valuing received mUSD at $14.30', async () => {
+      const fiatQuote: RampsQuote = {
+        ...RAMPS_QUOTE_MOCK,
+        quote: {
+          ...RAMPS_QUOTE_MOCK.quote,
+          amountIn: 15,
+          amountOut: 14.25,
+          amountOutInFiat: 14.3,
+        },
+      };
+      const { messenger } = getQuotesMessenger({ quote: fiatQuote });
+
+      const result = await getDirectMusdFiatQuote({
+        amountFiat: '15',
+        fiatPaymentMethod: '/payments/debit-credit-card',
+        messenger,
+        moneyAccountAddress: MONEY_ACCOUNT_ADDRESS_MOCK,
+        requiredToken: REQUIRED_TOKEN_MOCK,
+        transactionId: TRANSACTION_ID_MOCK,
+      });
+
+      expect(result?.sourceAmount.fiat).toBe('15');
+      expect(result?.targetAmount).toStrictEqual({
+        fiat: '14.3',
+        usd: '14.3',
+      });
+    });
+
+    it('uses the entered fiat amount when amountOutInFiat is unavailable', async () => {
+      // `amountOut` is a crypto amount, so it must not be used as the fiat
+      // target. The entered fiat amount is the correct fallback.
+      const fiatQuote: RampsQuote = {
+        ...RAMPS_QUOTE_MOCK,
+        quote: {
+          ...RAMPS_QUOTE_MOCK.quote,
+          amountIn: 15,
+          amountOut: 14.3,
+        },
+      };
+      const { messenger } = getQuotesMessenger({ quote: fiatQuote });
+
+      const result = await getDirectMusdFiatQuote({
+        amountFiat: '15',
+        fiatPaymentMethod: '/payments/apple-pay',
+        messenger,
+        moneyAccountAddress: MONEY_ACCOUNT_ADDRESS_MOCK,
+        requiredToken: REQUIRED_TOKEN_MOCK,
+        transactionId: TRANSACTION_ID_MOCK,
+      });
+
+      expect(result?.targetAmount).toStrictEqual({
+        fiat: '15',
+        usd: '15',
+      });
+    });
+
+    it('requests the accepted Apple Pay payment method', async () => {
+      const { callMock, messenger } = getQuotesMessenger();
+
+      await getDirectMusdFiatQuote({
+        amountFiat: '15',
+        fiatPaymentMethod: '/payments/apple-pay',
+        messenger,
+        moneyAccountAddress: MONEY_ACCOUNT_ADDRESS_MOCK,
+        requiredToken: REQUIRED_TOKEN_MOCK,
+        transactionId: TRANSACTION_ID_MOCK,
+      });
+
+      expect(callMock).toHaveBeenNthCalledWith(
+        1,
+        'RampsController:getQuoteWithFees',
+        {
+          amount: 15,
+          assetId: MUSD_CAIP_ASSET_ID_MOCK,
+          autoSelectProvider: true,
+          fiat: DEFAULT_FIAT_CURRENCY,
+          isFeeExcludedFromFiat: true,
+          paymentMethods: ['/payments/apple-pay'],
+          restrictToKnownOrNativeProviders: true,
+          walletAddress: MONEY_ACCOUNT_ADDRESS_MOCK,
+        },
+      );
+    });
+
     it('returns undefined when ramps returns no mUSD provider', async () => {
-      const { callMock, messenger } = getQuotesMessenger({ quotes: [] });
+      const { callMock, messenger } = getQuotesMessenger({
+        returnsQuote: false,
+      });
 
       const result = await getDirectMusdFiatQuote({
         amountFiat: '10',
@@ -261,7 +426,7 @@ describe('fiat-direct-musd', () => {
           paymentMethod: '/payments/debit-credit-card',
         },
       };
-      const { messenger } = getQuotesMessenger({ quotes: [quoteWithoutFees] });
+      const { messenger } = getQuotesMessenger({ quote: quoteWithoutFees });
 
       const result = await getDirectMusdFiatQuote({
         amountFiat: '10',

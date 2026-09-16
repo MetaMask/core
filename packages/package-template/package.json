@@ -1,6 +1,7 @@
 {
-  "name": "PACKAGE_NAME",
+  "name": "@metamask/package-template",
   "version": "0.0.0",
+  "private": true,
   "description": "PACKAGE_DESCRIPTION",
   "keywords": [
     "Ethereum",
@@ -37,8 +38,10 @@
     "build:clean": "yarn build:only-clean && yarn build",
     "build:docs": "typedoc",
     "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
-    "changelog:update": "../../scripts/update-changelog.sh PACKAGE_NAME",
-    "changelog:validate": "../../scripts/validate-changelog.sh PACKAGE_NAME",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/package-template",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/package-template",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
@@ -50,6 +53,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
     "@types/jest": "^30.0.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
     "rimraf": "^5.0.5",
@@ -57,9 +61,9 @@
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.3.3"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {
-    "node": "NODE_VERSIONS"
+    "node": "^22.14.0 || ^24"
   }
 }

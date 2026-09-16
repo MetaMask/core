@@ -410,17 +410,6 @@ export function adaptFillFromLighterTrade(
     );
   }
   const fee = '0';
-  const pnl = accountIsAsk ? trade.askAccountPnl : trade.bidAccountPnl;
-  const parsedPnl = parseLighterStrictDecimal(pnl);
-  if (
-    typeof pnl !== 'string' ||
-    parsedPnl === null ||
-    !Number.isFinite(parsedPnl)
-  ) {
-    throw new Error(
-      `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} is missing valid account pnl`,
-    );
-  }
   const isBuy = !accountIsAsk;
   // The account's maker/taker role selects the matching pre-trade position
   // context. Missing context is rejected above instead of becoming neutral
@@ -440,6 +429,21 @@ export function adaptFillFromLighterTrade(
   ) {
     throw new Error(
       `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} is missing valid position context`,
+    );
+  }
+  const accountPnl = accountIsAsk ? trade.askAccountPnl : trade.bidAccountPnl;
+  // The venue omits PnL on opens from flat. Only a validated zero pre-trade
+  // position proves zero realized PnL; never assume it for an existing position.
+  const pnl =
+    accountPnl === undefined && positionBefore === 0 ? '0' : accountPnl;
+  const parsedPnl = parseLighterStrictDecimal(pnl);
+  if (
+    typeof pnl !== 'string' ||
+    parsedPnl === null ||
+    !Number.isFinite(parsedPnl)
+  ) {
+    throw new Error(
+      `${LIGHTER_DATA_INTEGRITY_PREFIX} trade ${trade.tradeId} is missing valid account pnl`,
     );
   }
   const direction = deriveLighterFillDirection({
@@ -719,7 +723,10 @@ export function adaptOrderFromLighter(
     filledSize: String(filled),
     remainingSize: order.remainingBaseAmount,
     status: adaptOrderStatus(order.status),
-    timestamp: order.timestamp,
+    // Order endpoints report seconds; preserve already-normalized millisecond
+    // inputs. Trade timestamps are a separate millisecond wire contract.
+    timestamp:
+      order.timestamp < 1e12 ? order.timestamp * 1000 : order.timestamp,
     reduceOnly: Boolean(order.reduceOnly),
     providerId: 'lighter',
   };
