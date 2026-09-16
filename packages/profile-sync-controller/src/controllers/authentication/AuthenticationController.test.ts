@@ -2593,6 +2593,51 @@ describe('MFA credential enrollment', () => {
     },
   );
 
+  it('still invalidates the SRP session when the wallet locks while email enrollment completes', async () => {
+    let release!: (value: Awaited<ReturnType<typeof fetch>>) => void;
+    let requestStartedResolve: (() => void) | undefined;
+    const requestStarted = new Promise<void>((resolve) => {
+      requestStartedResolve = resolve;
+    });
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementationOnce(
+      async (): ReturnType<typeof fetch> =>
+        await new Promise((resolve) => {
+          release = resolve;
+          requestStartedResolve?.();
+        }),
+    );
+    const { controller, baseMessenger } = createController();
+    try {
+      const completion = controller.completeCredentialEnrollment({
+        flowId: 'flow-id',
+        proof: { type: 'email_otp', code: '123456' },
+        reason: { operation: 'settings.addEmail' },
+      });
+      await requestStarted;
+      baseMessenger.publish('KeyringController:lock');
+      release(
+        new globalThis.Response(JSON.stringify({ status: 'enrolled' }), {
+          status: 200,
+        }),
+      );
+
+      await expect(completion).rejects.toThrow(
+        'the authenticated session ended',
+      );
+      // No credentials refresh was attempted after the session ended.
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(controller.state.enrolledCredentials).toStrictEqual([]);
+      // The enrollment succeeded server-side, so the token cached across the
+      // lock must not be reused without the new email claim.
+      expect(
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].profile
+          .canonicalProfileId,
+      ).toBe('');
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   it('keeps the existing cache when post-enrollment refresh fails', async () => {
     mockEndpointMfaEnrollComplete();
     mockEndpointMfaCredentials({
