@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `RampsController:getQuoteWithFees`, which returns the best on-ramp quote with its fees reconciled to the resolved provider ([#10238](https://github.com/MetaMask/core/pull/10238))
+  - When the resolved provider is Transak Native, the returned quote's `providerFee`/`networkFee`/`totalFees` reflect the native buy quote's total fee: the aggregator `networkFee` stays on the network line and the remainder goes to the provider fee, so the breakdown survives and the total is unchanged. A non-native provider, a failed native lookup, or an unusable native fee returns the aggregator quote unchanged.
+  - The native lookup uses the stateless `TransakService:getBuyQuote`, so it does not write the shared native buy-quote state used by Unified Buy.
+
 ### Changed
 
+- Add an optional fee-exclusion argument to native Transak buy quotes while preserving fee exclusion as the default. ([#9317](https://github.com/MetaMask/core/pull/9317))
+- Add `bignumber.js` as a dependency, used by `getQuoteWithFees` for fee reconciliation ([#10238](https://github.com/MetaMask/core/pull/10238))
 - Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
 
 ## [22.0.0]

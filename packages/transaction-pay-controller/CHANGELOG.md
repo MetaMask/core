@@ -9,10 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Use the native Transak buy quote's fee for the MM Pay fiat estimate when Transak Native is the resolved provider, falling back to the aggregator quote's fee when native is unavailable or the lookup fails ([#9317](https://github.com/MetaMask/core/pull/9317))
+  - The native lookup and fee reconciliation are owned by `RampsController:getQuoteWithFees`; clients must delegate `RampsController:getQuoteWithFees` to the `TransactionPayController` messenger (the previously required `TransakService:getBuyQuote` delegation is no longer needed) ([#10238](https://github.com/MetaMask/core/pull/10238)).
+- Charge direct Monad mUSD on-ramp fees on top of the entered amount (fee-on-top), so the total is the entered amount plus fees ([#9317](https://github.com/MetaMask/core/pull/9317))
 - Subsidized (fixed-spread) max direct Money Account Relay deposits now use `EXACT_OUTPUT` quoting with vault calls embedded atomically in the Relay quote. ([#10224](https://github.com/MetaMask/core/pull/10224))
   - Failed atomic promotions are terminal `no-quotes` errors prefixed with `Atomic promotion failed`, and will block rather than silently fall back.
   - Non-subsidized max behavior is unchanged.
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/assets-controller` from `^16.0.0` to `^16.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242))
+- Bump `@metamask/assets-controllers` from `^112.0.1` to `^112.0.2` ([#10242](https://github.com/MetaMask/core/pull/10242))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.0.1` ([#10242](https://github.com/MetaMask/core/pull/10242))
+
+### Fixed
+
+- Fall back to the entered fiat amount, rather than the crypto output amount, when a direct mUSD quote is missing `amountOutInFiat`, so a crypto value is not placed in the fiat target field ([#10238](https://github.com/MetaMask/core/pull/10238))
+- Detect nested `perpsDepositAndOrder` and `predictDepositAndOrder` transactions when selecting `EXACT_OUTPUT` Relay quotes ([#10222](https://github.com/MetaMask/core/pull/10222))
+- Clear stale quote errors when the payment token changes ([#10239](https://github.com/MetaMask/core/pull/10239))
 
 ## [28.0.2]
 

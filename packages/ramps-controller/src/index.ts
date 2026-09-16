@@ -32,6 +32,7 @@ export type {
   RampsControllerGetPaymentMethodsForContextAction,
   RampsControllerSetSelectedPaymentMethodAction,
   RampsControllerGetQuotesAction,
+  RampsControllerGetQuoteWithFeesAction,
   RampsControllerAddOrderAction,
   RampsControllerRemoveOrderAction,
   RampsControllerAddAutorampAction,

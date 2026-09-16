@@ -4853,7 +4853,7 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
-    it('requests exact output for Predict deposit-and-order flows', async () => {
+    it('requests exact output for batched Predict deposit-and-order flows', async () => {
       const predictDepositAndOrderRequest: QuoteRequest = {
         ...QUOTE_REQUEST_MOCK,
         targetChainId: CHAIN_ID_ARBITRUM,
@@ -4871,7 +4871,10 @@ describe('Relay Quotes Utils', () => {
         requests: [predictDepositAndOrderRequest],
         transaction: {
           ...TRANSACTION_META_MOCK,
-          type: TransactionType.predictDepositAndOrder,
+          nestedTransactions: [
+            { type: TransactionType.predictDepositAndOrder },
+          ],
+          type: TransactionType.batch,
         },
       });
 

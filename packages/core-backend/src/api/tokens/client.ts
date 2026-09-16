@@ -11,12 +11,7 @@ import type {
   QueryFunctionContext,
 } from '@tanstack/query-core';
 
-import {
-  BaseApiClient,
-  API_URLS,
-  STALE_TIMES,
-  GC_TIMES,
-} from '../base-client.js';
+import { BaseApiClient, STALE_TIMES, GC_TIMES } from '../base-client.js';
 import { getQueryOptionsOverrides } from '../shared-types.js';
 import type { FetchOptions } from '../shared-types.js';
 import type {
@@ -61,7 +56,7 @@ export class TokensApiClient extends BaseApiClient {
       queryKey: ['tokens', 'v1SupportedNetworks'],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V1TokenSupportedNetworksResponse>(
-          API_URLS.TOKENS,
+          this.apiUrls.TOKENS,
           '/v1/supportedNetworks',
           { signal },
         ),
@@ -98,7 +93,7 @@ export class TokensApiClient extends BaseApiClient {
       queryKey: ['tokens', 'v2SupportedNetworks'],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V2TokenSupportedNetworksResponse>(
-          API_URLS.TOKENS,
+          this.apiUrls.TOKENS,
           '/v2/supportedNetworks',
           { signal },
         ),
@@ -152,13 +147,17 @@ export class TokensApiClient extends BaseApiClient {
         if (assetIds.length === 0) {
           return [];
         }
-        return this.fetch<V3AssetResponse[]>(API_URLS.TOKENS, '/v3/assets', {
-          signal,
-          params: {
-            assetIds,
-            ...queryOptions,
+        return this.fetch<V3AssetResponse[]>(
+          this.apiUrls.TOKENS,
+          '/v3/assets',
+          {
+            signal,
+            params: {
+              assetIds,
+              ...queryOptions,
+            },
           },
-        });
+        );
       },
       ...getQueryOptionsOverrides(fetchOptions),
       staleTime: fetchOptions?.staleTime ?? STALE_TIMES.TOKEN_METADATA,

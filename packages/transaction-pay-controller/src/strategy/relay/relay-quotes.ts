@@ -2,7 +2,10 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import { TransactionType } from '@metamask/transaction-controller';
+import {
+  hasTransactionType,
+  TransactionType,
+} from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   TransactionMeta,
@@ -422,8 +425,10 @@ async function getSingleQuote(
     const hasTransactions = Boolean(body.txs?.length);
     const requiresExactOutput =
       hasTransactions ||
-      transaction.type === TransactionType.perpsDepositAndOrder ||
-      transaction.type === TransactionType.predictDepositAndOrder;
+      hasTransactionType(transaction, [
+        TransactionType.perpsDepositAndOrder,
+        TransactionType.predictDepositAndOrder,
+      ]);
     const finalBody: RelayQuoteRequest = {
       ...body,
       amount:
