@@ -1,75 +1,21 @@
-import type { TraceContext } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
+
 import { ExtraTransactionsPublishHook } from '../hooks/ExtraTransactionsPublishHook.js';
 import { projectLogger as log } from '../logger.js';
-import type { PublishHook, TransactionMeta } from '../types.js';
+import type {
+  PublishHook,
+  PublishHookResult,
+  TransactionMeta,
+} from '../types.js';
 import { TransactionStatus, TransactionType } from '../types.js';
 import { rpcRequest } from '../utils/provider.js';
 import { getTransaction, getTransactionOrThrow } from '../utils/state.js';
-import type { PublishTransactionRequest } from './publish.js';
-import { defaultPublishHook } from './publish.js';
-import type { TransactionLifecycleContext } from './state.js';
 import { releaseTransactionExecution } from './state.js';
-import type {
-  TransactionConstructorOptions,
-  TransactionStageDependencies,
-} from './types.js';
-
-/** The dependencies and context required to submit a transaction. */
-export type SubmitTransactionRequest = PublishTransactionRequest & {
-  dependencies: Pick<
-    TransactionStageDependencies,
-    | 'addTransactionBatch'
-    | 'getState'
-    | 'internalEvents'
-    | 'messenger'
-    | 'updateTransactionInternal'
-  >;
-  /**
-   * The network client the transaction was approved on. Captured before
-   * signing, as hooks may replace the transaction metadata.
-   */
-  networkClientId: NetworkClientId;
-
-  /** Custom logic to publish the transaction. */
-  publishHookOverride?: PublishHook;
-
-  /** The serialized signed transaction, if it was signed locally. */
-  rawTx?: string;
-
-  /**
-   * Release the nonce lock reserved by the approve stage. Called immediately
-   * before publishing so the nonce stays locked until then.
-   */
-  releaseNonceLock: () => void;
-
-  traceContext?: TraceContext;
-
-  transactionMeta: TransactionMeta;
-};
-
-/** The dependencies and context required to submit a state-only transaction. */
-export type SubmitStateOnlyTransactionRequest = {
-  dependencies: Pick<TransactionStageDependencies, 'updateTransactionInternal'>;
-  transactionMeta: TransactionMeta;
-};
+import type { TransactionLifecycleRequest } from './types.js';
 
 /** Apply publish hooks and submit the signed execution. */
 export async function submitTransaction(
-  request: {
-    constructorOptions: {
-      hooks: Pick<TransactionConstructorOptions['hooks'], 'beforePublish'>;
-    };
-    dependencies: Pick<
-      TransactionStageDependencies,
-      | 'addTransactionBatch'
-      | 'getState'
-      | 'internalEvents'
-      | 'messenger'
-      | 'updateTransactionInternal'
-    >;
-  } & PublishTransactionRequest &
-    TransactionLifecycleContext,
+  request: TransactionLifecycleRequest,
 ): Promise<void> {
   const {
     addTransactionRequest: { options },
@@ -78,11 +24,14 @@ export async function submitTransaction(
     lifecycle,
     transactionMeta,
   } = request;
+
   if (transactionMeta.isStateOnly) {
     submitStateOnlyTransaction(request);
     return;
   }
+
   const { execution } = lifecycle;
+
   if (!execution) {
     return;
   }
@@ -90,13 +39,17 @@ export async function submitTransaction(
   const rawTx = transactionMeta.isExternalSign
     ? undefined
     : transactionMeta.rawTx;
+
   const beforePublish = hooks.beforePublish ?? (() => Promise.resolve(true));
+
   if (!(await beforePublish(transactionMeta))) {
     log('Skipping publishing transaction based on hook');
+
     dependencies.messenger.publish(
       'TransactionController:transactionPublishingSkipped',
       transactionMeta,
     );
+
     releaseTransactionExecution(lifecycle);
     lifecycle.resultCallbacks?.success();
     return;
@@ -106,24 +59,18 @@ export async function submitTransaction(
     return;
   }
 
-  const publishRequest = {
-    ...request,
-    networkClientId: execution.networkClientId,
-    publishHookOverride: options.publishHook,
+  await publishAndSubmitTransaction(
+    request,
+    execution.networkClientId,
     rawTx,
-    releaseNonceLock: (): void => {
+    () => {
       execution.releaseNonce?.();
       delete execution.releaseNonce;
     },
-    traceContext: options.traceContext,
-  };
-  try {
-    await publishAndSubmitTransaction(publishRequest);
-  } finally {
-    request.transactionMeta = publishRequest.transactionMeta;
-  }
+  );
 
   releaseTransactionExecution(lifecycle);
+
   dependencies.messenger.publish('TransactionController:transactionApproved', {
     actionId: options.actionId,
     transactionMeta: getTransaction(
@@ -142,8 +89,8 @@ export async function submitTransaction(
  * @param request - Dependencies and context for the transaction.
  * @returns An empty hash, as no transaction was published.
  */
-export function submitStateOnlyTransaction(
-  request: SubmitStateOnlyTransactionRequest,
+function submitStateOnlyTransaction(
+  request: TransactionLifecycleRequest,
 ): string {
   const {
     transactionMeta,
@@ -169,16 +116,19 @@ export function submitStateOnlyTransaction(
  * events.
  *
  * @param request - Dependencies and context for the transaction.
+ * @param networkClientId - The network captured before signing hooks run.
+ * @param rawTx - The locally signed transaction, if present.
+ * @param releaseNonceLock - Release the nonce immediately before publishing.
  * @returns The submitted transaction.
  */
 async function publishAndSubmitTransaction(
-  request: SubmitTransactionRequest,
+  request: TransactionLifecycleRequest,
+  networkClientId: NetworkClientId,
+  rawTx: string | undefined,
+  releaseNonceLock: () => void,
 ): Promise<TransactionMeta> {
   const {
     dependencies: { internalEvents, messenger, updateTransactionInternal },
-    networkClientId,
-    rawTx,
-    releaseNonceLock,
     transactionMeta,
   } = request;
 
@@ -203,7 +153,7 @@ async function publishAndSubmitTransaction(
 
   releaseNonceLock();
 
-  const publishHook = getPublishHook(request);
+  const publishHook = getPublishHook(request, networkClientId);
 
   const { transactionHash: hash } = await publishHook(
     transactionMeta,
@@ -218,6 +168,7 @@ async function publishAndSubmitTransaction(
       draftTxMeta.hash = hash;
       draftTxMeta.status = TransactionStatus.submitted;
       draftTxMeta.submittedTime ??= new Date().getTime();
+
       if (shouldUpdatePreTxBalance) {
         draftTxMeta.preTxBalance = preTxBalance;
         log('Updated pre-transaction balance', preTxBalance);
@@ -235,6 +186,7 @@ async function publishAndSubmitTransaction(
     'TransactionController:transactionFinished',
     submittedTransactionMeta,
   );
+
   internalEvents.emit(`${transactionId}:finished`, submittedTransactionMeta);
 
   messenger.publish('TransactionController:transactionStatusUpdated', {
@@ -251,22 +203,19 @@ async function publishAndSubmitTransaction(
  * submits those alongside the original transaction.
  *
  * @param request - Dependencies and context for the transaction.
+ * @param networkClientId - The network captured before signing hooks run.
  * @returns The hook to publish the transaction with.
  */
-function getPublishHook(request: SubmitTransactionRequest): PublishHook {
+function getPublishHook(
+  request: TransactionLifecycleRequest,
+  networkClientId: NetworkClientId,
+): PublishHook {
   const {
     dependencies: { addTransactionBatch, getState },
-    networkClientId,
-    publishHookOverride,
-    traceContext,
     transactionMeta,
   } = request;
 
-  const publishHook = defaultPublishHook.bind(null, request, {
-    networkClientId,
-    publishHookOverride,
-    traceContext,
-  });
+  const publishHook = defaultPublishHook.bind(null, request, networkClientId);
 
   if (!transactionMeta.batchTransactions?.length) {
     return publishHook;
@@ -280,4 +229,49 @@ function getPublishHook(request: SubmitTransactionRequest): PublishHook {
       getTransactionOrThrow(getState(), transactionId),
     originalPublishHook: publishHook,
   }).getHook();
+}
+
+/**
+ * Run the publish hook, falling back to the controller's shared publisher.
+ *
+ * @param request - Transaction input and controller resources.
+ * @param networkClientId - The network captured before signing hooks run.
+ * @param transactionMeta - The transaction to publish.
+ * @param signedTx - The serialized signed transaction.
+ * @returns The resulting transaction hash.
+ */
+async function defaultPublishHook(
+  request: TransactionLifecycleRequest,
+  networkClientId: NetworkClientId,
+  transactionMeta: TransactionMeta,
+  signedTx: string,
+): Promise<PublishHookResult> {
+  const {
+    addTransactionRequest: {
+      options: { publishHook: publishHookOverride, traceContext },
+    },
+    constructorOptions: { hooks, trace },
+    dependencies,
+  } = request;
+
+  let transactionHash: string | undefined;
+
+  await trace({ name: 'Publish', parentContext: traceContext }, async () => {
+    const publishHook: PublishHook =
+      publishHookOverride ??
+      hooks.publish ??
+      (() => Promise.resolve({ transactionHash: undefined }));
+
+    ({ transactionHash } = await publishHook(transactionMeta, signedTx));
+
+    // eslint-disable-next-line require-atomic-updates
+    transactionHash ??= await dependencies.publishTransaction({
+      ...transactionMeta,
+      networkClientId,
+      rawTx: signedTx,
+    });
+  });
+
+  log('Publish successful', transactionHash);
+  return { transactionHash };
 }

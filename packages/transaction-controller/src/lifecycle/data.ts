@@ -1,45 +1,15 @@
 import type { TraceContext } from '@metamask/controller-utils';
 import { cloneDeep, noop } from 'lodash-es';
+
 import { projectLogger as log } from '../logger.js';
 import type { AfterAddHook, TransactionMeta } from '../types.js';
 import { TransactionEnvelopeType, TransactionType } from '../types.js';
 import { updateGasFees } from '../utils/gas-fees.js';
 import { updateTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow.js';
 import { updateSwapsTransaction } from '../utils/swaps.js';
-import type { RejectTransactionRequest } from './error.js';
 import { rejectTransaction } from './error.js';
 import { getEIP1559Compatibility } from './init.js';
-import type {
-  AddTransactionInput,
-  TransactionConstructorOptions,
-  TransactionStageDependencies,
-} from './types.js';
-
-/** The dependencies and context required to add transaction data. */
-export type AddTransactionDataRequest = RejectTransactionRequest &
-  UpdateGasPropertiesRequest & {
-    addTransactionRequest: AddTransactionInput;
-    constructorOptions: Pick<TransactionConstructorOptions, 'disableSwaps'> & {
-      hooks: Pick<TransactionConstructorOptions['hooks'], 'afterAdd'>;
-    };
-    dependencies: Pick<
-      TransactionStageDependencies,
-      'updateTransactionInternal'
-    >;
-    transactionMeta: TransactionMeta;
-  };
-
-/** Resources used to estimate gas and apply fee preferences. */
-type UpdateGasPropertiesRequest = {
-  constructorOptions: Pick<
-    TransactionConstructorOptions,
-    'getSavedGasFees' | 'trace'
-  >;
-  dependencies: Pick<
-    TransactionStageDependencies,
-    'gasFeeFlows' | 'layer1GasFeeFlows' | 'messenger' | 'updateGasEstimate'
-  >;
-};
+import type { TransactionLifecycleRequest } from './types.js';
 
 /**
  * Populate a newly initialised transaction with gas and swaps data.
@@ -56,16 +26,28 @@ type UpdateGasPropertiesRequest = {
  * @returns The transaction metadata including any swaps data.
  */
 export async function addTransactionData(
-  request: AddTransactionDataRequest,
+  request: TransactionLifecycleRequest,
 ): Promise<TransactionMeta> {
+  await applyAfterAddHook(request);
+  await addGasData(request);
+  addSwapsData(request);
+
+  return request.transactionMeta;
+}
+
+/**
+ * Apply the configured hook before gas estimation and preserve original params.
+ *
+ * @param request - The transaction and configured hooks.
+ */
+async function applyAfterAddHook(
+  request: TransactionLifecycleRequest,
+): Promise<void> {
   const {
-    addTransactionRequest: { options },
-    constructorOptions: { disableSwaps, hooks, trace },
-    dependencies: { messenger },
+    constructorOptions: { hooks },
     transactionMeta,
   } = request;
 
-  const { skipInitialGasEstimate, swaps = {}, traceContext } = options;
   const afterAdd =
     hooks.afterAdd ?? ((): ReturnType<AfterAddHook> => Promise.resolve({}));
 
@@ -78,6 +60,21 @@ export async function addTransactionData(
 
     updateTransaction(transactionMeta);
   }
+}
+
+/**
+ * Populate gas values now or start the non-blocking estimate.
+ *
+ * @param request - The transaction and gas estimation options.
+ */
+async function addGasData(request: TransactionLifecycleRequest): Promise<void> {
+  const {
+    addTransactionRequest: {
+      options: { skipInitialGasEstimate, traceContext },
+    },
+    constructorOptions: { trace },
+    transactionMeta,
+  } = request;
 
   // eslint-disable-next-line no-negated-condition
   if (!skipInitialGasEstimate) {
@@ -91,40 +88,80 @@ export async function addTransactionData(
   } else {
     estimateGasPropertiesInBackground(request);
   }
-
-  request.transactionMeta = updateSwapsTransaction(
-    transactionMeta,
-    transactionMeta.type as TransactionType,
-    swaps,
-    {
-      isSwapsDisabled: disableSwaps ?? false,
-      cancelTransaction: (transactionId) =>
-        rejectTransaction(request, transactionId),
-      messenger,
-    },
-  );
-  return request.transactionMeta;
 }
 
+/**
+ * Estimate gas, select execution fees, and calculate the layer 1 fee in order.
+ *
+ * @param request - Gas services and configuration.
+ * @param transactionMeta - Detached metadata to update.
+ * @param options - Tracing options.
+ * @param options.traceContext - Parent trace context.
+ */
 async function updateGasProperties(
-  request: UpdateGasPropertiesRequest,
+  request: TransactionLifecycleRequest,
   transactionMeta: TransactionMeta,
   { traceContext }: { traceContext?: TraceContext } = {},
+): Promise<void> {
+  const isEIP1559Compatible =
+    transactionMeta.txParams.type !== TransactionEnvelopeType.legacy &&
+    (await getEIP1559Compatibility(
+      request.dependencies,
+      transactionMeta.networkClientId,
+    ));
+
+  await updateTransactionGas(request, transactionMeta, traceContext);
+
+  await updateTransactionGasFees(
+    request,
+    transactionMeta,
+    isEIP1559Compatible,
+    traceContext,
+  );
+
+  await updateLayer1GasFees(request, transactionMeta, traceContext);
+}
+
+/**
+ * Estimate the transaction gas limit.
+ *
+ * @param request - Gas estimation services and tracing.
+ * @param transactionMeta - Detached metadata to update.
+ * @param traceContext - Parent trace context.
+ */
+async function updateTransactionGas(
+  request: TransactionLifecycleRequest,
+  transactionMeta: TransactionMeta,
+  traceContext?: TraceContext,
+): Promise<void> {
+  const {
+    constructorOptions: { trace },
+    dependencies,
+  } = request;
+
+  await trace({ name: 'Update Gas', parentContext: traceContext }, async () => {
+    await dependencies.updateGasEstimate(transactionMeta);
+  });
+}
+
+/**
+ * Apply current gas fees and the account's saved fee preferences.
+ *
+ * @param request - Fee flows, saved preferences, and tracing.
+ * @param transactionMeta - Detached metadata to update.
+ * @param isEIP1559Compatible - Whether the transaction supports EIP-1559 fees.
+ * @param traceContext - Parent trace context.
+ */
+async function updateTransactionGasFees(
+  request: TransactionLifecycleRequest,
+  transactionMeta: TransactionMeta,
+  isEIP1559Compatible: boolean,
+  traceContext?: TraceContext,
 ): Promise<void> {
   const {
     constructorOptions: { getSavedGasFees, trace },
     dependencies,
   } = request;
-  const isEIP1559Compatible =
-    transactionMeta.txParams.type !== TransactionEnvelopeType.legacy &&
-    (await getEIP1559Compatibility(
-      dependencies,
-      transactionMeta.networkClientId,
-    ));
-
-  await trace({ name: 'Update Gas', parentContext: traceContext }, async () => {
-    await dependencies.updateGasEstimate(transactionMeta);
-  });
 
   await trace(
     { name: 'Update Gas Fees', parentContext: traceContext },
@@ -142,6 +179,24 @@ async function updateGasProperties(
         txMeta: transactionMeta,
       }),
   );
+}
+
+/**
+ * Apply the layer 1 fee for rollup transactions.
+ *
+ * @param request - Layer 1 fee flows and tracing.
+ * @param transactionMeta - Detached metadata to update.
+ * @param traceContext - Parent trace context.
+ */
+async function updateLayer1GasFees(
+  request: TransactionLifecycleRequest,
+  transactionMeta: TransactionMeta,
+  traceContext?: TraceContext,
+): Promise<void> {
+  const {
+    constructorOptions: { trace },
+    dependencies,
+  } = request;
 
   await trace(
     { name: 'Update Layer 1 Gas Fees', parentContext: traceContext },
@@ -155,6 +210,34 @@ async function updateGasProperties(
 }
 
 /**
+ * Apply swaps metadata and reject an obsolete swaps transaction when required.
+ *
+ * @param request - The transaction and swaps configuration.
+ */
+function addSwapsData(request: TransactionLifecycleRequest): void {
+  const {
+    addTransactionRequest: {
+      options: { swaps = {} },
+    },
+    constructorOptions: { disableSwaps },
+    dependencies: { messenger },
+    transactionMeta,
+  } = request;
+
+  request.transactionMeta = updateSwapsTransaction(
+    transactionMeta,
+    transactionMeta.type as TransactionType,
+    swaps,
+    {
+      cancelTransaction: (transactionId) =>
+        rejectTransaction(request, transactionId),
+      isSwapsDisabled: disableSwaps ?? false,
+      messenger,
+    },
+  );
+}
+
+/**
  * Estimate the gas properties of a transaction without blocking.
  *
  * Estimates against a clone so the transaction can be added immediately, and
@@ -163,7 +246,7 @@ async function updateGasProperties(
  * @param request - Dependencies and context for the transaction.
  */
 function estimateGasPropertiesInBackground(
-  request: AddTransactionDataRequest,
+  request: TransactionLifecycleRequest,
 ): void {
   const {
     transactionMeta,

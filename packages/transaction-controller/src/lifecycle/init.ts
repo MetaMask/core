@@ -2,6 +2,7 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import { JsonRpcError } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { v1 as random } from 'uuid';
+
 import type {
   DappSuggestedGasFees,
   TransactionMeta,
@@ -17,45 +18,18 @@ import {
   validateTransactionOrigin,
   validateTxParams,
 } from '../utils/validation.js';
-import type { TransactionLifecycleState } from './state.js';
 import type {
-  AddTransactionInput,
-  TransactionConstructorOptions,
+  AddTransactionRequest,
+  TransactionLifecycleRequest,
   TransactionStageDependencies,
 } from './types.js';
-
-/** The dependencies and context required to initialise a transaction. */
-export type InitTransactionRequest = {
-  addTransactionRequest: AddTransactionInput;
-  constructorOptions: Pick<
-    TransactionConstructorOptions,
-    'getPermittedAccounts'
-  >;
-  dependencies: Pick<
-    TransactionStageDependencies,
-    'getState' | 'hasNetworkClient' | 'messenger'
-  >;
-};
-
-/** The result of initialising a transaction. */
-export type InitTransactionResult = {
-  lifecycle: TransactionLifecycleState;
-  /**
-   * The in-flight delegation address request, consumed by the background
-   * stage.
-   */
-  delegationAddressPromise: Promise<Hex | undefined>;
-
-  /** The new unapproved transaction, not yet persisted to state. */
-  transactionMeta: TransactionMeta;
-};
 
 /**
  * Validate a new transaction request and build its initial metadata.
  *
  * Resolves the chain, validates the origin and parameters, determines the
  * transaction type, and assembles the unapproved `TransactionMeta`. The
- * resulting transaction is not yet in state - `addMetadata` persists it once
+ * resulting transaction is not yet in state - the add stage persists it once
  * the data stage has populated gas and swaps information.
  *
  * Also starts resolving the delegation address so the request is in flight
@@ -65,36 +39,15 @@ export type InitTransactionResult = {
  * @returns The initial transaction metadata, and the in-flight delegation
  * address request.
  */
-export async function initTransaction<Request extends InitTransactionRequest>(
-  request: Request,
-): Promise<Request & InitTransactionResult> {
+export async function initTransaction(
+  request: AddTransactionRequest,
+): Promise<TransactionLifecycleRequest> {
   const {
     addTransactionRequest: { options, txParams: originalTxParams },
-    constructorOptions: { getPermittedAccounts },
-    dependencies: { getState, hasNetworkClient, messenger },
+    dependencies: { hasNetworkClient, messenger },
   } = request;
 
-  const {
-    actionId,
-    assetsFiatValues,
-    batchId,
-    deviceConfirmedOn,
-    disableGasBuffer,
-    gasFeeToken,
-    excludeNativeTokenForFee,
-    isGasFeeIncluded,
-    isGasFeeSponsored,
-    isInternal = false,
-    isStateOnly,
-    nestedTransactions,
-    networkClientId,
-    origin,
-    requestId,
-    requiredAssets,
-    securityAlertResponse,
-    type,
-  } = options;
-
+  const { networkClientId } = options;
   const txParams = normalizeTransactionParams(originalTxParams);
 
   if (!hasNetworkClient(networkClientId)) {
@@ -103,10 +56,68 @@ export async function initTransaction<Request extends InitTransactionRequest>(
 
   const chainId = getChainId({ messenger, networkClientId });
 
+  await validateOrigin(request, txParams);
+
+  const delegationAddressPromise = getDelegationAddress(
+    txParams.from as Hex,
+    messenger,
+    networkClientId,
+  ).catch(() => undefined);
+
+  await validate(request, txParams, chainId);
+
+  const transactionMeta = await createMetadata(request, txParams, chainId);
+
+  return {
+    ...request,
+    delegationAddressPromise,
+    lifecycle: {},
+    transactionMeta,
+  };
+}
+
+/**
+ * Read EIP-1559 support for a network.
+ *
+ * @param dependencies - Controller messenger access.
+ * @param networkClientId - Network to query.
+ * @returns Whether the network supports EIP-1559.
+ */
+export async function getEIP1559Compatibility(
+  dependencies: TransactionStageDependencies,
+  networkClientId?: NetworkClientId,
+): Promise<boolean> {
+  return (
+    (await dependencies.messenger.call(
+      'NetworkController:getEIP1559Compatibility',
+      networkClientId,
+    )) ?? false
+  );
+}
+
+/**
+ * Validate the origin using current permissions and internal accounts.
+ *
+ * @param request - Transaction input and permission services.
+ * @param txParams - Normalized transaction parameters.
+ */
+async function validateOrigin(
+  request: AddTransactionRequest,
+  txParams: TransactionParams,
+): Promise<void> {
+  const {
+    addTransactionRequest: {
+      options: { isInternal = false, origin, type },
+    },
+    constructorOptions: { getPermittedAccounts },
+    dependencies: { messenger },
+  } = request;
+
   const permittedAddresses =
     origin === undefined ? undefined : await getPermittedAccounts?.(origin);
 
   const accountsState = messenger.call('AccountsController:getState');
+
   const internalAccounts = Object.values(
     accountsState.internalAccounts?.accounts ?? {},
   )
@@ -123,12 +134,26 @@ export async function initTransaction<Request extends InitTransactionRequest>(
     txParams,
     type,
   });
+}
 
-  const delegationAddressPromise = getDelegationAddress(
-    txParams.from as Hex,
-    messenger,
-    networkClientId,
-  ).catch(() => undefined);
+/**
+ * Validate network-specific parameters and batch IDs, then select the envelope.
+ *
+ * @param request - Transaction input and current controller state.
+ * @param txParams - Normalized transaction parameters.
+ * @param chainId - The resolved transaction chain.
+ */
+async function validate(
+  request: AddTransactionRequest,
+  txParams: TransactionParams,
+  chainId: Hex,
+): Promise<void> {
+  const {
+    addTransactionRequest: {
+      options: { batchId, isInternal = false, networkClientId },
+    },
+    dependencies: { getState },
+  } = request;
 
   const isEIP1559Compatible = await getEIP1559Compatibility(
     request.dependencies,
@@ -154,6 +179,46 @@ export async function initTransaction<Request extends InitTransactionRequest>(
       'Batch ID already exists',
     );
   }
+}
+
+/**
+ * Assemble detached metadata and resolve the transaction's semantic type.
+ *
+ * @param request - Transaction input and controller services.
+ * @param txParams - Validated transaction parameters.
+ * @param chainId - The resolved transaction chain.
+ * @returns The initial unapproved transaction metadata.
+ */
+async function createMetadata(
+  request: AddTransactionRequest,
+  txParams: TransactionParams,
+  chainId: Hex,
+): Promise<TransactionMeta> {
+  const {
+    addTransactionRequest: { options },
+    dependencies: { messenger },
+  } = request;
+
+  const {
+    actionId,
+    assetsFiatValues,
+    batchId,
+    deviceConfirmedOn,
+    disableGasBuffer,
+    excludeNativeTokenForFee,
+    gasFeeToken,
+    isGasFeeIncluded,
+    isGasFeeSponsored,
+    isInternal = false,
+    isStateOnly,
+    nestedTransactions,
+    networkClientId,
+    origin,
+    requestId,
+    requiredAssets,
+    securityAlertResponse,
+    type,
+  } = options;
 
   const dappSuggestedGasFees = generateDappSuggestedGasFees(
     txParams,
@@ -178,7 +243,7 @@ export async function initTransaction<Request extends InitTransactionRequest>(
   const isGasFeeTokenIgnoredIfBalance =
     Boolean(gasFeeToken) && !excludeNativeTokenForFee;
 
-  const transactionMeta: TransactionMeta = {
+  return {
     actionId,
     assetsFiatValues,
     batchId,
@@ -212,27 +277,16 @@ export async function initTransaction<Request extends InitTransactionRequest>(
     userEditedGasLimit: false,
     verifiedOnBlockchain: false,
   };
-
-  return {
-    ...request,
-    delegationAddressPromise,
-    lifecycle: {},
-    transactionMeta,
-  };
 }
 
-export async function getEIP1559Compatibility(
-  dependencies: Pick<TransactionStageDependencies, 'messenger'>,
-  networkClientId?: NetworkClientId,
-): Promise<boolean> {
-  return (
-    (await dependencies.messenger.call(
-      'NetworkController:getEIP1559Compatibility',
-      networkClientId,
-    )) ?? false
-  );
-}
-
+/**
+ * Preserve fees explicitly suggested by an external request.
+ *
+ * @param txParams - Validated transaction parameters.
+ * @param origin - Request origin.
+ * @param isInternal - Whether this is an internal transaction.
+ * @returns The fees supplied by the dapp, if any.
+ */
 function generateDappSuggestedGasFees(
   txParams: TransactionParams,
   origin?: string,

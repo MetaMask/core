@@ -1,32 +1,9 @@
-import type { Hex } from '@metamask/utils';
 import { noop } from 'lodash-es';
+
 import { projectLogger as log } from '../logger.js';
-import type { TransactionMeta } from '../types.js';
 import { updateFirstTimeInteraction } from '../utils/first-time-interaction.js';
 import { getTransaction } from '../utils/state.js';
-import type {
-  AddTransactionInput,
-  TransactionConstructorOptions,
-  TransactionStageDependencies,
-} from './types.js';
-
-/** The dependencies and context required to start the background updates. */
-export type StartBackgroundUpdatesRequest = {
-  addTransactionRequest: AddTransactionInput;
-  constructorOptions: Pick<
-    TransactionConstructorOptions,
-    'isFirstTimeInteractionEnabled' | 'trace'
-  >;
-  dependencies: Pick<
-    TransactionStageDependencies,
-    | 'getState'
-    | 'messenger'
-    | 'updateSimulationData'
-    | 'updateTransactionInternal'
-  >;
-  delegationAddressPromise: Promise<Hex | undefined>;
-  transactionMeta: TransactionMeta;
-};
+import type { TransactionLifecycleRequest } from './types.js';
 
 /**
  * Start the background updates for a newly added transaction.
@@ -41,7 +18,7 @@ export type StartBackgroundUpdatesRequest = {
  * @param request - Dependencies and context for the transaction.
  */
 export function startBackgroundUpdates(
-  request: StartBackgroundUpdatesRequest,
+  request: TransactionLifecycleRequest,
 ): void {
   const {
     addTransactionRequest: { options },
@@ -93,7 +70,7 @@ export function startBackgroundUpdates(
  *
  * @param request - Dependencies and context for the transaction.
  */
-function applyDelegationAddress(request: StartBackgroundUpdatesRequest): void {
+function applyDelegationAddress(request: TransactionLifecycleRequest): void {
   const {
     delegationAddressPromise,
     transactionMeta,

@@ -1,6 +1,6 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
-import type { WritableDraft } from 'immer/dist/internal.js';
 
+import type { TransactionStageDependencies } from '../lifecycle/types.js';
 import type {
   TransactionControllerMessenger,
   TransactionControllerState,
@@ -8,37 +8,6 @@ import type {
 import type { TransactionMeta } from '../types.js';
 import { TransactionStatus } from '../types.js';
 import { getTransactionHistoryLimit } from './feature-flags.js';
-import { validateTxParams } from './validation.js';
-
-/** Live access to controller state and its mutation boundary. */
-export type TransactionStateAccess = {
-  getState: () => TransactionControllerState;
-  messenger: TransactionControllerMessenger;
-  update: (
-    callback: (
-      state: WritableDraft<TransactionControllerState>,
-    ) => void | TransactionControllerState,
-  ) => void;
-};
-
-/**
- * Validate and persist a transaction, applying the current history limit.
- *
- * @param request - State mutation and feature-flag access.
- * @param transactionMeta - Transaction to persist.
- */
-export function addTransactionToState(
-  request: Pick<TransactionStateAccess, 'messenger' | 'update'>,
-  transactionMeta: TransactionMeta,
-): void {
-  validateTxParams(transactionMeta.txParams);
-  request.update((state) => {
-    state.transactions = trimTransactionsForState(
-      [...state.transactions, transactionMeta],
-      request.messenger,
-    );
-  });
-}
 
 /**
  * Remove a transaction and apply the current history limit.
@@ -47,10 +16,10 @@ export function addTransactionToState(
  * @param transactionId - Transaction to remove.
  */
 export function deleteTransaction(
-  request: Pick<TransactionStateAccess, 'messenger' | 'update'>,
+  request: TransactionStageDependencies,
   transactionId: string,
 ): void {
-  request.update((state) => {
+  request.updateState((state) => {
     state.transactions = trimTransactionsForState(
       state.transactions.filter(({ id }) => id !== transactionId),
       request.messenger,
@@ -86,11 +55,13 @@ export function getTransactionOrThrow(
   errorMessagePrefix = 'TransactionController',
 ): TransactionMeta {
   const transactionMeta = getTransaction(state, transactionId);
+
   if (!transactionMeta) {
     throw new Error(
       `${errorMessagePrefix}: No transaction found with id ${transactionId}`,
     );
   }
+
   return transactionMeta;
 }
 
@@ -121,15 +92,17 @@ export function isTransactionCompleted(
   transactionId: string,
 ): { isCompleted: boolean; meta?: TransactionMeta } {
   const meta = getTransaction(state, transactionId);
+
   const isCompleted = Boolean(
     meta &&
-      [
-        TransactionStatus.confirmed,
-        TransactionStatus.failed,
-        TransactionStatus.rejected,
-        TransactionStatus.submitted,
-      ].includes(meta.status),
+    [
+      TransactionStatus.confirmed,
+      TransactionStatus.failed,
+      TransactionStatus.rejected,
+      TransactionStatus.submitted,
+    ].includes(meta.status),
   );
+
   return { isCompleted, meta };
 }
 
@@ -146,17 +119,21 @@ export function trimTransactionsForState(
   messenger: TransactionControllerMessenger,
 ): TransactionMeta[] {
   const transactionHistoryLimit = getTransactionHistoryLimit(messenger);
+
   if (transactionHistoryLimit === undefined) {
     return transactions;
   }
 
   const nonceNetworkSet = new Set();
+
   const transactionsToKeep = [...transactions]
     .sort((a, b) => (a.time > b.time ? -1 : 1))
     .filter((transactionMeta) => {
       const { chainId, status, txParams, time } = transactionMeta;
+
       if (txParams) {
         const key = `${String(txParams.nonce)}-${convertHexToDecimal(chainId)}-${new Date(time).toDateString()}`;
+
         if (nonceNetworkSet.has(key)) {
           return true;
         } else if (
@@ -167,6 +144,7 @@ export function trimTransactionsForState(
           return true;
         }
       }
+
       return false;
     });
 
