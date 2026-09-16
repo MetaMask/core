@@ -423,7 +423,7 @@ export class SubscriptionDelegationService {
     );
     const price = pricing.products
       .find((entry) => entry.name === product)
-      ?.prices.find((entry) => entry.interval === recurringInterval);
+      ?.prices?.find((entry) => entry.interval === recurringInterval);
     const paymentMethod = pricing.paymentMethods.find(
       (entry): entry is PricingCryptoPaymentMethod =>
         entry.type === PAYMENT_TYPES.byCrypto &&
