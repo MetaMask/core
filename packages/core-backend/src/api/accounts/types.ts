@@ -19,6 +19,11 @@ export type V5BalanceItem = {
   assetId: string;
   balance: string;
   accountId: string;
+  /**
+   * Token-level metadata such as Stellar trustline / native reserve fields.
+   * Present when the upstream balance row carries it.
+   */
+  metadata?: V6TokenBalanceMetadata;
 };
 
 /** V5 Multi-account balances response */
@@ -100,21 +105,35 @@ export type V6BalanceMetadata = {
 };
 
 /**
- * Token-level metadata attached to an `object: token` row in the v6 balances
- * response, e.g. Stellar trustline metadata. Additional keys may be present.
+ * Stellar-specific token metadata (trustline and native reserve fields).
  */
-export type V6TokenMetadata = {
+export type V6StellarTokenBalanceMetadata = {
   /** Stellar trustline limit. */
   limit?: string;
   /** Whether the Stellar trustline is authorized. */
   authorized?: boolean;
-  [key: string]: unknown;
+  /** Whether the Stellar trustline is sponsored. */
+  sponsored?: boolean;
+  /** Stellar native spendable balance (unscaled stroops). */
+  spendableBalance?: string;
+  /** Stellar native minimum / reserve balance (unscaled stroops). */
+  minimumReserveBalance?: string;
 };
+
+/**
+ * Token-level metadata attached to an `object: token` row in the v5/v6
+ * balances responses.
+ *
+ * Token decimals belong on the balance row (`decimals` / `assetsInfo`), not
+ * here. Compose additional chain-specific types into this alias as they ship
+ * (e.g. `V6StellarTokenBalanceMetadata & V6TronTokenBalanceMetadata`).
+ */
+export type V6TokenBalanceMetadata = V6StellarTokenBalanceMetadata;
 
 /**
  * A single balance row in the v6 balances response (`BalanceV3ResponseDto`).
  * `object: token` rows are token balances (and may carry
- * {@link V6TokenMetadata}, e.g. Stellar trustline info). `object: defi` rows
+ * {@link V6TokenBalanceMetadata}, e.g. Stellar trustline info). `object: defi` rows
  * are flat DeFi positions and include {@link V6BalanceMetadata}.
  */
 export type V6BalanceItem = {
@@ -138,7 +157,7 @@ export type V6BalanceItem = {
    * as Stellar trustline info (e.g. `limit`, `authorized`) for `object: token`
    * rows.
    */
-  metadata?: V6BalanceMetadata | V6TokenMetadata;
+  metadata?: V6BalanceMetadata | V6TokenBalanceMetadata;
 };
 
 /**
@@ -171,12 +190,10 @@ export type V1SupportedNetworksResponse = {
   supportedNetworks: number[];
 };
 
-/** V2 Supported networks response */
+/** V2 Supported networks response (CAIP-2 chain IDs). */
 export type V2SupportedNetworksResponse = {
-  fullSupport: number[];
-  partialSupport: {
-    balances: number[];
-  };
+  fullSupport: string[];
+  partialSupport: string[];
 };
 
 /** Active networks response */

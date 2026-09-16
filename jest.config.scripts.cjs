@@ -37,6 +37,11 @@ module.exports = {
     // Strip .js extensions from relative imports so Jest resolves them to
     // the TypeScript source files.
     '^(\\.{1,2}/.+)\\.js$': '$1',
+    // `@metamask/utils` lives in this repo, so resolve it to its source rather
+    // than to a build that may not exist yet.
+    // NOTE: This must be synchronized with the `paths` option in `tsconfig.json`.
+    '^@metamask/utils/node$': ['<rootDir>/packages/utils/src/node.ts'],
+    '^@metamask/utils$': ['<rootDir>/packages/utils/src/index.ts'],
     '^uuid$': require.resolve('uuid'),
   },
 

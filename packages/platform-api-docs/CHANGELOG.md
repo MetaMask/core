@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
+### Fixed
+
+- Use `preserve` module kind and `bundler` resolution in type extractor ([#10240](https://github.com/MetaMask/core/pull/10240))
+  - This fixes a bug where the type extractor would fail to resolve types for packages using subpath exports.
+
 ## [0.2.0]
 
 ### Changed

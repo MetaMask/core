@@ -384,6 +384,9 @@ const PACKAGES: Record<string, PackageInfo> = {
   'user-operation-controller': {
     teams: ['@MetaMask/confirmations'],
   },
+  utils: {
+    teams: ['@MetaMask/core-platform'],
+  },
   wallet: {
     teams: ['@MetaMask/core-platform'],
   },
@@ -569,6 +572,7 @@ function buildTeamSections(): CodeownersSection[] {
         buildRuleForPackage('react-data-query'),
         buildRuleForPackage('sample-controllers'),
         buildRuleForPackage('selected-network-controller'),
+        buildRuleForPackage('utils'),
         buildRuleForPackage('wallet'),
         buildRuleForPackage('wallet-cli'),
         buildRuleForPackage('wallet-framework-docs'),

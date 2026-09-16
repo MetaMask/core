@@ -22,8 +22,8 @@ export function createProject(): Project {
       // Explicit module options so cross-file symbol resolution works
       // regardless of the host process's tsconfig.
       target: ts.ScriptTarget.ESNext,
-      module: ts.ModuleKind.ESNext,
-      moduleResolution: ts.ModuleResolutionKind.NodeJs,
+      module: ts.ModuleKind.Preserve,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
     },
   });
 }
