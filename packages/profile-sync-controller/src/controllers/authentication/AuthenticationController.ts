@@ -859,6 +859,7 @@ export class AuthenticationController extends BaseController<
       'all',
       async () => await this.#auth.getMfaCredentials(primaryEntropySourceId),
     );
+    this.#assertIsUnlocked('refreshEnrolledCredentials');
 
     if (
       JSON.stringify(credentials) !==
@@ -903,8 +904,9 @@ export class AuthenticationController extends BaseController<
    * Completes credential enrollment and refreshes the credential cache.
    *
    * A cache-refresh failure does not undo successful enrollment. Email
-   * enrollment invalidates the primary SRP session so its next token includes
-   * the newly verified email claim.
+   * enrollment invalidates the primary SRP session *after* refresh so the
+   * credentials call can reuse the still-valid access token; the next token
+   * fetch then includes the newly verified email claim.
    *
    * @param request - Flow identifier and platform or email proof.
    * @returns The refreshed credentials, or the existing cache if refresh fails.
@@ -928,13 +930,16 @@ export class AuthenticationController extends BaseController<
         ),
     );
 
-    if (request.type === 'email_otp') {
-      this.#invalidateSrpSession(primaryEntropySourceId);
-    }
-
     try {
-      return await this.refreshEnrolledCredentials();
+      const credentials = await this.refreshEnrolledCredentials();
+      if (request.type === 'email_otp') {
+        this.#invalidateSrpSession(primaryEntropySourceId);
+      }
+      return credentials;
     } catch {
+      if (request.type === 'email_otp') {
+        this.#invalidateSrpSession(primaryEntropySourceId);
+      }
       return this.state.enrolledCredentials ?? [];
     }
   }

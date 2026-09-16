@@ -2453,7 +2453,7 @@ describe('MFA credential enrollment', () => {
 
   it('invalidates the primary SRP session after email enrollment', async () => {
     mockEndpointMfaEnrollComplete();
-    mockEndpointMfaCredentials();
+    const credentialsScope = mockEndpointMfaCredentials();
     const { controller } = createController();
 
     await controller.completeCredentialEnrollment({
@@ -2462,10 +2462,55 @@ describe('MFA credential enrollment', () => {
       proof: { type: 'email_otp', code: '123456' },
     });
 
+    expect(credentialsScope.isDone()).toBe(true);
     expect(
       controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].profile
         .canonicalProfileId,
     ).toBe('');
+  });
+
+  it('does not restore credentials if the wallet locks during refresh', async () => {
+    let release!: (value: Awaited<ReturnType<typeof fetch>>) => void;
+    let requestStartedResolve: (() => void) | undefined;
+    const requestStarted = new Promise<void>((resolve) => {
+      requestStartedResolve = resolve;
+    });
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementationOnce(
+      async (): ReturnType<typeof fetch> =>
+        await new Promise((resolve) => {
+          release = resolve;
+          requestStartedResolve?.();
+        }),
+    );
+    const { controller, baseMessenger } = createController({
+      state: {
+        ...mockSignedInState(),
+        enrolledCredentials: [],
+      },
+    });
+    const listener = jest.fn();
+    baseMessenger.subscribe(
+      'AuthenticationController:credentialsChanged',
+      listener,
+    );
+
+    try {
+      const refresh = controller.refreshEnrolledCredentials();
+      await requestStarted;
+      baseMessenger.publish('KeyringController:lock');
+      release(
+        new globalThis.Response(
+          JSON.stringify(MOCK_MFA_CREDENTIALS_RESPONSE),
+          { status: 200 },
+        ),
+      );
+
+      await expect(refresh).rejects.toThrow('wallet is locked');
+      expect(controller.state.enrolledCredentials).toStrictEqual([]);
+      expect(listener).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
   it('keeps the existing cache when post-enrollment refresh fails', async () => {
