@@ -1293,8 +1293,7 @@ export class TransactionController extends BaseController<
 
     this.#addMetadata(addedTransactionMeta);
 
-    // eslint-disable-next-line no-void
-    void delegationAddressPromise
+    delegationAddressPromise
       .then((delegationAddress) => {
         this.#updateTransactionInternal(
           {
