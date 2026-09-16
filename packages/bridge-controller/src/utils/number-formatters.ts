@@ -10,17 +10,19 @@ import { assetIdsMatch } from './assets.js';
  *
  * @param value - The value to convert to token amount
  * @param decimals - The number of decimals to convert to
+ * @param base - The base of the number system to use
  * @returns The token amount in string format
  */
 export const calcNormalizedTokenAmount = (
-  value: string | BigNumber | undefined,
+  value: string | BigNumber | undefined | null,
   decimals: number | undefined,
+  base: number = 10,
 ) => {
-  if (value === undefined || decimals === undefined) {
+  if (value === undefined || decimals === undefined || value === null) {
     return undefined;
   }
-  const divisor = new BigNumber(10).pow(decimals ?? 0);
-  return new BigNumber(value).div(divisor);
+  const divisor = new BigNumber(base).pow(decimals ?? 0);
+  return new BigNumber(value, base).div(divisor).toFixed();
 };
 
 /**
@@ -28,17 +30,19 @@ export const calcNormalizedTokenAmount = (
  *
  * @param value - The amount to convert to token value
  * @param decimals - The number of decimals to convert to
+ * @param base - The base of the number system to use
  * @returns The token value in string format
  */
 export const calcAtomicTokenAmount = (
-  value: string | BigNumber | undefined,
+  value: string | BigNumber | undefined | null,
   decimals: number | undefined,
+  base: number = 10,
 ) => {
-  if (value === undefined || decimals === undefined) {
+  if (value === undefined || decimals === undefined || value === null) {
     return undefined;
   }
-  const divisor = new BigNumber(10).pow(decimals);
-  return new BigNumber(value).times(divisor).toFixed();
+  const divisor = new BigNumber(base).pow(decimals);
+  return new BigNumber(value, base).times(divisor).toFixed();
 };
 
 /**
