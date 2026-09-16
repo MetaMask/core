@@ -976,6 +976,35 @@ describe('EvmAccountProvider', () => {
       });
       expect(provider.getAccounts()).toHaveLength(1);
     });
+
+    it('does not report accounts that were already deleted when the keyring call fails afterwards', async () => {
+      const accounts = [0, 1].map((groupIndex) =>
+        MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+          .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+          .withGroupIndex(groupIndex)
+          .withId(`mock-evm-id-${groupIndex}`)
+          .withAddress(`0x${groupIndex}`)
+          .get(),
+      );
+      const { provider, keyring, messenger } = setup({ accounts });
+      messenger.unregisterActionHandler('KeyringController:withKeyringV2');
+      messenger.registerActionHandler(
+        'KeyringController:withKeyringV2',
+        async (_, operation) => {
+          await operation({ keyring, metadata: keyring.metadata });
+          // The keyring controller can still fail after the callback ran, for
+          // instance while persisting its state. Every account is already gone
+          // at that point, so there is nothing left to report.
+          throw new Error('failed to persist keyring state');
+        },
+      );
+
+      expect(
+        await provider.deleteAccounts(accounts.map((account) => account.id)),
+      ).toBeUndefined();
+
+      expect(provider.getAccounts()).toStrictEqual([]);
+    });
   });
 
   describe('isAligned', () => {
