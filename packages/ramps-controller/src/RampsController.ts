@@ -4162,6 +4162,8 @@ export class RampsController extends BaseController<
    * @param network - The blockchain network identifier.
    * @param paymentMethod - The payment method identifier.
    * @param fiatAmount - The fiat amount as a string.
+   * @param isFeeExcludedFromFiat - Whether fees are added to the fiat amount.
+   * Defaults to true to preserve Unified Buy's native Transak behavior.
    * @returns The buy quote with pricing and fee details.
    */
   async transakGetBuyQuote(
@@ -4170,6 +4172,7 @@ export class RampsController extends BaseController<
     network: string,
     paymentMethod: string,
     fiatAmount: string,
+    isFeeExcludedFromFiat = true,
   ): Promise<TransakBuyQuote> {
     this.update((state) => {
       state.nativeProviders.transak.buyQuote.isLoading = true;
@@ -4184,6 +4187,7 @@ export class RampsController extends BaseController<
         network,
         paymentMethod,
         fiatAmount,
+        isFeeExcludedFromFiat,
       );
       this.update((state) => {
         state.nativeProviders.transak.buyQuote.data = quote;
