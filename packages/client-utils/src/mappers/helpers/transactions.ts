@@ -437,7 +437,7 @@ export function getTokenAmountFromTransfer(
       : undefined;
 
   const symbol = isNftTransfer
-    ? transfer.name ?? transfer.symbol
+    ? (transfer.name ?? transfer.symbol)
     : (transfer.symbol ?? knownToken?.symbol ?? hostToken?.symbol);
 
   let decimals: number | undefined;

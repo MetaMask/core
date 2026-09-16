@@ -2,6 +2,7 @@ import { TransactionType } from '@metamask/transaction-controller';
 
 import { localTransactionFixtures } from '../../test/fixtures/local-transactions.js';
 import type { ActivityItem } from '../types.js';
+import * as caip from './helpers/caip.js';
 import { formatAddressToAssetId } from './helpers/caip.js';
 import { mapLocalTransaction } from './local-transaction-mapper.js';
 
@@ -22,11 +23,12 @@ const {
 
 // Fixtures intentionally omit full TransactionMeta fields (e.g. networkClientId).
 const mapLocal = (input: unknown): ActivityItem =>
-  mapLocalTransaction(
-    input as Parameters<typeof mapLocalTransaction>[0],
-  );
+  mapLocalTransaction(input as Parameters<typeof mapLocalTransaction>[0]);
 
 describe('mapLocalTransaction', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
   it('maps a pending native send to a Send activity', () => {
     const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAPendingNativeSendTo,
@@ -802,9 +804,8 @@ describe('mapLocalTransaction', () => {
   });
   it('maps a smart transaction status to a pending activity', () => {
     expect(
-      mapLocal(
-        localTransactionFixtures.mapInputs.mapsASmartTransactionStatusTo,
-      ).status,
+      mapLocal(localTransactionFixtures.mapInputs.mapsASmartTransactionStatusTo)
+        .status,
     ).toBe('pending');
   });
   it('maps a successful smart transaction to a success activity', () => {
@@ -844,9 +845,8 @@ describe('mapLocalTransaction', () => {
   });
   it('maps a dropped transaction to a failed activity', () => {
     expect(
-      mapLocal(
-        localTransactionFixtures.mapInputs.mapsADroppedTransactionToA,
-      ).status,
+      mapLocal(localTransactionFixtures.mapInputs.mapsADroppedTransactionToA)
+        .status,
     ).toBe('failed');
   });
   it('maps an unapproved transaction to a pending activity', () => {
@@ -858,9 +858,8 @@ describe('mapLocalTransaction', () => {
   });
   it('maps a status outside the known set to a pending activity', () => {
     expect(
-      mapLocal(
-        localTransactionFixtures.mapInputs.mapsAStatusOutsideTheKnown,
-      ).status,
+      mapLocal(localTransactionFixtures.mapInputs.mapsAStatusOutsideTheKnown)
+        .status,
     ).toBe('pending');
   });
   it('uses precomputed fees from the transaction group when present', () => {
@@ -1120,23 +1119,19 @@ describe('mapLocalTransaction', () => {
   });
   it('maps a token transferFrom to a Send activity', () => {
     expect(
-      mapLocal(
-        localTransactionFixtures.mapInputs.mapsATokenTransferfromToA,
-      ).type,
+      mapLocal(localTransactionFixtures.mapInputs.mapsATokenTransferfromToA)
+        .type,
     ).toBe('send');
   });
   it('maps a safeTransferFrom to a Send activity', () => {
     expect(
-      mapLocal(
-        localTransactionFixtures.mapInputs.mapsASafetransferfromToASend,
-      ).type,
+      mapLocal(localTransactionFixtures.mapInputs.mapsASafetransferfromToASend)
+        .type,
     ).toBe('send');
   });
   it('maps a swapAndSend to a swap activity', () => {
     expect(
-      mapLocal(
-        localTransactionFixtures.mapInputs.mapsASwapandsendToASwap,
-      ).type,
+      mapLocal(localTransactionFixtures.mapInputs.mapsASwapandsendToASwap).type,
     ).toBe('swap');
   });
   it('maps a perpsDepositAndOrder to an add funds activity', () => {
@@ -1291,6 +1286,68 @@ describe('mapLocalTransaction', () => {
       decimals: 6,
       symbol: 'USDT',
       assetId: 'eip155:42161/erc20:0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+    });
+  });
+
+  it('keeps amount when getKnownTokenDecimals recovers missing decimals', () => {
+    const item = mapLocal({
+      hasCancelled: false,
+      hasRetried: false,
+      nonce: '0x1',
+      getKnownTokenDecimals: () => ({ decimals: 6, symbol: 'USDT' }),
+      initialTransaction: {
+        chainId: '0xa4b1',
+        id: 'hook-decimals-id',
+        hash: '0xhookdecimals',
+        status: 'submitted',
+        time: 1716367781000,
+        type: TransactionType.tokenMethodTransfer,
+        transferInformation: {
+          amount: '167121100',
+          contractAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+        },
+        txParams: {
+          from,
+          to: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+        },
+      },
+      primaryTransaction: {
+        chainId: '0xa4b1',
+        id: 'hook-decimals-id',
+        hash: '0xhookdecimals',
+        status: 'submitted',
+        time: 1716367781000,
+        type: TransactionType.tokenMethodTransfer,
+        txParams: {
+          from,
+          to: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+        },
+      },
+      transactions: [],
+    });
+
+    expect(item.type === 'send' ? item.data.token : undefined).toMatchObject({
+      amount: '167121100',
+      decimals: 6,
+      symbol: 'USDT',
+      assetType: 'erc20',
+    });
+  });
+
+  it('omits native assetId when resolveNativeAssetId returns undefined', () => {
+    jest.spyOn(caip, 'resolveNativeAssetId').mockReturnValue(undefined);
+
+    const item = mapLocal({
+      ...localTransactionFixtures.mapInputs.mapsAPendingNativeSendTo,
+      nativeAssetSymbol: 'ETH',
+    });
+
+    expect(item.type === 'send' ? item.data.token : undefined).toStrictEqual({
+      amount: '0x1',
+      decimals: 18,
+      direction: 'out',
+      assetType: 'native',
+      symbol: 'ETH',
     });
   });
 });

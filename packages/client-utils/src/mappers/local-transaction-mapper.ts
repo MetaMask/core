@@ -80,7 +80,7 @@ export function mapLocalTransaction(
   const isPermit2Approve = methodId === permit2ApproveMethodId;
   const tokenContractAddress = isPermit2Approve
     ? undefined
-    : (transferInformation?.contractAddress ?? to ?? undefined);
+    : (transferInformation?.contractAddress ?? (to || undefined));
 
   const resolveErc20Metadata = (
     contractAddress: string,
@@ -207,9 +207,7 @@ export function mapLocalTransaction(
       ...(symbol ? { symbol } : {}),
       ...(assetId ? { assetId } : {}),
       // Fail closed: never emit base-unit amounts without a known scale.
-      ...(tokenAmount && decimals !== undefined
-        ? { amount: tokenAmount }
-        : {}),
+      ...(tokenAmount && decimals !== undefined ? { amount: tokenAmount } : {}),
       ...(decimals === undefined ? {} : { decimals }),
     };
   };
