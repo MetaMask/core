@@ -1135,6 +1135,11 @@ describe('MultichainAccountService', () => {
           };
         },
       );
+      mocks.SolAccountProvider.deleteAccount.mockImplementation(
+        async (id: string) => {
+          mocks.SolAccountProvider.accounts.delete(id);
+        },
+      );
 
       await expect(
         service.removeMultichainAccountWallet(MOCK_HD_KEYRING_1.metadata.id),
@@ -1153,11 +1158,18 @@ describe('MultichainAccountService', () => {
           error: error.message,
         },
       ]);
+
+      const wallet = service.getMultichainAccountWallet({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      });
+      expect(wallet).toBeDefined();
+      // Group 1 lost every account, so it must stop reserving its index.
+      // Group 0 still holds the EVM account that could not be deleted.
+      expect(wallet.getMultichainAccountGroup(1)).toBeUndefined();
       expect(
-        service.getMultichainAccountWallet({
-          entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        }),
-      ).toBeDefined();
+        wallet.getMultichainAccountGroup(0)?.getAccountIds(),
+      ).toStrictEqual([mockEvmAccounts[0].id, mockSolAccounts[0].id]);
+      expect(wallet.getNextGroupIndex()).toBe(1);
     });
 
     it('continues with remaining providers and removes the wallet when enumerating one provider throws', async () => {

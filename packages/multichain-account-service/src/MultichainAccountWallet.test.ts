@@ -16,6 +16,7 @@ import {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { createDeferredPromise } from '@metamask/utils';
 
+import type { RemoveMultichainAccountWalletFailureContext } from './MultichainAccountService.js';
 import type { WalletState } from './MultichainAccountWallet.js';
 import { MultichainAccountWallet } from './MultichainAccountWallet.js';
 import { TimeoutError } from './providers/index.js';
@@ -37,6 +38,7 @@ import {
   getRootMessenger,
 } from './tests/index.js';
 import type { MultichainAccountServiceMessenger } from './types.js';
+import type { SentryError } from './utils.js';
 
 function setup({
   entropySource = MOCK_WALLET_1_ENTROPY_SOURCE,
@@ -136,6 +138,91 @@ describe('MultichainAccountWallet', () => {
       expect(wallet.type).toBe(AccountWalletType.Entropy);
       expect(wallet.entropySource).toStrictEqual(entropySource);
       expect(wallet.getMultichainAccountGroups()).toHaveLength(1); // All internal accounts are using index 0, so it means only 1 multichain account.
+    });
+  });
+
+  describe('deleteAllMultichainAccountGroups', () => {
+    it('deletes every owned account across providers', async () => {
+      const { wallet, providers } = setup();
+
+      await wallet.deleteAllMultichainAccountGroups();
+
+      expect(providers[0].deleteAccounts).toHaveBeenCalledWith([
+        MOCK_WALLET_1_EVM_ACCOUNT.id,
+      ]);
+      expect(providers[1].deleteAccounts).toHaveBeenCalledWith([
+        MOCK_WALLET_1_SOL_ACCOUNT.id,
+        MOCK_WALLET_1_BTC_P2WPKH_ACCOUNT.id,
+        MOCK_WALLET_1_BTC_P2TR_ACCOUNT.id,
+      ]);
+    });
+
+    it('reports non-EVM failures and still resolves', async () => {
+      const { wallet, providers, messenger } = setup();
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const error = new Error('snap is unavailable');
+      providers[1].deleteAccount.mockRejectedValueOnce(error);
+
+      await wallet.deleteAllMultichainAccountGroups();
+
+      expect(captureExceptionSpy).toHaveBeenCalledTimes(1);
+      const sentryError = captureExceptionSpy.mock
+        .calls[0]?.[0] as SentryError<RemoveMultichainAccountWalletFailureContext>;
+      expect(sentryError.message).toBe(
+        'Failed to delete one or more accounts during wallet removal',
+      );
+      expect(sentryError.context?.failures).toStrictEqual([
+        expect.objectContaining({
+          provider: 'Mocked Provider 1',
+          id: MOCK_WALLET_1_SOL_ACCOUNT.id,
+        }),
+      ]);
+    });
+
+    it('prunes empty groups, deletes orphaned non-EVM accounts, and throws when EVM deletion partially fails', async () => {
+      const group1Evm = MockAccountBuilder.from(MOCK_WALLET_1_EVM_ACCOUNT)
+        .withGroupIndex(1)
+        .withId('mock-evm-group-1')
+        .get();
+      const group1Sol = MockAccountBuilder.from(MOCK_WALLET_1_SOL_ACCOUNT)
+        .withGroupIndex(1)
+        .withId('mock-sol-group-1')
+        .get();
+      const otherWalletEvm = MockAccountBuilder.from(MOCK_WALLET_1_EVM_ACCOUNT)
+        .withEntropySource('other-entropy')
+        .withGroupIndex(1)
+        .withId('mock-evm-other-wallet')
+        .get();
+      const { wallet, providers, messenger } = setup({
+        accounts: [
+          [MOCK_WALLET_1_EVM_ACCOUNT, group1Evm, otherWalletEvm],
+          [MOCK_WALLET_1_SOL_ACCOUNT, group1Sol],
+        ],
+      });
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const error = new Error('cannot delete group 0');
+      providers[0].deleteAccounts.mockImplementationOnce(async () => {
+        providers[0].accounts.delete(group1Evm.id);
+        return {
+          ok: false,
+          failures: [{ id: MOCK_WALLET_1_EVM_ACCOUNT.id, error }],
+        };
+      });
+      providers[1].deleteAccount.mockImplementation(async (id: string) => {
+        providers[1].accounts.delete(id);
+      });
+
+      expect(wallet.getNextGroupIndex()).toBe(2);
+
+      await expect(wallet.deleteAllMultichainAccountGroups()).rejects.toThrow(
+        'Failed to delete EVM accounts during wallet removal',
+      );
+
+      expect(providers[1].deleteAccounts).toHaveBeenCalledWith([group1Sol.id]);
+      expect(wallet.getMultichainAccountGroup(1)).toBeUndefined();
+      expect(wallet.getMultichainAccountGroup(0)).toBeDefined();
+      expect(wallet.getNextGroupIndex()).toBe(1);
+      expect(captureExceptionSpy).toHaveBeenCalledTimes(1);
     });
   });
 

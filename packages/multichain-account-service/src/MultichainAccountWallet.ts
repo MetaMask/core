@@ -33,7 +33,13 @@ import {
 } from './logger.js';
 import type { GroupState } from './MultichainAccountGroup.js';
 import { MultichainAccountGroup } from './MultichainAccountGroup.js';
-import type { ServiceState, StateKeys } from './MultichainAccountService.js';
+import type {
+  RemoveMultichainAccountWalletFailure,
+  RemoveMultichainAccountWalletFailureContext,
+  ServiceState,
+  StateKeys,
+} from './MultichainAccountService.js';
+import { isAccountProviderWrapper } from './providers/AccountProviderWrapper.js';
 import { EvmAccountProvider } from './providers/EvmAccountProvider.js';
 import type { Bip44AccountProvider } from './providers/index.js';
 import type { MultichainAccountServiceMessenger } from './types.js';
@@ -141,6 +147,203 @@ export class MultichainAccountWallet<
     }
 
     this.#log('Finished initializing wallet state...');
+  }
+
+  /**
+   * Accounts this wallet still owns on `provider`, including those hidden
+   * by a disabled wrapper.
+   *
+   * @param provider - The account provider to query.
+   * @returns The owned accounts.
+   */
+  #getOwnedAccounts(
+    provider: Bip44AccountProvider<Account>,
+  ): Bip44Account<KeyringAccount>[] {
+    // Disabled wrappers hide accounts from `getAccounts()`, so unwrap to
+    // see what the provider still holds.
+    const source =
+      (isAccountProviderWrapper(provider) ? provider.unwrap() : undefined) ??
+      provider;
+    return source
+      .getAccounts()
+      .filter((account) => account.options.entropy?.id === this.#entropySource);
+  }
+
+  /**
+   * Drops groups that no longer have any account for this wallet.
+   *
+   * Deleting accounts does not remove their group, so a group left with 0
+   * accounts must be pruned explicitly. Otherwise it keeps reserving its
+   * index and {@link MultichainAccountWallet.getNextGroupIndex} stays too
+   * high, which would re-create accounts that were just deleted.
+   */
+  #pruneEmptyGroups(): void {
+    const remainingGroupIndexes = new Set<number>();
+
+    for (const provider of this.#providers) {
+      for (const account of this.#getOwnedAccounts(provider)) {
+        remainingGroupIndexes.add(account.options.entropy.groupIndex);
+      }
+    }
+
+    for (const groupIndex of [...this.#accountGroups.keys()]) {
+      if (!remainingGroupIndexes.has(groupIndex)) {
+        this.#log(`Removing group for index ${groupIndex}...`);
+        this.#accountGroups.delete(groupIndex);
+      }
+    }
+  }
+
+  /**
+   * Deletes every account this wallet owns across all providers.
+   *
+   * EVM deletion is required because every multichain account group must have
+   * an EVM account and EVM keyring state cannot be recovered from a Snap. If
+   * EVM deletion partially fails, only non-EVM accounts whose EVM counterpart
+   * was successfully deleted are removed, empty groups are pruned, and this
+   * method throws. The caller must keep the wallet registered in that case.
+   *
+   * Once every EVM account has been deleted, non-EVM cleanup is best-effort:
+   * failures are reported together and this method resolves so the caller can
+   * drop the wallet.
+   *
+   * @throws If one or more EVM accounts cannot be deleted.
+   */
+  async deleteAllMultichainAccountGroups(): Promise<void> {
+    const failures: RemoveMultichainAccountWalletFailure[] = [];
+    const [evmProvider, ...otherProviders] = this.#getProviders();
+
+    // Best-effort: one provider/account failure does not skip the rest.
+    const deleteNonEvmAccounts = async (
+      shouldDelete: (account: Bip44Account<KeyringAccount>) => boolean,
+    ): Promise<void> => {
+      for (const provider of otherProviders) {
+        let owned: Bip44Account<KeyringAccount>[];
+        try {
+          owned = this.#getOwnedAccounts(provider).filter(shouldDelete);
+        } catch (error) {
+          failures.push({
+            provider: provider.getName(),
+            error,
+          });
+          continue;
+        }
+
+        if (owned.length === 0) {
+          continue;
+        }
+
+        try {
+          const result = await provider.deleteAccounts(
+            owned.map((account) => account.id),
+          );
+          if (!result.ok) {
+            for (const failure of result.failures) {
+              failures.push({
+                provider: provider.getName(),
+                id: failure.id,
+                error: failure.error,
+              });
+            }
+          }
+        } catch (error) {
+          failures.push({
+            provider: provider.getName(),
+            error,
+          });
+        }
+      }
+    };
+
+    const reportFailures = (message: string, error: Error): void => {
+      // One aggregated report per wallet-removal action: keeps the Sentry
+      // message stable for grouping while still surfacing every per-account
+      // failure in `context`. The shape is pinned by
+      // `RemoveMultichainAccountWalletFailureContext`.
+      const context: RemoveMultichainAccountWalletFailureContext = {
+        failures: failures.map(({ provider, id, error: failureError }) => ({
+          provider,
+          id,
+          error: toErrorMessage(failureError),
+        })),
+      };
+      reportError(this.#messenger, message, error, context);
+    };
+
+    // 1. Delete EVM first. Groups must keep an EVM account, and HD keyring
+    // state cannot be rebuilt from Snaps.
+    let evmDeletionFailed = false;
+    let evmAccounts: Bip44Account<KeyringAccount>[] = [];
+    try {
+      evmAccounts = this.#getOwnedAccounts(evmProvider);
+    } catch (error) {
+      evmDeletionFailed = true;
+      failures.push({
+        provider: evmProvider.getName(),
+        error,
+      });
+    }
+
+    if (evmAccounts.length > 0) {
+      try {
+        const result = await evmProvider.deleteAccounts(
+          evmAccounts.map((account) => account.id),
+        );
+        if (!result.ok) {
+          evmDeletionFailed = true;
+          for (const failure of result.failures) {
+            failures.push({
+              provider: evmProvider.getName(),
+              id: failure.id,
+              error: failure.error,
+            });
+          }
+        }
+      } catch (error) {
+        evmDeletionFailed = true;
+        failures.push({
+          provider: evmProvider.getName(),
+          error,
+        });
+      }
+    }
+
+    if (evmDeletionFailed) {
+      // 2. EVM failed: delete only Snap accounts whose group no longer has
+      // EVM, then throw. The caller keeps the wallet registered.
+      try {
+        const remainingEvmGroupIndexes = new Set(
+          this.#getOwnedAccounts(evmProvider).map(
+            (account) => account.options.entropy.groupIndex,
+          ),
+        );
+        await deleteNonEvmAccounts(
+          (account) =>
+            !remainingEvmGroupIndexes.has(account.options.entropy.groupIndex),
+        );
+        this.#pruneEmptyGroups();
+      } catch {
+        // Providers cannot be enumerated, so do not guess which Snaps are
+        // orphans nor which groups are empty.
+      }
+
+      const error = new Error(
+        'Failed to delete EVM accounts during wallet removal',
+      );
+      reportFailures(error.message, error);
+      throw error;
+    }
+
+    // 3. EVM fully gone: remaining non-EVM accounts for this wallet are all
+    // orphans, so delete them. The caller then drops the wallet from its map.
+    await deleteNonEvmAccounts(() => true);
+
+    if (failures.length > 0) {
+      reportFailures(
+        `Failed to delete one or more accounts during wallet removal`,
+        new Error('Wallet removal partially failed'),
+      );
+    }
   }
 
   /**
