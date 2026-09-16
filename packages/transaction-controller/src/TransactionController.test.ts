@@ -516,7 +516,12 @@ describe('TransactionController', () => {
     },
     updateToInitialState = false,
   }: {
-    options?: Partial<ConstructorParameters<typeof TransactionController>[0]>;
+    options?: Omit<
+      Partial<ConstructorParameters<typeof TransactionController>[0]>,
+      'hooks'
+    > & {
+      hooks?: Partial<TransactionControllerOptions['hooks']>;
+    };
     network?: {
       blockTracker?: BlockTracker;
       provider?: Provider;
@@ -2458,7 +2463,7 @@ describe('TransactionController', () => {
           }> => {
             callOrder.push('getNonceLock');
             return {
-              nextNonce: NONCE_MOCK,
+              nextNonce: toHex(NONCE_MOCK),
               releaseLock: () => Promise.resolve(),
             };
           },
