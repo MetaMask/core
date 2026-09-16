@@ -1683,6 +1683,99 @@ describe('NotificationServicesController', () => {
       // Should still return empty array and not throw
       expect(Array.isArray(result)).toBe(true);
     });
+
+    /**
+     * `fetchAndUpdateMetamaskNotifications` always flips
+     * `isFetchingMetamaskNotifications` true then false, which is a real,
+     * expected `stateChange` on every call. To isolate whether
+     * `metamaskNotificationsList` itself was touched, inspect the Immer
+     * patches the event carries rather than whether it fired at all.
+     *
+     * @param messenger - the controller's messenger.
+     * @returns a function returning whether any observed stateChange patch
+     * touched `metamaskNotificationsList`.
+     */
+    const arrangeNotificationsListPatchSpy = (
+      messenger: NotificationServicesControllerMessenger,
+    ): (() => boolean) => {
+      let sawNotificationsListPatch = false;
+      messenger.subscribe(
+        'NotificationServicesController:stateChange',
+        (_state, patches) => {
+          if (
+            patches.some(
+              (patch) => patch.path[0] === 'metamaskNotificationsList',
+            )
+          ) {
+            sawNotificationsListPatch = true;
+          }
+        },
+      );
+      return () => sawNotificationsListPatch;
+    };
+
+    it('does not touch metamaskNotificationsList when a repeat fetch returns the same notifications', async () => {
+      const {
+        messenger,
+        mockFeatureAnnouncementAPIResult,
+        mockOnChainNotificationsAPIResult,
+      } = arrangeMocks();
+      const controller = arrangeController(messenger);
+
+      await controller.fetchAndUpdateMetamaskNotifications();
+
+      const sawNotificationsListPatch =
+        arrangeNotificationsListPatchSpy(messenger);
+
+      // Every mock in `arrangeMocks()` is a one-shot nock interceptor;
+      // re-register each one with the *exact same* response body objects
+      // `arrangeMocks()` already used for the first fetch (rather than
+      // calling `createMockFeatureAnnouncementAPIResult()` again, which
+      // embeds a fresh `Date.now()`-based timestamp each time and would
+      // make this a non-repeat, non-deterministic fetch instead).
+      mockGetOnChainNotificationsConfig();
+      mockFetchFeatureAnnouncementNotifications({
+        status: 200,
+        body: mockFeatureAnnouncementAPIResult,
+      });
+      mockGetAPINotifications({
+        status: 200,
+        body: mockOnChainNotificationsAPIResult,
+      });
+
+      await controller.fetchAndUpdateMetamaskNotifications();
+
+      expect(sawNotificationsListPatch()).toBe(false);
+    });
+
+    it('touches metamaskNotificationsList when a repeat fetch returns a genuinely new notification', async () => {
+      const { messenger } = arrangeMocks();
+      const controller = arrangeController(messenger);
+
+      await controller.fetchAndUpdateMetamaskNotifications();
+
+      const sawNotificationsListPatch =
+        arrangeNotificationsListPatchSpy(messenger);
+
+      // A distinct on-chain notification (different id) arrives on the next
+      // fetch, so the combined list can't be identical to what's in state.
+      // The feature-announcement mock is intentionally re-derived here
+      // (fresh timestamp and all) since this test only needs *a* difference
+      // to exist, not a controlled absence of one.
+      mockGetOnChainNotificationsConfig();
+      mockFetchFeatureAnnouncementNotifications({
+        status: 200,
+        body: createMockFeatureAnnouncementAPIResult(),
+      });
+      mockGetAPINotifications({
+        status: 200,
+        body: [{ ...createMockNotificationEthSent(), id: 'a-different-id' }],
+      });
+
+      await controller.fetchAndUpdateMetamaskNotifications();
+
+      expect(sawNotificationsListPatch()).toBe(true);
+    });
   });
 
   describe('getNotificationsByType', () => {
@@ -1913,6 +2006,68 @@ describe('NotificationServicesController', () => {
         // as we're dealing with a snap notification
         controller.state.metamaskNotificationsList[0].readDate,
       ).not.toBeNull();
+    });
+
+    it('does not publish stateChange when marking an already-read notification as read again', async () => {
+      const { messenger } = arrangeMocks();
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+
+      const notification = processNotification(
+        createMockFeatureAnnouncementRaw(),
+      );
+      await controller.markMetamaskNotificationsAsRead([notification]);
+      expect(controller.state.metamaskNotificationsReadList).toHaveLength(1);
+
+      const stateChangeListener = jest.fn();
+      messenger.subscribe(
+        'NotificationServicesController:stateChange',
+        stateChangeListener,
+      );
+
+      // Re-processing the same, already-read notification (e.g. the caller
+      // re-marks a list that includes items already marked as read).
+      await controller.markMetamaskNotificationsAsRead([
+        { ...notification, isRead: true },
+      ]);
+
+      expect(stateChangeListener).not.toHaveBeenCalled();
+    });
+
+    it('publishes stateChange when a genuinely new notification is marked as read', async () => {
+      const { messenger } = arrangeMocks();
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+
+      // Feature announcements are marked as read locally and never call the
+      // on-chain mark-as-read API, so a fresh one-shot mock per call is not
+      // needed for this test (unlike an ETH_SENT/on-chain notification,
+      // whose second call would otherwise hit the already-consumed mock).
+      const firstNotification = processNotification(
+        createMockFeatureAnnouncementRaw(),
+      );
+      await controller.markMetamaskNotificationsAsRead([firstNotification]);
+      expect(controller.state.metamaskNotificationsReadList).toHaveLength(1);
+
+      const stateChangeListener = jest.fn();
+      messenger.subscribe(
+        'NotificationServicesController:stateChange',
+        stateChangeListener,
+      );
+
+      const secondRawAnnouncement = createMockFeatureAnnouncementRaw();
+      const secondNotification = processNotification({
+        ...secondRawAnnouncement,
+        data: { ...secondRawAnnouncement.data, id: 'a-different-id' },
+      });
+      await controller.markMetamaskNotificationsAsRead([secondNotification]);
+
+      expect(stateChangeListener).toHaveBeenCalled();
+      expect(controller.state.metamaskNotificationsReadList).toHaveLength(2);
     });
   });
 
@@ -2211,6 +2366,100 @@ describe('NotificationServicesController', () => {
 
       expect(mockDisablePushNotifications).not.toHaveBeenCalled();
       expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+    });
+
+    it('does not publish stateChange when the account set is unchanged on a repeat call', async () => {
+      const { messenger, mockGetConfig } = arrangeMocks();
+      mockGetOnChainNotificationsConfig({
+        status: 200,
+        body: [
+          { address: ADDRESS_1.toLowerCase(), enabled: true },
+          { address: ADDRESS_2.toLowerCase(), enabled: false },
+        ],
+      });
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+      controller.init();
+
+      await controller.enablePushNotifications();
+      expect(controller.state.subscriptionAccountsSeen).toStrictEqual([
+        ADDRESS_1,
+        ADDRESS_2,
+      ]);
+
+      const stateChangeListener = jest.fn();
+      messenger.subscribe(
+        'NotificationServicesController:stateChange',
+        stateChangeListener,
+      );
+      mockGetConfig.mockResolvedValueOnce(mockPreferences());
+      mockGetOnChainNotificationsConfig({
+        status: 200,
+        body: [
+          { address: ADDRESS_1.toLowerCase(), enabled: true },
+          { address: ADDRESS_2.toLowerCase(), enabled: false },
+        ],
+      });
+
+      // Same two keyring accounts as before, in the same order.
+      await controller.enablePushNotifications();
+
+      expect(stateChangeListener).not.toHaveBeenCalled();
+    });
+
+    it('publishes stateChange when the account set genuinely changes on a repeat call', async () => {
+      const { messenger, mockGetConfig, mockKeyringControllerGetState } =
+        arrangeMocks();
+      mockGetOnChainNotificationsConfig({
+        status: 200,
+        body: [
+          { address: ADDRESS_1.toLowerCase(), enabled: true },
+          { address: ADDRESS_2.toLowerCase(), enabled: false },
+        ],
+      });
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+      controller.init();
+
+      await controller.enablePushNotifications();
+
+      const stateChangeListener = jest.fn();
+      messenger.subscribe(
+        'NotificationServicesController:stateChange',
+        stateChangeListener,
+      );
+      mockGetConfig.mockResolvedValueOnce(mockPreferences());
+      mockGetOnChainNotificationsConfig({
+        status: 200,
+        body: [{ address: ADDRESS_1.toLowerCase(), enabled: true }],
+      });
+      // A new account has been added to the keyring since the first call.
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            accounts: [ADDRESS_1, ADDRESS_2, ADDRESS_3],
+            type: KeyringTypes.hd,
+            metadata: { id: 'srp-1', name: 'SRP 1' },
+          },
+        ],
+      });
+
+      await controller.enablePushNotifications();
+
+      expect(stateChangeListener).toHaveBeenCalled();
+      // `ADDRESS_3`'s fixture string is not itself in EIP-55 checksum case
+      // (unlike `ADDRESS_1`/`ADDRESS_2`), so compare against its checksummed
+      // form rather than the raw fixture constant.
+      expect(controller.state.subscriptionAccountsSeen).toStrictEqual([
+        ADDRESS_1,
+        ADDRESS_2,
+        ControllerUtils.toChecksumHexAddress(ADDRESS_3),
+      ]);
     });
 
     it('unregisters the device when no account has notifications enabled', async () => {

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Skip `subscriptionAccountsSeen`, `metamaskNotificationsList`, and `metamaskNotificationsReadList` writes when the computed value is unchanged, so `stateChange` and a full state persist no longer fire on every `listAccounts`/notification fetch/mark-as-read call that doesn't actually change anything ([#10275](https://github.com/MetaMask/core/pull/10275))
+
 ## [29.0.0]
 
 ### Changed
