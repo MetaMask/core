@@ -82,8 +82,14 @@
     }
   },
   "packages/accounts-controller/src/AccountsController.test.ts": {
+    "TS2305": {
+      "count": 1
+    },
     "TS2322": {
       "count": 3
+    },
+    "TS2345": {
+      "count": 1
     },
     "TS2353": {
       "count": 2
@@ -92,11 +98,6 @@
   "packages/approval-controller/src/ApprovalController.test.ts": {
     "TS6307": {
       "count": 1
-    }
-  },
-  "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
-    "TS2345": {
-      "count": 2
     }
   },
   "packages/assets-controller/src/__fixtures__/scam-token-cleanup/captureTokenApiResponses.ts": {
@@ -112,7 +113,7 @@
       "count": 1
     },
     "TS2345": {
-      "count": 5
+      "count": 2
     },
     "TS2352": {
       "count": 2
@@ -140,18 +141,8 @@
       "count": 1
     }
   },
-  "packages/assets-controller/src/data-sources/RpcDataSource.test.ts": {
-    "TS2741": {
-      "count": 1
-    }
-  },
   "packages/assets-controller/src/data-sources/SnapDataSource.test.ts": {
     "TS2353": {
-      "count": 1
-    }
-  },
-  "packages/assets-controller/src/data-sources/StakedBalanceDataSource.test.ts": {
-    "TS2741": {
       "count": 1
     }
   },
@@ -237,6 +228,11 @@
     },
     "TS7006": {
       "count": 12
+    }
+  },
+  "packages/assets-controllers/src/TokensController.test.ts": {
+    "TS2345": {
+      "count": 10
     }
   },
   "packages/bitcoin-regtest-up/src/bin/bitcoin-regtest-up.ts": {
@@ -596,6 +592,9 @@
   "packages/network-controller/tests/NetworkController.test.ts": {
     "TS2339": {
       "count": 3
+    },
+    "TS2345": {
+      "count": 75
     }
   },
   "packages/network-enablement-controller/src/NetworkEnablementController.test.ts": {
@@ -634,11 +633,6 @@
   "packages/perps-controller/tests/src/aggregation/SubscriptionMultiplexer.test.ts": {
     "TS2741": {
       "count": 10
-    }
-  },
-  "packages/perps-controller/tests/src/PerpsController.configuration.test.ts": {
-    "TS2589": {
-      "count": 1
     }
   },
   "packages/perps-controller/tests/src/PerpsController.lifecycle.test.ts": {
@@ -701,6 +695,11 @@
     },
     "TS7034": {
       "count": 6
+    }
+  },
+  "packages/perps-controller/tests/src/PerpsController.subscriptions.test.ts": {
+    "TS2589": {
+      "count": 1
     }
   },
   "packages/perps-controller/tests/src/providers/AggregatedPerpsProvider.test.ts": {
@@ -918,6 +917,11 @@
       "count": 2
     }
   },
+  "packages/signature-controller/src/SignatureController.test.ts": {
+    "TS2345": {
+      "count": 1
+    }
+  },
   "packages/snap-account-service/src/SnapAccountService.test.ts": {
     "TS2322": {
       "count": 23
@@ -995,14 +999,17 @@
   },
   "packages/transaction-controller/src/TransactionController.test.ts": {
     "TS2322": {
-      "count": 6
+      "count": 10
     },
     "TS2345": {
-      "count": 2
+      "count": 3
     }
   },
   "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {
     "TS2344": {
+      "count": 1
+    },
+    "TS2345": {
       "count": 1
     }
   },
@@ -1015,6 +1022,9 @@
     }
   },
   "packages/transaction-controller/src/utils/gas.test.ts": {
+    "TS2322": {
+      "count": 1
+    },
     "TS2769": {
       "count": 2
     }
