@@ -30,6 +30,7 @@ export const hasNetworkFee = (
     totalNetworkFee?.valueInCurrency,
     totalNetworkFee?.normalizedAmount,
     totalNetworkFee?.amount,
+    totalNetworkFee?.usd,
   ].find((amount) => amount && amount !== '0');
 
   return Boolean(
