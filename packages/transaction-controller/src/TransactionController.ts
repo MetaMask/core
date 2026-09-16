@@ -3170,18 +3170,6 @@ export class TransactionController extends BaseController<
         ? false
         : (await this.#shouldSign({ transactionMeta })).shouldSign;
 
-      if (!shouldSign) {
-        // eslint-disable-next-line require-atomic-updates
-        transactionMeta = this.#updateTransactionInternal(
-          {
-            transactionId,
-          },
-          (draftTxMeta) => {
-            draftTxMeta.txParams.nonce = undefined;
-          },
-        );
-      }
-
       let rawTx: string | undefined;
 
       if (shouldSign) {

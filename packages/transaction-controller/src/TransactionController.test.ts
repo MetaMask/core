@@ -2538,7 +2538,7 @@ describe('TransactionController', () => {
         expect(getNonceLockSpy).not.toHaveBeenCalled();
       });
 
-      it('skips nonce reservation when shouldSign resolves false', async () => {
+      it('skips nonce reservation and preserves an existing nonce when shouldSign resolves false', async () => {
         const isSponsoredHook = jest
           .fn()
           .mockResolvedValue({ isSponsored: false });
@@ -2563,6 +2563,7 @@ describe('TransactionController', () => {
         await controller.addTransaction(
           {
             from: ACCOUNT_MOCK,
+            nonce: toHex(NONCE_MOCK),
             to: ACCOUNT_MOCK,
           },
           {
@@ -2575,6 +2576,9 @@ describe('TransactionController', () => {
         expect(isSponsoredHook).toHaveBeenCalledTimes(1);
         expect(shouldSignHook).toHaveBeenCalledTimes(1);
         expect(getNonceLockSpy).not.toHaveBeenCalled();
+        expect(controller.state.transactions[0].txParams.nonce).toBe(
+          toHex(NONCE_MOCK),
+        );
       });
 
       it('does not persist hook decisions as transaction metadata', async () => {
