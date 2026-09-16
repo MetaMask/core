@@ -637,38 +637,6 @@ function mergeAccountBalances(
   return next;
 }
 
-/**
- * Assigns `nextValue` to `target[key]` only if it differs from
- * `previousValue`, returning whether the assignment happened.
- *
- * `this.update()` uses Immer, which emits a patch (and publishes
- * `stateChange`) whenever a draft key is assigned a different reference,
- * regardless of whether the new value is deeply equal to the old one. Data
- * sources re-report unchanged metadata, balances, and prices on virtually
- * every poll, so writing unconditionally would publish a no-op `stateChange`
- * - and trigger a full state persist - on every poll tick instead of only
- * when something actually moved.
- *
- * @param target - The Immer draft record being written to.
- * @param key - The key to conditionally assign.
- * @param previousValue - The value already in state for this key, from
- *   before this update began (not the draft, which may already differ).
- * @param nextValue - The value that would be written.
- * @returns Whether `target[key]` was assigned.
- */
-function assignIfChanged<Value>(
-  target: Record<string, Value>,
-  key: string,
-  previousValue: Value | undefined,
-  nextValue: Value,
-): boolean {
-  if (isEqual(previousValue, nextValue)) {
-    return false;
-  }
-  target[key] = nextValue;
-  return true;
-}
-
 // ============================================================================
 // CONTROLLER IMPLEMENTATION
 // ============================================================================
@@ -2638,13 +2606,12 @@ export class AssetsController extends BaseController<
                 : value;
 
             if (
-              assignIfChanged(
-                metadata,
-                key,
+              !isEqual(
                 previousState.assetsInfo[key as Caip19AssetId],
                 nextValue,
               )
             ) {
+              metadata[key] = nextValue;
               changedMetadata.push(key);
             }
           }
@@ -2750,7 +2717,9 @@ export class AssetsController extends BaseController<
               }
             }
 
-            assignIfChanged(balances, accountId, previousBalances, effective);
+            if (!isEqual(previousBalances, effective)) {
+              balances[accountId] = effective;
+            }
           }
         }
 
@@ -2758,12 +2727,9 @@ export class AssetsController extends BaseController<
           for (const [key, value] of Object.entries(
             normalizedResponse.assetsPrice,
           )) {
-            assignIfChanged(
-              prices,
-              key,
-              previousPrices[key as Caip19AssetId],
-              value,
-            );
+            if (!isEqual(previousPrices[key as Caip19AssetId], value)) {
+              prices[key] = value;
+            }
           }
         }
       });
