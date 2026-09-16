@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -6,18 +7,26 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { cleanAll as cleanAllNock } from 'nock';
 
 import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth.js';
 import type { LoginResponse } from '../../sdk/index.js';
 import { EmailRequiredError, Platform } from '../../sdk/index.js';
 import {
   MOCK_ACCESS_JWT,
+  MOCK_MFA_CREDENTIALS_RESPONSE,
+  MOCK_MFA_ENROLL_EMAIL_RESPONSE,
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
 } from '../../sdk/mocks/auth.js';
 import {
   getMessageSigningPublicKey,
   signMessageWithMessageSigningKey,
 } from '../../shared/utils/message-signing.js';
+import {
+  mockEndpointMfaCredentials,
+  mockEndpointMfaEnroll,
+  mockEndpointMfaEnrollComplete,
+} from './__fixtures__/mockServices.js';
 import {
   AuthenticationController,
   defaultState,
@@ -115,6 +124,7 @@ const mockSignedInState = ({
 
   return {
     isSignedIn: true,
+    enrolledCredentials: [],
     needsProfilePairing,
     needsSocialPairing,
     srpSessionData,
@@ -2306,6 +2316,315 @@ describe('AuthenticationController', () => {
   });
 });
 
+describe('MFA credential enrollment', () => {
+  function createController(options?: {
+    state?: AuthenticationControllerState;
+    isMfaEnabled?: () => boolean;
+    trace?: TraceCallback;
+  }): {
+    controller: AuthenticationController;
+    baseMessenger: RootMessenger;
+  } {
+    const { messenger, baseMessenger } = createMockAuthenticationMessenger();
+    return {
+      controller: new AuthenticationController({
+        messenger,
+        metametrics: createMockAuthMetaMetrics(),
+        state: options?.state ?? mockSignedInState(),
+        config: {
+          isMfaEnabled: options?.isMfaEnabled ?? ((): boolean => false),
+        },
+        trace: options?.trace,
+      }),
+      baseMessenger,
+    };
+  }
+
+  it('starts with an empty memory-only credential cache', () => {
+    const { controller } = createController({
+      state: { ...defaultState },
+    });
+    expect(controller.state.enrolledCredentials).toStrictEqual([]);
+    expect(controller.state.stepUpSessionExpiresAt).toBeUndefined();
+  });
+
+  it('refreshes credentials and publishes changes only when data changes', async () => {
+    mockEndpointMfaCredentials();
+    const { controller, baseMessenger } = createController();
+    const listener = jest.fn();
+    baseMessenger.subscribe(
+      'AuthenticationController:credentialsChanged',
+      listener,
+    );
+
+    expect(await controller.refreshEnrolledCredentials()).toHaveLength(2);
+    expect(controller.state.enrolledCredentials).toHaveLength(2);
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    await controller.refreshEnrolledCredentials();
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('begins passkey enrollment with validated tracing tags', async () => {
+    mockEndpointMfaEnroll();
+    const trace = jest.fn(
+      (_request: unknown, fn?: () => unknown): Promise<unknown> =>
+        Promise.resolve(fn?.()),
+    ) as unknown as TraceCallback;
+    const { controller } = createController({ trace });
+
+    expect(
+      await controller.beginCredentialEnrollment({
+        type: 'passkey',
+        reason: { operation: 'settings.addPasskey' },
+      }),
+    ).toMatchObject({
+      type: 'passkey',
+      flowId: 'enroll-passkey-flow-id',
+      publicKey: expect.objectContaining({ challenge: expect.any(String) }),
+    });
+    expect(trace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'MFA Enroll Begin',
+        tags: {
+          operation: 'settings.addPasskey',
+          credentialType: 'passkey',
+        },
+        data: { outcome: 'success' },
+      }),
+      expect.any(Function),
+    );
+  });
+
+  it('begins email enrollment and rejects invalid boundary input', async () => {
+    mockEndpointMfaEnroll({
+      status: 200,
+      body: MOCK_MFA_ENROLL_EMAIL_RESPONSE,
+    });
+    const { controller } = createController();
+
+    expect(
+      await controller.beginCredentialEnrollment({
+        type: 'email_otp',
+        email: 'user@example.com',
+        reason: { operation: 'settings.addEmail' },
+      }),
+    ).toStrictEqual({
+      type: 'email_otp',
+      flowId: 'enroll-email-flow-id',
+      expiresAt: Date.parse('2099-09-07T14:30:00Z'),
+      emailSent: true,
+    });
+    await expect(
+      controller.beginCredentialEnrollment({
+        type: 'email_otp',
+        reason: { operation: 'invalid operation' },
+      }),
+    ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
+  });
+
+  it('completes passkey enrollment and refreshes the cache', async () => {
+    mockEndpointMfaEnrollComplete();
+    mockEndpointMfaCredentials();
+    const { controller } = createController();
+
+    const credentials = await controller.completeCredentialEnrollment({
+      type: 'passkey',
+      flowId: 'flow-id',
+      proof: {
+        type: 'passkey',
+        attestation: {
+          id: 'credential-id',
+          rawId: 'credential-id',
+          type: 'public-key',
+          response: {
+            attestationObject: 'attestation',
+            clientDataJSON: 'client-data',
+          },
+        },
+      },
+    });
+
+    expect(credentials).toHaveLength(
+      MOCK_MFA_CREDENTIALS_RESPONSE.credentials.length,
+    );
+    expect(controller.state.enrolledCredentials).toStrictEqual(credentials);
+  });
+
+  it('invalidates the primary SRP session after email enrollment', async () => {
+    mockEndpointMfaEnrollComplete();
+    mockEndpointMfaCredentials();
+    const { controller } = createController();
+
+    await controller.completeCredentialEnrollment({
+      type: 'email_otp',
+      flowId: 'flow-id',
+      proof: { type: 'email_otp', code: '123456' },
+    });
+
+    expect(
+      controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].profile
+        .canonicalProfileId,
+    ).toBe('');
+  });
+
+  it('keeps the existing cache when post-enrollment refresh fails', async () => {
+    mockEndpointMfaEnrollComplete();
+    mockEndpointMfaCredentials({
+      status: 502,
+      body: { code: 'kratos_unavailable', message: 'Unavailable' },
+    });
+    const existing = [
+      {
+        type: 'passkey',
+        status: 'active',
+        displayName: 'Existing passkey',
+      },
+    ] as const;
+    const { controller } = createController({
+      state: {
+        ...mockSignedInState(),
+        enrolledCredentials: [...existing],
+      },
+    });
+
+    expect(
+      await controller.completeCredentialEnrollment({
+        type: 'email_otp',
+        flowId: 'flow-id',
+        proof: { type: 'email_otp', code: '123456' },
+      }),
+    ).toStrictEqual(existing);
+  });
+
+  it.each([
+    [
+      'sign-out',
+      (controller: AuthenticationController): void =>
+        controller.performSignOut(),
+    ],
+    [
+      'wallet reset',
+      (controller: AuthenticationController): void => controller.clearState(),
+    ],
+    [
+      'lock',
+      (
+        _controller: AuthenticationController,
+        baseMessenger: RootMessenger,
+      ): void => baseMessenger.publish('KeyringController:lock'),
+    ],
+  ])(
+    'clears cached credentials and publishes the change on %s',
+    (_name, act) => {
+      const { controller, baseMessenger } = createController({
+        state: {
+          ...mockSignedInState(),
+          enrolledCredentials: [
+            {
+              type: 'email_otp',
+              status: 'active',
+              email: 'user@example.com',
+              verified: true,
+            },
+          ],
+        },
+      });
+      const listener = jest.fn();
+      baseMessenger.subscribe(
+        'AuthenticationController:credentialsChanged',
+        listener,
+      );
+
+      act(controller, baseMessenger);
+
+      expect(controller.state.enrolledCredentials).toStrictEqual([]);
+      expect(listener).toHaveBeenCalledWith({ credentials: [] });
+    },
+  );
+
+  it('does not publish a credential change when the cache is already empty', () => {
+    const { controller, baseMessenger } = createController();
+    const listener = jest.fn();
+    baseMessenger.subscribe(
+      'AuthenticationController:credentialsChanged',
+      listener,
+    );
+
+    controller.performSignOut();
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('rejects MFA calls while the wallet is locked', async () => {
+    const { controller, baseMessenger } = createController();
+    baseMessenger.publish('KeyringController:lock');
+
+    await expect(controller.refreshEnrolledCredentials()).rejects.toThrow(
+      'wallet is locked',
+    );
+    await expect(
+      controller.beginCredentialEnrollment({
+        type: 'passkey',
+        reason: { operation: 'settings.addPasskey' },
+      }),
+    ).rejects.toThrow('wallet is locked');
+  });
+
+  it('automatically refreshes after sign-in only when enabled', async () => {
+    const enabledEndpoints = arrangeAuthAPIs();
+    const enabled = createController({
+      state: { ...defaultState },
+      isMfaEnabled: () => true,
+    }).controller;
+    await enabled.performSignIn();
+    expect(enabledEndpoints.mockMfaCredentialsUrl.isDone()).toBe(true);
+
+    cleanAllNock();
+    const disabledEndpoints = arrangeAuthAPIs();
+    const disabled = createController({
+      state: { ...defaultState },
+      isMfaEnabled: () => false,
+    }).controller;
+    await disabled.performSignIn();
+    expect(disabledEndpoints.mockMfaCredentialsUrl.isDone()).toBe(false);
+  });
+
+  it('refreshes after unlock when signed in and enabled', async () => {
+    mockEndpointMfaCredentials();
+    const { controller, baseMessenger } = createController({
+      isMfaEnabled: () => true,
+    });
+    const changed = new Promise<void>((resolve) => {
+      baseMessenger.subscribe(
+        'AuthenticationController:credentialsChanged',
+        () => resolve(),
+      );
+    });
+
+    baseMessenger.publish('KeyringController:unlock');
+    await changed;
+
+    expect(controller.state.enrolledCredentials).toHaveLength(2);
+  });
+
+  it('does not fail sign-in when automatic refresh fails', async () => {
+    arrangeAuthAPIs({
+      mockMfaCredentialsUrl: {
+        status: 502,
+        body: { code: 'kratos_unavailable', message: 'Unavailable' },
+      },
+    });
+    const { controller } = createController({
+      state: { ...defaultState },
+      isMfaEnabled: () => true,
+    });
+
+    expect(await controller.performSignIn()).toHaveLength(2);
+    expect(controller.state.isSignedIn).toBe(true);
+  });
+});
+
 describe('metadata', () => {
   it('includes expected state in debug snapshots', () => {
     const controller = new AuthenticationController({
@@ -2331,6 +2650,39 @@ describe('metadata', () => {
   });
 
   describe('includeInStateLogs', () => {
+    it('redacts enrolled email addresses', () => {
+      const controller = new AuthenticationController({
+        messenger: createMockAuthenticationMessenger().messenger,
+        metametrics: createMockAuthMetaMetrics(),
+        state: {
+          ...mockSignedInState(),
+          enrolledCredentials: [
+            {
+              type: 'email_otp',
+              status: 'active',
+              email: 'jane@example.com',
+              verified: true,
+            },
+          ],
+        },
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ).enrolledCredentials,
+      ).toStrictEqual([
+        {
+          type: 'email_otp',
+          status: 'active',
+          email: 'j••@example.com',
+          verified: true,
+        },
+      ]);
+    });
+
     it('includes expected state in state logs, with access token stripped out', () => {
       const controller = new AuthenticationController({
         messenger: createMockAuthenticationMessenger().messenger,
@@ -2347,6 +2699,7 @@ describe('metadata', () => {
 
       expect(derivedState).toMatchInlineSnapshot(`
         {
+          "enrolledCredentials": [],
           "isSignedIn": true,
           "needsProfilePairing": false,
           "needsSocialPairing": false,
@@ -2394,6 +2747,7 @@ describe('metadata', () => {
         ),
       ).toMatchInlineSnapshot(`
         {
+          "enrolledCredentials": [],
           "isSignedIn": false,
           "needsProfilePairing": true,
           "needsSocialPairing": true,
@@ -2465,6 +2819,7 @@ describe('metadata', () => {
       ),
     ).toMatchInlineSnapshot(`
       {
+        "enrolledCredentials": [],
         "isSignedIn": true,
         "needsProfilePairing": false,
         "needsSocialPairing": false,

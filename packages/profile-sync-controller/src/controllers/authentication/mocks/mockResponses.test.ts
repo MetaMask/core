@@ -6,6 +6,11 @@ import {
   MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE,
   MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE,
   MOCK_OATH_TOKEN_RESPONSE,
+  getMockMfaCredentialsResponse,
+  getMockMfaEnrollCompleteResponse,
+  getMockMfaEnrollResponse,
+  getMockMfaVerifyCompleteResponse,
+  getMockMfaVerifyResponse,
 } from './mockResponses.js';
 
 describe('getE2EIdentifierFromJwt()', () => {
@@ -77,6 +82,24 @@ describe('getMockAuthAccessTokenResponse()', () => {
 
     const payload = JSON.parse(atob(response.access_token.split('.')[1]));
     expect(payload.exp).toBe(4102444800);
+  });
+});
+
+describe('MFA mock responses', () => {
+  it('provides endpoint-compatible response descriptors', () => {
+    expect([
+      getMockMfaEnrollResponse(),
+      getMockMfaEnrollCompleteResponse(),
+      getMockMfaVerifyResponse(),
+      getMockMfaVerifyCompleteResponse(),
+      getMockMfaCredentialsResponse(),
+    ]).toStrictEqual([
+      expect.objectContaining({ requestMethod: 'POST' }),
+      expect.objectContaining({ requestMethod: 'POST' }),
+      expect.objectContaining({ requestMethod: 'POST' }),
+      expect.objectContaining({ requestMethod: 'POST' }),
+      expect.objectContaining({ requestMethod: 'GET' }),
+    ]);
   });
 });
 
