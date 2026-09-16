@@ -7,10 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Update lint:tsc to run against all packages & remove it from CI ([#10215](https://github.com/MetaMask/core/pull/10215))
-- chore: integrate `@metamask/utils` into `packages/` ([#10185](https://github.com/MetaMask/core/pull/10185))
+## [28.1.0]
 
 ### Changed
 
@@ -1561,7 +1558,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.1.0...HEAD
+[28.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.2...@metamask/transaction-pay-controller@28.1.0
 [28.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.1...@metamask/transaction-pay-controller@28.0.2
 [28.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.0...@metamask/transaction-pay-controller@28.0.1
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.1.2...@metamask/transaction-pay-controller@28.0.0
