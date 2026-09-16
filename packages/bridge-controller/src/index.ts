@@ -34,6 +34,7 @@ export type {
 
 export type { QuoteWarning } from './utils/quote-warnings/types.js';
 export { hasSufficientGasForQuote } from './utils/quote-warnings/insufficient-gas-for-quote.js';
+export { hasNetworkFee } from './utils/quote-warnings/network-fee-unavailable.js';
 
 export {
   getAccountHardwareType,
