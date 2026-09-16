@@ -939,7 +939,10 @@ export class AuthenticationController extends BaseController<
     );
 
     try {
-      this.#assertAuthSessionEpoch(sessionEpoch, 'completeCredentialEnrollment');
+      this.#assertAuthSessionEpoch(
+        sessionEpoch,
+        'completeCredentialEnrollment',
+      );
     } catch (error) {
       if (type === 'email_otp') {
         this.#invalidateSrpSession(primaryEntropySourceId);
