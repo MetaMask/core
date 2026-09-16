@@ -9,24 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `MfaRecoveryController` with injectable `RecoveryAuthProvider` and `RecoveryEscrowProvider` interfaces, a persisted `idle` / `authorizing` / `writing` mutation state machine, and `register`, `updateRecoverySecret`, `updateIdentifiers`, `getRecoverySecret`, `resume`, and `abort` methods
-
-### Changed
-
-- **BREAKING:** Wrap recovery secrets in mutation payloads and `getSecret` responses with escrow-wrap-v1 (`pkE` + ChaCha20-Poly1305 ciphertext), and bind `getSecret` request hashes to the client's ephemeral `pkE`
-- **BREAKING:** Wrap mutation recovery secrets to each escrow's wrap key at apply time, store the logical secret as hex inside encrypted pending state, and send each escrow only its own `{ pkE, ciphertext }` wrap
-- **BREAKING:** Require at least two identifiers on `register` and `updateIdentifiers`, reject `emailOtp` / `smsOtp` until escrow-challenge OTP is implemented, and omit `RecoveryEscrowProvider` OTP challenge methods until then
-- **BREAKING:** Return `{ recoverySecret, epoch }` from `getRecoverySecret` so clients can pass the selected version into later mutations
-- **BREAKING:** Require `RecoveryEscrowProvider.verifyReceipt` to receive the expected escrow id so receipt verification is explicitly bound to the configured escrow target
-- **BREAKING:** Bind mutation version allocation to payload `epoch` on `register`, `updateRecoverySecret`, and `updateIdentifiers`, and remove unauthenticated `RecoveryEscrowProvider.getRecoveryMetadata` lookups
-- Expose controller state updates through the non-deprecated `MfaRecoveryController:stateChanged` messenger event
-- Retry only escrows without persisted mutation receipts and validate persisted mutation state before resuming it
-
-### Fixed
-
-- Clear fully acknowledged pending mutations without checking unavailable acknowledged escrows
-- Persist valid receipts from concurrent escrow writes before reporting an invalid receipt response
-- Persist `writing` mutation state before the first escrow write so ambiguous
-  failures remain resumable while identifier-auth failures remain abortable
+- Add `MfaRecoveryController` for replicating an MFA recovery secret across injected escrow replicas
+  - Public methods: `register`, `updateRecoverySecret`, `updateIdentifiers`, `getRecoverySecret`, `resume`, `abort`, and `getPhase`
+  - Inject `RecoveryAuthProvider`, `RecoveryIdentifierAuthProvider`, `RecoveryEscrowProvider[]`, and `PendingOperationEncryptor`
+  - Persist only an encrypted `authorizing` / `writing` pending mutation (`idle` when `pendingOperation` is `null`)
+  - `register` and `updateIdentifiers` require at least two identifiers (`MIN_IDENTIFIERS`)
+  - Identifier types `passkey`, `oidc`, and `siwe` are key-bound; `emailOtp` / `smsOtp` are not wired yet
+  - `getRecoverySecret` returns `{ recoverySecret, epoch }`; pass that `epoch` into later `updateRecoverySecret` / `updateIdentifiers` calls (register uses `0`)
+  - Mutation `payloadHash` is the hash of the logical pending payload (`identifiers` and/or `0x`-hex secret). At apply, each escrow receives `{ pkE, ciphertext }` wrapped to its own wrap key with escrow-wrap-v1
+  - `getSecret` request hashes bind the client's ephemeral `pkE`; responses are `{ ciphertext }` plus `wrapKeyId`
+  - `Mutation.audiences` is the configured replica-id list, in that order. Each replica should require an exact match
+  - `MutationReceipt` includes `receiptKeyId`. `RecoveryEscrowProvider.verifyReceipt` takes the expected escrow id and verifies with that replica's receipt key
+  - `AuthControllerToken.expiresAt` and `PoPChallenge.expiresAt` are Unix seconds
+  - `abort()` is allowed only while `authorizing`. `writing` is persisted before the first escrow apply and must be finished with `resume()`
 
 [Unreleased]: https://github.com/MetaMask/core/
