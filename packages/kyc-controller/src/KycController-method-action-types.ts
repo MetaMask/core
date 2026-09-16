@@ -18,6 +18,8 @@ import type { KycController } from './KycController.js';
  * call `checkKycRequired` manually.
  * @param params.vendor - Identity vendor for this flow. Non-MoonPay vendors
  * skip Check/Auth frames and use the consents path. Defaults to `moonpay`.
+ * @throws If a resumed consents-path session records a failure on state.
+ * The original error is rethrown after the controller rewinds to `terms`.
  */
 export type KycControllerInitializeAction = {
   type: `KycController:initialize`;
@@ -94,6 +96,8 @@ export type KycControllerFetchSessionDisclaimersAction = {
  * @param params.credentialReusabilityConsentGiven - Whether the customer
  * consented to reuse existing idOS credentials. Used when recording
  * session-scoped disclaimers on the consents path. Defaults to `false`.
+ * @throws If the consents-path session records a failure on state. The
+ * original error is rethrown after the controller rewinds to `terms`.
  */
 export type KycControllerAcceptTermsAndStartSessionAction = {
   type: `KycController:acceptTermsAndStartSession`;
@@ -160,6 +164,8 @@ export type KycControllerBuildResetFrameUrlAction = {
  * @param params.product - The consuming feature.
  * @param params.country - Optional alpha-3 country override.
  * @returns Whether KYC is required.
+ * @throws If the KYC-required service call fails after the error is recorded
+ * on controller state (`phase: 'error'`).
  */
 export type KycControllerCheckKycRequiredAction = {
   type: `KycController:checkKycRequired`;

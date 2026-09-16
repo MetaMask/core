@@ -943,11 +943,13 @@ describe('KycController', () => {
         async ({ controller, handlers }) => {
           handlers.submitVendorDisclaimers.mockRejectedValue(new Error('stop'));
 
-          await controller.acceptTermsAndStartSession({
-            email: 'a@b.co',
-            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
-            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-          });
+          await expect(
+            controller.acceptTermsAndStartSession({
+              email: 'a@b.co',
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            }),
+          ).rejects.toThrow('stop');
 
           expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith({
             vendor: 'iron',
@@ -970,11 +972,13 @@ describe('KycController', () => {
         async ({ controller, handlers }) => {
           handlers.submitVendorDisclaimers.mockRejectedValue(new Error('down'));
 
-          await controller.acceptTermsAndStartSession({
-            email: 'a@b.co',
-            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
-            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-          });
+          await expect(
+            controller.acceptTermsAndStartSession({
+              email: 'a@b.co',
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            }),
+          ).rejects.toThrow('down');
 
           expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
         },
@@ -1162,7 +1166,9 @@ describe('KycController', () => {
         async ({ controller, handlers, launcher, moonPayFrames }) => {
           handlers.checkKycRequired.mockRejectedValue(new Error('down'));
 
-          await moonPayFrames.options.onAuthenticated();
+          await expect(moonPayFrames.options.onAuthenticated()).rejects.toThrow(
+            'down',
+          );
 
           expect(controller.state.phase).toBe('error');
           expect(launcher.launch).not.toHaveBeenCalled();
@@ -1293,9 +1299,9 @@ describe('KycController', () => {
         async ({ controller, handlers }) => {
           handlers.checkKycRequired.mockRejectedValue(new Error('down'));
 
-          expect(await controller.checkKycRequired({ product: 'ramps' })).toBe(
-            false,
-          );
+          await expect(
+            controller.checkKycRequired({ product: 'ramps' }),
+          ).rejects.toThrow('down');
           expect(controller.state.error).toMatch(/KYC check failed/u);
         },
       );
@@ -3406,13 +3412,15 @@ describe('KycController', () => {
           );
           handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
-          await controller.acceptTermsAndStartSession({
-            email: 'a@b.co',
-            product: 'money',
-            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
-            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-            credentialReusabilityConsentGiven: true,
-          });
+          await expect(
+            controller.acceptTermsAndStartSession({
+              email: 'a@b.co',
+              product: 'money',
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+              credentialReusabilityConsentGiven: true,
+            }),
+          ).rejects.toThrow("Fetching 'disclaimers' failed with status '409'");
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.error).toMatch(/Consents session failed/u);
@@ -3443,12 +3451,14 @@ describe('KycController', () => {
           );
           handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
-          await controller.acceptTermsAndStartSession({
-            email: 'a@b.co',
-            product: 'money',
-            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
-            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-          });
+          await expect(
+            controller.acceptTermsAndStartSession({
+              email: 'a@b.co',
+              product: 'money',
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            }),
+          ).rejects.toThrow("Fetching 'disclaimers' failed with status '409'");
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.error).toMatch(/Consents session failed/u);
@@ -3710,11 +3720,13 @@ describe('KycController', () => {
           );
           handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
-          await controller.acceptTermsAndStartSession({
-            email: 'a@b.co',
-            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
-            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-          });
+          await expect(
+            controller.acceptTermsAndStartSession({
+              email: 'a@b.co',
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            }),
+          ).rejects.toThrow('sumsub down');
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
@@ -3737,11 +3749,13 @@ describe('KycController', () => {
           handlers.createJourney.mockRejectedValue(new Error('journey down'));
           handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
-          await controller.acceptTermsAndStartSession({
-            email: 'a@b.co',
-            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
-            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-          });
+          await expect(
+            controller.acceptTermsAndStartSession({
+              email: 'a@b.co',
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            }),
+          ).rejects.toThrow('journey down');
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.error).toMatch(/journey down/u);
@@ -3810,11 +3824,13 @@ describe('KycController', () => {
           });
           handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
-          await controller.acceptTermsAndStartSession({
-            email: 'a@b.co',
-            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
-            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-          });
+          await expect(
+            controller.acceptTermsAndStartSession({
+              email: 'a@b.co',
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            }),
+          ).rejects.toThrow('SumSub verification could not run.');
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.sumsub.status).toBe('idle');
@@ -4213,11 +4229,13 @@ describe('KycController', () => {
           );
           handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
-          await controller.acceptTermsAndStartSession({
-            email: 'a@b.co',
-            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
-            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-          });
+          await expect(
+            controller.acceptTermsAndStartSession({
+              email: 'a@b.co',
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            }),
+          ).rejects.toThrow('iron signings down');
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.error).toMatch(/iron signings down/u);
@@ -4275,11 +4293,13 @@ describe('KycController', () => {
           );
           handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
-          await controller.acceptTermsAndStartSession({
-            email: 'a@b.co',
-            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
-            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-          });
+          await expect(
+            controller.acceptTermsAndStartSession({
+              email: 'a@b.co',
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            }),
+          ).rejects.toThrow("Fetching 'disclaimers' failed with status '500'");
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.error).toMatch(/Consents session failed/u);
@@ -4308,11 +4328,15 @@ describe('KycController', () => {
           });
           handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
-          await controller.acceptTermsAndStartSession({
-            email: 'a@b.co',
-            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
-            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-          });
+          await expect(
+            controller.acceptTermsAndStartSession({
+              email: 'a@b.co',
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            }),
+          ).rejects.toThrow(
+            'Session disclaimer catalog is missing documents for an accepted category.',
+          );
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.error).toMatch(
@@ -4343,11 +4367,15 @@ describe('KycController', () => {
           });
           handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
-          await controller.acceptTermsAndStartSession({
-            email: 'a@b.co',
-            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
-            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-          });
+          await expect(
+            controller.acceptTermsAndStartSession({
+              email: 'a@b.co',
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            }),
+          ).rejects.toThrow(
+            'Session disclaimer catalog is missing documents for an accepted category.',
+          );
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.error).toMatch(
@@ -4388,11 +4416,13 @@ describe('KycController', () => {
           );
           handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
-          await controller.acceptTermsAndStartSession({
-            email: 'a@b.co',
-            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
-            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-          });
+          await expect(
+            controller.acceptTermsAndStartSession({
+              email: 'a@b.co',
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            }),
+          ).rejects.toThrow("Fetching 'disclaimers' failed with status '409'");
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.error).toMatch(/Consents session failed/u);
