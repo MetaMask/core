@@ -305,7 +305,9 @@ describe('MFA services', () => {
       );
 
     const verifyEmail = async (): Promise<unknown> =>
-      await mfaVerify(Env.PRD, 'access-token', { credential_type: 'email_otp' });
+      await mfaVerify(Env.PRD, 'access-token', {
+        credential_type: 'email_otp',
+      });
 
     await expect(verifyEmail()).rejects.toMatchObject({
       mfaCode: 'otp_resend_cooldown',
@@ -372,6 +374,35 @@ describe('MFA services', () => {
     await expect(
       getMfaCredentials(Env.PRD, 'access-token'),
     ).rejects.toMatchObject({ mfaCode: 'server_error' });
+  });
+
+  it('classifies gateway 429 and 502 responses that carry no JSON body', async () => {
+    mockFetch
+      .mockResolvedValueOnce(
+        new globalThis.Response('<html>throttled</html>', {
+          status: 429,
+          headers: { 'Content-Type': 'text/html', 'Retry-After': '20' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new globalThis.Response('', {
+          status: 502,
+          headers: { 'Content-Type': 'text/plain' },
+        }),
+      );
+
+    const throttled = await getMfaCredentials(Env.PRD, 'access-token').catch(
+      (error) => error,
+    );
+    expect(throttled).toBeInstanceOf(MfaRateLimitedError);
+    expect(throttled).toMatchObject({
+      mfaCode: 'rate_limited',
+      retryAfterMs: 20_000,
+      status: 429,
+    });
+    await expect(
+      getMfaCredentials(Env.PRD, 'access-token'),
+    ).rejects.toMatchObject({ mfaCode: 'kratos_unavailable', status: 502 });
   });
 
   it('recognises a rejected token even without a JSON error body', async () => {

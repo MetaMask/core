@@ -208,26 +208,16 @@ async function throwMfaError(
 ): Promise<never> {
   const { status } = response;
   const body = await readErrorBody(response);
+  const message = `${errorPrefix}: ${body?.message ?? `HTTP ${status}`}`;
 
-  // A rejected token must be recognised even when a gateway answers without
-  // the service's JSON error body, so the caller can invalidate its session.
+  // Status-only classification first: gateways and load balancers answer
+  // 401/429/502 without the service's JSON body, and the caller still needs
+  // to invalidate its session, honour Retry-After, or back off.
   if (status === HTTP_STATUS_CODES.UNAUTHORIZED) {
-    throw new MfaError(
-      'authentication_required',
-      `${errorPrefix}: ${body?.message ?? 'Unauthorized'}`,
-      { status },
-    );
-  }
-  if (!body) {
-    throw new MfaError(
-      'invalid_response',
-      `${errorPrefix}: Unexpected error response (HTTP ${status})`,
-      { status },
-    );
+    throw new MfaError('authentication_required', message, { status });
   }
 
-  const message = `${errorPrefix}: ${body.message}`;
-  const { code } = body;
+  const code = body?.code;
   switch (code) {
     case 'credential_already_enrolled':
     case 'email_already_enrolled':
@@ -258,18 +248,23 @@ async function throwMfaError(
     case 'kratos_unavailable':
       throw new MfaUnavailableError(message, status);
     default:
-      if (status === HTTP_STATUS_CODES.TOO_MANY_REQUESTS) {
-        throw new MfaRateLimitedError(
-          message,
-          parseRetryAfter(response),
-          status,
-        );
-      }
-      if (status === HTTP_STATUS_CODES.BAD_GATEWAY) {
-        throw new MfaUnavailableError(message, status);
-      }
-      throw new MfaError(code ?? 'server_error', message, { status });
+      break;
   }
+
+  if (status === HTTP_STATUS_CODES.TOO_MANY_REQUESTS) {
+    throw new MfaRateLimitedError(message, parseRetryAfter(response), status);
+  }
+  if (status === HTTP_STATUS_CODES.BAD_GATEWAY) {
+    throw new MfaUnavailableError(message, status);
+  }
+  if (!body) {
+    throw new MfaError(
+      'invalid_response',
+      `${errorPrefix}: Unexpected error response (HTTP ${status})`,
+      { status },
+    );
+  }
+  throw new MfaError(code ?? 'server_error', message, { status });
 }
 
 async function requestJson(
