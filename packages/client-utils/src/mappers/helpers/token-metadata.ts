@@ -1,7 +1,6 @@
-import contractMap from '@metamask/contract-metadata';
-import { toChecksumHexAddress } from '@metamask/controller-utils';
 import type { CaipChainId, Hex } from '@metamask/utils';
 
+import contractMap from './contract-metadata-index.json';
 import { formatAddressToAssetId } from './caip.js';
 
 export type KnownTokenMetadata = {
@@ -17,9 +16,7 @@ type ContractMetadataEntry = {
   erc20?: boolean;
 };
 
-const mainnetTokens = contractMap as Record<string, ContractMetadataEntry>;
-
-const mainnetAssetIdPrefix = 'eip155:1/';
+const metadataByAssetId = contractMap as Record<string, ContractMetadataEntry>;
 
 export function getKnownTokenMetadata(
   chainId: CaipChainId | Hex,
@@ -31,11 +28,11 @@ export function getKnownTokenMetadata(
 
   const assetId = formatAddressToAssetId(contractAddress, chainId);
 
-  if (!assetId?.startsWith(mainnetAssetIdPrefix)) {
+  if (!assetId) {
     return undefined;
   }
 
-  const entry = mainnetTokens[toChecksumHexAddress(contractAddress)];
+  const entry = metadataByAssetId[assetId];
 
   if (!entry) {
     return undefined;

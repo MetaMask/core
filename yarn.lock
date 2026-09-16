@@ -6347,7 +6347,6 @@ __metadata:
   dependencies:
     "@ethersproject/abi": "npm:^5.7.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
-    "@metamask/contract-metadata": "npm:^2.4.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/core-backend": "npm:^11.0.0"
     "@metamask/keyring-api": "npm:^24.0.0"

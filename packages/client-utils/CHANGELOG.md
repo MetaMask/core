@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Vendor the CAIP-19 token metadata index from [MetaMask/contract-metadata](https://github.com/MetaMask/contract-metadata) so `getKnownTokenMetadata` resolves multichain decimals and symbols beyond the stale npm release; refresh with `yarn workspace @metamask/client-utils run sync-contract-metadata` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
 - Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
 
 ### Fixed

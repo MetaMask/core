@@ -5,13 +5,18 @@ describe('getKnownTokenMetadata', () => {
     expect(getKnownTokenMetadata('eip155:1')).toBeUndefined();
   });
 
-  it('returns undefined for non-mainnet chains', () => {
+  it('returns metadata for a known token on a non-mainnet chain', () => {
     expect(
       getKnownTokenMetadata(
         'eip155:8453',
-        '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+        '0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D',
       ),
-    ).toBeUndefined();
+    ).toMatchObject({
+      symbol: 'wARS',
+      decimals: 18,
+      assetId:
+        'eip155:8453/erc20:0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D',
+    });
   });
 
   it('returns undefined for unknown mainnet tokens', () => {
