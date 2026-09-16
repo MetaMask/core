@@ -2340,22 +2340,37 @@ describe('MFA credential enrollment', () => {
     };
   }
 
+  /**
+   * Resolves once `enrolledCredentials` is written with a non-empty list.
+   *
+   * @param baseMessenger - Root messenger to observe.
+   * @returns A promise settled by the next credential-bearing state change.
+   */
+  function waitForCredentials(baseMessenger: RootMessenger): Promise<void> {
+    return new Promise((resolve) => {
+      baseMessenger.subscribe(
+        'AuthenticationController:stateChange',
+        (state: AuthenticationControllerState) => {
+          if ((state.enrolledCredentials?.length ?? 0) > 0) {
+            resolve();
+          }
+        },
+      );
+    });
+  }
+
   it('starts with an empty memory-only credential cache', () => {
     const { controller } = createController({
       state: { ...defaultState },
     });
     expect(controller.state.enrolledCredentials).toStrictEqual([]);
-    expect(controller.state.stepUpSessionExpiresAt).toBeUndefined();
   });
 
-  it('refreshes credentials and publishes changes only when data changes', async () => {
+  it('refreshes credentials and writes state only when data changes', async () => {
     mockEndpointMfaCredentials();
     const { controller, baseMessenger } = createController();
     const listener = jest.fn();
-    baseMessenger.subscribe(
-      'AuthenticationController:credentialsChanged',
-      listener,
-    );
+    baseMessenger.subscribe('AuthenticationController:stateChange', listener);
 
     expect(await controller.refreshEnrolledCredentials()).toHaveLength(2);
     expect(controller.state.enrolledCredentials).toHaveLength(2);
@@ -2413,7 +2428,6 @@ describe('MFA credential enrollment', () => {
       type: 'email_otp',
       flowId: 'enroll-email-flow-id',
       expiresAt: Date.parse('2099-09-07T14:30:00Z'),
-      emailSent: true,
     });
     await expect(
       controller.beginCredentialEnrollment({
@@ -2421,15 +2435,25 @@ describe('MFA credential enrollment', () => {
         reason: { operation: 'invalid operation' },
       }),
     ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
+    await expect(
+      controller.beginCredentialEnrollment({
+        type: 'passkey',
+        email: 'user@example.com',
+        reason: { operation: 'settings.addPasskey' },
+      }),
+    ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
   });
 
-  it('completes passkey enrollment and refreshes the cache', async () => {
+  it('completes passkey enrollment, refreshes the cache and traces the caller operation', async () => {
     mockEndpointMfaEnrollComplete();
     mockEndpointMfaCredentials();
-    const { controller } = createController();
+    const trace = jest.fn(
+      (_request: unknown, fn?: () => unknown): Promise<unknown> =>
+        Promise.resolve(fn?.()),
+    ) as unknown as TraceCallback;
+    const { controller } = createController({ trace });
 
     const credentials = await controller.completeCredentialEnrollment({
-      type: 'passkey',
       flowId: 'flow-id',
       proof: {
         type: 'passkey',
@@ -2443,12 +2467,28 @@ describe('MFA credential enrollment', () => {
           },
         },
       },
+      reason: { operation: 'settings.addPasskey' },
     });
 
     expect(credentials).toHaveLength(
       MOCK_MFA_CREDENTIALS_RESPONSE.credentials.length,
     );
     expect(controller.state.enrolledCredentials).toStrictEqual(credentials);
+    expect(trace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'MFA Enroll Complete',
+        tags: {
+          operation: 'settings.addPasskey',
+          credentialType: 'passkey',
+        },
+      }),
+      expect.any(Function),
+    );
+    // The primary SRP session is untouched: passkeys add no token claims.
+    expect(
+      controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].profile
+        .canonicalProfileId,
+    ).not.toBe('');
   });
 
   it('invalidates the primary SRP session after email enrollment', async () => {
@@ -2457,9 +2497,9 @@ describe('MFA credential enrollment', () => {
     const { controller } = createController();
 
     await controller.completeCredentialEnrollment({
-      type: 'email_otp',
       flowId: 'flow-id',
       proof: { type: 'email_otp', code: '123456' },
+      reason: { operation: 'settings.addEmail' },
     });
 
     expect(credentialsScope.isDone()).toBe(true);
@@ -2488,12 +2528,6 @@ describe('MFA credential enrollment', () => {
         enrolledCredentials: [],
       },
     });
-    const listener = jest.fn();
-    baseMessenger.subscribe(
-      'AuthenticationController:credentialsChanged',
-      listener,
-    );
-
     try {
       const refresh = controller.refreshEnrolledCredentials();
       await requestStarted;
@@ -2506,7 +2540,6 @@ describe('MFA credential enrollment', () => {
 
       await expect(refresh).rejects.toThrow('wallet is locked');
       expect(controller.state.enrolledCredentials).toStrictEqual([]);
-      expect(listener).not.toHaveBeenCalled();
     } finally {
       fetchSpy.mockRestore();
     }
@@ -2534,11 +2567,16 @@ describe('MFA credential enrollment', () => {
 
     expect(
       await controller.completeCredentialEnrollment({
-        type: 'email_otp',
         flowId: 'flow-id',
         proof: { type: 'email_otp', code: '123456' },
+        reason: { operation: 'settings.addEmail' },
       }),
     ).toStrictEqual(existing);
+    // The SRP session is still invalidated so the next token carries the claim.
+    expect(
+      controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].profile
+        .canonicalProfileId,
+    ).toBe('');
   });
 
   it.each([
@@ -2558,44 +2596,32 @@ describe('MFA credential enrollment', () => {
         baseMessenger: RootMessenger,
       ): void => baseMessenger.publish('KeyringController:lock'),
     ],
-  ])(
-    'clears cached credentials and publishes the change on %s',
-    (_name, act) => {
-      const { controller, baseMessenger } = createController({
-        state: {
-          ...mockSignedInState(),
-          enrolledCredentials: [
-            {
-              type: 'email_otp',
-              status: 'active',
-              email: 'user@example.com',
-              verified: true,
-            },
-          ],
-        },
-      });
-      const listener = jest.fn();
-      baseMessenger.subscribe(
-        'AuthenticationController:credentialsChanged',
-        listener,
-      );
+  ])('clears cached credentials on %s', (_name, act) => {
+    const { controller, baseMessenger } = createController({
+      state: {
+        ...mockSignedInState(),
+        enrolledCredentials: [
+          {
+            type: 'email_otp',
+            status: 'active',
+            email: 'user@example.com',
+            verified: true,
+          },
+        ],
+      },
+    });
 
-      act(controller, baseMessenger);
+    act(controller, baseMessenger);
 
-      expect(controller.state.enrolledCredentials).toStrictEqual([]);
-      expect(listener).toHaveBeenCalledWith({ credentials: [] });
-    },
-  );
+    expect(controller.state.enrolledCredentials).toStrictEqual([]);
+  });
 
-  it('does not publish a credential change when the cache is already empty', () => {
-    const { controller, baseMessenger } = createController();
+  it('does not write state on lock when the cache is already empty', () => {
+    const { baseMessenger } = createController();
     const listener = jest.fn();
-    baseMessenger.subscribe(
-      'AuthenticationController:credentialsChanged',
-      listener,
-    );
+    baseMessenger.subscribe('AuthenticationController:stateChange', listener);
 
-    controller.performSignOut();
+    baseMessenger.publish('KeyringController:lock');
 
     expect(listener).not.toHaveBeenCalled();
   });
@@ -2615,14 +2641,19 @@ describe('MFA credential enrollment', () => {
     ).rejects.toThrow('wallet is locked');
   });
 
-  it('automatically refreshes after sign-in only when enabled', async () => {
+  it('warms the credential cache after sign-in without blocking it, only when enabled', async () => {
     const enabledEndpoints = arrangeAuthAPIs();
     const enabled = createController({
       state: { ...defaultState },
       isMfaEnabled: () => true,
-    }).controller;
-    await enabled.performSignIn();
+    });
+    const warmed = waitForCredentials(enabled.baseMessenger);
+    await enabled.controller.performSignIn();
+    // Sign-in resolved before the credentials call had to complete.
+    expect(enabled.controller.state.isSignedIn).toBe(true);
+    await warmed;
     expect(enabledEndpoints.mockMfaCredentialsUrl.isDone()).toBe(true);
+    expect(enabled.controller.state.enrolledCredentials).toHaveLength(2);
 
     cleanAllNock();
     const disabledEndpoints = arrangeAuthAPIs();
@@ -2632,24 +2663,6 @@ describe('MFA credential enrollment', () => {
     }).controller;
     await disabled.performSignIn();
     expect(disabledEndpoints.mockMfaCredentialsUrl.isDone()).toBe(false);
-  });
-
-  it('refreshes after unlock when signed in and enabled', async () => {
-    mockEndpointMfaCredentials();
-    const { controller, baseMessenger } = createController({
-      isMfaEnabled: () => true,
-    });
-    const changed = new Promise<void>((resolve) => {
-      baseMessenger.subscribe(
-        'AuthenticationController:credentialsChanged',
-        () => resolve(),
-      );
-    });
-
-    baseMessenger.publish('KeyringController:unlock');
-    await changed;
-
-    expect(controller.state.enrolledCredentials).toHaveLength(2);
   });
 
   it('does not fail sign-in when automatic refresh fails', async () => {

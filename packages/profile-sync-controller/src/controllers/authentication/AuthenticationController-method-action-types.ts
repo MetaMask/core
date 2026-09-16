@@ -49,7 +49,7 @@ export type AuthenticationControllerBeginCredentialEnrollmentAction = {
  * credentials call can reuse the still-valid access token; the next token
  * fetch then includes the newly verified email claim.
  *
- * @param request - Flow identifier and platform or email proof.
+ * @param request - Flow identifier, platform or email proof, and trace reason.
  * @returns The refreshed credentials, or the existing cache if refresh fails.
  */
 export type AuthenticationControllerCompleteCredentialEnrollmentAction = {
