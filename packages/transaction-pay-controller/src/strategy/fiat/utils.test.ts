@@ -6,6 +6,7 @@ import type { Hex } from '@metamask/utils';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { NATIVE_TOKEN_ADDRESS } from '../../constants.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
+import { buildCaipAssetType } from '../../utils/token.js';
 import {
   ETH_MAINNET_FIAT_ASSET,
   FIAT_ASSET_ID_BY_TX_TYPE,
@@ -252,9 +253,9 @@ describe('Fiat Utils', () => {
     const {
       messenger: resolveMessenger,
       findNetworkClientIdByChainIdMock,
+      getAssetsControllerStateMock,
       getNetworkClientByIdMock,
       getNetworkConfigurationByChainIdMock,
-      getTokensControllerStateMock,
       getRemoteFeatureFlagControllerStateMock:
         resolveRemoteFeatureFlagControllerStateMock,
     } = getMessengerMock();
@@ -272,26 +273,17 @@ describe('Fiat Utils', () => {
         ...getDefaultRemoteFeatureFlagControllerState(),
       });
 
-      getTokensControllerStateMock.mockReturnValue({
-        allTokens: {
-          [CHAIN_ID_MOCK]: {
-            '0x0': [
-              {
-                address: ERC20_ADDRESS_MOCK,
-                decimals: 6,
-                symbol: 'USDC',
-                aggregators: [],
-                image: '',
-                name: 'USDC',
-                isERC721: false,
-              },
-            ],
+      const assetId = buildCaipAssetType(CHAIN_ID_MOCK, ERC20_ADDRESS_MOCK);
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [assetId]: {
+            decimals: 6,
+            name: 'USDC',
+            symbol: 'USDC',
+            type: 'erc20',
           },
         },
-        allTokensStale: {},
-        allIgnoredTokens: {},
-        allDetectedTokens: {},
-      });
+      } as never);
     });
 
     it('returns on-chain ERC-20 amount and block number from receipt', async () => {
@@ -404,12 +396,7 @@ describe('Fiat Utils', () => {
     });
 
     it('throws when token info cannot be resolved for fallback', async () => {
-      getTokensControllerStateMock.mockReturnValue({
-        allTokens: {},
-        allTokensStale: {},
-        allIgnoredTokens: {},
-        allDetectedTokens: {},
-      });
+      getAssetsControllerStateMock.mockReturnValue({ assetsInfo: {} } as never);
 
       await expect(
         resolveSourceAmountRaw({

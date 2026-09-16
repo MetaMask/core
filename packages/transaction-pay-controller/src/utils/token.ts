@@ -1,6 +1,6 @@
 import { Interface } from '@ethersproject/abi';
-import { TokensControllerState } from '@metamask/assets-controllers';
-import { toChecksumHexAddress } from '@metamask/controller-utils';
+import { normalizeAssetId } from '@metamask/assets-controller';
+import type { AssetsControllerState } from '@metamask/assets-controller';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { createModuleLogger } from '@metamask/utils';
 import type { CaipAssetType, Hex } from '@metamask/utils';
@@ -10,18 +10,19 @@ import { BigNumber } from 'bignumber.js';
 import {
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
+  NATIVE_TOKEN_DECIMALS,
   SLIP44_COIN_TYPE_BY_CHAIN,
 } from '../constants.js';
 import { projectLogger } from '../logger.js';
 import type { FiatRates, TransactionPayControllerMessenger } from '../types.js';
-import {
-  getAssetsUnifyStateFeature,
-  getStablecoins,
-  isChainExcludedFromInfura,
-} from './feature-flags.js';
+import { getStablecoins, isChainExcludedFromInfura } from './feature-flags.js';
 import { getNetworkClientId, rpcRequest } from './provider.js';
 
 const log = createModuleLogger(projectLogger, 'token');
+const nativeAssetIdsByMetadata = new WeakMap<
+  AssetsControllerState['assetsInfo'],
+  Map<Hex, CaipAssetType | undefined>
+>();
 
 /**
  * Check if two tokens are the same (same address and chain).
@@ -59,51 +60,51 @@ export function getTokenBalance(
   chainId: Hex,
   tokenAddress: Hex,
 ): string {
-  const assetsUnifyStateFeatureEnabled = getAssetsUnifyStateFeature(messenger);
+  const { accountIdByAddress } = messenger.call('AccountsController:getState');
 
-  let tokenBalances;
-  let accountsByChainId;
-  if (assetsUnifyStateFeatureEnabled) {
-    const assetsControllerState = messenger.call(
-      'AssetsController:getStateForTransactionPay',
-    );
+  // Fall back to the lower-cased address, as a miss is usually attributable to
+  // a checksummed address being passed. Mirrors AccountsController#getAccountByAddress.
+  const accountId =
+    accountIdByAddress[account] ??
+    accountIdByAddress[account.toLowerCase() as Hex];
 
-    tokenBalances = assetsControllerState?.tokenBalances;
-    accountsByChainId = assetsControllerState?.accountsByChainId;
-  } else {
-    tokenBalances = messenger.call(
-      'TokenBalancesController:getState',
-    )?.tokenBalances;
-    accountsByChainId = messenger.call(
-      'AccountTrackerController:getState',
-    )?.accountsByChainId;
-  }
-
-  const normalizedAccount = account.toLowerCase() as Hex;
-  const normalizedTokenAddress = toChecksumHexAddress(tokenAddress) as Hex;
-  const isNative = normalizedTokenAddress === getNativeToken(chainId);
-
-  const balanceHex =
-    tokenBalances?.[normalizedAccount]?.[chainId]?.[normalizedTokenAddress];
-
-  if (!isNative && balanceHex === undefined) {
+  if (!accountId) {
     return '0';
   }
 
-  if (!isNative && balanceHex) {
-    return new BigNumber(balanceHex, 16).toString(10);
+  const { assetsBalance, assetsInfo } = messenger.call(
+    'AssetsController:getState',
+  );
+  const assetId = getControllerAssetId(assetsInfo, chainId, tokenAddress);
+
+  const amount = assetId
+    ? assetsBalance[accountId]?.[assetId]?.amount
+    : undefined;
+
+  if (amount === undefined) {
+    return '0';
   }
 
-  const chainAccounts = accountsByChainId?.[chainId];
+  // AssetsController stores human-readable decimal amounts, whereas callers of
+  // this function expect raw base units. Shift by the token decimals to convert.
+  const decimals = getTokenInfo(messenger, tokenAddress, chainId)?.decimals;
 
-  const checksumAccount = toChecksumHexAddress(normalizedAccount) as Hex;
-  const nativeBalanceHex = chainAccounts?.[checksumAccount]?.balance as Hex;
+  if (decimals === undefined) {
+    return '0';
+  }
 
-  return new BigNumber(nativeBalanceHex ?? '0x0', 16).toString(10);
+  return new BigNumber(amount)
+    .shiftedBy(decimals)
+    .toFixed(0, BigNumber.ROUND_DOWN);
 }
 
 /**
  * Get the token decimals for a specific token.
+ *
+ * Native tokens are not always present in `AssetsController` state, as it only
+ * tracks assets the wallet has discovered. For those, fall back to the EVM
+ * native default of 18 decimals and take the symbol from the network
+ * configuration, so that chains the wallet has not yet indexed still resolve.
  *
  * @param messenger - Controller messenger.
  * @param tokenAddress - Address of the token contract.
@@ -115,44 +116,28 @@ export function getTokenInfo(
   tokenAddress: Hex,
   chainId: Hex,
 ): { decimals: number; symbol: string } | undefined {
-  const assetsUnifyStateFeatureEnabled = getAssetsUnifyStateFeature(messenger);
+  const { assetsInfo } = messenger.call('AssetsController:getState');
+  const assetId = getControllerAssetId(assetsInfo, chainId, tokenAddress);
+  const token = assetId ? assetsInfo[assetId] : undefined;
 
-  let allTokens: TokensControllerState['allTokens'];
-  if (assetsUnifyStateFeatureEnabled) {
-    allTokens = messenger.call(
-      'AssetsController:getStateForTransactionPay',
-    )?.allTokens;
-  } else {
-    allTokens = messenger.call('TokensController:getState')?.allTokens;
-  }
-
-  const normalizedTokenAddress = tokenAddress.toLowerCase() as Hex;
-
-  const isNative =
-    normalizedTokenAddress === getNativeToken(chainId).toLowerCase();
-
-  const token = Object.values(allTokens?.[chainId] ?? {})
-    .flat()
-    .find(
-      (singleToken) =>
-        singleToken.address.toLowerCase() === normalizedTokenAddress,
-    );
-
-  if (!token && !isNative) {
-    return undefined;
-  }
-
-  if (token && !isNative) {
+  if (token) {
     return { decimals: Number(token.decimals), symbol: token.symbol };
   }
 
-  const ticker = getTicker(chainId, messenger);
+  const isNative =
+    tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
+
+  if (!isNative) {
+    return undefined;
+  }
+
+  const ticker = getTicker(messenger, chainId);
 
   if (!ticker) {
     return undefined;
   }
 
-  return { decimals: 18, symbol: ticker };
+  return { decimals: NATIVE_TOKEN_DECIMALS, symbol: ticker };
 }
 
 /**
@@ -168,66 +153,24 @@ export function getTokenFiatRate(
   tokenAddress: Hex,
   chainId: Hex,
 ): FiatRates | undefined {
-  const assetsUnifyStateFeatureEnabled = getAssetsUnifyStateFeature(messenger);
+  const { assetsInfo, assetsPrice } = messenger.call(
+    'AssetsController:getState',
+  );
+  const assetId = getControllerAssetId(assetsInfo, chainId, tokenAddress);
+  const price = assetId ? assetsPrice[assetId] : undefined;
 
-  let marketData;
-  let currencyRates;
-  if (assetsUnifyStateFeatureEnabled) {
-    const assetsControllerState = messenger.call(
-      'AssetsController:getStateForTransactionPay',
-    );
-
-    marketData = assetsControllerState?.marketData;
-    currencyRates = assetsControllerState?.currencyRates;
-  } else {
-    marketData = messenger.call('TokenRatesController:getState')?.marketData;
-    currencyRates = messenger.call(
-      'CurrencyRateController:getState',
-    )?.currencyRates;
-  }
-
-  const ticker = getTicker(chainId, messenger);
-
-  if (!ticker) {
+  if (price?.assetPriceType !== 'fungible') {
     return undefined;
   }
 
-  const normalizedTokenAddress = toChecksumHexAddress(tokenAddress) as Hex;
-  const isNative = normalizedTokenAddress === getNativeToken(chainId);
-
-  const tokenToNativeRate =
-    marketData?.[chainId]?.[normalizedTokenAddress]?.price;
-
-  if (tokenToNativeRate === undefined && !isNative) {
-    return undefined;
-  }
-
-  const {
-    conversionRate: nativeToFiatRate,
-    usdConversionRate: nativeToUsdRate,
-  } = currencyRates?.[ticker] ?? {
-    conversionRate: null,
-    usdConversionRate: null,
-  };
-
-  if (nativeToFiatRate === null || nativeToUsdRate === null) {
-    return undefined;
-  }
   const isStablecoin = getStablecoins(messenger)[chainId]?.includes(
     tokenAddress.toLowerCase() as Hex,
   );
 
-  const usdRate = isStablecoin
-    ? '1'
-    : new BigNumber(String(tokenToNativeRate ?? 1))
-        .multipliedBy(String(nativeToUsdRate))
-        .toString(10);
-
-  const fiatRate = new BigNumber(String(tokenToNativeRate ?? 1))
-    .multipliedBy(String(nativeToFiatRate))
-    .toString(10);
-
-  return { usdRate, fiatRate };
+  return {
+    fiatRate: String(price.price),
+    usdRate: isStablecoin ? '1' : String(price.usdPrice),
+  };
 }
 
 /**
@@ -310,8 +253,8 @@ export function getNativeToken(chainId: Hex): Hex {
  * Get the live on-chain token balance via an RPC `eth_call` to the ERC-20
  * `balanceOf` function, or `eth_getBalance` for native tokens.
  *
- * Unlike {@link getTokenBalance}, this bypasses the cached state in
- * `TokenBalancesController` and reads directly from the chain.
+ * Unlike {@link getTokenBalance}, this bypasses cached AssetsController state
+ * and reads directly from the chain.
  *
  * Uses the Infura RPC endpoint for the chain when one is configured, falling
  * back to the chain's default endpoint. This avoids errors on custom mainnet
@@ -424,22 +367,6 @@ export function buildCaipAssetType(
   return toCaipAssetType('eip155', chainReference, 'erc20', tokenAddress);
 }
 
-function getTicker(
-  chainId: Hex,
-  messenger: TransactionPayControllerMessenger,
-): string | undefined {
-  try {
-    const networkClientId = getNetworkClientId(messenger, chainId);
-
-    return messenger.call(
-      'NetworkController:getNetworkClientById',
-      networkClientId,
-    ).configuration.ticker;
-  } catch {
-    return undefined;
-  }
-}
-
 export enum TokenAddressTarget {
   Relay = 'relay',
   MetaMask = 'metamask',
@@ -485,4 +412,71 @@ export function normalizeTokenAddress(
   }
 
   return tokenAddress;
+}
+
+function getTicker(
+  messenger: TransactionPayControllerMessenger,
+  chainId: Hex,
+): string | undefined {
+  try {
+    const networkClientId = getNetworkClientId(messenger, chainId);
+
+    return messenger.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    ).configuration.ticker;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Resolve the canonical key used by AssetsController.
+ * Transaction calldata and configured assets can contain lowercase addresses,
+ * even though tokens selected by the client are already checksummed.
+ * Native IDs come from metadata and are cached per chain and metadata snapshot;
+ * balance and price updates reuse the cached ID.
+ *
+ * @param assetsInfo - Asset metadata keyed by CAIP-19 ID.
+ * @param chainId - Hex chain ID.
+ * @param tokenAddress - Token address.
+ * @returns Checksummed CAIP-19 asset ID, or undefined for an unknown native asset.
+ */
+function getControllerAssetId(
+  assetsInfo: AssetsControllerState['assetsInfo'],
+  chainId: Hex,
+  tokenAddress: Hex,
+): CaipAssetType | undefined {
+  const isNative = tokenAddress.toLowerCase() === getNativeToken(chainId);
+
+  if (!isNative) {
+    return normalizeAssetId(buildCaipAssetType(chainId, tokenAddress));
+  }
+
+  let nativeAssetIds = nativeAssetIdsByMetadata.get(assetsInfo);
+
+  if (!nativeAssetIds) {
+    nativeAssetIds = new Map();
+    nativeAssetIdsByMetadata.set(assetsInfo, nativeAssetIds);
+  }
+
+  if (nativeAssetIds.has(chainId)) {
+    return nativeAssetIds.get(chainId);
+  }
+
+  const chainPrefix = `eip155:${hexToBigInt(chainId)}/`;
+  let nativeAssetId: CaipAssetType | undefined;
+
+  for (const assetId in assetsInfo) {
+    if (
+      assetId.startsWith(chainPrefix) &&
+      assetsInfo[assetId].type === 'native'
+    ) {
+      nativeAssetId = assetId as CaipAssetType;
+      break;
+    }
+  }
+
+  nativeAssetIds.set(chainId, nativeAssetId);
+  return nativeAssetId;
 }
