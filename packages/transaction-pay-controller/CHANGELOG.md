@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controller` from `^16.0.0` to `^16.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242))
 - Bump `@metamask/assets-controllers` from `^112.0.1` to `^112.0.2` ([#10242](https://github.com/MetaMask/core/pull/10242))
 - Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.0.1` ([#10242](https://github.com/MetaMask/core/pull/10242))
+- Bump `@metamask/ramps-controller` from `^22.0.0` to `^23.0.0` ([#10259](https://github.com/MetaMask/core/pull/10259))
 
 ### Fixed
 
