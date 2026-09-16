@@ -43,6 +43,11 @@ import type {
   PhishingControllerTestOriginAction,
 } from './PhishingController-method-action-types.js';
 import { PhishingDetector } from './PhishingDetector.js';
+import { REQUEST_SOURCE_HEADER, buildRequestSource } from './request-source.js';
+import type {
+  RequestSourceFlow,
+  RequestSourcePlatform,
+} from './request-source.js';
 import {
   PhishingDetectorResultType,
   RecommendedAction,
@@ -388,6 +393,7 @@ export type PhishingControllerState = {
  * tokenScanCacheMaxSize - Maximum number of entries in the token scan cache.
  * addressScanCacheTTL - Time to live in seconds for cached address scan results.
  * addressScanCacheMaxSize - Maximum number of entries in the address scan cache.
+ * platform - Client emitting URL scans, reported via the `x-request-source` header.
  */
 export type PhishingControllerOptions = {
   stalelistRefreshInterval?: number;
@@ -401,6 +407,7 @@ export type PhishingControllerOptions = {
   addressScanCacheMaxSize?: number;
   messenger: PhishingControllerMessenger;
   state?: Partial<PhishingControllerState>;
+  platform?: RequestSourcePlatform;
 };
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -509,6 +516,8 @@ export class PhishingController extends BaseController<
 
   readonly #addressBookRecipients: Set<string>;
 
+  readonly #platform?: RequestSourcePlatform;
+
   #inProgressHotlistUpdate?: Promise<void>;
 
   #inProgressStalelistUpdate?: Promise<void>;
@@ -539,6 +548,9 @@ export class PhishingController extends BaseController<
    * @param config.addressScanCacheMaxSize - Maximum number of entries in the address scan cache.
    * @param config.messenger - The controller restricted messenger.
    * @param config.state - Initial state to set on this controller.
+   * @param config.platform - Client emitting URL scans, reported via the
+   * `x-request-source` header. When omitted, URL scans report an unattributed
+   * sentinel instead.
    */
   constructor({
     stalelistRefreshInterval = STALELIST_REFRESH_INTERVAL,
@@ -552,6 +564,7 @@ export class PhishingController extends BaseController<
     addressScanCacheMaxSize = DEFAULT_ADDRESS_SCAN_CACHE_MAX_SIZE,
     messenger,
     state = {},
+    platform,
   }: PhishingControllerOptions) {
     super({
       name: controllerName,
@@ -563,6 +576,7 @@ export class PhishingController extends BaseController<
       },
     });
 
+    this.#platform = platform;
     this.#stalelistRefreshInterval = stalelistRefreshInterval;
     this.#hotlistRefreshInterval = hotlistRefreshInterval;
     this.#c2DomainBlocklistRefreshInterval = c2DomainBlocklistRefreshInterval;
@@ -1208,9 +1222,15 @@ export class PhishingController extends BaseController<
    * Only supports web URLs (`http:` / `https:`).
    *
    * @param url - The URL to scan.
+   * @param flow - The flow that caused this scan, reported via the
+   * `x-request-source` header. Callers should always supply this; omitting it
+   * reports the scan as unattributed.
    * @returns The phishing detection scan result.
    */
-  async scanUrl(url: string): Promise<PhishingDetectionScanResult> {
+  async scanUrl(
+    url: string,
+    flow?: RequestSourceFlow,
+  ): Promise<PhishingDetectionScanResult> {
     const [scanUrlParam, scanParamOk] = getPhishingDetectionScanUrlParam(url);
     if (!scanParamOk) {
       return {
@@ -1235,6 +1255,7 @@ export class PhishingController extends BaseController<
             method: 'GET',
             headers: {
               Accept: 'application/json',
+              [REQUEST_SOURCE_HEADER]: buildRequestSource(this.#platform, flow),
             },
           },
         );
@@ -1281,10 +1302,14 @@ export class PhishingController extends BaseController<
    * It also only supports web URLs.
    *
    * @param urls - The URLs to scan.
+   * @param flow - The flow that caused this scan, reported via the
+   * `x-request-source` header. Callers should always supply this; omitting it
+   * reports the scan as unattributed.
    * @returns A mapping of URLs to their phishing detection scan results and errors.
    */
   async bulkScanUrls(
     urls: string[],
+    flow?: RequestSourceFlow,
   ): Promise<BulkPhishingDetectionScanResponse> {
     if (!urls || urls.length === 0) {
       return {
@@ -1353,7 +1378,7 @@ export class PhishingController extends BaseController<
 
       // Process each batch in parallel
       const batchResults = await Promise.all(
-        batches.map((batchUrls) => this.#processBatch(batchUrls)),
+        batches.map((batchUrls) => this.#processBatch(batchUrls, flow)),
       );
 
       // Merge results and errors from all batches
@@ -1692,10 +1717,13 @@ export class PhishingController extends BaseController<
    * Process a batch of URLs (up to 50) for phishing detection.
    *
    * @param urls - A batch of URLs to scan.
+   * @param flow - The flow that caused this scan, reported via the
+   * `x-request-source` header.
    * @returns The scan results and errors for this batch.
    */
   readonly #processBatch = async (
     urls: string[],
+    flow?: RequestSourceFlow,
   ): Promise<BulkPhishingDetectionScanResponse> => {
     const apiResponse = await safelyExecuteWithTimeout(
       async () => {
@@ -1706,6 +1734,7 @@ export class PhishingController extends BaseController<
             headers: {
               Accept: 'application/json',
               'Content-Type': 'application/json',
+              [REQUEST_SOURCE_HEADER]: buildRequestSource(this.#platform, flow),
             },
             body: JSON.stringify({ urls }),
           },

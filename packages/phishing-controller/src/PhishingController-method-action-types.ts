@@ -75,6 +75,9 @@ export type PhishingControllerBypassAction = {
  * Only supports web URLs (`http:` / `https:`).
  *
  * @param url - The URL to scan.
+ * @param flow - The flow that caused this scan, reported via the
+ * `x-request-source` header. Callers should always supply this; omitting it
+ * reports the scan as unattributed.
  * @returns The phishing detection scan result.
  */
 export type PhishingControllerScanUrlAction = {
@@ -87,6 +90,9 @@ export type PhishingControllerScanUrlAction = {
  * It also only supports web URLs.
  *
  * @param urls - The URLs to scan.
+ * @param flow - The flow that caused this scan, reported via the
+ * `x-request-source` header. Callers should always supply this; omitting it
+ * reports the scan as unattributed.
  * @returns A mapping of URLs to their phishing detection scan results and errors.
  */
 export type PhishingControllerBulkScanUrlsAction = {

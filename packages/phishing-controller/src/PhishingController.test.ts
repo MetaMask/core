@@ -34,6 +34,7 @@ import type {
   BulkPhishingDetectionScanResponse,
   PhishingControllerMessenger,
 } from './PhishingController.js';
+import { RequestSourceFlow, RequestSourcePlatform } from './request-source.js';
 import {
   createMockStateChangePayload,
   createMockTransaction,
@@ -3054,6 +3055,108 @@ describe('PhishingController', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(2);
 
       fetchSpy.mockRestore();
+    });
+  });
+
+  describe('request source attribution', () => {
+    // NOTE: nock does not model CORS preflight, so nothing here can catch a
+    // server-side `Access-Control-Allow-Headers` allowlist that omits
+    // `x-request-source`. That is verified against the service, not in tests.
+    const scanResponse: PhishingDetectionScanResult = {
+      hostname: 'example.com',
+      recommendedAction: RecommendedAction.None,
+    };
+
+    it('reports the composed source on a single URL scan', async () => {
+      const { rootMessenger } = getPhishingController({
+        platform: RequestSourcePlatform.Mobile,
+      });
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .matchHeader('x-request-source', 'Mobile-browser')
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, scanResponse);
+
+      await rootMessenger.call(
+        'PhishingController:scanUrl',
+        'https://example.com',
+        RequestSourceFlow.Browser,
+      );
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('reports the composed source on a bulk URL scan', async () => {
+      const { rootMessenger } = getPhishingController({
+        platform: RequestSourcePlatform.Extension,
+      });
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .matchHeader('x-request-source', 'Extension-nft-detection')
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`)
+        .reply(200, { results: {}, errors: {} });
+
+      await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        ['https://example.com'],
+        RequestSourceFlow.NftDetection,
+      );
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('reports the platform sentinel when a caller omits the flow', async () => {
+      const { rootMessenger } = getPhishingController({
+        platform: RequestSourcePlatform.Extension,
+      });
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .matchHeader('x-request-source', 'Extension-unknown')
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, scanResponse);
+
+      await rootMessenger.call(
+        'PhishingController:scanUrl',
+        'https://example.com',
+      );
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('reports the bare sentinel when no platform is configured', async () => {
+      const { rootMessenger } = getPhishingController();
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .matchHeader('x-request-source', 'unknown')
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, scanResponse);
+
+      await rootMessenger.call(
+        'PhishingController:scanUrl',
+        'https://example.com',
+        RequestSourceFlow.Browser,
+      );
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('degrades an unrecognised flow to the platform sentinel', async () => {
+      // Guards the plain-JavaScript call sites, which get no type checking.
+      const { rootMessenger } = getPhishingController({
+        platform: RequestSourcePlatform.Mobile,
+      });
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .matchHeader('x-request-source', 'Mobile-unknown')
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, scanResponse);
+
+      await rootMessenger.call(
+        'PhishingController:scanUrl',
+        'https://example.com',
+        'browsr' as RequestSourceFlow,
+      );
+
+      expect(scope.isDone()).toBe(true);
     });
   });
 
