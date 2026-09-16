@@ -11,9 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Uncategorized
 
-- Update lint:tsc to run against all packages & remove it from CI ([#10215](https://github.com/MetaMask/core/pull/10215))
-- chore: integrate `@metamask/utils` into `packages/` ([#10185](https://github.com/MetaMask/core/pull/10185))
-
 ### Changed
 
 - **BREAKING:** Remove `createOnChainPushNotificationMessage`, `createOnChainPushNotificationMessages`, and the `TranslationKeys` type. Push notification copy is now provided by the Notification API via `template`, so client-side translation keys are no longer required. ([#9184](https://github.com/MetaMask/core/pull/9184))
