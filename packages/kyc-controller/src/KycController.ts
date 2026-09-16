@@ -289,7 +289,8 @@ export type KycControllerState = {
 
   /**
    * Active UKYC session id from `createUkycSession`. `null` outside a
-   * document-verification sub-flow. Not persisted.
+   * document-verification sub-flow. Persisted so a restarted client can
+   * resume {@link KycController.refreshKycStatus} / polling.
    */
   sessionId: string | null;
   /**
@@ -425,7 +426,7 @@ const kycControllerMetadata = {
   sessionId: {
     includeInDebugSnapshot: false,
     includeInStateLogs: false,
-    persist: false,
+    persist: true,
     usedInUi: true,
   },
   sessionStatus: {
@@ -2213,12 +2214,13 @@ export class KycController extends BaseController<
    * {@link KycControllerStatusChangedEvent}, and schedules short-interval
    * polling while the status is not terminal.
    *
-   * No-ops without an active `sessionId`. Skipped when the recorded
+   * Throws without an active `sessionId`. Skipped when the recorded
    * {@link sessionStatus} is already successful (`approved` / `completed`): a
    * follow-up session status can still read a stale `pending` (for example
    * after `session_not_in_valid_state`) and must not undo that decision.
    *
    * @returns The recorded session status, or `null` if none.
+   * @throws If there is no active UKYC session to query.
    */
   async refreshKycStatus(): Promise<KycSessionStatusResponse | null> {
     if (
@@ -2252,10 +2254,11 @@ export class KycController extends BaseController<
    * poll loop (used by {@link refreshKycStatus}).
    *
    * @returns The recorded session status, or `null` if none.
+   * @throws If there is no active UKYC session to query.
    */
   async #fetchAndRecordSessionStatus(): Promise<KycSessionStatusResponse | null> {
     if (!this.state.sessionId) {
-      return this.state.sessionStatus;
+      throw new Error('Cannot fetch session status: no active session.');
     }
     const generation = this.#generation;
     try {

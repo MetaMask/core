@@ -10,12 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Move the active UKYC `sessionId` and `sessionStatus` from `sumsub` to the root of `KycControllerState`. ([#10276](https://github.com/MetaMask/core/pull/10276))
-  - Read `state.sessionId` / `state.sessionStatus` instead of `state.sumsub.sessionId` / `state.sumsub.sessionStatus`. Neither field is persisted.
+  - Read `state.sessionId` / `state.sessionStatus` instead of `state.sumsub.sessionId` / `state.sumsub.sessionStatus`. `sessionId` is persisted; `sessionStatus` is not.
 - **BREAKING:** `KycController.refreshKycStatus` now loads status from `GET /sessions/{id}/status` (`getSessionStatus`) instead of `GET /kyc/status`. ([#10276](https://github.com/MetaMask/core/pull/10276))
-  - Requires an active `sessionId`. Returns and publishes the UKYC `sessionStatus` payload as-is (`null` when none is recorded).
-  - Skips the network refresh when `finalStatus` is already successful (`approved` / `completed`); otherwise polls until a terminal status.
+  - Requires an active `sessionId` (throws if missing). Returns and publishes the UKYC `sessionStatus` payload as-is (`null` when none is recorded).
 - **BREAKING:** Replace `KycUserStatus` with `KycSessionStatus` (`new` | `pending` | `approved` | `rejected` | `retry`). ([#10276](https://github.com/MetaMask/core/pull/10276))
-  - `not-started` → `new`, `completed` → `approved`, `terminal-failure` → `rejected`. Drop `need-more-information`.
 - **BREAKING:** Rename the `GET /sessions/{id}/status` payload type from `KycSessionStatus` to `KycSessionStatusResponse`. ([#10276](https://github.com/MetaMask/core/pull/10276))
 - **BREAKING:** Remove `userStatus`, `userStatusSumsubSessionId`, and `userStatusErrorCode` from `KycControllerState`. ([#10276](https://github.com/MetaMask/core/pull/10276))
   - Read `state.sessionStatus`, or use `refreshKycStatus` / `KycController:statusChanged`.

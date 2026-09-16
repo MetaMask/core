@@ -181,6 +181,13 @@ describe('KycController', () => {
         },
       );
     });
+
+    it('persists sessionId across restarts', async () => {
+      await withController(({ controller }) => {
+        expect(controller.metadata.sessionId.persist).toBe(true);
+        expect(controller.metadata.sessionStatus.persist).toBe(false);
+      });
+    });
   });
 
   describe('initialize', () => {
@@ -4495,6 +4502,15 @@ describe('KycController', () => {
       );
     });
 
+    it('refreshKycStatus throws when there is no active sessionId', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await expect(controller.refreshKycStatus()).rejects.toThrow(
+          /no active SumSub session/u,
+        );
+        expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+      });
+    });
+
     it('refreshKycStatus stores status and emits statusChanged', async () => {
       await withController(
         {
@@ -4865,7 +4881,12 @@ describe('KycController', () => {
 
     it('defaults superseded refresh status to null when unset', async () => {
       await withController(
-        { options: { sessionStatusPollIntervalMs: 60_000 } },
+        {
+          options: {
+            state: { sessionId: 'sid' },
+            sessionStatusPollIntervalMs: 60_000,
+          },
+        },
         async ({ controller, handlers }) => {
           let release: (value: { status: string }) => void = () => {
             // placeholder

@@ -187,7 +187,7 @@ classDiagram
         +KycProduct activeProduct
         +Record kycRequiredByProduct [persisted]
         +string lastCheckedAt [persisted]
-        +string sessionId
+        +string sessionId [persisted]
         +KycSessionStatusResponse sessionStatus
         +SumSubState sumsub
     }
@@ -207,10 +207,11 @@ State metadata highlights (`kycControllerMetadata`):
 
 - **Persisted** (`persist: true`): `vendorDisclaimersAccepted`,
   `providerDisclaimersAccepted`, `idosDisclaimersAccepted`,
-  `kycRequiredByProduct`, `lastCheckedAt`. These survive restarts so the flow
-  can skip already-accepted terms and reuse cached results. Session-scoped
-  `sessionDisclaimers` and `credentialReusabilityConsentGiven` are in-memory
-  only (`persist: false`) and are cleared on `reset()`.
+  `kycRequiredByProduct`, `lastCheckedAt`, `sessionId`. These survive restarts
+  so the flow can skip already-accepted terms, reuse cached results, and
+  resume session-status refresh. Session-scoped `sessionDisclaimers` and
+  `credentialReusabilityConsentGiven` are in-memory only (`persist: false`)
+  and are cleared on `reset()`.
   Acceptance is vendor-scoped: `initialize` (and `createVendorCustomer`) drops
   the stored acceptance when it belongs to a different vendor, so one vendor's
   disclaimer ids are never submitted to another. The drop waits until the
@@ -218,7 +219,7 @@ State metadata highlights (`kycControllerMetadata`):
   path proceeds); a failed or reset switch leaves the previous vendor's
   acceptance in place.
 - **Secrets, never persisted / never logged**: `moonpaySessionToken`, `moonpayAccessToken`,
-  `moonpayCustomerId`, `email`, `vendorDisclaimers`, `sessionId`, and the whole `sumsub` sub-tree.
+  `moonpayCustomerId`, `email`, `vendorDisclaimers`, and the whole `sumsub` sub-tree.
   Switching away from MoonPay (`initialize` / `createVendorCustomer`) drops
   these MoonPay Check/Auth artifacts immediately so `buildCheckFrameUrl` cannot
   return a MoonPay URL while `activeVendor` is a consents-path vendor.

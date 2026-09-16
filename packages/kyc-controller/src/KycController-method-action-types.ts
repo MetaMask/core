@@ -235,12 +235,13 @@ export type KycControllerStartSumSubAction = {
  * {@link KycControllerStatusChangedEvent}, and schedules short-interval
  * polling while the status is not terminal.
  *
- * No-ops without an active `sessionId`. Skipped when the recorded
+ * Throws without an active `sessionId`. Skipped when the recorded
  * session status is already successful (`approved` / `completed`): a
  * follow-up session status can still read a stale `pending` (for example
  * after `session_not_in_valid_state`) and must not undo that decision.
  *
  * @returns The recorded session status, or `null` if none.
+ * @throws If there is no active UKYC session to query.
  */
 export type KycControllerRefreshKycStatusAction = {
   type: `KycController:refreshKycStatus`;
