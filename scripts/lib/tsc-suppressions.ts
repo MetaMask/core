@@ -71,6 +71,16 @@ const ERROR_REGEXP =
   /^(?<filePath>[^\s(][^(]*)\(\d+,\d+\): error (?<code>TS\d+): (?<message>.*)$/u;
 
 /**
+ * Matches a diagnostic that `tsc` reports without a file, such as:
+ *
+ * `error TS6053: File 'nope.ts' not found.`
+ *
+ * These report a broken build rather than a type error — a missing config, an
+ * unresolvable project reference — so they are never suppressed.
+ */
+const FILELESS_DIAGNOSTIC_REGEXP = /^error TS\d+: .*$/u;
+
+/**
  * Builds the key under which errors are grouped, matching how suppressions are
  * keyed.
  *
@@ -103,6 +113,22 @@ export function parseTscOutput(output: string): TscError[] {
   }
 
   return errors;
+}
+
+/**
+ * Extracts the diagnostics that `tsc` reports without a file.
+ *
+ * `tsc --build` carries on typechecking the remaining projects after one fails
+ * to load, so these can otherwise hide behind the type errors that the other
+ * projects report.
+ *
+ * @param output - The combined stdout and stderr of a `tsc` run.
+ * @returns The matching lines, verbatim.
+ */
+export function findFilelessDiagnostics(output: string): string[] {
+  return output
+    .split('\n')
+    .filter((line) => FILELESS_DIAGNOSTIC_REGEXP.test(line));
 }
 
 /**

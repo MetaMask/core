@@ -4,6 +4,7 @@ import path from 'path';
 import {
   buildSuppressions,
   compareErrorsToSuppressions,
+  findFilelessDiagnostics,
   parseTscOutput,
   printReport,
   readSuppressions,
@@ -38,12 +39,21 @@ export async function lintTsc(argv: readonly string[]): Promise<void> {
   const errors = parseTscOutput(output);
 
   // `tsc` exits non-zero whenever it reports type errors, which are expected
-  // here and may well be suppressed. But if it failed without reporting any,
-  // something else went wrong — a missing config, a crash — and that must not
-  // be mistaken for a clean run.
-  if (exitCode !== 0 && errors.length === 0) {
-    console.log(output);
-    throw new Error('`tsc` failed without reporting any type errors.');
+  // here and may well be suppressed, so the exit code alone says little. A run
+  // is only genuinely broken if it reported a diagnostic that belongs to no
+  // file, or if it failed without reporting any type errors at all. Neither can
+  // be suppressed, and neither may be mistaken for a clean run.
+  const filelessDiagnostics = findFilelessDiagnostics(output);
+  if (
+    filelessDiagnostics.length > 0 ||
+    (exitCode !== 0 && errors.length === 0)
+  ) {
+    console.log(
+      filelessDiagnostics.length > 0 ? filelessDiagnostics.join('\n') : output,
+    );
+    throw new Error(
+      '`tsc` failed for a reason other than the type errors it reported.',
+    );
   }
 
   if (argv.includes('--update')) {
