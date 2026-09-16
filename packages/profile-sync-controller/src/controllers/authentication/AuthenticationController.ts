@@ -58,12 +58,6 @@ import { AuthenticationControllerMethodActions } from './AuthenticationControlle
 
 const controllerName = 'AuthenticationController';
 
-const defaultTrace = (<ReturnValue>(
-  _request: Parameters<TraceCallback>[0],
-  fn?: () => ReturnValue,
-): Promise<ReturnValue> =>
-  Promise.resolve(fn?.()) as Promise<ReturnValue>) as TraceCallback;
-
 // State
 export type AuthenticationControllerState = {
   isSignedIn: boolean;
@@ -74,7 +68,6 @@ export type AuthenticationControllerState = {
    * assignable to the controller state type.
    */
   enrolledCredentials?: EnrolledCredential[];
-  stepUpSessionExpiresAt?: number;
   /**
    * Client gate for profile pairing. Defaults to `true` (fresh install /
    * upgrade), set to `false` after a successful `performSignIn` pair, set
@@ -176,12 +169,6 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
-  stepUpSessionExpiresAt: {
-    includeInStateLogs: false,
-    persist: false,
-    includeInDebugSnapshot: false,
-    usedInUi: true,
-  },
 };
 
 type ControllerConfig = {
@@ -192,11 +179,13 @@ type ControllerConfig = {
    * `() => false`.
    */
   isSocialPairingEnabled: () => boolean;
+  /**
+   * When `true`, `performSignIn` refreshes `enrolledCredentials` after the
+   * session is established. MFA methods themselves are never gated; the
+   * client decides when to expose them. Defaults to `() => false`.
+   */
   isMfaEnabled: () => boolean;
-  stepUpSessionTtlMs: number;
 };
-
-export const STEP_UP_SESSION_TTL_MS = 60_000;
 
 const MESSENGER_EXPOSED_METHODS = [
   'performSignIn',
@@ -241,21 +230,9 @@ export type AuthenticationControllerProfileSignInEvent = {
   payload: [ProfileSignInInfo];
 };
 
-export type AuthenticationControllerCredentialsChangedEvent = {
-  type: `${typeof controllerName}:credentialsChanged`;
-  payload: [{ credentials: EnrolledCredential[] }];
-};
-
-export type AuthenticationControllerStepUpSessionEvent = {
-  type: `${typeof controllerName}:stepUpSession`;
-  payload: [{ active: boolean; expiresAt: number | null }];
-};
-
 export type Events =
   | AuthenticationControllerStateChangeEvent
-  | AuthenticationControllerProfileSignInEvent
-  | AuthenticationControllerCredentialsChangedEvent
-  | AuthenticationControllerStepUpSessionEvent;
+  | AuthenticationControllerProfileSignInEvent;
 
 // Allowed Actions
 type AllowedActions =
@@ -292,7 +269,6 @@ export class AuthenticationController extends BaseController<
     env: Env.PRD,
     isSocialPairingEnabled: () => false,
     isMfaEnabled: () => false,
-    stepUpSessionTtlMs: STEP_UP_SESSION_TTL_MS,
   };
 
   #isUnlocked = false;
@@ -310,9 +286,6 @@ export class AuthenticationController extends BaseController<
 
       this.messenger.subscribe('KeyringController:unlock', () => {
         this.#isUnlocked = true;
-        if (this.state.isSignedIn && this.#config.isMfaEnabled()) {
-          this.refreshEnrolledCredentials().catch(() => undefined);
-        }
       });
 
       this.messenger.subscribe('KeyringController:lock', () => {
@@ -359,7 +332,7 @@ export class AuthenticationController extends BaseController<
     };
 
     this.#metametrics = metametrics;
-    this.#trace = trace ?? defaultTrace;
+    this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     this.#auth = new JwtBearerAuth(
       {
@@ -584,8 +557,10 @@ export class AuthenticationController extends BaseController<
       // noop
     }
 
+    // Best-effort warm-up of the credential cache. Not awaited: sign-in must
+    // not wait on the MFA service, and MFA flows refresh explicitly anyway.
     if (this.#config.isMfaEnabled()) {
-      await this.refreshEnrolledCredentials().catch(() => undefined);
+      this.refreshEnrolledCredentials().catch(() => undefined);
     }
 
     return accessTokens;
@@ -815,7 +790,17 @@ export class AuthenticationController extends BaseController<
     );
   }
 
-  async #traceMfaRequest<Result>(
+  /**
+   * Runs one MFA network step inside a trace span tagged with the caller's
+   * operation and the credential type, recording the outcome and MFA code.
+   *
+   * @param name - Span name.
+   * @param operation - Caller-supplied `reason.operation`.
+   * @param credentialType - Credential type the step concerns.
+   * @param fn - The network step.
+   * @returns The step's result.
+   */
+  async #runMfaRequest<Result>(
     name: string,
     operation: string,
     credentialType: string,
@@ -853,7 +838,7 @@ export class AuthenticationController extends BaseController<
   public async refreshEnrolledCredentials(): Promise<EnrolledCredential[]> {
     this.#assertIsUnlocked('refreshEnrolledCredentials');
     const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
-    const credentials = await this.#traceMfaRequest(
+    const credentials = await this.#runMfaRequest(
       'MFA Credentials Refresh',
       'credentials.refresh',
       'all',
@@ -861,15 +846,14 @@ export class AuthenticationController extends BaseController<
     );
     this.#assertIsUnlocked('refreshEnrolledCredentials');
 
+    // Skip the write when nothing changed so subscribers are not woken up by
+    // a fresh-but-identical array.
     if (
       JSON.stringify(credentials) !==
       JSON.stringify(this.state.enrolledCredentials ?? [])
     ) {
       this.update((state) => {
         state.enrolledCredentials = credentials;
-      });
-      this.messenger.publish('AuthenticationController:credentialsChanged', {
-        credentials,
       });
     }
     return credentials;
@@ -887,7 +871,7 @@ export class AuthenticationController extends BaseController<
     this.#assertIsUnlocked('beginCredentialEnrollment');
     assertValidMfaRequest(request, BeginEnrollmentRequestStruct);
     const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
-    return await this.#traceMfaRequest(
+    return await this.#runMfaRequest(
       'MFA Enroll Begin',
       request.reason.operation,
       request.type,
@@ -908,7 +892,7 @@ export class AuthenticationController extends BaseController<
    * credentials call can reuse the still-valid access token; the next token
    * fetch then includes the newly verified email claim.
    *
-   * @param request - Flow identifier and platform or email proof.
+   * @param request - Flow identifier, platform or email proof, and trace reason.
    * @returns The refreshed credentials, or the existing cache if refresh fails.
    */
   public async completeCredentialEnrollment(
@@ -916,14 +900,15 @@ export class AuthenticationController extends BaseController<
   ): Promise<EnrolledCredential[]> {
     this.#assertIsUnlocked('completeCredentialEnrollment');
     assertValidMfaRequest(request, CompleteEnrollmentRequestStruct);
+    const { type } = request.proof;
     const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
-    await this.#traceMfaRequest(
+    await this.#runMfaRequest(
       'MFA Enroll Complete',
-      'credentials.enroll.complete',
-      request.type,
+      request.reason.operation,
+      type,
       async () =>
         await this.#auth.completeMfaEnrollment(
-          request.type,
+          type,
           request.flowId,
           request.proof,
           primaryEntropySourceId,
@@ -931,23 +916,20 @@ export class AuthenticationController extends BaseController<
     );
 
     try {
-      const credentials = await this.refreshEnrolledCredentials();
-      if (request.type === 'email_otp') {
-        this.#invalidateSrpSession(primaryEntropySourceId);
-      }
-      return credentials;
+      return await this.refreshEnrolledCredentials();
     } catch {
-      if (request.type === 'email_otp') {
+      return this.state.enrolledCredentials ?? [];
+    } finally {
+      if (type === 'email_otp') {
         this.#invalidateSrpSession(primaryEntropySourceId);
       }
-      return this.state.enrolledCredentials ?? [];
     }
   }
 
   /**
-   * Drops the cached credential list and notifies listeners. Callers that wipe
-   * profile state must go through this so subscribers never keep credentials
-   * belonging to a profile that is no longer active.
+   * Drops the cached credential list. Callers that wipe profile state must go
+   * through this so subscribers never keep credentials belonging to a profile
+   * that is no longer active.
    */
   #clearEnrolledCredentials(): void {
     if ((this.state.enrolledCredentials?.length ?? 0) === 0) {
@@ -955,9 +937,6 @@ export class AuthenticationController extends BaseController<
     }
     this.update((state) => {
       state.enrolledCredentials = [];
-    });
-    this.messenger.publish('AuthenticationController:credentialsChanged', {
-      credentials: [],
     });
   }
 
