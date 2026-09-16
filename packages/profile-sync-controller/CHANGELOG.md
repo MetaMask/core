@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add validated MFA domain types, structured errors, and JWT claim decoding utilities ([#10264](https://github.com/MetaMask/core/pull/10264))
+- Add validated MFA domain types and structured `MfaError` classes with a serialization-safe `mfaCode` ([#10264](https://github.com/MetaMask/core/pull/10264))
 - Add `rampsOrders` to `USER_STORAGE_FEATURE_NAMES` ([#10227](https://github.com/MetaMask/core/pull/10227))
 
 ## [32.1.1]

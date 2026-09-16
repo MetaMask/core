@@ -111,38 +111,14 @@ export const AuthenticationResponseJSONStruct = type({
   clientExtensionResults: optional(ExtensionsStruct),
 });
 
-const ProfileStruct = type({
-  profile_id: string(),
-
-  identifier_id: string(),
-
-  identifier_type: string(),
-
-  metametrics_id: optional(string()),
-});
-
-const ProfileAliasStruct = type({
-  alias_profile_id: string(),
-
-  canonical_profile_id: string(),
-
-  identifier_ids: optional(
-    array(
-      type({
-        id: string(),
-        type: string(),
-      }),
-    ),
-  ),
-});
-
-export const AuthenticationResponseStruct = type({
+/**
+ * Only the assertion JWT is consumed from the verification response; the
+ * profile fields on the wire duplicate what the login flow already resolved.
+ */
+export const MfaVerifyCompleteResponseStruct = type({
   token: string(),
 
   expires_in: integer(),
-  profile: ProfileStruct,
-
-  profile_aliases: optional(array(ProfileAliasStruct)),
 });
 
 export const MfaEnrollResponseStruct = type({
@@ -177,11 +153,11 @@ export const MfaEmailDetailStruct = type({
 });
 
 export const MfaCredentialStruct = type({
-  // Intentionally accepts strings so future server credential types can be
-  // ignored without making the complete response invalid.
+  // Intentionally accepts strings so future server credential types and
+  // statuses can be ignored without making the complete response invalid.
 
   credential_type: string(),
-  status: enums(['active', 'pending']),
+  status: string(),
 
   enrolled_at: optional(string()),
   passkey: optional(MfaPasskeyDetailStruct),
@@ -199,7 +175,6 @@ export const MfaErrorResponseStruct = type({
 
 export const TokenReasonStruct = object({
   operation: pattern(string(), /^[A-Za-z0-9_.:-]{1,64}$/u),
-  description: optional(string()),
 });
 
 export const BeginEnrollmentRequestStruct = refine(
@@ -209,60 +184,57 @@ export const BeginEnrollmentRequestStruct = refine(
     reason: TokenReasonStruct,
   }),
   'BeginEnrollmentRequest',
-  (value) =>
-    value.type !== 'email_otp' || value.email !== undefined
-      ? true
-      : 'email is required for email_otp enrollment',
+  (value) => {
+    if (value.type === 'email_otp' && value.email === undefined) {
+      return 'email is required for email_otp enrollment';
+    }
+    if (value.type === 'passkey' && value.email !== undefined) {
+      return 'email is not accepted for passkey enrollment';
+    }
+    return true;
+  },
 );
 
-const PasskeyEnrollmentProofStruct = object({
-  type: literal('passkey'),
-  attestation: RegistrationResponseJSONStruct,
-});
+const EmailOtpCodeStruct = pattern(string(), /^\d{6}$/u);
 
-const EmailOtpProofStruct = object({
-  type: literal('email_otp'),
-  code: pattern(string(), /^\d{6}$/u),
-});
-
-export const CompleteEnrollmentRequestStruct = refine(
+const EnrollmentProofStruct = union([
   object({
-    type: MfaCredentialTypeStruct,
-    flowId: string(),
-    proof: union([PasskeyEnrollmentProofStruct, EmailOtpProofStruct]),
+    type: literal('passkey'),
+    attestation: RegistrationResponseJSONStruct,
   }),
-  'CompleteEnrollmentRequest',
-  (value) =>
-    value.type === value.proof.type ? true : 'type must match the proof type',
-);
+  object({
+    type: literal('email_otp'),
+    code: EmailOtpCodeStruct,
+  }),
+]);
 
-export const BeginStepUpRequestStruct = object({
-  credentialType: MfaCredentialTypeStruct,
+export const CompleteEnrollmentRequestStruct = object({
+  flowId: string(),
+  proof: EnrollmentProofStruct,
   reason: TokenReasonStruct,
 });
 
-const PasskeyStepUpProofStruct = object({
-  type: literal('passkey'),
-  assertion: AuthenticationResponseJSONStruct,
+export const BeginStepUpRequestStruct = object({
+  type: MfaCredentialTypeStruct,
+  reason: TokenReasonStruct,
 });
 
-const EmailOtpStepUpProofStruct = object({
-  type: literal('email_otp'),
-  code: pattern(string(), /^\d{6}$/u),
-});
-
-export const CompleteStepUpRequestStruct = refine(
+const StepUpProofStruct = union([
   object({
-    credentialType: MfaCredentialTypeStruct,
-    flowId: string(),
-    proof: union([PasskeyStepUpProofStruct, EmailOtpStepUpProofStruct]),
+    type: literal('passkey'),
+    assertion: AuthenticationResponseJSONStruct,
   }),
-  'CompleteStepUpRequest',
-  (value) =>
-    value.credentialType === value.proof.type
-      ? true
-      : 'credentialType must match the proof type',
-);
+  object({
+    type: literal('email_otp'),
+    code: EmailOtpCodeStruct,
+  }),
+]);
+
+export const CompleteStepUpRequestStruct = object({
+  flowId: string(),
+  proof: StepUpProofStruct,
+  reason: TokenReasonStruct,
+});
 
 export const GetElevatedTokenRequestStruct = object({
   maxSessionAgeMs: optional(min(integer(), 0)),
@@ -326,19 +298,37 @@ export function assertValidMfaRequest<Value>(
   }
 }
 
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
 /**
  * Validates and normalizes claims from an elevated access token.
  *
- * @param value - Decoded JWT payload.
+ * Hydra places hook-supplied claims under `ext` unless they are promoted to
+ * the top level, so `aal` and `amr` are read from either location.
+ *
+ * @param payload - Decoded JWT payload.
  * @returns Validated claims with `amr` represented as an array.
  * @throws ElevatedTokenInvalidError if claims are missing or invalid.
  */
-export function parseElevatedTokenClaims(value: unknown): {
+export function parseElevatedTokenClaims(payload: unknown): {
   sub: string;
   aal: 2;
   exp: number;
   amr: ('passkey' | 'email_otp')[];
 } {
+  const record = asRecord(payload);
+  const ext = asRecord(record?.ext);
+  const value: unknown = {
+    sub: record?.sub,
+    exp: record?.exp,
+    aal: record?.aal ?? ext?.aal,
+    amr: record?.amr ?? ext?.amr,
+  };
+
   try {
     assert(value, ElevatedTokenClaimsStruct);
   } catch (error) {

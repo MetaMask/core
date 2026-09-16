@@ -162,17 +162,40 @@ describe('MFA schemas', () => {
     ).toThrow(/MFA\[invalid_request\].*\[reason.operation\]/u);
   });
 
-  it('rejects unknown request fields and mismatched proofs', () => {
+  it('rejects an email on passkey enrollment', () => {
     expect(() =>
       assertValidMfaRequest(
         {
           type: 'passkey',
+          email: 'user@example.com',
+          reason: { operation: 'settings.addPasskey' },
+        },
+        BeginEnrollmentRequestStruct,
+      ),
+    ).toThrow(/email is not accepted/u);
+  });
+
+  it('rejects unknown request fields and malformed proofs', () => {
+    expect(() =>
+      assertValidMfaRequest(
+        {
           flowId: 'flow-id',
-          proof: { type: 'email_otp', code: '123456' },
+          proof: { type: 'email_otp', code: '12345' },
+          reason: { operation: 'settings.addEmail' },
         },
         CompleteEnrollmentRequestStruct,
       ),
-    ).toThrow(/type must match/u);
+    ).toThrow(/MFA\[invalid_request\].*\[proof\]/u);
+
+    expect(() =>
+      assertValidMfaRequest(
+        {
+          flowId: 'flow-id',
+          proof: { type: 'passkey', attestation: registration },
+        },
+        CompleteEnrollmentRequestStruct,
+      ),
+    ).toThrow(/\[reason\]/u);
 
     expect(() =>
       assertValidMfaRequest(
@@ -184,6 +207,17 @@ describe('MFA schemas', () => {
         BeginEnrollmentRequestStruct,
       ),
     ).toThrow(/extra/u);
+  });
+
+  it('accepts credential rows with unknown statuses', () => {
+    expect(() =>
+      assertValidMfaResponse(
+        {
+          credentials: [{ credential_type: 'passkey', status: 'revoked' }],
+        },
+        MfaCredentialsResponseStruct,
+      ),
+    ).not.toThrow();
   });
 
   it('normalizes elevated-token authentication methods', () => {
@@ -211,14 +245,29 @@ describe('MFA schemas', () => {
     ).toStrictEqual(['email_otp']);
   });
 
-  it('rejects tokens that are not AAL2', () => {
-    expect(() =>
+  it('reads step-up claims nested under the Hydra ext claim', () => {
+    expect(
       parseElevatedTokenClaims({
         sub: 'profile-id',
-        aal: 1,
         exp: 2_000_000_000,
-        amr: 'passkey',
+        ext: { aal: 2, amr: ['passkey'] },
       }),
-    ).toThrow(/MFA\[elevated_token_invalid\]/u);
+    ).toStrictEqual({
+      sub: 'profile-id',
+      aal: 2,
+      exp: 2_000_000_000,
+      amr: ['passkey'],
+    });
+  });
+
+  it.each([
+    ['AAL1', { sub: 'profile-id', aal: 1, exp: 2_000_000_000, amr: 'passkey' }],
+    ['AAL1 under ext', { sub: 'profile-id', exp: 1, ext: { aal: 1 } }],
+    ['missing claims', { sub: 'profile-id', exp: 2_000_000_000 }],
+    ['non-object payload', 'not-a-payload'],
+  ])('rejects tokens without AAL2 claims (%s)', (_name, payload) => {
+    expect(() => parseElevatedTokenClaims(payload)).toThrow(
+      /MFA\[elevated_token_invalid\]/u,
+    );
   });
 });

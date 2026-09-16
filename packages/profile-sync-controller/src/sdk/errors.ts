@@ -55,14 +55,24 @@ export class CredentialNotEnrolledError extends MfaError {
   }
 }
 
+/**
+ * The begin/complete flow is stale or unknown; the client must restart it.
+ */
 export class MfaFlowExpiredError extends MfaError {
-  constructor(
-    code: 'flow_expired' | 'invalid_flow' | 'mfa_identity_missing',
-    message: string,
-    status?: number,
-  ) {
+  constructor(code: 'flow_expired' | 'invalid_flow', message: string, status?: number) {
     super(code, message, { status });
     this.name = 'MfaFlowExpiredError';
+  }
+}
+
+/**
+ * The profile has no identity-provider record yet. Not a stale flow: the
+ * user must enroll a first credential before verifying.
+ */
+export class MfaIdentityMissingError extends MfaError {
+  constructor(message: string, status = HTTP_STATUS_CODES.CONFLICT) {
+    super('mfa_identity_missing', message, { status });
+    this.name = 'MfaIdentityMissingError';
   }
 }
 
@@ -112,8 +122,27 @@ export class OtpResendCooldownError extends MfaError {
   }
 }
 
+/**
+ * A 429 without an MFA-specific code: generic throttling, not an OTP resend
+ * cooldown.
+ */
+export class MfaRateLimitedError extends MfaError {
+  constructor(
+    message: string,
+    retryAfterMs?: number,
+    status = HTTP_STATUS_CODES.TOO_MANY_REQUESTS,
+  ) {
+    super('rate_limited', message, { status, retryAfterMs });
+    this.name = 'MfaRateLimitedError';
+  }
+}
+
+/**
+ * The identity provider or the network is unreachable. Safe to retry.
+ * `status` is only set when the service answered.
+ */
 export class MfaUnavailableError extends MfaError {
-  constructor(message: string, status = HTTP_STATUS_CODES.BAD_GATEWAY) {
+  constructor(message: string, status?: number) {
     super('kratos_unavailable', message, { status });
     this.name = 'MfaUnavailableError';
   }

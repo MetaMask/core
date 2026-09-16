@@ -8,6 +8,8 @@ import {
   MaxPasskeysReachedError,
   MfaError,
   MfaFlowExpiredError,
+  MfaIdentityMissingError,
+  MfaRateLimitedError,
   MfaUnavailableError,
   MfaVerificationFailedError,
   OtpResendCooldownError,
@@ -61,10 +63,12 @@ describe('MFA errors', () => {
     const errors = [
       new CredentialNotEnrolledError('Not enrolled'),
       new MfaFlowExpiredError('flow_expired', 'Flow expired', 400),
+      new MfaIdentityMissingError('No identity'),
       new MfaVerificationFailedError('invalid_code', 'Invalid code', 400),
       new TooManyAttemptsError('Too many attempts', 400),
       new MaxPasskeysReachedError('Maximum passkeys reached'),
       new MaxIdentifiersReachedError('Maximum identifiers reached'),
+      new MfaRateLimitedError('Slow down', 5_000),
       new MfaUnavailableError('Identity provider unavailable'),
       new ElevatedTokenInvalidError('Expected AAL2 claims'),
     ];
@@ -72,13 +76,32 @@ describe('MFA errors', () => {
     expect(errors.map((error) => error.name)).toStrictEqual([
       'CredentialNotEnrolledError',
       'MfaFlowExpiredError',
+      'MfaIdentityMissingError',
       'MfaVerificationFailedError',
       'TooManyAttemptsError',
       'MaxPasskeysReachedError',
       'MaxIdentifiersReachedError',
+      'MfaRateLimitedError',
       'MfaUnavailableError',
       'ElevatedTokenInvalidError',
     ]);
+    expect(errors.map((error) => error.mfaCode)).toStrictEqual([
+      'credential_not_enrolled',
+      'flow_expired',
+      'mfa_identity_missing',
+      'invalid_code',
+      'too_many_attempts',
+      'max_passkeys_reached',
+      'max_identifiers_reached',
+      'rate_limited',
+      'kratos_unavailable',
+      'elevated_token_invalid',
+    ]);
+  });
+
+  it('does not invent an HTTP status for transport failures', () => {
+    expect(new MfaUnavailableError('fetch failed').status).toBeUndefined();
+    expect(new MfaUnavailableError('Bad gateway', 502).status).toBe(502);
   });
 
   it('reads direct retry delays and a serialized cause message', () => {

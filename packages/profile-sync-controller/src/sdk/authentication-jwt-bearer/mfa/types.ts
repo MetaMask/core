@@ -2,13 +2,13 @@ import type { Infer } from '@metamask/superstruct';
 
 import type {
   AuthenticationResponseJSONStruct,
-  AuthenticationResponseStruct,
   MfaCredentialStruct,
   MfaCredentialsResponseStruct,
   MfaEmailDetailStruct,
   MfaEnrollCompleteResponseStruct,
   MfaEnrollResponseStruct,
   MfaPasskeyDetailStruct,
+  MfaVerifyCompleteResponseStruct,
   MfaVerifyResponseStruct,
   PublicKeyCredentialCreationOptionsJSONStruct,
   PublicKeyCredentialRequestOptionsJSONStruct,
@@ -47,7 +47,7 @@ export type MfaEnrollCompleteResponse = Infer<
 export type MfaVerifyResponse = Infer<typeof MfaVerifyResponseStruct>;
 
 export type MfaVerifyCompleteResponse = Infer<
-  typeof AuthenticationResponseStruct
+  typeof MfaVerifyCompleteResponseStruct
 >;
 
 export type MfaCredentialsResponse = Infer<typeof MfaCredentialsResponseStruct>;
@@ -106,9 +106,12 @@ export type EnrolledCredential =
       verified: boolean;
     };
 
+/**
+ * Caller-supplied context attached to MFA trace spans. `operation` names the
+ * client flow that needs the credential (for example `money.signTransaction`).
+ */
 export type TokenReason = {
   operation: string;
-  description?: string;
 };
 
 export type EnrollmentChallenge =
@@ -122,7 +125,6 @@ export type EnrollmentChallenge =
       type: 'email_otp';
       flowId: string;
       expiresAt: number;
-      emailSent: true;
     };
 
 export type EnrollmentProof =
@@ -146,7 +148,6 @@ export type StepUpChallenge =
       type: 'email_otp';
       flowId: string;
       expiresAt: number;
-      deliverySent: true;
     };
 
 export type StepUpProof =
@@ -178,20 +179,20 @@ export type BeginEnrollmentRequest = {
 };
 
 export type CompleteEnrollmentRequest = {
-  type: MfaCredentialType;
   flowId: string;
   proof: EnrollmentProof;
+  reason: TokenReason;
 };
 
 export type BeginStepUpRequest = {
-  credentialType: MfaCredentialType;
+  type: MfaCredentialType;
   reason: TokenReason;
 };
 
 export type CompleteStepUpRequest = {
-  credentialType: MfaCredentialType;
   flowId: string;
   proof: StepUpProof;
+  reason: TokenReason;
 };
 
 export type GetElevatedTokenRequest = {
@@ -206,6 +207,7 @@ export type MfaErrorCode =
   | 'credential_not_enrolled'
   | 'mfa_identity_missing'
   | 'otp_resend_cooldown'
+  | 'rate_limited'
   | 'kratos_unavailable'
   | 'flow_expired'
   | 'invalid_flow'
