@@ -33,9 +33,11 @@ const PASSING_REPORT = {
  * Stubs a `tsc` run which produces the given output and one parsed error.
  *
  * @param output - The output that `tsc` should produce.
+ * @param exitCode - The code that `tsc` should exit with. It exits non-zero
+ * whenever it reports errors, so that is the default.
  */
-function mockTscRun(output: string): void {
-  jest.mocked(execa).mockResolvedValue({ all: output } as never);
+function mockTscRun(output: string, exitCode = 1): void {
+  jest.mocked(execa).mockResolvedValue({ all: output, exitCode } as never);
   jest.mocked(tscSuppressions.parseTscOutput).mockReturnValue([ERROR]);
 }
 
@@ -123,8 +125,10 @@ describe('lintTsc', () => {
     expect(process.exitCode).toBe(1);
   });
 
-  it('treats a run that produces no output as having no errors', async () => {
-    jest.mocked(execa).mockResolvedValue({ all: undefined } as never);
+  it('treats a successful run that produces no output as having no errors', async () => {
+    jest
+      .mocked(execa)
+      .mockResolvedValue({ all: undefined, exitCode: 0 } as never);
     jest.mocked(tscSuppressions.parseTscOutput).mockReturnValue([]);
     jest
       .mocked(tscSuppressions.compareErrorsToSuppressions)
@@ -133,6 +137,32 @@ describe('lintTsc', () => {
     await lintTsc([]);
 
     expect(tscSuppressions.parseTscOutput).toHaveBeenCalledWith('');
+  });
+
+  it('throws when tsc fails without reporting any type errors', async () => {
+    jest
+      .mocked(execa)
+      .mockResolvedValue({
+        all: 'error TS6053: not found',
+        exitCode: 1,
+      } as never);
+    jest.mocked(tscSuppressions.parseTscOutput).mockReturnValue([]);
+
+    await expect(lintTsc([])).rejects.toThrow(
+      '`tsc` failed without reporting any type errors.',
+    );
+    expect(tscSuppressions.compareErrorsToSuppressions).not.toHaveBeenCalled();
+  });
+
+  it('does not throw when tsc exits non-zero but reports type errors, as those may be suppressed', async () => {
+    mockTscRun('a.ts(1,1): error TS2322: Nope.');
+    jest
+      .mocked(tscSuppressions.compareErrorsToSuppressions)
+      .mockReturnValue(PASSING_REPORT);
+
+    await lintTsc([]);
+
+    expect(tscSuppressions.printReport).toHaveBeenCalledWith(PASSING_REPORT);
   });
 
   it('rewrites the suppressions file when given --update, without failing', async () => {

@@ -67,16 +67,10 @@ describe('parseTscOutput', () => {
     expect(parseTscOutput(output)).toHaveLength(1);
   });
 
-  it('parses an error that has no file, using an empty file path', () => {
-    const output = "error TS6053: File 'nope.ts' not found.";
-
-    expect(parseTscOutput(output)).toStrictEqual([
-      {
-        filePath: '',
-        code: 'TS6053',
-        message: "File 'nope.ts' not found.",
-      },
-    ]);
+  it('ignores an error that tsc reports without a file, as it is not a type error', () => {
+    expect(
+      parseTscOutput("error TS6053: File 'nope.ts' not found."),
+    ).toStrictEqual([]);
   });
 
   it('returns no errors when given empty output', () => {
@@ -225,23 +219,6 @@ describe('compareErrorsToSuppressions', () => {
 
     expect(report.didPass).toBe(true);
   });
-
-  it('never suppresses an error that has no file, as it is a configuration error', () => {
-    const report = compareErrorsToSuppressions({
-      errors: [{ filePath: '', code: 'TS6053', message: 'Not found.' }],
-      suppressions: { '': { TS6053: { count: 1 } } },
-    });
-
-    expect(report.unsuppressedErrors).toStrictEqual([
-      {
-        filePath: '',
-        code: 'TS6053',
-        count: 1,
-        suppressedCount: 0,
-        messages: ['Not found.'],
-      },
-    ]);
-  });
 });
 
 describe('readSuppressions', () => {
@@ -348,25 +325,6 @@ describe('printReport', () => {
     expect(output).toContain('TS2322');
     expect(output).toContain('One.');
     expect(output).toContain('Two.');
-  });
-
-  it('labels an error that has no file', () => {
-    printReport({
-      unsuppressedErrors: [
-        {
-          filePath: '',
-          code: 'TS6053',
-          count: 1,
-          suppressedCount: 0,
-          messages: ['Not found.'],
-        },
-      ],
-      staleSuppressions: [],
-      didPass: false,
-    });
-
-    const output = jest.mocked(console.log).mock.calls.flat().join('\n');
-    expect(output).toContain('(no file)');
   });
 
   it('prints each stale suppression', () => {
