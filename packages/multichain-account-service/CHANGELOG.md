@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `removeMultichainAccountWallet` for `EvmAccountProvider` ([#10263](https://github.com/MetaMask/core/pull/10263))
   - `EvmAccountProvider.deleteAccounts` deletes from the highest group index down under one keyring lock per entropy source, which the HD keyring requires.
   - Also, now deletes through `deleteAccounts` per provider.
+  - EVM deletion failures now cause wallet removal to throw and retain the wallet: after a partial EVM deletion, only non-EVM accounts without a remaining EVM account in the same group are deleted.
 
 ## [14.0.0]
 

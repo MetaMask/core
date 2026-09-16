@@ -562,79 +562,158 @@ export class MultichainAccountService {
    * Removes a multichain account wallet, deleting all of its accounts across
    * every registered provider (EVM and snap-based).
    *
-   * The deletion iterates providers (the source of truth for their own
-   * account lists) and filters each provider's accounts to those matching
-   * the wallet's entropy source, then delegates to
-   * {@link Bip44AccountProvider.deleteAccounts}. Providers own any
-   * ordering or batching constraints (the EVM provider deletes last-to-first).
+   * EVM deletion is required because every multichain account group must have
+   * an EVM account and EVM keyring state cannot be recovered from a Snap. If
+   * EVM deletion partially fails, only non-EVM accounts whose EVM counterpart
+   * was successfully deleted are removed. The wallet remains registered and
+   * this method throws.
    *
-   * Cleanup is best-effort end-to-end: neither
-   * a single account deletion failure nor a failure to enumerate a given
-   * a single account deletion failure nor a failure to enumerate a given
-   * provider's accounts aborts cleanup of the remaining providers. If one or
-   * more operations fail, a single aggregated error is reported via
-   * `reportError` with all per-failure details in its context. The wallet is
-   * always removed from the service's internal map at the end.
+   * Once every EVM account has been deleted, non-EVM cleanup is best-effort:
+   * failures are reported together and the wallet is removed.
    *
    * @param entropySource - The entropy source of the multichain account wallet.
+   * @throws If one or more EVM accounts cannot be deleted.
    */
   async removeMultichainAccountWallet(
     entropySource: EntropySourceId,
   ): Promise<void> {
     const wallet = this.#getWallet(entropySource);
     const failures: RemoveMultichainAccountWalletFailure[] = [];
+    const [evmProvider, ...otherProviders] = this.#providers;
+    assert(
+      evmProvider instanceof EvmAccountProvider,
+      'EVM account provider must be first',
+    );
 
-    for (const provider of this.#providers) {
-      // Enumerating a provider's owned accounts can itself throw (e.g.
-      // `unwrap()`, `getAccounts()`, or reading account options). Catch it as
-      // a provider-level failure and move on so one bad provider does not
-      // abort cleanup of the others or skip the always-remove step below.
-      let owned: Bip44Account<KeyringAccount>[];
-      try {
-        // For wrapped providers, enumerate via the underlying provider so we
-        // also see accounts when the wrapper has been disabled (i.e. basic
-        // functionality is off). The wrapper's `deleteAccounts` itself forwards
-        // unconditionally, but its `getAccounts()` returns `[]` when disabled,
-        // which would otherwise leave snap-backed accounts orphaned in their
-        // underlying keyrings.
-        const source = isAccountProviderWrapper(provider)
-          ? provider.unwrap()
-          : provider;
-        owned = source
-          .getAccounts()
-          .filter((account) => account.options.entropy.id === entropySource);
-      } catch (error) {
-        failures.push({
-          provider: provider.getName(),
-          error,
-        });
-        continue;
+    const getOwnedAccounts = (
+      provider: Bip44AccountProvider,
+    ): Bip44Account<KeyringAccount>[] => {
+      // For wrapped providers, enumerate via the underlying provider so we
+      // also see accounts when the wrapper has been disabled.
+      const source = isAccountProviderWrapper(provider)
+        ? provider.unwrap()
+        : provider;
+      return source
+        .getAccounts()
+        .filter((account) => account.options.entropy.id === entropySource);
+    };
+
+    // Best-effort: one provider/account failure does not skip the rest.
+    const deleteNonEvmAccounts = async (
+      shouldDelete: (account: Bip44Account<KeyringAccount>) => boolean,
+    ): Promise<void> => {
+      for (const provider of otherProviders) {
+        let owned: Bip44Account<KeyringAccount>[];
+        try {
+          owned = getOwnedAccounts(provider).filter(shouldDelete);
+        } catch (error) {
+          failures.push({
+            provider: provider.getName(),
+            error,
+          });
+          continue;
+        }
+
+        if (owned.length === 0) {
+          continue;
+        }
+
+        try {
+          const result = await provider.deleteAccounts(
+            owned.map((account) => account.id),
+          );
+          if (!result.ok) {
+            for (const failure of result.failures) {
+              failures.push({
+                provider: provider.getName(),
+                id: failure.id,
+                error: failure.error,
+              });
+            }
+          }
+        } catch (error) {
+          failures.push({
+            provider: provider.getName(),
+            error,
+          });
+        }
       }
+    };
 
-      if (owned.length === 0) {
-        continue;
-      }
+    // 1. Delete EVM first. Groups must keep an EVM account, and HD keyring
+    // state cannot be rebuilt from Snaps.
+    let evmDeletionFailed = false;
+    let evmAccounts: Bip44Account<KeyringAccount>[] = [];
+    try {
+      evmAccounts = getOwnedAccounts(evmProvider);
+    } catch (error) {
+      evmDeletionFailed = true;
+      failures.push({
+        provider: evmProvider.getName(),
+        error,
+      });
+    }
 
+    if (evmAccounts.length > 0) {
       try {
-        const result = await provider.deleteAccounts(
-          owned.map((account) => account.id),
+        const result = await evmProvider.deleteAccounts(
+          evmAccounts.map((account) => account.id),
         );
         if (!result.ok) {
+          evmDeletionFailed = true;
           for (const failure of result.failures) {
             failures.push({
-              provider: provider.getName(),
+              provider: evmProvider.getName(),
               id: failure.id,
               error: failure.error,
             });
           }
         }
       } catch (error) {
+        evmDeletionFailed = true;
         failures.push({
-          provider: provider.getName(),
+          provider: evmProvider.getName(),
           error,
         });
       }
     }
+
+    if (evmDeletionFailed) {
+      // 2. EVM failed: delete only Snap accounts whose group no longer has
+      // EVM, then throw and keep the wallet.
+      try {
+        const remainingGroupIndexes = new Set(
+          getOwnedAccounts(evmProvider).map(
+            (account) => account.options.entropy.groupIndex,
+          ),
+        );
+        await deleteNonEvmAccounts(
+          (account) =>
+            !remainingGroupIndexes.has(account.options.entropy.groupIndex),
+        );
+      } catch {
+        // Cannot read remaining EVM groups, so do not guess which Snaps are
+        // orphans.
+      }
+
+      // Keep the wallet registered: removal did not complete.
+      const context: RemoveMultichainAccountWalletFailureContext = {
+        failures: failures.map(({ provider, id, error }) => ({
+          provider,
+          id,
+          error: toErrorMessage(error),
+        })),
+      };
+      const error = new Error(
+        'Failed to delete EVM accounts during wallet removal',
+      );
+      reportError(this.#messenger, error.message, error, context);
+      throw error;
+    }
+
+    // 3. EVM fully gone: remaining non-EVM accounts for this wallet are all
+    // orphans, so delete them then drop the wallet from the service map.
+    await deleteNonEvmAccounts(() => true);
 
     if (failures.length > 0) {
       // One aggregated report per wallet-removal action: keeps the Sentry
