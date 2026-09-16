@@ -1,16 +1,24 @@
 import type { TransactionMeta } from '../types.js';
-import { addTransactionToState as persistTransaction } from '../utils/state.js';
+import { trimTransactionsForState } from '../utils/state.js';
+import { validateTxParams } from '../utils/validation.js';
 import type { TransactionStageDependencies } from './types.js';
 
-/** Dependencies needed to persist a newly initialized transaction. */
-export type AddTransactionToStateRequest = {
-  dependencies: Pick<TransactionStageDependencies, 'messenger' | 'update'>;
-  transactionMeta: TransactionMeta;
-};
-
-/** Persist metadata after hooks, gas estimation and swaps processing. */
+/**
+ * Validate and persist metadata, applying the current history limit.
+ *
+ * @param dependencies - Controller state mutation and feature-flag access.
+ * @param transactionMeta - Transaction to add to state.
+ */
 export function addTransactionToState(
-  request: AddTransactionToStateRequest,
+  { messenger, updateState }: TransactionStageDependencies,
+  transactionMeta: TransactionMeta,
 ): void {
-  persistTransaction(request.dependencies, request.transactionMeta);
+  validateTxParams(transactionMeta.txParams);
+
+  updateState((state) => {
+    state.transactions = trimTransactionsForState(
+      [...state.transactions, transactionMeta],
+      messenger,
+    );
+  });
 }

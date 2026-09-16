@@ -1,5 +1,4 @@
 /* eslint-disable no-restricted-syntax */
-import type { TypedTxData } from '@ethereumjs/tx';
 import type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerGetStateAction,
@@ -79,6 +78,16 @@ import {
   ResimulateHelper,
   shouldResimulate,
 } from './helpers/ResimulateHelper.js';
+import { addTransactionToState } from './lifecycle/add.js';
+import {
+  abortTransactionSigning,
+  signTransactionMeta,
+  updateTransactionMetaRSV,
+} from './lifecycle/sign.js';
+import {
+  isTransactionApproving,
+  startTransactionApproval,
+} from './lifecycle/state.js';
 import type {
   TransactionConstructorOptions,
   TransactionStageDependencies,
@@ -129,15 +138,11 @@ import { getBalanceChanges } from './utils/balance-changes.js';
 import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch.js';
 import {
   getDelegationAddress,
-  signAuthorizationList,
   updateEIP7702BatchData,
 } from './utils/eip7702.js';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions.js';
 import { getSubmitHistoryLimit } from './utils/feature-flags.js';
-import {
-  checkGasFeeTokenBeforePublish,
-  getGasFeeTokens,
-} from './utils/gas-fee-tokens.js';
+import { getGasFeeTokens } from './utils/gas-fee-tokens.js';
 import { getGasFeeFlow } from './utils/gas-flow.js';
 import type { EstimateGasBatchResult } from './utils/gas.js';
 import {
@@ -159,7 +164,6 @@ import {
 } from './utils/provider.js';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry.js';
 import {
-  addTransactionToState,
   getTransaction,
   getTransactionOrThrow,
   isFinalState,
@@ -709,13 +713,9 @@ export class TransactionController extends BaseController<
   TransactionControllerState,
   TransactionControllerMessenger
 > {
-  readonly #approvingTransactionIds: Set<string> = new Set();
-
   readonly #beforeCheckPendingTransaction: (
     transactionMeta: TransactionMeta,
   ) => Promise<boolean>;
-
-  readonly #beforeSign: BeforeSignHook;
 
   readonly #constructorOptions: TransactionConstructorOptions;
 
@@ -748,8 +748,6 @@ export class TransactionController extends BaseController<
   readonly #publicKeyEIP7702?: Hex;
 
   readonly #publishBatchHook?: PublishBatchHook;
-
-  readonly #signAbortCallbacks: Map<string, () => void> = new Map();
 
   readonly #skipSimulationTransactionIds: Set<string> = new Set();
 
@@ -802,9 +800,6 @@ export class TransactionController extends BaseController<
       /* istanbul ignore next */
       hooks?.beforeCheckPendingTransaction ??
       ((): Promise<boolean> => Promise.resolve(true));
-    this.#beforeSign =
-      hooks?.beforeSign ??
-      ((): ReturnType<BeforeSignHook> => Promise.resolve({}));
     this.#getSimulationConfig =
       getSimulationConfig ??
       ((): ReturnType<GetSimulationConfig> => Promise.resolve({}));
@@ -829,6 +824,7 @@ export class TransactionController extends BaseController<
       hooks: {
         afterAdd: hooks?.afterAdd,
         beforePublish: hooks?.beforePublish,
+        beforeSign: hooks?.beforeSign?.bind(this),
         publish: hooks?.publish,
       },
       isFirstTimeInteractionEnabled,
@@ -1006,7 +1002,12 @@ export class TransactionController extends BaseController<
       publishTransaction: (transactionMeta: TransactionMeta) =>
         this.#publishTransaction(transactionMeta) as Promise<Hex>,
       request,
-      signTransaction: this.#signTransaction.bind(this),
+      signTransaction: (transactionMeta) =>
+        signTransactionMeta(
+          this.#constructorOptions,
+          this.#getDependencies(),
+          transactionMeta,
+        ),
       update: this.update.bind(this),
       updateTransaction: this.#updateTransactionInternal.bind(this),
     });
@@ -1182,7 +1183,8 @@ export class TransactionController extends BaseController<
       unsignedEthTx,
       transactionMeta.txParams.from,
     );
-    const transactionMetaWithRsv = this.#updateTransactionMetaRSV(
+
+    const transactionMetaWithRsv = updateTransactionMetaRSV(
       transactionMeta,
       signedTxData,
     );
@@ -1916,13 +1918,19 @@ export class TransactionController extends BaseController<
       initialTxAsEthTx,
     );
 
-    if (this.#approvingTransactionIds.has(initialTxAsSerializedHex)) {
+    if (
+      isTransactionApproving(this.#getDependencies(), initialTxAsSerializedHex)
+    ) {
       return '';
     }
 
-    this.#approvingTransactionIds.add(initialTxAsSerializedHex);
+    const releaseApproval = startTransactionApproval(
+      this.#getDependencies(),
+      initialTxAsSerializedHex,
+    );
 
     let rawTransactions, nonceLock;
+
     try {
       // TODO: we should add a check to verify that all transactions have the same from address
       const fromAddress = initialTx.from;
@@ -1953,8 +1961,9 @@ export class TransactionController extends BaseController<
       throw error;
     } finally {
       nonceLock?.releaseLock();
-      this.#approvingTransactionIds.delete(initialTxAsSerializedHex);
+      releaseApproval();
     }
+
     return rawTransactions;
   }
 
@@ -2289,23 +2298,7 @@ export class TransactionController extends BaseController<
    * @param transactionId - The ID of the transaction to stop signing.
    */
   abortTransactionSigning(transactionId: string): void {
-    const transactionMeta = this.#getTransaction(transactionId);
-
-    if (!transactionMeta) {
-      throw new Error(`Cannot abort signing as no transaction metadata found`);
-    }
-
-    const abortCallback = this.#signAbortCallbacks.get(transactionId);
-
-    if (!abortCallback) {
-      throw new Error(
-        `Cannot abort signing as transaction is not waiting for signing`,
-      );
-    }
-
-    abortCallback();
-
-    this.#signAbortCallbacks.delete(transactionId);
+    abortTransactionSigning(this.#getDependencies(), transactionId);
   }
 
   /**
@@ -2540,18 +2533,16 @@ export class TransactionController extends BaseController<
   }
 
   #addMetadata(transactionMeta: TransactionMeta): void {
-    addTransactionToState(
-      { messenger: this.messenger, update: this.update.bind(this) },
-      transactionMeta,
-    );
+    addTransactionToState(this.#getDependencies(), transactionMeta);
   }
 
   /** Wire the resources required by the addTransaction lifecycle. */
   #getDependencies(): TransactionStageDependencies {
     this.#dependencies ??= {
       addTransactionBatch: this.addTransactionBatch.bind(this),
-      approvingTransactionIds: this.#approvingTransactionIds,
       failTransaction: this.#failTransaction.bind(this),
+      fetchGasFeeTokens: async (transactionMeta) =>
+        (await this.#getGasFeeTokens(transactionMeta)).gasFeeTokens,
       gasFeeFlows: this.#gasFeeFlows,
       getNonceLock: (address, networkClientId): Promise<NonceLock> =>
         this.#multichainTrackingHelper.getNonceLock(address, networkClientId),
@@ -2562,14 +2553,14 @@ export class TransactionController extends BaseController<
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
       messenger: this.messenger,
       publishTransaction: this.#publishTransaction.bind(this),
-      signTransaction: this.#signTransaction.bind(this),
       skipSimulationTransactionIds: this.#skipSimulationTransactionIds,
-      update: this.update.bind(this),
       updateGasEstimate: this.#updateGasEstimate.bind(this),
       updateSimulationData: this.#updateSimulationData.bind(this),
+      updateState: this.update.bind(this),
       updateTransaction: this.updateTransaction.bind(this),
       updateTransactionInternal: this.#updateTransactionInternal.bind(this),
     };
+
     return this.#dependencies;
   }
 
@@ -2798,143 +2789,6 @@ export class TransactionController extends BaseController<
       'TransactionController#setTransactionStatusDropped - Transaction dropped',
     );
     this.#onTransactionStatusChange(updatedTransactionMeta);
-  }
-
-  /**
-   * Update the r, s, and v properties of a TransactionMeta object
-   * with the values from a signed transaction.
-   *
-   * @param transactionMeta - The TransactionMeta object to update.
-   * @param signedTx - The signed transaction containing the r, s, and v values.
-   * @returns The updated TransactionMeta object.
-   */
-  #updateTransactionMetaRSV(
-    transactionMeta: TransactionMeta,
-    signedTx: TypedTxData,
-  ): TransactionMeta {
-    const transactionMetaWithRsv = cloneDeep(transactionMeta);
-
-    for (const key of ['r', 's', 'v'] as const) {
-      const value = signedTx[key];
-
-      if (value === undefined || value === null) {
-        continue;
-      }
-
-      transactionMetaWithRsv[key] = add0x(
-        BigInt(value as bigint | number | string).toString(16),
-      );
-    }
-
-    return transactionMetaWithRsv;
-  }
-
-  async #signTransaction(
-    originalTransactionMeta: TransactionMeta,
-  ): Promise<string | undefined> {
-    let transactionMeta = originalTransactionMeta;
-    const { id: transactionId } = transactionMeta;
-
-    log('Calling before sign hook', transactionMeta);
-
-    const { updateTransaction } =
-      (await this.#beforeSign({ transactionMeta })) ?? {};
-
-    if (updateTransaction) {
-      this.#updateTransactionInternal(
-        { transactionId, skipResimulateCheck: true },
-        updateTransaction,
-      );
-
-      log('Updated transaction after before sign hook');
-    }
-
-    transactionMeta = this.#getTransactionOrThrow(transactionId);
-
-    const { networkClientId } = transactionMeta;
-
-    await checkGasFeeTokenBeforePublish({
-      messenger: this.messenger,
-      networkClientId,
-      fetchGasFeeTokens: async (tx) =>
-        (await this.#getGasFeeTokens(tx)).gasFeeTokens,
-      transaction: transactionMeta,
-      updateTransaction: (txId, fn) =>
-        this.#updateTransactionInternal({ transactionId: txId }, fn),
-    });
-
-    transactionMeta = this.#getTransactionOrThrow(transactionId);
-    const { chainId, isExternalSign, txParams } = transactionMeta;
-
-    if (isExternalSign) {
-      log('Skipping sign as signed externally');
-      return undefined;
-    }
-
-    const { authorizationList, from } = txParams;
-
-    const signedAuthorizationList = await signAuthorizationList({
-      authorizationList,
-      messenger: this.messenger,
-      transactionMeta,
-    });
-
-    if (signedAuthorizationList) {
-      this.#updateTransactionInternal({ transactionId }, (txMeta) => {
-        txMeta.txParams.authorizationList = signedAuthorizationList;
-      });
-    }
-
-    transactionMeta = this.#getTransactionOrThrow(transactionId);
-
-    const finalTransactionMeta = this.#getTransactionOrThrow(transactionId);
-    const { txParams: finalTxParams } = finalTransactionMeta;
-    const unsignedEthTx = prepareTransaction(chainId, finalTxParams);
-
-    this.#approvingTransactionIds.add(transactionId);
-
-    log('Signing transaction', finalTxParams);
-
-    const signedTxData = await new Promise<TypedTxData>((resolve, reject) => {
-      // eslint-disable-next-line promise/catch-or-return
-      this.messenger
-        .call('KeyringController:signTransaction', unsignedEthTx, from)
-        .then(resolve, reject);
-
-      this.#signAbortCallbacks.set(transactionId, () =>
-        reject(new Error('Signing aborted by user')),
-      );
-    });
-
-    this.#signAbortCallbacks.delete(transactionId);
-
-    const transactionMetaFromHook = cloneDeep(finalTransactionMeta);
-
-    const transactionMetaWithRsv = {
-      ...this.#updateTransactionMetaRSV(transactionMetaFromHook, signedTxData),
-      status: TransactionStatus.signed as const,
-      txParams: finalTxParams,
-    };
-
-    this.updateTransaction(
-      transactionMetaWithRsv,
-      'TransactionController#approveTransaction - Transaction signed',
-    );
-
-    this.#onTransactionStatusChange(transactionMetaWithRsv);
-
-    const rawTx = serializeTransaction(chainId, signedTxData);
-
-    const transactionMetaWithRawTx = merge({}, transactionMetaWithRsv, {
-      rawTx,
-    });
-
-    this.updateTransaction(
-      transactionMetaWithRawTx,
-      'TransactionController#approveTransaction - RawTransaction added',
-    );
-
-    return rawTx;
   }
 
   #onTransactionStatusChange(transactionMeta: TransactionMeta): void {

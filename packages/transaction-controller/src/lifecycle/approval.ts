@@ -1,35 +1,15 @@
 import type { AddResult } from '@metamask/approval-controller';
 import type { TraceContext } from '@metamask/controller-utils';
 import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
+
 import { projectLogger as log } from '../logger.js';
 import type { TransactionMeta } from '../types.js';
 import { isTransactionCompleted } from '../utils/state.js';
-import type { RejectTransactionRequest } from './error.js';
 import { handleApprovalError } from './error.js';
-import type { TransactionLifecycleContext } from './state.js';
 import type {
-  TransactionConstructorOptions,
+  TransactionLifecycleRequest,
   TransactionStageDependencies,
 } from './types.js';
-
-/** The dependencies and context required to await approval. */
-export type AwaitApprovalRequest = RejectTransactionRequest &
-  TransactionLifecycleContext & {
-    constructorOptions: Pick<TransactionConstructorOptions, 'trace'>;
-    dependencies: Pick<
-      TransactionStageDependencies,
-      'failTransaction' | 'updateTransaction'
-    >;
-    /** Whether to display the approval request. Defaults to `true`. */
-    shouldShowRequest?: boolean;
-  };
-
-/** The dependencies and context required to apply approval data. */
-type ApplyApprovalDataRequest = {
-  /** The value returned when the approval request was accepted. */
-  approvalValue?: AddResult['value'];
-  dependencies: Pick<TransactionStageDependencies, 'updateTransaction'>;
-};
 
 /**
  * Await user approval for a transaction.
@@ -40,13 +20,12 @@ type ApplyApprovalDataRequest = {
  * @param request - Dependencies and context for the transaction.
  */
 export async function awaitApproval(
-  request: AwaitApprovalRequest,
+  request: TransactionLifecycleRequest,
 ): Promise<void> {
   const {
     addTransactionRequest: { options },
     constructorOptions: { trace },
     dependencies,
-    shouldShowRequest = true,
     transactionMeta,
   } = request;
 
@@ -60,6 +39,7 @@ export async function awaitApproval(
     dependencies.getState(),
     transactionMeta.id,
   );
+
   request.lifecycle.finishedPromise = isCompleted
     ? Promise.resolve(meta)
     : waitForTransactionFinished(dependencies, transactionMeta.id);
@@ -69,12 +49,7 @@ export async function awaitApproval(
   }
 
   request.lifecycle.onError = (error): void =>
-    handleApprovalError({
-      ...request,
-      actionId: options.actionId,
-      error,
-      transactionMeta: meta,
-    });
+    handleApprovalError({ ...request, transactionMeta: meta }, error);
 
   if (requireApproval === false) {
     return;
@@ -84,17 +59,16 @@ export async function awaitApproval(
     { name: 'Await Approval', parentContext: traceContext },
     (context) =>
       requestApproval(request, transactionMeta, {
-        shouldShowRequest,
         traceContext: context,
       }),
   );
 
   request.lifecycle.resultCallbacks = approvalResult.resultCallbacks;
-  applyApprovalData({ ...request, approvalValue: approvalResult.value });
+  applyApprovalData(request, approvalResult.value);
 }
 
 async function waitForTransactionFinished(
-  dependencies: Pick<TransactionStageDependencies, 'internalEvents'>,
+  dependencies: TransactionStageDependencies,
   transactionId: string,
 ): Promise<TransactionMeta> {
   return new Promise((resolve) => {
@@ -105,20 +79,15 @@ async function waitForTransactionFinished(
 }
 
 async function requestApproval(
-  request: {
-    constructorOptions: Pick<TransactionConstructorOptions, 'trace'>;
-    dependencies: Pick<TransactionStageDependencies, 'messenger'>;
-  },
+  request: TransactionLifecycleRequest,
   txMeta: TransactionMeta,
-  {
-    shouldShowRequest,
-    traceContext,
-  }: { shouldShowRequest: boolean; traceContext?: TraceContext },
+  { traceContext }: { traceContext?: TraceContext },
 ): Promise<AddResult> {
   const {
     constructorOptions: { trace },
     dependencies: { messenger },
   } = request;
+
   const id = String(txMeta.id);
   const { origin } = txMeta;
   const type = ApprovalType.Transaction;
@@ -139,7 +108,7 @@ async function requestApproval(
       requestData,
       expectsResult: true,
     },
-    shouldShowRequest,
+    true,
   )) as Promise<AddResult>;
 }
 
@@ -151,10 +120,13 @@ async function requestApproval(
  * executed.
  *
  * @param request - Dependencies and context for the transaction.
+ * @param approvalValue - The data returned when approval was accepted.
  */
-function applyApprovalData(request: ApplyApprovalDataRequest): void {
+function applyApprovalData(
+  request: TransactionLifecycleRequest,
+  approvalValue: AddResult['value'],
+): void {
   const {
-    approvalValue,
     dependencies: { updateTransaction },
   } = request;
 

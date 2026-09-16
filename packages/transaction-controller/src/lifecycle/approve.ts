@@ -6,31 +6,20 @@ import {
   isTransactionCompleted,
 } from '../utils/state.js';
 import { isEIP1559Transaction } from '../utils/utils.js';
-import type { TransactionLifecycleContext } from './state.js';
-import type { TransactionStageDependencies } from './types.js';
-
-/** Dependencies needed to reserve a nonce and mark a transaction approved. */
-export type ApproveTransactionRequest = TransactionLifecycleContext & {
-  dependencies: Pick<
-    TransactionStageDependencies,
-    | 'approvingTransactionIds'
-    | 'getNonceLock'
-    | 'getState'
-    | 'messenger'
-    | 'updateTransactionInternal'
-  >;
-};
+import { isTransactionApproving, startTransactionApproval } from './state.js';
+import type { TransactionLifecycleRequest } from './types.js';
 
 /** Reserve execution resources after approval, without signing or publishing. */
 export async function approveTransaction(
-  request: ApproveTransactionRequest,
+  request: TransactionLifecycleRequest,
 ): Promise<void> {
   const {
     dependencies,
     lifecycle,
     transactionMeta: originalTransactionMeta,
   } = request;
-  const { approvingTransactionIds, getState, messenger } = dependencies;
+
+  const { getState, messenger } = dependencies;
   const { id: transactionId } = originalTransactionMeta;
 
   if (
@@ -50,20 +39,21 @@ export async function approveTransaction(
     throw new Error('No chainId defined.');
   }
 
-  if (approvingTransactionIds.has(transactionId)) {
+  if (isTransactionApproving(dependencies, transactionId)) {
     log('Skipping approval as signing in progress', transactionId);
     delete lifecycle.execution;
     return;
   }
 
-  approvingTransactionIds.add(transactionId);
-  lifecycle.execution.releaseApproval = (): void => {
-    approvingTransactionIds.delete(transactionId);
-  };
+  lifecycle.execution.releaseApproval = startTransactionApproval(
+    dependencies,
+    transactionId,
+  );
 
   const [nonce, releaseNonce] = await getNextNonce(transactionMeta, (address) =>
     dependencies.getNonceLock(address, transactionMeta.networkClientId),
   );
+
   lifecycle.execution.releaseNonce = releaseNonce;
 
   request.transactionMeta = dependencies.updateTransactionInternal(
@@ -75,11 +65,13 @@ export async function approveTransaction(
       draft.txParams.chainId = chainId;
       draft.txParams.gasLimit = gas;
       draft.txParams.nonce = nonce;
+
       if (!type && isEIP1559Transaction(txParams)) {
         draft.txParams.type = TransactionEnvelopeType.feeMarket;
       }
     },
   );
+
   messenger.publish('TransactionController:transactionStatusUpdated', {
     transactionMeta: request.transactionMeta,
   });

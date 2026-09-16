@@ -1,6 +1,7 @@
 import { rpcErrors } from '@metamask/rpc-errors';
+
 import { TransactionStatus } from '../types.js';
-import type { TransactionLifecycleContext } from './state.js';
+import type { TransactionLifecycleRequest } from './types.js';
 
 /**
  * Resolve the result of a transaction once it has reached a final state.
@@ -12,13 +13,15 @@ import type { TransactionLifecycleContext } from './state.js';
  * @returns The hash of the submitted transaction.
  */
 export async function finishTransaction(
-  request: TransactionLifecycleContext,
+  request: TransactionLifecycleRequest,
 ): Promise<string> {
   const {
     lifecycle: { finishedPromise, resultCallbacks },
     transactionMeta,
   } = request;
+
   const { id: transactionId } = transactionMeta;
+
   if (transactionMeta.isStateOnly) {
     return '';
   }

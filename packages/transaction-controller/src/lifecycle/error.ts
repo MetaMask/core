@@ -1,5 +1,6 @@
 import { errorCodes, providerErrors } from '@metamask/rpc-errors';
 import type { Json } from '@metamask/utils';
+
 import type { TransactionMeta } from '../types.js';
 import { TransactionStatus } from '../types.js';
 import {
@@ -9,34 +10,13 @@ import {
 } from '../utils/state.js';
 import { normalizeTxError } from '../utils/utils.js';
 import { ErrorCode } from '../utils/validation.js';
-import type { TransactionLifecycleContext } from './state.js';
 import { releaseTransactionExecution } from './state.js';
-import type { TransactionStageDependencies } from './types.js';
+import type { TransactionLifecycleRequest } from './types.js';
 
 const controllerName = 'TransactionController';
 
 /** An error thrown while a transaction was being approved or executed. */
 export type TransactionError = Error & { code?: number; data?: Json };
-
-/** Controller resources needed to reject and remove a transaction. */
-export type RejectTransactionRequest = {
-  dependencies: Pick<
-    TransactionStageDependencies,
-    'getState' | 'internalEvents' | 'messenger' | 'update'
-  >;
-};
-
-/** The dependencies and context required to handle a transaction error. */
-export type HandleTransactionErrorRequest = RejectTransactionRequest & {
-  /** Unique ID persisted on transaction metadata. */
-  actionId?: string;
-
-  dependencies: Pick<TransactionStageDependencies, 'failTransaction'>;
-
-  error: TransactionError;
-
-  transactionMeta: TransactionMeta;
-};
 
 /**
  * Handle an error thrown while approving or executing a transaction.
@@ -46,14 +26,17 @@ export type HandleTransactionErrorRequest = RejectTransactionRequest & {
  * result has already been determined.
  *
  * @param request - Dependencies and context for the error.
+ * @param error - Error raised while awaiting approval.
  */
 export function handleApprovalError(
-  request: HandleTransactionErrorRequest,
+  request: TransactionLifecycleRequest,
+  error: TransactionError,
 ): void {
   const {
-    actionId,
+    addTransactionRequest: {
+      options: { actionId },
+    },
     dependencies: { failTransaction, getState },
-    error,
     transactionMeta,
   } = request;
 
@@ -73,15 +56,14 @@ export function handleApprovalError(
 
 /** Preserve execution failure semantics separately from approval rejection. */
 export function handleTransactionError(
-  request: {
-    dependencies: Pick<TransactionStageDependencies, 'failTransaction'>;
-  } & TransactionLifecycleContext,
+  request: TransactionLifecycleRequest,
   error: unknown,
 ): void {
   if (!request.lifecycle.execution) {
     if (!request.lifecycle.onError) {
       throw error;
     }
+
     request.lifecycle.onError(error as Error);
     return;
   }
@@ -107,12 +89,13 @@ export function handleTransactionError(
  * @param error - The error that caused the rejection.
  */
 export function rejectTransaction(
-  request: RejectTransactionRequest,
+  request: TransactionLifecycleRequest,
   transactionId: string,
   actionId?: string,
   error?: Error,
 ): void {
   const { dependencies } = request;
+
   const transactionMeta = getTransaction(
     dependencies.getState(),
     transactionId,
@@ -158,7 +141,7 @@ function isRejectError(error: Error & { code?: number }): boolean {
 }
 
 function rejectTransactionAndThrow(
-  request: RejectTransactionRequest,
+  request: TransactionLifecycleRequest,
   transactionId: string,
   actionId: string | undefined,
   error: Error & { code?: number; data?: Json },
