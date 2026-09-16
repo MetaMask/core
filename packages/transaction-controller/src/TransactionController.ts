@@ -3198,7 +3198,7 @@ export class TransactionController extends BaseController<
 
         rawTx = await this.#trace(
           { name: 'Sign', parentContext: traceContext },
-          () => this.#signTransaction(transactionMeta, true, true),
+          () => this.#signTransaction(transactionMeta),
         );
 
         // eslint-disable-next-line require-atomic-updates
@@ -3745,31 +3745,9 @@ export class TransactionController extends BaseController<
 
   async #signTransaction(
     originalTransactionMeta: TransactionMeta,
-    skipGasFeeTokenCheck = false,
-    skipBeforeSign = false,
   ): Promise<string | undefined> {
     let transactionMeta = originalTransactionMeta;
     const { id: transactionId } = transactionMeta;
-
-    if (!skipBeforeSign) {
-      transactionMeta = await this.#applyBeforeSignHook(transactionMeta);
-    }
-
-    if (!skipGasFeeTokenCheck) {
-      const { networkClientId } = transactionMeta;
-
-      await checkGasFeeTokenBeforePublish({
-        messenger: this.messenger,
-        networkClientId,
-        fetchGasFeeTokens: (tx) => this.#getGasFeeTokens(tx),
-        transaction: transactionMeta,
-        updateTransaction: (txId, fn) =>
-          this.#updateTransactionInternal({ transactionId: txId }, fn),
-      });
-
-      transactionMeta = this.#getTransactionOrThrow(transactionId);
-    }
-
     const { chainId, txParams } = transactionMeta;
     const { authorizationList, from } = txParams;
 
