@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use the selected network client's gas estimate for transactions without caller-provided gas instead of assigning a fixed 21,000 gas limit to plain transfers ([#10245](https://github.com/MetaMask/core/pull/10245))
 - Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
+- **BREAKING:** Add required approval-time `isSponsored` and `shouldSign` hooks to `TransactionController`, and remove `isGasFeeSponsored` and `isExternalSign` as transaction lifecycle properties ([#10109](https://github.com/MetaMask/core/pull/10109))
+  - Consumers must supply both hooks to determine sponsorship and local signing at approval time, returning `{ isSponsored }` and `{ shouldSign }` result objects respectively. Sponsored transactions skip the `shouldSign` hook and local signing. Transactions that skip local signing retain an existing nonce.
+  - Remove `isGasFeeSponsored` from `TransactionMeta`, `AddTransactionOptions`, and `TransactionBatchRequest`.
+  - Remove `isExternalSign` from `TransactionMeta`.
 
 ## [70.0.1]
 
@@ -19,10 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
 - Bump `@metamask/core-backend` from `^10.0.0` to `^11.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10242](https://github.com/MetaMask/core/pull/10242))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
-- **BREAKING:** Add required approval-time `isSponsored` and `shouldSign` hooks to `TransactionController`, and remove `isGasFeeSponsored` and `isExternalSign` as transaction lifecycle properties ([#10109](https://github.com/MetaMask/core/pull/10109))
-  - Consumers must supply both hooks to determine sponsorship and local signing at approval time, returning `{ isSponsored }` and `{ shouldSign }` result objects respectively. Sponsored transactions skip the `shouldSign` hook and local signing. Transactions that skip local signing retain an existing nonce.
-  - Remove `isGasFeeSponsored` from `TransactionMeta`, `AddTransactionOptions`, and `TransactionBatchRequest`.
-  - Remove `isExternalSign` from `TransactionMeta`.
 
 ## [70.0.0]
 
