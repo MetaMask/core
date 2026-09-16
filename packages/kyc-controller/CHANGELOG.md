@@ -9,7 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Move the active UKYC `sessionId` and `sessionStatus` from `sumsub` to the root of `KycControllerState`.
+  - Read `state.sessionId` / `state.sessionStatus` instead of `state.sumsub.sessionId` / `state.sumsub.sessionStatus`. Neither field is persisted.
+- **BREAKING:** `KycController.refreshKycStatus` now loads status from `GET /sessions/{id}/status` (`getSessionStatus`) instead of `GET /kyc/status`.
+  - Requires an active `sessionId`. Returns and publishes the UKYC `sessionStatus` payload as-is (`null` when none is recorded).
+- **BREAKING:** Replace `KycUserStatus` with `KycSessionStatus` (`new` | `pending` | `approved` | `rejected` | `retry`).
+  - `not-started` → `new`, `completed` → `approved`, `terminal-failure` → `rejected`. Drop `need-more-information`.
+- **BREAKING:** Rename the `GET /sessions/{id}/status` payload type from `KycSessionStatus` to `KycSessionStatusResponse`.
+- **BREAKING:** Remove `userStatus`, `userStatusSumsubSessionId`, and `userStatusErrorCode` from `KycControllerState`.
+  - Read `state.sessionStatus`, or use `refreshKycStatus` / `KycController:statusChanged`.
+- **BREAKING:** Combine the session-status and user-status poll loops onto one timer.
+  - Both post-SDK decision waits and `refreshKycStatus` pending polls use `sessionStatusPollIntervalMs` (default 15s) against `GET /sessions/{id}/status`.
 - Bump `@metamask/profile-sync-controller` from `^32.1.0` to `^32.1.1` ([#10220](https://github.com/MetaMask/core/pull/10220))
+
+### Removed
+
+- **BREAKING:** Remove `KycService.fetchKycStatus` and the `KycService:fetchKycStatus` messenger action.
+- **BREAKING:** Remove `KycControllerOptions.userStatusPollIntervalMs`. Use `sessionStatusPollIntervalMs` instead.
+- **BREAKING:** Remove `KycUserStatusResponse`. Use `KycControllerStatusChangedEvent` / `refreshKycStatus`'s return payload instead.
 
 ## [0.3.0]
 

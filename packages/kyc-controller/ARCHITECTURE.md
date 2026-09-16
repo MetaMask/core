@@ -123,7 +123,7 @@ Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 `getGeoCountry`, `fetchVendorDisclaimers`, `createSession`, `checkKycRequired`,
 `createVendorCustomer`, `submitVendorDisclaimers`, `fetchSessionDisclaimersByCountry`, `fetchSessionDisclaimersBySessionId`, `submitSessionDisclaimers`,
-`fetchKycStatus`, `fetchIdosEnclaveJwks`, `fetchIdosRelayJwks`, `createUkycSession`, `setAuthorizations`,
+`fetchIdosEnclaveJwks`, `fetchIdosRelayJwks`, `createUkycSession`, `setAuthorizations`,
 `createJourney`, `getSessionStatus`.
 
 Endpoints:
@@ -139,12 +139,12 @@ Endpoints:
 | `fetchSessionDisclaimersByCountry`   | `GET`  | `/disclaimers?country=`                      | Global idOS + KYC-provider catalog (no consent state)                                  |
 | `fetchSessionDisclaimersBySessionId` | `GET`  | `/sessions/{id}/disclaimers`                 | Session-scoped catalog, with `consented` flags + credential-reuse flag                 |
 | `submitSessionDisclaimers`           | `POST` | `/sessions/{id}/disclaimers`                 | Record `{ idOS, kycProvider, credentialReusabilityConsentGiven }` consents             |
-| `fetchKycStatus`                     | `GET`  | `/kyc/status`                                | User-keyed simplified KYC status                                                       |
 | `fetchIdosEnclaveJwks`               | `GET`  | `{idosEnclaveBaseUrl}/.well-known/jwks.json` | idOS enclave JWKS for `encryptionDataKey` attestation                                  |
 | `fetchIdosRelayJwks`                 | `GET`  | `{idosRelayBaseUrl}/.well-known/jwks.json`   | idOS relay JWKS for `ukycCapabilityToken` attestation                                  |
 | `createUkycSession`                  | `POST` | `/sessions`                                  | Start SumSub sub-flow; registers session client public key; returns encryption schemas |
 | `setAuthorizations`                  | `POST` | `/sessions/{id}/authorizations`              | Submit wrapped `data_encryption_key` and wrapped `ukyc_capability_token`               |
 | `createJourney`                      | `POST` | `/sessions/{id}/journey`                     | Create verification journey → applicant token                                          |
+| `getSessionStatus`                   | `GET`  | `/sessions/{id}/status`                      | UKYC session status payload (`KycSessionStatusResponse`; stored on `sessionStatus`)    |
 
 ### 2.3 `crypto.ts`
 
@@ -187,12 +187,13 @@ classDiagram
         +KycProduct activeProduct
         +Record kycRequiredByProduct [persisted]
         +string lastCheckedAt [persisted]
+        +string sessionId
+        +KycSessionStatusResponse sessionStatus
         +SumSubState sumsub
     }
     class SumSubState {
         +KycSumSubStatus status
         +Json result
-        +string sessionId
         +string applicantAccessToken
     }
     KycControllerState --> SumSubState : sumsub
@@ -217,7 +218,7 @@ State metadata highlights (`kycControllerMetadata`):
   path proceeds); a failed or reset switch leaves the previous vendor's
   acceptance in place.
 - **Secrets, never persisted / never logged**: `moonpaySessionToken`, `moonpayAccessToken`,
-  `moonpayCustomerId`, `email`, `vendorDisclaimers`, and the whole `sumsub` sub-tree.
+  `moonpayCustomerId`, `email`, `vendorDisclaimers`, `sessionId`, and the whole `sumsub` sub-tree.
   Switching away from MoonPay (`initialize` / `createVendorCustomer`) drops
   these MoonPay Check/Auth artifacts immediately so `buildCheckFrameUrl` cannot
   return a MoonPay URL while `activeVendor` is a consents-path vendor.
