@@ -2585,12 +2585,6 @@ export class AssetsController extends BaseController<
           for (const [key, value] of Object.entries(
             normalizedResponse.assetsInfo,
           )) {
-            if (
-              !isEqual(previousState.assetsInfo[key as Caip19AssetId], value)
-            ) {
-              changedMetadata.push(key);
-            }
-
             const existing = metadata[key] as FungibleAssetMetadata | undefined;
             const incoming = value as FungibleAssetMetadata;
 
@@ -2599,17 +2593,26 @@ export class AssetsController extends BaseController<
             // the API). Preserve richer metadata already in state (e.g. from
             // pendingMetadata set by addCustomAsset) so that the correct
             // decimals/symbol/name/image are not overwritten with empty values.
-            if (existing && !incoming.symbol && !incoming.name) {
-              metadata[key] = {
-                ...existing,
-                ...incoming,
-                symbol: existing.symbol,
-                name: existing.name,
-                decimals: existing.decimals ?? incoming.decimals,
-                image: existing.image ?? incoming.image,
-              };
-            } else {
-              metadata[key] = value;
+            const nextValue =
+              existing && !incoming.symbol && !incoming.name
+                ? {
+                    ...existing,
+                    ...incoming,
+                    symbol: existing.symbol,
+                    name: existing.name,
+                    decimals: existing.decimals ?? incoming.decimals,
+                    image: existing.image ?? incoming.image,
+                  }
+                : value;
+
+            if (
+              !isEqual(
+                previousState.assetsInfo[key as Caip19AssetId],
+                nextValue,
+              )
+            ) {
+              metadata[key] = nextValue;
+              changedMetadata.push(key);
             }
           }
         }
@@ -2713,7 +2716,10 @@ export class AssetsController extends BaseController<
                 });
               }
             }
-            balances[accountId] = effective;
+
+            if (!isEqual(previousBalances, effective)) {
+              balances[accountId] = effective;
+            }
           }
         }
 
@@ -2721,7 +2727,9 @@ export class AssetsController extends BaseController<
           for (const [key, value] of Object.entries(
             normalizedResponse.assetsPrice,
           )) {
-            prices[key] = value;
+            if (!isEqual(previousPrices[key as Caip19AssetId], value)) {
+              prices[key] = value;
+            }
           }
         }
       });
