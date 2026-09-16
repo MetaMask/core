@@ -82,7 +82,12 @@ export type MultichainAccountServiceCreateMultichainAccountWalletAction = {
  *
  * The deletion iterates providers (the source of truth for their own
  * account lists) and filters each provider's accounts to those matching
- * the wallet's entropy source. Cleanup is best-effort end-to-end: neither
+ * the wallet's entropy source, then delegates to
+ * {@link Bip44AccountProvider.deleteAccounts}. Providers own any
+ * ordering or batching constraints (the EVM provider deletes last-to-first).
+ *
+ * Cleanup is best-effort end-to-end: neither
+ * a single account deletion failure nor a failure to enumerate a given
  * a single account deletion failure nor a failure to enumerate a given
  * provider's accounts aborts cleanup of the remaining providers. If one or
  * more operations fail, a single aggregated error is reported via
