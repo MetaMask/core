@@ -23,6 +23,7 @@ import type {
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
 import { PriceDataSource } from './data-sources/PriceDataSource.js';
+import { RpcDataSource } from './data-sources/RpcDataSource.js';
 import { TokenDataSource } from './data-sources/TokenDataSource.js';
 import { buildDefaultAssetsInfo } from './defaults.js';
 import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
@@ -1763,6 +1764,76 @@ describe('AssetsController', () => {
   });
 
   describe('handleAssetsUpdate', () => {
+    it('re-reads tracked assets an Accounts API poll left empty via the RPC fallback', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '1000' } },
+        },
+      };
+      const rpcMiddleware = jest.fn(
+        async (ctx: unknown, next: (ctx: unknown) => Promise<unknown>) =>
+          next(ctx),
+      );
+      const rpcMiddlewareGetter = jest
+        .spyOn(RpcDataSource.prototype, 'assetsMiddleware', 'get')
+        .mockReturnValue(rpcMiddleware as never);
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        const pollRequest: DataRequest = {
+          accountsWithSupportedChains: [
+            {
+              account: createMockInternalAccount(),
+              supportedChains: ['eip155:1' as ChainId],
+            },
+          ],
+          chainIds: ['eip155:1' as ChainId],
+          dataTypes: ['balance'],
+        };
+
+        // The poll response omits MOCK_ASSET_ID even though state tracks it —
+        // the fallback must hand it to RPC for an on-chain re-read.
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'merge',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
+              },
+            },
+          },
+          'AccountsApiDataSource',
+          pollRequest,
+        );
+
+        expect(rpcMiddleware).toHaveBeenCalledTimes(1);
+        const [rpcCtx] = rpcMiddleware.mock.calls[0] as [
+          { request: DataRequest },
+        ];
+        expect(rpcCtx.request.chainIds).toStrictEqual(['eip155:1']);
+        expect(rpcCtx.request.customAssets).toContain(MOCK_ASSET_ID);
+
+        // Same update from the WebSocket source must NOT trigger the
+        // fallback: its pushes are incremental single-asset updates, so an
+        // absent asset is not stale there.
+        rpcMiddleware.mockClear();
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'merge',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
+              },
+            },
+          },
+          'AccountActivityDataSource',
+          pollRequest,
+        );
+        expect(rpcMiddleware).not.toHaveBeenCalled();
+      });
+
+      rpcMiddlewareGetter.mockRestore();
+    });
+
     it('does not fail when parent trace rejects after enrichment completes', async () => {
       const traceMock = jest
         .fn()
@@ -2693,6 +2764,74 @@ describe('AssetsController', () => {
       });
     });
 
+    it('keeps existing metadata when a merge update omits it', async () => {
+      const stellarMetadata = {
+        spendableBalance: '8944804518',
+        minimumReserveBalance: '200000000',
+        decimal: 7,
+      };
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1', metadata: stellarMetadata },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'merge',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '2' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '2', metadata: stellarMetadata });
+      });
+    });
+
+    it('replaces existing metadata when a merge update includes it', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: {
+              amount: '1',
+              metadata: { spendableBalance: '1', minimumReserveBalance: '1' },
+            },
+          },
+        },
+      };
+      const nextMetadata = {
+        spendableBalance: '2',
+        minimumReserveBalance: '3',
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'merge',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '2', metadata: nextMetadata },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '2', metadata: nextMetadata });
+      });
+    });
+
     it('updates state from AccountActivityService:balanceUpdated', async () => {
       const arbNative = 'eip155:42161/slip44:60' as Caip19AssetId;
       const initialState: Partial<AssetsControllerState> = {
@@ -2872,6 +3011,7 @@ describe('AssetsController', () => {
           {
             chainIds: ['eip155:42161'],
             forceUpdate: true,
+            bypassServerCache: true,
           },
         );
 
@@ -2897,6 +3037,7 @@ describe('AssetsController', () => {
           {
             chainIds: ['eip155:42161'],
             forceUpdate: true,
+            bypassServerCache: true,
           },
         );
 
@@ -3246,6 +3387,68 @@ describe('AssetsController', () => {
         },
       );
     });
+
+    it('does not run the startup refresh twice if a second start trigger fires before the first getAssets resolves', async () => {
+      await withController(
+        { clientControllerState: { isUiOpen: true } },
+        async ({ controller, messenger }) => {
+          let resolveGetAssets: (() => void) | undefined;
+          const getAssetsSpy = jest
+            .spyOn(controller, 'getAssets')
+            .mockImplementation(
+              () =>
+                new Promise((resolve) => {
+                  resolveGetAssets = (): void => resolve({});
+                }),
+            );
+
+          // First trigger: unlock + account tree ready. #start() kicks off
+          // #runStartupRefresh(), whose forced getAssets() call is still
+          // pending (it never resolves until we call resolveGetAssets below).
+          messenger.publish('KeyringController:unlock');
+          (messenger.publish as CallableFunction)(
+            'AccountTreeController:initialized',
+            {},
+          );
+          await flushPromises();
+
+          expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+
+          // Second, independent trigger fires while the first getAssets()
+          // call is still in flight — #activeSubscriptions is still empty at
+          // this point, so only the in-flight guard can prevent a duplicate
+          // #runStartupRefresh() (and its own forced getAssets() call).
+          (
+            messenger as unknown as {
+              publish: (topic: string, payload?: unknown) => void;
+            }
+          ).publish('ClientController:stateChanged', { isUiOpen: true });
+          await flushPromises();
+
+          expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+
+          resolveGetAssets?.();
+          await flushPromises();
+
+          // Once the single in-flight startup refresh settles, it also
+          // triggers one follow-up price-only getAssets() call — but a
+          // duplicate #runStartupRefresh() would double both of these (4
+          // total), not just add one. Two calls confirms no duplicate ran.
+          expect(getAssetsSpy).toHaveBeenCalledTimes(2);
+          expect(getAssetsSpy).toHaveBeenNthCalledWith(
+            1,
+            expect.anything(),
+            expect.objectContaining({ forceUpdate: true }),
+          );
+          expect(getAssetsSpy).toHaveBeenNthCalledWith(
+            2,
+            expect.anything(),
+            expect.objectContaining({ dataTypes: ['price'] }),
+          );
+          getAssetsSpy.mockRestore();
+        },
+      );
+    });
   });
 
   describe('subscribeAssetsPrice', () => {
@@ -3331,6 +3534,91 @@ describe('AssetsController', () => {
         await new Promise(process.nextTick);
 
         expect(true).toBe(true);
+      });
+    });
+
+    it('seeds a zero native balance for a Solana account with no assets', async () => {
+      // The Accounts API returns nothing at all for an account that holds no
+      // assets — not even a zero native balance — so the controller has to
+      // supply SOL itself, the same way it supplies ETH on EVM.
+      const solanaChainId = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+      const solanaNativeAssetId =
+        `${solanaChainId}/slip44:501` as Caip19AssetId;
+      const solanaAccountId = 'mock-solana-account-id';
+
+      await withController(async ({ controller, getSelectedAccountsMock }) => {
+        getSelectedAccountsMock.mockReturnValue([
+          createMockInternalAccount({
+            id: solanaAccountId,
+            address: 'FhRuTg4d2vbVbY1AhPWFGaJgMxNWUxUJUcNhjT5rFQZg',
+            type: 'solana:data-account',
+            scopes: [solanaChainId as `${string}:${string}`],
+          }),
+        ]);
+
+        (controller.messenger.publish as CallableFunction)(
+          'NetworkEnablementController:stateChange',
+          {
+            enabledNetworkMap: {
+              eip155: { '1': true },
+              solana: { [solanaChainId]: true },
+            },
+            nativeAssetIdentifiers: {},
+          },
+          [],
+        );
+
+        await new Promise(process.nextTick);
+
+        expect(
+          controller.state.assetsBalance[solanaAccountId]?.[
+            solanaNativeAssetId
+          ],
+        ).toStrictEqual({ amount: '0' });
+      });
+    });
+
+    it('seeds a Stellar native with zero spendable and reserve metadata when the account has no assets', async () => {
+      const stellarChainId = 'stellar:pubnet';
+      const stellarNativeAssetId =
+        `${stellarChainId}/slip44:148` as Caip19AssetId;
+      const stellarAccountId = 'mock-stellar-account-id';
+
+      await withController(async ({ controller, getSelectedAccountsMock }) => {
+        getSelectedAccountsMock.mockReturnValue([
+          createMockInternalAccount({
+            id: stellarAccountId,
+            address: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+            type: 'stellar:data-account',
+            scopes: [stellarChainId as `${string}:${string}`],
+          }),
+        ]);
+
+        (controller.messenger.publish as CallableFunction)(
+          'NetworkEnablementController:stateChange',
+          {
+            enabledNetworkMap: {
+              eip155: { '1': true },
+              stellar: { [stellarChainId]: true },
+            },
+            nativeAssetIdentifiers: {},
+          },
+          [],
+        );
+
+        await new Promise(process.nextTick);
+
+        expect(
+          controller.state.assetsBalance[stellarAccountId]?.[
+            stellarNativeAssetId
+          ],
+        ).toStrictEqual({
+          amount: '0',
+          metadata: {
+            minimumReserveBalance: '0',
+            spendableBalance: '0',
+          },
+        });
       });
     });
 

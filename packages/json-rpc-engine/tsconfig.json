@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "rootDir": "../..",
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
@@ -12,6 +11,9 @@
   "references": [
     {
       "path": "../messenger"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "../../tests", "./src", "./tests"]

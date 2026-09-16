@@ -2,10 +2,8 @@ import { createSandbox } from '@metamask/utils/node';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import {
-  createExtractionProject,
-  extractFromSourceFile,
-} from './extraction.js';
+import { extractFromSourceFile } from './extraction.js';
+import { createProject } from './ts-project.js';
 import { MessengerCapabilityPacket } from './types.js';
 
 const { withinSandbox } = createSandbox('platform-api-docs/extraction');
@@ -36,7 +34,7 @@ function withMessenger(
  * run `extractFromSourceFile` on it.
  *
  * This mirrors the logic that callers of the library use in production (via
- * `createExtractionProject` + `extractFromSourceFile`) without going through
+ * `createProject` + `extractFromSourceFile`) without going through
  * the now-removed `extractFromFile` convenience wrapper.
  *
  * @param filePath - Absolute path of the file to write and extract from.
@@ -52,7 +50,7 @@ async function extractFromWrittenFile(
 ): Promise<MessengerCapabilityPacket[]> {
   await fs.promises.writeFile(filePath, content);
   const parentDir = path.dirname(filePath);
-  const project = createExtractionProject();
+  const project = createProject();
   project.addSourceFilesAtPaths([
     path.join(parentDir, '**/*.ts'),
     path.join(parentDir, '**/*.d.cts'),

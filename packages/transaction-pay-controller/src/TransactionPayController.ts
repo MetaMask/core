@@ -2,7 +2,7 @@ import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Draft } from 'immer';
-import { noop } from 'lodash';
+import { noop } from 'lodash-es';
 
 import { updateFiatPayment } from './actions/update-fiat-payment.js';
 import { updatePaymentToken } from './actions/update-payment-token.js';

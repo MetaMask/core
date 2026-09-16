@@ -1,8 +1,9 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
-  "references": [],
+  "references": [
+    {
+      "path": "../utils"
+    }
+  ],
   "include": ["../../types", "./src"]
 }

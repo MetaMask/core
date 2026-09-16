@@ -28,6 +28,7 @@ import {
   OPTIMISM_USDC,
   SEI_USDCN,
   SPAM_WALLET_ASSETS_INFO,
+  SPAM_WALLET_PRICES,
   SURVIVING_ASSET_IDS,
   SWEEPABLE_ASSET_IDS,
   buildAssetsInfo,
@@ -170,7 +171,7 @@ describe('AssetsController spam cleanup', () => {
     });
   });
 
-  it('leaves prices and the imported token alone', async () => {
+  it("leaves the imported token alone and clears the swept assets' prices", async () => {
     mockSuggestedOccurrenceFloors();
     mockV3Assets();
     const state = buildSpamWalletState();
@@ -183,7 +184,9 @@ describe('AssetsController spam cleanup', () => {
         expect(controller.state.customAssets).toStrictEqual({
           [ACCOUNT_TWO_ID]: [ARBITRUM_GMX],
         });
-        expect(controller.state.assetsPrice).toStrictEqual(state.assetsPrice);
+        expect(controller.state.assetsPrice).toStrictEqual({
+          [MAINNET_USDT]: SPAM_WALLET_PRICES[MAINNET_USDT],
+        });
       });
     });
   });

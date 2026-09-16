@@ -534,6 +534,23 @@ describe('lighterAdapter', () => {
       ).toThrow('Invalid Lighter venue data');
     });
 
+    it('accepts omitted counterparty pnl while requiring the selected account pnl', () => {
+      expect(
+        adaptFillFromLighterTrade(
+          { ...REAL_TRADE, bidAccountPnl: undefined },
+          'SOL',
+          28,
+        ).pnl,
+      ).toBe('-0.012901');
+      expect(
+        adaptFillFromLighterTrade(
+          { ...REAL_TRADE, askAccountPnl: undefined },
+          'SOL',
+          7,
+        ).pnl,
+      ).toBe('0');
+    });
+
     it('keeps a Standard fill whose Premium counterparty paid the fee', () => {
       // Account 28 is the taker; the MAKER (counterparty) fee being nonzero
       // must not drop our valid zero-fee fill.

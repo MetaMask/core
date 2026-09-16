@@ -8,7 +8,7 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
-import { merge } from 'lodash';
+import { merge } from 'lodash-es';
 
 import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20.js';
 import {

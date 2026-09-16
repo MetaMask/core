@@ -302,6 +302,9 @@
       "path": "./packages/user-operation-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/utils/tsconfig.build.json"
+    },
+    {
       "path": "./packages/wallet-cli/tsconfig.build.json"
     },
     {
@@ -309,6 +312,9 @@
     },
     {
       "path": "./packages/wallet/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/package-template/tsconfig.build.json"
     }
   ],
   "files": [],

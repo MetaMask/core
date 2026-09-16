@@ -1,15 +1,14 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./",
-    "types": ["jest"]
-  },
   "references": [
     {
       "path": "../base-controller"
     },
     {
       "path": "../messenger"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

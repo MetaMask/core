@@ -8,7 +8,7 @@ import codeownersSections from '../../codeowners.js';
  * The path to the generated CODEOWNERS file.
  */
 const CODEOWNERS_FILE_PATH = path.resolve(
-  __dirname,
+  import.meta.dirname,
   '../../.github/CODEOWNERS',
 );
 
@@ -90,7 +90,7 @@ function generateCodeownersFileContent(): string {
     const lines: string[] = [];
 
     // This is useful to discriminate the union.
-    // eslint-disable-next-line no-restricted-syntax
+
     if ('title' in section) {
       lines.push(`## ${section.title}`);
     }

@@ -146,12 +146,16 @@ function getRequest({
   rampsQuotes = FIAT_QUOTES_RESPONSE_MOCK,
   tokens = [REQUIRED_TOKEN_MOCK],
   throwsOnRampsQuotes,
+  transakBuyQuote,
+  throwsOnTransakBuyQuote,
 }: {
   amountFiat?: string;
   fiatPaymentMethod?: string;
   rampsQuotes?: RampsQuotesResponse;
   tokens?: TransactionPayRequiredToken[];
   throwsOnRampsQuotes?: Error;
+  transakBuyQuote?: unknown;
+  throwsOnTransakBuyQuote?: Error;
 } = {}): {
   callMock: jest.Mock;
   request: PayStrategyGetQuotesRequest;
@@ -178,6 +182,16 @@ function getRequest({
         }
 
         return rampsQuotes;
+      }
+
+      if (action === 'TransakService:getBuyQuote') {
+        if (throwsOnTransakBuyQuote) {
+          throw throwsOnTransakBuyQuote;
+        }
+
+        if (transakBuyQuote !== undefined) {
+          return transakBuyQuote;
+        }
       }
 
       if (action === 'TransactionPayController:updateFiatPayment') {
@@ -308,6 +322,92 @@ describe('getFiatQuotes', () => {
       expect(result[0].original).toStrictEqual({
         rampsQuote: FIAT_QUOTE_MOCK,
         relayQuote: {},
+      });
+    });
+
+    it('uses the native Transak fee when the provider is Transak Native', async () => {
+      const { callMock, request } = getRequest({
+        transakBuyQuote: { totalFee: 3.3 },
+      });
+
+      const result = await getFiatQuotes(request);
+
+      // Relay path stays fee-on-top, so the native quote is requested with
+      // isFeeExcludedFromFiat = true, in USD, for the adjusted amount.
+      expect(callMock).toHaveBeenCalledWith(
+        'TransakService:getBuyQuote',
+        'USD',
+        FIAT_ASSET_CAIP_ID_MOCK,
+        'eip155:137',
+        '/payments/debit-credit-card',
+        '18',
+        true,
+      );
+
+      // provider = relay(1) + native(3.3) = 4.3
+      expect(result[0].fees.provider).toStrictEqual({
+        fiat: '4.3',
+        usd: '4.3',
+      });
+      // providerFiat = native fee only
+      expect(result[0].fees.providerFiat).toStrictEqual({
+        fiat: '3.3',
+        usd: '3.3',
+      });
+    });
+
+    it('falls back to the aggregator fee when the native quote fetch fails', async () => {
+      const { request } = getRequest({
+        throwsOnTransakBuyQuote: new Error('native lookup failed'),
+      });
+
+      const result = await getFiatQuotes(request);
+
+      // providerFiat = aggregator ramps (0.5 + 0.2 = 0.7)
+      expect(result[0].fees.providerFiat).toStrictEqual({
+        fiat: '0.7',
+        usd: '0.7',
+      });
+      expect(result[0].fees.provider).toStrictEqual({
+        fiat: '1.7',
+        usd: '1.7',
+      });
+    });
+
+    it('does not fetch a native quote for a non-native provider', async () => {
+      const { callMock, request } = getRequest({
+        rampsQuotes: {
+          ...FIAT_QUOTES_RESPONSE_MOCK,
+          success: [{ ...FIAT_QUOTE_MOCK, provider: '/providers/moonpay' }],
+        },
+        transakBuyQuote: { totalFee: 3.3 },
+      });
+
+      const result = await getFiatQuotes(request);
+
+      expect(
+        callMock.mock.calls.filter(
+          (call) => call[0] === 'TransakService:getBuyQuote',
+        ),
+      ).toHaveLength(0);
+      // aggregator fee retained
+      expect(result[0].fees.providerFiat).toStrictEqual({
+        fiat: '0.7',
+        usd: '0.7',
+      });
+    });
+
+    it('falls back to the aggregator fee when the native quote returns an unusable fee', async () => {
+      const { request } = getRequest({
+        transakBuyQuote: { totalFee: -1 },
+      });
+
+      const result = await getFiatQuotes(request);
+
+      // negative native fee is rejected; aggregator fee (0.7) is used
+      expect(result[0].fees.providerFiat).toStrictEqual({
+        fiat: '0.7',
+        usd: '0.7',
       });
     });
 
@@ -838,8 +938,18 @@ describe('getFiatQuotes', () => {
         expect.objectContaining({
           fees: expect.objectContaining({
             sourceNetwork: {
-              estimate: { fiat: '0', human: '0', raw: '0', usd: '0' },
-              max: { fiat: '0', human: '0', raw: '0', usd: '0' },
+              estimate: {
+                fiat: '0.2',
+                human: '0',
+                raw: '0',
+                usd: '0.2',
+              },
+              max: {
+                fiat: '0.2',
+                human: '0',
+                raw: '0',
+                usd: '0.2',
+              },
             },
             targetNetwork: { fiat: '0', usd: '0' },
           }),

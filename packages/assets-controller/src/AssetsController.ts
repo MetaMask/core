@@ -75,8 +75,8 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import BigNumberJS from 'bignumber.js';
-import { isEqual } from 'lodash';
+import { BigNumber as BigNumberJS } from 'bignumber.js';
+import { isEqual } from 'lodash-es';
 
 import type { AssetsControllerMethodActions } from './AssetsController-method-action-types.js';
 import type {
@@ -137,6 +137,7 @@ import type {
   FungibleAssetMetadata,
   AssetPrice,
   AssetBalance,
+  FungibleAssetBalance,
   AccountWithSupportedChains,
   AssetType,
   DataType,
@@ -158,6 +159,7 @@ import {
   formatStateForTransactionPay,
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
+  getDefaultNativeAssetBalance,
 } from './utils/index.js';
 import type {
   BridgeExchangeRatesFormat,
@@ -766,6 +768,19 @@ export class AssetsController extends BaseController<
    */
   readonly #activeSubscriptions: Map<string, SubscriptionResponse> = new Map();
 
+  /**
+   * Guards against `#start()` re-entrancy. `#activeSubscriptions` only
+   * becomes non-empty once `#runStartupRefresh()`'s forced `getAssets()`
+   * call resolves, which can take many seconds for accounts with many
+   * chains/snaps. `#start()` is invoked by `#updateActive()`, which is
+   * wired to several independent events (e.g. keyring unlock, account tree
+   * init, client state change). If a second such event fires before the
+   * first `getAssets()` call resolves, the `#activeSubscriptions.size > 0`
+   * guard alone doesn't catch it, and the whole startup refresh (including
+   * its forced `getAssets()` call) runs a second time for the same accounts.
+   */
+  #startInFlight = false;
+
   /** Currently enabled chains from NetworkEnablementController */
   #enabledChains: Set<ChainId> = new Set();
 
@@ -1232,6 +1247,8 @@ export class AssetsController extends BaseController<
   /**
    * Force-refresh assets for the account/chain of a transaction, unless the
    * chain is already covered by AccountActivity (real-time WebSocket balances).
+   * Always bypasses the Accounts API's server-side cache so a refresh cannot
+   * be answered with a stale pre-transaction snapshot.
    *
    * @param transactionMeta - The transaction that triggered the refresh.
    */
@@ -1268,6 +1285,7 @@ export class AssetsController extends BaseController<
     this.getAssets([matchedAccount], {
       chainIds: [caipChainId],
       forceUpdate: true,
+      bypassServerCache: true,
     }).catch((error) => {
       log('Failed to refresh assets after transaction event', { error });
     });
@@ -1304,7 +1322,10 @@ export class AssetsController extends BaseController<
 
       this.update((state) => {
         result.applyPatch(
-          state as Pick<AssetsControllerState, 'assetsInfo' | 'assetsBalance'>,
+          state as Pick<
+            AssetsControllerState,
+            'assetsInfo' | 'assetsBalance' | 'assetsPrice'
+          >,
           {
             spamAssetIds: result.spamAssetIds,
           },
@@ -1591,6 +1612,13 @@ export class AssetsController extends BaseController<
       chainIds?: ChainId[];
       assetTypes?: AssetType[];
       forceUpdate?: boolean;
+      /**
+       * Also bypass server-side HTTP caches (e.g. the Accounts API's 60s
+       * cache, via a random `bypassServerCache` query param). Only meaningful
+       * together with `forceUpdate`. Use sparingly — e.g. right after a
+       * transaction confirms, when the API's cached snapshot is known stale.
+       */
+      bypassServerCache?: boolean;
       dataTypes?: DataType[];
       assetsForPriceUpdate?: Caip19AssetId[];
       /** When set to `'merge'`, fetch result is merged with existing state instead of replacing. Use for partial fetches (e.g. newly added chains). */
@@ -1624,6 +1652,7 @@ export class AssetsController extends BaseController<
         dataTypes,
         customAssets: customAssets.length > 0 ? customAssets : undefined,
         forceUpdate: true,
+        bypassServerCache: options?.bypassServerCache,
         assetsForPriceUpdate: options?.assetsForPriceUpdate,
       });
 
@@ -2565,7 +2594,8 @@ export class AssetsController extends BaseController<
               nativeAssetId,
             )
           ) {
-            balances[accountId][nativeAssetId] = { amount: '0' };
+            balances[accountId][nativeAssetId] =
+              getDefaultNativeAssetBalance(nativeAssetId);
           }
         }
       }
@@ -2765,14 +2795,15 @@ export class AssetsController extends BaseController<
               if (
                 !Object.prototype.hasOwnProperty.call(effective, nativeAssetId)
               ) {
-                effective[nativeAssetId] = { amount: '0' } as AssetBalance;
+                effective[nativeAssetId] =
+                  getDefaultNativeAssetBalance(nativeAssetId);
               }
             }
 
             for (const [assetId, balance] of Object.entries(effective)) {
               const previousBalance = previousBalances[
                 assetId as Caip19AssetId
-              ] as { amount: string } | undefined;
+              ] as AssetBalance | undefined;
               // Coerce amounts (e.g. "1e-18" from a data source stringifying
               // a JS Number) into a plain decimal so downstream BigInt()
               // consumers don't crash. Decimals are read from the freshest
@@ -2787,7 +2818,13 @@ export class AssetsController extends BaseController<
                 (balance as { amount: unknown }).amount,
                 assetDecimals,
               );
-              effective[assetId] = { ...balance, amount: newAmount };
+              const newMetadata =
+                (balance as FungibleAssetBalance).metadata ??
+                (previousBalance as FungibleAssetBalance | undefined)?.metadata;
+              effective[assetId] = {
+                amount: newAmount,
+                ...(newMetadata === undefined ? {} : { metadata: newMetadata }),
+              };
               const oldAmount = previousBalance?.amount;
               const isNewDefaultNativeZero =
                 oldAmount === undefined &&
@@ -3067,7 +3104,7 @@ export class AssetsController extends BaseController<
       return;
     }
 
-    if (this.#activeSubscriptions.size > 0) {
+    if (this.#activeSubscriptions.size > 0 || this.#startInFlight) {
       return;
     }
 
@@ -3076,9 +3113,14 @@ export class AssetsController extends BaseController<
       enabledChainCount: chainIds.length,
     });
 
-    this.#runStartupRefresh(accounts).catch((error) => {
-      log('Failed to start asset tracking', error);
-    });
+    this.#startInFlight = true;
+    this.#runStartupRefresh(accounts)
+      .catch((error) => {
+        log('Failed to start asset tracking', error);
+      })
+      .finally(() => {
+        this.#startInFlight = false;
+      });
   }
 
   /**
@@ -3901,6 +3943,7 @@ export class AssetsController extends BaseController<
           sourceId === 'AccountActivityDataSource' &&
           this.#isBasicFunctionality();
 
+        const shouldRunRpcFallback = sourceId === 'AccountsApiDataSource';
         const enrichmentSources: AssetsDataSource[] = [
           ...(shouldGraduateCustomAssets
             ? [this.#customAssetGraduationMiddleware]
@@ -3914,6 +3957,7 @@ export class AssetsController extends BaseController<
                 },
               ]
             : []),
+          ...(shouldRunRpcFallback ? [this.#rpcFallbackMiddleware] : []),
           this.#detectionMiddleware,
         ];
         if (this.#isBasicFunctionality()) {

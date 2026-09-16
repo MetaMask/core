@@ -1158,6 +1158,20 @@ describe('MfaRecoveryController', () => {
         },
       },
       {
+        name: 'a non-zero register expectedVersion',
+        mutate: (pending: Record<string, unknown>): void => {
+          const mutation = pending.mutation as Record<string, unknown>;
+          mutation.operation = 'register';
+          mutation.expectedVersion = 1;
+          mutation.newVersion = 2;
+          pending.identifier = null;
+          pending.payload = {
+            identifiers: IDENTIFIERS,
+            recoverySecret: bytesToHex(SECRET),
+          };
+        },
+      },
+      {
         name: 'a null update identifier',
         mutate: (pending: Record<string, unknown>): void => {
           pending.identifier = null;

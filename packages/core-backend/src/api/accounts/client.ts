@@ -17,12 +17,7 @@ import type {
   QueryFunctionContext,
 } from '@tanstack/query-core';
 
-import {
-  BaseApiClient,
-  API_URLS,
-  STALE_TIMES,
-  GC_TIMES,
-} from '../base-client.js';
+import { BaseApiClient, STALE_TIMES, GC_TIMES } from '../base-client.js';
 import { getQueryOptionsOverrides } from '../shared-types.js';
 import type { FetchOptions } from '../shared-types.js';
 import type {
@@ -41,6 +36,17 @@ import type {
   V2NftsResponse,
   V2TokensResponse,
 } from './types.js';
+
+/**
+ * Generate a short random value for the `bypassServerCache` query param. The
+ * Accounts API's server-side cache keys on the full URL including query
+ * params, so a unique value forces a cache miss ("hard refresh").
+ *
+ * @returns An 8-character alphanumeric string.
+ */
+function generateBypassServerCache(): string {
+  return Math.random().toString(36).slice(2, 10).padEnd(8, '0');
+}
 
 /**
  * Accounts API Client.
@@ -86,7 +92,7 @@ export class AccountsApiClient extends BaseApiClient {
       queryKey: ['accounts', 'v1SupportedNetworks'],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V1SupportedNetworksResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           '/v1/supportedNetworks',
           { signal },
         ),
@@ -123,7 +129,7 @@ export class AccountsApiClient extends BaseApiClient {
       queryKey: ['accounts', 'v2SupportedNetworks'],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V2SupportedNetworksResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           '/v2/supportedNetworks',
           { signal },
         ),
@@ -135,6 +141,7 @@ export class AccountsApiClient extends BaseApiClient {
 
   /**
    * Get list of supported networks (v2 endpoint).
+   * Returns CAIP-2 chain IDs in both `fullSupport` and `partialSupport`.
    *
    * @param options - Fetch options including cache settings.
    * @returns The list of supported networks.
@@ -186,7 +193,7 @@ export class AccountsApiClient extends BaseApiClient {
           return { activeNetworks: [] };
         }
         return this.fetch<V2ActiveNetworksResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           '/v2/activeNetworks',
           {
             signal,
@@ -277,7 +284,7 @@ export class AccountsApiClient extends BaseApiClient {
           return { count: 0, balances: [], unprocessedNetworks: [] };
         }
         return this.fetch<V2BalancesResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           `/v2/accounts/${address}/balances`,
           {
             signal,
@@ -361,7 +368,7 @@ export class AccountsApiClient extends BaseApiClient {
           return { count: 0, balances: [], unprocessedNetworks: [] };
         }
         return this.fetch<V4BalancesResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           '/v4/multiaccount/balances',
           {
             signal,
@@ -445,7 +452,7 @@ export class AccountsApiClient extends BaseApiClient {
           return { count: 0, unprocessedNetworks: [], balances: [] };
         }
         return this.fetch<V5BalancesResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           '/v5/multiaccount/balances',
           {
             signal,
@@ -454,12 +461,17 @@ export class AccountsApiClient extends BaseApiClient {
               networks: queryOptions?.networks,
               filterMMListTokens: queryOptions?.filterMMListTokens,
               includeStakedAssets: queryOptions?.includeStakedAssets,
+              bypassServerCache: options?.bypassServerCache
+                ? generateBypassServerCache()
+                : undefined,
             },
           },
         );
       },
       ...getQueryOptionsOverrides(options),
-      staleTime: options?.staleTime ?? STALE_TIMES.BALANCES,
+      staleTime:
+        options?.staleTime ??
+        (options?.bypassServerCache ? 0 : STALE_TIMES.BALANCES),
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
     };
   }
@@ -567,7 +579,7 @@ export class AccountsApiClient extends BaseApiClient {
           };
         }
         return this.fetch<V6BalancesResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           '/v6/multiaccount/balances',
           {
             signal,
@@ -585,12 +597,17 @@ export class AccountsApiClient extends BaseApiClient {
               vsCurrency: queryOptions?.vsCurrency,
               includeAssetIds: queryOptions?.includeAssetIds,
               excludeAssetIds: queryOptions?.excludeAssetIds,
+              bypassServerCache: options?.bypassServerCache
+                ? generateBypassServerCache()
+                : undefined,
             },
           },
         );
       },
       ...getQueryOptionsOverrides(options),
-      staleTime: options?.staleTime ?? STALE_TIMES.BALANCES,
+      staleTime:
+        options?.staleTime ??
+        (options?.bypassServerCache ? 0 : STALE_TIMES.BALANCES),
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
     };
   }
@@ -687,7 +704,7 @@ export class AccountsApiClient extends BaseApiClient {
       ],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V1TransactionByHashResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           `/v1/networks/${chainId}/transactions/${txHash}`,
           {
             signal,
@@ -784,7 +801,7 @@ export class AccountsApiClient extends BaseApiClient {
           return { data: [], pageInfo: { count: 0, hasNextPage: false } };
         }
         return this.fetch<V1AccountTransactionsResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           `/v1/accounts/${address}/transactions`,
           {
             signal,
@@ -892,7 +909,7 @@ export class AccountsApiClient extends BaseApiClient {
       ],
       queryFn: ({ signal }: QueryFunctionContext) =>
         this.fetch<V4MultiAccountTransactionsResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           '/v4/multiaccount/transactions',
           {
             signal,
@@ -984,7 +1001,7 @@ export class AccountsApiClient extends BaseApiClient {
         signal?: AbortSignal;
       }) =>
         this.fetch<V4MultiAccountTransactionsResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           '/v4/multiaccount/transactions',
           {
             signal,
@@ -1084,7 +1101,7 @@ export class AccountsApiClient extends BaseApiClient {
         signal,
       }: QueryFunctionContext): Promise<V1AccountRelationshipResult> =>
         this.fetch<V1AccountRelationshipResult>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           `/v1/networks/${chainId}/accounts/${from}/relationships/${to}`,
           { signal },
         ),
@@ -1153,7 +1170,7 @@ export class AccountsApiClient extends BaseApiClient {
           return { data: [], pageInfo: { count: 0, hasNextPage: false } };
         }
         return this.fetch<V2NftsResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           `/v2/accounts/${address}/nfts`,
           {
             signal,
@@ -1231,7 +1248,7 @@ export class AccountsApiClient extends BaseApiClient {
           return { data: [] };
         }
         return this.fetch<V2TokensResponse>(
-          API_URLS.ACCOUNTS,
+          this.apiUrls.ACCOUNTS,
           `/v2/accounts/${address}/tokens`,
           {
             signal,

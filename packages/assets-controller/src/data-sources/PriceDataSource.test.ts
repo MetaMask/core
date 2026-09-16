@@ -24,6 +24,7 @@ const MOCK_NATIVE_ASSET = 'eip155:1/slip44:60' as Caip19AssetId;
 type MockApiClient = {
   prices: {
     fetchV3SpotPrices: jest.Mock;
+    fetchPriceV2SupportedNetworks: jest.Mock;
   };
 };
 
@@ -82,10 +83,15 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
 
 function createMockApiClient(
   priceResponse: Record<string, unknown> = {},
+  supportedNetworks: string[] = ['eip155:1'],
 ): MockApiClient {
   return {
     prices: {
       fetchV3SpotPrices: jest.fn().mockResolvedValue(priceResponse),
+      fetchPriceV2SupportedNetworks: jest.fn().mockResolvedValue({
+        fullSupport: supportedNetworks,
+        partialSupport: [],
+      }),
     },
   };
 }
@@ -112,6 +118,7 @@ function setupController(
     balanceState?: Record<string, Record<string, unknown>>;
     getSelectedCurrency?: () => SupportedCurrency;
     pollInterval?: number;
+    supportedNetworks?: string[];
   } = {},
 ): SetupResult {
   const {
@@ -119,9 +126,10 @@ function setupController(
     balanceState = {},
     getSelectedCurrency = (): SupportedCurrency => 'usd',
     pollInterval,
+    supportedNetworks = ['eip155:1'],
   } = options;
 
-  const apiClient = createMockApiClient(priceResponse);
+  const apiClient = createMockApiClient(priceResponse, supportedNetworks);
 
   const controllerOptions: PriceDataSourceOptions = {
     queryApiClient:
@@ -358,6 +366,7 @@ describe('PriceDataSource', () => {
       priceResponse: {
         [polygonAsset]: createMockPriceData(0.5),
       },
+      supportedNetworks: ['eip155:1', 'eip155:137'],
     });
 
     await controller.fetch(
@@ -526,9 +535,7 @@ describe('PriceDataSource', () => {
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
-    jest.advanceTimersByTime(5000);
-    await Promise.resolve();
-
+    await jest.advanceTimersByTimeAsync(5000);
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
 
     controller.destroy();
@@ -560,8 +567,8 @@ describe('PriceDataSource', () => {
     // Advance one tick at a time, flushing microtasks between each so the
     // async pollFn completes and inflight promises settle before the next tick.
     for (let i = 2; i <= 7; i++) {
-      jest.advanceTimersByTime(10000);
-      await jest.advanceTimersByTimeAsync(0);
+      await jest.advanceTimersByTimeAsync(10000);
+      expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(i);
     }
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(7);
@@ -758,8 +765,7 @@ describe('PriceDataSource', () => {
 
     await controller.unsubscribe('sub-1');
 
-    jest.advanceTimersByTime(10000);
-    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(10000);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
@@ -1005,7 +1011,7 @@ describe('PriceDataSource', () => {
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
     // Advance past the TTL (pollInterval = 10s is used as freshness TTL)
-    jest.advanceTimersByTime(11_000);
+    await jest.advanceTimersByTimeAsync(11_000);
 
     await controller.fetch(createDataRequest(), getAssetsState);
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
@@ -1126,6 +1132,7 @@ describe('PriceDataSource', () => {
     const promise2 = controller.assetsMiddleware(context2, next);
 
     // Only ONE API call should have been made (second call joins inflight)
+    await jest.advanceTimersByTimeAsync(10000);
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
     // Resolve the API
@@ -1242,6 +1249,7 @@ describe('PriceDataSource', () => {
         [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
         [polygonAsset]: createMockPriceData(0.5),
       },
+      supportedNetworks: ['eip155:1', 'eip155:137'],
     });
 
     await controller.subscribe({
@@ -1264,8 +1272,7 @@ describe('PriceDataSource', () => {
 
     controller.destroy();
 
-    jest.advanceTimersByTime(10000);
-    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(10000);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
   });
@@ -1315,4 +1322,118 @@ describe('PriceDataSource', () => {
       controller.destroy();
     },
   );
+
+  describe('supported networks filtering', () => {
+    const SUPPORTED_SOLANA_CHAIN = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+    const SUPPORTED_SOLANA_ASSET = `${SUPPORTED_SOLANA_CHAIN}/slip44:501`;
+    const UNSUPPORTED_SOLANA_ASSET =
+      'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
+    const MALFORMED_ASSET_ID = 'not-a-valid-caip19' as Caip19AssetId;
+
+    const arrangeMiddleware = ({
+      assetsForPriceUpdate = [],
+      detectedAssets = [],
+      supportedNetworks = ['eip155:1'],
+    }: {
+      assetsForPriceUpdate?: Caip19AssetId[];
+      detectedAssets?: Caip19AssetId[];
+      supportedNetworks?: string[];
+    }): {
+      controller: PriceDataSource;
+      apiClient: MockApiClient;
+      act: () => Promise<unknown>;
+      context: Context;
+    } => {
+      const result = setupController({
+        priceResponse: {
+          [SUPPORTED_SOLANA_ASSET]: createMockPriceData(150),
+        },
+        supportedNetworks,
+      });
+
+      const context = createMiddlewareContext({
+        request: createDataRequest({ assetsForPriceUpdate }),
+        response: { detectedAssets: { 'mock-account-id': detectedAssets } },
+      });
+
+      return {
+        controller: result.controller,
+        apiClient: result.apiClient,
+        act: () => result.controller.assetsMiddleware(context, jest.fn()),
+        context,
+      };
+    };
+
+    const testCases = [
+      {
+        name: 'filters unsupported assets but fetches supported ones',
+        assets: [SUPPORTED_SOLANA_ASSET, UNSUPPORTED_SOLANA_ASSET],
+        expectAPI: ({
+          apiClient,
+        }: ReturnType<typeof arrangeMiddleware>): void => {
+          expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+            [SUPPORTED_SOLANA_ASSET],
+            expect.anything(),
+          );
+        },
+      },
+      {
+        name: 'filters out detected assets from unsupported networks',
+        assets: [UNSUPPORTED_SOLANA_ASSET],
+        expectAPI: ({
+          apiClient,
+        }: ReturnType<typeof arrangeMiddleware>): void => {
+          expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
+        },
+      },
+      {
+        name: 'does not call API when all assetsForPriceUpdate are from unsupported networks',
+        assets: [UNSUPPORTED_SOLANA_ASSET],
+        expectAPI: ({
+          apiClient,
+        }: ReturnType<typeof arrangeMiddleware>): void => {
+          expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
+        },
+      },
+      {
+        name: 'filters out malformed asset IDs when checking supported networks',
+        assets: [MALFORMED_ASSET_ID],
+        expectAPI: ({
+          apiClient,
+        }: ReturnType<typeof arrangeMiddleware>): void => {
+          expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
+        },
+      },
+    ];
+
+    it.each(testCases)(
+      'request.assetsForPriceUpdate price updates: $name',
+      async ({ assets, expectAPI }) => {
+        expect.hasAssertions();
+        const setup = arrangeMiddleware({
+          assetsForPriceUpdate: assets as Caip19AssetId[],
+          supportedNetworks: [SUPPORTED_SOLANA_CHAIN],
+        });
+
+        await setup.act();
+        expectAPI(setup);
+        setup.controller.destroy();
+      },
+    );
+
+    it.each(testCases)(
+      'request.detectedAssets price updates: $name',
+      async ({ assets, expectAPI }) => {
+        expect.hasAssertions();
+        const setup = arrangeMiddleware({
+          detectedAssets: assets as Caip19AssetId[],
+          supportedNetworks: [SUPPORTED_SOLANA_CHAIN],
+        });
+
+        await setup.act();
+        expectAPI(setup);
+        setup.controller.destroy();
+      },
+    );
+  });
 });

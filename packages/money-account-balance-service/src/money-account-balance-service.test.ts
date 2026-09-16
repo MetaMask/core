@@ -266,7 +266,7 @@ function createService({
       'RemoteFeatureFlagController:getState',
       'MoneyAccountApiDataService:fetchPositions',
     ],
-    // eslint-disable-next-line no-restricted-syntax
+
     events: ['RemoteFeatureFlagController:stateChange'],
     messenger,
   });

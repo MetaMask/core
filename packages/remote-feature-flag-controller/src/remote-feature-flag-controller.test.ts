@@ -884,6 +884,37 @@ describe('RemoteFeatureFlagController', () => {
         controller.state.remoteFeatureFlags.canonicalThresholdFlag,
       ).toStrictEqual(mockFlags.canonicalThresholdFlag);
     });
+
+    it('keeps the previously selected value when canonical profile id is empty', async () => {
+      const rawRemoteFeatureFlags = {
+        canonicalThresholdFlag: [
+          {
+            name: 'groupA',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'canonicalA',
+          },
+        ],
+      };
+      // A returning user whose identifier is not available yet, as when `init`
+      // runs before the controller backing `getCanonicalProfileId`.
+      const { controller } = createController({
+        state: {
+          rawRemoteFeatureFlags,
+          remoteFeatureFlags: { canonicalThresholdFlag: 'canonicalA' },
+          featureFlagThresholdGroups: { canonicalThresholdFlag: 'groupA' },
+        },
+        getCanonicalProfileId: () => '',
+      });
+
+      await controller.init();
+
+      expect(controller.state.remoteFeatureFlags.canonicalThresholdFlag).toBe(
+        'canonicalA',
+      );
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        canonicalThresholdFlag: 'groupA',
+      });
+    });
   });
 
   describe('metaMetricsIds explicit targeting', () => {

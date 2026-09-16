@@ -1,7 +1,7 @@
 import { generateEIP7702BatchTransaction } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type { TransactionPayQuote } from '../../types.js';

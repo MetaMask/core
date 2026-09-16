@@ -5,11 +5,7 @@ import * as path from 'node:path';
 import { promisify } from 'node:util';
 import type { Project } from 'ts-morph';
 
-import { findDtsFiles, findTsFiles } from './discovery.js';
-import {
-  createExtractionProject,
-  extractFromSourceFile,
-} from './extraction.js';
+import { extractFromSourceFile } from './extraction.js';
 import {
   generateIndexPage,
   generateNamespacePage,
@@ -17,6 +13,7 @@ import {
 } from './markdown.js';
 import type { RootCapabilitiesTypeReference } from './root-messenger-discovery.js';
 import { discoverFromRootMessengerCapabilitiesTypes } from './root-messenger-discovery.js';
+import { createProject } from './ts-project.js';
 import type { MessengerCapabilityPacket, NamespaceGroup } from './types.js';
 
 /** How many skipped capability types to name before summarizing the rest. */
@@ -253,79 +250,99 @@ function logScanPlan(sources: ScanSources): void {
 }
 
 /**
- * Run extraction against every file in a single directory, logging and
- * swallowing per-file failures. All files are added to the shared `project`
- * up front so the type checker can resolve cross-file references when the
- * walker descends into imported types.
+ * Patterns excluded when scanning TypeScript sources: build output, tests, and
+ * declaration files (which are only read under `node_modules/@metamask`, via
+ * the separate set below).
+ *
+ * Every pattern is anchored to `root` rather than written as a bare
+ * `!**‍/*.test.ts`. A matcher resolves an unanchored negation against the
+ * process's working directory, not against the pattern it accompanies, so an
+ * unanchored exclusion silently stops excluding anything the moment the scanned
+ * path falls outside the working directory — which is the normal case, since
+ * this runs from wherever the consumer invoked it.
+ *
+ * `contentRoot` must be the directory the matched *files* live under, not an
+ * ancestor of it. Anchoring at `packages/` rather than `packages/*‍/src` would
+ * make the first path segment a package name, so a workspace package called
+ * `test` or `dist` would match `test/**` and be dropped whole.
+ *
+ * @param contentRoot - Resolved directory, or directory glob, that the matched
+ * files live directly under.
+ * @returns The exclusion patterns.
+ */
+function buildTsSourceExclusions(contentRoot: string): string[] {
+  return [
+    'node_modules/**',
+    'dist/**',
+    '__tests__/**',
+    'tests/**',
+    'test/**',
+    '__mocks__/**',
+    '*.test.ts',
+    '*.test-d.ts',
+    '*.spec.ts',
+    '*.d.ts',
+  ].map((pattern) => `!${contentRoot}/**/${pattern}`);
+}
+
+/**
+ * Add every file matching a set of glob patterns to the project, in a stable
+ * order.
+ *
+ * ts-morph promises nothing about the order it returns matches in, and
+ * deduplication downstream keeps the first of two equally-scored items, so an
+ * unsorted list would let the filesystem decide which source link a capability
+ * gets.
+ *
+ * Ordering is by code unit rather than `localeCompare`, which collates
+ * differently depending on the locale the process happens to run under.
  *
  * @param project - The shared ts-morph project.
- * @param directory - The directory to scan.
- * @param projectPath - The project root, used for relative path display.
- * @param findFiles - The function used to enumerate files in the directory.
- * @returns The list of extracted messenger items.
+ * @param patterns - Glob patterns to match, including `!` exclusions.
+ * @returns The added source files, sorted by path.
  */
-async function extractFromDirectory(
+function addSourceFiles(
   project: Project,
-  directory: string,
-  projectPath: string,
-  findFiles: (dir: string) => Promise<string[]>,
-): Promise<MessengerCapabilityPacket[]> {
-  const items: MessengerCapabilityPacket[] = [];
-  const files = await findFiles(directory);
-  for (const file of files) {
-    try {
-      const sourceFile =
-        project.getSourceFile(file) ?? project.addSourceFileAtPath(file);
-      items.push(...extractFromSourceFile(sourceFile, projectPath));
-    } catch (error) {
-      console.warn(
-        `Warning: failed to parse ${path.relative(projectPath, file)}`,
-      );
-      console.warn(error);
-    }
-  }
-  return items;
+  patterns: string[],
+): ReturnType<Project['addSourceFilesAtPaths']> {
+  return project.addSourceFilesAtPaths(patterns).sort(
+    (fileA, fileB) =>
+      // Subtracting the two comparisons keeps this branchless, so it reads
+      // the same whichever order the matcher happened to return.
+      Number(fileA.getFilePath() > fileB.getFilePath()) -
+      Number(fileA.getFilePath() < fileB.getFilePath()),
+  );
 }
 
 /**
- * Enumerate the subdirectories of a parent directory that match the expected
- * layout (e.g., `packages/*‍/src` or `node_modules/@metamask/*‍/dist`), keeping
- * only those that actually exist.
+ * Build a glob pattern from a directory path.
  *
- * @param parentDir - The parent directory to enumerate.
- * @param subPath - The trailing path component appended to each entry.
- * @param includeSymlinks - Whether to include symbolic links (true for
- * node_modules where workspaces are symlinked).
- * @returns The list of absolute paths to existing target subdirectories.
+ * Two things have to be true of the result. Glob syntax is always
+ * forward-slashed, including on Windows, where `path.join` would produce
+ * backslashes that a matcher reads as escapes. And the path must be fully
+ * resolved: the matcher does not follow a symlinked *ancestor* of the pattern,
+ * so a project under `/tmp` or `/var` on macOS (both symlinks) would match
+ * nothing at all.
+ *
+ * @param segments - Path segments to join.
+ * @returns The joined, resolved path with forward slashes.
  */
-async function listTargetSubdirectories(
-  parentDir: string,
-  subPath: string,
-  includeSymlinks: boolean,
-): Promise<string[]> {
-  const entries = await fs.readdir(parentDir, { withFileTypes: true });
-  const candidates = entries
-    .filter(
-      (entry) =>
-        entry.isDirectory() || (includeSymlinks && entry.isSymbolicLink()),
-    )
-    .map((entry) => path.join(parentDir, entry.name, subPath));
-
-  const existing: string[] = [];
-  for (const candidate of candidates) {
-    if (await directoryExists(candidate)) {
-      existing.push(candidate);
-    }
-  }
-  return existing;
+async function toGlobPath(...segments: string[]): Promise<string> {
+  // Safe to resolve without a fallback: `discoverScanSources` has already
+  // confirmed every directory reaching this point exists.
+  const resolved = await fs.realpath(path.join(...segments));
+  return resolved.replace(/\\/gu, '/');
 }
 
 /**
- * Scan every source location described by `sources` and return all extracted
- * messenger items. A single ts-morph Project is shared across every file so
- * the type checker can resolve cross-file references (e.g. a `*Messenger`
- * declaration in one file walking through an imported umbrella union into
- * an auto-generated `*-method-action-types.ts` sibling).
+ * Scan every source location described by `sources` (scan directories first,
+ * then workspace packages, then published declaration files) and return all
+ * extracted messenger items.
+ *
+ * A single ts-morph Project is shared across every file so the type checker can
+ * resolve cross-file references (e.g. a `*Messenger` declaration in one file
+ * walking through an imported umbrella union into an auto-generated
+ * `*-method-action-types.ts` sibling).
  *
  * @param projectPath - The project root path.
  * @param sources - The set of source locations to scan.
@@ -335,56 +352,46 @@ async function scanSources(
   projectPath: string,
   sources: ScanSources,
 ): Promise<MessengerCapabilityPacket[]> {
-  const project = createExtractionProject();
-  const allItems: MessengerCapabilityPacket[] = [];
+  const project = createProject();
+  const sourceFiles = [];
 
   for (const dir of sources.scanDirs) {
-    allItems.push(
-      ...(await extractFromDirectory(
-        project,
-        path.join(projectPath, dir),
-        projectPath,
-        findTsFiles,
-      )),
+    const root = await toGlobPath(projectPath, dir);
+    sourceFiles.push(
+      ...addSourceFiles(project, [
+        `${root}/**/*.ts`,
+        ...buildTsSourceExclusions(root),
+      ]),
     );
   }
 
   if (sources.packagesDir) {
-    const srcDirs = await listTargetSubdirectories(
-      sources.packagesDir,
-      'src',
-      false,
+    const root = await toGlobPath(sources.packagesDir);
+    // Anchored at each package's `src`, not at `packages` itself, so a package
+    // whose name collides with an exclusion (`test`, `dist`) isn't dropped.
+    const contentRoot = `${root}/*/src`;
+    sourceFiles.push(
+      ...addSourceFiles(project, [
+        `${contentRoot}/**/*.ts`,
+        ...buildTsSourceExclusions(contentRoot),
+      ]),
     );
-    for (const srcDir of srcDirs) {
-      allItems.push(
-        ...(await extractFromDirectory(
-          project,
-          srcDir,
-          projectPath,
-          findTsFiles,
-        )),
-      );
-    }
   }
 
   if (sources.nodeModulesDir) {
-    const distDirs = await listTargetSubdirectories(
-      sources.nodeModulesDir,
-      'dist',
-      true,
-    );
-    for (const distDir of distDirs) {
-      allItems.push(
-        ...(await extractFromDirectory(
-          project,
-          distDir,
-          projectPath,
-          findDtsFiles,
-        )),
-      );
-    }
+    const root = await toGlobPath(sources.nodeModulesDir);
+    sourceFiles.push(...addSourceFiles(project, [`${root}/*/dist/**/*.d.cts`]));
   }
 
+  // Matched paths are fully resolved, so the root they are made relative to
+  // has to be resolved the same way or every source link becomes a `../..`
+  // walk out of the project.
+  const resolvedProjectPath = await fs.realpath(projectPath);
+
+  const allItems: MessengerCapabilityPacket[] = [];
+  for (const sourceFile of sourceFiles) {
+    allItems.push(...extractFromSourceFile(sourceFile, resolvedProjectPath));
+  }
   return allItems;
 }
 
