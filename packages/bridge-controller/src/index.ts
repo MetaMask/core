@@ -33,6 +33,7 @@ export type {
 } from './utils/metrics/types.js';
 
 export type { QuoteWarning } from './utils/quote-warnings/types.js';
+export { hasSufficientGasForQuote } from './utils/quote-warnings/insufficient-gas-for-quote.js';
 
 export {
   getAccountHardwareType,
@@ -150,7 +151,10 @@ export {
   QuoteStreamCompleteReason,
 } from './validators/quote-stream-complete.js';
 export { BatchSellTransactionType } from './validators/batch-sell.js';
-export { AmountsAndAssetSchema } from './validators/amount-and-asset.js';
+export {
+  AmountsAndAssetSchema,
+  type AmountsAndAsset,
+} from './validators/amount-and-asset.js';
 export { TokenFeatureType } from './validators/token-feature.js';
 export type {
   BridgeAsset,

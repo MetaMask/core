@@ -60,6 +60,82 @@ export const formatEtaInMinutes = (
 };
 
 /**
+ * Keys that require the asset to be the same for all fees
+ */
+const AMOUNT_KEYS = [
+  'amount' as const,
+  'normalizedAmount' as const,
+  'minAmount' as const,
+  'minAmountNormalized' as const,
+];
+
+/**
+ * Keys that can be aggregated across all fees
+ */
+const FIAT_OR_USD_KEYS = [
+  'valueInCurrency' as const,
+  'usd' as const,
+  'minAmountValueInCurrency' as const,
+  'minAmountUsd' as const,
+];
+
+const KEYS = [...AMOUNT_KEYS, ...FIAT_OR_USD_KEYS];
+
+/**
+ * Groups amounts by matching assetId and sums amount and fiat keys within each group.
+ *
+ * @param maybeFees - The list of fees to aggregate
+ * @returns One dest object per unique asset, or undefined if no fees are provided
+ */
+export const sumAmountsByAssetId = (
+  ...maybeFees: (
+    | (DeepPartial<QuoteResponse['quote']['dest']> | undefined | null)[]
+    | undefined
+  )[]
+): DeepPartial<QuoteResponse['quote']['dest']>[] => {
+  const fees = maybeFees
+    .flat()
+    .flat()
+    .filter(
+      (value): value is Partial<QuoteResponse['quote']['dest']> =>
+        value !== undefined && value !== null,
+    );
+
+  if (fees.length === 0) {
+    return [];
+  }
+
+  return fees.reduce<DeepPartial<QuoteResponse['quote']['dest']>[]>(
+    (acc, fee) => {
+      const feeIndex = acc.findIndex(({ asset }) =>
+        assetIdsMatch(asset?.assetId, fee.asset?.assetId),
+      );
+
+      if (feeIndex === -1) {
+        return [...acc, { ...fee }];
+      }
+
+      const aggregatedFees = { ...acc[feeIndex] };
+      KEYS.forEach((key) => {
+        const value = fee[key];
+        if (value) {
+          aggregatedFees[key] = new BigNumber(aggregatedFees[key] ?? 0)
+            .plus(value)
+            .toFixed();
+        }
+      });
+
+      return [
+        ...acc.slice(0, feeIndex),
+        aggregatedFees,
+        ...acc.slice(feeIndex + 1),
+      ];
+    },
+    [],
+  );
+};
+
+/**
  * Aggregates a list of amounts into a single fee object. If fees have different assets,
  * the returned object will only aggregate the usd and valueInCurrency values.
  *
@@ -92,26 +168,6 @@ export const sumAmounts = (
       acc && assetIdsMatch(fee.asset?.assetId, fees[0]?.asset?.assetId),
     true,
   );
-
-  /**
-   * Keys that require the asset to be the same for all fees
-   */
-  const AMOUNT_KEYS = [
-    'amount' as const,
-    'normalizedAmount' as const,
-    'minAmount' as const,
-    'minAmountNormalized' as const,
-  ];
-
-  /**
-   * Keys that can be aggregated across all fees
-   */
-  const FIAT_OR_USD_KEYS = [
-    'valueInCurrency' as const,
-    'usd' as const,
-    'minAmountValueInCurrency' as const,
-    'minAmountUsd' as const,
-  ];
 
   return fees.reduce((acc, fee) => {
     const newAcc = { ...acc };
