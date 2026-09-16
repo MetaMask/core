@@ -55,6 +55,15 @@ describe('BackupAndSync - UserStorage - Validation', () => {
     it('passes for valid group data', () => {
       const validGroupData = {
         name: { value: 'Test Group', lastUpdatedAt: 1234567890 },
+        groupIndex: 0,
+      };
+
+      expect(() => assertValidUserStorageGroup(validGroupData)).not.toThrow();
+    });
+
+    it('still accepts previously synced pinned and hidden fields', () => {
+      const validGroupData = {
+        name: { value: 'Test Group', lastUpdatedAt: 1234567890 },
         pinned: { value: true, lastUpdatedAt: 1234567890 },
         hidden: { value: false, lastUpdatedAt: 1234567890 },
         groupIndex: 0,
@@ -89,9 +98,9 @@ describe('BackupAndSync - UserStorage - Validation', () => {
           value: 'Valid Name',
           lastUpdatedAt: null, // This should cause a validation error
         },
-        pinned: {
-          value: 'not boolean', // This should cause a validation error
-          lastUpdatedAt: 1234567890,
+        name: {
+          value: 'Valid Name',
+          lastUpdatedAt: null, // This should cause a validation error
         },
       };
 

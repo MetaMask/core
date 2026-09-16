@@ -12,6 +12,7 @@ import {
   boolean,
   number,
   optional,
+  type,
 } from '@metamask/superstruct';
 import type { Infer, Struct } from '@metamask/superstruct';
 
@@ -47,11 +48,11 @@ export const UserStorageSyncedWalletSchema = object({
 
 /**
  * Superstruct schema for UserStorageSyncedWalletGroup validation.
+ * Uses `type` rather than `object` so previously synced `pinned`/`hidden`
+ * fields on remote records are still accepted (they are ignored by sync).
  */
-export const UserStorageSyncedWalletGroupSchema = object({
+export const UserStorageSyncedWalletGroupSchema = type({
   name: optional(UpdatableFieldSchema(string())),
-  pinned: optional(UpdatableFieldSchema(boolean())),
-  hidden: optional(UpdatableFieldSchema(boolean())),
   groupIndex: number(),
 });
 
@@ -69,7 +70,10 @@ export const LegacyUserStorageSyncedAccountSchema = object({
 export type UserStorageSyncedWallet = AccountTreeWalletPersistedMetadata &
   Infer<typeof UserStorageSyncedWalletSchema>;
 
-export type UserStorageSyncedWalletGroup = AccountTreeGroupPersistedMetadata & {
+export type UserStorageSyncedWalletGroup = Omit<
+  AccountTreeGroupPersistedMetadata,
+  'pinned' | 'hidden' | 'lastSelected'
+> & {
   groupIndex: AccountGroupMultichainAccountObject['metadata']['entropy']['groupIndex'];
 } & Infer<typeof UserStorageSyncedWalletGroupSchema>;
 
