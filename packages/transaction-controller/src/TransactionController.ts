@@ -3148,8 +3148,6 @@ export class TransactionController extends BaseController<
         },
       );
 
-      this.#onTransactionStatusChange(transactionMeta);
-
       // eslint-disable-next-line require-atomic-updates
       transactionMeta = await this.#applyBeforeSignHook(transactionMeta);
 
@@ -3195,7 +3193,11 @@ export class TransactionController extends BaseController<
             draftTxMeta.txParams.nonce = nonce;
           },
         );
+      }
 
+      this.#onTransactionStatusChange(transactionMeta);
+
+      if (shouldSign) {
         rawTx = await this.#trace(
           { name: 'Sign', parentContext: traceContext },
           () => this.#signTransaction(transactionMeta),

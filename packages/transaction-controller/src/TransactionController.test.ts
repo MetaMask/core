@@ -2506,6 +2506,7 @@ describe('TransactionController', () => {
         expect(statusUpdatedListener).toHaveBeenNthCalledWith(1, {
           transactionMeta: expect.objectContaining({
             status: TransactionStatus.approved,
+            txParams: expect.objectContaining({ nonce: toHex(NONCE_MOCK) }),
           }),
         });
         expect(statusUpdatedListener).toHaveBeenNthCalledWith(2, {
