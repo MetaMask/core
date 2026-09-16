@@ -1,11 +1,9 @@
-import * as tokenMetadata from './token-metadata.js';
 import {
   getFees,
   getLocalTransactionFees,
   getLocalTransactionStatus,
   getNftPaymentTransfer,
   getTokenAmountFromTransfer,
-  getTokenMetadataFromKnownToken,
   isNftStandard,
   parseValueTransfers,
 } from './transactions.js';
@@ -195,55 +193,6 @@ describe('transaction helpers', () => {
             to: '0x2',
             transferType: 'erc20',
           },
-          'out',
-          'eip155:1',
-        ),
-      ).toBeUndefined();
-    });
-  });
-
-  describe('getTokenMetadataFromKnownToken', () => {
-    it('returns metadata without a symbol when it is missing', () => {
-      jest.spyOn(tokenMetadata, 'getKnownTokenMetadata').mockReturnValue({
-        decimals: 18,
-        assetId: 'eip155:1/erc20:0x1111111111111111111111111111111111111111',
-      });
-
-      expect(
-        getTokenMetadataFromKnownToken(
-          '0x1111111111111111111111111111111111111111',
-          'out',
-          'eip155:1',
-        ),
-      ).toStrictEqual({
-        direction: 'out',
-        decimals: 18,
-        assetId: 'eip155:1/erc20:0x1111111111111111111111111111111111111111',
-        assetType: 'erc20',
-      });
-    });
-
-    it('returns partial metadata when some fields are missing', () => {
-      jest.spyOn(tokenMetadata, 'getKnownTokenMetadata').mockReturnValue({
-        symbol: 'TKN',
-      });
-
-      expect(
-        getTokenMetadataFromKnownToken(
-          '0x1111111111111111111111111111111111111111',
-          'out',
-          'eip155:1',
-        ),
-      ).toMatchObject({
-        direction: 'out',
-        symbol: 'TKN',
-      });
-    });
-
-    it('returns undefined for unknown tokens', () => {
-      expect(
-        getTokenMetadataFromKnownToken(
-          '0x1111111111111111111111111111111111111111',
           'out',
           'eip155:1',
         ),

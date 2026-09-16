@@ -25,7 +25,6 @@ import {
   getNativeAsset,
   resolveNativeAssetId,
 } from './caip.js';
-import { getKnownTokenMetadata } from './token-metadata.js';
 
 // Adds optional `isSmartTransaction` to `TransactionMeta`.
 export type TransactionGroup = {
@@ -406,27 +405,5 @@ export function getTokenAmountFromTransfer(
     ...(symbol ? { symbol } : {}),
     ...(assetId ? { assetId } : {}),
     ...(assetType ? { assetType } : {}),
-  };
-}
-
-export function getTokenMetadataFromKnownToken(
-  contractAddress: string | undefined,
-  direction: TokenAmount['direction'],
-  chainId: CaipChainId,
-): TokenAmount | undefined {
-  const tokenMetadata = getKnownTokenMetadata(chainId, contractAddress);
-
-  if (!tokenMetadata) {
-    return undefined;
-  }
-
-  return {
-    direction,
-    assetType: 'erc20',
-    ...(tokenMetadata.symbol ? { symbol: tokenMetadata.symbol } : {}),
-    ...(tokenMetadata.decimals === undefined
-      ? {}
-      : { decimals: tokenMetadata.decimals }),
-    ...(tokenMetadata.assetId ? { assetId: tokenMetadata.assetId } : {}),
   };
 }
