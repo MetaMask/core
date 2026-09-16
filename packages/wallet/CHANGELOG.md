@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/shield-controller` from `^7.0.0` to `^7.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
 - Bump `@metamask/subscription-controller` from `^9.0.0` to `^9.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
-- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.0.1` ([#10242](https://github.com/MetaMask/core/pull/10242))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242), [#10262](https://github.com/MetaMask/core/pull/10262))
 
 ## [13.0.0]
 
