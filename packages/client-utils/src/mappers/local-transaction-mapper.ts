@@ -80,7 +80,7 @@ export function mapLocalTransaction(
   const isPermit2Approve = methodId === permit2ApproveMethodId;
   const tokenContractAddress = isPermit2Approve
     ? undefined
-    : (transferInformation?.contractAddress ?? (to || undefined));
+    : (transferInformation?.contractAddress ?? to ?? undefined);
 
   const resolveErc20Metadata = (
     contractAddress: string,

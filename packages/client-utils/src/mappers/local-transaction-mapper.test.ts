@@ -1,6 +1,7 @@
 import { TransactionType } from '@metamask/transaction-controller';
 
 import { localTransactionFixtures } from '../../test/fixtures/local-transactions.js';
+import type { ActivityItem } from '../types.js';
 import { formatAddressToAssetId } from './helpers/caip.js';
 import { mapLocalTransaction } from './local-transaction-mapper.js';
 
@@ -19,9 +20,15 @@ const {
   mainnetUsdt,
 } = localTransactionFixtures.addresses;
 
+// Fixtures intentionally omit full TransactionMeta fields (e.g. networkClientId).
+const mapLocal = (input: unknown): ActivityItem =>
+  mapLocalTransaction(
+    input as Parameters<typeof mapLocalTransaction>[0],
+  );
+
 describe('mapLocalTransaction', () => {
   it('maps a pending native send to a Send activity', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAPendingNativeSendTo,
     );
     expect(item).toStrictEqual({
@@ -44,7 +51,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a native send on an unknown chain without a ticker to a Send with amount and a zero-address native assetId', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsANativeSendOnAn,
     );
     expect(item).toStrictEqual({
@@ -69,7 +76,7 @@ describe('mapLocalTransaction', () => {
   });
   it('maps a native send with ticker but missing value to a token with symbol only', () => {
     const base = localTransactionFixtures.mapInputs.mapsAPendingNativeSendTo;
-    const item = mapLocalTransaction({
+    const item = mapLocal({
       ...base,
       nativeAssetSymbol: 'ETH',
       initialTransaction: {
@@ -98,7 +105,7 @@ describe('mapLocalTransaction', () => {
   });
   it('maps a native send with ticker but invalid value to a token with symbol only', () => {
     const base = localTransactionFixtures.mapInputs.mapsAPendingNativeSendTo;
-    const item = mapLocalTransaction({
+    const item = mapLocal({
       ...base,
       nativeAssetSymbol: 'ETH',
       initialTransaction: {
@@ -126,7 +133,7 @@ describe('mapLocalTransaction', () => {
     ).toBeUndefined();
   });
   it('maps a custom network native send without bridge native asset metadata', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsACustomNetworkNativeSend,
     );
     expect(item).toStrictEqual({
@@ -150,7 +157,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a USDC transfer with transferInformation', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs
         .mapsAUsdcTransferWithTransferinformation,
     );
@@ -175,7 +182,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a USDT transfer without transferInformation', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs
         .mapsAUsdtTransferWithoutTransferinformation,
     );
@@ -194,7 +201,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('leaves unknown token transfer symbols blank', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.leavesUnknownTokenTransferSymbolsBlank,
     );
     expect(item.type).toBe('send');
@@ -209,7 +216,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('falls back to the txParams to when transfer data lacks a recipient', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.fallsBackToTheTxparamsTo,
     );
     expect(item).toMatchObject({
@@ -218,7 +225,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('uses the original transaction type and primary transaction status', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.usesTheOriginalTransactionTypeAnd,
     );
     expect(item).toStrictEqual({
@@ -241,7 +248,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a Permit2 approve to an approve spending cap without the Permit2 contract as the token', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAPermit2Approve,
     );
     expect(item.type).toBe('approveSpendingCap');
@@ -250,7 +257,7 @@ describe('mapLocalTransaction', () => {
     expect(token).toBeUndefined();
   });
   it('falls back to transferInformation when txParams.to is not a valid address', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs
         .fallsBackToTransferinformationWhenTxparams,
     );
@@ -266,7 +273,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('omits the approved amount for a token approve (mirrors the API path)', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.omitsTheApprovedAmountForA,
     );
     expect(item).toMatchObject({
@@ -284,13 +291,13 @@ describe('mapLocalTransaction', () => {
     ).toBeUndefined();
   });
   it('maps a zero-amount token approve to a revoke spending cap', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAZeroAmountTokenApprove,
     );
     expect(item.type).toBe('approveSpendingCap');
   });
   it('maps a setApprovalForAll group type to an approve spending cap', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsASetapprovalforallGroupTypeTo,
     );
     expect(item).toMatchObject({
@@ -304,7 +311,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps an increaseAllowance to an increase spending cap', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAnIncreaseallowanceToAnIncrease,
     );
     expect(item).toMatchObject({
@@ -318,13 +325,13 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps an explicit lendingDeposit type', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAnExplicitLendingdepositType,
     );
     expect(item).toMatchObject({ type: 'lendingDeposit', data: { from } });
   });
   it('maps a stakingDeposit type to a deposit activity', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAStakingdepositTypeToA,
     );
     expect(item).toMatchObject({
@@ -333,7 +340,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps an incoming token transfer to a Receive activity', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAnIncomingTokenTransferTo,
     );
     expect(item).toMatchObject({
@@ -344,7 +351,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps an incoming native transfer without nativeAssetSymbol to a Receive with the native assetId', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAnIncomingNativeTransferTo,
     );
     expect(item).toMatchObject({
@@ -361,7 +368,7 @@ describe('mapLocalTransaction', () => {
     );
   });
   it('maps an mUSD conversion to a Convert activity', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAnMusdConversionToA,
     );
     expect(item).toStrictEqual({
@@ -390,7 +397,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a Perps withdrawal local transaction to a Perps withdraw funds activity', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAPerpsWithdrawalLocalTransaction,
     );
     expect(item).toMatchObject({
@@ -417,7 +424,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a Perps deposit local transaction to a Perps add funds activity', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAPerpsDepositLocalTransaction,
     );
     expect(item).toMatchObject({
@@ -444,7 +451,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a perps deposit without a target address to a tokenless add funds activity', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAPerpsDepositWithoutA,
     );
     expect(item).toMatchObject({
@@ -453,7 +460,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps an Aave supply contract interaction to a Lending deposit activity', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAnAaveSupplyContractInteraction,
     );
     expect(item).toStrictEqual({
@@ -468,7 +475,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a native-asset Lido stake contract interaction to a Lending deposit activity', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs
         .mapsALidoNativeStakeContractInteraction,
     );
@@ -484,7 +491,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a withdraw contract interaction from the received token transfer', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAWithdrawContractInteractionFrom,
     );
     expect(item).toStrictEqual({
@@ -509,7 +516,7 @@ describe('mapLocalTransaction', () => {
   it('sets no destination token amount when the received transfer log data is not a valid amount', () => {
     const base =
       localTransactionFixtures.mapInputs.mapsAWithdrawContractInteractionFrom;
-    const item = mapLocalTransaction({
+    const item = mapLocal({
       ...base,
       initialTransaction: {
         ...base.initialTransaction,
@@ -529,7 +536,7 @@ describe('mapLocalTransaction', () => {
     ).toBeUndefined();
   });
   it('maps a withdraw contract interaction without a matching log to no destination token', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs
         .mapsAWithdrawContractInteractionWithout,
     );
@@ -539,7 +546,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps bridge history token data to a local swap', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsBridgeHistoryTokenDataTo,
     );
     expect(item).toMatchObject({
@@ -568,7 +575,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a swap without a destination token to a swap with only a source', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsASwapWithoutADestination,
     );
     expect(item).toMatchObject({
@@ -577,13 +584,13 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('uses a bridge history activity status override', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.usesABridgeHistoryActivityStatus,
     );
     expect(item.status).toBe('failed');
   });
   it('maps a local bridge network fee from the transaction receipt', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsALocalBridgeNetworkFee,
     );
     expect(item).toMatchObject({
@@ -601,7 +608,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps swap metadata token symbols to a Swap activity', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsSwapMetadataTokenSymbolsTo,
     );
     expect(item).toMatchObject({
@@ -614,7 +621,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('uses native source symbol for a legacy swap with native value and no source metadata', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.usesNativeSourceSymbolForA,
     );
     expect(item).toMatchObject({
@@ -623,7 +630,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a legacy swap with an invalid native value without throwing', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsALegacySwapWithAn,
     );
     expect(item).toMatchObject({
@@ -632,7 +639,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a WETH9 deposit contract interaction to a Wrap activity with a native source amount and the native assetId when nativeAssetSymbol is omitted', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAWeth9DepositContractInteraction,
     );
     expect(item).toStrictEqual({
@@ -661,7 +668,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('treats a WETH9 deposit with zero native value as a contract interaction', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.treatsAWeth9DepositWithZero,
     );
     expect(item.type).toBe('contractInteraction');
@@ -670,7 +677,7 @@ describe('mapLocalTransaction', () => {
     const unwrapAmount = '1000000000000000000';
     const base =
       localTransactionFixtures.mapInputs.mapsAWeth9WithdrawContractInteraction;
-    const item = mapLocalTransaction({
+    const item = mapLocal({
       ...base,
       initialTransaction: {
         ...base.initialTransaction,
@@ -714,7 +721,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a WETH9 unwrap with malformed amount data to an unwrap without a destination token when nativeAssetSymbol is omitted', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAWeth9UnwrapWithMalformed,
     );
     expect(item).toMatchObject({
@@ -725,7 +732,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a native value contract interaction with amount, no symbol, and the chainlist native assetId when nativeAssetSymbol is omitted', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsANativeValueContractInteraction,
     );
     expect(item).toStrictEqual({
@@ -749,7 +756,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a zero-value contract interaction without a token', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAZeroValueContractInteraction,
     );
     expect(item).toMatchObject({
@@ -761,25 +768,25 @@ describe('mapLocalTransaction', () => {
     ).toBeUndefined();
   });
   it('maps a contract interaction without a value to a tokenless interaction', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAContractInteractionWithoutA,
     );
     expect(item.type).toBe('contractInteraction');
   });
   it('maps a contract interaction with an invalid value without throwing', () => {
     expect(() =>
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs.mapsAContractInteractionWithAn,
       ),
     ).not.toThrow();
     expect(
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs.mapsAContractInteractionWithAn,
       ).type,
     ).toBe('contractInteraction');
   });
   it('maps a local contract interaction with an incoming NFT simulation change to an NFT buy', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsALocalContractInteractionWith,
     );
     expect(item).toStrictEqual({
@@ -795,76 +802,76 @@ describe('mapLocalTransaction', () => {
   });
   it('maps a smart transaction status to a pending activity', () => {
     expect(
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs.mapsASmartTransactionStatusTo,
       ).status,
     ).toBe('pending');
   });
   it('maps a successful smart transaction to a success activity', () => {
     expect(
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs.mapsASuccessfulSmartTransactionTo,
       ).status,
     ).toBe('success');
   });
   it('maps a cancelled smart transaction to a failed activity', () => {
     expect(
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs.mapsACancelledSmartTransactionTo,
       ).status,
     ).toBe('failed');
   });
   it('maps an unknown smart transaction status to a pending activity', () => {
     expect(
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs.mapsAnUnknownSmartTransactionStatus,
       ).status,
     ).toBe('pending');
   });
   it('maps a failed transaction receipt status to a failed activity', () => {
     expect(
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs.mapsAFailedTransactionReceiptStatus,
       ).status,
     ).toBe('failed');
   });
   it('maps a cancelled transaction group to a failed activity', () => {
     expect(
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs.mapsACancelledTransactionGroupTo,
       ).status,
     ).toBe('failed');
   });
   it('maps a dropped transaction to a failed activity', () => {
     expect(
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs.mapsADroppedTransactionToA,
       ).status,
     ).toBe('failed');
   });
   it('maps an unapproved transaction to a pending activity', () => {
     expect(
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs.mapsAnUnapprovedTransactionToA,
       ).status,
     ).toBe('pending');
   });
   it('maps a status outside the known set to a pending activity', () => {
     expect(
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs.mapsAStatusOutsideTheKnown,
       ).status,
     ).toBe('pending');
   });
   it('uses precomputed fees from the transaction group when present', () => {
     const fees = [{ type: 'base', amount: '7', symbol: 'ETH' }];
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.usesPrecomputedFeesFromTheTransaction,
     );
     expect(item).toMatchObject({ type: 'bridge', data: { fees } });
   });
   it('maps a local bridge fee using txParams gasPrice when no receipt price is present', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsALocalBridgeFeeUsing,
     );
     expect(item).toMatchObject({
@@ -882,20 +889,20 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a local bridge with an invalid fee input to no fees', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsALocalBridgeWithAn,
     );
     expect(item).toMatchObject({ type: 'bridge', data: { fees: undefined } });
   });
   it('maps a token transfer without a contract address to a tokenless send', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsATokenTransferWithoutA,
     );
     expect(item.type).toBe('send');
     expect(item.type === 'send' ? item.data.token : 'unset').toBeUndefined();
   });
   it('maps a WETH9 unwrap with non-hex amount data to an unwrap without a destination token when nativeAssetSymbol is omitted', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAWeth9UnwrapWithNon,
     );
     expect(item).toMatchObject({
@@ -909,7 +916,7 @@ describe('mapLocalTransaction', () => {
     ).toBeUndefined();
   });
   it('falls back to initial transaction id and empty addresses when fields are missing', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.fallsBackToInitialTransactionId,
     );
     expect(item).toMatchObject({
@@ -924,7 +931,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('handles token transfers on a chain without a wrapped-native token entry', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.handlesTokenTransfersOnAChain,
     );
     expect(item).toMatchObject({
@@ -934,13 +941,13 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a token transfer with no calldata to a tokenless send', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsATokenTransferWithNo,
     );
     expect(item.type).toBe('send');
   });
   it('wraps native value on a chain without canonical native asset metadata', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.wrapsNativeValueOnAChain,
     );
     expect(item).toMatchObject({
@@ -957,7 +964,7 @@ describe('mapLocalTransaction', () => {
   });
   it('defaults missing txParams fields when txParams is omitted', () => {
     const base = localTransactionFixtures.mapInputs.mapsAnMusdConversionWithNo;
-    const item = mapLocalTransaction({
+    const item = mapLocal({
       ...base,
       initialTransaction: {
         chainId: base.initialTransaction.chainId,
@@ -977,7 +984,7 @@ describe('mapLocalTransaction', () => {
   });
   it('maps an mUSD conversion for an unknown destination token without optional metadata fields', () => {
     const base = localTransactionFixtures.mapInputs.mapsAnMusdConversionWithNo;
-    const item = mapLocalTransaction({
+    const item = mapLocal({
       ...base,
       initialTransaction: {
         ...base.initialTransaction,
@@ -1011,7 +1018,7 @@ describe('mapLocalTransaction', () => {
   });
   it('maps an mUSD conversion with transferInformation amount to convert decimals from transferInformation', () => {
     const base = localTransactionFixtures.mapInputs.mapsAnMusdConversionToA;
-    const item = mapLocalTransaction({
+    const item = mapLocal({
       ...base,
       initialTransaction: {
         ...base.initialTransaction,
@@ -1034,7 +1041,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps an mUSD conversion with no calldata to a convert without a destination amount', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAnMusdConversionWithNo,
     );
     expect(item).toMatchObject({
@@ -1048,7 +1055,7 @@ describe('mapLocalTransaction', () => {
   it('maps an mUSD conversion with invalid calldata amount to a convert without a destination amount', () => {
     const base = localTransactionFixtures.mapInputs.mapsAnMusdConversionToA;
     const invalidAmountData = `0x${'0'.repeat(72)}zz${'0'.repeat(64)}`;
-    const item = mapLocalTransaction({
+    const item = mapLocal({
       ...base,
       initialTransaction: {
         ...base.initialTransaction,
@@ -1076,7 +1083,7 @@ describe('mapLocalTransaction', () => {
   });
   it('maps an mUSD conversion without a destination contract to a convert without a destination token', () => {
     const base = localTransactionFixtures.mapInputs.mapsAnMusdConversionWithNo;
-    const item = mapLocalTransaction({
+    const item = mapLocal({
       ...base,
       initialTransaction: {
         ...base.initialTransaction,
@@ -1094,7 +1101,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps a token approve with no calldata to an approve spending cap', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsATokenApproveWithNo,
     );
     expect(item).toMatchObject({
@@ -1103,7 +1110,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('ignores withdraw logs that have no recipient topic', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.ignoresWithdrawLogsThatHaveNo,
     );
     expect(item).toMatchObject({
@@ -1113,42 +1120,42 @@ describe('mapLocalTransaction', () => {
   });
   it('maps a token transferFrom to a Send activity', () => {
     expect(
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs.mapsATokenTransferfromToA,
       ).type,
     ).toBe('send');
   });
   it('maps a safeTransferFrom to a Send activity', () => {
     expect(
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs.mapsASafetransferfromToASend,
       ).type,
     ).toBe('send');
   });
   it('maps a swapAndSend to a swap activity', () => {
     expect(
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs.mapsASwapandsendToASwap,
       ).type,
     ).toBe('swap');
   });
   it('maps a perpsDepositAndOrder to an add funds activity', () => {
     expect(
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs.mapsAPerpsdepositandorderToAnAdd,
       ).type,
     ).toBe('perpsAddFunds');
   });
   it('maps a bridgeApproval to an approve spending cap', () => {
     expect(
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs.mapsABridgeapprovalToAnApprove,
       ).type,
     ).toBe('approveSpendingCap');
   });
   it('maps a shieldSubscriptionApprove to an approve spending cap', () => {
     expect(
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs
           .mapsAShieldsubscriptionapproveToAnApprove,
       ).type,
@@ -1156,14 +1163,14 @@ describe('mapLocalTransaction', () => {
   });
   it('maps a tokenMethodSetApprovalForAll to an approve spending cap', () => {
     expect(
-      mapLocalTransaction(
+      mapLocal(
         localTransactionFixtures.mapInputs
           .mapsATokenmethodsetapprovalforallToAnApprove,
       ).type,
     ).toBe('approveSpendingCap');
   });
   it('omits the assetId when the token contract address cannot be encoded', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.omitsTheAssetidWhenTheToken,
     );
     expect(item.type).toBe('send');
@@ -1173,7 +1180,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('ignores withdraw logs that omit topics entirely', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.ignoresWithdrawLogsThatOmitTopics,
     );
     expect(item).toMatchObject({
@@ -1182,7 +1189,7 @@ describe('mapLocalTransaction', () => {
     });
   });
   it('maps musdClaim to claimMusdBonus with from address', () => {
-    const item = mapLocalTransaction(
+    const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsMusdclaimToClaimmusdbonusWithFrom,
     );
     expect(item).toMatchObject({
@@ -1198,7 +1205,7 @@ describe('mapLocalTransaction', () => {
   });
 
   it('omits amount for a local ERC-20 transfer when decimals are unresolved', () => {
-    const item = mapLocalTransaction({
+    const item = mapLocal({
       hasCancelled: false,
       hasRetried: false,
       nonce: '0x1',
@@ -1231,18 +1238,17 @@ describe('mapLocalTransaction', () => {
         },
       },
       transactions: [],
-    } as Parameters<typeof mapLocalTransaction>[0]);
+    });
 
     expect(item.type === 'send' ? item.data.token : undefined).toStrictEqual({
       direction: 'out',
       assetType: 'erc20',
-      assetId:
-        'eip155:42161/erc20:0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+      assetId: 'eip155:42161/erc20:0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
     });
   });
 
   it('keeps amount when contractTokenMetadata supplies decimals', () => {
-    const item = mapLocalTransaction({
+    const item = mapLocal({
       hasCancelled: false,
       hasRetried: false,
       nonce: '0x1',
@@ -1276,7 +1282,7 @@ describe('mapLocalTransaction', () => {
         },
       },
       transactions: [],
-    } as Parameters<typeof mapLocalTransaction>[0]);
+    });
 
     expect(item.type === 'send' ? item.data.token : undefined).toStrictEqual({
       direction: 'out',
@@ -1284,8 +1290,7 @@ describe('mapLocalTransaction', () => {
       amount: '167121100',
       decimals: 6,
       symbol: 'USDT',
-      assetId:
-        'eip155:42161/erc20:0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+      assetId: 'eip155:42161/erc20:0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
     });
   });
 });

@@ -437,7 +437,7 @@ export function getTokenAmountFromTransfer(
       : undefined;
 
   const symbol = isNftTransfer
-    ? transfer.name || transfer.symbol
+    ? transfer.name ?? transfer.symbol
     : (transfer.symbol ?? knownToken?.symbol ?? hostToken?.symbol);
 
   let decimals: number | undefined;
@@ -455,8 +455,7 @@ export function getTokenAmountFromTransfer(
     amount !== undefined &&
     decimals !== undefined;
   // NFT amounts are counts, not base units — keep them even without decimals.
-  const hasNftAmount =
-    isNftTransfer && amount !== null && amount !== undefined;
+  const hasNftAmount = isNftTransfer && amount !== null && amount !== undefined;
 
   let assetId: string | undefined;
   if (isNative) {
