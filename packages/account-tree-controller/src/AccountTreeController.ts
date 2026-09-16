@@ -483,7 +483,7 @@ export class AccountTreeController extends BaseController<
    *
    * @returns The primary entropy source ID, or `undefined` if no HD keyring exists.
    */
-  #getPrimaryEntropySource() {
+  #getPrimaryEntropySource(): EntropySourceId | undefined {
     return this.#getEntropyRule().getPrimaryEntropySource();
   }
 
