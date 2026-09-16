@@ -82,14 +82,8 @@
     }
   },
   "packages/accounts-controller/src/AccountsController.test.ts": {
-    "TS2305": {
-      "count": 1
-    },
     "TS2322": {
       "count": 3
-    },
-    "TS2345": {
-      "count": 1
     },
     "TS2353": {
       "count": 2
@@ -107,7 +101,7 @@
   },
   "packages/assets-controller/src/AssetsController.test.ts": {
     "TS2322": {
-      "count": 9
+      "count": 13
     },
     "TS2339": {
       "count": 1
@@ -228,11 +222,6 @@
     },
     "TS7006": {
       "count": 12
-    }
-  },
-  "packages/assets-controllers/src/TokensController.test.ts": {
-    "TS2345": {
-      "count": 10
     }
   },
   "packages/bitcoin-regtest-up/src/bin/bitcoin-regtest-up.ts": {
@@ -366,7 +355,7 @@
       "count": 40
     },
     "TS2739": {
-      "count": 1
+      "count": 3
     },
     "TS2740": {
       "count": 8
@@ -377,7 +366,7 @@
   },
   "packages/client-utils/src/mappers/helpers/transactions.test.ts": {
     "TS2322": {
-      "count": 6
+      "count": 9
     },
     "TS2345": {
       "count": 1
@@ -387,20 +376,9 @@
     },
     "TS2739": {
       "count": 3
-    }
-  },
-  "packages/client-utils/src/mappers/local-transaction-mapper.test.ts": {
-    "TS2322": {
-      "count": 8
-    },
-    "TS2345": {
-      "count": 73
-    },
-    "TS2739": {
-      "count": 1
     },
     "TS2741": {
-      "count": 7
+      "count": 1
     }
   },
   "packages/client-utils/test/fixtures/api-transactions.ts": {
@@ -592,9 +570,6 @@
   "packages/network-controller/tests/NetworkController.test.ts": {
     "TS2339": {
       "count": 3
-    },
-    "TS2345": {
-      "count": 75
     }
   },
   "packages/network-enablement-controller/src/NetworkEnablementController.test.ts": {
@@ -917,11 +892,6 @@
       "count": 2
     }
   },
-  "packages/signature-controller/src/SignatureController.test.ts": {
-    "TS2345": {
-      "count": 1
-    }
-  },
   "packages/snap-account-service/src/SnapAccountService.test.ts": {
     "TS2322": {
       "count": 23
@@ -999,17 +969,14 @@
   },
   "packages/transaction-controller/src/TransactionController.test.ts": {
     "TS2322": {
-      "count": 10
+      "count": 6
     },
     "TS2345": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {
     "TS2344": {
-      "count": 1
-    },
-    "TS2345": {
       "count": 1
     }
   },
