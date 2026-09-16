@@ -211,12 +211,27 @@ describe('MfaRecoveryController', () => {
       });
     });
 
+    it('rejects duplicate identifiers', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.register(SECRET, [PASSKEY, PASSKEY]),
+        ).rejects.toThrow('Requires at least 2 identifiers');
+      });
+    });
+
     it('rejects a second registration for the same profile', async () => {
       await withController(async ({ controller }) => {
         await controller.register(SECRET, IDENTIFIERS);
         await expect(
           controller.register(SECRET, IDENTIFIERS),
         ).rejects.toBeInstanceOf(IncompleteMutationError);
+        expect(await controller.getPhase()).toBe('writing');
+        await controller.abort();
+        await controller.updateRecoverySecret(
+          PASSKEY,
+          SECRET_2,
+          REGISTERED_EPOCH,
+        );
       });
     });
 
@@ -428,10 +443,6 @@ describe('MfaRecoveryController', () => {
           controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
         ).rejects.toBeInstanceOf(IncompleteMutationError);
         expect(await controller.getPhase()).toBe('writing');
-        await expect(controller.abort()).rejects.toThrow(
-          'Cannot abort a mutation once writing has begun',
-        );
-        expect(await controller.getPhase()).toBe('writing');
         await controller.resume();
         expect(await controller.getPhase()).toBe('idle');
       });
@@ -483,6 +494,37 @@ describe('MfaRecoveryController', () => {
         await expect(
           controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
         ).rejects.toBeInstanceOf(IncompleteMutationError);
+        expect(await controller.getPhase()).toBe('writing');
+      });
+    });
+
+    it('can abort a writing mutation that has no receipts', async () => {
+      await withController(async ({ controller }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        await expect(
+          controller.updateRecoverySecret(PASSKEY, SECRET_2, 0),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+        expect(await controller.getPhase()).toBe('writing');
+        await controller.abort();
+        expect(await controller.getPhase()).toBe('idle');
+      });
+    });
+
+    it('refuses a new mutation while one is pending', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        escrowA.failNextApplyCount = 1;
+        await expect(
+          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+        await expect(
+          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
+        ).rejects.toThrow(
+          'A pending mutation must be resumed or aborted first',
+        );
+        expect(await controller.getPhase()).toBe('writing');
+        await controller.resume();
+        expect(await controller.getPhase()).toBe('idle');
       });
     });
 
@@ -638,7 +680,7 @@ describe('MfaRecoveryController', () => {
           state: { pendingOperation: writing },
         });
         await expect(writingController.abort()).rejects.toThrow(
-          'Cannot abort a mutation once writing has begun',
+          'Cannot abort a mutation once an escrow has acknowledged it',
         );
         expect(await writingController.getPhase()).toBe('writing');
       });
@@ -892,9 +934,7 @@ describe('MfaRecoveryController', () => {
           authControllerToken: {
             profileId: 'profile-1',
             requestHash: mutation.requestHash,
-            identifiersHash: hash(
-              canonicalizeIdentifiers(payload.identifiers),
-            ),
+            identifiersHash: hash(canonicalizeIdentifiers(payload.identifiers)),
             identifierOwnershipApproved: true,
             issuer: 'stub-auth',
             expiresAt: unixNow() + 60,
@@ -957,9 +997,7 @@ describe('MfaRecoveryController', () => {
           authControllerToken: {
             profileId: 'profile-1',
             requestHash: mutation.requestHash,
-            identifiersHash: hash(
-              canonicalizeIdentifiers(payload.identifiers),
-            ),
+            identifiersHash: hash(canonicalizeIdentifiers(payload.identifiers)),
             identifierOwnershipApproved: true,
             issuer: 'stub-auth',
             expiresAt: unixNow() + 60,

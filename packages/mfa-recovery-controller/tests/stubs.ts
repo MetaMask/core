@@ -490,8 +490,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
   ): Promise<void> {
     if (
       token.identifierOwnershipApproved !== true ||
-      token.identifiersHash !==
-        (hash(canonicalizeIdentifiers(identifiers)))
+      token.identifiersHash !== hash(canonicalizeIdentifiers(identifiers))
     ) {
       throw new MfaRecoveryError(
         'Identifier ownership not approved',
@@ -575,7 +574,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     mutation: Mutation,
     payload: unknown,
   ): Promise<void> {
-    if ((hash(payload)) !== mutation.payloadHash) {
+    if (hash(payload) !== mutation.payloadHash) {
       throw new MfaRecoveryError(
         'Mutation payload does not match payloadHash',
         'payload_mismatch',

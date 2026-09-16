@@ -65,20 +65,21 @@ stateDiagram-v2
   authorizing --> writing: identifier auth succeeds, before first apply
   writing --> writing: more receipts, still missing replicas
   writing --> idle: every configured escrow has a valid receipt
+  writing --> idle: abort() with no receipts
   writing --> writing: resume() retries only missing receipts
   authorizing --> writing: resume() authorizes then writes
 ```
 
 Rules:
 
-- **`abort()`** is allowed only in `authorizing` (no escrow write yet).
-- **`writing`** must be finished with `resume()`, not aborted.
+- **`abort()`** is allowed in `authorizing`, and in `writing` when there are
+  no receipts. Receipts must be finished with `resume()`.
 - `writing` is persisted before the **first escrow apply** after identifier
   authorization succeeds, so an ambiguous apply failure remains resumable while
   pre-write authorization failures stay abortable.
-- Today, a new mutation also calls `#repairPendingMutation` first, then starts
-  a **second** mutation if repair succeeds. `resume()` is the dedicated repair
-  API.
+- `register` / `updateRecoverySecret` / `updateIdentifiers` require idle
+  pending state. `resume()` finishes a persisted mutation; `abort()` drops
+  `authorizing`, or `writing` with no receipts.
 
 ## Mutation sequence (`register` / updates)
 
@@ -92,7 +93,7 @@ sequenceDiagram
   participant E as Escrows
 
   C->>M: register / updateRecoverySecret / updateIdentifiers
-  M->>M: lock + repair any pending mutation
+  M->>M: lock; reject if a mutation is already pending
   M->>A: getAuthenticatedProfileId
   M->>E: require every escrow available
   M->>M: expectedVersion from caller epoch (register uses 0)
@@ -186,7 +187,8 @@ flowchart TD
   AbortOrResume -->|abort| Idle
   AbortOrResume -->|resume| Auth[re-issue AuthController token]
   Auth --> Write[replicate]
-  Phase -->|writing| ResumeOnly[resume only]
+  Phase -->|writing, no receipts| AbortOrResume
+  Phase -->|writing, has receipts| ResumeOnly[resume only]
   ResumeOnly --> Skip[skip escrows that already have receipts]
   Skip --> Write
   Write --> All{receipts for every configured escrow?}

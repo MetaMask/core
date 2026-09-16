@@ -476,6 +476,9 @@ linkStyle default opacity:0.5
   message_manager --> messenger;
   message_manager --> utils;
   messenger_cli --> utils;
+  mfa_recovery_controller --> base_controller;
+  mfa_recovery_controller --> messenger;
+  mfa_recovery_controller --> utils;
   money_account_api_data_service --> base_data_service;
   money_account_api_data_service --> controller_utils;
   money_account_api_data_service --> messenger;

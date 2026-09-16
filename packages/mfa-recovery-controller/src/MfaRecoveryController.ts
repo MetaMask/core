@@ -388,13 +388,13 @@ export class MfaRecoveryController extends BaseController<
   }
 
   /**
-   * Drops a mutation that has not yet begun writing. Writing mutations must be
-   * resumed instead.
+   * Drops a pending mutation that no escrow has acknowledged. Once a receipt
+   * exists, call {@link resume} instead.
    */
   async abort(): Promise<void> {
     await this.#withLock(async () => {
       const pending = await this.#loadPending();
-      assertAbortAllowed(getRecoveryPhase(pending));
+      assertAbortAllowed(pending);
       if (pending) {
         await this.#clearPending();
       }
@@ -411,7 +411,12 @@ export class MfaRecoveryController extends BaseController<
   async #mutate(params: MutateParams): Promise<void> {
     const { operation, payload, identifier, epoch } = params;
     await this.#withLock(async () => {
-      await this.#repairPendingMutation();
+      if (await this.#loadPending()) {
+        throw new MfaRecoveryError(
+          'A pending mutation must be resumed or aborted first',
+          'pending_mutation',
+        );
+      }
 
       const profileId = await this.#authProvider.getAuthenticatedProfileId();
       const audiences = this.#escrows.map((escrow) => escrow.id);
@@ -692,7 +697,13 @@ export class MfaRecoveryController extends BaseController<
   }
 
   #assertMinIdentifiers(identifiers: Identifier[]): void {
-    if (identifiers.length < MIN_IDENTIFIERS) {
+    const unique = new Set(
+      identifiers.map(
+        (identifier) =>
+          `${identifier.type}\0${identifier.namespace}\0${identifier.value}`,
+      ),
+    );
+    if (unique.size < MIN_IDENTIFIERS) {
       throw new MfaRecoveryError(
         `Requires at least ${MIN_IDENTIFIERS} identifiers`,
         'empty_identifiers',
