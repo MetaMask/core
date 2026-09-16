@@ -1,3 +1,5 @@
+import { TransactionType } from '@metamask/transaction-controller';
+
 import { localTransactionFixtures } from '../../test/fixtures/local-transactions.js';
 import { formatAddressToAssetId } from './helpers/caip.js';
 import { mapLocalTransaction } from './local-transaction-mapper.js';
@@ -164,6 +166,7 @@ describe('mapLocalTransaction', () => {
         token: {
           amount: '20000',
           assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+          assetType: 'erc20',
           decimals: 6,
           direction: 'out',
           symbol: 'USDC',
@@ -184,6 +187,7 @@ describe('mapLocalTransaction', () => {
         to: localTransactionFixtures.addresses.mainnetUsdt,
         token: {
           assetId: 'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7',
+          assetType: 'erc20',
           direction: 'out',
         },
       },
@@ -200,6 +204,7 @@ describe('mapLocalTransaction', () => {
 
     expect(item.data.token).toStrictEqual({
       assetId: 'eip155:1/erc20:0x1111111111111111111111111111111111111111',
+      assetType: 'erc20',
       direction: 'out',
     });
   });
@@ -227,6 +232,7 @@ describe('mapLocalTransaction', () => {
         token: {
           assetId:
             'eip155:59144/erc20:0x239FD4B0c4DB49Fa8660E65B97619D43D0E0A79d',
+          assetType: 'erc20',
           decimals: 0,
           direction: 'out',
           symbol: 'TDN',
@@ -375,6 +381,7 @@ describe('mapLocalTransaction', () => {
         destinationToken: {
           amount: '100099',
           assetId: formatAddressToAssetId(lineaMusd, 'eip155:59144'),
+          assetType: 'erc20',
           decimals: 6,
           direction: 'in',
           symbol: 'mUSD',
@@ -491,6 +498,7 @@ describe('mapLocalTransaction', () => {
         destinationToken: {
           amount: '200000',
           assetId: formatAddressToAssetId(baseUsdc, 'eip155:8453'),
+          assetType: 'erc20',
           decimals: 6,
           direction: 'in',
           symbol: 'USDC',
@@ -645,6 +653,7 @@ describe('mapLocalTransaction', () => {
         destinationToken: {
           amount: '0x3782dace9d900000',
           assetId: formatAddressToAssetId(wethContractAddress, 'eip155:1'),
+          assetType: 'erc20',
           decimals: 18,
           direction: 'in',
         },
@@ -691,6 +700,7 @@ describe('mapLocalTransaction', () => {
         sourceToken: {
           amount: unwrapAmount,
           assetId: formatAddressToAssetId(wethContractAddress, 'eip155:1'),
+          assetType: 'erc20',
           decimals: 18,
           direction: 'out',
         },
@@ -997,7 +1007,7 @@ describe('mapLocalTransaction', () => {
     });
     expect(
       item.type === 'convert' ? item.data.destinationToken : undefined,
-    ).toStrictEqual({ direction: 'in' });
+    ).toStrictEqual({ direction: 'in', assetType: 'erc20' });
   });
   it('maps an mUSD conversion with transferInformation amount to convert decimals from transferInformation', () => {
     const base = localTransactionFixtures.mapInputs.mapsAnMusdConversionToA;
@@ -1159,6 +1169,7 @@ describe('mapLocalTransaction', () => {
     expect(item.type).toBe('send');
     expect(item.type === 'send' ? item.data.token : undefined).toStrictEqual({
       direction: 'out',
+      assetType: 'erc20',
     });
   });
   it('ignores withdraw logs that omit topics entirely', () => {
@@ -1183,6 +1194,98 @@ describe('mapLocalTransaction', () => {
       data: {
         from,
       },
+    });
+  });
+
+  it('omits amount for a local ERC-20 transfer when decimals are unresolved', () => {
+    const item = mapLocalTransaction({
+      hasCancelled: false,
+      hasRetried: false,
+      nonce: '0x1',
+      initialTransaction: {
+        chainId: '0xa4b1',
+        id: 'no-decimals-id',
+        hash: '0xnodecimals',
+        status: 'submitted',
+        time: 1716367781000,
+        type: TransactionType.tokenMethodTransfer,
+        transferInformation: {
+          amount: '167121100',
+          contractAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+        },
+        txParams: {
+          from,
+          to: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+        },
+      },
+      primaryTransaction: {
+        chainId: '0xa4b1',
+        id: 'no-decimals-id',
+        hash: '0xnodecimals',
+        status: 'submitted',
+        time: 1716367781000,
+        type: TransactionType.tokenMethodTransfer,
+        txParams: {
+          from,
+          to: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+        },
+      },
+      transactions: [],
+    } as Parameters<typeof mapLocalTransaction>[0]);
+
+    expect(item.type === 'send' ? item.data.token : undefined).toStrictEqual({
+      direction: 'out',
+      assetType: 'erc20',
+      assetId:
+        'eip155:42161/erc20:0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+    });
+  });
+
+  it('keeps amount when contractTokenMetadata supplies decimals', () => {
+    const item = mapLocalTransaction({
+      hasCancelled: false,
+      hasRetried: false,
+      nonce: '0x1',
+      contractTokenMetadata: { symbol: 'USDT', decimals: 6 },
+      initialTransaction: {
+        chainId: '0xa4b1',
+        id: 'metadata-decimals-id',
+        hash: '0xmetadatadecimals',
+        status: 'submitted',
+        time: 1716367781000,
+        type: TransactionType.tokenMethodTransfer,
+        transferInformation: {
+          amount: '167121100',
+          contractAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+        },
+        txParams: {
+          from,
+          to: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+        },
+      },
+      primaryTransaction: {
+        chainId: '0xa4b1',
+        id: 'metadata-decimals-id',
+        hash: '0xmetadatadecimals',
+        status: 'submitted',
+        time: 1716367781000,
+        type: TransactionType.tokenMethodTransfer,
+        txParams: {
+          from,
+          to: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+        },
+      },
+      transactions: [],
+    } as Parameters<typeof mapLocalTransaction>[0]);
+
+    expect(item.type === 'send' ? item.data.token : undefined).toStrictEqual({
+      direction: 'out',
+      assetType: 'erc20',
+      amount: '167121100',
+      decimals: 6,
+      symbol: 'USDT',
+      assetId:
+        'eip155:42161/erc20:0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
     });
   });
 });

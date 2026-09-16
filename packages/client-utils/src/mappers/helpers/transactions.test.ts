@@ -102,21 +102,24 @@ describe('transaction helpers', () => {
   });
 
   describe('getTokenAmountFromTransfer', () => {
-    it('returns token metadata without a symbol when only the amount is present', () => {
+    it('omits amount when decimals are missing so hosts cannot format base units as human amounts', () => {
       expect(
         getTokenAmountFromTransfer(
           {
             from: '0x1',
             to: '0x2',
             transferType: 'erc20',
-            amount: 1,
+            amount: 167121100,
+            contractAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
           },
           'out',
-          'eip155:1',
+          'eip155:42161',
         ),
-      ).toMatchObject({
+      ).toStrictEqual({
         direction: 'out',
-        amount: '1',
+        assetType: 'erc20',
+        assetId:
+          'eip155:42161/erc20:0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
       });
     });
 
@@ -128,7 +131,7 @@ describe('transaction helpers', () => {
             to: '0x2',
             transferType: 'erc20',
             symbol: 'USDC',
-            amount: 1,
+            amount: 167121100,
             decimal: 6,
           },
           'out',
@@ -136,10 +139,81 @@ describe('transaction helpers', () => {
         ),
       ).toStrictEqual({
         direction: 'out',
-        amount: '1',
+        amount: '167121100',
         symbol: 'USDC',
         decimals: 6,
         assetType: 'erc20',
+      });
+    });
+
+    it('keeps amount when the host hook supplies missing decimals', () => {
+      expect(
+        getTokenAmountFromTransfer(
+          {
+            from: '0x1',
+            to: '0x2',
+            transferType: 'erc20',
+            amount: 167121100,
+            contractAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+          },
+          'out',
+          'eip155:42161',
+          () => ({ decimals: 6, symbol: 'USDT' }),
+        ),
+      ).toStrictEqual({
+        direction: 'out',
+        amount: '167121100',
+        decimals: 6,
+        symbol: 'USDT',
+        assetType: 'erc20',
+        assetId:
+          'eip155:42161/erc20:0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+      });
+    });
+
+    it('accepts a numeric getKnownTokenDecimals result', () => {
+      expect(
+        getTokenAmountFromTransfer(
+          {
+            from: '0x1',
+            to: '0x2',
+            transferType: 'erc20',
+            amount: 167121100,
+            contractAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+          },
+          'out',
+          'eip155:42161',
+          () => 6,
+        ),
+      ).toMatchObject({
+        amount: '167121100',
+        decimals: 6,
+        assetType: 'erc20',
+      });
+    });
+
+    it('trusts an explicit decimal of 0 and keeps the amount', () => {
+      expect(
+        getTokenAmountFromTransfer(
+          {
+            from: '0x1',
+            to: '0x2',
+            transferType: 'erc20',
+            symbol: 'TOKEN',
+            amount: 100,
+            decimal: 0,
+            contractAddress: '0x1111111111111111111111111111111111111111',
+          },
+          'out',
+          'eip155:1',
+        ),
+      ).toStrictEqual({
+        direction: 'out',
+        amount: '100',
+        decimals: 0,
+        symbol: 'TOKEN',
+        assetType: 'erc20',
+        assetId: 'eip155:1/erc20:0x1111111111111111111111111111111111111111',
       });
     });
 
@@ -167,7 +241,52 @@ describe('transaction helpers', () => {
       });
     });
 
-    it('returns token metadata without decimals when they are omitted', () => {
+    it('defaults native transfers without decimal to 18 decimals', () => {
+      expect(
+        getTokenAmountFromTransfer(
+          {
+            from: '0x1',
+            to: '0x2',
+            transferType: 'normal',
+            symbol: 'ETH',
+            amount: '1000000000000000000',
+          },
+          'out',
+          'eip155:1',
+        ),
+      ).toStrictEqual({
+        direction: 'out',
+        amount: '1000000000000000000',
+        symbol: 'ETH',
+        decimals: 18,
+        assetType: 'native',
+        assetId: 'eip155:1/slip44:60',
+      });
+    });
+
+    it('does not fail-closed NFT transfer amounts', () => {
+      expect(
+        getTokenAmountFromTransfer(
+          {
+            from: '0x1',
+            to: '0x2',
+            transferType: 'erc721',
+            name: 'Cool NFT',
+            amount: 1,
+            contractAddress: '0x1111111111111111111111111111111111111111',
+          },
+          'in',
+          'eip155:1',
+        ),
+      ).toStrictEqual({
+        direction: 'in',
+        amount: '1',
+        symbol: 'Cool NFT',
+        assetType: 'erc721',
+      });
+    });
+
+    it('omits amount when decimals are omitted even if a symbol is present', () => {
       expect(
         getTokenAmountFromTransfer(
           {
@@ -180,14 +299,14 @@ describe('transaction helpers', () => {
           'out',
           'eip155:1',
         ),
-      ).toMatchObject({
+      ).toStrictEqual({
         direction: 'out',
-        amount: '1',
         symbol: 'USDC',
+        assetType: 'erc20',
       });
     });
 
-    it('returns undefined when the transfer has no symbol or amount', () => {
+    it('returns undefined when the transfer has no symbol, amount, or asset id', () => {
       expect(
         getTokenAmountFromTransfer(
           {

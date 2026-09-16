@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
 
+### Fixed
+
+- Omit fungible `TokenAmount.amount` from API and local activity mappers when decimals are unknown, so hosts cannot render raw base units as human-readable values ([TMCU-1303](https://consensyssoftware.atlassian.net/browse/TMCU-1303))
+  - `getTokenAmountFromTransfer` / `mapApiTransaction` keep `amount` only when `transfer.decimal` is present (including `0`), native transfers default to 18 decimals, or static / host metadata resolves decimals
+  - Optional `getKnownTokenDecimals(chainId, contractAddress)` on `mapApiTransaction` and `mapLocalTransaction` recovers decimals and symbol from on-device token state
+  - Local ERC-20 legs now stamp `assetType: 'erc20'` and apply the same fail-closed rule
+  - NFT, ramp, and keyring amounts are unchanged
+
 ## [3.0.1]
 
 ### Changed
