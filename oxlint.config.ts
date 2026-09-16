@@ -8,7 +8,11 @@ export default createConfig({
   extends: [base],
 
   options: {
-    reportUnusedDisableDirectives: 'error',
+    // TODO: Enable this once all unused disable directives are removed.
+    // For the initial migration of ESLint to Oxlint, there are many unused
+    // ones, and removing them all in a single pull request would result in a
+    // large, hard to review pull request.
+    reportUnusedDisableDirectives: 'warn',
     typeAware: true,
   },
 
