@@ -10,6 +10,7 @@ jest.unstable_mockModule('execa', () => ({
 
 jest.unstable_mockModule('./tsc-suppressions.js', () => ({
   parseTscOutput: jest.fn(),
+  findFilelessDiagnostics: jest.fn(),
   buildSuppressions: jest.fn(),
   compareErrorsToSuppressions: jest.fn(),
   readSuppressions: jest.fn(),
@@ -39,6 +40,7 @@ const PASSING_REPORT = {
 function mockTscRun(output: string, exitCode = 1): void {
   jest.mocked(execa).mockResolvedValue({ all: output, exitCode } as never);
   jest.mocked(tscSuppressions.parseTscOutput).mockReturnValue([ERROR]);
+  jest.mocked(tscSuppressions.findFilelessDiagnostics).mockReturnValue([]);
 }
 
 describe('lintTsc', () => {
@@ -130,6 +132,7 @@ describe('lintTsc', () => {
       .mocked(execa)
       .mockResolvedValue({ all: undefined, exitCode: 0 } as never);
     jest.mocked(tscSuppressions.parseTscOutput).mockReturnValue([]);
+    jest.mocked(tscSuppressions.findFilelessDiagnostics).mockReturnValue([]);
     jest
       .mocked(tscSuppressions.compareErrorsToSuppressions)
       .mockReturnValue(PASSING_REPORT);
@@ -141,13 +144,14 @@ describe('lintTsc', () => {
 
   it('throws when tsc fails without reporting any type errors', async () => {
     jest.mocked(execa).mockResolvedValue({
-      all: 'error TS6053: not found',
+      all: 'boom',
       exitCode: 1,
     } as never);
     jest.mocked(tscSuppressions.parseTscOutput).mockReturnValue([]);
+    jest.mocked(tscSuppressions.findFilelessDiagnostics).mockReturnValue([]);
 
     await expect(lintTsc([])).rejects.toThrow(
-      '`tsc` failed without reporting any type errors.',
+      '`tsc` failed for a reason other than the type errors it reported.',
     );
     expect(tscSuppressions.compareErrorsToSuppressions).not.toHaveBeenCalled();
   });
@@ -161,6 +165,18 @@ describe('lintTsc', () => {
     await lintTsc([]);
 
     expect(tscSuppressions.printReport).toHaveBeenCalledWith(PASSING_REPORT);
+  });
+
+  it('throws when tsc reports a diagnostic that belongs to no file, even though type errors were reported too', async () => {
+    mockTscRun('a.ts(1,1): error TS2322: Nope.');
+    jest
+      .mocked(tscSuppressions.findFilelessDiagnostics)
+      .mockReturnValue(["error TS6053: File 'nope.json' not found."]);
+
+    await expect(lintTsc([])).rejects.toThrow(
+      '`tsc` failed for a reason other than the type errors it reported.',
+    );
+    expect(tscSuppressions.compareErrorsToSuppressions).not.toHaveBeenCalled();
   });
 
   it('rewrites the suppressions file when given --update, without failing', async () => {

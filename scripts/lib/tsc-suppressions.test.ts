@@ -10,6 +10,7 @@ import path from 'path';
 import {
   buildSuppressions,
   compareErrorsToSuppressions,
+  findFilelessDiagnostics,
   parseTscOutput,
   printReport,
   readSuppressions,
@@ -75,6 +76,37 @@ describe('parseTscOutput', () => {
 
   it('returns no errors when given empty output', () => {
     expect(parseTscOutput('')).toStrictEqual([]);
+  });
+});
+
+describe('findFilelessDiagnostics', () => {
+  it('finds a diagnostic that tsc reports without a file', () => {
+    const output = "error TS6053: File 'nope.ts' not found.";
+
+    expect(findFilelessDiagnostics(output)).toStrictEqual([
+      "error TS6053: File 'nope.ts' not found.",
+    ]);
+  });
+
+  it('finds one even when type errors are reported alongside it', () => {
+    const output = [
+      "error TS6053: File 'nope.ts' not found.",
+      'packages/foo/src/foo.test.ts(12,5): error TS2322: Nope.',
+    ].join('\n');
+
+    expect(findFilelessDiagnostics(output)).toStrictEqual([
+      "error TS6053: File 'nope.ts' not found.",
+    ]);
+  });
+
+  it('ignores errors that belong to a file', () => {
+    const output = 'packages/foo/src/foo.test.ts(12,5): error TS2322: Nope.';
+
+    expect(findFilelessDiagnostics(output)).toStrictEqual([]);
+  });
+
+  it('returns nothing when given empty output', () => {
+    expect(findFilelessDiagnostics('')).toStrictEqual([]);
   });
 });
 
