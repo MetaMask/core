@@ -2229,6 +2229,19 @@ describe('KycController', () => {
       });
     }
 
+    it('swallows a failed session-status refresh after the SDK completes', async () => {
+      await withController(
+        { options: { sessionStatusPollIntervalMs: 60_000 } },
+        async ({ controller, handlers, launcher }) => {
+          completeSdk(launcher);
+          handlers.getSessionStatus.mockRejectedValue(new Error('status down'));
+
+          await controller.startSumSub();
+          expect(controller.state.sumsub.status).toBe('polling');
+        },
+      );
+    });
+
     it('polls the session status after completion and completes on an approved status', async () => {
       await withController(async ({ controller, handlers, launcher }) => {
         completeSdk(launcher);
@@ -3953,7 +3966,7 @@ describe('KycController', () => {
             return { ok: true };
           });
           handlers.getSessionStatus
-            .mockResolvedValueOnce(sessionStatus('approved'))
+            .mockResolvedValueOnce(sessionStatus('pending'))
             .mockRejectedValue(new Error('status down'));
 
           await controller.acceptTermsAndStartSession({
@@ -3963,7 +3976,7 @@ describe('KycController', () => {
           });
 
           expect(controller.state.phase).toBe('done');
-          expect(controller.state.sumsub.status).toBe('complete');
+          expect(controller.state.sumsub.status).toBe('polling');
           controller.reset();
         },
       );
@@ -4751,6 +4764,34 @@ describe('KycController', () => {
       } finally {
         jest.useRealTimers();
       }
+    });
+
+    it('returns null when reset lands during a failed refresh fetch', async () => {
+      await withController(
+        {
+          options: {
+            state: { sessionId: 'sid', sessionStatus: sessionStatus('pending') },
+            sessionStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers }) => {
+          let release: (error: Error) => void = () => {
+            // placeholder
+          };
+          handlers.getSessionStatus.mockReturnValue(
+            new Promise((_resolve, reject) => {
+              release = reject;
+            }),
+          );
+
+          const pending = controller.refreshKycStatus();
+          controller.reset();
+          release(new Error('late'));
+          const result = await pending;
+
+          expect(result).toBeNull();
+        },
+      );
     });
 
     it('returns null session status when reset lands during refresh', async () => {

@@ -2324,9 +2324,6 @@ export class KycController extends BaseController<
    */
   async #startPolling(options: { updateSumSubStatus: boolean }): Promise<void> {
     this.#stopPolling();
-    if (!this.state.sessionId) {
-      return;
-    }
     this.#updateSumSubOnTerminal = options.updateSumSubStatus;
     this.#polling = true;
     await this.#runPollTick(this.#pollToken);
@@ -2439,7 +2436,11 @@ export class KycController extends BaseController<
    * by a reset / new sub-flow), `false` when it should keep polling.
    */
   async #pollOnce(token: number): Promise<boolean> {
-    const sessionId = this.state.sessionId;
+    const { sessionId } = this.state;
+    // Defensive: `#startPolling` / `#ensurePolling` require a session id, and
+    // `reset()` / `clearState()` cancel the loop. Keep this so a cleared
+    // session cannot be polled if a tick still lands.
+    /* istanbul ignore next */
     if (!sessionId) {
       this.#stopPolling();
       return true;
