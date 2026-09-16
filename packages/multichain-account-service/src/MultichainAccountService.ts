@@ -27,6 +27,7 @@ import { EvmAccountProvider } from './providers/EvmAccountProvider.js';
 import {
   EvmAccountProviderConfig,
   Bip44AccountProvider,
+  DeleteAccountsError,
   EVM_ACCOUNT_PROVIDER_NAME,
   BtcAccountProviderConfig,
   TrxAccountProviderConfig,
@@ -564,7 +565,12 @@ export class MultichainAccountService {
    *
    * The deletion iterates providers (the source of truth for their own
    * account lists) and filters each provider's accounts to those matching
-   * the wallet's entropy source. Cleanup is best-effort end-to-end: neither
+   * the wallet's entropy source, then delegates to
+   * {@link Bip44AccountProvider.deleteAccounts}. Providers own any
+   * ordering or batching constraints (the EVM provider deletes last-to-first).
+   *
+   * Cleanup is best-effort end-to-end: neither
+   * a single account deletion failure nor a failure to enumerate a given
    * a single account deletion failure nor a failure to enumerate a given
    * provider's accounts aborts cleanup of the remaining providers. If one or
    * more operations fail, a single aggregated error is reported via
@@ -588,7 +594,7 @@ export class MultichainAccountService {
       try {
         // For wrapped providers, enumerate via the underlying provider so we
         // also see accounts when the wrapper has been disabled (i.e. basic
-        // functionality is off). The wrapper's `deleteAccount` itself forwards
+        // functionality is off). The wrapper's `deleteAccounts` itself forwards
         // unconditionally, but its `getAccounts()` returns `[]` when disabled,
         // which would otherwise leave snap-backed accounts orphaned in their
         // underlying keyrings.
@@ -606,13 +612,24 @@ export class MultichainAccountService {
         continue;
       }
 
-      for (const account of owned) {
-        try {
-          await provider.deleteAccount(account.id);
-        } catch (error) {
+      if (owned.length === 0) {
+        continue;
+      }
+
+      try {
+        await provider.deleteAccounts(owned.map((account) => account.id));
+      } catch (error) {
+        if (error instanceof DeleteAccountsError) {
+          for (const failure of error.failures) {
+            failures.push({
+              provider: provider.getName(),
+              accountId: failure.accountId,
+              error: failure.error,
+            });
+          }
+        } else {
           failures.push({
             provider: provider.getName(),
-            accountId: account.id,
             error,
           });
         }

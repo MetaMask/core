@@ -25,10 +25,12 @@ import { traceFallback } from '../analytics/index.js';
 import { TraceName } from '../analytics/traces.js';
 import { projectLogger as log, WARNING_PREFIX } from '../logger.js';
 import type { MultichainAccountServiceMessenger } from '../types.js';
+import type { DeleteAccountsFailure } from './BaseBip44AccountProvider.js';
 import {
   assertAreBip44Accounts,
   assertIsBip44Account,
   BaseBip44AccountProvider,
+  DeleteAccountsError,
 } from './BaseBip44AccountProvider.js';
 import { withRetry, withTimeout } from './utils.js';
 
@@ -452,5 +454,70 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     );
 
     this.accounts.delete(id);
+  }
+
+  /**
+   * Delete many EVM accounts.
+   *
+   * Groups by entropy source, then deletes from the highest group index
+   * down under a single `withKeyringV2` lock per source. The v2 HD keyring
+   * only accepts deleting its last account ("Can only delete the last
+   * account in the HD keyring due to derivation index constraints."), so
+   * an ascending pass would throw for every account but the last one.
+   *
+   * @param ids - The ids of the accounts to delete.
+   */
+  async deleteAccounts(
+    ids: Bip44Account<KeyringAccount>['id'][],
+  ): Promise<void> {
+    const failures: DeleteAccountsFailure[] = [];
+    const byEntropy = new Map<
+      EntropySourceId,
+      Bip44Account<KeyringAccount>[]
+    >();
+
+    for (const id of ids) {
+      try {
+        const account = this.getAccount(id);
+        const entropySource = account.options.entropy.id;
+        const group = byEntropy.get(entropySource) ?? [];
+        group.push(account);
+        byEntropy.set(entropySource, group);
+      } catch (error) {
+        failures.push({ accountId: id, error });
+      }
+    }
+
+    for (const [entropySource, accounts] of byEntropy) {
+      accounts.sort(
+        (a, b) => b.options.entropy.groupIndex - a.options.entropy.groupIndex,
+      );
+
+      try {
+        await this.withKeyringV2<Keyring>(
+          { id: entropySource },
+          async ({ keyring }) => {
+            for (const account of accounts) {
+              try {
+                await keyring.deleteAccount(account.id);
+                this.accounts.delete(account.id);
+              } catch (error) {
+                failures.push({ accountId: account.id, error });
+              }
+            }
+          },
+        );
+      } catch (error) {
+        for (const account of accounts) {
+          if (this.accounts.has(account.id)) {
+            failures.push({ accountId: account.id, error });
+          }
+        }
+      }
+    }
+
+    if (failures.length > 0) {
+      throw new DeleteAccountsError(failures);
+    }
   }
 }

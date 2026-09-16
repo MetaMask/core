@@ -32,6 +32,7 @@ import {
   MockAccountBuilder,
 } from '../tests/index.js';
 import type { MultichainAccountServiceMessenger } from '../types.js';
+import { DeleteAccountsError } from './BaseBip44AccountProvider.js';
 import { BtcAccountProvider } from './BtcAccountProvider.js';
 import type { SnapAccountProviderConfig } from './SnapAccountProvider.js';
 import {
@@ -1008,6 +1009,50 @@ describe('SnapAccountProvider', () => {
 
       await expect(provider.deleteAccount('unknown-id')).rejects.toThrow(
         'Unable to find account: unknown-id',
+      );
+    });
+  });
+
+  describe('deleteAccounts', () => {
+    it('deletes in the given order via deleteAccount', async () => {
+      const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
+      const { provider, keyring, messenger } = setup({ accounts });
+      messenger.registerActionHandler('AccountsController:getAccount', (id) =>
+        accounts.find((account) => account.id === id),
+      );
+      provider.init(accounts.map((account) => account.id));
+
+      await provider.deleteAccounts(accounts.map((account) => account.id));
+
+      expect(keyring.deleteAccount.mock.calls.flat()).toStrictEqual([
+        MOCK_HD_ACCOUNT_1.id,
+        MOCK_HD_ACCOUNT_2.id,
+      ]);
+    });
+
+    it('continues after a per-account failure and throws DeleteAccountsError', async () => {
+      const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
+      const { provider, keyring, messenger } = setup({ accounts });
+      messenger.registerActionHandler('AccountsController:getAccount', (id) =>
+        accounts.find((account) => account.id === id),
+      );
+      provider.init(accounts.map((account) => account.id));
+      keyring.deleteAccount
+        .mockRejectedValueOnce(new Error('snap is unavailable'))
+        .mockResolvedValueOnce(undefined);
+
+      await expect(
+        provider.deleteAccounts(accounts.map((account) => account.id)),
+      ).rejects.toBeInstanceOf(DeleteAccountsError);
+
+      expect(keyring.deleteAccount).toHaveBeenCalledTimes(2);
+      expect(keyring.deleteAccount).toHaveBeenNthCalledWith(
+        1,
+        MOCK_HD_ACCOUNT_1.id,
+      );
+      expect(keyring.deleteAccount).toHaveBeenNthCalledWith(
+        2,
+        MOCK_HD_ACCOUNT_2.id,
       );
     });
   });

@@ -194,6 +194,21 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
   }
 
   /**
+   * Forwards to the wrapped provider unconditionally, same reason as
+   * {@link deleteAccount}: wallet-removal cleanup must reach snap-backed
+   * (and EVM) accounts even when the wrapper is disabled. Forwarding the
+   * batch also preserves provider-specific ordering (EVM last-to-first).
+   *
+   * @param ids - The ids of the accounts to delete.
+   * @returns A promise that resolves when the accounts are deleted.
+   */
+  async deleteAccounts(
+    ids: Bip44Account<KeyringAccount>['id'][],
+  ): Promise<void> {
+    return this.provider.deleteAccounts(ids);
+  }
+
+  /**
    * Implement abstract method: Discover and create accounts, returns empty array when disabled.
    *
    * @param options - Account discovery options.

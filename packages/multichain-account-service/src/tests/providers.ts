@@ -11,6 +11,7 @@ import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 
 import {
   AccountProviderWrapper,
+  DeleteAccountsError,
   EvmAccountProvider,
 } from '../providers/index.js';
 import { GroupIndexRange } from '../utils.js';
@@ -27,6 +28,7 @@ export type MockAccountProvider = {
   getAccounts: jest.Mock;
   createAccounts: jest.Mock;
   deleteAccount: jest.Mock;
+  deleteAccounts: jest.Mock;
   discoverAccounts: jest.Mock;
   isAccountCompatible: jest.Mock;
   isAligned: jest.Mock;
@@ -62,6 +64,7 @@ export function makeMockAccountProvider(
     getAccounts: jest.fn(),
     createAccounts: jest.fn(),
     deleteAccount: jest.fn(),
+    deleteAccounts: jest.fn(),
     discoverAccounts: jest.fn(),
     isAccountCompatible: jest.fn(),
     isAligned: jest.fn().mockReturnValue(false),
@@ -109,6 +112,19 @@ export function setupBip44AccountProvider({
       getAccounts().find((account) => account.id === id),
   );
   mocks.createAccounts.mockResolvedValue([]);
+  mocks.deleteAccounts.mockImplementation(async (ids: string[]) => {
+    const failures: { accountId: string; error: unknown }[] = [];
+    for (const id of ids) {
+      try {
+        await mocks.deleteAccount(id);
+      } catch (error) {
+        failures.push({ accountId: id, error });
+      }
+    }
+    if (failures.length > 0) {
+      throw new DeleteAccountsError(failures);
+    }
+  });
   mocks.init.mockImplementation(
     (accountIds: Bip44Account<KeyringAccount>['id'][]) => {
       accountIds.forEach((id) => mocks.accounts.add(id));

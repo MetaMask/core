@@ -25,6 +25,7 @@ export type {
 export {
   AccountProviderWrapper,
   BaseBip44AccountProvider,
+  DeleteAccountsError,
   SnapAccountProvider,
   TimeoutError,
   EVM_ACCOUNT_PROVIDER_NAME,
@@ -38,6 +39,7 @@ export {
   XLM_ACCOUNT_PROVIDER_NAME,
   XlmAccountProvider,
 } from './providers/index.js';
+export type { DeleteAccountsFailure } from './providers/index.js';
 export { MultichainAccountWallet } from './MultichainAccountWallet.js';
 export { MultichainAccountGroup } from './MultichainAccountGroup.js';
 export { MultichainAccountService } from './MultichainAccountService.js';

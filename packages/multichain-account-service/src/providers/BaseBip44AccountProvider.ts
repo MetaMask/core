@@ -43,6 +43,28 @@ export function assertAreBip44Accounts(
   accounts.forEach(assertIsBip44Account);
 }
 
+/**
+ * A single account deletion that failed during {@link Bip44AccountProvider.deleteAccounts}.
+ */
+export type DeleteAccountsFailure = {
+  accountId: string;
+  error: unknown;
+};
+
+/**
+ * Thrown when one or more accounts could not be deleted during a batch
+ * `deleteAccounts` call. Remaining accounts are still attempted (best-effort).
+ */
+export class DeleteAccountsError extends Error {
+  readonly failures: DeleteAccountsFailure[];
+
+  constructor(failures: DeleteAccountsFailure[]) {
+    super('Failed to delete one or more accounts');
+    this.name = 'DeleteAccountsError';
+    this.failures = failures;
+  }
+}
+
 export type Bip44AccountProvider<
   Account extends Bip44Account<KeyringAccount> = Bip44Account<KeyringAccount>,
 > = AccountProvider<Account> & {
@@ -89,6 +111,18 @@ export type Bip44AccountProvider<
    * @param id - The id of the account to delete.
    */
   deleteAccount(id: Account['id']): Promise<void>;
+  /**
+   * Delete many accounts managed by this provider.
+   *
+   * Providers may reorder or batch internally (e.g. the EVM provider must
+   * delete from the highest group index down). The default implementation
+   * deletes sequentially via {@link deleteAccount} and is best-effort: a
+   * failure for one id does not skip the rest. If any deletion fails, a
+   * {@link DeleteAccountsError} is thrown with every per-id failure.
+   *
+   * @param ids - The ids of the accounts to delete.
+   */
+  deleteAccounts(ids: Account['id'][]): Promise<void>;
   /**
    * Re-synchronize MetaMask accounts and the providers accounts if needed.
    *
@@ -259,6 +293,29 @@ export abstract class BaseBip44AccountProvider<
   abstract createAccounts(options: CreateAccountOptions): Promise<Account[]>;
 
   abstract deleteAccount(id: Account['id']): Promise<void>;
+
+  /**
+   * Default batch deletion: sequential {@link deleteAccount} in the given
+   * order. Subclasses with extra constraints (EVM HD last-account-only)
+   * should override.
+   *
+   * @param ids - The ids of the accounts to delete.
+   */
+  async deleteAccounts(ids: Account['id'][]): Promise<void> {
+    const failures: DeleteAccountsFailure[] = [];
+
+    for (const id of ids) {
+      try {
+        await this.deleteAccount(id);
+      } catch (error) {
+        failures.push({ accountId: id, error });
+      }
+    }
+
+    if (failures.length > 0) {
+      throw new DeleteAccountsError(failures);
+    }
+  }
 
   abstract discoverAccounts({
     entropySource,

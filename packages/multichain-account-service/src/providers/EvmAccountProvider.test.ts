@@ -29,6 +29,7 @@ import {
   mockAsInternalAccount,
   RootMessenger,
 } from '../tests/index.js';
+import { DeleteAccountsError } from './BaseBip44AccountProvider.js';
 import {
   EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   EVM_ACCOUNT_PROVIDER_NAME,
@@ -863,6 +864,117 @@ describe('EvmAccountProvider', () => {
       await expect(provider.deleteAccount('unknown-id')).rejects.toThrow(
         'Unable to find account: unknown-id',
       );
+    });
+  });
+
+  describe('deleteAccounts', () => {
+    it('deletes from the highest group index down under one lock per entropy source', async () => {
+      const accounts = [0, 1, 2].map((groupIndex) =>
+        MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+          .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+          .withGroupIndex(groupIndex)
+          .withId(`mock-evm-id-${groupIndex}`)
+          .withAddress(`0x${groupIndex}`)
+          .get(),
+      );
+      const { provider, keyring, messenger } = setup({ accounts });
+      const withKeyringV2Spy = jest.fn(async (_, operation) =>
+        operation({ keyring, metadata: keyring.metadata }),
+      );
+      messenger.unregisterActionHandler('KeyringController:withKeyringV2');
+      messenger.registerActionHandler(
+        'KeyringController:withKeyringV2',
+        withKeyringV2Spy,
+      );
+      const deleteAccountSpy = jest.spyOn(keyring, 'deleteAccount');
+
+      await provider.deleteAccounts(accounts.map((account) => account.id));
+
+      expect(withKeyringV2Spy).toHaveBeenCalledTimes(1);
+      expect(withKeyringV2Spy).toHaveBeenCalledWith(
+        { id: MOCK_HD_KEYRING_1.metadata.id },
+        expect.any(Function),
+      );
+      expect(deleteAccountSpy.mock.calls.flat()).toStrictEqual([
+        'mock-evm-id-2',
+        'mock-evm-id-1',
+        'mock-evm-id-0',
+      ]);
+      expect(provider.getAccounts()).toStrictEqual([]);
+    });
+
+    it('reports unknown ids and still deletes the rest', async () => {
+      const { provider, keyring } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+      const deleteAccountSpy = jest.spyOn(keyring, 'deleteAccount');
+
+      await expect(
+        provider.deleteAccounts(['unknown-id', MOCK_HD_ACCOUNT_1.id]),
+      ).rejects.toBeInstanceOf(DeleteAccountsError);
+
+      expect(deleteAccountSpy).toHaveBeenCalledWith(MOCK_HD_ACCOUNT_1.id);
+      expect(provider.getAccounts()).toStrictEqual([]);
+    });
+
+    it('keeps deleting remaining accounts when one keyring.deleteAccount call throws', async () => {
+      const accounts = [0, 1].map((groupIndex) =>
+        MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+          .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+          .withGroupIndex(groupIndex)
+          .withId(`mock-evm-id-${groupIndex}`)
+          .withAddress(`0x${groupIndex}`)
+          .get(),
+      );
+      const { provider, keyring } = setup({ accounts });
+      const deleteAccountSpy = jest.spyOn(keyring, 'deleteAccount');
+      deleteAccountSpy.mockImplementation(async (accountId: string) => {
+        if (accountId === 'mock-evm-id-1') {
+          throw new Error('cannot delete last');
+        }
+        const index = keyring.accounts.findIndex((a) => a.id === accountId);
+        if (index >= 0) {
+          keyring.accounts.splice(index, 1);
+        }
+      });
+
+      await expect(
+        provider.deleteAccounts(accounts.map((account) => account.id)),
+      ).rejects.toBeInstanceOf(DeleteAccountsError);
+
+      expect(deleteAccountSpy.mock.calls.flat()).toStrictEqual([
+        'mock-evm-id-1',
+        'mock-evm-id-0',
+      ]);
+      expect(provider.getAccounts()).toStrictEqual([
+        asKeyringAccount(accounts[1]),
+      ]);
+    });
+
+    it('reports every remaining account when withKeyringV2 throws', async () => {
+      const { provider, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+      messenger.unregisterActionHandler('KeyringController:withKeyringV2');
+      messenger.registerActionHandler(
+        'KeyringController:withKeyringV2',
+        async () => {
+          throw new Error('keyring unavailable');
+        },
+      );
+
+      await expect(
+        provider.deleteAccounts([MOCK_HD_ACCOUNT_1.id]),
+      ).rejects.toMatchObject({
+        name: 'DeleteAccountsError',
+        failures: [
+          {
+            accountId: MOCK_HD_ACCOUNT_1.id,
+            error: expect.objectContaining({ message: 'keyring unavailable' }),
+          },
+        ],
+      });
+      expect(provider.getAccounts()).toHaveLength(1);
     });
   });
 
