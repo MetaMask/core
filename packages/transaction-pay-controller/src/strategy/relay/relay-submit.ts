@@ -18,7 +18,6 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
-import { accountSupports7702 } from '../../utils/7702.js';
 import { prefixError } from '../../utils/error-prefix.js';
 import {
   getFeatureFlags,
@@ -881,16 +880,9 @@ async function submitViaTransactionController(
 
   let result: { result: Promise<string> } | undefined;
 
-  const isSourceGasFeeSponsored =
-    transaction.isGasFeeSponsored &&
-    quote.request.sourceChainId === transaction.chainId &&
-    quote.request.targetChainId === transaction.chainId &&
-    accountSupports7702(messenger, from);
-
-  const gasFeeToken =
-    !isSourceGasFeeSponsored && quote.fees.isSourceGasFeeToken
-      ? sourceTokenAddress
-      : undefined;
+  const gasFeeToken = quote.fees.isSourceGasFeeToken
+    ? sourceTokenAddress
+    : undefined;
 
   log('Submitting transactions', {
     isPostQuote,
@@ -944,7 +936,6 @@ async function submitViaTransactionController(
         networkClientId,
         origin: ORIGIN_METAMASK,
         isInternal: true,
-        isGasFeeSponsored: isSourceGasFeeSponsored,
         requireApproval: false,
         type: getRelayDepositType(getEffectiveTransactionType(transaction)),
       },
@@ -955,7 +946,6 @@ async function submitViaTransactionController(
       buildRelayTransactionBatchRequest({
         allParams,
         authorizationList: batchAuthorizationList,
-        isGasFeeSponsored: isSourceGasFeeSponsored,
         messenger,
         normalizedParams,
         quote,
@@ -1008,7 +998,6 @@ function mapSignedQuoteAuthorizationList(
 function buildRelayTransactionBatchRequest({
   allParams,
   authorizationList,
-  isGasFeeSponsored,
   messenger,
   normalizedParams,
   quote,
@@ -1016,7 +1005,6 @@ function buildRelayTransactionBatchRequest({
 }: {
   allParams: TransactionParams[];
   authorizationList?: AuthorizationList;
-  isGasFeeSponsored: boolean | undefined;
   messenger: TransactionPayControllerMessenger;
   normalizedParams: TransactionParams[];
   quote: TransactionPayQuote<RelayQuote>;
@@ -1041,7 +1029,6 @@ function buildRelayTransactionBatchRequest({
     networkClientId,
     origin: ORIGIN_METAMASK,
     isInternal: true,
-    isGasFeeSponsored,
     overwriteUpgrade: true,
     requireApproval: false,
     transactions: buildRelayBatchTransactions({

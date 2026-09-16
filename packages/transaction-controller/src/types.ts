@@ -225,11 +225,6 @@ export type TransactionMeta = {
   isFirstTimeInteraction?: boolean;
 
   /**
-   * Whether the transaction is sponsored meaning the user does not pay the gas fee.
-   */
-  isGasFeeSponsored?: boolean;
-
-  /**
    * Whether the transaction has no lifecycle and is not signed or published.
    */
   isStateOnly?: boolean;
@@ -264,12 +259,6 @@ export type TransactionMeta = {
    * Generated UUID associated with this transaction.
    */
   id: string;
-
-  /**
-   * Whether the transaction is signed externally.
-   * No signing will be performed in the client and the `nonce` will be `undefined`.
-   */
-  isExternalSign?: boolean;
 
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
@@ -1872,9 +1861,6 @@ export type TransactionBatchRequest = {
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
 
-  /** Whether MetaMask will sponsor the gas fee for the transaction. */
-  isGasFeeSponsored?: boolean;
-
   /** ID of the network client to submit the transaction. */
   networkClientId: NetworkClientId;
 
@@ -2131,8 +2117,9 @@ export type AfterAddHook = (request: {
 }>;
 
 /**
- * Custom logic to be executed before a transaction is signed.
- * Can optionally update the transaction by returning the `updateTransaction` callback.
+ * Preparation logic to execute before deciding whether to sign locally.
+ * Runs even when {@link ShouldSignHook} returns false and can optionally update
+ * the transaction by returning the `updateTransaction` callback.
  */
 export type BeforeSignHook = (request: {
   transactionMeta: TransactionMeta;
@@ -2142,6 +2129,22 @@ export type BeforeSignHook = (request: {
     }
   | undefined
 >;
+
+/**
+ * Custom logic to determine whether a transaction should be treated as sponsored.
+ */
+export type IsSponsoredHook = (request: {
+  transactionMeta: TransactionMeta;
+}) => Promise<{ isSponsored: boolean }>;
+
+/**
+ * Policy logic to determine whether to reserve a nonce and sign locally for a
+ * non-sponsored transaction. Use {@link BeforeSignHook} for transaction
+ * preparation instead.
+ */
+export type ShouldSignHook = (request: {
+  transactionMeta: TransactionMeta;
+}) => Promise<{ shouldSign: boolean }>;
 
 /**
  * The total fiat values of the transaction, to support client metrics.
@@ -2238,9 +2241,6 @@ export type AddTransactionOptions = {
 
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
-
-  /** Whether MetaMask will sponsor the gas fee for the transaction. */
-  isGasFeeSponsored?: boolean;
 
   /** When set to `true` and if gasFeeToken is set, use gasFeeToken regardless of user native balance. */
   /** Unless true, gasFeeToken is only taken as a suggestion and native balance will be used in batch 7702 transactions */

@@ -2,5 +2,8 @@ import type { TransactionControllerOptions } from '@metamask/transaction-control
 
 export type TransactionControllerInstanceOptions = Omit<
   TransactionControllerOptions,
-  'messenger' | 'state'
-> & { disableSwaps?: boolean };
+  'disableSwaps' | 'hooks' | 'messenger' | 'state'
+> & {
+  disableSwaps?: boolean;
+  hooks?: TransactionControllerOptions['hooks'];
+};

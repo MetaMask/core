@@ -145,7 +145,6 @@ export async function submitMoneyAccountVaultDeposit({
       disableSequential: true,
       disableUpgrade: true,
       from: moneyAccountAddress,
-      isGasFeeSponsored: true,
       isInternal: true,
       networkClientId,
       origin: ORIGIN_METAMASK,

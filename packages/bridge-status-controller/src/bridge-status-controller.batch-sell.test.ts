@@ -369,7 +369,6 @@ describe('BridgeStatusController', () => {
                       atomic: false,
                       from: '0xaccount1',
                       isGasFeeIncluded: gasIncluded7702,
-                      isGasFeeSponsored: undefined,
                       isInternal: true,
                       networkClientId: 'networkClientId',
                       origin: 'metamask',

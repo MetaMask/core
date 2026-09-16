@@ -4356,7 +4356,6 @@ describe('BridgeStatusController', () => {
           "disable7702": true,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
-          "isGasFeeSponsored": false,
           "requireApproval": false,
         }
       `);
@@ -4436,7 +4435,6 @@ describe('BridgeStatusController', () => {
           "disable7702": true,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
-          "isGasFeeSponsored": false,
           "requireApproval": false,
         }
       `);
@@ -4769,7 +4767,6 @@ describe('BridgeStatusController', () => {
           "disable7702": false,
           "isDelegatedAccount": true,
           "isGasFeeIncluded": false,
-          "isGasFeeSponsored": false,
           "requireApproval": false,
         }
       `);
@@ -4898,7 +4895,6 @@ describe('BridgeStatusController', () => {
           "disable7702": false,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": true,
-          "isGasFeeSponsored": false,
           "requireApproval": false,
         }
       `);
@@ -4953,7 +4949,6 @@ describe('BridgeStatusController', () => {
           "disable7702": true,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
-          "isGasFeeSponsored": false,
           "requireApproval": false,
         }
       `);

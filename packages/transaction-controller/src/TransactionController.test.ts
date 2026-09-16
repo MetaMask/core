@@ -516,7 +516,12 @@ describe('TransactionController', () => {
     },
     updateToInitialState = false,
   }: {
-    options?: Partial<ConstructorParameters<typeof TransactionController>[0]>;
+    options?: Omit<
+      Partial<ConstructorParameters<typeof TransactionController>[0]>,
+      'hooks'
+    > & {
+      hooks?: Partial<TransactionControllerOptions['hooks']>;
+    };
     network?: {
       blockTracker?: BlockTracker;
       provider?: Provider;
@@ -601,10 +606,14 @@ describe('TransactionController', () => {
     }: Partial<TransactionControllerOptions> = {
       disableSwaps: false,
       getPermittedAccounts: async () => [ACCOUNT_MOCK],
-      hooks: {},
       isEIP7702GasFeeTokensEnabled: isEIP7702GasFeeTokensEnabledMock,
       publicKeyEIP7702: '0x1234',
       ...givenOptions,
+      hooks: {
+        isSponsored: async () => ({ isSponsored: false }),
+        shouldSign: async () => ({ shouldSign: true }),
+        ...givenOptions.hooks,
+      },
     };
 
     const transactionControllerMessenger: TransactionControllerMessenger =
@@ -960,6 +969,39 @@ describe('TransactionController', () => {
             lineaGasFeeFlowMock,
             defaultGasFeeFlowMock,
           ],
+        }),
+      );
+    });
+
+    it('updates transaction batch gas fee estimates when the poller emits a batch update', async () => {
+      const batchId = BATCH_ID_MOCK;
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactionBatches: [{ id: batchId } as never],
+          },
+        },
+      });
+      const batchUpdateHandler = gasFeePollerMock.hub.on.mock.calls.find(
+        ([event]) => event === 'transaction-batch-updated',
+      )?.[1] as (request: {
+        transactionBatchId: Hex;
+        gasFeeEstimates?: GasFeeEstimates;
+      }) => void;
+
+      batchUpdateHandler({
+        transactionBatchId: batchId,
+        gasFeeEstimates: {
+          type: GasFeeEstimateType.FeeMarket,
+        } as GasFeeEstimates,
+      });
+
+      expect(controller.state.transactionBatches).toContainEqual(
+        expect.objectContaining({
+          id: batchId,
+          gasFeeEstimates: {
+            type: GasFeeEstimateType.FeeMarket,
+          },
         }),
       );
     });
@@ -2215,10 +2257,7 @@ describe('TransactionController', () => {
       };
 
       it('skips balance changes but refreshes gas fee tokens using the wrapped transaction', async () => {
-        getGasFeeTokensMock.mockResolvedValueOnce({
-          gasFeeTokens: [refreshedGasFeeToken],
-          isGasFeeSponsored: false,
-        });
+        getGasFeeTokensMock.mockResolvedValueOnce([refreshedGasFeeToken]);
         shouldResimulateMock.mockReturnValueOnce({
           blockTime: 123,
           resimulate: true,
@@ -2228,7 +2267,6 @@ describe('TransactionController', () => {
           ...TRANSACTION_META_MOCK,
           gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
           gasUsed: originalGasUsed,
-          isGasFeeSponsored: true,
           selectedGasFeeToken: GAS_FEE_TOKEN_MOCK.tokenAddress,
           simulationData: SIMULATION_DATA_RESULT_MOCK,
           status: TransactionStatus.unapproved as const,
@@ -2259,8 +2297,6 @@ describe('TransactionController', () => {
         expect(controller.state.transactions[0]).toMatchObject({
           gasFeeTokens: [refreshedGasFeeToken],
           gasUsed: originalGasUsed,
-          isExternalSign: true,
-          isGasFeeSponsored: true,
           selectedGasFeeToken: GAS_FEE_TOKEN_MOCK.tokenAddress,
           simulationData: SIMULATION_DATA_RESULT_MOCK,
         });
@@ -2268,10 +2304,7 @@ describe('TransactionController', () => {
 
       it('keeps the selected token during periodic simulation updates', async () => {
         jest.useFakeTimers();
-        getGasFeeTokensMock.mockResolvedValue({
-          gasFeeTokens: [refreshedGasFeeToken],
-          isGasFeeSponsored: false,
-        });
+        getGasFeeTokensMock.mockResolvedValue([refreshedGasFeeToken]);
         const transactionMeta = {
           ...TRANSACTION_META_MOCK,
           containerTypes: [TransactionContainerType.EnforcedSimulations],
@@ -2304,10 +2337,7 @@ describe('TransactionController', () => {
       });
 
       it('replaces existing tokens with an empty response without clearing the selection', async () => {
-        getGasFeeTokensMock.mockResolvedValueOnce({
-          gasFeeTokens: [],
-          isGasFeeSponsored: false,
-        });
+        getGasFeeTokensMock.mockResolvedValueOnce([]);
         shouldResimulateMock.mockReturnValueOnce({
           blockTime: 123,
           resimulate: true,
@@ -2355,10 +2385,7 @@ describe('TransactionController', () => {
             TransactionContainerType.EnforcedSimulations,
           );
 
-          return {
-            gasFeeTokens: [isWrapped ? refreshedGasFeeToken : staleGasFeeToken],
-            isGasFeeSponsored: false,
-          };
+          return [isWrapped ? refreshedGasFeeToken : staleGasFeeToken];
         });
         shouldResimulateMock.mockReturnValue({
           blockTime: 123,
@@ -2406,6 +2433,247 @@ describe('TransactionController', () => {
           gasUsed: transactionMeta.gasUsed,
           txParams: expect.objectContaining(wrappedParams),
         });
+      });
+    });
+
+    describe('with sponsored approval hooks', () => {
+      it('calls isSponsored hook before reserving a nonce', async () => {
+        const callOrder: string[] = [];
+
+        const isSponsoredHook = jest
+          .fn()
+          .mockImplementation(async (): Promise<{ isSponsored: boolean }> => {
+            callOrder.push('isSponsored');
+            expect(getNonceLockSpy).not.toHaveBeenCalled();
+            return { isSponsored: false };
+          });
+
+        const shouldSignHook = jest
+          .fn()
+          .mockImplementation(async (): Promise<{ shouldSign: boolean }> => {
+            callOrder.push('shouldSign');
+            expect(getNonceLockSpy).not.toHaveBeenCalled();
+            return { shouldSign: true };
+          });
+
+        getNonceLockSpy.mockImplementation(
+          async (): Promise<{
+            nextNonce: Hex;
+            releaseLock: () => Promise<void>;
+          }> => {
+            callOrder.push('getNonceLock');
+            return {
+              nextNonce: toHex(NONCE_MOCK),
+              releaseLock: () => Promise.resolve(),
+            };
+          },
+        );
+
+        const { controller, messenger } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            hooks: {
+              isSponsored: isSponsoredHook,
+              shouldSign: shouldSignHook,
+            },
+          },
+        });
+        const statusUpdatedListener = jest.fn();
+        messenger.subscribe(
+          'TransactionController:transactionStatusUpdated',
+          statusUpdatedListener,
+        );
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(isSponsoredHook).toHaveBeenCalledTimes(1);
+        expect(shouldSignHook).toHaveBeenCalledTimes(1);
+        expect(callOrder).toStrictEqual([
+          'isSponsored',
+          'shouldSign',
+          'getNonceLock',
+        ]);
+        expect(statusUpdatedListener).toHaveBeenCalledTimes(3);
+        expect(statusUpdatedListener).toHaveBeenNthCalledWith(1, {
+          transactionMeta: expect.objectContaining({
+            status: TransactionStatus.approved,
+            txParams: expect.objectContaining({ nonce: toHex(NONCE_MOCK) }),
+          }),
+        });
+        expect(statusUpdatedListener).toHaveBeenNthCalledWith(2, {
+          transactionMeta: expect.objectContaining({
+            status: TransactionStatus.signed,
+          }),
+        });
+        expect(statusUpdatedListener).toHaveBeenNthCalledWith(3, {
+          transactionMeta: expect.objectContaining({
+            status: TransactionStatus.submitted,
+          }),
+        });
+      });
+
+      it('skips shouldSign and nonce reservation when sponsored', async () => {
+        const isSponsoredHook = jest
+          .fn()
+          .mockResolvedValue({ isSponsored: true });
+        const shouldSignHook = jest
+          .fn()
+          .mockResolvedValue({ shouldSign: true });
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            hooks: {
+              isSponsored: isSponsoredHook,
+              shouldSign: shouldSignHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(isSponsoredHook).toHaveBeenCalledTimes(1);
+        expect(shouldSignHook).not.toHaveBeenCalled();
+        expect(getNonceLockSpy).not.toHaveBeenCalled();
+      });
+
+      it('skips nonce reservation and preserves an existing nonce when shouldSign resolves false', async () => {
+        const isSponsoredHook = jest
+          .fn()
+          .mockResolvedValue({ isSponsored: false });
+        const shouldSignHook = jest
+          .fn()
+          .mockResolvedValue({ shouldSign: false });
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            hooks: {
+              isSponsored: isSponsoredHook,
+              shouldSign: shouldSignHook,
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            nonce: toHex(NONCE_MOCK),
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(isSponsoredHook).toHaveBeenCalledTimes(1);
+        expect(shouldSignHook).toHaveBeenCalledTimes(1);
+        expect(getNonceLockSpy).not.toHaveBeenCalled();
+        expect(controller.state.transactions[0].txParams.nonce).toBe(
+          toHex(NONCE_MOCK),
+        );
+      });
+
+      it('does not persist hook decisions as transaction metadata', async () => {
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            hooks: {
+              isSponsored: jest.fn().mockResolvedValue({ isSponsored: true }),
+              shouldSign: jest.fn().mockResolvedValue({ shouldSign: false }),
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0]).not.toHaveProperty(
+          'isGasFeeSponsored',
+        );
+        expect(controller.state.transactions[0]).not.toHaveProperty(
+          'isExternalSign',
+        );
+      });
+
+      it('still runs beforeSign when shouldSign resolves false', async () => {
+        const beforeSignHook = jest.fn().mockResolvedValueOnce({});
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            hooks: {
+              beforeSign: beforeSignHook,
+              shouldSign: jest.fn().mockResolvedValue({ shouldSign: false }),
+            },
+          },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(beforeSignHook).toHaveBeenCalledTimes(1);
+        expect(getNonceLockSpy).not.toHaveBeenCalled();
       });
     });
 
@@ -2574,10 +2842,7 @@ describe('TransactionController', () => {
         getGasFeeTokensMock.mockImplementation(async ({ transactionMeta }) => {
           const isFresh = transactionMeta.txParams.data === '0x2222';
 
-          return {
-            gasFeeTokens: [isFresh ? freshGasFeeToken : staleGasFeeToken],
-            isGasFeeSponsored: isFresh,
-          };
+          return [isFresh ? freshGasFeeToken : staleGasFeeToken];
         });
         shouldResimulateMock.mockReturnValue({
           blockTime: 123,
@@ -2618,8 +2883,6 @@ describe('TransactionController', () => {
         expect(controller.state.transactions[0]).toMatchObject({
           gasFeeTokens: [freshGasFeeToken],
           gasUsed: '0x300',
-          isExternalSign: true,
-          isGasFeeSponsored: true,
           revert: { simulation: freshSimulationRevert },
           simulationData: freshSimulationData,
           txParams: expect.objectContaining({ data: '0x2222' }),
@@ -2756,10 +3019,7 @@ describe('TransactionController', () => {
 
     describe('updates gas fee tokens', () => {
       it('by default', async () => {
-        getGasFeeTokensMock.mockResolvedValueOnce({
-          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
-          isGasFeeSponsored: false,
-        });
+        getGasFeeTokensMock.mockResolvedValueOnce([GAS_FEE_TOKEN_MOCK]);
 
         const { controller } = setupController();
 
@@ -2781,10 +3041,7 @@ describe('TransactionController', () => {
       });
 
       it('with getSimulationConfig', async () => {
-        getGasFeeTokensMock.mockResolvedValueOnce({
-          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
-          isGasFeeSponsored: false,
-        });
+        getGasFeeTokensMock.mockResolvedValueOnce([GAS_FEE_TOKEN_MOCK]);
 
         const getSimulationConfigMock: GetSimulationConfig = jest
           .fn()
@@ -2821,10 +3078,7 @@ describe('TransactionController', () => {
       });
 
       it('unless approval not required', async () => {
-        getGasFeeTokensMock.mockResolvedValueOnce({
-          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
-          isGasFeeSponsored: false,
-        });
+        getGasFeeTokensMock.mockResolvedValueOnce([GAS_FEE_TOKEN_MOCK]);
 
         const { controller } = setupController();
 
@@ -2838,164 +3092,6 @@ describe('TransactionController', () => {
 
         expect(getBalanceChangesMock).toHaveBeenCalledTimes(0);
         expect(controller.state.transactions[0].gasFeeTokens).toBeUndefined();
-      });
-    });
-
-    describe('updates isGasFeeSponsored', () => {
-      it('sets isGasFeeSponsored to true when transaction is sponsored', async () => {
-        getGasFeeTokensMock.mockResolvedValueOnce({
-          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
-          isGasFeeSponsored: true,
-        });
-
-        const { controller } = setupController();
-
-        await controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          },
-          {
-            networkClientId: NETWORK_CLIENT_ID_MOCK,
-          },
-        );
-
-        await flushPromises();
-
-        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(true);
-      });
-
-      it('sets isGasFeeSponsored to false when transaction is not sponsored', async () => {
-        getGasFeeTokensMock.mockResolvedValueOnce({
-          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
-          isGasFeeSponsored: false,
-        });
-
-        const { controller } = setupController();
-
-        await controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          },
-          {
-            networkClientId: NETWORK_CLIENT_ID_MOCK,
-          },
-        );
-
-        await flushPromises();
-
-        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(false);
-      });
-
-      it('defaults isGasFeeSponsored to false when gas fee tokens are disabled', async () => {
-        const { controller } = setupController({
-          options: {
-            isEIP7702GasFeeTokensEnabled: () => Promise.resolve(false),
-          },
-        });
-
-        await controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          },
-          {
-            networkClientId: NETWORK_CLIENT_ID_MOCK,
-          },
-        );
-
-        await flushPromises();
-
-        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(false);
-      });
-
-      it('sets isExternalSign to true when transaction is sponsored', async () => {
-        getGasFeeTokensMock.mockResolvedValueOnce({
-          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
-          isGasFeeSponsored: true,
-        });
-
-        const { controller } = setupController();
-
-        await controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          },
-          {
-            networkClientId: NETWORK_CLIENT_ID_MOCK,
-          },
-        );
-
-        await flushPromises();
-
-        expect(controller.state.transactions[0].isExternalSign).toBe(true);
-      });
-
-      it('does not set isExternalSign when transaction is not sponsored', async () => {
-        getGasFeeTokensMock.mockResolvedValueOnce({
-          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
-          isGasFeeSponsored: false,
-        });
-
-        const { controller } = setupController();
-
-        await controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          },
-          {
-            networkClientId: NETWORK_CLIENT_ID_MOCK,
-          },
-        );
-
-        await flushPromises();
-
-        expect(controller.state.transactions[0].isExternalSign).toBeUndefined();
-      });
-
-      it('sets isExternalSign to true immediately when isGasFeeSponsored is passed in options', async () => {
-        const { controller } = setupController();
-
-        await controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          },
-          {
-            networkClientId: NETWORK_CLIENT_ID_MOCK,
-            isGasFeeSponsored: true,
-          },
-        );
-
-        expect(controller.state.transactions[0].isExternalSign).toBe(true);
-      });
-
-      it('preserves isGasFeeSponsored and isExternalSign when passed in options even if simulation returns not sponsored', async () => {
-        getGasFeeTokensMock.mockResolvedValueOnce({
-          gasFeeTokens: [],
-          isGasFeeSponsored: false,
-        });
-
-        const { controller } = setupController();
-
-        await controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          },
-          {
-            networkClientId: NETWORK_CLIENT_ID_MOCK,
-            isGasFeeSponsored: true,
-          },
-        );
-
-        await flushPromises();
-
-        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(true);
-        expect(controller.state.transactions[0].isExternalSign).toBe(true);
       });
     });
 
@@ -3434,9 +3530,14 @@ describe('TransactionController', () => {
         expect(publishHook).toHaveBeenCalledTimes(1);
       });
 
-      it('skips signing if isExternalSign is true', async () => {
-        const { controller, mockTransactionApprovalRequest } =
-          setupController();
+      it('skips signing if shouldSign returns false', async () => {
+        const { controller, mockTransactionApprovalRequest } = setupController({
+          options: {
+            hooks: {
+              shouldSign: async () => ({ shouldSign: false }),
+            },
+          },
+        });
 
         const { result, transactionMeta } = await controller.addTransaction(
           {
@@ -3453,10 +3554,7 @@ describe('TransactionController', () => {
 
         mockTransactionApprovalRequest.approve({
           value: {
-            txMeta: {
-              ...transactionMeta,
-              isExternalSign: true,
-            },
+            txMeta: transactionMeta,
           },
         });
 
@@ -3791,6 +3889,35 @@ describe('TransactionController', () => {
         ).rejects.toThrow(
           providerErrors.unauthorized({ data: { origin: expectedOrigin } }),
         );
+      });
+
+      it('reads internal accounts while validating an approved transaction', async () => {
+        const { controller, rootMessenger } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        rootMessenger.unregisterActionHandler('AccountsController:getState');
+        rootMessenger.registerActionHandler(
+          'AccountsController:getState',
+          () => ({
+            internalAccounts: {
+              accounts: {
+                [INTERNAL_ACCOUNT_MOCK.id]: INTERNAL_ACCOUNT_MOCK,
+              },
+            },
+          }),
+        );
+
+        const { result } = await controller.addTransaction(
+          { from: ACCOUNT_MOCK, to: ACCOUNT_MOCK },
+          { networkClientId: NETWORK_CLIENT_ID_MOCK },
+        );
+
+        await result;
       });
     });
 
@@ -8942,10 +9069,7 @@ describe('TransactionController', () => {
       it('returns gas fee tokens', async () => {
         const { messenger } = setupController();
 
-        getGasFeeTokensMock.mockResolvedValueOnce({
-          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
-          isGasFeeSponsored: false,
-        });
+        getGasFeeTokensMock.mockResolvedValueOnce([GAS_FEE_TOKEN_MOCK]);
 
         const result = await messenger.call(
           'TransactionController:getGasFeeTokens',
@@ -8961,13 +9085,10 @@ describe('TransactionController', () => {
         expect(result).toStrictEqual([GAS_FEE_TOKEN_MOCK]);
       });
 
-      it('includes delegation address and isExternalSign in request', async () => {
+      it('includes delegation address in request', async () => {
         const { messenger } = setupController();
 
-        getGasFeeTokensMock.mockResolvedValueOnce({
-          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
-          isGasFeeSponsored: false,
-        });
+        getGasFeeTokensMock.mockResolvedValueOnce([GAS_FEE_TOKEN_MOCK]);
 
         getDelegationAddressMock.mockResolvedValue(ACCOUNT_2_MOCK);
 
@@ -8983,7 +9104,6 @@ describe('TransactionController', () => {
           expect.objectContaining({
             transactionMeta: expect.objectContaining({
               delegationAddress: ACCOUNT_2_MOCK,
-              isExternalSign: true,
             }),
           }),
         );
@@ -9039,6 +9159,40 @@ describe('TransactionController', () => {
         expect(transaction.status).toBe(TransactionStatus.failed);
 
         expect(approvedEventListener).not.toHaveBeenCalled();
+      });
+
+      it('publishes transactionApproved with a nonce after signing approval', async () => {
+        const { controller, messenger, mockTransactionApprovalRequest } =
+          setupController();
+
+        const approvedEventListener = jest.fn();
+
+        messenger.subscribe(
+          'TransactionController:transactionApproved',
+          approvedEventListener,
+        );
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x21000',
+            gasPrice: '0x1',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        mockTransactionApprovalRequest.approve();
+
+        await result;
+
+        expect(approvedEventListener).toHaveBeenCalledTimes(1);
+        expect(
+          approvedEventListener.mock.calls[0][0].transactionMeta.txParams.nonce,
+        ).toBeDefined();
       });
     });
 

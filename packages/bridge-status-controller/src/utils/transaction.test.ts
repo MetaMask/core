@@ -1937,7 +1937,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         requireApproval: false,
         messenger: mockMessagingSystem,
         disable7702: false,
-        isGasFeeSponsored: false,
         isGasFeeIncluded: true,
         atomic: true,
       });
@@ -1975,7 +1974,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         messenger: mockMessagingSystem,
         tradeData,
         disable7702: true,
-        isGasFeeSponsored: false,
         isGasFeeIncluded: false,
         atomic: true,
       });
@@ -2064,7 +2062,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         messenger: mockMessagingSystem,
         tradeData,
         disable7702: true,
-        isGasFeeSponsored: false,
         isGasFeeIncluded: false,
         atomic: true,
       });
@@ -2102,7 +2099,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         messenger: mockMessagingSystem,
         tradeData,
         disable7702: true,
-        isGasFeeSponsored: false,
         isGasFeeIncluded: false,
         atomic: true,
       });
@@ -2115,7 +2111,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
           "disable7702": true,
           "from": "0xUserAddress",
           "isGasFeeIncluded": false,
-          "isGasFeeSponsored": false,
           "isInternal": true,
           "networkClientId": undefined,
           "origin": "metamask",
@@ -2155,7 +2150,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         messenger: mockMessagingSystem,
         tradeData,
         disable7702: false,
-        isGasFeeSponsored: false,
         isGasFeeIncluded: true,
         atomic: true,
       });
@@ -2168,7 +2162,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
           "disable7702": false,
           "from": "0xUserAddress",
           "isGasFeeIncluded": true,
-          "isGasFeeSponsored": false,
           "isInternal": true,
           "networkClientId": undefined,
           "origin": "metamask",
@@ -2209,7 +2202,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         tradeData,
         disable7702: true,
         isGasFeeIncluded: false,
-        isGasFeeSponsored: false,
         atomic: true,
       });
 
@@ -2221,7 +2213,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
           "disable7702": true,
           "from": "0xUserAddress",
           "isGasFeeIncluded": false,
-          "isGasFeeSponsored": false,
           "isInternal": true,
           "networkClientId": undefined,
           "origin": "metamask",
@@ -2273,7 +2264,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         isDelegatedAccount: true,
         tradeData,
         disable7702: false,
-        isGasFeeSponsored: Boolean(mockQuoteResponse.quote.gasSponsored),
         isGasFeeIncluded: Boolean(mockQuoteResponse.quote.gasIncluded7702),
       });
 
@@ -2340,7 +2330,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         messenger: mockMessagingSystem,
         isDelegatedAccount: true,
         disable7702: false,
-        isGasFeeSponsored: Boolean(mockQuoteResponse.quote.gasSponsored),
         isGasFeeIncluded: Boolean(mockQuoteResponse.quote.gasIncluded7702),
       });
 

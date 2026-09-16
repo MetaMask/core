@@ -123,7 +123,20 @@ describe('createWallet', () => {
       InMemoryStorageAdapter,
     );
     expect(instanceOptions.transactionController?.disableSwaps).toBe(true);
-    expect(instanceOptions.transactionController?.hooks).toStrictEqual({});
+    expect(instanceOptions.transactionController?.hooks).toMatchObject({
+      isSponsored: expect.any(Function),
+      shouldSign: expect.any(Function),
+    });
+    expect(
+      await instanceOptions.transactionController?.hooks.isSponsored({
+        transactionMeta: {} as never,
+      }),
+    ).toStrictEqual({ isSponsored: false });
+    expect(
+      await instanceOptions.transactionController?.hooks.shouldSign({
+        transactionMeta: {} as never,
+      }),
+    ).toStrictEqual({ shouldSign: true });
     expect(ClientConfigApiService).toHaveBeenCalled();
 
     await dispose();

@@ -45,7 +45,7 @@ export async function* submitBatchSellHandler(
     batchSellTrades,
   });
 
-  const { gasIncluded7702, gasIncluded, gasSponsored } = batchSellTrades;
+  const { gasIncluded7702, gasIncluded } = batchSellTrades;
 
   const gasFeeToken = tradeData.find(
     ({ type }) => type === TransactionType.tokenMethodTransfer,
@@ -63,7 +63,6 @@ export async function* submitBatchSellHandler(
       gasIncluded,
       isDelegatedAccount,
     ),
-    isGasFeeSponsored: gasSponsored,
     isGasFeeIncluded: Boolean(gasIncluded7702),
     batchId: batchIdParam,
     skipInitialGasEstimate: gasIncluded7702
