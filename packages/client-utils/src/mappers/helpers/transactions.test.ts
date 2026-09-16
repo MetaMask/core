@@ -171,49 +171,6 @@ describe('transaction helpers', () => {
       });
     });
 
-    it('accepts a numeric getKnownTokenDecimals result', () => {
-      expect(
-        getTokenAmountFromTransfer(
-          {
-            from: '0x1',
-            to: '0x2',
-            transferType: 'erc20',
-            amount: 167121100,
-            contractAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
-          },
-          'out',
-          'eip155:42161',
-          () => 6,
-        ),
-      ).toMatchObject({
-        amount: '167121100',
-        decimals: 6,
-        assetType: 'erc20',
-      });
-    });
-
-    it('ignores a null getKnownTokenDecimals result', () => {
-      expect(
-        getTokenAmountFromTransfer(
-          {
-            from: '0x1',
-            to: '0x2',
-            transferType: 'erc20',
-            amount: 167121100,
-            contractAddress: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
-          },
-          'out',
-          'eip155:42161',
-          () => null as unknown as undefined,
-        ),
-      ).toStrictEqual({
-        direction: 'out',
-        assetType: 'erc20',
-        assetId:
-          'eip155:42161/erc20:0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
-      });
-    });
-
     it('trusts an explicit decimal of 0 and keeps the amount', () => {
       expect(
         getTokenAmountFromTransfer(

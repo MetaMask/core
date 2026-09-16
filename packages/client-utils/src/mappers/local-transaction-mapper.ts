@@ -21,7 +21,6 @@ import {
   getLocalTransactionFees,
   getLocalTransactionStatus,
   isNftStandard,
-  normalizeKnownTokenLookup,
 } from './helpers/transactions.js';
 import type {
   GetKnownTokenDecimals,
@@ -86,8 +85,9 @@ export function mapLocalTransaction(
     contractAddress: string,
   ): { symbol?: string; decimals?: number } => {
     const known = getKnownTokenMetadata(chainId, contractAddress);
-    const host = normalizeKnownTokenLookup(
-      transactionGroup.getKnownTokenDecimals?.(chainId, contractAddress),
+    const host = transactionGroup.getKnownTokenDecimals?.(
+      chainId,
+      contractAddress,
     );
 
     return {

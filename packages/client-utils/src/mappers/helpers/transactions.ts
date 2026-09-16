@@ -374,28 +374,12 @@ export function parseValueTransfers(
  * when Accounts API enrichment omitted them on a value transfer.
  *
  * Hosts typically wire this to on-device token state (e.g. TokensController).
- * Return a number for decimals only, or `{ decimals, symbol }` to also recover
- * titles when the transfer omitted `symbol`. Do not use this to override a
- * present-but-wrong `transfer.decimal`.
+ * Do not use this to override a present-but-wrong `transfer.decimal`.
  */
 export type GetKnownTokenDecimals = (
   chainId: CaipChainId,
   contractAddress: string,
-) => number | { decimals?: number; symbol?: string } | undefined;
-
-export function normalizeKnownTokenLookup(
-  result: ReturnType<GetKnownTokenDecimals>,
-): { decimals?: number; symbol?: string } | undefined {
-  if (result === undefined || result === null) {
-    return undefined;
-  }
-
-  if (typeof result === 'number') {
-    return { decimals: result };
-  }
-
-  return result;
-}
+) => { decimals?: number; symbol?: string } | undefined;
 
 /**
  * Maps an Accounts API value transfer into a fungible/NFT {@link TokenAmount}.
@@ -431,9 +415,7 @@ export function getTokenAmountFromTransfer(
       : undefined;
   const hostToken =
     !isNftTransfer && !isNative && transfer.contractAddress
-      ? normalizeKnownTokenLookup(
-          getKnownTokenDecimals?.(chainId, transfer.contractAddress),
-        )
+      ? getKnownTokenDecimals?.(chainId, transfer.contractAddress)
       : undefined;
 
   const symbol = isNftTransfer
