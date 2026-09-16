@@ -32,7 +32,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "tsc --project tsconfig.build.json && cp src/mappers/helpers/contract-metadata-index.json dist/mappers/helpers/",
+    "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
     "build:docs": "typedoc",
@@ -44,13 +44,13 @@
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
-    "sync-contract-metadata": "tsx scripts/sync-contract-metadata.mts",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
+    "@metamask/contract-metadata": "github:MetaMask/contract-metadata",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/core-backend": "^11.0.0",
     "@metamask/keyring-api": "^24.0.0",

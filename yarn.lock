@@ -6347,6 +6347,7 @@ __metadata:
   dependencies:
     "@ethersproject/abi": "npm:^5.7.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/contract-metadata": "github:MetaMask/contract-metadata"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/core-backend": "npm:^11.0.0"
     "@metamask/keyring-api": "npm:^24.0.0"
@@ -6462,6 +6463,13 @@ __metadata:
     typescript: "npm:@typescript/typescript6@^6.0.2"
   languageName: unknown
   linkType: soft
+
+"@metamask/contract-metadata@github:MetaMask/contract-metadata":
+  version: 2.5.0
+  resolution: "@metamask/contract-metadata@https://github.com/MetaMask/contract-metadata.git#commit=531ffb8257a61dd1fd2da1705ac496087a8e4472"
+  checksum: 10/b7ca0f9d7ee2bd75ad116ae46469eef26bf2cf318da1b686bdf97fb743c76d43f8ed46c8bf25bd1ab0caeb9b05bb240fc0aa2252c84a9408f574205b0f000d5f
+  languageName: node
+  linkType: hard
 
 "@metamask/contract-metadata@npm:^2.4.0":
   version: 2.5.0
