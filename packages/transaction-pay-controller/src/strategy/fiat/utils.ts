@@ -81,7 +81,13 @@ export function isMoneyAccountDepositTransaction(
 }
 
 /**
- * Fetches the first matching Ramps quote for a fiat asset and payment method.
+ * Fetches the best matching Ramps quote for a fiat asset and payment method,
+ * with provider fees reconciled to what the resolved provider actually charges.
+ *
+ * The `RampsController:getQuoteWithFees` action owns the provider check and the
+ * native buy-quote lookup, so a Transak Native quote already carries the native
+ * fee in its `providerFee`/`networkFee`/`totalFees` fields. MM Pay deposits are
+ * fee-on-top, so the quote is requested with `isFeeExcludedFromFiat: true`.
  *
  * @param options - Quote options.
  * @param options.adjustedAmount - Fiat amount sent to Ramps.
@@ -90,7 +96,7 @@ export function isMoneyAccountDepositTransaction(
  * @param options.fiatPaymentMethod - Selected fiat payment method.
  * @param options.messenger - Controller messenger.
  * @param options.walletAddress - Wallet address that receives the on-ramped asset.
- * @returns The first matching Ramps quote.
+ * @returns The best matching Ramps quote with reconciled fees.
  */
 export async function getRampsQuote({
   adjustedAmount,
@@ -107,21 +113,18 @@ export async function getRampsQuote({
   messenger: TransactionPayControllerMessenger;
   walletAddress: string;
 }): Promise<RampsQuote> {
-  const quotes = await messenger.call('RampsController:getQuotes', {
+  const quote = await messenger.call('RampsController:getQuoteWithFees', {
     amount: adjustedAmount,
     assetId: buildCaipAssetType(fiatAsset.chainId, fiatAsset.address),
     autoSelectProvider: true,
     fiat: DEFAULT_FIAT_CURRENCY,
+    isFeeExcludedFromFiat: true,
     paymentMethods: [fiatPaymentMethod],
     restrictToKnownOrNativeProviders: true,
     walletAddress,
   });
 
-  log('Fetched ramps quotes', {
-    quotesCount: quotes.success?.length ?? 0,
-  });
-
-  const quote = quotes.success?.[0];
+  log('Fetched ramps quote', { hasQuote: Boolean(quote) });
 
   if (!quote) {
     throw new Error(errorMessage);
@@ -389,89 +392,4 @@ export function extractProviderCode(
   }
 
   return parts.length === 1 ? parts[0] : null;
-}
-
-/**
- * Provider codes that identify Transak's native (non-aggregator) integration.
- * Matches the codes emitted by `TransakService` for production and staging.
- */
-const NATIVE_TRANSAK_PROVIDER_CODES = [
-  'transak-native',
-  'transak-native-staging',
-];
-
-/**
- * When the resolved ramps provider is Transak Native, fetches the native
- * Transak buy quote and returns its total fee so the estimate matches what
- * Transak Native actually charges.
- *
- * The native lookup (`/api/v2/lookup/quotes`) is an unauthenticated, API-key
- * only call, so it is safe to run at estimate time before the user signs in to
- * Transak. Returns `null` when the provider is not Transak Native, or when the
- * native lookup fails or returns an unusable fee, so the caller falls back to
- * the aggregator quote's fee.
- *
- * @param options - Native fee options.
- * @param options.adjustedAmount - Fiat amount (USD) sent to ramps.
- * @param options.fiatAsset - Fiat asset being bought.
- * @param options.fiatPaymentMethod - Selected fiat payment method.
- * @param options.fiatQuote - The resolved aggregator quote (used to detect native).
- * @param options.isFeeExcludedFromFiat - Whether Transak adds its fee on top of
- * the fiat amount (`true`) or carves it out of the amount (`false`). Must mirror
- * the eventual checkout mode so the estimate equals the charge.
- * @param options.messenger - Controller messenger.
- * @returns The native total fee as a BigNumber, or `null` to use the aggregator fee.
- */
-export async function getNativeTransakRampsFee({
-  adjustedAmount,
-  fiatAsset,
-  fiatPaymentMethod,
-  fiatQuote,
-  isFeeExcludedFromFiat,
-  messenger,
-}: {
-  adjustedAmount: number;
-  fiatAsset: TransactionPayFiatAsset;
-  fiatPaymentMethod: string;
-  fiatQuote: RampsQuote;
-  isFeeExcludedFromFiat: boolean;
-  messenger: TransactionPayControllerMessenger;
-}): Promise<BigNumber | null> {
-  const providerCode = extractProviderCode(fiatQuote.provider);
-
-  if (!providerCode || !NATIVE_TRANSAK_PROVIDER_CODES.includes(providerCode)) {
-    return null;
-  }
-
-  try {
-    const assetId = buildCaipAssetType(fiatAsset.chainId, fiatAsset.address);
-    const network = assetId.split('/')[0];
-
-    const nativeQuote = await messenger.call(
-      'TransakService:getBuyQuote',
-      DEFAULT_FIAT_CURRENCY,
-      assetId,
-      network,
-      fiatPaymentMethod,
-      String(adjustedAmount),
-      isFeeExcludedFromFiat,
-    );
-
-    const fee = new BigNumber(nativeQuote.totalFee ?? NaN);
-
-    if (!fee.isFinite() || fee.isLessThan(0)) {
-      log(
-        'Native Transak quote returned an unusable fee; using aggregator fee',
-        {
-          totalFee: nativeQuote.totalFee,
-        },
-      );
-      return null;
-    }
-
-    return fee;
-  } catch (error) {
-    log('Native Transak fee fetch failed; using aggregator fee', { error });
-    return null;
-  }
 }
