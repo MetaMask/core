@@ -138,16 +138,18 @@ export abstract class BaseBip44AccountProvider<
   }
 
   /**
-   * Add accounts to the provider.
+   * Initialize the provider with the given accounts.
    *
    * Note: There's an implicit assumption that the accounts are BIP-44 compatible.
    *
-   * @param accounts - The accounts to add.
+   * This replaces the provider's internal account list rather than adding to
+   * it, so a re-init (e.g. after an account has been removed) does not leave
+   * stale IDs behind from a previous call.
+   *
+   * @param accounts - The accounts to initialize the provider with.
    */
   init(accounts: Account['id'][]): void {
-    for (const account of accounts) {
-      this.accounts.add(account);
-    }
+    this.accounts = new Set(accounts);
   }
 
   /**
@@ -170,8 +172,14 @@ export abstract class BaseBip44AccountProvider<
       'AccountsController:getAccounts',
       accountsIds,
     );
-    // we cast here because we know that the accounts are BIP-44 compatible
-    return internalAccounts as unknown as Account[];
+    // `AccountsController:getAccounts` returns `undefined` for any ID it no
+    // longer knows about (e.g. the account was removed but this provider's
+    // internal ID list hasn't been reconciled yet). Filter those out rather
+    // than casting them through as if they were real accounts.
+    // we cast here because we know that the remaining accounts are BIP-44 compatible
+    return internalAccounts.filter(
+      (account): account is NonNullable<typeof account> => Boolean(account),
+    ) as unknown as Account[];
   }
 
   /**

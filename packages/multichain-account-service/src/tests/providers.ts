@@ -111,7 +111,9 @@ export function setupBip44AccountProvider({
   mocks.createAccounts.mockResolvedValue([]);
   mocks.init.mockImplementation(
     (accountIds: Bip44Account<KeyringAccount>['id'][]) => {
-      accountIds.forEach((id) => mocks.accounts.add(id));
+      // Mirrors the real BaseBip44AccountProvider#init(), which replaces
+      // (rather than adds to) the tracked account set on every call.
+      mocks.accounts = new Set(accountIds);
     },
   );
 
