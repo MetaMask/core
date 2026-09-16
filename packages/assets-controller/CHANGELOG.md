@@ -14,14 +14,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Remove the unused `updateMode` option from `AssetsController.getAssets`. Apply mode comes only from `DataResponse.updateMode` (data sources). Remove `'update'` from `AssetsUpdateMode` — it was never produced; use `'merge'` to overlay or `'full'` to replace a covered chain slice ([#9651](https://github.com/MetaMask/core/pull/9651))
 - A hide now wins over a pin when an asset is both in `customAssets` and marked `hidden` in `assetPreferences`. Hidden pins are dropped from the `customAssets`/`includeAssetIds` attached to `getAssets` force updates, balance subscriptions, and the supplemental RPC custom-asset poll, so a hidden token is no longer fetched. `hideAsset` still leaves the pin in `customAssets` to record that the token was imported, and `unhideAsset` restores it on the next subscription ([#9651](https://github.com/MetaMask/core/pull/9651))
 - When `assetsAccountsApiV6` is enabled, Accounts API fetch and middleware report `updateMode: 'full'` so assets on chains in the snapshot (including custom assets returned via `includeAssetIds`) are replaced; pins left in `unprocessedCustomAssets` after RPC fallback keep their prior balances. The v5 path keeps `updateMode: 'merge'` with `replaceCoveredChainBalances` so custom assets are preserved ([#9651](https://github.com/MetaMask/core/pull/9651))
 - When `assetsAccountsApiV6` is enabled, the `getAssets` force-update fast pipeline runs `RpcFallbackMiddleware` after Accounts API so `unprocessedIncludeAssetIds` are recovered on RPC before state is committed (same as poll enrichment). Chains that still have unresolved pins are also kept on the slow RPC lane.
-- **BREAKING:** Remove the unused `updateMode` option from `AssetsController.getAssets`. Apply mode comes only from `DataResponse.updateMode` (data sources). Remove `'update'` from `AssetsUpdateMode` — it was never produced; use `'merge'` to overlay or `'full'` to replace a covered chain slice ([#9651](https://github.com/MetaMask/core/pull/9651))
+- Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
 
 ### Fixed
 
 - Treat `assetsAccountsApiV6` as enabled when it is `true` ([#9651](https://github.com/MetaMask/core/pull/9651))
+- Skip `#updateState` assignments for metadata, balances, and prices that are deep-equal to what's already in state, so Immer no longer emits a no-op `stateChange` (and a full state persist) on every poll that repeats unchanged data ([#10260](https://github.com/MetaMask/core/pull/10260))
+- `TokenDataSource` spam filtering now removes filtered assets from `assetsBalance` and `detectedAssets` using case-insensitive asset ID matching (previously only `assetsInfo` was matched case-insensitively), so spam tokens whose IDs arrive in a different case than state no longer survive in the pipeline response and persist to state ([#10172](https://github.com/MetaMask/core/pull/10172))
+
+## [16.1.0]
+
+### Added
+
+- Add optional `metadata` on fungible `assetsBalance` entries from the Accounts API and Account Activity websocket ([#10194](https://github.com/MetaMask/core/pull/10194))
+- Register the Solana, Stellar and Tron native assets (SOL, XLM, TRX) so accounts holding no assets on those networks now surface a zero-balance native entry, matching the existing EVM behavior ([#10194](https://github.com/MetaMask/core/pull/10194))
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/assets-controllers` from `^112.0.0` to `^112.0.2` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10242](https://github.com/MetaMask/core/pull/10242))
+- Bump `@metamask/core-backend` from `^10.0.0` to `^11.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166), [#10242](https://github.com/MetaMask/core/pull/10242))
+- `AccountsApiDataSource` now treats Accounts API `/v2/supportedNetworks` `partialSupport` as active chains in addition to `fullSupport`, still gated by the Snaps assets migration feature flags ([#10144](https://github.com/MetaMask/core/pull/10144))
+- `AccountsApiDataSource` now reads Accounts API `/v2/supportedNetworks` as CAIP-2 `fullSupport` and `partialSupport` string arrays, matching the current API payload
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/phishing-controller` from `^18.0.0` to `^18.1.0` ([#10234](https://github.com/MetaMask/core/pull/10234))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.0.1` ([#10242](https://github.com/MetaMask/core/pull/10242))
 
 ## [16.0.0]
 
@@ -1054,7 +1075,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.1.0...HEAD
+[16.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@16.0.0...@metamask/assets-controller@16.1.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@15.1.0...@metamask/assets-controller@16.0.0
 [15.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@15.0.0...@metamask/assets-controller@15.1.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@14.0.3...@metamask/assets-controller@15.0.0

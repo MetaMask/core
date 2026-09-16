@@ -1,6 +1,8 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { CaipAccountId, Hex } from '@metamask/utils';
 
+import type { CANCELLATION_REASONS } from './constants.js';
+
 /**
  * Error response from the Subscription API.
  */
@@ -127,6 +129,9 @@ export const CANCEL_TYPES = {
 } as const;
 
 export type CancelType = (typeof CANCEL_TYPES)[keyof typeof CANCEL_TYPES];
+
+export type CancellationReasonCode =
+  (typeof CANCELLATION_REASONS)[keyof typeof CANCELLATION_REASONS];
 
 export const CRYPTO_PAYMENT_METHOD_ERRORS = {
   APPROVAL_TRANSACTION_TOO_OLD: 'approval_transaction_too_old',
@@ -375,6 +380,10 @@ export type CancelSubscriptionRequest = {
   subscriptionId: string;
   /** Whether to cancel at the end of the current period */
   cancelAtPeriodEnd?: boolean;
+  /** Stable reason code for the cancellation. */
+  cancellationReason?: CancellationReasonCode;
+  /** Optional free-text feedback for the cancellation. */
+  cancellationFeedback?: string;
 };
 
 export type AuthUtils = {

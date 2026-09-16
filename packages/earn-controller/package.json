@@ -52,7 +52,7 @@
   "dependencies": {
     "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/account-tree-controller": "^10.0.0",
+    "@metamask/account-tree-controller": "^10.0.1",
     "@metamask/base-controller": "^10.0.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/keyring-api": "^24.0.0",
@@ -63,7 +63,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/transaction-controller": "^70.0.0",
+    "@metamask/transaction-controller": "^70.1.0",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",

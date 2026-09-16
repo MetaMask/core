@@ -3478,6 +3478,74 @@ describe('AssetsController', () => {
       });
     });
 
+    it('keeps existing metadata when a merge update omits it', async () => {
+      const stellarMetadata = {
+        spendableBalance: '8944804518',
+        minimumReserveBalance: '200000000',
+        decimal: 7,
+      };
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1', metadata: stellarMetadata },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'merge',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '2' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '2', metadata: stellarMetadata });
+      });
+    });
+
+    it('replaces existing metadata when a merge update includes it', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: {
+              amount: '1',
+              metadata: { spendableBalance: '1', minimumReserveBalance: '1' },
+            },
+          },
+        },
+      };
+      const nextMetadata = {
+        spendableBalance: '2',
+        minimumReserveBalance: '3',
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'merge',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '2', metadata: nextMetadata },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '2', metadata: nextMetadata });
+      });
+    });
+
     it('updates state from AccountActivityService:balanceUpdated', async () => {
       const arbNative = 'eip155:42161/slip44:60' as Caip19AssetId;
       const initialState: Partial<AssetsControllerState> = {
@@ -3779,6 +3847,222 @@ describe('AssetsController', () => {
           );
 
           expect(balanceChangedHandler).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not emit stateChange when a data source re-reports the same balance', async () => {
+      // Seed the native and default tracked assets too: the controller
+      // backfills zero-balance entries for any account missing them, and that
+      // first backfill is itself a real (one-time) state change. Seeding them
+      // here isolates what this test actually checks — a repeated,
+      // otherwise-identical response.
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1000000' },
+            [MOCK_NATIVE_ASSET_ID]: { amount: '0' },
+            [MOCK_DEFAULT_TRACKED_ASSET_ID]: { amount: '0' },
+          },
+        },
+      };
+
+      await withController(
+        { state: initialState },
+        async ({ controller, messenger }) => {
+          const stateChangeHandler = jest.fn();
+          messenger.subscribe(
+            'AssetsController:stateChange',
+            stateChangeHandler,
+          );
+
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_ASSET_ID]: { amount: '1000000' },
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(stateChangeHandler).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('emits stateChange when a balance genuinely changes', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1000000' },
+          },
+        },
+      };
+
+      await withController(
+        { state: initialState },
+        async ({ controller, messenger }) => {
+          const stateChangeHandler = jest.fn();
+          messenger.subscribe(
+            'AssetsController:stateChange',
+            stateChangeHandler,
+          );
+
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_ASSET_ID]: { amount: '2000000' },
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(stateChangeHandler).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not emit stateChange when a data source re-reports the same metadata', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: {
+          [MOCK_ASSET_ID]: {
+            type: 'erc20',
+            symbol: 'USDC',
+            name: 'USD Coin',
+            decimals: 6,
+          },
+        },
+      };
+
+      await withController(
+        { state: initialState, isBasicFunctionality: () => false },
+        async ({ controller, messenger }) => {
+          const stateChangeHandler = jest.fn();
+          messenger.subscribe(
+            'AssetsController:stateChange',
+            stateChangeHandler,
+          );
+
+          await controller.handleAssetsUpdate(
+            {
+              assetsInfo: {
+                [MOCK_ASSET_ID]: {
+                  type: 'erc20',
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(stateChangeHandler).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('emits stateChange when metadata genuinely changes', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: {
+          [MOCK_ASSET_ID]: {
+            type: 'erc20',
+            symbol: 'USDC',
+            name: 'USD Coin',
+            decimals: 6,
+          },
+        },
+      };
+
+      await withController(
+        { state: initialState, isBasicFunctionality: () => false },
+        async ({ controller, messenger }) => {
+          const stateChangeHandler = jest.fn();
+          messenger.subscribe(
+            'AssetsController:stateChange',
+            stateChangeHandler,
+          );
+
+          await controller.handleAssetsUpdate(
+            {
+              assetsInfo: {
+                [MOCK_ASSET_ID]: {
+                  type: 'erc20',
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                  image: 'https://example.com/usdc.png',
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(stateChangeHandler).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not emit stateChange when a data source re-reports the same price', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsPrice: {
+          [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 },
+        },
+      };
+
+      await withController(
+        { state: initialState },
+        async ({ controller, messenger }) => {
+          const stateChangeHandler = jest.fn();
+          messenger.subscribe(
+            'AssetsController:stateChange',
+            stateChangeHandler,
+          );
+
+          await controller.handleAssetsUpdate(
+            {
+              assetsPrice: {
+                [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(stateChangeHandler).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('emits stateChange when a price genuinely changes', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsPrice: {
+          [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 },
+        },
+      };
+
+      await withController(
+        { state: initialState },
+        async ({ controller, messenger }) => {
+          const stateChangeHandler = jest.fn();
+          messenger.subscribe(
+            'AssetsController:stateChange',
+            stateChangeHandler,
+          );
+
+          await controller.handleAssetsUpdate(
+            {
+              assetsPrice: {
+                [MOCK_ASSET_ID]: { price: 3, lastUpdated: 456 },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(stateChangeHandler).toHaveBeenCalled();
         },
       );
     });
@@ -4188,6 +4472,91 @@ describe('AssetsController', () => {
         await new Promise(process.nextTick);
 
         expect(true).toBe(true);
+      });
+    });
+
+    it('seeds a zero native balance for a Solana account with no assets', async () => {
+      // The Accounts API returns nothing at all for an account that holds no
+      // assets — not even a zero native balance — so the controller has to
+      // supply SOL itself, the same way it supplies ETH on EVM.
+      const solanaChainId = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+      const solanaNativeAssetId =
+        `${solanaChainId}/slip44:501` as Caip19AssetId;
+      const solanaAccountId = 'mock-solana-account-id';
+
+      await withController(async ({ controller, getSelectedAccountsMock }) => {
+        getSelectedAccountsMock.mockReturnValue([
+          createMockInternalAccount({
+            id: solanaAccountId,
+            address: 'FhRuTg4d2vbVbY1AhPWFGaJgMxNWUxUJUcNhjT5rFQZg',
+            type: 'solana:data-account',
+            scopes: [solanaChainId as `${string}:${string}`],
+          }),
+        ]);
+
+        (controller.messenger.publish as CallableFunction)(
+          'NetworkEnablementController:stateChange',
+          {
+            enabledNetworkMap: {
+              eip155: { '1': true },
+              solana: { [solanaChainId]: true },
+            },
+            nativeAssetIdentifiers: {},
+          },
+          [],
+        );
+
+        await new Promise(process.nextTick);
+
+        expect(
+          controller.state.assetsBalance[solanaAccountId]?.[
+            solanaNativeAssetId
+          ],
+        ).toStrictEqual({ amount: '0' });
+      });
+    });
+
+    it('seeds a Stellar native with zero spendable and reserve metadata when the account has no assets', async () => {
+      const stellarChainId = 'stellar:pubnet';
+      const stellarNativeAssetId =
+        `${stellarChainId}/slip44:148` as Caip19AssetId;
+      const stellarAccountId = 'mock-stellar-account-id';
+
+      await withController(async ({ controller, getSelectedAccountsMock }) => {
+        getSelectedAccountsMock.mockReturnValue([
+          createMockInternalAccount({
+            id: stellarAccountId,
+            address: 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF',
+            type: 'stellar:data-account',
+            scopes: [stellarChainId as `${string}:${string}`],
+          }),
+        ]);
+
+        (controller.messenger.publish as CallableFunction)(
+          'NetworkEnablementController:stateChange',
+          {
+            enabledNetworkMap: {
+              eip155: { '1': true },
+              stellar: { [stellarChainId]: true },
+            },
+            nativeAssetIdentifiers: {},
+          },
+          [],
+        );
+
+        await new Promise(process.nextTick);
+
+        expect(
+          controller.state.assetsBalance[stellarAccountId]?.[
+            stellarNativeAssetId
+          ],
+        ).toStrictEqual({
+          amount: '0',
+          metadata: {
+            minimumReserveBalance: '0',
+            spendableBalance: '0',
+          },
+        });
       });
     });
 

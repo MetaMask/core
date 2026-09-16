@@ -3,7 +3,7 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 
 import {
   MockRootMessenger,
-  createMockAssetControllerMessenger,
+  createMockMessengers,
   createMockWeb3Provider,
   registerStakedMessengerActions,
 } from '../__fixtures__/MockAssetControllerMessenger.js';
@@ -67,6 +67,7 @@ function getMockAssetsState(): AssetsControllerStateInternal {
     assetsPrice: {},
     customAssets: {},
     assetPreferences: {},
+    selectedCurrency: 'usd',
   };
 }
 
@@ -120,11 +121,12 @@ async function withController<ReturnValue>(
     }),
   } = controllerOptions;
 
-  const { assetsControllerMessenger, rootMessenger } =
-    createMockAssetControllerMessenger();
-  registerStakedMessengerActions(rootMessenger, {
-    enabledNetworkMap,
-    mockProvider,
+  const { rootMessenger, assetsControllerMessenger } = createMockMessengers({
+    registerCustomRootActions: (messenger) =>
+      registerStakedMessengerActions(messenger, {
+        enabledNetworkMap,
+        mockProvider,
+      }),
   });
 
   // spy on staked messenger calls, so we can inspect and assert

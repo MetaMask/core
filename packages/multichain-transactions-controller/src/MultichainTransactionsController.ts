@@ -313,6 +313,10 @@ export class MultichainTransactionsController extends BaseController<
           }
 
           chainUpdates.forEach(({ chain, entry }) => {
+            // Using `@ts-ignore` instead of `@ts-expect-error` since this error
+            // comes and goes after unrelated changes.
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore: TS2589: Type instantiation is excessively deep and possibly infinite.
             state.nonEvmTransactions[account.id][chain as CaipChainId] = entry;
           });
         });
