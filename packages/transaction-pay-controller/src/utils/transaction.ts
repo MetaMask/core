@@ -111,16 +111,8 @@ export function subscribeTransactionChanges(
 }
 
 /**
- * Subscribe to asset state changes and re-parse required tokens for
- * in-flight transactions whose tokens have not yet resolved.
- *
- * Subscribes to all known asset event sources unconditionally, rather than
- * choosing a single source based on the unify-state feature flag. The flag
- * value can change between when this controller is constructed and when it
- * is read elsewhere (e.g. remote feature flags loading after startup), so
- * relying on it here to pick a single source risks missing the events that
- * actually fire. The handler is idempotent, so subscribing to extra sources
- * that never fire is harmless.
+ * Subscribe to AssetsController state changes and re-parse required tokens
+ * for in-flight transactions whose tokens have not yet resolved.
  *
  * @param messenger - Controller messenger.
  * @param getControllerState - Callback returning the current controller state.
@@ -131,8 +123,8 @@ export function subscribeAssetChanges(
   getControllerState: () => TransactionPayControllerState,
   updateTransactionData: UpdateTransactionDataCallback,
 ): void {
-  const buildHandler =
-    (source: string) =>
+  messenger.subscribe(
+    'AssetsController:stateChange',
     (_state: unknown, patches: Patch[] | undefined): void => {
       const { transactionData } = getControllerState();
 
@@ -147,27 +139,11 @@ export function subscribeAssetChanges(
           continue;
         }
 
-        log('Asset data changed', { transactionId, source, patches });
+        log('Asset data changed', { transactionId, patches });
 
         onTransactionChange(transaction, messenger, updateTransactionData);
       }
-    };
-
-  messenger.subscribe(
-    'AssetsController:stateChange',
-    buildHandler('AssetsController'),
-  );
-  messenger.subscribe(
-    'TokensController:stateChange',
-    buildHandler('TokensController'),
-  );
-  messenger.subscribe(
-    'TokenRatesController:stateChange',
-    buildHandler('TokenRatesController'),
-  );
-  messenger.subscribe(
-    'CurrencyRateController:stateChange',
-    buildHandler('CurrencyRateController'),
+    },
   );
 }
 

@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Read token metadata, balances, and prices directly from `AssetsController` state.
+  - Delegate `AccountsController:getState`, `AssetsController:getState`, and `AssetsController:stateChange` to the Pay messenger. Unified asset state must be populated before using Pay.
 - Bump `@metamask/assets-controller` from `^16.1.1` to `^16.1.2` ([#10459](https://github.com/MetaMask/core/pull/10459))
-- Bump `@metamask/assets-controllers` from `^112.0.3` to `^112.0.4` ([#10459](https://github.com/MetaMask/core/pull/10459))
 - Bump `@metamask/ramps-controller` from `^25.1.0` to `^25.1.1` ([#10459](https://github.com/MetaMask/core/pull/10459))
 - Bump `@metamask/transaction-controller` from `^72.0.0` to `^72.0.1` ([#10462](https://github.com/MetaMask/core/pull/10462))
 

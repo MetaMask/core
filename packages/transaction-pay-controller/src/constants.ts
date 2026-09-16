@@ -36,6 +36,7 @@ export const MUSD_MONAD_ADDRESS =
 export const HYPERCORE_USDC_ADDRESS = '0x00000000000000000000000000000000';
 
 export const HYPERCORE_USDC_DECIMALS = 8;
+export const NATIVE_TOKEN_DECIMALS = 18;
 export const USDC_DECIMALS = 6;
 
 export const SLIP44_COIN_TYPE_BY_CHAIN: Record<Hex, number> = {
