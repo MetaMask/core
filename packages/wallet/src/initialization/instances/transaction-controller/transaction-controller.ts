@@ -12,11 +12,17 @@ export const transactionController: InitializationConfiguration<
 > = {
   name: 'TransactionController',
   init: ({ state, messenger, options }) => {
-    const { disableSwaps = false, ...rest } = options;
+    const { disableSwaps = false, hooks, ...rest } = options;
 
     return new TransactionController({
       ...rest,
       disableSwaps,
+      hooks: hooks ?? {
+        /* istanbul ignore next */
+        isSponsored: async () => ({ isSponsored: false }),
+        /* istanbul ignore next */
+        shouldSign: async () => ({ shouldSign: true }),
+      },
       messenger,
       state,
     });
