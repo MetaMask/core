@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Skip `#updateState` assignments for metadata, balances, and prices that are deep-equal to what's already in state, so Immer no longer emits a no-op `stateChange` (and a full state persist) on every poll that repeats unchanged data
+
 ## [16.1.0]
 
 ### Added

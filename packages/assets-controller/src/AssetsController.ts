@@ -640,6 +640,38 @@ function mergeAccountBalances(
   return next;
 }
 
+/**
+ * Assigns `nextValue` to `target[key]` only if it differs from
+ * `previousValue`, returning whether the assignment happened.
+ *
+ * `this.update()` uses Immer, which emits a patch (and publishes
+ * `stateChange`) whenever a draft key is assigned a different reference,
+ * regardless of whether the new value is deeply equal to the old one. Data
+ * sources re-report unchanged metadata, balances, and prices on virtually
+ * every poll, so writing unconditionally would publish a no-op `stateChange`
+ * - and trigger a full state persist - on every poll tick instead of only
+ * when something actually moved.
+ *
+ * @param target - The Immer draft record being written to.
+ * @param key - The key to conditionally assign.
+ * @param previousValue - The value already in state for this key, from
+ *   before this update began (not the draft, which may already differ).
+ * @param nextValue - The value that would be written.
+ * @returns Whether `target[key]` was assigned.
+ */
+function assignIfChanged<Value>(
+  target: Record<string, Value>,
+  key: string,
+  previousValue: Value | undefined,
+  nextValue: Value,
+): boolean {
+  if (isEqual(previousValue, nextValue)) {
+    return false;
+  }
+  target[key] = nextValue;
+  return true;
+}
+
 // ============================================================================
 // CONTROLLER IMPLEMENTATION
 // ============================================================================
@@ -2711,12 +2743,6 @@ export class AssetsController extends BaseController<
           for (const [key, value] of Object.entries(
             normalizedResponse.assetsInfo,
           )) {
-            if (
-              !isEqual(previousState.assetsInfo[key as Caip19AssetId], value)
-            ) {
-              changedMetadata.push(key);
-            }
-
             const existing = metadata[key] as FungibleAssetMetadata | undefined;
             const incoming = value as FungibleAssetMetadata;
 
@@ -2725,17 +2751,27 @@ export class AssetsController extends BaseController<
             // the API). Preserve richer metadata already in state (e.g. from
             // pendingMetadata set by addCustomAsset) so that the correct
             // decimals/symbol/name/image are not overwritten with empty values.
-            if (existing && !incoming.symbol && !incoming.name) {
-              metadata[key] = {
-                ...existing,
-                ...incoming,
-                symbol: existing.symbol,
-                name: existing.name,
-                decimals: existing.decimals ?? incoming.decimals,
-                image: existing.image ?? incoming.image,
-              };
-            } else {
-              metadata[key] = value;
+            const nextValue =
+              existing && !incoming.symbol && !incoming.name
+                ? {
+                    ...existing,
+                    ...incoming,
+                    symbol: existing.symbol,
+                    name: existing.name,
+                    decimals: existing.decimals ?? incoming.decimals,
+                    image: existing.image ?? incoming.image,
+                  }
+                : value;
+
+            if (
+              assignIfChanged(
+                metadata,
+                key,
+                previousState.assetsInfo[key as Caip19AssetId],
+                nextValue,
+              )
+            ) {
+              changedMetadata.push(key);
             }
           }
         }
@@ -2839,7 +2875,8 @@ export class AssetsController extends BaseController<
                 });
               }
             }
-            balances[accountId] = effective;
+
+            assignIfChanged(balances, accountId, previousBalances, effective);
           }
         }
 
@@ -2847,7 +2884,12 @@ export class AssetsController extends BaseController<
           for (const [key, value] of Object.entries(
             normalizedResponse.assetsPrice,
           )) {
-            prices[key] = value;
+            assignIfChanged(
+              prices,
+              key,
+              previousPrices[key as Caip19AssetId],
+              value,
+            );
           }
         }
       });
