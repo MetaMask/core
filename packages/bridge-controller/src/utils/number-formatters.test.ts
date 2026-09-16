@@ -1,5 +1,7 @@
 import type { CaipAssetType } from '@metamask/utils';
 
+import type { DeepPartial } from '../types.js';
+import type { AmountsAndAsset } from '../validators/amount-and-asset.js';
 import { sumAmounts, sumAmountsByAssetId } from './number-formatters.js';
 
 const ETH = 'eip155:1/slip44:60' as CaipAssetType;
@@ -28,7 +30,7 @@ const dest = ({
   usd?: string;
   minAmountValueInCurrency?: string;
   minAmountUsd?: string;
-}) => ({
+}): DeepPartial<AmountsAndAsset> => ({
   ...(assetId && { asset: { assetId } }),
   ...(amount && { amount }),
   ...(normalizedAmount && { normalizedAmount }),
