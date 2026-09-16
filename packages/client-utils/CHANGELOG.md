@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
 
+### Fixed
+
+- Omit fungible `TokenAmount.amount` from API and local activity mappers when decimals are unknown; optional `getKnownTokenDecimals` recovers scale from host token state ([#10256](https://github.com/MetaMask/core/pull/10256))
+
 ## [3.0.1]
 
 ### Changed
