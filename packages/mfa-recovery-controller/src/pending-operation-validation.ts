@@ -1,7 +1,11 @@
 import { hash } from './crypto.js';
 import { MfaRecoveryError } from './errors.js';
 import { isMutationReceipt } from './escrow-utils.js';
-import { MIN_IDENTIFIERS, getIdentifierAuthMode } from './identifier-auth.js';
+import {
+  countDistinctIdentifiers,
+  getIdentifierAuthMode,
+  MIN_IDENTIFIERS,
+} from './identifier-auth.js';
 import { assertSameAudienceIds } from './state-machine.js';
 import type {
   AuthControllerToken,
@@ -84,7 +88,7 @@ export async function assertValidPendingOperation(
   if (mutation.operation === 'register' && mutation.expectedVersion !== 0) {
     throwInvalidPendingOperation();
   }
-  if ((hash(payload)) !== mutation.payloadHash) {
+  if (hash(payload) !== mutation.payloadHash) {
     throw new MfaRecoveryError(
       'Pending payload does not match mutation',
       'payload_mismatch',
@@ -170,8 +174,8 @@ function isPendingPayload(
   }
   if (
     !Array.isArray(payload.identifiers) ||
-    payload.identifiers.length < MIN_IDENTIFIERS ||
-    !payload.identifiers.every(isIdentifier)
+    !payload.identifiers.every(isIdentifier) ||
+    countDistinctIdentifiers(payload.identifiers) < MIN_IDENTIFIERS
   ) {
     return false;
   }

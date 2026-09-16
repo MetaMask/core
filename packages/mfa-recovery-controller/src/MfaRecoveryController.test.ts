@@ -1202,6 +1202,29 @@ describe('MfaRecoveryController', () => {
         },
       },
       {
+        name: 'duplicate identifiers',
+        mutate: (pending: Record<string, unknown>): void => {
+          const mutation = pending.mutation as Record<string, unknown>;
+          const payload = { identifiers: [PASSKEY, PASSKEY] };
+          const payloadHash = hash(payload);
+          const fields = {
+            id: mutation.id,
+            profileId: mutation.profileId,
+            operation: 'updateIdentifiers',
+            expectedVersion: mutation.expectedVersion,
+            newVersion: mutation.newVersion,
+            payloadHash,
+            audiences: mutation.audiences,
+          };
+          pending.mutation = { ...fields, requestHash: hash(fields) };
+          pending.payload = payload;
+          const token = pending.authControllerToken as Record<string, unknown>;
+          token.requestHash = hash(fields);
+          token.identifierOwnershipApproved = true;
+          token.identifiersHash = hash(payload.identifiers);
+        },
+      },
+      {
         name: 'a non-null register identifier',
         mutate: (pending: Record<string, unknown>): void => {
           const mutation = pending.mutation as Record<string, unknown>;

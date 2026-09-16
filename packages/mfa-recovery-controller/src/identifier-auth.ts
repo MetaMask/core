@@ -15,6 +15,20 @@ import type {
 export const MIN_IDENTIFIERS = 2;
 
 /**
+ * Distinct identifier identities (`type` + `namespace` + `value`).
+ *
+ * @param identifiers - Identifier list.
+ * @returns Distinct identity count.
+ */
+export function countDistinctIdentifiers(identifiers: Identifier[]): number {
+  return new Set(
+    identifiers.map(
+      ({ type, namespace, value }) => `${type}\0${namespace}\0${value}`,
+    ),
+  ).size;
+}
+
+/**
  * Trusted identifier-type registry. Escrows and the controller derive the
  * authentication mode from this table, never from a client-selected flag.
  *

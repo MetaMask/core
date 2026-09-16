@@ -26,6 +26,7 @@ import {
 } from './escrow-utils.js';
 import {
   authorizeKeyBoundIdentifier,
+  countDistinctIdentifiers,
   getIdentifierAuthMode,
   MIN_IDENTIFIERS,
 } from './identifier-auth.js';
@@ -411,7 +412,9 @@ export class MfaRecoveryController extends BaseController<
    * @returns Current recovery phase.
    */
   async getPhase(): Promise<RecoveryPhase> {
-    return getRecoveryPhase(await this.#loadPending());
+    return await this.#withLock(async () =>
+      getRecoveryPhase(await this.#loadPending()),
+    );
   }
 
   async #mutate(params: MutateParams): Promise<void> {
@@ -703,16 +706,10 @@ export class MfaRecoveryController extends BaseController<
   }
 
   #assertMinIdentifiers(identifiers: Identifier[]): void {
-    const unique = new Set(
-      identifiers.map(
-        (identifier) =>
-          `${identifier.type}\0${identifier.namespace}\0${identifier.value}`,
-      ),
-    );
-    if (unique.size < MIN_IDENTIFIERS) {
+    if (countDistinctIdentifiers(identifiers) < MIN_IDENTIFIERS) {
       throw new MfaRecoveryError(
         `Requires at least ${MIN_IDENTIFIERS} identifiers`,
-        'empty_identifiers',
+        'too_few_identifiers',
       );
     }
   }
