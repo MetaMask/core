@@ -566,6 +566,77 @@ describe('KycService', () => {
     });
   });
 
+  describe('getLatestSessionStatusForVendor', () => {
+    it('returns the latest session status for a vendor', async () => {
+      const response = {
+        finalStatus: 'approved',
+        statusMessage: 'All good',
+        externalUserId: 'ext-1',
+        kycStatus: 'approved',
+        vendor: 'sumsub',
+        vendorStatus: 'GREEN',
+        sessionId: 'sid',
+      };
+      nock(MOCK_API_URL)
+        .get('/sessions/latest/status/iron')
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.getLatestSessionStatusForVendor({ vendor: 'iron' }),
+      ).toStrictEqual(response);
+    });
+
+    it('url-encodes the vendor', async () => {
+      const response = {
+        finalStatus: 'pending',
+        externalUserId: 'ext-1',
+        kycStatus: 'pending',
+        vendor: 'sumsub',
+        vendorStatus: 'YELLOW',
+      };
+      nock(MOCK_API_URL)
+        .get('/sessions/latest/status/moonpay')
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.getLatestSessionStatusForVendor({ vendor: 'moonpay' }),
+      ).toStrictEqual(response);
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/latest/status/iron')
+        .reply(200, { finalStatus: 'approved' });
+      const { service } = getService();
+
+      await expect(
+        service.getLatestSessionStatusForVendor({ vendor: 'iron' }),
+      ).rejects.toThrow(
+        /Malformed response received from latest session status API/u,
+      );
+    });
+
+    it('throws an HttpError on a non-ok response other than 404', async () => {
+      nock(MOCK_API_URL).get('/sessions/latest/status/iron').reply(500);
+      const { service } = getService();
+
+      await expect(
+        service.getLatestSessionStatusForVendor({ vendor: 'iron' }),
+      ).rejects.toThrow(/failed with status '500'/u);
+    });
+
+    it('returns null when no session exists for the vendor', async () => {
+      nock(MOCK_API_URL).get('/sessions/latest/status/iron').reply(404);
+      const { service } = getService();
+
+      expect(
+        await service.getLatestSessionStatusForVendor({ vendor: 'iron' }),
+      ).toBeNull();
+    });
+  });
+
   describe('createVendorCustomer', () => {
     it('creates an Iron customer and returns the validated subset', async () => {
       nock(MOCK_API_URL)
