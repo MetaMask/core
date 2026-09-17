@@ -1014,6 +1014,40 @@ describe('RewardsIntegrationService', () => {
       expect(resolution.subscriptionWaiverKind).toBe('partial');
     });
 
+    it('keeps a cached snapshot when a messenger-only benefits read rejects', async () => {
+      // With no DI fallback the rejection is the whole result. Swallowing it
+      // would store `null` as a successful "no subscription" snapshot and erase
+      // a waiver the user is still entitled to.
+      const messengerBenefits = jest
+        .fn()
+        .mockResolvedValueOnce(createBenefits({ remainingNotionalUsd: 250 }));
+      setupMessengerDefaults({
+        'SubscriptionController:getPerpsBenefits': messengerBenefits,
+      });
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+      expect(mockDeps.subscription).toBeUndefined();
+
+      await service.refreshSubscriptionBenefits();
+      expect(service.getSubscriptionFeeWaiverStatus().eligible).toBe(true);
+
+      // The next read fails outright.
+      messengerBenefits.mockRejectedValue(new Error('benefits endpoint down'));
+      jest.setSystemTime(NOW + FRESH_MS + 1);
+      await expect(
+        service.refreshSubscriptionBenefits(),
+      ).resolves.toBeUndefined();
+
+      // The previous snapshot survives rather than being replaced by null.
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: true,
+        reason: 'eligible',
+        remainingNotionalUsd: 250,
+      });
+      expect(mockDeps.logger.error).toHaveBeenCalled();
+    });
+
     it('still reports no source when neither wiring is present', async () => {
       setupMessengerDefaults();
       (

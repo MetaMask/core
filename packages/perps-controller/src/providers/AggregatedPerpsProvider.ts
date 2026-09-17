@@ -214,6 +214,21 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   /**
+   * Which provider a write with this route actually reaches.
+   *
+   * `protocolId` is `aggregated` and `getPositions` spans every active
+   * provider, so a caller that needs to reason about one write — pricing the
+   * positions a close can actually touch, for instance — cannot infer the route
+   * from either. This reports it explicitly.
+   *
+   * @param providerId - Explicit route, or undefined for the default.
+   * @returns The provider id the write will be submitted through.
+   */
+  getWriteProviderId(providerId?: PerpsProviderType): PerpsProviderType {
+    return providerId ?? this.#defaultProvider;
+  }
+
+  /**
    * Get the explicit provider, or the default when no route was supplied.
    *
    * @param providerId - The provider id value.

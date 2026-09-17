@@ -9,6 +9,7 @@ import {
   hasFeeReductionAppliedFlag,
   isSubscriptionProgramCloid,
   markSubscriptionCloid,
+  quantizeBuilderFeeTenthsBps,
   readSubscriptionCloidFlags,
   resolveSubscriptionWaiverRate,
 } from '../../../src/utils/subscriptionFeeWaiver.js';
@@ -401,6 +402,31 @@ describe('applyFeeResolution', () => {
     expect(priced.metamaskFeeRate).toBe(0);
     expect(priced.feeRate).toBeCloseTo(0.00045, 10);
     expect(priced.metamaskFeeAmount).toBe(0);
+  });
+
+  it('quotes the venue-quantized rate the submit path charges', () => {
+    // A 3333-bip discount off a 10-bip max implies 6.667 bips, but the venue
+    // charges integer tenths of a basis point and floors to 6.6. Quoting the
+    // unfloored fraction would reintroduce a quote-versus-charge gap.
+    const priced = applyFeeResolution({
+      fees,
+      resolution: {
+        feeBips: 6.667,
+        discountBips: 3333,
+        source: 'subscription',
+        subscription: createStatus({ remainingNotionalUsd: 333 }),
+        subscriptionWaiverKind: 'partial',
+      },
+      amount: '1000',
+    });
+
+    const chargedTenthsBps = quantizeBuilderFeeTenthsBps(3333);
+    expect(chargedTenthsBps).toBe(66);
+    expect((priced.metamaskFeeRate ?? 0) * 10000).toBeCloseTo(6.6, 10);
+    expect((priced.metamaskFeeRate ?? 0) * 10000).toBeCloseTo(
+      chargedTenthsBps / 10,
+      10,
+    );
   });
 
   it('leaves the quote untouched when no source resolved', () => {

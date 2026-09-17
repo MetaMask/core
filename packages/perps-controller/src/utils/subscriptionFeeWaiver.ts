@@ -125,6 +125,14 @@ export function resolveSubscriptionWaiverRate(params: {
   };
 }
 
+/**
+ * Tenths of a basis point in one unit rate.
+ *
+ * `MaxFeeTenthsBps` is `MaxFeeDecimal * 100000`, so dividing a tenths-of-a-bip
+ * figure by this returns the same decimal rate the fee quote reports.
+ */
+const BUILDER_FEE_TENTHS_BPS_PER_UNIT = 100_000;
+
 /** Hex index of the flag byte inside a cloid string (after `0x` + 4 bytes). */
 const FLAG_BYTE_START = 2 + SUBSCRIPTION_CLOID_CONFIG.ProgramIdHexLength;
 
@@ -173,9 +181,8 @@ export function readSubscriptionCloidFlags(
  * decoder that needs Scale attribution has to correlate on something other than
  * the cloid, or wait for a ladder layout that carries a version.
  *
- * Note also that {@link SUBSCRIPTION_CLOID_CONFIG.ProgramId} is still a
- * placeholder pending the cloid registry value, so a decoder built on this must
- * be re-pointed when the real id lands.
+ * The marker it checks is {@link SUBSCRIPTION_CLOID_CONFIG.ProgramId}, the
+ * registered perps-subscription program id.
  *
  * @param clientOrderId - A venue client order ID, or nothing.
  * @returns True when the `fee_reduction_applied` flag is set behind the
@@ -318,6 +325,27 @@ export function markSubscriptionCloid(params: {
 }
 
 /**
+ * The MetaMask builder fee a discount actually buys, in tenths of a basis point.
+ *
+ * HyperLiquid's builder fee is an integer number of tenths of a basis point, so
+ * the venue floors whatever fraction a discount implies. Both preview and submit
+ * resolve the charged fee through here: quoting the unfloored fraction would
+ * promise a rate the venue cannot charge — a 6.667-bip blend is submitted as
+ * 6.6 — and the difference, though always in the user's favour, is a
+ * quote-versus-charge mismatch of exactly the kind this change set out to close.
+ *
+ * @param discountBips - Discount off the default builder fee, in basis points.
+ * @returns The charged builder fee in tenths of a basis point.
+ */
+export function quantizeBuilderFeeTenthsBps(discountBips: number): number {
+  return Math.floor(
+    BUILDER_FEE_CONFIG.MaxFeeTenthsBps *
+      (1 - discountBips / BASIS_POINTS_DIVISOR),
+  );
+}
+
+/**
+ * Re-price a fee quote from the unified fee resolution./**
  * Re-price a fee quote from the unified fee resolution.
  *
  * The provider quotes the MetaMask component from whatever discount the last
@@ -350,9 +378,11 @@ export function applyFeeResolution(params: {
     return fees;
   }
 
-  const baseMetamaskFeeRate = BUILDER_FEE_CONFIG.MaxFeeDecimal;
+  // Quantized exactly as the venue will charge it, so the quote matches the
+  // fill rather than the unfloored fraction the discount implies.
   const metamaskFeeRate =
-    baseMetamaskFeeRate * (1 - resolution.discountBips / BASIS_POINTS_DIVISOR);
+    quantizeBuilderFeeTenthsBps(resolution.discountBips) /
+    BUILDER_FEE_TENTHS_BPS_PER_UNIT;
   const parsedAmount =
     amount === undefined ? undefined : Number.parseFloat(amount);
   const notional =

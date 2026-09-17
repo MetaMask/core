@@ -238,7 +238,10 @@ import {
   queryStandaloneOpenOrders,
 } from '../utils/standaloneInfoClient.js';
 import { parseBoundedNonNegativeDecimal } from '../utils/stringParseUtils.js';
-import { markSubscriptionCloid } from '../utils/subscriptionFeeWaiver.js';
+import {
+  markSubscriptionCloid,
+  quantizeBuilderFeeTenthsBps,
+} from '../utils/subscriptionFeeWaiver.js';
 // getStreamManagerInstance removed: use this.#deps.streamManager instead
 
 const HISTORICAL_ORDER_TYPE_BY_DETAILED_TYPE = {
@@ -8591,10 +8594,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     if (this.#userFeeDiscountBips === undefined) {
       return BUILDER_FEE_CONFIG.MaxFeeTenthsBps;
     }
-    return Math.floor(
-      BUILDER_FEE_CONFIG.MaxFeeTenthsBps *
-        (1 - this.#userFeeDiscountBips / BASIS_POINTS_DIVISOR),
-    );
+    // Shared with the preview so a quoted rate is the rate the venue charges.
+    return quantizeBuilderFeeTenthsBps(this.#userFeeDiscountBips);
   }
 
   /**

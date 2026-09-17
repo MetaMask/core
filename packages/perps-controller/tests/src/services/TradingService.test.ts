@@ -1811,6 +1811,31 @@ describe('TradingService', () => {
       );
     });
 
+    it('prices a routed close from the routed provider position', async () => {
+      // Two providers list BTC. Matching on symbol alone would price the close
+      // from whichever appears first, which can be the provider the write does
+      // not reach.
+      mockGetPositions.mockResolvedValue([
+        { ...mockPosition, positionValue: '99000', providerId: 'lighter' },
+        { ...mockPosition, positionValue: '25000', providerId: 'hyperliquid' },
+      ]);
+      mockProvider.getWriteProviderId = jest.fn(
+        (providerId?: string) => providerId ?? 'hyperliquid',
+      ) as never;
+      mockProvider.closePosition.mockResolvedValue({ success: true });
+
+      await tradingService.closePosition({
+        provider: mockProvider,
+        params: { symbol: 'BTC', providerId: 'hyperliquid' as never },
+        context: { ...mockContext, getPositions: mockGetPositions },
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        25000,
+      );
+    });
+
     it('prefers an explicit close USD amount over the position value', async () => {
       mockGetPositions.mockResolvedValue([mockPosition]);
       mockProvider.closePosition.mockResolvedValue({ success: true });
@@ -2046,6 +2071,47 @@ describe('TradingService', () => {
   });
 
   describe('closePositions', () => {
+    it('prices a batch close only from positions the route can close', async () => {
+      // An aggregating provider reads every active provider's positions while
+      // the batch submits through one. Summing the rest inflates the notional
+      // and shrinks the waiver for positions this call never touches.
+      const batchProvider = {
+        ...mockProvider,
+        getWriteProviderId: jest.fn(() => 'hyperliquid'),
+        getPositions: jest.fn().mockResolvedValue([
+          {
+            symbol: 'BTC',
+            size: '0.5',
+            positionValue: '25000',
+            providerId: 'hyperliquid',
+          },
+          {
+            symbol: 'ETH',
+            size: '2',
+            positionValue: '99000',
+            providerId: 'lighter',
+          },
+        ]),
+        closePositions: jest.fn().mockResolvedValue({
+          success: true,
+          successCount: 1,
+          failureCount: 0,
+          results: [],
+        }),
+      } as unknown as jest.Mocked<PerpsProvider>;
+
+      await tradingService.closePositions({
+        provider: batchProvider,
+        params: { closeAll: true },
+        context: mockContext,
+      });
+
+      // 25000 only — the lighter position is not reachable by this write.
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        25000,
+      );
+    });
+
     const mockPositions: Position[] = [
       {
         symbol: 'BTC',

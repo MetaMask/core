@@ -2095,6 +2095,18 @@ export type PerpsProvider = {
   getBlockExplorerUrl(address?: string): string;
 
   // Fee discount context (optional - for MetaMask reward discounts)
+  /**
+   * Which provider a write with this route actually reaches.
+   *
+   * Implemented only by an aggregating provider, whose `protocolId` names the
+   * aggregate rather than the route and whose reads span every active provider.
+   * A single provider needs no answer: every write reaches itself.
+   *
+   * @param providerId - Explicit route, or undefined for the default.
+   * @returns The provider id the write will be submitted through.
+   */
+  getWriteProviderId?(providerId?: PerpsProviderType): PerpsProviderType;
+
   setUserFeeDiscount?(discountBips: number | undefined): void;
   // Full fee resolution context, including attribution source.
   setUserFeeResolution?(resolution: PerpsFeeResolution | undefined): void;

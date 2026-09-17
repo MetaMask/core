@@ -490,18 +490,31 @@ export class RewardsIntegrationService {
       // Unregistered action or a throwing handler: fall through to the DI source.
     }
 
+    const fallback = this.#deps.subscription;
+
     if (pending) {
       try {
         return await pending;
-      } catch {
-        // A registered handler that rejects still falls back rather than
-        // erasing the cached snapshot.
+      } catch (error) {
+        if (!fallback) {
+          // Nothing else can answer, so this rejection is the whole result.
+          // Returning `null` here would be stored as a successful "no
+          // subscription" snapshot and silently erase a valid cached one; let
+          // it reach the refresh handler, which keeps the previous snapshot.
+          throw error;
+        }
+        // A registered handler that rejects still falls back to the injected
+        // source rather than erasing the cached snapshot.
       }
     }
 
-    // No handler answered. Fall back to the injected source when one exists;
-    // otherwise there is genuinely nothing to report.
-    return (await this.#deps.subscription?.getPerpsBenefits()) ?? null;
+    if (!fallback) {
+      // No handler answered and no injected source: genuinely nothing to
+      // report, which is a real `null` rather than a swallowed failure.
+      return null;
+    }
+
+    return await fallback.getPerpsBenefits();
   }
 
   /**

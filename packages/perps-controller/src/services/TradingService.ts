@@ -15,6 +15,7 @@ import {
 } from '../types/index.js';
 import type {
   PerpsProvider,
+  PerpsProviderType,
   OrderParams,
   OrderResult,
   EditOrderParams,
@@ -776,20 +777,31 @@ export class TradingService {
    * @param options - The configuration options.
    * @param options.symbol - The trading pair symbol.
    * @param options.context - The service context for dependencies.
+   * @param options.provider - The provider the write will be submitted through,
+   * used to narrow the read to positions that route can reach. Omit for a
+   * read-only lookup that does not precede a write.
+   * @param options.providerId - Explicit route, when the caller supplied one.
    * @returns The result of the operation.
    */
   async #loadPositionData(options: {
     symbol: string;
     context: ServiceContext;
+    provider?: PerpsProvider;
+    providerId?: PerpsProviderType;
   }): Promise<Position | undefined> {
-    const { symbol, context } = options;
+    const { symbol, context, provider, providerId } = options;
 
     const positionLoadStart = this.#deps.performance.now();
     try {
       const positions = context.getPositions
         ? await context.getPositions()
         : [];
-      const position = positions.find((pos) => pos.symbol === symbol);
+      // Matching on symbol alone can pick another provider's position when two
+      // providers list the same market, so a routed write narrows first.
+      const candidates = provider
+        ? this.#positionsForWriteRoute({ positions, provider, providerId })
+        : positions;
+      const position = candidates.find((pos) => pos.symbol === symbol);
 
       this.#deps.tracer.setMeasurement(
         PerpsMeasurementName.PerpsGetPositionsOperation,
@@ -1194,11 +1206,15 @@ export class TradingService {
     const { params, provider } = options;
 
     try {
-      // Read through the provider that will actually submit the batch. The
-      // context reader aggregates every provider's positions, and a batch close
-      // routes to one — summing the rest would inflate the notional and shrink
-      // the waiver for positions this call never touches.
-      const positions = await provider.getPositions();
+      // Read through the provider that will actually submit the batch, then
+      // keep only what that route can close: an aggregating provider's
+      // `getPositions` still spans every active provider, so summing the rest
+      // would inflate the notional and shrink the waiver for positions this
+      // call never touches.
+      const positions = this.#positionsForWriteRoute({
+        positions: await provider.getPositions(),
+        provider,
+      });
       // `closeAll`, or an omitted/empty symbol list, means every position.
       const selected =
         params.symbols && params.symbols.length > 0
@@ -1230,6 +1246,41 @@ export class TradingService {
   }
 
   /**
+   * Keep only the positions a write through this route can actually touch.
+   *
+   * An aggregating provider reads positions from every active provider while a
+   * write goes to one, so pricing a close against the unfiltered list can bill
+   * against positions the call cannot close — and, when two providers list the
+   * same symbol, can price one provider's position for a write submitted to
+   * another. A provider that does not aggregate reports no write route and its
+   * positions are all its own.
+   *
+   * @param options - The configuration options.
+   * @param options.positions - Positions as read, possibly across providers.
+   * @param options.provider - The provider the write will be submitted through.
+   * @param options.providerId - Explicit route, when the caller supplied one.
+   * @returns The positions that route can reach.
+   */
+  #positionsForWriteRoute(options: {
+    positions: Position[];
+    provider: PerpsProvider;
+    providerId?: PerpsProviderType;
+  }): Position[] {
+    const { positions, provider, providerId } = options;
+    const route = provider.getWriteProviderId?.(providerId);
+    if (route === undefined) {
+      return positions;
+    }
+    // A position carries its provider only when an aggregator injected one;
+    // without that attribution there is nothing to filter on.
+    return positions.filter(
+      (position) =>
+        position.providerId === undefined || position.providerId === route,
+    );
+  }
+
+  /**
+   * The position's USD value per unit of size.  /**
    * The position's USD value per unit of size.
    *
    * Used to price a partial close, which names a size but usually no price.
@@ -1902,6 +1953,8 @@ export class TradingService {
       position = await this.#loadPositionData({
         symbol: params.symbol,
         context,
+        provider,
+        providerId: params.providerId,
       });
 
       // Emit submitted event before the provider round-trip
