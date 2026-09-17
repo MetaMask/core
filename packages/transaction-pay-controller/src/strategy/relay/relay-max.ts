@@ -1,5 +1,4 @@
 import { toHex } from '@metamask/controller-utils';
-import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -677,47 +676,4 @@ function assertAtomicPromotionIsValid({
   if (discoveryQuote.original.details.currencyOut.amount !== targetAmount) {
     throw new Error('Discovery quote target amount changed before promotion');
   }
-}
-
-export async function maybeDemoteUnsubsidizedAtomicQuote({
-  fullRequest,
-  getSingleQuote,
-  quote,
-  request,
-}: {
-  fullRequest: PayStrategyGetQuotesRequest;
-  getSingleQuote: GetSingleQuoteFn;
-  quote: TransactionPayQuote<RelayQuote>;
-  request: QuoteRequest;
-}): Promise<TransactionPayQuote<RelayQuote>> {
-  if (
-    !shouldAttemptAtomicDemotion(
-      request,
-      fullRequest.transaction,
-      fullRequest.messenger,
-    )
-  ) {
-    return quote;
-  }
-
-  if (isSubsidizedRelayQuote(quote.original)) {
-    return quote;
-  }
-
-  return getSingleQuote({ ...request, atomic: false }, fullRequest);
-}
-
-function shouldAttemptAtomicDemotion(
-  request: QuoteRequest,
-  transaction: TransactionMeta,
-  messenger: TransactionPayControllerMessenger,
-): boolean {
-  return (
-    isAtomicMaxPromotionEnabled(messenger, transaction) &&
-    request.isMaxAmount !== true &&
-    request.isPostQuote !== true &&
-    request.atomic !== false &&
-    transaction.type !== TransactionType.perpsDepositAndOrder &&
-    transaction.type !== TransactionType.predictDepositAndOrder
-  );
 }

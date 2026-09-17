@@ -70,7 +70,6 @@ import { fetchRelayQuote } from './relay-api.js';
 import {
   getRelayMaxGasStationQuote,
   isPromotedSubsidizedMaxMoneyAccountQuote,
-  maybeDemoteUnsubsidizedAtomicQuote,
   maybePromoteSubsidizedMaxMoneyAccountQuote,
   throwAtomicPromotionFailed,
 } from './relay-max.js';
@@ -194,13 +193,7 @@ async function getQuoteWithMaxAmountHandling(
   const { isMaxAmount } = request;
 
   if (!isMaxAmount) {
-    const quote = await getQuoteWithPostQuoteGasHandling(request, fullRequest);
-    return maybeDemoteUnsubsidizedAtomicQuote({
-      fullRequest,
-      getSingleQuote,
-      quote,
-      request,
-    });
+    return getQuoteWithPostQuoteGasHandling(request, fullRequest);
   }
 
   const discoveryQuote = await getRelayMaxGasStationQuote(
