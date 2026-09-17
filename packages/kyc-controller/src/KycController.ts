@@ -1820,7 +1820,9 @@ export class KycController extends BaseController<
    * @returns The cached product flag, or a {@link KycStatus} for a vendor.
    */
   getKycStatus(params: { product: KycProduct }): boolean | undefined;
+
   getKycStatus(vendor: KycVendor): KycStatus;
+
   getKycStatus(
     paramsOrVendor: { product: KycProduct } | KycVendor,
   ): boolean | undefined | KycStatus {
