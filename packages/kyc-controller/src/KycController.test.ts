@@ -974,13 +974,13 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.submitVendorDisclaimers.mockRejectedValue(
-            new Error('down'),
-          );
+          handlers.submitVendorDisclaimers.mockRejectedValue(new Error('down'));
 
           await expect(controller.acceptVendorTerms()).rejects.toThrow('down');
 
-          expect(controller.hasCompletedVendorTerms(KycVendor.Iron)).toBe(false);
+          expect(controller.hasCompletedVendorTerms(KycVendor.Iron)).toBe(
+            false,
+          );
           expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
         },
       );
@@ -997,7 +997,9 @@ describe('KycController', () => {
           await controller.acceptVendorTerms();
 
           expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
-          expect(controller.hasCompletedVendorTerms(KycVendor.Iron)).toBe(false);
+          expect(controller.hasCompletedVendorTerms(KycVendor.Iron)).toBe(
+            false,
+          );
           expect(controller.state.vendorDisclaimersAccepted).toStrictEqual(
             DEFAULT_VENDOR_DISCLAIMERS_ACCEPTED,
           );
@@ -1057,7 +1059,9 @@ describe('KycController', () => {
 
           expect(handlers.createUkycSession).not.toHaveBeenCalled();
           expect(handlers.submitSessionDisclaimers).toHaveBeenCalled();
-          expect(controller.state.credentialReusabilityConsentGiven).toBe(false);
+          expect(controller.state.credentialReusabilityConsentGiven).toBe(
+            false,
+          );
         },
       );
     });
@@ -1076,7 +1080,9 @@ describe('KycController', () => {
           expect(controller.hasCompletedProviderTerms(KycProvider.sumsub)).toBe(
             false,
           );
-          expect(controller.state.providerDisclaimersAccepted.sumsub).toBeNull();
+          expect(
+            controller.state.providerDisclaimersAccepted.sumsub,
+          ).toBeNull();
         },
       );
     });
@@ -1142,7 +1148,9 @@ describe('KycController', () => {
 
           await controller.refreshVbaOnboardingStatus();
 
-          expect(controller.hasCompletedVendorTerms(KycVendor.Iron)).toBe(false);
+          expect(controller.hasCompletedVendorTerms(KycVendor.Iron)).toBe(
+            false,
+          );
         },
       );
     });
@@ -1158,11 +1166,11 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.fetchRequiredSignings.mockRejectedValue(new Error('offline'));
+          handlers.fetchRequiredSignings.mockRejectedValue(
+            new Error('offline'),
+          );
 
-          await expect(
-            controller.refreshVbaOnboardingStatus(),
-          ).resolves.toBeUndefined();
+          expect(await controller.refreshVbaOnboardingStatus()).toBeUndefined();
 
           expect(controller.state.vbaRequiredSignings).toBeNull();
         },
@@ -1625,7 +1633,9 @@ describe('KycController', () => {
 
     it('treats pending as NOT_STARTED until SumSub has been submitted', async () => {
       await withController(
-        { options: { state: { userStatus: 'pending', sumSubSubmitted: false } } },
+        {
+          options: { state: { userStatus: 'pending', sumSubSubmitted: false } },
+        },
         ({ controller }) => {
           // Session created (backend `pending`) but no documents captured yet,
           // so onboarding must route to the SumSub screen, not KYC-pending.

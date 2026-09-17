@@ -315,6 +315,16 @@ export type KycControllerState = {
    */
   sumSubSubmitted: boolean;
 
+  /**
+   * The active UKYC session id, persisted so it survives reloads. Unlike the
+   * `sumsub` sub-flow (which holds session-scoped tokens and is not persisted),
+   * this lets {@link startSumSub} reuse the session that
+   * {@link acceptProviderTerms} created and posted idOS/SumSub consents to,
+   * rather than creating a fresh, unconsented session after a cold start.
+   * `null` until a session exists; cleared by {@link reset} / {@link clearState}.
+   */
+  ukycSessionId: string | null;
+
   /** SumSub document-verification sub-flow state. */
   sumsub: {
     status: KycSumSubStatus;
@@ -484,6 +494,12 @@ const kycControllerMetadata = {
     persist: true,
     usedInUi: false,
   },
+  ukycSessionId: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
+    persist: true,
+    usedInUi: false,
+  },
   sumsub: {
     includeInDebugSnapshot: false,
     includeInStateLogs: false,
@@ -546,6 +562,7 @@ export function getDefaultKycControllerState(): KycControllerState {
     userStatusErrorCode: null,
     vbaRequiredSignings: null,
     sumSubSubmitted: false,
+    ukycSessionId: null,
     sumsub: {
       status: 'idle',
       result: null,
@@ -576,9 +593,7 @@ function isSessionAlreadyCompletedError(error: unknown): boolean {
  * @param userStatus - The simplified user-keyed status, or `null`.
  * @returns The matching {@link KycStatus}.
  */
-function mapUserStatusToKycStatus(
-  userStatus: KycUserStatus | null,
-): KycStatus {
+function mapUserStatusToKycStatus(userStatus: KycUserStatus | null): KycStatus {
   switch (userStatus) {
     case 'pending':
       return KycStatusEnum.PENDING;
@@ -1750,12 +1765,15 @@ export class KycController extends BaseController<
       return;
     }
     const vendor = this.state.activeVendor;
+    const generation = this.#generation;
     await this.messenger.call('KycService:submitVendorDisclaimers', {
       vendor,
       disclaimerIds,
     });
     const termsAcceptedAt = new Date().toISOString();
-    this.#applyUpdate((state) => {
+    // Skip the write if a reset() superseded the flow while the signing call
+    // was in flight, so acceptance is never recorded on an idle controller.
+    this.#updateIfCurrent(generation, (state) => {
       state.vendorDisclaimersAccepted = recordVendorDisclaimerAcceptance(
         state.vendorDisclaimersAccepted,
         vendor,
@@ -2349,6 +2367,9 @@ export class KycController extends BaseController<
 
     const stillCurrent = this.#updateIfCurrent(generation, (state) => {
       state.sumsub.sessionId = sessionId;
+      // Persist the id (the sumsub sub-flow itself is not persisted) so a
+      // reload can reuse this consented session instead of creating a new one.
+      state.ukycSessionId = sessionId;
       if (vendorProcessing) {
         state.sumsub.status = 'vendorProcessing';
         state.statusMessage = VENDOR_PROCESSING_MESSAGE;
@@ -2417,6 +2438,15 @@ export class KycController extends BaseController<
       }
 
       try {
+        // After a reload the sub-flow (and its `sessionId`) is gone but the
+        // persisted `ukycSessionId` survives. Restore it so a session that
+        // already had consents posted is reused rather than replaced by a new,
+        // unconsented one.
+        if (!this.state.sumsub.sessionId && this.state.ukycSessionId) {
+          this.#applyUpdate((state) => {
+            state.sumsub.sessionId = state.ukycSessionId;
+          });
+        }
         if (!this.state.sumsub.sessionId) {
           this.#applyUpdate((state) => {
             state.sumsub.status = 'creatingSession';
@@ -2886,6 +2916,7 @@ export class KycController extends BaseController<
       state.credentialReusabilityConsentGiven = null;
       state.vbaRequiredSignings = null;
       state.sumSubSubmitted = false;
+      state.ukycSessionId = null;
       clearMoonPaySession(state);
       state.activeVendor = 'moonpay';
       state.activeProduct = null;

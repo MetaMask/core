@@ -261,11 +261,16 @@ export type KycControllerIsCustomerCreatedAction = {
  *
  * - vendor terms — {@link KycService.fetchRequiredSignings} outstanding
  * signings into {@link KycControllerState.vbaRequiredSignings};
- * - provider / idOS terms — the current UKYC session's `consented` catalog,
- * when a session exists, into
- * {@link KycControllerState.providerDisclaimersAccepted} and
- * {@link KycControllerState.idosDisclaimersAccepted};
  * - KYC status — {@link refreshKycStatus} (`GET /kyc/status`).
+ *
+ * Provider / idOS terms are deliberately not re-derived here: they are posted
+ * to the account by {@link acceptProviderTerms}, which only records them
+ * locally after that POST succeeds, so the local value is already
+ * backend-confirmed. Re-deriving them from the session catalog is both
+ * redundant and fragile — the session catalog can list documents beyond the
+ * ones consented on the provider-terms screen (built from the country
+ * catalog), which would incorrectly clear a valid acceptance and loop the
+ * flow back to the provider-terms screen.
  *
  * A no-op when the active vendor has no customer yet (the flow is still at
  * the email step). Each signal soft-fails independently: a failed fetch keeps
