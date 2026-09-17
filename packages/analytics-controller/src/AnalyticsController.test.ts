@@ -2063,6 +2063,53 @@ describe('AnalyticsController', () => {
         Object.values(controller.state.preConsentEventQueue ?? {}),
       ).toHaveLength(1);
     });
+
+    it('still replays pre-consent events if another purpose is opted out while geolocation resolves', async () => {
+      let resolveGeolocation: (data: GeolocationData) => void = () => undefined;
+      const geolocationHandler = jest.fn(
+        () =>
+          new Promise<GeolocationData>((resolve) => {
+            resolveGeolocation = resolve;
+          }),
+      );
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: false,
+          analyticsId,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+        isGeolocationEnabled: true,
+        geolocationHandler,
+      });
+
+      controller.trackEvent(createTestEvent('preconsent_event'));
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+
+      const optInPromise = controller.optIn();
+      expect(geolocationHandler).toHaveBeenCalledTimes(1);
+
+      // Marketing opt-out prunes during the await. Product-eligible pre-consent
+      // events must survive until optIn finishes replaying.
+      controller.optOutOfMarketing();
+
+      resolveGeolocation(buildGeolocationData(fullGeolocation));
+      await optInPromise;
+
+      expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'preconsent_event',
+        undefined,
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: fullLocationContext },
+        ),
+        expect.any(Object),
+      );
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+    });
   });
 
   describe('event queue persistence', () => {

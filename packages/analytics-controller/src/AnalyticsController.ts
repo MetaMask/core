@@ -1419,8 +1419,8 @@ export class AnalyticsController extends BaseController<
    *
    * For {@link AnalyticsQueue.EventQueue}, entries are kept only while at least
    * one capture-time purpose is opted in, and their consent stamp is refreshed.
-   * For {@link AnalyticsQueue.PreConsentEventQueue}, entries are kept only while
-   * no purpose is opted in and at least one is still undecided.
+   * For {@link AnalyticsQueue.PreConsentEventQueue}, entries are kept while at
+   * least one purpose is still allowed or undecided.
    *
    * @param field - The queue to prune.
    */
@@ -1451,7 +1451,7 @@ export class AnalyticsController extends BaseController<
       }
 
       if (field === AnalyticsQueue.PreConsentEventQueue) {
-        if (!isAllowed && this.#hasUndecidedPurpose(purposes)) {
+        if (isAllowed || this.#hasUndecidedPurpose(purposes)) {
           nextQueue[messageId] = queuedEvent as unknown as Json;
         }
       }
