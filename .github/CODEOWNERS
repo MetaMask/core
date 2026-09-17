@@ -12,20 +12,18 @@
 /packages/account-tree-controller/typedoc.json    @MetaMask/accounts-engineers @MetaMask/core-platform
 
 ### accounts-controller
-/packages/accounts-controller                                         @MetaMask/accounts-engineers
-/packages/wallet/src/initialization/instances/accounts-controller/    @MetaMask/accounts-engineers
-/packages/accounts-controller/CHANGELOG.md                            @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/accounts-controller/package.json                            @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/accounts-controller/tsconfig.*                              @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/accounts-controller/typedoc.json                            @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/accounts-controller                 @MetaMask/accounts-engineers
+/packages/accounts-controller/CHANGELOG.md    @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/accounts-controller/package.json    @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/accounts-controller/tsconfig.*      @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/accounts-controller/typedoc.json    @MetaMask/accounts-engineers @MetaMask/core-platform
 
 ### address-book-controller
-/packages/address-book-controller                                         @MetaMask/confirmations
-/packages/wallet/src/initialization/instances/address-book-controller/    @MetaMask/confirmations
-/packages/address-book-controller/CHANGELOG.md                            @MetaMask/confirmations @MetaMask/core-platform
-/packages/address-book-controller/package.json                            @MetaMask/confirmations @MetaMask/core-platform
-/packages/address-book-controller/tsconfig.*                              @MetaMask/confirmations @MetaMask/core-platform
-/packages/address-book-controller/typedoc.json                            @MetaMask/confirmations @MetaMask/core-platform
+/packages/address-book-controller                 @MetaMask/confirmations
+/packages/address-book-controller/CHANGELOG.md    @MetaMask/confirmations @MetaMask/core-platform
+/packages/address-book-controller/package.json    @MetaMask/confirmations @MetaMask/core-platform
+/packages/address-book-controller/tsconfig.*      @MetaMask/confirmations @MetaMask/core-platform
+/packages/address-book-controller/typedoc.json    @MetaMask/confirmations @MetaMask/core-platform
 
 ### ai-controllers
 /packages/ai-controllers                 @MetaMask/social-ai
@@ -63,12 +61,11 @@
 /packages/app-metadata-controller/typedoc.json    @MetaMask/core-platform @MetaMask/mobile-platform
 
 ### approval-controller
-/packages/approval-controller                                         @MetaMask/confirmations
-/packages/wallet/src/initialization/instances/approval-controller/    @MetaMask/confirmations
-/packages/approval-controller/CHANGELOG.md                            @MetaMask/confirmations @MetaMask/core-platform
-/packages/approval-controller/package.json                            @MetaMask/confirmations @MetaMask/core-platform
-/packages/approval-controller/tsconfig.*                              @MetaMask/confirmations @MetaMask/core-platform
-/packages/approval-controller/typedoc.json                            @MetaMask/confirmations @MetaMask/core-platform
+/packages/approval-controller                 @MetaMask/confirmations
+/packages/approval-controller/CHANGELOG.md    @MetaMask/confirmations @MetaMask/core-platform
+/packages/approval-controller/package.json    @MetaMask/confirmations @MetaMask/core-platform
+/packages/approval-controller/tsconfig.*      @MetaMask/confirmations @MetaMask/core-platform
+/packages/approval-controller/typedoc.json    @MetaMask/confirmations @MetaMask/core-platform
 
 ### assets-controller
 /packages/assets-controller                 @MetaMask/metamask-assets
@@ -148,20 +145,18 @@
 /packages/chomp-api-service/typedoc.json    @MetaMask/core-platform @MetaMask/delegation @MetaMask/earn
 
 ### claims-controller
-/packages/claims-controller                                         @MetaMask/web3auth
-/packages/wallet/src/initialization/instances/claims-controller/    @MetaMask/web3auth
-/packages/claims-controller/CHANGELOG.md                            @MetaMask/core-platform @MetaMask/web3auth
-/packages/claims-controller/package.json                            @MetaMask/core-platform @MetaMask/web3auth
-/packages/claims-controller/tsconfig.*                              @MetaMask/core-platform @MetaMask/web3auth
-/packages/claims-controller/typedoc.json                            @MetaMask/core-platform @MetaMask/web3auth
+/packages/claims-controller                 @MetaMask/web3auth
+/packages/claims-controller/CHANGELOG.md    @MetaMask/core-platform @MetaMask/web3auth
+/packages/claims-controller/package.json    @MetaMask/core-platform @MetaMask/web3auth
+/packages/claims-controller/tsconfig.*      @MetaMask/core-platform @MetaMask/web3auth
+/packages/claims-controller/typedoc.json    @MetaMask/core-platform @MetaMask/web3auth
 
 ### claims-service
-/packages/claims-service                                         @MetaMask/web3auth
-/packages/wallet/src/initialization/instances/claims-service/    @MetaMask/web3auth
-/packages/claims-service/CHANGELOG.md                            @MetaMask/core-platform @MetaMask/web3auth
-/packages/claims-service/package.json                            @MetaMask/core-platform @MetaMask/web3auth
-/packages/claims-service/tsconfig.*                              @MetaMask/core-platform @MetaMask/web3auth
-/packages/claims-service/typedoc.json                            @MetaMask/core-platform @MetaMask/web3auth
+/packages/claims-service                 @MetaMask/web3auth
+/packages/claims-service/CHANGELOG.md    @MetaMask/core-platform @MetaMask/web3auth
+/packages/claims-service/package.json    @MetaMask/core-platform @MetaMask/web3auth
+/packages/claims-service/tsconfig.*      @MetaMask/core-platform @MetaMask/web3auth
+/packages/claims-service/typedoc.json    @MetaMask/core-platform @MetaMask/web3auth
 
 ### client-controller
 /packages/client-controller                 @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
@@ -199,12 +194,11 @@
 /packages/config-registry-controller/typedoc.json    @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/networks
 
 ### connectivity-controller
-/packages/connectivity-controller                                         @MetaMask/core-platform
-/packages/wallet/src/initialization/instances/connectivity-controller/    @MetaMask/core-platform
-/packages/connectivity-controller/CHANGELOG.md                            @MetaMask/core-platform
-/packages/connectivity-controller/package.json                            @MetaMask/core-platform
-/packages/connectivity-controller/tsconfig.*                              @MetaMask/core-platform
-/packages/connectivity-controller/typedoc.json                            @MetaMask/core-platform
+/packages/connectivity-controller                 @MetaMask/core-platform
+/packages/connectivity-controller/CHANGELOG.md    @MetaMask/core-platform
+/packages/connectivity-controller/package.json    @MetaMask/core-platform
+/packages/connectivity-controller/tsconfig.*      @MetaMask/core-platform
+/packages/connectivity-controller/typedoc.json    @MetaMask/core-platform
 
 ### controller-utils
 /packages/controller-utils                 @MetaMask/core-platform
@@ -214,7 +208,7 @@
 /packages/controller-utils/typedoc.json    @MetaMask/core-platform
 
 ### core-backend
-/packages/core-backend                 @MetaMask/core-platform @MetaMask/metamask-assets
+/packages/core-backend                 @MetaMask/metamask-assets
 /packages/core-backend/CHANGELOG.md    @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/core-backend/package.json    @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/core-backend/tsconfig.*      @MetaMask/core-platform @MetaMask/metamask-assets
@@ -291,12 +285,11 @@
 /packages/foundryup/typedoc.json    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 
 ### gas-fee-controller
-/packages/gas-fee-controller                                         @MetaMask/confirmations
-/packages/wallet/src/initialization/instances/gas-fee-controller/    @MetaMask/confirmations
-/packages/gas-fee-controller/CHANGELOG.md                            @MetaMask/confirmations @MetaMask/core-platform
-/packages/gas-fee-controller/package.json                            @MetaMask/confirmations @MetaMask/core-platform
-/packages/gas-fee-controller/tsconfig.*                              @MetaMask/confirmations @MetaMask/core-platform
-/packages/gas-fee-controller/typedoc.json                            @MetaMask/confirmations @MetaMask/core-platform
+/packages/gas-fee-controller                 @MetaMask/confirmations
+/packages/gas-fee-controller/CHANGELOG.md    @MetaMask/confirmations @MetaMask/core-platform
+/packages/gas-fee-controller/package.json    @MetaMask/confirmations @MetaMask/core-platform
+/packages/gas-fee-controller/tsconfig.*      @MetaMask/confirmations @MetaMask/core-platform
+/packages/gas-fee-controller/typedoc.json    @MetaMask/confirmations @MetaMask/core-platform
 
 ### gator-permissions-controller
 /packages/gator-permissions-controller                 @MetaMask/delegation
@@ -334,12 +327,11 @@
 /packages/json-rpc-middleware-stream/typedoc.json    @MetaMask/core-platform
 
 ### keyring-controller
-/packages/keyring-controller                                         @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/wallet/src/initialization/instances/keyring-controller/    @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/keyring-controller/CHANGELOG.md                            @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/keyring-controller/package.json                            @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/keyring-controller/tsconfig.*                              @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/keyring-controller/typedoc.json                            @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/keyring-controller                 @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/keyring-controller/CHANGELOG.md    @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/keyring-controller/package.json    @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/keyring-controller/tsconfig.*      @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/keyring-controller/typedoc.json    @MetaMask/accounts-engineers @MetaMask/core-platform
 
 ### kyc-controller
 /packages/kyc-controller                 @MetaMask/universal-kyc
@@ -482,12 +474,11 @@
 /packages/notification-services-controller/typedoc.json    @MetaMask/core-platform @MetaMask/engagement
 
 ### passkey-controller
-/packages/passkey-controller                                         @MetaMask/web3auth
-/packages/wallet/src/initialization/instances/passkey-controller/    @MetaMask/web3auth
-/packages/passkey-controller/CHANGELOG.md                            @MetaMask/core-platform @MetaMask/web3auth
-/packages/passkey-controller/package.json                            @MetaMask/core-platform @MetaMask/web3auth
-/packages/passkey-controller/tsconfig.*                              @MetaMask/core-platform @MetaMask/web3auth
-/packages/passkey-controller/typedoc.json                            @MetaMask/core-platform @MetaMask/web3auth
+/packages/passkey-controller                 @MetaMask/web3auth
+/packages/passkey-controller/CHANGELOG.md    @MetaMask/core-platform @MetaMask/web3auth
+/packages/passkey-controller/package.json    @MetaMask/core-platform @MetaMask/web3auth
+/packages/passkey-controller/tsconfig.*      @MetaMask/core-platform @MetaMask/web3auth
+/packages/passkey-controller/typedoc.json    @MetaMask/core-platform @MetaMask/web3auth
 
 ### permission-controller
 /packages/permission-controller                 @MetaMask/core-platform
@@ -574,12 +565,11 @@
 /packages/react-data-query/typedoc.json    @MetaMask/core-platform
 
 ### remote-feature-flag-controller
-/packages/remote-feature-flag-controller                                         @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/wallet/src/initialization/instances/remote-feature-flag-controller/    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/remote-feature-flag-controller/CHANGELOG.md                            @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/remote-feature-flag-controller/package.json                            @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/remote-feature-flag-controller/tsconfig.*                              @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/remote-feature-flag-controller/typedoc.json                            @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/remote-feature-flag-controller                 @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/remote-feature-flag-controller/CHANGELOG.md    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/remote-feature-flag-controller/package.json    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/remote-feature-flag-controller/tsconfig.*      @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/remote-feature-flag-controller/typedoc.json    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 
 ### sample-controllers
 /packages/sample-controllers                 @MetaMask/core-platform
@@ -589,12 +579,11 @@
 /packages/sample-controllers/typedoc.json    @MetaMask/core-platform
 
 ### seedless-onboarding-controller
-/packages/seedless-onboarding-controller                                         @MetaMask/web3auth
-/packages/wallet/src/initialization/instances/seedless-onboarding-controller/    @MetaMask/web3auth
-/packages/seedless-onboarding-controller/CHANGELOG.md                            @MetaMask/core-platform @MetaMask/web3auth
-/packages/seedless-onboarding-controller/package.json                            @MetaMask/core-platform @MetaMask/web3auth
-/packages/seedless-onboarding-controller/tsconfig.*                              @MetaMask/core-platform @MetaMask/web3auth
-/packages/seedless-onboarding-controller/typedoc.json                            @MetaMask/core-platform @MetaMask/web3auth
+/packages/seedless-onboarding-controller                 @MetaMask/web3auth
+/packages/seedless-onboarding-controller/CHANGELOG.md    @MetaMask/core-platform @MetaMask/web3auth
+/packages/seedless-onboarding-controller/package.json    @MetaMask/core-platform @MetaMask/web3auth
+/packages/seedless-onboarding-controller/tsconfig.*      @MetaMask/core-platform @MetaMask/web3auth
+/packages/seedless-onboarding-controller/typedoc.json    @MetaMask/core-platform @MetaMask/web3auth
 
 ### selected-network-controller
 /packages/selected-network-controller                 @MetaMask/core-platform
@@ -611,20 +600,18 @@
 /packages/sentinel-api-service/typedoc.json    @MetaMask/confirmations @MetaMask/core-platform @MetaMask/transactions
 
 ### shield-api-service
-/packages/shield-api-service                                         @MetaMask/web3auth
-/packages/wallet/src/initialization/instances/shield-api-service/    @MetaMask/web3auth
-/packages/shield-api-service/CHANGELOG.md                            @MetaMask/core-platform @MetaMask/web3auth
-/packages/shield-api-service/package.json                            @MetaMask/core-platform @MetaMask/web3auth
-/packages/shield-api-service/tsconfig.*                              @MetaMask/core-platform @MetaMask/web3auth
-/packages/shield-api-service/typedoc.json                            @MetaMask/core-platform @MetaMask/web3auth
+/packages/shield-api-service                 @MetaMask/web3auth
+/packages/shield-api-service/CHANGELOG.md    @MetaMask/core-platform @MetaMask/web3auth
+/packages/shield-api-service/package.json    @MetaMask/core-platform @MetaMask/web3auth
+/packages/shield-api-service/tsconfig.*      @MetaMask/core-platform @MetaMask/web3auth
+/packages/shield-api-service/typedoc.json    @MetaMask/core-platform @MetaMask/web3auth
 
 ### shield-controller
-/packages/shield-controller                                         @MetaMask/web3auth
-/packages/wallet/src/initialization/instances/shield-controller/    @MetaMask/web3auth
-/packages/shield-controller/CHANGELOG.md                            @MetaMask/core-platform @MetaMask/web3auth
-/packages/shield-controller/package.json                            @MetaMask/core-platform @MetaMask/web3auth
-/packages/shield-controller/tsconfig.*                              @MetaMask/core-platform @MetaMask/web3auth
-/packages/shield-controller/typedoc.json                            @MetaMask/core-platform @MetaMask/web3auth
+/packages/shield-controller                 @MetaMask/web3auth
+/packages/shield-controller/CHANGELOG.md    @MetaMask/core-platform @MetaMask/web3auth
+/packages/shield-controller/package.json    @MetaMask/core-platform @MetaMask/web3auth
+/packages/shield-controller/tsconfig.*      @MetaMask/core-platform @MetaMask/web3auth
+/packages/shield-controller/typedoc.json    @MetaMask/core-platform @MetaMask/web3auth
 
 ### signature-controller
 /packages/signature-controller                 @MetaMask/confirmations
@@ -669,36 +656,32 @@
 /packages/stellar-quickstart-up/typedoc.json    @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 
 ### storage-service
-/packages/storage-service                                         @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/wallet/src/initialization/instances/storage-service/    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/storage-service/CHANGELOG.md                            @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/storage-service/package.json                            @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/storage-service/tsconfig.*                              @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/storage-service/typedoc.json                            @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/storage-service                 @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/storage-service/CHANGELOG.md    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/storage-service/package.json    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/storage-service/tsconfig.*      @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/storage-service/typedoc.json    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 
 ### subscription-controller
-/packages/subscription-controller                                         @MetaMask/web3auth
-/packages/wallet/src/initialization/instances/subscription-controller/    @MetaMask/web3auth
-/packages/subscription-controller/CHANGELOG.md                            @MetaMask/core-platform @MetaMask/web3auth
-/packages/subscription-controller/package.json                            @MetaMask/core-platform @MetaMask/web3auth
-/packages/subscription-controller/tsconfig.*                              @MetaMask/core-platform @MetaMask/web3auth
-/packages/subscription-controller/typedoc.json                            @MetaMask/core-platform @MetaMask/web3auth
+/packages/subscription-controller                 @MetaMask/web3auth
+/packages/subscription-controller/CHANGELOG.md    @MetaMask/core-platform @MetaMask/web3auth
+/packages/subscription-controller/package.json    @MetaMask/core-platform @MetaMask/web3auth
+/packages/subscription-controller/tsconfig.*      @MetaMask/core-platform @MetaMask/web3auth
+/packages/subscription-controller/typedoc.json    @MetaMask/core-platform @MetaMask/web3auth
 
 ### subscription-service
-/packages/subscription-service                                         @MetaMask/web3auth
-/packages/wallet/src/initialization/instances/subscription-service/    @MetaMask/web3auth
-/packages/subscription-service/CHANGELOG.md                            @MetaMask/core-platform @MetaMask/web3auth
-/packages/subscription-service/package.json                            @MetaMask/core-platform @MetaMask/web3auth
-/packages/subscription-service/tsconfig.*                              @MetaMask/core-platform @MetaMask/web3auth
-/packages/subscription-service/typedoc.json                            @MetaMask/core-platform @MetaMask/web3auth
+/packages/subscription-service                 @MetaMask/web3auth
+/packages/subscription-service/CHANGELOG.md    @MetaMask/core-platform @MetaMask/web3auth
+/packages/subscription-service/package.json    @MetaMask/core-platform @MetaMask/web3auth
+/packages/subscription-service/tsconfig.*      @MetaMask/core-platform @MetaMask/web3auth
+/packages/subscription-service/typedoc.json    @MetaMask/core-platform @MetaMask/web3auth
 
 ### transaction-controller
-/packages/transaction-controller                                         @MetaMask/confirmations
-/packages/wallet/src/initialization/instances/transaction-controller/    @MetaMask/confirmations
-/packages/transaction-controller/CHANGELOG.md                            @MetaMask/confirmations @MetaMask/core-platform
-/packages/transaction-controller/package.json                            @MetaMask/confirmations @MetaMask/core-platform
-/packages/transaction-controller/tsconfig.*                              @MetaMask/confirmations @MetaMask/core-platform
-/packages/transaction-controller/typedoc.json                            @MetaMask/confirmations @MetaMask/core-platform
+/packages/transaction-controller                 @MetaMask/confirmations
+/packages/transaction-controller/CHANGELOG.md    @MetaMask/confirmations @MetaMask/core-platform
+/packages/transaction-controller/package.json    @MetaMask/confirmations @MetaMask/core-platform
+/packages/transaction-controller/tsconfig.*      @MetaMask/confirmations @MetaMask/core-platform
+/packages/transaction-controller/typedoc.json    @MetaMask/confirmations @MetaMask/core-platform
 
 ### transaction-pay-controller
 /packages/transaction-pay-controller                 @MetaMask/confirmations
@@ -745,6 +728,23 @@
 # Overrides
 # ---------
 
-/.github/                                         @MetaMask/core-platform
-/packages/eth-json-rpc-middleware/src/methods     @MetaMask/confirmations @MetaMask/core-platform
-/packages/eth-json-rpc-middleware/src/wallet.*    @MetaMask/confirmations @MetaMask/core-platform
+/packages/wallet/src/initialization/instances/accounts-controller/               @MetaMask/accounts-engineers
+/packages/wallet/src/initialization/instances/address-book-controller/           @MetaMask/confirmations
+/packages/wallet/src/initialization/instances/approval-controller/               @MetaMask/confirmations
+/packages/wallet/src/initialization/instances/claims-controller/                 @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/claims-service/                    @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/connectivity-controller/           @MetaMask/core-platform
+/packages/wallet/src/initialization/instances/gas-fee-controller/                @MetaMask/confirmations
+/packages/wallet/src/initialization/instances/keyring-controller/                @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/wallet/src/initialization/instances/passkey-controller/                @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/remote-feature-flag-controller/    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/wallet/src/initialization/instances/seedless-onboarding-controller/    @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/shield-api-service/                @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/shield-controller/                 @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/storage-service/                   @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/wallet/src/initialization/instances/subscription-controller/           @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/subscription-service/              @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/transaction-controller/            @MetaMask/confirmations
+/.github/                                                                        @MetaMask/core-platform
+/packages/eth-json-rpc-middleware/src/methods                                    @MetaMask/confirmations @MetaMask/core-platform
+/packages/eth-json-rpc-middleware/src/wallet.*                                   @MetaMask/confirmations @MetaMask/core-platform

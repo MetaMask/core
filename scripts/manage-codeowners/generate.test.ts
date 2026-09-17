@@ -30,12 +30,11 @@ describe('generateCodeownersFileContent', () => {
 # --------
 
 ### a-controller
-/packages/a-controller                                         @MetaMask/a-team @MetaMask/b-team
-/packages/wallet/src/initialization/instances/a-controller/    @MetaMask/a-team @MetaMask/b-team
-/packages/a-controller/CHANGELOG.md                            @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
-/packages/a-controller/package.json                            @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
-/packages/a-controller/tsconfig.*                              @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
-/packages/a-controller/typedoc.json                            @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
+/packages/a-controller                 @MetaMask/a-team @MetaMask/b-team
+/packages/a-controller/CHANGELOG.md    @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
+/packages/a-controller/package.json    @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
+/packages/a-controller/tsconfig.*      @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
+/packages/a-controller/typedoc.json    @MetaMask/a-team @MetaMask/b-team @MetaMask/core-platform
 
 ### b-controller
 /packages/b-controller                 @MetaMask/b-team
@@ -47,8 +46,9 @@ describe('generateCodeownersFileContent', () => {
 # Overrides
 # ---------
 
-/.github/                             @MetaMask/core-platform
-/packages/b-controller/src/special    @MetaMask/a-team @MetaMask/core-platform`,
+/packages/wallet/src/initialization/instances/a-controller/    @MetaMask/a-team @MetaMask/b-team
+/.github/                                                      @MetaMask/core-platform
+/packages/b-controller/src/special                             @MetaMask/a-team @MetaMask/core-platform`,
     );
   });
 });

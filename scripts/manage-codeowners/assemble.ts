@@ -21,7 +21,10 @@ export function assembleCodeownersSections(
     buildPackagesSection(config.packages),
     {
       title: 'Overrides',
-      rules: config.overrides,
+      rules: [
+        ...buildInitializationRules(config.packages),
+        ...config.overrides,
+      ],
     },
   ];
 }
@@ -74,13 +77,6 @@ function buildPackageRules(
     { pattern: `/packages/${packageDirectoryName}`, owners },
   ];
 
-  if (packageInfo.initializationPath !== undefined) {
-    rules.push({
-      pattern: `/packages/wallet/src/initialization/instances/${packageInfo.initializationPath}/`,
-      owners,
-    });
-  }
-
   const releaseOwners = [
     ...new Set([...packageInfo.teams, CORE_PLATFORM_TEAM]),
   ].sort();
@@ -93,4 +89,32 @@ function buildPackageRules(
   );
 
   return rules;
+}
+
+/**
+ * Builds rules for package initialization code in the Wallet package. These are
+ * emitted as overrides because they must follow the generic Wallet package rule
+ * to take precedence in GitHub's last-match-wins CODEOWNERS evaluation.
+ *
+ * @param packages - Package ownership metadata, as defined in the codeowners
+ * configuration file.
+ * @returns The initialization rules, sorted by package name.
+ */
+function buildInitializationRules(
+  packages: Record<string, PackageInfo>,
+): CodeownersRule[] {
+  return Object.entries(packages)
+    .sort(([firstPackageName], [secondPackageName]) =>
+      firstPackageName.localeCompare(secondPackageName),
+    )
+    .flatMap(([, packageInfo]) => {
+      if (packageInfo.initializationPath === undefined) {
+        return [];
+      }
+
+      return {
+        pattern: `/packages/wallet/src/initialization/instances/${packageInfo.initializationPath}/`,
+        owners: [...packageInfo.teams].sort(),
+      };
+    });
 }

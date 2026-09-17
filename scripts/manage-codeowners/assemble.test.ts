@@ -29,10 +29,6 @@ describe('assembleCodeownersSections', () => {
                 owners: ['@MetaMask/a-team', '@MetaMask/b-team'],
               },
               {
-                pattern: '/packages/wallet/src/initialization/instances/alpha/',
-                owners: ['@MetaMask/a-team', '@MetaMask/b-team'],
-              },
-              {
                 pattern: '/packages/alpha/CHANGELOG.md',
                 owners: [
                   '@MetaMask/a-team',
@@ -95,7 +91,12 @@ describe('assembleCodeownersSections', () => {
       },
       {
         title: 'Overrides',
-        rules: [],
+        rules: [
+          {
+            pattern: '/packages/wallet/src/initialization/instances/alpha/',
+            owners: ['@MetaMask/a-team', '@MetaMask/b-team'],
+          },
+        ],
       },
     ]);
   });
@@ -153,6 +154,111 @@ describe('assembleCodeownersSections', () => {
     expect(sections).toStrictEqual([
       { title: 'Packages', rules: [], subsections: [] },
       { title: 'Overrides', rules: config.overrides },
+    ]);
+  });
+
+  it('emits initialization rules after the wallet package rule', () => {
+    const config: CodeownersConfig = {
+      packages: {
+        'accounts-controller': {
+          teams: ['@MetaMask/accounts-engineers'],
+          initializationPath: 'accounts-controller',
+        },
+        wallet: { teams: ['@MetaMask/core-platform'] },
+      },
+      overrides: [
+        {
+          pattern: '/packages/eth-json-rpc-middleware/src/methods',
+          owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
+        },
+      ],
+    };
+
+    const sections = assembleCodeownersSections(config);
+
+    expect(sections).toStrictEqual([
+      {
+        title: 'Packages',
+        rules: [],
+        subsections: [
+          {
+            title: 'accounts-controller',
+            rules: [
+              {
+                pattern: '/packages/accounts-controller',
+                owners: ['@MetaMask/accounts-engineers'],
+              },
+              {
+                pattern: '/packages/accounts-controller/CHANGELOG.md',
+                owners: [
+                  '@MetaMask/accounts-engineers',
+                  '@MetaMask/core-platform',
+                ],
+              },
+              {
+                pattern: '/packages/accounts-controller/package.json',
+                owners: [
+                  '@MetaMask/accounts-engineers',
+                  '@MetaMask/core-platform',
+                ],
+              },
+              {
+                pattern: '/packages/accounts-controller/tsconfig.*',
+                owners: [
+                  '@MetaMask/accounts-engineers',
+                  '@MetaMask/core-platform',
+                ],
+              },
+              {
+                pattern: '/packages/accounts-controller/typedoc.json',
+                owners: [
+                  '@MetaMask/accounts-engineers',
+                  '@MetaMask/core-platform',
+                ],
+              },
+            ],
+          },
+          {
+            title: 'wallet',
+            rules: [
+              {
+                pattern: '/packages/wallet',
+                owners: ['@MetaMask/core-platform'],
+              },
+              {
+                pattern: '/packages/wallet/CHANGELOG.md',
+                owners: ['@MetaMask/core-platform'],
+              },
+              {
+                pattern: '/packages/wallet/package.json',
+                owners: ['@MetaMask/core-platform'],
+              },
+              {
+                pattern: '/packages/wallet/tsconfig.*',
+                owners: ['@MetaMask/core-platform'],
+              },
+              {
+                pattern: '/packages/wallet/typedoc.json',
+                owners: ['@MetaMask/core-platform'],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        title: 'Overrides',
+        rules: [
+          {
+            pattern:
+              '/packages/wallet/src/initialization/instances/accounts-controller/',
+            owners: ['@MetaMask/accounts-engineers'],
+          },
+          {
+            pattern: '/packages/eth-json-rpc-middleware/src/methods',
+            owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],
+          },
+        ],
+      },
     ]);
   });
 });
