@@ -3,7 +3,6 @@ import type {
   AccountsControllerAccountsAddedEvent,
   AccountsControllerAccountsRemovedEvent,
   AccountsControllerGetStateAction,
-  AccountsControllerState,
 } from '@metamask/accounts-controller';
 import {
   SnapKeyring as LegacySnapKeyring,
@@ -379,6 +378,12 @@ export class SnapAccountService {
    * keyring.
    */
   #handleUnlock(): void {
+    // Invalidate the cache so the next use rebuilds it from fresh state.
+    // Changes that occurred while the wallet was locked are not reflected by
+    // the incremental accountsAdded/accountsRemoved events, so a full rebuild
+    // is needed on first use after unlock.
+    this.#accountSnapCacheInitialized = false;
+
     // eslint-disable-next-line no-void
     void this.ensureMigrated().then(
       async () => {
@@ -981,7 +986,7 @@ export class SnapAccountService {
     event: AccountDataUpdatedKeyringEvent,
     entries: Record<string, Value>,
   ): Record<string, Value> {
-    this.#initAccountSnapCache();
+    this.#ensureAccountSnapCacheIsReady();
     const filtered: Record<string, Value> = {};
     for (const [accountId, value] of Object.entries(entries)) {
       if (this.#accountSnapIds.get(accountId) === snapId) {
@@ -996,27 +1001,6 @@ export class SnapAccountService {
   }
 
   /**
-   * Rebuilds the Snap-ownership cache from `AccountsController` state.
-   *
-   * Used for lazy initialization on first use; subsequent updates are applied
-   * incrementally by {@link SnapAccountService.#addAccountsToCache} and
-   * {@link SnapAccountService.#removeAccountsFromCache}.
-   *
-   * @param state - The current `AccountsController` state.
-   */
-  #rebuildAccountSnapCache(state: AccountsControllerState): void {
-    const cache = new Map<AccountId, SnapId>();
-    for (const account of Object.values(state.internalAccounts.accounts)) {
-      const snapId = account.metadata?.snap?.id;
-      if (snapId) {
-        cache.set(account.id, snapId as SnapId);
-      }
-    }
-    this.#accountSnapIds = cache;
-    this.#accountSnapCacheInitialized = true;
-  }
-
-  /**
    * Adds the given accounts to the Snap-ownership cache.
    *
    * @param accounts - The accounts that were added.
@@ -1024,6 +1008,9 @@ export class SnapAccountService {
   #addAccountsToCache(
     accounts: AccountsControllerAccountsAddedEvent['payload'][0],
   ): void {
+    if (!this.#accountSnapCacheInitialized) {
+      return;
+    }
     for (const account of accounts) {
       const snapId = account.metadata?.snap?.id;
       if (snapId) {
@@ -1040,20 +1027,34 @@ export class SnapAccountService {
   #removeAccountsFromCache(
     accountIds: AccountsControllerAccountsRemovedEvent['payload'][0],
   ): void {
+    if (!this.#accountSnapCacheInitialized) {
+      return;
+    }
     for (const accountId of accountIds) {
       this.#accountSnapIds.delete(accountId);
     }
   }
 
   /**
-   * Lazily builds the Snap-ownership cache on first use.
+   * Ensures the Snap-ownership cache is populated. If not yet initialized,
+   * builds it from scratch from `AccountsController` state. Once initialized,
+   * incremental {@link SnapAccountService.#addAccountsToCache} /
+   * {@link SnapAccountService.#removeAccountsFromCache} events keep it current.
    */
-  #initAccountSnapCache(): void {
-    if (!this.#accountSnapCacheInitialized) {
-      this.#rebuildAccountSnapCache(
-        this.#messenger.call('AccountsController:getState'),
-      );
+  #ensureAccountSnapCacheIsReady(): void {
+    if (this.#accountSnapCacheInitialized) {
+      return;
     }
+    const state = this.#messenger.call('AccountsController:getState');
+    const cache = new Map<AccountId, SnapId>();
+    for (const account of Object.values(state.internalAccounts.accounts)) {
+      const snapId = account.metadata?.snap?.id;
+      if (snapId) {
+        cache.set(account.id, snapId as SnapId);
+      }
+    }
+    this.#accountSnapIds = cache;
+    this.#accountSnapCacheInitialized = true;
   }
 
   // eslint-disable-next-line jsdoc/require-returns

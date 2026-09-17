@@ -1467,6 +1467,80 @@ describe('SnapAccountService', () => {
       expect(result).toBeNull();
       expect(listener).not.toHaveBeenCalled();
     });
+
+    it('ignores accountsAdded events while cache is not initialized', async () => {
+      // Start with the account owned by MOCK_SNAP_ID in AccountsController state.
+      const { service, rootMessenger } = await setup({
+        accounts: [{ id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string }],
+      });
+      const listener = jest.fn();
+      rootMessenger.subscribe(
+        'SnapAccountService:accountBalancesUpdated',
+        listener,
+      );
+
+      const payload = {
+        balances: {
+          [MOCK_ACCOUNT_ID]: {
+            'eip155:1/slip44:60': { amount: '1', unit: 'ETH' },
+          },
+        },
+      } satisfies AccountBalancesUpdatedEventPayload;
+
+      // Unlock invalidates the cache — accountsAdded fired before the cache is
+      // rebuilt should be ignored (the rebuild on next use will read fresh state).
+      publishUnlock(rootMessenger);
+      await flushMicrotasks();
+      publishAccountsAdded(rootMessenger, [
+        { id: MOCK_ACCOUNT_ID, snapId: MOCK_OTHER_SNAP_ID as string },
+      ]);
+
+      // The first use after unlock rebuilds from AccountsController state, which
+      // still maps MOCK_ACCOUNT_ID to MOCK_SNAP_ID — the ignored accountsAdded
+      // (which would have reassigned it to MOCK_OTHER_SNAP_ID) was correctly dropped.
+      const result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
+        method: KeyringEvent.AccountBalancesUpdated,
+        params: payload,
+      } as unknown as SnapMessage);
+      expect(result).toBeNull();
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores accountsRemoved events while cache is not initialized', async () => {
+      // Start with the account owned by MOCK_SNAP_ID in AccountsController state.
+      const { service, rootMessenger } = await setup({
+        accounts: [{ id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string }],
+      });
+      const listener = jest.fn();
+      rootMessenger.subscribe(
+        'SnapAccountService:accountBalancesUpdated',
+        listener,
+      );
+
+      const payload = {
+        balances: {
+          [MOCK_ACCOUNT_ID]: {
+            'eip155:1/slip44:60': { amount: '1', unit: 'ETH' },
+          },
+        },
+      } satisfies AccountBalancesUpdatedEventPayload;
+
+      // Unlock invalidates the cache — accountsRemoved fired before the cache is
+      // rebuilt should be ignored (the rebuild on next use will read fresh state).
+      publishUnlock(rootMessenger);
+      await flushMicrotasks();
+      publishAccountsRemoved(rootMessenger, [MOCK_ACCOUNT_ID]);
+
+      // The first use after unlock rebuilds from AccountsController state, which
+      // still has MOCK_ACCOUNT_ID owned by MOCK_SNAP_ID — the ignored
+      // accountsRemoved was correctly dropped.
+      const result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
+        method: KeyringEvent.AccountBalancesUpdated,
+        params: payload,
+      } as unknown as SnapMessage);
+      expect(result).toBeNull();
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('on AccountTreeController:selectedAccountGroupChange', () => {
