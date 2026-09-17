@@ -1,18 +1,31 @@
 import base, { createConfig } from '@metamask/oxlint-config';
+import commonjs from '@metamask/oxlint-config-commonjs';
 import jest from '@metamask/oxlint-config-jest';
 import nodejs from '@metamask/oxlint-config-nodejs';
 import typescript from '@metamask/oxlint-config-typescript';
 
 export default createConfig({
-  ignorePatterns: ['.yarn'],
   extends: [base],
+
+  ignorePatterns: [
+    '**/.docusaurus',
+    '**/.tsc-lint-cache',
+    '**/coverage/**',
+    '**/dist/**',
+    '**/api-docs/**',
+    '.platform-api-docs/**',
+    '.skills-cache/**',
+    '.yarn/**',
+    'merged-packages/**',
+    'packages/wallet-framework-docs/site/build/**',
+  ],
 
   options: {
     // TODO: Enable this once all unused disable directives are removed.
     // For the initial migration of ESLint to Oxlint, there are many unused
     // ones, and removing them all in a single pull request would result in a
     // large, hard to review pull request.
-    reportUnusedDisableDirectives: 'warn',
+    // reportUnusedDisableDirectives: 'error',
     typeAware: true,
   },
 
@@ -20,6 +33,14 @@ export default createConfig({
     {
       files: ['**/*.ts', '**/*.mts', '**/*.cts'],
       extends: [typescript],
+    },
+
+    {
+      files: ['**/*.cjs', '**/*.cts'],
+      extends: [nodejs, commonjs],
+      rules: {
+        'import/extensions': 'off',
+      },
     },
 
     {
