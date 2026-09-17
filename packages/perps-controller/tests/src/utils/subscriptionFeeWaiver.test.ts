@@ -173,9 +173,49 @@ describe('markSubscriptionCloid', () => {
     expect(marked.startsWith(`0x${HYPERLIQUID_SCALE_CLOID_MARKER}`)).toBe(true);
     // The rung index survives, so rungs cannot collide on one cloid.
     expect(marked.slice(-2)).toBe('07');
-    // And the attribution is carried in the flag byte instead.
-    expect(hasFeeReductionAppliedFlag(marked)).toBe(true);
+    // The attribution is carried in the flag byte instead...
+    expect(readSubscriptionCloidFlags(marked)).toBe(
+      SUBSCRIPTION_CLOID_FLAGS.FeeReductionApplied,
+    );
     expect(isSubscriptionProgramCloid(marked)).toBe(false);
+    // ...but the decoder will not trust a flag byte behind the Scale marker,
+    // because legacy ladders carry random entropy in that position. A marked
+    // rung is therefore indistinguishable from a legacy one to a decoder.
+    expect(hasFeeReductionAppliedFlag(marked)).toBe(false);
+  });
+
+  it('returns a caller-supplied client order ID untouched', () => {
+    // OrderParams.clientOrderId is public API and the caller's own
+    // reconciliation key. Rewriting a byte of it would submit an id they never
+    // chose and cannot match a fill against, so attribution is forgone instead.
+    const caller = '0xdeadbeefcafebabe0011223344556677' as const;
+
+    const result = markSubscriptionCloid({
+      clientOrderId: caller,
+      entropy: 'b'.repeat(32),
+    });
+
+    expect(result).toBe(caller);
+    expect(hasFeeReductionAppliedFlag(result)).toBe(false);
+  });
+
+  it('returns a short caller client order ID untouched rather than replacing it', () => {
+    // A cloid the venue may still accept but this package did not generate.
+    // Discarding it outright would be the worst outcome of all.
+    const caller = '0x1234' as const;
+
+    expect(
+      markSubscriptionCloid({ clientOrderId: caller, entropy: 'b'.repeat(32) }),
+    ).toBe(caller);
+  });
+
+  it('rejects a caller client order ID that is not hex', () => {
+    expect(() =>
+      markSubscriptionCloid({
+        clientOrderId: 'not-a-cloid',
+        entropy: 'b'.repeat(32),
+      }),
+    ).toThrow('Client order ID is not a hex string');
   });
 
   it('keeps every marked rung of one ladder distinct', () => {
@@ -200,6 +240,45 @@ describe('hasFeeReductionAppliedFlag', () => {
       expect(hasFeeReductionAppliedFlag(clientOrderId)).toBe(false);
     },
   );
+
+  it('does not trust the flag byte outside the subscription program marker', () => {
+    // Scale ladders placed before this release carry random entropy where the
+    // flag byte now lives, so roughly half of them would decode as waived if the
+    // byte were read on the Scale marker alone. An arbitrary caller cloid has no
+    // reserved flag byte at all.
+    const legacyLadderWithFlagBitSet = `0x${HYPERLIQUID_SCALE_CLOID_MARKER}ab${'cd'.repeat(10)}07`;
+    const callerCloidWithFlagBitSet = '0xdeadbeef01febabe0011223344556677';
+
+    // The flag byte itself reads as set in both...
+    expect(readSubscriptionCloidFlags(legacyLadderWithFlagBitSet)).toBe(0xab);
+    expect(readSubscriptionCloidFlags(callerCloidWithFlagBitSet)).toBe(0x01);
+
+    // ...but neither carries the program marker, so neither is trusted.
+    expect(hasFeeReductionAppliedFlag(legacyLadderWithFlagBitSet)).toBe(false);
+    expect(hasFeeReductionAppliedFlag(callerCloidWithFlagBitSet)).toBe(false);
+  });
+
+  it('reports no false positives across a legacy Scale ladder population', () => {
+    // The defect this guards: before this change the byte the flag occupies held
+    // random group entropy, so ~50% of historical rungs set bit 0.
+    // Pre-change layout: marker (4 bytes) + 11 bytes of random group entropy +
+    // the rung index byte. The first entropy byte is where the flag now lives.
+    const legacyRungs = Array.from({ length: 256 }, (_, index) => {
+      const group = index.toString(16).padStart(2, '0').repeat(11);
+      return `0x${HYPERLIQUID_SCALE_CLOID_MARKER}${group}07`;
+    });
+
+    // Every fixture is a well-formed cloid, and many do set the flag bit...
+    expect(legacyRungs.every((rung) => rung.length === 34)).toBe(true);
+    expect(
+      legacyRungs.filter(
+        (rung) => (readSubscriptionCloidFlags(rung) ?? 0) % 2 === 1,
+      ).length,
+    ).toBeGreaterThan(0);
+
+    // ...yet none decodes as a subscription waiver.
+    expect(legacyRungs.filter(hasFeeReductionAppliedFlag)).toStrictEqual([]);
+  });
 
   it('reports no flag for an unmarked Scale cloid, whose flag byte is reserved', () => {
     // The Scale generator zeroes the byte the subscription flag lives in, so

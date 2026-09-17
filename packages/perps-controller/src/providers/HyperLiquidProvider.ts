@@ -8593,12 +8593,23 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Whether the subscription source won the fee for the operation in flight.
+   * Whether the operation in flight actually carries a subscription reduction.
    *
-   * @returns True when the resolved source is `subscription`.
+   * Winning the comparison is not sufficient. A nearly-spent allowance produces
+   * a blend that approaches the full fee without reaching it, so it still wins
+   * on `<=` — but its discount rounds to zero bips and
+   * {@link #getDiscountedBuilderFee} then charges the undiscounted fee. Marking
+   * such an order would tell the fill fan-out a waiver applied when the user
+   * paid full price. The marking therefore follows the charged fee, not the
+   * winning source.
+   *
+   * @returns True when the resolved source is `subscription` and it reduced the fee.
    */
   #isSubscriptionFeeSource(): boolean {
-    return this.#userFeeResolution?.source === 'subscription';
+    return (
+      this.#userFeeResolution?.source === 'subscription' &&
+      this.#getDiscountedBuilderFee() < BUILDER_FEE_CONFIG.MaxFeeTenthsBps
+    );
   }
 
   /**

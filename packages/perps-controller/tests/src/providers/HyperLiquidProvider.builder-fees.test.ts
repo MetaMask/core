@@ -1981,6 +1981,66 @@ describe('HyperLiquidProvider', () => {
       });
     });
 
+    it('leaves the cloid unmarked when a near-exhausted allowance reduced nothing', async () => {
+      // A nearly-spent allowance blends to just under the full fee, so it still
+      // wins the lowest-wins comparison — but its discount rounds to 0 bips and
+      // the builder fee floors to the full rate. Marking it would tell the fill
+      // fan-out a waiver applied on an order charged full price.
+      const exchangeClient = mockClientService.getExchangeClient();
+      provider.setUserFeeResolution({
+        feeBips: 9.999999,
+        discountBips: 0,
+        source: 'subscription',
+        subscription: {
+          eligible: true,
+          reason: 'eligible',
+          remainingNotionalUsd: 0.01,
+        },
+        subscriptionWaiverKind: 'partial',
+        subscriptionCoveredNotionalUsd: 0.01,
+      });
+
+      const result = await provider.placeOrder(orderParams);
+
+      expect(result.success).toBe(true);
+      // The user is charged the undiscounted fee...
+      expect(exchangeClient.order).toHaveBeenCalledWith(
+        expect.objectContaining({
+          builder: expect.objectContaining({
+            f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
+          }),
+        }),
+      );
+      // ...so the order must not claim a reduction.
+      submittedOrders(exchangeClient as never).forEach((order) => {
+        expect(hasFeeReductionAppliedFlag(order.c)).toBe(false);
+        expect(isSubscriptionProgramCloid(order.c)).toBe(false);
+      });
+    });
+
+    it('still marks the cloid when a partial blend genuinely reduces the fee', async () => {
+      const exchangeClient = mockClientService.getExchangeClient();
+      provider.setUserFeeResolution({
+        feeBips: 7.5,
+        discountBips: 2500,
+        source: 'subscription',
+        subscription: {
+          eligible: true,
+          reason: 'eligible',
+          remainingNotionalUsd: 250,
+        },
+        subscriptionWaiverKind: 'partial',
+        subscriptionCoveredNotionalUsd: 250,
+      });
+
+      const result = await provider.placeOrder(orderParams);
+
+      expect(result.success).toBe(true);
+      submittedOrders(exchangeClient as never).forEach((order) => {
+        expect(hasFeeReductionAppliedFlag(order.c)).toBe(true);
+      });
+    });
+
     it('marks the cloid on a TP/SL placement path', async () => {
       const exchangeClient = mockClientService.getExchangeClient();
       provider.setUserFeeResolution(subscriptionResolution);

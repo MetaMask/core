@@ -2,6 +2,7 @@ import { HyperliquidError } from '@nktkas/hyperliquid';
 import type { MetaResponse } from '@nktkas/hyperliquid';
 
 import { BUILDER_FEE_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
+import { SUBSCRIPTION_CLOID_FLAGS } from '../../../src/constants/perpsConfig.js';
 import {
   CHASE_ORDER_CONFIG,
   CHASE_ORDER_STATUS,
@@ -34,7 +35,10 @@ import {
   validateOrderParams,
   validateWithdrawalParams,
 } from '../../../src/utils/hyperLiquidValidation.js';
-import { hasFeeReductionAppliedFlag } from '../../../src/utils/subscriptionFeeWaiver.js';
+import {
+  hasFeeReductionAppliedFlag,
+  readSubscriptionCloidFlags,
+} from '../../../src/utils/subscriptionFeeWaiver.js';
 import { createMockPosition } from '../../helpers/providerMocks.js';
 import {
   createDeferred,
@@ -3466,14 +3470,20 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const submitted = exchangeClient.order.mock.calls[0][0];
       const cloids = submitted.orders.map((order: { c?: string }) => order.c);
 
-      // Every rung carries the attribution...
+      // Every rung carries the attribution in its flag byte...
       cloids.forEach((cloid: string) => {
-        expect(hasFeeReductionAppliedFlag(cloid)).toBe(true);
+        expect(readSubscriptionCloidFlags(cloid)).toBe(
+          SUBSCRIPTION_CLOID_FLAGS.FeeReductionApplied,
+        );
         // ...while keeping the Scale marker, so the group stays recoverable
         // from open orders and cancel-by-cloid keeps working.
         expect(cloid.startsWith(`0x${HYPERLIQUID_SCALE_CLOID_MARKER}`)).toBe(
           true,
         );
+        // A decoder still will not trust that byte behind the Scale marker,
+        // since legacy ladders carry random entropy there. Scale attribution
+        // needs a correlation other than the cloid.
+        expect(hasFeeReductionAppliedFlag(cloid)).toBe(false);
       });
       // And each rung is still a distinct id.
       expect(new Set(cloids).size).toBe(3);
@@ -3494,7 +3504,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       const submitted = exchangeClient.order.mock.calls[0][0];
       submitted.orders.forEach((order: { c?: string }) => {
-        expect(hasFeeReductionAppliedFlag(order.c)).toBe(false);
+        // The reserved flag byte stays zero when subscription did not win.
+        expect(readSubscriptionCloidFlags(order.c)).toBe(0);
         expect(order.c?.startsWith(`0x${HYPERLIQUID_SCALE_CLOID_MARKER}`)).toBe(
           true,
         );
