@@ -982,17 +982,12 @@ describe('Quotes Utils', () => {
     it('preserves chain-agnostic source metadata when updating EVM compatibility metadata', async () => {
       await run();
 
-      const intent = {
-        version: 2,
+      const source = {
         sourceAccountId:
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z' as CaipAccountId,
-        sourceAmountRaw: '1000000',
         sourceAssetId:
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501' as CaipAssetType,
-        sourceChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as CaipChainId,
-        requestId: 'relay-request-123',
-        sourceWalletAccountId: 'wallet-account-uuid',
-      } as const;
+      };
       const transactionMetaMock = {
         metamaskPay: { source },
       } as TransactionMeta;

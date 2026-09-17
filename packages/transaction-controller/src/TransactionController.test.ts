@@ -6663,6 +6663,7 @@ describe('TransactionController', () => {
   describe('confirmTransaction', () => {
     const submittedTransactionMock = {
       ...TRANSACTION_META_MOCK,
+      isExternalPublish: true,
       status: TransactionStatus.submitted as const,
     } as unknown as TransactionMeta;
 
@@ -6689,7 +6690,6 @@ describe('TransactionController', () => {
       );
 
       controller.confirmTransaction(submittedTransactionMock.id);
-      controller.confirmTransaction(submittedTransactionMock.id);
 
       expect(controller.state.transactions[0].status).toBe(
         TransactionStatus.confirmed,
@@ -6698,6 +6698,28 @@ describe('TransactionController', () => {
       expect(statusUpdatedListener).toHaveBeenCalledTimes(1);
       expect(finishedListener).toHaveBeenCalledTimes(1);
     });
+
+    it.each([
+      [TransactionStatus.submitted, false],
+      [TransactionStatus.confirmed, true],
+      [TransactionStatus.failed, true],
+    ])(
+      'rejects status %s with external publication %s',
+      (status, isExternalPublish) => {
+        const transaction = {
+          ...submittedTransactionMock,
+          isExternalPublish,
+          status,
+        };
+        const { controller } = setupController({
+          options: { state: { transactions: [transaction] } },
+        });
+
+        expect(() => controller.confirmTransaction(transaction.id)).toThrow(
+          'Only submitted externally published transactions can be confirmed',
+        );
+      },
+    );
   });
 
   describe('updateSecurityAlertResponse', () => {

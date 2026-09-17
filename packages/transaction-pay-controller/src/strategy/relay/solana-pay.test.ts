@@ -1,6 +1,9 @@
 import { Interface } from '@ethersproject/abi';
 import { TransactionType } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  MetamaskPaySolanaExecution,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type {
   CaipAccountId,
   CaipAssetType,
@@ -13,7 +16,7 @@ import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
   SolanaPayPreflightData,
   TransactionData,
-  TransactionPayIntent,
+  TransactionPaySource,
 } from '../../types.js';
 import {
   buildRelaySolanaQuoteRequest,
@@ -33,14 +36,10 @@ const SOLANA_USDC =
 const SOLANA_NATIVE = `${SOLANA_CHAIN_ID}/slip44:501` as CaipAssetType;
 const SOLANA_NATIVE_RELAY_ADDRESS = '11111111111111111111111111111111';
 
-function getIntent(sourceAssetId: CaipAssetType): TransactionPayIntent {
+function getSource(sourceAssetId: CaipAssetType): TransactionPaySource {
   return {
-    version: 2,
     sourceAccountId: SOLANA_ACCOUNT,
-    sourceAmountRaw: '1000000',
     sourceAssetId,
-    sourceChainId: SOLANA_CHAIN_ID,
-    sourceWalletAccountId: 'wallet-account-uuid',
   };
 }
 
@@ -152,7 +151,8 @@ describe('Solana Relay Pay', () => {
 
     it('derives an exact-input SPL route from Core transaction state', async () => {
       const result = await buildRelaySolanaQuoteRequest(
-        getIntent(SOLANA_USDC),
+        getSource(SOLANA_USDC),
+        '1000000',
         TRANSACTION,
         TRANSACTION_DATA,
         messenger,
@@ -173,7 +173,8 @@ describe('Solana Relay Pay', () => {
 
     it('maps the CAIP native SOL asset to the Relay native sentinel', async () => {
       const result = await buildRelaySolanaQuoteRequest(
-        getIntent(SOLANA_NATIVE),
+        getSource(SOLANA_NATIVE),
+        '1000000',
         TRANSACTION,
         TRANSACTION_DATA,
         messenger,
@@ -189,7 +190,8 @@ describe('Solana Relay Pay', () => {
       TransactionType.predictDepositAndOrder,
     ])('embeds atomic product calls for %s', async (type) => {
       const result = await buildRelaySolanaQuoteRequest(
-        getIntent(SOLANA_USDC),
+        getSource(SOLANA_USDC),
+        '1000000',
         { ...TRANSACTION, type },
         TRANSACTION_DATA,
         messenger,
@@ -218,7 +220,8 @@ describe('Solana Relay Pay', () => {
 
     it('uses the immutable Solana intent amount for Money Account despite stale EVM source amounts', async () => {
       const result = await buildRelaySolanaQuoteRequest(
-        { ...getIntent(SOLANA_USDC), sourceAmountRaw: '765432' },
+        getSource(SOLANA_USDC),
+        '765432',
         { ...TRANSACTION, type: TransactionType.predictDeposit },
         {
           ...TRANSACTION_DATA,
@@ -252,7 +255,8 @@ describe('Solana Relay Pay', () => {
       });
 
       const result = await buildRelaySolanaQuoteRequest(
-        getIntent(SOLANA_USDC),
+        getSource(SOLANA_USDC),
+        '1000000',
         { ...TRANSACTION, type: TransactionType.predictDeposit },
         TRANSACTION_DATA,
         messenger,
@@ -273,7 +277,8 @@ describe('Solana Relay Pay', () => {
     it('rejects a product route that is non-atomic outside Money Account', async () => {
       await expect(
         buildRelaySolanaQuoteRequest(
-          getIntent(SOLANA_USDC),
+          getSource(SOLANA_USDC),
+          '1000000',
           { ...TRANSACTION, type: TransactionType.predictDeposit },
           { ...TRANSACTION_DATA, atomic: false },
           messenger,
@@ -284,7 +289,8 @@ describe('Solana Relay Pay', () => {
     it('rejects a route without a target token', async () => {
       await expect(
         buildRelaySolanaQuoteRequest(
-          getIntent(SOLANA_USDC),
+          getSource(SOLANA_USDC),
+          '1000000',
           TRANSACTION,
           { ...TRANSACTION_DATA, tokens: [] },
           messenger,
@@ -292,11 +298,11 @@ describe('Solana Relay Pay', () => {
       ).rejects.toThrow('Missing Solana Pay target token');
     });
 
-    it('rejects an exact-input route without a Core-derived source amount', async () => {
-      const intent = { ...getIntent(SOLANA_USDC), sourceAmountRaw: undefined };
+    it('rejects an exact-input route without an immutable source amount', async () => {
       await expect(
         buildRelaySolanaQuoteRequest(
-          intent,
+          getSource(SOLANA_USDC),
+          '',
           TRANSACTION,
           { ...TRANSACTION_DATA, sourceAmounts: undefined },
           messenger,
@@ -307,33 +313,34 @@ describe('Solana Relay Pay', () => {
     it.each([
       [
         {
-          ...getIntent(SOLANA_USDC),
-          sourceChainId: 'solana:devnet' as CaipChainId,
+          sourceAccountId: 'solana:devnet:account' as CaipAccountId,
+          sourceAssetId: 'solana:devnet/token:mint' as CaipAssetType,
         },
         'Unsupported Solana source chain',
       ],
       [
         {
-          ...getIntent(SOLANA_USDC),
+          ...getSource(SOLANA_USDC),
           sourceAccountId: 'solana:other:account' as CaipAccountId,
         },
-        'Solana source account does not match source chain',
+        'Solana source account and asset must use the same chain',
       ],
       [
         {
-          ...getIntent(SOLANA_USDC),
+          ...getSource(SOLANA_USDC),
           sourceAssetId: 'solana:other/token:mint' as CaipAssetType,
         },
-        'Solana source asset does not match source chain',
+        'Solana source account and asset must use the same chain',
       ],
       [
-        getIntent(`${SOLANA_CHAIN_ID}/erc20:0x1234` as CaipAssetType),
+        getSource(`${SOLANA_CHAIN_ID}/erc20:0x1234` as CaipAssetType),
         'Unsupported Solana source asset',
       ],
     ] as const)('rejects invalid source identity %#', async (intent, error) => {
       await expect(
         buildRelaySolanaQuoteRequest(
           intent,
+          '1000000',
           TRANSACTION,
           TRANSACTION_DATA,
           messenger,
@@ -459,7 +466,7 @@ describe('Solana Relay Pay', () => {
     it('retains finalized fees and rent for an affordable SPL payment', () => {
       expect(
         normalizeSolanaPayPreflight(
-          getIntent(SOLANA_USDC),
+          getSource(SOLANA_USDC),
           '1000000',
           PREFLIGHT_DATA,
         ),
@@ -487,7 +494,7 @@ describe('Solana Relay Pay', () => {
 
     it('includes the retained reserve in native SOL affordability', () => {
       expect(
-        normalizeSolanaPayPreflight(getIntent(SOLANA_NATIVE), '95000', {
+        normalizeSolanaPayPreflight(getSource(SOLANA_NATIVE), '95000', {
           ...PREFLIGHT_DATA,
           nativeBalanceRaw: '100000',
           sourceBalanceRaw: '100000',
@@ -506,7 +513,7 @@ describe('Solana Relay Pay', () => {
 
     it('rejects inconsistent native SOL balance observations', () => {
       expect(() =>
-        normalizeSolanaPayPreflight(getIntent(SOLANA_NATIVE), '1', {
+        normalizeSolanaPayPreflight(getSource(SOLANA_NATIVE), '1', {
           ...PREFLIGHT_DATA,
           nativeBalanceRaw: '2',
           sourceBalanceRaw: '1',
@@ -516,7 +523,7 @@ describe('Solana Relay Pay', () => {
 
     it('reports source and native shortfalls independently for SPL', () => {
       expect(
-        normalizeSolanaPayPreflight(getIntent(SOLANA_USDC), '1000000', {
+        normalizeSolanaPayPreflight(getSource(SOLANA_USDC), '1000000', {
           ...PREFLIGHT_DATA,
           nativeBalanceRaw: '10000',
           sourceBalanceRaw: '900000',
@@ -532,7 +539,7 @@ describe('Solana Relay Pay', () => {
 
     it('rejects an unbound prepared transaction', () => {
       expect(() =>
-        normalizeSolanaPayPreflight(getIntent(SOLANA_USDC), '1000000', {
+        normalizeSolanaPayPreflight(getSource(SOLANA_USDC), '1000000', {
           ...PREFLIGHT_DATA,
           preparationId: '',
         }),
@@ -548,7 +555,7 @@ describe('Solana Relay Pay', () => {
       ['nativeBalanceRaw', 'NaN'],
     ] as const)('rejects invalid atomic input %s', (field, value) => {
       expect(() =>
-        normalizeSolanaPayPreflight(getIntent(SOLANA_USDC), '1000000', {
+        normalizeSolanaPayPreflight(getSource(SOLANA_USDC), '1000000', {
           ...PREFLIGHT_DATA,
           [field]: value,
         }),
@@ -557,75 +564,59 @@ describe('Solana Relay Pay', () => {
   });
 
   describe('deriveSolanaPayOutcome', () => {
+    function getExecution(
+      overrides: Partial<MetamaskPaySolanaExecution>,
+    ): MetamaskPaySolanaExecution {
+      return {
+        atomicProductActionIncluded: false,
+        atomicProductActionRequired: false,
+        followUpStatus: 'not-required',
+        notificationStatus: 'not-ready',
+        phase: 'ready',
+        relayStatus: 'not-observed',
+        requestId: 'relay-request-123',
+        requiresNonAtomicFollowUp: false,
+        sourceAmountRaw: '1000000',
+        sourceChainId: SOLANA_CHAIN_ID,
+        sourceStatus: 'not-observed',
+        sourceWalletAccountId: 'wallet-account-uuid',
+        ...overrides,
+      } as MetamaskPaySolanaExecution;
+    }
+
     it.each([
-      [
-        {
-          submissionOutcome: 'user-rejected',
-          sourceStatus: 'user-rejected',
-        },
-        { type: 'user-rejected' },
-      ],
-      [
-        {
-          submissionOutcome: 'not-submitted',
-          sourceStatus: 'not-submitted',
-        },
-        { guaranteedNotSubmitted: true, type: 'source-failed' },
-      ],
-      [
-        { sourceStatus: 'failed' },
-        { guaranteedNotSubmitted: false, type: 'source-failed' },
-      ],
-      [{ relayStatus: 'failure' }, { type: 'relay-failed' }],
-      [{ relayStatus: 'refund' }, { type: 'refunded' }],
-      [{ followUpStatus: 'failed' }, { type: 'follow-up-failed' }],
-      [
-        { submissionOutcome: 'ambiguous', sourceStatus: 'unknown' },
-        { phase: 'source', type: 'unknown' },
-      ],
-      [{ relayStatus: 'unknown' }, { phase: 'relay', type: 'unknown' }],
-      [{ followUpStatus: 'unknown' }, { phase: 'follow-up', type: 'unknown' }],
+      [{ phase: 'user-rejected' }, 'user-rejected'],
+      [{ phase: 'not-submitted' }, 'not-submitted'],
+      [{ sourceStatus: 'failed' }, 'source-failed'],
+      [{ relayStatus: 'failure' }, 'relay-failed'],
+      [{ relayStatus: 'refund' }, 'refunded'],
+      [{ followUpStatus: 'failed' }, 'follow-up-failed'],
+      [{ phase: 'unknown' }, 'unknown'],
+      [{ relayStatus: 'unknown' }, 'unknown'],
+      [{ followUpStatus: 'unknown' }, 'unknown'],
       [
         {
           followUpStatus: 'confirmed',
           relayStatus: 'success',
           sourceStatus: 'confirmed',
         },
-        { type: 'succeeded' },
+        'succeeded',
       ],
-      [{ sourceStatus: 'attempting' }, { type: 'attempting' }],
-      [{ sourceStatus: 'submitted' }, { type: 'submitted' }],
-    ] as const)('derives %# from durable axes', (overrides, expected) => {
-      const intent: TransactionPayIntent = {
-        ...getIntent(SOLANA_USDC),
-        execution: {
-          followUpStatus: 'not-required',
-          providerNotificationStatus: 'not-started',
-          relayStatus: 'not-started',
-          sourceStatus: 'not-started',
-          ...overrides,
-        },
-      };
-
-      expect(deriveSolanaPayOutcome(intent)).toMatchObject(expected);
+      [{ phase: 'attempting' }, 'attempting'],
+      [{ phase: 'submitted', sourceTransactionId: 'signature' }, 'submitted'],
+    ] as const)('derives %# from durable checkpoint', (overrides, expected) => {
+      expect(deriveSolanaPayOutcome(getExecution(overrides))).toBe(expected);
     });
 
     it('does not succeed when a required atomic product action was omitted', () => {
-      const intent: TransactionPayIntent = {
-        ...getIntent(SOLANA_USDC),
+      const execution = getExecution({
         atomicProductActionIncluded: false,
         atomicProductActionRequired: true,
-        execution: {
-          followUpStatus: 'not-required',
-          providerNotificationStatus: 'succeeded',
-          relayStatus: 'success',
-          sourceStatus: 'confirmed',
-        },
-      };
-
-      expect(deriveSolanaPayOutcome(intent)).toStrictEqual({
-        type: 'submitted',
+        relayStatus: 'success',
+        sourceStatus: 'confirmed',
       });
+
+      expect(deriveSolanaPayOutcome(execution)).toBe('ready');
     });
   });
 

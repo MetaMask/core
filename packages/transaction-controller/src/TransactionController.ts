@@ -1782,8 +1782,13 @@ export class TransactionController extends BaseController<
   confirmTransaction(transactionId: string): void {
     const transactionMeta = this.#getTransactionOrThrow(transactionId);
 
-    if (transactionMeta.status === TransactionStatus.confirmed) {
-      return;
+    if (
+      transactionMeta.status !== TransactionStatus.submitted ||
+      !transactionMeta.isExternalPublish
+    ) {
+      throw new Error(
+        'Only submitted externally published transactions can be confirmed',
+      );
     }
 
     const updatedTransactionMeta = this.#updateTransactionInternal(

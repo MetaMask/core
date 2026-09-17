@@ -4,7 +4,13 @@ import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
-import type { CaipAccountId, CaipAssetType, Hex, Json } from '@metamask/utils';
+import type {
+  CaipAccountId,
+  CaipAssetType,
+  CaipChainId,
+  Hex,
+  Json,
+} from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
 import type { TransactionControllerMessenger } from './TransactionController.js';
@@ -1981,23 +1987,13 @@ export type ExternallyHandledPublishOutcome =
 /** Data returned from custom logic to publish a transaction. */
 export type PublishHookResult =
   | {
-      /** External handling was not used; the EVM hash may suppress fallback. */
       externallyHandled?: false;
-
-      /** Hash of the transaction on the network. */
       transactionHash?: string;
     }
   | {
-      /** Prevents fallback to `eth_sendRawTransaction`. */
       externallyHandled: true;
-
-      /** Explicit result of the external publication attempt. */
       outcome: ExternallyHandledPublishOutcome;
-
-      /** Stable error detail for guaranteed non-submission. */
       error?: string;
-
-      /** Externally handled publication does not require an EVM hash. */
       transactionHash?: never;
     };
 
@@ -2177,60 +2173,38 @@ export type AssetsFiatValues = {
   sending?: string;
 };
 
-/** Status observed independently for a MetaMask Pay source transaction. */
-export type MetamaskPaySourceStatus =
-  | 'not-started'
-  | 'attempting'
-  | 'submitted'
+/** Chain-agnostic source metadata for a MetaMask Pay transaction. */
+export type MetamaskPaySource = {
+  /** Canonical CAIP-10 identity of the source account. */
+  sourceAccountId: CaipAccountId;
+
+  /** Canonical CAIP-19 identity of the source asset. */
+  sourceAssetId: CaipAssetType;
+};
+
+export type MetamaskPaySolanaSourceStatus =
+  | 'not-observed'
   | 'pending'
   | 'confirmed'
   | 'failed'
-  | 'user-rejected'
-  | 'not-submitted'
   | 'unknown';
 
-/** Status observed independently for MetaMask Pay Relay settlement. */
-export type MetamaskPayRelayStatus =
-  | 'not-started'
+export type MetamaskPaySolanaRelayStatus =
+  | 'not-observed'
   | 'pending'
   | 'success'
   | 'failure'
   | 'refund'
   | 'unknown';
 
-/** Status of MetaMask Pay provider notification delivery. */
-export type MetamaskPayProviderNotificationStatus =
-  | 'not-started'
+export type MetamaskPaySolanaNotificationStatus =
+  | 'not-ready'
+  | 'not-attempted'
   | 'pending'
-  | 'succeeded'
-  | 'failed';
+  | 'success'
+  | 'failure';
 
-/** Durable, monotonic business outcome for a MetaMask Pay intent. */
-export type MetamaskPayOutcome =
-  | { type: 'not-started' }
-  | { type: 'attempting' }
-  | { type: 'submitted' }
-  | { type: 'user-rejected' }
-  | {
-      type: 'source-failed';
-      guaranteedNotSubmitted: boolean;
-      reason?: string;
-    }
-  | { type: 'relay-failed'; reason?: string }
-  | { type: 'refunded'; reason?: string }
-  | { type: 'follow-up-failed' }
-  | { type: 'unknown'; phase: 'source' | 'relay' | 'follow-up' }
-  | { type: 'succeeded' };
-
-/** Durable result of a single externally handled submission callback. */
-export type MetamaskPaySubmissionOutcome =
-  | 'submitted'
-  | 'user-rejected'
-  | 'not-submitted'
-  | 'ambiguous';
-
-/** Status of the required non-atomic sponsored follow-up transaction. */
-export type MetamaskPayFollowUpStatus =
+export type MetamaskPaySolanaFollowUpStatus =
   | 'not-required'
   | 'not-started'
   | 'attempting'
@@ -2238,86 +2212,47 @@ export type MetamaskPayFollowUpStatus =
   | 'pending'
   | 'confirmed'
   | 'failed'
-  | 'user-rejected'
-  | 'not-submitted'
   | 'unknown';
 
-/** Durable checkpoints for one source submission attempt. */
-export type MetamaskPayExecution = {
-  /** Status observed independently for the source-chain transaction. */
-  sourceStatus: MetamaskPaySourceStatus;
-
-  /** Status observed independently for Relay settlement. */
-  relayStatus: MetamaskPayRelayStatus;
-
-  /** Status of the optional Relay transaction-index notification. */
-  providerNotificationStatus: MetamaskPayProviderNotificationStatus;
-
-  /** Result returned by the single source submission callback. */
-  submissionOutcome?: MetamaskPaySubmissionOutcome;
-
-  /** Status of a required non-atomic sponsored follow-up. */
-  followUpStatus?: MetamaskPayFollowUpStatus;
-};
-
-/**
- * Durable MetaMask Pay intent for a chain-agnostic payment source.
- *
- * The target transaction is the TransactionController record containing this
- * intent, or the key of this intent in TransactionPayController state.
- */
-export type MetamaskPayIntent = {
-  /** Schema version of the persisted intent. */
-  version: 2;
-
+type MetamaskPaySolanaExecutionBase = {
   /** Wallet-local InternalAccount.id used by Snap requests. */
-  sourceWalletAccountId: InternalAccount['id'];
+  sourceWalletAccountId: string;
 
-  /** Immutable source amount in atomic units for the prepared execution. */
-  sourceAmountRaw: string;
-
-  /** Canonical CAIP-10 identity of the source account. */
-  sourceAccountId: CaipAccountId;
-
-  /** Canonical CAIP-19 identity of the source asset. */
-  sourceAssetId: CaipAssetType;
-
-  /** Explicit CAIP-2 identity of the source chain. */
+  /** Source chain derived from the persisted CAIP source metadata. */
   sourceChainId: CaipChainId;
 
-  /** Provider request ID used to reconcile execution after restart. */
-  requestId?: string;
+  /** Immutable atomic source amount for this executable request. */
+  sourceAmountRaw: string;
 
-  /** Chain-native source transaction identifier, such as a Solana signature. */
-  sourceTransactionId?: string;
+  /** Relay request correlation available once an executable quote exists. */
+  requestId: string;
 
-  /** Stable source submission failure or interruption detail. */
-  sourceFailureReason?: string;
-
-  /** Durable one-attempt execution checkpoints. */
-  execution?: MetamaskPayExecution;
-
-  /** Core-derived business outcome used by lifecycle consumers. */
-  outcome?: MetamaskPayOutcome;
-
-  /** Destination transaction identifier observed from Relay settlement. */
+  sourceStatus: MetamaskPaySolanaSourceStatus;
+  relayStatus: MetamaskPaySolanaRelayStatus;
+  notificationStatus: MetamaskPaySolanaNotificationStatus;
+  followUpStatus: MetamaskPaySolanaFollowUpStatus;
+  atomicProductActionRequired: boolean;
+  atomicProductActionIncluded: boolean;
+  requiresNonAtomicFollowUp: boolean;
   targetTransactionId?: string;
-
-  /** Provider failure classification observed during reconciliation. */
-  relayFailureReason?: string;
-
-  /** Whether the parent product action must execute atomically in the Relay route. */
-  atomicProductActionRequired?: boolean;
-
-  /** Whether the verified quote included the required atomic product action. */
-  atomicProductActionIncluded?: boolean;
-
-  /** Whether Relay success must be followed by a sponsored target submission. */
-  requiresNonAtomicFollowUp?: boolean;
-
-  /** Transaction ID returned by the sponsored follow-up callback. */
   followUpTransactionId?: string;
+  sourceFailureReason?: string;
+  relayFailureReason?: string;
 };
+
+/** Minimal durable checkpoint for one external Solana source execution. */
+export type MetamaskPaySolanaExecution =
+  | (MetamaskPaySolanaExecutionBase & {
+      phase: 'ready' | 'attempting' | 'user-rejected' | 'not-submitted';
+    })
+  | (MetamaskPaySolanaExecutionBase & {
+      phase: 'submitted';
+      sourceTransactionId: string;
+    })
+  | (MetamaskPaySolanaExecutionBase & {
+      phase: 'unknown';
+      sourceTransactionId?: string;
+    });
 
 /** Metadata specific to the MetaMask Pay feature. */
 export type MetamaskPayMetadata = {
@@ -2343,6 +2278,9 @@ export type MetamaskPayMetadata = {
 
   /** Chain-agnostic payment source metadata. */
   source?: MetamaskPaySource;
+
+  /** Durable external Solana execution checkpoint. */
+  solanaExecution?: MetamaskPaySolanaExecution;
 
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;

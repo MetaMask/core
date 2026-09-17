@@ -1,16 +1,12 @@
 import type {
+  MetamaskPaySolanaExecution,
   PublishHookResult,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { CaipChainId } from '@metamask/utils';
 
 import { TransactionPayStrategy } from '../index.js';
 import { getMessengerMock } from '../tests/messenger-mock.js';
-import type {
-  SolanaPayStatus,
-  TransactionPayControllerState,
-  TransactionPayQuote,
-} from '../types.js';
+import type { TransactionPayQuote } from '../types.js';
 import { getStrategyByName } from '../utils/strategy.js';
 import { TransactionPayPublishHook } from './TransactionPayPublishHook.js';
 
@@ -26,6 +22,23 @@ const TRANSACTION_META_MOCK = {
 const QUOTE_MOCK = {
   strategy: TransactionPayStrategy.Across,
 } as TransactionPayQuote<unknown>;
+
+function getSolanaExecution(): MetamaskPaySolanaExecution {
+  return {
+    atomicProductActionIncluded: false,
+    atomicProductActionRequired: false,
+    followUpStatus: 'not-required',
+    notificationStatus: 'not-ready',
+    phase: 'ready',
+    relayStatus: 'not-observed',
+    requestId: 'relay-request-123',
+    requiresNonAtomicFollowUp: false,
+    sourceAmountRaw: '1000000',
+    sourceChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+    sourceStatus: 'not-observed',
+    sourceWalletAccountId: 'wallet-account-uuid',
+  };
+}
 
 describe('TransactionPayPublishHook', () => {
   const isSmartTransactionMock = jest.fn();
@@ -86,34 +99,27 @@ describe('TransactionPayPublishHook', () => {
       },
     } as TransactionPayControllerState);
 
+    TRANSACTION_META_MOCK.metamaskPay = undefined;
     getTransactionControllerStateMock.mockReturnValue({
       transactions: [TRANSACTION_META_MOCK],
     });
   });
 
   it('routes a persisted Solana intent through the controller submission boundary', async () => {
-    getControllerStateMock.mockReturnValue({
-      payIntents: {
-        [TRANSACTION_META_MOCK.id]: {
-          version: 2,
-          sourceAccountId:
-            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
-          sourceAmountRaw: '1000000',
-          sourceAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-          sourceChainId:
-            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as CaipChainId,
-          sourceWalletAccountId: 'wallet-account-uuid',
-        },
-      },
-      transactionData: {},
-    } as TransactionPayControllerState);
+    getControllerStateMock.mockReturnValue({ transactionData: {} });
+    TRANSACTION_META_MOCK.metamaskPay = {
+      solanaExecution: getSolanaExecution(),
+    };
 
     submitSolanaPayMock.mockResolvedValue({
-      outcome: { type: 'submitted' },
-      providerNotificationStatus: 'succeeded',
+      followUpStatus: 'not-required',
+      notificationStatus: 'success',
+      outcome: 'submitted',
+      phase: 'submitted',
       relayStatus: 'pending',
       requestId: 'relay-request-123',
-      sourceStatus: 'submitted',
+      sourceStatus: 'pending',
+      sourceTransactionId: 'signature',
       submissionOutcome: 'submitted',
     });
 
@@ -142,40 +148,21 @@ describe('TransactionPayPublishHook', () => {
     'propagates externally handled %s outcome',
     async (outcome, sourceFailureReason, expectedError) => {
       const effectiveOutcome = outcome ?? 'ambiguous';
-      getControllerStateMock.mockReturnValue({
-        payIntents: {
-          [TRANSACTION_META_MOCK.id]: {
-            version: 2,
-            sourceAccountId:
-              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
-            sourceAmountRaw: '1000000',
-            sourceAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-            sourceChainId:
-              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as CaipChainId,
-            sourceWalletAccountId: 'wallet-account-uuid',
-          },
-        },
-        transactionData: {},
-      } as TransactionPayControllerState);
-
-      let payOutcome: SolanaPayStatus['outcome'] = {
-        phase: 'source',
-        type: 'unknown',
+      getControllerStateMock.mockReturnValue({ transactionData: {} });
+      TRANSACTION_META_MOCK.metamaskPay = {
+        solanaExecution: getSolanaExecution(),
       };
-      if (effectiveOutcome === 'user-rejected') {
-        payOutcome = { type: 'user-rejected' };
-      } else if (effectiveOutcome === 'not-submitted') {
-        payOutcome = { type: 'source-failed', guaranteedNotSubmitted: true };
-      }
 
       submitSolanaPayMock.mockResolvedValue({
-        outcome: payOutcome,
-        providerNotificationStatus: 'not-started',
-        relayStatus: 'not-started',
+        followUpStatus: 'not-required',
+        notificationStatus: 'not-ready',
+        outcome: effectiveOutcome,
+        phase: effectiveOutcome === 'ambiguous' ? 'unknown' : effectiveOutcome,
+        relayStatus: 'not-observed',
         requestId: 'relay-request-123',
         sourceFailureReason,
         sourceStatus:
-          effectiveOutcome === 'ambiguous' ? 'unknown' : effectiveOutcome,
+          effectiveOutcome === 'ambiguous' ? 'unknown' : 'not-observed',
         submissionOutcome: outcome,
       });
 
