@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add validated MFA domain types and structured `MfaError` classes with a serialization-safe `mfaCode` ([#10264](https://github.com/MetaMask/core/pull/10264))
-- Add `AuthenticationController:getCachedBearerToken` action and `getCachedBearerToken()` method ([#10199](https://github.com/MetaMask/core/pull/10199))
+- Add `AuthenticationController:getCachedBearerToken` action and `getCachedBearerToken()` method ([#10283](https://github.com/MetaMask/core/pull/10283))
   - Returns the cached access token synchronously, and never logs in. It returns `undefined` when the wallet is locked, when the SRP has no session, and when the token is past 90% of its lifetime, which is the point where `getBearerToken` replaces it.
   - Callers on hot paths, such as per-RPC-request code, use this so a request never triggers a login or waits on one.
 - Add `rampsOrders` to `USER_STORAGE_FEATURE_NAMES` ([#10227](https://github.com/MetaMask/core/pull/10227))
