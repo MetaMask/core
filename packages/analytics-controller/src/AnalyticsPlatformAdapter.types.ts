@@ -56,9 +56,21 @@ export type AnalyticsTrackingEvent = {
 };
 
 /**
- * Optional analytics context payload (for example Segment-style context).
+ * Optional analytics context payload.
  */
-export type AnalyticsContext = Record<string, Json>;
+export type AnalyticsContext = Record<string, Json> & {
+  /**
+   * Segment consent context. `categoryPreferences` is the intersection of the
+   * event's eligible purposes and the user's current consent.
+   */
+  consent?: {
+    categoryPreferences: {
+      product: boolean;
+      marketing: boolean;
+    };
+  };
+  marketingEventsVersion?: string;
+};
 
 /**
  * Names of the geolocation fields attached to an analytics event.

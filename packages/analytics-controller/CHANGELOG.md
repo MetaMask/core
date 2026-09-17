@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add independent marketing consent and classify named events by lane ([#10232](https://github.com/MetaMask/core/pull/10232))
-  - New state and methods: `optedInToMarketing`, `optInToMarketing` / `optOutOfMarketing` / `resetMarketingConsentDecision`, and a persisted `marketingEventNames` list (remote loading arrives in a later phase)
-  - Named `track` / `view` payloads stamp `context.marketing` (`true` or `false`) at capture so Segment can tell marketing events from product events
-  - Queues and fragments follow that lane. A fragment that declares both marketing and product event names is treated as marketing
+- Add independent marketing consent and purpose-aware event classification ([#10232](https://github.com/MetaMask/core/pull/10232))
+  - Adds `optedInToMarketing`, `optInToMarketing` / `optOutOfMarketing` / `resetMarketingConsentDecision`, and a persisted `marketingEventsConfig` whose unlisted events default to product-only
+  - Named `track` and `view` payloads are delivered once with their allowed purposes in `context.consent.categoryPreferences` and their capture-time config version in `context.marketingEventsVersion`
+  - Queues and fragments retain capture-time purpose classification so config changes cannot reclassify captured events. Mixed-purpose fragments classify each declared lifecycle event independently
 
 ### Changed
 
