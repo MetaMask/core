@@ -3401,7 +3401,16 @@ describe('AccountsController', () => {
       const messenger = buildMessenger();
       messenger.registerActionHandler(
         'KeyringController:getState',
-        mockGetState.mockReturnValue({ keyrings: [] }),
+        mockGetState.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [],
+              metadata: { id: 'mock-id', name: 'mock-name' },
+            },
+          ],
+        }),
       );
       messenger.registerActionHandler(
         'KeyringController:getKeyringsByType',
@@ -3438,6 +3447,7 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getState',
         mockGetState.mockReturnValue({
+          isUnlocked: true,
           keyrings: [
             {
               type: KeyringTypes.hd,
@@ -3475,6 +3485,7 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getState',
         mockGetState.mockReturnValue({
+          isUnlocked: true,
           keyrings: [
             {
               type: KeyringTypes.hd,
@@ -3512,39 +3523,113 @@ describe('AccountsController', () => {
       expect(accountsAddedListener).not.toHaveBeenCalled();
     });
 
-    it('fires accountsRemoved for accounts dropped by the keyring rebuild', async () => {
+    it('fires initialized with empty state when vault is locked', () => {
       const messenger = buildMessenger();
       messenger.registerActionHandler(
         'KeyringController:getState',
-        // keyrings are now empty — mockAccount is no longer in any keyring
-        mockGetState.mockReturnValue({ keyrings: [] }),
+        mockGetState.mockReturnValue({
+          isUnlocked: false,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address],
+              metadata: { id: 'mock-id', name: 'mock-name' },
+            },
+          ],
+        }),
       );
       messenger.registerActionHandler(
         'KeyringController:getKeyringsByType',
         mockGetKeyringByType.mockReturnValue([]),
       );
 
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: { [mockAccount.id]: mockAccount },
-            selectedAccount: mockAccount.id,
-          },
-          accountIdByAddress: { [mockAccount.address]: mockAccount.id },
-        },
-        messenger,
-      });
+      const { accountsController } = setupAccountsController({ messenger });
 
-      const accountsRemovedListener = jest.fn();
+      const initializedListener = jest.fn();
+      const accountsAddedListener = jest.fn();
       messenger.subscribe(
-        'AccountsController:accountsRemoved',
-        accountsRemovedListener,
+        'AccountsController:initialized',
+        initializedListener,
+      );
+      messenger.subscribe(
+        'AccountsController:accountsAdded',
+        accountsAddedListener,
       );
 
       accountsController.init();
 
-      expect(accountsRemovedListener).toHaveBeenCalledTimes(1);
-      expect(accountsRemovedListener).toHaveBeenCalledWith([mockAccount.id]);
+      // initialized fires but without syncing accounts
+      expect(initializedListener).toHaveBeenCalledTimes(1);
+      expect(accountsAddedListener).not.toHaveBeenCalled();
+    });
+
+    it('fires initialized with empty state when keyrings are empty', () => {
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({ isUnlocked: true, keyrings: [] }),
+      );
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([]),
+      );
+
+      const { accountsController } = setupAccountsController({ messenger });
+
+      const initializedListener = jest.fn();
+      const accountsAddedListener = jest.fn();
+      messenger.subscribe(
+        'AccountsController:initialized',
+        initializedListener,
+      );
+      messenger.subscribe(
+        'AccountsController:accountsAdded',
+        accountsAddedListener,
+      );
+
+      accountsController.init();
+
+      // initialized fires but without syncing accounts
+      expect(initializedListener).toHaveBeenCalledTimes(1);
+      expect(accountsAddedListener).not.toHaveBeenCalled();
+    });
+
+    it('is a no-op on subsequent calls even if vault was not ready on first call', () => {
+      const messenger = buildMessenger();
+      const getStateMock = jest
+        .fn()
+        .mockReturnValueOnce({ isUnlocked: false, keyrings: [] })
+        .mockReturnValue({
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [],
+              metadata: { id: 'mock-id', name: 'mock-name' },
+            },
+          ],
+        });
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        getStateMock,
+      );
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([]),
+      );
+
+      const { accountsController } = setupAccountsController({ messenger });
+
+      const initializedListener = jest.fn();
+      messenger.subscribe(
+        'AccountsController:initialized',
+        initializedListener,
+      );
+
+      accountsController.init(); // vault not ready — initializes with empty state
+      accountsController.init(); // already initialized — no-op
+
+      expect(initializedListener).toHaveBeenCalledTimes(1);
     });
 
     it('fires the initialized event with current state', async () => {

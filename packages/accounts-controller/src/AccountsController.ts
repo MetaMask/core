@@ -691,33 +691,52 @@ export class AccountsController extends BaseController<
       return;
     }
 
-    log('Initializing...');
-
-    const previousAccounts = this.state.internalAccounts.accounts;
-    this.#sync();
-
-    const addedAccounts = Object.values(
-      this.state.internalAccounts.accounts,
-    ).filter((account) => !previousAccounts[account.id]);
-
-    const removedAccountIds = Object.keys(previousAccounts).filter(
-      (id) => !this.state.internalAccounts.accounts[id],
-    );
-
-    if (addedAccounts.length > 0) {
-      this.messenger.publish('AccountsController:accountsAdded', addedAccounts);
-    }
-
-    if (removedAccountIds.length > 0) {
-      this.messenger.publish(
-        'AccountsController:accountsRemoved',
-        removedAccountIds,
-      );
-    }
-
     this.#initialized = true;
-    log('Initialized!');
+
+    // Only sync if the vault is already unlocked and populated. If it is not
+    // ready yet, we still mark the controller as initialized so that subsequent
+    // calls are no-ops. The `KeyringController:stateChange` subscription
+    // (handled by `#handleOnKeyringStateChange`) will fire `accountsAdded` and
+    // `accountsRemoved` once the vault is decrypted and keyrings are available.
+    if (this.#isVaultReady()) {
+      log('Initializing...');
+
+      const previousAccounts = this.state.internalAccounts.accounts;
+      this.#sync();
+
+      const addedAccounts = Object.values(
+        this.state.internalAccounts.accounts,
+      ).filter((account) => !previousAccounts[account.id]);
+
+      const removedAccountIds = Object.keys(previousAccounts).filter(
+        (id) => !this.state.internalAccounts.accounts[id],
+      );
+
+      if (addedAccounts.length > 0) {
+        this.messenger.publish(
+          'AccountsController:accountsAdded',
+          addedAccounts,
+        );
+      }
+
+      if (removedAccountIds.length > 0) {
+        this.messenger.publish(
+          'AccountsController:accountsRemoved',
+          removedAccountIds,
+        );
+      }
+
+      log('Initialized!');
+    }
+
     this.messenger.publish('AccountsController:initialized', this.state);
+  }
+
+  #isVaultReady(): boolean {
+    const { isUnlocked, keyrings } = this.messenger.call(
+      'KeyringController:getState',
+    );
+    return isUnlocked && keyrings.length > 0;
   }
 
   #sync(): void {
