@@ -280,6 +280,14 @@ export class AuthenticationController extends BaseController<
   #authSessionEpoch = 0;
 
   /**
+   * Sequence number of the most recently started credentials refresh. Only
+   * that refresh may write the cache, so a slower, earlier request cannot
+   * overwrite a newer list (e.g. the post-sign-in warm-up landing after an
+   * enrollment's refresh).
+   */
+  #credentialsRefreshSeq = 0;
+
+  /**
    * Bumped by `requestProfilePairing` and `clearState` so an in-flight
    * `performSignIn` can't clear `needsProfilePairing` afterwards.
    */
@@ -853,6 +861,8 @@ export class AuthenticationController extends BaseController<
   public async refreshEnrolledCredentials(): Promise<EnrolledCredential[]> {
     this.#assertIsUnlocked('refreshEnrolledCredentials');
     const sessionEpoch = this.#authSessionEpoch;
+    this.#credentialsRefreshSeq += 1;
+    const refreshSeq = this.#credentialsRefreshSeq;
     const primaryEntropySourceId = this.#getPrimaryEntropySourceId();
     const credentials = await this.#runMfaRequest(
       'MFA Credentials Refresh',
@@ -861,6 +871,12 @@ export class AuthenticationController extends BaseController<
       async () => await this.#auth.getMfaCredentials(primaryEntropySourceId),
     );
     this.#assertAuthSessionEpoch(sessionEpoch, 'refreshEnrolledCredentials');
+
+    // A newer refresh started while this one was in flight; its result is at
+    // least as fresh, so defer to it rather than overwrite with older data.
+    if (refreshSeq !== this.#credentialsRefreshSeq) {
+      return this.state.enrolledCredentials ?? [];
+    }
 
     // Skip the write when nothing changed so subscribers are not woken up by
     // a fresh-but-identical array.
