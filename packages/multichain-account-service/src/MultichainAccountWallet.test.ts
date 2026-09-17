@@ -142,6 +142,15 @@ describe('MultichainAccountWallet', () => {
   });
 
   describe('deleteAllMultichainAccountGroups', () => {
+    it('does nothing when the wallet has no groups', async () => {
+      const { wallet, providers } = setup({ accounts: [[], []] });
+
+      await wallet.deleteAllMultichainAccountGroups();
+
+      expect(providers[0].deleteAccounts).not.toHaveBeenCalled();
+      expect(providers[1].deleteAccounts).not.toHaveBeenCalled();
+    });
+
     it('deletes every owned account across providers', async () => {
       const { wallet, providers } = setup();
 
@@ -188,25 +197,17 @@ describe('MultichainAccountWallet', () => {
         .withGroupIndex(1)
         .withId('mock-sol-group-1')
         .get();
-      const otherWalletEvm = MockAccountBuilder.from(MOCK_WALLET_1_EVM_ACCOUNT)
-        .withEntropySource('other-entropy')
-        .withGroupIndex(1)
-        .withId('mock-evm-other-wallet')
-        .get();
       const { wallet, providers, messenger } = setup({
         accounts: [
-          [MOCK_WALLET_1_EVM_ACCOUNT, group1Evm, otherWalletEvm],
+          [MOCK_WALLET_1_EVM_ACCOUNT, group1Evm],
           [MOCK_WALLET_1_SOL_ACCOUNT, group1Sol],
         ],
       });
       const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       const error = new Error('cannot delete group 0');
-      providers[0].deleteAccounts.mockImplementationOnce(async () => {
-        providers[0].accounts.delete(group1Evm.id);
-        return {
-          ok: false,
-          failures: [{ id: MOCK_WALLET_1_EVM_ACCOUNT.id, error }],
-        };
+      providers[0].deleteAccounts.mockResolvedValueOnce({
+        ok: false,
+        failures: [{ id: MOCK_WALLET_1_EVM_ACCOUNT.id, error }],
       });
       providers[1].deleteAccount.mockImplementation(async (id: string) => {
         providers[1].accounts.delete(id);

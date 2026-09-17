@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Default implementation deletes sequentially via `deleteAccount` and is best-effort: one failure does not skip the rest.
   - Failures are returned as `{ ok: false, failures }` rather than thrown.
 - Add `MultichainAccountWallet.deleteAllMultichainAccountGroups` ([#10263](https://github.com/MetaMask/core/pull/10263))
-  - Deletes every account the wallet owns. EVM deletion failures throw after orphan non-EVM cleanup and empty-group pruning. Non-EVM cleanup is best-effort.
+  - Deletes every account the wallet owns. EVM failure IDs identify retained groups without re-querying providers; groups whose EVM deletion succeeded are pruned after best-effort non-EVM cleanup.
+- Add an optional provider filter to `MultichainAccountGroup.getAccountIds` ([#10263](https://github.com/MetaMask/core/pull/10263))
 
 ### Changed
 

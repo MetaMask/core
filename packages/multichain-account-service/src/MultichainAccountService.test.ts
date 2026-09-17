@@ -1125,16 +1125,10 @@ describe('MultichainAccountService', () => {
       });
       const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       const error = new Error('cannot delete group 0');
-      mocks.EvmAccountProvider.deleteAccounts.mockImplementationOnce(
-        async () => {
-          // Simulate group 1 being deleted before group 0 fails.
-          mocks.EvmAccountProvider.accounts.delete(mockEvmAccounts[1].id);
-          return {
-            ok: false,
-            failures: [{ id: mockEvmAccounts[0].id, error }],
-          };
-        },
-      );
+      mocks.EvmAccountProvider.deleteAccounts.mockResolvedValueOnce({
+        ok: false,
+        failures: [{ id: mockEvmAccounts[0].id, error }],
+      });
       mocks.SolAccountProvider.deleteAccount.mockImplementation(
         async (id: string) => {
           mocks.SolAccountProvider.accounts.delete(id);
@@ -1172,7 +1166,7 @@ describe('MultichainAccountService', () => {
       expect(wallet.getNextGroupIndex()).toBe(1);
     });
 
-    it('continues with remaining providers and removes the wallet when enumerating one provider throws', async () => {
+    it('removes the wallet without re-enumerating non-EVM accounts', async () => {
       const mockEvmAccount = makeWalletAccount(MOCK_HD_ACCOUNT_1);
       const mockSolAccount = makeWalletAccount(MOCK_SOL_ACCOUNT_1);
 
@@ -1180,10 +1174,7 @@ describe('MultichainAccountService', () => {
         accounts: [mockEvmAccount, mockSolAccount],
       });
       const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
-      // Enumerating the Sol provider's accounts throws before any specific
-      // account can be targeted. This must not abort cleanup of the other
-      // providers nor skip the always-remove step.
-      mocks.SolAccountProvider.getAccounts.mockImplementationOnce(() => {
+      mocks.SolAccountProvider.getAccounts.mockImplementation(() => {
         throw new Error('snap keyring unavailable');
       });
 
@@ -1191,24 +1182,13 @@ describe('MultichainAccountService', () => {
         MOCK_HD_KEYRING_1.metadata.id,
       );
 
-      // EVM account must still be deleted even though the Sol provider failed
-      // to enumerate.
       expect(mocks.EvmAccountProvider.deleteAccounts).toHaveBeenCalledWith([
         mockEvmAccount.id,
       ]);
-      // The Sol provider failure is reported as a provider-level failure with
-      // no specific `id`.
-      expect(captureExceptionSpy).toHaveBeenCalledTimes(1);
-      const sentryError = captureExceptionSpy.mock
-        .calls[0]?.[0] as SentryError<RemoveMultichainAccountWalletFailureContext>;
-      expect(sentryError.context?.failures).toStrictEqual([
-        {
-          provider: SOL_ACCOUNT_PROVIDER_NAME,
-          id: undefined,
-          error: 'snap keyring unavailable',
-        },
+      expect(mocks.SolAccountProvider.deleteAccounts).toHaveBeenCalledWith([
+        mockSolAccount.id,
       ]);
-      // The wallet is always removed at the end.
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
       expect(() =>
         service.getMultichainAccountWallet({
           entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -1310,28 +1290,32 @@ describe('MultichainAccountService', () => {
       ).toBeDefined();
     });
 
-    it('throws and preserves non-EVM accounts when EVM enumeration fails', async () => {
+    it('removes the wallet without re-enumerating EVM accounts', async () => {
       const mockEvmAccount = makeWalletAccount(MOCK_HD_ACCOUNT_1);
       const mockSolAccount = makeWalletAccount(MOCK_SOL_ACCOUNT_1);
 
       const { service, mocks } = await setup({
         accounts: [mockEvmAccount, mockSolAccount],
       });
-      mocks.EvmAccountProvider.getAccounts.mockImplementationOnce(() => {
+      mocks.EvmAccountProvider.getAccounts.mockImplementation(() => {
         throw new Error('EVM accounts unavailable');
       });
 
-      await expect(
-        service.removeMultichainAccountWallet(MOCK_HD_KEYRING_1.metadata.id),
-      ).rejects.toThrow('Failed to delete EVM accounts during wallet removal');
+      await service.removeMultichainAccountWallet(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
 
-      expect(mocks.EvmAccountProvider.deleteAccounts).not.toHaveBeenCalled();
-      expect(mocks.SolAccountProvider.deleteAccounts).not.toHaveBeenCalled();
-      expect(
+      expect(mocks.EvmAccountProvider.deleteAccounts).toHaveBeenCalledWith([
+        mockEvmAccount.id,
+      ]);
+      expect(mocks.SolAccountProvider.deleteAccounts).toHaveBeenCalledWith([
+        mockSolAccount.id,
+      ]);
+      expect(() =>
         service.getMultichainAccountWallet({
           entropySource: MOCK_HD_KEYRING_1.metadata.id,
         }),
-      ).toBeDefined();
+      ).toThrow('Unknown wallet, no wallet matching this entropy source');
     });
 
     it('does not call captureException when all deletes succeed', async () => {
