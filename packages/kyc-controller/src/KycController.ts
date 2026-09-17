@@ -136,36 +136,28 @@ const IN_PROGRESS_PHASES: KycPhase[] = [
 // until a terminal status is reached. Overridable via the constructor.
 const DEFAULT_SESSION_STATUS_POLL_INTERVAL_MS = 15_000;
 
-// UKYC status values. `kycStatus` (the relay-side decision) and `finalStatus`
-// (the vendor-side outcome) draw from the same vocabulary, so they are defined
-// once here and composed into the sets/checks below rather than repeated as
-// literals.
+// `finalStatus` values from `GET /sessions/{id}/status`. Controller decisions
+// use this field only.
 const KYC_STATUSES = {
-  approved: 'approved',
-  completed: 'completed',
-  rejected: 'rejected',
-  failed: 'failed',
-  blocked: 'blocked',
+  new: 'new',
   pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
   retry: 'retry',
 } as const;
 
-// `finalStatus` values that end the polling loop. Anything else (e.g.
-// `KYC_STATUSES.pending`) keeps polling.
+// `finalStatus` values that end the polling loop. `new` and `pending` keep
+// polling.
 const TERMINAL_SESSION_STATUSES: ReadonlySet<string> = new Set([
   KYC_STATUSES.approved,
-  KYC_STATUSES.completed,
   KYC_STATUSES.rejected,
-  KYC_STATUSES.failed,
-  KYC_STATUSES.blocked,
   KYC_STATUSES.retry,
 ]);
 
-// Terminal `finalStatus` values that represent a successful verification. Any
-// other terminal status resolves the sub-flow to `failed`.
+// Terminal `finalStatus` that represents a successful verification. Any other
+// terminal status resolves the sub-flow to `failed`.
 const SUCCESSFUL_SESSION_STATUSES: ReadonlySet<string> = new Set([
   KYC_STATUSES.approved,
-  KYC_STATUSES.completed,
 ]);
 
 /**

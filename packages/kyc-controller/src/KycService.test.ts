@@ -575,7 +575,7 @@ describe('KycService', () => {
         kycStatus: 'approved',
         vendor: 'sumsub',
         vendorStatus: 'GREEN',
-        sessionId: 'sid',
+        id: 'sid',
       };
       nock(MOCK_API_URL)
         .get('/sessions/latest/status/iron')

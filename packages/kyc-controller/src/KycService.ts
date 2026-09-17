@@ -235,7 +235,7 @@ const SessionStatusResponseStruct = type({
   kycStatus: string(),
   vendor: string(),
   vendorStatus: string(),
-  sessionId: optional(string()),
+  id: optional(string()),
 });
 
 // Vendor customer subset — `type` (not `object`) keeps extra vendor fields from
