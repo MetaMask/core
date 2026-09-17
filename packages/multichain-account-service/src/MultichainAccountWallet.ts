@@ -175,9 +175,9 @@ export class MultichainAccountWallet<
    * was successfully deleted are removed, empty groups are pruned, and this
    * method throws. The caller must keep the wallet registered in that case.
    *
-   * Once every EVM account has been deleted, non-EVM cleanup is best-effort:
-   * failures are reported together and this method resolves so the caller can
-   * drop the wallet.
+   * Once every EVM account has been deleted, non-EVM cleanup is best-effort,
+   * every group is pruned from this wallet, failures are reported together,
+   * and this method resolves so the caller can drop the wallet.
    *
    * NOTE: This operation WILL lock the wallet's mutex.
    *
@@ -331,6 +331,9 @@ export class MultichainAccountWallet<
       // cleanup is best-effort and the caller can safely drop the wallet.
       const evmRemovedGroupIndexes = new Set(evmGroups.keys());
       await deleteNonEvmAccounts(evmRemovedGroupIndexes);
+      for (const groupIndex of evmRemovedGroupIndexes) {
+        this.#accountGroups.delete(groupIndex);
+      }
 
       if (failures.length > 0) {
         // That's not a hard failure, non-EVM are best effort, but we still report something
@@ -1059,22 +1062,25 @@ export class MultichainAccountWallet<
       return;
     }
 
-    const nextGroupIndex = this.getNextGroupIndex();
+    await this.#withLock('in-progress:alignment', async () => {
+      // Re-check under the lock: a concurrent deletion may have cleared every
+      // group while this call was waiting to acquire the mutex.
+      if (this.isAligned()) {
+        this.#log('Already aligned, skipping...');
+        return;
+      }
 
-    if (nextGroupIndex > 0) {
-      this.#log('Aligning accounts...');
+      const nextGroupIndex = this.getNextGroupIndex();
 
-      const from = 0;
-      const to = nextGroupIndex - 1;
+      if (nextGroupIndex > 0) {
+        const from = 0;
+        const to = nextGroupIndex - 1;
 
-      await this.#withLock(
-        'in-progress:alignment',
-        async () =>
-          await this.#alignAccountsForRange({ from, to }, this.#providers),
-      );
-
-      this.#log('Aligned!');
-    }
+        this.#log('Aligning accounts...');
+        await this.#alignAccountsForRange({ from, to }, this.#providers);
+        this.#log('Aligned!');
+      }
+    });
   }
 
   /**

@@ -164,6 +164,8 @@ describe('MultichainAccountWallet', () => {
         MOCK_WALLET_1_BTC_P2WPKH_ACCOUNT.id,
         MOCK_WALLET_1_BTC_P2TR_ACCOUNT.id,
       ]);
+      expect(wallet.getMultichainAccountGroups()).toHaveLength(0);
+      expect(wallet.getNextGroupIndex()).toBe(0);
     });
 
     it('reports non-EVM failures and still resolves', async () => {
@@ -224,15 +226,40 @@ describe('MultichainAccountWallet', () => {
 
       evmDeleteDeferred.resolve({ ok: true });
       await deletePromise;
-      await alignPromise;
 
-      expect(providers[1].createAccounts).toHaveBeenCalled();
+      expect(wallet.getMultichainAccountGroups()).toHaveLength(0);
       expect(statusChanges).toStrictEqual([
         'in-progress:delete-accounts',
         'ready',
         'in-progress:alignment',
-        'ready',
       ]);
+
+      await alignPromise;
+      expect(providers[1].createAccounts).not.toHaveBeenCalled();
+
+      expect(statusChanges.pop()).toBe('ready');
+    });
+
+    it('does not recreate accounts via alignAccounts after a successful deletion', async () => {
+      const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withGroupIndex(0)
+        .get();
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withGroupIndex(1)
+        .get();
+      const mockSolAccount0 = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withGroupIndex(0)
+        .get();
+      const { wallet, providers } = setup({
+        accounts: [[mockEvmAccount0, mockEvmAccount1], [mockSolAccount0]],
+      });
+
+      await wallet.deleteAllMultichainAccountGroups();
+      await wallet.alignAccounts();
+
+      expect(providers[0].createAccounts).not.toHaveBeenCalled();
+      expect(providers[1].createAccounts).not.toHaveBeenCalled();
+      expect(wallet.isAligned()).toBe(true);
     });
 
     it('prunes empty groups, deletes orphaned non-EVM accounts, and throws when EVM deletion partially fails', async () => {
