@@ -842,14 +842,14 @@ export class AccountsController extends BaseController<
       return getDefaultAccountsControllerState();
     });
 
-    this.messenger.publish('AccountsController:uninitialized');
-
     for (const id of removedIds) {
       this.messenger.publish('AccountsController:accountRemoved', id);
     }
     if (removedIds.length > 0) {
       this.messenger.publish('AccountsController:accountsRemoved', removedIds);
     }
+
+    this.messenger.publish('AccountsController:uninitialized');
   }
 
   /**

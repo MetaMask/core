@@ -3851,6 +3851,37 @@ describe('AccountsController', () => {
 
       expect(uninitializedListener).toHaveBeenCalledTimes(1);
     });
+
+    it('fires uninitialized after accountRemoved and accountsRemoved', () => {
+      const { accountsController, messenger } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: { [mockAccount.address]: mockAccount.id },
+        },
+      });
+
+      const order: string[] = [];
+      messenger.subscribe('AccountsController:accountRemoved', () =>
+        order.push('accountRemoved'),
+      );
+      messenger.subscribe('AccountsController:accountsRemoved', () =>
+        order.push('accountsRemoved'),
+      );
+      messenger.subscribe('AccountsController:uninitialized', () =>
+        order.push('uninitialized'),
+      );
+
+      accountsController.clearState();
+
+      expect(order).toStrictEqual([
+        'accountRemoved',
+        'accountsRemoved',
+        'uninitialized',
+      ]);
+    });
   });
 
   describe('loadBackup', () => {
