@@ -182,10 +182,10 @@ describe('KycController', () => {
       );
     });
 
-    it('persists sessionId across restarts', async () => {
+    it('persists sessionId and sessionStatus across restarts', async () => {
       await withController(({ controller }) => {
         expect(controller.metadata.sessionId.persist).toBe(true);
-        expect(controller.metadata.sessionStatus.persist).toBe(false);
+        expect(controller.metadata.sessionStatus.persist).toBe(true);
       });
     });
   });
@@ -418,6 +418,216 @@ describe('KycController', () => {
           expect(controller.state.phase).toBe('terms');
         },
       );
+    });
+
+    it('records an existing UKYC session for the vendor', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getGeoCountry.mockResolvedValue('USA');
+        handlers.fetchVendorDisclaimers.mockResolvedValue([]);
+        handlers.getLatestSessionStatusForVendor.mockResolvedValue({
+          ...sessionStatus('pending'),
+          id: 'existing-sid',
+        });
+
+        await controller.initialize({ vendor: 'iron', email: 'a@b.co' });
+
+        expect(handlers.getLatestSessionStatusForVendor).toHaveBeenCalledWith({
+          vendor: 'iron',
+        });
+        expect(controller.state.sessionId).toBe('existing-sid');
+        expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
+        expect(controller.state.phase).toBe('terms');
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+      });
+    });
+
+    it('finishes when the vendor already has an approved session', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              ...VENDOR_TERMS_MOONPAY,
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getLatestSessionStatusForVendor.mockResolvedValue({
+            ...sessionStatus('approved'),
+            id: 'done-sid',
+          });
+
+          await controller.initialize({ email: 'a@b.co', product: 'ramps' });
+
+          expect(handlers.createSession).not.toHaveBeenCalled();
+          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+          expect(handlers.fetchVendorDisclaimers).not.toHaveBeenCalled();
+          expect(controller.state.sessionId).toBe('done-sid');
+          expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
+          expect(controller.state.phase).toBe('done');
+          expect(controller.state.statusMessage).toBe('KYC already completed.');
+        },
+      );
+    });
+
+    it('does not look up a latest session when a sessionId is already on state', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessionId: 'persisted-sid',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('USA');
+          handlers.fetchVendorDisclaimers.mockResolvedValue([]);
+          handlers.getLatestSessionStatusForVendor.mockResolvedValue({
+            ...sessionStatus('approved'),
+            id: 'other-sid',
+          });
+
+          await controller.initialize({ email: 'a@b.co' });
+
+          expect(handlers.getLatestSessionStatusForVendor).not.toHaveBeenCalled();
+          expect(controller.state.sessionId).toBe('persisted-sid');
+          expect(controller.state.phase).toBe('terms');
+        },
+      );
+    });
+
+    it('finishes from a persisted approved sessionStatus without a latest-session lookup', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessionId: 'persisted-sid',
+              sessionStatus: {
+                ...sessionStatus('approved'),
+                id: 'persisted-sid',
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          await controller.initialize({ email: 'a@b.co', product: 'ramps' });
+
+          expect(handlers.getLatestSessionStatusForVendor).not.toHaveBeenCalled();
+          expect(handlers.createSession).not.toHaveBeenCalled();
+          expect(controller.state.sessionId).toBe('persisted-sid');
+          expect(controller.state.phase).toBe('done');
+          expect(controller.state.statusMessage).toBe('KYC already completed.');
+        },
+      );
+    });
+
+    it('does not look up a latest session when a flow is already in progress', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              phase: 'check',
+              moonpaySessionToken: 'live-session',
+              activeVendor: 'moonpay',
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          await controller.initialize({ vendor: 'moonpay' });
+
+          expect(handlers.getLatestSessionStatusForVendor).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not keep latest-session state when reset() lands during the write', async () => {
+      await withController(
+        async ({ controller, handlers, rootMessenger }) => {
+          rootMessenger.subscribe('KycController:stateChange', () => {
+            if (controller.state.sessionId === 'done-sid') {
+              controller.reset();
+            }
+          });
+          handlers.getLatestSessionStatusForVendor.mockResolvedValue({
+            ...sessionStatus('approved'),
+            id: 'done-sid',
+          });
+
+          await controller.initialize({ email: 'a@b.co' });
+
+          expect(controller.state.phase).toBe('idle');
+          expect(controller.state.sessionId).toBeNull();
+          expect(controller.state.sessionStatus).toBeNull();
+          expect(handlers.createSession).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not keep latest-session state when reset() lands during lookup', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getGeoCountry.mockResolvedValue('USA');
+        let release: (value: null) => void = () => {
+          // Replaced synchronously by the promise executor below.
+        };
+        handlers.getLatestSessionStatusForVendor.mockReturnValue(
+          new Promise((resolve) => {
+            release = resolve;
+          }),
+        );
+
+        const pending = controller.initialize({ vendor: 'iron' });
+        while (handlers.getLatestSessionStatusForVendor.mock.calls.length === 0) {
+          await Promise.resolve();
+        }
+        controller.reset();
+        release(null);
+        await pending;
+
+        expect(controller.state.phase).toBe('idle');
+        expect(controller.state.sessionId).toBeNull();
+        expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+      });
+    });
+
+    it('fails initialize when latest-session lookup fails with a non-404 error', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getLatestSessionStatusForVendor.mockRejectedValue(
+          new HttpError(500, "Fetching latest status failed with status '500'"),
+        );
+
+        await controller.initialize({ vendor: 'iron', email: 'a@b.co' });
+
+        expect(controller.state.phase).toBe('error');
+        expect(controller.state.error).toMatch(/status '500'/u);
+        expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not fail initialize when latest-session lookup rejects after reset', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getGeoCountry.mockResolvedValue('USA');
+        let rejectLookup: (error: Error) => void = () => undefined;
+        handlers.getLatestSessionStatusForVendor.mockReturnValue(
+          new Promise((_resolve, reject) => {
+            rejectLookup = reject;
+          }),
+        );
+
+        const pending = controller.initialize({
+          vendor: 'iron',
+          email: 'a@b.co',
+        });
+        while (handlers.getLatestSessionStatusForVendor.mock.calls.length === 0) {
+          await Promise.resolve();
+        }
+        controller.reset();
+        rejectLookup(
+          new HttpError(500, "Fetching latest status failed with status '500'"),
+        );
+        await pending;
+
+        expect(controller.state.phase).toBe('idle');
+        expect(controller.state.error).toBeNull();
+      });
     });
   });
 
@@ -1669,32 +1879,267 @@ describe('KycController', () => {
       });
     });
 
-    it('stops with a vendorProcessing status when the relay approved but the vendor is still pending', async () => {
+    it('continues to the SDK when authorizations report pending', async () => {
       await withController(async ({ controller, handlers, launcher }) => {
-        // The applicant already finished the journey: the relay reports
-        // `approved` while the vendor is still finalizing (`pending`).
         handlers.setAuthorizations.mockResolvedValue({
           ...sessionStatus('pending'),
           kycStatus: 'approved',
           finalStatus: 'pending',
         });
 
+        await controller.startSumSub();
+
+        expect(handlers.createJourney).toHaveBeenCalled();
+        expect(launcher.launch).toHaveBeenCalled();
+        expect(controller.state.sessionId).toBe('sid');
+      });
+    });
+
+    it('creates a UKYC session when the latest-status lookup finds none', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.startSumSub();
+
+        expect(handlers.getLatestSessionStatusForVendor).toHaveBeenCalledWith({
+          vendor: 'moonpay',
+        });
+        expect(handlers.createUkycSession).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('reuses an in-progress session instead of creating a new one', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        handlers.getLatestSessionStatusForVendor.mockResolvedValue({
+          ...sessionStatus('pending'),
+          id: 'existing-sid',
+        });
+
+        await controller.startSumSub();
+
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        expect(handlers.createJourney).toHaveBeenCalledWith('existing-sid');
+        expect(controller.state.sessionId).toBe('existing-sid');
+        expect(controller.state.sessionStatus).toStrictEqual({
+          ...sessionStatus('pending'),
+          id: 'existing-sid',
+        });
+        expect(launcher.launch).toHaveBeenCalled();
+      });
+    });
+
+    it('skips the SDK when the latest session is already approved', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        handlers.getLatestSessionStatusForVendor.mockResolvedValue({
+          ...sessionStatus('approved'),
+          id: 'done-sid',
+        });
+
         const result = await controller.startSumSub();
 
         expect(result).toStrictEqual({
+          finalStatus: 'approved',
+        });
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(handlers.createJourney).not.toHaveBeenCalled();
+        expect(launcher.launch).not.toHaveBeenCalled();
+        expect(controller.state.sessionId).toBe('done-sid');
+        expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
+      });
+    });
+
+    it('skips the SDK when the latest session is approved without a session id', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        handlers.getLatestSessionStatusForVendor.mockResolvedValue(
+          sessionStatus('approved'),
+        );
+
+        const result = await controller.startSumSub();
+
+        expect(result).toStrictEqual({
+          finalStatus: 'approved',
+        });
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(handlers.createJourney).not.toHaveBeenCalled();
+        expect(launcher.launch).not.toHaveBeenCalled();
+        expect(controller.state.sessionId).toBeNull();
+        expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
+      });
+    });
+
+    it('reuses a pending session and continues to the SDK', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        handlers.getLatestSessionStatusForVendor.mockResolvedValue({
+          ...sessionStatus('pending'),
+          kycStatus: 'approved',
+          finalStatus: 'pending',
+          id: 'vp-sid',
+        });
+
+        await controller.startSumSub();
+
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(handlers.createJourney).toHaveBeenCalledWith('vp-sid');
+        expect(launcher.launch).toHaveBeenCalled();
+        expect(controller.state.sessionId).toBe('vp-sid');
+        expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
+      });
+    });
+
+    it('reuses a rejected session instead of creating a new one', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        handlers.getLatestSessionStatusForVendor.mockResolvedValue({
+          ...sessionStatus('rejected'),
+          id: 'rejected-sid',
+        });
+
+        await controller.startSumSub();
+
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(handlers.createJourney).toHaveBeenCalledWith('rejected-sid');
+        expect(controller.state.sessionId).toBe('rejected-sid');
+        expect(controller.state.sessionStatus?.finalStatus).toBe('rejected');
+        expect(launcher.launch).toHaveBeenCalled();
+      });
+    });
+
+    it('reuses a pending session that has no session id in the payload', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        handlers.getLatestSessionStatusForVendor.mockResolvedValue({
+          ...sessionStatus('pending'),
           kycStatus: 'approved',
           finalStatus: 'pending',
         });
-        expect(controller.state.sumsub.status).toBe('vendorProcessing');
-        expect(controller.state.sessionId).toBe('sid');
-        expect(controller.state.statusMessage).toMatch(
-          /being processed by the vendor/u,
-        );
-        // The SDK is never launched and no journey is created for an
-        // already-approved applicant.
-        expect(handlers.createJourney).not.toHaveBeenCalled();
-        expect(launcher.launch).not.toHaveBeenCalled();
+
+        await controller.startSumSub();
+
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(handlers.createJourney).toHaveBeenCalledWith('');
+        expect(launcher.launch).toHaveBeenCalled();
+        expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
       });
+    });
+
+    it('skips the SDK when a persisted session is already approved', async () => {
+      await withController(
+        { options: { state: { sessionId: 'persisted-sid' } } },
+        async ({ controller, handlers, launcher }) => {
+          handlers.getLatestSessionStatusForVendor.mockResolvedValue({
+            ...sessionStatus('approved'),
+            id: 'persisted-sid',
+          });
+
+          const result = await controller.startSumSub();
+
+          expect(result).toStrictEqual({
+            finalStatus: 'approved',
+          });
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+          expect(handlers.createJourney).not.toHaveBeenCalled();
+          expect(launcher.launch).not.toHaveBeenCalled();
+          expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
+        },
+      );
+    });
+
+    it('reuses a persisted session when the latest status is rejected', async () => {
+      await withController(
+        { options: { state: { sessionId: 'old-sid' } } },
+        async ({ controller, handlers, launcher }) => {
+          handlers.getLatestSessionStatusForVendor.mockResolvedValue(
+            sessionStatus('rejected'),
+          );
+
+          await controller.startSumSub();
+
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+          expect(handlers.createJourney).toHaveBeenCalledWith('old-sid');
+          expect(controller.state.sessionId).toBe('old-sid');
+          expect(controller.state.sessionStatus?.finalStatus).toBe('rejected');
+          expect(launcher.launch).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('uses a persisted session id when the vendor has no latest session payload', async () => {
+      await withController(
+        { options: { state: { sessionId: 'persisted-sid' } } },
+        async ({ controller, handlers, launcher }) => {
+          await controller.startSumSub();
+
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+          expect(handlers.createJourney).toHaveBeenCalledWith('persisted-sid');
+          expect(controller.state.sessionId).toBe('persisted-sid');
+          expect(launcher.launch).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('marks the sub-flow failed when latest-status lookup fails with a non-404 error', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        handlers.getLatestSessionStatusForVendor.mockRejectedValue(
+          new HttpError(500, "Fetching latest status failed with status '500'"),
+        );
+
+        const result = await controller.startSumSub();
+
+        expect(result).toStrictEqual({
+          error: expect.stringContaining("status '500'"),
+        });
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(launcher.launch).not.toHaveBeenCalled();
+        expect(controller.state.sumsub.status).toBe('failed');
+      });
+    });
+
+    it('does not create a UKYC session when reset() runs during latest-status lookup', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        let release: (value: null) => void = () => {
+          // Replaced synchronously by the promise executor below.
+        };
+        handlers.getLatestSessionStatusForVendor.mockReturnValue(
+          new Promise((resolve) => {
+            release = resolve;
+          }),
+        );
+
+        const pending = controller.startSumSub();
+        while (handlers.getLatestSessionStatusForVendor.mock.calls.length === 0) {
+          await Promise.resolve();
+        }
+        controller.reset();
+        release(null);
+        const result = await pending;
+
+        expect(result).toStrictEqual({});
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(launcher.launch).not.toHaveBeenCalled();
+        expect(controller.state.sumsub.status).toBe('idle');
+      });
+    });
+
+    it('does not keep reused session state when reset() lands during the write', async () => {
+      await withController(
+        async ({ controller, handlers, launcher, rootMessenger }) => {
+          rootMessenger.subscribe('KycController:stateChange', () => {
+            if (controller.state.sessionId === 'done-sid') {
+              controller.reset();
+            }
+          });
+          handlers.getLatestSessionStatusForVendor.mockResolvedValue({
+            ...sessionStatus('approved'),
+            id: 'done-sid',
+          });
+
+          const result = await controller.startSumSub();
+
+          expect(result).toStrictEqual({});
+          expect(handlers.createJourney).not.toHaveBeenCalled();
+          expect(launcher.launch).not.toHaveBeenCalled();
+          expect(controller.state.phase).toBe('idle');
+          expect(controller.state.sessionId).toBeNull();
+          expect(controller.state.sessionStatus).toBeNull();
+        },
+      );
     });
 
     it('continues the flow when approved and the vendor is not pending', async () => {
@@ -1718,7 +2163,7 @@ describe('KycController', () => {
       });
     });
 
-    it('does not write vendorProcessing state when reset() runs while creating the session', async () => {
+    it('does not write session state when reset() runs while creating the session', async () => {
       await withController(async ({ controller, handlers, launcher }) => {
         handlers.createUkycSession.mockImplementation(async () => {
           controller.reset();
@@ -1767,7 +2212,7 @@ describe('KycController', () => {
       });
     });
 
-    it('does not write vendorProcessing state when reset() runs while setting authorizations', async () => {
+    it('does not keep session state when reset() runs while setting authorizations', async () => {
       await withController(async ({ controller, handlers, launcher }) => {
         handlers.setAuthorizations.mockImplementation(async () => {
           controller.reset();
@@ -2491,6 +2936,8 @@ describe('KycController', () => {
               activeProduct: 'ramps',
               ...VENDOR_TERMS_MOONPAY,
               kycRequiredByProduct: { ramps: true },
+              sessionId: 'sid',
+              sessionStatus: sessionStatus('pending'),
             },
           },
         },
@@ -2500,6 +2947,8 @@ describe('KycController', () => {
           expect(controller.state.moonpaySessionToken).toBeNull();
           expect(controller.state.moonpayAccessToken).toBeNull();
           expect(controller.state.activeProduct).toBeNull();
+          expect(controller.state.sessionId).toBeNull();
+          expect(controller.state.sessionStatus).toBeNull();
           expect(
             controller.state.vendorDisclaimersAccepted.moonpay?.termsAcceptedAt,
           ).toBe('t');
@@ -3222,6 +3671,11 @@ describe('KycController', () => {
           expect(
             handlers.submitVendorDisclaimers.mock.invocationCallOrder[0],
           ).toBeLessThan(
+            handlers.getLatestSessionStatusForVendor.mock.invocationCallOrder[0],
+          );
+          expect(
+            handlers.getLatestSessionStatusForVendor.mock.invocationCallOrder[0],
+          ).toBeLessThan(
             handlers.createUkycSession.mock.invocationCallOrder[0],
           );
           expect(
@@ -3230,6 +3684,9 @@ describe('KycController', () => {
             handlers.fetchSessionDisclaimersBySessionId.mock
               .invocationCallOrder[0],
           );
+          expect(handlers.getLatestSessionStatusForVendor).toHaveBeenCalledWith({
+            vendor: 'iron',
+          });
           expect(handlers.createUkycSession).toHaveBeenCalledWith(
             expect.objectContaining({
               vendor: 'iron',
@@ -3246,6 +3703,115 @@ describe('KycController', () => {
             true,
           );
           controller.reset();
+        },
+      );
+    });
+
+    it('reuses an existing UKYC session instead of creating one', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+            sessionStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          handlers.getLatestSessionStatusForVendor.mockResolvedValue({
+            ...sessionStatus('pending'),
+            id: 'existing-sid',
+          });
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            onStatusChange?.('InProgress', 'Completed');
+            return { ok: true };
+          });
+
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            product: 'money',
+            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+          });
+
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+          expect(handlers.fetchSessionDisclaimersBySessionId).toHaveBeenCalledWith(
+            { sessionId: 'existing-sid' },
+          );
+          expect(handlers.submitSessionDisclaimers).toHaveBeenCalledWith(
+            expect.objectContaining({ sessionId: 'existing-sid' }),
+          );
+          expect(handlers.createJourney).toHaveBeenCalledWith('existing-sid');
+          expect(launcher.launch).toHaveBeenCalled();
+          controller.reset();
+        },
+      );
+    });
+
+    it('finishes without SumSub when the latest session is already approved', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+            sessionStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          handlers.getLatestSessionStatusForVendor.mockResolvedValue({
+            ...sessionStatus('approved'),
+            id: 'done-sid',
+          });
+
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            product: 'money',
+            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+          });
+
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).toHaveBeenCalledWith({ sessionId: 'done-sid' });
+          expect(launcher.launch).not.toHaveBeenCalled();
+          expect(controller.state.phase).toBe('done');
+          expect(controller.state.statusMessage).toBe('KYC already completed.');
+        },
+      );
+    });
+
+    it('skips session disclaimers when an approved latest session has no id', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+            sessionStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          handlers.getLatestSessionStatusForVendor.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          await controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            product: 'money',
+            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+          });
+
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).not.toHaveBeenCalled();
+          expect(launcher.launch).not.toHaveBeenCalled();
+          expect(controller.state.phase).toBe('done');
         },
       );
     });
@@ -4105,7 +4671,7 @@ describe('KycController', () => {
       );
     });
 
-    it('skips SumSub when the consents-path session is already vendor-processing', async () => {
+    it('continues to SumSub when the consents-path session is pending', async () => {
       await withController(
         {
           options: {
@@ -4122,7 +4688,10 @@ describe('KycController', () => {
             kycStatus: 'approved',
             finalStatus: 'pending',
           });
-          handlers.getSessionStatus.mockRejectedValue(new Error('status down'));
+          launcher.launch.mockImplementation(async ({ onStatusChange }) => {
+            onStatusChange?.('InProgress', 'Completed');
+            return { ok: true };
+          });
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -4136,8 +4705,7 @@ describe('KycController', () => {
           ).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
-          expect(launcher.launch).not.toHaveBeenCalled();
-          expect(controller.state.sumsub.status).toBe('vendorProcessing');
+          expect(launcher.launch).toHaveBeenCalled();
           expect(controller.state.phase).toBe('done');
           controller.reset();
         },
@@ -4505,7 +5073,7 @@ describe('KycController', () => {
     it('refreshKycStatus throws when there is no active sessionId', async () => {
       await withController(async ({ controller, handlers }) => {
         await expect(controller.refreshKycStatus()).rejects.toThrow(
-          /no active SumSub session/u,
+          /no active session/u,
         );
         expect(handlers.getSessionStatus).not.toHaveBeenCalled();
       });
@@ -4535,7 +5103,7 @@ describe('KycController', () => {
       );
     });
 
-    it('refreshKycStatus returns completed finalStatus as-is', async () => {
+    it('refreshKycStatus records a pending finalStatus as-is', async () => {
       await withController(
         {
           options: {
@@ -4545,13 +5113,13 @@ describe('KycController', () => {
         },
         async ({ controller, handlers }) => {
           handlers.getSessionStatus.mockResolvedValue(
-            sessionStatus('completed'),
+            sessionStatus('pending'),
           );
 
           const result = await controller.refreshKycStatus();
 
-          expect(result).toStrictEqual(sessionStatus('completed'));
-          expect(controller.state.sessionStatus?.finalStatus).toBe('completed');
+          expect(result).toStrictEqual(sessionStatus('pending'));
+          expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
         },
       );
     });
@@ -4949,6 +5517,9 @@ describe('KycController', () => {
           );
 
           const pending = controller.startSumSub();
+          while (handlers.createUkycSession.mock.calls.length === 0) {
+            await Promise.resolve();
+          }
           controller.reset();
           rejectSession(new Error('session_not_in_valid_state'));
 
@@ -5069,6 +5640,7 @@ type ServiceHandlers = {
   setAuthorizations: jest.Mock;
   createJourney: jest.Mock;
   getSessionStatus: jest.Mock;
+  getLatestSessionStatusForVendor: jest.Mock;
   performGetStorage: jest.Mock;
   performSetStorage: jest.Mock;
 };
@@ -5106,6 +5678,7 @@ const SERVICE_ACTIONS = [
   'KycService:setAuthorizations',
   'KycService:createJourney',
   'KycService:getSessionStatus',
+  'KycService:getLatestSessionStatusForVendor',
   'UserStorageController:performGetStorage',
   'UserStorageController:performSetStorage',
 ] as const;
@@ -5233,6 +5806,7 @@ function withController<ReturnValue>(
       .fn()
       .mockResolvedValue({ status: 'ok', applicantAccessToken: 'aat' }),
     getSessionStatus: jest.fn().mockResolvedValue(sessionStatus('approved')),
+    getLatestSessionStatusForVendor: jest.fn().mockResolvedValue(null),
     performGetStorage: jest.fn().mockResolvedValue(null),
     performSetStorage: jest.fn().mockResolvedValue(undefined),
   };
@@ -5295,6 +5869,10 @@ function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'KycService:getSessionStatus',
     handlers.getSessionStatus,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:getLatestSessionStatusForVendor',
+    handlers.getLatestSessionStatusForVendor,
   );
   rootMessenger.registerActionHandler(
     'UserStorageController:performGetStorage',

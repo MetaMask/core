@@ -221,6 +221,22 @@ export type KycServiceGetSessionStatusAction = {
 };
 
 /**
+ * Fetches the latest UKYC session status for a vendor, if one exists
+ * (`GET /sessions/latest/status/{vendor}`). The payload matches
+ * {@link KycService.getSessionStatus}. Returns `null` when no session
+ * exists for that vendor (HTTP 404), so first-time users are not retried
+ * as failures.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - Identity vendor whose latest session to query.
+ * @returns The latest session status, or `null` if none exists.
+ */
+export type KycServiceGetLatestSessionStatusForVendorAction = {
+  type: `KycService:getLatestSessionStatusForVendor`;
+  handler: KycService['getLatestSessionStatusForVendor'];
+};
+
+/**
  * Union of all KycService action types.
  */
 export type KycServiceMethodActions =
@@ -238,4 +254,5 @@ export type KycServiceMethodActions =
   | KycServiceCreateUkycSessionAction
   | KycServiceSetAuthorizationsAction
   | KycServiceCreateJourneyAction
-  | KycServiceGetSessionStatusAction;
+  | KycServiceGetSessionStatusAction
+  | KycServiceGetLatestSessionStatusForVendorAction;

@@ -14,6 +14,7 @@ import {
   array,
   assert,
   boolean,
+  enums,
   optional,
   string,
   StructError,
@@ -61,6 +62,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'setAuthorizations',
   'createJourney',
   'getSessionStatus',
+  'getLatestSessionStatusForVendor',
 ] as const;
 
 /**
@@ -221,12 +223,19 @@ export type ApplicantAccessTokenResponse = Infer<
 >;
 
 const SessionStatusResponseStruct = type({
-  finalStatus: string(),
+  finalStatus: enums([
+    'new',
+    'pending',
+    'approved',
+    'rejected',
+    'retry',
+  ] as const),
   statusMessage: optional(string()),
   externalUserId: string(),
   kycStatus: string(),
   vendor: string(),
   vendorStatus: string(),
+  id: optional(string()),
 });
 
 // Vendor customer subset — `type` (not `object`) keeps extra vendor fields from
@@ -374,6 +383,11 @@ export type SetAuthorizationsParams = {
 
 export type GetSessionStatusParams = {
   sessionId: string;
+};
+
+export type GetLatestSessionStatusForVendorParams = {
+  /** Identity vendor whose latest UKYC session should be queried. */
+  vendor: KycVendor;
 };
 
 // === SERVICE DEFINITION ===
@@ -936,6 +950,49 @@ export class KycService extends BaseDataService<
       data,
       SessionStatusResponseStruct,
       'session status',
+    );
+  }
+
+  /**
+   * Fetches the latest UKYC session status for a vendor, if one exists
+   * (`GET /sessions/latest/status/{vendor}`). The payload matches
+   * {@link KycService.getSessionStatus}. Returns `null` when no session
+   * exists for that vendor (HTTP 404), so first-time users are not retried
+   * as failures.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - Identity vendor whose latest session to query.
+   * @returns The latest session status, or `null` if none exists.
+   */
+  async getLatestSessionStatusForVendor(
+    params: GetLatestSessionStatusForVendorParams,
+  ): Promise<KycSessionStatusResponse | null> {
+    const url = new URL(
+      `/sessions/latest/status/${encodeURIComponent(params.vendor)}`,
+      this.#baseUrl,
+    );
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:getLatestSessionStatusForVendor`, params.vendor],
+      queryFn: async () => {
+        try {
+          return await this.#requestJson(url, { method: 'GET' });
+        } catch (error) {
+          if (error instanceof HttpError && error.httpStatus === 404) {
+            return null;
+          }
+          throw error;
+        }
+      },
+      staleTime: 0,
+      gcTime: 0,
+    });
+    if (data === null) {
+      return null;
+    }
+    return this.#validateResponse(
+      data,
+      SessionStatusResponseStruct,
+      'latest session status',
     );
   }
 

@@ -6,8 +6,15 @@
 import type { KycController } from './KycController.js';
 
 /**
- * Resolves persisted terms + geolocation, and auto-creates a session when
- * terms are already accepted and an email is available.
+ * Resolves persisted terms + geolocation, hydrates any existing UKYC
+ * session for the vendor, and auto-creates a session when terms are already
+ * accepted and an email is available.
+ *
+ * Looks up `GET /sessions/latest/status/{vendor}` after capturing the vendor
+ * when no `sessionId` is already on state. When a session exists it is reused
+ * (`sessionId` / `sessionStatus`). When `finalStatus` is already `approved`
+ * (including a persisted `sessionStatus`), the flow finishes at `done`
+ * instead of creating a customer or session.
  *
  * @param params - Optional parameters.
  * @param params.email - The account email to associate with the session.
@@ -211,13 +218,12 @@ export type KycControllerGetCustomerIdentityAction = {
  * 5. fetches the SumSub applicant access token; and
  * 6. presents the SDK via the injected launcher.
  *
- * If a UKYC session already exists (the consents path creates it before
- * recording session disclaimers), steps 1–4 are skipped.
+ * If a UKYC session already exists for the vendor (`GET
+ * /sessions/latest/status/{vendor}`), or `sessionId` is already on state,
+ * steps 1–4 are skipped. A vendor cannot have more than one session.
  *
- * If authorizations report the applicant is already approved on the relay
- * while the vendor is still finalizing (`kycStatus: approved`,
- * `finalStatus: pending`), the sub-flow stops at step 4 with a
- * `vendorProcessing` status and a message rather than launching the SDK.
+ * If the existing session's `finalStatus` is already `approved`, the SDK is
+ * not launched.
  *
  * @param params - Optional parameters.
  * @param params.locale - BCP-47 locale for the SDK UI.
@@ -236,7 +242,7 @@ export type KycControllerStartSumSubAction = {
  * polling while the status is not terminal.
  *
  * Throws without an active `sessionId`. Skipped when the recorded
- * session status is already successful (`approved` / `completed`): a
+ * {@link sessionStatus} is already successful (`approved`): a
  * follow-up session status can still read a stale `pending` (for example
  * after `session_not_in_valid_state`) and must not undo that decision.
  *

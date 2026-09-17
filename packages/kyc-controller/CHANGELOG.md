@@ -7,14 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `KycService.getLatestSessionStatusForVendor` (`GET /sessions/latest/status/{vendor}`), which returns the same payload as `getSessionStatus` or `null` when no session exists for that vendor (HTTP 404). `KycController.initialize` (when no `sessionId` is on state) and UKYC session creation check this and always reuse that session when one exists — a vendor cannot have more than one. The reused `sessionStatus` is recorded for any `finalStatus`, not only `approved`. An already-`approved` latest session finishes `initialize` at `done`.
+
 ### Changed
 
+- **BREAKING:** Drive KYC session decisions from `sessionStatus.finalStatus` only (`new` | `pending` | `approved` | `rejected` | `retry`). `kycStatus` is stored but ignored.
+  - Terminal values are `approved`, `rejected`, and `retry`. `approved` is the only successful status (`completed` is no longer treated as success).
 - **BREAKING:** Move the active UKYC `sessionId` and `sessionStatus` from `sumsub` to the root of `KycControllerState`. ([#10276](https://github.com/MetaMask/core/pull/10276))
-  - Read `state.sessionId` / `state.sessionStatus` instead of `state.sumsub.sessionId` / `state.sumsub.sessionStatus`. `sessionId` is persisted; `sessionStatus` is not.
+  - Read `state.sessionId` / `state.sessionStatus` instead of `state.sumsub.sessionId` / `state.sumsub.sessionStatus`. Both are persisted. Clearing `sessionId` also clears `sessionStatus`.
 - **BREAKING:** `KycController.refreshKycStatus` now loads status from `GET /sessions/{id}/status` (`getSessionStatus`) instead of `GET /kyc/status`. ([#10276](https://github.com/MetaMask/core/pull/10276))
   - Requires an active `sessionId` (throws if missing). Returns and publishes the UKYC `sessionStatus` payload as-is (`null` when none is recorded).
 - **BREAKING:** Replace `KycUserStatus` with `KycSessionStatus` (`new` | `pending` | `approved` | `rejected` | `retry`). ([#10276](https://github.com/MetaMask/core/pull/10276))
 - **BREAKING:** Rename the `GET /sessions/{id}/status` payload type from `KycSessionStatus` to `KycSessionStatusResponse`. ([#10276](https://github.com/MetaMask/core/pull/10276))
+  - The session id on that payload is `id`, not `sessionId`. Controller state still uses `sessionId`.
 - **BREAKING:** Remove `userStatus`, `userStatusSumsubSessionId`, and `userStatusErrorCode` from `KycControllerState`. ([#10276](https://github.com/MetaMask/core/pull/10276))
   - Read `state.sessionStatus`, or use `refreshKycStatus` / `KycController:statusChanged`.
 - **BREAKING:** Combine the session-status and user-status poll loops onto one timer. ([#10276](https://github.com/MetaMask/core/pull/10276))
@@ -23,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **BREAKING:** Remove `vendorProcessing` from `KycSumSubStatus`. A pending `finalStatus` continues into the SumSub SDK instead of short-circuiting on `kycStatus: approved`.
 - **BREAKING:** Remove `KycService.fetchKycStatus` and the `KycService:fetchKycStatus` messenger action. ([#10276](https://github.com/MetaMask/core/pull/10276))
 - **BREAKING:** Remove `KycControllerOptions.userStatusPollIntervalMs`. Use `sessionStatusPollIntervalMs` instead. ([#10276](https://github.com/MetaMask/core/pull/10276))
 - **BREAKING:** Remove `KycUserStatusResponse`. Use `KycControllerStatusChangedEvent` / `refreshKycStatus`'s return payload instead. ([#10276](https://github.com/MetaMask/core/pull/10276))

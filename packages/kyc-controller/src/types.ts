@@ -44,8 +44,8 @@ export type KycCustomerIdentity = {
  * - `new` — no session decision yet (including never started).
  * - `pending` — submitted or in review; keep polling.
  * - `approved` — verification succeeded.
- * - `rejected` — terminal failure (`rejected`, `failed`, `blocked`, …).
- * - `retry` — the applicant must resubmit (`retry`).
+ * - `rejected` — terminal failure.
+ * - `retry` — the applicant must resubmit.
  */
 export type KycSessionStatus =
   | 'new'
@@ -90,11 +90,7 @@ export type KycPhase =
  * - `polling` — the SDK finished and the controller is polling the UKYC
  *   backend for the session's final decision (see
  *   {@link KycSessionStatusResponse}). The sub-flow resolves to `complete` or
- *   `failed` once a terminal status arrives.
- * - `vendorProcessing` — session creation reported that the applicant is
- *   already approved on the relay (`kycStatus`) while the vendor is still
- *   finalizing its own decision (`finalStatus`). There is nothing left for the
- *   applicant to do, so the SDK is not launched; see `statusMessage`.
+ *   `failed` once a terminal `finalStatus` arrives.
  * - `abandoned` — the applicant closed the SDK before submitting. Unlike
  *   `failed`, nothing went wrong, so `error` is left unset and consumers should
  *   offer a retry rather than report a problem.
@@ -108,8 +104,7 @@ export type KycSumSubStatus =
   | 'polling'
   | 'complete'
   | 'abandoned'
-  | 'failed'
-  | 'vendorProcessing';
+  | 'failed';
 
 /**
  * Status strings a SumSub SDK reports, through either the status-change
@@ -140,28 +135,34 @@ export type KycSumSubSdkStatus =
   | 'Completed';
 
 /**
- * The UKYC session status payload returned by `GET /sessions/{id}/status`
- * (and `POST /sessions/{id}/authorizations`). Distinct from
+ * The UKYC session status payload returned by `GET /sessions/{id}/status`,
+ * `GET /sessions/latest/status/{vendor}`, and
+ * `POST /sessions/{id}/authorizations`. Distinct from
  * {@link KycSessionStatus}, the simplified value derived from
  * `sessionStatus.finalStatus`.
  */
 export type KycSessionStatusResponse = {
   /**
-   * The overall status of the session. Terminal values (e.g. `approved`,
-   * `completed`, `rejected`, `failed`, `blocked`, `retry`) end polling; any
-   * other value keeps polling.
+   * Overall session status. Terminal values (`approved`, `rejected`, `retry`)
+   * end polling; `new` and `pending` keep polling. Controller decisions use
+   * this field only — not `kycStatus`.
    */
-  finalStatus: string;
+  finalStatus: KycSessionStatus;
   /** Optional human-readable message describing the status. */
   statusMessage?: string;
   /** The vendor-agnostic external user id associated with the session. */
   externalUserId: string;
-  /** The KYC decision status. */
+  /** Echoed KYC decision from the API. Not used for controller decisions. */
   kycStatus: string;
   /** The identity vendor that handled the session. */
   vendor: string;
   /** The vendor-specific status. */
   vendorStatus: string;
+  /**
+   * The UKYC session id. Present on `GET /sessions/latest/status/{vendor}`
+   * so an existing session can be resumed without creating another.
+   */
+  id?: string;
 };
 
 /**
