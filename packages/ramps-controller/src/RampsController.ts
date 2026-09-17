@@ -6,6 +6,17 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { BrokenCircuitError } from '@metamask/controller-utils';
+import type {
+  KycControllerGetKycStatusAction,
+  KycControllerHasCompletedProviderTermsAction,
+  KycControllerHasCompletedVendorTermsAction,
+  KycControllerIsCustomerCreatedAction,
+} from '@metamask/kyc-controller';
+import {
+  KycProvider,
+  KycStatus,
+  KycVendor,
+} from '@metamask/kyc-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   AuthenticationController,
@@ -262,45 +273,6 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
 export type KeyringControllerSignPersonalMessageAction = {
   type: 'KeyringController:signPersonalMessage';
   handler: (messageParams: { data: string; from: string }) => Promise<string>;
-};
-
-const KycVendor = {
-  Iron: 'iron',
-} as const;
-type KycVendor = (typeof KycVendor)[keyof typeof KycVendor];
-
-const KycProvider = {
-  sumsub: 'sumsub',
-} as const;
-type KycProvider = (typeof KycProvider)[keyof typeof KycProvider];
-
-const KycStatus = {
-  NOT_STARTED: 'NOT_STARTED',
-  PENDING: 'PENDING',
-  NEED_INFO: 'NEED_INFO',
-  REJECTED: 'REJECTED',
-  ACCEPTED: 'ACCEPTED',
-} as const;
-type KycStatus = (typeof KycStatus)[keyof typeof KycStatus];
-
-type KycControllerIsCustomerCreatedAction = {
-  type: 'KycController:isCustomerCreated';
-  handler: (vendor: KycVendor) => boolean;
-};
-
-type KycControllerHasCompletedVendorTermsAction = {
-  type: 'KycController:hasCompletedVendorTerms';
-  handler: (vendor: KycVendor) => boolean;
-};
-
-type KycControllerHasCompletedProviderTermsAction = {
-  type: 'KycController:hasCompletedProviderTerms';
-  handler: (provider: KycProvider) => boolean;
-};
-
-type KycControllerGetKycStatusAction = {
-  type: 'KycController:getKycStatus';
-  handler: (vendor: KycVendor) => KycStatus;
 };
 
 /**

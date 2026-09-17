@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** `RampsControllerMessenger` now requires the `KycController:isCustomerCreated`, `KycController:hasCompletedVendorTerms`, `KycController:hasCompletedProviderTerms`, and `KycController:getKycStatus` actions to hydrate VBA onboarding ([#10278](https://github.com/MetaMask/core/pull/10278))
+  - Imports `KycVendor`, `KycProvider`, `KycStatus`, and the matching action types from `@metamask/kyc-controller` (see [#10279](https://github.com/MetaMask/core/pull/10279)).
+- Add `@metamask/kyc-controller` as a dependency ([#10278](https://github.com/MetaMask/core/pull/10278))
 
 ## [23.0.0]
 
