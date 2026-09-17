@@ -905,6 +905,54 @@ describe('EvmAccountProvider', () => {
       expect(provider.getAccounts()).toStrictEqual([]);
     });
 
+    it('resolves accounts via a single AccountsController:getAccounts batch', async () => {
+      const accounts = [0, 1].map((groupIndex) =>
+        MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+          .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+          .withGroupIndex(groupIndex)
+          .withId(`mock-evm-id-${groupIndex}`)
+          .withAddress(`0x${groupIndex}`)
+          .get(),
+      );
+      const { provider, keyring, messenger, mocks } = setup({ accounts });
+      const getAccountsSpy = jest.fn((accountIds: string[]) =>
+        keyring.accounts.filter((account) => accountIds.includes(account.id)),
+      );
+      messenger.unregisterActionHandler('AccountsController:getAccounts');
+      messenger.registerActionHandler(
+        'AccountsController:getAccounts',
+        getAccountsSpy,
+      );
+
+      expect(
+        await provider.deleteAccounts(accounts.map((account) => account.id)),
+      ).toStrictEqual({ ok: true });
+
+      expect(getAccountsSpy).toHaveBeenCalledTimes(1);
+      expect(getAccountsSpy).toHaveBeenCalledWith(
+        accounts.map((account) => account.id),
+      );
+      expect(mocks.mockGetAccount).not.toHaveBeenCalled();
+    });
+
+    it('deletes an account once when duplicate ids are requested', async () => {
+      const { provider, keyring } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+      const deleteAccountSpy = jest.spyOn(keyring, 'deleteAccount');
+
+      expect(
+        await provider.deleteAccounts([
+          MOCK_HD_ACCOUNT_1.id,
+          MOCK_HD_ACCOUNT_1.id,
+        ]),
+      ).toStrictEqual({ ok: true });
+
+      expect(deleteAccountSpy).toHaveBeenCalledTimes(1);
+      expect(deleteAccountSpy).toHaveBeenCalledWith(MOCK_HD_ACCOUNT_1.id);
+      expect(provider.getAccounts()).toStrictEqual([]);
+    });
+
     it('throws when the accounts are owned by different entropy sources', async () => {
       const accounts = [
         MOCK_HD_KEYRING_1.metadata.id,

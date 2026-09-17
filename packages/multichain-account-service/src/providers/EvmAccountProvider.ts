@@ -476,15 +476,30 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     ids: Bip44Account<KeyringAccount>['id'][],
   ): Promise<DeleteAccountsResult> {
     const failures: DeleteAccountsFailure[] = [];
-    const accounts: Bip44Account<KeyringAccount>[] = [];
 
-    for (const id of ids) {
-      try {
-        accounts.push(this.getAccount(id));
-      } catch (error) {
-        failures.push({ id, error });
+    const allAccounts = this.getAccounts();
+    const deletedIds = new Set(ids);
+    const deletedAccounts: Bip44Account<KeyringAccount>[] = [];
+    for (const account of allAccounts) {
+      if (deletedIds.has(account.id)) {
+        deletedAccounts.push(account);
+        deletedIds.delete(account.id);
       }
     }
+
+    // If we have some remaining IDs, that means those accounts could not be found among
+    // the tracked accounts.
+    if (deletedIds.size > 0) {
+      for (const id of deletedIds) {
+        failures.push({
+          id,
+          error: new Error(`Unable to find account: ${id}`),
+        });
+      }
+    }
+
+    // Those are the only accounts that we could fetch from the controller.
+    const accounts = deletedAccounts;
 
     const [first] = accounts;
     if (!first) {
