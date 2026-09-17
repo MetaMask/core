@@ -23,6 +23,7 @@ import type {
 } from './autorampAccount.js';
 import {
   applyAutorampRemoteStatus,
+  AutorampStatus,
   createAutorampAccount,
   markAutorampNotified,
 } from './autorampAccount.js';
@@ -241,6 +242,10 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'AuthenticationController:getSessionProfile',
   'AuthenticationController:isSignedIn',
   'KeyringController:signPersonalMessage',
+  'KycController:getKycStatus',
+  'KycController:hasCompletedProviderTerms',
+  'KycController:hasCompletedVendorTerms',
+  'KycController:isCustomerCreated',
   'RemoteFeatureFlagController:getState',
   'UserStorageController:getState',
   'UserStorageController:performGetStorageAllFeatureEntries',
@@ -255,6 +260,45 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
 export type KeyringControllerSignPersonalMessageAction = {
   type: 'KeyringController:signPersonalMessage';
   handler: (messageParams: { data: string; from: string }) => Promise<string>;
+};
+
+const KycVendor = {
+  Iron: 'iron',
+} as const;
+type KycVendor = (typeof KycVendor)[keyof typeof KycVendor];
+
+const KycProvider = {
+  sumsub: 'sumsub',
+} as const;
+type KycProvider = (typeof KycProvider)[keyof typeof KycProvider];
+
+const KycStatus = {
+  NOT_STARTED: 'NOT_STARTED',
+  PENDING: 'PENDING',
+  NEED_INFO: 'NEED_INFO',
+  REJECTED: 'REJECTED',
+  ACCEPTED: 'ACCEPTED',
+} as const;
+type KycStatus = (typeof KycStatus)[keyof typeof KycStatus];
+
+type KycControllerIsCustomerCreatedAction = {
+  type: 'KycController:isCustomerCreated';
+  handler: (vendor: KycVendor) => boolean;
+};
+
+type KycControllerHasCompletedVendorTermsAction = {
+  type: 'KycController:hasCompletedVendorTerms';
+  handler: (vendor: KycVendor) => boolean;
+};
+
+type KycControllerHasCompletedProviderTermsAction = {
+  type: 'KycController:hasCompletedProviderTerms';
+  handler: (provider: KycProvider) => boolean;
+};
+
+type KycControllerGetKycStatusAction = {
+  type: 'KycController:getKycStatus';
+  handler: (vendor: KycVendor) => KycStatus;
 };
 
 /**
@@ -282,6 +326,19 @@ type LookupUnavailableResult = Extract<
   MoneyAccountWalletRegistrationResult,
   { type: 'lookupUnavailable' }
 >;
+
+/**
+ * The Mobile route for the current VBA onboarding step.
+ */
+export enum VbaOnboardingStage {
+  EmailOtpRequired = 'EmailOtpRequired',
+  VendorTermsRequired = 'VendorTermsRequired',
+  ProviderTermsRequired = 'ProviderTermsRequired',
+  KycRequired = 'KycRequired',
+  KycPending = 'KycPending',
+  KycRejected = 'KycRejected',
+  Completed = 'Completed',
+}
 
 /**
  * Distinguishes an already-materialized {@link AutorampAccount} from the
@@ -551,6 +608,10 @@ export type RampsControllerState = {
    * token conflict instead of showing the "Token Not Available" modal.
    */
   providerAutoSelected: boolean;
+  /**
+   * The current Mobile-routable VBA onboarding stage.
+   */
+  vbaOnboardingStage: VbaOnboardingStage | null;
 };
 
 /**
@@ -612,6 +673,12 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   providerAutoSelected: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  vbaOnboardingStage: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -679,6 +746,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     orders: [],
     autoramps: [],
     providerAutoSelected: false,
+    vbaOnboardingStage: null,
   };
 }
 
@@ -810,6 +878,10 @@ type AllowedActions =
   | NeoBankServiceRegisterSelfHostedWalletAction
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
   | KeyringControllerSignPersonalMessageAction
+  | KycControllerIsCustomerCreatedAction
+  | KycControllerHasCompletedVendorTermsAction
+  | KycControllerHasCompletedProviderTermsAction
+  | KycControllerGetKycStatusAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
@@ -1023,6 +1095,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'removeOrder',
   'addAutoramp',
   'createAutoramp',
+  'hydrateVbaOnboarding',
   'removeAutoramp',
   'registerMoneyAccountWallet',
   'markAutorampAsNotified',
@@ -1177,6 +1250,8 @@ export class RampsController extends BaseController<
   #isPolling = false;
 
   #initPromise: Promise<void> | null = null;
+
+  #vbaOnboardingHydrationPromise: Promise<VbaOnboardingStage> | null = null;
 
   /**
    * Semaphore that prevents sync feedback loops while applying remote order changes.
@@ -3727,6 +3802,122 @@ export class RampsController extends BaseController<
         }
       }
     }
+  }
+
+  /**
+   * Hydrates the Mobile-routable VBA onboarding stage from KYC state and
+   * completes wallet and autoramp setup after KYC acceptance.
+   *
+   * Overlapping calls share one run so polling cannot trigger duplicate wallet
+   * signatures or autoramp creation.
+   *
+   * @param params - VBA onboarding parameters.
+   * @param params.walletAddress - Monad Money Account wallet address.
+   * @returns The hydrated onboarding stage.
+   */
+  async hydrateVbaOnboarding({
+    walletAddress,
+  }: {
+    walletAddress: string;
+  }): Promise<VbaOnboardingStage> {
+    if (this.#vbaOnboardingHydrationPromise) {
+      return await this.#vbaOnboardingHydrationPromise;
+    }
+
+    const hydrationPromise = this.#hydrateVbaOnboarding(walletAddress);
+    this.#vbaOnboardingHydrationPromise = hydrationPromise;
+
+    try {
+      return await hydrationPromise;
+    } finally {
+      if (this.#vbaOnboardingHydrationPromise === hydrationPromise) {
+        this.#vbaOnboardingHydrationPromise = null;
+      }
+    }
+  }
+
+  async #hydrateVbaOnboarding(
+    walletAddress: string,
+  ): Promise<VbaOnboardingStage> {
+    if (
+      !this.messenger.call('KycController:isCustomerCreated', KycVendor.Iron)
+    ) {
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.EmailOtpRequired);
+    }
+
+    if (
+      !this.messenger.call(
+        'KycController:hasCompletedVendorTerms',
+        KycVendor.Iron,
+      )
+    ) {
+      return this.#setVbaOnboardingStage(
+        VbaOnboardingStage.VendorTermsRequired,
+      );
+    }
+
+    if (
+      !this.messenger.call(
+        'KycController:hasCompletedProviderTerms',
+        KycProvider.sumsub,
+      )
+    ) {
+      return this.#setVbaOnboardingStage(
+        VbaOnboardingStage.ProviderTermsRequired,
+      );
+    }
+
+    const kycStatus = this.messenger.call(
+      'KycController:getKycStatus',
+      KycVendor.Iron,
+    );
+    if (
+      kycStatus === KycStatus.NOT_STARTED ||
+      kycStatus === KycStatus.NEED_INFO
+    ) {
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRequired);
+    }
+    if (kycStatus === KycStatus.PENDING) {
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycPending);
+    }
+    if (kycStatus === KycStatus.REJECTED) {
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRejected);
+    }
+    if (kycStatus !== KycStatus.ACCEPTED) {
+      throw new Error(`Unsupported KYC status: ${kycStatus as string}`);
+    }
+    if (!walletAddress.trim()) {
+      throw new Error('walletAddress is required after KYC acceptance.');
+    }
+
+    const registration = await this.registerMoneyAccountWallet({
+      address: walletAddress,
+    });
+    if (registration.type === 'lookupUnavailable') {
+      throw registration.error;
+    }
+
+    const normalizedWalletAddress = walletAddress.toLowerCase();
+    const hasUsableAutoramp = this.state.autoramps.some(
+      (autoramp) =>
+        autoramp.walletAddress.toLowerCase() === normalizedWalletAddress &&
+        autoramp.status !== AutorampStatus.Rejected &&
+        autoramp.status !== AutorampStatus.Cancelled,
+    );
+    if (!hasUsableAutoramp) {
+      await this.createAutoramp({});
+    }
+
+    return this.#setVbaOnboardingStage(VbaOnboardingStage.Completed);
+  }
+
+  #setVbaOnboardingStage(stage: VbaOnboardingStage): VbaOnboardingStage {
+    if (this.state.vbaOnboardingStage !== stage) {
+      this.update((state) => {
+        state.vbaOnboardingStage = stage;
+      });
+    }
+    return stage;
   }
 
   /**
