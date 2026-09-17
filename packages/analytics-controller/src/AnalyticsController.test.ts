@@ -1534,7 +1534,10 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         { prop: 'value' },
-        withPurposeConsent({ product: true, marketing: false }, { location: fullLocationContext }),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: fullLocationContext },
+        ),
       );
     });
 
@@ -1551,9 +1554,12 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         undefined,
-        withPurposeConsent({ product: true, marketing: false }, {
-        location: fullLocationContext,
-        }),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          {
+            location: fullLocationContext,
+          },
+        ),
       );
     });
 
@@ -1570,7 +1576,10 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.identify).toHaveBeenCalledWith(
         analyticsId,
         { trait: 'value' },
-        withPurposeConsent({ product: true, marketing: false }, { location: fullLocationContext }),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: fullLocationContext },
+        ),
       );
     });
 
@@ -1587,9 +1596,12 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.view).toHaveBeenCalledWith(
         'home',
         undefined,
-        withPurposeConsent({ product: true, marketing: false }, {
-        location: fullLocationContext,
-        }),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          {
+            location: fullLocationContext,
+          },
+        ),
       );
     });
 
@@ -1608,10 +1620,13 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         undefined,
-        withPurposeConsent({ product: true, marketing: false }, {
-        app: { name: 'MetaMask' },
-        location: fullLocationContext,
-        }),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          {
+            app: { name: 'MetaMask' },
+            location: fullLocationContext,
+          },
+        ),
       );
     });
 
@@ -1630,9 +1645,12 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         undefined,
-        withPurposeConsent({ product: true, marketing: false }, {
-        location: { city: 'Seattle', ...fullLocationContext },
-        }),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          {
+            location: { city: 'Seattle', ...fullLocationContext },
+          },
+        ),
       );
     });
 
@@ -1651,9 +1669,12 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         undefined,
-        withPurposeConsent({ product: true, marketing: false }, {
-        location: fullLocationContext,
-        }),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          {
+            location: fullLocationContext,
+          },
+        ),
       );
     });
 
@@ -1672,9 +1693,12 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         undefined,
-        withPurposeConsent({ product: true, marketing: false }, {
-        location: fullLocationContext,
-        }),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          {
+            location: fullLocationContext,
+          },
+        ),
       );
     });
 
@@ -1691,9 +1715,12 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         undefined,
-        withPurposeConsent({ product: true, marketing: false }, {
-        location: { country_code: 'FR' },
-        }),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          {
+            location: { country_code: 'FR' },
+          },
+        ),
       );
     });
 
@@ -1711,7 +1738,10 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         undefined,
-        withPurposeConsent({ product: true, marketing: false }, { app: { name: 'MetaMask' } }),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { app: { name: 'MetaMask' } },
+        ),
       );
     });
 
@@ -1771,7 +1801,10 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         undefined,
-        withPurposeConsent({ product: true, marketing: false }, { location: { city: 'Seattle' } }),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: { city: 'Seattle' } },
+        ),
       );
     });
 
@@ -1797,7 +1830,10 @@ describe('AnalyticsController', () => {
         1,
         'test_event',
         { prop: 'value' },
-        withPurposeConsent({ product: true, marketing: false }, { location: fullLocationContext }),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: fullLocationContext },
+        ),
       );
       expect(mockAdapter.track).toHaveBeenNthCalledWith(
         2,
@@ -1834,7 +1870,10 @@ describe('AnalyticsController', () => {
           sensitive_prop: 'sensitive value',
           anonymous: true,
         },
-        withPurposeConsent({ product: true, marketing: false }, { location: fullLocationContext }),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: fullLocationContext },
+        ),
       );
     });
 
@@ -1854,9 +1893,12 @@ describe('AnalyticsController', () => {
       ) as { context?: AnalyticsContext }[];
 
       expect(queuedEvent.context).toStrictEqual({
-        ...withPurposeConsent({ product: true, marketing: false }, {
-        location: fullLocationContext,
-        }),
+        ...withPurposeConsent(
+          { product: true, marketing: false },
+          {
+            location: fullLocationContext,
+          },
+        ),
       });
     });
 
@@ -1891,7 +1933,10 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'preconsent_event',
         undefined,
-        withPurposeConsent({ product: true, marketing: false }, { location: fullLocationContext }),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: fullLocationContext },
+        ),
         expect.any(Object),
       );
 
@@ -1900,7 +1945,10 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenLastCalledWith(
         'postconsent_event',
         undefined,
-        withPurposeConsent({ product: true, marketing: false }, { location: fullLocationContext }),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: fullLocationContext },
+        ),
       );
     });
 
@@ -1933,7 +1981,10 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         { prop: 'value' },
-        withPurposeConsent({ product: true, marketing: false }, { location: fullLocationContext }),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: fullLocationContext },
+        ),
         expect.any(Object),
       );
       // ...but the anonymous payload carries no location.
@@ -2256,7 +2307,10 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.identify).toHaveBeenCalledWith(
         analyticsId,
         { trait: 'value' },
-        withPurposeConsent({ product: true, marketing: false }, identifyContext),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          identifyContext,
+        ),
         expect.objectContaining({ messageId: identifyOptions.messageId }),
       );
       expect(mockAdapter.view).toHaveBeenCalledWith(
@@ -2267,10 +2321,16 @@ describe('AnalyticsController', () => {
       );
       expect(controller.state.eventQueue).toMatchObject({
         [identifyOptions.messageId as string]: {
-          context: withPurposeConsent({ product: true, marketing: false }, identifyContext),
+          context: withPurposeConsent(
+            { product: true, marketing: false },
+            identifyContext,
+          ),
         },
         [viewOptions.messageId as string]: {
-          context: withPurposeConsent({ product: true, marketing: false }, viewContext),
+          context: withPurposeConsent(
+            { product: true, marketing: false },
+            viewContext,
+          ),
         },
       });
       expect(Object.keys(controller.state.eventQueue ?? {})).toHaveLength(2);
@@ -2982,7 +3042,10 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'first_event',
         { a: 1 },
-        withPurposeConsent({ product: true, marketing: false }, { source: 'onboarding' }),
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { source: 'onboarding' },
+        ),
         expect.objectContaining({ messageId: expect.any(String) }),
       );
       expect(mockAdapter.track).toHaveBeenCalledWith(
@@ -3299,9 +3362,12 @@ describe('AnalyticsController', () => {
         expect(mockAdapter.track).toHaveBeenCalledWith(
           'Signature Requested',
           { signature_type: 'personal_sign' },
-          withPurposeConsent({ product: true, marketing: false }, {
-            referrer: { url: 'https://dapp.test' },
-          }),
+          withPurposeConsent(
+            { product: true, marketing: false },
+            {
+              referrer: { url: 'https://dapp.test' },
+            },
+          ),
         );
       });
 
@@ -3665,10 +3731,13 @@ describe('AnalyticsController', () => {
         expect(mockAdapter.track).toHaveBeenCalledWith(
           'Signature Approved',
           undefined,
-          withPurposeConsent({ product: true, marketing: false }, {
-            referrer: { url: 'https://other.test' },
-            keep: 'me',
-          }),
+          withPurposeConsent(
+            { product: true, marketing: false },
+            {
+              referrer: { url: 'https://other.test' },
+              keep: 'me',
+            },
+          ),
         );
       });
 
@@ -4338,14 +4407,14 @@ describe('AnalyticsController', () => {
       expect(adapter.track).toHaveBeenCalledTimes(1);
       expect(adapter.track).toHaveBeenCalledWith(
         dualPurposeEvent,
-          undefined,
+        undefined,
         withPurposeConsent(
           { product: false, marketing: true },
           {},
           marketingEventsVersion,
         ),
-        );
-      });
+      );
+    });
 
     it('sends immediately when one purpose is opted in and the other is undecided', async () => {
       const adapter = createMockAdapter();
@@ -4409,6 +4478,44 @@ describe('AnalyticsController', () => {
         ),
       });
       expect(adapter.track).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps an already-correct consent stamp when pruning the delivery queue', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: true,
+          marketingEventsConfig,
+          eventQueue: {
+            queued: {
+              type: 'track',
+              eventName: productEvent,
+              messageId: 'queued',
+              timestamp: '2026-01-01T00:00:00.000Z',
+              eventPurposes: [AnalyticsPurpose.Product],
+              marketingEventsVersion,
+              context: withPurposeConsent(
+                { product: true, marketing: false },
+                {},
+                marketingEventsVersion,
+              ),
+            },
+          },
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+        isEventQueuePersistenceEnabled: true,
+        skipInit: true,
+      });
+
+      const queuedBefore = controller.state.eventQueue?.queued;
+      controller.optOutOfMarketing();
+
+      expect(controller.state.eventQueue?.queued).toBe(queuedBefore);
     });
 
     it('replays a queued event using its capture-time purposes and version', async () => {
@@ -4619,12 +4726,18 @@ describe('AnalyticsController', () => {
       expect(adapter.track).toHaveBeenCalledWith(
         marketingEvent,
         undefined,
-        withConfiguredPurposeConsent({ product: false, marketing: true }, { page: { path: '/home' } }),
+        withConfiguredPurposeConsent(
+          { product: false, marketing: true },
+          { page: { path: '/home' } },
+        ),
       );
       expect(adapter.view).toHaveBeenCalledWith(
         marketingEvent,
         undefined,
-        withConfiguredPurposeConsent({ product: false, marketing: true }, { page: { path: '/home' } }),
+        withConfiguredPurposeConsent(
+          { product: false, marketing: true },
+          { page: { path: '/home' } },
+        ),
       );
     });
 
@@ -4685,14 +4798,17 @@ describe('AnalyticsController', () => {
         1,
         marketingEvent,
         { prop: 'value' },
-        withConfiguredPurposeConsent({ product: false, marketing: true }, {
-          page: { path: '/home' },
-          location: {
-            country_code: 'US',
-            region: 'WA',
-            timezone: 'America/Los_Angeles',
+        withConfiguredPurposeConsent(
+          { product: false, marketing: true },
+          {
+            page: { path: '/home' },
+            location: {
+              country_code: 'US',
+              region: 'WA',
+              timezone: 'America/Los_Angeles',
+            },
           },
-        }),
+        ),
       );
       expect(adapter.track).toHaveBeenNthCalledWith(
         2,
@@ -4702,7 +4818,10 @@ describe('AnalyticsController', () => {
           sensitive_prop: 'secret',
           anonymous: true,
         },
-        withConfiguredPurposeConsent({ product: false, marketing: true }, { page: { path: '/home' } }),
+        withConfiguredPurposeConsent(
+          { product: false, marketing: true },
+          { page: { path: '/home' } },
+        ),
       );
     });
 
@@ -5469,7 +5588,9 @@ describe('AnalyticsController', () => {
           properties: { step: '1' },
         }),
       );
-      expect(controller.state.eventFragments?.bag).not.toHaveProperty('context');
+      expect(controller.state.eventFragments?.bag).not.toHaveProperty(
+        'context',
+      );
     });
 
     it('drops invalid pre-consent items when replaying marketing events', async () => {
