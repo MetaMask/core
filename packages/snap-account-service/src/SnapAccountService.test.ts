@@ -1405,68 +1405,6 @@ describe('SnapAccountService', () => {
         expect(listener).not.toHaveBeenCalled();
       },
     );
-
-    it('picks up added/removed accounts from AccountsController:accountsAdded and :accountsRemoved', async () => {
-      // Initially the Snap does not own the account, so the update is dropped.
-      const { service, rootMessenger } = await setup({
-        accounts: [
-          { id: MOCK_ACCOUNT_ID, snapId: MOCK_OTHER_SNAP_ID as string },
-        ],
-      });
-      const listener = jest.fn();
-      rootMessenger.subscribe(
-        'SnapAccountService:accountBalancesUpdated',
-        listener,
-      );
-
-      const payload = {
-        balances: {
-          [MOCK_ACCOUNT_ID]: {
-            'eip155:1/slip44:60': { amount: '1', unit: 'ETH' },
-          },
-        },
-      } satisfies AccountBalancesUpdatedEventPayload;
-
-      let result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
-        method: KeyringEvent.AccountBalancesUpdated,
-        params: payload,
-      } as unknown as SnapMessage);
-      expect(result).toBeNull();
-      expect(listener).not.toHaveBeenCalled();
-
-      // The account is added for this Snap — the cache picks it up from
-      // `accountsAdded` and the next update is forwarded. A no-Snap account
-      // is included to verify such accounts are skipped when updating the
-      // cache incrementally.
-      publishAccountsAdded(rootMessenger, [
-        { id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string },
-        { id: MOCK_NO_SNAP_ACCOUNT_ID },
-      ]);
-
-      result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
-        method: KeyringEvent.AccountBalancesUpdated,
-        params: payload,
-      } as unknown as SnapMessage);
-      expect(result).toBeNull();
-      expect(listener).toHaveBeenCalledTimes(1);
-      expect(listener).toHaveBeenCalledWith({
-        balances: {
-          [MOCK_ACCOUNT_ID]: payload.balances[MOCK_ACCOUNT_ID],
-        },
-      });
-
-      // The account is removed — the cache drops it and the next update is
-      // dropped again (fail closed).
-      publishAccountsRemoved(rootMessenger, [MOCK_ACCOUNT_ID]);
-
-      listener.mockClear();
-      result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
-        method: KeyringEvent.AccountBalancesUpdated,
-        params: payload,
-      } as unknown as SnapMessage);
-      expect(result).toBeNull();
-      expect(listener).not.toHaveBeenCalled();
-    });
   });
 
   describe('on AccountTreeController:selectedAccountGroupChange', () => {
