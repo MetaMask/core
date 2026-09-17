@@ -112,7 +112,7 @@ const config = {
       teams: ['@MetaMask/core-platform'],
     },
     'core-backend': {
-      teams: ['@MetaMask/core-platform', '@MetaMask/metamask-assets'],
+      teams: ['@MetaMask/metamask-assets'],
     },
     cryptography: {
       teams: ['@MetaMask/core-platform'],
