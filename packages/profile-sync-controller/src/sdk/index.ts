@@ -1,5 +1,4 @@
 export * from './authentication.js';
-// Domain types only; the snake_case wire DTOs stay internal to the services.
 export { MFA_CREDENTIAL_TYPES } from './authentication-jwt-bearer/mfa/types.js';
 export type {
   MfaCredentialType,
