@@ -46,28 +46,13 @@ import type {
 } from './types.js';
 
 /**
- * Per-account failure detail attached to the aggregated Sentry report
- * produced by {@link MultichainAccountService.removeMultichainAccountWallet}.
- *
- * Names the on-the-wire shape so consumers reading the Sentry context (and
- * tests asserting on it) have one place to look.
+ * Re-exported from {@link MultichainAccountWallet} for deep imports and Sentry
+ * assertions on {@link MultichainAccountService.removeMultichainAccountWallet}.
  */
-export type RemoveMultichainAccountWalletFailure = {
-  provider: string;
-  // Omitted for provider-level failures (e.g. enumerating a provider's
-  // accounts threw before any specific account could be targeted).
-  id?: Bip44Account<KeyringAccount>['id'];
-  error: unknown;
-};
-
-/**
- * Aggregated context payload attached to the Sentry report produced by
- * {@link MultichainAccountService.removeMultichainAccountWallet} when one
- * or more per-account deletions fail.
- */
-export type RemoveMultichainAccountWalletFailureContext = {
-  failures: RemoveMultichainAccountWalletFailure[];
-};
+export type {
+  RemoveMultichainAccountWalletFailure,
+  RemoveMultichainAccountWalletFailureContext,
+} from './MultichainAccountWallet.js';
 
 export const serviceName = 'MultichainAccountService';
 

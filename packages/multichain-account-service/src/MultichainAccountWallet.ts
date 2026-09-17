@@ -33,12 +33,7 @@ import {
 } from './logger.js';
 import type { GroupState } from './MultichainAccountGroup.js';
 import { MultichainAccountGroup } from './MultichainAccountGroup.js';
-import type {
-  RemoveMultichainAccountWalletFailure,
-  RemoveMultichainAccountWalletFailureContext,
-  ServiceState,
-  StateKeys,
-} from './MultichainAccountService.js';
+import type { ServiceState, StateKeys } from './MultichainAccountService.js';
 import { EvmAccountProvider } from './providers/EvmAccountProvider.js';
 import type { Bip44AccountProvider } from './providers/index.js';
 import type { MultichainAccountServiceMessenger } from './types.js';
@@ -48,6 +43,29 @@ import {
   GroupIndexRange,
   toErrorMessage,
 } from './utils.js';
+
+/**
+ * Per-account failure detail collected while deleting wallet-owned accounts.
+ *
+ * Produced by {@link MultichainAccountWallet.deleteAllMultichainAccountGroups}
+ * and surfaced in Sentry when {@link MultichainAccountService.removeMultichainAccountWallet}
+ * runs.
+ */
+export type RemoveMultichainAccountWalletFailure = {
+  provider: string;
+  // Omitted for provider-level failures (e.g. enumerating a provider's
+  // accounts threw before any specific account could be targeted).
+  id?: Bip44Account<KeyringAccount>['id'];
+  error: unknown;
+};
+
+/**
+ * Aggregated context payload attached to the Sentry report when one or more
+ * per-account deletions fail during wallet removal.
+ */
+export type RemoveMultichainAccountWalletFailureContext = {
+  failures: RemoveMultichainAccountWalletFailure[];
+};
 
 /**
  * The context for a provider discovery.
