@@ -10,6 +10,7 @@ describe('generateCodeownersFileContent', () => {
           teams: ['@MetaMask/b-team', '@MetaMask/a-team'],
           initializationPath: 'a-controller',
         },
+        wallet: { teams: ['@MetaMask/core-platform'] },
       },
       overrides: [
         { pattern: '/.github/', owners: ['@MetaMask/core-platform'] },
@@ -43,12 +44,19 @@ describe('generateCodeownersFileContent', () => {
 /packages/b-controller/tsconfig.*      @MetaMask/b-team @MetaMask/core-platform
 /packages/b-controller/typedoc.json    @MetaMask/b-team @MetaMask/core-platform
 
+### wallet
+/packages/wallet                                               @MetaMask/core-platform
+/packages/wallet/src/initialization/instances/a-controller/    @MetaMask/a-team @MetaMask/b-team
+/packages/wallet/CHANGELOG.md                                  @MetaMask/core-platform
+/packages/wallet/package.json                                  @MetaMask/core-platform
+/packages/wallet/tsconfig.*                                    @MetaMask/core-platform
+/packages/wallet/typedoc.json                                  @MetaMask/core-platform
+
 # Overrides
 # ---------
 
-/packages/wallet/src/initialization/instances/a-controller/    @MetaMask/a-team @MetaMask/b-team
-/.github/                                                      @MetaMask/core-platform
-/packages/b-controller/src/special                             @MetaMask/a-team @MetaMask/core-platform`,
+/.github/                             @MetaMask/core-platform
+/packages/b-controller/src/special    @MetaMask/a-team @MetaMask/core-platform`,
     );
   });
 });

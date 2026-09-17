@@ -91,12 +91,7 @@ describe('assembleCodeownersSections', () => {
       },
       {
         title: 'Overrides',
-        rules: [
-          {
-            pattern: '/packages/wallet/src/initialization/instances/alpha/',
-            owners: ['@MetaMask/a-team', '@MetaMask/b-team'],
-          },
-        ],
+        rules: [],
       },
     ]);
   });
@@ -157,7 +152,7 @@ describe('assembleCodeownersSections', () => {
     ]);
   });
 
-  it('emits initialization rules after the wallet package rule', () => {
+  it('emits initialization rules in the wallet package section', () => {
     const config: CodeownersConfig = {
       packages: {
         'accounts-controller': {
@@ -226,6 +221,11 @@ describe('assembleCodeownersSections', () => {
                 owners: ['@MetaMask/core-platform'],
               },
               {
+                pattern:
+                  '/packages/wallet/src/initialization/instances/accounts-controller/',
+                owners: ['@MetaMask/accounts-engineers'],
+              },
+              {
                 pattern: '/packages/wallet/CHANGELOG.md',
                 owners: ['@MetaMask/core-platform'],
               },
@@ -248,11 +248,6 @@ describe('assembleCodeownersSections', () => {
       {
         title: 'Overrides',
         rules: [
-          {
-            pattern:
-              '/packages/wallet/src/initialization/instances/accounts-controller/',
-            owners: ['@MetaMask/accounts-engineers'],
-          },
           {
             pattern: '/packages/eth-json-rpc-middleware/src/methods',
             owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],

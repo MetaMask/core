@@ -21,10 +21,7 @@ export function assembleCodeownersSections(
     buildPackagesSection(config.packages),
     {
       title: 'Overrides',
-      rules: [
-        ...buildInitializationRules(config.packages),
-        ...config.overrides,
-      ],
+      rules: config.overrides,
     },
   ];
 }
@@ -40,6 +37,8 @@ export function assembleCodeownersSections(
 function buildPackagesSection(
   packages: Record<string, PackageInfo>,
 ): CodeownersSection {
+  const initializationRules = buildInitializationRules(packages);
+
   return {
     title: 'Packages',
     rules: [],
@@ -49,7 +48,7 @@ function buildPackagesSection(
       )
       .map(([packageName, packageInfo]) => ({
         title: packageName,
-        rules: buildPackageRules(packageName, packageInfo),
+        rules: buildPackageRules(packageName, packageInfo, initializationRules),
       })),
   };
 }
@@ -65,17 +64,23 @@ function buildPackagesSection(
  * is located.
  * @param packageInfo - The package ownership metadata, as defined in the
  * codeowners configuration file.
+ * @param initializationRules - Rules for Wallet package initialization code.
  * @returns The package's rules.
  */
 function buildPackageRules(
   packageDirectoryName: string,
   packageInfo: PackageInfo,
+  initializationRules: CodeownersRule[],
 ): CodeownersRule[] {
   const owners = [...packageInfo.teams].sort();
 
   const rules: CodeownersRule[] = [
     { pattern: `/packages/${packageDirectoryName}`, owners },
   ];
+
+  if (packageDirectoryName === 'wallet') {
+    rules.push(...initializationRules);
+  }
 
   const releaseOwners = [
     ...new Set([...packageInfo.teams, CORE_PLATFORM_TEAM]),
@@ -93,8 +98,8 @@ function buildPackageRules(
 
 /**
  * Builds rules for package initialization code in the Wallet package. These are
- * emitted as overrides because they must follow the generic Wallet package rule
- * to take precedence in GitHub's last-match-wins CODEOWNERS evaluation.
+ * emitted directly after the generic Wallet package rule so they take precedence
+ * in GitHub's last-match-wins CODEOWNERS evaluation.
  *
  * @param packages - Package ownership metadata, as defined in the codeowners
  * configuration file.

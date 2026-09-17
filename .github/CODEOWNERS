@@ -705,11 +705,28 @@
 /packages/utils/typedoc.json    @MetaMask/core-platform
 
 ### wallet
-/packages/wallet                 @MetaMask/core-platform
-/packages/wallet/CHANGELOG.md    @MetaMask/core-platform
-/packages/wallet/package.json    @MetaMask/core-platform
-/packages/wallet/tsconfig.*      @MetaMask/core-platform
-/packages/wallet/typedoc.json    @MetaMask/core-platform
+/packages/wallet                                                                 @MetaMask/core-platform
+/packages/wallet/src/initialization/instances/accounts-controller/               @MetaMask/accounts-engineers
+/packages/wallet/src/initialization/instances/address-book-controller/           @MetaMask/confirmations
+/packages/wallet/src/initialization/instances/approval-controller/               @MetaMask/confirmations
+/packages/wallet/src/initialization/instances/claims-controller/                 @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/claims-service/                    @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/connectivity-controller/           @MetaMask/core-platform
+/packages/wallet/src/initialization/instances/gas-fee-controller/                @MetaMask/confirmations
+/packages/wallet/src/initialization/instances/keyring-controller/                @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/wallet/src/initialization/instances/passkey-controller/                @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/remote-feature-flag-controller/    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/wallet/src/initialization/instances/seedless-onboarding-controller/    @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/shield-api-service/                @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/shield-controller/                 @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/storage-service/                   @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/wallet/src/initialization/instances/subscription-controller/           @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/subscription-service/              @MetaMask/web3auth
+/packages/wallet/src/initialization/instances/transaction-controller/            @MetaMask/confirmations
+/packages/wallet/CHANGELOG.md                                                    @MetaMask/core-platform
+/packages/wallet/package.json                                                    @MetaMask/core-platform
+/packages/wallet/tsconfig.*                                                      @MetaMask/core-platform
+/packages/wallet/typedoc.json                                                    @MetaMask/core-platform
 
 ### wallet-cli
 /packages/wallet-cli                 @MetaMask/core-platform
@@ -728,23 +745,6 @@
 # Overrides
 # ---------
 
-/packages/wallet/src/initialization/instances/accounts-controller/               @MetaMask/accounts-engineers
-/packages/wallet/src/initialization/instances/address-book-controller/           @MetaMask/confirmations
-/packages/wallet/src/initialization/instances/approval-controller/               @MetaMask/confirmations
-/packages/wallet/src/initialization/instances/claims-controller/                 @MetaMask/web3auth
-/packages/wallet/src/initialization/instances/claims-service/                    @MetaMask/web3auth
-/packages/wallet/src/initialization/instances/connectivity-controller/           @MetaMask/core-platform
-/packages/wallet/src/initialization/instances/gas-fee-controller/                @MetaMask/confirmations
-/packages/wallet/src/initialization/instances/keyring-controller/                @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/wallet/src/initialization/instances/passkey-controller/                @MetaMask/web3auth
-/packages/wallet/src/initialization/instances/remote-feature-flag-controller/    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/wallet/src/initialization/instances/seedless-onboarding-controller/    @MetaMask/web3auth
-/packages/wallet/src/initialization/instances/shield-api-service/                @MetaMask/web3auth
-/packages/wallet/src/initialization/instances/shield-controller/                 @MetaMask/web3auth
-/packages/wallet/src/initialization/instances/storage-service/                   @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/wallet/src/initialization/instances/subscription-controller/           @MetaMask/web3auth
-/packages/wallet/src/initialization/instances/subscription-service/              @MetaMask/web3auth
-/packages/wallet/src/initialization/instances/transaction-controller/            @MetaMask/confirmations
-/.github/                                                                        @MetaMask/core-platform
-/packages/eth-json-rpc-middleware/src/methods                                    @MetaMask/confirmations @MetaMask/core-platform
-/packages/eth-json-rpc-middleware/src/wallet.*                                   @MetaMask/confirmations @MetaMask/core-platform
+/.github/                                         @MetaMask/core-platform
+/packages/eth-json-rpc-middleware/src/methods     @MetaMask/confirmations @MetaMask/core-platform
+/packages/eth-json-rpc-middleware/src/wallet.*    @MetaMask/confirmations @MetaMask/core-platform
