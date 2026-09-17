@@ -303,6 +303,7 @@ export type {
 } from './NeoBankService.js';
 export type {
   NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetAutorampsAction,
   NeoBankServiceRegisterPixAddressAction,
   NeoBankServiceGetAutorampQuoteAction,
   NeoBankServiceCreateAutorampAction,

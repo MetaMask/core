@@ -35,6 +35,7 @@ import {
 import type {
   NeoBankServiceCreateAutorampAction,
   NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetAutorampsAction,
   NeoBankServiceGetCustomerByExternalIdAction,
   NeoBankServiceGetWalletRegistrationStatusAction,
   NeoBankServiceRegisterSelfHostedWalletAction,
@@ -219,6 +220,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
   'TransakService:cancelAllActiveOrders',
   'TransakService:getActiveOrders',
   'NeoBankService:getAutoramp',
+  'NeoBankService:getAutoramps',
   'NeoBankService:createAutoramp',
   'NeoBankService:getCustomerByExternalId',
   'NeoBankService:getWalletRegistrationStatus',
@@ -872,6 +874,7 @@ type AllowedActions =
   | TransakServiceCancelAllActiveOrdersAction
   | TransakServiceGetActiveOrdersAction
   | NeoBankServiceGetAutorampAction
+  | NeoBankServiceGetAutorampsAction
   | NeoBankServiceCreateAutorampAction
   | NeoBankServiceGetCustomerByExternalIdAction
   | NeoBankServiceGetWalletRegistrationStatusAction
@@ -3896,6 +3899,21 @@ export class RampsController extends BaseController<
     if (registration.type === 'lookupUnavailable') {
       throw registration.error;
     }
+
+    const remoteAutoramps = await this.messenger.call(
+      'NeoBankService:getAutoramps',
+    );
+    const remoteAutorampIds = new Set(
+      remoteAutoramps.map((autoramp) => autoramp.id),
+    );
+    for (const autoramp of remoteAutoramps) {
+      this.#applyAutorampRemoteSnapshot(autoramp);
+    }
+    this.update((state) => {
+      state.autoramps = state.autoramps.filter((autoramp) =>
+        remoteAutorampIds.has(autoramp.id),
+      );
+    });
 
     const normalizedWalletAddress = walletAddress.toLowerCase();
     const hasUsableAutoramp = this.state.autoramps.some(

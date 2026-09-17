@@ -112,6 +112,7 @@ export type RegisterSelfHostedWalletParams = {
 
 const MESSENGER_EXPOSED_METHODS = [
   'getAutoramp',
+  'getAutoramps',
   'registerPixAddress',
   'getAutorampQuote',
   'createAutoramp',
@@ -418,6 +419,23 @@ export class NeoBankService {
       `autoramps/${encodeURIComponent(autorampId)}`,
     );
     return this.#mapAutorampResponse(response);
+  }
+
+  /**
+   * Fetches all autoramp accounts belonging to the authenticated customer.
+   *
+   * @returns Remote snapshots for all customer autoramps.
+   */
+  async getAutoramps(): Promise<AutorampRemoteSnapshot[]> {
+    const response = await this.#getJson<unknown>('autoramps');
+    if (!Array.isArray(response)) {
+      throw new Error(
+        'Malformed response received from neo-bank autoramps API',
+      );
+    }
+    return response.map((autoramp) =>
+      this.#mapAutorampResponse(autoramp as NeoBankAutorampResponse),
+    );
   }
 
   /**
