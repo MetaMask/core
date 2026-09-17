@@ -186,8 +186,7 @@ export class MultichainAccountWallet<
    */
   async deleteAllMultichainAccountGroups(): Promise<void> {
     return await this.#withLock(
-      // TODO: Add a proper status for account deletion in `MultichainAccountWalletStatus`.
-      'in-progress:alignment',
+      'in-progress:delete-accounts',
       async () => await this.#deleteAllMultichainAccountGroups(),
     );
   }

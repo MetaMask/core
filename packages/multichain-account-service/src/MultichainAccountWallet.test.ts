@@ -219,8 +219,7 @@ describe('MultichainAccountWallet', () => {
       const alignPromise = wallet.alignAccounts();
       await Promise.resolve();
 
-      // TODO: Add a proper status for account deletion in `MultichainAccountWalletStatus`.
-      expect(wallet.status).toBe('in-progress:alignment');
+      expect(wallet.status).toBe('in-progress:delete-accounts');
       expect(providers[1].createAccounts).not.toHaveBeenCalled();
 
       evmDeleteDeferred.resolve({ ok: true });
@@ -229,8 +228,7 @@ describe('MultichainAccountWallet', () => {
 
       expect(providers[1].createAccounts).toHaveBeenCalled();
       expect(statusChanges).toStrictEqual([
-        // TODO: Add a proper status for account deletion in `MultichainAccountWalletStatus`.
-        'in-progress:alignment',
+        'in-progress:delete-accounts',
         'ready',
         'in-progress:alignment',
         'ready',
