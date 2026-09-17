@@ -905,6 +905,23 @@ describe('EvmAccountProvider', () => {
       expect(provider.getAccounts()).toStrictEqual([]);
     });
 
+    it('returns ok without locking when given no ids', async () => {
+      const { provider, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+      const withKeyringV2Spy = jest.fn();
+      messenger.unregisterActionHandler('KeyringController:withKeyringV2');
+      messenger.registerActionHandler(
+        'KeyringController:withKeyringV2',
+        withKeyringV2Spy,
+      );
+
+      expect(await provider.deleteAccounts([])).toStrictEqual({ ok: true });
+
+      expect(withKeyringV2Spy).not.toHaveBeenCalled();
+      expect(provider.getAccounts()).toHaveLength(1);
+    });
+
     it('resolves accounts via a single AccountsController:getAccounts batch', async () => {
       const accounts = [0, 1].map((groupIndex) =>
         MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)

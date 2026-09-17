@@ -507,8 +507,8 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
       return toDeleteAccountsResult(failures);
     }
 
-    // A single lock only guarantees the deletion order for one keyring, so
-    // callers must group by entropy source themselves.
+    // All IDs must share one entropy source so deletion runs under a single
+    // `withKeyringV2` lock (e.g. scoped to one HD keyring).
     const entropySource = first.options.entropy.id;
     assert(
       accounts.every((account) => account.options.entropy.id === entropySource),
