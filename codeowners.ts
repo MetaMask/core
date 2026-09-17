@@ -132,7 +132,7 @@ const PACKAGES: Record<string, PackageInfo> = {
     teams: ['@MetaMask/core-platform'],
   },
   'core-backend': {
-    teams: ['@MetaMask/core-platform', '@MetaMask/metamask-assets'],
+    teams: ['@MetaMask/metamask-assets'],
   },
   cryptography: {
     teams: ['@MetaMask/core-platform'],
@@ -384,6 +384,9 @@ const PACKAGES: Record<string, PackageInfo> = {
   'user-operation-controller': {
     teams: ['@MetaMask/confirmations'],
   },
+  utils: {
+    teams: ['@MetaMask/core-platform'],
+  },
   wallet: {
     teams: ['@MetaMask/core-platform'],
   },
@@ -448,6 +451,7 @@ function buildTeamSections(): CodeownersSection[] {
         buildRuleForPackage('assets-controllers'),
         buildRuleForPackage('network-enablement-controller'),
         buildRuleForPackage('assets-controller'),
+        buildRuleForPackage('core-backend'),
       ],
     },
     {
@@ -569,6 +573,7 @@ function buildTeamSections(): CodeownersSection[] {
         buildRuleForPackage('react-data-query'),
         buildRuleForPackage('sample-controllers'),
         buildRuleForPackage('selected-network-controller'),
+        buildRuleForPackage('utils'),
         buildRuleForPackage('wallet'),
         buildRuleForPackage('wallet-cli'),
         buildRuleForPackage('wallet-framework-docs'),
@@ -602,7 +607,6 @@ function buildJointTeamOwnershipSection(): CodeownersSection {
     rules: [
       buildRuleForPackage('announcement-controller'),
       buildRuleForPackage('client-utils'),
-      buildRuleForPackage('core-backend'),
       {
         pattern: '/packages/eth-json-rpc-middleware/src/methods',
         owners: ['@MetaMask/confirmations', '@MetaMask/core-platform'],

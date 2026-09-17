@@ -30,7 +30,7 @@ import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@m
 import type { Quote as RampsQuote } from '@metamask/ramps-controller';
 import type {
   RampsControllerGetOrderAction,
-  RampsControllerGetQuotesAction,
+  RampsControllerGetQuoteWithFeesAction,
 } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SentinelApiServiceActions } from '@metamask/sentinel-api-service';
@@ -72,7 +72,7 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkConfigurationByChainIdAction
   | RampsControllerGetOrderAction
-  | RampsControllerGetQuotesAction
+  | RampsControllerGetQuoteWithFeesAction
   | RemoteFeatureFlagControllerGetStateAction
   | TokenBalancesControllerGetStateAction
   | TokenRatesControllerGetStateAction
@@ -675,6 +675,9 @@ export type TransactionPayQuote<OriginalQuote> = {
 
   /** Whether fees are subtracted from the destination amount, meaning the input amount is static. */
   isInputBased?: boolean;
+
+  /** Whether the reported fees are already included in the source amount. */
+  areFeesIncludedInSourceAmount?: boolean;
 
   /** Raw quote data returned by the provider. */
   original: OriginalQuote;

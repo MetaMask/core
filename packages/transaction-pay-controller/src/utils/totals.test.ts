@@ -340,6 +340,44 @@ describe('Totals Utils', () => {
       expect(result.total.usd).toBe('65.42');
     });
 
+    it('keeps included direct mUSD fees visible without adding them to total', () => {
+      const fiatQuote: TransactionPayQuote<unknown> = {
+        ...QUOTE_1_MOCK,
+        areFeesIncludedInSourceAmount: true,
+        fees: {
+          metaMask: { fiat: '0', usd: '0' },
+          provider: { fiat: '0.5', usd: '0.5' },
+          providerFiat: { fiat: '0.7', usd: '0.7' },
+          sourceNetwork: {
+            estimate: { fiat: '0.2', human: '0', raw: '0', usd: '0.2' },
+            max: { fiat: '0.2', human: '0', raw: '0', usd: '0.2' },
+          },
+          targetNetwork: { fiat: '0', usd: '0' },
+        },
+        strategy: TransactionPayStrategy.Fiat,
+      };
+
+      const result = calculateTotals({
+        fiatPaymentAmount: '15',
+        quotes: [fiatQuote],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.fees.provider).toStrictEqual({
+        fiat: '0.5',
+        usd: '0.5',
+      });
+      expect(result.fees.sourceNetwork.estimate).toStrictEqual({
+        fiat: '0.2',
+        human: '0',
+        raw: '0',
+        usd: '0.2',
+      });
+      expect(result.total).toStrictEqual({ fiat: '15', usd: '15' });
+    });
+
     it('returns total with zero payment when fiat strategy is present but fiatPaymentAmount is undefined', () => {
       const fiatQuote: TransactionPayQuote<unknown> = {
         ...QUOTE_1_MOCK,

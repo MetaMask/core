@@ -1,0 +1,24 @@
+{
+  "extends": ["./tsconfig.json", "../../tsconfig.packages.lint.json"],
+  "compilerOptions": {
+    "outDir": "./.tsc-lint-cache",
+    "tsBuildInfoFile": "./.tsc-lint-cache/tsconfig.tsbuildinfo"
+  },
+  "references": [
+    {
+      "path": "../messenger/tsconfig.lint.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../preferences-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../transaction-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../utils/tsconfig.lint.json"
+    }
+  ]
+}

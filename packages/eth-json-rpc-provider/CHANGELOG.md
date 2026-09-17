@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@types/lodash` from `^4.14.191` to `^4.17.20` ([#10169](https://github.com/MetaMask/core/pull/10169))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
 ## [7.0.0]
 
 ### Added

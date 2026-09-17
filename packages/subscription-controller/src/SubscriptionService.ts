@@ -240,11 +240,17 @@ export class SubscriptionService extends BaseDataService<
       profileKey,
       bearerToken,
       methodName: 'cancelSubscription',
-      requestParams: params,
+      requestParams: {
+        subscriptionId: params.subscriptionId,
+        cancelAtPeriodEnd: params.cancelAtPeriodEnd,
+        cancellationReason: params.cancellationReason,
+      },
       path,
       method: 'POST',
       body: {
         cancelAtPeriodEnd: params.cancelAtPeriodEnd,
+        cancellationReason: params.cancellationReason,
+        cancellationFeedback: params.cancellationFeedback,
       },
       errorMessage: SubscriptionServiceErrorMessage.FailedToCancelSubscription,
     });

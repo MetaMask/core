@@ -81,7 +81,13 @@ export function isMoneyAccountDepositTransaction(
 }
 
 /**
- * Fetches the first matching Ramps quote for a fiat asset and payment method.
+ * Fetches the best matching Ramps quote for a fiat asset and payment method,
+ * with provider fees reconciled to what the resolved provider actually charges.
+ *
+ * The `RampsController:getQuoteWithFees` action owns the provider check and the
+ * native buy-quote lookup, so a Transak Native quote already carries the native
+ * fee in its `providerFee`/`networkFee`/`totalFees` fields. MM Pay deposits are
+ * fee-on-top, so the quote is requested with `isFeeExcludedFromFiat: true`.
  *
  * @param options - Quote options.
  * @param options.adjustedAmount - Fiat amount sent to Ramps.
@@ -90,7 +96,7 @@ export function isMoneyAccountDepositTransaction(
  * @param options.fiatPaymentMethod - Selected fiat payment method.
  * @param options.messenger - Controller messenger.
  * @param options.walletAddress - Wallet address that receives the on-ramped asset.
- * @returns The first matching Ramps quote.
+ * @returns The best matching Ramps quote with reconciled fees.
  */
 export async function getRampsQuote({
   adjustedAmount,
@@ -107,21 +113,18 @@ export async function getRampsQuote({
   messenger: TransactionPayControllerMessenger;
   walletAddress: string;
 }): Promise<RampsQuote> {
-  const quotes = await messenger.call('RampsController:getQuotes', {
+  const quote = await messenger.call('RampsController:getQuoteWithFees', {
     amount: adjustedAmount,
     assetId: buildCaipAssetType(fiatAsset.chainId, fiatAsset.address),
     autoSelectProvider: true,
     fiat: DEFAULT_FIAT_CURRENCY,
+    isFeeExcludedFromFiat: true,
     paymentMethods: [fiatPaymentMethod],
     restrictToKnownOrNativeProviders: true,
     walletAddress,
   });
 
-  log('Fetched ramps quotes', {
-    quotesCount: quotes.success?.length ?? 0,
-  });
-
-  const quote = quotes.success?.[0];
+  log('Fetched ramps quote', { hasQuote: Boolean(quote) });
 
   if (!quote) {
     throw new Error(errorMessage);

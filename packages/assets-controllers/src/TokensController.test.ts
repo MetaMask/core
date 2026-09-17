@@ -66,7 +66,9 @@ type AllEvents =
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const ContractMock = jest.mocked(Contract);
-const uuidV1Mock = jest.mocked(uuidV1);
+// `v1` is overloaded; naming the signature used here avoids resolving to the
+// last overload, which returns a `Uint8Array`.
+const uuidV1Mock = jest.mocked<() => string>(uuidV1);
 const ERC20StandardMock = jest.mocked(ERC20Standard);
 const ERC1155StandardMock = jest.mocked(ERC1155Standard);
 

@@ -2,6 +2,24 @@ import { SUBSCRIPTION_STATUSES } from './types.js';
 
 export const controllerName = 'SubscriptionController';
 
+/**
+ * API cancellation reason values and their client-facing text.
+ */
+export const CANCELLATION_REASONS = {
+  // Costs more than it's worth
+  TOO_EXPENSIVE: 'too_expensive',
+  // I wasn't using the benefits
+  NOT_USING_BENEFITS: 'not_using_benefits',
+  // The benefits weren't what I expected
+  BENEFITS_NOT_AS_EXPECTED: 'benefits_not_as_expected',
+  // Something didn't work
+  SOMETHING_DID_NOT_WORK: 'something_did_not_work',
+  // Unhappy with support
+  UNHAPPY_WITH_SUPPORT: 'unhappy_with_support',
+  // Other
+  OTHER: 'other',
+} as const;
+
 export enum Env {
   DEV = 'dev',
   UAT = 'uat',
@@ -67,6 +85,23 @@ export enum SubscriptionServiceErrorMessage {
   FailedToLinkRewards = 'Failed to link rewards',
   FailedToGetPricing = 'Failed to get pricing',
   FailedToGetBillingPortalUrl = 'Failed to get billing portal url',
+}
+
+export enum SubscriptionDelegationServiceErrorMessage {
+  InvalidAmount = 'Subscription delegation amount must be a non-negative integer',
+  InvalidDecimals = 'Subscription delegation decimals must be a non-negative integer',
+  InvalidTrialPeriodDays = 'Subscription delegation trial period days must be a non-negative integer',
+  InvalidMinimumFundingCycles = 'Subscription delegation minimum funding cycles must be a positive integer',
+  LossyAmountScale = 'Subscription delegation amount cannot be scaled to token decimals without remainder',
+  UnsupportedRecurringInterval = 'Unsupported subscription recurring interval',
+  UnsupportedProduct = 'Subscription delegation is only supported for Money Account',
+  MissingMoneyAccountVaultConfig = 'Money Account vault configuration is missing or invalid',
+  DelegationContractsNotFound = 'Subscription delegation contracts were not found for the configured chain',
+  PricingConfigurationNotFound = 'Subscription delegation pricing configuration was not found',
+  InsufficientBalance = 'Money Account balance is insufficient for the subscription funding requirement',
+  ChompRejectedDelegation = 'CHOMP rejected the subscription delegation',
+  ChompMissingDelegationHash = 'CHOMP verify response did not include a delegation hash',
+  ChompDelegationHashMismatch = 'CHOMP verify response delegation hash does not match the locally computed hash',
 }
 
 export const DEFAULT_POLLING_INTERVAL = 5 * 60 * 1_000; // 5 minutes

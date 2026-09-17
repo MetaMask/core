@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Wire `SubscriptionDelegationService` into the default wallet initialization. ([#10130](https://github.com/MetaMask/core/pull/10130))
+  - Stateless orchestrator for Money Account Plus cash-subscription delegation setup via `SubscriptionDelegationService:prepareDelegation`.
+  - Delegates `AuthenticatedUserStorageService:listDelegations`, `AuthenticatedUserStorageService:createDelegation`, `ChompApiService:verifyDelegation`, `ChompApiService:createIntents`, `ChompApiService:getIntentsByAddress`, `DelegationController:signDelegation`, `MoneyAccountBalanceService:fetchBalanceWithFallback`, `RemoteFeatureFlagController:getState`, and `SubscriptionController:getPricing` from the wallet root messenger.
+  - Hosts must register `AuthenticatedUserStorageService`, `ChompApiService`, `DelegationController`, `MoneyAccountBalanceService`, and `SubscriptionController` on the supplied root messenger before calling `prepareDelegation`; `RemoteFeatureFlagController` is already initialized by default.
+
+### Changed
+
+- **BREAKING:** Change license from `(MIT OR Apache-2.0)` to the ConsenSys Software Inc. Non-Commercial Use license ([#10074](https://github.com/MetaMask/core/pull/10074))
+  - Use of this package is now limited to Non-Commercial Use as defined in `LICENSE`. If your use falls outside of that, reach out to communications@metamask.io.
+- Bump `@metamask/claims-controller` from `^1.0.0` to `^1.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/shield-controller` from `^7.0.0` to `^7.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/subscription-controller` from `^9.0.0` to `^9.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242), [#10262](https://github.com/MetaMask/core/pull/10262))
+
 ## [13.0.0]
 
 ### Changed

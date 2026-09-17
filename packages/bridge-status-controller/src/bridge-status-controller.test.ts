@@ -7334,6 +7334,153 @@ describe('BridgeStatusController', () => {
         );
       });
     });
+
+    describe('intent-based swaps', () => {
+      const INTENT_TX_META_ID = 'intentTxMetaId1';
+      const INTENT_SRC_TX_HASH = '0xintentSrcTxHash1';
+
+      /**
+       * Builds a history item for an intent-based order. The quote carries
+       * `intent` data, which is what marks the trade as backend-tracked.
+       *
+       * @param startTime - When the trade started, used to decide whether
+       * startup seeding considers the item.
+       * @returns The intent txHistory keyed by history id.
+       */
+      function buildIntentHistory(
+        startTime = 1729964825189,
+      ): Record<string, BridgeHistoryItem> {
+        const item = MockTxHistory.getPending({
+          txMetaId: INTENT_TX_META_ID,
+          srcTxHash: INTENT_SRC_TX_HASH,
+          startTime,
+        })[INTENT_TX_META_ID];
+
+        return {
+          [INTENT_TX_META_ID]: {
+            ...item,
+            quoteId: 'intent-quote-1',
+            quote: {
+              ...item.quote,
+              intent: {
+                protocol: 'cowswap',
+                order: {
+                  sellToken: '0x0000000000000000000000000000000000000001',
+                  buyToken: '0x0000000000000000000000000000000000000002',
+                  validTo: 1717027200,
+                  appData: 'some-app-data',
+                  appDataHash: '0xabcd',
+                  feeAmount: '100',
+                  kind: 'sell',
+                  partiallyFillable: false,
+                  sellAmount: '1000',
+                },
+                typedData: {
+                  types: {},
+                  primaryType: 'Order',
+                  domain: {},
+                  message: {},
+                },
+              },
+            },
+          },
+        };
+      }
+
+      const getIntentMessengerCall = () =>
+        jest.fn((...args: unknown[]) => {
+          const action = args[0] as string;
+          if (action === 'TransactionController:getState') {
+            return { transactions: [] };
+          }
+          if (action === 'AuthenticationController:getBearerToken') {
+            return Promise.resolve('auth-token');
+          }
+          return undefined;
+        });
+
+      it.each([
+        {
+          description: 'submitted',
+          status: TransactionStatus.submitted,
+          type: TransactionType.swap,
+        },
+        {
+          description: 'confirmed',
+          status: TransactionStatus.confirmed,
+          type: TransactionType.swap,
+        },
+        {
+          description: 'failed',
+          status: TransactionStatus.failed,
+          type: TransactionType.swap,
+        },
+      ])(
+        'does not report any quote status when the intent tx is $description',
+        async ({ status, type }) => {
+          const onQuoteStatusManagerError = jest.fn();
+
+          await withController(
+            {
+              options: {
+                isQuoteStatusManagerEnabled: () => true,
+                onQuoteStatusManagerError,
+                state: { txHistory: buildIntentHistory() },
+              },
+              mockMessengerCall: getIntentMessengerCall(),
+            },
+            async ({ controller, rootMessenger }) => {
+              rootMessenger.publish(
+                'TransactionController:transactionStatusUpdated',
+                {
+                  transactionMeta: {
+                    chainId: CHAIN_IDS.ARBITRUM,
+                    networkClientId: 'eth-id',
+                    time: Date.now(),
+                    txParams: {} as unknown as TransactionParams,
+                    type,
+                    status,
+                    id: INTENT_TX_META_ID,
+                    hash: INTENT_SRC_TX_HASH,
+                  },
+                },
+              );
+
+              // The backend owns the quote status of intent orders, so the
+              // client neither creates a tracking entry nor marks the history
+              // item as reported.
+              expect(controller.state.quoteUpdateStatusStore).toStrictEqual({});
+              expect(
+                controller.state.txHistory[INTENT_TX_META_ID]
+                  .reportedSubmittedTxHash,
+              ).toBeUndefined();
+              // Finalizing an untracked quote surfaces a "entry was not found"
+              // error, so silence here proves finalization was never attempted.
+              expect(onQuoteStatusManagerError).not.toHaveBeenCalled();
+            },
+          );
+        },
+      );
+
+      it('does not seed a quote status entry for an intent order on startup', async () => {
+        await withController(
+          {
+            options: {
+              isQuoteStatusManagerEnabled: () => true,
+              state: { txHistory: buildIntentHistory(Date.now()) },
+            },
+            mockMessengerCall: getIntentMessengerCall(),
+          },
+          async ({ controller }) => {
+            expect(controller.state.quoteUpdateStatusStore).toStrictEqual({});
+            expect(
+              controller.state.txHistory[INTENT_TX_META_ID]
+                .reportedSubmittedTxHash,
+            ).toBeUndefined();
+          },
+        );
+      });
+    });
   });
 
   describe('seeding quote status entries from history on startup', () => {

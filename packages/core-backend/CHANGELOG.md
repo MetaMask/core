@@ -9,7 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
+
+## [11.0.0]
+
+### Added
+
+- Add optional `apiUrls` option to `ApiPlatformClientOptions`, allowing API base URLs (accounts, prices, token, tokens) to be overridden per client instance, e.g. from client env vars; unspecified services fall back to the production `API_URLS` ([#10196](https://github.com/MetaMask/core/pull/10196))
+- Add optional `metadata` to `V5BalanceItem` and to the Account Activity `Balance` type ([#10194](https://github.com/MetaMask/core/pull/10194))
+- Add optional `sponsored`, `spendableBalance`, and `minimumReserveBalance` Stellar fields to `V6TokenBalanceMetadata` ([#10194](https://github.com/MetaMask/core/pull/10194))
+
+### Changed
+
+- **BREAKING:** Rename `V6TokenMetadata` to `V6TokenBalanceMetadata` and `V6TokenStellarMetadata` to `V6StellarTokenBalanceMetadata`
+- **BREAKING:** Accounts API `V2SupportedNetworksResponse` now uses CAIP-2 string arrays for both `fullSupport` and `partialSupport`, replacing decimal `fullSupport` and object-shaped `partialSupport.balances` ([#10144](https://github.com/MetaMask/core/pull/10144))
+- Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
+## [10.0.1]
+
+### Changed
+
 - Bump `uuid` from `^8.3.2` to `^9.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117))
+- Bump `@metamask/account-tree-controller` from `^10.0.0` to `^10.0.1` ([#10166](https://github.com/MetaMask/core/pull/10166))
+- Bump `@metamask/profile-sync-controller` from `^31.0.0` to `^32.0.0` ([#10166](https://github.com/MetaMask/core/pull/10166))
 
 ## [10.0.0]
 
@@ -441,7 +464,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@10.0.1...@metamask/core-backend@11.0.0
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@10.0.0...@metamask/core-backend@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.1.1...@metamask/core-backend@10.0.0
 [9.1.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.1.0...@metamask/core-backend@9.1.1
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@9.0.0...@metamask/core-backend@9.1.0

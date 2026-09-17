@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `changePassword` is now lifecycle-aware: it writes the `SEEDLESS_CHANGE_PENDING`, `SEEDLESS_COMMITTED`, and `LOCAL_KEYRING_PENDING` phases and rejects a concurrent change with `PasswordChangeInProgress` ([#10148](https://github.com/MetaMask/core/pull/10148))
   - Clients must not start a second password change while a lifecycle is unfinished, and must drive the lifecycle to completion by calling `clearPasswordChangePhase`. See [0002](./docs/0002-password-change-recovery-flow.md) for the client integration guide.
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
 ### Removed
 

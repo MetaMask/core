@@ -10,6 +10,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
+import { MockPollingBlockTracker } from '@metamask/eth-block-tracker';
 import type { MockInternalProviderStub } from '@metamask/eth-json-rpc-provider';
 import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
 import { rpcErrors } from '@metamask/rpc-errors';
@@ -20,7 +21,6 @@ import { when, resetAllWhenMocks, WhenMock } from 'jest-when';
 import { inspect, isDeepStrictEqual, promisify } from 'util';
 import { v4 as uuidV4 } from 'uuid';
 
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker.js';
 import { NetworkStatus } from '../src/constants.js';
 import * as createAutoManagedNetworkClientModule from '../src/create-auto-managed-network-client.js';
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client.js';
@@ -91,7 +91,9 @@ type Block = {
 };
 
 const createNetworkClientMock = jest.mocked(createNetworkClient);
-const uuidV4Mock = jest.mocked(uuidV4);
+// `v4` is overloaded; naming the signature used here avoids resolving to the
+// last overload, which returns a `Uint8Array`.
+const uuidV4Mock = jest.mocked<() => string>(uuidV4);
 
 /**
  * A dummy block that matches the pre-EIP-1559 format (i.e. it doesn't have the
@@ -16874,7 +16876,7 @@ function buildFakeClient(
       rpcUrl: 'https://test.network',
     },
     provider,
-    blockTracker: new FakeBlockTracker({
+    blockTracker: new MockPollingBlockTracker({
       provider,
     }),
     destroy: (): void => {
