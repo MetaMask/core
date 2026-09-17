@@ -9,16 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Use the native Transak buy quote's fee for the MM Pay fiat estimate when Transak Native is the resolved provider, falling back to the aggregator quote's fee when native is unavailable or the lookup fails ([#9317](https://github.com/MetaMask/core/pull/9317))
-  - The native lookup and fee reconciliation are owned by `RampsController:getQuoteWithFees`; clients must delegate `RampsController:getQuoteWithFees` to the `TransactionPayController` messenger (the previously required `TransakService:getBuyQuote` delegation is no longer needed) ([#10238](https://github.com/MetaMask/core/pull/10238)).
-- Charge direct Monad mUSD on-ramp fees on top of the entered amount (fee-on-top), so the total is the entered amount plus fees ([#9317](https://github.com/MetaMask/core/pull/9317))
+- Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
 - Subsidized (fixed-spread) max direct Money Account Relay deposits now use `EXACT_OUTPUT` quoting with vault calls embedded atomically in the Relay quote. ([#10224](https://github.com/MetaMask/core/pull/10224))
   - Failed atomic promotions are terminal `no-quotes` errors prefixed with `Atomic promotion failed`, and will block rather than silently fall back.
   - Non-subsidized max behavior is unchanged.
+
+## [29.0.0]
+
+### Added
+
+- Add optional `TransactionPayQuote.areFeesIncludedInSourceAmount` so totals can avoid double-counting fees already included in the source amount: when `true`, those quote fees are subtracted from the overall total; when `false` or omitted, they remain as separate fee components (direct mUSD quotes set `false` for fee-on-top pricing) ([#9317](https://github.com/MetaMask/core/pull/9317))
+
+### Changed
+
+- **BREAKING:** The `TransactionPayController` messenger now requires `RampsController:getQuoteWithFees` in place of `RampsController:getQuotes`; clients that do not update this delegation will throw when requesting fiat quotes ([#9317](https://github.com/MetaMask/core/pull/9317), [#10238](https://github.com/MetaMask/core/pull/10238))
+- **BREAKING:** Direct Monad mUSD quotes now split native provider and source-network fees across `fees.provider` and `fees.sourceNetwork`, instead of placing the combined fee in `fees.provider` with a zero source-network fee; `targetAmount` now prefers `amountOutInFiat` when present ([#9317](https://github.com/MetaMask/core/pull/9317), [#10238](https://github.com/MetaMask/core/pull/10238))
+- Move native Transak fee lookup and reconciliation into `RampsController:getQuoteWithFees`, while preserving existing fee-on-top totals and falling back to the aggregator quote when native fee data is unavailable or unusable ([#9317](https://github.com/MetaMask/core/pull/9317), [#10238](https://github.com/MetaMask/core/pull/10238))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@metamask/assets-controller` from `^16.0.0` to `^16.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242))
 - Bump `@metamask/assets-controllers` from `^112.0.1` to `^112.0.2` ([#10242](https://github.com/MetaMask/core/pull/10242))
 - Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.0.1` ([#10242](https://github.com/MetaMask/core/pull/10242))
+- Bump `@metamask/ramps-controller` from `^22.0.0` to `^23.0.0` ([#10259](https://github.com/MetaMask/core/pull/10259))
 
 ### Fixed
 
@@ -1559,7 +1570,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@29.0.0...HEAD
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.2...@metamask/transaction-pay-controller@29.0.0
 [28.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.1...@metamask/transaction-pay-controller@28.0.2
 [28.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@28.0.0...@metamask/transaction-pay-controller@28.0.1
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@27.1.2...@metamask/transaction-pay-controller@28.0.0

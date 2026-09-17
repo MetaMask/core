@@ -68,6 +68,7 @@ Notes:
 - Backend API improvements are ongoing
 - Native tokens and network fees include slip44 `assetId` when a symbol is available (for example from an indexed native value transfer)
 - When no symbol is available, mappers still set `assetType: 'native'` but omit `assetId` — clients should resolve icons from chain metadata
+- Fungible `TokenAmount.amount` values are raw base units and are **omitted** when decimals are unknown (Accounts API enrichment missing). Pass optional `getKnownTokenDecimals(chainId, contractAddress)` to recover decimals/symbol from on-device token state. NFT amounts are counts and are never fail-closed.
 
 ---
 
@@ -87,9 +88,11 @@ The mapper is chain-agnostic. Clients should patch missing / `UNKNOWN` asset uni
 
 File: `local-transaction-mapper.ts`
 
-Input: a `TransactionGroup` from `helpers/transactions.ts` — the shape the EVM `TransactionController` produces after grouping by nonce (`initialTransaction`, `primaryTransaction`, plus cancel/retry siblings), optionally enriched by the client (`sourceToken`, `destinationToken`, fees, etc.)
+Input: a `TransactionGroup` from `helpers/transactions.ts` — the shape the EVM `TransactionController` produces after grouping by nonce (`initialTransaction`, `primaryTransaction`, plus cancel/retry siblings), optionally enriched by the client (`sourceToken`, `destinationToken`, fees, `contractTokenMetadata`, `getKnownTokenDecimals`, etc.)
 
 This mapper only classifies `ActivityKind`. It is a stand-in until the indexed API picks up the transaction; clients should defer accurate token/amount/asset details to the API mapper on refetch.
+
+ERC-20 amounts follow the same fail-closed rule as the API mapper: omit `amount` unless decimals are known, and stamp `assetType: 'erc20'` on contract token legs.
 
 ---
 
