@@ -1351,8 +1351,9 @@ export class AnalyticsController extends BaseController<
       const purposes = this.#purposesFromQueuedEvent(queuedEvent);
 
       if (this.#hasAllowedPurpose(purposes)) {
-        remainingQueue[messageId] = queuedEvent as unknown as Json;
-        eventsToSend.push(queuedEvent);
+        const refreshedEvent = this.#refreshQueuedEventConsent(queuedEvent);
+        remainingQueue[messageId] = refreshedEvent as unknown as Json;
+        eventsToSend.push(refreshedEvent);
       }
     }
 

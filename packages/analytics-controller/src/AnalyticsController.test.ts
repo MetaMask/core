@@ -2478,7 +2478,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         { prop: 'value' },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
         expect.objectContaining({
           messageId: 'track-message-id',
           timestamp: new Date(trackEvent.timestamp),
@@ -2488,7 +2488,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.identify).toHaveBeenCalledWith(
         analyticsId,
         { trait: 'value' },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
         expect.objectContaining({
           messageId: 'identify-message-id',
           timestamp: new Date(identifyEvent.timestamp),
@@ -2498,7 +2498,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.view).toHaveBeenCalledWith(
         'home',
         { referrer: 'test' },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
         expect.objectContaining({
           messageId: 'view-message-id',
           timestamp: new Date(viewEvent.timestamp),
@@ -4563,6 +4563,53 @@ describe('AnalyticsController', () => {
       controller.optOutOfMarketing();
 
       expect(controller.state.eventQueue?.queued).toBe(queuedBefore);
+    });
+
+    it('refreshes stale delivery-queue consent stamps on init replay', async () => {
+      const adapter = createMockAdapter();
+      await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          eventsConfig,
+          eventQueue: {
+            stale: {
+              type: 'track',
+              eventName: dualPurposeEvent,
+              messageId: 'stale',
+              timestamp: '2026-01-01T00:00:00.000Z',
+              eventPurposes: [
+                AnalyticsPurpose.Product,
+                AnalyticsPurpose.Marketing,
+              ],
+              eventsConfigVersion,
+              // Stale stamp from before marketing opt-in.
+              context: withPurposeConsent(
+                { product: true, marketing: false },
+                {},
+                eventsConfigVersion,
+              ),
+            },
+          },
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      expect(adapter.track).toHaveBeenCalledWith(
+        dualPurposeEvent,
+        undefined,
+        withPurposeConsent(
+          { product: true, marketing: true },
+          {},
+          eventsConfigVersion,
+        ),
+        expect.objectContaining({ messageId: 'stale' }),
+      );
     });
 
     it('replays a queued event using its capture-time purposes and version', async () => {
