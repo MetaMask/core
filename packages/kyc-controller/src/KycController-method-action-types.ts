@@ -109,51 +109,6 @@ export type KycControllerClearSavedTermsAction = {
 };
 
 /**
- * Handles a message posted by a Check/Auth frame and advances the flow.
- *
- * The transport-agnostic caller (WebView on mobile, iframe on web) forwards
- * the raw message and injects the returned `reply` back into the frame.
- *
- * @param params - The parameters.
- * @param params.message - The raw message posted by the frame.
- * @returns An object whose optional `reply` should be posted back.
- */
-export type KycControllerHandleFrameMessageAction = {
-  type: `KycController:handleFrameMessage`;
-  handler: KycController['handleFrameMessage'];
-};
-
-/**
- * Builds the Check-frame URL, or `null` when no session exists yet.
- *
- * @returns The Check-frame URL or `null`.
- */
-export type KycControllerBuildCheckFrameUrlAction = {
-  type: `KycController:buildCheckFrameUrl`;
-  handler: KycController['buildCheckFrameUrl'];
-};
-
-/**
- * Builds the Auth-frame URL, or `null` when no client token is available.
- *
- * @returns The Auth-frame URL or `null`.
- */
-export type KycControllerBuildAuthFrameUrlAction = {
-  type: `KycController:buildAuthFrameUrl`;
-  handler: KycController['buildAuthFrameUrl'];
-};
-
-/**
- * Builds the Reset-frame URL.
- *
- * @returns The Reset-frame URL.
- */
-export type KycControllerBuildResetFrameUrlAction = {
-  type: `KycController:buildResetFrameUrl`;
-  handler: KycController['buildResetFrameUrl'];
-};
-
-/**
  * Checks whether KYC is required for a product and caches the result.
  *
  * @param params - The parameters.
@@ -290,10 +245,6 @@ export type KycControllerMethodActions =
   | KycControllerFetchSessionDisclaimersAction
   | KycControllerAcceptTermsAndStartSessionAction
   | KycControllerClearSavedTermsAction
-  | KycControllerHandleFrameMessageAction
-  | KycControllerBuildCheckFrameUrlAction
-  | KycControllerBuildAuthFrameUrlAction
-  | KycControllerBuildResetFrameUrlAction
   | KycControllerCheckKycRequiredAction
   | KycControllerGetKycStatusAction
   | KycControllerGetCustomerIdentityAction

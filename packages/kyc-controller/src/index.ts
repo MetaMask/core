@@ -18,9 +18,6 @@ export type {
 } from './KycController.js';
 export type {
   KycControllerAcceptTermsAndStartSessionAction,
-  KycControllerBuildAuthFrameUrlAction,
-  KycControllerBuildCheckFrameUrlAction,
-  KycControllerBuildResetFrameUrlAction,
   KycControllerCheckKycRequiredAction,
   KycControllerClearSavedTermsAction,
   KycControllerClearStateAction,
@@ -29,7 +26,6 @@ export type {
   KycControllerGetCustomerIdentityAction,
   KycControllerGetKycStatusAction,
   KycControllerGetSessionStatusAction,
-  KycControllerHandleFrameMessageAction,
   KycControllerInitializeAction,
   KycControllerLoadDisclaimersAction,
   KycControllerRefreshKycStatusAction,
@@ -155,3 +151,9 @@ export type {
   MintedUkycTestToken,
   MintUkycTestTokenParams,
 } from './ukyc/testToken.js';
+
+export {
+  clearMoonPaySession,
+  MoonPayFrameHandler,
+} from './vendors/MoonPayFrameHandler.js';
+export type { MoonPayFrameHandlerOptions } from './vendors/MoonPayFrameHandler.js';

@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `MoonPayFrameHandler`, `MoonPayFrameHandlerOptions`, and `clearMoonPaySession` so clients can own MoonPay Check/Auth frames after those methods left `KycController`.
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^32.1.0` to `^32.1.1` ([#10220](https://github.com/MetaMask/core/pull/10220))
+
+### Removed
+
+- **BREAKING:** Remove MoonPay Check/Auth frame methods from `KycController`: `handleFrameMessage`, `buildCheckFrameUrl`, `buildAuthFrameUrl`, and `buildResetFrameUrl`. Use `MoonPayFrameHandler` directly for frame protocol, URLs, and message handling.
 
 ## [0.3.0]
 
