@@ -98,6 +98,14 @@ export class RewardsIntegrationService {
   readonly #registeredTradingAddresses = new Set<string>();
 
   /**
+   * Whether `SubscriptionController:getPerpsBenefits` has ever answered on this
+   * messenger. Action registration can be delegated, in which case it does not
+   * appear in `getRegisteredActionTypes`, so an answered call is the only
+   * reliable proof that the messenger route is available.
+   */
+  #messengerBenefitsAnswered = false;
+
+  /**
    * Create a new RewardsIntegrationService instance
    *
    * @param deps - Platform dependencies for logging, metrics, etc.
@@ -238,7 +246,7 @@ export class RewardsIntegrationService {
    * @returns Whether the waiver applies, why, and the remaining notional.
    */
   getSubscriptionFeeWaiverStatus(): PerpsSubscriptionFeeWaiverStatus {
-    if (!this.#deps.subscription) {
+    if (!this.#hasSubscriptionSource()) {
       return { eligible: false, reason: 'no-source' };
     }
 
@@ -264,6 +272,36 @@ export class RewardsIntegrationService {
     }
 
     return evaluateFeeWaiverGate(snapshot.benefits);
+  }
+
+  /**
+   * Whether this client has any way to read subscription benefits.
+   *
+   * Either wiring counts: a registered `SubscriptionController:getPerpsBenefits`
+   * action (the ADR 0064 target) or the legacy injected `subscription` callback.
+   * Requiring the injected one would make the messenger path unreachable on
+   * exactly the configuration it was added for, so the messenger is probed by
+   * asking whether an action handler exists rather than by calling it — this
+   * runs on the synchronous status read and must not start work.
+   *
+   * @returns True when benefits can be read by some route.
+   */
+  #hasSubscriptionSource(): boolean {
+    if (this.#deps.subscription || this.#messengerBenefitsAnswered) {
+      return true;
+    }
+
+    try {
+      // `getRegisteredActionTypes` reports this messenger's own registrations.
+      // A delegated action does not appear there, which is why it is only a
+      // positive signal — `refreshSubscriptionBenefits` still attempts the call
+      // regardless, and an answer sets `#messengerBenefitsAnswered` above.
+      return this.#messenger
+        .getRegisteredActionTypes()
+        .includes('SubscriptionController:getPerpsBenefits');
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -299,10 +337,10 @@ export class RewardsIntegrationService {
    * @returns A promise that settles when the refresh completes.
    */
   async refreshSubscriptionBenefits(): Promise<void> {
-    const source = this.#deps.subscription;
-    if (!source) {
-      return;
-    }
+    // Deliberately not gated on `#hasSubscriptionSource`: a delegated action is
+    // invisible to `getRegisteredActionTypes`, so the first call is what proves
+    // it is reachable. A client with no source at all reads `null` here, which
+    // costs one no-op call per freshness window and leaves the gate closed.
 
     if (this.#benefitsRefresh) {
       await this.#benefitsRefresh;
@@ -322,7 +360,7 @@ export class RewardsIntegrationService {
       return;
     }
 
-    const refresh = this.#readSubscriptionBenefits(source);
+    const refresh = this.#readSubscriptionBenefits();
     this.#benefitsRefresh = refresh;
     // `finally` always defers, so this never clears the handle we just set.
     refresh
@@ -368,16 +406,12 @@ export class RewardsIntegrationService {
   /**
    * Perform one benefits read and store it, keeping the previous snapshot on
    * error. Never rejects, so callers cannot produce an unhandled rejection.
-   *
-   * @param source - The injected subscription benefits source.
    */
-  async #readSubscriptionBenefits(
-    source: NonNullable<PerpsPlatformDependencies['subscription']>,
-  ): Promise<void> {
+  async #readSubscriptionBenefits(): Promise<void> {
     const epoch = this.#benefitsEpoch;
 
     try {
-      const benefits = await this.#getPerpsBenefits(source);
+      const benefits = await this.#getPerpsBenefits();
 
       if (epoch !== this.#benefitsEpoch) {
         // Invalidated while this read was in flight: it belongs to a previous
@@ -429,17 +463,15 @@ export class RewardsIntegrationService {
   /**
    * Read subscription benefits, preferring the messenger over the DI callback.
    *
-   * ADR 0064 moves hydration onto `SubscriptionController`. Clients that have
-   * not shipped it yet register no such action, and the messenger throws on an
-   * unregistered action name — so the injected `subscription` dependency stays
-   * the fallback rather than a second source of truth.
+   * ADR 0064 moves hydration onto `SubscriptionController`. The messenger is
+   * tried first and the injected `subscription` dependency is only a fallback,
+   * so a client that ships `SubscriptionController` without the legacy callback
+   * hydrates normally — that configuration is the ADR's target, not an edge
+   * case. A client with neither gets `null`, which reads as "no subscription".
    *
-   * @param source - The injected subscription benefits source.
    * @returns The benefits payload, or null when there is none to report.
    */
-  async #getPerpsBenefits(
-    source: NonNullable<PerpsPlatformDependencies['subscription']>,
-  ): Promise<PerpsSubscriptionBenefits | null> {
+  async #getPerpsBenefits(): Promise<PerpsSubscriptionBenefits | null> {
     let pending: Promise<PerpsSubscriptionBenefits | null> | undefined;
     try {
       // Called without awaiting so the fallback stays synchronous when no
@@ -451,6 +483,7 @@ export class RewardsIntegrationService {
       // `null` is a real answer ("no subscription"); `undefined` means nothing
       // handled the action, which is the fallback case rather than an answer.
       if (result !== undefined) {
+        this.#messengerBenefitsAnswered = true;
         pending = Promise.resolve(result);
       }
     } catch {
@@ -466,7 +499,9 @@ export class RewardsIntegrationService {
       }
     }
 
-    return await source.getPerpsBenefits();
+    // No handler answered. Fall back to the injected source when one exists;
+    // otherwise there is genuinely nothing to report.
+    return (await this.#deps.subscription?.getPerpsBenefits()) ?? null;
   }
 
   /**

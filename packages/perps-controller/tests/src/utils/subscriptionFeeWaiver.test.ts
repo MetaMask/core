@@ -164,6 +164,7 @@ describe('markSubscriptionCloid', () => {
 
     const marked = markSubscriptionCloid({
       clientOrderId: rung,
+      isGenerated: true,
       entropy: 'ffffffffffffffffffffffffffffffff',
     });
 
@@ -209,6 +210,50 @@ describe('markSubscriptionCloid', () => {
     ).toBe(caller);
   });
 
+  it('preserves a caller client order ID that begins with a reserved marker', () => {
+    // Provenance is declared, not inferred. A caller is free to supply a
+    // well-formed cloid whose leading bytes happen to match a reserved marker,
+    // and guessing from the prefix would rewrite exactly the id the contract
+    // promises to preserve.
+    const scalePrefixed =
+      `0x${HYPERLIQUID_SCALE_CLOID_MARKER}ffbbccddeeff001122334455` as const;
+    const programPrefixed =
+      `0x${SUBSCRIPTION_CLOID_CONFIG.ProgramId}ffbbccddeeff001122334455` as const;
+
+    expect(scalePrefixed).toHaveLength(34);
+    expect(programPrefixed).toHaveLength(34);
+
+    // Without an explicit `isGenerated`, both are the caller's and untouched.
+    expect(
+      markSubscriptionCloid({
+        clientOrderId: scalePrefixed,
+        entropy: 'b'.repeat(32),
+      }),
+    ).toBe(scalePrefixed);
+    expect(
+      markSubscriptionCloid({
+        clientOrderId: programPrefixed,
+        entropy: 'b'.repeat(32),
+      }),
+    ).toBe(programPrefixed);
+  });
+
+  it('re-stamps an id only when it is declared as package-generated', () => {
+    const rung =
+      `0x${HYPERLIQUID_SCALE_CLOID_MARKER}00${'ab'.repeat(10)}07` as const;
+
+    const marked = markSubscriptionCloid({
+      clientOrderId: rung,
+      isGenerated: true,
+      entropy: 'b'.repeat(32),
+    });
+
+    expect(marked).not.toBe(rung);
+    expect(readSubscriptionCloidFlags(marked)).toBe(
+      SUBSCRIPTION_CLOID_FLAGS.FeeReductionApplied,
+    );
+  });
+
   it('rejects a caller client order ID that is not hex', () => {
     expect(() =>
       markSubscriptionCloid({
@@ -225,6 +270,7 @@ describe('markSubscriptionCloid', () => {
           `0x${HYPERLIQUID_SCALE_CLOID_MARKER}00${'ab'.repeat(10)}${index
             .toString(16)
             .padStart(2, '0')}` as const,
+        isGenerated: true,
         entropy: 'ffffffffffffffffffffffffffffffff',
       }),
     );

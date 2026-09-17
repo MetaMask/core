@@ -960,6 +960,51 @@ describe('RewardsIntegrationService', () => {
       expect(resolution.subscriptionWaiverKind).toBe('partial');
     });
 
+    it('hydrates and grants the waiver for a messenger-only client', async () => {
+      // The ADR 0064 target configuration: SubscriptionController is registered
+      // and the legacy DI callback is not. Gating hydration on the DI callback
+      // made this configuration resolve `no-source` and never grant a waiver.
+      const messengerBenefits = jest
+        .fn()
+        .mockResolvedValue(createBenefits({ remainingNotionalUsd: 250 }));
+      setupMessengerDefaults({
+        'SubscriptionController:getPerpsBenefits': messengerBenefits,
+      });
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+      expect(mockDeps.subscription).toBeUndefined();
+
+      await service.refreshSubscriptionBenefits();
+
+      expect(messengerBenefits).toHaveBeenCalled();
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: true,
+        reason: 'eligible',
+        remainingNotionalUsd: 250,
+      });
+
+      // And the waiver actually reaches the resolution, blended by notional.
+      const resolution = await service.resolveFee(1000);
+      expect(resolution.source).toBe('subscription');
+      expect(resolution.feeBips).toBeCloseTo(7.5, 10);
+      expect(resolution.subscriptionWaiverKind).toBe('partial');
+    });
+
+    it('still reports no source when neither wiring is present', async () => {
+      setupMessengerDefaults();
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+
+      await service.refreshSubscriptionBenefits();
+
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: false,
+        reason: 'no-source',
+      });
+    });
+
     it('falls back to the injected benefits source when no SubscriptionController action is registered', async () => {
       const diBenefits = wireSubscription(
         jest.fn().mockResolvedValue(createBenefits()),

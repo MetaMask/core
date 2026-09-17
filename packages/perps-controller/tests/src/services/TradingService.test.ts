@@ -1774,6 +1774,59 @@ describe('TradingService', () => {
       stopLossCount: 0,
     };
 
+    it('prices a full close from the loaded position notional', async () => {
+      // A full close carries only a symbol, so `params` alone prices it as
+      // undefined and the resolver would quote a full waiver on an order the
+      // preview blended. The loaded position is the authoritative notional.
+      mockGetPositions.mockResolvedValue([mockPosition]);
+      mockProvider.closePosition.mockResolvedValue({ success: true });
+
+      await tradingService.closePosition({
+        provider: mockProvider,
+        params: { symbol: 'BTC' },
+        context: { ...mockContext, getPositions: mockGetPositions },
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        25000,
+      );
+    });
+
+    it('prices a partial close from the position unit price', async () => {
+      // A partial close names a size but usually no price. 25000 USD over 0.5
+      // BTC is 50000 per unit, so closing 0.1 is a 5000 USD notional.
+      mockGetPositions.mockResolvedValue([mockPosition]);
+      mockProvider.closePosition.mockResolvedValue({ success: true });
+
+      await tradingService.closePosition({
+        provider: mockProvider,
+        params: { symbol: 'BTC', size: '0.1' },
+        context: { ...mockContext, getPositions: mockGetPositions },
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        5000,
+      );
+    });
+
+    it('prefers an explicit close USD amount over the position value', async () => {
+      mockGetPositions.mockResolvedValue([mockPosition]);
+      mockProvider.closePosition.mockResolvedValue({ success: true });
+
+      await tradingService.closePosition({
+        provider: mockProvider,
+        params: { symbol: 'BTC', size: '0.1', usdAmount: '4800' },
+        context: { ...mockContext, getPositions: mockGetPositions },
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        4800,
+      );
+    });
+
     it('closes position successfully without fee discount', async () => {
       const params: ClosePositionParams = {
         symbol: 'BTC',

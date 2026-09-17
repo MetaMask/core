@@ -6264,6 +6264,8 @@ export class HyperLiquidProvider implements PerpsProvider {
         t: { limit: { tif: 'Gtc' as const } },
         c: ladderClientOrderIds[index],
       })),
+      // These ids were generated a few lines above, so they are ours to stamp.
+      new Set(ladderClientOrderIds),
     );
     const clientOrderIds: Hex[] = orders.map((order, index) =>
       order.c === undefined ? ladderClientOrderIds[index] : (order.c as Hex),
@@ -8621,13 +8623,23 @@ export class HyperLiquidProvider implements PerpsProvider {
    * through here, so no path can silently ship an unmarked order while the
    * waiver is being charged, and no other fee source can produce a marked one.
    *
-   * Orders that already carry a cloid keep their trailing entropy, so the Scale
+   * A cloid this package generated keeps its trailing entropy, so the Scale
    * ladder's per-rung index and its cancel-by-cloid recovery survive marking.
+   * A caller's `OrderParams.clientOrderId` is never rewritten, so those orders
+   * go unattributed — which is why `isGenerated` is passed explicitly rather
+   * than inferred from the id's leading bytes: a caller is free to supply one
+   * that happens to begin with a reserved marker.
    *
    * @param orders - The SDK order payloads about to be submitted.
+   * @param generatedCloids - Cloids this package generated for these orders and
+   * may therefore re-stamp. Only the Scale ladder supplies any; every other path
+   * either has no cloid or carries the caller's own.
    * @returns The same payloads, with cloids marked when subscription won.
    */
-  #applySubscriptionCloid(orders: SDKOrderParams[]): SDKOrderParams[] {
+  #applySubscriptionCloid(
+    orders: SDKOrderParams[],
+    generatedCloids?: ReadonlySet<string>,
+  ): SDKOrderParams[] {
     if (!this.#isSubscriptionFeeSource()) {
       // Any other source leaves the id exactly as the caller built it.
       return orders;
@@ -8637,6 +8649,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       ...order,
       c: markSubscriptionCloid({
         clientOrderId: order.c ?? undefined,
+        isGenerated:
+          order.c !== undefined && Boolean(generatedCloids?.has(order.c)),
         entropy: uuidv4().replace(/-/gu, ''),
       }),
     }));

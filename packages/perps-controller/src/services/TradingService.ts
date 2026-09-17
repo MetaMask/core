@@ -1229,6 +1229,28 @@ export class TradingService {
   }
 
   /**
+   * The position's USD value per unit of size.
+   *
+   * Used to price a partial close, which names a size but usually no price.
+   *
+   * @param position - The loaded position, when one was found.
+   * @returns The per-unit price, or undefined when it cannot be derived.
+   */
+  #resolvePositionUnitPrice(
+    position: Position | undefined,
+  ): number | undefined {
+    if (!position) {
+      return undefined;
+    }
+    const value = Math.abs(Number.parseFloat(position.positionValue));
+    const size = Math.abs(Number.parseFloat(position.size));
+    if (!Number.isFinite(value) || !Number.isFinite(size) || size <= 0) {
+      return undefined;
+    }
+    return value / size;
+  }
+
+  /**
    * Resolve an order's USD notional for the fee resolver.
    *
    * `usdAmount` is the hybrid model's source of truth and is preferred whenever
@@ -1892,9 +1914,22 @@ export class TradingService {
         }),
       });
 
-      // Calculate fee discount with measurement
+      // Calculate fee discount with measurement. A full close commonly carries
+      // only a symbol, so `params` alone prices it as undefined and the resolver
+      // would quote a full waiver on an order the preview blended. The position
+      // loaded above is the authoritative notional for exactly that case.
       const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
-        this.#resolveOrderNotionalUsd(params),
+        this.#resolveOrderNotionalUsd({
+          ...params,
+          // A partial close names a size but often no price; the position's own
+          // value per unit prices it. A full close names neither, and falls back
+          // to the whole position value below.
+          currentPrice:
+            params.currentPrice ?? this.#resolvePositionUnitPrice(position),
+        }) ??
+          this.#resolveOrderNotionalUsd({
+            usdAmount: position?.positionValue,
+          }),
       );
 
       // Execute position close with fee discount management
