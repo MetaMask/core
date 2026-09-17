@@ -54,9 +54,9 @@ describe('MFA errors', () => {
   });
 
   it('falls back to the stable message prefix', () => {
-    expect(
-      getMfaErrorCode(new Error('MFA[flow_cancelled]: User cancelled')),
-    ).toBe('flow_cancelled');
+    expect(getMfaErrorCode(new Error('MFA[flow_expired]: Expired flow'))).toBe(
+      'flow_expired',
+    );
   });
 
   it('provides specific errors for every actionable condition', () => {
