@@ -259,6 +259,7 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'KycController:hasCompletedProviderTerms',
   'KycController:hasCompletedVendorTerms',
   'KycController:isCustomerCreated',
+  'KycController:refreshVbaOnboardingStatus',
   'RemoteFeatureFlagController:getState',
   'UserStorageController:getState',
   'UserStorageController:performGetStorageAllFeatureEntries',
@@ -273,6 +274,17 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
 export type KeyringControllerSignPersonalMessageAction = {
   type: 'KeyringController:signPersonalMessage';
   handler: (messageParams: { data: string; from: string }) => Promise<string>;
+};
+
+/**
+ * Structural type for the KYC controller's `refreshVbaOnboardingStatus`
+ * messenger action. Declared locally so the ramps package does not require a
+ * kyc-controller version that already exports it — the two changes land as
+ * separate PRs, with KYC merging first.
+ */
+export type KycControllerRefreshVbaOnboardingStatusAction = {
+  type: 'KycController:refreshVbaOnboardingStatus';
+  handler: () => Promise<void>;
 };
 
 /**
@@ -857,6 +869,7 @@ type AllowedActions =
   | KycControllerHasCompletedVendorTermsAction
   | KycControllerHasCompletedProviderTermsAction
   | KycControllerGetKycStatusAction
+  | KycControllerRefreshVbaOnboardingStatusAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
@@ -3814,6 +3827,12 @@ export class RampsController extends BaseController<
   async #hydrateVbaOnboarding(
     walletAddress: string,
   ): Promise<VbaOnboardingStage> {
+    // Pull the customer's up-to-date terms + KYC status from the vendor account
+    // before reading the stage gates, so each stage reflects what the account
+    // holds (e.g. re-signing required after a new document) rather than only
+    // device-local state.
+    await this.messenger.call('KycController:refreshVbaOnboardingStatus');
+
     if (
       !this.messenger.call('KycController:isCustomerCreated', KycVendor.Iron)
     ) {
