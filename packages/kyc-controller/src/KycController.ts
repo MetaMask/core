@@ -17,7 +17,7 @@ import { toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type {
-  CreateUkycSessionParams,
+  CapabilityAuthorization,
   EncryptionSchema,
 } from './KycService.js';
 import { controllerLog } from './logger.js';
@@ -445,15 +445,6 @@ export class KycController extends BaseController<
     // Residence is the ISO 3166-1 alpha-3 country already resolved for
     // disclaimers / KYC-required; fetch it if this sub-flow started without
     // that earlier step.
-    const residenceCountry =
-      this.state.geoCountry ??
-      (await this.messenger.call('KycService:getGeoCountry'));
-    if (residenceCountry !== this.state.geoCountry) {
-      this.#applyUpdate((state) => {
-        state.geoCountry = residenceCountry;
-      });
-    }
-
     const {
       sessionId,
       encryptionDataKey,
@@ -461,52 +452,20 @@ export class KycController extends BaseController<
     } = await this.messenger.call('KycService:createUkycSession', {
       jwtToken,
       sessionClientPublicKey,
-      residenceCountry,
+      residenceCountry: this.state.geoCountry,
       vendor: this.state.vendor,
     });
 
-    // Verify each schema's jwtChain against the matching issuer JWKS, then
-    // confirm the returned server public key matches the value attested inside
-    // the verified JWT payload before trusting it for wrapping.
-    // `encryptionDataKey` is attested by the idOS enclave; `ukycCapabilityToken` by the
-    // idOS relay.
-    const [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] =
-      await Promise.all([
-        this.messenger.call('KycService:fetchIdosEnclaveJwks'),
-        this.messenger.call('KycService:fetchIdosRelayJwks'),
-      ]);
-    this.#assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
-    this.#assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+    await this.#verifyWrappingKeys(encryptionDataKey, capabilityTokenSchema);
 
-    // Derive the data_encryption_key from the local_user_secret, mint a
-    // read-only capability token, and wrap both for the session server. Only
-    // the wrapped (encrypted) material ever leaves the device.
-    const localUserSecret = await getOrCreateLocalUserSecret(
-      this.#localUserSecretStore,
-    );
-    const clientMaterial = deriveClientMaterial(localUserSecret);
-    const wrappedEncryptionDataKey = wrapEncryptionKey(
-      sessionClientPrivateKey,
-      encryptionDataKey.serverPublicKey.x,
-      clientMaterial.dataEncryptionKey,
-    );
+    const { wrappedEncryptionDataKey, wrappedUkycCapabilityToken } =
+      await this.#generateWrappedAuthorizations(
+        sessionClientPrivateKey,
+        encryptionDataKey,
+        capabilityTokenSchema,
+      );
 
-    // Only the client holds the signing key derived from `local_user_secret`,
-    // so only the client can mint the token; scoping it to `read` means it
-    // authorizes later storage reads without granting write or delete access.
-    const ukycCapabilityToken = signStorageAccessToken({
-      material: clientMaterial,
-      // TODO: Confirm with idOS when this can be switched back to read and a separate token is sent for write
-      operations: ['read', 'write'],
-      expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
-    });
-    const wrappedUkycCapabilityToken = wrapEncryptionKey(
-      sessionClientPrivateKey,
-      capabilityTokenSchema.serverPublicKey.x,
-      stringToBytes(encodeStorageAccessTokenForHeader(ukycCapabilityToken)),
-    );
-
-    const { kycStatus, finalStatus } = await this.messenger.call(
+    const { finalStatus } = await this.messenger.call(
       'KycService:setAuthorizations',
       {
         sessionId,
@@ -515,18 +474,7 @@ export class KycController extends BaseController<
       },
     );
 
-    const vendorProcessing =
-      kycStatus === KYC_STATUSES.approved &&
-      finalStatus === KYC_STATUSES.pending;
-
-    this.#applyUpdate((state) => {
-      state.sumsub.sessionId = sessionId;
-      if (vendorProcessing) {
-        state.sumsub.status = 'vendorProcessing';
-        state.statusMessage = VENDOR_PROCESSING_MESSAGE;
-      }
-    });
-    return { sessionId, kycStatus, finalStatus, vendorProcessing };
+    return { sessionId, finalStatus };
   }
 
   /**
@@ -699,6 +647,76 @@ export class KycController extends BaseController<
         controllerLog('KYC status refresh failed:', error);
       }
     }
+  }
+
+  /**
+   * Verifies each schema's jwtChain against the matching issuer JWKS, then
+   * confirms the returned server public key matches the value attested inside
+   * the verified JWT payload before trusting it for wrapping.
+   * `encryptionDataKey` is attested by the idOS enclave; `ukycCapabilityToken`
+   * by the idOS relay.
+   *
+   * @param encryptionDataKey - Encryption schema for the data encryption key.
+   * @param capabilityTokenSchema - Encryption schema for the capability token.
+   */
+  async #verifyWrappingKeys(
+    encryptionDataKey: EncryptionSchema,
+    capabilityTokenSchema: EncryptionSchema,
+  ): Promise<void> {
+    const [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] =
+      await Promise.all([
+        this.messenger.call('KycService:fetchIdosEnclaveJwks'),
+        this.messenger.call('KycService:fetchIdosRelayJwks'),
+      ]);
+    this.#assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
+    this.#assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+  }
+
+  /**
+   * Derives the `data_encryption_key` from the `local_user_secret`, mints a
+   * capability token, and wraps both for the session server. Only the wrapped
+   * (encrypted) material ever leaves the device.
+   *
+   * Only the client holds the signing key derived from `local_user_secret`, so
+   * only the client can mint the token.
+   *
+   * @param sessionClientPrivateKey - Per-session X25519 private key used to
+   * seal both secrets.
+   * @param encryptionDataKey - Encryption schema for the data encryption key.
+   * @param capabilityTokenSchema - Encryption schema for the capability token.
+   * @returns The wrapped encryption key and capability token.
+   */
+  async #generateWrappedAuthorizations(
+    sessionClientPrivateKey: Uint8Array,
+    encryptionDataKey: EncryptionSchema,
+    capabilityTokenSchema: EncryptionSchema,
+  ): Promise<{
+    wrappedEncryptionDataKey: CapabilityAuthorization;
+    wrappedUkycCapabilityToken: CapabilityAuthorization;
+  }> {
+    const localUserSecret = await getOrCreateLocalUserSecret(
+      this.#localUserSecretStore,
+    );
+    const clientMaterial = deriveClientMaterial(localUserSecret);
+    const wrappedEncryptionDataKey = wrapEncryptionKey(
+      sessionClientPrivateKey,
+      encryptionDataKey.serverPublicKey.x,
+      clientMaterial.dataEncryptionKey,
+    );
+
+    const ukycCapabilityToken = signStorageAccessToken({
+      material: clientMaterial,
+      // TODO: Confirm with idOS when this can be switched back to read and a separate token is sent for write
+      operations: ['read', 'write'],
+      expiresAt: new Date(Date.now() + UKYC_CAPABILITY_TOKEN_TTL_MS),
+    });
+    const wrappedUkycCapabilityToken = wrapEncryptionKey(
+      sessionClientPrivateKey,
+      capabilityTokenSchema.serverPublicKey.x,
+      stringToBytes(encodeStorageAccessTokenForHeader(ukycCapabilityToken)),
+    );
+
+    return { wrappedEncryptionDataKey, wrappedUkycCapabilityToken };
   }
 
   /**
