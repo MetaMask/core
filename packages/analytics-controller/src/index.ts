@@ -37,7 +37,7 @@ export type {
 export type {
   AnalyticsControllerState,
   AnalyticsEventQueue,
-  AnalyticsMarketingEventsConfig,
+  AnalyticsEventsConfig,
   AnalyticsQueuedEvent,
   AnalyticsQueuedEventType,
   AnalyticsQueuedTrackEvent,

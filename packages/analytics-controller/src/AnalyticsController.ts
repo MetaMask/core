@@ -70,9 +70,9 @@ export type AnalyticsPurpose =
   (typeof AnalyticsPurpose)[keyof typeof AnalyticsPurpose];
 
 /**
- * Persisted marketing-events classification fetched from config registry.
+ * Persisted event-purpose classification fetched from config registry.
  */
-export type AnalyticsMarketingEventsConfig = {
+export type AnalyticsEventsConfig = {
   schemaVersion: string;
   version: string;
   timestamp: number;
@@ -124,7 +124,7 @@ export type AnalyticsControllerState = {
    * that up, classification uses the persisted config. Unlisted names are
    * product-only.
    */
-  marketingEventsConfig?: AnalyticsMarketingEventsConfig;
+  eventsConfig?: AnalyticsEventsConfig;
 
   /**
    * User's UUIDv4 analytics identifier.
@@ -202,9 +202,9 @@ export type AnalyticsQueuedEventBase = {
   eventPurposes?: AnalyticsPurpose[];
 
   /**
-   * Marketing-events config version used to classify the payload.
+   * Events config version used to classify the payload.
    */
-  marketingEventsVersion?: string;
+  eventsConfigVersion?: string;
 };
 
 /**
@@ -295,7 +295,7 @@ const analyticsControllerMetadata = {
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
-  marketingEventsConfig: {
+  eventsConfig: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
@@ -561,8 +561,8 @@ function isAnalyticsQueuedEvent(value: unknown): value is AnalyticsQueuedEvent {
     (value.eventPurposes !== undefined &&
       (!Array.isArray(value.eventPurposes) ||
         !value.eventPurposes.every(isAnalyticsPurpose))) ||
-    (value.marketingEventsVersion !== undefined &&
-      typeof value.marketingEventsVersion !== 'string')
+    (value.eventsConfigVersion !== undefined &&
+      typeof value.eventsConfigVersion !== 'string')
   ) {
     return false;
   }
@@ -621,8 +621,8 @@ function isAnalyticsEventFragment(
       typeof value.failureEvent === 'string') &&
     (value.eventPurposes === undefined ||
       isEventPurposesRecord(value.eventPurposes)) &&
-    (value.marketingEventsVersion === undefined ||
-      typeof value.marketingEventsVersion === 'string') &&
+    (value.eventsConfigVersion === undefined ||
+      typeof value.eventsConfigVersion === 'string') &&
     (value.context === undefined || isRecord(value.context)) &&
     (value.persist === undefined || typeof value.persist === 'boolean')
   );
@@ -711,7 +711,7 @@ export class AnalyticsController extends BaseController<
    */
   readonly #eventPurposes: Map<string, AnalyticsPurpose[]>;
 
-  readonly #marketingEventsVersion: string | undefined;
+  readonly #eventsConfigVersion: string | undefined;
 
   /**
    * The in-flight (or settled) initialization promise. Set on the first
@@ -780,9 +780,9 @@ export class AnalyticsController extends BaseController<
     this.#initPromise = undefined;
     this.#locationResolvePromise = undefined;
     this.#eventPurposes = new Map(
-      Object.entries(initialState.marketingEventsConfig?.events ?? {}),
+      Object.entries(initialState.eventsConfig?.events ?? {}),
     );
-    this.#marketingEventsVersion = initialState.marketingEventsConfig?.version;
+    this.#eventsConfigVersion = initialState.eventsConfig?.version;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -853,7 +853,7 @@ export class AnalyticsController extends BaseController<
       }
     }
 
-    await this.#fetchMarketingEventsConfig();
+    await this.#fetchEventsConfig();
 
     // Resolve geolocation only when the user is already opted in to product or
     // marketing analytics. For undecided or opted-out users it is deferred to
@@ -967,7 +967,7 @@ export class AnalyticsController extends BaseController<
     const preferences = this.#allowedPurposePreferences(purposes);
     const {
       consent: existingConsent,
-      marketingEventsVersion: _ignoredVersion,
+      eventsConfigVersion: _ignoredVersion,
       ...unmanagedContext
     } = context ?? {};
     const consent: Record<string, Json> = isJsonRecord(existingConsent)
@@ -988,7 +988,7 @@ export class AnalyticsController extends BaseController<
           ...preferences,
         },
       },
-      ...(version === undefined ? {} : { marketingEventsVersion: version }),
+      ...(version === undefined ? {} : { eventsConfigVersion: version }),
     };
   }
 
@@ -998,8 +998,8 @@ export class AnalyticsController extends BaseController<
    * Phase 1 stub. Persisted configuration remains authoritative until a remote
    * source is wired up.
    */
-  async #fetchMarketingEventsConfig(): Promise<void> {
-    // Intentionally empty until a marketing-events source is wired up.
+  async #fetchEventsConfig(): Promise<void> {
+    // Intentionally empty until an events-config source is wired up.
   }
 
   #purposesFromName(name: string): AnalyticsPurpose[] {
@@ -1125,7 +1125,7 @@ export class AnalyticsController extends BaseController<
    * @param properties - Optional event properties.
    * @param context - Optional platform-specific context.
    * @param purposes - Capture-time purposes for the event.
-   * @param version - Capture-time marketing-events config version.
+   * @param version - Capture-time events config version.
    */
   #sendOrQueueTrackEvent(
     eventName: string,
@@ -1155,7 +1155,7 @@ export class AnalyticsController extends BaseController<
       ...(properties === undefined ? {} : { properties }),
       context: contextWithConsent,
       eventPurposes: purposes,
-      ...(version === undefined ? {} : { marketingEventsVersion: version }),
+      ...(version === undefined ? {} : { eventsConfigVersion: version }),
     };
 
     if (!isAllowed) {
@@ -1206,7 +1206,7 @@ export class AnalyticsController extends BaseController<
    * @param properties - Optional view properties.
    * @param context - Optional platform-specific context.
    * @param purposes - Capture-time purposes for the view.
-   * @param version - Capture-time marketing-events config version.
+   * @param version - Capture-time events config version.
    */
   #sendOrQueueViewEvent(
     name: string,
@@ -1235,7 +1235,7 @@ export class AnalyticsController extends BaseController<
       ...(properties === undefined ? {} : { properties }),
       context: contextWithConsent,
       eventPurposes: purposes,
-      ...(version === undefined ? {} : { marketingEventsVersion: version }),
+      ...(version === undefined ? {} : { eventsConfigVersion: version }),
     };
 
     if (!isAllowed) {
@@ -1389,7 +1389,7 @@ export class AnalyticsController extends BaseController<
     queuedEvent: AnalyticsQueuedEvent,
   ): AnalyticsQueuedEvent {
     // Refresh only the consent stamp. Capture-time `eventPurposes` and
-    // `marketingEventsVersion` stay as a pair and are never rewritten here.
+    // `eventsConfigVersion` stay as a pair and are never rewritten here.
     const purposes = this.#purposesFromQueuedEvent(queuedEvent);
     const preferences = this.#allowedPurposePreferences(purposes);
     const existingPreferences = isJsonRecord(queuedEvent.context?.consent)
@@ -1409,7 +1409,7 @@ export class AnalyticsController extends BaseController<
       context: this.#withConsentContext(
         purposes,
         queuedEvent.context,
-        queuedEvent.marketingEventsVersion,
+        queuedEvent.eventsConfigVersion,
       ),
     };
   }
@@ -1672,9 +1672,9 @@ export class AnalyticsController extends BaseController<
       fragmentWithPurposeSnapshot = {
         ...fragment,
         ...(names.length === 0 ? {} : { eventPurposes }),
-        ...(this.#marketingEventsVersion === undefined
+        ...(this.#eventsConfigVersion === undefined
           ? {}
-          : { marketingEventsVersion: this.#marketingEventsVersion }),
+          : { eventsConfigVersion: this.#eventsConfigVersion }),
       };
     }
 
@@ -1840,7 +1840,7 @@ export class AnalyticsController extends BaseController<
       },
       context,
       this.#purposesFromFragmentEvent(fragment, name),
-      fragment.marketingEventsVersion,
+      fragment.eventsConfigVersion,
     );
   }
 
@@ -1857,7 +1857,7 @@ export class AnalyticsController extends BaseController<
       event,
       context,
       this.#purposesFromName(event.name),
-      this.#marketingEventsVersion,
+      this.#eventsConfigVersion,
     );
   }
 
@@ -1956,7 +1956,7 @@ export class AnalyticsController extends BaseController<
     context?: AnalyticsContext,
   ): void {
     const purposes = this.#purposesFromName(name);
-    const version = this.#marketingEventsVersion;
+    const version = this.#eventsConfigVersion;
     if (!this.#isCaptureAllowed(purposes)) {
       return;
     }

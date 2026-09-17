@@ -16,16 +16,16 @@ The AnalyticsController provides a unified interface for tracking analytics even
 
 ## State
 
-| Field                          | Type                             | Description                                                         | Persisted |
-| ------------------------------ | -------------------------------- | ------------------------------------------------------------------- | --------- |
-| `analyticsId`                  | `string`                         | UUIDv4 identifier (client platform-generated)                       | Yes       |
-| `optedIn`                      | `boolean`                        | Product analytics opt-in status                                     | Yes       |
-| `consentDecisionMade`          | `boolean`                        | Whether a product consent decision has been made                    | Yes       |
-| `optedInToMarketing`           | `boolean`                        | Marketing analytics opt-in status                                   | Yes       |
-| `marketingConsentDecisionMade` | `boolean`                        | Whether a marketing consent decision has been made                  | Yes       |
-| `marketingEventsConfig`        | `AnalyticsMarketingEventsConfig` | Cached event-purpose classification and its config registry version | Yes       |
-| `eventQueue`                   | `object`                         | Optional persisted delivery queue                                   | Yes       |
-| `eventFragments`               | `object`                         | Optional in-progress event fragments                                | Yes       |
+| Field                          | Type                    | Description                                                         | Persisted |
+| ------------------------------ | ----------------------- | ------------------------------------------------------------------- | --------- |
+| `analyticsId`                  | `string`                | UUIDv4 identifier (client platform-generated)                       | Yes       |
+| `optedIn`                      | `boolean`               | Product analytics opt-in status                                     | Yes       |
+| `consentDecisionMade`          | `boolean`               | Whether a product consent decision has been made                    | Yes       |
+| `optedInToMarketing`           | `boolean`               | Marketing analytics opt-in status                                   | Yes       |
+| `marketingConsentDecisionMade` | `boolean`               | Whether a marketing consent decision has been made                  | Yes       |
+| `eventsConfig`                 | `AnalyticsEventsConfig` | Cached event-purpose classification and its config registry version | Yes       |
+| `eventQueue`                   | `object`                | Optional persisted delivery queue                                   | Yes       |
+| `eventFragments`               | `object`                | Optional in-progress event fragments                                | Yes       |
 
 ### Client Platform Responsibilities
 
@@ -34,7 +34,7 @@ The AnalyticsController provides a unified interface for tracking analytics even
 3. **Subscribe to state changes**: Persist changes to isolated storage
 4. **Persist to isolated storage**: Keep analytics settings separate from main state (protects against state corruption)
 
-`marketingEventsConfig.events` maps event names to one or both `AnalyticsPurpose` values (`product` and `marketing`). Unlisted names default to product-only. Phase 1 uses the config already persisted in state. Loading it from config registry will be added later.
+`eventsConfig.events` maps event names to one or both `AnalyticsPurpose` values (`product` and `marketing`). Unlisted names default to product-only. Phase 1 uses the config already persisted in state. Loading it from config registry will be added later.
 
 Each `track` and `view` payload is emitted once when at least one eligible purpose is opted in. A dual-purpose event is still emitted once when both consents are enabled. Its allowed purposes are stamped using Segment's consent context:
 
@@ -47,12 +47,12 @@ Each `track` and `view` payload is emitted once when at least one eligible purpo
         "marketing": true
       }
     },
-    "marketingEventsVersion": "a1b2c3d"
+    "eventsConfigVersion": "a1b2c3d"
   }
 }
 ```
 
-The booleans are the intersection of event classification and current user consent. `marketingEventsVersion` is included when classification came from a persisted config. `identify` is always product-only.
+The booleans are the intersection of event classification and current user consent. `eventsConfigVersion` is included when classification came from a persisted config. `identify` is always product-only.
 
 Classification and config version are captured with queued events and fragments. A later config update cannot reclassify an event that was already captured. If one purpose is opted in while another is undecided, a dual-purpose event is sent immediately for the allowed purpose and is not replayed after the second decision.
 

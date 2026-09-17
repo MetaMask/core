@@ -56,9 +56,9 @@ export type AnalyticsEventFragment = {
   eventPurposes?: Record<string, AnalyticsPurpose[]>;
 
   /**
-   * Marketing-events config version used for the capture-time classification.
+   * Events config version used for the capture-time classification.
    */
-  marketingEventsVersion?: string;
+  eventsConfigVersion?: string;
 
   /**
    * Platform-specific context forwarded with every event this fragment emits.
@@ -102,7 +102,7 @@ export type ReadonlyAnalyticsEventFragment = Readonly<{
   successEvent?: string;
   failureEvent?: string;
   eventPurposes?: Readonly<Record<string, readonly AnalyticsPurpose[]>>;
-  marketingEventsVersion?: string;
+  eventsConfigVersion?: string;
   context?: Readonly<AnalyticsContext>;
   persist?: boolean;
   createdAt: number;

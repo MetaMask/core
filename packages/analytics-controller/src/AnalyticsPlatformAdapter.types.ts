@@ -69,7 +69,7 @@ export type AnalyticsContext = Record<string, Json> & {
       marketing: boolean;
     };
   };
-  marketingEventsVersion?: string;
+  eventsConfigVersion?: string;
 };
 
 /**

@@ -232,7 +232,7 @@ function createMockAdapter(): MockAnalyticsPlatformAdapter {
  * @param preferences.product - Whether product analytics use is allowed.
  * @param preferences.marketing - Whether marketing use is allowed.
  * @param context - Optional caller context to merge.
- * @param version - Optional marketing-events config version.
+ * @param version - Optional events config version.
  * @returns Context including Segment consent category preferences.
  */
 function withPurposeConsent(
@@ -245,7 +245,7 @@ function withPurposeConsent(
     consent: {
       categoryPreferences: preferences,
     },
-    ...(version === undefined ? {} : { marketingEventsVersion: version }),
+    ...(version === undefined ? {} : { eventsConfigVersion: version }),
   };
 }
 
@@ -4334,10 +4334,10 @@ describe('AnalyticsController', () => {
     const marketingEvent = 'Deep Link Used';
     const productEvent = 'Button Clicked';
     const dualPurposeEvent = 'Perp Trade Completed';
-    const marketingEventsVersion = 'a1b2c3d';
-    const marketingEventsConfig = {
+    const eventsConfigVersion = 'a1b2c3d';
+    const eventsConfig = {
       schemaVersion: '1.0.0',
-      version: marketingEventsVersion,
+      version: eventsConfigVersion,
       timestamp: 1_740_000_000_000,
       events: {
         [marketingEvent]: [AnalyticsPurpose.Marketing],
@@ -4348,13 +4348,13 @@ describe('AnalyticsController', () => {
       },
     };
     const withMarketingList = {
-      marketingEventsConfig,
+      eventsConfig,
     };
     const withConfiguredPurposeConsent = (
       preferences: { product: boolean; marketing: boolean },
       context: AnalyticsContext = {},
     ): AnalyticsContext =>
-      withPurposeConsent(preferences, context, marketingEventsVersion);
+      withPurposeConsent(preferences, context, eventsConfigVersion);
 
     it('emits a dual-purpose event once with both allowed purposes', async () => {
       const adapter = createMockAdapter();
@@ -4365,7 +4365,7 @@ describe('AnalyticsController', () => {
           consentDecisionMade: true,
           optedInToMarketing: true,
           marketingConsentDecisionMade: true,
-          marketingEventsConfig,
+          eventsConfig,
         },
         platformAdapter: adapter,
         isGeolocationEnabled: false,
@@ -4382,7 +4382,7 @@ describe('AnalyticsController', () => {
         withPurposeConsent(
           { product: true, marketing: true },
           {},
-          marketingEventsVersion,
+          eventsConfigVersion,
         ),
       );
     });
@@ -4396,7 +4396,7 @@ describe('AnalyticsController', () => {
           consentDecisionMade: true,
           optedInToMarketing: true,
           marketingConsentDecisionMade: true,
-          marketingEventsConfig,
+          eventsConfig,
         },
         platformAdapter: adapter,
         isGeolocationEnabled: false,
@@ -4411,7 +4411,7 @@ describe('AnalyticsController', () => {
         withPurposeConsent(
           { product: false, marketing: true },
           {},
-          marketingEventsVersion,
+          eventsConfigVersion,
         ),
       );
     });
@@ -4425,7 +4425,7 @@ describe('AnalyticsController', () => {
           consentDecisionMade: true,
           optedInToMarketing: false,
           marketingConsentDecisionMade: false,
-          marketingEventsConfig,
+          eventsConfig,
         },
         platformAdapter: adapter,
         isGeolocationEnabled: false,
@@ -4442,7 +4442,7 @@ describe('AnalyticsController', () => {
         withPurposeConsent(
           { product: true, marketing: false },
           {},
-          marketingEventsVersion,
+          eventsConfigVersion,
         ),
       );
     });
@@ -4456,7 +4456,7 @@ describe('AnalyticsController', () => {
           consentDecisionMade: true,
           optedInToMarketing: true,
           marketingConsentDecisionMade: true,
-          marketingEventsConfig,
+          eventsConfig,
         },
         platformAdapter: adapter,
         isGeolocationEnabled: false,
@@ -4470,11 +4470,11 @@ describe('AnalyticsController', () => {
 
       expect(controller.state.eventQueue?.[messageId as string]).toMatchObject({
         eventPurposes: [AnalyticsPurpose.Product, AnalyticsPurpose.Marketing],
-        marketingEventsVersion,
+        eventsConfigVersion,
         context: withPurposeConsent(
           { product: true, marketing: false },
           {},
-          marketingEventsVersion,
+          eventsConfigVersion,
         ),
       });
       expect(adapter.track).toHaveBeenCalledTimes(1);
@@ -4489,7 +4489,7 @@ describe('AnalyticsController', () => {
           consentDecisionMade: true,
           optedInToMarketing: false,
           marketingConsentDecisionMade: true,
-          marketingEventsConfig,
+          eventsConfig,
           eventQueue: {
             queued: {
               type: 'track',
@@ -4497,11 +4497,11 @@ describe('AnalyticsController', () => {
               messageId: 'queued',
               timestamp: '2026-01-01T00:00:00.000Z',
               eventPurposes: [AnalyticsPurpose.Product],
-              marketingEventsVersion,
+              eventsConfigVersion,
               context: withPurposeConsent(
                 { product: true, marketing: false },
                 {},
-                marketingEventsVersion,
+                eventsConfigVersion,
               ),
             },
           },
@@ -4528,8 +4528,8 @@ describe('AnalyticsController', () => {
           consentDecisionMade: true,
           optedInToMarketing: false,
           marketingConsentDecisionMade: false,
-          marketingEventsConfig: {
-            ...marketingEventsConfig,
+          eventsConfig: {
+            ...eventsConfig,
             events: { [marketingEvent]: [AnalyticsPurpose.Product] },
           },
           preConsentEventQueue: {
@@ -4539,7 +4539,7 @@ describe('AnalyticsController', () => {
               messageId: 'captured',
               timestamp: '2026-01-01T00:00:00.000Z',
               eventPurposes: [AnalyticsPurpose.Marketing],
-              marketingEventsVersion: capturedVersion,
+              eventsConfigVersion: capturedVersion,
             },
           },
         },
@@ -4573,7 +4573,7 @@ describe('AnalyticsController', () => {
           consentDecisionMade: true,
           optedInToMarketing: true,
           marketingConsentDecisionMade: true,
-          marketingEventsConfig,
+          eventsConfig,
         },
         platformAdapter: adapter,
         isGeolocationEnabled: false,
@@ -4613,8 +4613,8 @@ describe('AnalyticsController', () => {
           consentDecisionMade: true,
           optedInToMarketing: true,
           marketingConsentDecisionMade: true,
-          marketingEventsConfig: {
-            ...marketingEventsConfig,
+          eventsConfig: {
+            ...eventsConfig,
             events: { [marketingEvent]: [AnalyticsPurpose.Product] },
           },
           eventFragments: {
@@ -4626,7 +4626,7 @@ describe('AnalyticsController', () => {
               createdAt: now,
               lastUpdated: now,
               eventPurposes: { [marketingEvent]: [AnalyticsPurpose.Marketing] },
-              marketingEventsVersion: capturedVersion,
+              eventsConfigVersion: capturedVersion,
             },
           },
         },
@@ -4872,7 +4872,7 @@ describe('AnalyticsController', () => {
       expect(adapter.track).not.toHaveBeenCalled();
     });
 
-    it('uses the persisted marketing-events config for classification', async () => {
+    it('uses the persisted events config for classification', async () => {
       const adapter = createMockAdapter();
       const { controller } = await setupController({
         state: {
@@ -4881,8 +4881,8 @@ describe('AnalyticsController', () => {
           consentDecisionMade: true,
           optedInToMarketing: true,
           marketingConsentDecisionMade: true,
-          marketingEventsConfig: {
-            ...marketingEventsConfig,
+          eventsConfig: {
+            ...eventsConfig,
             events: { 'Campaign Opened': [AnalyticsPurpose.Marketing] },
           },
         },
@@ -5094,7 +5094,7 @@ describe('AnalyticsController', () => {
               eventPurposes: {
                 [marketingEvent]: [AnalyticsPurpose.Marketing],
               },
-              marketingEventsVersion,
+              eventsConfigVersion,
             },
           },
         },
@@ -5111,7 +5111,7 @@ describe('AnalyticsController', () => {
           eventPurposes: {
             [marketingEvent]: [AnalyticsPurpose.Marketing],
           },
-          marketingEventsVersion,
+          eventsConfigVersion,
         }),
       });
 
@@ -5263,7 +5263,7 @@ describe('AnalyticsController', () => {
       );
     });
 
-    it('keeps the persisted marketing-events config across init', async () => {
+    it('keeps the persisted events config across init', async () => {
       const { controller } = await setupController({
         state: {
           analyticsId: '550e8400-e29b-41d4-a716-446655440000',
@@ -5271,16 +5271,16 @@ describe('AnalyticsController', () => {
           consentDecisionMade: true,
           optedInToMarketing: true,
           marketingConsentDecisionMade: true,
-          marketingEventsConfig: {
-            ...marketingEventsConfig,
+          eventsConfig: {
+            ...eventsConfig,
             events: { 'Campaign Opened': [AnalyticsPurpose.Marketing] },
           },
         },
         isGeolocationEnabled: false,
       });
 
-      expect(controller.state.marketingEventsConfig).toStrictEqual({
-        ...marketingEventsConfig,
+      expect(controller.state.eventsConfig).toStrictEqual({
+        ...eventsConfig,
         events: { 'Campaign Opened': [AnalyticsPurpose.Marketing] },
       });
     });
@@ -5301,7 +5301,7 @@ describe('AnalyticsController', () => {
 
       controller.trackEvent(createTestEvent(marketingEvent));
 
-      expect(controller.state.marketingEventsConfig).toBeUndefined();
+      expect(controller.state.eventsConfig).toBeUndefined();
       expect(adapter.track).not.toHaveBeenCalled();
     });
 
@@ -5357,7 +5357,7 @@ describe('AnalyticsController', () => {
           consentDecisionMade: true,
           optedInToMarketing: true,
           marketingConsentDecisionMade: true,
-          marketingEventsConfig,
+          eventsConfig,
           eventQueue: {
             invalid: 'not-an-event',
             'keep-me': {
@@ -5436,7 +5436,7 @@ describe('AnalyticsController', () => {
           consentDecisionMade: true,
           optedInToMarketing: true,
           marketingConsentDecisionMade: true,
-          marketingEventsConfig,
+          eventsConfig,
           eventQueue: {
             'legacy-product': {
               type: 'track',
@@ -5474,7 +5474,7 @@ describe('AnalyticsController', () => {
           consentDecisionMade: true,
           optedInToMarketing: true,
           marketingConsentDecisionMade: true,
-          marketingEventsConfig,
+          eventsConfig,
           eventQueue: {
             'legacy-view': {
               type: 'view',
@@ -5506,7 +5506,7 @@ describe('AnalyticsController', () => {
           consentDecisionMade: true,
           optedInToMarketing: true,
           marketingConsentDecisionMade: true,
-          marketingEventsConfig,
+          eventsConfig,
           eventFragments: {
             legacy: {
               id: 'legacy',
@@ -5602,7 +5602,7 @@ describe('AnalyticsController', () => {
           consentDecisionMade: true,
           optedInToMarketing: false,
           marketingConsentDecisionMade: false,
-          marketingEventsConfig,
+          eventsConfig,
           preConsentEventQueue: {
             invalid: 'not-an-event',
             'keep-me': {
@@ -5611,7 +5611,7 @@ describe('AnalyticsController', () => {
               messageId: 'keep-me',
               timestamp: '2026-01-01T00:00:00.000Z',
               eventPurposes: [AnalyticsPurpose.Marketing],
-              marketingEventsVersion,
+              eventsConfigVersion,
             },
           } as unknown as AnalyticsControllerState['preConsentEventQueue'],
         },
@@ -5639,7 +5639,7 @@ describe('AnalyticsController', () => {
           consentDecisionMade: true,
           optedInToMarketing: false,
           marketingConsentDecisionMade: false,
-          marketingEventsConfig,
+          eventsConfig,
           preConsentEventQueue: {
             invalid: 'not-an-event',
           } as unknown as AnalyticsControllerState['preConsentEventQueue'],
