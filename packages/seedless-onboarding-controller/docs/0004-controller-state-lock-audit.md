@@ -1,6 +1,6 @@
 # Audit 0004: Controller state-lock and password-sync races
 
-- Status: Finding F-001 fixed; follow-up findings remain open
+- Status: Findings F-001 and F-002 fixed; follow-up findings remain open
 - Date: 2026-09-10
 - Scope: `SeedlessOnboardingController`
 - Related: [ADR 0001](./0001-seedless-password-change-recovery.md), [Recovery flow 0002](./0002-password-change-recovery-flow.md), [Option B plan 0003](./0003-controller-owned-password-change-recovery-plan.md)
@@ -169,31 +169,36 @@ implementation, must cover the cross-controller transaction.
 
 ## Follow-up findings
 
-These findings were identified during the audit and are not fixed by F-001.
+The following findings were identified during the audit. Their status is
+tracked individually below.
 
 ### F-002: Keyring encryption-key methods bypass the controller lock
 
 - Severity: High
-- Status: Open
+- Status: Fixed
 - Affected methods:
-  - [`storeKeyringEncryptionKey`](../src/SeedlessOnboardingController.ts#L1514-L1524)
-  - [`loadKeyringEncryptionKey`](../src/SeedlessOnboardingController.ts#L1532-L1535)
+  - [`storeKeyringEncryptionKey`](../src/SeedlessOnboardingController.ts#L1508-L1512)
+  - [`loadKeyringEncryptionKey`](../src/SeedlessOnboardingController.ts#L1540-L1544)
 
-`storeKeyringEncryptionKey` awaits vault access and then updates controller
-state without the controller mutex. It can therefore write an encrypted key
-after a password-change commit, lifecycle clear, or another recovery step has
-changed the wrapping key or phase.
+Before the fix, `storeKeyringEncryptionKey` awaited vault access and then
+updated controller state without the controller mutex. It could therefore
+write an encrypted key after a password-change commit, lifecycle clear, or
+another recovery step had changed the wrapping key or phase.
 
-`loadKeyringEncryptionKey` is a read, but it is used to make recovery decisions.
-It can observe a different combination of vault and encrypted-key state from
-the one that existed when its operation started.
+`loadKeyringEncryptionKey` was also unprotected even though it is used to make
+recovery decisions. It could observe a different combination of vault and
+encrypted-key state from the one that existed when its operation started.
 
-Recommended remediation:
+Remediation applied:
 
-- Add locked public wrappers and private unlocked helpers.
-- Keep the public calls under the controller-to-vault lock order.
-- Ensure key reads and writes used by a lifecycle transition share the same
-  operation boundary as the phase transition.
+- Both public methods now acquire the controller mutex before accessing the
+  vault or encrypted key state.
+- Private unlocked helpers are used by password-change paths that already hold
+  the controller mutex, avoiding non-reentrant lock acquisition.
+- The controller-to-vault lock order is preserved, so key reads and writes
+  share the same operation boundary as the lifecycle transition.
+- A deterministic regression test verifies that key storage waits for an
+  in-flight password reconciliation and uses the post-rewrite wrapping key.
 
 ### F-003: Token refresh and refresh-token rotation are not controller-serialized
 
@@ -326,7 +331,8 @@ Required scenarios:
   `LOCAL_KEYRING_PENDING`.
 - `resolvePasswordSyncState` waits behind a phase transition and never clears a
   newer phase.
-- `storeKeyringEncryptionKey` overlaps with a password-change state commit.
+- `storeKeyringEncryptionKey` overlaps with a password-change state commit and
+  waits for the controller-locked reconciliation.
 - Token refresh overlaps with password-change vault rewriting.
 - `clearState` is rejected or serialized while recovery is active.
 - Delayed `clearPasswordChangePhase` and

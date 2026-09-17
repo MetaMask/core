@@ -1007,7 +1007,7 @@ export class SeedlessOnboardingController<
         // load keyring encryption key if it exists
         let keyringEncryptionKey: string | undefined;
         if (this.state.encryptedKeyringEncryptionKey) {
-          keyringEncryptionKey = await this.loadKeyringEncryptionKey();
+          keyringEncryptionKey = await this.#loadKeyringEncryptionKeyUnlocked();
         }
 
         // Persist the lifecycle before the first remote mutation so a later
@@ -1218,7 +1218,7 @@ export class SeedlessOnboardingController<
     // ciphertext can be persisted under the new `toprfPwEncryptionKey`.
     let keyringEncryptionKey: string | undefined;
     if (this.state.encryptedKeyringEncryptionKey) {
-      keyringEncryptionKey = await this.loadKeyringEncryptionKey();
+      keyringEncryptionKey = await this.#loadKeyringEncryptionKeyUnlocked();
     }
 
     const { encKey, pwEncKey, authKeyPair } =
@@ -1504,6 +1504,20 @@ export class SeedlessOnboardingController<
    * @param keyringEncryptionKey - The keyring encryption key.
    */
   async storeKeyringEncryptionKey(keyringEncryptionKey: string): Promise<void> {
+    await this.#withControllerLock(async () => {
+      await this.#storeKeyringEncryptionKeyUnlocked(keyringEncryptionKey);
+    });
+  }
+
+  /**
+   * Store the keyring encryption key in state while the controller lock is
+   * held.
+   *
+   * @param keyringEncryptionKey - The keyring encryption key.
+   */
+  async #storeKeyringEncryptionKeyUnlocked(
+    keyringEncryptionKey: string,
+  ): Promise<void> {
     const { toprfPwEncryptionKey: encKey } =
       await this.#unlockVaultAndGetVaultData();
     const encryptedKeyringEncryptionKey = this.#encryptKeyringEncryptionKey(
@@ -1522,6 +1536,17 @@ export class SeedlessOnboardingController<
    * @returns The keyring encryption key.
    */
   async loadKeyringEncryptionKey(): Promise<string> {
+    return await this.#withControllerLock(
+      async () => await this.#loadKeyringEncryptionKeyUnlocked(),
+    );
+  }
+
+  /**
+   * Load the keyring encryption key while the controller lock is held.
+   *
+   * @returns The keyring encryption key.
+   */
+  async #loadKeyringEncryptionKeyUnlocked(): Promise<string> {
     const { toprfPwEncryptionKey: encKey } =
       await this.#unlockVaultAndGetVaultData();
     return await this.#loadKeyringEncryptionKey(encKey);
