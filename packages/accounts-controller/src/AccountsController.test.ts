@@ -2385,6 +2385,7 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getState',
         mockGetState.mockReturnValue({
+          isUnlocked: true,
           keyrings: [
             {
               type: KeyringTypes.hd,
@@ -2448,6 +2449,7 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getState',
         mockGetState.mockReturnValue({
+          isUnlocked: true,
           keyrings: [
             {
               type: KeyringTypes.snap,
@@ -2520,7 +2522,7 @@ describe('AccountsController', () => {
       const messenger = buildMessenger();
       messenger.registerActionHandler(
         'KeyringController:getState',
-        mockGetState.mockReturnValue({ keyrings: [] }),
+        mockGetState.mockReturnValue({ isUnlocked: true, keyrings: [] }),
       );
 
       messenger.registerActionHandler(
@@ -2555,6 +2557,7 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getState',
         mockGetState.mockReturnValue({
+          isUnlocked: true,
           keyrings: [
             {
               type: KeyringTypes.hd,
@@ -2632,6 +2635,7 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getState',
         mockGetState.mockReturnValue({
+          isUnlocked: true,
           keyrings: [
             {
               type: KeyringTypes.hd,
@@ -2694,6 +2698,7 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getState',
         mockGetState.mockReturnValue({
+          isUnlocked: true,
           keyrings: [
             {
               type: KeyringTypes.hd,
@@ -2760,6 +2765,7 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getState',
         mockGetState.mockReturnValue({
+          isUnlocked: true,
           keyrings: [
             {
               type: KeyringTypes.money,
@@ -2837,6 +2843,7 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getState',
         mockGetState.mockReturnValue({
+          isUnlocked: true,
           keyrings: [
             {
               type: KeyringTypes.snap,
@@ -2908,6 +2915,7 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getState',
         mockGetState.mockReturnValue({
+          isUnlocked: true,
           keyrings: [
             {
               type: keyringType,
@@ -2968,6 +2976,7 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getState',
         mockGetState.mockReturnValue({
+          isUnlocked: true,
           keyrings: [{ type: 'unknown', accounts: [mockAddress1] }],
         }),
       );
@@ -3058,6 +3067,7 @@ describe('AccountsController', () => {
         messenger.registerActionHandler(
           'KeyringController:getState',
           mockGetState.mockReturnValue({
+            isUnlocked: true,
             keyrings: [
               {
                 type: KeyringTypes.snap,
@@ -3162,6 +3172,7 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getState',
         mockGetState.mockReturnValue({
+          isUnlocked: true,
           keyrings: mockKeyrings,
         }),
       );
@@ -3252,6 +3263,7 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getState',
         mockGetState.mockReturnValue({
+          isUnlocked: true,
           keyrings: mockKeyrings,
         }),
       );
@@ -3306,6 +3318,7 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getState',
         mockGetState.mockReturnValue({
+          isUnlocked: true,
           keyrings: [
             {
               type: KeyringType.Snap,
@@ -3360,6 +3373,7 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getState',
         mockGetState.mockReturnValue({
+          isUnlocked: true,
           keyrings: [
             {
               type: KeyringType.Snap,
