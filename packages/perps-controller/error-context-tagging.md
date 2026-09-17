@@ -1,6 +1,5 @@
 [Core] Extend shared error-context tagging so Sentry dashboards can filter by operation/component/action
 
-
 Background
 The "Dashboard Perps - Health" Sentry dashboard (id 314902) looks empty for the extension project even though extension has ~200,886 feature:perps errors in the last 14 days — comparable in scale to mobile's ~420,262. Most dashboard widgets filter on component:, action:, or operation: tags, and those tags are effectively never set on extension events (component:PerpsConnectionManager returns 0 results), so the widgets render blank. Mobile shows a thin trickle of data in those same widgets (e.g. 42 component:PerpsConnectionManager events, 43 operation:position_management events) out of 420k total — barely enough to plot, not enough to be useful.
 
@@ -24,7 +23,7 @@ feature, provider, network tags continue to be emitted unchanged (no regression)
 
 The existing context.data "PerpsController" payload is preserved (additive change, not a replacement).
 
-After deploy, the "Dashboard Perps - Health" widgets that filter on operation:* show non-empty data for the extension project (273505) within a normal release cycle.
+After deploy, the "Dashboard Perps - Health" widgets that filter on operation:\* show non-empty data for the extension project (273505) within a normal release cycle.
 
 Unit tests for #getErrorContext / #logError cover the new tag-promotion behavior.
 
