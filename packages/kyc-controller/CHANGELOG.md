@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `KycVendor`, `KycProvider`, and `KycStatus` const objects (and matching types) for VBA onboarding consumers
+- Add stub messenger methods `isCustomerCreated`, `hasCompletedVendorTerms`, and `hasCompletedProviderTerms`
+- Extend `getKycStatus` with a vendor overload that returns `KycStatus` (noop stub returning `NOT_STARTED`)
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^32.1.0` to `^32.1.1` ([#10220](https://github.com/MetaMask/core/pull/10220))

@@ -14,6 +14,20 @@ describe('@metamask/kyc-controller', () => {
       decryptCredentials: expect.any(Function),
       controllerName: 'KycController',
       serviceName: 'KycService',
+      KycVendor: {
+        Moonpay: 'moonpay',
+        Iron: 'iron',
+      },
+      KycProvider: {
+        sumsub: 'sumsub',
+      },
+      KycStatus: {
+        NOT_STARTED: 'NOT_STARTED',
+        PENDING: 'PENDING',
+        NEED_INFO: 'NEED_INFO',
+        REJECTED: 'REJECTED',
+        ACCEPTED: 'ACCEPTED',
+      },
     });
   });
 });

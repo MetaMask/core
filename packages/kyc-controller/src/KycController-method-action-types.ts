@@ -167,15 +167,61 @@ export type KycControllerCheckKycRequiredAction = {
 };
 
 /**
- * Reads the cached "is KYC required" result for a product.
+ * Reads the cached "is KYC required" result for a product, or the
+ * vendor-scoped KYC decision used by VBA onboarding.
  *
- * @param params - The parameters.
- * @param params.product - The consuming feature.
- * @returns The cached value, or `undefined` if not yet checked.
+ * The vendor overload is a temporary noop stub that always returns
+ * {@link KycStatus.NOT_STARTED} until Iron status wiring lands.
+ *
+ * @param paramsOrVendor - Either `{ product }` for the cached required flag,
+ * or a {@link KycVendor} for the vendor-scoped decision.
+ * @returns The cached product flag, or a {@link KycStatus} for a vendor.
  */
 export type KycControllerGetKycStatusAction = {
   type: `KycController:getKycStatus`;
   handler: KycController['getKycStatus'];
+};
+
+/**
+ * Whether a customer shell exists for the given identity vendor.
+ *
+ * Temporary noop stub for VBA onboarding hydration; always returns `false`
+ * until Iron customer lookup is wired.
+ *
+ * @param _vendor - Identity vendor to check.
+ * @returns Whether the customer has been created.
+ */
+export type KycControllerIsCustomerCreatedAction = {
+  type: `KycController:isCustomerCreated`;
+  handler: KycController['isCustomerCreated'];
+};
+
+/**
+ * Whether the user has accepted terms for the given identity vendor.
+ *
+ * Temporary noop stub for VBA onboarding hydration; always returns `false`
+ * until vendor-terms state is exposed here.
+ *
+ * @param _vendor - Identity vendor whose terms to check.
+ * @returns Whether vendor terms are complete.
+ */
+export type KycControllerHasCompletedVendorTermsAction = {
+  type: `KycController:hasCompletedVendorTerms`;
+  handler: KycController['hasCompletedVendorTerms'];
+};
+
+/**
+ * Whether the user has accepted terms for the given KYC provider.
+ *
+ * Temporary noop stub for VBA onboarding hydration; always returns `false`
+ * until provider-terms state is exposed here.
+ *
+ * @param _provider - Document / identity provider whose terms to check.
+ * @returns Whether provider terms are complete.
+ */
+export type KycControllerHasCompletedProviderTermsAction = {
+  type: `KycController:hasCompletedProviderTerms`;
+  handler: KycController['hasCompletedProviderTerms'];
 };
 
 /**
@@ -296,6 +342,9 @@ export type KycControllerMethodActions =
   | KycControllerBuildResetFrameUrlAction
   | KycControllerCheckKycRequiredAction
   | KycControllerGetKycStatusAction
+  | KycControllerIsCustomerCreatedAction
+  | KycControllerHasCompletedVendorTermsAction
+  | KycControllerHasCompletedProviderTermsAction
   | KycControllerGetCustomerIdentityAction
   | KycControllerStartSumSubAction
   | KycControllerRefreshKycStatusAction

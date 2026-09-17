@@ -19,7 +19,37 @@ export type KycProduct = 'ramps' | 'card' | 'money';
  * - `iron` — Iron-only Money/VBA path: empty-shell customer → consents →
  *   SumSub, with no MoonPay Check/Auth frames.
  */
-export type KycVendor = 'moonpay' | 'iron';
+export const KycVendor = {
+  Moonpay: 'moonpay',
+  Iron: 'iron',
+} as const;
+
+export type KycVendor = (typeof KycVendor)[keyof typeof KycVendor];
+
+/**
+ * Document / identity providers used after vendor terms (e.g. SumSub).
+ */
+export const KycProvider = {
+  sumsub: 'sumsub',
+} as const;
+
+export type KycProvider = (typeof KycProvider)[keyof typeof KycProvider];
+
+/**
+ * Vendor-scoped KYC decision surface for consumers such as VBA onboarding.
+ *
+ * Distinct from {@link KycUserStatus}, which is the user-keyed toast/banner
+ * contract returned by `GET /kyc/status`.
+ */
+export const KycStatus = {
+  NOT_STARTED: 'NOT_STARTED',
+  PENDING: 'PENDING',
+  NEED_INFO: 'NEED_INFO',
+  REJECTED: 'REJECTED',
+  ACCEPTED: 'ACCEPTED',
+} as const;
+
+export type KycStatus = (typeof KycStatus)[keyof typeof KycStatus];
 
 /**
  * Vendor-scoped identity for the currently authenticated KYC customer.

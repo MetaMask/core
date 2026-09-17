@@ -23,6 +23,7 @@ import type {
   KycSessionDisclaimers,
   KycSumSubLauncher,
 } from './types.js';
+import { KycProvider, KycStatus, KycVendor } from './types.js';
 import { verifyJwtChain } from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
 import { MoonPayFrameHandler } from './vendors/MoonPayFrameHandler.js';
@@ -1353,6 +1354,43 @@ describe('KycController', () => {
           expect(controller.getKycStatus({ product: 'card' })).toBeUndefined();
         },
       );
+    });
+
+    it('returns NOT_STARTED for the vendor-scoped stub', async () => {
+      await withController(({ controller }) => {
+        expect(controller.getKycStatus(KycVendor.Iron)).toBe(
+          KycStatus.NOT_STARTED,
+        );
+        expect(controller.getKycStatus(KycVendor.Moonpay)).toBe(
+          KycStatus.NOT_STARTED,
+        );
+      });
+    });
+  });
+
+  describe('isCustomerCreated', () => {
+    it('returns false as a noop stub', async () => {
+      await withController(({ controller }) => {
+        expect(controller.isCustomerCreated(KycVendor.Iron)).toBe(false);
+      });
+    });
+  });
+
+  describe('hasCompletedVendorTerms', () => {
+    it('returns false as a noop stub', async () => {
+      await withController(({ controller }) => {
+        expect(controller.hasCompletedVendorTerms(KycVendor.Iron)).toBe(false);
+      });
+    });
+  });
+
+  describe('hasCompletedProviderTerms', () => {
+    it('returns false as a noop stub', async () => {
+      await withController(({ controller }) => {
+        expect(controller.hasCompletedProviderTerms(KycProvider.sumsub)).toBe(
+          false,
+        );
+      });
     });
   });
 
