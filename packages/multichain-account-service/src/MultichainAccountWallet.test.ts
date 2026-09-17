@@ -17,10 +17,8 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { createDeferredPromise } from '@metamask/utils';
 
 import type { WalletState } from './MultichainAccountWallet.js';
-import {
-  MultichainAccountWallet,
-  type RemoveMultichainAccountWalletFailureContext,
-} from './MultichainAccountWallet.js';
+import { MultichainAccountWallet } from './MultichainAccountWallet.js';
+import type { RemoveMultichainAccountWalletFailureContext } from './MultichainAccountWallet.js';
 import { TimeoutError } from './providers/index.js';
 import type { MockAccountProvider, RootMessenger } from './tests/index.js';
 import {
