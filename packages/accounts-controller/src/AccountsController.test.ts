@@ -32,7 +32,7 @@ import type {
 } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { CaipChainId } from '@metamask/utils';
-import type { V4Options } from 'uuid';
+import type { Version4Options } from 'uuid';
 import { v4 as uuidV4 } from 'uuid';
 
 import {
@@ -67,7 +67,9 @@ type RootMessenger = Messenger<
 >;
 
 jest.mock('uuid');
-const mockUUID = jest.mocked(uuidV4);
+// `v4` is overloaded; naming the signature used here avoids resolving to the
+// last overload, which returns a `Uint8Array`.
+const mockUUID = jest.mocked<() => string>(uuidV4);
 const actualUUID = jest.requireActual('uuid').v4; // We also use uuid.v4 in our mocks
 
 const defaultState: AccountsControllerState = {
@@ -181,7 +183,7 @@ class MockNormalAccountUUID {
     }
   }
 
-  mock(options?: V4Options | undefined): string {
+  mock(options?: Version4Options | undefined): string {
     const accountId = actualUUID(options);
 
     // If not found, we returns the generated UUID
@@ -3703,6 +3705,90 @@ describe('AccountsController', () => {
 
       expect(accountsController.state).toStrictEqual(
         getDefaultAccountsControllerState(),
+      );
+    });
+
+    it('publishes accountRemoved for each removed account', () => {
+      const { accountsController, accountsControllerMessenger } =
+        setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount2.id]: mockAccount2,
+              },
+              selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount2.address]: mockAccount2.id,
+            },
+          },
+        });
+
+      const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
+
+      accountsController.clearState();
+
+      expect(messengerSpy).toHaveBeenCalledWith(
+        'AccountsController:accountRemoved',
+        mockAccount.id,
+      );
+      expect(messengerSpy).toHaveBeenCalledWith(
+        'AccountsController:accountRemoved',
+        mockAccount2.id,
+      );
+    });
+
+    it('publishes accountsRemoved with all account ids', () => {
+      const { accountsController, accountsControllerMessenger } =
+        setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount2.id]: mockAccount2,
+              },
+              selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount2.address]: mockAccount2.id,
+            },
+          },
+        });
+
+      const accountsRemovedListener = jest.fn();
+      accountsControllerMessenger.subscribe(
+        'AccountsController:accountsRemoved',
+        accountsRemovedListener,
+      );
+
+      accountsController.clearState();
+
+      expect(accountsRemovedListener).toHaveBeenCalledTimes(1);
+      expect(accountsRemovedListener).toHaveBeenCalledWith(
+        expect.arrayContaining([mockAccount.id, mockAccount2.id]),
+      );
+    });
+
+    it('does not publish removal events when state is already empty', () => {
+      const { accountsController, accountsControllerMessenger } =
+        setupAccountsController({
+          initialState: getDefaultAccountsControllerState(),
+        });
+
+      const messengerSpy = jest.spyOn(accountsControllerMessenger, 'publish');
+
+      accountsController.clearState();
+
+      expect(messengerSpy).not.toHaveBeenCalledWith(
+        'AccountsController:accountRemoved',
+        expect.anything(),
+      );
+      expect(messengerSpy).not.toHaveBeenCalledWith(
+        'AccountsController:accountsRemoved',
+        expect.anything(),
       );
     });
 

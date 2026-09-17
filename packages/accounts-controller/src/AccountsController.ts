@@ -836,11 +836,20 @@ export class AccountsController extends BaseController<
     log('Clearing state');
 
     this.#initialized = false;
+    const removedIds = Object.keys(this.state.internalAccounts.accounts);
+
     this.update(() => {
       return getDefaultAccountsControllerState();
     });
 
     this.messenger.publish('AccountsController:uninitialized');
+
+    for (const id of removedIds) {
+      this.messenger.publish('AccountsController:accountRemoved', id);
+    }
+    if (removedIds.length > 0) {
+      this.messenger.publish('AccountsController:accountsRemoved', removedIds);
+    }
   }
 
   /**
