@@ -424,7 +424,7 @@ const kycControllerMetadata = {
   sessionStatus: {
     includeInDebugSnapshot: false,
     includeInStateLogs: false,
-    persist: false,
+    persist: true,
     usedInUi: true,
   },
   sumsub: {
@@ -609,6 +609,20 @@ function acceptedCategoryStillMissing(
  */
 function usesConsentsFlow(vendor: KycVendor): boolean {
   return vendor !== 'moonpay';
+}
+
+/**
+ * Drops the UKYC session id and its status together. `sessionStatus` is only
+ * meaningful for the current `sessionId`.
+ *
+ * @param state - Controller state to update.
+ */
+function clearUkycSession(state: {
+  sessionId: string | null;
+  sessionStatus: KycSessionStatusResponse | null;
+}): void {
+  state.sessionId = null;
+  state.sessionStatus = null;
 }
 
 /**
@@ -1383,8 +1397,7 @@ export class KycController extends BaseController<
       state.sessionDisclaimers = null;
       // Session create ran before recording disclaimers. Drop the leftover
       // UKYC session so a later `startSumSub` cannot skip consent recording.
-      state.sessionId = null;
-      state.sessionStatus = null;
+      clearUkycSession(state);
       state.sumsub = { ...getDefaultKycControllerState().sumsub };
       if (keepSumSubStatus) {
         state.sumsub.status = keepSumSubStatus;
@@ -2207,7 +2220,7 @@ export class KycController extends BaseController<
    * polling while the status is not terminal.
    *
    * Throws without an active `sessionId`. Skipped when the recorded
-   * {@link sessionStatus} is already successful (`approved` / `completed`): a
+   * {@link sessionStatus} is already successful (`approved`): a
    * follow-up session status can still read a stale `pending` (for example
    * after `session_not_in_valid_state`) and must not undo that decision.
    *
@@ -2388,8 +2401,8 @@ export class KycController extends BaseController<
    * Writes a fetched UKYC session status onto state and publishes
    * {@link KycControllerStatusChangedEvent} when `finalStatus` changes.
    * Optionally resolves `sumsub.status` when `finalStatus` is terminal — used
-   * by the post-SDK poll, not by a one-off refresh, so an abandoned / failed /
-   * vendor-processing sub-flow is not overwritten.
+   * by the post-SDK poll, not by a one-off refresh, so an abandoned / failed
+   * sub-flow is not overwritten.
    *
    * @param sessionStatus - Status from `GET /sessions/{id}/status`.
    * @param options - Recording options.
@@ -2498,8 +2511,7 @@ export class KycController extends BaseController<
       clearMoonPaySession(state);
       state.activeVendor = 'moonpay';
       state.activeProduct = null;
-      state.sessionId = null;
-      state.sessionStatus = null;
+      clearUkycSession(state);
       state.sumsub = {
         status: 'idle',
         result: null,
