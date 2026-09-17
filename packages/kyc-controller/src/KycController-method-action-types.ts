@@ -230,15 +230,18 @@ export type KycControllerStartSumSubAction = {
 };
 
 /**
- * Refreshes the user-keyed simplified KYC status from `GET /kyc/status`,
- * stores it on state, publishes {@link KycControllerStatusChangedEvent}, and
- * schedules short-interval polling while the status is `pending`.
+ * Refreshes KYC status from the active UKYC session
+ * (`GET /sessions/{id}/status`), stores it on state, publishes
+ * {@link KycControllerStatusChangedEvent}, and schedules short-interval
+ * polling while the status is not terminal.
  *
- * Skipped when `userStatus` is already `completed`: a follow-up
- * `GET /kyc/status` can still read a stale `pending` (for example after
- * `session_not_in_valid_state`) and must not undo that decision.
+ * Throws without an active `sessionId`. Skipped when the recorded
+ * session status is already successful (`approved` / `completed`): a
+ * follow-up session status can still read a stale `pending` (for example
+ * after `session_not_in_valid_state`) and must not undo that decision.
  *
- * @returns The latest status payload.
+ * @returns The recorded session status, or `null` if none.
+ * @throws If there is no active UKYC session to query.
  */
 export type KycControllerRefreshKycStatusAction = {
   type: `KycController:refreshKycStatus`;
@@ -270,7 +273,7 @@ export type KycControllerResetAction = {
 /**
  * Restores the controller to its default state, discarding everything
  * {@link reset} deliberately keeps: the session email, the persisted terms
- * acceptance, the per-product KYC-required cache and the user-keyed status.
+ * acceptance, and the per-product KYC-required cache.
  *
  * Intended for a full wallet reset, where no trace of the previous
  * customer may survive into the next wallet.

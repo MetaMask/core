@@ -134,17 +134,6 @@ export type KycServiceSubmitSessionDisclaimersAction = {
 };
 
 /**
- * Fetches the user-keyed simplified KYC status used by Money toast / banner
- * surfaces (`GET /kyc/status`).
- *
- * @returns The simplified status payload.
- */
-export type KycServiceFetchKycStatusAction = {
-  type: `KycService:fetchKycStatus`;
-  handler: KycService['fetchKycStatus'];
-};
-
-/**
  * Fetches the idOS enclave JWKS used to verify the
  * `encryptionDataKey` schema's `jwtChain` from
  * {@link KycService.createUkycSession}.
@@ -244,7 +233,6 @@ export type KycServiceMethodActions =
   | KycServiceFetchSessionDisclaimersByCountryAction
   | KycServiceFetchSessionDisclaimersBySessionIdAction
   | KycServiceSubmitSessionDisclaimersAction
-  | KycServiceFetchKycStatusAction
   | KycServiceFetchIdosEnclaveJwksAction
   | KycServiceFetchIdosRelayJwksAction
   | KycServiceCreateUkycSessionAction

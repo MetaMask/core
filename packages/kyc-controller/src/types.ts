@@ -38,28 +38,21 @@ export type KycCustomerIdentity = {
 };
 
 /**
- * User-keyed KYC status returned by `GET /kyc/status` and stored for toast /
- * banner rendering. Collapses vendor + SumSub / relay state into the offsite
- * contract.
+ * Simplified KYC session status derived from `GET /sessions/{id}/status`
+ * (`finalStatus`) and stored for toast / banner rendering.
+ *
+ * - `new` — no session decision yet (including never started).
+ * - `pending` — submitted or in review; keep polling.
+ * - `approved` — verification succeeded.
+ * - `rejected` — terminal failure (`rejected`, `failed`, `blocked`, …).
+ * - `retry` — the applicant must resubmit (`retry`).
  */
-export type KycUserStatus =
-  | 'not-started'
+export type KycSessionStatus =
+  | 'new'
   | 'pending'
-  | 'need-more-information'
-  | 'terminal-failure'
-  | 'completed';
-
-/**
- * Payload from `GET /kyc/status`, including optional fields that power the
- * 3-state error contract (retryable SumSub vs terminal vs EDD).
- */
-export type KycUserStatusResponse = {
-  status: KycUserStatus;
-  /** Present when the user can reopen a SumSub session (retryable path). */
-  sumsubSessionId?: string;
-  /** Machine-readable error code for terminal / EDD UX. */
-  errorCode?: string;
-};
+  | 'approved'
+  | 'rejected'
+  | 'retry';
 
 /**
  * Phases of the end-to-end identity flow.
@@ -76,8 +69,8 @@ export type KycUserStatusResponse = {
  *   this phase.
  * - `submit` — submitting the KYC-required check / launching SumSub.
  * - `done` — flow complete; see `kycRequiredByProduct` / `sumsub` /
- *   `userStatus`. When KYC is required, the document-verification sub-flow is
- *   launched automatically.
+ *   `sessionStatus` ({@link KycSessionStatus}). When KYC is required, the
+ *   document-verification sub-flow is launched automatically.
  * - `error` — flow halted; see `error`.
  */
 export type KycPhase =
@@ -95,8 +88,9 @@ export type KycPhase =
  * Progress of the SumSub document-verification sub-flow.
  *
  * - `polling` — the SDK finished and the controller is polling the UKYC
- *   backend for the session's final decision (see `KycSessionStatus`). The
- *   sub-flow resolves to `complete` or `failed` once a terminal status arrives.
+ *   backend for the session's final decision (see
+ *   {@link KycSessionStatusResponse}). The sub-flow resolves to `complete` or
+ *   `failed` once a terminal status arrives.
  * - `vendorProcessing` — session creation reported that the applicant is
  *   already approved on the relay (`kycStatus`) while the vendor is still
  *   finalizing its own decision (`finalStatus`). There is nothing left for the
@@ -146,15 +140,16 @@ export type KycSumSubSdkStatus =
   | 'Completed';
 
 /**
- * The status of a UKYC session, returned by the `GET /sessions/{id}/status`
- * endpoint and polled after the SumSub SDK completes to determine the final
- * verification decision.
+ * The UKYC session status payload returned by `GET /sessions/{id}/status`
+ * (and `POST /sessions/{id}/authorizations`). Distinct from
+ * {@link KycSessionStatus}, the simplified value derived from
+ * `sessionStatus.finalStatus`.
  */
-export type KycSessionStatus = {
+export type KycSessionStatusResponse = {
   /**
    * The overall status of the session. Terminal values (e.g. `approved`,
-   * `completed`, `rejected`, `failed`, `blocked`) end polling; any other value
-   * keeps polling.
+   * `completed`, `rejected`, `failed`, `blocked`, `retry`) end polling; any
+   * other value keeps polling.
    */
   finalStatus: string;
   /** Optional human-readable message describing the status. */

@@ -181,6 +181,13 @@ describe('KycController', () => {
         },
       );
     });
+
+    it('persists sessionId across restarts', async () => {
+      await withController(({ controller }) => {
+        expect(controller.metadata.sessionId.persist).toBe(true);
+        expect(controller.metadata.sessionStatus.persist).toBe(false);
+      });
+    });
   });
 
   describe('initialize', () => {
@@ -1073,7 +1080,7 @@ describe('KycController', () => {
           expect(controller.state.kycRequiredByProduct.card).toBe(true);
           expect(launcher.launch).toHaveBeenCalledTimes(1);
           expect(controller.state.sumsub.status).toBe('complete');
-          expect(handlers.fetchKycStatus).toHaveBeenCalled();
+          expect(handlers.getSessionStatus).toHaveBeenCalled();
         },
       );
     });
@@ -1679,7 +1686,7 @@ describe('KycController', () => {
           finalStatus: 'pending',
         });
         expect(controller.state.sumsub.status).toBe('vendorProcessing');
-        expect(controller.state.sumsub.sessionId).toBe('sid');
+        expect(controller.state.sessionId).toBe('sid');
         expect(controller.state.statusMessage).toMatch(
           /being processed by the vendor/u,
         );
@@ -1722,7 +1729,7 @@ describe('KycController', () => {
 
         expect(result).toStrictEqual({});
         expect(controller.state.sumsub.status).toBe('idle');
-        expect(controller.state.sumsub.sessionId).toBeNull();
+        expect(controller.state.sessionId).toBeNull();
         expect(launcher.launch).not.toHaveBeenCalled();
         expect(handlers.setAuthorizations).not.toHaveBeenCalled();
       });
@@ -1775,7 +1782,7 @@ describe('KycController', () => {
 
         expect(result).toStrictEqual({});
         expect(controller.state.sumsub.status).toBe('idle');
-        expect(controller.state.sumsub.sessionId).toBeNull();
+        expect(controller.state.sessionId).toBeNull();
         expect(launcher.launch).not.toHaveBeenCalled();
       });
     });
@@ -1960,7 +1967,7 @@ describe('KycController', () => {
         expect(controller.state.sumsub.status).toBe('abandoned');
         expect(controller.state.sumsub.result).toStrictEqual({ ok: false });
         // No decision was reached, so consents-path callers still rewind.
-        expect(controller.state.sumsub.sessionStatus).toBeNull();
+        expect(controller.state.sessionStatus).toBeNull();
         expect(handlers.getSessionStatus).not.toHaveBeenCalled();
       });
     });
@@ -2028,7 +2035,7 @@ describe('KycController', () => {
 
           expect(handlers.getSessionStatus).toHaveBeenCalled();
           expect(controller.state.sumsub.status).toBe('failed');
-          expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+          expect(controller.state.sessionStatus).toStrictEqual(
             sessionStatus('rejected'),
           );
         });
@@ -2062,7 +2069,7 @@ describe('KycController', () => {
         expect(launcher.launch).not.toHaveBeenCalled();
         // The interrupted step must not write stale sub-flow state.
         expect(controller.state.sumsub.status).toBe('idle');
-        expect(controller.state.sumsub.sessionId).toBeNull();
+        expect(controller.state.sessionId).toBeNull();
         expect(controller.state.phase).toBe('idle');
       });
     });
@@ -2140,11 +2147,11 @@ describe('KycController', () => {
       jest.useFakeTimers();
       try {
         await withController(
-          { options: { userStatusPollIntervalMs: 1000 } },
+          { options: { state: { sessionId: 'sid' }, sessionStatusPollIntervalMs: 1000 } },
           async ({ controller, handlers, launcher }) => {
-            handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
+            handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
             await controller.refreshKycStatus();
-            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(1);
+            expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
 
             let releaseLaunch: (value: { ok: boolean }) => void = () =>
               undefined;
@@ -2158,17 +2165,16 @@ describe('KycController', () => {
             while (launcher.launch.mock.calls.length === 0) {
               await Promise.resolve();
             }
-            handlers.fetchKycStatus.mockClear();
+            handlers.getSessionStatus.mockClear();
             await jest.advanceTimersByTimeAsync(3000);
-            expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+            expect(handlers.getSessionStatus).not.toHaveBeenCalled();
 
             releaseLaunch({ ok: false });
             await pending;
 
-            expect(handlers.fetchKycStatus).toHaveBeenCalled();
-            handlers.fetchKycStatus.mockClear();
+            expect(handlers.getSessionStatus).not.toHaveBeenCalled();
             await jest.advanceTimersByTimeAsync(1000);
-            expect(handlers.fetchKycStatus).toHaveBeenCalled();
+            expect(handlers.getSessionStatus).toHaveBeenCalled();
           },
         );
       } finally {
@@ -2180,9 +2186,9 @@ describe('KycController', () => {
       jest.useFakeTimers();
       try {
         await withController(
-          { options: { userStatusPollIntervalMs: 1000 } },
+          { options: { state: { sessionId: 'sid' }, sessionStatusPollIntervalMs: 1000 } },
           async ({ controller, handlers, launcher }) => {
-            handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
+            handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
             await controller.refreshKycStatus();
 
             let releaseLaunch: (value: { ok: boolean }) => void = () =>
@@ -2200,10 +2206,10 @@ describe('KycController', () => {
             controller.reset();
             releaseLaunch({ ok: true });
             await pending;
-            handlers.fetchKycStatus.mockClear();
+            handlers.getSessionStatus.mockClear();
             await jest.advanceTimersByTimeAsync(3000);
 
-            expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+            expect(handlers.getSessionStatus).not.toHaveBeenCalled();
           },
         );
       } finally {
@@ -2230,6 +2236,19 @@ describe('KycController', () => {
       });
     }
 
+    it('swallows a failed session-status refresh after the SDK completes', async () => {
+      await withController(
+        { options: { sessionStatusPollIntervalMs: 60_000 } },
+        async ({ controller, handlers, launcher }) => {
+          completeSdk(launcher);
+          handlers.getSessionStatus.mockRejectedValue(new Error('status down'));
+
+          await controller.startSumSub();
+          expect(controller.state.sumsub.status).toBe('polling');
+        },
+      );
+    });
+
     it('polls the session status after completion and completes on an approved status', async () => {
       await withController(async ({ controller, handlers, launcher }) => {
         completeSdk(launcher);
@@ -2241,7 +2260,7 @@ describe('KycController', () => {
           sessionId: 'sid',
         });
         expect(controller.state.sumsub.status).toBe('complete');
-        expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+        expect(controller.state.sessionStatus).toStrictEqual(
           sessionStatus('approved'),
         );
       });
@@ -2255,7 +2274,7 @@ describe('KycController', () => {
         await controller.startSumSub();
 
         expect(controller.state.sumsub.status).toBe('failed');
-        expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+        expect(controller.state.sessionStatus).toStrictEqual(
           sessionStatus('rejected'),
         );
       });
@@ -2304,7 +2323,7 @@ describe('KycController', () => {
 
           // First poll: non-terminal, keeps polling.
           expect(controller.state.sumsub.status).toBe('polling');
-          expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+          expect(controller.state.sessionStatus).toStrictEqual(
             sessionStatus('pending'),
           );
 
@@ -2312,14 +2331,14 @@ describe('KycController', () => {
           // and the loop keeps going.
           await jest.advanceTimersByTimeAsync(1000);
           expect(controller.state.sumsub.status).toBe('polling');
-          expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+          expect(controller.state.sessionStatus).toStrictEqual(
             sessionStatus('pending'),
           );
 
           // Third poll reaches a terminal status.
           await jest.advanceTimersByTimeAsync(1000);
           expect(controller.state.sumsub.status).toBe('complete');
-          expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+          expect(controller.state.sessionStatus).toStrictEqual(
             sessionStatus('approved'),
           );
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
@@ -2380,7 +2399,7 @@ describe('KycController', () => {
         await controller.startSumSub();
 
         expect(controller.state.sumsub.status).toBe('idle');
-        expect(controller.state.sumsub.sessionStatus).toBeNull();
+        expect(controller.state.sessionStatus).toBeNull();
       });
     });
 
@@ -2423,12 +2442,12 @@ describe('KycController', () => {
         {
           options: {
             state: {
+              sessionId: 'sid',
+              sessionStatus: null,
               sumsub: {
                 status: 'complete',
                 result: null,
-                sessionId: 'sid',
                 applicantAccessToken: null,
-                sessionStatus: null,
               },
             },
           },
@@ -2444,7 +2463,7 @@ describe('KycController', () => {
             sessionId: 'sid',
           });
           expect(result).toStrictEqual(sessionStatus('approved'));
-          expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+          expect(controller.state.sessionStatus).toStrictEqual(
             sessionStatus('approved'),
           );
         },
@@ -2539,15 +2558,12 @@ describe('KycController', () => {
               activeProduct: 'ramps',
               kycRequiredByProduct: { ramps: true },
               lastCheckedAt: 't',
-              userStatus: 'completed',
-              userStatusSumsubSessionId: 's1',
-              userStatusErrorCode: 'code',
+              sessionId: 'sess-1',
+              sessionStatus: sessionStatus('approved'),
               sumsub: {
                 status: 'complete',
                 result: { ok: true },
-                sessionId: 'sess-1',
                 applicantAccessToken: 'aat',
-                sessionStatus: sessionStatus('approved'),
               },
             },
           },
@@ -2627,17 +2643,17 @@ describe('KycController', () => {
       jest.useFakeTimers();
       try {
         await withController(
-          { options: { userStatusPollIntervalMs: 1000 } },
+          { options: { state: { sessionId: 'sid' }, sessionStatusPollIntervalMs: 1000 } },
           async ({ controller, handlers }) => {
-            handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
+            handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
 
             await controller.refreshKycStatus();
-            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(1);
+            expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
 
             controller.clearState();
             await jest.advanceTimersByTimeAsync(5000);
 
-            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(1);
+            expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
             expect(controller.state).toStrictEqual(
               getDefaultKycControllerState(),
             );
@@ -2806,7 +2822,7 @@ describe('KycController', () => {
               },
               idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
             },
-            userStatusPollIntervalMs: 60_000,
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers, launcher }) => {
@@ -2814,7 +2830,7 @@ describe('KycController', () => {
             onStatusChange?.('InProgress', 'Completed');
             return { ok: true };
           });
-          handlers.fetchKycStatus.mockResolvedValue({ status: 'completed' });
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('approved'));
 
           await controller.initialize({
             email: 'a@b.co',
@@ -3010,7 +3026,7 @@ describe('KycController', () => {
               activeVendor: 'iron',
               vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
-            userStatusPollIntervalMs: 60_000,
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, launcher }) => {
@@ -3154,7 +3170,7 @@ describe('KycController', () => {
               activeVendor: 'iron',
               vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
-            userStatusPollIntervalMs: 60_000,
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers, launcher }) => {
@@ -3173,7 +3189,7 @@ describe('KycController', () => {
               consented: true,
             })),
           });
-          handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
           launcher.launch.mockImplementation(async ({ onStatusChange }) => {
             onStatusChange?.('InProgress', 'Completed');
             return { ok: true };
@@ -3223,9 +3239,9 @@ describe('KycController', () => {
           expect(launcher.launch).toHaveBeenCalled();
           expect(controller.buildCheckFrameUrl()).toBeNull();
           expect(controller.buildAuthFrameUrl()).toBeNull();
-          expect(controller.state.userStatus).toBe('pending');
+          expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
           expect(controller.state.phase).toBe('done');
-          expect(controller.state.sumsub.status).toBe('complete');
+          expect(controller.state.sumsub.status).toBe('polling');
           expect(controller.state.sessionDisclaimers?.idOS[0]?.consented).toBe(
             true,
           );
@@ -3242,7 +3258,7 @@ describe('KycController', () => {
               activeVendor: 'iron',
               vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
-            userStatusPollIntervalMs: 60_000,
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers, launcher }) => {
@@ -3279,7 +3295,7 @@ describe('KycController', () => {
               activeVendor: 'iron',
               vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
-            userStatusPollIntervalMs: 60_000,
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers, launcher }) => {
@@ -3334,7 +3350,7 @@ describe('KycController', () => {
               activeVendor: 'iron',
               vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
-            userStatusPollIntervalMs: 60_000,
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers, launcher }) => {
@@ -3465,7 +3481,7 @@ describe('KycController', () => {
               activeVendor: 'iron',
               vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
-            userStatusPollIntervalMs: 60_000,
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers, launcher }) => {
@@ -3523,7 +3539,7 @@ describe('KycController', () => {
               activeVendor: 'iron',
               vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
-            userStatusPollIntervalMs: 60_000,
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers, launcher }) => {
@@ -3615,7 +3631,7 @@ describe('KycController', () => {
               activeVendor: 'iron',
               vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
-            userStatusPollIntervalMs: 60_000,
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers, launcher }) => {
@@ -3783,11 +3799,13 @@ describe('KycController', () => {
               /was not finished/iu,
             );
             // The spent session is still dropped.
-            expect(controller.state.sumsub.sessionId).toBeNull();
+            expect(controller.state.sessionId).toBeNull();
             expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
             // User-status polling resumes from startSumSub, but abandon is not
             // a verification decision so phase stays on terms.
-            expect(controller.state.userStatus).not.toBe('completed');
+            expect(controller.state.sessionStatus?.finalStatus).not.toBe(
+              'approved',
+            );
           },
         );
       },
@@ -3833,7 +3851,7 @@ describe('KycController', () => {
               activeVendor: 'iron',
               vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
-            userStatusPollIntervalMs: 60_000,
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers, launcher }) => {
@@ -3846,7 +3864,6 @@ describe('KycController', () => {
           handlers.getSessionStatus.mockResolvedValue(
             sessionStatus('approved'),
           );
-          handlers.fetchKycStatus.mockResolvedValue({ status: 'completed' });
           handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.acceptTermsAndStartSession({
@@ -3858,7 +3875,7 @@ describe('KycController', () => {
           expect(controller.state.phase).toBe('done');
           expect(controller.state.error).toBeNull();
           expect(controller.state.sumsub.status).toBe('complete');
-          expect(controller.state.userStatus).toBe('completed');
+          expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
         },
       );
     });
@@ -3871,7 +3888,7 @@ describe('KycController', () => {
               activeVendor: 'iron',
               vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
-            userStatusPollIntervalMs: 60_000,
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers, launcher }) => {
@@ -3882,9 +3899,6 @@ describe('KycController', () => {
           handlers.getSessionStatus.mockResolvedValue(
             sessionStatus('rejected'),
           );
-          handlers.fetchKycStatus.mockResolvedValue({
-            status: 'terminal-failure',
-          });
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -3894,15 +3908,15 @@ describe('KycController', () => {
 
           expect(controller.state.phase).toBe('done');
           expect(controller.state.sumsub.status).toBe('failed');
-          expect(controller.state.sumsub.sessionStatus).toStrictEqual(
+          expect(controller.state.sessionStatus).toStrictEqual(
             sessionStatus('rejected'),
           );
           expect(
             controller.state.vendorDisclaimersAccepted.iron?.disclaimerIds,
           ).toStrictEqual(['d1']);
           expect(controller.state.error).toBeNull();
-          expect(handlers.fetchKycStatus).toHaveBeenCalled();
-          expect(controller.state.userStatus).toBe('terminal-failure');
+          expect(handlers.getSessionStatus).toHaveBeenCalled();
+          expect(controller.state.sessionStatus?.finalStatus).toBe('rejected');
           controller.reset();
         },
       );
@@ -3916,7 +3930,7 @@ describe('KycController', () => {
               activeVendor: 'iron',
               vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
-            userStatusPollIntervalMs: 60_000,
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers, launcher }) => {
@@ -3927,9 +3941,6 @@ describe('KycController', () => {
           handlers.getSessionStatus.mockResolvedValue(
             sessionStatus('rejected'),
           );
-          handlers.fetchKycStatus.mockResolvedValue({
-            status: 'terminal-failure',
-          });
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -3940,7 +3951,7 @@ describe('KycController', () => {
           expect(controller.state.phase).toBe('done');
           expect(controller.state.sumsub.status).toBe('failed');
           expect(controller.state.error).toBeNull();
-          expect(controller.state.userStatus).toBe('terminal-failure');
+          expect(controller.state.sessionStatus?.finalStatus).toBe('rejected');
         },
       );
     });
@@ -3953,7 +3964,7 @@ describe('KycController', () => {
               activeVendor: 'iron',
               vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
-            userStatusPollIntervalMs: 60_000,
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers, launcher }) => {
@@ -3961,7 +3972,9 @@ describe('KycController', () => {
             onStatusChange?.('InProgress', 'Completed');
             return { ok: true };
           });
-          handlers.fetchKycStatus.mockRejectedValue(new Error('status down'));
+          handlers.getSessionStatus
+            .mockResolvedValueOnce(sessionStatus('pending'))
+            .mockRejectedValue(new Error('status down'));
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -3970,7 +3983,7 @@ describe('KycController', () => {
           });
 
           expect(controller.state.phase).toBe('done');
-          expect(controller.state.sumsub.status).toBe('complete');
+          expect(controller.state.sumsub.status).toBe('polling');
           controller.reset();
         },
       );
@@ -4021,7 +4034,7 @@ describe('KycController', () => {
               activeVendor: 'iron',
               vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
-            userStatusPollIntervalMs: 60_000,
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers, launcher }) => {
@@ -4049,7 +4062,7 @@ describe('KycController', () => {
           await pending;
 
           expect(controller.state.phase).toBe('idle');
-          expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+          expect(handlers.getSessionStatus).not.toHaveBeenCalled();
         },
       );
     });
@@ -4100,7 +4113,7 @@ describe('KycController', () => {
               activeVendor: 'iron',
               vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
-            userStatusPollIntervalMs: 60_000,
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers, launcher }) => {
@@ -4109,7 +4122,7 @@ describe('KycController', () => {
             kycStatus: 'approved',
             finalStatus: 'pending',
           });
-          handlers.fetchKycStatus.mockRejectedValue(new Error('status down'));
+          handlers.getSessionStatus.mockRejectedValue(new Error('status down'));
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -4223,7 +4236,7 @@ describe('KycController', () => {
           expect(controller.state.error).toMatch(/iron signings down/u);
           expect(handlers.createUkycSession).not.toHaveBeenCalled();
           expect(handlers.submitSessionDisclaimers).not.toHaveBeenCalled();
-          expect(controller.state.sumsub.sessionId).toBeNull();
+          expect(controller.state.sessionId).toBeNull();
         },
       );
     });
@@ -4284,7 +4297,7 @@ describe('KycController', () => {
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.error).toMatch(/Consents session failed/u);
           expect(controller.state.sessionDisclaimers).toBeNull();
-          expect(controller.state.sumsub.sessionId).toBeNull();
+          expect(controller.state.sessionId).toBeNull();
           expect(controller.state.sumsub.status).toBe('idle');
         },
       );
@@ -4319,7 +4332,7 @@ describe('KycController', () => {
             /missing documents for an accepted category/u,
           );
           expect(handlers.submitSessionDisclaimers).not.toHaveBeenCalled();
-          expect(controller.state.sumsub.sessionId).toBeNull();
+          expect(controller.state.sessionId).toBeNull();
           expect(launcher.launch).not.toHaveBeenCalled();
         },
       );
@@ -4396,7 +4409,7 @@ describe('KycController', () => {
 
           expect(controller.state.phase).toBe('terms');
           expect(controller.state.error).toMatch(/Consents session failed/u);
-          expect(controller.state.sumsub.sessionId).toBeNull();
+          expect(controller.state.sessionId).toBeNull();
           expect(launcher.launch).not.toHaveBeenCalled();
         },
       );
@@ -4484,64 +4497,105 @@ describe('KycController', () => {
           });
 
           expect(controller.state.phase).toBe('idle');
-          expect(controller.state.userStatus).toBeNull();
+          expect(controller.state.sessionStatus).toBeNull();
         },
       );
+    });
+
+    it('refreshKycStatus throws when there is no active sessionId', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await expect(controller.refreshKycStatus()).rejects.toThrow(
+          /no active SumSub session/u,
+        );
+        expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+      });
     });
 
     it('refreshKycStatus stores status and emits statusChanged', async () => {
       await withController(
-        { options: { userStatusPollIntervalMs: 60_000 } },
-        async ({ controller, handlers, rootMessenger }) => {
-          const listener = jest.fn();
-          rootMessenger.subscribe('KycController:statusChanged', listener);
-          handlers.fetchKycStatus.mockResolvedValue({
-            status: 'completed',
-            sumsubSessionId: 'ss-1',
-          });
-
-          const result = await controller.refreshKycStatus();
-
-          expect(result).toStrictEqual({
-            status: 'completed',
-            sumsubSessionId: 'ss-1',
-            errorCode: null,
-          });
-          expect(controller.state.userStatus).toBe('completed');
-          expect(listener).toHaveBeenCalledWith({
-            status: 'completed',
-            sumsubSessionId: 'ss-1',
-            errorCode: null,
-          });
-        },
-      );
-    });
-
-    it('refreshKycStatus skips the fetch when userStatus is already completed', async () => {
-      await withController(
         {
           options: {
-            state: {
-              userStatus: 'completed',
-              userStatusSumsubSessionId: 'ss-1',
-            },
-            userStatusPollIntervalMs: 60_000,
+            state: { sessionId: 'sid' },
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers, rootMessenger }) => {
           const listener = jest.fn();
           rootMessenger.subscribe('KycController:statusChanged', listener);
-          handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
 
           const result = await controller.refreshKycStatus();
 
-          expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
-          expect(result).toStrictEqual({
-            status: 'completed',
-            sumsubSessionId: 'ss-1',
-            errorCode: null,
-          });
-          expect(controller.state.userStatus).toBe('completed');
+          expect(result).toStrictEqual(sessionStatus('approved'));
+          expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
+          expect(listener).toHaveBeenCalledWith(sessionStatus('approved'));
+        },
+      );
+    });
+
+    it('refreshKycStatus returns completed finalStatus as-is', async () => {
+      await withController(
+        {
+          options: {
+            state: { sessionId: 'sid' },
+            sessionStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('completed'),
+          );
+
+          const result = await controller.refreshKycStatus();
+
+          expect(result).toStrictEqual(sessionStatus('completed'));
+          expect(controller.state.sessionStatus?.finalStatus).toBe('completed');
+        },
+      );
+    });
+
+    it('refreshKycStatus maps retry finalStatus to retry', async () => {
+      await withController(
+        {
+          options: {
+            state: { sessionId: 'sid' },
+            sessionStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('retry'));
+
+          const result = await controller.refreshKycStatus();
+
+          expect(result).toStrictEqual(sessionStatus('retry'));
+          expect(controller.state.sessionStatus?.finalStatus).toBe('retry');
+        },
+      );
+    });
+
+    it('refreshKycStatus skips the fetch when session status is already approved', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessionId: 'ss-1',
+              sessionStatus: sessionStatus('approved'),
+            },
+            sessionStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers, rootMessenger }) => {
+          const listener = jest.fn();
+          rootMessenger.subscribe('KycController:statusChanged', listener);
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
+
+          const result = await controller.refreshKycStatus();
+
+          expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+          expect(result).toStrictEqual(sessionStatus('approved'));
+          expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
           expect(listener).not.toHaveBeenCalled();
         },
       );
@@ -4551,25 +4605,25 @@ describe('KycController', () => {
       jest.useFakeTimers();
       try {
         await withController(
-          { options: { userStatusPollIntervalMs: 1000 } },
+          { options: { state: { sessionId: 'sid' }, sessionStatusPollIntervalMs: 1000 } },
           async ({ controller, handlers }) => {
-            handlers.fetchKycStatus
-              .mockResolvedValueOnce({ status: 'pending' })
-              .mockResolvedValueOnce({ status: 'pending' })
-              .mockResolvedValueOnce({ status: 'completed' });
+            handlers.getSessionStatus
+              .mockResolvedValueOnce(sessionStatus('pending'))
+              .mockResolvedValueOnce(sessionStatus('pending'))
+              .mockResolvedValueOnce(sessionStatus('approved'));
 
             await controller.refreshKycStatus();
-            expect(controller.state.userStatus).toBe('pending');
+            expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
 
             // First tick stays pending and reschedules; second tick completes.
             await jest.advanceTimersByTimeAsync(1000);
-            expect(controller.state.userStatus).toBe('pending');
+            expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
             await jest.advanceTimersByTimeAsync(1000);
-            expect(controller.state.userStatus).toBe('completed');
+            expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
 
             // A second refresh while pending would no-op the timer start; then
             // reset clears any leftover handles.
-            handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
+            handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
             await controller.refreshKycStatus();
             await controller.refreshKycStatus();
             controller.reset();
@@ -4584,14 +4638,14 @@ describe('KycController', () => {
       jest.useFakeTimers();
       try {
         await withController(
-          { options: { userStatusPollIntervalMs: 1000 } },
+          { options: { state: { sessionId: 'sid' }, sessionStatusPollIntervalMs: 1000 } },
           async ({ controller, handlers }) => {
             let releaseTick: (value: { status: string }) => void = () => {
               // placeholder
             };
-            handlers.fetchKycStatus
+            handlers.getSessionStatus
               // Initial refresh starts the loop.
-              .mockResolvedValueOnce({ status: 'pending' })
+              .mockResolvedValueOnce(sessionStatus('pending'))
               // The first scheduled tick hangs, so the timer handle is null
               // while the request is in flight.
               .mockImplementationOnce(
@@ -4601,30 +4655,30 @@ describe('KycController', () => {
                   }),
               )
               // Any later poll stays pending so the loop keeps scheduling.
-              .mockResolvedValue({ status: 'pending' });
+              .mockResolvedValue(sessionStatus('pending'));
 
             await controller.refreshKycStatus();
-            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(1);
+            expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
 
             // Fire the scheduled tick; it clears the timer handle then awaits.
             jest.advanceTimersByTime(1000);
             await Promise.resolve();
-            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(2);
+            expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
 
             // A concurrent refresh while the tick is in flight (timer handle
             // null) must not spin up a second loop on the same token.
             await controller.refreshKycStatus();
-            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(3);
+            expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
 
             // Let the in-flight tick resolve and reschedule.
-            releaseTick({ status: 'pending' });
+            releaseTick(sessionStatus('pending'));
             await Promise.resolve();
             await Promise.resolve();
 
             // A single loop means exactly one fetch per interval; a duplicated
             // loop would fire twice here.
             await jest.advanceTimersByTimeAsync(1000);
-            expect(handlers.fetchKycStatus).toHaveBeenCalledTimes(4);
+            expect(handlers.getSessionStatus).toHaveBeenCalledTimes(4);
 
             controller.reset();
           },
@@ -4638,13 +4692,13 @@ describe('KycController', () => {
       jest.useFakeTimers();
       try {
         await withController(
-          { options: { userStatusPollIntervalMs: 1000 } },
+          { options: { state: { sessionId: 'sid' }, sessionStatusPollIntervalMs: 1000 } },
           async ({ controller, handlers }) => {
             let release: (value: { status: string }) => void = () => {
               // placeholder
             };
-            handlers.fetchKycStatus
-              .mockResolvedValueOnce({ status: 'pending' })
+            handlers.getSessionStatus
+              .mockResolvedValueOnce(sessionStatus('pending'))
               .mockImplementationOnce(
                 async () =>
                   new Promise((resolve) => {
@@ -4657,11 +4711,11 @@ describe('KycController', () => {
             await Promise.resolve();
             await Promise.resolve();
             controller.reset();
-            release({ status: 'completed' });
+            release(sessionStatus('approved'));
             await Promise.resolve();
             await Promise.resolve();
 
-            expect(controller.state.userStatus).toBe('pending');
+            expect(controller.state.sessionStatus).toBeNull();
           },
         );
       } finally {
@@ -4673,18 +4727,18 @@ describe('KycController', () => {
       jest.useFakeTimers();
       try {
         await withController(
-          { options: { userStatusPollIntervalMs: 1000 } },
+          { options: { state: { sessionId: 'sid' }, sessionStatusPollIntervalMs: 1000 } },
           async ({ controller, handlers }) => {
-            handlers.fetchKycStatus
-              .mockResolvedValueOnce({ status: 'pending' })
+            handlers.getSessionStatus
+              .mockResolvedValueOnce(sessionStatus('pending'))
               .mockRejectedValueOnce(new Error('transient'))
-              .mockResolvedValueOnce({ status: 'completed' });
+              .mockResolvedValueOnce(sessionStatus('approved'));
 
             await controller.refreshKycStatus();
             await jest.advanceTimersByTimeAsync(1000);
             await jest.advanceTimersByTimeAsync(1000);
 
-            expect(controller.state.userStatus).toBe('completed');
+            expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
             controller.reset();
           },
         );
@@ -4697,13 +4751,13 @@ describe('KycController', () => {
       jest.useFakeTimers();
       try {
         await withController(
-          { options: { userStatusPollIntervalMs: 1000 } },
+          { options: { state: { sessionId: 'sid' }, sessionStatusPollIntervalMs: 1000 } },
           async ({ controller, handlers }) => {
             let release: (error: Error) => void = () => {
               // placeholder
             };
-            handlers.fetchKycStatus
-              .mockResolvedValueOnce({ status: 'pending' })
+            handlers.getSessionStatus
+              .mockResolvedValueOnce(sessionStatus('pending'))
               .mockImplementationOnce(
                 async () =>
                   new Promise((_resolve, reject) => {
@@ -4720,7 +4774,7 @@ describe('KycController', () => {
             await Promise.resolve();
             await Promise.resolve();
 
-            expect(controller.state.userStatus).toBe('pending');
+            expect(controller.state.sessionStatus).toBeNull();
           },
         );
       } finally {
@@ -4728,19 +4782,47 @@ describe('KycController', () => {
       }
     });
 
-    it('returns cached user status when reset lands during refresh', async () => {
+    it('returns null when reset lands during a failed refresh fetch', async () => {
       await withController(
         {
           options: {
-            state: { userStatus: 'pending' },
-            userStatusPollIntervalMs: 60_000,
+            state: { sessionId: 'sid', sessionStatus: sessionStatus('pending') },
+            sessionStatusPollIntervalMs: 60_000,
+          },
+        },
+        async ({ controller, handlers }) => {
+          let release: (error: Error) => void = () => {
+            // placeholder
+          };
+          handlers.getSessionStatus.mockReturnValue(
+            new Promise((_resolve, reject) => {
+              release = reject;
+            }),
+          );
+
+          const pending = controller.refreshKycStatus();
+          controller.reset();
+          release(new Error('late'));
+          const result = await pending;
+
+          expect(result).toBeNull();
+        },
+      );
+    });
+
+    it('returns null session status when reset lands during refresh', async () => {
+      await withController(
+        {
+          options: {
+            state: { sessionId: 'sid', sessionStatus: sessionStatus('pending') },
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers }) => {
           let release: (value: { status: string }) => void = () => {
             // placeholder
           };
-          handlers.fetchKycStatus.mockReturnValue(
+          handlers.getSessionStatus.mockReturnValue(
             new Promise((resolve) => {
               release = resolve;
             }),
@@ -4748,10 +4830,10 @@ describe('KycController', () => {
 
           const pending = controller.refreshKycStatus();
           controller.reset();
-          release({ status: 'completed' });
+          release(sessionStatus('approved'));
           const result = await pending;
 
-          expect(result.status).toBe('pending');
+          expect(result).toBeNull();
         },
       );
     });
@@ -4762,8 +4844,11 @@ describe('KycController', () => {
         await withController(
           {
             options: {
-              state: { userStatus: 'pending' },
-              userStatusPollIntervalMs: 1000,
+              state: {
+                sessionId: 'sid',
+                sessionStatus: sessionStatus('pending'),
+              },
+              sessionStatusPollIntervalMs: 1000,
             },
           },
           async ({ controller, handlers, rootMessenger }) => {
@@ -4772,7 +4857,7 @@ describe('KycController', () => {
             let release: (value: { status: string }) => void = () => {
               // placeholder
             };
-            handlers.fetchKycStatus.mockReturnValue(
+            handlers.getSessionStatus.mockReturnValue(
               new Promise((resolve) => {
                 release = resolve;
               }),
@@ -4780,12 +4865,12 @@ describe('KycController', () => {
 
             const pending = controller.refreshKycStatus();
             controller.reset();
-            release({ status: 'pending' });
+            release(sessionStatus('pending'));
             await pending;
-            handlers.fetchKycStatus.mockClear();
+            handlers.getSessionStatus.mockClear();
             await jest.advanceTimersByTimeAsync(3000);
 
-            expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+            expect(handlers.getSessionStatus).not.toHaveBeenCalled();
             expect(listener).not.toHaveBeenCalled();
           },
         );
@@ -4794,14 +4879,19 @@ describe('KycController', () => {
       }
     });
 
-    it('defaults superseded refresh status to not-started when unset', async () => {
+    it('defaults superseded refresh status to null when unset', async () => {
       await withController(
-        { options: { userStatusPollIntervalMs: 60_000 } },
+        {
+          options: {
+            state: { sessionId: 'sid' },
+            sessionStatusPollIntervalMs: 60_000,
+          },
+        },
         async ({ controller, handlers }) => {
           let release: (value: { status: string }) => void = () => {
             // placeholder
           };
-          handlers.fetchKycStatus.mockReturnValue(
+          handlers.getSessionStatus.mockReturnValue(
             new Promise((resolve) => {
               release = resolve;
             }),
@@ -4809,10 +4899,10 @@ describe('KycController', () => {
 
           const pending = controller.refreshKycStatus();
           controller.reset();
-          release({ status: 'completed' });
+          release(sessionStatus('approved'));
           const result = await pending;
 
-          expect(result.status).toBe('not-started');
+          expect(result).toBeNull();
         },
       );
     });
@@ -4830,15 +4920,15 @@ describe('KycController', () => {
               "Fetching 'https://x' failed with status '409': session_not_in_valid_state",
             ),
           );
-          handlers.fetchKycStatus.mockResolvedValue({ status: 'pending' });
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
 
           const result = await controller.startSumSub();
 
           expect(result).toStrictEqual({ alreadyCompleted: true });
-          expect(controller.state.userStatus).toBe('completed');
+          expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
           expect(controller.state.phase).toBe('done');
           expect(controller.state.sumsub.status).toBe('complete');
-          expect(handlers.fetchKycStatus).not.toHaveBeenCalled();
+          expect(handlers.getSessionStatus).not.toHaveBeenCalled();
         },
       );
     });
@@ -4863,7 +4953,7 @@ describe('KycController', () => {
           rejectSession(new Error('session_not_in_valid_state'));
 
           expect(await pending).toStrictEqual({ alreadyCompleted: true });
-          expect(controller.state.userStatus).toBeNull();
+          expect(controller.state.sessionStatus).toBeNull();
           expect(controller.state.phase).toBe('idle');
           expect(controller.state.sumsub.status).toBe('idle');
         },
@@ -4878,14 +4968,14 @@ describe('KycController', () => {
               activeVendor: 'iron',
               vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
-            userStatusPollIntervalMs: 60_000,
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers }) => {
           handlers.createUkycSession.mockRejectedValue(
             new Error('session_not_in_valid_state'),
           );
-          handlers.fetchKycStatus.mockResolvedValue({ status: 'completed' });
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('approved'));
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -4894,7 +4984,7 @@ describe('KycController', () => {
           });
 
           expect(controller.state.phase).toBe('done');
-          expect(controller.state.userStatus).toBe('completed');
+          expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
           controller.reset();
         },
       );
@@ -4908,7 +4998,7 @@ describe('KycController', () => {
               activeVendor: 'iron',
               vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
             },
-            userStatusPollIntervalMs: 60_000,
+            sessionStatusPollIntervalMs: 60_000,
           },
         },
         async ({ controller, handlers }) => {
@@ -4973,7 +5063,6 @@ type ServiceHandlers = {
   fetchSessionDisclaimersByCountry: jest.Mock;
   fetchSessionDisclaimersBySessionId: jest.Mock;
   submitSessionDisclaimers: jest.Mock;
-  fetchKycStatus: jest.Mock;
   fetchIdosEnclaveJwks: jest.Mock;
   fetchIdosRelayJwks: jest.Mock;
   createUkycSession: jest.Mock;
@@ -5011,7 +5100,6 @@ const SERVICE_ACTIONS = [
   'KycService:fetchSessionDisclaimersByCountry',
   'KycService:fetchSessionDisclaimersBySessionId',
   'KycService:submitSessionDisclaimers',
-  'KycService:fetchKycStatus',
   'KycService:fetchIdosEnclaveJwks',
   'KycService:fetchIdosRelayJwks',
   'KycService:createUkycSession',
@@ -5137,7 +5225,6 @@ function withController<ReturnValue>(
         consented: true,
       })),
     }),
-    fetchKycStatus: jest.fn().mockResolvedValue({ status: 'pending' }),
     fetchIdosEnclaveJwks: jest.fn().mockResolvedValue({ keys: [] }),
     fetchIdosRelayJwks: jest.fn().mockResolvedValue({ keys: [] }),
     createUkycSession: jest.fn().mockResolvedValue(ukycSessionResponse()),
@@ -5184,10 +5271,6 @@ function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'KycService:submitSessionDisclaimers',
     handlers.submitSessionDisclaimers,
-  );
-  rootMessenger.registerActionHandler(
-    'KycService:fetchKycStatus',
-    handlers.fetchKycStatus,
   );
   rootMessenger.registerActionHandler(
     'KycService:fetchIdosEnclaveJwks',

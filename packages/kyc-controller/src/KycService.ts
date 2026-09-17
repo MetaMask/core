@@ -14,7 +14,6 @@ import {
   array,
   assert,
   boolean,
-  enums,
   optional,
   string,
   StructError,
@@ -31,8 +30,7 @@ import type {
   KycDisclaimer,
   KycDisclaimersCatalog,
   KycSessionDisclaimers,
-  KycSessionStatus,
-  KycUserStatusResponse,
+  KycSessionStatusResponse,
   KycVendor,
   KycVendorSigning,
 } from './types.js';
@@ -57,7 +55,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchSessionDisclaimersByCountry',
   'fetchSessionDisclaimersBySessionId',
   'submitSessionDisclaimers',
-  'fetchKycStatus',
   'fetchIdosEnclaveJwks',
   'fetchIdosRelayJwks',
   'createUkycSession',
@@ -240,20 +237,6 @@ const VendorCustomerResponseStruct = type({
   status: string(),
 });
 export type VendorCustomerResponse = Infer<typeof VendorCustomerResponseStruct>;
-
-const KYC_USER_STATUSES = [
-  'not-started',
-  'pending',
-  'need-more-information',
-  'terminal-failure',
-  'completed',
-] as const;
-
-const KycUserStatusResponseStruct = type({
-  status: enums([...KYC_USER_STATUSES]),
-  sumsubSessionId: optional(string()),
-  errorCode: optional(string()),
-});
 
 const CatalogDocumentFields = {
   key: string(),
@@ -775,28 +758,6 @@ export class KycService extends BaseDataService<
   }
 
   /**
-   * Fetches the user-keyed simplified KYC status used by Money toast / banner
-   * surfaces (`GET /kyc/status`).
-   *
-   * @returns The simplified status payload.
-   */
-  async fetchKycStatus(): Promise<KycUserStatusResponse> {
-    const url = new URL('/kyc/status', this.#baseUrl);
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchKycStatus`],
-      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
-      // Status is polled for toast flips, so it must always be fresh.
-      staleTime: 0,
-      gcTime: 0,
-    });
-    return this.#validateResponse(
-      data,
-      KycUserStatusResponseStruct,
-      'kyc status',
-    );
-  }
-
-  /**
    * Fetches a well-known JWKS from `baseUrl`, caching the result for an hour.
    *
    * @param baseUrl - Host base URL that serves `/.well-known/jwks.json`.
@@ -908,7 +869,7 @@ export class KycService extends BaseDataService<
    */
   async setAuthorizations(
     params: SetAuthorizationsParams,
-  ): Promise<KycSessionStatus> {
+  ): Promise<KycSessionStatusResponse> {
     const url = new URL(
       `/sessions/${encodeURIComponent(params.sessionId)}/authorizations`,
       this.#baseUrl,
@@ -959,7 +920,7 @@ export class KycService extends BaseDataService<
    */
   async getSessionStatus(
     params: GetSessionStatusParams,
-  ): Promise<KycSessionStatus> {
+  ): Promise<KycSessionStatusResponse> {
     const url = new URL(
       `/sessions/${encodeURIComponent(params.sessionId)}/status`,
       this.#baseUrl,

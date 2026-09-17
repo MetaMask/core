@@ -123,7 +123,7 @@ Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 `getGeoCountry`, `fetchVendorDisclaimers`, `createSession`, `checkKycRequired`,
 `createVendorCustomer`, `submitVendorDisclaimers`, `fetchSessionDisclaimersByCountry`, `fetchSessionDisclaimersBySessionId`, `submitSessionDisclaimers`,
-`fetchKycStatus`, `fetchIdosEnclaveJwks`, `fetchIdosRelayJwks`, `createUkycSession`, `setAuthorizations`,
+`fetchIdosEnclaveJwks`, `fetchIdosRelayJwks`, `createUkycSession`, `setAuthorizations`,
 `createJourney`, `getSessionStatus`.
 
 Endpoints:
@@ -139,12 +139,12 @@ Endpoints:
 | `fetchSessionDisclaimersByCountry`   | `GET`  | `/disclaimers?country=`                      | Global idOS + KYC-provider catalog (no consent state)                                  |
 | `fetchSessionDisclaimersBySessionId` | `GET`  | `/sessions/{id}/disclaimers`                 | Session-scoped catalog, with `consented` flags + credential-reuse flag                 |
 | `submitSessionDisclaimers`           | `POST` | `/sessions/{id}/disclaimers`                 | Record `{ idOS, kycProvider, credentialReusabilityConsentGiven }` consents             |
-| `fetchKycStatus`                     | `GET`  | `/kyc/status`                                | User-keyed simplified KYC status                                                       |
 | `fetchIdosEnclaveJwks`               | `GET`  | `{idosEnclaveBaseUrl}/.well-known/jwks.json` | idOS enclave JWKS for `encryptionDataKey` attestation                                  |
 | `fetchIdosRelayJwks`                 | `GET`  | `{idosRelayBaseUrl}/.well-known/jwks.json`   | idOS relay JWKS for `ukycCapabilityToken` attestation                                  |
 | `createUkycSession`                  | `POST` | `/sessions`                                  | Start SumSub sub-flow; registers session client public key; returns encryption schemas |
 | `setAuthorizations`                  | `POST` | `/sessions/{id}/authorizations`              | Submit wrapped `data_encryption_key` and wrapped `ukyc_capability_token`               |
 | `createJourney`                      | `POST` | `/sessions/{id}/journey`                     | Create verification journey → applicant token                                          |
+| `getSessionStatus`                   | `GET`  | `/sessions/{id}/status`                      | UKYC session status payload (`KycSessionStatusResponse`; stored on `sessionStatus`)    |
 
 ### 2.3 `crypto.ts`
 
@@ -187,12 +187,13 @@ classDiagram
         +KycProduct activeProduct
         +Record kycRequiredByProduct [persisted]
         +string lastCheckedAt [persisted]
+        +string sessionId [persisted]
+        +KycSessionStatusResponse sessionStatus
         +SumSubState sumsub
     }
     class SumSubState {
         +KycSumSubStatus status
         +Json result
-        +string sessionId
         +string applicantAccessToken
     }
     KycControllerState --> SumSubState : sumsub
@@ -206,10 +207,11 @@ State metadata highlights (`kycControllerMetadata`):
 
 - **Persisted** (`persist: true`): `vendorDisclaimersAccepted`,
   `providerDisclaimersAccepted`, `idosDisclaimersAccepted`,
-  `kycRequiredByProduct`, `lastCheckedAt`. These survive restarts so the flow
-  can skip already-accepted terms and reuse cached results. Session-scoped
-  `sessionDisclaimers` and `credentialReusabilityConsentGiven` are in-memory
-  only (`persist: false`) and are cleared on `reset()`.
+  `kycRequiredByProduct`, `lastCheckedAt`, `sessionId`. These survive restarts
+  so the flow can skip already-accepted terms, reuse cached results, and
+  resume session-status refresh. Session-scoped `sessionDisclaimers` and
+  `credentialReusabilityConsentGiven` are in-memory only (`persist: false`)
+  and are cleared on `reset()`.
   Acceptance is vendor-scoped: `initialize` (and `createVendorCustomer`) drops
   the stored acceptance when it belongs to a different vendor, so one vendor's
   disclaimer ids are never submitted to another. The drop waits until the
