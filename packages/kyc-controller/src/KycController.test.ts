@@ -1356,41 +1356,128 @@ describe('KycController', () => {
       );
     });
 
-    it('returns NOT_STARTED for the vendor-scoped stub', async () => {
-      await withController(({ controller }) => {
-        expect(controller.getKycStatus(KycVendor.Iron)).toBe(
-          KycStatus.NOT_STARTED,
+    it.each([
+      { userStatus: null, expected: KycStatus.NOT_STARTED },
+      { userStatus: 'not-started' as const, expected: KycStatus.NOT_STARTED },
+      { userStatus: 'pending' as const, expected: KycStatus.PENDING },
+      {
+        userStatus: 'need-more-information' as const,
+        expected: KycStatus.NEED_INFO,
+      },
+      {
+        userStatus: 'terminal-failure' as const,
+        expected: KycStatus.REJECTED,
+      },
+      { userStatus: 'completed' as const, expected: KycStatus.ACCEPTED },
+    ])(
+      'maps userStatus $userStatus to $expected for a vendor',
+      async ({ userStatus, expected }) => {
+        await withController(
+          { options: { state: { userStatus } } },
+          ({ controller }) => {
+            expect(controller.getKycStatus(KycVendor.Iron)).toBe(expected);
+          },
         );
-        expect(controller.getKycStatus(KycVendor.Moonpay)).toBe(
-          KycStatus.NOT_STARTED,
-        );
-      });
-    });
+      },
+    );
   });
 
   describe('isCustomerCreated', () => {
-    it('returns false as a noop stub', async () => {
+    it('returns false when no vendor customer id is persisted', async () => {
       await withController(({ controller }) => {
         expect(controller.isCustomerCreated(KycVendor.Iron)).toBe(false);
       });
     });
+
+    it('returns true after createVendorCustomer persists the id', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.createVendorCustomer.mockResolvedValue({
+          id: 'iron-cust-1',
+          email: 'a@b.co',
+          status: 'SigningsRequired',
+        });
+
+        await controller.createVendorCustomer({
+          vendor: KycVendor.Iron,
+          email: 'a@b.co',
+        });
+
+        expect(controller.state.vendorCustomerIds.iron).toBe('iron-cust-1');
+        expect(controller.isCustomerCreated(KycVendor.Iron)).toBe(true);
+        expect(controller.isCustomerCreated(KycVendor.Moonpay)).toBe(false);
+      });
+    });
+
+    it('survives reset but is cleared by clearState', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              vendorCustomerIds: { moonpay: null, iron: 'iron-cust-1' },
+            },
+          },
+        },
+        ({ controller }) => {
+          controller.reset();
+          expect(controller.isCustomerCreated(KycVendor.Iron)).toBe(true);
+
+          controller.clearState();
+          expect(controller.isCustomerCreated(KycVendor.Iron)).toBe(false);
+        },
+      );
+    });
   });
 
   describe('hasCompletedVendorTerms', () => {
-    it('returns false as a noop stub', async () => {
+    it('returns false when vendor terms are missing', async () => {
       await withController(({ controller }) => {
         expect(controller.hasCompletedVendorTerms(KycVendor.Iron)).toBe(false);
       });
     });
+
+    it('returns true when Iron disclaimer ids are persisted', async () => {
+      await withController(
+        {
+          options: {
+            state: VENDOR_TERMS_IRON_D1,
+          },
+        },
+        ({ controller }) => {
+          expect(controller.hasCompletedVendorTerms(KycVendor.Iron)).toBe(true);
+          expect(controller.hasCompletedVendorTerms(KycVendor.Moonpay)).toBe(
+            false,
+          );
+        },
+      );
+    });
   });
 
   describe('hasCompletedProviderTerms', () => {
-    it('returns false as a noop stub', async () => {
+    it('returns false when SumSub provider terms are missing', async () => {
       await withController(({ controller }) => {
         expect(controller.hasCompletedProviderTerms(KycProvider.sumsub)).toBe(
           false,
         );
       });
+    });
+
+    it('returns true when SumSub consent records are persisted', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              providerDisclaimersAccepted: {
+                sumsub: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              },
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(controller.hasCompletedProviderTerms(KycProvider.sumsub)).toBe(
+            true,
+          );
+        },
+      );
     });
   });
 
@@ -2562,6 +2649,10 @@ describe('KycController', () => {
               vendorDisclaimersAccepted: {
                 moonpay: null,
                 iron: { disclaimerIds: ['1'] },
+              },
+              vendorCustomerIds: {
+                moonpay: null,
+                iron: 'iron-cust-1',
               },
               providerDisclaimersAccepted: {
                 sumsub: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,

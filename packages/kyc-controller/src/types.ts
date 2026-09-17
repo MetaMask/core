@@ -294,6 +294,18 @@ export type KycVendorDisclaimersAccepted = {
 };
 
 /**
+ * Persisted vendor customer ids from `POST /vendors/{vendor}/customers`.
+ *
+ * Survives {@link KycController.reset} so VBA hydration can tell whether a
+ * customer shell already exists after a cold start. Cleared by
+ * {@link KycController.clearState}.
+ */
+export type KycVendorCustomerIds = {
+  moonpay: string | null;
+  iron: string | null;
+};
+
+/**
  * idOS / KYC-provider disclaimer catalog returned by
  * `GET /disclaimers?country=` (no session — no credential-reuse consent state).
  */

@@ -39,6 +39,7 @@ import type {
   KycSumSubStatus,
   KycUserStatus,
   KycVendor,
+  KycVendorCustomerIds,
   KycVendorDisclaimersAccepted,
 } from './types.js';
 import { KycStatus as KycStatusEnum } from './types.js';
@@ -209,6 +210,12 @@ export type KycControllerState = {
    */
   vendorDisclaimersAccepted: KycVendorDisclaimersAccepted;
   /**
+   * Persisted vendor customer ids from successful
+   * `POST /vendors/{vendor}/customers` calls (create or resume). Used by
+   * {@link KycController.isCustomerCreated} for VBA onboarding hydration.
+   */
+  vendorCustomerIds: KycVendorCustomerIds;
+  /**
    * KYC-provider disclaimer documents the customer accepted during the last
    * terms acceptance (persisted `{ key, version }` records under `sumsub`).
    * Consents-path vendors require this when resuming a session. `null` for
@@ -324,6 +331,12 @@ const kycControllerMetadata = {
     usedInUi: false,
   },
   vendorDisclaimersAccepted: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
+  },
+  vendorCustomerIds: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     persist: true,
@@ -448,6 +461,15 @@ export function getDefaultKycVendorDisclaimersAccepted(): KycVendorDisclaimersAc
   return { moonpay: null, iron: null };
 }
 
+/**
+ * Constructs the default {@link KycVendorCustomerIds} value.
+ *
+ * @returns The default vendor-customer-id map.
+ */
+export function getDefaultKycVendorCustomerIds(): KycVendorCustomerIds {
+  return { moonpay: null, iron: null };
+}
+
 export function getDefaultKycProviderDisclaimersAccepted(): KycProviderDisclaimersAccepted {
   return { sumsub: null };
 }
@@ -464,6 +486,7 @@ export function getDefaultKycControllerState(): KycControllerState {
     error: null,
     email: null,
     vendorDisclaimersAccepted: getDefaultKycVendorDisclaimersAccepted(),
+    vendorCustomerIds: getDefaultKycVendorCustomerIds(),
     providerDisclaimersAccepted: getDefaultKycProviderDisclaimersAccepted(),
     idosDisclaimersAccepted: null,
     credentialReusabilityConsentGiven: null,
@@ -502,6 +525,32 @@ export function getDefaultKycControllerState(): KycControllerState {
  */
 function isSessionAlreadyCompletedError(error: unknown): boolean {
   return String(error).includes(SESSION_NOT_IN_VALID_STATE);
+}
+
+/**
+ * Maps persisted {@link KycUserStatus} into the VBA onboarding {@link KycStatus}
+ * contract. `null` (never refreshed) is treated as not started.
+ *
+ * @param userStatus - The simplified user-keyed status, or `null`.
+ * @returns The matching {@link KycStatus}.
+ */
+function mapUserStatusToKycStatus(
+  userStatus: KycUserStatus | null,
+): KycStatus {
+  switch (userStatus) {
+    case 'pending':
+      return KycStatusEnum.PENDING;
+    case 'need-more-information':
+      return KycStatusEnum.NEED_INFO;
+    case 'terminal-failure':
+      return KycStatusEnum.REJECTED;
+    case 'completed':
+      return KycStatusEnum.ACCEPTED;
+    case 'not-started':
+    case null:
+    default:
+      return KycStatusEnum.NOT_STARTED;
+  }
 }
 
 /**
@@ -947,9 +996,18 @@ export class KycController extends BaseController<
 
     if (usesConsentsFlow(vendor) && this.state.email) {
       try {
-        await this.messenger.call('KycService:createVendorCustomer', {
-          vendor,
-          email: this.state.email,
+        const customer = await this.messenger.call(
+          'KycService:createVendorCustomer',
+          {
+            vendor,
+            email: this.state.email,
+          },
+        );
+        this.#updateIfCurrent(generation, (state) => {
+          state.vendorCustomerIds = {
+            ...state.vendorCustomerIds,
+            [vendor]: customer.id,
+          };
         });
       } catch (error) {
         if (this.#generation !== generation) {
@@ -1048,9 +1106,18 @@ export class KycController extends BaseController<
     });
     const generation = this.#generation;
     try {
-      await this.messenger.call('KycService:createVendorCustomer', {
-        vendor: params.vendor,
-        email: params.email,
+      const customer = await this.messenger.call(
+        'KycService:createVendorCustomer',
+        {
+          vendor: params.vendor,
+          email: params.email,
+        },
+      );
+      this.#updateIfCurrent(generation, (state) => {
+        state.vendorCustomerIds = {
+          ...state.vendorCustomerIds,
+          [params.vendor]: customer.id,
+        };
       });
     } catch (error) {
       if (this.#generation !== generation) {
@@ -1812,11 +1879,14 @@ export class KycController extends BaseController<
    * Reads the cached "is KYC required" result for a product, or the
    * vendor-scoped KYC decision used by VBA onboarding.
    *
-   * The vendor overload is a temporary noop stub that always returns
-   * {@link KycStatus.NOT_STARTED} until Iron status wiring lands.
+   * The vendor overload maps persisted {@link KycUserStatus} from
+   * `GET /kyc/status` into {@link KycStatus}. That status is currently
+   * user-keyed rather than filtered by vendor; the vendor argument is kept so
+   * callers can pass {@link KycVendor.Iron} today and a vendor-scoped lookup
+   * can land later without changing the messenger contract.
    *
    * @param paramsOrVendor - Either `{ product }` for the cached required flag,
-   * or a {@link KycVendor} for the vendor-scoped decision.
+   * or a {@link KycVendor} for the onboarding decision.
    * @returns The cached product flag, or a {@link KycStatus} for a vendor.
    */
   getKycStatus(params: { product: KycProduct }): boolean | undefined;
@@ -1827,7 +1897,7 @@ export class KycController extends BaseController<
     paramsOrVendor: { product: KycProduct } | KycVendor,
   ): boolean | undefined | KycStatus {
     if (typeof paramsOrVendor === 'string') {
-      return KycStatusEnum.NOT_STARTED;
+      return mapUserStatusToKycStatus(this.state.userStatus);
     }
     return this.state.kycRequiredByProduct[paramsOrVendor.product];
   }
@@ -1835,40 +1905,42 @@ export class KycController extends BaseController<
   /**
    * Whether a customer shell exists for the given identity vendor.
    *
-   * Temporary noop stub for VBA onboarding hydration; always returns `false`
-   * until Iron customer lookup is wired.
+   * Reads the persisted id from a successful
+   * `POST /vendors/{vendor}/customers` create-or-resume. Survives
+   * {@link reset}; cleared by {@link clearState}.
    *
-   * @param _vendor - Identity vendor to check.
+   * @param vendor - Identity vendor to check.
    * @returns Whether the customer has been created.
    */
-  isCustomerCreated(_vendor: KycVendor): boolean {
-    return false;
+  isCustomerCreated(vendor: KycVendor): boolean {
+    return Boolean(this.state.vendorCustomerIds[vendor]);
   }
 
   /**
    * Whether the user has accepted terms for the given identity vendor.
    *
-   * Temporary noop stub for VBA onboarding hydration; always returns `false`
-   * until vendor-terms state is exposed here.
-   *
-   * @param _vendor - Identity vendor whose terms to check.
+   * @param vendor - Identity vendor whose terms to check.
    * @returns Whether vendor terms are complete.
    */
-  hasCompletedVendorTerms(_vendor: KycVendor): boolean {
-    return false;
+  hasCompletedVendorTerms(vendor: KycVendor): boolean {
+    return hasVendorDisclaimerAcceptance(
+      this.state.vendorDisclaimersAccepted,
+      vendor,
+    );
   }
 
   /**
    * Whether the user has accepted terms for the given KYC provider.
    *
-   * Temporary noop stub for VBA onboarding hydration; always returns `false`
-   * until provider-terms state is exposed here.
-   *
-   * @param _provider - Document / identity provider whose terms to check.
+   * @param provider - Document / identity provider whose terms to check.
    * @returns Whether provider terms are complete.
    */
-  hasCompletedProviderTerms(_provider: KycProvider): boolean {
-    return false;
+  hasCompletedProviderTerms(provider: KycProvider): boolean {
+    if (provider !== 'sumsub') {
+      return false;
+    }
+    const accepted = this.state.providerDisclaimersAccepted.sumsub;
+    return Boolean(accepted?.length);
   }
 
   /**
@@ -2551,7 +2623,8 @@ export class KycController extends BaseController<
 
   /**
    * Resets the flow to idle, clearing session tokens and sub-flow state while
-   * preserving persisted terms acceptance and the per-product cache.
+   * preserving persisted terms acceptance, vendor customer ids, and the
+   * per-product cache.
    */
   reset(): void {
     this.#cancelPendingSession();
@@ -2579,7 +2652,8 @@ export class KycController extends BaseController<
   /**
    * Restores the controller to its default state, discarding everything
    * {@link reset} deliberately keeps: the session email, the persisted terms
-   * acceptance, the per-product KYC-required cache and the user-keyed status.
+   * acceptance, the persisted vendor customer ids, the per-product KYC-required
+   * cache and the user-keyed status.
    *
    * Intended for a full wallet reset, where no trace of the previous
    * customer may survive into the next wallet.

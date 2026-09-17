@@ -170,11 +170,14 @@ export type KycControllerCheckKycRequiredAction = {
  * Reads the cached "is KYC required" result for a product, or the
  * vendor-scoped KYC decision used by VBA onboarding.
  *
- * The vendor overload is a temporary noop stub that always returns
- * {@link KycStatus.NOT_STARTED} until Iron status wiring lands.
+ * The vendor overload maps persisted {@link KycUserStatus} from
+ * `GET /kyc/status` into {@link KycStatus}. That status is currently
+ * user-keyed rather than filtered by vendor; the vendor argument is kept so
+ * callers can pass {@link KycVendor.Iron} today and a vendor-scoped lookup
+ * can land later without changing the messenger contract.
  *
  * @param paramsOrVendor - Either `{ product }` for the cached required flag,
- * or a {@link KycVendor} for the vendor-scoped decision.
+ * or a {@link KycVendor} for the onboarding decision.
  * @returns The cached product flag, or a {@link KycStatus} for a vendor.
  */
 export type KycControllerGetKycStatusAction = {
@@ -185,10 +188,11 @@ export type KycControllerGetKycStatusAction = {
 /**
  * Whether a customer shell exists for the given identity vendor.
  *
- * Temporary noop stub for VBA onboarding hydration; always returns `false`
- * until Iron customer lookup is wired.
+ * Reads the persisted id from a successful
+ * `POST /vendors/{vendor}/customers` create-or-resume. Survives
+ * {@link reset}; cleared by {@link clearState}.
  *
- * @param _vendor - Identity vendor to check.
+ * @param vendor - Identity vendor to check.
  * @returns Whether the customer has been created.
  */
 export type KycControllerIsCustomerCreatedAction = {
@@ -199,10 +203,7 @@ export type KycControllerIsCustomerCreatedAction = {
 /**
  * Whether the user has accepted terms for the given identity vendor.
  *
- * Temporary noop stub for VBA onboarding hydration; always returns `false`
- * until vendor-terms state is exposed here.
- *
- * @param _vendor - Identity vendor whose terms to check.
+ * @param vendor - Identity vendor whose terms to check.
  * @returns Whether vendor terms are complete.
  */
 export type KycControllerHasCompletedVendorTermsAction = {
@@ -213,10 +214,7 @@ export type KycControllerHasCompletedVendorTermsAction = {
 /**
  * Whether the user has accepted terms for the given KYC provider.
  *
- * Temporary noop stub for VBA onboarding hydration; always returns `false`
- * until provider-terms state is exposed here.
- *
- * @param _provider - Document / identity provider whose terms to check.
+ * @param provider - Document / identity provider whose terms to check.
  * @returns Whether provider terms are complete.
  */
 export type KycControllerHasCompletedProviderTermsAction = {
@@ -306,7 +304,8 @@ export type KycControllerGetSessionStatusAction = {
 
 /**
  * Resets the flow to idle, clearing session tokens and sub-flow state while
- * preserving persisted terms acceptance and the per-product cache.
+ * preserving persisted terms acceptance, vendor customer ids, and the
+ * per-product cache.
  */
 export type KycControllerResetAction = {
   type: `KycController:reset`;
@@ -316,7 +315,8 @@ export type KycControllerResetAction = {
 /**
  * Restores the controller to its default state, discarding everything
  * {@link reset} deliberately keeps: the session email, the persisted terms
- * acceptance, the per-product KYC-required cache and the user-keyed status.
+ * acceptance, the persisted vendor customer ids, the per-product KYC-required
+ * cache and the user-keyed status.
  *
  * Intended for a full wallet reset, where no trace of the previous
  * customer may survive into the next wallet.

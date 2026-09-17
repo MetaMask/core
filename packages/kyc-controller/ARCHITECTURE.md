@@ -205,9 +205,11 @@ classDiagram
 State metadata highlights (`kycControllerMetadata`):
 
 - **Persisted** (`persist: true`): `vendorDisclaimersAccepted`,
-  `providerDisclaimersAccepted`, `idosDisclaimersAccepted`,
-  `kycRequiredByProduct`, `lastCheckedAt`. These survive restarts so the flow
-  can skip already-accepted terms and reuse cached results. Session-scoped
+  `vendorCustomerIds`, `providerDisclaimersAccepted`, `idosDisclaimersAccepted`,
+  `kycRequiredByProduct`, `lastCheckedAt`, `userStatus`,
+  `userStatusSumsubSessionId`, `userStatusErrorCode`. These survive restarts so
+  the flow can skip already-accepted terms, reuse cached results, and so VBA
+  hydration can read customer / KYC progress after a cold start. Session-scoped
   `sessionDisclaimers` and `credentialReusabilityConsentGiven` are in-memory
   only (`persist: false`) and are cleared on `reset()`.
   Acceptance is vendor-scoped: `initialize` (and `createVendorCustomer`) drops
@@ -215,7 +217,8 @@ State metadata highlights (`kycControllerMetadata`):
   disclaimer ids are never submitted to another. The drop waits until the
   vendor switch commits (`createVendorCustomer` succeeds, or the MoonPay
   path proceeds); a failed or reset switch leaves the previous vendor's
-  acceptance in place.
+  acceptance in place. `vendorCustomerIds` is likewise preserved across
+  `reset()` and only cleared by `clearState()`.
 - **Secrets, never persisted / never logged**: `moonpaySessionToken`, `moonpayAccessToken`,
   `moonpayCustomerId`, `email`, `vendorDisclaimers`, and the whole `sumsub` sub-tree.
   Switching away from MoonPay (`initialize` / `createVendorCustomer`) drops
