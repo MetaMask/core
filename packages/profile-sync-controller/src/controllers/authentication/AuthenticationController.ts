@@ -35,6 +35,7 @@ import {
   JwtBearerAuth,
   PairConflictError,
 } from '../../sdk/index.js';
+import { isFreshLoginResponse } from '../../sdk/utils/is-fresh-login-response.js';
 import type { MetaMetricsAuth } from '../../shared/types/services.js';
 import {
   getHdKeyringEntropySourceIds,
@@ -147,6 +148,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'performSignIn',
   'performSignOut',
   'getBearerToken',
+  'getCachedBearerToken',
   'getSessionProfile',
   'refreshCanonicalProfileId',
   'getUserProfileLineage',
@@ -760,6 +762,33 @@ export class AuthenticationController extends BaseController<
     this.#assertIsUnlocked('getBearerToken');
     const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     return await this.#auth.getAccessToken(resolvedId);
+  }
+
+  /**
+   * Returns the cached access token for the specified SRP, without logging in.
+   *
+   * Callers on hot paths use this instead of `getBearerToken` so that a request
+   * never triggers a login or waits on one. `undefined` means there is no token
+   * to present right now: the wallet is locked, the SRP has no session, or the
+   * cached token is close enough to expiry that `getBearerToken` would replace
+   * it. Refreshing is left to whichever caller next uses `getBearerToken`.
+   *
+   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
+   * @returns The OIDC access token, or `undefined`.
+   */
+  public getCachedBearerToken(entropySourceId?: string): string | undefined {
+    if (!this.#isUnlocked) {
+      return undefined;
+    }
+
+    const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
+    const session = this.state.srpSessionData?.[resolvedId];
+    // Same checks as the SRP flow's `getAccessToken`, so this returns a token
+    // only while that call would return the same one without logging in.
+    if (!isFreshLoginResponse(session) || !session.profile.canonicalProfileId) {
+      return undefined;
+    }
+    return session.token.accessToken;
   }
 
   /**
