@@ -909,11 +909,10 @@ export class AuthenticationController extends BaseController<
       request.reason.operation,
       request.type,
       async () =>
-        await this.#auth.beginMfaEnrollment(
-          request.type,
-          request.email,
-          primaryEntropySourceId,
-        ),
+        await this.#auth.beginMfaEnrollment(request.type, {
+          email: request.email,
+          entropySourceId: primaryEntropySourceId,
+        }),
     );
     this.#assertAuthSessionEpoch(sessionEpoch, 'beginCredentialEnrollment');
     return challenge;
