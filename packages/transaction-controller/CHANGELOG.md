@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add chain-agnostic Pay source metadata using CAIP-10 account and CAIP-19 asset identifiers, plus a phase-aware external Solana execution checkpoint, without changing legacy EVM Pay fields ([#10272](https://github.com/MetaMask/core/pull/10272), [#10273](https://github.com/MetaMask/core/pull/10273))
 - Add externally handled publish results and lifecycle finalization for hashless non-EVM parent transactions ([#10273](https://github.com/MetaMask/core/pull/10273))
+- Add stable categorical error codes to transaction-owned Solana Pay execution checkpoints for privacy-safe support diagnostics ([#10274](https://github.com/MetaMask/core/pull/10274))
 
 ### Changed
 

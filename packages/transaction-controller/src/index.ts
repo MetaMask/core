@@ -91,6 +91,7 @@ export type {
   LegacyGasFeeEstimates,
   Log,
   MetamaskPayMetadata,
+  MetamaskPaySolanaErrorCode,
   MetamaskPaySolanaExecution,
   MetamaskPaySolanaFollowUpStatus,
   MetamaskPaySolanaNotificationStatus,

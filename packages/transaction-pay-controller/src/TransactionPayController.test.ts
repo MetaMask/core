@@ -32,6 +32,7 @@ import {
   getRelayPollingInterval,
   getRelayPollingTimeout,
   getStrategyOrder,
+  isSolanaPayEnabled,
 } from './utils/feature-flags.js';
 import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
@@ -139,6 +140,7 @@ describe('TransactionPayController', () => {
   );
   const subscribeAssetChangesMock = jest.mocked(subscribeAssetChanges);
   const getStrategyOrderMock = jest.mocked(getStrategyOrder);
+  const isSolanaPayEnabledMock = jest.mocked(isSolanaPayEnabled);
   let messenger: TransactionPayControllerMessenger;
   let confirmTransactionMock: jest.Mock;
   let failTransactionMock: jest.Mock;
@@ -196,6 +198,7 @@ describe('TransactionPayController', () => {
     });
 
     getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
+    isSolanaPayEnabledMock.mockReturnValue(true);
     getRelayPollingIntervalMock.mockReturnValue(1);
     getRelayPollingTimeoutMock.mockReturnValue(100);
     updateQuotesMock.mockResolvedValue(true);
@@ -433,6 +436,95 @@ describe('TransactionPayController', () => {
       });
     }
 
+    it('fails closed when admitting a new Solana execution while rollout is disabled', async () => {
+      const transaction = getTransactionMeta();
+      applyTransactionUpdates(transaction);
+      isSolanaPayEnabledMock.mockReturnValue(false);
+      const controller = createController({
+        solana: getSolanaCallbacks(),
+        state: getControllerState(),
+      });
+
+      await expect(
+        controller.getSolanaPayQuote({
+          sourceAmountRaw: '1000000',
+          sourceWalletAccountId: 'wallet-account-uuid',
+          transactionId: TRANSACTION_ID_MOCK,
+        }),
+      ).rejects.toThrow('Solana Pay is disabled');
+      expect(fetchRelaySolanaQuoteMock).not.toHaveBeenCalled();
+      expect(transaction.metamaskPay?.solanaExecution).toBeUndefined();
+    });
+
+    it('continues an admitted Solana execution after rollout is disabled', async () => {
+      const transaction = getTransactionMeta();
+      const signAndSendTransaction = jest.fn().mockResolvedValue({
+        outcome: 'submitted',
+        transactionId: SOLANA_TRANSACTION_ID,
+      });
+      applyTransactionUpdates(transaction);
+      const controller = createController({
+        solana: getSolanaCallbacks({ signAndSendTransaction }),
+        state: getControllerState(),
+      });
+      await controller.getSolanaPayQuote({
+        sourceAmountRaw: '1000000',
+        sourceWalletAccountId: 'wallet-account-uuid',
+        transactionId: TRANSACTION_ID_MOCK,
+      });
+      isSolanaPayEnabledMock.mockReturnValue(false);
+
+      await controller.submitSolanaPay(TRANSACTION_ID_MOCK);
+
+      expect(signAndSendTransaction).toHaveBeenCalledTimes(1);
+      expect(transaction.metamaskPay?.solanaExecution?.phase).toBe('submitted');
+    });
+
+    it('exposes privacy-safe support diagnostics for the transaction-owned execution', () => {
+      const transaction = getTransactionMeta();
+      transaction.metamaskPay = {
+        source: {
+          ...SOLANA_PAY_SOURCE_MOCK,
+          sourceAccountId:
+            `${SOLANA_CHAIN_ID}:private-account` as CaipAccountId,
+        },
+        solanaExecution: getExecution({
+          phase: 'submitted',
+          relayFailureReason: 'raw provider reason',
+          relayStatus: 'failure',
+          sourceFailureReason: 'raw source reason',
+          sourceStatus: 'confirmed',
+          sourceTransactionId: 'private-signature',
+          targetTransactionId: 'private-target-hash',
+        }),
+      };
+      applyTransactionUpdates(transaction);
+      createController();
+
+      const diagnostic = messenger.call(
+        'TransactionPayController:getSolanaPaySupportDiagnostics',
+        TRANSACTION_ID_MOCK,
+      );
+
+      expect(diagnostic).toStrictEqual({
+        errorCode: 'settlement_failed',
+        followUpStatus: 'not-required',
+        followUpTransactionIdPresent: false,
+        notificationStatus: 'not-ready',
+        outcome: 'relay-failed',
+        phase: 'submitted',
+        provider: 'relay',
+        relayStatus: 'failure',
+        requestIdPresent: true,
+        sourceAssetClass: 'token',
+        sourceStatus: 'confirmed',
+        sourceTransactionIdPresent: true,
+        targetTransactionIdPresent: true,
+      });
+      expect(JSON.stringify(diagnostic)).not.toContain('private');
+      expect(JSON.stringify(diagnostic)).not.toContain('raw');
+    });
+
     it('stores the first durable checkpoint only on transaction metadata', async () => {
       const transaction = getTransactionMeta();
       const solana = getSolanaCallbacks();
@@ -620,6 +712,57 @@ describe('TransactionPayController', () => {
       expect(status.notificationStatus).toBe('success');
     });
 
+    it('publishes and deduplicates privacy-safe Solana lifecycle transitions', async () => {
+      const transaction = getTransactionMeta();
+      transaction.metamaskPay = {
+        source: SOLANA_PAY_SOURCE_MOCK,
+        solanaExecution: getExecution({
+          notificationStatus: 'success',
+          phase: 'submitted',
+          relayStatus: 'pending',
+          sourceStatus: 'pending',
+          sourceTransactionId: SOLANA_TRANSACTION_ID,
+        }),
+      };
+      applyTransactionUpdates(transaction);
+      const listener = jest.fn();
+      messenger.subscribe(
+        'TransactionPayController:solanaPayLifecycle',
+        listener,
+      );
+      const controller = createController({
+        solana: getSolanaCallbacks({
+          getTransactionStatus: jest.fn().mockResolvedValue('confirmed'),
+        }),
+      });
+
+      await controller.reconcileSolanaPay(TRANSACTION_ID_MOCK);
+      await controller.reconcileSolanaPay(TRANSACTION_ID_MOCK);
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith({
+        followUpStatus: 'not-required',
+        followUpTransactionIdPresent: false,
+        isRecovery: false,
+        notificationStatus: 'success',
+        outcome: 'submitted',
+        phase: 'submitted',
+        provider: 'relay',
+        relayStatus: 'pending',
+        requestIdPresent: true,
+        sourceAssetClass: 'token',
+        sourceStatus: 'confirmed',
+        sourceTransactionIdPresent: true,
+        targetTransactionIdPresent: false,
+      });
+      expect(JSON.stringify(listener.mock.calls)).not.toContain(
+        SOLANA_TRANSACTION_ID,
+      );
+      expect(JSON.stringify(listener.mock.calls)).not.toContain(
+        'relay-request-123',
+      );
+    });
+
     it('recovers by scanning transaction metadata without signing', async () => {
       const transaction = getTransactionMeta();
       transaction.status = 'submitted';
@@ -651,16 +794,25 @@ describe('TransactionPayController', () => {
         txHashes: ['0xtarget'],
         updatedAt: 1,
       });
+      const lifecycleListener = jest.fn();
+      messenger.subscribe(
+        'TransactionPayController:solanaPayLifecycle',
+        lifecycleListener,
+      );
       const controller = createController({
         solana: getSolanaCallbacks({
           getTransactionStatus: jest.fn().mockResolvedValue('confirmed'),
           signAndSendTransaction,
         }),
       });
+      isSolanaPayEnabledMock.mockReturnValue(false);
 
       const statuses = await controller.recoverSolanaPayStatus();
 
       expect(statuses[TRANSACTION_ID_MOCK].outcome).toBe('succeeded');
+      expect(lifecycleListener).toHaveBeenLastCalledWith(
+        expect.objectContaining({ isRecovery: true, outcome: 'succeeded' }),
+      );
       expect(signAndSendTransaction).not.toHaveBeenCalled();
       expect(confirmTransactionMock).toHaveBeenCalledWith(TRANSACTION_ID_MOCK);
     });
@@ -1042,6 +1194,12 @@ describe('TransactionPayController', () => {
           }),
         };
         applyTransactionUpdates(transaction);
+        const errorCodeByOutcome = {
+          'follow-up-failed': 'follow_up_failed',
+          refunded: 'settlement_refunded',
+          'relay-failed': 'settlement_failed',
+          'source-failed': 'source_transaction_failed',
+        } as const;
         const relayStatusByOutcome = {
           'follow-up-failed': 'success',
           refunded: 'refund',
@@ -1066,7 +1224,7 @@ describe('TransactionPayController', () => {
 
         expect(failTransactionMock).toHaveBeenCalledWith(
           TRANSACTION_ID_MOCK,
-          expect.any(Error),
+          expect.objectContaining({ code: errorCodeByOutcome[outcome] }),
         );
       },
     );

@@ -191,6 +191,9 @@ export type PayStrategiesConfigRaw = {
     originGasOverhead?: string;
     pollingInterval?: number;
     pollingTimeout?: number;
+    solana?: {
+      enabled?: unknown;
+    };
   };
 };
 
@@ -633,6 +636,26 @@ export function getPayStrategiesConfig(
     server,
     relay,
   };
+}
+
+/**
+ * Whether new Solana-source Pay intents may be admitted.
+ *
+ * This capability is fail-closed. It must not stop observation or recovery
+ * for an intent that was admitted while the capability was on.
+ *
+ * @param messenger - Controller messenger.
+ * @returns True only when the Relay Solana capability is explicitly enabled.
+ */
+export function isSolanaPayEnabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags = state.remoteFeatureFlags?.confirmations_pay as
+    | FeatureFlagsRaw
+    | undefined;
+
+  return featureFlags?.payStrategies?.relay?.solana?.enabled === true;
 }
 
 /**
