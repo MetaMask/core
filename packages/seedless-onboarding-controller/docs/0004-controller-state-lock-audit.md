@@ -3,7 +3,7 @@
 - Status: Findings F-001 and F-002 fixed; follow-up findings remain open
 - Date: 2026-09-10
 - Scope: `SeedlessOnboardingController`
-- Related: [ADR 0001](./0001-seedless-password-change-recovery.md), [Recovery flow 0002](./0002-password-change-recovery-flow.md), [Option B plan 0003](./0003-controller-owned-password-change-recovery-plan.md)
+- Related: [Package notes 0001](./0001-seedless-password-change-recovery.md), [Client guide 0002](./0002-seedless-password-change-recovery-client-guide.md), [Option B plan 0003](./0003-controller-owned-password-change-recovery-plan.md)
 
 ## Executive summary
 
@@ -16,13 +16,13 @@ One high-impact race was verified between `resolvePasswordSyncState` and
 `changePassword`. `resolvePasswordSyncState` selected its recovery branch from
 a phase read taken before it acquired the controller lock. A concurrent
 `changePassword` could finish the Seedless-side rewrite and advance the phase to
-`LOCAL_KEYRING_PENDING`; the resolver could then use its stale
-`SEEDLESS_CHANGE_PENDING` branch, clear the newer phase, and return `in-sync`
+`LOCAL_PASSWORD_PENDING`; the resolver could then use its stale
+`REMOTE_PASSWORD_PENDING` branch, clear the newer phase, and return `in-sync`
 while the local Keyring still required reconciliation.
 
 That finding is fixed in the current implementation. A deterministic regression
 test reproduces the interleaving and verifies that the resolver returns
-`reconcile-keyring` and preserves `LOCAL_KEYRING_PENDING`.
+`reconcile-keyring` and preserves `LOCAL_PASSWORD_PENDING`.
 
 The broader audit remains open. The recommended model is operation-level
 serialization around lifecycle-sensitive operations, not a mutex around each
@@ -74,7 +74,7 @@ not fix the verified race.
 
 ### Pre-fix behavior
 
-The resolver read `passwordChangePhase`, selected a `switch` branch, and only
+The resolver read `seedlessOperationLifecycle`, selected a `switch` branch, and only
 then acquired the controller lock for the mutating pending-phase branch. The
 branch selection was therefore outside the critical section.
 
@@ -87,15 +87,15 @@ and local Seedless rewrite:
 ### Reproduction sequence
 
 1. The controller is unlocked and `changePassword` starts.
-2. `changePassword` records `SEEDLESS_CHANGE_PENDING` and waits for the remote
+2. `changePassword` records `REMOTE_PASSWORD_PENDING` and waits for the remote
    password-change operation.
-3. `resolvePasswordSyncState` reads `SEEDLESS_CHANGE_PENDING` before waiting for
+3. `resolvePasswordSyncState` reads `REMOTE_PASSWORD_PENDING` before waiting for
    the controller lock.
 4. `changePassword` completes the remote operation and commits the local
-   Seedless vault with `LOCAL_KEYRING_PENDING`.
+   Seedless vault with `LOCAL_PASSWORD_PENDING`.
 5. `changePassword` releases the controller lock.
 6. The resolver acquires the lock but continues through its previously selected
-   `SEEDLESS_CHANGE_PENDING` branch.
+   `REMOTE_PASSWORD_PENDING` branch.
 7. The remote check now observes the new Seedless state. The resolver can clear
    the phase and return `in-sync`.
 8. The client skips the required local Keyring reconciliation because the
@@ -108,7 +108,7 @@ an unset phase while a concurrent password change later starts and completes.
 
 `resolvePasswordSyncState` now:
 
-1. Acquires the controller lock before reading `passwordChangePhase`.
+1. Acquires the controller lock before reading `seedlessOperationLifecycle`.
 2. Holds that lock through the remote check and any lifecycle transition.
 3. Calls the password-outdated helper with `skipLock: true` because the
    resolver already owns the controller lock.
@@ -263,8 +263,8 @@ Recommended remediation:
 - Severity: Medium
 - Status: Open
 - Affected methods:
-  - [`clearPasswordChangePhase`](../src/SeedlessOnboardingController.ts#L2399-L2406)
-  - [`markPasswordChangeKeySyncPending`](../src/SeedlessOnboardingController.ts#L2417-L2429)
+  - [`completePasswordChange`](../src/SeedlessOnboardingController.ts#L2425-L2435)
+  - [`markPasswordChangeKeySyncPending`](../src/SeedlessOnboardingController.ts#L2445-L2461)
 
 Both methods use the controller lock, but they accept no expected phase,
 transaction identifier, or generation. A delayed client call can therefore
@@ -303,10 +303,10 @@ Recommended remediation:
 - Severity: High for crash recovery
 - Status: Open
 
-`#writePasswordChangePhase` calls `update`, which synchronously changes
+`#writeSeedlessOperationLifecycle` calls `update`, which synchronously changes
 in-memory state and publishes state-change events:
 
-- [`#writePasswordChangePhase`](../src/SeedlessOnboardingController.ts#L2381-L2387)
+- [`#writeSeedlessOperationLifecycle`](../src/SeedlessOnboardingController.ts#L2400-L2414)
 
 The public lifecycle methods await the in-memory operation, but do not expose an
 explicit acknowledgement that the downstream persisted state has been durably
@@ -328,14 +328,14 @@ that crosses an `await` and later updates state.
 Required scenarios:
 
 - `resolvePasswordSyncState` waits behind `changePassword` and observes
-  `LOCAL_KEYRING_PENDING`.
+  `LOCAL_PASSWORD_PENDING`.
 - `resolvePasswordSyncState` waits behind a phase transition and never clears a
   newer phase.
 - `storeKeyringEncryptionKey` overlaps with a password-change state commit and
   waits for the controller-locked reconciliation.
 - Token refresh overlaps with password-change vault rewriting.
 - `clearState` is rejected or serialized while recovery is active.
-- Delayed `clearPasswordChangePhase` and
+- Delayed `completePasswordChange` and
   `markPasswordChangeKeySyncPending` cannot modify a newer transaction.
 - Every failure path releases the controller and vault locks.
 - Lifecycle state remains recoverable after an interrupted durable write.
