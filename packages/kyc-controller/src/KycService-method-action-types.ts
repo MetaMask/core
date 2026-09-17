@@ -88,6 +88,28 @@ export type KycServiceSubmitVendorDisclaimersAction = {
 };
 
 /**
+ * Fetches the customer's still-outstanding required signings
+ * (`GET /vendors/{vendor}/customers/{customerId}/required-signings`).
+ *
+ * An empty list means every currently-published vendor T&C is signed; a
+ * non-empty list means the customer is in `SigningsRequired` and must sign
+ * before KYC / transacting. The list re-populates whenever a new document is
+ * published, so this is the source of truth for vendor-terms completion for
+ * the account's lifetime — unlike {@link fetchVendorDisclaimers}, which is
+ * only the catalog to display.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - Identity vendor (e.g. `iron`).
+ * @param params.customerId - Vendor customer id from
+ * {@link createVendorCustomer}.
+ * @returns The outstanding required signings (empty when all are signed).
+ */
+export type KycServiceFetchRequiredSigningsAction = {
+  type: `KycService:fetchRequiredSignings`;
+  handler: KycService['fetchRequiredSignings'];
+};
+
+/**
  * Fetches the global idOS + KYC-provider disclaimer catalog
  * (`GET /disclaimers?country=`). Carries no consent state — per-document
  * `consented` flags and `credentialReusabilityConsentGiven` are
@@ -241,6 +263,7 @@ export type KycServiceMethodActions =
   | KycServiceCheckKycRequiredAction
   | KycServiceCreateVendorCustomerAction
   | KycServiceSubmitVendorDisclaimersAction
+  | KycServiceFetchRequiredSigningsAction
   | KycServiceFetchSessionDisclaimersByCountryAction
   | KycServiceFetchSessionDisclaimersBySessionIdAction
   | KycServiceSubmitSessionDisclaimersAction

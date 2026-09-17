@@ -41,6 +41,7 @@ import type {
   KycVendor,
   KycVendorCustomerIds,
   KycVendorDisclaimersAccepted,
+  KycVendorSigning,
 } from './types.js';
 import { KycStatus as KycStatusEnum } from './types.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
@@ -291,6 +292,29 @@ export type KycControllerState = {
   /** Optional machine-readable error code for terminal / EDD UX. */
   userStatusErrorCode: string | null;
 
+  /**
+   * Outstanding vendor T&C signings for the active vendor's customer, from the
+   * last `GET .../required-signings` (see
+   * {@link KycService.fetchRequiredSignings}). An empty array means every
+   * currently-published document is signed; a non-empty array means the
+   * customer is `SigningsRequired`. `null` until the first refresh — before
+   * that {@link hasCompletedVendorTerms} falls back to the locally recorded
+   * acceptance. Not persisted: re-fetched on each VBA hydrate.
+   */
+  vbaRequiredSignings: KycVendorSigning[] | null;
+
+  /**
+   * Whether the SumSub document-verification flow has been submitted for the
+   * current onboarding. Set when the SDK flow completes; persisted so it
+   * survives reloads. Distinguishes "session created, documents still to
+   * capture" (KYC treated as {@link KycStatus.NOT_STARTED}, routing to the
+   * SumSub screen) from "documents submitted, under review" — the backend
+   * `/kyc/status` and session `finalStatus` both report `pending` for both, so
+   * they cannot be told apart on their own. Cleared by {@link reset} and
+   * {@link clearState}.
+   */
+  sumSubSubmitted: boolean;
+
   /** SumSub document-verification sub-flow state. */
   sumsub: {
     status: KycSumSubStatus;
@@ -405,7 +429,11 @@ const kycControllerMetadata = {
   activeVendor: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
-    persist: false,
+    // Persisted alongside the vendor customer id so a resumable flow (e.g. VBA)
+    // keeps its vendor context across app reloads. Without this it resets to
+    // the `moonpay` default on reload, and a resumed Iron session sends empty
+    // MoonPay `vendorMetadata`, which the sessions API rejects.
+    persist: true,
     usedInUi: true,
   },
   activeProduct: {
@@ -443,6 +471,18 @@ const kycControllerMetadata = {
     includeInStateLogs: true,
     persist: true,
     usedInUi: true,
+  },
+  vbaRequiredSignings: {
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
+    persist: false,
+    usedInUi: false,
+  },
+  sumSubSubmitted: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: true,
+    usedInUi: false,
   },
   sumsub: {
     includeInDebugSnapshot: false,
@@ -504,6 +544,8 @@ export function getDefaultKycControllerState(): KycControllerState {
     userStatus: null,
     userStatusSumsubSessionId: null,
     userStatusErrorCode: null,
+    vbaRequiredSignings: null,
+    sumSubSubmitted: false,
     sumsub: {
       status: 'idle',
       result: null,
@@ -690,6 +732,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'loadDisclaimers',
   'fetchSessionDisclaimers',
   'acceptTermsAndStartSession',
+  'acceptVendorTerms',
+  'acceptProviderTerms',
   'createVendorCustomer',
   'clearSavedTerms',
   'handleFrameMessage',
@@ -701,6 +745,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'isCustomerCreated',
   'hasCompletedVendorTerms',
   'hasCompletedProviderTerms',
+  'refreshVbaOnboardingStatus',
   'getCustomerIdentity',
   'refreshKycStatus',
   'startSumSub',
@@ -1679,6 +1724,134 @@ export class KycController extends BaseController<
   }
 
   /**
+   * Signs the active vendor's currently loaded T&Cs on the customer's account
+   * (`POST /vendors/{vendor}/disclaimers`), then records the acceptance
+   * locally.
+   *
+   * The standalone vendor-terms step for flows (e.g. VBA / Pix onboarding) that
+   * present the vendor disclaimers on their own screen, ahead of the provider /
+   * idOS consents captured later by {@link acceptProviderTerms}. Persists to
+   * the account first so {@link hasCompletedVendorTerms} (and a later hydrate's
+   * `required-signings` refresh) never reports an acceptance the account does
+   * not hold; the local record is written only after the backend call
+   * succeeds. Does not create a UKYC session.
+   *
+   * A no-op when no disclaimers are loaded, so acceptance is never recorded for
+   * terms the user was not shown. Load the disclaimers (see
+   * {@link loadDisclaimers}) before calling.
+   *
+   * @throws When the backend signing call fails; nothing is recorded locally.
+   */
+  async acceptVendorTerms(): Promise<void> {
+    const disclaimerIds = this.state.vendorDisclaimers.map(
+      (disclaimer) => disclaimer.id,
+    );
+    if (disclaimerIds.length === 0) {
+      return;
+    }
+    const vendor = this.state.activeVendor;
+    await this.messenger.call('KycService:submitVendorDisclaimers', {
+      vendor,
+      disclaimerIds,
+    });
+    const termsAcceptedAt = new Date().toISOString();
+    this.#applyUpdate((state) => {
+      state.vendorDisclaimersAccepted = recordVendorDisclaimerAcceptance(
+        state.vendorDisclaimersAccepted,
+        vendor,
+        { termsAcceptedAt, disclaimerIds },
+      );
+      // Every outstanding document was just signed, so the account now has no
+      // required signings — keep the backend-authoritative signal in sync.
+      state.vbaRequiredSignings = [];
+    });
+  }
+
+  /**
+   * Records provider (SumSub) + idOS session-disclaimer consents on the
+   * customer's account, creating the UKYC session first if one does not exist
+   * yet, without launching SumSub.
+   *
+   * The standalone provider-terms step for flows (e.g. VBA / Pix onboarding)
+   * that present the idOS + KYC-provider disclaimers on their own screen and
+   * hand SumSub off to a later screen. Provider/idOS consents are
+   * session-scoped, so the session is created here (vendor terms are already
+   * signed by this point, satisfying MoonPay's "terms before KYC" order) and
+   * the consents are posted to it via `POST /sessions/{id}/disclaimers`; a
+   * later {@link startSumSub} reuses that session instead of creating another.
+   * The local record is written only after the account holds the consents, so
+   * a subsequent hydrate reads the real status. Fails closed and records
+   * nothing when either consent list is malformed, mirroring
+   * {@link acceptTermsAndStartSession}.
+   *
+   * @param params - The parameters.
+   * @param params.providerDisclaimersAccepted - Accepted SumSub disclaimer
+   * records ({@link KycConsentRecord}).
+   * @param params.idosDisclaimersAccepted - Accepted idOS disclaimer records.
+   * @param params.credentialReusabilityConsentGiven - Whether the customer
+   * consented to reuse existing idOS credentials. Defaults to `false`.
+   * @throws When session creation or the backend consent submission fails.
+   */
+  async acceptProviderTerms(params: {
+    providerDisclaimersAccepted: KycConsentRecord[];
+    idosDisclaimersAccepted: KycConsentRecord[];
+    credentialReusabilityConsentGiven?: boolean;
+  }): Promise<void> {
+    const { providerDisclaimersAccepted, idosDisclaimersAccepted } = params;
+    if (
+      !isValidConsentRecordList(providerDisclaimersAccepted) ||
+      !isValidConsentRecordList(idosDisclaimersAccepted)
+    ) {
+      this.#fail('Missing T&C2 acceptance flags.');
+      return;
+    }
+    const credentialReusabilityConsentGiven =
+      params.credentialReusabilityConsentGiven ?? false;
+    const consents = {
+      providerDisclaimersAccepted,
+      idosDisclaimersAccepted,
+      credentialReusabilityConsentGiven,
+    };
+
+    const generation = this.#generation;
+    let vendorProcessing = false;
+    if (!this.state.sumsub.sessionId) {
+      this.#applyUpdate((state) => {
+        state.error = null;
+        state.sumsub.status = 'creatingSession';
+        state.sumsub.result = null;
+        state.sumsub.sessionStatus = null;
+      });
+      const created = await this.#createUkycSession(generation);
+      if (!created) {
+        return;
+      }
+      vendorProcessing = created.vendorProcessing;
+    }
+
+    // A customer the relay has already approved has nothing left to consent to;
+    // recording session disclaimers would be rejected. Persist locally so the
+    // gate reflects acceptance and let the flow move on.
+    if (!vendorProcessing) {
+      // Empty string is a valid "no id to poll" session id used by tests and
+      // must not be coalesced away as missing.
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+      const sessionId = this.state.sumsub.sessionId || '';
+      await this.#recordSessionDisclaimers(sessionId, consents, generation);
+    }
+
+    this.#updateIfCurrent(generation, (state) => {
+      state.providerDisclaimersAccepted = {
+        ...state.providerDisclaimersAccepted,
+        sumsub: providerDisclaimersAccepted,
+      };
+      state.idosDisclaimersAccepted = idosDisclaimersAccepted;
+      state.credentialReusabilityConsentGiven =
+        credentialReusabilityConsentGiven;
+    });
+  }
+
+  /**
    * Clears the persisted terms acceptance.
    */
   clearSavedTerms(): void {
@@ -1896,10 +2069,18 @@ export class KycController extends BaseController<
   getKycStatus(
     paramsOrVendor: { product: KycProduct } | KycVendor,
   ): boolean | undefined | KycStatus {
-    if (typeof paramsOrVendor === 'string') {
-      return mapUserStatusToKycStatus(this.state.userStatus);
+    if (typeof paramsOrVendor !== 'string') {
+      return this.state.kycRequiredByProduct[paramsOrVendor.product];
     }
-    return this.state.kycRequiredByProduct[paramsOrVendor.product];
+    const status = mapUserStatusToKycStatus(this.state.userStatus);
+    // A UKYC session is created when provider terms are accepted, which flips
+    // the backend status to `pending` before any documents are captured. Until
+    // SumSub has actually been submitted, treat that as NOT_STARTED so VBA
+    // onboarding routes to the SumSub screen rather than the KYC-pending screen.
+    if (status === KycStatusEnum.PENDING && !this.state.sumSubSubmitted) {
+      return KycStatusEnum.NOT_STARTED;
+    }
+    return status;
   }
 
   /**
@@ -1913,16 +2094,78 @@ export class KycController extends BaseController<
    * @returns Whether the customer has been created.
    */
   isCustomerCreated(vendor: KycVendor): boolean {
-    return Boolean(this.state.vendorCustomerIds[vendor]);
+    const result = Boolean(this.state.vendorCustomerIds[vendor]);
+    return result;
+  }
+
+  /**
+   * Refreshes the backend-authoritative VBA onboarding signals the ramps
+   * controller reads during hydration, so each stage reflects the customer's
+   * account rather than only device-local state:
+   *
+   * - vendor terms — {@link KycService.fetchRequiredSignings} outstanding
+   *   signings into {@link KycControllerState.vbaRequiredSignings};
+   * - KYC status — {@link refreshKycStatus} (`GET /kyc/status`).
+   *
+   * Provider / idOS terms are deliberately not re-derived here: they are posted
+   * to the account by {@link acceptProviderTerms}, which only records them
+   * locally after that POST succeeds, so the local value is already
+   * backend-confirmed. Re-deriving them from the session catalog is both
+   * redundant and fragile — the session catalog can list documents beyond the
+   * ones consented on the provider-terms screen (built from the country
+   * catalog), which would incorrectly clear a valid acceptance and loop the
+   * flow back to the provider-terms screen.
+   *
+   * A no-op when the active vendor has no customer yet (the flow is still at
+   * the email step). Each signal soft-fails independently: a failed fetch keeps
+   * that signal's last-known value rather than throwing, so hydration can still
+   * resolve a stage from whatever is current.
+   */
+  async refreshVbaOnboardingStatus(): Promise<void> {
+    const vendor = this.state.activeVendor;
+    const customerId = this.state.vendorCustomerIds[vendor];
+    if (!customerId) {
+      return;
+    }
+
+    try {
+      const requiredSignings = await this.messenger.call(
+        'KycService:fetchRequiredSignings',
+        { vendor, customerId },
+      );
+      this.#applyUpdate((state) => {
+        state.vbaRequiredSignings = requiredSignings;
+      });
+    } catch (error) {
+      controllerLog('VBA required-signings refresh failed:', error);
+    }
+
+    try {
+      await this.refreshKycStatus();
+    } catch (error) {
+      controllerLog('VBA KYC status refresh failed:', error);
+    }
   }
 
   /**
    * Whether the user has accepted terms for the given identity vendor.
    *
+   * Backend-authoritative once {@link refreshVbaOnboardingStatus} has populated
+   * {@link KycControllerState.vbaRequiredSignings} for the active vendor:
+   * complete means the account has no outstanding required signings. Before the
+   * first refresh (e.g. immediately after {@link acceptVendorTerms}) it falls
+   * back to the locally recorded acceptance.
+   *
    * @param vendor - Identity vendor whose terms to check.
    * @returns Whether vendor terms are complete.
    */
   hasCompletedVendorTerms(vendor: KycVendor): boolean {
+    if (
+      vendor === this.state.activeVendor &&
+      this.state.vbaRequiredSignings !== null
+    ) {
+      return this.state.vbaRequiredSignings.length === 0;
+    }
     return hasVendorDisclaimerAcceptance(
       this.state.vendorDisclaimersAccepted,
       vendor,
@@ -1936,11 +2179,9 @@ export class KycController extends BaseController<
    * @returns Whether provider terms are complete.
    */
   hasCompletedProviderTerms(provider: KycProvider): boolean {
-    if (provider !== 'sumsub') {
-      return false;
-    }
     const accepted = this.state.providerDisclaimersAccepted.sumsub;
-    return Boolean(accepted?.length);
+    const result = provider === 'sumsub' && Boolean(accepted?.length);
+    return result;
   }
 
   /**
@@ -2284,6 +2525,12 @@ export class KycController extends BaseController<
         const applied = this.#updateIfCurrent(generation, (state) => {
           state.sumsub.status = settledStatus;
           state.sumsub.result = result as Json;
+          if (reachedCompletion) {
+            // Documents were submitted, so KYC is now genuinely under review —
+            // a subsequent `pending` status should route to the KYC-pending
+            // screen rather than back to the SumSub screen.
+            state.sumSubSubmitted = true;
+          }
         });
 
         // Once the SDK completes, the authoritative verification decision comes
@@ -2319,6 +2566,7 @@ export class KycController extends BaseController<
           this.#updateIfCurrent(generation, (state) => {
             state.sumsub.status = 'complete';
             state.sumsub.result = { alreadyCompleted: true };
+            state.sumSubSubmitted = true;
             state.statusMessage = 'KYC already completed.';
             state.phase = 'done';
             state.error = null;
@@ -2636,6 +2884,8 @@ export class KycController extends BaseController<
       state.vendorError = null;
       state.sessionDisclaimers = null;
       state.credentialReusabilityConsentGiven = null;
+      state.vbaRequiredSignings = null;
+      state.sumSubSubmitted = false;
       clearMoonPaySession(state);
       state.activeVendor = 'moonpay';
       state.activeProduct = null;

@@ -690,6 +690,63 @@ describe('KycService', () => {
     });
   });
 
+  describe('fetchRequiredSignings', () => {
+    it('returns the outstanding required signings for a customer', async () => {
+      const signings = [
+        { id: 'sign-1', customer_id: 'iron-1', content_id: 'disc-1' },
+      ];
+      nock(MOCK_API_URL)
+        .get('/vendors/iron/customers/iron-1/required-signings')
+        .reply(200, signings);
+      const { service } = getService();
+
+      expect(
+        await service.fetchRequiredSignings({
+          vendor: 'iron',
+          customerId: 'iron-1',
+        }),
+      ).toStrictEqual(signings);
+    });
+
+    it('returns an empty list when the account has nothing outstanding', async () => {
+      nock(MOCK_API_URL)
+        .get('/vendors/iron/customers/iron-1/required-signings')
+        .reply(200, []);
+      const { service } = getService();
+
+      expect(
+        await service.fetchRequiredSignings({
+          vendor: 'iron',
+          customerId: 'iron-1',
+        }),
+      ).toStrictEqual([]);
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL)
+        .get('/vendors/iron/customers/iron-1/required-signings')
+        .reply(200, {});
+      const { service } = getService();
+
+      await expect(
+        service.fetchRequiredSignings({ vendor: 'iron', customerId: 'iron-1' }),
+      ).rejects.toThrow(
+        /Malformed response received from required signings API/u,
+      );
+    });
+
+    it('throws an HttpError on a non-ok response', async () => {
+      nock(MOCK_API_URL)
+        .get('/vendors/iron/customers/iron-1/required-signings')
+        .reply(500);
+      const { service } = getService();
+
+      await expect(
+        service.fetchRequiredSignings({ vendor: 'iron', customerId: 'iron-1' }),
+      ).rejects.toThrow(/failed with status '500'/u);
+    });
+  });
+
   describe('fetchVendorDisclaimers for a non-MoonPay vendor', () => {
     it('returns Iron disclaimers for a country', async () => {
       const disclaimers = [

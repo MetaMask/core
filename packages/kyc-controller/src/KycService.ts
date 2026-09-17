@@ -54,6 +54,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkKycRequired',
   'createVendorCustomer',
   'submitVendorDisclaimers',
+  'fetchRequiredSignings',
   'fetchSessionDisclaimersByCountry',
   'fetchSessionDisclaimersBySessionId',
   'submitSessionDisclaimers',
@@ -321,6 +322,13 @@ export type SubmitVendorDisclaimersParams = {
   vendor: KycVendor;
   /** Disclaimer ids from {@link KycService.fetchVendorDisclaimers}. */
   disclaimerIds: string[];
+};
+
+export type FetchRequiredSigningsParams = {
+  /** Identity vendor to check (currently `iron`). */
+  vendor: KycVendor;
+  /** Vendor customer id from {@link KycService.createVendorCustomer}. */
+  customerId: string;
 };
 
 export type FetchSessionDisclaimersByCountryParams = {
@@ -672,6 +680,51 @@ export class KycService extends BaseDataService<
       data,
       VendorSigningsResponseStruct,
       'vendor disclaimers',
+    );
+  }
+
+  /**
+   * Fetches the customer's still-outstanding required signings
+   * (`GET /vendors/{vendor}/customers/{customerId}/required-signings`).
+   *
+   * An empty list means every currently-published vendor T&C is signed; a
+   * non-empty list means the customer is in `SigningsRequired` and must sign
+   * before KYC / transacting. The list re-populates whenever a new document is
+   * published, so this is the source of truth for vendor-terms completion for
+   * the account's lifetime — unlike {@link fetchVendorDisclaimers}, which is
+   * only the catalog to display.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - Identity vendor (e.g. `iron`).
+   * @param params.customerId - Vendor customer id from
+   * {@link createVendorCustomer}.
+   * @returns The outstanding required signings (empty when all are signed).
+   */
+  async fetchRequiredSignings(
+    params: FetchRequiredSigningsParams,
+  ): Promise<KycVendorSigning[]> {
+    const url = new URL(
+      `/vendors/${encodeURIComponent(params.vendor)}/customers/${encodeURIComponent(
+        params.customerId,
+      )}/required-signings`,
+      this.#baseUrl,
+    );
+    const data = await this.fetchQuery({
+      queryKey: [
+        `${this.name}:fetchRequiredSignings`,
+        params.vendor,
+        params.customerId,
+      ],
+      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
+      // Signing state changes after a POST and when new documents ship, so it
+      // must always be re-fetched.
+      staleTime: 0,
+      gcTime: 0,
+    });
+    return this.#validateResponse(
+      data,
+      VendorSigningsResponseStruct,
+      'required signings',
     );
   }
 
