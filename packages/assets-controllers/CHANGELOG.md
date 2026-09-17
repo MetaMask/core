@@ -80,6 +80,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/account-tree-controller` from `^8.0.0` to `^9.0.0` ([#10088](https://github.com/MetaMask/core/pull/10088), [#10139](https://github.com/MetaMask/core/pull/10139))
 - Bump `@metamask/profile-sync-controller` from `^29.0.0` to `^30.0.0` ([#10139](https://github.com/MetaMask/core/pull/10139))
 
+### Fixed
+
+- Add the missing Georgian lari (`gel`) entry to `MAP_CAIP_CURRENCIES` ([#10064](https://github.com/MetaMask/core/pull/10064))
+
 ## [111.1.3]
 
 ### Changed
