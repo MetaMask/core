@@ -13,11 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Sibling of `feeData.network`, not a `FeeType`, so fee aggregators do not treat it as spendable
   - Normalized via `toNormalizedAmounts`; preserved when coercing V1 ↔ V2 and when merging quote metadata in `V1Data`
   - Optional on V1 `QuoteSchema` as well so `toQuoteResponseV1` does not strip it
+- Export `calcNormalizedTokenAmount` and `calcAtomicTokenAmount` conversion utils and `AmountsAndAsset` type ([#10277](https://github.com/MetaMask/core/pull/10277))
+- Add utils to support fee validation when a quote's fees are denominated in multiple assets ([#10277](https://github.com/MetaMask/core/pull/10277))
+  - `hasSufficientGasForQuote` returns true if the wallet's balances are greater than or equal to the quote's network fees
+  - `hasNetworkFee` returns true if any of the network fee object's amounts are defined and non-zero
 
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^32.0.0` to `^32.1.1` ([#10184](https://github.com/MetaMask/core/pull/10184), [#10220](https://github.com/MetaMask/core/pull/10220))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/assets-controller` from `^16.0.0` to `^16.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242))
+- Bump `@metamask/assets-controllers` from `^112.0.1` to `^112.0.2` ([#10242](https://github.com/MetaMask/core/pull/10242))
+- Bump `@metamask/transaction-controller` from `^70.0.0` to `^70.1.0` ([#10242](https://github.com/MetaMask/core/pull/10242), [#10262](https://github.com/MetaMask/core/pull/10262))
+- Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
 
 ## [81.1.0]
 

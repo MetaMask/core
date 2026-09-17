@@ -20,24 +20,24 @@ export const toNormalizedAmounts = (
         normalizedAmount: calcNormalizedTokenAmount(
           src?.amount,
           src?.asset?.decimals,
-        )?.toFixed(),
+        ),
       },
       dest: {
         normalizedAmount: calcNormalizedTokenAmount(
           dest?.amount,
           dest?.asset?.decimals,
-        )?.toFixed(),
+        ),
         minAmountNormalized: calcNormalizedTokenAmount(
           dest?.minAmount,
           dest?.asset?.decimals,
-        )?.toFixed(),
+        ),
       },
       feeData: {
         network: feeData?.[FeeType.NETWORK]?.map((networkFee) => ({
           normalizedAmount: calcNormalizedTokenAmount(
             networkFee?.amount,
             networkFee?.asset?.decimals,
-          )?.toFixed(),
+          ),
         })),
         ...(feeData?.reserve && {
           reserve: feeData.reserve.map((reserve) => ({
@@ -51,13 +51,13 @@ export const toNormalizedAmounts = (
           normalizedAmount: calcNormalizedTokenAmount(
             relayerFee.amount,
             relayerFee.asset?.decimals,
-          )?.toFixed(),
+          ),
         })),
         txFee: feeData?.[FeeType.TX_FEE]?.map((txFee) => ({
           normalizedAmount: calcNormalizedTokenAmount(
             txFee.amount,
             txFee.asset?.decimals,
-          )?.toFixed(),
+          ),
         })),
       },
     },

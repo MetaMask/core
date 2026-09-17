@@ -30,9 +30,7 @@ import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@m
 import type { Quote as RampsQuote } from '@metamask/ramps-controller';
 import type {
   RampsControllerGetOrderAction,
-  RampsControllerGetQuotesAction,
-  RampsControllerTransakGetBuyQuoteAction,
-  TransakServiceGetBuyQuoteAction,
+  RampsControllerGetQuoteWithFeesAction,
 } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SentinelApiServiceActions } from '@metamask/sentinel-api-service';
@@ -74,9 +72,7 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkConfigurationByChainIdAction
   | RampsControllerGetOrderAction
-  | RampsControllerGetQuotesAction
-  | RampsControllerTransakGetBuyQuoteAction
-  | TransakServiceGetBuyQuoteAction
+  | RampsControllerGetQuoteWithFeesAction
   | RemoteFeatureFlagControllerGetStateAction
   | TokenBalancesControllerGetStateAction
   | TokenRatesControllerGetStateAction
