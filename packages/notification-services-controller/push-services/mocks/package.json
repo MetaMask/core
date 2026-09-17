@@ -4,6 +4,6 @@
   "description": "",
   "license": "MIT",
   "sideEffects": false,
-  "main": "../../dist/NotificationServicesPushController/mocks/index.cjs",
-  "types": "../../dist/NotificationServicesPushController/mocks/index.d.cts"
+  "main": "../../dist/NotificationServicesPushController/mocks/index.js",
+  "types": "../../dist/NotificationServicesPushController/mocks/index.d.ts"
 }

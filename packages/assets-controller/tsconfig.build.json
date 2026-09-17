@@ -60,6 +60,9 @@
       "path": "../remote-feature-flag-controller/tsconfig.build.json"
     },
     {
+      "path": "../eth-json-rpc-provider/tsconfig.build.json"
+    },
+    {
       "path": "../utils/tsconfig.build.json"
     }
   ],
