@@ -1,7 +1,7 @@
 import { SiweMessage } from '@signinwithethereum/siwe';
 
 import { ValidationError } from '../errors.js';
-import { validateLoginResponse } from '../utils/validate-login-response.js';
+import { isFreshLoginResponse } from '../utils/is-fresh-login-response.js';
 import {
   SIWE_LOGIN_URL,
   authenticate,
@@ -107,21 +107,9 @@ export class SIWEJwtBearerAuth implements IBaseAuth {
     this.#signer = signer;
   }
 
-  // convert expiresIn from seconds to milliseconds and use 90% of expiresIn
   async #getAuthSession(): Promise<LoginResponse | null> {
     const auth = await this.#options.storage.getLoginResponse();
-    if (!validateLoginResponse(auth)) {
-      return null;
-    }
-
-    const currentTime = Date.now();
-    const sessionAge = currentTime - auth.token.obtainedAt;
-    const refreshThreshold = auth.token.expiresIn * 1000 * 0.9;
-
-    if (sessionAge < refreshThreshold) {
-      return auth;
-    }
-    return null;
+    return isFreshLoginResponse(auth) ? auth : null;
   }
 
   async #login(): Promise<LoginResponse> {

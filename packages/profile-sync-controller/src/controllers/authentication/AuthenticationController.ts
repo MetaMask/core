@@ -35,6 +35,7 @@ import {
   JwtBearerAuth,
   PairConflictError,
 } from '../../sdk/index.js';
+import { isFreshLoginResponse } from '../../sdk/utils/is-fresh-login-response.js';
 import type { MetaMetricsAuth } from '../../shared/types/services.js';
 import {
   getHdKeyringEntropySourceIds,
@@ -782,15 +783,12 @@ export class AuthenticationController extends BaseController<
 
     const resolvedId = entropySourceId ?? this.#getPrimaryEntropySourceId();
     const session = this.state.srpSessionData?.[resolvedId];
-    // Mirrors the session checks in the SDK's `getAccessToken`, so this returns
-    // a token only while that call would return the same one from the cache.
-    if (!session?.profile.canonicalProfileId) {
+    // Same checks as the SRP flow's `getAccessToken`, so this returns a token
+    // only while that call would return the same one without logging in.
+    if (!isFreshLoginResponse(session) || !session.profile.canonicalProfileId) {
       return undefined;
     }
-
-    const sessionAge = Date.now() - session.token.obtainedAt;
-    const refreshThreshold = session.token.expiresIn * 1000 * 0.9;
-    return sessionAge < refreshThreshold ? session.token.accessToken : undefined;
+    return session.token.accessToken;
   }
 
   /**
