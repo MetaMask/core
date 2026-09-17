@@ -1743,7 +1743,7 @@ export class AnalyticsController extends BaseController<
    * Drop queued events and fragments that the current consent state no longer
    * allows to keep.
    */
-  #pruneAllEventsForConsent(): void {
+  #pruneAllForConsent(): void {
     this.#pruneQueueForConsent(AnalyticsQueue.EventQueue);
     this.#pruneQueueForConsent(AnalyticsQueue.PreConsentEventQueue);
     this.#pruneEventFragmentsForConsent();
@@ -2219,7 +2219,7 @@ export class AnalyticsController extends BaseController<
       state.consentDecisionMade = true;
     });
 
-    this.#pruneAllEventsForConsent();
+    this.#pruneAllForConsent();
   }
 
   /**
@@ -2240,7 +2240,7 @@ export class AnalyticsController extends BaseController<
       state.consentDecisionMade = false;
     });
 
-    this.#pruneAllEventsForConsent();
+    this.#pruneAllForConsent();
   }
 
   /**
@@ -2272,7 +2272,7 @@ export class AnalyticsController extends BaseController<
       state.marketingConsentDecisionMade = true;
     });
 
-    this.#pruneAllEventsForConsent();
+    this.#pruneAllForConsent();
   }
 
   /**
@@ -2286,6 +2286,6 @@ export class AnalyticsController extends BaseController<
       state.marketingConsentDecisionMade = false;
     });
 
-    this.#pruneAllEventsForConsent();
+    this.#pruneAllForConsent();
   }
 }
