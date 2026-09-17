@@ -384,7 +384,10 @@ describe('SRP MFA methods', () => {
       }),
     );
     const auth = new SRPJwtBearerAuth(config, {
-      storage: { getLoginResponse, setLoginResponse: async () => undefined },
+      storage: {
+        getLoginResponse,
+        setLoginResponse: async (): Promise<void> => undefined,
+      },
       signing: {
         getIdentifier: async (): Promise<string> => 'identifier',
         signMessage: async (): Promise<string> => 'signature',

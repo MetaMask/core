@@ -11,6 +11,7 @@ import {
   optional,
   pattern,
   refine,
+  sensitive,
   size,
   string,
   StructError,
@@ -81,42 +82,46 @@ export const PasskeyRequestDataStruct = type({
   publicKey: PublicKeyCredentialRequestOptionsJSONStruct,
 });
 
-export const RegistrationResponseJSONStruct = type({
-  id: string(),
-  rawId: string(),
-  type: literal('public-key'),
-  response: type({
-    attestationObject: string(),
-    clientDataJSON: string(),
-    transports: optional(array(string())),
-    publicKeyAlgorithm: optional(integer()),
-    publicKey: optional(string()),
-    authenticatorData: optional(string()),
+export const RegistrationResponseJSONStruct = sensitive(
+  type({
+    id: string(),
+    rawId: string(),
+    type: literal('public-key'),
+    response: type({
+      attestationObject: string(),
+      clientDataJSON: string(),
+      transports: optional(array(string())),
+      publicKeyAlgorithm: optional(integer()),
+      publicKey: optional(string()),
+      authenticatorData: optional(string()),
+    }),
+    authenticatorAttachment: optional(nullable(string())),
+    clientExtensionResults: optional(ExtensionsStruct),
   }),
-  authenticatorAttachment: optional(nullable(string())),
-  clientExtensionResults: optional(ExtensionsStruct),
-});
+);
 
-export const AuthenticationResponseJSONStruct = type({
-  id: string(),
-  rawId: string(),
-  type: literal('public-key'),
-  response: type({
-    authenticatorData: string(),
-    clientDataJSON: string(),
-    signature: string(),
-    userHandle: optional(nullable(string())),
+export const AuthenticationResponseJSONStruct = sensitive(
+  type({
+    id: string(),
+    rawId: string(),
+    type: literal('public-key'),
+    response: type({
+      authenticatorData: string(),
+      clientDataJSON: string(),
+      signature: string(),
+      userHandle: optional(nullable(string())),
+    }),
+    authenticatorAttachment: optional(nullable(string())),
+    clientExtensionResults: optional(ExtensionsStruct),
   }),
-  authenticatorAttachment: optional(nullable(string())),
-  clientExtensionResults: optional(ExtensionsStruct),
-});
+);
 
 /**
  * Only the assertion JWT is consumed from the verification response; the
  * profile fields on the wire duplicate what the login flow already resolved.
  */
 export const MfaVerifyCompleteResponseStruct = type({
-  token: string(),
+  token: sensitive(string()),
 
   expires_in: integer(),
 });
@@ -148,7 +153,7 @@ export const MfaPasskeyDetailStruct = type({
 });
 
 export const MfaEmailDetailStruct = type({
-  address: optional(string()),
+  address: optional(sensitive(string())),
   verified: optional(boolean()),
 });
 
@@ -180,7 +185,7 @@ export const TokenReasonStruct = object({
 export const BeginEnrollmentRequestStruct = refine(
   object({
     type: MfaCredentialTypeStruct,
-    email: optional(size(string(), 3, 254)),
+    email: optional(sensitive(size(string(), 3, 254))),
     reason: TokenReasonStruct,
   }),
   'BeginEnrollmentRequest',
@@ -195,7 +200,7 @@ export const BeginEnrollmentRequestStruct = refine(
   },
 );
 
-const EmailOtpCodeStruct = pattern(string(), /^\d{6}$/u);
+const EmailOtpCodeStruct = sensitive(pattern(string(), /^\d{6}$/u));
 
 const EnrollmentProofStruct = union([
   object({
