@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `KycVendor`, `KycProvider`, and `KycStatus` const objects (and matching types) for VBA onboarding consumers
-- Add stub messenger methods `isCustomerCreated`, `hasCompletedVendorTerms`, and `hasCompletedProviderTerms`
-- Extend `getKycStatus` with a vendor overload that returns `KycStatus` (noop stub returning `NOT_STARTED`)
+- Add `KycVendor`, `KycProvider`, and `KycStatus` const objects (and matching types) for VBA onboarding consumers ([#10279](https://github.com/MetaMask/core/pull/10279))
+- Add stub messenger methods `isCustomerCreated`, `hasCompletedVendorTerms`, and `hasCompletedProviderTerms` ([#10279](https://github.com/MetaMask/core/pull/10279))
+- Extend `getKycStatus` with a vendor overload that returns `KycStatus` (noop stub returning `NOT_STARTED`) ([#10279](https://github.com/MetaMask/core/pull/10279))
 
 ### Changed
 
