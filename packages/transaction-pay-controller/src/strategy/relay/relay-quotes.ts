@@ -70,12 +70,10 @@ import {
 import { fetchRelayQuote } from './relay-api.js';
 import {
   getRelayMaxGasStationQuote,
-  isPromotedSubsidizedMaxMoneyAccountQuote,
+  isSubsidizedAtomicMaxQuote,
   maybePromoteSubsidizedMaxMoneyAccountQuote,
-  prepareAtomicMaxAmountQuoteRequest,
   throwAtomicPromotionFailed,
 } from './relay-max.js';
-import { isSubsidizedRelayQuote } from './relay-submit-execute.js';
 import { validateRelayQuotes } from './relay-validation.js';
 import type {
   RelayQuote,
@@ -118,8 +116,6 @@ export async function getRelayQuotes(
 
   log('Fetching quotes', requests);
 
-  let quotes: TransactionPayQuote<RelayQuote>[] = [];
-
   try {
     const normalizedRequests = await Promise.all(
       requests
@@ -147,17 +143,15 @@ export async function getRelayQuotes(
 
     log('Normalized requests', normalizedRequests);
 
-    quotes = await Promise.all(
+    const quotes = await Promise.all(
       normalizedRequests.map((singleRequest) =>
         getQuoteWithMaxAmountHandling(singleRequest, request),
       ),
     );
 
-    const promotedQuotes = quotes.filter(
-      isPromotedSubsidizedMaxMoneyAccountQuote,
-    );
+    const atomicMaxQuotes = quotes.filter(isSubsidizedAtomicMaxQuote);
     const otherQuotes = quotes.filter(
-      (quote) => !isPromotedSubsidizedMaxMoneyAccountQuote(quote),
+      (quote) => !isSubsidizedAtomicMaxQuote(quote),
     );
 
     if (otherQuotes.length > 0) {
@@ -169,11 +163,11 @@ export async function getRelayQuotes(
       });
     }
 
-    if (promotedQuotes.length > 0) {
+    if (atomicMaxQuotes.length > 0) {
       try {
         await validateRelayQuotes({
           messenger: request.messenger,
-          quotes: promotedQuotes,
+          quotes: atomicMaxQuotes,
           signal: request.signal,
           transaction: request.transaction,
         });
@@ -203,46 +197,8 @@ async function getQuoteWithMaxAmountHandling(
     fullRequest.messenger,
     fullRequest.transaction,
   );
-  const targetAmount = new BigNumber(request.targetAmountMinimum);
-  const hasPositiveTargetAmount =
-    targetAmount.isFinite() && targetAmount.isInteger() && targetAmount.gt(0);
-
-  if (
-    isAtomicPromotionEligible &&
-    hasPositiveTargetAmount &&
-    request.atomic !== false &&
-    request.isPostQuote !== true
-  ) {
-    const preparedRequest = await prepareAtomicMaxAmountQuoteRequest({
-      amount: targetAmount.toFixed(0),
-      fullRequest,
-    });
-
-    const atomicFirstQuote = await getSingleQuote(
-      {
-        ...request,
-        atomic: true,
-        targetAmountMinimum: targetAmount.toFixed(0),
-      },
-      preparedRequest,
-    );
-
-    if (isSubsidizedRelayQuote(atomicFirstQuote.original)) {
-      return atomicFirstQuote;
-    }
-
-    log('Atomic max quote was not subsidized, re-quoting non-atomically');
-
-    return getRelayMaxGasStationQuote(
-      {
-        ...request,
-        atomic: false,
-      },
-      fullRequest,
-      getSingleQuote,
-    );
-  }
-
+  // The required target amount may predate Max. An atomic hint does not
+  // establish the output obtainable from the source budget; discover it first.
   const discoveryRequest =
     request.atomic !== false &&
     request.isPostQuote !== true &&

@@ -501,9 +501,10 @@ export async function maybePromoteSubsidizedMaxMoneyAccountQuote({
       discoveryQuote.original.details.currencyOut.amount,
     );
 
-    const preparedRequest = await prepareAtomicMaxAmountQuoteRequest({
+    const promotionTransaction = await applyAmountDataUpdates({
       amount: targetAmount,
-      fullRequest,
+      messenger: fullRequest.messenger,
+      transaction: cloneTransactionForPromotion(fullRequest.transaction),
     });
 
     const promotedQuote = await getSingleQuote(
@@ -512,21 +513,14 @@ export async function maybePromoteSubsidizedMaxMoneyAccountQuote({
         atomic: true,
         targetAmountMinimum: targetAmount,
       },
-      preparedRequest,
+      { ...fullRequest, transaction: promotionTransaction },
     );
 
     if (!isSubsidizedRelayQuote(promotedQuote.original)) {
       throw new Error('Promoted quote lost subsidy');
     }
 
-    return {
-      ...promotedQuote,
-      request: {
-        ...promotedQuote.request,
-        atomic: true,
-        isMaxAmount: true,
-      },
-    };
+    return promotedQuote;
   } catch (error) {
     return throwAtomicPromotionFailed(error);
   }
@@ -541,7 +535,7 @@ export function throwAtomicPromotionFailed(error: unknown): never {
   });
 }
 
-export function isPromotedSubsidizedMaxMoneyAccountQuote(
+export function isSubsidizedAtomicMaxQuote(
   quote: TransactionPayQuote<RelayQuote>,
 ): boolean {
   return (
@@ -647,35 +641,5 @@ async function applyAmountDataUpdates({
     ...transaction,
     nestedTransactions,
     requiredAssets,
-  };
-}
-
-/**
- * Rebuild amount-dependent calls on a clone before an atomic max quote.
- *
- * @param options - Amount and quote context.
- * @param options.amount - Destination amount in raw target-token units.
- * @param options.fullRequest - Original quote context.
- * @returns Quote context with synchronized calldata and required assets.
- */
-export async function prepareAtomicMaxAmountQuoteRequest({
-  amount,
-  fullRequest,
-}: {
-  amount: string;
-  fullRequest: PayStrategyGetQuotesRequest;
-}): Promise<PayStrategyGetQuotesRequest> {
-  const transactionClone = cloneTransactionForPromotion(
-    fullRequest.transaction,
-  );
-  const promotionTransaction = await applyAmountDataUpdates({
-    amount,
-    messenger: fullRequest.messenger,
-    transaction: transactionClone,
-  });
-
-  return {
-    ...fullRequest,
-    transaction: promotionTransaction,
   };
 }
