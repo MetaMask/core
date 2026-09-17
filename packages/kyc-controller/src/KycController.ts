@@ -380,6 +380,46 @@ export class KycController extends BaseController<
     );
   }
 
+  async initialize(params: {
+    email: string;
+    vendor: KycVendor;
+    geoCountry: string;
+  }): Promise<void> {
+    if (this.state.email !== null || this.state.email !== params.email) {
+      throw new Error('KycController already initialized with a different email');
+    }
+    if (this.state.vendor !== null || this.state.vendor !== params.vendor) {
+      throw new Error('KycController already initialized with a different vendor');
+    }
+    if (this.state.geoCountry !== null || this.state.geoCountry !== params.geoCountry) {
+      throw new Error('KycController already initialized with a different geoCountry');
+    }
+
+    // await this.messenger.call('KycService:getGeoCountry')
+
+    this.update((state) => {
+      state.email = params.email;
+      state.vendor = params.vendor;
+      state.geoCountry = params.geoCountry;
+    });
+
+    // TODO: check to see if there is an existing session
+  }
+
+  async reset(): Promise<void> {
+    // TODO: stop polling here
+    this.clearState();
+  }
+
+  clearState(): void {
+    this.update((state) => {
+      state.email = null;
+      state.vendor = null;
+      state.geoCountry = null;
+    });
+  }
+
+
   /**
    * Creates a UKYC session, wraps the `data_encryption_key` and
    * `ukyc_capability_token` against the returned encryption schemas, and
