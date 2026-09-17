@@ -1,7 +1,10 @@
 /* eslint-disable no-new */
 
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  MetamaskPaySolanaExecution,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { CaipAccountId, CaipAssetType, Hex } from '@metamask/utils';
 
 import { updateFiatPayment } from './actions/update-fiat-payment.js';
@@ -9,15 +12,27 @@ import { updatePaymentToken } from './actions/update-payment-token.js';
 import { PaymentOverride, TransactionPayStrategy } from './constants.js';
 import { TransactionPayController } from './index.js';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils.js';
+import {
+  fetchRelaySolanaQuote,
+  getRelayStatus,
+  notifyRelayTransaction,
+} from './strategy/relay/relay-api.js';
+import type { RelaySolanaQuote } from './strategy/relay/types.js';
 import { getMessengerMock } from './tests/messenger-mock.js';
 import type {
   TransactionPayControllerMessenger,
+  SolanaPayCallbacks,
   TransactionPayControllerOptions,
+  TransactionPayControllerState,
   TransactionPaySource,
   TransactionPaySourceAmount,
   UpdateTransactionDataCallback,
 } from './types.js';
-import { getStrategyOrder } from './utils/feature-flags.js';
+import {
+  getRelayPollingInterval,
+  getRelayPollingTimeout,
+  getStrategyOrder,
+} from './utils/feature-flags.js';
 import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
 import {
@@ -30,6 +45,7 @@ import {
 jest.mock('./actions/update-fiat-payment');
 jest.mock('./actions/update-payment-token');
 jest.mock('./strategy/fiat/utils');
+jest.mock('./strategy/relay/relay-api');
 jest.mock('./utils/source-amounts');
 jest.mock('./utils/quotes');
 jest.mock('./utils/transaction');
@@ -39,11 +55,69 @@ const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_META_MOCK = { id: TRANSACTION_ID_MOCK } as TransactionMeta;
 const TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
+const SOLANA_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as const;
+const SOLANA_ACCOUNT_ID =
+  `${SOLANA_CHAIN_ID}:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z` as CaipAccountId;
+const SOLANA_ASSET_ID =
+  `${SOLANA_CHAIN_ID}/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` as CaipAssetType;
 const SOLANA_PAY_SOURCE_MOCK: TransactionPaySource = {
-  sourceAccountId:
-    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z' as CaipAccountId,
-  sourceAssetId:
-    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as CaipAssetType,
+  sourceAccountId: SOLANA_ACCOUNT_ID,
+  sourceAssetId: SOLANA_ASSET_ID,
+};
+const SOLANA_TRANSACTION_ID = 'solana-signature-123';
+const SOLANA_PREFLIGHT_MOCK = {
+  preparedTransaction: 'base64-transaction',
+  preparationId: 'preparation-123',
+  nativeBalanceRaw: '100000',
+  networkFeeRaw: '5000',
+  priorityFeeRaw: '1000',
+  rentDebitRaw: '2000',
+  rentExemptionRequirementRaw: '3000',
+  sourceBalanceRaw: '2000000',
+};
+const SOLANA_QUOTE_MOCK: RelaySolanaQuote = {
+  requestId: 'relay-request-123',
+  details: {
+    currencyIn: {
+      amount: '1000000',
+      amountFormatted: '1',
+      amountUsd: '1',
+      currency: { chainId: 792703809, decimals: 6 },
+    },
+    currencyOut: {
+      amount: '999000',
+      amountFormatted: '0.999',
+      amountUsd: '0.999',
+      currency: { chainId: 42161, decimals: 6 },
+      minimumAmount: '995000',
+    },
+    timeEstimate: 15,
+    totalImpact: { usd: '0.001' },
+  },
+  fees: { relayer: { amountUsd: '0.001' } },
+  steps: [
+    {
+      id: 'deposit',
+      kind: 'transaction',
+      requestId: 'relay-request-123',
+      items: [
+        {
+          check: { endpoint: '/status', method: 'GET' },
+          data: {
+            chainId: 792703809,
+            instructions: [
+              {
+                programId: '11111111111111111111111111111111',
+                keys: [],
+                data: '00',
+              },
+            ],
+          },
+          status: 'incomplete',
+        },
+      ],
+    },
+  ],
 };
 describe('TransactionPayController', () => {
   const updateFiatPaymentMock = jest.mocked(updateFiatPayment);
@@ -51,6 +125,11 @@ describe('TransactionPayController', () => {
   const deriveFiatAssetForFiatPaymentMock = jest.mocked(
     deriveFiatAssetForFiatPayment,
   );
+  const fetchRelaySolanaQuoteMock = jest.mocked(fetchRelaySolanaQuote);
+  const getRelayStatusMock = jest.mocked(getRelayStatus);
+  const notifyRelayTransactionMock = jest.mocked(notifyRelayTransaction);
+  const getRelayPollingIntervalMock = jest.mocked(getRelayPollingInterval);
+  const getRelayPollingTimeoutMock = jest.mocked(getRelayPollingTimeout);
   const getTransactionMock = jest.mocked(getTransaction);
   const updateTransactionMock = jest.mocked(updateTransaction);
   const updateSourceAmountsMock = jest.mocked(updateSourceAmounts);
@@ -61,7 +140,10 @@ describe('TransactionPayController', () => {
   const subscribeAssetChangesMock = jest.mocked(subscribeAssetChanges);
   const getStrategyOrderMock = jest.mocked(getStrategyOrder);
   let messenger: TransactionPayControllerMessenger;
+  let confirmTransactionMock: jest.Mock;
+  let failTransactionMock: jest.Mock;
   let getKeyringControllerStateMock: jest.Mock;
+  let getTransactionControllerStateMock: jest.Mock;
 
   /**
    * Create a TransactionPayController.
@@ -74,7 +156,7 @@ describe('TransactionPayController', () => {
   ): TransactionPayController {
     return new TransactionPayController({
       ...options,
-      getDelegationTransaction: jest.fn(),
+      getDelegationTransaction: options.getDelegationTransaction ?? jest.fn(),
       messenger,
     });
   }
@@ -84,7 +166,23 @@ describe('TransactionPayController', () => {
 
     const mocks = getMessengerMock({ skipRegister: true });
     messenger = mocks.messenger;
+    confirmTransactionMock = mocks.confirmTransactionMock;
+    failTransactionMock = mocks.failTransactionMock;
     getKeyringControllerStateMock = mocks.getKeyringControllerStateMock;
+    getTransactionControllerStateMock = mocks.getTransactionControllerStateMock;
+
+    messenger.registerActionHandler(
+      'TransactionController:confirmTransaction',
+      confirmTransactionMock,
+    );
+    messenger.registerActionHandler(
+      'TransactionController:failTransaction',
+      failTransactionMock,
+    );
+    messenger.registerActionHandler(
+      'TransactionController:getState',
+      getTransactionControllerStateMock,
+    );
 
     getKeyringControllerStateMock.mockReturnValue({
       isUnlocked: true,
@@ -98,7 +196,19 @@ describe('TransactionPayController', () => {
     });
 
     getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
+    getRelayPollingIntervalMock.mockReturnValue(1);
+    getRelayPollingTimeoutMock.mockReturnValue(100);
     updateQuotesMock.mockResolvedValue(true);
+    fetchRelaySolanaQuoteMock.mockResolvedValue(SOLANA_QUOTE_MOCK);
+    getRelayStatusMock.mockResolvedValue({
+      destinationChainId: 42161,
+      inTxHashes: [SOLANA_TRANSACTION_ID],
+      originChainId: 792703809,
+      status: 'pending',
+      txHashes: [],
+      updatedAt: 1,
+    });
+    notifyRelayTransactionMock.mockResolvedValue();
   });
 
   describe('constructor', () => {
@@ -234,6 +344,854 @@ describe('TransactionPayController', () => {
       });
 
       expect(updateTransactionMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Solana execution', () => {
+    const TARGET_TOKEN = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' as Hex;
+
+    function getSolanaCallbacks(
+      overrides: Partial<SolanaPayCallbacks> = {},
+    ): SolanaPayCallbacks {
+      return {
+        getPreflight: jest.fn().mockResolvedValue(SOLANA_PREFLIGHT_MOCK),
+        getTransactionStatus: jest.fn().mockResolvedValue('pending'),
+        signAndSendTransaction: jest.fn().mockResolvedValue({
+          outcome: 'submitted',
+          transactionId: SOLANA_TRANSACTION_ID,
+        }),
+        ...overrides,
+      };
+    }
+
+    function getTransactionMeta(): TransactionMeta {
+      return {
+        id: TRANSACTION_ID_MOCK,
+        metamaskPay: { source: SOLANA_PAY_SOURCE_MOCK },
+        status: 'unapproved',
+        txParams: {
+          from: '0x1234567890123456789012345678901234567890',
+        },
+      } as TransactionMeta;
+    }
+
+    function getExecution(
+      overrides: Partial<MetamaskPaySolanaExecution> = {},
+    ): MetamaskPaySolanaExecution {
+      return {
+        atomicProductActionIncluded: false,
+        atomicProductActionRequired: false,
+        followUpStatus: 'not-required',
+        notificationStatus: 'not-ready',
+        phase: 'ready',
+        relayStatus: 'not-observed',
+        requestId: 'relay-request-123',
+        requiresNonAtomicFollowUp: false,
+        sourceAmountRaw: '1000000',
+        sourceChainId: SOLANA_CHAIN_ID,
+        sourceStatus: 'not-observed',
+        sourceWalletAccountId: 'wallet-account-uuid',
+        ...overrides,
+      } as MetamaskPaySolanaExecution;
+    }
+
+    function getControllerState(): Partial<TransactionPayControllerState> {
+      return {
+        transactionData: {
+          [TRANSACTION_ID_MOCK]: {
+            isLoading: false,
+            tokens: [
+              {
+                address: TARGET_TOKEN,
+                allowUnderMinimum: false,
+                amountFiat: '1',
+                amountHuman: '1',
+                amountRaw: '900000',
+                amountUsd: '1',
+                balanceFiat: '0',
+                balanceHuman: '0',
+                balanceRaw: '0',
+                balanceUsd: '0',
+                chainId: '0xa4b1' as Hex,
+                decimals: 6,
+                skipIfBalance: false,
+                symbol: 'USDC',
+              },
+            ],
+          },
+        },
+      };
+    }
+
+    function applyTransactionUpdates(transaction: TransactionMeta): void {
+      getTransactionMock.mockReturnValue(transaction);
+      getTransactionControllerStateMock.mockReturnValue({
+        transactions: [transaction],
+      });
+      updateTransactionMock.mockImplementation((_request, update) => {
+        update(transaction);
+      });
+    }
+
+    it('stores the first durable checkpoint only on transaction metadata', async () => {
+      const transaction = getTransactionMeta();
+      const solana = getSolanaCallbacks();
+      applyTransactionUpdates(transaction);
+      const controller = createController({
+        solana,
+        state: getControllerState(),
+      });
+
+      const quote = await controller.getSolanaPayQuote({
+        sourceAmountRaw: '1000000',
+        sourceWalletAccountId: 'wallet-account-uuid',
+        transactionId: TRANSACTION_ID_MOCK,
+      });
+
+      expect(controller.state).not.toHaveProperty('payIntents');
+      expect(transaction.metamaskPay?.solanaExecution).toMatchObject({
+        phase: 'ready',
+        requestId: 'relay-request-123',
+        sourceAmountRaw: '1000000',
+        sourceChainId: SOLANA_CHAIN_ID,
+        sourceWalletAccountId: 'wallet-account-uuid',
+      });
+      expect(solana.getPreflight).toHaveBeenCalledWith(
+        expect.objectContaining({
+          accountId: 'wallet-account-uuid',
+          caipAccountId: SOLANA_ACCOUNT_ID,
+          scope: SOLANA_CHAIN_ID,
+        }),
+      );
+      expect(quote.route.targetAmountMinimum).toBe('900000');
+    });
+
+    it.each([
+      ['atomic-product', undefined, true, false],
+      ['money-account', PaymentOverride.MoneyAccount, false, true],
+    ] as const)(
+      'derives %s execution policy at quote time',
+      async (
+        _name,
+        paymentOverride,
+        atomicProductActionIncluded,
+        requiresFollowUp,
+      ) => {
+        const transaction = getTransactionMeta();
+        transaction.type = 'predictDeposit';
+        applyTransactionUpdates(transaction);
+        const state = getControllerState();
+        const transactionData = state.transactionData?.[TRANSACTION_ID_MOCK];
+        if (!transactionData) {
+          throw new Error('Missing test transaction data');
+        }
+        if (paymentOverride) {
+          transactionData.atomic = false;
+          transactionData.paymentOverride = paymentOverride;
+        }
+        const controller = createController({
+          getDelegationTransaction: jest.fn().mockResolvedValue({
+            data: '0x1234',
+            to: '0x9876543210987654321098765432109876543210',
+            value: '0x0',
+          }),
+          solana: getSolanaCallbacks(),
+          state,
+        });
+
+        await controller.getSolanaPayQuote({
+          sourceAmountRaw: '1000000',
+          sourceWalletAccountId: 'wallet-account-uuid',
+          transactionId: TRANSACTION_ID_MOCK,
+        });
+
+        expect(transaction.metamaskPay?.solanaExecution).toMatchObject({
+          atomicProductActionIncluded,
+          atomicProductActionRequired: !requiresFollowUp,
+          requiresNonAtomicFollowUp: requiresFollowUp,
+        });
+      },
+    );
+
+    it('checkpoints before one source broadcast and never signs during observation', async () => {
+      const transaction = getTransactionMeta();
+      const signAndSendTransaction = jest.fn().mockImplementation(() => {
+        expect(transaction.metamaskPay?.solanaExecution?.phase).toBe(
+          'attempting',
+        );
+        return {
+          outcome: 'submitted',
+          transactionId: SOLANA_TRANSACTION_ID,
+        };
+      });
+      applyTransactionUpdates(transaction);
+      const controller = createController({
+        solana: getSolanaCallbacks({ signAndSendTransaction }),
+        state: getControllerState(),
+      });
+      await controller.getSolanaPayQuote({
+        sourceAmountRaw: '1000000',
+        sourceWalletAccountId: 'wallet-account-uuid',
+        transactionId: TRANSACTION_ID_MOCK,
+      });
+
+      await controller.submitSolanaPay(TRANSACTION_ID_MOCK);
+      await controller.reconcileSolanaPay(TRANSACTION_ID_MOCK);
+
+      expect(signAndSendTransaction).toHaveBeenCalledTimes(1);
+      expect(transaction.metamaskPay?.solanaExecution).toMatchObject({
+        phase: 'submitted',
+        sourceTransactionId: SOLANA_TRANSACTION_ID,
+      });
+    });
+
+    it.each([
+      ['user-rejected', 'user-rejected'],
+      ['not-submitted', 'not-submitted'],
+      ['ambiguous', 'unknown'],
+    ] as const)(
+      'persists the discriminated %s source outcome as %s',
+      async (outcome, phase) => {
+        const transaction = getTransactionMeta();
+        applyTransactionUpdates(transaction);
+        const controller = createController({
+          solana: getSolanaCallbacks({
+            signAndSendTransaction: jest.fn().mockResolvedValue({ outcome }),
+          }),
+          state: getControllerState(),
+        });
+        await controller.getSolanaPayQuote({
+          sourceAmountRaw: '1000000',
+          sourceWalletAccountId: 'wallet-account-uuid',
+          transactionId: TRANSACTION_ID_MOCK,
+        });
+        if (outcome === 'ambiguous') {
+          getRelayStatusMock.mockResolvedValue({
+            destinationChainId: 42161,
+            inTxHashes: [],
+            originChainId: 792703809,
+            status: 'waiting',
+            txHashes: [],
+            updatedAt: 1,
+          });
+        }
+
+        await controller.submitSolanaPay(TRANSACTION_ID_MOCK);
+
+        expect(transaction.metamaskPay?.solanaExecution?.phase).toBe(phase);
+      },
+    );
+
+    it('notifies Relay indexing without invoking source submission', async () => {
+      const transaction = getTransactionMeta();
+      transaction.metamaskPay = {
+        source: SOLANA_PAY_SOURCE_MOCK,
+        solanaExecution: {
+          atomicProductActionIncluded: false,
+          atomicProductActionRequired: false,
+          followUpStatus: 'not-required',
+          notificationStatus: 'failure',
+          phase: 'submitted',
+          relayStatus: 'pending',
+          requestId: 'relay-request-123',
+          requiresNonAtomicFollowUp: false,
+          sourceAmountRaw: '1000000',
+          sourceChainId: SOLANA_CHAIN_ID,
+          sourceStatus: 'pending',
+          sourceTransactionId: SOLANA_TRANSACTION_ID,
+          sourceWalletAccountId: 'wallet-account-uuid',
+        },
+      };
+      const signAndSendTransaction = jest.fn();
+      applyTransactionUpdates(transaction);
+      const controller = createController({
+        solana: getSolanaCallbacks({ signAndSendTransaction }),
+      });
+
+      const status =
+        await controller.notifyRelayOfSolanaTransaction(TRANSACTION_ID_MOCK);
+
+      expect(notifyRelayTransactionMock).toHaveBeenCalledWith({
+        chainId: '792703809',
+        requestId: 'relay-request-123',
+        txHash: SOLANA_TRANSACTION_ID,
+      });
+      expect(signAndSendTransaction).not.toHaveBeenCalled();
+      expect(status.notificationStatus).toBe('success');
+    });
+
+    it('recovers by scanning transaction metadata without signing', async () => {
+      const transaction = getTransactionMeta();
+      transaction.status = 'submitted';
+      transaction.isExternalPublish = true;
+      transaction.metamaskPay = {
+        source: SOLANA_PAY_SOURCE_MOCK,
+        solanaExecution: {
+          atomicProductActionIncluded: true,
+          atomicProductActionRequired: true,
+          followUpStatus: 'not-required',
+          notificationStatus: 'success',
+          phase: 'unknown',
+          relayStatus: 'pending',
+          requestId: 'relay-request-123',
+          requiresNonAtomicFollowUp: false,
+          sourceAmountRaw: '1000000',
+          sourceChainId: SOLANA_CHAIN_ID,
+          sourceStatus: 'unknown',
+          sourceWalletAccountId: 'wallet-account-uuid',
+        },
+      };
+      const signAndSendTransaction = jest.fn();
+      applyTransactionUpdates(transaction);
+      getRelayStatusMock.mockResolvedValue({
+        destinationChainId: 42161,
+        inTxHashes: [SOLANA_TRANSACTION_ID],
+        originChainId: 792703809,
+        status: 'success',
+        txHashes: ['0xtarget'],
+        updatedAt: 1,
+      });
+      const controller = createController({
+        solana: getSolanaCallbacks({
+          getTransactionStatus: jest.fn().mockResolvedValue('confirmed'),
+          signAndSendTransaction,
+        }),
+      });
+
+      const statuses = await controller.recoverSolanaPayStatus();
+
+      expect(statuses[TRANSACTION_ID_MOCK].outcome).toBe('succeeded');
+      expect(signAndSendTransaction).not.toHaveBeenCalled();
+      expect(confirmTransactionMock).toHaveBeenCalledWith(TRANSACTION_ID_MOCK);
+    });
+
+    it('preserves a terminal Relay observation when status is unavailable', async () => {
+      const transaction = getTransactionMeta();
+      transaction.metamaskPay = {
+        source: SOLANA_PAY_SOURCE_MOCK,
+        solanaExecution: getExecution({
+          phase: 'submitted',
+          relayStatus: 'success',
+          sourceStatus: 'pending',
+          sourceTransactionId: SOLANA_TRANSACTION_ID,
+        }),
+      };
+      applyTransactionUpdates(transaction);
+      getRelayStatusMock.mockRejectedValue(new Error('Relay unavailable'));
+      const controller = createController({ solana: getSolanaCallbacks() });
+
+      const status = await controller.reconcileSolanaPay(TRANSACTION_ID_MOCK);
+
+      expect(status.relayStatus).toBe('success');
+    });
+
+    it('keeps the Money Account destination follow-up separate from source submission', async () => {
+      const transaction = getTransactionMeta();
+      transaction.status = 'submitted';
+      transaction.isExternalPublish = true;
+      transaction.metamaskPay = {
+        source: SOLANA_PAY_SOURCE_MOCK,
+        solanaExecution: getExecution({
+          followUpStatus: 'not-started',
+          notificationStatus: 'success',
+          phase: 'submitted',
+          relayStatus: 'success',
+          requiresNonAtomicFollowUp: true,
+          sourceStatus: 'confirmed',
+          sourceTransactionId: SOLANA_TRANSACTION_ID,
+        }),
+      };
+      const submitNonAtomicFollowUp = jest.fn().mockResolvedValue({
+        outcome: 'submitted',
+        transactionId: 'follow-up-123',
+      });
+      applyTransactionUpdates(transaction);
+      getRelayStatusMock.mockResolvedValue({
+        destinationChainId: 42161,
+        inTxHashes: [SOLANA_TRANSACTION_ID],
+        originChainId: 792703809,
+        status: 'success',
+        txHashes: ['0xtarget'],
+        updatedAt: 1,
+      });
+      const controller = createController({
+        solana: getSolanaCallbacks({
+          getNonAtomicFollowUpStatus: jest.fn().mockResolvedValue('confirmed'),
+          getTransactionStatus: jest.fn().mockResolvedValue('confirmed'),
+          submitNonAtomicFollowUp,
+        }),
+      });
+
+      const status = await controller.reconcileSolanaPay(TRANSACTION_ID_MOCK);
+
+      expect(submitNonAtomicFollowUp).toHaveBeenCalledTimes(1);
+      expect(status.followUpStatus).toBe('confirmed');
+      expect(status.outcome).toBe('succeeded');
+    });
+
+    it.each([
+      ['ambiguous', 'unknown'],
+      ['not-submitted', 'failed'],
+    ] as const)(
+      'records Money Account follow-up outcome %s as %s',
+      async (outcome, expectedStatus) => {
+        const transaction = getTransactionMeta();
+        transaction.metamaskPay = {
+          source: SOLANA_PAY_SOURCE_MOCK,
+          solanaExecution: getExecution({
+            followUpStatus: 'not-started',
+            phase: 'submitted',
+            relayStatus: 'success',
+            requiresNonAtomicFollowUp: true,
+            sourceStatus: 'confirmed',
+            sourceTransactionId: SOLANA_TRANSACTION_ID,
+          }),
+        };
+        applyTransactionUpdates(transaction);
+        getRelayStatusMock.mockResolvedValue({
+          destinationChainId: 42161,
+          inTxHashes: [SOLANA_TRANSACTION_ID],
+          originChainId: 792703809,
+          status: 'success',
+          txHashes: [],
+          updatedAt: 1,
+        });
+        const controller = createController({
+          solana: getSolanaCallbacks({
+            submitNonAtomicFollowUp: jest.fn().mockResolvedValue({ outcome }),
+          }),
+        });
+
+        const status = await controller.reconcileSolanaPay(TRANSACTION_ID_MOCK);
+
+        expect(status.followUpStatus).toBe(expectedStatus);
+      },
+    );
+
+    it('records unavailable follow-up status as unknown', async () => {
+      const transaction = getTransactionMeta();
+      transaction.metamaskPay = {
+        source: SOLANA_PAY_SOURCE_MOCK,
+        solanaExecution: getExecution({
+          followUpStatus: 'submitted',
+          followUpTransactionId: 'follow-up-123',
+          phase: 'submitted',
+          relayStatus: 'success',
+          requiresNonAtomicFollowUp: true,
+          sourceStatus: 'confirmed',
+          sourceTransactionId: SOLANA_TRANSACTION_ID,
+        }),
+      };
+      applyTransactionUpdates(transaction);
+      getRelayStatusMock.mockResolvedValue({
+        destinationChainId: 42161,
+        inTxHashes: [SOLANA_TRANSACTION_ID],
+        originChainId: 792703809,
+        status: 'success',
+        txHashes: [],
+        updatedAt: 1,
+      });
+      const controller = createController({
+        solana: getSolanaCallbacks({
+          getNonAtomicFollowUpStatus: jest
+            .fn()
+            .mockRejectedValue(new Error('Unavailable')),
+        }),
+      });
+
+      const status = await controller.reconcileSolanaPay(TRANSACTION_ID_MOCK);
+
+      expect(status.followUpStatus).toBe('unknown');
+    });
+
+    it('records unavailable Relay, source, notification, and follow-up observations', async () => {
+      const transaction = getTransactionMeta();
+      transaction.metamaskPay = {
+        source: SOLANA_PAY_SOURCE_MOCK,
+        solanaExecution: getExecution({
+          followUpStatus: 'submitted',
+          followUpTransactionId: 'follow-up-123',
+          notificationStatus: 'failure',
+          phase: 'submitted',
+          relayStatus: 'pending',
+          requiresNonAtomicFollowUp: true,
+          sourceStatus: 'pending',
+          sourceTransactionId: SOLANA_TRANSACTION_ID,
+        }),
+      };
+      applyTransactionUpdates(transaction);
+      getRelayStatusMock.mockRejectedValue(new Error('Relay unavailable'));
+      notifyRelayTransactionMock.mockRejectedValue(
+        new Error('Index unavailable'),
+      );
+      const controller = createController({
+        solana: getSolanaCallbacks({
+          getNonAtomicFollowUpStatus: jest
+            .fn()
+            .mockRejectedValue(new Error('Follow-up unavailable')),
+          getTransactionStatus: jest
+            .fn()
+            .mockRejectedValue(new Error('Source unavailable')),
+        }),
+      });
+
+      await controller.notifyRelayOfSolanaTransaction(TRANSACTION_ID_MOCK);
+      const status = await controller.reconcileSolanaPay(TRANSACTION_ID_MOCK);
+
+      expect(status.notificationStatus).toBe('failure');
+      expect(status.relayStatus).toBe('unknown');
+      expect(status.sourceStatus).toBe('unknown');
+      expect(status.followUpStatus).toBe('submitted');
+    });
+
+    it.each([
+      ['missing-transaction', 'Transaction not found'],
+      ['missing-source', 'Solana Pay source missing'],
+      ['invalid-source', 'Invalid Solana Pay source'],
+      ['missing-execution', 'Solana execution missing'],
+      ['chain-mismatch', 'Solana execution chain mismatch'],
+    ])('rejects invalid persisted execution: %s', async (scenario, message) => {
+      const transaction = getTransactionMeta();
+
+      if (scenario === 'missing-transaction') {
+        getTransactionMock.mockReturnValue(undefined);
+      } else {
+        if (scenario === 'missing-source') {
+          transaction.metamaskPay = undefined;
+        } else if (scenario === 'invalid-source') {
+          transaction.metamaskPay = {
+            source: {
+              sourceAccountId: 'eip155:1:0x1234' as CaipAccountId,
+              sourceAssetId: 'eip155:1/slip44:60' as CaipAssetType,
+            },
+          };
+        } else if (scenario === 'chain-mismatch') {
+          transaction.metamaskPay = {
+            source: SOLANA_PAY_SOURCE_MOCK,
+            solanaExecution: getExecution({ sourceChainId: 'solana:other' }),
+          };
+        }
+        applyTransactionUpdates(transaction);
+      }
+
+      const controller = createController({ solana: getSolanaCallbacks() });
+
+      await expect(
+        controller.reconcileSolanaPay(TRANSACTION_ID_MOCK),
+      ).rejects.toThrow(message);
+    });
+
+    it('rejects quote and submission precondition failures', async () => {
+      const transaction = getTransactionMeta();
+      applyTransactionUpdates(transaction);
+      const controller = createController({
+        solana: getSolanaCallbacks(),
+        state: getControllerState(),
+      });
+
+      await expect(
+        controller.submitSolanaPay(TRANSACTION_ID_MOCK),
+      ).rejects.toThrow('Solana execution missing');
+
+      transaction.metamaskPay = {
+        source: SOLANA_PAY_SOURCE_MOCK,
+        solanaExecution: getExecution(),
+      };
+      await expect(
+        controller.getSolanaPayQuote({
+          sourceAmountRaw: '1000000',
+          sourceWalletAccountId: 'wallet-account-uuid',
+          transactionId: TRANSACTION_ID_MOCK,
+        }),
+      ).rejects.toThrow('Solana execution already exists');
+
+      transaction.metamaskPay.solanaExecution = getExecution({
+        phase: 'submitted',
+        sourceTransactionId: SOLANA_TRANSACTION_ID,
+      });
+      expect(
+        await controller.submitSolanaPay(TRANSACTION_ID_MOCK),
+      ).toMatchObject({ phase: 'submitted' });
+    });
+
+    it('rejects notification without a submitted signature', async () => {
+      const transaction = getTransactionMeta();
+      transaction.metamaskPay = {
+        source: SOLANA_PAY_SOURCE_MOCK,
+        solanaExecution: getExecution(),
+      };
+      applyTransactionUpdates(transaction);
+      const controller = createController({ solana: getSolanaCallbacks() });
+
+      await expect(
+        controller.notifyRelayOfSolanaTransaction(TRANSACTION_ID_MOCK),
+      ).rejects.toThrow('Missing Solana notification correlation');
+    });
+
+    it('rejects quote construction without transaction data', async () => {
+      const transaction = getTransactionMeta();
+      applyTransactionUpdates(transaction);
+      const controller = createController({ solana: getSolanaCallbacks() });
+
+      await expect(
+        controller.getSolanaPayQuote({
+          sourceAmountRaw: '1000000',
+          sourceWalletAccountId: 'wallet-account-uuid',
+          transactionId: TRANSACTION_ID_MOCK,
+        }),
+      ).rejects.toThrow('Transaction data missing');
+    });
+
+    it('rejects a mismatched exact-input provider source amount', async () => {
+      const transaction = getTransactionMeta();
+      applyTransactionUpdates(transaction);
+      fetchRelaySolanaQuoteMock.mockResolvedValueOnce({
+        ...SOLANA_QUOTE_MOCK,
+        details: {
+          ...SOLANA_QUOTE_MOCK.details,
+          currencyIn: {
+            ...SOLANA_QUOTE_MOCK.details.currencyIn,
+            amount: '999999',
+          },
+        },
+      });
+      const controller = createController({
+        solana: getSolanaCallbacks(),
+        state: getControllerState(),
+      });
+
+      await expect(
+        controller.getSolanaPayQuote({
+          sourceAmountRaw: '1000000',
+          sourceWalletAccountId: 'wallet-account-uuid',
+          transactionId: TRANSACTION_ID_MOCK,
+        }),
+      ).rejects.toThrow('source amount mismatch');
+    });
+
+    it('rejects unaffordable source submission', async () => {
+      const transaction = getTransactionMeta();
+      applyTransactionUpdates(transaction);
+      const controller = createController({
+        solana: getSolanaCallbacks({
+          getPreflight: jest.fn().mockResolvedValue({
+            ...SOLANA_PREFLIGHT_MOCK,
+            sourceBalanceRaw: '1',
+          }),
+        }),
+        state: getControllerState(),
+      });
+      await controller.getSolanaPayQuote({
+        sourceAmountRaw: '1000000',
+        sourceWalletAccountId: 'wallet-account-uuid',
+        transactionId: TRANSACTION_ID_MOCK,
+      });
+
+      await expect(
+        controller.submitSolanaPay(TRANSACTION_ID_MOCK),
+      ).rejects.toThrow('not affordable');
+    });
+
+    it('rejects submission without its transient quote', async () => {
+      const transaction = getTransactionMeta();
+      transaction.metamaskPay = {
+        source: SOLANA_PAY_SOURCE_MOCK,
+        solanaExecution: getExecution(),
+      };
+      applyTransactionUpdates(transaction);
+      const controller = createController({ solana: getSolanaCallbacks() });
+
+      await expect(
+        controller.submitSolanaPay(TRANSACTION_ID_MOCK),
+      ).rejects.toThrow('Missing Solana Pay quote');
+    });
+
+    it('rejects preflight without Solana callbacks', async () => {
+      const transaction = getTransactionMeta();
+      applyTransactionUpdates(transaction);
+      const controller = createController({ state: getControllerState() });
+
+      await expect(
+        controller.getSolanaPayQuote({
+          sourceAmountRaw: '1000000',
+          sourceWalletAccountId: 'wallet-account-uuid',
+          transactionId: TRANSACTION_ID_MOCK,
+        }),
+      ).rejects.toThrow('Solana callbacks missing');
+    });
+
+    it.each([
+      ['source-failed', 'failed', 'pending', 'not-required'],
+      ['relay-failed', 'confirmed', 'failure', 'not-required'],
+      ['refunded', 'confirmed', 'refund', 'not-required'],
+      ['follow-up-failed', 'confirmed', 'success', 'failed'],
+    ] as const)(
+      'fails an externally published parent for %s',
+      async (outcome, sourceStatus, relayStatus, followUpStatus) => {
+        const transaction = getTransactionMeta();
+        transaction.status = 'submitted';
+        transaction.isExternalPublish = true;
+        transaction.metamaskPay = {
+          source: SOLANA_PAY_SOURCE_MOCK,
+          solanaExecution: getExecution({
+            followUpStatus,
+            phase: 'submitted',
+            relayStatus,
+            sourceStatus,
+            sourceTransactionId: SOLANA_TRANSACTION_ID,
+          }),
+        };
+        applyTransactionUpdates(transaction);
+        const relayStatusByOutcome = {
+          'follow-up-failed': 'success',
+          refunded: 'refund',
+          'relay-failed': 'failure',
+          'source-failed': 'pending',
+        } as const;
+        getRelayStatusMock.mockResolvedValue({
+          destinationChainId: 42161,
+          inTxHashes: [SOLANA_TRANSACTION_ID],
+          originChainId: 792703809,
+          status: relayStatusByOutcome[outcome],
+          txHashes: [],
+          updatedAt: 1,
+        });
+        const controller = createController({
+          solana: getSolanaCallbacks({
+            getTransactionStatus: jest.fn().mockResolvedValue(sourceStatus),
+          }),
+        });
+
+        await controller.reconcileSolanaPay(TRANSACTION_ID_MOCK);
+
+        expect(failTransactionMock).toHaveBeenCalledWith(
+          TRANSACTION_ID_MOCK,
+          expect.any(Error),
+        );
+      },
+    );
+
+    it.each([false, true])(
+      'does not finalize a non-terminal parent with external publication %s',
+      async (isExternalPublish) => {
+        const transaction = getTransactionMeta();
+        transaction.status = 'submitted';
+        transaction.isExternalPublish = isExternalPublish;
+        transaction.metamaskPay = {
+          source: SOLANA_PAY_SOURCE_MOCK,
+          solanaExecution: getExecution({
+            phase: 'submitted',
+            relayStatus: 'pending',
+            sourceStatus: 'pending',
+            sourceTransactionId: SOLANA_TRANSACTION_ID,
+          }),
+        };
+        applyTransactionUpdates(transaction);
+        const controller = createController({ solana: getSolanaCallbacks() });
+
+        const status = await controller.reconcileSolanaPay(TRANSACTION_ID_MOCK);
+
+        expect(status.outcome).toBe('submitted');
+        expect(confirmTransactionMock).not.toHaveBeenCalled();
+        expect(failTransactionMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it('returns the latest pending status when recovery reaches its timeout', async () => {
+      const transaction = getTransactionMeta();
+      transaction.metamaskPay = {
+        source: SOLANA_PAY_SOURCE_MOCK,
+        solanaExecution: getExecution({
+          phase: 'submitted',
+          relayStatus: 'pending',
+          sourceStatus: 'pending',
+          sourceTransactionId: SOLANA_TRANSACTION_ID,
+        }),
+      };
+      applyTransactionUpdates(transaction);
+      getRelayPollingTimeoutMock.mockReturnValue(1);
+      getTransactionControllerStateMock.mockReturnValue({
+        transactions: [transaction],
+      });
+      const controller = createController({ solana: getSolanaCallbacks() });
+
+      const statuses = await controller.recoverSolanaPayStatus();
+
+      expect(statuses[TRANSACTION_ID_MOCK].outcome).toBe('submitted');
+    });
+
+    it('requires the Money Account follow-up submission callback', async () => {
+      const transaction = getTransactionMeta();
+      transaction.metamaskPay = {
+        source: SOLANA_PAY_SOURCE_MOCK,
+        solanaExecution: getExecution({
+          followUpStatus: 'not-started',
+          phase: 'submitted',
+          relayStatus: 'success',
+          requiresNonAtomicFollowUp: true,
+          sourceStatus: 'confirmed',
+          sourceTransactionId: SOLANA_TRANSACTION_ID,
+        }),
+      };
+      applyTransactionUpdates(transaction);
+      getRelayStatusMock.mockResolvedValue({
+        destinationChainId: 42161,
+        inTxHashes: [SOLANA_TRANSACTION_ID],
+        originChainId: 792703809,
+        status: 'success',
+        txHashes: [],
+        updatedAt: 1,
+      });
+      const controller = createController({ solana: getSolanaCallbacks() });
+      await expect(
+        controller.reconcileSolanaPay(TRANSACTION_ID_MOCK),
+      ).rejects.toThrow('follow-up callback missing');
+    });
+
+    it('requires the Money Account follow-up status callback', async () => {
+      const transaction = getTransactionMeta();
+      transaction.metamaskPay = {
+        source: SOLANA_PAY_SOURCE_MOCK,
+        solanaExecution: getExecution({
+          followUpStatus: 'submitted',
+          followUpTransactionId: 'follow-up-123',
+          phase: 'submitted',
+          relayStatus: 'success',
+          requiresNonAtomicFollowUp: true,
+          sourceStatus: 'confirmed',
+          sourceTransactionId: SOLANA_TRANSACTION_ID,
+        }),
+      };
+      applyTransactionUpdates(transaction);
+      getRelayStatusMock.mockResolvedValue({
+        destinationChainId: 42161,
+        inTxHashes: [SOLANA_TRANSACTION_ID],
+        originChainId: 792703809,
+        status: 'success',
+        txHashes: [],
+        updatedAt: 1,
+      });
+      const controller = createController({ solana: getSolanaCallbacks() });
+
+      await expect(
+        controller.reconcileSolanaPay(TRANSACTION_ID_MOCK),
+      ).rejects.toThrow('follow-up status callback missing');
+    });
+
+    it('skips records without execution and records already terminal', async () => {
+      const withoutExecution = getTransactionMeta();
+      const terminal = getTransactionMeta();
+      terminal.id = 'terminal';
+      terminal.metamaskPay = {
+        source: SOLANA_PAY_SOURCE_MOCK,
+        solanaExecution: getExecution({ phase: 'user-rejected' }),
+      };
+      getTransactionControllerStateMock.mockReturnValue({
+        transactions: [withoutExecution, terminal],
+      });
+      const controller = createController({ solana: getSolanaCallbacks() });
+
+      expect(await controller.recoverSolanaPayStatus()).toStrictEqual({});
     });
   });
 

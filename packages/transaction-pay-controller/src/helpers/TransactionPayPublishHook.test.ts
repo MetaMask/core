@@ -1,14 +1,12 @@
 import type {
+  MetamaskPaySolanaExecution,
   PublishHookResult,
   TransactionMeta,
 } from '@metamask/transaction-controller';
 
 import { TransactionPayStrategy } from '../index.js';
 import { getMessengerMock } from '../tests/messenger-mock.js';
-import type {
-  TransactionPayControllerState,
-  TransactionPayQuote,
-} from '../types.js';
+import type { TransactionPayQuote } from '../types.js';
 import { getStrategyByName } from '../utils/strategy.js';
 import { TransactionPayPublishHook } from './TransactionPayPublishHook.js';
 
@@ -25,6 +23,23 @@ const QUOTE_MOCK = {
   strategy: TransactionPayStrategy.Across,
 } as TransactionPayQuote<unknown>;
 
+function getSolanaExecution(): MetamaskPaySolanaExecution {
+  return {
+    atomicProductActionIncluded: false,
+    atomicProductActionRequired: false,
+    followUpStatus: 'not-required',
+    notificationStatus: 'not-ready',
+    phase: 'ready',
+    relayStatus: 'not-observed',
+    requestId: 'relay-request-123',
+    requiresNonAtomicFollowUp: false,
+    sourceAmountRaw: '1000000',
+    sourceChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+    sourceStatus: 'not-observed',
+    sourceWalletAccountId: 'wallet-account-uuid',
+  };
+}
+
 describe('TransactionPayPublishHook', () => {
   const isSmartTransactionMock = jest.fn();
   const executeMock = jest.fn();
@@ -35,6 +50,7 @@ describe('TransactionPayPublishHook', () => {
     getControllerStateMock,
     getKeyringControllerStateMock,
     getTransactionControllerStateMock,
+    submitSolanaPayMock,
     updateTransactionMock,
   } = getMessengerMock();
 
@@ -83,10 +99,82 @@ describe('TransactionPayPublishHook', () => {
       },
     } as TransactionPayControllerState);
 
+    TRANSACTION_META_MOCK.metamaskPay = undefined;
     getTransactionControllerStateMock.mockReturnValue({
       transactions: [TRANSACTION_META_MOCK],
     });
   });
+
+  it('routes a persisted Solana intent through the controller submission boundary', async () => {
+    getControllerStateMock.mockReturnValue({ transactionData: {} });
+    TRANSACTION_META_MOCK.metamaskPay = {
+      solanaExecution: getSolanaExecution(),
+    };
+
+    submitSolanaPayMock.mockResolvedValue({
+      followUpStatus: 'not-required',
+      notificationStatus: 'success',
+      outcome: 'submitted',
+      phase: 'submitted',
+      relayStatus: 'pending',
+      requestId: 'relay-request-123',
+      sourceStatus: 'pending',
+      sourceTransactionId: 'signature',
+      submissionOutcome: 'submitted',
+    });
+
+    const result = await runHook();
+
+    expect(submitSolanaPayMock).toHaveBeenCalledTimes(1);
+    expect(submitSolanaPayMock).toHaveBeenCalledWith(TRANSACTION_META_MOCK.id);
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(result).toStrictEqual({
+      externallyHandled: true,
+      outcome: 'submitted',
+    });
+  });
+
+  it.each([
+    ['user-rejected', undefined, undefined],
+    [
+      'not-submitted',
+      'Snap rejected before broadcast',
+      'Snap rejected before broadcast',
+    ],
+    ['not-submitted', undefined, 'Solana source transaction was not submitted'],
+    ['ambiguous', undefined, undefined],
+    [undefined, undefined, undefined],
+  ] as const)(
+    'propagates externally handled %s outcome',
+    async (outcome, sourceFailureReason, expectedError) => {
+      const effectiveOutcome = outcome ?? 'ambiguous';
+      getControllerStateMock.mockReturnValue({ transactionData: {} });
+      TRANSACTION_META_MOCK.metamaskPay = {
+        solanaExecution: getSolanaExecution(),
+      };
+
+      submitSolanaPayMock.mockResolvedValue({
+        followUpStatus: 'not-required',
+        notificationStatus: 'not-ready',
+        outcome: effectiveOutcome,
+        phase: effectiveOutcome === 'ambiguous' ? 'unknown' : effectiveOutcome,
+        relayStatus: 'not-observed',
+        requestId: 'relay-request-123',
+        sourceFailureReason,
+        sourceStatus:
+          effectiveOutcome === 'ambiguous' ? 'unknown' : 'not-observed',
+        submissionOutcome: outcome,
+      });
+
+      const result = await runHook();
+
+      expect(result).toStrictEqual({
+        ...(expectedError && { error: expectedError }),
+        externallyHandled: true,
+        outcome: effectiveOutcome,
+      });
+    },
+  );
 
   it('executes strategy with quotes', async () => {
     await runHook();

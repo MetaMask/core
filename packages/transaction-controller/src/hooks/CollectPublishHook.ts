@@ -53,20 +53,18 @@ export class CollectPublishHook {
   /**
    * Resolve all publish promises with the provided transaction hashes.
    *
-   * @param transactionHashes - The transaction hashes to pass to the original publish promises.
+   * @param publishResults - Results to pass to the original publish promises.
    */
-  success(transactionHashes: Hex[]): void {
-    log('Success', { transactionHashes });
+  success(publishResults: PublishHookResult[]): void {
+    log('Success', { publishResults });
 
-    if (transactionHashes.length !== this.#transactionCount) {
-      throw new Error('Transaction hash count mismatch');
+    if (publishResults.length !== this.#transactionCount) {
+      throw new Error('Publish result count mismatch');
     }
 
     for (let i = 0; i < this.#results.length; i++) {
       const result = this.#results[i];
-      const transactionHash = transactionHashes[i];
-
-      result.promise.resolve({ transactionHash });
+      result.promise.resolve(publishResults[i]);
     }
   }
 

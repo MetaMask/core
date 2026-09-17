@@ -24,6 +24,7 @@ import {
   RELAY_EXECUTE_URL,
   RELAY_POLLING_INTERVAL,
   RELAY_QUOTE_URL,
+  RELAY_SOLANA_QUOTE_URL,
 } from '../strategy/relay/constants.js';
 import {
   SERVER_POLLING_INTERVAL,
@@ -45,6 +46,7 @@ export const DEFAULT_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_EXECUTE_URL = RELAY_EXECUTE_URL;
 export const DEFAULT_RELAY_QUOTE_URL = RELAY_QUOTE_URL;
+export const DEFAULT_RELAY_SOLANA_QUOTE_URL = RELAY_SOLANA_QUOTE_URL;
 export const DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD = '300000';
 export const DEFAULT_SLIPPAGE = 0.005;
 export const DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD = 1;
@@ -74,6 +76,7 @@ type FeatureFlagsRaw = {
     max?: number;
   };
   relayQuoteUrl?: string;
+  relaySolanaQuoteUrl?: string;
   slippage?: number;
   slippageTokens?: Record<Hex, Record<Hex, number>>;
   strategyOrder?: string[];
@@ -159,6 +162,7 @@ export type FeatureFlags = {
     max: number;
   };
   relayQuoteUrl: string;
+  relaySolanaQuoteUrl: string;
   slippage: number;
 };
 
@@ -521,6 +525,8 @@ export function getFeatureFlags(
     featureFlags.relayExecuteUrl ?? DEFAULT_RELAY_EXECUTE_URL;
 
   const relayQuoteUrl = featureFlags.relayQuoteUrl ?? DEFAULT_RELAY_QUOTE_URL;
+  const relaySolanaQuoteUrl =
+    featureFlags.relaySolanaQuoteUrl ?? DEFAULT_RELAY_SOLANA_QUOTE_URL;
 
   const relayDisabledGasStationChains =
     featureFlags.relayDisabledGasStationChains ?? [];
@@ -535,6 +541,7 @@ export function getFeatureFlags(
       max,
     },
     relayQuoteUrl,
+    relaySolanaQuoteUrl,
     slippage,
   };
 

@@ -151,6 +151,21 @@ describe('ExtraTransactionsPublishHook', () => {
     });
   });
 
+  it('propagates externally handled publication through the batch composer', async () => {
+    const hook = createHook().getHook();
+    const hookPromise = hook(TRANSACTION_META_MOCK, SIGNED_TRANSACTION_MOCK);
+    const onPublish =
+      addTransactionBatchMock.mock.calls[0][0].transactions[0]
+        .existingTransaction?.onPublish;
+
+    onPublish?.({ externallyHandled: true, outcome: 'submitted' });
+
+    expect(await hookPromise).toStrictEqual({
+      externallyHandled: true,
+      outcome: 'submitted',
+    });
+  });
+
   it('rejects if addTransactionBatch throws', async () => {
     addTransactionBatchMock.mockImplementation(() => {
       throw new Error('Test error');

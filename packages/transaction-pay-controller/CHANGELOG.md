@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add validated chain-agnostic Pay source metadata to persisted transaction records while keeping ordinary Pay selection state transient ([#10272](https://github.com/MetaMask/core/pull/10272))
+- Add validated chain-agnostic Pay source metadata and a phase-aware external Solana execution checkpoint to persisted transaction records while keeping ordinary Pay selection state transient ([#10272](https://github.com/MetaMask/core/pull/10272), [#10273](https://github.com/MetaMask/core/pull/10273))
+- Add the Relay `/quote/v2` Solana instruction/LUT path, normalized preflight, and one source sign-and-broadcast attempt with status-only recovery ([#10273](https://github.com/MetaMask/core/pull/10273))
+- Add the separate one-sponsored Money Account destination follow-up and atomic Perps/Predict destination calls ([#10273](https://github.com/MetaMask/core/pull/10273))
 
 ### Changed
 
@@ -17,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Use the immutable Solana execution source amount for exact-input routes instead of transient EVM source-amount projections ([#10273](https://github.com/MetaMask/core/pull/10273))
 - Detect nested `perpsDepositAndOrder` and `predictDepositAndOrder` transactions when selecting `EXACT_OUTPUT` Relay quotes ([#10222](https://github.com/MetaMask/core/pull/10222))
 
 ## [28.0.2]

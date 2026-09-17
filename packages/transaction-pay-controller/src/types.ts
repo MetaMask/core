@@ -37,13 +37,20 @@ import type { SentinelApiServiceActions } from '@metamask/sentinel-api-service';
 import type {
   AuthorizationList,
   TransactionControllerAddTransactionBatchAction,
+  TransactionControllerConfirmTransactionAction,
   TransactionControllerEstimateGasAction,
   TransactionControllerEstimateGasBatchAction,
+  TransactionControllerFailTransactionAction,
   TransactionControllerUnapprovedTransactionAddedEvent,
 } from '@metamask/transaction-controller';
 import type {
   BatchTransaction,
   BatchTransactionParams,
+  MetamaskPaySolanaExecution,
+  MetamaskPaySolanaFollowUpStatus,
+  MetamaskPaySolanaNotificationStatus,
+  MetamaskPaySolanaRelayStatus,
+  MetamaskPaySolanaSourceStatus,
   MetamaskPaySource,
   TransactionControllerAddTransactionAction,
   TransactionControllerGetGasFeeTokensAction,
@@ -52,7 +59,13 @@ import type {
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { Hex, Json } from '@metamask/utils';
+import type {
+  CaipAccountId,
+  CaipAssetType,
+  CaipChainId,
+  Hex,
+  Json,
+} from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type {
@@ -60,6 +73,10 @@ import type {
   PaymentOverride,
   TransactionPayStrategy,
 } from './constants.js';
+import type {
+  RelaySolanaQuote,
+  RelaySolanaTransaction,
+} from './strategy/relay/types.js';
 import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types.js';
 
 export type AllowedActions =
@@ -81,8 +98,10 @@ export type AllowedActions =
   | SentinelApiServiceActions
   | TransactionControllerAddTransactionAction
   | TransactionControllerAddTransactionBatchAction
+  | TransactionControllerConfirmTransactionAction
   | TransactionControllerEstimateGasAction
   | TransactionControllerEstimateGasBatchAction
+  | TransactionControllerFailTransactionAction
   | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction;
@@ -277,6 +296,144 @@ export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
   'Money Keyring',
 ];
 
+/** Request to build an executable Solana quote from the persisted Pay source. */
+export type GetSolanaPayQuoteRequest = {
+  /** Immutable wallet-local account ID for the one source attempt. */
+  sourceWalletAccountId: MetamaskPaySolanaExecution['sourceWalletAccountId'];
+
+  /** Immutable selected source amount in atomic units. */
+  sourceAmountRaw: string;
+
+  /** Target TransactionController transaction ID used to derive the route. */
+  transactionId: string;
+};
+
+/** Platform observations normalized by Core into Solana affordability policy. */
+export type SolanaPayPreflightData = {
+  preparedTransaction: string;
+  preparationId: string;
+  nativeBalanceRaw: string;
+  networkFeeRaw: string;
+  priorityFeeRaw: string;
+  rentDebitRaw: string;
+  rentExemptionRequirementRaw: string;
+  sourceBalanceRaw: string;
+};
+
+export type SolanaPayPreflight = SolanaPayPreflightData & {
+  affordability: {
+    isAffordable: boolean;
+    nativeShortfallRaw: string;
+    sourceShortfallRaw: string;
+  };
+  requiredNativeBalanceRaw: string;
+  requiredSourceBalanceRaw: string;
+  retainedReserveRaw: string;
+  sourceAmountRaw: string;
+  totalFeeRaw: string;
+};
+
+export type SolanaPayQuote = {
+  providerQuote: RelaySolanaQuote;
+  preflight: SolanaPayPreflight;
+  route: {
+    atomicProductActionIncluded: boolean;
+    recipient: Hex;
+    targetAmountMinimum: string;
+    tradeType: 'EXACT_INPUT' | 'EXACT_OUTPUT';
+  };
+};
+
+export type GetSolanaPayPreflightRequest = {
+  accountId: MetamaskPaySolanaExecution['sourceWalletAccountId'];
+  caipAccountId: CaipAccountId;
+  requestId: string;
+  scope: CaipChainId;
+  sourceAssetId: CaipAssetType;
+  sourceAmountRaw: string;
+  transaction: RelaySolanaTransaction;
+};
+
+export type SolanaPaySignAndSendTransactionRequest = {
+  accountId: MetamaskPaySolanaExecution['sourceWalletAccountId'];
+  caipAccountId: CaipAccountId;
+  preparedTransaction: string;
+  preparationId: string;
+  requestId: string;
+  scope: CaipChainId;
+};
+
+export type SolanaPaySubmissionResult =
+  | { outcome: 'submitted'; transactionId: string }
+  | { outcome: 'user-rejected' }
+  | { outcome: 'not-submitted'; reason?: string }
+  | { outcome: 'ambiguous'; reason?: string };
+
+export type GetSolanaPayTransactionStatusRequest = {
+  accountId: MetamaskPaySolanaExecution['sourceWalletAccountId'];
+  caipAccountId: CaipAccountId;
+  scope: CaipChainId;
+  transactionId: string;
+};
+
+export type SolanaPayFollowUpRequest = {
+  requestId: string;
+  relayTransactionId?: string;
+  transaction: TransactionMeta;
+};
+
+export type GetSolanaPayFollowUpStatusRequest = {
+  transaction: TransactionMeta;
+  transactionId: string;
+};
+
+export type SolanaPayCallbacks = {
+  getPreflight: (
+    request: GetSolanaPayPreflightRequest,
+  ) => Promise<SolanaPayPreflightData>;
+  signAndSendTransaction: (
+    request: SolanaPaySignAndSendTransactionRequest,
+  ) => Promise<SolanaPaySubmissionResult>;
+  getTransactionStatus: (
+    request: GetSolanaPayTransactionStatusRequest,
+  ) => Promise<'pending' | 'confirmed' | 'failed' | 'unknown'>;
+  submitNonAtomicFollowUp?: (
+    request: SolanaPayFollowUpRequest,
+  ) => Promise<SolanaPaySubmissionResult>;
+  getNonAtomicFollowUpStatus?: (
+    request: GetSolanaPayFollowUpStatusRequest,
+  ) => Promise<'pending' | 'confirmed' | 'failed' | 'unknown'>;
+};
+
+export type SolanaPayOutcome =
+  | 'ready'
+  | 'attempting'
+  | 'submitted'
+  | 'user-rejected'
+  | 'not-submitted'
+  | 'unknown'
+  | 'source-failed'
+  | 'relay-failed'
+  | 'refunded'
+  | 'follow-up-failed'
+  | 'succeeded';
+
+export type SolanaPayStatus = {
+  outcome: SolanaPayOutcome;
+  phase: MetamaskPaySolanaExecution['phase'];
+  requestId: string;
+  sourceStatus: MetamaskPaySolanaSourceStatus;
+  relayStatus: MetamaskPaySolanaRelayStatus;
+  notificationStatus: MetamaskPaySolanaNotificationStatus;
+  followUpStatus: MetamaskPaySolanaFollowUpStatus;
+  sourceTransactionId?: string;
+  targetTransactionId?: string;
+  followUpTransactionId?: string;
+  sourceFailureReason?: string;
+  relayFailureReason?: string;
+  submissionOutcome?: SolanaPaySubmissionResult['outcome'];
+};
+
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {
   /** Optional callback to re-encode nested transaction calldata for a given amount. */
@@ -308,6 +465,9 @@ export type TransactionPayControllerOptions = {
 
   /** Callbacks for the Polymarket relayer; required only for the Polymarket deposit-wallet flow. */
   polymarket?: PolymarketCallbacks;
+
+  /** Client-owned Solana preparation, signing, observation, and follow-up operations. */
+  solana?: SolanaPayCallbacks;
 
   /** Initial state of the controller. */
   state?: Partial<TransactionPayControllerState>;
@@ -401,6 +561,9 @@ export type TransactionData = {
 
   /** Quotes retrieved for the transaction. */
   quotes?: TransactionPayQuote<Json>[];
+
+  /** Transient executable Solana quote and bound preflight. */
+  solanaPayQuote?: SolanaPayQuote;
 
   /** Most relevant structured validation error from the latest quote attempt. */
   quoteError?: QuoteErrorInfo;

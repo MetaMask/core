@@ -47,6 +47,12 @@ Quotes are retrieved from the [Relay API](https://docs.relay.link/what-is-relay)
 
 The resulting transaction deposits the necessary funds (on the source network), then a Relayer on the target chain immediately transfers the necessary funds and optionally executes any requested call data.
 
+Relay deprecates `/quote`, but the existing EVM integration remains on that endpoint to avoid changing its established contract in this work. Solana uses `/quote/v2`, the supported endpoint exercised by the verified integration fixtures. Relay's current public OpenAPI documents the generic quote request, including destination `txs`, but does not fully document the observed Solana instruction and lookup-table response. Core therefore structurally validates that integration-specific response before passing it to client-owned preparation.
+
+A Solana source broadcasts exactly once: Core persists `attempting` on the target transaction before crossing the Snap callback, and the publish hook returns `externallyHandled`. TransactionController suppresses EVM RPC fallback and EVM receipt polling for the hashless EVM parent. Status-only Pay reconciliation owns later source, Relay, and parent lifecycle transitions and never calls `signAndSendTransaction`.
+
+A non-atomic Money Account route may perform one sponsored destination follow-up after Relay success. That destination action has its own durable checkpoint and is not a source retry or source resubmission.
+
 ## Lifecycle
 
 The high level interaction with the `TransactionPayController` is as follows:
@@ -70,4 +76,6 @@ The high level interaction with the `TransactionPayController` is as follows:
 
 Transient state is grouped according to the associated transaction ID in the `transactionData` property. It includes required tokens, the selected payment token, retrieved quotes, and calculated totals, and is not persisted across restarts.
 
-Chain-agnostic source account and asset metadata is stored only on the persisted target transaction in `metamaskPay.source`. The CAIP-10 account and CAIP-19 asset identify their source chain without placing non-EVM identifiers in legacy EVM-only fields. Execution correlation and recovery checkpoints are not part of ordinary Pay selection state.
+Chain-agnostic source account and asset metadata is stored only on the persisted target transaction in `metamaskPay.source`. The CAIP-10 account and CAIP-19 asset identify their source chain without placing non-EVM identifiers in legacy EVM-only fields.
+
+Once an executable Solana quote exists, the same target transaction becomes the single durable owner of `metamaskPay.solanaExecution`. This phase-aware checkpoint contains the immutable wallet account ID and source amount, derived source chain, Relay correlation, optional source signature, observation states, and any Money Account follow-up. `TransactionPayController.state` remains entirely transient and contains no duplicate execution record.

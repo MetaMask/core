@@ -65,6 +65,36 @@ export class TransactionPayPublishHook {
     );
 
     const transactionData = controllerState.transactionData?.[transactionId];
+    const solanaExecution = transactionMeta.metamaskPay?.solanaExecution;
+
+    if (solanaExecution) {
+      updateTransaction(
+        {
+          transactionId,
+          messenger: this.#messenger,
+          note: 'Set submittedTime at Solana pay publish hook start',
+        },
+        (transaction) => {
+          transaction.submittedTime = new Date().getTime();
+        },
+      );
+
+      const status = await this.#messenger.call(
+        'TransactionPayController:submitSolanaPay',
+        transactionId,
+      );
+      const outcome = status.submissionOutcome ?? 'ambiguous';
+
+      return {
+        ...(outcome === 'not-submitted' && {
+          error:
+            status.sourceFailureReason ??
+            'Solana source transaction was not submitted',
+        }),
+        externallyHandled: true,
+        outcome,
+      };
+    }
 
     // No-op quotes mark direct routes and cannot be executed by any strategy.
     const quotes = (

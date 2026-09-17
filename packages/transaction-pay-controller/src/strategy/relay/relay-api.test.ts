@@ -1,12 +1,14 @@
 import type { FeatureFlags } from '../../utils/feature-flags.js';
 import { getFeatureFlags } from '../../utils/feature-flags.js';
-import { RELAY_STATUS_URL } from './constants.js';
+import { RELAY_STATUS_URL, RELAY_TRANSACTIONS_INDEX_URL } from './constants.js';
 import {
   fetchRelayQuote,
+  fetchRelaySolanaQuote,
   getRelayStatus,
+  notifyRelayTransaction,
   submitRelayExecute,
 } from './relay-api.js';
-import type { RelayQuoteRequest } from './types.js';
+import type { RelayQuoteRequest, RelaySolanaQuoteRequest } from './types.js';
 
 jest.mock('../../utils/feature-flags');
 
@@ -28,6 +30,7 @@ const mockErrorResponse = (status: number, body: unknown): jest.SpyInstance =>
   } as Response);
 
 const QUOTE_URL_MOCK = 'https://proxy.test/relay/quote';
+const SOLANA_QUOTE_URL_MOCK = 'https://proxy.test/relay/quote/v2';
 const EXECUTE_URL_MOCK = 'https://proxy.test/relay/execute';
 
 const MESSENGER_MOCK = {} as Parameters<typeof fetchRelayQuote>[0];
@@ -38,6 +41,7 @@ describe('relay-api', () => {
 
     getFeatureFlagsMock.mockReturnValue({
       relayQuoteUrl: QUOTE_URL_MOCK,
+      relaySolanaQuoteUrl: SOLANA_QUOTE_URL_MOCK,
       relayExecuteUrl: EXECUTE_URL_MOCK,
     } as FeatureFlags);
   });
@@ -135,6 +139,56 @@ describe('relay-api', () => {
       await expect(
         fetchRelayQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK),
       ).rejects.toThrow('500');
+    });
+  });
+
+  describe('fetchRelaySolanaQuote', () => {
+    const SOLANA_QUOTE_REQUEST_MOCK: RelaySolanaQuoteRequest = {
+      amount: '1000000',
+      destinationChainId: 42161,
+      destinationCurrency: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+      originChainId: 792703809,
+      originCurrency: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      recipient: '0x1234567890123456789012345678901234567890',
+      refundTo: '7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+      tradeType: 'EXACT_INPUT',
+      user: '7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+    };
+
+    it('posts the Solana request to the configured /quote/v2 URL', async () => {
+      mockOkResponse({ requestId: 'relay-request-123', steps: [] });
+
+      const quote = await fetchRelaySolanaQuote(
+        MESSENGER_MOCK,
+        SOLANA_QUOTE_REQUEST_MOCK,
+      );
+
+      expect(fetchMock).toHaveBeenCalledWith(SOLANA_QUOTE_URL_MOCK, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(SOLANA_QUOTE_REQUEST_MOCK),
+        signal: undefined,
+      });
+      expect(quote.request).toStrictEqual(SOLANA_QUOTE_REQUEST_MOCK);
+    });
+  });
+
+  describe('notifyRelayTransaction', () => {
+    it('posts stable request and source transaction correlation', async () => {
+      mockOkResponse({});
+      const request = {
+        chainId: '792703809',
+        requestId: 'relay-request-123',
+        txHash: 'solana-signature-123',
+      };
+
+      await notifyRelayTransaction(request);
+
+      expect(fetchMock).toHaveBeenCalledWith(RELAY_TRANSACTIONS_INDEX_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      });
     });
   });
 
