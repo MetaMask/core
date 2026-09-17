@@ -15,6 +15,8 @@ export type {
   AccountsControllerAccountBalancesUpdatesEvent,
   AccountsControllerAccountTransactionsUpdatedEvent,
   AccountsControllerAccountAssetListUpdatedEvent,
+  AccountsControllerInitializedEvent,
+  AccountsControllerUninitializedEvent,
   AllowedEvents,
   AccountsControllerEvents,
   AccountsControllerMessenger,
@@ -31,7 +33,7 @@ export type {
   AccountsControllerSetAccountNameAction,
   AccountsControllerSetAccountNameAndSelectAccountAction,
   AccountsControllerUpdateAccountMetadataAction,
-  AccountsControllerUpdateAccountsAction,
+  AccountsControllerInitAction,
   AccountsControllerLoadBackupAction,
   AccountsControllerClearStateAction,
 } from './AccountsController-method-action-types.js';
