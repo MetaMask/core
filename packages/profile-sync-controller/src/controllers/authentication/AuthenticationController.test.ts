@@ -2773,6 +2773,93 @@ describe('MFA credential enrollment', () => {
     expect(await controller.performSignIn()).toHaveLength(2);
     expect(controller.state.isSignedIn).toBe(true);
   });
+
+  it('discards a stale warm-up refresh that lands after a newer, faster refresh from enrollment', async () => {
+    const deferred = <Value>(): {
+      promise: Promise<Value>;
+      resolve: (value: Value) => void;
+    } => {
+      let resolveDeferred!: (value: Value) => void;
+      const promise = new Promise<Value>((resolve) => {
+        resolveDeferred = resolve;
+      });
+      return { promise, resolve: resolveDeferred };
+    };
+
+    const warmUp = deferred<Awaited<ReturnType<typeof fetch>>>();
+    const enrollComplete = deferred<Awaited<ReturnType<typeof fetch>>>();
+    const enrollmentCredentials = deferred<Awaited<ReturnType<typeof fetch>>>();
+
+    const warmUpStarted = deferred<void>();
+    const enrollCompleteStarted = deferred<void>();
+    const enrollmentCredentialsStarted = deferred<void>();
+
+    const fetchSpy = jest.spyOn(globalThis, 'fetch');
+    fetchSpy
+      .mockImplementationOnce(async (): ReturnType<typeof fetch> => {
+        warmUpStarted.resolve();
+        return warmUp.promise;
+      })
+      .mockImplementationOnce(async (): ReturnType<typeof fetch> => {
+        enrollCompleteStarted.resolve();
+        return enrollComplete.promise;
+      })
+      .mockImplementationOnce(async (): ReturnType<typeof fetch> => {
+        enrollmentCredentialsStarted.resolve();
+        return enrollmentCredentials.promise;
+      });
+
+    const { controller } = createController();
+
+    try {
+      // 1. Slow warm-up refresh starts first but doesn't resolve yet.
+      const warmUpRefresh = controller.refreshEnrolledCredentials();
+      await warmUpStarted.promise;
+
+      // 2. Enrollment completes while the warm-up is in flight.
+      const enrollmentCompletion = controller.completeCredentialEnrollment({
+        flowId: 'flow-id',
+        proof: { type: 'email_otp', code: '123456' },
+        reason: { operation: 'settings.addEmail' },
+      });
+
+      // 3. Let the enroll-complete POST resolve, then its internal refresh GET.
+      await enrollCompleteStarted.promise;
+      enrollComplete.resolve(
+        new globalThis.Response(JSON.stringify({ status: 'enrolled' }), {
+          status: 200,
+        }),
+      );
+
+      await enrollmentCredentialsStarted.promise;
+      enrollmentCredentials.resolve(
+        new globalThis.Response(JSON.stringify(MOCK_MFA_CREDENTIALS_RESPONSE), {
+          status: 200,
+        }),
+      );
+      await enrollmentCompletion;
+
+      const freshCredentials = controller.state.enrolledCredentials;
+      expect(freshCredentials).toHaveLength(
+        MOCK_MFA_CREDENTIALS_RESPONSE.credentials.length,
+      );
+
+      // 4. The stale warm-up response lands late, with different data.
+      warmUp.resolve(
+        new globalThis.Response(JSON.stringify({ credentials: [] }), {
+          status: 200,
+        }),
+      );
+      await warmUpRefresh;
+
+      // 5. Must NOT be overwritten by the stale warm-up.
+      expect(controller.state.enrolledCredentials).toStrictEqual(
+        freshCredentials,
+      );
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
 });
 
 describe('metadata', () => {
