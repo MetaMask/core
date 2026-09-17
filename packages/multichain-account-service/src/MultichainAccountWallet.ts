@@ -161,9 +161,20 @@ export class MultichainAccountWallet<
    * failures are reported together and this method resolves so the caller can
    * drop the wallet.
    *
+   * NOTE: This operation WILL lock the wallet's mutex.
+   *
    * @throws If one or more EVM accounts cannot be deleted.
+   * @returns A promise that resolves once all groups cleanup is complete.
    */
   async deleteAllMultichainAccountGroups(): Promise<void> {
+    return await this.#withLock(
+      // TODO: Add a proper status for account deletion in `MultichainAccountWalletStatus`.
+      'in-progress:alignment',
+      async () => await this.#deleteAllMultichainAccountGroups(),
+    );
+  }
+
+  async #deleteAllMultichainAccountGroups(): Promise<void> {
     const providers = this.#getProviders();
     const [evmProvider, ...otherProviders] = providers;
 

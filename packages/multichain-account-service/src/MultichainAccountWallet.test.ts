@@ -188,6 +188,55 @@ describe('MultichainAccountWallet', () => {
       ]);
     });
 
+    it('holds the wallet lock while provider deletions are in flight', async () => {
+      const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withGroupIndex(0)
+        .get();
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withGroupIndex(1)
+        .get();
+      const mockSolAccount0 = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withGroupIndex(0)
+        .get();
+      const { wallet, providers, messenger } = setup({
+        accounts: [[mockEvmAccount0, mockEvmAccount1], [mockSolAccount0]],
+      });
+      const evmDeleteDeferred = createDeferredPromise<{ ok: true }>();
+      providers[0].deleteAccounts.mockReturnValueOnce(
+        evmDeleteDeferred.promise,
+      );
+      const statusChanges: string[] = [];
+      messenger.subscribe(
+        'MultichainAccountService:walletStatusChange',
+        (_walletId, status) => {
+          statusChanges.push(status);
+        },
+      );
+
+      const deletePromise = wallet.deleteAllMultichainAccountGroups();
+      await Promise.resolve();
+
+      const alignPromise = wallet.alignAccounts();
+      await Promise.resolve();
+
+      // TODO: Add a proper status for account deletion in `MultichainAccountWalletStatus`.
+      expect(wallet.status).toBe('in-progress:alignment');
+      expect(providers[1].createAccounts).not.toHaveBeenCalled();
+
+      evmDeleteDeferred.resolve({ ok: true });
+      await deletePromise;
+      await alignPromise;
+
+      expect(providers[1].createAccounts).toHaveBeenCalled();
+      expect(statusChanges).toStrictEqual([
+        // TODO: Add a proper status for account deletion in `MultichainAccountWalletStatus`.
+        'in-progress:alignment',
+        'ready',
+        'in-progress:alignment',
+        'ready',
+      ]);
+    });
+
     it('prunes empty groups, deletes orphaned non-EVM accounts, and throws when EVM deletion partially fails', async () => {
       const group1Evm = MockAccountBuilder.from(MOCK_WALLET_1_EVM_ACCOUNT)
         .withGroupIndex(1)
