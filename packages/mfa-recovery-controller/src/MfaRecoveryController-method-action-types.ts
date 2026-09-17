@@ -64,8 +64,7 @@ export type MfaRecoveryControllerResumeAction = {
 };
 
 /**
- * Drops a pending mutation that no escrow has acknowledged. Once a receipt
- * exists, call {@link resume} instead.
+ * Drops `authorizing` pending. `writing` must be finished with {@link resume}.
  */
 export type MfaRecoveryControllerAbortAction = {
   type: `MfaRecoveryController:abort`;

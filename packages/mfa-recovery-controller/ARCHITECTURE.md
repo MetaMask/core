@@ -65,21 +65,18 @@ stateDiagram-v2
   authorizing --> writing: identifier auth succeeds, before first apply
   writing --> writing: more receipts, still missing replicas
   writing --> idle: every configured escrow has a valid receipt
-  writing --> idle: abort() with no receipts
   writing --> writing: resume() retries only missing receipts
   authorizing --> writing: resume() authorizes then writes
 ```
 
 Rules:
 
-- **`abort()`** is allowed in `authorizing`, and in `writing` when there are
-  no receipts. Receipts must be finished with `resume()`.
+- **`abort()`** drops `authorizing` only. `writing` must `resume()`.
 - `writing` is persisted before the **first escrow apply** after identifier
   authorization succeeds, so an ambiguous apply failure remains resumable while
   pre-write authorization failures stay abortable.
 - `register` / `updateRecoverySecret` / `updateIdentifiers` require idle
-  pending state. `resume()` finishes a persisted mutation; `abort()` drops
-  `authorizing`, or `writing` with no receipts.
+  pending state. `resume()` finishes a persisted mutation.
 
 ## Mutation sequence (`register` / updates)
 
@@ -187,8 +184,7 @@ flowchart TD
   AbortOrResume -->|abort| Idle
   AbortOrResume -->|resume| Auth[re-issue AuthController token]
   Auth --> Write[replicate]
-  Phase -->|writing, no receipts| AbortOrResume
-  Phase -->|writing, has receipts| ResumeOnly[resume only]
+  Phase -->|writing| ResumeOnly[resume only]
   ResumeOnly --> Skip[skip escrows that already have receipts]
   Skip --> Write
   Write --> All{receipts for every configured escrow?}

@@ -226,12 +226,6 @@ describe('MfaRecoveryController', () => {
           controller.register(SECRET, IDENTIFIERS),
         ).rejects.toBeInstanceOf(IncompleteMutationError);
         expect(await controller.getPhase()).toBe('writing');
-        await controller.abort();
-        await controller.updateRecoverySecret(
-          PASSKEY,
-          SECRET_2,
-          REGISTERED_EPOCH,
-        );
       });
     });
 
@@ -516,15 +510,17 @@ describe('MfaRecoveryController', () => {
       });
     });
 
-    it('can abort a writing mutation that has no receipts', async () => {
+    it('cannot abort a writing mutation', async () => {
       await withController(async ({ controller }) => {
         await controller.register(SECRET, IDENTIFIERS);
         await expect(
           controller.updateRecoverySecret(PASSKEY, SECRET_2, 0),
         ).rejects.toBeInstanceOf(IncompleteMutationError);
         expect(await controller.getPhase()).toBe('writing');
-        await controller.abort();
-        expect(await controller.getPhase()).toBe('idle');
+        await expect(controller.abort()).rejects.toThrow(
+          'Cannot abort a mutation that may have been applied',
+        );
+        expect(await controller.getPhase()).toBe('writing');
       });
     });
 
@@ -698,7 +694,7 @@ describe('MfaRecoveryController', () => {
           state: { pendingOperation: writing },
         });
         await expect(writingController.abort()).rejects.toThrow(
-          'Cannot abort a mutation once an escrow has acknowledged it',
+          'Cannot abort a mutation that may have been applied',
         );
         expect(await writingController.getPhase()).toBe('writing');
       });

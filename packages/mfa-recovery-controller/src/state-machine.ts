@@ -14,19 +14,15 @@ export function getRecoveryPhase(
 }
 
 /**
- * Abort is allowed while idle, authorizing, or writing with no receipts.
- * Receipts mean an escrow already applied; finish with resume() instead.
- *
- * TODO: empty receipts is not proof the apply never landed (timeout after a
- * successful write). Record explicit rejects vs ambiguous failures.
+ * Abort is allowed while idle or authorizing. `writing` must `resume()`.
  *
  * @param pending - Loaded pending operation, if any.
- * @throws If an escrow has already acknowledged the mutation.
+ * @throws If a mutation is already writing.
  */
 export function assertAbortAllowed(pending: PendingOperation | null): void {
-  if (pending?.phase === 'writing' && pending.receipts.length > 0) {
+  if (pending?.phase === 'writing') {
     throw new MfaRecoveryError(
-      'Cannot abort a mutation once an escrow has acknowledged it',
+      'Cannot abort a mutation that may have been applied',
       'abort_not_allowed',
     );
   }

@@ -5,8 +5,8 @@ injected so the same controller can run against different identity providers and
 escrow backends.
 
 Pending mutations are persisted as encoded encrypted `authorizing` / `writing`
-state so a crash can `resume()` the same mutation. `abort()` is allowed before any
-escrow receipt is stored. The encoded ciphertext is stored as a string so
+state so a crash can `resume()` the same mutation. `abort()` drops `authorizing`
+only; `writing` must `resume()`. The encoded ciphertext is stored as a string so
 BaseController state serialization preserves the encrypted value.
 
 ## Installation
