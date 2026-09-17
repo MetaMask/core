@@ -55,9 +55,14 @@ export type PerpsSubscriptionWaiverRate = {
  *
  * An absent `remainingNotionalUsd` means the backend did not bound the
  * allowance, which stays a full waiver — the pre-existing behavior for an
- * eligible gate that reports no cap. An absent or non-positive
- * `orderNotionalUsd` means there is no notional to blend against (a pure rate
- * preview), which also resolves to the full waiver rate.
+ * eligible gate that reports no cap.
+ *
+ * A *bounded* allowance with an absent or non-positive `orderNotionalUsd` does
+ * not apply at all. Quoting the full waiver there would charge nothing on an
+ * order whose size is unknown and silently over-consume the cap; withholding is
+ * the fail-closed direction, and the same one an exhausted or stale gate takes.
+ * A rate-only preview of a bounded allowance therefore quotes the next-lowest
+ * source rather than a waiver the order may not receive.
  *
  * Pure, so preview and submit consume exactly the same arithmetic and their
  * quoted and charged fees cannot drift.
@@ -91,13 +96,16 @@ export function resolveSubscriptionWaiverRate(params: {
     return { applies: false, feeBips: maxFeeBips, kind: 'none' };
   }
 
-  // No notional to blend against: a rate-only preview quotes the full waiver.
+  // A bounded allowance with no notional to measure it against cannot be
+  // honoured: granting the full waiver would charge nothing on an order of
+  // unknown size and over-consume the cap. Withholding is the fail-closed
+  // direction, and matches how an exhausted or stale gate already behaves.
   if (
     orderNotionalUsd === undefined ||
     !Number.isFinite(orderNotionalUsd) ||
     orderNotionalUsd <= 0
   ) {
-    return { applies: true, feeBips: 0, kind: 'full' };
+    return { applies: false, feeBips: maxFeeBips, kind: 'none' };
   }
 
   if (remaining >= orderNotionalUsd) {

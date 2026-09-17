@@ -8744,6 +8744,68 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(order).toHaveBeenCalledTimes(2);
       expect(order.mock.calls[1][0].builder.f).toBe(quotedFee);
     });
+
+    it('marks the replacement cloid after the subscription context is cleared', async () => {
+      const order = jest
+        .fn()
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 55 } }] } },
+        })
+        .mockResolvedValue({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 66 } }] } },
+        });
+
+      useStrategyClients({
+        exchange: { order },
+        info: {
+          l2Book: jest
+            .fn()
+            .mockResolvedValueOnce({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2999', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            })
+            .mockResolvedValue({
+              coin: 'ETH',
+              levels: [
+                [{ px: '2998', sz: '10', n: 1 }],
+                [{ px: '3001', sz: '10', n: 1 }],
+              ],
+            }),
+        },
+      });
+
+      provider.setUserFeeResolution({
+        feeBips: 0,
+        discountBips: 10000,
+        source: 'subscription',
+        subscription: { eligible: true, reason: 'eligible' },
+        subscriptionWaiverKind: 'full',
+      });
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'chase',
+        chaseIntervalMs: 1000,
+      } satisfies OrderParams);
+      expect(
+        hasFeeReductionAppliedFlag(order.mock.calls[0][0].orders[0].c),
+      ).toBe(true);
+
+      // TradingService clears the resolution as soon as placeOrder returns,
+      // long before the chase re-prices. The replacement still pays the
+      // discounted fee, so it must still carry the attribution.
+      provider.setUserFeeResolution(undefined);
+      await jest.advanceTimersByTimeAsync(1000);
+
+      expect(order).toHaveBeenCalledTimes(2);
+      expect(
+        hasFeeReductionAppliedFlag(order.mock.calls[1][0].orders[0].c),
+      ).toBe(true);
+    });
   });
 
   describe('Chase re-prices only what is still resting', () => {

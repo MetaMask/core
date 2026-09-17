@@ -999,6 +999,16 @@ type ChaseSession = {
    * would otherwise be re-quoted at the undiscounted maximum.
    */
   builder?: BuilderOrderContext;
+  /**
+   * Whether this chase's orders carry the subscription cloid marking.
+   *
+   * Captured with {@link builder} and for the same reason: the fee resolution
+   * that decides it is live only around the caller's `placeOrder`, and a chase
+   * returns immediately, so every replacement runs after it is cleared. Without
+   * this a replacement would pay the discounted fee the session captured while
+   * shipping an unmarked cloid, and the fill could not be attributed.
+   */
+  marksSubscriptionCloid?: boolean;
   /** Manual HIP-3 collateral retained while this session has venue exposure. */
   hip3Transfer?: Hip3TransferContext;
   /** Coalesces concurrent terminal cleanup reads for this session. */
@@ -6541,6 +6551,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     generation: number,
   ): Promise<OrderResult> {
     const { assetId, szDecimals, formattedSize, builder } = context;
+    // Captured now, alongside the builder fee and for the same reason: the fee
+    // resolution behind it is cleared when the caller's `placeOrder` returns,
+    // which for a chase is before any replacement runs.
+    const marksSubscriptionCloid = this.#isSubscriptionFeeSource();
 
     // The preamble is several round trips long. A disconnect during it has
     // already torn down everything this session would run on, so the chase
@@ -6594,6 +6608,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           size: formattedSize,
           reduceOnly: params.reduceOnly ?? false,
           builder,
+          marksSubscriptionCloid,
           exchangeClient: placingClient,
         });
         break;
@@ -6649,6 +6664,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       intervalMs,
       lastSnapshotSizeRefreshAt: 0,
       builder,
+      marksSubscriptionCloid,
       deadline:
         params.chaseMaxDurationMs === undefined
           ? Number.POSITIVE_INFINITY
@@ -6786,6 +6802,9 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param params.size - Formatted size.
    * @param params.reduceOnly - Whether the order may only reduce a position.
    * @param params.builder - Builder context captured when the session started.
+   * @param params.marksSubscriptionCloid - Whether to mark the cloid, captured
+   * when the session started. Passed explicitly rather than read live: a
+   * replacement runs long after the fee resolution behind it was cleared.
    * @param params.exchangeClient - Client to submit through. Passed in rather
    * than looked up here so a first placement can keep the instance it signed
    * with, which is the only one that can take the order back once `disconnect`
@@ -6799,21 +6818,26 @@ export class HyperLiquidProvider implements PerpsProvider {
     size: string;
     reduceOnly: boolean;
     builder?: BuilderOrderContext;
+    marksSubscriptionCloid?: boolean;
     exchangeClient: ExchangeClient;
   }): Promise<string> {
     const result = await params.exchangeClient.order({
-      orders: this.#applySubscriptionCloid([
-        {
-          a: params.assetId,
-          b: params.isBuy,
-          p: params.price,
-          s: params.size,
-          r: params.reduceOnly,
-          // Post-only: a chase adds liquidity at the touch. Crossing would end
-          // the chase on its first tick at a worse price than resting does.
-          t: { limit: { tif: 'Alo' as const } },
-        },
-      ]),
+      orders: this.#applySubscriptionCloid(
+        [
+          {
+            a: params.assetId,
+            b: params.isBuy,
+            p: params.price,
+            s: params.size,
+            r: params.reduceOnly,
+            // Post-only: a chase adds liquidity at the touch. Crossing would
+            // end the chase on its first tick at a worse price than resting.
+            t: { limit: { tif: 'Alo' as const } },
+          },
+        ],
+        undefined,
+        params.marksSubscriptionCloid,
+      ),
       grouping: 'na',
       ...(params.builder && { builder: params.builder }),
     });
@@ -7196,6 +7220,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             size: remaining,
             reduceOnly: session.reduceOnly,
             builder: session.builder,
+            marksSubscriptionCloid: session.marksSubscriptionCloid,
             // A running session is on a live provider, so the current client is
             // the right one; only the first placement has a teardown to survive.
             exchangeClient: this.#clientService.getExchangeClient(),
@@ -8634,13 +8659,20 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param generatedCloids - Cloids this package generated for these orders and
    * may therefore re-stamp. Only the Scale ladder supplies any; every other path
    * either has no cloid or carries the caller's own.
+   * @param marksSubscriptionCloid - Overrides the live fee resolution for a
+   * chase replacement, which runs after that resolution has been cleared.
    * @returns The same payloads, with cloids marked when subscription won.
    */
   #applySubscriptionCloid(
     orders: SDKOrderParams[],
     generatedCloids?: ReadonlySet<string>,
+    marksSubscriptionCloid?: boolean,
   ): SDKOrderParams[] {
-    if (!this.#isSubscriptionFeeSource()) {
+    // A chase replacement decides from the session, because the live resolution
+    // was cleared when the caller's `placeOrder` returned. Everything else
+    // decides from the resolution in flight.
+    const marks = marksSubscriptionCloid ?? this.#isSubscriptionFeeSource();
+    if (!marks) {
       // Any other source leaves the id exactly as the caller built it.
       return orders;
     }

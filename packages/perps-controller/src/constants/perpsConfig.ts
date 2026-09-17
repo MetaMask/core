@@ -441,9 +441,16 @@ export const SUBSCRIPTION_BENEFITS_CACHE = {
 export const SUBSCRIPTION_CLOID_CONFIG = {
   /**
    * Reserved program marker, 4 bytes as lowercase hex without the `0x`.
-   * PLACEHOLDER — pending the cloid registry value from ADR 0064.
+   *
+   * The registry assigns perps subscriptions program_id `0x0100`, from the
+   * `0x0000`–`0x00FF`-adjacent range reserved for core protocol features. It is
+   * a 2-byte id, zero-extended big-endian into this 4-byte marker field so the
+   * rest of the layout — flag byte at a fixed offset, 11 bytes of entropy — is
+   * unchanged. No previously released client emitted a cloid starting with
+   * these bytes, and it cannot collide with the Scale marker (`4d4d5343`),
+   * which is what makes the decoder safe against historical fills.
    */
-  ProgramId: '4d4d5342',
+  ProgramId: '00000100',
 
   /** Hex characters in the leading program marker (4 bytes). */
   ProgramIdHexLength: 8,

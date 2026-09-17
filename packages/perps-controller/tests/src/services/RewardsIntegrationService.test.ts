@@ -335,7 +335,7 @@ describe('RewardsIntegrationService', () => {
       );
       await service.refreshSubscriptionBenefits();
       expect(getPerpsBenefits).toHaveBeenCalledTimes(1);
-      expect(await service.resolveFee()).toMatchObject({
+      expect(await service.resolveFee(1000)).toMatchObject({
         feeBips: 0,
         discountBips: 10000,
         source: 'subscription',
@@ -345,7 +345,7 @@ describe('RewardsIntegrationService', () => {
       (
         mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
       ).mockResolvedValue(null);
-      expect(await service.resolveFee()).toMatchObject({
+      expect(await service.resolveFee(1000)).toMatchObject({
         feeBips: 0,
         discountBips: 10000,
         source: 'subscription',
@@ -399,7 +399,7 @@ describe('RewardsIntegrationService', () => {
         service = new RewardsIntegrationService(mockDeps, mockMessenger);
         await service.refreshSubscriptionBenefits();
 
-        const resolution = await service.resolveFee();
+        const resolution = await service.resolveFee(1000);
 
         expect(resolution.subscription).toStrictEqual(
           expect.objectContaining({
@@ -523,7 +523,7 @@ describe('RewardsIntegrationService', () => {
         mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
       ).mockResolvedValue(0);
       await service.refreshSubscriptionBenefits();
-      expect(await service.resolveFee()).toMatchObject({
+      expect(await service.resolveFee(1000)).toMatchObject({
         source: 'subscription',
         feeBips: 0,
       });
@@ -698,7 +698,7 @@ describe('RewardsIntegrationService', () => {
         return 6500;
       });
 
-      const resolution = await service.resolveFee();
+      const resolution = await service.resolveFee(1000);
 
       expect(getPerpsBenefits).toHaveBeenCalled();
       expect(resolution.subscription.eligible).toBe(true);
@@ -713,7 +713,7 @@ describe('RewardsIntegrationService', () => {
       ).mockResolvedValue(6500);
       await service.refreshSubscriptionBenefits();
 
-      expect(await service.calculateUserFeeDiscount()).toBe(10000);
+      expect(await service.calculateUserFeeDiscount(1000)).toBe(10000);
     });
 
     it('waives the whole fee when the remaining allowance covers the order notional', async () => {
@@ -878,7 +878,7 @@ describe('RewardsIntegrationService', () => {
       expect(resolution.feeBips).toBe(DEFAULT_FEE_BIPS);
     });
 
-    it('quotes the full waiver when no order notional is supplied', async () => {
+    it('withholds a bounded allowance when no order notional is supplied', async () => {
       wireSubscription(
         jest
           .fn()
@@ -889,7 +889,30 @@ describe('RewardsIntegrationService', () => {
       ).mockResolvedValue(0);
       await service.refreshSubscriptionBenefits();
 
-      // A rate-only preview has nothing to blend against.
+      // A rate-only preview has nothing to measure the cap against, so granting
+      // a full waiver would quote free trading and over-consume the allowance.
+      const resolution = await service.resolveFee();
+
+      expect(resolution.source).toBe('rewards');
+      expect(resolution.feeBips).toBe(DEFAULT_FEE_BIPS);
+      expect(resolution.subscriptionWaiverKind).toBeUndefined();
+      // The gate still passed; only the rate was withheld.
+      expect(resolution.subscription.eligible).toBe(true);
+    });
+
+    it('still waives an unbounded allowance with no order notional', async () => {
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(
+            createBenefits({ remainingNotionalUsd: undefined }),
+          ),
+      );
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+      await service.refreshSubscriptionBenefits();
+
       const resolution = await service.resolveFee();
 
       expect(resolution.source).toBe('subscription');

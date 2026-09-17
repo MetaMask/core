@@ -1832,9 +1832,10 @@ describe('PerpsController', () => {
 
       // ADR 0064 replaced the dedicated builder with cloid marking, so this
       // stays a no-op rather than reaching the provider — even when the
-      // provider still exposes the old approval method.
+      // provider still exposes the old approval method. It resolves `true`
+      // because nothing needs approving; `false` would read as setup failure.
       await expect(controller.approveSubscriptionBuilderFee()).resolves.toBe(
-        false,
+        true,
       );
       expect(approve).not.toHaveBeenCalled();
     });

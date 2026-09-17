@@ -1183,21 +1183,22 @@ export class TradingService {
    *
    * @param options - The configuration options.
    * @param options.params - Which positions the batch will close.
-   * @param options.context - The service context, for the positions read.
+   * @param options.provider - The provider that will submit the batch, and so
+   * the only one whose positions it can close.
    * @returns The summed notional in USD, or undefined when it cannot be read.
    */
   async #resolveBatchCloseNotionalUsd(options: {
     params: ClosePositionsParams;
-    context: ServiceContext;
+    provider: PerpsProvider;
   }): Promise<number | undefined> {
-    const { params, context } = options;
-
-    if (!context.getPositions) {
-      return undefined;
-    }
+    const { params, provider } = options;
 
     try {
-      const positions = await context.getPositions();
+      // Read through the provider that will actually submit the batch. The
+      // context reader aggregates every provider's positions, and a batch close
+      // routes to one — summing the rest would inflate the notional and shrink
+      // the waiver for positions this call never touches.
+      const positions = await provider.getPositions();
       // `closeAll`, or an omitted/empty symbol list, means every position.
       const selected =
         params.symbols && params.symbols.length > 0
@@ -2084,7 +2085,7 @@ export class TradingService {
         // The batch submits under one builder context, so its notional is the
         // sum of the positions it will close, not any single one of them.
         const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
-          await this.#resolveBatchCloseNotionalUsd({ params, context }),
+          await this.#resolveBatchCloseNotionalUsd({ params, provider }),
         );
 
         operationResult = await this.#withFeeDiscount({

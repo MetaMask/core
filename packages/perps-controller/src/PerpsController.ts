@@ -5831,15 +5831,20 @@ export class PerpsController extends BaseController<
    *
    * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
    * marking on the standard builder, so there is nothing left to approve. Kept
-   * as a no-op returning `false` so clients still calling it keep building
-   * while they migrate; remove it once cloid marking is verified in shadow mode.
-   * @returns Always `false`.
+   * as a no-op so clients still calling it keep building while they migrate;
+   * remove it once cloid marking is verified in shadow mode.
+   *
+   * Resolves `true`, not `false`. The method answers "is the subscription
+   * builder ready?", and the honest answer is now "nothing needs approving" —
+   * a `false` would read as a setup failure to a caller that branches on it and
+   * could block a waiver that is already fully in effect.
+   * @returns Always `true`; no approval is required.
    */
   async approveSubscriptionBuilderFee(): Promise<boolean> {
     this.#debugLog(
       'PerpsController: approveSubscriptionBuilderFee is a no-op; subscription attribution now rides on the order cloid',
     );
-    return false;
+    return true;
   }
 
   /**

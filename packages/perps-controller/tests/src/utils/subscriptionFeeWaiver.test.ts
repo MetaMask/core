@@ -112,15 +112,33 @@ describe('resolveSubscriptionWaiverRate', () => {
   });
 
   it.each([undefined, 0, -100, Number.NaN])(
-    'quotes the full waiver rate when the order notional is %p',
+    'withholds a bounded allowance when the order notional is %p',
     (orderNotionalUsd) => {
+      // Granting the full waiver here would charge nothing on an order of
+      // unknown size and silently over-consume the cap, so the source drops out
+      // rather than failing open.
       expect(
         resolveSubscriptionWaiverRate({
           status: createStatus({ remainingNotionalUsd: 250 }),
           maxFeeBips: MAX_FEE_BIPS,
           orderNotionalUsd,
         }),
-      ).toMatchObject({ applies: true, feeBips: 0, kind: 'full' });
+      ).toStrictEqual({ applies: false, feeBips: MAX_FEE_BIPS, kind: 'none' });
+    },
+  );
+
+  it.each([undefined, 0])(
+    'still waives an unbounded allowance when the order notional is %p',
+    (orderNotionalUsd) => {
+      // No reported cap means nothing to over-consume, so a rate-only preview
+      // keeps quoting the full waiver.
+      expect(
+        resolveSubscriptionWaiverRate({
+          status: createStatus(),
+          maxFeeBips: MAX_FEE_BIPS,
+          orderNotionalUsd,
+        }),
+      ).toStrictEqual({ applies: true, feeBips: 0, kind: 'full' });
     },
   );
 });
