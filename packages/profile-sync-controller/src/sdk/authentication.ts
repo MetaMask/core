@@ -114,11 +114,10 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
 
   async beginMfaEnrollment(
     type: MfaCredentialType,
-    email?: string,
-    entropySourceId?: string,
+    options?: { email?: string; entropySourceId?: string },
   ): Promise<EnrollmentChallenge> {
     this.#assertSRP(this.#type, this.#sdk);
-    return await this.#sdk.beginMfaEnrollment(type, email, entropySourceId);
+    return await this.#sdk.beginMfaEnrollment(type, options);
   }
 
   async completeMfaEnrollment(

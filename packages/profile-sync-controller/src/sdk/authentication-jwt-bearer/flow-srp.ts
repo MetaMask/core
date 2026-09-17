@@ -233,15 +233,17 @@ export class SRPJwtBearerAuth implements IBaseAuth {
    * Begins enrollment of an MFA credential for the primary profile.
    *
    * @param type - Credential type to enroll.
-   * @param email - Email address, required for email OTP.
-   * @param entropySourceId - Entropy source whose profile owns the credential.
+   * @param options - Enrollment options.
+   * @param options.email - Email address, required for email OTP.
+   * @param options.entropySourceId - Entropy source whose profile owns the
+   * credential.
    * @returns Enrollment challenge for the client ceremony.
    */
   async beginMfaEnrollment(
     type: MfaCredentialType,
-    email?: string,
-    entropySourceId?: string,
+    options?: { email?: string; entropySourceId?: string },
   ): Promise<EnrollmentChallenge> {
+    const { email, entropySourceId } = options ?? {};
     const accessToken = await this.getAccessToken(entropySourceId);
     const result = await mfaEnroll(this.#config.env, accessToken, {
       credential_type: type,

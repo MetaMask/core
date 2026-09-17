@@ -357,13 +357,48 @@ describe('SRP MFA methods', () => {
       flowId: 'passkey-flow',
     });
     expect(
-      await auth.beginMfaEnrollment('email_otp', 'user@example.com'),
+      await auth.beginMfaEnrollment('email_otp', {
+        email: 'user@example.com',
+      }),
     ).toStrictEqual({
       type: 'email_otp',
       flowId: 'email-flow',
       expiresAt: 2000,
     });
     expect(mockMfaEnroll).toHaveBeenLastCalledWith(Env.DEV, accessToken, {
+      credential_type: 'email_otp',
+      identifier: 'user@example.com',
+    });
+  });
+
+  it('does not conflate email with entropySourceId', async () => {
+    const getLoginResponse = jest.fn(
+      async (): Promise<LoginResponse> => ({
+        token: { accessToken, expiresIn: 3600, obtainedAt: Date.now() },
+        profile: {
+          profileId: 'profile-id',
+          canonicalProfileId: 'profile-id',
+          metaMetricsId: 'metametrics-id',
+          identifierId: 'identifier-id',
+        },
+      }),
+    );
+    const auth = new SRPJwtBearerAuth(config, {
+      storage: { getLoginResponse, setLoginResponse: async () => undefined },
+      signing: {
+        getIdentifier: async (): Promise<string> => 'identifier',
+        signMessage: async (): Promise<string> => 'signature',
+      },
+    });
+    mockMfaEnroll.mockResolvedValueOnce({ flowId: 'flow-id', expiresAt: 1000 });
+
+    await auth.beginMfaEnrollment('email_otp', {
+      email: 'user@example.com',
+      entropySourceId: 'secondary-source',
+    });
+
+    expect(getLoginResponse).toHaveBeenCalledWith('secondary-source');
+    expect(mockMfaEnroll).toHaveBeenCalledWith(Env.DEV, accessToken, {
       credential_type: 'email_otp',
       identifier: 'user@example.com',
     });
