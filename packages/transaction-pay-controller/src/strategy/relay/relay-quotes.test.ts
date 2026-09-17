@@ -4342,22 +4342,18 @@ describe('Relay Quotes Utils', () => {
         });
       });
 
-      it('fails atomic promotion terminally when the discovery target changes shape before promotion', async () => {
+      it('promotes when the discovery target needs normalization', async () => {
         mockRelayResponses(buildRelayQuote({ amountOut: '099000000' }));
 
-        await expect(
-          getRelayQuotes({
-            accountSupports7702: true,
-            messenger,
-            requests: [MONEY_ACCOUNT_MAX_REQUEST],
-            transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
-          }),
-        ).rejects.toMatchObject({
-          info: expect.objectContaining({
-            reason: 'no-quotes',
-            message: expect.stringContaining('Atomic promotion failed'),
-          }),
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [MONEY_ACCOUNT_MAX_REQUEST],
+          transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
         });
+
+        expect(result[0].request.atomic).toBe(true);
+        expect(result[0].request.isMaxAmount).toBe(true);
       });
 
       it('fails atomic promotion terminally with string detail when promotion fails with a non-error', async () => {

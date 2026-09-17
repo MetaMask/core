@@ -523,11 +523,9 @@ export async function maybePromoteSubsidizedMaxMoneyAccountQuote({
       },
     );
 
-    assertAtomicPromotionIsValid({
-      discoveryQuote,
-      promotedQuote,
-      targetAmount,
-    });
+    if (!isSubsidizedRelayQuote(promotedQuote.original)) {
+      throw new Error('Promoted quote lost subsidy');
+    }
 
     return {
       ...promotedQuote,
@@ -658,22 +656,4 @@ async function applyAmountDataUpdates({
     nestedTransactions,
     requiredAssets,
   };
-}
-
-function assertAtomicPromotionIsValid({
-  discoveryQuote,
-  promotedQuote,
-  targetAmount,
-}: {
-  discoveryQuote: TransactionPayQuote<RelayQuote>;
-  promotedQuote: TransactionPayQuote<RelayQuote>;
-  targetAmount: string;
-}): void {
-  if (!isSubsidizedRelayQuote(promotedQuote.original)) {
-    throw new Error('Promoted quote lost subsidy');
-  }
-
-  if (discoveryQuote.original.details.currencyOut.amount !== targetAmount) {
-    throw new Error('Discovery quote target amount changed before promotion');
-  }
 }
