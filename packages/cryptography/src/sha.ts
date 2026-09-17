@@ -4,7 +4,9 @@
  * @param bytes - A byte array.
  * @returns The SHA-256 hash as a byte array.
  */
-export async function sha256(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array> {
+export async function sha256(
+  bytes: Uint8Array<ArrayBuffer>,
+): Promise<Uint8Array> {
   return new Uint8Array(
     await globalThis.crypto.subtle.digest('SHA-256', bytes),
   );
@@ -16,7 +18,9 @@ export async function sha256(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array
  * @param bytes - A byte array.
  * @returns The SHA-512 hash as a byte array.
  */
-export async function sha512(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array> {
+export async function sha512(
+  bytes: Uint8Array<ArrayBuffer>,
+): Promise<Uint8Array> {
   return new Uint8Array(
     await globalThis.crypto.subtle.digest('SHA-512', bytes),
   );
@@ -28,7 +32,9 @@ export async function sha512(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array
  * @param bytes - A byte array.
  * @returns The SHA-384 hash as a byte array.
  */
-export async function sha384(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array> {
+export async function sha384(
+  bytes: Uint8Array<ArrayBuffer>,
+): Promise<Uint8Array> {
   return new Uint8Array(
     await globalThis.crypto.subtle.digest('SHA-384', bytes),
   );
