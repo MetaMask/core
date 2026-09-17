@@ -36,8 +36,7 @@ export function getSolanaPaySupportDiagnostics(
   return {
     ...(errorCode && { errorCode }),
     followUpStatus: execution.followUpStatus,
-    followUpTransactionIdPresent:
-      execution.followUpTransactionId !== undefined,
+    followUpTransactionIdPresent: execution.followUpTransactionId !== undefined,
     notificationStatus: execution.notificationStatus,
     outcome: deriveSolanaPayOutcome(execution),
     phase: execution.phase,
@@ -49,7 +48,7 @@ export function getSolanaPaySupportDiagnostics(
       : 'token',
     sourceStatus: execution.sourceStatus,
     sourceTransactionIdPresent:
-      'sourceTransactionId' in execution &&
+      (execution.phase === 'submitted' || execution.phase === 'unknown') &&
       execution.sourceTransactionId !== undefined,
     targetTransactionIdPresent: execution.targetTransactionId !== undefined,
   };
@@ -75,13 +74,10 @@ export function isSolanaPayLifecycleTransition(
     previous.notificationStatus !== next.notificationStatus ||
     previous.outcome !== next.outcome ||
     previous.phase !== next.phase ||
-    previous.provider !== next.provider ||
     previous.relayStatus !== next.relayStatus ||
-    previous.requestIdPresent !== next.requestIdPresent ||
     previous.sourceAssetClass !== next.sourceAssetClass ||
     previous.sourceStatus !== next.sourceStatus ||
-    previous.sourceTransactionIdPresent !==
-      next.sourceTransactionIdPresent ||
+    previous.sourceTransactionIdPresent !== next.sourceTransactionIdPresent ||
     previous.targetTransactionIdPresent !== next.targetTransactionIdPresent
   );
 }

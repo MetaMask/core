@@ -456,8 +456,7 @@ export class TransactionPayController extends BaseController<
   getSolanaPaySupportDiagnostics(
     transactionId: string,
   ): SolanaPaySupportDiagnostics {
-    const { execution, source } =
-      this.#requireSolanaExecution(transactionId);
+    const { execution, source } = this.#requireSolanaExecution(transactionId);
     return getSolanaPaySupportDiagnostics(source, execution);
   }
 
@@ -1120,8 +1119,7 @@ export class TransactionPayController extends BaseController<
   }
 
   #getSolanaPayStatus(transactionId: string): SolanaPayStatus {
-    const { execution, source } =
-      this.#requireSolanaExecution(transactionId);
+    const { execution, source } = this.#requireSolanaExecution(transactionId);
     const status = getSolanaPayStatus(execution);
     const diagnostics = getSolanaPaySupportDiagnostics(source, execution);
 
