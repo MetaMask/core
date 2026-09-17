@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
-- Subsidized (fixed-spread) max direct Money Account Relay deposits now use `EXACT_OUTPUT` quoting with vault calls embedded atomically in the Relay quote. ([#10224](https://github.com/MetaMask/core/pull/10224))
+- Subsidized max Money Account Relay deposits now support atomic `EXACT_OUTPUT` quoting for eligible exact-output hints, while unsubsidized or ineligible hints continue to fall back to the existing non-atomic max discovery flow. ([#10224](https://github.com/MetaMask/core/pull/10224))
   - Failed atomic promotions are terminal `no-quotes` errors prefixed with `Atomic promotion failed`, and will block rather than silently fall back.
   - Non-subsidized max behavior is unchanged.
 
