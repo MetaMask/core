@@ -279,9 +279,15 @@ export class MultichainAccountWallet<
     // Safe to cast, we know this provider always maps to a group-index-to-account-IDs map.
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const evmGroups = groupsByProvider.get(evmProvider)!;
-    const evmAccountIds =
-      // Pick all accounts from every EVM groups.
-      Array.from(evmGroups.values()).flat(); // Flatten, cause 1 group could hold multiple accounts for a given index.
+    const evmAllAccountIds = new Set(
+      evmProvider.getAccounts().map((account) => account.id),
+    );
+    // Pick all accounts from every EVM groups, but also filter out those not present in the
+    // provider's current account list. So the failures only concern accounts that actually
+    // exist in the provider.
+    const evmAccountIds = Array.from(evmGroups.values())
+      .flat() // Flatten, cause 1 group could hold multiple accounts for a given index.
+      .filter((id) => evmAllAccountIds.has(id));
 
     let evmRemainingAccountIds = new Set(evmAccountIds);
     try {

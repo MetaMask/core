@@ -151,6 +151,17 @@ describe('MultichainAccountWallet', () => {
       expect(providers[1].deleteAccounts).not.toHaveBeenCalled();
     });
 
+    it('resolves when a stale EVM group id is no longer tracked by the provider', async () => {
+      const { wallet, providers } = setup();
+      providers[0].accounts.delete(MOCK_WALLET_1_EVM_ACCOUNT.id);
+
+      await wallet.deleteAllMultichainAccountGroups();
+
+      expect(providers[0].getAccounts).toHaveBeenCalled();
+      expect(providers[0].deleteAccounts).toHaveBeenCalledWith([]);
+      expect(wallet.getMultichainAccountGroups()).toHaveLength(0);
+    });
+
     it('deletes every owned account across providers', async () => {
       const { wallet, providers } = setup();
 

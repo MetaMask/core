@@ -1290,21 +1290,19 @@ describe('MultichainAccountService', () => {
       ).toBeDefined();
     });
 
-    it('removes the wallet without re-enumerating EVM accounts', async () => {
+    it('filters EVM delete targets against getAccounts during wallet removal', async () => {
       const mockEvmAccount = makeWalletAccount(MOCK_HD_ACCOUNT_1);
       const mockSolAccount = makeWalletAccount(MOCK_SOL_ACCOUNT_1);
 
       const { service, mocks } = await setup({
         accounts: [mockEvmAccount, mockSolAccount],
       });
-      mocks.EvmAccountProvider.getAccounts.mockImplementation(() => {
-        throw new Error('EVM accounts unavailable');
-      });
 
       await service.removeMultichainAccountWallet(
         MOCK_HD_KEYRING_1.metadata.id,
       );
 
+      expect(mocks.EvmAccountProvider.getAccounts).toHaveBeenCalled();
       expect(mocks.EvmAccountProvider.deleteAccounts).toHaveBeenCalledWith([
         mockEvmAccount.id,
       ]);
