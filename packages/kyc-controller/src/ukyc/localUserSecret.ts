@@ -1,6 +1,7 @@
 import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
 import { randomBytes } from '@noble/hashes/utils';
 
+import type { KycControllerMessenger } from '../KycController.js';
 import {
   UKYC_LOCAL_USER_SECRET_PATH,
   UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
@@ -16,26 +17,70 @@ import {
  * `data_encryption_key`, `signing_key`, `relay_tunnel_key`) is derived from it
  * via HKDF — see `deriveClientMaterial`.
  *
- * This module is platform-agnostic: the Encrypted User Storage backing is
- * injected as a {@link UkycLocalUserSecretStore} so the controller (which owns
- * the messenger) supplies the concrete `UserStorageController` calls.
+ * Persistence is performed through {@link UkycLocalUserSecretStore}, which
+ * calls `UserStorageController` over the injected messenger.
  */
 
 /**
- * The Encrypted User Storage operations this module needs. On MetaMask clients
- * these are backed by `UserStorageController:performGetStorage` /
- * `performSetStorage`.
+ * Messenger used by {@link UkycLocalUserSecretStore} to reach Encrypted User
+ * Storage.
  */
-export type UkycLocalUserSecretStore = {
+export type UkycLocalUserSecretStoreMessenger = Pick<
+  KycControllerMessenger,
+  'call'
+>;
+
+/**
+ * Encrypted User Storage adapter for the UKYC `local_user_secret`.
+ */
+export class UkycLocalUserSecretStore {
+  readonly #messenger: UkycLocalUserSecretStoreMessenger;
+
+  /**
+   * @param messenger - Messenger that can call User Storage get/set actions.
+   */
+  constructor(messenger: UkycLocalUserSecretStoreMessenger) {
+    this.#messenger = messenger;
+  }
+
   /**
    * Reads the base64 string stored at `path`, or `null` if none exists.
+   *
+   * @param path - User-storage feature path.
+   * @param entropySourceId - Optional HD keyring entropy source id.
+   * @returns The stored value, or `null`.
    */
-  get: (path: string, entropySourceId?: string) => Promise<string | null>;
+  async get(
+    path: string,
+    entropySourceId?: string,
+  ): Promise<string | null> {
+    return this.#messenger.call(
+      'UserStorageController:performGetStorage',
+      path as `${string}.${string}`,
+      entropySourceId,
+    );
+  }
+
   /**
    * Writes the base64 string `value` at `path`.
+   *
+   * @param path - User-storage feature path.
+   * @param value - Base64-encoded secret.
+   * @param entropySourceId - Optional HD keyring entropy source id.
    */
-  set: (path: string, value: string, entropySourceId?: string) => Promise<void>;
-};
+  async set(
+    path: string,
+    value: string,
+    entropySourceId?: string,
+  ): Promise<void> {
+    await this.#messenger.call(
+      'UserStorageController:performSetStorage',
+      path as `${string}.${string}`,
+      value,
+      entropySourceId,
+    );
+  }
+}
 
 /**
  * In-flight `getOrCreateLocalUserSecret` calls, keyed by entropy source.

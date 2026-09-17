@@ -39,8 +39,10 @@ import type {
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
 import { verifyJwtChain } from './ukyc/jwtChain.js';
 import type { Jwk } from './ukyc/jwtChain.js';
-import { getOrCreateLocalUserSecret } from './ukyc/localUserSecret.js';
-import type { UkycLocalUserSecretStore } from './ukyc/localUserSecret.js';
+import {
+  getOrCreateLocalUserSecret,
+  UkycLocalUserSecretStore,
+} from './ukyc/localUserSecret.js';
 import {
   encodeStorageAccessTokenForHeader,
   signStorageAccessToken,
@@ -347,6 +349,8 @@ export class KycController extends BaseController<
 > {
   readonly #sumsubLauncher: KycSumSubLauncher;
 
+  readonly #localUserSecretStore: UkycLocalUserSecretStore;
+
   /**
    * Constructs a new {@link KycController}.
    *
@@ -368,43 +372,12 @@ export class KycController extends BaseController<
     });
 
     this.#sumsubLauncher = sumsubLauncher;
+    this.#localUserSecretStore = new UkycLocalUserSecretStore(this.messenger);
 
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
-  }
-
-  /**
-   * Builds an adapter over `UserStorageController` that the platform-agnostic
-   * `getOrCreateLocalUserSecret` helper uses to persist/load the UKYC
-   * `local_user_secret`.
-   *
-   * @returns The Encrypted User Storage adapter.
-   */
-  #localUserSecretStore(): UkycLocalUserSecretStore {
-    return {
-      get: async (
-        path: string,
-        entropySourceId?: string,
-      ): Promise<string | null> =>
-        this.messenger.call(
-          'UserStorageController:performGetStorage',
-          path as `${string}.${string}`,
-          entropySourceId,
-        ),
-      set: async (
-        path: string,
-        value: string,
-        entropySourceId?: string,
-      ): Promise<void> =>
-        this.messenger.call(
-          'UserStorageController:performSetStorage',
-          path as `${string}.${string}`,
-          value,
-          entropySourceId,
-        ),
-    };
   }
 
   /**
@@ -418,7 +391,6 @@ export class KycController extends BaseController<
     sessionId: string;
     kycStatus?: string;
     finalStatus?: string;
-    vendorProcessing: boolean;
   }> {
     const jwtToken = MOCK_JWT_TOKEN;
 
@@ -470,7 +442,7 @@ export class KycController extends BaseController<
     // read-only capability token, and wrap both for the session server. Only
     // the wrapped (encrypted) material ever leaves the device.
     const localUserSecret = await getOrCreateLocalUserSecret(
-      this.#localUserSecretStore(),
+      this.#localUserSecretStore,
     );
     const clientMaterial = deriveClientMaterial(localUserSecret);
     const wrappedEncryptionDataKey = wrapEncryptionKey(
