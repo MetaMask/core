@@ -1,6 +1,7 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { parseCaipAccountId, parseCaipAssetType } from '@metamask/utils';
 import type { Draft } from 'immer';
 import { noop } from 'lodash-es';
 
@@ -18,7 +19,7 @@ import type {
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
-  SetPayIntentRequest,
+  SetPaySourceRequest,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -46,19 +47,13 @@ const MESSENGER_EXPOSED_METHODS = [
   'getStrategy',
   'polymarketGetDepositWalletAddress',
   'polymarketSubmitDepositWalletBatch',
-  'setPayIntent',
+  'setPaySource',
   'setTransactionConfig',
   'updateFiatPayment',
   'updatePaymentToken',
 ] as const;
 
 const stateMetadata: StateMetadata<TransactionPayControllerState> = {
-  payIntents: {
-    includeInDebugSnapshot: false,
-    includeInStateLogs: false,
-    persist: true,
-    usedInUi: true,
-  },
   transactionData: {
     includeInDebugSnapshot: false,
     includeInStateLogs: true,
@@ -68,7 +63,6 @@ const stateMetadata: StateMetadata<TransactionPayControllerState> = {
 };
 
 const getDefaultState = (): TransactionPayControllerState => ({
-  payIntents: {},
   transactionData: {},
 });
 
@@ -151,32 +145,34 @@ export class TransactionPayController extends BaseController<
   }
 
   /**
-   * Persists a versioned Pay intent and projects it onto the target
-   * transaction record for restart recovery.
+   * Persists chain-agnostic Pay source metadata on the target transaction.
    *
-   * The chain-agnostic source identity remains in the additive intent model;
-   * legacy EVM-only Pay metadata is preserved unchanged.
+   * The CAIP-10 account and CAIP-19 asset must identify the same chain.
+   * Legacy EVM-only Pay metadata is preserved unchanged.
    *
-   * @param request - Pay intent and target transaction ID.
-   * @param request.intent - Durable Pay intent.
+   * @param request - Pay source metadata and target transaction ID.
+   * @param request.source - Chain-agnostic payment source metadata.
    * @param request.transactionId - ID of the target transaction.
    */
-  setPayIntent({ transactionId, intent }: SetPayIntentRequest): void {
+  setPaySource({ transactionId, source }: SetPaySourceRequest): void {
+    const accountChainId = parseCaipAccountId(source.sourceAccountId).chainId;
+    const assetChainId = parseCaipAssetType(source.sourceAssetId).chainId;
+
+    if (accountChainId !== assetChainId) {
+      throw new Error('Pay source account and asset must use the same chain');
+    }
+
     updateTransaction(
       {
         transactionId,
         messenger: this.messenger,
-        note: 'Set transaction pay intent',
+        note: 'Set transaction pay source',
       },
       (transaction) => {
         transaction.metamaskPay ??= {};
-        transaction.metamaskPay.intent = { ...intent };
+        transaction.metamaskPay.source = { ...source };
       },
     );
-
-    this.update((state) => {
-      state.payIntents[transactionId] = { ...intent };
-    });
   }
 
   /**

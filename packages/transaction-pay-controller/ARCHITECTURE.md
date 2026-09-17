@@ -70,4 +70,4 @@ The high level interaction with the `TransactionPayController` is as follows:
 
 Transient state is grouped according to the associated transaction ID in the `transactionData` property. It includes required tokens, the selected payment token, retrieved quotes, and calculated totals, and is not persisted across restarts.
 
-Durable chain-agnostic source identity and execution correlation are stored as versioned intents in `payIntents`, keyed by the target transaction ID. Each intent is also mirrored to the target transaction's `metamaskPay.intent` metadata. This lets recovery correlate the persisted Pay state with the persisted transaction record without storing non-EVM identifiers in legacy EVM-only fields.
+Chain-agnostic source account and asset metadata is stored only on the persisted target transaction in `metamaskPay.source`. The CAIP-10 account and CAIP-19 asset identify their source chain without placing non-EVM identifiers in legacy EVM-only fields. Execution correlation and recovery checkpoints are not part of ordinary Pay selection state.
