@@ -348,14 +348,6 @@ export class KycController extends BaseController<
   readonly #sumsubLauncher: KycSumSubLauncher;
 
   /**
-   * Monotonic flow generation. Incremented by {@link reset} and
-   * {@link clearState} so in-flight async work (e.g. the KYC-required check)
-   * can detect that it was superseded and avoid writing stale results onto a
-   * reset controller.
-   */
-  #generation = 0;
-
-  /**
    * Constructs a new {@link KycController}.
    *
    * @param options - The constructor options.
@@ -418,18 +410,16 @@ export class KycController extends BaseController<
   /**
    * Creates a UKYC session, wraps the `data_encryption_key` and
    * `ukyc_capability_token` against the returned encryption schemas, and
-   * submits both via authorizations. Stores `sumsub.sessionId`. Returns `null`
-   * when a `reset()` superseded the flow.
+   * submits both via authorizations. Stores `sumsub.sessionId`.
    *
-   * @param generation - Flow generation captured by the caller.
-   * @returns The created session, or `null` if superseded.
+   * @returns The created session.
    */
-  async #createUkycSession(generation: number): Promise<{
+  async #createUkycSession(): Promise<{
     sessionId: string;
     kycStatus?: string;
     finalStatus?: string;
     vendorProcessing: boolean;
-  } | null> {
+  }> {
     const jwtToken = MOCK_JWT_TOKEN;
 
     // Establish a per-session X25519 keypair used to seal both secrets. The
@@ -446,11 +436,8 @@ export class KycController extends BaseController<
     const residenceCountry =
       this.state.geoCountry ??
       (await this.messenger.call('KycService:getGeoCountry'));
-    if (this.#generation !== generation) {
-      return null;
-    }
     if (residenceCountry !== this.state.geoCountry) {
-      this.#updateIfCurrent(generation, (state) => {
+      this.#applyUpdate((state) => {
         state.geoCountry = residenceCountry;
       });
     }
@@ -465,9 +452,6 @@ export class KycController extends BaseController<
       residenceCountry,
       vendor: this.state.vendor,
     });
-    if (this.#generation !== generation) {
-      return null;
-    }
 
     // Verify each schema's jwtChain against the matching issuer JWKS, then
     // confirm the returned server public key matches the value attested inside
@@ -509,9 +493,6 @@ export class KycController extends BaseController<
       capabilityTokenSchema.serverPublicKey.x,
       stringToBytes(encodeStorageAccessTokenForHeader(ukycCapabilityToken)),
     );
-    if (this.#generation !== generation) {
-      return null;
-    }
 
     const { kycStatus, finalStatus } = await this.messenger.call(
       'KycService:setAuthorizations',
@@ -526,16 +507,13 @@ export class KycController extends BaseController<
       kycStatus === KYC_STATUSES.approved &&
       finalStatus === KYC_STATUSES.pending;
 
-    const stillCurrent = this.#updateIfCurrent(generation, (state) => {
+    this.#applyUpdate((state) => {
       state.sumsub.sessionId = sessionId;
       if (vendorProcessing) {
         state.sumsub.status = 'vendorProcessing';
         state.statusMessage = VENDOR_PROCESSING_MESSAGE;
       }
     });
-    if (!stillCurrent) {
-      return null;
-    }
     return { sessionId, kycStatus, finalStatus, vendorProcessing };
   }
 
@@ -571,11 +549,6 @@ export class KycController extends BaseController<
     locale?: string;
     debug?: boolean;
   }): Promise<Record<string, unknown>> {
-    // Capture the flow generation so each async step can detect a `reset()`
-    // that lands mid-flight and avoid writing stale sub-flow state (or, worse,
-    // presenting the SDK) on a controller that is now idle.
-    const generation = this.#generation;
-
     try {
       if (!this.#sumsubLauncher.isAvailable()) {
         const error = 'SumSub SDK is not available in this runtime.';
@@ -594,10 +567,7 @@ export class KycController extends BaseController<
             state.sumsub.sessionStatus = null;
           });
 
-          const created = await this.#createUkycSession(generation);
-          if (!created) {
-            return {};
-          }
+          const created = await this.#createUkycSession();
 
           // A user who already finished the journey can return to a session the
           // relay has already approved (`kycStatus`) while the vendor is still
@@ -617,7 +587,7 @@ export class KycController extends BaseController<
         // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         const sessionId = this.state.sumsub.sessionId || '';
 
-        this.#updateIfCurrent(generation, (state) => {
+        this.#applyUpdate((state) => {
           state.sumsub.status = 'fetchingToken';
           state.sumsub.sessionId = sessionId;
         });
@@ -627,19 +597,10 @@ export class KycController extends BaseController<
           sessionId,
         );
 
-        // A reset() may have landed while the session/token was being prepared.
-        // Gate the `launching` write and the decision to open the SDK behind a
-        // single generation check: `#updateIfCurrent` only writes when still
-        // current and reports whether it did. Since there is no `await` between
-        // this check and `launch` below, a successful result guarantees the SDK
-        // is never presented on a flow that a concurrent reset() returned to idle.
-        const stillCurrent = this.#updateIfCurrent(generation, (state) => {
+        this.#applyUpdate((state) => {
           state.sumsub.status = 'launching';
           state.sumsub.applicantAccessToken = applicantAccessToken;
         });
-        if (!stillCurrent) {
-          return {};
-        }
 
         // Track whether the SDK ever reported a successful completion. A resolved
         // `launch` alone does not imply success — the applicant may have
@@ -649,14 +610,6 @@ export class KycController extends BaseController<
         const result = await this.#sumsubLauncher.launch({
           applicantAccessToken,
           onTokenExpiration: async () => {
-            // A reset() may have superseded this flow while the SDK stayed open.
-            // Refuse to refresh against the now-stale UKYC session rather than
-            // silently keeping an orphaned SDK alive.
-            if (this.#generation !== generation) {
-              throw new Error(
-                'KYC flow was reset; SumSub session is no longer active.',
-              );
-            }
             const refreshed = await this.messenger.call(
               'KycService:createJourney',
               sessionId,
@@ -667,7 +620,7 @@ export class KycController extends BaseController<
             if (isSumSubFlowCompleted(next)) {
               reachedCompletion = true;
             }
-            this.#updateIfCurrent(generation, (state) => {
+            this.#applyUpdate((state) => {
               state.sumsub.status = isSumSubFlowCompleted(next)
                 ? 'complete'
                 : 'inProgress';
@@ -692,36 +645,26 @@ export class KycController extends BaseController<
         } else if (isSumSubLaunchFailure(result)) {
           settledStatus = 'failed';
         }
-        const applied = this.#updateIfCurrent(generation, (state) => {
+        this.#applyUpdate((state) => {
           state.sumsub.status = settledStatus;
           state.sumsub.result = result as Json;
         });
 
         // Once the SDK completes, the authoritative verification decision comes
         // from the UKYC backend, not the SDK result. Fetch session status once.
-        // Guard on `applied` so a `reset()` that landed during `launch` cannot
-        // write that fetch onto an idle flow.
-        if (applied && reachedCompletion) {
-          if (sessionId) {
-            await this.#resolveSessionStatus(sessionId, generation);
-          }
+        if (reachedCompletion && sessionId) {
+          await this.#resolveSessionStatus(sessionId);
         }
         return result;
       } catch (error) {
         // Applicant already finished KYC — treat as completed for Money toast.
         if (isSessionAlreadyCompletedError(error)) {
-          // A reset() may have landed while `launch` was in flight; forcing
-          // `completed` (and publishing `statusChanged`) on an idle controller
-          // would resurrect a flow the consumer already tore down.
-          if (this.#generation !== generation) {
-            return { alreadyCompleted: true };
-          }
           this.#applyUserStatus({
             status: 'completed',
             sumsubSessionId: null,
             errorCode: null,
           });
-          this.#updateIfCurrent(generation, (state) => {
+          this.#applyUpdate((state) => {
             state.sumsub.status = 'complete';
             state.sumsub.result = { alreadyCompleted: true };
             state.statusMessage = 'KYC already completed.';
@@ -731,19 +674,17 @@ export class KycController extends BaseController<
           return { alreadyCompleted: true };
         }
         const result = { error: String(error) };
-        this.#updateIfCurrent(generation, (state) => {
+        this.#applyUpdate((state) => {
           state.sumsub.status = 'failed';
           state.sumsub.result = result;
         });
         return result;
       }
     } finally {
-      if (this.#generation === generation) {
-        try {
-          await this.refreshKycStatus();
-        } catch (error) {
-          controllerLog('KYC status refresh failed:', error);
-        }
+      try {
+        await this.refreshKycStatus();
+      } catch (error) {
+        controllerLog('KYC status refresh failed:', error);
       }
     }
   }
