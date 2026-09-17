@@ -142,12 +142,12 @@ describe('MultichainAccountWallet', () => {
   });
 
   describe('deleteAllMultichainAccountGroups', () => {
-    it('does nothing when the wallet has no groups', async () => {
+    it('resolves when the wallet has no groups', async () => {
       const { wallet, providers } = setup({ accounts: [[], []] });
 
       await wallet.deleteAllMultichainAccountGroups();
 
-      expect(providers[0].deleteAccounts).not.toHaveBeenCalled();
+      expect(providers[0].deleteAccounts).toHaveBeenCalledWith([]);
       expect(providers[1].deleteAccounts).not.toHaveBeenCalled();
     });
 
