@@ -94,9 +94,7 @@ export type KycPhase =
 /**
  * Progress of the SumSub document-verification sub-flow.
  *
- * - `polling` — the SDK finished and the controller is polling the UKYC
- *   backend for the session's final decision (see `KycSessionStatus`). The
- *   sub-flow resolves to `complete` or `failed` once a terminal status arrives.
+ * - `inProgress` — the SumSub SDK is on screen.
  * - `vendorProcessing` — session creation reported that the applicant is
  *   already approved on the relay (`kycStatus`) while the vendor is still
  *   finalizing its own decision (`finalStatus`). There is nothing left for the
@@ -111,7 +109,6 @@ export type KycSumSubStatus =
   | 'fetchingToken'
   | 'launching'
   | 'inProgress'
-  | 'polling'
   | 'complete'
   | 'abandoned'
   | 'failed'
@@ -153,8 +150,8 @@ export type KycSumSubSdkStatus =
 export type KycSessionStatus = {
   /**
    * The overall status of the session. Terminal values (e.g. `approved`,
-   * `completed`, `rejected`, `failed`, `blocked`) end polling; any other value
-   * keeps polling.
+   * `completed`, `rejected`, `failed`, `blocked`) are finished decisions; any
+   * other value (e.g. `pending`) means the vendor is still processing.
    */
   finalStatus: string;
   /** Optional human-readable message describing the status. */

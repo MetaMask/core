@@ -186,8 +186,7 @@ export type KycControllerStartSumSubAction = {
 
 /**
  * Refreshes the user-keyed simplified KYC status from `GET /kyc/status`,
- * stores it on state, publishes {@link KycControllerStatusChangedEvent}, and
- * schedules short-interval polling while the status is `pending`.
+ * stores it on state, and publishes {@link KycControllerStatusChangedEvent}.
  *
  * Skipped when `userStatus` is already `completed`: a follow-up
  * `GET /kyc/status` can still read a stale `pending` (for example after
@@ -202,8 +201,7 @@ export type KycControllerRefreshKycStatusAction = {
 
 /**
  * Fetches the current UKYC session status for the active sub-flow and records
- * it on state. Useful for a one-off refresh outside the automatic polling
- * loop that {@link startSumSub} runs.
+ * it on state.
  *
  * @returns The fetched session status.
  * @throws If there is no active SumSub session to query.

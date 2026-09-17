@@ -75,7 +75,7 @@ const UKYC_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
 // for what each one reports). `Completed` covers launchers that normalize the
 // platform status before forwarding it. Review decisions (`Approved`,
 // `FinallyRejected`, `TemporarilyDeclined`) are post-submission outcomes: the
-// applicant finished the SDK, so UKYC is polled for the authoritative
+// applicant finished the SDK, so UKYC is queried for the authoritative
 // decision. Pre-submission statuses (`Ready`, `Initial`, `Incomplete`) must
 // not be recorded as a completed verification.
 const SUMSUB_COMPLETED_STATUSES: ReadonlySet<string> =
@@ -129,10 +129,6 @@ const IN_PROGRESS_PHASES: KycPhase[] = [
   'submit',
 ];
 
-// How often to poll the UKYC session status after the SumSub SDK completes,
-// until a terminal status is reached. Overridable via the constructor.
-const DEFAULT_SESSION_STATUS_POLL_INTERVAL_MS = 15_000;
-
 // UKYC status values. `kycStatus` (the relay-side decision) and `finalStatus`
 // (the vendor-side outcome) draw from the same vocabulary, so they are defined
 // once here and composed into the sets/checks below rather than repeated as
@@ -146,8 +142,8 @@ const KYC_STATUSES = {
   pending: 'pending',
 } as const;
 
-// `finalStatus` values that end the polling loop. Anything else (e.g.
-// `KYC_STATUSES.pending`) keeps polling.
+// `finalStatus` values that represent a finished UKYC decision. Anything else
+// (e.g. `KYC_STATUSES.pending`) is still in flight.
 const TERMINAL_SESSION_STATUSES: ReadonlySet<string> = new Set([
   KYC_STATUSES.approved,
   KYC_STATUSES.completed,
@@ -175,10 +171,6 @@ const VENDOR_PROCESSING_MESSAGE =
 // UKYC / relay error indicating the applicant already finished KYC. Mapped to
 // the simplified `completed` user status for the Money toast surface.
 const SESSION_NOT_IN_VALID_STATE = 'session_not_in_valid_state';
-
-// How often to refresh the user-keyed `GET /kyc/status` while the simplified
-// status is still `pending`. Overridable via the constructor.
-const DEFAULT_USER_STATUS_POLL_INTERVAL_MS = 15_000;
 
 // === STATE ===
 
@@ -285,8 +277,9 @@ export type KycControllerState = {
     sessionId: string | null;
     applicantAccessToken: string | null;
     /**
-     * The latest UKYC session status, populated while polling after the SDK
-     * completes. `null` until the first successful poll.
+     * The latest UKYC session status, populated after the SDK completes or
+     * via {@link KycController.getSessionStatus}. `null` until the first
+     * successful fetch.
      */
     sessionStatus: KycSessionStatus | null;
   };
@@ -703,18 +696,6 @@ export type KycControllerOptions = {
    * the controller stays platform-agnostic.
    */
   sumsubLauncher: KycSumSubLauncher;
-  /**
-   * How often, in milliseconds, to poll the UKYC session status after the
-   * SumSub SDK completes. Defaults to
-   * {@link DEFAULT_SESSION_STATUS_POLL_INTERVAL_MS}.
-   */
-  sessionStatusPollIntervalMs?: number;
-  /**
-   * How often, in milliseconds, to refresh `GET /kyc/status` while the
-   * simplified user status is `pending`. Defaults to
-   * {@link DEFAULT_USER_STATUS_POLL_INTERVAL_MS}.
-   */
-  userStatusPollIntervalMs?: number;
 };
 
 // === CONTROLLER DEFINITION ===
@@ -741,39 +722,6 @@ export class KycController extends BaseController<
    */
   #generation = 0;
 
-  /** Interval, in milliseconds, between session-status polls. */
-  readonly #sessionStatusPollIntervalMs: number;
-
-  /** Handle for the scheduled next session-status poll, or `null`. */
-  #pollTimer: ReturnType<typeof setTimeout> | null = null;
-
-  /**
-   * Monotonic polling token. Bumped by {@link #stopPolling} (called on reset, a
-   * new sub-flow, and once a terminal status is reached) so an in-flight poll
-   * `tick` can detect it was superseded and neither write state nor schedule a
-   * follow-up. This closes the gap where clearing the timer alone would still
-   * let an already-awaiting request finish and reschedule.
-   */
-  #pollToken = 0;
-
-  /** Interval, in milliseconds, between user-keyed status polls. */
-  readonly #userStatusPollIntervalMs: number;
-
-  /** Handle for the scheduled next user-status poll, or `null`. */
-  #userStatusPollTimer: ReturnType<typeof setTimeout> | null = null;
-
-  /**
-   * Whether a user-status poll loop is currently active. Tracked separately
-   * from {@link #userStatusPollTimer} because a scheduled tick clears the timer
-   * handle before awaiting `fetchKycStatus`; relying on the handle alone would
-   * let a concurrent {@link refreshKycStatus} start a second loop on the same
-   * token during that in-flight window.
-   */
-  #userStatusPolling = false;
-
-  /** Monotonic token for the user-status poll loop (see `#pollToken`). */
-  #userStatusPollToken = 0;
-
   /**
    * Constructs a new {@link KycController}.
    *
@@ -781,17 +729,11 @@ export class KycController extends BaseController<
    * @param options.messenger - The messenger suited for this controller.
    * @param options.state - Partial initial state; merged over defaults.
    * @param options.sumsubLauncher - The platform SumSub launcher adapter.
-   * @param options.sessionStatusPollIntervalMs - How often to poll the UKYC
-   * session status after the SumSub SDK completes.
-   * @param options.userStatusPollIntervalMs - How often to refresh the
-   * user-keyed KYC status while it is still `pending`.
    */
   constructor({
     messenger,
     state,
     sumsubLauncher,
-    sessionStatusPollIntervalMs = DEFAULT_SESSION_STATUS_POLL_INTERVAL_MS,
-    userStatusPollIntervalMs = DEFAULT_USER_STATUS_POLL_INTERVAL_MS,
   }: KycControllerOptions) {
     super({
       messenger,
@@ -801,8 +743,6 @@ export class KycController extends BaseController<
     });
 
     this.#sumsubLauncher = sumsubLauncher;
-    this.#sessionStatusPollIntervalMs = sessionStatusPollIntervalMs;
-    this.#userStatusPollIntervalMs = userStatusPollIntervalMs;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -1307,9 +1247,8 @@ export class KycController extends BaseController<
             : 'SumSub verification could not run.',
         );
       }
-      // After SumSub, refresh user-keyed status for the Money toast and start
-      // polling while still pending. Soft-fail: toast refresh must not rewind
-      // the consent / SumSub outcome.
+      // After SumSub, refresh user-keyed status for the Money toast. Soft-fail:
+      // toast refresh must not rewind the consent / SumSub outcome.
       try {
         await this.refreshKycStatus();
       } catch (statusError) {
@@ -1893,15 +1832,6 @@ export class KycController extends BaseController<
     locale?: string;
     debug?: boolean;
   }): Promise<Record<string, unknown>> {
-    // A new sub-flow supersedes any polling still running from a prior run.
-    this.#stopPolling();
-    // Paused for the whole sub-flow: a tick landing while the SDK is on screen
-    // publishes `statusChanged`, pulling consumers (and their signing prompts)
-    // in front of a flow the applicant has not finished. Resumed in `finally`
-    // so abandonment, SDK failure, and callers that do not run
-    // `refreshKycStatus` (MoonPay post-auth) still restore the loop.
-    this.#stopUserStatusPolling();
-
     // Capture the flow generation so each async step can detect a `reset()`
     // that lands mid-flight and avoid writing stale sub-flow state (or, worse,
     // presenting the SDK) on a controller that is now idle.
@@ -1943,7 +1873,7 @@ export class KycController extends BaseController<
           }
         }
 
-        // Empty string is a valid "no id to poll" session id used by tests and
+        // Empty string is a valid "no session id" value used by tests and
         // must not be coalesced away as missing.
         // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         const sessionId = this.state.sumsub.sessionId || '';
@@ -2013,13 +1943,13 @@ export class KycController extends BaseController<
         reachedCompletion ||= isSumSubFlowCompleted(result.status);
 
         // A resolved `launch` alone is not the final outcome: only a submission
-        // is worth polling for a decision. Without one, the SDK status is the
-        // only way to tell a failure from an applicant who closed the SDK early
-        // — the UKYC session leaves its initial state as soon as the journey is
-        // created, so it cannot stand in for "the applicant finished".
+        // is worth asking UKYC for a decision. Without one, the SDK status is
+        // the only way to tell a failure from an applicant who closed the SDK
+        // early — the UKYC session leaves its initial state as soon as the
+        // journey is created, so it cannot stand in for "the applicant finished".
         let settledStatus: KycSumSubStatus = 'abandoned';
         if (reachedCompletion) {
-          settledStatus = 'polling';
+          settledStatus = 'complete';
         } else if (isSumSubLaunchFailure(result)) {
           settledStatus = 'failed';
         }
@@ -2029,18 +1959,12 @@ export class KycController extends BaseController<
         });
 
         // Once the SDK completes, the authoritative verification decision comes
-        // from the UKYC backend, not the SDK result. Poll the session status
-        // until it reaches a terminal decision. Guard on `applied` so a `reset()`
-        // that landed during `launch` cannot start polling on an idle flow.
+        // from the UKYC backend, not the SDK result. Fetch session status once.
+        // Guard on `applied` so a `reset()` that landed during `launch` cannot
+        // write that fetch onto an idle flow.
         if (applied && reachedCompletion) {
           if (sessionId) {
-            await this.#startSessionStatusPolling(sessionId);
-          } else {
-            // No session id to poll against; fall back to treating the SDK
-            // completion as the final outcome.
-            this.#updateIfCurrent(generation, (state) => {
-              state.sumsub.status = 'complete';
-            });
+            await this.#resolveSessionStatus(sessionId, generation);
           }
         }
         return result;
@@ -2087,8 +2011,7 @@ export class KycController extends BaseController<
 
   /**
    * Refreshes the user-keyed simplified KYC status from `GET /kyc/status`,
-   * stores it on state, publishes {@link KycControllerStatusChangedEvent}, and
-   * schedules short-interval polling while the status is `pending`.
+   * stores it on state, and publishes {@link KycControllerStatusChangedEvent}.
    *
    * Skipped when `userStatus` is already `completed`: a follow-up
    * `GET /kyc/status` can still read a stale `pending` (for example after
@@ -2109,26 +2032,11 @@ export class KycController extends BaseController<
       };
     }
 
-    const generation = this.#generation;
-    const payload = await this.#fetchAndApplyUserStatus();
-    // A `reset()` landing while the request was in flight already stopped
-    // polling and left the flow idle, and the payload above is the pre-reset
-    // cached status. Starting a loop from it would poll — and publish
-    // `statusChanged` — on a torn-down flow.
-    if (this.#generation !== generation) {
-      return payload;
-    }
-    if (payload.status === 'pending') {
-      this.#ensureUserStatusPolling();
-    } else {
-      this.#stopUserStatusPolling();
-    }
-    return payload;
+    return await this.#fetchAndApplyUserStatus();
   }
 
   /**
-   * Fetches `GET /kyc/status` and applies it to state without managing the
-   * poll loop (used by both {@link refreshKycStatus} and the poll tick).
+   * Fetches `GET /kyc/status` and applies it to state.
    *
    * @returns The latest status payload.
    */
@@ -2181,69 +2089,8 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Starts the user-status poll loop when not already running and status is
-   * still `pending`.
-   */
-  #ensureUserStatusPolling(): void {
-    if (this.#userStatusPolling) {
-      return;
-    }
-    this.#userStatusPolling = true;
-    const token = this.#userStatusPollToken;
-    const tick = async (): Promise<void> => {
-      try {
-        const payload = await this.#fetchAndApplyUserStatus();
-        // Race with `reset()` / `#stopUserStatusPolling` while the request was
-        // in flight — do not reschedule onto an idle controller.
-        /* istanbul ignore next */
-        if (this.#userStatusPollToken !== token) {
-          return;
-        }
-        if (payload.status !== 'pending') {
-          this.#stopUserStatusPolling();
-          return;
-        }
-      } catch {
-        // Keep polling on transient errors, unless the loop was superseded.
-        /* istanbul ignore next */
-        if (this.#userStatusPollToken !== token) {
-          return;
-        }
-      }
-      this.#userStatusPollTimer = setTimeout(() => {
-        this.#userStatusPollTimer = null;
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        tick();
-      }, this.#userStatusPollIntervalMs);
-      // Allow the process to exit while a pending-status poll is scheduled.
-      // React Native / browser timers are numbers with no `unref`, hence the
-      // optional call.
-      this.#userStatusPollTimer.unref?.();
-    };
-    this.#userStatusPollTimer = setTimeout(() => {
-      this.#userStatusPollTimer = null;
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      tick();
-    }, this.#userStatusPollIntervalMs);
-    this.#userStatusPollTimer.unref?.();
-  }
-
-  /**
-   * Stops the user-keyed status poll loop.
-   */
-  #stopUserStatusPolling(): void {
-    this.#userStatusPollToken += 1;
-    this.#userStatusPolling = false;
-    if (this.#userStatusPollTimer !== null) {
-      clearTimeout(this.#userStatusPollTimer);
-      this.#userStatusPollTimer = null;
-    }
-  }
-
-  /**
    * Fetches the current UKYC session status for the active sub-flow and records
-   * it on state. Useful for a one-off refresh outside the automatic polling
-   * loop that {@link startSumSub} runs.
+   * it on state.
    *
    * @returns The fetched session status.
    * @throws If there is no active SumSub session to query.
@@ -2268,71 +2115,27 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Begins polling the UKYC session status until a terminal decision is
-   * reached. The first poll runs immediately (and is awaited by
-   * {@link startSumSub}); subsequent polls are scheduled every
-   * `#sessionStatusPollIntervalMs`.
+   * Fetches UKYC session status once after the SumSub SDK completes and maps a
+   * terminal `finalStatus` onto the sub-flow. Non-terminal statuses still
+   * record the payload and leave the sub-flow `complete` (the applicant
+   * submitted). Transient fetch errors leave the SDK completion outcome in
+   * place.
    *
-   * @param sessionId - The UKYC session id to poll.
-   * @returns A promise that resolves once the first poll settles.
+   * @param sessionId - The UKYC session id.
+   * @param generation - Flow generation captured before the SDK launched.
    */
-  async #startSessionStatusPolling(sessionId: string): Promise<void> {
-    // Supersede any prior loop and claim a fresh token for this one. Because
-    // `#stopPolling` bumps the token, any in-flight poll from a previous loop
-    // sees a mismatch and neither writes state nor reschedules.
-    this.#stopPolling();
-    const token = this.#pollToken;
-
-    const tick = async (): Promise<void> => {
-      const shouldStop = await this.#pollSessionStatusOnce(sessionId, token);
-      if (shouldStop) {
-        return;
-      }
-      this.#pollTimer = setTimeout(() => {
-        this.#pollTimer = null;
-        // `tick` swallows its own errors (see `#pollSessionStatusOnce`) and
-        // therefore never rejects, so this fire-and-forget scheduled poll
-        // cannot surface as an unhandled rejection.
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        tick();
-      }, this.#sessionStatusPollIntervalMs);
-    };
-
-    await tick();
-  }
-
-  /**
-   * Performs a single session-status poll: fetches the status, records it, and
-   * resolves the sub-flow when the status is terminal.
-   *
-   * Transient errors are swallowed so the loop keeps polling; the last good
-   * `sessionStatus` is deliberately preserved rather than being overwritten
-   * with the error.
-   *
-   * @param sessionId - The UKYC session id to poll.
-   * @param token - The polling token captured when the loop started.
-   * @returns `true` when the loop should stop (terminal status or superseded
-   * by a reset / new sub-flow), `false` when it should keep polling.
-   */
-  async #pollSessionStatusOnce(
+  async #resolveSessionStatus(
     sessionId: string,
-    token: number,
-  ): Promise<boolean> {
+    generation: number,
+  ): Promise<void> {
     try {
       const sessionStatus = await this.messenger.call(
         'KycService:getSessionStatus',
         { sessionId },
       );
-      // Superseded while the request was in flight — drop the result.
-      if (this.#pollToken !== token) {
-        return true;
-      }
-      const isTerminal = TERMINAL_SESSION_STATUSES.has(
-        sessionStatus.finalStatus,
-      );
-      this.#applyUpdate((state) => {
+      this.#updateIfCurrent(generation, (state) => {
         state.sumsub.sessionStatus = sessionStatus;
-        if (isTerminal) {
+        if (TERMINAL_SESSION_STATUSES.has(sessionStatus.finalStatus)) {
           state.sumsub.status = SUCCESSFUL_SESSION_STATUSES.has(
             sessionStatus.finalStatus,
           )
@@ -2340,26 +2143,8 @@ export class KycController extends BaseController<
             : 'failed';
         }
       });
-      if (isTerminal) {
-        this.#stopPolling();
-      }
-      return isTerminal;
     } catch {
-      // Keep polling on transient errors, preserving the last good status.
-      // Stop only when a reset / new sub-flow superseded this loop.
-      return this.#pollToken !== token;
-    }
-  }
-
-  /**
-   * Stops the session-status polling loop: bumps the polling token (so any
-   * in-flight `tick` bows out) and clears any scheduled poll.
-   */
-  #stopPolling(): void {
-    this.#pollToken += 1;
-    if (this.#pollTimer !== null) {
-      clearTimeout(this.#pollTimer);
-      this.#pollTimer = null;
+      // Leave the SDK completion outcome in place.
     }
   }
 
@@ -2406,14 +2191,11 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Tears down everything that lives outside state: stops both polling loops
-   * and bumps the flow generation so async steps started earlier discard
-   * their results instead of writing them onto the controller. Shared by
+   * Bumps the flow generation so async steps started earlier discard their
+   * results instead of writing them onto the controller. Shared by
    * {@link reset} and {@link clearState}.
    */
   #cancelPendingSession(): void {
-    this.#stopPolling();
-    this.#stopUserStatusPolling();
     this.#generation += 1;
   }
 

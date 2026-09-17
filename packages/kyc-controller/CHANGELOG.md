@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **BREAKING:** Remove `sessionStatusPollIntervalMs` and `userStatusPollIntervalMs` from `KycControllerOptions`, and stop automatic session-status and user-status polling. `startSumSub` fetches UKYC session status once after the SDK completes; `refreshKycStatus` and `getSessionStatus` remain one-shot.
+- **BREAKING:** Remove the `polling` value from `KycSumSubStatus`.
 - **BREAKING:** Remove MoonPay Check/Auth frame methods from `KycController`: `handleFrameMessage`, `buildCheckFrameUrl`, `buildAuthFrameUrl`, and `buildResetFrameUrl`. Use `MoonPayFrameHandler` directly for frame protocol, URLs, and message handling.
 
 ## [0.3.0]
