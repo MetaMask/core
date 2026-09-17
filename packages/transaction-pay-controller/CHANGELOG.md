@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add a persisted, versioned Pay intent model with canonical CAIP source identity and execution correlation, mirrored to transaction metadata for restart recovery.
+- Add validated chain-agnostic Pay source metadata to persisted transaction records while keeping ordinary Pay selection state transient ([#10272](https://github.com/MetaMask/core/pull/10272))
 
 ### Changed
 
