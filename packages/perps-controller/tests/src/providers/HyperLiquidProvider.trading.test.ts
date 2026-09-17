@@ -34,6 +34,10 @@ import {
 } from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
+  hasFeeReductionAppliedFlag,
+  isSubscriptionProgramCloid,
+} from '../../../src/utils/subscriptionFeeWaiver.js';
+import {
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
@@ -4872,6 +4876,138 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.updatePositionTPSL(updateParams);
 
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('ADR 0064 subscription cloid marking on replace and batch paths', () => {
+    const subscriptionResolution = {
+      feeBips: 0,
+      discountBips: 10000,
+      source: 'subscription' as const,
+      subscription: { eligible: true, reason: 'eligible' as const },
+      subscriptionWaiverKind: 'full' as const,
+    };
+
+    const rewardsResolution = {
+      feeBips: 6.5,
+      discountBips: 3500,
+      source: 'rewards' as const,
+      subscription: { eligible: false, reason: 'not-entitled' as const },
+    };
+
+    const editParams = {
+      orderId: '123',
+      newOrder: {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.2',
+        price: '52000',
+        orderType: 'limit',
+      } as OrderParams,
+    };
+
+    it('marks the cloid with the subscription program id when subscription wins', async () => {
+      provider.setUserFeeResolution(subscriptionResolution);
+
+      const result = await provider.editOrder(editParams);
+
+      expect(result.success).toBe(true);
+      const modifyCalls = (
+        mockClientService.getExchangeClient().modify as jest.Mock
+      ).mock.calls;
+      expect(modifyCalls.length).toBeGreaterThan(0);
+      modifyCalls.forEach(([payload]) => {
+        const cloid = (payload as { order: { c?: string } }).order.c;
+        expect(hasFeeReductionAppliedFlag(cloid)).toBe(true);
+        expect(isSubscriptionProgramCloid(cloid)).toBe(true);
+      });
+    });
+
+    it('marks the cloid on the batch close path', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          clearinghouseState: jest.fn().mockResolvedValue({
+            marginSummary: { totalMarginUsed: '1500', accountValue: '11500' },
+            withdrawable: '10000',
+            assetPositions: [
+              {
+                position: {
+                  coin: 'BTC',
+                  szi: '1.5',
+                  entryPx: '50000',
+                  positionValue: '75000',
+                  unrealizedPnl: '100',
+                  marginUsed: '1000',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '45000',
+                },
+                type: 'oneWay',
+              },
+              {
+                position: {
+                  coin: 'ETH',
+                  szi: '-2.0',
+                  entryPx: '3000',
+                  positionValue: '6000',
+                  unrealizedPnl: '50',
+                  marginUsed: '500',
+                  leverage: { type: 'cross', value: 10 },
+                  liquidationPx: '3300',
+                },
+                type: 'oneWay',
+              },
+            ],
+            crossMarginSummary: {
+              accountValue: '11500',
+              totalMarginUsed: '1500',
+            },
+          }),
+          meta: jest.fn().mockResolvedValue({
+            universe: [
+              { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+              { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
+            ],
+          }),
+          allMids: jest.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
+          frontendOpenOrders: jest.fn().mockResolvedValue([]),
+        }),
+      );
+      provider.setUserFeeResolution(subscriptionResolution);
+
+      await provider.closePositions({ closeAll: true });
+
+      const batchOrders = (
+        mockClientService.getExchangeClient().order as jest.Mock
+      ).mock.calls.flatMap(
+        (call) => (call[0] as { orders: { c?: string }[] }).orders,
+      );
+      expect(batchOrders.length).toBeGreaterThan(0);
+      batchOrders.forEach((order) => {
+        expect(hasFeeReductionAppliedFlag(order.c)).toBe(true);
+      });
+      // Every order in the batch still needs its own id.
+      expect(new Set(batchOrders.map((order) => order.c)).size).toBe(
+        batchOrders.length,
+      );
+    });
+
+    it('leaves the cloid unmarked when any other fee source wins', async () => {
+      provider.setUserFeeResolution(rewardsResolution);
+
+      const result = await provider.editOrder(editParams);
+
+      expect(result.success).toBe(true);
+      const modifyCalls = (
+        mockClientService.getExchangeClient().modify as jest.Mock
+      ).mock.calls;
+      expect(modifyCalls.length).toBeGreaterThan(0);
+      modifyCalls.forEach(([payload]) => {
+        expect(
+          hasFeeReductionAppliedFlag(
+            (payload as { order: { c?: string } }).order.c,
+          ),
+        ).toBe(false);
+      });
     });
   });
 });

@@ -5,6 +5,7 @@ import {
 import {
   PERPS_CONSTANTS,
   SUBSCRIPTION_BENEFITS_CACHE,
+  SUBSCRIPTION_FEE_WAIVER_FLAG,
 } from '../constants/perpsConfig.js';
 import type {
   PerpsFeeResolution,
@@ -17,6 +18,7 @@ import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
 import { ensureError } from '../utils/errorUtils.js';
 import { formatAccountToCaipAccountId } from '../utils/rewardsUtils.js';
+import { resolveSubscriptionWaiverRate } from '../utils/subscriptionFeeWaiver.js';
 
 /**
  * Default MetaMask builder fee, in basis points.
@@ -89,6 +91,13 @@ export class RewardsIntegrationService {
   #benefitsEpoch = 0;
 
   /**
+   * CAIP-10 addresses already registered with the subscription profile this
+   * session, so preview does not re-send the same registration on every
+   * keystroke. Cleared on account switch and on cache invalidation.
+   */
+  readonly #registeredTradingAddresses = new Set<string>();
+
+  /**
    * Create a new RewardsIntegrationService instance
    *
    * @param deps - Platform dependencies for logging, metrics, etc.
@@ -125,10 +134,13 @@ export class RewardsIntegrationService {
    * Calculate user fee discount from the unified fee resolver.
    * Returns discount in basis points (e.g., 6500 = 65% discount)
    *
+   * @param orderNotionalUsd - Order notional (USD), when the caller knows it.
    * @returns The fee discount in basis points, or undefined if no source resolved.
    */
-  async calculateUserFeeDiscount(): Promise<number | undefined> {
-    const resolution = await this.resolveFee();
+  async calculateUserFeeDiscount(
+    orderNotionalUsd?: number,
+  ): Promise<number | undefined> {
+    const resolution = await this.resolveFee(orderNotionalUsd);
     return resolution.discountBips;
   }
 
@@ -139,9 +151,17 @@ export class RewardsIntegrationService {
    * unresolved cached source simply drops out of the comparison, so the worst
    * case is the default fee rather than an error or an over-granted waiver.
    *
+   * The subscription source contributes an effective rate rather than a flat
+   * zero (ADR 0064): the allowance may cover only part of the order, and the
+   * blend that results has to be able to lose to a deeper VIP or season
+   * discount. Passing the order notional is what makes that blend possible; a
+   * caller with no notional to quote against (a rate-only preview) gets the
+   * full-waiver rate, which is the pre-ADR behavior.
+   *
+   * @param orderNotionalUsd - Order notional (USD), when the caller knows it.
    * @returns The winning fee, its source, and the subscription gate outcome.
    */
-  async resolveFee(): Promise<PerpsFeeResolution> {
+  async resolveFee(orderNotionalUsd?: number): Promise<PerpsFeeResolution> {
     const rewardsDiscountBips = await this.#calculateRewardsDiscount();
     // Pure cache read: subscription benefits must never start a network request
     // while an order is being prepared for signing.
@@ -161,10 +181,24 @@ export class RewardsIntegrationService {
       }
     }
 
-    // Nothing can undercut a waived fee, so the gate passing always wins.
-    if (subscription.eligible) {
-      feeBips = 0;
+    const waiver = resolveSubscriptionWaiverRate({
+      status: subscription,
+      maxFeeBips: DEFAULT_FEE_BIPS,
+      orderNotionalUsd,
+    });
+
+    let subscriptionWaiverKind: PerpsFeeResolution['subscriptionWaiverKind'];
+    let subscriptionCoveredNotionalUsd: number | undefined;
+
+    // The waiver competes like any other source. A full waiver still wins on
+    // `<=`, but a partial blend only wins when it is genuinely cheaper than the
+    // rewards discount — the ADR's requirement that subscription be able to
+    // lose.
+    if (waiver.applies && waiver.feeBips <= feeBips) {
+      feeBips = waiver.feeBips;
       source = 'subscription';
+      subscriptionWaiverKind = waiver.kind === 'partial' ? 'partial' : 'full';
+      subscriptionCoveredNotionalUsd = waiver.coveredNotionalUsd;
     }
 
     const discountBips =
@@ -178,11 +212,21 @@ export class RewardsIntegrationService {
       discountBips,
       defaultFeeBips: DEFAULT_FEE_BIPS,
       rewardsDiscountBips,
+      orderNotionalUsd,
       subscriptionEligible: subscription.eligible,
       subscriptionReason: subscription.reason,
+      subscriptionWaiverKind,
+      subscriptionCoveredNotionalUsd,
     });
 
-    return { feeBips, discountBips, source, subscription };
+    return {
+      feeBips,
+      discountBips,
+      source,
+      subscription,
+      subscriptionWaiverKind,
+      subscriptionCoveredNotionalUsd,
+    };
   }
 
   /**
@@ -195,6 +239,14 @@ export class RewardsIntegrationService {
    */
   getSubscriptionFeeWaiverStatus(): PerpsSubscriptionFeeWaiverStatus {
     if (!this.#deps.subscription) {
+      return { eligible: false, reason: 'no-source' };
+    }
+
+    // ADR 0064 Milestone 8: the subscription source has to be killable on its
+    // own. Reported as `no-source` so a disabled flag is indistinguishable from
+    // an unwired client downstream — both mean "subscription contributes
+    // nothing", and neither touches rewards or the default fee.
+    if (!this.#isSubscriptionFeeWaiverEnabled()) {
       return { eligible: false, reason: 'no-source' };
     }
 
@@ -212,6 +264,29 @@ export class RewardsIntegrationService {
     }
 
     return evaluateFeeWaiverGate(snapshot.benefits);
+  }
+
+  /**
+   * Whether the subscription fee-waiver source is enabled remotely.
+   *
+   * Fails open: an absent flag, a malformed value, or an unreachable flag
+   * controller all read as enabled, because silently dropping a benefit the
+   * user pays for is worse than serving it one release too long. The kill
+   * switch is an explicit `false`.
+   *
+   * @returns True unless the remote flag explicitly disables the source.
+   */
+  #isSubscriptionFeeWaiverEnabled(): boolean {
+    try {
+      const { remoteFeatureFlags } = this.#messenger.call(
+        'RemoteFeatureFlagController:getState',
+      );
+      const flag = remoteFeatureFlags?.[SUBSCRIPTION_FEE_WAIVER_FLAG];
+      return flag !== false;
+    } catch {
+      // No flag controller registered, or the read threw: keep the source.
+      return true;
+    }
   }
 
   /**
@@ -281,6 +356,9 @@ export class RewardsIntegrationService {
     // fetching for the new identity. Its `finally` guard compares against the
     // current handle, so it will not clear whatever replaces it here.
     this.#benefitsRefresh = undefined;
+    // The identity behind the registration changed too, so the new one has to
+    // announce itself rather than inherit the previous profile's registration.
+    this.#registeredTradingAddresses.clear();
 
     this.#deps.debugLogger.log(
       'RewardsIntegrationService: Subscription benefits cache invalidated',
@@ -299,7 +377,7 @@ export class RewardsIntegrationService {
     const epoch = this.#benefitsEpoch;
 
     try {
-      const benefits = await source.getPerpsBenefits();
+      const benefits = await this.#getPerpsBenefits(source);
 
       if (epoch !== this.#benefitsEpoch) {
         // Invalidated while this read was in flight: it belongs to a previous
@@ -346,6 +424,129 @@ export class RewardsIntegrationService {
         this.#lastAttemptAt = Date.now();
       }
     }
+  }
+
+  /**
+   * Read subscription benefits, preferring the messenger over the DI callback.
+   *
+   * ADR 0064 moves hydration onto `SubscriptionController`. Clients that have
+   * not shipped it yet register no such action, and the messenger throws on an
+   * unregistered action name — so the injected `subscription` dependency stays
+   * the fallback rather than a second source of truth.
+   *
+   * @param source - The injected subscription benefits source.
+   * @returns The benefits payload, or null when there is none to report.
+   */
+  async #getPerpsBenefits(
+    source: NonNullable<PerpsPlatformDependencies['subscription']>,
+  ): Promise<PerpsSubscriptionBenefits | null> {
+    let pending: Promise<PerpsSubscriptionBenefits | null> | undefined;
+    try {
+      // Called without awaiting so the fallback stays synchronous when no
+      // handler is registered: the DI read must start in the same tick, or a
+      // caller that inspects the in-flight state sees an idle service.
+      const result = this.#messenger.call(
+        'SubscriptionController:getPerpsBenefits',
+      );
+      // `null` is a real answer ("no subscription"); `undefined` means nothing
+      // handled the action, which is the fallback case rather than an answer.
+      if (result !== undefined) {
+        pending = Promise.resolve(result);
+      }
+    } catch {
+      // Unregistered action or a throwing handler: fall through to the DI source.
+    }
+
+    if (pending) {
+      try {
+        return await pending;
+      } catch {
+        // A registered handler that rejects still falls back rather than
+        // erasing the cached snapshot.
+      }
+    }
+
+    return await source.getPerpsBenefits();
+  }
+
+  /**
+   * Register the current HyperLiquid trading address with the subscription
+   * profile, so a later fill decoded off the HL fan-out can be attributed.
+   *
+   * ADR 0064 calls for this at preview time and again whenever the selected
+   * account changes. Registration is idempotent backend-side and deliberately
+   * never throws: it is observability plumbing, and a failure here must not
+   * block a fee preview.
+   *
+   * @param address - The EVM trading address to register.
+   * @returns A promise that resolves once the attempt settles.
+   */
+  async registerTradingAddress(address: string): Promise<void> {
+    if (!this.#deps.subscription) {
+      return;
+    }
+
+    try {
+      const networkState = this.#messenger.call('NetworkController:getState');
+      const chainId = this.#getChainIdForNetwork(
+        networkState.selectedNetworkClientId,
+      );
+
+      if (!chainId) {
+        return;
+      }
+
+      const caipAccountId = formatAccountToCaipAccountId(
+        address,
+        chainId,
+        this.#deps.logger,
+      );
+
+      if (!caipAccountId) {
+        return;
+      }
+
+      // Skip the round trip when this address was already registered for this
+      // session: preview runs on every keystroke in the order form.
+      if (this.#registeredTradingAddresses.has(caipAccountId)) {
+        return;
+      }
+
+      await this.#messenger.call(
+        'SubscriptionController:registerAddress',
+        caipAccountId,
+      );
+      this.#registeredTradingAddresses.add(caipAccountId);
+
+      this.#deps.debugLogger.log(
+        'RewardsIntegrationService: Trading address registered',
+        { caipAccountId },
+      );
+    } catch (error) {
+      // An unregistered action, an offline client, or a backend refusal all
+      // land here. None of them is a reason to fail a fee preview.
+      this.#deps.debugLogger.log(
+        'RewardsIntegrationService: Trading address registration skipped',
+        {
+          address,
+          error: ensureError(
+            error,
+            'RewardsIntegrationService.registerTradingAddress',
+          ).message,
+        },
+      );
+    }
+  }
+
+  /**
+   * Forget which trading addresses were registered this session.
+   *
+   * Called when the selected account changes, so the next preview re-sends the
+   * registration for the new address rather than assuming the previous one
+   * still stands.
+   */
+  resetRegisteredTradingAddresses(): void {
+    this.#registeredTradingAddresses.clear();
   }
 
   /**

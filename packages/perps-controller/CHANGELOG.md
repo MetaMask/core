@@ -7,10 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `subscriptionWaiverKind` (`'full' | 'partial'`) and `subscriptionCoveredNotionalUsd` fields to `PerpsFeeResolution`, reporting how much of an order the subscription allowance covered.
+- Add `SubscriptionController:getPerpsBenefits` and `SubscriptionController:registerAddress` to `PerpsControllerAllowedActions`, so benefits hydration and trading-address registration can run over the messenger. Clients that do not register these actions keep using the injected `subscription` dependency.
+- Add the `perpsSubscriptionFeeWaiverEnabled` remote feature flag, which disables the subscription fee source on its own without affecting rewards or the default builder fee. An absent or malformed flag reads as enabled.
+
 ### Changed
 
+- **BREAKING:** `PerpsController.calculateFees` now quotes the subscription fee waiver as a blended rate derived from the order notional, so `feeRate`, `feeAmount`, `metamaskFeeRate`, and `metamaskFeeAmount` can differ from previous releases when a subscription waiver applies.
+  - Pass the order notional (USD) as `FeeCalculationParams.amount` to receive the rate the order will actually be charged. Omitting it quotes the full-waiver rate, matching the previous behavior.
+- Resolve the subscription fee waiver as `0` bips when the remaining allowance covers the order notional and `MaxFee × (1 − remaining / orderNotional)` otherwise, and let that rate compete in the lowest-fee comparison — a partial waiver can now lose to a VIP or season discount.
+- Mark the order's client order ID with the subscription program marker and a `fee_reduction_applied` flag on every placement, replace, TP/SL, batch-close, modify, and chase path when the subscription source wins. Any other fee source leaves the client order ID untouched. Scale-ladder client order IDs keep their own group marker and rung index, so group recovery and cancel-by-client-order-ID are unaffected.
+- Register the current HyperLiquid trading address with the subscription profile during `calculateFees`, and re-register it after the selected account changes.
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
+
+### Deprecated
+
+- Deprecate `PerpsController.approveSubscriptionBuilderFee`, `PerpsProvider.approveSubscriptionBuilderFee`, and the dedicated subscription builder address configuration. Subscription attribution now rides on the order's client order ID rather than a separate approved builder, so the controller method is a no-op that always resolves `false`. The provider-side approval machinery is retained but unreachable from order construction.
 
 ### Fixed
 

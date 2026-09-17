@@ -1277,6 +1277,22 @@ export class PerpsController extends BaseController<
       this.refreshEligibilityOnFeatureFlagChange.bind(this),
     );
 
+    // Also subscribed for the controller lifetime: the subscription profile
+    // must learn the new trading address after every account switch, and the
+    // preload-scoped account handler is torn down on disconnect, so it cannot
+    // carry this.
+    const forgetRegisteredTradingAddresses = (): void => {
+      this.#rewardsIntegrationService.resetRegisteredTradingAddresses();
+    };
+    this.messenger.subscribe(
+      'AccountsController:selectedAccountChange',
+      forgetRegisteredTradingAddresses,
+    );
+    this.messenger.subscribe(
+      'AccountTreeController:selectedAccountGroupChange',
+      forgetRegisteredTradingAddresses,
+    );
+
     this.providers = new Map();
 
     // Migrate old persisted data without accountAddress
@@ -5779,27 +5795,51 @@ export class PerpsController extends BaseController<
     // cache read and can therefore never start a benefits request while an
     // order is being signed.
     await this.#rewardsIntegrationService.refreshSubscriptionBenefits();
+
+    // ADR 0064: preview is also where the trading address is announced, so a
+    // fill decoded off the HL fan-out can be attributed back to a profile.
+    // Fire-and-forget — attribution plumbing must not delay or fail a quote.
+    const selectedAccount = getSelectedEvmAccountFromMessenger(this.messenger);
+    if (selectedAccount) {
+      this.#rewardsIntegrationService
+        .registerTradingAddress(selectedAccount.address)
+        .catch(() => {
+          /* never blocks a fee preview */
+        });
+    }
+
     const waiverStatus =
       this.#rewardsIntegrationService.getSubscriptionFeeWaiverStatus();
+    // The preview quotes the same blended rate the submit path charges, which
+    // is only possible once the order notional reaches the resolver. `amount`
+    // is the order notional in USD for the quote being previewed.
+    const orderNotionalUsd = params.amount
+      ? Number.parseFloat(params.amount)
+      : undefined;
+    const feeResolution =
+      await this.#rewardsIntegrationService.resolveFee(orderNotionalUsd);
     const context = this.#createServiceContext('calculateFees', {
       subscriptionFeeWaiver:
         waiverStatus.reason === 'no-source' ? undefined : waiverStatus,
+      feeResolution,
     });
     return this.#marketDataService.calculateFees({ provider, params, context });
   }
 
   /**
    * Approve the dedicated subscription builder outside order submission.
-   * Until this succeeds, subscription waivers fall back to the ordinary
-   * builder at the standard fee.
    *
-   * @returns Whether the subscription builder is approved.
+   * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
+   * marking on the standard builder, so there is nothing left to approve. Kept
+   * as a no-op returning `false` so clients still calling it keep building
+   * while they migrate; remove it once cloid marking is verified in shadow mode.
+   * @returns Always `false`.
    */
   async approveSubscriptionBuilderFee(): Promise<boolean> {
-    const provider = this.getActiveProvider();
-    return provider.approveSubscriptionBuilderFee
-      ? provider.approveSubscriptionBuilderFee()
-      : false;
+    this.#debugLog(
+      'PerpsController: approveSubscriptionBuilderFee is a no-op; subscription attribution now rides on the order cloid',
+    );
+    return false;
   }
 
   /**

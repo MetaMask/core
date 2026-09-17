@@ -1,0 +1,322 @@
+import { isHexString } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
+
+import {
+  BASIS_POINTS_DIVISOR,
+  BUILDER_FEE_CONFIG,
+} from '../constants/hyperLiquidConfig.js';
+import {
+  SUBSCRIPTION_CLOID_CONFIG,
+  SUBSCRIPTION_CLOID_FLAGS,
+} from '../constants/perpsConfig.js';
+import type {
+  FeeCalculationResult,
+  PerpsFeeResolution,
+  PerpsSubscriptionFeeWaiverStatus,
+} from '../types/index.js';
+
+/**
+ * How much of an order the subscription allowance covered.
+ *
+ * - `full` — the remaining allowance covered the whole order notional, so the
+ *   MetaMask builder fee is waived outright.
+ * - `partial` — the allowance covered part of the order, so the fee is charged
+ *   on the uncovered share only.
+ * - `none` — the gate did not pass, so subscription contributes no rate.
+ */
+export type PerpsSubscriptionWaiverKind = 'full' | 'partial' | 'none';
+
+/**
+ * The subscription source's contribution to the unified fee comparison.
+ */
+export type PerpsSubscriptionWaiverRate = {
+  /** Whether the subscription source produced a usable rate at all. */
+  applies: boolean;
+
+  /** Effective MetaMask builder fee in basis points under the waiver. */
+  feeBips: number;
+
+  /** How much of the order the allowance covered. */
+  kind: PerpsSubscriptionWaiverKind;
+
+  /** Order notional (USD) the allowance actually covered, when bounded. */
+  coveredNotionalUsd?: number;
+};
+
+/**
+ * Resolve the subscription source's effective fee rate for one order.
+ *
+ * ADR 0064 replaces the binary 0-bips waiver with a blended rate:
+ *
+ * - `remaining >= orderNotional` → `0` bips; the allowance covers the order.
+ * - `0 < remaining < orderNotional` → `maxFeeBips * (1 - remaining/orderNotional)`;
+ *   the fee is charged only on the share the allowance did not cover.
+ * - `remaining <= 0` → the allowance is spent, so the source does not apply.
+ *
+ * An absent `remainingNotionalUsd` means the backend did not bound the
+ * allowance, which stays a full waiver — the pre-existing behavior for an
+ * eligible gate that reports no cap. An absent or non-positive
+ * `orderNotionalUsd` means there is no notional to blend against (a pure rate
+ * preview), which also resolves to the full waiver rate.
+ *
+ * Pure, so preview and submit consume exactly the same arithmetic and their
+ * quoted and charged fees cannot drift.
+ *
+ * @param params - The inputs to the blended-rate formula.
+ * @param params.status - The subscription eligibility gate outcome.
+ * @param params.maxFeeBips - The default MetaMask builder fee, in basis points.
+ * @param params.orderNotionalUsd - Order notional (USD), when the caller knows it.
+ * @returns The subscription source's effective rate and how much it covered.
+ */
+export function resolveSubscriptionWaiverRate(params: {
+  status: PerpsSubscriptionFeeWaiverStatus;
+  maxFeeBips: number;
+  orderNotionalUsd?: number;
+}): PerpsSubscriptionWaiverRate {
+  const { status, maxFeeBips, orderNotionalUsd } = params;
+
+  if (!status.eligible) {
+    return { applies: false, feeBips: maxFeeBips, kind: 'none' };
+  }
+
+  const remaining = status.remainingNotionalUsd;
+
+  // The backend reported no bound on the allowance, so nothing limits it.
+  if (remaining === undefined) {
+    return { applies: true, feeBips: 0, kind: 'full' };
+  }
+
+  if (!Number.isFinite(remaining) || remaining <= 0) {
+    // A reported allowance of zero is spent, whatever the gate said.
+    return { applies: false, feeBips: maxFeeBips, kind: 'none' };
+  }
+
+  // No notional to blend against: a rate-only preview quotes the full waiver.
+  if (
+    orderNotionalUsd === undefined ||
+    !Number.isFinite(orderNotionalUsd) ||
+    orderNotionalUsd <= 0
+  ) {
+    return { applies: true, feeBips: 0, kind: 'full' };
+  }
+
+  if (remaining >= orderNotionalUsd) {
+    return {
+      applies: true,
+      feeBips: 0,
+      kind: 'full',
+      coveredNotionalUsd: orderNotionalUsd,
+    };
+  }
+
+  return {
+    applies: true,
+    feeBips: maxFeeBips * (1 - remaining / orderNotionalUsd),
+    kind: 'partial',
+    coveredNotionalUsd: remaining,
+  };
+}
+
+/** Hex index of the flag byte inside a cloid string (after `0x` + 4 bytes). */
+const FLAG_BYTE_START = 2 + SUBSCRIPTION_CLOID_CONFIG.ProgramIdHexLength;
+
+/** Full length of a venue cloid string: `0x` plus 16 bytes of hex. */
+const CLOID_HEX_LENGTH = 34;
+
+/**
+ * Read the flag byte out of a cloid.
+ *
+ * @param clientOrderId - A venue client order ID, or nothing.
+ * @returns The flag byte, or undefined when the id is not a well-formed cloid.
+ */
+export function readSubscriptionCloidFlags(
+  clientOrderId: string | null | undefined,
+): number | undefined {
+  const normalized = clientOrderId?.toLowerCase();
+  if (normalized?.length !== CLOID_HEX_LENGTH) {
+    return undefined;
+  }
+  const flags = Number.parseInt(
+    normalized.slice(FLAG_BYTE_START, FLAG_BYTE_START + 2),
+    16,
+  );
+  return Number.isNaN(flags) ? undefined : flags;
+}
+
+/**
+ * Whether a cloid declares that a subscription fee reduction was applied.
+ *
+ * This is what the fill fan-out decodes downstream, so it is the honest
+ * definition of "marked": the program marker alone does not mean a reduction
+ * was charged.
+ *
+ * @param clientOrderId - A venue client order ID, or nothing.
+ * @returns True when the `fee_reduction_applied` flag is set.
+ */
+export function hasFeeReductionAppliedFlag(
+  clientOrderId: string | null | undefined,
+): boolean {
+  const flags = readSubscriptionCloidFlags(clientOrderId);
+  return (
+    flags !== undefined &&
+    isFlagSet(flags, SUBSCRIPTION_CLOID_FLAGS.FeeReductionApplied)
+  );
+}
+
+/**
+ * Whether one bit of a flag byte is set.
+ *
+ * Written arithmetically rather than with a bitwise `&`: the flag byte is a
+ * small unsigned integer, so shifting the bit into place and reading its parity
+ * is exact, and it keeps this file free of bitwise operators the repo's lint
+ * rules disallow.
+ *
+ * @param flags - The flag byte read out of a cloid.
+ * @param bit - The single-bit flag value to test, e.g. `0x01`.
+ * @returns True when that bit is set.
+ */
+function isFlagSet(flags: number, bit: number): boolean {
+  return Math.floor(flags / bit) % 2 === 1;
+}
+
+/**
+ * Whether a cloid carries the subscription program marker in its leading bytes.
+ *
+ * Only orders that had no cloid of their own get the program marker; an order
+ * that already carried one (a Scale rung) keeps its own leading marker and
+ * carries the subscription attribution in the flag byte instead. Decoders
+ * should therefore key on {@link hasFeeReductionAppliedFlag}, and use this only
+ * to tell the two layouts apart.
+ *
+ * @param clientOrderId - A venue client order ID, or nothing.
+ * @returns True when the cloid starts with the subscription program id.
+ */
+export function isSubscriptionProgramCloid(
+  clientOrderId: string | null | undefined,
+): boolean {
+  const normalized = clientOrderId?.toLowerCase();
+  return Boolean(
+    normalized?.length === CLOID_HEX_LENGTH &&
+    normalized.startsWith(`0x${SUBSCRIPTION_CLOID_CONFIG.ProgramId}`),
+  );
+}
+
+/**
+ * Stamp the subscription marking onto a venue client order ID.
+ *
+ * A cloid is 16 bytes, laid out as:
+ *
+ * ```
+ * 0x <program marker: 4 bytes> <flags: 1 byte> <entropy: 11 bytes>
+ * ```
+ *
+ * The flag byte sits *after* the leading marker rather than replacing it, which
+ * is what lets the marking compose with the cloid the Scale ladder already
+ * builds. Two cases:
+ *
+ * - **No existing cloid** — the leading bytes become
+ *   {@link SUBSCRIPTION_CLOID_CONFIG.ProgramId} and the rest is fresh entropy.
+ * - **An existing cloid** (a Scale rung) — its own leading marker and its
+ *   trailing bytes are preserved, and only the flag byte is set. The Scale
+ *   group marker still prefixes the id, so group recovery from open orders and
+ *   cancel-by-cloid keep working, and the rung index in the last byte still
+ *   keeps every rung unique.
+ *
+ * A cloid is only ever marked when the subscription source actually won, so any
+ * other fee source leaves the id exactly as the caller built it.
+ *
+ * @param params - The marking inputs.
+ * @param params.clientOrderId - The cloid the caller already chose, if any.
+ * @param params.entropy - Hex entropy used when there is no existing cloid.
+ * @returns The marked cloid.
+ */
+export function markSubscriptionCloid(params: {
+  clientOrderId?: string;
+  entropy: string;
+}): Hex {
+  const { clientOrderId, entropy } = params;
+  const flags = SUBSCRIPTION_CLOID_FLAGS.FeeReductionApplied.toString(
+    16,
+  ).padStart(2, '0');
+
+  let body: string;
+  if (clientOrderId?.length === CLOID_HEX_LENGTH) {
+    const existing = clientOrderId.slice(2).toLowerCase();
+    // Keep the caller's marker and trailing bytes; claim only the flag byte.
+    body = `${existing.slice(0, SUBSCRIPTION_CLOID_CONFIG.ProgramIdHexLength)}${flags}${existing.slice(
+      SUBSCRIPTION_CLOID_CONFIG.ProgramIdHexLength + 2,
+    )}`;
+  } else {
+    const suffix = entropy
+      .toLowerCase()
+      .replace(/[^0-9a-f]/gu, '')
+      .slice(0, SUBSCRIPTION_CLOID_CONFIG.EntropyHexLength)
+      .padEnd(SUBSCRIPTION_CLOID_CONFIG.EntropyHexLength, '0');
+    body = `${SUBSCRIPTION_CLOID_CONFIG.ProgramId}${flags}${suffix}`;
+  }
+
+  const marked: Hex = `0x${body}`;
+
+  if (!isHexString(marked) || marked.length !== CLOID_HEX_LENGTH) {
+    throw new Error('Failed to mark subscription client order ID');
+  }
+
+  return marked;
+}
+
+/**
+ * Re-price a fee quote from the unified fee resolution.
+ *
+ * The provider quotes the MetaMask component from whatever discount the last
+ * submit pushed into it, which knows nothing about the notional being quoted.
+ * The resolver does, so the preview replaces the MetaMask component with the
+ * resolved rate and rebuilds the total from it. That is what makes a quoted
+ * blended fee equal the fee the order will actually be charged.
+ *
+ * A quote whose placement carries no builder fee at all (`metamaskFeeRate` of
+ * `0`, e.g. TWAP) is left alone: there is no MetaMask fee to discount.
+ *
+ * @param params - The re-pricing inputs.
+ * @param params.fees - The provider's fee quote.
+ * @param params.resolution - The unified fee resolution, when one was computed.
+ * @param params.amount - Order notional (USD) as a string, when provided.
+ * @returns The quote with its MetaMask component and totals re-priced.
+ */
+export function applyFeeResolution(params: {
+  fees: FeeCalculationResult;
+  resolution: PerpsFeeResolution | undefined;
+  amount?: string;
+}): FeeCalculationResult {
+  const { fees, resolution, amount } = params;
+
+  if (
+    resolution?.discountBips === undefined ||
+    fees.metamaskFeeRate === undefined ||
+    fees.metamaskFeeRate === 0
+  ) {
+    return fees;
+  }
+
+  const baseMetamaskFeeRate = BUILDER_FEE_CONFIG.MaxFeeDecimal;
+  const metamaskFeeRate =
+    baseMetamaskFeeRate * (1 - resolution.discountBips / BASIS_POINTS_DIVISOR);
+  const parsedAmount =
+    amount === undefined ? undefined : Number.parseFloat(amount);
+  const notional =
+    parsedAmount !== undefined && Number.isFinite(parsedAmount)
+      ? parsedAmount
+      : undefined;
+
+  const protocolFeeRate = fees.protocolFeeRate ?? 0;
+  const feeRate = protocolFeeRate + metamaskFeeRate;
+
+  return {
+    ...fees,
+    metamaskFeeRate,
+    feeRate,
+    ...(notional !== undefined && {
+      metamaskFeeAmount: notional * metamaskFeeRate,
+      feeAmount: notional * feeRate,
+    }),
+  };
+}

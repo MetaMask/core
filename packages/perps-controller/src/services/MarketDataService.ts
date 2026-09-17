@@ -41,6 +41,7 @@ import type { CandleData } from '../types/perps-types.js';
 import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest.js';
 import { ensureError, isAbortError } from '../utils/errorUtils.js';
 import { applyMarketFilters } from '../utils/marketUtils.js';
+import { applyFeeResolution } from '../utils/subscriptionFeeWaiver.js';
 import type { ServiceContext } from './ServiceContext.js';
 
 /**
@@ -1338,12 +1339,23 @@ export class MarketDataService {
     try {
       const fees = await provider.calculateFees(params);
 
+      // Re-price the MetaMask component from the unified resolution, which the
+      // controller computed against this quote's own order notional. The
+      // provider only knows the discount the last submit pushed into it, so
+      // without this a partial subscription blend would be quoted at a rate the
+      // order does not actually pay.
+      const priced = applyFeeResolution({
+        fees,
+        resolution: context.feeResolution,
+        amount: params.amount,
+      });
+
       // Read-only preview of the same cached benefits snapshot the fee resolver
-      // reads. The quoted rates are left untouched: surfacing eligibility and
-      // the remaining notional must not mutate the cap or the cache.
+      // reads. Surfacing eligibility and the remaining notional must not mutate
+      // the cap or the cache.
       return context.subscriptionFeeWaiver
-        ? { ...fees, subscription: context.subscriptionFeeWaiver }
-        : fees;
+        ? { ...priced, subscription: context.subscriptionFeeWaiver }
+        : priced;
     } catch (error) {
       this.#deps.logger.error(
         ensureError(error, 'MarketDataService.calculateFees'),

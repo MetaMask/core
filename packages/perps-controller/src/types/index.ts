@@ -1803,6 +1803,21 @@ export type PerpsFeeResolution = {
 
   /** Subscription gate outcome, always populated for observability. */
   subscription: PerpsSubscriptionFeeWaiverStatus;
+
+  /**
+   * How much of the order the subscription allowance covered, when the
+   * subscription source won.
+   *
+   * `full` waives the whole MetaMask builder fee; `partial` charges the fee on
+   * the share the allowance did not cover. Absent when another source won.
+   */
+  subscriptionWaiverKind?: 'full' | 'partial';
+
+  /**
+   * Order notional (USD) the subscription allowance covered, when the backend
+   * bounded the allowance and the caller supplied an order notional.
+   */
+  subscriptionCoveredNotionalUsd?: number;
 };
 
 export type UpdatePositionTPSLParams = {
@@ -2083,7 +2098,14 @@ export type PerpsProvider = {
   setUserFeeDiscount?(discountBips: number | undefined): void;
   // Full fee resolution context, including attribution source.
   setUserFeeResolution?(resolution: PerpsFeeResolution | undefined): void;
-  /** Approve the dedicated subscription builder outside order submission. */
+  /**
+   * Approve the dedicated subscription builder outside order submission.
+   *
+   * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
+   * marking on the standard builder. Nothing on the order path reads this
+   * approval any more; it is retained only so the previous design can be
+   * restored cheaply if cloid marking does not hold up in shadow mode.
+   */
   approveSubscriptionBuilderFee?(): Promise<boolean>;
 
   // HIP-3 (Builder-deployed DEXs) operations - optional for backward compatibility

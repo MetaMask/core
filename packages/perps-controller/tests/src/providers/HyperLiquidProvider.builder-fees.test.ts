@@ -33,6 +33,10 @@ import {
 } from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
+  hasFeeReductionAppliedFlag,
+  isSubscriptionProgramCloid,
+} from '../../../src/utils/subscriptionFeeWaiver.js';
+import {
   createMockInfrastructure,
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
@@ -701,9 +705,9 @@ describe('HyperLiquidProvider', () => {
       );
     });
 
-    it('routes an approved subscription waiver through the dedicated builder', async () => {
-      // Builder fee already approved: this test is about the fee value on the
-      // signed payload, not the approval flow.
+    it('keeps the standard builder address when subscription wins', async () => {
+      // ADR 0064 replaced the dedicated subscription builder with cloid
+      // marking, so even an approved subscription builder must not be selected.
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
           maxBuilderFee: jest.fn().mockResolvedValue(0.001),
@@ -745,6 +749,7 @@ describe('HyperLiquidProvider', () => {
         discountBips: 10000,
         source: 'subscription',
         subscription: { eligible: true, reason: 'eligible' },
+        subscriptionWaiverKind: 'full',
       });
 
       const waived = await provider.placeOrder(orderParams);
@@ -752,7 +757,51 @@ describe('HyperLiquidProvider', () => {
       expect(waived.success).toBe(true);
       expect(exchangeClient.order).toHaveBeenCalledWith(
         expect.objectContaining({
-          builder: { b: subscriptionBuilder, f: 0 },
+          builder: {
+            b: BUILDER_FEE_CONFIG.MainnetBuilder,
+            // A full waiver is charged as a zero fee on the standard builder.
+            f: 0,
+          },
+        }),
+      );
+      expect(exchangeClient.order).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          builder: expect.objectContaining({ b: subscriptionBuilder }),
+        }),
+      );
+    });
+
+    it('charges a blended subscription fee on the standard builder', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          maxBuilderFee: jest.fn().mockResolvedValue(0.001),
+        }),
+      );
+      const exchangeClient = mockClientService.getExchangeClient();
+      provider.setUserFeeResolution({
+        feeBips: 7.5,
+        // 7.5 of 10 bips = a 25% discount off the default builder fee.
+        discountBips: 2500,
+        source: 'subscription',
+        subscription: { eligible: true, reason: 'eligible' },
+        subscriptionWaiverKind: 'partial',
+      });
+
+      const result = await provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        currentPrice: 50000,
+      });
+
+      expect(result.success).toBe(true);
+      expect(exchangeClient.order).toHaveBeenCalledWith(
+        expect.objectContaining({
+          builder: {
+            b: BUILDER_FEE_CONFIG.MainnetBuilder,
+            f: Math.floor(BUILDER_FEE_CONFIG.MaxFeeTenthsBps * 0.75),
+          },
         }),
       );
     });
@@ -774,53 +823,6 @@ describe('HyperLiquidProvider', () => {
 
       expect(mockClientService.initialize).toHaveBeenCalledTimes(1);
       expect(mockClientService.getInfoClient).toHaveBeenCalled();
-    });
-
-    it('does not reuse subscription builder approval after an account switch', async () => {
-      const accountA = '0x1234567890123456789012345678901234567890';
-      const accountB = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
-      const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
-      const exchangeClient = mockClientService.getExchangeClient();
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
-        createMockInfoClient({
-          maxBuilderFee: jest.fn().mockResolvedValue(0.001),
-        }),
-      );
-      mockWalletService.getUserAddressWithDefault.mockResolvedValue(accountA);
-      provider = createTestProvider({
-        subscriptionBuilderAddressMainnet: subscriptionBuilder,
-      });
-
-      await expect(provider.approveSubscriptionBuilderFee()).resolves.toBe(
-        true,
-      );
-
-      mockWalletService.getUserAddressWithDefault.mockResolvedValue(accountB);
-      (exchangeClient.order as jest.Mock).mockClear();
-      provider.setUserFeeResolution({
-        feeBips: 0,
-        discountBips: 10000,
-        source: 'subscription',
-        subscription: { eligible: true, reason: 'eligible' },
-      });
-
-      const result = await provider.placeOrder({
-        symbol: 'BTC',
-        isBuy: true,
-        size: '0.1',
-        orderType: 'market',
-        currentPrice: 50000,
-      });
-
-      expect(result.success).toBe(true);
-      expect(exchangeClient.order).toHaveBeenCalledWith(
-        expect.objectContaining({
-          builder: {
-            b: BUILDER_FEE_CONFIG.MainnetBuilder,
-            f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
-          },
-        }),
-      );
     });
 
     it('keeps subscription approval reads scoped to the initiating account', async () => {
@@ -924,49 +926,6 @@ describe('HyperLiquidProvider', () => {
       await expect(
         Promise.all([newApproval, dedupedApproval]),
       ).resolves.toStrictEqual([true, true]);
-    });
-
-    it('falls back to the standard fee when the subscription builder is not approved', async () => {
-      const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
-      const defaultBuilder = BUILDER_FEE_CONFIG.MainnetBuilder;
-      const exchangeClient = mockClientService.getExchangeClient();
-      const maxBuilderFee = jest.fn().mockResolvedValue(0.001);
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
-        createMockInfoClient({
-          maxBuilderFee,
-        }),
-      );
-      provider = createTestProvider({
-        subscriptionBuilderAddressMainnet: subscriptionBuilder,
-      });
-      provider.setUserFeeResolution({
-        feeBips: 0,
-        discountBips: 10000,
-        source: 'subscription',
-        subscription: { eligible: true, reason: 'eligible' },
-      });
-
-      const result = await provider.placeOrder({
-        symbol: 'BTC',
-        isBuy: true,
-        size: '0.1',
-        orderType: 'market',
-        currentPrice: 50000,
-      });
-
-      expect(result.success).toBe(true);
-      expect(exchangeClient.order).toHaveBeenCalledWith(
-        expect.objectContaining({
-          builder: {
-            b: defaultBuilder,
-            f: BUILDER_FEE_CONFIG.MaxFeeTenthsBps,
-          },
-        }),
-      );
-      expect(maxBuilderFee).not.toHaveBeenCalledWith(
-        expect.objectContaining({ builder: subscriptionBuilder }),
-      );
-      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
     });
 
     it('includes builder fee and referral setup in TP/SL updates', async () => {
@@ -1940,6 +1899,138 @@ describe('HyperLiquidProvider', () => {
       );
       // Assert - in-flight lock should be released
       expect(mockCompleteInFlight).toHaveBeenCalled();
+    });
+  });
+  describe('ADR 0064 subscription cloid marking', () => {
+    const subscriptionResolution = {
+      feeBips: 0,
+      discountBips: 10000,
+      source: 'subscription' as const,
+      subscription: { eligible: true, reason: 'eligible' as const },
+      subscriptionWaiverKind: 'full' as const,
+    };
+
+    const rewardsResolution = {
+      feeBips: 6.5,
+      discountBips: 3500,
+      source: 'rewards' as const,
+      subscription: { eligible: false, reason: 'not-entitled' as const },
+    };
+
+    const orderParams: OrderParams = {
+      symbol: 'BTC',
+      isBuy: true,
+      size: '0.1',
+      orderType: 'market',
+      currentPrice: 50000,
+    };
+
+    /**
+     * Read every submitted order payload out of the exchange client mock.
+     *
+     * @param exchangeClient - The mocked exchange client.
+     * @returns Every order payload submitted through `order`.
+     */
+    const submittedOrders = (exchangeClient: {
+      order: jest.Mock;
+    }): { c?: string }[] =>
+      exchangeClient.order.mock.calls.flatMap(
+        (call) => (call[0] as { orders: { c?: string }[] }).orders,
+      );
+
+    beforeEach(() => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          maxBuilderFee: jest.fn().mockResolvedValue(0.001),
+          frontendOpenOrders: jest.fn().mockResolvedValue([]),
+        }),
+      );
+    });
+
+    it('marks the cloid with the subscription program id when subscription wins', async () => {
+      const exchangeClient = mockClientService.getExchangeClient();
+      provider.setUserFeeResolution(subscriptionResolution);
+
+      const result = await provider.placeOrder(orderParams);
+
+      expect(result.success).toBe(true);
+      const orders = submittedOrders(exchangeClient as never);
+      expect(orders.length).toBeGreaterThan(0);
+      orders.forEach((order) => {
+        expect(hasFeeReductionAppliedFlag(order.c)).toBe(true);
+        expect(isSubscriptionProgramCloid(order.c)).toBe(true);
+      });
+    });
+
+    it('leaves the cloid unmarked when any other fee source wins', async () => {
+      const exchangeClient = mockClientService.getExchangeClient();
+
+      // Rewards wins.
+      provider.setUserFeeResolution(rewardsResolution);
+      await provider.placeOrder(orderParams);
+
+      // Default wins (nothing resolved at all).
+      provider.setUserFeeResolution(undefined);
+      await provider.placeOrder(orderParams);
+
+      const orders = submittedOrders(exchangeClient as never);
+      expect(orders.length).toBeGreaterThan(0);
+      orders.forEach((order) => {
+        expect(hasFeeReductionAppliedFlag(order.c)).toBe(false);
+        expect(isSubscriptionProgramCloid(order.c)).toBe(false);
+      });
+    });
+
+    it('marks the cloid on a TP/SL placement path', async () => {
+      const exchangeClient = mockClientService.getExchangeClient();
+      provider.setUserFeeResolution(subscriptionResolution);
+
+      const result = await provider.placeOrder({
+        ...orderParams,
+        takeProfitPrice: '55000',
+        stopLossPrice: '45000',
+      });
+
+      expect(result.success).toBe(true);
+      const orders = submittedOrders(exchangeClient as never);
+      // Main order plus its attached TP and SL children.
+      expect(orders.length).toBeGreaterThanOrEqual(3);
+      orders.forEach((order) => {
+        expect(hasFeeReductionAppliedFlag(order.c)).toBe(true);
+      });
+    });
+
+    it('marks the cloid on a position TP/SL update path', async () => {
+      const exchangeClient = mockClientService.getExchangeClient();
+      provider.setUserFeeResolution(subscriptionResolution);
+
+      await provider.updatePositionTPSL({
+        symbol: 'BTC',
+        takeProfitPrice: '55000',
+        stopLossPrice: '45000',
+      });
+
+      const orders = submittedOrders(exchangeClient as never);
+      expect(orders.length).toBeGreaterThan(0);
+      orders.forEach((order) => {
+        expect(hasFeeReductionAppliedFlag(order.c)).toBe(true);
+      });
+    });
+
+    it('keeps each marked order id unique within one submission', async () => {
+      const exchangeClient = mockClientService.getExchangeClient();
+      provider.setUserFeeResolution(subscriptionResolution);
+
+      await provider.placeOrder({
+        ...orderParams,
+        takeProfitPrice: '55000',
+        stopLossPrice: '45000',
+      });
+
+      const ids = submittedOrders(exchangeClient as never).map(
+        (order) => order.c,
+      );
+      expect(new Set(ids).size).toBe(ids.length);
     });
   });
 });

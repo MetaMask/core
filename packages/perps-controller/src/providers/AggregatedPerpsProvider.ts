@@ -996,6 +996,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     });
   }
 
+  /**
+   * Approve the dedicated subscription builder on the HyperLiquid provider.
+   *
+   * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
+   * marking on the standard builder; nothing on the order path reads this.
+   * @returns Whether the builder is approved.
+   */
   async approveSubscriptionBuilderFee(): Promise<boolean> {
     const provider =
       this.#providers.get('hyperliquid') ?? this.#getDefaultProvider();

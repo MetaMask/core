@@ -25,6 +25,7 @@ import type {
   OrderResult,
 } from '../../../src/types/index.js';
 import type { OrderType } from '../../../src/types/perps-types.js';
+import { HYPERLIQUID_SCALE_CLOID_MARKER } from '../../../src/utils/hyperLiquidAdapter.js';
 import {
   validateAssetSupport,
   validateBalance,
@@ -33,6 +34,7 @@ import {
   validateOrderParams,
   validateWithdrawalParams,
 } from '../../../src/utils/hyperLiquidValidation.js';
+import { hasFeeReductionAppliedFlag } from '../../../src/utils/subscriptionFeeWaiver.js';
 import { createMockPosition } from '../../helpers/providerMocks.js';
 import {
   createDeferred,
@@ -3439,6 +3441,64 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(
         submitted.orders.map((order: { p: string }) => order.p),
       ).toStrictEqual(['2000', '2500', '3000']);
+    });
+
+    it('marks every rung cloid when subscription wins and keeps the ladder recoverable', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+      });
+      provider.setUserFeeResolution({
+        feeBips: 0,
+        discountBips: 10000,
+        source: 'subscription',
+        subscription: { eligible: true, reason: 'eligible' },
+        subscriptionWaiverKind: 'full',
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      const submitted = exchangeClient.order.mock.calls[0][0];
+      const cloids = submitted.orders.map((order: { c?: string }) => order.c);
+
+      // Every rung carries the attribution...
+      cloids.forEach((cloid: string) => {
+        expect(hasFeeReductionAppliedFlag(cloid)).toBe(true);
+        // ...while keeping the Scale marker, so the group stays recoverable
+        // from open orders and cancel-by-cloid keeps working.
+        expect(cloid.startsWith(`0x${HYPERLIQUID_SCALE_CLOID_MARKER}`)).toBe(
+          true,
+        );
+      });
+      // And each rung is still a distinct id.
+      expect(new Set(cloids).size).toBe(3);
+    });
+
+    it('leaves rung cloids unmarked when subscription did not win', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+      });
+
+      await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+
+      const submitted = exchangeClient.order.mock.calls[0][0];
+      submitted.orders.forEach((order: { c?: string }) => {
+        expect(hasFeeReductionAppliedFlag(order.c)).toBe(false);
+        expect(order.c?.startsWith(`0x${HYPERLIQUID_SCALE_CLOID_MARKER}`)).toBe(
+          true,
+        );
+      });
     });
 
     it('submits the provider preview prices for fractional bounds', async () => {

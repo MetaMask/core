@@ -1518,21 +1518,6 @@ describe('PerpsController', () => {
   });
 
   describe('fee calculations', () => {
-    it('approves the subscription builder outside order submission', async () => {
-      mockProvider.approveSubscriptionBuilderFee = jest
-        .fn()
-        .mockResolvedValue(true);
-      markControllerAsInitialized();
-      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-
-      await expect(controller.approveSubscriptionBuilderFee()).resolves.toBe(
-        true,
-      );
-      expect(mockProvider.approveSubscriptionBuilderFee).toHaveBeenCalledTimes(
-        1,
-      );
-    });
-
     it('calculates fees', async () => {
       const feeParams = {
         orderType: 'market' as const,
@@ -1672,6 +1657,183 @@ describe('PerpsController', () => {
 
       getStatus.mockRestore();
       refresh.mockRestore();
+    });
+
+    it('quotes the same blended rate the submit path charges', async () => {
+      const feeParams = {
+        orderType: 'market' as const,
+        isMaker: false,
+        // The order notional is what makes a blend possible at all.
+        amount: '1000',
+        symbol: 'BTC',
+      };
+      const resolution = {
+        feeBips: 7.5,
+        discountBips: 2500,
+        source: 'subscription' as const,
+        subscription: {
+          eligible: true,
+          reason: 'eligible' as const,
+          remainingNotionalUsd: 250,
+        },
+        subscriptionWaiverKind: 'partial' as const,
+        subscriptionCoveredNotionalUsd: 250,
+      };
+      const resolveFee = jest
+        .spyOn(RewardsIntegrationService.prototype, 'resolveFee')
+        .mockResolvedValue(resolution);
+      jest
+        .spyOn(
+          RewardsIntegrationService.prototype,
+          'refreshSubscriptionBenefits',
+        )
+        .mockResolvedValue(undefined);
+
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await controller.calculateFees(feeParams);
+
+      // The preview resolves against this quote's own notional, so the rate it
+      // quotes is the rate the order is charged.
+      expect(resolveFee).toHaveBeenCalledWith(1000);
+      const { context } = (
+        mockMarketDataServiceInstance.calculateFees as jest.Mock
+      ).mock.calls.at(-1)[0];
+      expect(context.feeResolution).toStrictEqual(resolution);
+
+      jest.restoreAllMocks();
+    });
+
+    it('resolves without an order notional when the preview quotes a bare rate', async () => {
+      const resolveFee = jest
+        .spyOn(RewardsIntegrationService.prototype, 'resolveFee')
+        .mockResolvedValue({
+          feeBips: 10,
+          discountBips: undefined,
+          source: 'default',
+          subscription: { eligible: false, reason: 'no-source' },
+        });
+      jest
+        .spyOn(
+          RewardsIntegrationService.prototype,
+          'refreshSubscriptionBenefits',
+        )
+        .mockResolvedValue(undefined);
+
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await controller.calculateFees({
+        orderType: 'market',
+        isMaker: false,
+        symbol: 'BTC',
+      });
+
+      expect(resolveFee).toHaveBeenCalledWith(undefined);
+
+      jest.restoreAllMocks();
+    });
+
+    it('registers the current HyperLiquid address at preview time', async () => {
+      const register = jest
+        .spyOn(RewardsIntegrationService.prototype, 'registerTradingAddress')
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(
+          RewardsIntegrationService.prototype,
+          'refreshSubscriptionBenefits',
+        )
+        .mockResolvedValue(undefined);
+
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await controller.calculateFees({
+        orderType: 'market',
+        isMaker: false,
+        amount: '1000',
+        symbol: 'BTC',
+      });
+
+      expect(register).toHaveBeenCalledWith(expect.stringMatching(/^0x/u));
+
+      jest.restoreAllMocks();
+    });
+
+    it('never fails a fee preview when address registration rejects', async () => {
+      jest
+        .spyOn(RewardsIntegrationService.prototype, 'registerTradingAddress')
+        .mockRejectedValue(new Error('address index unavailable'));
+      jest
+        .spyOn(
+          RewardsIntegrationService.prototype,
+          'refreshSubscriptionBenefits',
+        )
+        .mockResolvedValue(undefined);
+
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      await expect(
+        controller.calculateFees({
+          orderType: 'market',
+          isMaker: false,
+          amount: '1000',
+          symbol: 'BTC',
+        }),
+      ).resolves.toBeDefined();
+
+      jest.restoreAllMocks();
+    });
+
+    it('re-registers the trading address when the selected account changes', async () => {
+      const reset = jest
+        .spyOn(
+          RewardsIntegrationService.prototype,
+          'resetRegisteredTradingAddresses',
+        )
+        .mockImplementation(() => undefined);
+
+      // A controller built with a messenger this test holds, so the
+      // lifetime subscription registered in the constructor is observable.
+      const messenger = createMockMessenger();
+      const subscribed = new TestablePerpsController({
+        messenger,
+        state: getDefaultPerpsControllerState(),
+        infrastructure: createMockInfrastructure(),
+      });
+      expect(subscribed).toBeDefined();
+
+      const accountHandlers = (messenger.subscribe as jest.Mock).mock.calls
+        .filter(
+          ([event]) => event === 'AccountsController:selectedAccountChange',
+        )
+        .map(([, handler]) => handler as () => void);
+      expect(accountHandlers.length).toBeGreaterThan(0);
+
+      accountHandlers.forEach((handler) => handler());
+
+      // The session's registrations are dropped, so the next preview announces
+      // the new address instead of assuming the previous one still stands.
+      expect(reset).toHaveBeenCalled();
+
+      reset.mockRestore();
+    });
+
+    it('no longer approves a dedicated subscription builder', async () => {
+      const approve = jest.fn().mockResolvedValue(true);
+      mockProvider.approveSubscriptionBuilderFee = approve;
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      // ADR 0064 replaced the dedicated builder with cloid marking, so this
+      // stays a no-op rather than reaching the provider — even when the
+      // provider still exposes the old approval method.
+      await expect(controller.approveSubscriptionBuilderFee()).resolves.toBe(
+        false,
+      );
+      expect(approve).not.toHaveBeenCalled();
     });
 
     it('exposes subscription benefits invalidation to clients', async () => {
