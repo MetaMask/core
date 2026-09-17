@@ -337,6 +337,7 @@ function setup({
       listMultichainAccounts: jest.Mock;
       getSelectedMultichainAccount: jest.Mock;
       getAccount: jest.Mock;
+      getAccounts: jest.Mock;
     };
     // eslint-disable-next-line @typescript-eslint/naming-convention
     UserStorageController: {
@@ -367,6 +368,7 @@ function setup({
       accounts,
       listMultichainAccounts: jest.fn(),
       getAccount: jest.fn(),
+      getAccounts: jest.fn(),
       getSelectedMultichainAccount: jest.fn(),
     },
     UserStorageController: {
@@ -403,6 +405,16 @@ function setup({
     messenger.registerActionHandler(
       'AccountsController:getAccount',
       mocks.AccountsController.getAccount,
+    );
+
+    mocks.AccountsController.getAccounts.mockImplementation((ids: string[]) =>
+      ids.map((id) =>
+        mocks.AccountsController.accounts.find((account) => account.id === id),
+      ),
+    );
+    messenger.registerActionHandler(
+      'AccountsController:getAccounts',
+      mocks.AccountsController.getAccounts,
     );
 
     // Mock AccountsController:getSelectedMultichainAccount to return the first account
@@ -755,10 +767,14 @@ describe('AccountTreeController', () => {
       ).toStrictEqual([MOCK_HARDWARE_ACCOUNT_1.id]);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Account wallet removal is incomplete',
-        {
-          walletId,
-          remainingAccountIds: [MOCK_HARDWARE_ACCOUNT_1.id],
-        },
+        expect.objectContaining({
+          error: expect.any(Error),
+          context: expect.objectContaining({
+            failures: expect.arrayContaining([
+              expect.objectContaining({ id: MOCK_HARDWARE_ACCOUNT_1.id }),
+            ]),
+          }),
+        }),
       );
     });
 
@@ -783,10 +799,14 @@ describe('AccountTreeController', () => {
       expect(controller.getAccountWalletObject(walletId)).toBeDefined();
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Account wallet removal is incomplete',
-        {
-          walletId,
-          remainingAccountIds: [MOCK_HARDWARE_ACCOUNT_1.id],
-        },
+        expect.objectContaining({
+          error: expect.any(Error),
+          context: expect.objectContaining({
+            failures: expect.arrayContaining([
+              expect.objectContaining({ id: MOCK_HARDWARE_ACCOUNT_1.id }),
+            ]),
+          }),
+        }),
       );
     });
 

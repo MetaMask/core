@@ -4,6 +4,7 @@ import type {
   AccountsControllerAccountsAddedEvent,
   AccountsControllerAccountsRemovedEvent,
   AccountsControllerGetAccountAction,
+  AccountsControllerGetAccountsAction,
   AccountsControllerGetSelectedMultichainAccountAction,
   AccountsControllerListMultichainAccountsAction,
   AccountsControllerSelectedAccountChangeEvent,
@@ -91,6 +92,7 @@ export type AccountTreeControllerGetStateAction = ControllerGetStateAction<
 
 export type AllowedActions =
   | AccountsControllerGetAccountAction
+  | AccountsControllerGetAccountsAction
   | AccountsControllerGetSelectedMultichainAccountAction
   | AccountsControllerListMultichainAccountsAction
   | AccountsControllerSetSelectedAccountAction

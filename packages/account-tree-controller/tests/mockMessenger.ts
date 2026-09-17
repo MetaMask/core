@@ -53,6 +53,7 @@ export function getAccountTreeControllerMessenger(
     actions: [
       'AccountsController:listMultichainAccounts',
       'AccountsController:getAccount',
+      'AccountsController:getAccounts',
       'AccountsController:getSelectedMultichainAccount',
       'AccountsController:setSelectedAccount',
       'UserStorageController:getState',

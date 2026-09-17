@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add `AccountTreeController:removeAccountWallet` ([#10253](https://github.com/MetaMask/core/pull/10253))
   - It removes all accounts in a non-primary wallet.
   - It rejects removal of the primary HD wallet.
-  - We now need those new actions on the messenger `MultichainAccountService:removeMultichainAccountWallet` and `KeyringController:removeAccount`.
+  - We now need those new actions on the messenger `MultichainAccountService:removeMultichainAccountWallet`, `KeyringController:removeAccount` and `AccountsController:getAccounts`.
+  - Also reports errors for non-entropy account wallet removal failures, matching the pattern used by `MultichainAccountService:removeMultichainAccountWallet`.
 
 ### Changed
 

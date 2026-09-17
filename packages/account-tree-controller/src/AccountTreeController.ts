@@ -25,6 +25,8 @@ import {
 import { BackupAndSyncService } from './backup-and-sync/service/index.js';
 import type { BackupAndSyncContext } from './backup-and-sync/types.js';
 import { createSyncMutationTracker } from './backup-and-sync/utils/index.js';
+import type { RemoveAccountWalletFailure } from './errors.js';
+import { reportRemoveAccountWalletError } from './errors.js';
 import type { AccountGroupObject, AccountTypeOrderKey } from './group.js';
 import {
   ACCOUNT_TYPE_TO_SORT_ORDER,
@@ -825,6 +827,57 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Removes a non-multichain account wallet and all of its underlying accounts.
+   *
+   * @param wallet - The non-multichain account wallet to remove.
+   * @returns An object indicating success or failure, with failure details if applicable.
+   */
+  async #removeNonMultichainAccountWallet(
+    wallet: AccountWalletObject,
+  ): Promise<
+    { ok: true } | { ok: false; failures: RemoveAccountWalletFailure[] }
+  > {
+    const failures: RemoveAccountWalletFailure[] = [];
+
+    // Snapshot IDs before the first removal. Each removeAccount call can
+    // synchronously publish accountsRemoved and mutate wallet.groups.
+    const accountIds = Object.values(wallet.groups).flatMap((group) => [
+      ...group.accounts,
+    ]);
+    const accounts = this.messenger.call(
+      'AccountsController:getAccounts',
+      accountIds,
+    );
+
+    for (let i = 0; i < accountIds.length; i++) {
+      const id = accountIds[i];
+      const account = accounts[i];
+
+      if (!account) {
+        failures.push({ id, error: new Error('Account not found') });
+        continue;
+      }
+
+      try {
+        // For Snaps, SnapKeyring removes its local account before notifying the Snap
+        // and catches Snap-side failures, so this also provides forced cleanup
+        // for Snap accounts.
+        //
+        // For hardware wallets, removal is local and does not require the device
+        // to be connected.
+        await this.messenger.call(
+          'KeyringController:removeAccount',
+          account.address,
+        );
+      } catch (error) {
+        failures.push({ id, error });
+      }
+    }
+
+    return failures.length === 0 ? { ok: true } : { ok: false, failures };
+  }
+
+  /**
    * Removes an account wallet and all of its underlying accounts.
    *
    * The account tree is a derived view of AccountsController state, so this
@@ -843,6 +896,9 @@ export class AccountTreeController extends BaseController<
       throw new Error('Account tree is not initialized');
     }
 
+    // Track of failures during the removal process.
+    const failures: RemoveAccountWalletFailure[] = [];
+
     this.#assertAccountWalletExists(walletId);
     const wallet = this.state.accountTree.wallets[walletId];
 
@@ -857,83 +913,53 @@ export class AccountTreeController extends BaseController<
         wallet.metadata.entropy.id,
       );
     } else {
-      // Handle removal of non-entropy-based account wallets (Snap accounts, hardware wallets, etc.).
+      const result = await this.#removeNonMultichainAccountWallet(wallet);
 
-      // Snapshot IDs before the first removal. Each removeAccount call can
-      // synchronously publish accountsRemoved and mutate wallet.groups.
-      const accountIds = Object.values(wallet.groups).flatMap((group) => [
-        ...group.accounts,
-      ]);
-      const failures: { accountId: AccountId; error: unknown }[] = [];
-
-      for (const accountId of accountIds) {
-        const account = this.messenger.call(
-          'AccountsController:getAccount',
-          accountId,
-        );
-        if (!account) {
-          failures.push({
-            accountId,
-            error: new Error('Account not found'),
-          });
-          continue;
-        }
-
-        try {
-          // For Snaps, SnapKeyring removes its local account before notifying the Snap
-          // and catches Snap-side failures, so this also provides forced cleanup
-          // for Snap accounts.
-          //
-          // For hardware wallets, removal is local and does not require the device
-          // to be connected.
-          await this.messenger.call(
-            'KeyringController:removeAccount',
-            account.address,
-          );
-        } catch (error) {
-          failures.push({ accountId, error });
-        }
-      }
-
-      if (failures.length > 0) {
-        log(`[${walletId}] Failed to remove one or more wallet accounts`, {
-          failures,
-        });
+      if (!result.ok) {
+        failures.push(...result.failures);
       }
     }
 
     // Successful account removal normally prunes the wallet through
-    // #handleAccountsRemoved. A leftover is diagnostic only: deletion is
-    // best-effort and may already have produced irreversible side effects.
+    // #handleAccountsRemoved. If there's a leftover, it indicates that removal
+    // was not fully successful. This is a best-effort and may already have
+    // produced irreversible side effects.
     const remainingWallet = this.getAccountWalletObject(walletId);
     if (remainingWallet) {
+      let error = new Error('Account wallet removal is incomplete');
+
+      // The wallet still exists in the tree after the removal attempt. That's
+      // unexpected and indicates a failure in the removal process.
       const remainingAccountIds = Object.values(remainingWallet.groups).flatMap(
         (group) => group.accounts,
       );
       if (remainingAccountIds.length > 0) {
-        log(`[${walletId}] Account wallet removal is incomplete`, {
-          remainingAccountIds,
-        });
-        // Stable message so it stays groupable if reported later. Wallet IDs
-        // are safe to log in the extra argument: entropy wallets use a ULID,
-        // keyring wallets use a keyring type, and Snap wallets use a Snap ID.
-        console.error('Account wallet removal is incomplete', {
-          walletId,
-          remainingAccountIds,
-        });
-      } else {
-        // This cannot occur through the normal event flow because
-        // #handleAccountsRemoved prunes an empty wallet atomically. Keep the
-        // diagnostic for externally restored or otherwise inconsistent state.
-        /* istanbul ignore next */
-        log(
-          `[${walletId}] Account wallet remains in the tree without accounts`,
+        failures.push(
+          // Accounts still in the tree after all removals completed are also
+          // failures - either removal threw (already in result.failures) or the
+          // accountsRemoved event never arrived to prune them.
+          ...remainingAccountIds.map((id) => ({
+            id,
+            error: new Error('Account was not removed from the tree'),
+          })),
         );
-        /* istanbul ignore next */
-        console.error('Account wallet remains in the tree without accounts', {
-          walletId,
-        });
       }
+
+      if (remainingAccountIds.length === 0) {
+        // This should not occur through the normal event flow because
+        // #handleAccountsRemoved prunes an empty wallet atomically.
+        /* istanbul ignore next */
+        error = new Error(
+          'Account wallet remains in the tree without accounts',
+        );
+      }
+
+      reportRemoveAccountWalletError(
+        this.messenger,
+        error.message,
+        error,
+        failures,
+      );
     }
   }
 
