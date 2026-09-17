@@ -414,32 +414,6 @@ export class KycController extends BaseController<
         ),
     };
   }
-  /**
-   * Builds the vendor-specific fields spread into a
-   * `KycService:createUkycSession` call, derived from the active vendor and the
-   * currently captured auth state.
-   *
-   * MoonPay sessions must carry the access token and customer id in
-   * `vendorMetadata`; other vendors carry no vendor metadata.
-   *
-   * @returns The vendor-specific subset of the `createUkycSession` params.
-   */
-  #buildUkycSessionVendorFields(): Pick<
-    CreateUkycSessionParams,
-    'vendor' | 'vendorMetadata'
-  > {
-    if (this.state.activeVendor === 'moonpay') {
-      return {
-        vendor: 'moonpay',
-        vendorMetadata: {
-          moonPayAccessToken: this.state.moonpayAccessToken,
-          moonPayUserId: this.state.moonpayCustomerId,
-        },
-      };
-    }
-
-    return { vendor: this.state.activeVendor };
-  }
 
   /**
    * Creates a UKYC session, wraps the `data_encryption_key` and
@@ -489,7 +463,7 @@ export class KycController extends BaseController<
       jwtToken,
       sessionClientPublicKey,
       residenceCountry,
-      ...this.#buildUkycSessionVendorFields(),
+      vendor: this.state.vendor,
     });
     if (this.#generation !== generation) {
       return null;
