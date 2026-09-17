@@ -12,6 +12,12 @@ import {
 // Import the internal function for testing (note: this would normally be exported for testing)
 // For now we'll test it indirectly through the public functions
 
+// `EthereumUnit` and the numeric argument union are not exported, but the tests
+// below deliberately pass values outside them to exercise the runtime
+// validation, so they are reconstructed here to cast against.
+type EthereumUnit = keyof typeof unitMap;
+type Numeric = string | number | bigint;
+
 const totalTypes = Object.keys(unitMap).length;
 
 /**
@@ -109,17 +115,21 @@ describe('getValueOfUnit', () => {
   });
 
   it('should handle case insensitive input', () => {
-    expect(getValueOfUnit('ETHER' as any)).toBe(BigInt('1000000000000000000'));
-    expect(getValueOfUnit('Ether' as any)).toBe(BigInt('1000000000000000000'));
-    expect(getValueOfUnit('GWEI' as any)).toBe(BigInt('1000000000'));
+    expect(getValueOfUnit('ETHER' as EthereumUnit)).toBe(
+      BigInt('1000000000000000000'),
+    );
+    expect(getValueOfUnit('Ether' as EthereumUnit)).toBe(
+      BigInt('1000000000000000000'),
+    );
+    expect(getValueOfUnit('GWEI' as EthereumUnit)).toBe(BigInt('1000000000'));
     expect(getValueOfUnit('Gwei')).toBe(BigInt('1000000000'));
   });
 
   it('should throw error for invalid units', () => {
-    expect(() => getValueOfUnit('invalidunit' as any)).toThrow(
+    expect(() => getValueOfUnit('invalidunit' as EthereumUnit)).toThrow(
       "The unit provided invalidunit doesn't exist",
     );
-    expect(() => getValueOfUnit('' as any)).toThrow(
+    expect(() => getValueOfUnit('' as EthereumUnit)).toThrow(
       "The unit provided  doesn't exist",
     );
   });
@@ -130,8 +140,8 @@ describe('getValueOfUnit', () => {
 
     // Test that all units from unitMap are supported
     Object.keys(unitMap).forEach((unit) => {
-      expect(() => getValueOfUnit(unit as any)).not.toThrow();
-      expect(getValueOfUnit(unit as any)).toBe(
+      expect(() => getValueOfUnit(unit as EthereumUnit)).not.toThrow();
+      expect(getValueOfUnit(unit as EthereumUnit)).toBe(
         BigInt(unitMap[unit as keyof typeof unitMap]),
       );
     });
@@ -139,12 +149,18 @@ describe('getValueOfUnit', () => {
 
   it('should handle optimized unit lookups correctly', () => {
     // Test that invalid units throw errors with optimized lookups
-    expect(() => toWei(BigInt(1), 'invalidunit' as any)).toThrow(Error);
-    expect(() => fromWei(BigInt(1000), 'invalidunit' as any)).toThrow(Error);
+    expect(() => toWei(BigInt(1), 'invalidunit' as EthereumUnit)).toThrow(
+      Error,
+    );
+    expect(() => fromWei(BigInt(1000), 'invalidunit' as EthereumUnit)).toThrow(
+      Error,
+    );
 
     // Test case insensitive lookups work
-    expect(() => toWei(1, 'ETHER' as any)).not.toThrow();
-    expect(() => fromWei(1000000000000000000, 'GWEI' as any)).not.toThrow();
+    expect(() => toWei(1, 'ETHER' as EthereumUnit)).not.toThrow();
+    expect(() =>
+      fromWei(1000000000000000000, 'GWEI' as EthereumUnit),
+    ).not.toThrow();
   });
 });
 
@@ -174,7 +190,7 @@ describe('toWei', () => {
 
     // Test case sensitivity with BigInt (should work with optimized lookup)
     expect(toWei(BigInt(1), 'Gwei')).toBe(BigInt('1000000000'));
-    expect(toWei(BigInt(1), 'ETHER' as any)).toBe(
+    expect(toWei(BigInt(1), 'ETHER' as EthereumUnit)).toBe(
       BigInt('1000000000000000000'),
     );
   });
@@ -291,7 +307,7 @@ describe('toWei', () => {
     );
 
     expect(() => {
-      toWei(1, 'wei1' as any);
+      toWei(1, 'wei1' as EthereumUnit);
     }).toThrow(Error);
   });
 });
@@ -299,10 +315,12 @@ describe('toWei', () => {
 describe('numberToString', () => {
   it('should handle edge cases', () => {
     // expect(() => numberToString(null)).toThrow(Error);
-    expect(() => numberToString(undefined as any)).toThrow(Error);
+    expect(() => numberToString(undefined as unknown as Numeric)).toThrow(
+      Error,
+    );
     // expect(() => numberToString(NaN)).toThrow(Error);
-    expect(() => numberToString({} as any)).toThrow(Error);
-    expect(() => numberToString([] as any)).toThrow(Error);
+    expect(() => numberToString({} as unknown as Numeric)).toThrow(Error);
+    expect(() => numberToString([] as unknown as Numeric)).toThrow(Error);
     expect(() => numberToString('-1sdffsdsdf')).toThrow(Error);
     expect(() => numberToString('-0..-...9')).toThrow(Error);
     expect(() => numberToString('fds')).toThrow(Error);
@@ -419,7 +437,9 @@ describe('fromWei', () => {
 
     // Test case sensitivity with BigInt
     expect(fromWei(BigInt('1000000000'), 'Gwei')).toBe('1');
-    expect(fromWei(BigInt('1000000000000000000'), 'ETHER' as any)).toBe('1');
+    expect(
+      fromWei(BigInt('1000000000000000000'), 'ETHER' as EthereumUnit),
+    ).toBe('1');
 
     // Test large BigInt values
     expect(fromWei(BigInt('999000000000000000000'), 'ether')).toBe('999');
@@ -557,16 +577,16 @@ describe('numericToBigInt', () => {
   });
 
   it('should throw error for invalid input types', () => {
-    expect(() => numericToBigInt(null as any)).toThrow(
+    expect(() => numericToBigInt(null as unknown as Numeric)).toThrow(
       'Cannot convert object to BigInt',
     );
-    expect(() => numericToBigInt(undefined as any)).toThrow(
+    expect(() => numericToBigInt(undefined as unknown as Numeric)).toThrow(
       'Cannot convert undefined to BigInt',
     );
-    expect(() => numericToBigInt({} as any)).toThrow(
+    expect(() => numericToBigInt({} as unknown as Numeric)).toThrow(
       'Cannot convert object to BigInt',
     );
-    expect(() => numericToBigInt(true as any)).toThrow(
+    expect(() => numericToBigInt(true as unknown as Numeric)).toThrow(
       'Cannot convert boolean to BigInt',
     );
   });
@@ -618,7 +638,7 @@ describe('units', () => {
       ];
 
       testCases.forEach(({ input, unit, expected }) => {
-        expect(toWei(input, unit as any)).toBe(expected);
+        expect(toWei(input, unit as EthereumUnit)).toBe(expected);
       });
     });
 
@@ -675,8 +695,8 @@ describe('units', () => {
         'ETHER',
       ];
       testUnits.forEach((unit) => {
-        expect(() => toWei(BigInt(1), unit as any)).not.toThrow();
-        expect(() => fromWei(BigInt(1000), unit as any)).not.toThrow();
+        expect(() => toWei(BigInt(1), unit as EthereumUnit)).not.toThrow();
+        expect(() => fromWei(BigInt(1000), unit as EthereumUnit)).not.toThrow();
       });
 
       // Test that optimized paths produce identical results to original paths
@@ -684,7 +704,9 @@ describe('units', () => {
       const testUnitsForComparison = ['wei', 'gwei', 'ether'];
 
       testUnitsForComparison.forEach((unit) => {
-        const results = testValues.map((value) => toWei(value, unit as any));
+        const results = testValues.map((value) =>
+          toWei(value, unit as EthereumUnit),
+        );
         // All results should be identical
         expect(results[0]).toBe(results[1]);
         expect(results[1]).toBe(results[2]);
@@ -698,10 +720,12 @@ describe('units', () => {
       expect(typeof toWei(123, 'wei')).toBe('bigint');
 
       // Test that invalid types would throw (tested through public API)
-      expect(() => toWei({} as any, 'wei')).toThrow(Error);
-      expect(() => toWei([] as any, 'wei')).toThrow(Error);
-      expect(() => toWei(null as any, 'wei')).toThrow(Error);
-      expect(() => toWei(undefined as any, 'wei')).toThrow(Error);
+      expect(() => toWei({} as unknown as Numeric, 'wei')).toThrow(Error);
+      expect(() => toWei([] as unknown as Numeric, 'wei')).toThrow(Error);
+      expect(() => toWei(null as unknown as Numeric, 'wei')).toThrow(Error);
+      expect(() => toWei(undefined as unknown as Numeric, 'wei')).toThrow(
+        Error,
+      );
     });
   });
 });

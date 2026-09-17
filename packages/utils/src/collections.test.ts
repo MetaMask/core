@@ -21,7 +21,8 @@ describe('FrozenMap', () => {
     });
 
     it('is frozen and cannot be mutated', () => {
-      const frozenMap: any = new FrozenMap();
+      // Cast so the absent mutation methods can be probed for at runtime.
+      const frozenMap = new FrozenMap() as unknown as Record<string, unknown>;
       expect(frozenMap.set).toBeUndefined();
       expect(frozenMap.clear).toBeUndefined();
 
@@ -247,7 +248,8 @@ describe('FrozenSet', () => {
     });
 
     it('is frozen and cannot be mutated', () => {
-      const frozenSet: any = new FrozenSet();
+      // Cast so the absent mutation methods can be probed for at runtime.
+      const frozenSet = new FrozenSet() as unknown as Record<string, unknown>;
       expect(frozenSet.set).toBeUndefined();
       expect(frozenSet.clear).toBeUndefined();
 

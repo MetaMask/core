@@ -262,15 +262,8 @@ describe('fs', () => {
 
         await withinSandbox(async (sandbox) => {
           const filePath = path.join(sandbox.directoryPath, 'test.json');
-          const stringifier = {
-            stringify(
-              json: any,
-              replacer?:
-                | ((this: any, key: string, value: any) => any)
-                | (number | string)[]
-                | null,
-              space?: string,
-            ): string {
+          const stringifier: { stringify: typeof JSON.stringify } = {
+            stringify(json, replacer, space) {
               return (
                 `${util.inspect(json)}\n` +
                 `replacer: ${util.inspect(replacer)}, space: ${util.inspect(
@@ -293,15 +286,8 @@ describe('fs', () => {
 
         await withinSandbox(async (sandbox) => {
           const filePath = path.join(sandbox.directoryPath, 'test.json');
-          const stringifier = {
-            stringify(
-              json: any,
-              replacer?:
-                | ((this: any, key: string, value: any) => any)
-                | (number | string)[]
-                | null,
-              space?: string,
-            ): string {
+          const stringifier: { stringify: typeof JSON.stringify } = {
+            stringify(json, replacer, space) {
               return (
                 `${util.inspect(json)}\n` +
                 `replacer: ${util.inspect(replacer)}, space: ${util.inspect(
@@ -328,15 +314,8 @@ describe('fs', () => {
 
         await withinSandbox(async (sandbox) => {
           const filePath = path.join(sandbox.directoryPath, 'test.json');
-          const stringifier = {
-            stringify(
-              json: any,
-              replacer?:
-                | ((this: any, key: string, value: any) => any)
-                | (number | string)[]
-                | null,
-              space?: string,
-            ): string {
+          const stringifier: { stringify: typeof JSON.stringify } = {
+            stringify(json, replacer, space) {
               return (
                 `${util.inspect(json)}\n` +
                 `replacer: ${util.inspect(replacer)}, space: ${util.inspect(
@@ -365,15 +344,8 @@ describe('fs', () => {
           // Make sandbox root directory non-readable
           await fs.promises.chmod(sandbox.directoryPath, 0o600);
           const filePath = path.join(sandbox.directoryPath, 'test.json');
-          const stringifier = {
-            stringify(
-              json: any,
-              replacer?:
-                | ((this: any, key: string, value: any) => any)
-                | (number | string)[]
-                | null,
-              space?: string,
-            ): string {
+          const stringifier: { stringify: typeof JSON.stringify } = {
+            stringify(json, replacer, space) {
               return (
                 `${util.inspect(json)}\n` +
                 `replacer: ${util.inspect(replacer)}, space: ${util.inspect(
@@ -438,7 +410,7 @@ describe('fs', () => {
 
     it('re-throws a wrapped version of any error that occurs, assigning it the same code and giving it a stack', async () => {
       const entryPath = '/some/file';
-      const error: any = new Error('oops');
+      const error: Error & { code?: string } = new Error('oops');
       error.code = 'ESOMETHING';
       error.stack = 'some stack';
       when(jest.spyOn(fs.promises, 'stat'))
@@ -497,7 +469,7 @@ describe('fs', () => {
 
     it('re-throws a wrapped version of any error that occurs, assigning it the same code and giving it a stack', async () => {
       const entryPath = '/some/file';
-      const error: any = new Error('oops');
+      const error: Error & { code?: string } = new Error('oops');
       error.code = 'ESOMETHING';
       error.stack = 'some stack';
       when(jest.spyOn(fs.promises, 'stat'))
@@ -607,7 +579,7 @@ describe('fs', () => {
 
       it('re-throws a wrapped version of any error that occurs, assigning it the same code and giving it a stack', async () => {
         const filePath = '/some/file';
-        const error: any = new Error('oops');
+        const error: Error & { code?: string } = new Error('oops');
         error.code = 'ESOMETHING';
         error.stack = 'some stack';
         when(jest.spyOn(fs.promises, 'rm'))
@@ -658,7 +630,7 @@ describe('fs', () => {
 
       it('re-throws a wrapped version of any error that occurs, assigning it the same code and giving it a stack', async () => {
         const directoryPath = '/some/directory';
-        const error: any = new Error('oops');
+        const error: Error & { code?: string } = new Error('oops');
         error.code = 'ESOMETHING';
         error.stack = 'some stack';
         when(jest.spyOn(fs.promises, 'rm'))

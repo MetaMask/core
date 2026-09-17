@@ -129,7 +129,7 @@ describe('wrapError', () => {
       let originalError;
       try {
         await fs.promises.readFile('/tmp/nonexistent', 'utf8');
-      } catch (error: any) {
+      } catch (error) {
         originalError = error;
       }
 
@@ -142,7 +142,7 @@ describe('wrapError', () => {
       let originalError;
       try {
         await fs.promises.readFile('/tmp/nonexistent', 'utf8');
-      } catch (error: any) {
+      } catch (error) {
         originalError = error;
       }
 
@@ -155,7 +155,7 @@ describe('wrapError', () => {
       let originalError;
       try {
         await fs.promises.readFile('/tmp/nonexistent', 'utf8');
-      } catch (error: any) {
+      } catch (error) {
         originalError = error;
       }
 
