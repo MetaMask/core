@@ -40,11 +40,7 @@ import type {
   StateKeys,
 } from './MultichainAccountService.js';
 import { EvmAccountProvider } from './providers/EvmAccountProvider.js';
-import type {
-  Bip44AccountProvider,
-  DeleteAccountsFailure,
-  DeleteAccountsResult,
-} from './providers/index.js';
+import type { Bip44AccountProvider } from './providers/index.js';
 import type { MultichainAccountServiceMessenger } from './types.js';
 import {
   assertGroupIndexIsValid,
