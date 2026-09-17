@@ -47,6 +47,13 @@ describe('getSolanaPaySupportDiagnostics', () => {
     [{ relayStatus: 'unknown' }, 'settlement_status_unknown'],
     [{ followUpStatus: 'failed' }, 'follow_up_failed'],
     [{ followUpStatus: 'unknown' }, 'follow_up_status_unknown'],
+    [
+      {
+        atomicProductActionIncluded: false,
+        atomicProductActionRequired: true,
+      },
+      'construction_failed',
+    ],
     [{ notificationStatus: 'failure' }, 'provider_notification_failed'],
   ] as const)('maps execution override %# to %s', (override, errorCode) => {
     expect(
@@ -143,6 +150,20 @@ describe('isSolanaPayLifecycleTransition', () => {
     const next = getSolanaPaySupportDiagnostics(
       SOURCE,
       getExecution(overrides),
+    );
+
+    expect(isSolanaPayLifecycleTransition(previous, next)).toBe(true);
+  });
+
+  it('detects a source asset class transition', () => {
+    const previous = getSolanaPaySupportDiagnostics(SOURCE, getExecution());
+    const next = getSolanaPaySupportDiagnostics(
+      {
+        ...SOURCE,
+        sourceAssetId:
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501' as CaipAssetType,
+      },
+      getExecution(),
     );
 
     expect(isSolanaPayLifecycleTransition(previous, next)).toBe(true);

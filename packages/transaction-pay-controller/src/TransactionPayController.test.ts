@@ -477,9 +477,7 @@ describe('TransactionPayController', () => {
       await controller.submitSolanaPay(TRANSACTION_ID_MOCK);
 
       expect(signAndSendTransaction).toHaveBeenCalledTimes(1);
-      expect(transaction.metamaskPay?.solanaExecution?.phase).toBe(
-        'submitted',
-      );
+      expect(transaction.metamaskPay?.solanaExecution?.phase).toBe('submitted');
     });
 
     it('exposes privacy-safe support diagnostics for the transaction-owned execution', () => {
