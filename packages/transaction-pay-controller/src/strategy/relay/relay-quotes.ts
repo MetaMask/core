@@ -42,6 +42,7 @@ import {
   getRelayOriginGasOverhead,
   getSlippage,
   getStablecoins,
+  isAtomicMaxPromotionEnabled,
   isEIP7702Chain,
   isRelayExecuteEnabled,
 } from '../../utils/feature-flags.js';
@@ -71,8 +72,10 @@ import {
   getRelayMaxGasStationQuote,
   isPromotedSubsidizedMaxMoneyAccountQuote,
   maybePromoteSubsidizedMaxMoneyAccountQuote,
+  prepareAtomicMaxAmountQuoteRequest,
   throwAtomicPromotionFailed,
 } from './relay-max.js';
+import { isSubsidizedRelayQuote } from './relay-submit-execute.js';
 import { validateRelayQuotes } from './relay-validation.js';
 import type {
   RelayQuote,
@@ -196,8 +199,62 @@ async function getQuoteWithMaxAmountHandling(
     return getQuoteWithPostQuoteGasHandling(request, fullRequest);
   }
 
+  const isAtomicPromotionEligible = isAtomicMaxPromotionEnabled(
+    fullRequest.messenger,
+    fullRequest.transaction,
+  );
+  const targetAmount = new BigNumber(request.targetAmountMinimum);
+  const hasPositiveTargetAmount =
+    targetAmount.isFinite() && targetAmount.isInteger() && targetAmount.gt(0);
+
+  if (
+    isAtomicPromotionEligible &&
+    hasPositiveTargetAmount &&
+    request.atomic !== false &&
+    request.isPostQuote !== true
+  ) {
+    const preparedRequest = await prepareAtomicMaxAmountQuoteRequest({
+      amount: targetAmount.toFixed(0),
+      fullRequest,
+    });
+
+    const atomicFirstQuote = await getSingleQuote(
+      {
+        ...request,
+        atomic: true,
+        targetAmountMinimum: targetAmount.toFixed(0),
+      },
+      preparedRequest,
+    );
+
+    if (isSubsidizedRelayQuote(atomicFirstQuote.original)) {
+      return atomicFirstQuote;
+    }
+
+    log('Atomic max quote was not subsidized, re-quoting non-atomically');
+
+    return getRelayMaxGasStationQuote(
+      {
+        ...request,
+        atomic: false,
+      },
+      fullRequest,
+      getSingleQuote,
+    );
+  }
+
+  const discoveryRequest =
+    request.atomic !== false &&
+    request.isPostQuote !== true &&
+    (isAtomicPromotionEligible ||
+      hasTransactionType(fullRequest.transaction, [
+        TransactionType.moneyAccountDeposit,
+      ]))
+      ? { ...request, atomic: false }
+      : request;
+
   const discoveryQuote = await getRelayMaxGasStationQuote(
-    request,
+    discoveryRequest,
     fullRequest,
     getSingleQuote,
   );
@@ -206,7 +263,7 @@ async function getQuoteWithMaxAmountHandling(
     discoveryQuote,
     fullRequest,
     getSingleQuote,
-    request,
+    request: discoveryRequest,
   });
 }
 
@@ -559,7 +616,13 @@ async function processTransactions(
     return true;
   }
 
-  if (isMaxAmount) {
+  // Eligible atomic max requests carry a destination amount, so the calls
+  // below use EXACT_OUTPUT rather than the usual max EXACT_INPUT quote.
+  if (
+    isMaxAmount &&
+    (request.isPostQuote === true ||
+      !isAtomicMaxPromotionEnabled(messenger, transaction))
+  ) {
     throw new Error('Max amount quotes do not support included transactions');
   }
 

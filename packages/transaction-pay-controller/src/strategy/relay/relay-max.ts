@@ -501,26 +501,18 @@ export async function maybePromoteSubsidizedMaxMoneyAccountQuote({
       discoveryQuote.original.details.currencyOut.amount,
     );
 
-    const transactionClone = cloneTransactionForPromotion(
-      fullRequest.transaction,
-    );
-    const promotionTransaction = await applyAmountDataUpdates({
+    const preparedRequest = await prepareAtomicMaxAmountQuoteRequest({
       amount: targetAmount,
-      messenger: fullRequest.messenger,
-      transaction: transactionClone,
+      fullRequest,
     });
 
     const promotedQuote = await getSingleQuote(
       {
         ...request,
         atomic: true,
-        isMaxAmount: false,
         targetAmountMinimum: targetAmount,
       },
-      {
-        ...fullRequest,
-        transaction: promotionTransaction,
-      },
+      preparedRequest,
     );
 
     if (!isSubsidizedRelayQuote(promotedQuote.original)) {
@@ -655,5 +647,35 @@ async function applyAmountDataUpdates({
     ...transaction,
     nestedTransactions,
     requiredAssets,
+  };
+}
+
+/**
+ * Rebuild amount-dependent calls on a clone before an atomic max quote.
+ *
+ * @param options - Amount and quote context.
+ * @param options.amount - Destination amount in raw target-token units.
+ * @param options.fullRequest - Original quote context.
+ * @returns Quote context with synchronized calldata and required assets.
+ */
+export async function prepareAtomicMaxAmountQuoteRequest({
+  amount,
+  fullRequest,
+}: {
+  amount: string;
+  fullRequest: PayStrategyGetQuotesRequest;
+}): Promise<PayStrategyGetQuotesRequest> {
+  const transactionClone = cloneTransactionForPromotion(
+    fullRequest.transaction,
+  );
+  const promotionTransaction = await applyAmountDataUpdates({
+    amount,
+    messenger: fullRequest.messenger,
+    transaction: transactionClone,
+  });
+
+  return {
+    ...fullRequest,
+    transaction: promotionTransaction,
   };
 }

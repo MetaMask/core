@@ -479,7 +479,7 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
-    it('throws if isMaxAmount is true and transaction includes data', async () => {
+    it('rejects max included transactions outside the atomic promotion scope', async () => {
       await expect(
         getRelayQuotes({
           accountSupports7702: true,
@@ -487,14 +487,40 @@ describe('Relay Quotes Utils', () => {
           requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
           transaction: {
             ...TRANSACTION_META_MOCK,
-            txParams: {
-              data: '0xabc' as Hex,
-            },
+            txParams: { data: '0xabc' as Hex },
           } as TransactionMeta,
         }),
       ).rejects.toThrow(
         'Max amount quotes do not support included transactions',
       );
+    });
+
+    it('skips transaction embedding when isMaxAmount is true and atomic is false', async () => {
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true, atomic: false }],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            data: '0xabc' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.tradeType).toBe('EXACT_INPUT');
+      expect(body.txs).toBeUndefined();
     });
 
     it('includes transactions in request', async () => {
@@ -4045,6 +4071,289 @@ describe('Relay Quotes Utils', () => {
         );
       });
 
+      it('uses one atomic exact-output quote when an explicit atomic max target hint remains subsidized', async () => {
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () =>
+            buildRelayQuote({
+              amountIn: DISCOVERY_OUTPUT_RAW,
+              requestId: '0x-atomic-hint',
+              tradeType: 'EXACT_OUTPUT',
+            }),
+        } as never);
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...MONEY_ACCOUNT_MAX_REQUEST,
+              atomic: true,
+              targetAmountMinimum: DISCOVERY_OUTPUT_RAW,
+            },
+          ],
+          transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+        });
+
+        expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+        expect(getAmountDataMock).toHaveBeenCalledWith({
+          amount: DISCOVERY_OUTPUT_RAW,
+          transaction: expect.objectContaining({
+            nestedTransactions: [expect.objectContaining({ data: '0xaaaa' })],
+            requiredAssets: [
+              expect.objectContaining({ amount: toHex(OLD_DEPOSIT_RAW) }),
+            ],
+          }),
+        });
+        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+          transaction: expect.objectContaining({
+            nestedTransactions: [
+              expect.objectContaining({ data: UPDATED_DEPOSIT_DATA }),
+            ],
+            requiredAssets: [
+              expect.objectContaining({ amount: toHex(DISCOVERY_OUTPUT_RAW) }),
+            ],
+          }),
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+        expect(body).toStrictEqual(
+          expect.objectContaining({
+            amount: DISCOVERY_OUTPUT_RAW,
+            tradeType: 'EXACT_OUTPUT',
+            txs: [
+              expect.objectContaining({
+                data: expect.stringContaining(
+                  BigInt(DISCOVERY_OUTPUT_RAW).toString(16).padStart(64, '0'),
+                ),
+              }),
+              expect.objectContaining({ data: DELEGATION_RESULT_MOCK.data }),
+            ],
+          }),
+        );
+        expect(result[0].request).toStrictEqual(
+          expect.objectContaining({
+            atomic: true,
+            isMaxAmount: true,
+            targetAmountMinimum: DISCOVERY_OUTPUT_RAW,
+          }),
+        );
+        expect(result[0].isInputBased).toBe(false);
+      });
+
+      it('defaults an omitted atomic max target hint to atomic exact-output', async () => {
+        const defaultAtomicRequest = {
+          ...MONEY_ACCOUNT_MAX_REQUEST,
+          atomic: undefined,
+          targetAmountMinimum: DISCOVERY_OUTPUT_RAW,
+        };
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () =>
+            buildRelayQuote({
+              amountIn: DISCOVERY_OUTPUT_RAW,
+              requestId: '0x-default-atomic-hint',
+              tradeType: 'EXACT_OUTPUT',
+            }),
+        } as never);
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [defaultAtomicRequest],
+          transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+        expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+        expect(body.tradeType).toBe('EXACT_OUTPUT');
+        expect(body.amount).toBe(DISCOVERY_OUTPUT_RAW);
+        expect(result[0].request.atomic).toBe(true);
+        expect(result[0].request.isMaxAmount).toBe(true);
+        expect(result[0].request.sourceTokenAmount).toBe(SOURCE_CAP_RAW);
+      });
+
+      it('demotes an unsubsidized atomic max target hint to one non-atomic exact-input max quote without re-promotion', async () => {
+        successfulFetchMock
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () =>
+              buildRelayQuote({
+                amountIn: DISCOVERY_OUTPUT_RAW,
+                requestId: '0x-unsubsidized-hint',
+                subsidizedAmountUsd: '0',
+                tradeType: 'EXACT_OUTPUT',
+              }),
+          } as never)
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () =>
+              buildRelayQuote({
+                requestId: '0x-demoted-max',
+                tradeType: 'EXACT_INPUT',
+              }),
+          } as never);
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...MONEY_ACCOUNT_MAX_REQUEST,
+              atomic: true,
+              targetAmountMinimum: DISCOVERY_OUTPUT_RAW,
+            },
+          ],
+          transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+        });
+
+        expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+        const hintBody = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+        const demotedBody = JSON.parse(
+          successfulFetchMock.mock.calls[1][1]?.body as string,
+        );
+        expect(hintBody.tradeType).toBe('EXACT_OUTPUT');
+        expect(hintBody.amount).toBe(DISCOVERY_OUTPUT_RAW);
+        expect(demotedBody.tradeType).toBe('EXACT_INPUT');
+        expect(demotedBody.amount).toBe(SOURCE_CAP_RAW);
+        expect(demotedBody.txs).toBeUndefined();
+        expect(result[0].request.atomic).toBe(false);
+        expect(result[0].isInputBased).toBe(true);
+      });
+
+      it('preserves atomic max target hint fetch errors without demoting or re-promoting', async () => {
+        const abortError = new Error('aborted');
+        abortError.name = 'AbortError';
+        successfulFetchMock.mockRejectedValue(abortError);
+
+        await expect(
+          getRelayQuotes({
+            accountSupports7702: true,
+            messenger,
+            requests: [
+              {
+                ...MONEY_ACCOUNT_MAX_REQUEST,
+                atomic: true,
+                targetAmountMinimum: DISCOVERY_OUTPUT_RAW,
+              },
+            ],
+            transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+          }),
+        ).rejects.toThrow('aborted');
+
+        expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('uses non-atomic exact-input discovery and existing promotion when the atomic max target hint is zero', async () => {
+        mockRelayResponses();
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...MONEY_ACCOUNT_MAX_REQUEST,
+              atomic: true,
+              targetAmountMinimum: '0',
+            },
+          ],
+          transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+        });
+
+        expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+        const discoveryBody = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+        const promotionBody = JSON.parse(
+          successfulFetchMock.mock.calls[1][1]?.body as string,
+        );
+        expect(discoveryBody.tradeType).toBe('EXACT_INPUT');
+        expect(discoveryBody.amount).toBe(SOURCE_CAP_RAW);
+        expect(discoveryBody.txs).toBeUndefined();
+        expect(promotionBody.tradeType).toBe('EXACT_OUTPUT');
+        expect(promotionBody.amount).toBe(DISCOVERY_OUTPUT_RAW);
+        expect(result[0].request.atomic).toBe(true);
+        expect(result[0].request.isMaxAmount).toBe(true);
+      });
+
+      it('uses non-atomic exact-input max quoting when the atomic max promotion flag is off despite an atomic hint', async () => {
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => buildRelayQuote({ subsidizedAmountUsd: '0' }),
+        } as never);
+        getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+          ...getDefaultRemoteFeatureFlagControllerState(),
+          remoteFeatureFlags: {
+            confirmations_pay_extended: {
+              payStrategies: {
+                relay: { atomicMaxPromotionEnabled: { default: false } },
+              },
+            },
+          },
+        });
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...MONEY_ACCOUNT_MAX_REQUEST,
+              atomic: true,
+              targetAmountMinimum: DISCOVERY_OUTPUT_RAW,
+            },
+          ],
+          transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+        });
+
+        expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+        expect(body.tradeType).toBe('EXACT_INPUT');
+        expect(body.txs).toBeUndefined();
+        expect(result[0].request.atomic).toBe(false);
+      });
+
+      it('leaves non-max atomic exact-output quoting unchanged', async () => {
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () =>
+            buildRelayQuote({
+              amountIn: DISCOVERY_OUTPUT_RAW,
+              requestId: '0x-non-max',
+              tradeType: 'EXACT_OUTPUT',
+            }),
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...MONEY_ACCOUNT_MAX_REQUEST,
+              atomic: true,
+              isMaxAmount: false,
+              targetAmountMinimum: DISCOVERY_OUTPUT_RAW,
+            },
+          ],
+          transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+        });
+
+        expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+        expect(body.tradeType).toBe('EXACT_OUTPUT');
+        expect(body.amount).toBe(DISCOVERY_OUTPUT_RAW);
+      });
+
       it('fails atomic promotion terminally when promotion loses subsidy after positive subsidy detection', async () => {
         mockRelayResponses(
           buildRelayQuote(),
@@ -4222,19 +4531,33 @@ describe('Relay Quotes Utils', () => {
         ).rejects.toThrow('validation boom');
       });
 
-      it('rejects an already-atomic max quote upstream without terminal wrapping', async () => {
-        mockRelayResponses(buildRelayQuote({ subsidizedAmountUsd: '0' }));
+      it('returns an atomic-first quote when the request is already atomic max', async () => {
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () =>
+            buildRelayQuote({
+              amountIn: DISCOVERY_OUTPUT_RAW,
+              requestId: '0x-atomic-request',
+              tradeType: 'EXACT_OUTPUT',
+            }),
+        } as never);
 
-        await expect(
-          getRelayQuotes({
-            accountSupports7702: true,
-            messenger,
-            requests: [{ ...MONEY_ACCOUNT_MAX_REQUEST, atomic: true }],
-            transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
-          }),
-        ).rejects.toThrow(
-          'Max amount quotes do not support included transactions',
-        );
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...MONEY_ACCOUNT_MAX_REQUEST,
+              atomic: true,
+              targetAmountMinimum: DISCOVERY_OUTPUT_RAW,
+            },
+          ],
+          transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+        });
+
+        expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+        expect(result[0].request.atomic).toBe(true);
+        expect(result[0].request.isMaxAmount).toBe(true);
       });
 
       it('fails atomic promotion terminally when the discovery target is not a positive integer', async () => {
