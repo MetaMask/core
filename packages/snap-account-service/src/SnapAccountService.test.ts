@@ -1,4 +1,5 @@
 import type { AccountGroupId } from '@metamask/account-api';
+import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { SNAP_KEYRING_TYPE } from '@metamask/eth-snap-keyring';
 import type { SnapMessage } from '@metamask/eth-snap-keyring';
 import type { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
@@ -85,6 +86,10 @@ type Mocks = {
     >;
     getSelectedAccountGroup: jest.MockedFunction<() => AccountGroupId | ''>;
   };
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  AccountsController: {
+    getState: jest.MockedFunction<() => AccountsControllerState>;
+  };
 };
 
 /**
@@ -126,6 +131,7 @@ function getMessenger(
       'KeyringController:withKeyringV2Unsafe',
       'AccountTreeController:getAccountGroupObject',
       'AccountTreeController:getSelectedAccountGroup',
+      'AccountsController:getState',
     ],
     events: [
       'SnapController:stateChange',
@@ -141,6 +147,8 @@ function getMessenger(
       'AccountTreeController:accountGroupCreated',
       'AccountTreeController:accountGroupUpdated',
       'AccountTreeController:accountGroupRemoved',
+      'AccountsController:accountsAdded',
+      'AccountsController:accountsRemoved',
     ],
   });
   return messenger;
@@ -230,6 +238,66 @@ function buildGroup(
   accounts: string[],
 ): AccountGroupObject {
   return { id, accounts } as MockAccountGroup as AccountGroupObject;
+}
+
+/**
+ * Builds a minimal `AccountsControllerState` whose `internalAccounts.accounts`
+ * maps each given account ID to an account owned by `snapId` (via
+ * `metadata.snap.id`). Used to seed the service's Snap-ownership cache.
+ *
+ * @param accounts - The accounts to include.
+ * @returns A minimal `AccountsControllerState`.
+ */
+function buildAccountsState(
+  accounts: { id: string; snapId?: string }[],
+): AccountsControllerState {
+  const accountsRecord = Object.fromEntries(
+    accounts.map(({ id, snapId }) => [
+      id,
+      {
+        id,
+        metadata: snapId ? { snap: { id: snapId } } : {},
+      },
+    ]),
+  );
+  return {
+    internalAccounts: { accounts: accountsRecord },
+  } as unknown as AccountsControllerState;
+}
+
+/**
+ * Publishes an `AccountsController:accountsAdded` event on the root messenger,
+ * adding the given accounts to the service's Snap-ownership cache.
+ *
+ * @param rootMessenger - The root messenger.
+ * @param accounts - The accounts that were added.
+ */
+function publishAccountsAdded(
+  rootMessenger: RootMessenger,
+  accounts: { id: string; snapId?: string }[],
+): void {
+  rootMessenger.publish(
+    'AccountsController:accountsAdded',
+    accounts.map(({ id, snapId }) => ({
+      id,
+      metadata: snapId ? { snap: { id: snapId } } : {},
+    })),
+  );
+}
+
+/**
+ * Publishes an `AccountsController:accountsRemoved` event on the root
+ * messenger, removing the given account IDs from the service's Snap-ownership
+ * cache.
+ *
+ * @param rootMessenger - The root messenger.
+ * @param accountIds - The IDs of the accounts that were removed.
+ */
+function publishAccountsRemoved(
+  rootMessenger: RootMessenger,
+  accountIds: string[],
+): void {
+  rootMessenger.publish('AccountsController:accountsRemoved', accountIds);
 }
 
 /**
@@ -403,6 +471,7 @@ function mockWithKeyringV2Unsafe(
  * @param args - The arguments to this function.
  * @param args.snapIsReady - Initial value of `SnapController.isReady`.
  * @param args.runnableSnaps - Snaps returned by `SnapController:getRunnableSnaps`.
+ * @param args.accounts - Initial accounts.
  * @param args.config - Optional service config.
  * @param args.captureException - Optional method to capture exceptions in Sentry.
  * @returns The new service, root messenger, service messenger, and mocks.
@@ -410,11 +479,13 @@ function mockWithKeyringV2Unsafe(
 async function setup({
   snapIsReady = true,
   runnableSnaps = [],
+  accounts = [],
   config,
   captureException,
 }: {
   snapIsReady?: boolean;
   runnableSnaps?: TruncatedSnap[];
+  accounts?: { id: string; snapId?: string }[];
   config?: SnapAccountServiceOptions['config'];
   captureException?: (error: Error) => void;
 } = {}): Promise<{
@@ -443,6 +514,9 @@ async function setup({
     AccountTreeController: {
       getAccountGroupObject: jest.fn().mockReturnValue(undefined),
       getSelectedAccountGroup: jest.fn().mockReturnValue(''),
+    },
+    AccountsController: {
+      getState: jest.fn().mockReturnValue(buildAccountsState(accounts)),
     },
   };
 
@@ -481,6 +555,10 @@ async function setup({
   rootMessenger.registerActionHandler(
     'AccountTreeController:getSelectedAccountGroup',
     mocks.AccountTreeController.getSelectedAccountGroup,
+  );
+  rootMessenger.registerActionHandler(
+    'AccountsController:getState',
+    mocks.AccountsController.getState,
   );
 
   const service = new SnapAccountService({ messenger, config });
@@ -1182,6 +1260,100 @@ describe('SnapAccountService', () => {
     });
 
     const MOCK_ACCOUNT_ID = '00000000-0000-4000-8000-000000000001';
+    // An account ID that the Snap does NOT own. Updates for this ID must be
+    // stripped before the event is republished, otherwise a Snap could forge
+    // data for accounts owned by another Snap (or for accounts that do not
+    // exist at all).
+    const MOCK_UNOWNED_ACCOUNT_ID = '00000000-0000-4000-8000-000000000002';
+    // An account ID that has no Snap owner. Updates for this ID must be
+    // stripped too — it is owned by nobody.
+    const MOCK_NO_SNAP_ACCOUNT_ID = '00000000-0000-4000-8000-000000000003';
+
+    it.each([
+      [
+        KeyringEvent.AccountBalancesUpdated,
+        'SnapAccountService:accountBalancesUpdated' as const,
+        'balances' as const,
+        {
+          balances: {
+            [MOCK_ACCOUNT_ID]: {
+              'eip155:1/slip44:60': { amount: '1', unit: 'ETH' },
+            },
+            [MOCK_UNOWNED_ACCOUNT_ID]: {
+              'eip155:1/slip44:60': { amount: '99', unit: 'ETH' },
+            },
+          },
+        } satisfies AccountBalancesUpdatedEventPayload,
+      ],
+      [
+        KeyringEvent.AccountAssetListUpdated,
+        'SnapAccountService:accountAssetListUpdated' as const,
+        'assets' as const,
+        {
+          assets: {
+            [MOCK_ACCOUNT_ID]: { added: ['eip155:1/slip44:60'], removed: [] },
+            [MOCK_UNOWNED_ACCOUNT_ID]: {
+              added: ['eip155:1/slip44:60'],
+              removed: [],
+            },
+          },
+        } satisfies AccountAssetListUpdatedEventPayload,
+      ],
+      [
+        KeyringEvent.AccountTransactionsUpdated,
+        'SnapAccountService:accountTransactionsUpdated' as const,
+        'transactions' as const,
+        {
+          transactions: {
+            [MOCK_ACCOUNT_ID]: [],
+            [MOCK_UNOWNED_ACCOUNT_ID]: [],
+          },
+        } satisfies AccountTransactionsUpdatedEventPayload,
+      ],
+    ] as const)(
+      'filters %s to accounts owned by the Snap before republishing it',
+      async (method, event, key, payload) => {
+        const { service, rootMessenger, mocks } = await setup({
+          accounts: [
+            { id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string },
+            {
+              id: MOCK_UNOWNED_ACCOUNT_ID,
+              snapId: MOCK_OTHER_SNAP_ID as string,
+            },
+            // An account with no Snap owner must be skipped when building the
+            // cache (it is owned by nobody).
+            { id: MOCK_NO_SNAP_ACCOUNT_ID },
+          ],
+        });
+        const listener = jest.fn();
+        rootMessenger.subscribe(event, listener);
+
+        expect(service).toBeDefined();
+
+        const result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
+          method,
+          params: payload,
+        } as unknown as SnapMessage);
+
+        expect(result).toBeNull();
+        // Only the owned account survives the ownership filter.
+        const expectedEntry = (
+          payload as Record<string, Record<string, unknown>>
+        )[key][MOCK_ACCOUNT_ID];
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith({
+          [key]: { [MOCK_ACCOUNT_ID]: expectedEntry },
+        });
+        // The ownership filter is a synchronous AccountsController-state
+        // cache read — it must NOT touch the keyring on the live path. This
+        // assertion previously locked in the bypass (core#8916) and is now
+        // inverted to require the cache, not the keyring.
+        expect(
+          mocks.KeyringController.withKeyringV2Unsafe,
+        ).not.toHaveBeenCalled();
+        expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
+      },
+    );
 
     it.each([
       [
@@ -1208,17 +1380,21 @@ describe('SnapAccountService', () => {
         KeyringEvent.AccountTransactionsUpdated,
         'SnapAccountService:accountTransactionsUpdated' as const,
         {
-          transactions: { [MOCK_ACCOUNT_ID]: [] },
+          transactions: {
+            [MOCK_ACCOUNT_ID]: [],
+          },
         } satisfies AccountTransactionsUpdatedEventPayload,
       ],
     ] as const)(
-      'publishes %s as a service event without touching the keyring',
+      'drops the whole %s update when no reported account is owned by the Snap (fail closed)',
       async (method, event, payload) => {
-        const { service, rootMessenger, mocks } = await setup();
+        const { service, rootMessenger } = await setup({
+          accounts: [
+            { id: MOCK_ACCOUNT_ID, snapId: MOCK_OTHER_SNAP_ID as string },
+          ],
+        });
         const listener = jest.fn();
         rootMessenger.subscribe(event, listener);
-
-        expect(service).toBeDefined();
 
         const result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
           method,
@@ -1226,13 +1402,71 @@ describe('SnapAccountService', () => {
         } as unknown as SnapMessage);
 
         expect(result).toBeNull();
-        expect(listener).toHaveBeenCalledWith(payload);
-        expect(
-          mocks.KeyringController.withKeyringV2Unsafe,
-        ).not.toHaveBeenCalled();
-        expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
+        expect(listener).not.toHaveBeenCalled();
       },
     );
+
+    it('picks up added/removed accounts from AccountsController:accountsAdded and :accountsRemoved', async () => {
+      // Initially the Snap does not own the account, so the update is dropped.
+      const { service, rootMessenger } = await setup({
+        accounts: [
+          { id: MOCK_ACCOUNT_ID, snapId: MOCK_OTHER_SNAP_ID as string },
+        ],
+      });
+      const listener = jest.fn();
+      rootMessenger.subscribe(
+        'SnapAccountService:accountBalancesUpdated',
+        listener,
+      );
+
+      const payload = {
+        balances: {
+          [MOCK_ACCOUNT_ID]: {
+            'eip155:1/slip44:60': { amount: '1', unit: 'ETH' },
+          },
+        },
+      } satisfies AccountBalancesUpdatedEventPayload;
+
+      let result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
+        method: KeyringEvent.AccountBalancesUpdated,
+        params: payload,
+      } as unknown as SnapMessage);
+      expect(result).toBeNull();
+      expect(listener).not.toHaveBeenCalled();
+
+      // The account is added for this Snap — the cache picks it up from
+      // `accountsAdded` and the next update is forwarded. A no-Snap account
+      // is included to verify such accounts are skipped when updating the
+      // cache incrementally.
+      publishAccountsAdded(rootMessenger, [
+        { id: MOCK_ACCOUNT_ID, snapId: MOCK_SNAP_ID as string },
+        { id: MOCK_NO_SNAP_ACCOUNT_ID },
+      ]);
+
+      result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
+        method: KeyringEvent.AccountBalancesUpdated,
+        params: payload,
+      } as unknown as SnapMessage);
+      expect(result).toBeNull();
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith({
+        balances: {
+          [MOCK_ACCOUNT_ID]: payload.balances[MOCK_ACCOUNT_ID],
+        },
+      });
+
+      // The account is removed — the cache drops it and the next update is
+      // dropped again (fail closed).
+      publishAccountsRemoved(rootMessenger, [MOCK_ACCOUNT_ID]);
+
+      listener.mockClear();
+      result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
+        method: KeyringEvent.AccountBalancesUpdated,
+        params: payload,
+      } as unknown as SnapMessage);
+      expect(result).toBeNull();
+      expect(listener).not.toHaveBeenCalled();
+    });
   });
 
   describe('on AccountTreeController:selectedAccountGroupChange', () => {
