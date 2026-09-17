@@ -124,7 +124,7 @@ Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 `getGeoCountry`, `fetchVendorDisclaimers`, `createSession`, `checkKycRequired`,
 `createVendorCustomer`, `submitVendorDisclaimers`, `fetchSessionDisclaimersByCountry`, `fetchSessionDisclaimersBySessionId`, `submitSessionDisclaimers`,
 `fetchIdosEnclaveJwks`, `fetchIdosRelayJwks`, `createUkycSession`, `setAuthorizations`,
-`createJourney`, `getSessionStatus`.
+`createJourney`, `getSessionStatus`, `getLatestSessionStatusForVendor`.
 
 Endpoints:
 
@@ -145,6 +145,7 @@ Endpoints:
 | `setAuthorizations`                  | `POST` | `/sessions/{id}/authorizations`              | Submit wrapped `data_encryption_key` and wrapped `ukyc_capability_token`               |
 | `createJourney`                      | `POST` | `/sessions/{id}/journey`                     | Create verification journey → applicant token                                          |
 | `getSessionStatus`                   | `GET`  | `/sessions/{id}/status`                      | UKYC session status payload (`KycSessionStatusResponse`; stored on `sessionStatus`)    |
+| `getLatestSessionStatusForVendor`             | `GET`  | `/sessions/latest/status/{vendor}`           | Same payload as `getSessionStatus`, or `null` when no session exists (HTTP 404)        |
 
 ### 2.3 `crypto.ts`
 
@@ -188,7 +189,7 @@ classDiagram
         +Record kycRequiredByProduct [persisted]
         +string lastCheckedAt [persisted]
         +string sessionId [persisted]
-        +KycSessionStatusResponse sessionStatus
+        +KycSessionStatusResponse sessionStatus [persisted]
         +SumSubState sumsub
     }
     class SumSubState {
@@ -207,9 +208,11 @@ State metadata highlights (`kycControllerMetadata`):
 
 - **Persisted** (`persist: true`): `vendorDisclaimersAccepted`,
   `providerDisclaimersAccepted`, `idosDisclaimersAccepted`,
-  `kycRequiredByProduct`, `lastCheckedAt`, `sessionId`. These survive restarts
-  so the flow can skip already-accepted terms, reuse cached results, and
-  resume session-status refresh. Session-scoped `sessionDisclaimers` and
+  `kycRequiredByProduct`, `lastCheckedAt`, `sessionId`, `sessionStatus`. These
+  survive restarts so the flow can skip already-accepted terms, reuse cached
+  results, and resume session-status refresh. `sessionStatus` is always
+  cleared when `sessionId` is cleared (`reset`, consents rewind).
+  Session-scoped `sessionDisclaimers` and
   `credentialReusabilityConsentGiven` are in-memory only (`persist: false`)
   and are cleared on `reset()`.
   Acceptance is vendor-scoped: `initialize` (and `createVendorCustomer`) drops
@@ -285,6 +288,15 @@ stateDiagram-v2
 > `kycProvider` document records; `credentialReusabilityConsentGiven` is
 > forwarded as well (defaults to `false`).
 
+> **`initialize` hydrates any existing UKYC session for the vendor when no
+> `sessionId` is already on state.** After resolving geolocation, `initialize`
+> calls `GET /sessions/latest/status/{vendor}`. A 404 continues as a first-time
+> flow. Any existing session is reused (`sessionId` / `sessionStatus`). When
+> `finalStatus` is already `approved`, `phase` goes to `done` and the rest of
+> initialize (vendor customer, terms, MoonPay session, consents) is skipped.
+> A non-404 lookup error fails the flow. A persisted `sessionId` skips this
+> lookup; a persisted approved `sessionStatus` still finishes at `done`.
+>
 > **`initialize` and `createVendorCustomer` never tear down an active flow.** If
 > `phase` is already one of the in-progress phases (`session`, `check`, `auth`,
 > `form`, `submit`), a repeat `initialize` or `createVendorCustomer` is a
@@ -343,6 +355,10 @@ sequenceDiagram
     Ctrl->>Svc: getGeoCountry()
     Svc->>Geo: getGeolocation()
     Note over Svc: map alpha-2 → alpha-3 locally
+    Note over Ctrl: skipped when sessionId already set
+    Ctrl->>Svc: getLatestSessionStatusForVendor({ vendor })
+    Svc->>API: GET /sessions/latest/status/{vendor}
+    Note over Ctrl: 404 → first-time flow;<br/>approved → phase = done
     Ctrl->>Svc: fetchVendorDisclaimers({ country })
     Svc->>API: GET /vendors/moonpay/disclaimers?country=
     Ctrl-->>UI: phase = terms (+ vendorDisclaimers)
@@ -378,11 +394,15 @@ sequenceDiagram
     Ctrl-->>UI: phase = done (kycRequiredByProduct[product])
 
     opt kycRequired === true → auto-launch document verification
-        Ctrl->>Svc: createUkycSession({ jwtToken, sessionClientPublicKey, residenceCountry, vendorMetadata })
-        Svc->>API: POST /sessions
-        Note over Ctrl: verify encryptionDataKey vs idOS enclave JWKS,<br/>ukycCapabilityToken vs idOS relay JWKS;<br/>wrap data_encryption_key and ukyc_capability_token
-        Ctrl->>Svc: setAuthorizations({ sessionId, wrappedEncryptionDataKey, wrappedUkycCapabilityToken })
-        Svc->>API: POST /sessions/{id}/authorizations
+        Ctrl->>Svc: getLatestSessionStatusForVendor({ vendor })
+        Svc->>API: GET /sessions/latest/status/{vendor}
+        alt no existing session for vendor
+            Ctrl->>Svc: createUkycSession({ jwtToken, sessionClientPublicKey, residenceCountry, vendorMetadata })
+            Svc->>API: POST /sessions
+            Note over Ctrl: verify encryptionDataKey vs idOS enclave JWKS,<br/>ukycCapabilityToken vs idOS relay JWKS;<br/>wrap data_encryption_key and ukyc_capability_token
+            Ctrl->>Svc: setAuthorizations({ sessionId, wrappedEncryptionDataKey, wrappedUkycCapabilityToken })
+            Svc->>API: POST /sessions/{id}/authorizations
+        end
         Ctrl->>Svc: createJourney(sessionId)
         Svc->>API: POST /sessions/{id}/journey
         Ctrl->>Launcher: launch({ applicantAccessToken, onTokenExpiration, onStatusChange })
@@ -471,7 +491,6 @@ stateDiagram-v2
     [*] --> idle
     idle --> creatingSession : startSumSub()
     creatingSession --> fetchingToken : setAuthorizations() ok
-    creatingSession --> vendorProcessing : setAuthorizations() kycStatus=approved, finalStatus=pending
     fetchingToken --> launching : createJourney() ok
     launching --> inProgress : onStatusChange (non-Completed)
     launching --> complete : onStatusChange = Completed
@@ -482,13 +501,6 @@ stateDiagram-v2
     fetchingToken --> failed : error
     launching --> failed : launcher unavailable / error
 ```
-
-> **Already processing on the vendor.** A user who already finished the journey
-> can return to a session the relay has approved (`kycStatus: approved`) while
-> the vendor is still finalizing its decision (`finalStatus: pending`). When
-> authorizations report this, the sub-flow stops at `vendorProcessing`
-> (setting `statusMessage`) instead of launching the SDK, so an already-approved
-> applicant is not asked to verify again.
 
 > **Completion is status-driven, not resolution-driven.** A resolved `launch`
 > is only recorded as `complete` when the SDK reported the `Completed` status

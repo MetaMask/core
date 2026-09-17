@@ -179,15 +179,6 @@ function sessionStatusFromSimplified(
   };
 }
 
-// Session creation can report that the applicant is already approved on the
-// relay (`kycStatus === KYC_STATUSES.approved`) while the vendor is still
-// finalizing its decision (`finalStatus === KYC_STATUSES.pending`, a
-// non-terminal status). In that case there is nothing left for the applicant
-// to do, so the sub-flow stops before launching the SDK and surfaces this
-// message.
-const VENDOR_PROCESSING_MESSAGE =
-  'Your KYC has been submitted and is being processed by the vendor.';
-
 // UKYC / relay error indicating the applicant already finished KYC. Mapped to
 // the simplified `approved` session status for the Money toast surface.
 const SESSION_NOT_IN_VALID_STATE = 'session_not_in_valid_state';
@@ -288,7 +279,8 @@ export type KycControllerState = {
   /**
    * The latest UKYC session status from `getSessionStatus` / session polling
    * (or a synthetic payload when KYC is already completed and no fetch ran).
-   * `null` until the first successful record. Not persisted.
+   * `null` until the first successful record. Persisted with {@link sessionId}
+   * and cleared whenever `sessionId` is cleared.
    */
   sessionStatus: KycSessionStatusResponse | null;
 
@@ -768,7 +760,7 @@ export class KycController extends BaseController<
   /**
    * When true, a terminal poll result also resolves `sumsub.status`. Set for
    * the post-SDK decision wait; left false for toast-only polling so an
-   * abandoned / failed / vendor-processing sub-flow is not overwritten.
+   * abandoned / failed sub-flow is not overwritten.
    */
   #updateSumSubOnTerminal = false;
 
@@ -854,8 +846,15 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Resolves persisted terms + geolocation, and auto-creates a session when
-   * terms are already accepted and an email is available.
+   * Resolves persisted terms + geolocation, hydrates any existing UKYC
+   * session for the vendor, and auto-creates a session when terms are already
+   * accepted and an email is available.
+   *
+   * Looks up `GET /sessions/latest/status/{vendor}` after capturing the vendor
+   * when no `sessionId` is already on state. When a session exists it is reused
+   * (`sessionId` / `sessionStatus`). When `finalStatus` is already `approved`
+   * (including a persisted `sessionStatus`), the flow finishes at `done`
+   * instead of creating a customer or session.
    *
    * @param params - Optional parameters.
    * @param params.email - The account email to associate with the session.
@@ -932,6 +931,37 @@ export class KycController extends BaseController<
       return;
     }
 
+    if (!this.state.sessionId) {
+      try {
+        const latest = await this.#fetchLatestSessionStatusForVendor();
+        if (this.#generation !== generation) {
+          return;
+        }
+        if (latest) {
+          const reused = this.#reuseExistingUkycSession(latest, generation);
+          if (!reused) {
+            return;
+          }
+        }
+      } catch (error) {
+        if (this.#generation !== generation) {
+          return;
+        }
+        this.#fail(`Fetching latest session status failed: ${String(error)}`);
+        return;
+      }
+    }
+
+    if (this.#shouldFinishWithoutSumSub()) {
+      this.#updateIfCurrent(generation, (state) => {
+        state.phase = 'done';
+        state.statusMessage = 'KYC already completed.';
+      });
+      return;
+    }
+
+
+    // TODO: Should this be happening as part of this method call or should the consumer have to explicitly call it?
     if (usesConsentsFlow(vendor) && this.state.email) {
       try {
         await this.messenger.call('KycService:createVendorCustomer', {
@@ -1274,24 +1304,21 @@ export class KycController extends BaseController<
         return;
       }
 
-      await this.#recordSessionDisclaimers(
-        created.sessionId,
-        consents,
-        generation,
-      );
-      if (this.#generation !== generation) {
-        return;
+      if (created.sessionId) {
+        await this.#recordSessionDisclaimers(
+          created.sessionId,
+          consents,
+          generation,
+        );
+        if (this.#generation !== generation) {
+          return;
+        }
       }
 
-      if (created.vendorProcessing) {
-        try {
-          await this.refreshKycStatus();
-        } catch (statusError) {
-          controllerLog('KYC status refresh failed:', statusError);
-        }
+      if (this.#shouldFinishWithoutSumSub()) {
         this.#updateIfCurrent(generation, (state) => {
           state.phase = 'done';
-          state.statusMessage = VENDOR_PROCESSING_MESSAGE;
+          state.statusMessage = 'KYC already completed.';
         });
         return;
       }
@@ -1861,15 +1888,29 @@ export class KycController extends BaseController<
    * submits both via authorizations. Stores `sessionId`. Returns `null`
    * when a `reset()` superseded the flow.
    *
+   * Checks `GET /sessions/latest/status/{vendor}` first. A vendor can have
+   * only one session: if one exists, creation is skipped and that session
+   * is used.
+   *
    * @param generation - Flow generation captured by the caller.
-   * @returns The created session, or `null` if superseded.
+   * @returns The created or reused session, or `null` if superseded.
    */
   async #createUkycSession(generation: number): Promise<{
     sessionId: string;
-    kycStatus?: string;
-    finalStatus?: string;
-    vendorProcessing: boolean;
   } | null> {
+    const latest = await this.#fetchLatestSessionStatusForVendor();
+    if (this.#generation !== generation) {
+      return null;
+    }
+    if (latest) {
+      return this.#reuseExistingUkycSession(latest, generation);
+    }
+    if (this.state.sessionId) {
+      return {
+        sessionId: this.state.sessionId,
+      };
+    }
+
     const jwtToken = MOCK_JWT_TOKEN;
 
     // Establish a per-session X25519 keypair used to seal both secrets. The
@@ -1953,30 +1994,75 @@ export class KycController extends BaseController<
       return null;
     }
 
-    const { kycStatus, finalStatus } = await this.messenger.call(
-      'KycService:setAuthorizations',
-      {
-        sessionId,
-        wrappedEncryptionDataKey,
-        wrappedUkycCapabilityToken,
-      },
-    );
-
-    const vendorProcessing =
-      kycStatus === KYC_STATUSES.approved &&
-      finalStatus === KYC_STATUSES.pending;
+    await this.messenger.call('KycService:setAuthorizations', {
+      sessionId,
+      wrappedEncryptionDataKey,
+      wrappedUkycCapabilityToken,
+    });
 
     const stillCurrent = this.#updateIfCurrent(generation, (state) => {
       state.sessionId = sessionId;
-      if (vendorProcessing) {
-        state.sumsub.status = 'vendorProcessing';
-        state.statusMessage = VENDOR_PROCESSING_MESSAGE;
-      }
     });
     if (!stillCurrent) {
       return null;
     }
-    return { sessionId, kycStatus, finalStatus, vendorProcessing };
+    return { sessionId };
+  }
+
+  /**
+   * Loads the latest UKYC session for the active vendor, if one exists.
+   *
+   * @returns The latest session status, or `null` when the vendor has none.
+   */
+  async #fetchLatestSessionStatusForVendor(): Promise<KycSessionStatusResponse | null> {
+    return await this.messenger.call('KycService:getLatestSessionStatusForVendor', {
+      vendor: this.state.activeVendor,
+    });
+  }
+
+  /**
+   * Whether the recorded session `finalStatus` is already approved, so SumSub
+   * should not be launched.
+   *
+   * @returns `true` when the flow should finish without the SDK.
+   */
+  #shouldFinishWithoutSumSub(): boolean {
+    const finalStatus = this.state.sessionStatus?.finalStatus;
+    return (
+      finalStatus !== undefined &&
+      SUCCESSFUL_SESSION_STATUSES.has(finalStatus)
+    );
+  }
+
+  /**
+   * Stores an existing UKYC session and its status instead of creating a new
+   * one. `sessionStatus` is recorded for any `finalStatus`; SumSub is skipped
+   * only when that status is already approved.
+   *
+   * @param sessionStatus - Latest session status from the API.
+   * @param generation - Flow generation captured by the caller.
+   * @returns The reused session, or `null` if superseded.
+   */
+  #reuseExistingUkycSession(
+    sessionStatus: KycSessionStatusResponse,
+    generation: number,
+  ): {
+    sessionId: string;
+  } | null {
+    const previous = this.state.sessionStatus;
+    const sessionId = sessionStatus.id ?? this.state.sessionId ?? '';
+    this.#applyUpdate((state) => {
+      state.sessionId = sessionId;
+      state.sessionStatus = sessionStatus;
+    });
+    if (this.#generation !== generation) {
+      return null;
+    }
+    this.#applySessionStatus(sessionStatus, {
+      alreadyRecorded: true,
+      previous,
+    });
+    return { sessionId };
   }
 
   /**
@@ -1994,13 +2080,12 @@ export class KycController extends BaseController<
    *  5. fetches the SumSub applicant access token; and
    *  6. presents the SDK via the injected launcher.
    *
-   * If a UKYC session already exists (the consents path creates it before
-   * recording session disclaimers), steps 1–4 are skipped.
+   * If a UKYC session already exists for the vendor (`GET
+   * /sessions/latest/status/{vendor}`), or `sessionId` is already on state,
+   * steps 1–4 are skipped. A vendor cannot have more than one session.
    *
-   * If authorizations report the applicant is already approved on the relay
-   * while the vendor is still finalizing (`kycStatus: approved`,
-   * `finalStatus: pending`), the sub-flow stops at step 4 with a
-   * `vendorProcessing` status and a message rather than launching the SDK.
+   * If the existing session's `finalStatus` is already `approved`, the SDK is
+   * not launched.
    *
    * @param params - Optional parameters.
    * @param params.locale - BCP-47 locale for the SDK UI.
@@ -2014,7 +2099,10 @@ export class KycController extends BaseController<
     // A new sub-flow supersedes any polling still running from a prior run,
     // and pauses toast polling while the SDK is on screen so a `statusChanged`
     // tick cannot pull consumers in front of a flow the applicant has not
-    // finished. Resumed in `finally` when session status is still `pending`.
+    // finished. Resumed in `finally` when session status is still `pending`
+    // and polling was already running (not merely because an in-progress
+    // session was reused).
+    const resumePollingAfterSdk = this.#polling;
     this.#stopPolling();
 
     // Capture the flow generation so each async step can detect a `reset()`
@@ -2039,24 +2127,20 @@ export class KycController extends BaseController<
             state.sumsub.result = null;
             state.sessionStatus = null;
           });
+        }
 
-          const created = await this.#createUkycSession(generation);
-          if (!created) {
-            return {};
-          }
+        const created = await this.#createUkycSession(generation);
+        if (!created) {
+          return {};
+        }
 
-          // A user who already finished the journey can return to a session the
-          // relay has already approved (`kycStatus`) while the vendor is still
-          // finalizing its own decision (`finalStatus`). There is nothing left to
-          // verify, so stop here and surface a message rather than launching the
-          // SDK again.
-          if (created.vendorProcessing) {
+          // An existing session that is already approved has nothing left to
+          // verify, so stop here rather than launching the SDK again.
+          if (this.#shouldFinishWithoutSumSub()) {
             return {
-              kycStatus: created.kycStatus,
-              finalStatus: created.finalStatus,
+              finalStatus: this.state.sessionStatus?.finalStatus,
             };
           }
-        }
 
         // Empty string is a valid "no id to poll" session id used by tests and
         // must not be coalesced away as missing.
@@ -2191,14 +2275,20 @@ export class KycController extends BaseController<
         // Abandon / SDK failure is not a verification decision — do not map
         // session `finalStatus` onto toast status. The post-SDK poll already
         // recorded session status when a submission happened.
+        const abandonedOrFailed =
+          status === 'abandoned' || status === 'failed';
         const skipRefresh =
-          this.state.sessionStatus !== null ||
-          status === 'abandoned' ||
-          status === 'failed';
+          this.state.sessionStatus !== null || abandonedOrFailed;
         if (skipRefresh) {
+          // Reused in-progress `sessionStatus` must not start polling when the
+          // applicant abandoned or the SDK failed, unless polling was already
+          // running before this sub-flow (paused for the SDK).
           if (
             this.state.sessionStatus !== null &&
-            !TERMINAL_SESSION_STATUSES.has(this.state.sessionStatus.finalStatus)
+            !TERMINAL_SESSION_STATUSES.has(
+              this.state.sessionStatus.finalStatus,
+            ) &&
+            (!abandonedOrFailed || resumePollingAfterSdk)
           ) {
             this.#ensurePolling();
           }
