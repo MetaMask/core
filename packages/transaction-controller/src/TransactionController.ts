@@ -428,9 +428,7 @@ export type TransactionControllerOptions = {
     beforeSign?: BeforeSignHook;
 
     /** Alternate logic to publish a transaction. */
-    publish?: (
-      transactionMeta: TransactionMeta,
-    ) => Promise<{ transactionHash: string }>;
+    publish?: (transactionMeta: TransactionMeta) => Promise<PublishHookResult>;
     publishBatch?: PublishBatchHook;
   };
 };
@@ -780,10 +778,7 @@ export class TransactionController extends BaseController<
 
   readonly #publicKeyEIP7702?: Hex;
 
-  readonly #publish: (
-    transactionMeta: TransactionMeta,
-    rawTx: string,
-  ) => Promise<{ transactionHash?: string }>;
+  readonly #publish: PublishHook;
 
   readonly #publishBatchHook?: PublishBatchHook;
 
@@ -867,7 +862,7 @@ export class TransactionController extends BaseController<
     this.#publicKeyEIP7702 = publicKeyEIP7702;
     this.#publish =
       hooks?.publish ??
-      ((): Promise<{ transactionHash?: string }> =>
+      ((): Promise<PublishHookResult> =>
         Promise.resolve({ transactionHash: undefined }));
     this.#publishBatchHook = hooks?.publishBatch;
     this.#testGasFeeFlows = testGasFeeFlows === true;
@@ -1787,8 +1782,13 @@ export class TransactionController extends BaseController<
   confirmTransaction(transactionId: string): void {
     const transactionMeta = this.#getTransactionOrThrow(transactionId);
 
-    if (transactionMeta.status === TransactionStatus.confirmed) {
-      return;
+    if (
+      transactionMeta.status !== TransactionStatus.submitted ||
+      !transactionMeta.isExternalPublish
+    ) {
+      throw new Error(
+        'Only submitted externally published transactions can be confirmed',
+      );
     }
 
     const updatedTransactionMeta = this.#updateTransactionInternal(

@@ -4,21 +4,21 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 import type {
-  MetamaskPayExecution,
-  MetamaskPayOutcome,
-  MetamaskPayRelayStatus,
+  MetamaskPaySolanaExecution,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
+import { parseCaipAccountId, parseCaipAssetType } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { PaymentOverride } from '../../constants.js';
 import type {
+  SolanaPayOutcome,
   SolanaPayPreflight,
   SolanaPayPreflightData,
   TransactionData,
   TransactionPayControllerMessenger,
-  TransactionPayIntent,
+  TransactionPaySource,
 } from '../../types.js';
 import {
   RELAY_SOLANA_CHAIN_ID,
@@ -37,25 +37,29 @@ const SOLANA_TOKEN_ASSET_NAMESPACE = 'token:';
 const HEX_BYTES_REGEX = /^(?:[\da-f]{2})*$/iu;
 
 /**
- * Builds the Relay /quote/v2 request for a persisted Solana Pay intent.
+ * Builds the Relay /quote/v2 request from persisted Solana Pay source metadata.
  *
- * @param intent - Persisted chain-agnostic source identity.
+ * @param source - Persisted chain-agnostic source identity.
+ * @param sourceAmountRaw - Immutable atomic source amount.
  * @param transaction - Parent product transaction.
  * @param transactionData - Core-owned Pay quote inputs.
  * @param messenger - Controller messenger used for destination delegation.
  * @returns A Relay Solana request derived entirely by Core.
  */
 export async function buildRelaySolanaQuoteRequest(
-  intent: TransactionPayIntent,
+  source: TransactionPaySource,
+  sourceAmountRaw: string,
   transaction: TransactionMeta,
   transactionData: TransactionData,
   messenger: TransactionPayControllerMessenger,
 ): Promise<RelaySolanaQuoteRequest> {
-  if (intent.sourceChainId !== SOLANA_MAINNET_CAIP_CHAIN_ID) {
-    throw new Error(`Unsupported Solana source chain: ${intent.sourceChainId}`);
+  const sourceChainId = getSourceChainId(source);
+
+  if (sourceChainId !== SOLANA_MAINNET_CAIP_CHAIN_ID) {
+    throw new Error(`Unsupported Solana source chain: ${sourceChainId}`);
   }
 
-  const sourceAccount = getSourceAccount(intent);
+  const sourceAccount = getSourceAccount(source, sourceChainId);
   const target = transactionData.tokens[0];
 
   if (!target) {
@@ -87,7 +91,6 @@ export async function buildRelaySolanaQuoteRequest(
     : undefined;
   const txs = atomicDestination?.txs;
   const tradeType = txs ? 'EXACT_OUTPUT' : 'EXACT_INPUT';
-  const { sourceAmountRaw } = intent;
   const amount = txs ? target.amountRaw : sourceAmountRaw;
 
   if (!amount) {
@@ -102,7 +105,7 @@ export async function buildRelaySolanaQuoteRequest(
     destinationChainId: Number(target.chainId),
     destinationCurrency: target.address,
     originChainId: RELAY_SOLANA_CHAIN_ID,
-    originCurrency: getOriginCurrency(intent),
+    originCurrency: getOriginCurrency(source, sourceChainId),
     recipient,
     refundTo: sourceAccount,
     tradeType,
@@ -117,13 +120,13 @@ export async function buildRelaySolanaQuoteRequest(
  * Native SOL must retain fees and rent in addition to the source amount. SPL
  * sources evaluate token affordability separately from the native reserve.
  *
- * @param intent - Persisted source identity.
+ * @param source - Persisted source identity.
  * @param sourceAmountRaw - Exact-input amount in atomic source units.
  * @param data - Platform RPC and prepared-transaction observations.
  * @returns Normalized client-consumable preflight.
  */
 export function normalizeSolanaPayPreflight(
-  intent: TransactionPayIntent,
+  source: TransactionPaySource,
   sourceAmountRaw: string,
   data: SolanaPayPreflightData,
 ): SolanaPayPreflight {
@@ -151,7 +154,7 @@ export function normalizeSolanaPayPreflight(
   const retainedReserve = totalFee
     .plus(rentDebit)
     .plus(rentExemptionRequirement);
-  const isNative = intent.sourceAssetId.endsWith(
+  const isNative = source.sourceAssetId.endsWith(
     `/${SOLANA_NATIVE_ASSET_REFERENCE}`,
   );
 
@@ -219,91 +222,87 @@ export function getRelaySolanaTransaction(
 }
 
 /**
- * Returns the durable initial execution checkpoints for an executable quote.
+ * Creates the ready checkpoint once an executable Relay request exists.
  *
- * @param requiresNonAtomicFollowUp - Whether target completion requires a sponsored follow-up.
- * @returns Initial one-attempt status axes.
+ * @param request - Immutable source and route correlation.
+ * @param request.sourceWalletAccountId - Wallet-local account ID.
+ * @param request.sourceChainId - Source chain derived from CAIP metadata.
+ * @param request.sourceAmountRaw - Immutable atomic source amount.
+ * @param request.requestId - Relay request ID.
+ * @param request.atomicProductActionRequired - Whether an atomic action is required.
+ * @param request.atomicProductActionIncluded - Whether the quote includes that action.
+ * @param request.requiresNonAtomicFollowUp - Whether Money Account follow-up is required.
+ * @returns Ready durable execution checkpoint.
  */
-export function getInitialSolanaPayExecution(
-  requiresNonAtomicFollowUp = false,
-): MetamaskPayExecution {
+export function getInitialSolanaPayExecution(request: {
+  sourceWalletAccountId: MetamaskPaySolanaExecution['sourceWalletAccountId'];
+  sourceChainId: CaipChainId;
+  sourceAmountRaw: string;
+  requestId: string;
+  atomicProductActionRequired: boolean;
+  atomicProductActionIncluded: boolean;
+  requiresNonAtomicFollowUp: boolean;
+}): MetamaskPaySolanaExecution {
   return {
-    followUpStatus: requiresNonAtomicFollowUp ? 'not-started' : 'not-required',
-    providerNotificationStatus: 'not-started',
-    relayStatus: 'not-started',
-    sourceStatus: 'not-started',
+    ...request,
+    phase: 'ready',
+    sourceStatus: 'not-observed',
+    relayStatus: 'not-observed',
+    notificationStatus: 'not-ready',
+    followUpStatus: request.requiresNonAtomicFollowUp
+      ? 'not-started'
+      : 'not-required',
   };
 }
 
 /**
- * Derives the durable business outcome from independent execution axes.
+ * Derives the client and lifecycle outcome from the durable checkpoint.
  *
- * @param intent - Persisted Pay intent and checkpoints.
- * @returns Client-consumable outcome used for parent lifecycle transitions.
+ * @param execution - Durable external Solana execution checkpoint.
+ * @returns Derived lifecycle outcome.
  */
 export function deriveSolanaPayOutcome(
-  intent: TransactionPayIntent,
-): MetamaskPayOutcome {
-  const execution =
-    intent.execution ??
-    getInitialSolanaPayExecution(intent.requiresNonAtomicFollowUp);
-  const followUpStatus = execution.followUpStatus ?? 'not-required';
-
-  if (execution.submissionOutcome === 'user-rejected') {
-    return { type: 'user-rejected' };
+  execution: MetamaskPaySolanaExecution,
+): SolanaPayOutcome {
+  if (execution.phase === 'user-rejected') {
+    return 'user-rejected';
   }
 
-  if (execution.submissionOutcome === 'not-submitted') {
-    return {
-      guaranteedNotSubmitted: true,
-      reason: intent.sourceFailureReason,
-      type: 'source-failed',
-    };
+  if (execution.phase === 'not-submitted') {
+    return 'not-submitted';
   }
 
   if (execution.sourceStatus === 'failed') {
-    return {
-      guaranteedNotSubmitted: false,
-      reason: intent.sourceFailureReason,
-      type: 'source-failed',
-    };
+    return 'source-failed';
   }
 
   if (execution.relayStatus === 'failure') {
-    return { reason: intent.relayFailureReason, type: 'relay-failed' };
+    return 'relay-failed';
   }
 
   if (execution.relayStatus === 'refund') {
-    return { reason: intent.relayFailureReason, type: 'refunded' };
+    return 'refunded';
+  }
+
+  if (execution.followUpStatus === 'failed') {
+    return 'follow-up-failed';
   }
 
   if (
-    followUpStatus === 'failed' ||
-    followUpStatus === 'not-submitted' ||
-    followUpStatus === 'user-rejected'
-  ) {
-    return { type: 'follow-up-failed' };
-  }
-
-  if (
+    execution.phase === 'unknown' ||
     execution.sourceStatus === 'unknown' ||
-    execution.submissionOutcome === 'ambiguous'
+    execution.relayStatus === 'unknown' ||
+    execution.followUpStatus === 'unknown'
   ) {
-    return { phase: 'source', type: 'unknown' };
-  }
-
-  if (execution.relayStatus === 'unknown') {
-    return { phase: 'relay', type: 'unknown' };
-  }
-
-  if (followUpStatus === 'unknown') {
-    return { phase: 'follow-up', type: 'unknown' };
+    return 'unknown';
   }
 
   const isFollowUpComplete =
-    followUpStatus === 'not-required' || followUpStatus === 'confirmed';
+    execution.followUpStatus === 'not-required' ||
+    execution.followUpStatus === 'confirmed';
   const isAtomicProductActionComplete =
-    !intent.atomicProductActionRequired || intent.atomicProductActionIncluded;
+    !execution.atomicProductActionRequired ||
+    execution.atomicProductActionIncluded;
 
   if (
     execution.sourceStatus === 'confirmed' &&
@@ -311,23 +310,10 @@ export function deriveSolanaPayOutcome(
     isFollowUpComplete &&
     isAtomicProductActionComplete
   ) {
-    return { type: 'succeeded' };
+    return 'succeeded';
   }
 
-  if (execution.sourceStatus === 'attempting') {
-    return { type: 'attempting' };
-  }
-
-  if (
-    execution.submissionOutcome === 'submitted' ||
-    intent.sourceTransactionId !== undefined ||
-    ['submitted', 'pending', 'confirmed'].includes(execution.sourceStatus) ||
-    ['pending', 'success'].includes(execution.relayStatus)
-  ) {
-    return { type: 'submitted' };
-  }
-
-  return { type: 'not-started' };
+  return execution.phase;
 }
 
 /**
@@ -336,7 +322,9 @@ export function deriveSolanaPayOutcome(
  * @param status - Status returned by Relay.
  * @returns Durable Relay observation.
  */
-export function mapRelayStatus(status: RelayStatus): MetamaskPayRelayStatus {
+export function mapRelayStatus(
+  status: RelayStatus,
+): MetamaskPaySolanaExecution['relayStatus'] {
   if (status === 'success') {
     return 'success';
   }
@@ -352,24 +340,29 @@ export function mapRelayStatus(status: RelayStatus): MetamaskPayRelayStatus {
   return 'pending';
 }
 
-function getSourceAccount(intent: TransactionPayIntent): string {
-  const prefix = `${intent.sourceChainId}:`;
+function getSourceChainId(source: TransactionPaySource): CaipChainId {
+  const accountChainId = parseCaipAccountId(source.sourceAccountId).chainId;
+  const assetChainId = parseCaipAssetType(source.sourceAssetId).chainId;
 
-  if (!intent.sourceAccountId.startsWith(prefix)) {
-    throw new Error('Solana source account does not match source chain');
+  if (accountChainId !== assetChainId) {
+    throw new Error('Solana source account and asset must use the same chain');
   }
 
-  return intent.sourceAccountId.slice(prefix.length);
+  return accountChainId;
 }
 
-function getOriginCurrency(intent: TransactionPayIntent): string {
-  const prefix = `${intent.sourceChainId}/`;
+function getSourceAccount(
+  source: TransactionPaySource,
+  sourceChainId: CaipChainId,
+): string {
+  return source.sourceAccountId.slice(`${sourceChainId}:`.length);
+}
 
-  if (!intent.sourceAssetId.startsWith(prefix)) {
-    throw new Error('Solana source asset does not match source chain');
-  }
-
-  const assetReference = intent.sourceAssetId.slice(prefix.length);
+function getOriginCurrency(
+  source: TransactionPaySource,
+  sourceChainId: CaipChainId,
+): string {
+  const assetReference = source.sourceAssetId.slice(`${sourceChainId}/`.length);
 
   if (assetReference === SOLANA_NATIVE_ASSET_REFERENCE) {
     return RELAY_SOLANA_NATIVE_CURRENCY;
@@ -379,7 +372,7 @@ function getOriginCurrency(intent: TransactionPayIntent): string {
     return assetReference.slice(SOLANA_TOKEN_ASSET_NAMESPACE.length);
   }
 
-  throw new Error(`Unsupported Solana source asset: ${intent.sourceAssetId}`);
+  throw new Error(`Unsupported Solana source asset: ${source.sourceAssetId}`);
 }
 
 function isRelaySolanaTransaction(

@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Use the immutable Solana intent source amount for exact-input routes instead of stale EVM payment-token source amounts.
+- Use the immutable Solana execution source amount for exact-input routes instead of transient EVM source-amount projections ([#10273](https://github.com/MetaMask/core/pull/10273))
 
 ## [30.1.0]
 

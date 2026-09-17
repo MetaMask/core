@@ -65,9 +65,9 @@ export class TransactionPayPublishHook {
     );
 
     const transactionData = controllerState.transactionData?.[transactionId];
-    const payIntent = controllerState.payIntents?.[transactionId];
+    const solanaExecution = transactionMeta.metamaskPay?.solanaExecution;
 
-    if (payIntent?.sourceChainId.startsWith('solana:')) {
+    if (solanaExecution) {
       updateTransaction(
         {
           transactionId,
