@@ -60,13 +60,15 @@ export type AnalyticsTrackingEvent = {
  */
 export type AnalyticsContext = Record<string, Json> & {
   /**
-   * Segment consent context. `categoryPreferences` is the intersection of the
-   * event's eligible purposes and the user's current consent.
+   * Segment consent context. The controller writes optional `product` and
+   * `marketing` entries under `categoryPreferences` from the intersection of
+   * eligible purposes and current consent, and preserves other caller consent
+   * fields.
    */
-  consent?: {
-    categoryPreferences: {
-      product: boolean;
-      marketing: boolean;
+  consent?: Record<string, Json> & {
+    categoryPreferences?: Record<string, Json> & {
+      product?: boolean;
+      marketing?: boolean;
     };
   };
   eventsConfigVersion?: string;
