@@ -24,6 +24,7 @@ import {
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_ACCOUNT_2,
   MOCK_HD_KEYRING_1,
+  MOCK_HD_KEYRING_2,
   MOCK_SOL_ACCOUNT_1,
   MockAccountBuilder,
   mockAsInternalAccount,
@@ -902,6 +903,58 @@ describe('EvmAccountProvider', () => {
         'mock-evm-id-0',
       ]);
       expect(provider.getAccounts()).toStrictEqual([]);
+    });
+
+    it('throws when the accounts are owned by different entropy sources', async () => {
+      const accounts = [
+        MOCK_HD_KEYRING_1.metadata.id,
+        MOCK_HD_KEYRING_2.metadata.id,
+      ].map((entropySource, index) =>
+        MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+          .withEntropySource(entropySource)
+          .withGroupIndex(0)
+          .withId(`mock-evm-id-${index}`)
+          .withAddress(`0x${index}`)
+          .get(),
+      );
+      const { provider, keyring } = setup({ accounts });
+      const deleteAccountSpy = jest.spyOn(keyring, 'deleteAccount');
+
+      await expect(
+        provider.deleteAccounts(accounts.map((account) => account.id)),
+      ).rejects.toThrow(
+        'Expected all accounts to be owned by the same entropy source',
+      );
+
+      expect(deleteAccountSpy).not.toHaveBeenCalled();
+      expect(provider.getAccounts()).toHaveLength(2);
+    });
+
+    it('reports unknown ids without locking any keyring', async () => {
+      const { provider, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+      const withKeyringV2Spy = jest.fn();
+      messenger.unregisterActionHandler('KeyringController:withKeyringV2');
+      messenger.registerActionHandler(
+        'KeyringController:withKeyringV2',
+        withKeyringV2Spy,
+      );
+
+      expect(await provider.deleteAccounts(['unknown-id'])).toStrictEqual({
+        ok: false,
+        failures: [
+          {
+            id: 'unknown-id',
+            error: expect.objectContaining({
+              message: 'Unable to find account: unknown-id',
+            }),
+          },
+        ],
+      });
+
+      expect(withKeyringV2Spy).not.toHaveBeenCalled();
+      expect(provider.getAccounts()).toHaveLength(1);
     });
 
     it('reports unknown ids and still deletes the rest', async () => {
