@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `KycController` methods that previously recorded a failure only on state (`phase: 'error'`) now also throw after recording it.
+  - Affects `initialize` (vendor customer creation), `createVendorCustomer`, `acceptTermsAndStartSession` (missing T&C2 / email / terms), `checkKycRequired`, and the MoonPay frame `fail` callback (`handleFrameMessage`).
+  - A product-scoped MoonPay auto-run therefore rejects `handleFrameMessage` / `onAuthenticated` when the KYC-required check fails.
 - Bump `@metamask/profile-sync-controller` from `^32.1.0` to `^32.1.1` ([#10220](https://github.com/MetaMask/core/pull/10220))
 
 ## [0.3.0]

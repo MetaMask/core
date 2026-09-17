@@ -950,7 +950,6 @@ export class KycController extends BaseController<
           return;
         }
         this.#fail(`Vendor customer creation failed: ${String(error)}`);
-        return;
       }
     }
 
@@ -1182,7 +1181,6 @@ export class KycController extends BaseController<
       !isValidConsentRecordList(idosDisclaimersAccepted)
     ) {
       this.#fail('Missing T&C2 acceptance flags.');
-      return;
     }
     const credentialReusabilityConsentGiven =
       params?.credentialReusabilityConsentGiven ?? false;
@@ -1244,11 +1242,9 @@ export class KycController extends BaseController<
     );
     if (!email) {
       this.#fail('Missing email for consents session.');
-      return;
     }
     if (acceptedDisclaimerIds.length === 0) {
       this.#fail('Missing disclaimer acceptance.');
-      return;
     }
 
     const generation = this.#generation;
@@ -1542,11 +1538,9 @@ export class KycController extends BaseController<
     );
     if (!email) {
       this.#fail('Missing email for session creation.');
-      return;
     }
     if (!termsAcceptedAt || acceptedDisclaimerIds.length === 0) {
       this.#fail('Missing terms acceptance for session creation.');
-      return;
     }
 
     // A new session invalidates any authentication carried over from a prior
@@ -1666,9 +1660,11 @@ export class KycController extends BaseController<
    * document-verification sub-flow is launched. When no product is set, this is
    * a no-op and the flow stays at `form` for the consumer to drive manually.
    *
-   * Errors are already recorded on state by `checkKycRequired` (`error`
-   * phase) and `startSumSub` (`sumsub.status = 'failed'`); this method swallows
-   * them so it can be awaited safely from the frame-message handler.
+   * `checkKycRequired` records the error phase and rethrows, so this method
+   * (and therefore `handleFrameMessage`) rejects when the check fails.
+   * `startSumSub` records `sumsub.status = 'failed'`; this method swallows
+   * that rethrown error (e.g. SDK unavailable) so it does not surface as an
+   * unhandled rejection from the frame-message handler.
    */
   async #continueAfterAuthentication(): Promise<void> {
     const product = this.state.activeProduct;
@@ -1745,6 +1741,8 @@ export class KycController extends BaseController<
    * @param params.product - The consuming feature.
    * @param params.country - Optional alpha-3 country override.
    * @returns Whether KYC is required.
+   * @throws If the access token or country is missing, or the service call
+   * fails. The error is also recorded on controller state (`phase: 'error'`).
    */
   async checkKycRequired(params: {
     product: KycProduct;
@@ -1755,12 +1753,10 @@ export class KycController extends BaseController<
       this.#fail(
         'Missing moonpayAccessToken — repeat the authentication step.',
       );
-      return false;
     }
     const country = params.country ?? this.state.geoCountry;
     if (!country) {
       this.#fail('Missing country for KYC-required check.');
-      return false;
     }
 
     // Capture the flow generation so we can detect a `reset()` that happens
@@ -1798,7 +1794,6 @@ export class KycController extends BaseController<
         return false;
       }
       this.#fail(`KYC check failed: ${String(error)}`);
-      return false;
     }
   }
 
@@ -2609,14 +2604,15 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Transitions to the error phase with a message.
+   * Transitions to the error phase with a message, then throws.
    *
    * @param message - The error message.
    */
-  #fail(message: string): void {
+  #fail(message: string): never {
     this.#applyUpdate((state) => {
       state.error = message;
       state.phase = 'error';
     });
+    throw new Error(message);
   }
 }
