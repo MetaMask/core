@@ -478,14 +478,17 @@ export class RewardsIntegrationService {
    * never throws: it is observability plumbing, and a failure here must not
    * block a fee preview.
    *
+   * Deliberately not gated on the injected `subscription` dependency: the
+   * messenger action exists precisely so a client can ship
+   * `SubscriptionController` *instead of* the DI callback, and requiring both
+   * would make registration unreachable on exactly that configuration. A client
+   * that registers neither lands in the catch below, which is already the
+   * unregistered-action path.
+   *
    * @param address - The EVM trading address to register.
    * @returns A promise that resolves once the attempt settles.
    */
   async registerTradingAddress(address: string): Promise<void> {
-    if (!this.#deps.subscription) {
-      return;
-    }
-
     try {
       const networkState = this.#messenger.call('NetworkController:getState');
       const chainId = this.#getChainIdForNetwork(
@@ -512,10 +515,24 @@ export class RewardsIntegrationService {
         return;
       }
 
-      await this.#messenger.call(
+      const pending = this.#messenger.call(
         'SubscriptionController:registerAddress',
         caipAccountId,
       );
+
+      // An unregistered action can answer `undefined` rather than throwing.
+      // Treat that as "nothing handled it" and leave the dedupe cache alone, so
+      // a SubscriptionController registered later still receives the address
+      // instead of being skipped as already-registered.
+      if (pending === undefined) {
+        this.#deps.debugLogger.log(
+          'RewardsIntegrationService: Trading address registration skipped',
+          { address, reason: 'no-handler' },
+        );
+        return;
+      }
+
+      await pending;
       this.#registeredTradingAddresses.add(caipAccountId);
 
       this.#deps.debugLogger.log(

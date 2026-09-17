@@ -17,6 +17,7 @@ import type {
   PerpsPlatformDependencies,
   PerpsFeeResolution,
 } from '../../../src/types/index.js';
+import { resolveSubscriptionWaiverRate } from '../../../src/utils/subscriptionFeeWaiver.js';
 /* eslint-disable */
 import { createMockHyperLiquidProvider } from '../../helpers/providerMocks.js';
 import {
@@ -137,6 +138,134 @@ describe('TradingService', () => {
         subscriptionResolution,
       );
       expect(mockProvider.setUserFeeResolution).toHaveBeenLastCalledWith(
+        undefined,
+      );
+    });
+
+    it('resolves the submit fee against the order notional, not a bare rate', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.02',
+        orderType: 'limit',
+        price: '50000',
+      };
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: orderParams,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      // 0.02 BTC at 50000 = 1000 USD. Without this the resolver would take its
+      // "no notional to blend against" branch and charge a full waiver.
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        1000,
+      );
+    });
+
+    it('prefers the caller-supplied USD amount over size times price', async () => {
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.02',
+          orderType: 'limit',
+          price: '50000',
+          // usdAmount is the hybrid model's source of truth; the provider
+          // recalculates size from it, so the fee must follow the same number.
+          usdAmount: '900',
+        },
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        900,
+      );
+    });
+
+    it('charges a partial blend at submit when the allowance is bounded', async () => {
+      // The real resolver, so this proves the submit path produces the same
+      // blend the preview quotes rather than re-asserting a mock.
+      mockRewardsIntegrationService.resolveFee.mockImplementation(
+        async (orderNotionalUsd?: number) => {
+          const waiver = resolveSubscriptionWaiverRate({
+            status: {
+              eligible: true,
+              reason: 'eligible',
+              remainingNotionalUsd: 250,
+            },
+            maxFeeBips: 10,
+            orderNotionalUsd,
+          });
+          return {
+            feeBips: waiver.feeBips,
+            discountBips: Math.round((1 - waiver.feeBips / 10) * 10000),
+            source: 'subscription' as const,
+            subscription: {
+              eligible: true,
+              reason: 'eligible' as const,
+              remainingNotionalUsd: 250,
+            },
+            subscriptionWaiverKind:
+              waiver.kind === 'partial'
+                ? ('partial' as const)
+                : ('full' as const),
+            subscriptionCoveredNotionalUsd: waiver.coveredNotionalUsd,
+          };
+        },
+      );
+      mockProvider.setUserFeeResolution = jest.fn();
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.02',
+          orderType: 'limit',
+          price: '50000',
+        },
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      // A 250 USD allowance against a 1000 USD order: 10 * (1 - 250/1000) = 7.5
+      // bips, the same rate calculateFees quotes for this order.
+      expect(mockProvider.setUserFeeResolution).toHaveBeenCalledWith(
+        expect.objectContaining({
+          feeBips: 7.5,
+          subscriptionWaiverKind: 'partial',
+          subscriptionCoveredNotionalUsd: 250,
+        }),
+      );
+    });
+
+    it('still resolves a fee when the order cannot be priced', async () => {
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.02',
+          orderType: 'market',
+        },
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      // No price anywhere, so the notional is undefined rather than guessed —
+      // the resolver's pre-existing "no notional" behavior.
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
         undefined,
       );
     });

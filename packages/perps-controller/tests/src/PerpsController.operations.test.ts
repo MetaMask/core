@@ -1659,7 +1659,7 @@ describe('PerpsController', () => {
       refresh.mockRestore();
     });
 
-    it('quotes the same blended rate the submit path charges', async () => {
+    it('resolves the preview fee against the order notional', async () => {
       const feeParams = {
         orderType: 'market' as const,
         isMaker: false,
@@ -1694,8 +1694,11 @@ describe('PerpsController', () => {
 
       await controller.calculateFees(feeParams);
 
-      // The preview resolves against this quote's own notional, so the rate it
-      // quotes is the rate the order is charged.
+      // Preview-side only: this asserts the notional reaches the resolver and
+      // the resolution reaches the preview context. The matching submit-path
+      // assertion lives in TradingService.test.ts ('charges a partial blend at
+      // submit when the allowance is bounded'), which is what makes the two
+      // paths verifiably agree.
       expect(resolveFee).toHaveBeenCalledWith(1000);
       const { context } = (
         mockMarketDataServiceInstance.calculateFees as jest.Mock

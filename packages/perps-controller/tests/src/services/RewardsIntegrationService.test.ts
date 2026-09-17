@@ -993,6 +993,23 @@ describe('RewardsIntegrationService', () => {
       expect(registerAddress).toHaveBeenCalledTimes(2);
     });
 
+    it('registers the trading address for a client that wires only the messenger', async () => {
+      // The ADR-0064 configuration: SubscriptionController is registered and the
+      // legacy DI callback is not. Gating registration on the DI dependency
+      // would make it a silent no-op on exactly this client.
+      const registerAddress = jest.fn().mockResolvedValue(undefined);
+      setupMessengerDefaults({
+        'SubscriptionController:registerAddress': registerAddress,
+      });
+      expect(mockDeps.subscription).toBeUndefined();
+
+      await service.registerTradingAddress(mockEvmAccount.address);
+
+      expect(registerAddress).toHaveBeenCalledWith(
+        expect.stringMatching(/^eip155:1:0x/u),
+      );
+    });
+
     it('never throws when address registration is unavailable', async () => {
       setupMessengerDefaults({
         'SubscriptionController:registerAddress': () => {
@@ -1006,15 +1023,35 @@ describe('RewardsIntegrationService', () => {
       ).resolves.toBeUndefined();
     });
 
-    it('skips address registration entirely without a subscription source', async () => {
+    it('skips address registration when neither the messenger nor a source is wired', async () => {
+      // No SubscriptionController action registered and no DI source: the
+      // messenger call throws on the unregistered action and the catch absorbs
+      // it, so nothing is registered and nothing is raised.
+      setupMessengerDefaults();
+
+      await expect(
+        service.registerTradingAddress(mockEvmAccount.address),
+      ).resolves.toBeUndefined();
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        'RewardsIntegrationService: Trading address registration skipped',
+        expect.objectContaining({ address: mockEvmAccount.address }),
+      );
+    });
+
+    it('re-attempts registration once a SubscriptionController appears', async () => {
+      // Nothing handled the first attempt, so it must not be cached as done —
+      // otherwise a client that registers the action after the first preview
+      // never announces its address.
+      setupMessengerDefaults();
+      await service.registerTradingAddress(mockEvmAccount.address);
+
       const registerAddress = jest.fn().mockResolvedValue(undefined);
       setupMessengerDefaults({
         'SubscriptionController:registerAddress': registerAddress,
       });
-
       await service.registerTradingAddress(mockEvmAccount.address);
 
-      expect(registerAddress).not.toHaveBeenCalled();
+      expect(registerAddress).toHaveBeenCalledTimes(1);
     });
   });
 

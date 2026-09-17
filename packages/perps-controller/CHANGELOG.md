@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional `subscriptionWaiverKind` (`'full' | 'partial'`) and `subscriptionCoveredNotionalUsd` fields to `PerpsFeeResolution`, reporting how much of an order the subscription allowance covered.
 - Add `SubscriptionController:getPerpsBenefits` and `SubscriptionController:registerAddress` to `PerpsControllerAllowedActions`, so benefits hydration and trading-address registration can run over the messenger. Clients that do not register these actions keep using the injected `subscription` dependency.
 - Add the `perpsSubscriptionFeeWaiverEnabled` remote feature flag, which disables the subscription fee source on its own without affecting rewards or the default builder fee. An absent or malformed flag reads as enabled.
+- Export the subscription fee-waiver helpers from the `utils` barrel, including `hasFeeReductionAppliedFlag` and `isSubscriptionProgramCloid` for decoding a marked client order ID.
 
 ### Changed
 
@@ -29,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Resolve the subscription fee waiver against the order notional on the submit path, not just in previews. Order placement, order edits, position closes, batch closes, take-profit/stop-loss updates, and position flips previously resolved the waiver with no notional, so a bounded allowance always resolved as a full waiver — an order was quoted a blended rate and then charged nothing, over-consuming the allowance and marking its client order ID as fully waived.
+- Attempt `SubscriptionController:registerAddress` whether or not the optional `subscription` dependency is injected. Registration was previously gated on that dependency, so a client that wired the messenger actions instead of the dependency silently registered nothing. A registration that no handler answers is no longer recorded as sent, so a `SubscriptionController` registered after the first fee preview still receives the address.
 - Normalize Lighter order timestamps from seconds to milliseconds for client date displays. ([#10187](https://github.com/MetaMask/core/pull/10187))
 - Accept omitted Lighter fill PnL only when the account's validated pre-trade position is zero; retain strict PnL validation for existing positions and malformed supplied values. ([#10187](https://github.com/MetaMask/core/pull/10187))
 
