@@ -44,8 +44,8 @@ export type KycCustomerIdentity = {
  * - `new` — no session decision yet (including never started).
  * - `pending` — submitted or in review; keep polling.
  * - `approved` — verification succeeded.
- * - `rejected` — terminal failure (`rejected`, `failed`, `blocked`, …).
- * - `retry` — the applicant must resubmit (`retry`).
+ * - `rejected` — terminal failure.
+ * - `retry` — the applicant must resubmit.
  */
 export type KycSessionStatus =
   | 'new'
@@ -147,16 +147,16 @@ export type KycSumSubSdkStatus =
  */
 export type KycSessionStatusResponse = {
   /**
-   * The overall status of the session. Terminal values (e.g. `approved`,
-   * `completed`, `rejected`, `failed`, `blocked`, `retry`) end polling; any
-   * other value keeps polling.
+   * Overall session status. Terminal values (`approved`, `rejected`, `retry`)
+   * end polling; `new` and `pending` keep polling. Controller decisions use
+   * this field only — not `kycStatus`.
    */
-  finalStatus: string;
+  finalStatus: KycSessionStatus;
   /** Optional human-readable message describing the status. */
   statusMessage?: string;
   /** The vendor-agnostic external user id associated with the session. */
   externalUserId: string;
-  /** The KYC decision status. */
+  /** Echoed KYC decision from the API. Not used for controller decisions. */
   kycStatus: string;
   /** The identity vendor that handled the session. */
   vendor: string;

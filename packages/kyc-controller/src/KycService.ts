@@ -14,6 +14,7 @@ import {
   array,
   assert,
   boolean,
+  enums,
   optional,
   string,
   StructError,
@@ -222,7 +223,13 @@ export type ApplicantAccessTokenResponse = Infer<
 >;
 
 const SessionStatusResponseStruct = type({
-  finalStatus: string(),
+  finalStatus: enums([
+    'new',
+    'pending',
+    'approved',
+    'rejected',
+    'retry',
+  ] as const),
   statusMessage: optional(string()),
   externalUserId: string(),
   kycStatus: string(),
