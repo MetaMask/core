@@ -6,19 +6,18 @@
 import type { TransactionPayController } from './TransactionPayController.js';
 
 /**
- * Persists a versioned Pay intent and projects it onto the target
- * transaction record for restart recovery.
+ * Persists chain-agnostic Pay source metadata on the target transaction.
  *
- * The chain-agnostic source identity remains in the additive intent model;
- * legacy EVM-only Pay metadata is preserved unchanged.
+ * The CAIP-10 account and CAIP-19 asset must identify the same chain.
+ * Legacy EVM-only Pay metadata is preserved unchanged.
  *
- * @param request - Pay intent and target transaction ID.
- * @param request.intent - Durable Pay intent.
+ * @param request - Pay source metadata and target transaction ID.
+ * @param request.source - Chain-agnostic payment source metadata.
  * @param request.transactionId - ID of the target transaction.
  */
-export type TransactionPayControllerSetPayIntentAction = {
-  type: `TransactionPayController:setPayIntent`;
-  handler: TransactionPayController['setPayIntent'];
+export type TransactionPayControllerSetPaySourceAction = {
+  type: `TransactionPayController:setPaySource`;
+  handler: TransactionPayController['setPaySource'];
 };
 
 /**
@@ -157,7 +156,7 @@ export type TransactionPayControllerPolymarketSubmitDepositWalletBatchAction = {
  * Union of all TransactionPayController action types.
  */
 export type TransactionPayControllerMethodActions =
-  | TransactionPayControllerSetPayIntentAction
+  | TransactionPayControllerSetPaySourceAction
   | TransactionPayControllerSetTransactionConfigAction
   | TransactionPayControllerUpdatePaymentTokenAction
   | TransactionPayControllerUpdateFiatPaymentAction

@@ -1,13 +1,7 @@
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { BatchTransaction } from '@metamask/transaction-controller';
-import type {
-  CaipAccountId,
-  CaipAssetType,
-  CaipChainId,
-  Hex,
-  Json,
-} from '@metamask/utils';
+import type { CaipAccountId, CaipAssetType, Hex, Json } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
 
 import { TransactionPayStrategy } from '../constants.js';
@@ -985,27 +979,24 @@ describe('Quotes Utils', () => {
       });
     });
 
-    it('preserves a persisted chain-agnostic Pay intent when updating EVM compatibility metadata', async () => {
+    it('preserves chain-agnostic source metadata when updating EVM compatibility metadata', async () => {
       await run();
 
-      const intent = {
-        version: 1,
+      const source = {
         sourceAccountId:
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z' as CaipAccountId,
         sourceAssetId:
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501' as CaipAssetType,
-        sourceChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as CaipChainId,
-        requestId: 'relay-request-123',
-      } as const;
+      };
       const transactionMetaMock = {
-        metamaskPay: { intent },
+        metamaskPay: { source },
       } as TransactionMeta;
 
       updateTransactionMock.mock.calls[0][1](transactionMetaMock);
 
       expect(transactionMetaMock.metamaskPay).toMatchObject({
         chainId: TRANSACTION_DATA_MOCK.paymentToken?.chainId,
-        intent,
+        source,
         tokenAddress: TRANSACTION_DATA_MOCK.paymentToken?.address,
       });
     });

@@ -4,13 +4,7 @@ import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
-import type {
-  CaipAccountId,
-  CaipAssetType,
-  CaipChainId,
-  Hex,
-  Json,
-} from '@metamask/utils';
+import type { CaipAccountId, CaipAssetType, Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
 import type { TransactionControllerMessenger } from './TransactionController.js';
@@ -2164,30 +2158,13 @@ export type AssetsFiatValues = {
   sending?: string;
 };
 
-/**
- * Durable MetaMask Pay intent for a chain-agnostic payment source.
- *
- * The target transaction is the TransactionController record containing this
- * intent, or the key of this intent in TransactionPayController state.
- */
-export type MetamaskPayIntent = {
-  /** Schema version of the persisted intent. */
-  version: 1;
-
+/** Chain-agnostic source metadata for a MetaMask Pay transaction. */
+export type MetamaskPaySource = {
   /** Canonical CAIP-10 identity of the source account. */
   sourceAccountId: CaipAccountId;
 
   /** Canonical CAIP-19 identity of the source asset. */
   sourceAssetId: CaipAssetType;
-
-  /** Explicit CAIP-2 identity of the source chain. */
-  sourceChainId: CaipChainId;
-
-  /** Provider request ID used to reconcile execution after restart. */
-  requestId?: string;
-
-  /** Chain-native source transaction identifier, such as a Solana signature. */
-  sourceTransactionId?: string;
 };
 
 /** Metadata specific to the MetaMask Pay feature. */
@@ -2212,8 +2189,8 @@ export type MetamaskPayMetadata = {
    */
   isPostQuote?: boolean;
 
-  /** Durable chain-agnostic payment intent. */
-  intent?: MetamaskPayIntent;
+  /** Chain-agnostic payment source metadata. */
+  source?: MetamaskPaySource;
 
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;
