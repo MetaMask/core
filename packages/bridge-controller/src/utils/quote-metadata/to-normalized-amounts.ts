@@ -44,7 +44,7 @@ export const toNormalizedAmounts = (
             normalizedAmount: calcNormalizedTokenAmount(
               reserve?.amount,
               reserve?.asset?.decimals,
-            )?.toFixed(),
+            ),
           })),
         }),
         relayer: feeData?.[FeeType.RELAYER]?.map((relayerFee) => ({
