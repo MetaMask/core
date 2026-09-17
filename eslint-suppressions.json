@@ -2080,16 +2080,6 @@
       "count": 1
     }
   },
-  "packages/utils/src/mnemonic.ts": {
-    "jsdoc/tag-lines": {
-      "count": 1
-    }
-  },
-  "packages/utils/src/promise.ts": {
-    "jsdoc/tag-lines": {
-      "count": 1
-    }
-  },
   "packages/utils/src/unitsConversion.test.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 29
