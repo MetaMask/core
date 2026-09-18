@@ -7,7 +7,6 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import { cleanAll as cleanAllNock } from 'nock';
 
 import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth.js';
 import type { LoginResponse } from '../../sdk/index.js';
@@ -2319,7 +2318,6 @@ describe('AuthenticationController', () => {
 describe('MFA credential enrollment', () => {
   function createController(options?: {
     state?: AuthenticationControllerState;
-    isMfaEnabled?: () => boolean;
     trace?: TraceCallback;
   }): {
     controller: AuthenticationController;
@@ -2331,32 +2329,10 @@ describe('MFA credential enrollment', () => {
         messenger,
         metametrics: createMockAuthMetaMetrics(),
         state: options?.state ?? mockSignedInState(),
-        config: {
-          isMfaEnabled: options?.isMfaEnabled ?? ((): boolean => false),
-        },
         trace: options?.trace,
       }),
       baseMessenger,
     };
-  }
-
-  /**
-   * Resolves once `enrolledCredentials` is written with a non-empty list.
-   *
-   * @param baseMessenger - Root messenger to observe.
-   * @returns A promise settled by the next credential-bearing state change.
-   */
-  function waitForCredentials(baseMessenger: RootMessenger): Promise<void> {
-    return new Promise((resolve) => {
-      baseMessenger.subscribe(
-        'AuthenticationController:stateChange',
-        (state: AuthenticationControllerState) => {
-          if ((state.enrolledCredentials?.length ?? 0) > 0) {
-            resolve();
-          }
-        },
-      );
-    });
   }
 
   it('starts with an empty memory-only credential cache', () => {
@@ -2572,7 +2548,6 @@ describe('MFA credential enrollment', () => {
       );
       const { controller } = createController();
       try {
-        // Mirrors the non-awaited post-sign-in warm-up.
         const refresh = controller.refreshEnrolledCredentials();
         await requestStarted;
         endSession(controller);
@@ -2717,47 +2692,7 @@ describe('MFA credential enrollment', () => {
     ).rejects.toThrow('wallet is locked');
   });
 
-  it('warms the credential cache after sign-in without blocking it, only when enabled', async () => {
-    const enabledEndpoints = arrangeAuthAPIs();
-    const enabled = createController({
-      state: { ...defaultState },
-      isMfaEnabled: () => true,
-    });
-    const warmed = waitForCredentials(enabled.baseMessenger);
-    await enabled.controller.performSignIn();
-    // Sign-in resolved before the credentials call had to complete.
-    expect(enabled.controller.state.isSignedIn).toBe(true);
-    await warmed;
-    expect(enabledEndpoints.mockMfaCredentialsUrl.isDone()).toBe(true);
-    expect(enabled.controller.state.enrolledCredentials).toHaveLength(2);
-
-    cleanAllNock();
-    const disabledEndpoints = arrangeAuthAPIs();
-    const disabled = createController({
-      state: { ...defaultState },
-      isMfaEnabled: () => false,
-    }).controller;
-    await disabled.performSignIn();
-    expect(disabledEndpoints.mockMfaCredentialsUrl.isDone()).toBe(false);
-  });
-
-  it('does not fail sign-in when automatic refresh fails', async () => {
-    arrangeAuthAPIs({
-      mockMfaCredentialsUrl: {
-        status: 502,
-        body: { code: 'kratos_unavailable', message: 'Unavailable' },
-      },
-    });
-    const { controller } = createController({
-      state: { ...defaultState },
-      isMfaEnabled: () => true,
-    });
-
-    expect(await controller.performSignIn()).toHaveLength(2);
-    expect(controller.state.isSignedIn).toBe(true);
-  });
-
-  it('discards a stale warm-up refresh that lands after a newer, faster refresh from enrollment', async () => {
+  it('discards a stale refresh that lands after a newer, faster refresh from enrollment', async () => {
     const deferred = <Value>(): {
       promise: Promise<Value>;
       resolve: (value: Value) => void;
@@ -2769,19 +2704,19 @@ describe('MFA credential enrollment', () => {
       return { promise, resolve: resolveDeferred };
     };
 
-    const warmUp = deferred<Awaited<ReturnType<typeof fetch>>>();
+    const slow = deferred<Awaited<ReturnType<typeof fetch>>>();
     const enrollComplete = deferred<Awaited<ReturnType<typeof fetch>>>();
     const enrollmentCredentials = deferred<Awaited<ReturnType<typeof fetch>>>();
 
-    const warmUpStarted = deferred<void>();
+    const slowStarted = deferred<void>();
     const enrollCompleteStarted = deferred<void>();
     const enrollmentCredentialsStarted = deferred<void>();
 
     const fetchSpy = jest.spyOn(globalThis, 'fetch');
     fetchSpy
       .mockImplementationOnce(async (): ReturnType<typeof fetch> => {
-        warmUpStarted.resolve();
-        return warmUp.promise;
+        slowStarted.resolve();
+        return slow.promise;
       })
       .mockImplementationOnce(async (): ReturnType<typeof fetch> => {
         enrollCompleteStarted.resolve();
@@ -2795,11 +2730,11 @@ describe('MFA credential enrollment', () => {
     const { controller } = createController();
 
     try {
-      // 1. Slow warm-up refresh starts first but doesn't resolve yet.
-      const warmUpRefresh = controller.refreshEnrolledCredentials();
-      await warmUpStarted.promise;
+      // 1. Slow refresh starts first but doesn't resolve yet.
+      const slowRefresh = controller.refreshEnrolledCredentials();
+      await slowStarted.promise;
 
-      // 2. Enrollment completes while the warm-up is in flight.
+      // 2. Enrollment completes while the slow refresh is in flight.
       const enrollmentCompletion = controller.completeCredentialEnrollment({
         flowId: 'flow-id',
         proof: { type: 'email_otp', code: '123456' },
@@ -2827,15 +2762,15 @@ describe('MFA credential enrollment', () => {
         MOCK_MFA_CREDENTIALS_RESPONSE.credentials.length,
       );
 
-      // 4. The stale warm-up response lands late, with different data.
-      warmUp.resolve(
+      // 4. The stale response lands late, with different data.
+      slow.resolve(
         new globalThis.Response(JSON.stringify({ credentials: [] }), {
           status: 200,
         }),
       );
-      await warmUpRefresh;
+      await slowRefresh;
 
-      // 5. Must NOT be overwritten by the stale warm-up.
+      // 5. Must NOT be overwritten by the stale response.
       expect(controller.state.enrolledCredentials).toStrictEqual(
         freshCredentials,
       );

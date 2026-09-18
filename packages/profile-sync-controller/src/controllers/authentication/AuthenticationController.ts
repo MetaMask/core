@@ -179,12 +179,6 @@ type ControllerConfig = {
    * `() => false`.
    */
   isSocialPairingEnabled: () => boolean;
-  /**
-   * When `true`, `performSignIn` refreshes `enrolledCredentials` after the
-   * session is established. MFA methods themselves are never gated; the
-   * client decides when to expose them. Defaults to `() => false`.
-   */
-  isMfaEnabled: () => boolean;
 };
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -268,7 +262,6 @@ export class AuthenticationController extends BaseController<
   readonly #config: ControllerConfig = {
     env: Env.PRD,
     isSocialPairingEnabled: () => false,
-    isMfaEnabled: () => false,
   };
 
   #isUnlocked = false;
@@ -282,7 +275,7 @@ export class AuthenticationController extends BaseController<
   /**
    * Sequence number of the most recently started credentials refresh. Only
    * that refresh may write the cache, so a slower, earlier request cannot
-   * overwrite a newer list (e.g. the post-sign-in warm-up landing after an
+   * overwrite a newer list (e.g. an explicit refresh landing after an
    * enrollment's refresh).
    */
   #credentialsRefreshSeq = 0;
@@ -342,7 +335,6 @@ export class AuthenticationController extends BaseController<
       ...config,
       isSocialPairingEnabled:
         config?.isSocialPairingEnabled ?? this.#config.isSocialPairingEnabled,
-      isMfaEnabled: config?.isMfaEnabled ?? this.#config.isMfaEnabled,
     };
 
     this.#metametrics = metametrics;
@@ -577,12 +569,6 @@ export class AuthenticationController extends BaseController<
       await this.#trySocialPairing(accessTokens[0]);
     } catch {
       // noop
-    }
-
-    // Best-effort warm-up of the credential cache. Not awaited: sign-in must
-    // not wait on the MFA service, and MFA flows refresh explicitly anyway.
-    if (this.#config.isMfaEnabled()) {
-      this.refreshEnrolledCredentials().catch(() => undefined);
     }
 
     return accessTokens;
