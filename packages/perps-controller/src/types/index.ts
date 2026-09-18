@@ -1698,8 +1698,13 @@ export type FeeCalculationResult = {
   /**
    * Read-only subscription fee-waiver preview, sourced from the same cached
    * benefits snapshot the fee resolver uses. Present only when the controller
-   * has a subscription source wired; the quoted rates above are not adjusted
-   * from it, so surfacing this never mutates the cap or the cache.
+   * has a subscription source wired.
+   *
+   * Surfacing this never mutates the cap or the cache. The rates above *are*
+   * adjusted from the unified fee resolution — including this waiver when it
+   * wins — so they reflect what the order will be charged rather than the
+   * undiscounted builder fee. Pass `FeeCalculationParams.amount` to get the
+   * rate an order of that size actually pays.
    */
   subscription?: PerpsSubscriptionFeeWaiverStatus;
 };
@@ -2705,6 +2710,16 @@ export type PerpsPlatformDependencies = {
      * snapshot and never grants the waiver from a failed read.
      */
     getPerpsBenefits(): Promise<PerpsSubscriptionBenefits | null>;
+
+    /**
+     * Register the current HyperLiquid trading address (CAIP-10) against the
+     * subscription profile, so a later fill can be attributed to it.
+     *
+     * Optional: `SubscriptionController` exposes no address-registration action
+     * yet, so a client that cannot perform this simply omits it and the
+     * controller skips registration.
+     */
+    registerTradingAddress?(caipAccountId: string): Promise<void>;
   };
 };
 

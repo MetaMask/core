@@ -1283,6 +1283,21 @@ export class PerpsController extends BaseController<
     // carry this.
     const forgetRegisteredTradingAddresses = (): void => {
       this.#rewardsIntegrationService.resetRegisteredTradingAddresses();
+      // Clearing alone only guarantees the *next preview* re-registers. An
+      // order submitted straight after a switch, with no preview in between,
+      // would otherwise be attributed to nothing, so the new address announces
+      // itself here. Fire-and-forget: attribution plumbing must not block or
+      // fail an account switch.
+      const switchedAccount = getSelectedEvmAccountFromMessenger(
+        this.messenger,
+      );
+      if (switchedAccount) {
+        this.#rewardsIntegrationService
+          .registerTradingAddress(switchedAccount.address)
+          .catch(() => {
+            /* never blocks an account switch */
+          });
+      }
     };
     this.messenger.subscribe(
       'AccountsController:selectedAccountChange',

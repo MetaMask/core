@@ -274,6 +274,46 @@ describe('RewardsIntegrationService', () => {
       }) as never;
 
     /**
+     * Build a `SubscriptionController:getBenefits` response.
+     *
+     * This is the controller's real contract: allowances in micro-USD, and
+     * eligibility on the response rather than a `status` string.
+     *
+     * @param perpsOverrides - Fields to override on the perps product block.
+     * @param overrides - Fields to override on the response itself.
+     * @returns A benefits response.
+     */
+    const createBenefitsResponse = (
+      perpsOverrides: Record<string, unknown> = {},
+      overrides: Record<string, unknown> = {},
+    ) =>
+      ({
+        eligible: true,
+        billingPeriodId: 'bp-1',
+        products: {
+          swaps: {
+            feeBips: null,
+            remainingMicroUsd: null,
+            exhausted: false,
+          },
+          perps: {
+            builderFeeBips: null,
+            builderCode: null,
+            // 5000 USD, reported in micro-USD as the controller does.
+            remainingMicroUsd: 5_000_000_000,
+            exhausted: false,
+            ...perpsOverrides,
+          },
+          predict: {
+            builderCode: null,
+            remainingTxCount: null,
+            exhausted: false,
+          },
+        },
+        ...overrides,
+      }) as never;
+
+    /**
      * Wire a subscription benefits source onto the mocked dependencies.
      *
      * @param getPerpsBenefits - The mocked benefits reader.
@@ -964,9 +1004,11 @@ describe('RewardsIntegrationService', () => {
     it('reads benefits through the SubscriptionController action when one is registered', async () => {
       const messengerBenefits = jest
         .fn()
-        .mockResolvedValue(createBenefits({ remainingNotionalUsd: 250 }));
+        .mockResolvedValue(
+          createBenefitsResponse({ remainingMicroUsd: 250_000_000 }),
+        );
       setupMessengerDefaults({
-        'SubscriptionController:getPerpsBenefits': messengerBenefits,
+        'SubscriptionController:getBenefits': messengerBenefits,
       });
       const diBenefits = wireSubscription(
         jest.fn().mockResolvedValue(createBenefits()),
@@ -989,9 +1031,11 @@ describe('RewardsIntegrationService', () => {
       // made this configuration resolve `no-source` and never grant a waiver.
       const messengerBenefits = jest
         .fn()
-        .mockResolvedValue(createBenefits({ remainingNotionalUsd: 250 }));
+        .mockResolvedValue(
+          createBenefitsResponse({ remainingMicroUsd: 250_000_000 }),
+        );
       setupMessengerDefaults({
-        'SubscriptionController:getPerpsBenefits': messengerBenefits,
+        'SubscriptionController:getBenefits': messengerBenefits,
       });
       (
         mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
@@ -1020,9 +1064,11 @@ describe('RewardsIntegrationService', () => {
       // a waiver the user is still entitled to.
       const messengerBenefits = jest
         .fn()
-        .mockResolvedValueOnce(createBenefits({ remainingNotionalUsd: 250 }));
+        .mockResolvedValueOnce(
+          createBenefitsResponse({ remainingMicroUsd: 250_000_000 }),
+        );
       setupMessengerDefaults({
-        'SubscriptionController:getPerpsBenefits': messengerBenefits,
+        'SubscriptionController:getBenefits': messengerBenefits,
       });
       (
         mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
@@ -1046,6 +1092,41 @@ describe('RewardsIntegrationService', () => {
         remainingNotionalUsd: 250,
       });
       expect(mockDeps.logger.error).toHaveBeenCalled();
+    });
+
+    it('keeps a cached snapshot when a benefits handler throws synchronously', async () => {
+      // A handler that has answered before exists, so a synchronous throw is a
+      // real failure — not an unregistered action — and must not fall through
+      // to `null` and erase the cached waiver.
+      let failSynchronously = false;
+      setupMessengerDefaults({
+        'SubscriptionController:getBenefits': () => {
+          if (failSynchronously) {
+            throw new Error('benefits handler exploded');
+          }
+          return Promise.resolve(
+            createBenefitsResponse({ remainingMicroUsd: 250_000_000 }),
+          );
+        },
+      });
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+
+      await service.refreshSubscriptionBenefits();
+      expect(service.getSubscriptionFeeWaiverStatus().eligible).toBe(true);
+
+      failSynchronously = true;
+      jest.setSystemTime(NOW + FRESH_MS + 1);
+      await expect(
+        service.refreshSubscriptionBenefits(),
+      ).resolves.toBeUndefined();
+
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: true,
+        reason: 'eligible',
+        remainingNotionalUsd: 250,
+      });
     });
 
     it('still reports no source when neither wiring is present', async () => {
@@ -1074,17 +1155,20 @@ describe('RewardsIntegrationService', () => {
     });
 
     it('registers the trading address once per address and again after a reset', async () => {
-      const registerAddress = jest.fn().mockResolvedValue(undefined);
-      setupMessengerDefaults({
-        'SubscriptionController:registerAddress': registerAddress,
-      });
-      wireSubscription(jest.fn().mockResolvedValue(createBenefits()));
+      // `SubscriptionController` exposes no address-registration action, so this
+      // runs through the injected dependency until one exists.
+      const registerTradingAddress = jest.fn().mockResolvedValue(undefined);
+      setupMessengerDefaults();
+      (mockDeps as { subscription?: unknown }).subscription = {
+        getPerpsBenefits: jest.fn().mockResolvedValue(null),
+        registerTradingAddress,
+      };
 
       await service.registerTradingAddress(mockEvmAccount.address);
       await service.registerTradingAddress(mockEvmAccount.address);
 
-      expect(registerAddress).toHaveBeenCalledTimes(1);
-      expect(registerAddress).toHaveBeenCalledWith(
+      expect(registerTradingAddress).toHaveBeenCalledTimes(1);
+      expect(registerTradingAddress).toHaveBeenCalledWith(
         expect.stringMatching(/^eip155:1:0x/u),
       );
 
@@ -1092,32 +1176,12 @@ describe('RewardsIntegrationService', () => {
       service.resetRegisteredTradingAddresses();
       await service.registerTradingAddress(mockEvmAccount.address);
 
-      expect(registerAddress).toHaveBeenCalledTimes(2);
+      expect(registerTradingAddress).toHaveBeenCalledTimes(2);
     });
 
-    it('registers the trading address for a client that wires only the messenger', async () => {
-      // The ADR-0064 configuration: SubscriptionController is registered and the
-      // legacy DI callback is not. Gating registration on the DI dependency
-      // would make it a silent no-op on exactly this client.
-      const registerAddress = jest.fn().mockResolvedValue(undefined);
-      setupMessengerDefaults({
-        'SubscriptionController:registerAddress': registerAddress,
-      });
-      expect(mockDeps.subscription).toBeUndefined();
-
-      await service.registerTradingAddress(mockEvmAccount.address);
-
-      expect(registerAddress).toHaveBeenCalledWith(
-        expect.stringMatching(/^eip155:1:0x/u),
-      );
-    });
-
-    it('never throws when address registration is unavailable', async () => {
-      setupMessengerDefaults({
-        'SubscriptionController:registerAddress': () => {
-          throw new Error('action not registered');
-        },
-      });
+    it('skips address registration when the client cannot perform it', async () => {
+      // No injected registration hook: nothing to call, and nothing raised.
+      setupMessengerDefaults();
       wireSubscription(jest.fn().mockResolvedValue(createBenefits()));
 
       await expect(
@@ -1125,39 +1189,20 @@ describe('RewardsIntegrationService', () => {
       ).resolves.toBeUndefined();
     });
 
-    it('skips address registration when neither the messenger nor a source is wired', async () => {
-      // No SubscriptionController action registered and no DI source: the
-      // messenger call throws on the unregistered action and the catch absorbs
-      // it, so nothing is registered and nothing is raised.
+    it('never throws when address registration is unavailable', async () => {
       setupMessengerDefaults();
+      (mockDeps as { subscription?: unknown }).subscription = {
+        getPerpsBenefits: jest.fn().mockResolvedValue(createBenefits()),
+        registerTradingAddress: jest
+          .fn()
+          .mockRejectedValue(new Error('address index unavailable')),
+      };
 
       await expect(
         service.registerTradingAddress(mockEvmAccount.address),
       ).resolves.toBeUndefined();
-      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
-        'RewardsIntegrationService: Trading address registration skipped',
-        expect.objectContaining({ address: mockEvmAccount.address }),
-      );
     });
 
-    it('re-attempts registration once a SubscriptionController appears', async () => {
-      // Nothing handled the first attempt, so it must not be cached as done —
-      // otherwise a client that registers the action after the first preview
-      // never announces its address.
-      setupMessengerDefaults();
-      await service.registerTradingAddress(mockEvmAccount.address);
-
-      const registerAddress = jest.fn().mockResolvedValue(undefined);
-      setupMessengerDefaults({
-        'SubscriptionController:registerAddress': registerAddress,
-      });
-      await service.registerTradingAddress(mockEvmAccount.address);
-
-      expect(registerAddress).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('instance isolation', () => {
     it('each instance uses its own deps', async () => {
       const mockDeps2 = createMockInfrastructure();
       const mockMessenger2 = createMockMessenger();

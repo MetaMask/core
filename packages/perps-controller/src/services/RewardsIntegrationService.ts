@@ -1,3 +1,5 @@
+import type { SubscriptionBenefitsResponse } from '@metamask/subscription-controller';
+
 import {
   BASIS_POINTS_DIVISOR,
   BUILDER_FEE_CONFIG,
@@ -26,6 +28,9 @@ import { resolveSubscriptionWaiverRate } from '../utils/subscriptionFeeWaiver.js
  */
 const DEFAULT_FEE_BIPS =
   BUILDER_FEE_CONFIG.MaxFeeDecimal * BASIS_POINTS_DIVISOR;
+
+/** `SubscriptionController` reports allowances in micro-USD. */
+const MICRO_USD_PER_USD = 1_000_000;
 
 /**
  * Cached subscription benefits plus the time they were read.
@@ -98,7 +103,7 @@ export class RewardsIntegrationService {
   readonly #registeredTradingAddresses = new Set<string>();
 
   /**
-   * Whether `SubscriptionController:getPerpsBenefits` has ever answered on this
+   * Whether `SubscriptionController:getBenefits` has ever answered on this
    * messenger. Action registration can be delegated, in which case it does not
    * appear in `getRegisteredActionTypes`, so an answered call is the only
    * reliable proof that the messenger route is available.
@@ -277,7 +282,7 @@ export class RewardsIntegrationService {
   /**
    * Whether this client has any way to read subscription benefits.
    *
-   * Either wiring counts: a registered `SubscriptionController:getPerpsBenefits`
+   * Either wiring counts: a registered `SubscriptionController:getBenefits`
    * action (the ADR 0064 target) or the legacy injected `subscription` callback.
    * Requiring the injected one would make the messenger path unreachable on
    * exactly the configuration it was added for, so the messenger is probed by
@@ -298,7 +303,7 @@ export class RewardsIntegrationService {
       // regardless, and an answer sets `#messengerBenefitsAnswered` above.
       return this.#messenger
         .getRegisteredActionTypes()
-        .includes('SubscriptionController:getPerpsBenefits');
+        .includes('SubscriptionController:getBenefits');
     } catch {
       return false;
     }
@@ -477,17 +482,23 @@ export class RewardsIntegrationService {
       // Called without awaiting so the fallback stays synchronous when no
       // handler is registered: the DI read must start in the same tick, or a
       // caller that inspects the in-flight state sees an idle service.
-      const result = this.#messenger.call(
-        'SubscriptionController:getPerpsBenefits',
-      );
-      // `null` is a real answer ("no subscription"); `undefined` means nothing
-      // handled the action, which is the fallback case rather than an answer.
+      const result = this.#messenger.call('SubscriptionController:getBenefits');
+      // `undefined` means nothing handled the action, which is the fallback
+      // case rather than an answer.
       if (result !== undefined) {
         this.#messengerBenefitsAnswered = true;
-        pending = Promise.resolve(result);
+        pending = Promise.resolve(result).then(adaptSubscriptionBenefits);
       }
-    } catch {
-      // Unregistered action or a throwing handler: fall through to the DI source.
+    } catch (error) {
+      // A handler that has answered before exists, so a synchronous throw is a
+      // real failure rather than an unregistered action. Treating it as the
+      // latter would fall through to `null` and erase a valid cached snapshot,
+      // exactly as an asynchronous rejection would.
+      if (this.#messengerBenefitsAnswered && !this.#deps.subscription) {
+        throw error;
+      }
+      // Otherwise: unregistered action, or a throw with a DI source to fall
+      // back to.
     }
 
     const fallback = this.#deps.subscription;
@@ -526,17 +537,20 @@ export class RewardsIntegrationService {
    * never throws: it is observability plumbing, and a failure here must not
    * block a fee preview.
    *
-   * Deliberately not gated on the injected `subscription` dependency: the
-   * messenger action exists precisely so a client can ship
-   * `SubscriptionController` *instead of* the DI callback, and requiring both
-   * would make registration unreachable on exactly that configuration. A client
-   * that registers neither lands in the catch below, which is already the
-   * unregistered-action path.
+   * `SubscriptionController` exposes no address-registration action today, so
+   * this runs entirely through the injected `subscription` dependency when a
+   * client supplies one. Wiring it to a messenger action is left until that
+   * action exists rather than calling a name nothing answers.
    *
    * @param address - The EVM trading address to register.
    * @returns A promise that resolves once the attempt settles.
    */
   async registerTradingAddress(address: string): Promise<void> {
+    const source = this.#deps.subscription;
+    if (!source?.registerTradingAddress) {
+      return;
+    }
+
     try {
       const networkState = this.#messenger.call('NetworkController:getState');
       const chainId = this.#getChainIdForNetwork(
@@ -563,24 +577,7 @@ export class RewardsIntegrationService {
         return;
       }
 
-      const pending = this.#messenger.call(
-        'SubscriptionController:registerAddress',
-        caipAccountId,
-      );
-
-      // An unregistered action can answer `undefined` rather than throwing.
-      // Treat that as "nothing handled it" and leave the dedupe cache alone, so
-      // a SubscriptionController registered later still receives the address
-      // instead of being skipped as already-registered.
-      if (pending === undefined) {
-        this.#deps.debugLogger.log(
-          'RewardsIntegrationService: Trading address registration skipped',
-          { address, reason: 'no-handler' },
-        );
-        return;
-      }
-
-      await pending;
+      await source.registerTradingAddress(caipAccountId);
       this.#registeredTradingAddresses.add(caipAccountId);
 
       this.#deps.debugLogger.log(
@@ -588,8 +585,8 @@ export class RewardsIntegrationService {
         { caipAccountId },
       );
     } catch (error) {
-      // An unregistered action, an offline client, or a backend refusal all
-      // land here. None of them is a reason to fail a fee preview.
+      // An offline client or a backend refusal both land here. Neither is a
+      // reason to fail a fee preview.
       this.#deps.debugLogger.log(
         'RewardsIntegrationService: Trading address registration skipped',
         {
@@ -725,6 +722,47 @@ export class RewardsIntegrationService {
 }
 
 /**
+ * Convert `SubscriptionController`'s benefits response into the shape the
+ * waiver gate reads.
+ *
+ * The controller reports allowances in **micro-USD** (`remainingMicroUsd`) and
+ * carries no `status`/`entitled` fields: eligibility is the response's own
+ * `eligible` flag, and the perps product block holds the cap. Converting once,
+ * here at the boundary, keeps the gate and the blended-rate formula working in
+ * whole USD.
+ *
+ * A `remainingMicroUsd` of `null` means the backend reported no bound, which
+ * stays an unbounded allowance rather than a spent one.
+ *
+ * @param response - The controller's benefits response.
+ * @returns The internal benefits shape, or null when nothing is entitled.
+ */
+function adaptSubscriptionBenefits(
+  response: SubscriptionBenefitsResponse | null | undefined,
+): PerpsSubscriptionBenefits | null {
+  if (!response) {
+    return null;
+  }
+
+  const perps = response.products?.perps;
+
+  return {
+    status: response.eligible ? 'active' : 'inactive',
+    perpsFeeWaiver: {
+      entitled: response.eligible && Boolean(perps),
+      usage: perps?.exhausted ? 'exhausted' : 'available',
+      exhausted: perps?.exhausted,
+      remainingNotionalUsd:
+        perps?.remainingMicroUsd === null ||
+        perps?.remainingMicroUsd === undefined
+          ? undefined
+          : perps.remainingMicroUsd / MICRO_USD_PER_USD,
+    },
+  };
+}
+
+/**
+ * Evaluate the perps fee-waiver eligibility gate against a benefits snapshot./**
  * Evaluate the perps fee-waiver eligibility gate against a benefits snapshot.
  *
  * The gate is `status=active` AND `perpsFeeWaiver` entitled AND

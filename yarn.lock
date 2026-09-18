@@ -8461,6 +8461,7 @@ __metadata:
     "@metamask/network-controller": "npm:^37.0.0"
     "@metamask/profile-sync-controller": "npm:^32.1.1"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
+    "@metamask/subscription-controller": "npm:^9.0.1"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^70.1.0"
     "@metamask/utils": "npm:^12.0.0"

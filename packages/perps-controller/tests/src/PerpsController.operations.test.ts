@@ -1797,6 +1797,9 @@ describe('PerpsController', () => {
           'resetRegisteredTradingAddresses',
         )
         .mockImplementation(() => undefined);
+      const register = jest
+        .spyOn(RewardsIntegrationService.prototype, 'registerTradingAddress')
+        .mockResolvedValue(undefined);
 
       // A controller built with a messenger this test holds, so the
       // lifetime subscription registered in the constructor is observable.
@@ -1817,11 +1820,14 @@ describe('PerpsController', () => {
 
       accountHandlers.forEach((handler) => handler());
 
-      // The session's registrations are dropped, so the next preview announces
-      // the new address instead of assuming the previous one still stands.
+      // The session's registrations are dropped, and the new address announces
+      // itself immediately — an order submitted straight after a switch, with
+      // no preview in between, would otherwise go unattributed.
       expect(reset).toHaveBeenCalled();
+      expect(register).toHaveBeenCalled();
 
       reset.mockRestore();
+      register.mockRestore();
     });
 
     it('no longer approves a dedicated subscription builder', async () => {

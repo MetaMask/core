@@ -57,18 +57,6 @@ export type {
   ProPositionsSortDirection,
   ProPositionsSortField,
 } from './PerpsController.js';
-// The SubscriptionController action contracts ADR 0064 introduces. A client
-// registering these handlers needs their shapes, and no package defines them
-// yet — `SubscriptionController` does not live in this monorepo — so they are
-// exported here rather than duplicated downstream.
-//
-// The `PerpsControllerAllowedActions`/`AllowedEvents` unions are deliberately
-// not exported: the controller guidelines forbid exporting external-dependency
-// unions from a package index, and lint enforces it.
-export type {
-  SubscriptionControllerGetPerpsBenefitsAction,
-  SubscriptionControllerRegisterAddressAction,
-} from './types/messenger.js';
 export type {
   PerpsControllerApproveSubscriptionBuilderFeeAction,
   PerpsControllerCalculateFeesAction,

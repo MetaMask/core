@@ -429,18 +429,29 @@ describe('applyFeeResolution', () => {
     );
   });
 
-  it('leaves the quote untouched when no source resolved', () => {
+  it('reprices to the undiscounted rate when the default source won', () => {
+    // `default` winning is a real answer of "no reduction". Returning the
+    // provider's own number instead would inherit whatever discount a
+    // concurrent order's submit last pushed into it.
+    const priced = applyFeeResolution({
+      fees: { ...fees, metamaskFeeRate: 0.0005, feeRate: 0.00095 },
+      resolution: {
+        feeBips: 10,
+        discountBips: undefined,
+        source: 'default',
+        subscription: createStatus({ eligible: false, reason: 'no-source' }),
+      },
+      amount: '1000',
+    });
+
+    // The full 10-bip builder fee, not the 5-bip rate the provider carried.
+    expect(priced.metamaskFeeRate).toBeCloseTo(0.001, 10);
+    expect(priced.feeRate).toBeCloseTo(0.00145, 10);
+  });
+
+  it('leaves the quote untouched when no resolution was computed', () => {
     expect(
-      applyFeeResolution({
-        fees,
-        resolution: {
-          feeBips: 10,
-          discountBips: undefined,
-          source: 'default',
-          subscription: createStatus({ eligible: false, reason: 'no-source' }),
-        },
-        amount: '1000',
-      }),
+      applyFeeResolution({ fees, resolution: undefined, amount: '1000' }),
     ).toStrictEqual(fees);
   });
 

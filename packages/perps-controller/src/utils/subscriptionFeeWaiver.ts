@@ -371,18 +371,23 @@ export function applyFeeResolution(params: {
   const { fees, resolution, amount } = params;
 
   if (
-    resolution?.discountBips === undefined ||
+    resolution === undefined ||
     fees.metamaskFeeRate === undefined ||
     fees.metamaskFeeRate === 0
   ) {
     return fees;
   }
 
+  // An unresolved discount means the `default` source won, which is a real
+  // answer of "no reduction" — not "leave the provider's number alone". The
+  // provider's rate reflects whatever discount the last submit pushed into it,
+  // so a concurrent order could otherwise leak its discount into this quote.
+  const discountBips = resolution.discountBips ?? 0;
+
   // Quantized exactly as the venue will charge it, so the quote matches the
   // fill rather than the unfloored fraction the discount implies.
   const metamaskFeeRate =
-    quantizeBuilderFeeTenthsBps(resolution.discountBips) /
-    BUILDER_FEE_TENTHS_BPS_PER_UNIT;
+    quantizeBuilderFeeTenthsBps(discountBips) / BUILDER_FEE_TENTHS_BPS_PER_UNIT;
   const parsedAmount =
     amount === undefined ? undefined : Number.parseFloat(amount);
   const notional =

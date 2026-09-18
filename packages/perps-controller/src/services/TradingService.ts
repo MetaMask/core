@@ -2349,15 +2349,28 @@ export class TradingService {
 
       // Get fee discount from rewards. A TP/SL update carries no notional of
       // its own, so it is priced from the position the triggers protect: the
-      // caller's position snapshot when there is one, else the size and entry
-      // price the tracking data carries.
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
+      // caller's snapshot or tracking data when supplied, and otherwise the
+      // position read back through the routed provider. Both caller fields are
+      // optional, and a bounded waiver is withheld without a notional, so
+      // relying on them alone silently drops the waiver on a valid update.
+      const tpslNotionalUsd =
         this.#resolveOrderNotionalUsd({
           usdAmount: params.position?.positionValue,
           size: params.trackingData?.positionSize?.toString(),
           currentPrice: params.trackingData?.entryPrice,
-        }),
-      );
+        }) ??
+        this.#resolveOrderNotionalUsd({
+          usdAmount: (
+            await this.#loadPositionData({
+              symbol: params.symbol,
+              context,
+              provider,
+              providerId: params.providerId,
+            })
+          )?.positionValue,
+        });
+      const feeResolution =
+        await this.#calculateFeeDiscountWithMeasurement(tpslNotionalUsd);
 
       // Execute with fee discount management
       result = await this.#withFeeDiscount({
