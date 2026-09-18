@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@metamask/account-api` from `^2.0.0` to `^2.1.0` ([#10263](https://github.com/MetaMask/core/pull/10263))
+- Bump `@metamask/snaps-sdk` from `^11.0.0` to `^12.0.1` ([#10025](https://github.com/MetaMask/core/pull/10025))
 
 ### Fixed
 
