@@ -7,13 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [81.2.0]
-
 ### Added
 
 - Add optional `quote.feeData.reserve` on V2 quotes for native minimum-balance requirements ([#10241](https://github.com/MetaMask/core/pull/10241))
   - Sibling of `feeData.network`, not a `FeeType`, so fee aggregators do not treat it as spendable
   - Normalized via `toNormalizedAmounts` and converted to fiat via `toCurrencyValues`
+
+## [81.2.0]
+
+### Added
+
 - Update lint:tsc to run against all packages & remove it from CI ([#10215](https://github.com/MetaMask/core/pull/10215))
 - chore: integrate `@metamask/utils` into `packages/` ([#10185](https://github.com/MetaMask/core/pull/10185))
 - Export `calcNormalizedTokenAmount` and `calcAtomicTokenAmount` conversion utils and `AmountsAndAsset` type ([#10277](https://github.com/MetaMask/core/pull/10277))
