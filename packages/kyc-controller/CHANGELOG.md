@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `KycController.fetchVendorDisclaimers`, which loads vendor T&Cs via `KycService.fetchVendorDisclaimers`.
 - Add `KycController.hasCompletedVendorDisclaimers`, which fetches the vendor T&C catalog and returns whether persisted `vendorDisclaimersAccepted` covers every fetched disclaimer.
 - Add `KycController.recordVendorDisclaimers`, which records vendor T&Cs via `KycService.submitVendorDisclaimers` and persists accepted ids on state.
+- Add `KycController.startSessionStatusPolling`, which polls `GET /sessions/{id}/status` for `state.sessionStatus.id` until `finalStatus` is `approved`, `rejected`, or `retry`.
 
 ### Changed
 

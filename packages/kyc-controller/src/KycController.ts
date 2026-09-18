@@ -119,12 +119,21 @@ function isSumSubLaunchFailure(result: Record<string, unknown>): boolean {
 // literals.
 const KYC_STATUSES = {
   approved: 'approved',
-  completed: 'completed',
   rejected: 'rejected',
-  failed: 'failed',
-  blocked: 'blocked',
   pending: 'pending',
+  retry: 'retry',
+  new: 'new'
 } as const;
+
+// How often to poll UKYC session status until a terminal `finalStatus`.
+const SESSION_STATUS_POLL_INTERVAL_MS = 15_000;
+
+// `finalStatus` values that end {@link KycController.startSessionStatusPolling}.
+const TERMINAL_SESSION_STATUSES: ReadonlySet<string> = new Set([
+  KYC_STATUSES.approved,
+  KYC_STATUSES.rejected,
+  KYC_STATUSES.retry,
+]);
 
 
 // === STATE ===
@@ -367,6 +376,15 @@ export class KycController extends BaseController<
 
   readonly #localUserSecretStore: UkycLocalUserSecretStore;
 
+  /** Handle for the scheduled next session-status poll, or `null`. */
+  #sessionStatusPollTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Monotonic polling token. Bumped when the loop stops so an in-flight fetch
+   * neither writes state nor schedules a follow-up.
+   */
+  #sessionStatusPollToken = 0;
+
   /**
    * Constructs a new {@link KycController}.
    *
@@ -397,7 +415,7 @@ export class KycController extends BaseController<
   }
 
   // Only meant to be called if starting a new KYC flow
-  // Use getSessionStatusForVendor when only checking if a prior session exists for the vendor but not ready to onboard
+  // Use getSessionStatusForVendor() instead when only intending to check if a prior session exists for the vendor
   async startSession(params: {
     vendor: KycVendor;
     email: string; // TODO: This will be removed once partnerIdentityTokens are fully ready
@@ -437,21 +455,127 @@ export class KycController extends BaseController<
   }
 
   async reset(): Promise<void> {
-    // TODO: stop polling here
+    this.#stopSessionStatusPolling();
     this.clearState();
+    // TODO: Do not clear vendorDisclaimersAccepted, providerDisclaimersAccepted, idosDisclaimersAccepted, credentialReusabilityConsentGiven?
   }
 
   clearState(): void {
+    this.#stopSessionStatusPolling();
     this.update((state) => {
       state.email = null;
       state.vendor = null;
       state.geoCountry = null;
       state.sessionStatus = null;
+      // TODO: clear rest of state
     });
   }
 
   getSessionStatusForVendor(vendor: KycVendor): Promise<KycSessionStatus | null> {
     return this.messenger.call('KycService:getSessionStatusForVendor', vendor);
+  }
+
+  refreshSessionStatus(): KycSessionStatus {
+    if(!this.state.sessionStatus) {
+      throw new Error('No session was found');
+    }
+    if (!TERMINAL_SESSION_STATUSES.has(this.state.sessionStatus.finalStatus)) {
+      this.startSessionStatusPolling();
+    }
+    return this.state.sessionStatus;
+  }
+
+  /**
+   * Starts polling `GET /sessions/{id}/status` for
+   * {@link KycControllerState.sessionStatus}'s current `id`. Each tick writes
+   * the result onto state only when the payload changed. The loop stops once
+   * `finalStatus` is `approved`, `rejected`, or `retry`, or when
+   * {@link reset} / {@link clearState} runs.
+   *
+   * @throws If there is no current session id to poll.
+   */
+  startSessionStatusPolling(): void {
+    const sessionId = this.state.sessionStatus?.id;
+    if (!sessionId) {
+      throw new Error('No session was found');
+    }
+
+    this.#stopSessionStatusPolling();
+    const token = this.#sessionStatusPollToken;
+
+    const tick = async (): Promise<void> => {
+      const shouldStop = await this.#pollSessionStatusOnce(token);
+      if (shouldStop) {
+        return;
+      }
+      this.#sessionStatusPollTimer = setTimeout(() => {
+        this.#sessionStatusPollTimer = null;
+        // `tick` swallows its own errors and therefore never rejects.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        tick();
+      }, SESSION_STATUS_POLL_INTERVAL_MS);
+      this.#sessionStatusPollTimer.unref?.();
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    tick();
+  }
+
+  /**
+   * Fetches session status for the current `sessionStatus.id` and records it
+   * when it differs from state.
+   *
+   * @param token - Polling token captured when the loop started.
+   * @returns Whether the loop should stop.
+   */
+  async #pollSessionStatusOnce(token: number): Promise<boolean> {
+    const sessionId = this.state.sessionStatus?.id;
+    if (!sessionId) {
+      this.#stopSessionStatusPolling();
+      return true;
+    }
+
+    try {
+      const sessionStatus = await this.messenger.call(
+        'KycService:getSessionStatus',
+        { sessionId },
+      );
+      if (this.#sessionStatusPollToken !== token) {
+        return true;
+      }
+      if (this.state.sessionStatus?.id !== sessionId) {
+        return true;
+      }
+
+      // TODO: This check seems fragile
+      if (
+        JSON.stringify(this.state.sessionStatus) !==
+        JSON.stringify(sessionStatus)
+      ) {
+        this.update((state) => {
+          state.sessionStatus = sessionStatus;
+        });
+      }
+
+      if (TERMINAL_SESSION_STATUSES.has(sessionStatus.finalStatus)) {
+        this.#stopSessionStatusPolling();
+        return true;
+      }
+      return false;
+    } catch {
+      return this.#sessionStatusPollToken !== token;
+    }
+  }
+
+  /**
+   * Stops the session-status polling loop.
+   */
+  #stopSessionStatusPolling(): void {
+    this.#sessionStatusPollToken += 1;
+    if (this.#sessionStatusPollTimer !== null) {
+      clearTimeout(this.#sessionStatusPollTimer);
+      this.#sessionStatusPollTimer = null;
+    }
   }
 
   /**
@@ -624,7 +748,7 @@ export class KycController extends BaseController<
     if (!this.state.sessionStatus) {
       throw new Error('No session was found');
     }
-    // TODO, validate if this shorcut check is sufficient
+    // TODO: validate if this shorcut check is sufficient
     // return this.state.sessionStatus.consentStatus === 'given';
 
     const disclaimers = await this.messenger.call(
@@ -718,7 +842,7 @@ export class KycController extends BaseController<
     );
   }
 
-  launchProviderFlow({ locale, debug }: { locale?: string; debug?: boolean }): Promise<string, unknown> {
+  launchProviderFlow({ locale, debug }: { locale?: string; debug?: boolean }): Promise<void> {
     // Currently only sumsub is supported and must be used for Iron
     return this.#launchSumsubFlow({ locale, debug });
   }
@@ -754,7 +878,7 @@ export class KycController extends BaseController<
   async #launchSumsubFlow(params?: {
     locale?: string;
     debug?: boolean;
-  }): Promise<Record<string, unknown>> {
+  }): Promise<void> {
     try {
       if (!this.#sumsubLauncher.isAvailable()) {
         throw new Error('SumSub SDK is not available in this runtime.');
@@ -792,11 +916,6 @@ export class KycController extends BaseController<
             if (isSumSubFlowCompleted(next)) {
               reachedCompletion = true;
             }
-            // this.#applyUpdate((state) => {
-            //   state.sumsub.status = isSumSubFlowCompleted(next)
-            //     ? 'complete'
-            //     : 'inProgress';
-            // });
           },
           locale: params?.locale ?? 'en',
           debug: params?.debug ?? false,
@@ -821,11 +940,21 @@ export class KycController extends BaseController<
 
         // Once the SDK completes, the authoritative verification decision comes
         // from the UKYC backend, not the SDK result. Fetch session status once.
-        if (reachedCompletion && this.state.sessionStatus?.id) {
-          // TODO: Do something here? Optimistically go to pending?..
+        if (reachedCompletion && this.state.sessionStatus) {
+          // TODO: is this too opmistic?
+          this.update((state) => {
+            if (!state.sessionStatus) {
+              return;
+            }
+            state.sessionStatus = {
+              ...state.sessionStatus,
+              finalStatus: 'pending',
+            };
+          });
+          this.refreshSessionStatus();
         }
-        return result;
       } catch (error) {
+        // TODO: Figure out if the sessionAlreadyCompletedError is still needed
         //
         // Applicant already finished KYC — treat as completed for Money toast.
         // if (isSessionAlreadyCompletedError(error)) {
@@ -849,13 +978,6 @@ export class KycController extends BaseController<
         //   state.sumsub.result = result;
         // });
         // return result;
-      }
-    } finally {
-      // TODO: Figure out this return
-      try {
-        await this.refreshKycStatus();
-      } catch (error) {
-        controllerLog('KYC status refresh failed:', error);
       }
     }
   }

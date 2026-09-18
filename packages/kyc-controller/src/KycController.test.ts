@@ -561,6 +561,143 @@ describe('KycController', () => {
     });
   });
 
+  describe('startSessionStatusPolling', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    /**
+     * Lets the in-flight poll tick settle.
+     */
+    async function flushPoll(): Promise<void> {
+      await Promise.resolve();
+      await Promise.resolve();
+    }
+
+    it('throws when no session id is available', async () => {
+      await withController(async ({ controller }) => {
+        expect(() => controller.startSessionStatusPolling()).toThrow(
+          'No session was found',
+        );
+      });
+    });
+
+    it('updates state when the fetched session status differs', async () => {
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('pending') },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('pending'),
+          );
+          handlers.getSessionStatus.mockResolvedValueOnce({
+            ...sessionStatus('pending'),
+            kycStatus: 'in_review',
+          });
+
+          controller.startSessionStatusPolling();
+          await flushPoll();
+
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(controller.state.sessionStatus?.kycStatus).toBe('in_review');
+        },
+      );
+    });
+
+    it('does not rewrite state when the fetched session status is unchanged', async () => {
+      const pending = sessionStatus('pending');
+      await withController(
+        { options: { state: { sessionStatus: pending } } },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(pending);
+          const before = controller.state.sessionStatus;
+
+          controller.startSessionStatusPolling();
+          await flushPoll();
+
+          expect(controller.state.sessionStatus).toBe(before);
+        },
+      );
+    });
+
+    it.each(['approved', 'rejected', 'retry'])(
+      'stops polling once finalStatus is %s',
+      async (finalStatus) => {
+        jest.useFakeTimers();
+        await withController(
+          {
+            options: {
+              state: { sessionStatus: sessionStatus('pending') },
+            },
+          },
+          async ({ controller, handlers }) => {
+            handlers.getSessionStatus.mockResolvedValue(
+              sessionStatus(finalStatus),
+            );
+
+            controller.startSessionStatusPolling();
+            await flushPoll();
+            expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+            expect(controller.state.sessionStatus?.finalStatus).toBe(
+              finalStatus,
+            );
+
+            await jest.advanceTimersByTimeAsync(30_000);
+            expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+          },
+        );
+      },
+    );
+
+    it('keeps polling while finalStatus is pending', async () => {
+      jest.useFakeTimers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('pending') },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
+
+          controller.startSessionStatusPolling();
+          await flushPoll();
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+
+          await jest.advanceTimersByTimeAsync(15_000);
+          await flushPoll();
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+        },
+      );
+    });
+
+    it('discards an in-flight poll after reset', async () => {
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('pending') },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockImplementation(async () => {
+            await controller.reset();
+            return sessionStatus('approved');
+          });
+
+          controller.startSessionStatusPolling();
+          await flushPoll();
+
+          expect(controller.state.sessionStatus).toBeNull();
+        },
+      );
+    });
+  });
+
   describe('fetchSessionDisclaimers', () => {
     const globalCatalog = {
       idOS: [
