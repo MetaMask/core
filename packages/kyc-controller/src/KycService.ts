@@ -220,6 +220,7 @@ export type ApplicantAccessTokenResponse = Infer<
 >;
 
 const SessionStatusResponseStruct = type({
+  id: string(),
   finalStatus: string(),
   statusMessage: optional(string()),
   externalUserId: string(),

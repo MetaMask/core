@@ -148,6 +148,8 @@ export type KycSumSubSdkStatus =
  * verification decision.
  */
 export type KycSessionStatus = {
+  /** UKYC session id. */
+  id: string;
   /**
    * The overall status of the session. Terminal values (e.g. `approved`,
    * `completed`, `rejected`, `failed`, `blocked`) are finished decisions; any

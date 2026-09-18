@@ -4259,6 +4259,7 @@ function ukycSessionResponse(
  * @returns A complete session status object.
  */
 function sessionStatus(finalStatus: string): {
+  id: string;
   finalStatus: string;
   externalUserId: string;
   kycStatus: string;
@@ -4266,6 +4267,7 @@ function sessionStatus(finalStatus: string): {
   vendorStatus: string;
 } {
   return {
+    id: 'sid',
     finalStatus,
     externalUserId: 'ext-1',
     kycStatus: finalStatus,

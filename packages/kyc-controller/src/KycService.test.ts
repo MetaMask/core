@@ -304,6 +304,7 @@ describe('KycService', () => {
     const wrappedEncryptionDataKey = { nonce: 'nonce-1', data: 'data-1' };
     const wrappedUkycCapabilityToken = { nonce: 'nonce-2', data: 'data-2' };
     const statusResponse = {
+      id: 'sid',
       finalStatus: 'approved',
       statusMessage: 'All good',
       externalUserId: 'ext-1',
@@ -400,6 +401,7 @@ describe('KycService', () => {
   describe('getSessionStatus', () => {
     it('returns the session status', async () => {
       const response = {
+        id: 'sid',
         finalStatus: 'approved',
         statusMessage: 'All good',
         externalUserId: 'ext-1',
@@ -417,6 +419,7 @@ describe('KycService', () => {
 
     it('url-encodes the session id', async () => {
       const response = {
+        id: 'a/b',
         finalStatus: 'pending',
         externalUserId: 'ext-1',
         kycStatus: 'pending',
@@ -507,6 +510,7 @@ describe('KycService', () => {
 
   describe('getSessionStatusForVendor', () => {
     const response = {
+      id: 'sid',
       finalStatus: 'approved',
       statusMessage: 'All good',
       externalUserId: 'ext-1',
