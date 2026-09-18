@@ -456,6 +456,51 @@ describe('RewardsIntegrationService', () => {
       }
     });
 
+    it('does not claim the subscription source when the blend quantizes to the full fee', async () => {
+      // A cent of allowance against a $1000 order blends to 9.9999 bips:
+      // cheaper than the 10-bip default in arithmetic, identical to it once the
+      // venue quantizes the builder fee to integer tenths of a basis point (a
+      // 0-bip discount either way). Claiming
+      // `source: 'subscription'` here would label a full-price order as waived
+      // and disagree with the cloid marker, which already gates on the
+      // quantized fee.
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(createBenefits({ remainingNotionalUsd: 0.01 })),
+      );
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee(1000);
+
+      expect(resolution.source).toBe('default');
+      expect(resolution.discountBips).toBeUndefined();
+      expect(resolution.subscriptionWaiverKind).toBeUndefined();
+    });
+
+    it('still claims the subscription source when the blend survives quantization', async () => {
+      // $500 of the same $1000 order halves the fee to 5 bips, which is a real
+      // reduction on the wire, so subscription legitimately wins here.
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(null);
+      wireSubscription(
+        jest
+          .fn()
+          .mockResolvedValue(createBenefits({ remainingNotionalUsd: 500 })),
+      );
+      await service.refreshSubscriptionBenefits();
+
+      const resolution = await service.resolveFee(1000);
+
+      expect(resolution.source).toBe('subscription');
+      expect(resolution.feeBips).toBe(5);
+      expect(resolution.subscriptionWaiverKind).toBe('partial');
+    });
+
     it('does not start a benefits network read on the fee resolution path', async () => {
       const getPerpsBenefits = wireSubscription(
         jest.fn().mockResolvedValue(createBenefits()),

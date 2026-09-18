@@ -238,9 +238,13 @@ export function isSubscriptionProgramCloid(
   clientOrderId: string | null | undefined,
 ): boolean {
   const normalized = clientOrderId?.toLowerCase();
+  // Hex-validated for the same reason the flag reader is: a length-and-prefix
+  // check would accept an id whose remaining bytes are not hex at all, and this
+  // predicate is what gates the decoder.
   return Boolean(
-    normalized?.length === CLOID_HEX_LENGTH &&
-    normalized.startsWith(`0x${SUBSCRIPTION_CLOID_CONFIG.ProgramId}`),
+    normalized &&
+      CLOID_PATTERN.test(normalized) &&
+      normalized.startsWith(`0x${SUBSCRIPTION_CLOID_CONFIG.ProgramId}`),
   );
 }
 
@@ -366,20 +370,28 @@ export function quantizeBuilderFeeTenthsBps(discountBips: number): number {
  * @param params.fees - The provider's fee quote.
  * @param params.resolution - The unified fee resolution, when one was computed.
  * @param params.amount - Order notional (USD) as a string, when provided.
+ * @param params.chargesNoBuilderFee - True when this placement carries no
+ * MetaMask builder fee at all (a TWAP, for instance). Distinguishes a genuine
+ * zero from the zero a concurrent fully-waived submit leaves in provider state.
  * @returns The quote with its MetaMask component and totals re-priced.
  */
 export function applyFeeResolution(params: {
   fees: FeeCalculationResult;
   resolution: PerpsFeeResolution | undefined;
   amount?: string;
+  chargesNoBuilderFee?: boolean;
 }): FeeCalculationResult {
-  const { fees, resolution, amount } = params;
+  const { fees, resolution, amount, chargesNoBuilderFee = false } = params;
 
-  if (
-    resolution === undefined ||
-    fees.metamaskFeeRate === undefined ||
-    fees.metamaskFeeRate === 0
-  ) {
+  if (resolution === undefined || fees.metamaskFeeRate === undefined) {
+    return fees;
+  }
+
+  // A provider rate of zero is not proof that this placement carries no builder
+  // fee: it is also what a concurrent fully-waived submit leaves behind in
+  // provider state. Distinguish the two by asking the policy, not the leftover
+  // number — otherwise an ordinary preview inherits someone else's waiver.
+  if (fees.metamaskFeeRate === 0 && chargesNoBuilderFee) {
     return fees;
   }
 

@@ -161,6 +161,16 @@ describe('markSubscriptionCloid', () => {
     );
   });
 
+  it('rejects a length-correct, prefix-matching id whose body is not hex', () => {
+    const malformed = `0x${SUBSCRIPTION_CLOID_CONFIG.ProgramId}${'z'.repeat(24)}`;
+    expect(malformed).toHaveLength(34);
+
+    // Prefix and length alone are not a cloid: the venue never emits one with
+    // non-hex bytes, and treating it as ours would feed the decoder garbage.
+    expect(isSubscriptionProgramCloid(malformed)).toBe(false);
+    expect(hasFeeReductionAppliedFlag(malformed)).toBe(false);
+  });
+
   it('pads short entropy rather than producing a malformed cloid', () => {
     const cloid = markSubscriptionCloid({ entropy: 'abc' });
 
@@ -502,8 +512,32 @@ describe('applyFeeResolution', () => {
           subscriptionWaiverKind: 'full',
         },
         amount: '1000',
+        chargesNoBuilderFee: true,
       }),
     ).toStrictEqual(twapFees);
+  });
+
+  it('re-prices a zero provider rate left behind by a concurrent waived submit', () => {
+    // A fully waived submit pushes its discount into provider state, so an
+    // ordinary preview racing it reads `metamaskFeeRate: 0` from a placement
+    // that does charge a builder fee. Without the policy flag this preview
+    // would inherit the other order's waiver and quote nothing.
+    const contaminated = { ...fees, metamaskFeeRate: 0, metamaskFeeAmount: 0 };
+
+    const priced = applyFeeResolution({
+      fees: contaminated,
+      resolution: {
+        feeBips: 10,
+        discountBips: 0,
+        source: 'default',
+        subscription: createStatus({ eligible: false }),
+      },
+      amount: '1000',
+      chargesNoBuilderFee: false,
+    });
+
+    expect(priced.metamaskFeeRate).toBe(0.001);
+    expect(priced.metamaskFeeAmount).toBe(1);
   });
 
   it('re-prices rates without amounts when no notional was supplied', () => {

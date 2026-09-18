@@ -20,7 +20,10 @@ import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils.js';
 import { ensureError } from '../utils/errorUtils.js';
 import { formatAccountToCaipAccountId } from '../utils/rewardsUtils.js';
-import { resolveSubscriptionWaiverRate } from '../utils/subscriptionFeeWaiver.js';
+import {
+  quantizeBuilderFeeTenthsBps,
+  resolveSubscriptionWaiverRate,
+} from '../utils/subscriptionFeeWaiver.js';
 
 /**
  * Default MetaMask builder fee, in basis points.
@@ -212,7 +215,31 @@ export class RewardsIntegrationService {
     // `<=`, but a partial blend only wins when it is genuinely cheaper than the
     // rewards discount — the ADR's requirement that subscription be able to
     // lose.
-    if (waiver.applies && waiver.feeBips <= feeBips) {
+    //
+    // Compared *after* venue quantization, because that is the fee the order
+    // pays. The builder fee is submitted in integer tenths of a basis point, so
+    // a blend like 9.9999 bips is cheaper than the 10-bip default in arithmetic
+    // and identical to it on the wire. Selecting subscription on the raw number
+    // would label such an order `source: 'subscription'` with a 0-bip discount
+    // while it pays full price, and would disagree with the cloid marker, which
+    // already gates on the quantized fee.
+    const toTenthsBps = (bips: number): number =>
+      quantizeBuilderFeeTenthsBps(
+        Math.round((1 - bips / DEFAULT_FEE_BIPS) * BASIS_POINTS_DIVISOR),
+      );
+
+    // A strictly cheaper raw blend must also be cheaper once quantized. A tie
+    // on the raw number is exempt: matching an already-free rate still consumes
+    // the allowance, so subscription is the honest source there.
+    const waiverSurvivesQuantization =
+      waiver.feeBips === feeBips ||
+      toTenthsBps(waiver.feeBips) < toTenthsBps(feeBips);
+
+    if (
+      waiver.applies &&
+      waiver.feeBips <= feeBips &&
+      waiverSurvivesQuantization
+    ) {
       feeBips = waiver.feeBips;
       source = 'subscription';
       subscriptionWaiverKind = waiver.kind === 'partial' ? 'partial' : 'full';

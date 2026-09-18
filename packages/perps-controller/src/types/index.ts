@@ -1687,6 +1687,17 @@ export type FeeCalculationResult = {
   metamaskFeeRate?: number; // MetaMask fee rate (e.g., 0.001 for 0.1%), undefined when unavailable
   metamaskFeeAmount?: number; // MetaMask fee amount in USD
 
+  /**
+   * Whether this placement can carry a MetaMask builder fee at all.
+   *
+   * A `metamaskFeeRate` of zero is ambiguous on its own: it is what a venue or
+   * order type that has no builder field reports (`false` here), and also what
+   * a fully waived discount leaves behind (`true` here). Only the provider
+   * knows which, so it says so rather than leaving callers to guess from the
+   * number. Absent when the provider does not report a policy.
+   */
+  chargesMetamaskBuilderFee?: boolean;
+
   // Optional detailed breakdown for transparency
   breakdown?: {
     baseFeeRate: number;

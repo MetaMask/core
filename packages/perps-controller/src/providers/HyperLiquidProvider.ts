@@ -14717,6 +14717,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // MetaMask fees
       metamaskFeeRate,
       metamaskFeeAmount,
+      chargesMetamaskBuilderFee,
     };
 
     this.#deps.debugLogger.log('Final Fee Calculation Result', {
