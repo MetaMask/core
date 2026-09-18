@@ -503,14 +503,14 @@ export class KycController extends BaseController<
    * Creates a UKYC session, wraps the `data_encryption_key` and
    * `ukyc_capability_token` against the returned encryption schemas, and
    * submits both via authorizations. Stores `sumsub.sessionId`.
+   * kyc-api returns the existing session if one with the same vendor and canonicalUserId already exists.
    *
    * @returns The created session.
    */
-  async #createUkycSession(): Promise<{
-    sessionId: string;
-    kycStatus?: string;
-    finalStatus?: string;
-  }> {
+  async #createUkycSession(params:{
+    vendor: KycVendor;
+    geoCountry: string;
+  }): Promise<KycSessionStatus> {
     // Establish a per-session X25519 keypair used to seal both secrets. The
     // private half stays on the device; the public half is registered on the
     // session so the server can open later authorizations. Each encryption
@@ -528,8 +528,8 @@ export class KycController extends BaseController<
       ukycCapabilityToken: capabilityTokenSchema,
     } = await this.messenger.call('KycService:createUkycSession', {
       sessionClientPublicKey,
-      residenceCountry: this.state.geoCountry,
-      vendor: this.state.vendor,
+      residenceCountry: params.geoCountry,
+      vendor: params.vendor,
     });
 
     await this.#verifyWrappingKeys(encryptionDataKey, capabilityTokenSchema);
@@ -541,7 +541,7 @@ export class KycController extends BaseController<
         capabilityTokenSchema,
       );
 
-    const { finalStatus } = await this.messenger.call(
+    const sessionStatus = await this.messenger.call(
       'KycService:setAuthorizations',
       {
         sessionId,
@@ -550,13 +550,13 @@ export class KycController extends BaseController<
       },
     );
 
-    return { sessionId, finalStatus };
+    return sessionStatus;
   }
 
 
   launchProviderFlow({ locale, debug }: { locale?: string; debug?: boolean }): Promise<string, unknown> {
     // Currently only sumsub is supported and must be used for Iron
-    return this.#startSumSub({ locale, debug });
+    return this.#launchSumsubFlow({ locale, debug });
   }
 
   /**
