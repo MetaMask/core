@@ -567,7 +567,7 @@ export class KycController extends BaseController<
    * reuse was accepted.
    * @param generation - Flow generation captured by the caller.
    */
-    async #recordSessionDisclaimers(
+    async recordSessionDisclaimers(
       params: {
         providerDisclaimersAccepted: KycConsentRecord[];
         idosDisclaimersAccepted: KycConsentRecord[];
@@ -577,17 +577,19 @@ export class KycController extends BaseController<
       if (!this.state.sessionStatus) {
         throw new Error('No session was found');
       }
-      const catalog = await this.messenger.call(
+
+      // TODO: Check if these can simply be mapped to `{key, version}` pairs instead
+      const disclaimers = await this.messenger.call(
         'KycService:fetchSessionDisclaimersBySessionId',
         { sessionId: this.state.sessionStatus.id },
       );
 
       const idOS = consentRecordsFromAcceptedList(
-        catalog.idOS,
+        disclaimers.idOS,
         params.idosDisclaimersAccepted,
       );
       const kycProvider = consentRecordsFromAcceptedList(
-        catalog.kycProvider,
+        disclaimers.kycProvider,
         params.providerDisclaimersAccepted,
       );
 
