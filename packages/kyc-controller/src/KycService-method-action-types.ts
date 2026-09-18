@@ -32,14 +32,14 @@ export type KycServiceFetchVendorDisclaimersAction = {
 };
 
 /**
- * Creates a vendor session via the UKYC backend.
+ * Creates a MoonPay vendor session via the UKYC backend.
  *
  * @param params - The session parameters.
  * @returns The created session token.
  */
-export type KycServiceCreateSessionAction = {
-  type: `KycService:createSession`;
-  handler: KycService['createSession'];
+export type KycServiceCreateMoonpaySessionAction = {
+  type: `KycService:createMoonpaySession`;
+  handler: KycService['createMoonpaySession'];
 };
 
 /**
@@ -237,7 +237,7 @@ export type KycServiceGetSessionStatusAction = {
 export type KycServiceMethodActions =
   | KycServiceGetGeoCountryAction
   | KycServiceFetchVendorDisclaimersAction
-  | KycServiceCreateSessionAction
+  | KycServiceCreateMoonpaySessionAction
   | KycServiceCheckKycRequiredAction
   | KycServiceCreateVendorCustomerAction
   | KycServiceSubmitVendorDisclaimersAction

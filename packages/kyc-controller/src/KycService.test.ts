@@ -149,7 +149,7 @@ describe('KycService', () => {
     });
   });
 
-  describe('createSession', () => {
+  describe('createMoonpaySession', () => {
     it('creates a session and returns the token', async () => {
       nock(MOCK_API_URL)
         .post('/vendors/moonpay/sessions')
@@ -157,7 +157,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       expect(
-        await service.createSession({
+        await service.createMoonpaySession({
           email: 'a@b.co',
           termsAcceptedAt: '2026-01-01T00:00:00.000Z',
           disclaimerIds: ['1'],
@@ -170,7 +170,7 @@ describe('KycService', () => {
       const { service } = getService();
 
       await expect(
-        service.createSession({
+        service.createMoonpaySession({
           email: 'a@b.co',
           termsAcceptedAt: '2026-01-01T00:00:00.000Z',
           disclaimerIds: ['1'],

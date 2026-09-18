@@ -50,7 +50,7 @@ export const serviceName = 'KycService';
 const MESSENGER_EXPOSED_METHODS = [
   'getGeoCountry',
   'fetchVendorDisclaimers',
-  'createSession',
+  'createMoonpaySession',
   'checkKycRequired',
   'createVendorCustomer',
   'submitVendorDisclaimers',
@@ -550,12 +550,12 @@ export class KycService extends BaseDataService<
   }
 
   /**
-   * Creates a vendor session via the UKYC backend.
+   * Creates a MoonPay vendor session via the UKYC backend.
    *
    * @param params - The session parameters.
    * @returns The created session token.
    */
-  async createSession(
+  async createMoonpaySession(
     params: CreateMoonpaySessionParams,
   ): Promise<Infer<typeof CreateSessionResponseStruct>> {
     const url = new URL('/vendors/moonpay/sessions', this.#baseUrl);

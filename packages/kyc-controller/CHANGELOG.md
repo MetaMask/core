@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Rename `CreateSessionParams` to `CreateMoonpaySessionParams`.
+- **BREAKING:** Rename `CreateSessionParams` to `CreateMoonpaySessionParams`, and `KycService.createSession` / `KycService:createSession` to `createMoonpaySession` / `KycService:createMoonpaySession`.
 - `MoonPayFrameHandler.buildCheckFrameUrl` no longer sets the `skipKyc` query parameter.
 - Bump `@metamask/profile-sync-controller` from `^32.1.0` to `^32.1.1` ([#10220](https://github.com/MetaMask/core/pull/10220))
 

@@ -63,7 +63,7 @@ export type {
   KycServiceCheckKycRequiredAction,
   KycServiceCreateVendorCustomerAction,
   KycServiceCreateJourneyAction,
-  KycServiceCreateSessionAction,
+  KycServiceCreateMoonpaySessionAction,
   KycServiceCreateUkycSessionAction,
   KycServiceFetchIdosEnclaveJwksAction,
   KycServiceFetchIdosRelayJwksAction,

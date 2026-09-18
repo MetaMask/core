@@ -145,7 +145,7 @@ describe('KycController', () => {
           handlers.fetchVendorDisclaimers.mockResolvedValue([
             { id: '1', display_name: 'T', url: 'u' },
           ]);
-          handlers.createSession.mockResolvedValue({ sessionToken: 'sess' });
+          handlers.createMoonpaySession.mockResolvedValue({ sessionToken: 'sess' });
 
           await controller.initialize({ email: 'a@b.co' });
 
@@ -169,7 +169,7 @@ describe('KycController', () => {
         },
         async ({ controller, handlers }) => {
           handlers.getGeoCountry.mockResolvedValue('USA');
-          handlers.createSession.mockResolvedValue({ sessionToken: 'sess' });
+          handlers.createMoonpaySession.mockResolvedValue({ sessionToken: 'sess' });
 
           await controller.initialize();
 
@@ -241,7 +241,7 @@ describe('KycController', () => {
           // A repeat initialize mid-flow must be a no-op: no new session, no
           // token/phase teardown, no vendor switch, and no clobbering of the
           // active product.
-          expect(handlers.createSession).not.toHaveBeenCalled();
+          expect(handlers.createMoonpaySession).not.toHaveBeenCalled();
           expect(handlers.getGeoCountry).not.toHaveBeenCalled();
           expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
           expect(controller.state.phase).toBe('check');
@@ -301,7 +301,7 @@ describe('KycController', () => {
           release([{ id: '1', display_name: 'T', url: 'u' }]);
           await pending;
 
-          expect(handlers.createSession).not.toHaveBeenCalled();
+          expect(handlers.createMoonpaySession).not.toHaveBeenCalled();
           expect(controller.state.phase).toBe('idle');
         },
       );
@@ -552,7 +552,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.createSession.mockResolvedValue({ sessionToken: 'sess' });
+          handlers.createMoonpaySession.mockResolvedValue({ sessionToken: 'sess' });
 
           await controller.acceptTermsAndStartSession({
             email: 'a@b.co',
@@ -589,7 +589,7 @@ describe('KycController', () => {
           expect(controller.state.phase).toBe('error');
           expect(controller.state.error).toMatch(/Missing T&C2 acceptance/u);
           expect(controller.state.vendorDisclaimersAccepted.moonpay).toBeNull();
-          expect(handlers.createSession).not.toHaveBeenCalled();
+          expect(handlers.createMoonpaySession).not.toHaveBeenCalled();
         },
       );
     });
@@ -605,7 +605,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.createSession.mockResolvedValue({ sessionToken: 'sess' });
+          handlers.createMoonpaySession.mockResolvedValue({ sessionToken: 'sess' });
 
           await controller.acceptTermsAndStartSession({
             providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
@@ -644,7 +644,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.createSession.mockResolvedValue({
+          handlers.createMoonpaySession.mockResolvedValue({
             sessionToken: 'new-session',
           });
 
@@ -676,7 +676,7 @@ describe('KycController', () => {
           }) => void = () => {
             // no-op placeholder until the deferred promise is wired up
           };
-          handlers.createSession.mockReturnValue(
+          handlers.createMoonpaySession.mockReturnValue(
             new Promise<{ sessionToken: string }>((resolve) => {
               releaseSession = resolve;
             }),
@@ -712,7 +712,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.createSession.mockRejectedValue(new Error('nope'));
+          handlers.createMoonpaySession.mockRejectedValue(new Error('nope'));
           handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.acceptTermsAndStartSession({
@@ -745,7 +745,7 @@ describe('KycController', () => {
           let rejectSession: (reason: Error) => void = () => {
             // no-op placeholder until the deferred promise is wired up
           };
-          handlers.createSession.mockReturnValue(
+          handlers.createMoonpaySession.mockReturnValue(
             new Promise<{ sessionToken: string }>((_resolve, reject) => {
               rejectSession = reject;
             }),
@@ -782,7 +782,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.createSession.mockRejectedValue(new Error('nope'));
+          handlers.createMoonpaySession.mockRejectedValue(new Error('nope'));
           handlers.fetchVendorDisclaimers.mockResolvedValue([]);
 
           await controller.acceptTermsAndStartSession({
@@ -2132,7 +2132,7 @@ describe('KycController', () => {
           vendor: 'iron',
           country: 'USA',
         });
-        expect(handlers.createSession).not.toHaveBeenCalled();
+        expect(handlers.createMoonpaySession).not.toHaveBeenCalled();
         expect(controller.state.activeVendor).toBe('iron');
         expect(controller.state.activeProduct).toBe('money');
         expect(controller.state.phase).toBe('terms');
@@ -2273,7 +2273,7 @@ describe('KycController', () => {
             vendor: 'iron',
             disclaimerIds: ['d1'],
           });
-          expect(handlers.createSession).not.toHaveBeenCalled();
+          expect(handlers.createMoonpaySession).not.toHaveBeenCalled();
           expect(controller.state.phase).toBe('done');
           controller.reset();
         },
@@ -2354,7 +2354,7 @@ describe('KycController', () => {
         async ({ controller, handlers }) => {
           await controller.initialize({ email: 'a@b.co', vendor: 'moonpay' });
 
-          expect(handlers.createSession).not.toHaveBeenCalled();
+          expect(handlers.createMoonpaySession).not.toHaveBeenCalled();
           expect(controller.state.vendorDisclaimersAccepted.iron).toStrictEqual(
             VENDOR_TERMS_IRON_D1.vendorDisclaimersAccepted.iron,
           );
@@ -2628,7 +2628,7 @@ describe('KycController', () => {
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
           });
 
-          expect(handlers.createSession).not.toHaveBeenCalled();
+          expect(handlers.createMoonpaySession).not.toHaveBeenCalled();
           expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith({
             vendor: 'iron',
             disclaimerIds: ['d1'],
@@ -4168,7 +4168,7 @@ type RootMessenger = Messenger<
 type ServiceHandlers = {
   getGeoCountry: jest.Mock;
   fetchVendorDisclaimers: jest.Mock;
-  createSession: jest.Mock;
+  createMoonpaySession: jest.Mock;
   checkKycRequired: jest.Mock;
   createVendorCustomer: jest.Mock;
   submitVendorDisclaimers: jest.Mock;
@@ -4205,7 +4205,7 @@ type WithControllerOptions = {
 const SERVICE_ACTIONS = [
   'KycService:getGeoCountry',
   'KycService:fetchVendorDisclaimers',
-  'KycService:createSession',
+  'KycService:createMoonpaySession',
   'KycService:checkKycRequired',
   'KycService:createVendorCustomer',
   'KycService:submitVendorDisclaimers',
@@ -4307,7 +4307,7 @@ function withController<ReturnValue>(
   const handlers: ServiceHandlers = {
     getGeoCountry: jest.fn().mockResolvedValue('USA'),
     fetchVendorDisclaimers: jest.fn().mockResolvedValue([]),
-    createSession: jest.fn().mockResolvedValue({ sessionToken: 'sess' }),
+    createMoonpaySession: jest.fn().mockResolvedValue({ sessionToken: 'sess' }),
     checkKycRequired: jest.fn().mockResolvedValue({ kycRequired: false }),
     createVendorCustomer: jest.fn().mockResolvedValue({
       id: 'iron-1',
@@ -4359,8 +4359,8 @@ function withController<ReturnValue>(
     handlers.fetchVendorDisclaimers,
   );
   rootMessenger.registerActionHandler(
-    'KycService:createSession',
-    handlers.createSession,
+    'KycService:createMoonpaySession',
+    handlers.createMoonpaySession,
   );
   rootMessenger.registerActionHandler(
     'KycService:checkKycRequired',
