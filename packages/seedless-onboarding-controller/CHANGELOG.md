@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add the `seedlessOperationLifecycle` state field to persist the generic non-sensitive lifecycle record defined by the Seedless Onboarding state-machine ADR ([#10148](https://github.com/MetaMask/core/pull/10148))
-  - `operation` identifies the Seedless Onboarding workflow.
+  - `operation` identifies the Seedless Onboarding workflow, such as
+    `PASSWORD_CHANGE` or `PASSWORD_SYNC`.
   - `phase` identifies the recoverable boundary within that workflow.
 - Add `PasswordSyncStatus` enum, returned by `resolvePasswordSyncState` and `reconcilePassword` to tell clients which step to run next after either an interrupted local password change or an another-device password change ([#10148](https://github.com/MetaMask/core/pull/10148))
 - Add `resolvePasswordSyncState({ skipCache })` and `SeedlessOnboardingControllerResolvePasswordSyncStateAction` to resolve remote password state at unlock without consuming a password, replacing the removed `checkIsPasswordOutdated` read ([#10148](https://github.com/MetaMask/core/pull/10148))

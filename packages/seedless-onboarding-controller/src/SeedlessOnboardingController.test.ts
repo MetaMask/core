@@ -70,7 +70,7 @@ import {
   AuthConnection,
   SecretType,
   SeedlessOnboardingOperation,
-  SeedlessOnboardingPhase,
+  SeedlessOnboardingCheckpoint,
   PasswordSyncStatus,
 } from './constants.js';
 import { RecoveryError } from './errors.js';
@@ -86,11 +86,11 @@ import type {
 import type { SeedlessOnboardingControllerState } from './types.js';
 
 const SeedlessPasswordChangePhase = {
-  SeedlessChangePending: SeedlessOnboardingPhase.RemotePasswordPending,
-  SeedlessCommitted: SeedlessOnboardingPhase.LocalStatePending,
-  LocalKeyringPending: SeedlessOnboardingPhase.LocalPasswordPending,
-  KeySyncPending: SeedlessOnboardingPhase.KeySyncPending,
-  Unknown: SeedlessOnboardingPhase.RemoteKeyPending,
+  SeedlessChangePending: SeedlessOnboardingCheckpoint.RemotePasswordPending,
+  SeedlessCommitted: SeedlessOnboardingCheckpoint.LocalStatePending,
+  LocalKeyringPending: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+  KeySyncPending: SeedlessOnboardingCheckpoint.KeySyncPending,
+  Unknown: SeedlessOnboardingCheckpoint.RemoteKeyPending,
 } as const;
 type SeedlessPasswordChangePhase =
   (typeof SeedlessPasswordChangePhase)[keyof typeof SeedlessPasswordChangePhase];
@@ -763,7 +763,7 @@ function getMockInitialControllerState(options?: {
   if (options?.passwordChangePhase !== undefined) {
     state.seedlessOperationLifecycle = {
       operation: SeedlessOnboardingOperation.PasswordChange,
-      phase: options.passwordChangePhase,
+      checkpoint: options.passwordChangePhase,
     };
   }
 
@@ -772,8 +772,8 @@ function getMockInitialControllerState(options?: {
 
 function getLifecyclePhase(
   state: SeedlessOnboardingControllerState,
-): SeedlessOnboardingPhase | undefined {
-  return state.seedlessOperationLifecycle?.phase;
+): SeedlessOnboardingCheckpoint | undefined {
+  return state.seedlessOperationLifecycle?.checkpoint;
 }
 
 describe('SeedlessOnboardingController', () => {
@@ -4107,7 +4107,7 @@ describe('SeedlessOnboardingController', () => {
           // LOCAL_STATE_PENDING after it succeeds, then
           // LOCAL_PASSWORD_PENDING once the local vault is rewritten.
           const observedPhaseTransitions: (
-            | SeedlessOnboardingPhase
+            | SeedlessOnboardingCheckpoint
             | undefined
           )[] = [];
           let previousPhase = getLifecyclePhase(controller.state);
@@ -4164,7 +4164,7 @@ describe('SeedlessOnboardingController', () => {
           );
           expect(controller.state.seedlessOperationLifecycle).toStrictEqual({
             operation: SeedlessOnboardingOperation.PasswordChange,
-            phase: SeedlessOnboardingPhase.LocalPasswordPending,
+            checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
           });
         },
       );
@@ -4776,6 +4776,24 @@ describe('SeedlessOnboardingController', () => {
         );
       });
 
+      it('clears a password-sync lifecycle', async () => {
+        await withController(
+          {
+            state: {
+              seedlessOperationLifecycle: {
+                operation: SeedlessOnboardingOperation.PasswordSync,
+                checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+              },
+            },
+          },
+          async ({ controller }) => {
+            await controller.completePasswordChange();
+
+            expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
+          },
+        );
+      });
+
       it('is a no-op when no change is in progress', async () => {
         await withController(
           {
@@ -4830,13 +4848,34 @@ describe('SeedlessOnboardingController', () => {
         );
       });
 
+      it('preserves a password-sync lifecycle operation', async () => {
+        await withController(
+          {
+            state: {
+              seedlessOperationLifecycle: {
+                operation: SeedlessOnboardingOperation.PasswordSync,
+                checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+              },
+            },
+          },
+          async ({ controller }) => {
+            await controller.markPasswordChangeKeySyncPending();
+
+            expect(controller.state.seedlessOperationLifecycle).toStrictEqual({
+              operation: SeedlessOnboardingOperation.PasswordSync,
+              checkpoint: SeedlessOnboardingCheckpoint.KeySyncPending,
+            });
+          },
+        );
+      });
+
       it('does not overwrite a lifecycle owned by another operation', async () => {
         await withController(
           {
             state: {
               seedlessOperationLifecycle: {
                 operation: SeedlessOnboardingOperation.CreateNewAccount,
-                phase: SeedlessOnboardingPhase.RemoteSecretPending,
+                checkpoint: SeedlessOnboardingCheckpoint.RemoteSecretPending,
               },
             },
           },
@@ -4845,7 +4884,7 @@ describe('SeedlessOnboardingController', () => {
 
             expect(controller.state.seedlessOperationLifecycle).toStrictEqual({
               operation: SeedlessOnboardingOperation.CreateNewAccount,
-              phase: SeedlessOnboardingPhase.RemoteSecretPending,
+              checkpoint: SeedlessOnboardingCheckpoint.RemoteSecretPending,
             });
           },
         );
@@ -4877,13 +4916,31 @@ describe('SeedlessOnboardingController', () => {
           state: {
             seedlessOperationLifecycle: {
               operation: SeedlessOnboardingOperation.CreateNewAccount,
-              phase: SeedlessOnboardingPhase.RemoteSecretPending,
+              checkpoint: SeedlessOnboardingCheckpoint.RemoteSecretPending,
             },
           },
         },
         async ({ controller }) => {
           expect(await controller.resolvePasswordSyncState()).toBe(
             PasswordSyncStatus.Unknown,
+          );
+        },
+      );
+    });
+
+    it('routes a password-sync lifecycle by its phase', async () => {
+      await withController(
+        {
+          state: {
+            seedlessOperationLifecycle: {
+              operation: SeedlessOnboardingOperation.PasswordSync,
+              checkpoint: SeedlessOnboardingCheckpoint.LocalStatePending,
+            },
+          },
+        },
+        async ({ controller }) => {
+          expect(await controller.resolvePasswordSyncState()).toBe(
+            PasswordSyncStatus.EnterNewPassword,
           );
         },
       );
@@ -5153,7 +5210,7 @@ describe('SeedlessOnboardingController', () => {
           state: {
             seedlessOperationLifecycle: {
               operation: SeedlessOnboardingOperation.CreateNewAccount,
-              phase: SeedlessOnboardingPhase.RemoteSecretPending,
+              checkpoint: SeedlessOnboardingCheckpoint.RemoteSecretPending,
             },
           },
         },
@@ -5287,7 +5344,7 @@ describe('SeedlessOnboardingController', () => {
             pwEncKey: mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD),
           });
 
-          const observedPhases: SeedlessOnboardingPhase[] = [];
+          const observedPhases: SeedlessOnboardingCheckpoint[] = [];
           let localKeyringPendingStateUpdates = 0;
           let previousPhase = getLifecyclePhase(controller.state);
           baseMessenger.subscribe(
@@ -5319,6 +5376,10 @@ describe('SeedlessOnboardingController', () => {
           expect(getLifecyclePhase(controller.state)).toBe(
             SeedlessPasswordChangePhase.LocalKeyringPending,
           );
+          expect(controller.state.seedlessOperationLifecycle).toStrictEqual({
+            operation: SeedlessOnboardingOperation.PasswordSync,
+            checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+          });
           // Vault rewrite must re-wrap the stored Keyring encryption key so
           // the old-Keyring branch can load it after sync.
           expect(await controller.loadKeyringEncryptionKey()).toBe(
@@ -5408,6 +5469,10 @@ describe('SeedlessOnboardingController', () => {
           expect(getLifecyclePhase(controller.state)).toBe(
             SeedlessPasswordChangePhase.LocalKeyringPending,
           );
+          expect(controller.state.seedlessOperationLifecycle).toStrictEqual({
+            operation: SeedlessOnboardingOperation.PasswordSync,
+            checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+          });
           expect(localKeyringPendingStateUpdates).toBe(1);
           expect(await controller.loadKeyringEncryptionKey()).toBe(
             MOCK_KEYRING_ENCRYPTION_KEY,

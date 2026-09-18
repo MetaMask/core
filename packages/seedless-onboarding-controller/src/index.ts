@@ -54,7 +54,7 @@ export {
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
   SeedlessOnboardingOperation,
-  SeedlessOnboardingPhase,
+  SeedlessOnboardingCheckpoint,
   AuthConnection,
   SecretType,
   PasswordSyncStatus,

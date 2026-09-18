@@ -47,11 +47,12 @@ import type { AuthConnection } from './constants.js';
 import {
   controllerName,
   PASSWORD_OUTDATED_CACHE_TTL_MS,
+  PASSWORD_RECOVERY_OPERATIONS,
   SecretType,
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
   SeedlessOnboardingOperation,
-  SeedlessOnboardingPhase,
+  SeedlessOnboardingCheckpoint,
   PasswordSyncStatus,
   Web3AuthNetwork,
 } from './constants.js';
@@ -398,7 +399,7 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       usedInUi: false,
     },
     seedlessOperationLifecycle: {
-      // Safe coordination data only: operation and phase. No secrets.
+      // Safe coordination data only: operation and checkpoint. No secrets.
       includeInStateLogs: true,
       persist: true,
       includeInDebugSnapshot: true,
@@ -1000,10 +1001,10 @@ export class SeedlessOnboardingController<
       const attemptChangePassword = async (): Promise<void> => {
         const { latestKeyIndex } = await this.#assertPasswordInSync({
           skipCache: true,
-          // `changePassword` writes the phase before its token-refresh retry
+          // `changePassword` writes the checkpoint before its token-refresh retry
           // and guards concurrency itself at entry, so its own assert must
-          // not be blocked by the phase it just wrote.
-          skipPhaseCheck: true,
+          // not be blocked by the checkpoint it just wrote.
+          skipCheckpointCheck: true,
         });
         // load keyring encryption key if it exists
         let keyringEncryptionKey: string | undefined;
@@ -1016,7 +1017,7 @@ export class SeedlessOnboardingController<
         // is never retried; recovery reconciles local state via the existing
         // password-sync flow.
         this.#writeSeedlessOperationLifecycle(
-          SeedlessOnboardingPhase.RemotePasswordPending,
+          SeedlessOnboardingCheckpoint.RemotePasswordPending,
         );
 
         // update the encryption key with new password and update the Metadata Store
@@ -1033,7 +1034,7 @@ export class SeedlessOnboardingController<
         // The remote Seedless change is committed. Persist the boundary so
         // recovery knows the remote password is new.
         this.#writeSeedlessOperationLifecycle(
-          SeedlessOnboardingPhase.LocalStatePending,
+          SeedlessOnboardingCheckpoint.LocalStatePending,
         );
 
         this.#resetPasswordOutdatedCache();
@@ -1044,7 +1045,8 @@ export class SeedlessOnboardingController<
           pwEncKey: newPwEncKey,
           authKeyPair: newAuthKeyPair,
           keyringEncryptionKey,
-          phase: SeedlessOnboardingPhase.LocalPasswordPending,
+          checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+          operation: SeedlessOnboardingOperation.PasswordChange,
         });
       };
 
@@ -1055,9 +1057,9 @@ export class SeedlessOnboardingController<
         );
       } catch (error) {
         log('Error changing password', error);
-        // Preserve the last known lifecycle phase. The phase written before
-        // the failed step is the recovery signal: e.g. if `changeEncKey`
-        // rejected, the phase is `REMOTE_PASSWORD_PENDING` and the client
+        // Preserve the last known lifecycle checkpoint. The checkpoint written
+        // before the failed step is the recovery signal: e.g. if `changeEncKey`
+        // rejected, the checkpoint is `REMOTE_PASSWORD_PENDING` and the client
         // performs an authoritative password-outdated check to decide the
         // recovery branch. Clearing it here would discard that signal and
         // leave the client unable to choose a branch. If the
@@ -1231,7 +1233,8 @@ export class SeedlessOnboardingController<
       pwEncKey,
       authKeyPair,
       keyringEncryptionKey,
-      phase: SeedlessOnboardingPhase.LocalPasswordPending,
+      checkpoint: SeedlessOnboardingCheckpoint.LocalPasswordPending,
+      operation: SeedlessOnboardingOperation.PasswordSync,
     });
   }
 
@@ -1500,7 +1503,7 @@ export class SeedlessOnboardingController<
    * encryption key.
    *
    * Remains lifecycle-neutral: the client calls this during recovery without
-   * advancing the lifecycle phase.
+   * advancing the lifecycle checkpoint.
    *
    * @param keyringEncryptionKey - The keyring encryption key.
    */
@@ -2204,19 +2207,20 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Persist the local Seedless state for a password change in one update.
+   * Persist the local Seedless state for a password operation in one update.
    *
    * This is intentionally separate from the generic vault creation path. The
-   * password-change boundary includes the vault, authentication public key,
-   * Keyring encryption key, and lifecycle phase.
+   * password boundary includes the vault, authentication public key, Keyring
+   * encryption key, and lifecycle checkpoint.
    *
-   * @param params - The password-change state to persist.
+   * @param params - The password-operation state to persist.
    * @param params.password - The password to encrypt the vault with.
    * @param params.encKey - The TOPRF encryption key.
    * @param params.pwEncKey - The TOPRF password encryption key.
    * @param params.authKeyPair - The TOPRF authentication key pair.
    * @param params.keyringEncryptionKey - The decrypted Keyring encryption key.
-   * @param params.phase - The lifecycle phase to persist.
+   * @param params.checkpoint - The lifecycle checkpoint to persist.
+   * @param params.operation - The password lifecycle operation to persist.
    */
   async #commitPasswordChangeState({
     password,
@@ -2224,14 +2228,16 @@ export class SeedlessOnboardingController<
     pwEncKey,
     authKeyPair,
     keyringEncryptionKey,
-    phase,
+    checkpoint,
+    operation,
   }: {
     password: string;
     encKey: Uint8Array;
     pwEncKey: Uint8Array;
     authKeyPair: KeyPair;
     keyringEncryptionKey?: string;
-    phase: SeedlessOnboardingPhase;
+    checkpoint: SeedlessOnboardingCheckpoint;
+    operation: SeedlessOnboardingOperation;
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
 
@@ -2267,8 +2273,8 @@ export class SeedlessOnboardingController<
           state.encryptedKeyringEncryptionKey = encryptedKeyringEncryptionKey;
         }
         state.seedlessOperationLifecycle = {
-          operation: SeedlessOnboardingOperation.PasswordChange,
-          phase,
+          operation,
+          checkpoint,
         };
       });
 
@@ -2395,19 +2401,21 @@ export class SeedlessOnboardingController<
    *
    * Must be called while the controller lock is held.
    *
-   * @param phase - The lifecycle phase to persist, or `undefined` to clear the
-   * lifecycle.
+   * @param checkpoint - The lifecycle checkpoint to persist, or `undefined` to
+   * clear the lifecycle.
+   * @param operation - The operation to persist with the checkpoint.
    */
   #writeSeedlessOperationLifecycle(
-    phase: SeedlessOnboardingPhase | undefined,
+    checkpoint: SeedlessOnboardingCheckpoint | undefined,
+    operation: SeedlessOnboardingOperation = SeedlessOnboardingOperation.PasswordChange,
   ): void {
     this.update((state) => {
       state.seedlessOperationLifecycle =
-        phase === undefined
+        checkpoint === undefined
           ? undefined
           : {
-              operation: SeedlessOnboardingOperation.PasswordChange,
-              phase,
+              operation,
+              checkpoint,
             };
     });
   }
@@ -2423,9 +2431,10 @@ export class SeedlessOnboardingController<
    */
   async completePasswordChange(): Promise<void> {
     await this.#withControllerLock(async () => {
+      const lifecycle = this.state.seedlessOperationLifecycle;
       if (
-        this.state.seedlessOperationLifecycle?.operation !==
-        SeedlessOnboardingOperation.PasswordChange
+        lifecycle === undefined ||
+        !PASSWORD_RECOVERY_OPERATIONS.has(lifecycle.operation)
       ) {
         return;
       }
@@ -2440,22 +2449,26 @@ export class SeedlessOnboardingController<
    * Keyring encryption key to Seedless. The controller only records the
    * boundary; it does not perform or verify synchronization.
    *
-   * @returns A promise that resolves once the phase has been persisted.
+   * @returns A promise that resolves once the checkpoint has been persisted.
    */
   async markPasswordChangeKeySyncPending(): Promise<void> {
     await this.#withControllerLock(async () => {
-      const lifecycle = this.state.seedlessOperationLifecycle;
+      const { seedlessOperationLifecycle } = this.state;
       if (
-        lifecycle !== undefined &&
-        lifecycle.operation !== SeedlessOnboardingOperation.PasswordChange
+        seedlessOperationLifecycle &&
+        !PASSWORD_RECOVERY_OPERATIONS.has(seedlessOperationLifecycle.operation)
       ) {
         return;
       }
-      if (lifecycle?.phase === SeedlessOnboardingPhase.KeySyncPending) {
+      if (
+        seedlessOperationLifecycle?.checkpoint ===
+        SeedlessOnboardingCheckpoint.KeySyncPending
+      ) {
         return;
       }
       this.#writeSeedlessOperationLifecycle(
-        SeedlessOnboardingPhase.KeySyncPending,
+        SeedlessOnboardingCheckpoint.KeySyncPending,
+        seedlessOperationLifecycle?.operation,
       );
     });
   }
@@ -2467,8 +2480,8 @@ export class SeedlessOnboardingController<
    * recovery routing, so the client makes a single call at unlock (both on
    * page render and on password submit) and routes UI from the returned status.
    *
-   * Phase handling:
-   * - No phase (`undefined`): run the authoritative outdated check. `skipCache`
+   * Checkpoint handling:
+   * - No checkpoint (`undefined`): run the authoritative outdated check. `skipCache`
    *   is honored, so the client can read from cache on render and force a remote
    *   call on submit. Returns `InSync` or `PasswordOutdated` (another device
    *   changed the remote password).
@@ -2477,7 +2490,7 @@ export class SeedlessOnboardingController<
    *   lifecycle (remote did not commit) or advances to
    *   `LOCAL_STATE_PENDING` (remote committed). Returns `InSync` or
    *   `EnterNewPassword`.
-   * - Other phases: return the next recovery step without mutating state.
+   * - Other checkpoints: return the next recovery step without mutating state.
    *
    * This method does not consume a password; the client prompts for the
    * correct password and then calls `reconcilePassword`.
@@ -2485,25 +2498,28 @@ export class SeedlessOnboardingController<
    * @param options - The options.
    * @param options.skipCache - Whether to bypass the outdated cache. Ignored
    * for `REMOTE_PASSWORD_PENDING`, which always forces a remote check.
-   * @returns The sync/recovery resolution. On any failure the last known phase
-   * is preserved and `PasswordSyncStatus.Unknown` is returned.
+   * @returns The sync/recovery resolution. On any failure the last known
+   * checkpoint is preserved and `PasswordSyncStatus.Unknown` is returned.
    */
   async resolvePasswordSyncState(options?: {
     skipCache?: boolean;
   }): Promise<PasswordSyncStatus> {
-    // The phase snapshot and any resulting check or transition must share the
-    // controller lock. Otherwise a concurrent password change can advance the
-    // phase after it is read and before this method acts on it.
+    // The checkpoint snapshot and any resulting check or transition must share
+    // the controller lock. Otherwise a concurrent password change can advance
+    // the checkpoint after it is read and before this method acts on it.
     return await this.#withControllerLock(async () => {
-      const lifecycle = this.state.seedlessOperationLifecycle;
+      const { seedlessOperationLifecycle } = this.state;
       if (
-        lifecycle !== undefined &&
-        lifecycle.operation !== SeedlessOnboardingOperation.PasswordChange
+        seedlessOperationLifecycle &&
+        !PASSWORD_RECOVERY_OPERATIONS.has(seedlessOperationLifecycle.operation)
       ) {
         return PasswordSyncStatus.Unknown;
       }
-      const phase = lifecycle?.phase;
-      switch (phase) {
+      const checkpoint = seedlessOperationLifecycle?.checkpoint;
+      const operation =
+        seedlessOperationLifecycle?.operation ??
+        SeedlessOnboardingOperation.PasswordChange;
+      switch (checkpoint) {
         case undefined: {
           try {
             const outdated = await this.#checkIsPasswordOutdated({
@@ -2517,7 +2533,7 @@ export class SeedlessOnboardingController<
             return PasswordSyncStatus.Unknown;
           }
         }
-        case SeedlessOnboardingPhase.RemotePasswordPending: {
+        case SeedlessOnboardingCheckpoint.RemotePasswordPending: {
           try {
             // Remote outcome is ambiguous; force an authoritative remote
             // check regardless of `skipCache`.
@@ -2525,7 +2541,7 @@ export class SeedlessOnboardingController<
               skipCache: true,
             });
             if (!outdated) {
-              // Remote did not commit. Clear the phase; unlock with the old
+              // Remote did not commit. Clear the checkpoint; unlock with the old
               // password normally.
               this.#writeSeedlessOperationLifecycle(undefined);
               return PasswordSyncStatus.InSync;
@@ -2533,22 +2549,24 @@ export class SeedlessOnboardingController<
             // Remote committed. Advance so recovery reconciles the local
             // Seedless side with the new password.
             this.#writeSeedlessOperationLifecycle(
-              SeedlessOnboardingPhase.LocalStatePending,
+              SeedlessOnboardingCheckpoint.LocalStatePending,
+              operation,
             );
             return PasswordSyncStatus.EnterNewPassword;
           } catch {
-            // Remote state could not be established. Preserve the phase and
+            // Remote state could not be established. Preserve the checkpoint and
             // keep the wallet locked.
             return PasswordSyncStatus.Unknown;
           }
         }
-        case SeedlessOnboardingPhase.LocalStatePending:
+        case SeedlessOnboardingCheckpoint.LocalStatePending:
           return PasswordSyncStatus.EnterNewPassword;
-        case SeedlessOnboardingPhase.LocalPasswordPending:
+        case SeedlessOnboardingCheckpoint.LocalPasswordPending:
           return PasswordSyncStatus.ReconcileKeyring;
         default:
-          // Terminal phases and any unrecognized persisted value share routing.
-          return this.#statusForTerminalPhase(phase);
+          // Terminal checkpoints and any unrecognized persisted value share
+          // routing.
+          return this.#statusForTerminalCheckpoint(checkpoint);
       }
     });
   }
@@ -2558,12 +2576,12 @@ export class SeedlessOnboardingController<
    *
    * For `LOCAL_STATE_PENDING` or `LOCAL_PASSWORD_PENDING` it re-runs the
    * existing password-sync flow (chain unlock + local vault rewrite) with the
-   * new password and advances the phase to `LOCAL_PASSWORD_PENDING`.
+   * new password and advances the checkpoint to `LOCAL_PASSWORD_PENDING`.
    * These operations are idempotent, so re-running them is safe whether or not
    * the local Seedless vault was already rewritten. The controller is left
    * unlocked.
    *
-   * For no phase (`undefined`) it re-checks whether the remote password is
+   * For no checkpoint (`undefined`) it re-checks whether the remote password is
    * outdated. If it is, it runs the same password-sync flow, advances to
    * `LOCAL_PASSWORD_PENDING`, and returns `ReconcileKeyring` so the client can
    * reconcile the local Keyring (e.g. after another device changed the remote
@@ -2577,8 +2595,8 @@ export class SeedlessOnboardingController<
    *
    * @param params - The reconciliation parameters.
    * @param params.globalPassword - The current global password.
-   * @returns The reconciliation result. On any failure the last known phase is
-   * preserved and `PasswordSyncStatus.Unknown` is returned.
+   * @returns The reconciliation result. On any failure the last known
+   * checkpoint is preserved and `PasswordSyncStatus.Unknown` is returned.
    */
   async reconcilePassword({
     globalPassword,
@@ -2586,22 +2604,31 @@ export class SeedlessOnboardingController<
     globalPassword: string;
   }): Promise<PasswordSyncStatus> {
     return await this.#withControllerLock(async () => {
-      const lifecycle = this.state.seedlessOperationLifecycle;
+      const { seedlessOperationLifecycle } = this.state;
       if (
-        lifecycle !== undefined &&
-        lifecycle.operation !== SeedlessOnboardingOperation.PasswordChange
+        seedlessOperationLifecycle &&
+        !PASSWORD_RECOVERY_OPERATIONS.has(seedlessOperationLifecycle.operation)
       ) {
         return PasswordSyncStatus.Unknown;
       }
-      const phase = lifecycle?.phase;
-      switch (phase) {
-        case SeedlessOnboardingPhase.RemotePasswordPending:
+      const checkpoint = seedlessOperationLifecycle?.checkpoint;
+      switch (checkpoint) {
+        case SeedlessOnboardingCheckpoint.RemotePasswordPending:
           // Remote state must be resolved first via
           // resolvePasswordSyncState.
           return PasswordSyncStatus.Unknown;
-        case SeedlessOnboardingPhase.LocalStatePending:
-        case SeedlessOnboardingPhase.LocalPasswordPending: {
+        case SeedlessOnboardingCheckpoint.LocalStatePending:
+        case SeedlessOnboardingCheckpoint.LocalPasswordPending: {
           try {
+            if (
+              seedlessOperationLifecycle?.operation !==
+              SeedlessOnboardingOperation.PasswordSync
+            ) {
+              this.#writeSeedlessOperationLifecycle(
+                checkpoint,
+                SeedlessOnboardingOperation.PasswordSync,
+              );
+            }
             // Re-run the password-sync flow with the new password. This
             // unlocks the controller and rewrites the local Seedless vault;
             // both operations are idempotent if the vault is already synced.
@@ -2609,14 +2636,14 @@ export class SeedlessOnboardingController<
             return PasswordSyncStatus.ReconcileKeyring;
           } catch {
             // Reconciliation failed (e.g. wrong password or transient
-            // remote error). Preserve the phase and keep the wallet locked.
+            // remote error). Preserve the checkpoint and keep the wallet locked.
             return PasswordSyncStatus.Unknown;
           }
         }
         case undefined: {
-          // No local password-change lifecycle is in flight. Another device
+          // No local password-recovery lifecycle is in flight. Another device
           // may still have changed the remote password, so re-check and sync
-          // the Seedless side if it is outdated. A phase is then recorded so
+          // the Seedless side if it is outdated. A checkpoint is then recorded so
           // the client reconciles the local Keyring.
           try {
             const outdated = await this.#checkIsPasswordOutdated({
@@ -2629,7 +2656,8 @@ export class SeedlessOnboardingController<
             // before starting the local Seedless rewrite so an interrupted
             // flow remains recoverable.
             this.#writeSeedlessOperationLifecycle(
-              SeedlessOnboardingPhase.LocalStatePending,
+              SeedlessOnboardingCheckpoint.LocalStatePending,
+              SeedlessOnboardingOperation.PasswordSync,
             );
             await this.#runPasswordSyncFlow(globalPassword);
             return PasswordSyncStatus.ReconcileKeyring;
@@ -2640,9 +2668,9 @@ export class SeedlessOnboardingController<
           }
         }
         default:
-          // Terminal phases and any unrecognized persisted value share
+          // Terminal checkpoints and any unrecognized persisted value share
           // routing.
-          return this.#statusForTerminalPhase(phase);
+          return this.#statusForTerminalCheckpoint(checkpoint);
       }
     });
   }
@@ -2674,18 +2702,20 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Return the recovery status for phases that require no Seedless-side
+   * Return the recovery status for checkpoints that require no Seedless-side
    * mutation. Shared by `resolvePasswordSyncState` (read) and
-   * `reconcilePassword` (apply) so both route the terminal phases
+   * `reconcilePassword` (apply) so both route the terminal checkpoints
    * identically.
    *
-   * @param phase - The persisted shared lifecycle phase.
-   * @returns The status for the phase. An unrecognized persisted value keeps
-   * recovery blocked.
+   * @param checkpoint - The persisted shared lifecycle checkpoint.
+   * @returns The status for the checkpoint. An unrecognized persisted value
+   * keeps recovery blocked.
    */
-  #statusForTerminalPhase(phase: SeedlessOnboardingPhase): PasswordSyncStatus {
-    switch (phase) {
-      case SeedlessOnboardingPhase.KeySyncPending:
+  #statusForTerminalCheckpoint(
+    checkpoint: SeedlessOnboardingCheckpoint,
+  ): PasswordSyncStatus {
+    switch (checkpoint) {
+      case SeedlessOnboardingCheckpoint.KeySyncPending:
         return PasswordSyncStatus.SyncKey;
       default:
         return PasswordSyncStatus.Unknown;
@@ -2754,7 +2784,7 @@ export class SeedlessOnboardingController<
    *
    * @param options - The options for asserting the password is in sync.
    * @param options.skipCache - Whether to skip the cache check.
-   * @param options.skipPhaseCheck - Whether to skip the
+   * @param options.skipCheckpointCheck - Whether to skip the
    * `seedlessOperationLifecycle` guard. Only `changePassword` should set this:
    * it guards concurrency itself at entry and writes the lifecycle before its
    * token-refresh retry, so its own internal assert must not be blocked by the
@@ -2770,7 +2800,7 @@ export class SeedlessOnboardingController<
      * lifecycle before its token-refresh retry, so its own internal assert
      * must not be blocked by the lifecycle it just wrote.
      */
-    skipPhaseCheck?: boolean;
+    skipCheckpointCheck?: boolean;
   }): Promise<{
     authPubKey: SEC1EncodedPublicKey;
     latestKeyIndex: number;
@@ -2779,14 +2809,14 @@ export class SeedlessOnboardingController<
 
     // Block TOPRF operations while a password change is unresolved. The
     // controller mutex serializes in-process calls, but a previous change may
-    // have left a persisted phase after a crash. Running a fresh TOPRF
+    // have left a persisted checkpoint after a crash. Running a fresh TOPRF
     // operation against ambiguous state could corrupt recovery. Recovery
     // itself bypasses this assert (it calls the password-sync primitives
     // directly), so this guard does not block reconciliation. `changePassword`
-    // passes `skipPhaseCheck` because it writes the phase before its own
+    // passes `skipCheckpointCheck` because it writes the checkpoint before its own
     // token-refresh retry and already guards concurrency at entry.
     if (
-      !options?.skipPhaseCheck &&
+      !options?.skipCheckpointCheck &&
       this.state.seedlessOperationLifecycle !== undefined
     ) {
       throw new SeedlessOnboardingError(

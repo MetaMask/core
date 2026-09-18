@@ -28,23 +28,30 @@ export enum SeedlessOnboardingMigrationVersion {
 /**
  * The stateful Seedless Onboarding operation tracked by the lifecycle record.
  *
- * The operation identifies the workflow, while the phase identifies the
+ * The operation identifies the workflow, while the checkpoint identifies the
  * recoverable boundary within that workflow.
  */
 export enum SeedlessOnboardingOperation {
   PasswordChange = 'PASSWORD_CHANGE',
+  PasswordSync = 'PASSWORD_SYNC',
   CreateNewAccount = 'CREATE_NEW_ACCOUNT',
   AddNewSecretData = 'ADD_NEW_SECRET_DATA',
 }
 
+export const PASSWORD_RECOVERY_OPERATIONS = new Set([
+  SeedlessOnboardingOperation.PasswordChange,
+  SeedlessOnboardingOperation.PasswordSync,
+]);
+
 /**
- * Shared lifecycle phases for stateful Seedless Onboarding TOPRF operations.
+ * Shared lifecycle checkpoints for stateful Seedless Onboarding TOPRF
+ * operations.
  *
- * These phases are recovery signals only — they are not proof that a remote or
- * local operation completed. Recovery must always verify actual remote and
- * local state before acting on a phase.
+ * These checkpoints are recovery signals only — they are not proof that a
+ * remote or local operation completed. Recovery must always verify actual
+ * remote and local state before acting on a checkpoint.
  */
-export enum SeedlessOnboardingPhase {
+export enum SeedlessOnboardingCheckpoint {
   LocalKeyPending = 'LOCAL_KEY_PENDING',
   RemoteSecretPending = 'REMOTE_SECRET_PENDING',
   RemoteKeyPending = 'REMOTE_KEY_PENDING',
@@ -60,7 +67,7 @@ export enum SeedlessOnboardingPhase {
  */
 export type SeedlessOperationLifecycle = {
   operation: SeedlessOnboardingOperation;
-  phase: SeedlessOnboardingPhase;
+  checkpoint: SeedlessOnboardingCheckpoint;
 };
 
 /**
@@ -81,11 +88,11 @@ export enum PasswordSyncStatus {
   PasswordOutdated = 'password-outdated',
   /** Remote committed (or the local Seedless side still needs the new password). Prompt for the new password, then call `reconcilePassword`. */
   EnterNewPassword = 'enter-new-password',
-  /** The Seedless side is reconciled (phase is `LOCAL_PASSWORD_PENDING`). The client must cryptographically classify the local Keyring and run the old/new branch. */
+  /** The Seedless side is reconciled (checkpoint is `LOCAL_PASSWORD_PENDING`). The client must cryptographically classify the local Keyring and run the old/new branch. */
   ReconcileKeyring = 'reconcile-keyring',
-  /** Phase is `KEY_SYNC_PENDING`. The client must export, store, and sync the current Keyring encryption key, then call `completePasswordChange`. */
+  /** Checkpoint is `KEY_SYNC_PENDING`. The client must export, store, and sync the current Keyring encryption key, then call `completePasswordChange`. */
   SyncKey = 'sync-key',
-  /** The remote or local state could not be established. Keep the wallet locked. The last known phase is preserved. */
+  /** The remote or local state could not be established. Keep the wallet locked. The last known checkpoint is preserved. */
   Unknown = 'unknown',
 }
 

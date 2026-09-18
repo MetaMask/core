@@ -212,7 +212,7 @@ export type SeedlessOnboardingControllerClearStateAction = {
  * encryption key.
  *
  * Remains lifecycle-neutral: the client calls this during recovery without
- * advancing the lifecycle phase.
+ * advancing the lifecycle checkpoint.
  *
  * @param keyringEncryptionKey - The keyring encryption key.
  */
@@ -237,8 +237,7 @@ export type SeedlessOnboardingControllerLoadKeyringEncryptionKeyAction = {
  *
  * Call this after the current Keyring encryption key has been synchronized
  * and all required local writes have succeeded. The controller clears the
- * lifecycle so the next unlock is normal. Remote-failure cleanup is handled
- * internally by `resolvePasswordSyncState`.
+ * lifecycle so the next unlock is normal.
  *
  * @returns A promise that resolves once recovery has been completed.
  */
@@ -254,7 +253,7 @@ export type SeedlessOnboardingControllerCompletePasswordChangeAction = {
  * Keyring encryption key to Seedless. The controller only records the
  * boundary; it does not perform or verify synchronization.
  *
- * @returns A promise that resolves once the phase has been persisted.
+ * @returns A promise that resolves once the checkpoint has been persisted.
  */
 export type SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction =
   {
@@ -269,8 +268,8 @@ export type SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction =
  * recovery routing, so the client makes a single call at unlock (both on
  * page render and on password submit) and routes UI from the returned status.
  *
- * Phase handling:
- * - No phase (`undefined`): run the authoritative outdated check. `skipCache`
+ * Checkpoint handling:
+ * - No checkpoint (`undefined`): run the authoritative outdated check. `skipCache`
  * is honored, so the client can read from cache on render and force a remote
  * call on submit. Returns `InSync` or `PasswordOutdated` (another device
  * changed the remote password).
@@ -279,7 +278,7 @@ export type SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction =
  * lifecycle (remote did not commit) or advances to
  * `LOCAL_STATE_PENDING` (remote committed). Returns `InSync` or
  * `EnterNewPassword`.
- * - Other phases: return the next recovery step without mutating state.
+ * - Other checkpoints: return the next recovery step without mutating state.
  *
  * This method does not consume a password; the client prompts for the
  * correct password and then calls `reconcilePassword`.
@@ -287,8 +286,8 @@ export type SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction =
  * @param options - The options.
  * @param options.skipCache - Whether to bypass the outdated cache. Ignored
  * for `REMOTE_PASSWORD_PENDING`, which always forces a remote check.
- * @returns The sync/recovery resolution. On any failure the last known phase
- * is preserved and `PasswordSyncStatus.Unknown` is returned.
+ * @returns The sync/recovery resolution. On any failure the last known
+ * checkpoint is preserved and `PasswordSyncStatus.Unknown` is returned.
  */
 export type SeedlessOnboardingControllerResolvePasswordSyncStateAction = {
   type: `SeedlessOnboardingController:resolvePasswordSyncState`;
@@ -300,12 +299,12 @@ export type SeedlessOnboardingControllerResolvePasswordSyncStateAction = {
  *
  * For `LOCAL_STATE_PENDING` or `LOCAL_PASSWORD_PENDING` it re-runs the
  * existing password-sync flow (chain unlock + local vault rewrite) with the
- * new password and advances the phase to `LOCAL_PASSWORD_PENDING`.
+ * new password and advances the checkpoint to `LOCAL_PASSWORD_PENDING`.
  * These operations are idempotent, so re-running them is safe whether or not
  * the local Seedless vault was already rewritten. The controller is left
  * unlocked.
  *
- * For no phase (`undefined`) it re-checks whether the remote password is
+ * For no checkpoint (`undefined`) it re-checks whether the remote password is
  * outdated. If it is, it runs the same password-sync flow, advances to
  * `LOCAL_PASSWORD_PENDING`, and returns `ReconcileKeyring` so the client can
  * reconcile the local Keyring (e.g. after another device changed the remote
@@ -319,8 +318,8 @@ export type SeedlessOnboardingControllerResolvePasswordSyncStateAction = {
  *
  * @param params - The reconciliation parameters.
  * @param params.globalPassword - The current global password.
- * @returns The reconciliation result. On any failure the last known phase is
- * preserved and `PasswordSyncStatus.Unknown` is returned.
+ * @returns The reconciliation result. On any failure the last known
+ * checkpoint is preserved and `PasswordSyncStatus.Unknown` is returned.
  */
 export type SeedlessOnboardingControllerReconcilePasswordAction = {
   type: `SeedlessOnboardingController:reconcilePassword`;
