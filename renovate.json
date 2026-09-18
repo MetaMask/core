@@ -3,7 +3,6 @@
   "extends": ["config:recommended"],
   "dependencyDashboard": true,
   "dependencyDashboardApproval": true,
-  "dependencyDashboardTitle": "Dependency Dashboard (Renovate pilot)",
   "minimumReleaseAge": "3 days",
   "postUpdateOptions": ["yarnDedupeHighest"],
   "packageRules": [
