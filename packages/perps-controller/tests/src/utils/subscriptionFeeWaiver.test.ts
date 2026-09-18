@@ -345,6 +345,16 @@ describe('hasFeeReductionAppliedFlag', () => {
     expect(legacyRungs.filter(hasFeeReductionAppliedFlag)).toStrictEqual([]);
   });
 
+  it('rejects a malformed cloid whose flag byte is only partly hex', () => {
+    // `parseInt('1z', 16)` is 1, so a length-and-prefix check alone would
+    // report whichever flags the leading digit happens to encode.
+    const malformed = `0x${SUBSCRIPTION_CLOID_CONFIG.ProgramId}1z${'a'.repeat(22)}`;
+
+    expect(malformed).toHaveLength(34);
+    expect(readSubscriptionCloidFlags(malformed)).toBeUndefined();
+    expect(hasFeeReductionAppliedFlag(malformed)).toBe(false);
+  });
+
   it('reports no flag for an unmarked Scale cloid, whose flag byte is reserved', () => {
     // The Scale generator zeroes the byte the subscription flag lives in, so
     // an unmarked ladder can never decode downstream as a waived one.
@@ -448,6 +458,29 @@ describe('applyFeeResolution', () => {
     expect(priced.metamaskFeeRate).toBeCloseTo(0.001, 10);
     expect(priced.feeRate).toBeCloseTo(0.00145, 10);
   });
+
+  it.each(['-1000', '0'])(
+    'leaves quoted amounts alone for a non-positive notional of %p',
+    (amount) => {
+      // A non-positive notional is not an order size; recomputing from it would
+      // quote a negative fee. The rates are still re-priced.
+      const priced = applyFeeResolution({
+        fees,
+        resolution: {
+          feeBips: 7.5,
+          discountBips: 2500,
+          source: 'subscription',
+          subscription: createStatus({ remainingNotionalUsd: 250 }),
+          subscriptionWaiverKind: 'partial',
+        },
+        amount,
+      });
+
+      expect(priced.metamaskFeeRate).toBeCloseTo(0.00075, 10);
+      expect(priced.feeAmount).toBe(fees.feeAmount);
+      expect(priced.metamaskFeeAmount).toBe(fees.metamaskFeeAmount);
+    },
+  );
 
   it('leaves the quote untouched when no resolution was computed', () => {
     expect(

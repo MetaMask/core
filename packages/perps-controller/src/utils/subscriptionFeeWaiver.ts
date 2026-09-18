@@ -139,6 +139,9 @@ const FLAG_BYTE_START = 2 + SUBSCRIPTION_CLOID_CONFIG.ProgramIdHexLength;
 /** Full length of a venue cloid string: `0x` plus 16 bytes of hex. */
 const CLOID_HEX_LENGTH = 34;
 
+/** A well-formed venue cloid: `0x` followed by exactly 32 hex characters. */
+const CLOID_PATTERN = /^0x[0-9a-f]{32}$/u;
+
 /**
  * Read the flag byte out of a cloid.
  *
@@ -149,14 +152,16 @@ export function readSubscriptionCloidFlags(
   clientOrderId: string | null | undefined,
 ): number | undefined {
   const normalized = clientOrderId?.toLowerCase();
-  if (normalized?.length !== CLOID_HEX_LENGTH) {
+  // The whole id must be well-formed hex, not merely the right length: a byte
+  // like `1z` parses as 1 under `parseInt`, so a malformed id would otherwise
+  // report whichever flags its leading digit happens to encode.
+  if (normalized === undefined || !CLOID_PATTERN.test(normalized)) {
     return undefined;
   }
-  const flags = Number.parseInt(
+  return Number.parseInt(
     normalized.slice(FLAG_BYTE_START, FLAG_BYTE_START + 2),
     16,
   );
-  return Number.isNaN(flags) ? undefined : flags;
 }
 
 /**
@@ -390,8 +395,13 @@ export function applyFeeResolution(params: {
     quantizeBuilderFeeTenthsBps(discountBips) / BUILDER_FEE_TENTHS_BPS_PER_UNIT;
   const parsedAmount =
     amount === undefined ? undefined : Number.parseFloat(amount);
+  // A non-positive notional is not an order size, and recomputing from it would
+  // quote a negative fee. The rates are still re-priced; only the amounts are
+  // left as the provider reported them.
   const notional =
-    parsedAmount !== undefined && Number.isFinite(parsedAmount)
+    parsedAmount !== undefined &&
+    Number.isFinite(parsedAmount) &&
+    parsedAmount > 0
       ? parsedAmount
       : undefined;
 

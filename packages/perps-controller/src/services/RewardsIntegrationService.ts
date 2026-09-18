@@ -503,7 +503,11 @@ export class RewardsIntegrationService {
         // Definitive "not entitled", even thrown synchronously.
         return null;
       }
-      if (this.#messengerBenefitsAnswered && !this.#deps.subscription) {
+      // An unregistered action throws a recognisable "no handler" error; any
+      // other synchronous throw came from a handler that exists and failed, so
+      // it must not be mistaken for an absent action and cached as `null` —
+      // including on the very first call, before one has ever answered.
+      if (!isUnregisteredActionError(error) && !this.#deps.subscription) {
         throw error;
       }
       // Otherwise: unregistered action, or a throw with a DI source to fall
@@ -753,6 +757,25 @@ export class RewardsIntegrationService {
 }
 
 /**
+ * Whether a messenger call failed because no handler is registered.
+ *
+ * `Messenger.call` reports an unregistered action with a distinctive message.
+ * Anything else thrown synchronously came from a handler that does exist, and
+ * conflating the two would cache a real failure as "no subscription".
+ *
+ * @param error - The error thrown by the messenger call.
+ * @returns True when the action has no registered handler.
+ */
+function isUnregisteredActionError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    /handler.*not.*registered|no.*handler.*registered|A handler for .* has not been registered/iu.test(
+      error.message,
+    )
+  );
+}
+
+/**
  * Whether a benefits rejection definitively means "this profile is not
  * entitled", as opposed to "the read failed".
  *
@@ -799,11 +822,22 @@ function adaptSubscriptionBenefits(
   }
 
   const perps = response.products?.perps;
+  // `products.perps` is always present on the response, so its existence proves
+  // nothing. Entitlement is the response-level `eligible` flag plus positive
+  // evidence from the perps block itself: a builder fee rate to apply, or a
+  // reported allowance to spend. A block carrying neither describes a profile
+  // with no perps benefit, whatever the other products say.
+  const hasPerpsBenefit = Boolean(
+    perps &&
+    (perps.builderFeeBips !== null ||
+      perps.remainingMicroUsd !== null ||
+      perps.capMicroUsd !== undefined),
+  );
 
   return {
     status: response.eligible ? 'active' : 'inactive',
     perpsFeeWaiver: {
-      entitled: response.eligible && Boolean(perps),
+      entitled: response.eligible && hasPerpsBenefit,
       usage: perps?.exhausted ? 'exhausted' : 'available',
       exhausted: perps?.exhausted,
       remainingNotionalUsd:
@@ -816,7 +850,6 @@ function adaptSubscriptionBenefits(
 }
 
 /**
- * Evaluate the perps fee-waiver eligibility gate against a benefits snapshot./**
  * Evaluate the perps fee-waiver eligibility gate against a benefits snapshot.
  *
  * The gate is `status=active` AND `perpsFeeWaiver` entitled AND

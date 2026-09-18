@@ -1161,6 +1161,75 @@ describe('RewardsIntegrationService', () => {
       });
     });
 
+    it('withholds the waiver when the perps block reports no benefit', async () => {
+      // `products.perps` is always present on the response, so its existence
+      // proves nothing. A block with no builder fee, no allowance and no cap
+      // describes a profile with no perps benefit even when the response is
+      // eligible for other products.
+      setupMessengerDefaults({
+        'SubscriptionController:getBenefits': jest.fn().mockResolvedValue(
+          createBenefitsResponse({
+            builderFeeBips: null,
+            remainingMicroUsd: null,
+            capMicroUsd: undefined,
+          }),
+        ),
+      });
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+
+      await service.refreshSubscriptionBenefits();
+
+      expect(service.getSubscriptionFeeWaiverStatus()).toMatchObject({
+        eligible: false,
+        reason: 'not-entitled',
+      });
+    });
+
+    it('keeps the waiver when the perps block reports a builder fee but no cap', async () => {
+      setupMessengerDefaults({
+        'SubscriptionController:getBenefits': jest.fn().mockResolvedValue(
+          createBenefitsResponse({
+            builderFeeBips: '0',
+            remainingMicroUsd: null,
+          }),
+        ),
+      });
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+
+      await service.refreshSubscriptionBenefits();
+
+      expect(service.getSubscriptionFeeWaiverStatus().eligible).toBe(true);
+    });
+
+    it('does not cache a first-call handler failure as no subscription', async () => {
+      // Before this fix a synchronous throw on the very first call looked like
+      // an unregistered action, so a real handler failure was stored as a
+      // successful "no subscription" result.
+      setupMessengerDefaults({
+        'SubscriptionController:getBenefits': () => {
+          throw new Error('benefits handler exploded');
+        },
+      });
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+      expect(mockDeps.subscription).toBeUndefined();
+
+      await expect(
+        service.refreshSubscriptionBenefits(),
+      ).resolves.toBeUndefined();
+
+      // Not hydrated, rather than a cached "no subscription" answer.
+      expect(service.getSubscriptionFeeWaiverStatus().reason).not.toBe(
+        'no-subscription',
+      );
+      expect(mockDeps.logger.error).toHaveBeenCalled();
+    });
+
     it('still reports no source when neither wiring is present', async () => {
       setupMessengerDefaults();
       (
