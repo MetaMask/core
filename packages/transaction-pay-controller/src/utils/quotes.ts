@@ -6,6 +6,7 @@ import { createModuleLogger } from '@metamask/utils';
 
 import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
+import { ATOMIC_PROMOTION_FAILURE_PREFIX } from '../strategy/relay/constants.js';
 import type {
   QuoteRequest,
   QuoteErrorInfo,
@@ -757,6 +758,25 @@ async function getQuotes(
       error ??= isQuoteError(caughtError)
         ? caughtError.info
         : { message: (caughtError as Error).message, reason: 'no-quotes' };
+
+      if (
+        isQuoteError(caughtError) &&
+        caughtError.info.reason === 'no-quotes' &&
+        caughtError.info.message.startsWith(ATOMIC_PROMOTION_FAILURE_PREFIX)
+      ) {
+        log(
+          'Terminal atomic promotion failure, aborting remaining strategies',
+          {
+            strategy: name,
+            transactionId,
+          },
+        );
+        return {
+          batchTransactions: [],
+          error: caughtError.info,
+          quotes: [],
+        };
+      }
 
       if (
         isQuoteError(caughtError) &&

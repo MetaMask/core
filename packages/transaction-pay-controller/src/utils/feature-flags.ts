@@ -1,8 +1,8 @@
-import { hasTransactionType } from '@metamask/transaction-controller';
-import type {
-  TransactionMeta,
+import {
+  hasTransactionType,
   TransactionType,
 } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -195,10 +195,16 @@ export type RelayValidationEnabledConfig = {
   transactionTypes?: Partial<Record<TransactionType, boolean>>;
 };
 
+export type AtomicMaxPromotionEnabledConfig = {
+  default?: boolean;
+  transactionTypes?: Partial<Record<TransactionType, boolean>>;
+};
+
 type FeatureFlagsExtendedRaw = {
   excludeChainIdsFromInfura?: Hex[];
   payStrategies?: {
     relay?: {
+      atomicMaxPromotionEnabled?: AtomicMaxPromotionEnabledConfig;
       gaslessEnabled?: boolean;
       validationEnabled?: RelayValidationEnabledConfig;
     };
@@ -687,6 +693,54 @@ export function isRelayValidationEnabled(
 
   // `?? false`: `default` is optional, so an omitted config disables validation.
   return validationEnabled?.default ?? false;
+}
+
+/**
+ * Whether atomic max promotion is enabled for a given transaction.
+ *
+ * Gates promotion of subsidized max deposits to atomic exact-output quotes.
+ *
+ * Configured via the `payStrategies.relay.atomicMaxPromotionEnabled` flag, an
+ * object `{ default?: boolean; transactionTypes?: { [type]?: boolean } }`:
+ * a matching `transactionTypes[type]` entry overrides `default` when the
+ * transaction, or any nested transaction, has that type.
+ *
+ * When the flag is absent, only direct Money Account deposits are eligible,
+ * preserving the pre-flag promotion scope.
+ *
+ * @param messenger - Controller messenger.
+ * @param transaction - Transaction being quoted. Its top-level and nested
+ * types are matched against the `transactionTypes` overrides.
+ * @returns True if atomic max promotion may be attempted.
+ */
+export function isAtomicMaxPromotionEnabled(
+  messenger: TransactionPayControllerMessenger,
+  transaction?: TransactionMeta,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  const promotionEnabled =
+    featureFlags.payStrategies?.relay?.atomicMaxPromotionEnabled;
+
+  const transactionTypes = promotionEnabled?.transactionTypes ?? {};
+
+  // A per-type override wins over the global `default` toggle. An override
+  // matches when the transaction, or any nested transaction, has that type.
+  for (const [type, enabled] of Object.entries(transactionTypes)) {
+    if (hasTransactionType(transaction, [type as TransactionType])) {
+      return enabled;
+    }
+  }
+
+  // Absent flag preserves the original scope: direct Money Account deposits.
+  return (
+    promotionEnabled?.default ??
+    hasTransactionType(transaction, [TransactionType.moneyAccountDeposit])
+  );
 }
 
 /**
