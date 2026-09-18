@@ -146,16 +146,12 @@ function getRequest({
   rampsQuotes = FIAT_QUOTES_RESPONSE_MOCK,
   tokens = [REQUIRED_TOKEN_MOCK],
   throwsOnRampsQuotes,
-  transakBuyQuote,
-  throwsOnTransakBuyQuote,
 }: {
   amountFiat?: string;
   fiatPaymentMethod?: string;
   rampsQuotes?: RampsQuotesResponse;
   tokens?: TransactionPayRequiredToken[];
   throwsOnRampsQuotes?: Error;
-  transakBuyQuote?: unknown;
-  throwsOnTransakBuyQuote?: Error;
 } = {}): {
   callMock: jest.Mock;
   request: PayStrategyGetQuotesRequest;
@@ -176,22 +172,15 @@ function getRequest({
         };
       }
 
-      if (action === 'RampsController:getQuotes') {
+      // `getRampsQuote` calls `RampsController:getQuoteWithFees`, which returns
+      // the single best quote with fees already reconciled to the resolved
+      // provider.
+      if (action === 'RampsController:getQuoteWithFees') {
         if (throwsOnRampsQuotes) {
           throw throwsOnRampsQuotes;
         }
 
-        return rampsQuotes;
-      }
-
-      if (action === 'TransakService:getBuyQuote') {
-        if (throwsOnTransakBuyQuote) {
-          throw throwsOnTransakBuyQuote;
-        }
-
-        if (transakBuyQuote !== undefined) {
-          return transakBuyQuote;
-        }
+        return rampsQuotes.success?.[0];
       }
 
       if (action === 'TransactionPayController:updateFiatPayment') {
@@ -283,12 +272,13 @@ describe('getFiatQuotes', () => {
       ]);
 
       expect(callMock).toHaveBeenCalledWith(
-        'RampsController:getQuotes',
+        'RampsController:getQuoteWithFees',
         expect.objectContaining({
           amount: 18,
           assetId: FIAT_ASSET_CAIP_ID_MOCK,
           autoSelectProvider: true,
           fiat: 'USD',
+          isFeeExcludedFromFiat: true,
           paymentMethods: ['/payments/debit-credit-card'],
           restrictToKnownOrNativeProviders: true,
           walletAddress: WALLET_ADDRESS,
@@ -325,89 +315,38 @@ describe('getFiatQuotes', () => {
       });
     });
 
-    it('uses the native Transak fee when the provider is Transak Native', async () => {
-      const { callMock, request } = getRequest({
-        transakBuyQuote: { totalFee: 3.3 },
+    it('sums the reconciled ramps provider and network fees into the fee buckets', async () => {
+      // `getQuoteWithFees` reconciles the fee to the resolved provider (e.g. a
+      // Transak Native total of 3.3 split into a 3.1 provider fee and a 0.2
+      // network fee). The relay path just adds the ramps provider fee on top of
+      // the relay provider fee.
+      const { request } = getRequest({
+        rampsQuotes: {
+          ...FIAT_QUOTES_RESPONSE_MOCK,
+          success: [
+            {
+              ...FIAT_QUOTE_MOCK,
+              quote: {
+                ...FIAT_QUOTE_MOCK.quote,
+                networkFee: 0.2,
+                providerFee: 3.1,
+              },
+            },
+          ],
+        },
       });
 
       const result = await getFiatQuotes(request);
 
-      // Relay path stays fee-on-top, so the native quote is requested with
-      // isFeeExcludedFromFiat = true, in USD, for the adjusted amount.
-      expect(callMock).toHaveBeenCalledWith(
-        'TransakService:getBuyQuote',
-        'USD',
-        FIAT_ASSET_CAIP_ID_MOCK,
-        'eip155:137',
-        '/payments/debit-credit-card',
-        '18',
-        true,
-      );
-
-      // provider = relay(1) + native(3.3) = 4.3
+      // provider = relay(1) + ramps(3.1 + 0.2) = 4.3
       expect(result[0].fees.provider).toStrictEqual({
         fiat: '4.3',
         usd: '4.3',
       });
-      // providerFiat = native fee only
+      // providerFiat = ramps only (3.1 + 0.2 = 3.3)
       expect(result[0].fees.providerFiat).toStrictEqual({
         fiat: '3.3',
         usd: '3.3',
-      });
-    });
-
-    it('falls back to the aggregator fee when the native quote fetch fails', async () => {
-      const { request } = getRequest({
-        throwsOnTransakBuyQuote: new Error('native lookup failed'),
-      });
-
-      const result = await getFiatQuotes(request);
-
-      // providerFiat = aggregator ramps (0.5 + 0.2 = 0.7)
-      expect(result[0].fees.providerFiat).toStrictEqual({
-        fiat: '0.7',
-        usd: '0.7',
-      });
-      expect(result[0].fees.provider).toStrictEqual({
-        fiat: '1.7',
-        usd: '1.7',
-      });
-    });
-
-    it('does not fetch a native quote for a non-native provider', async () => {
-      const { callMock, request } = getRequest({
-        rampsQuotes: {
-          ...FIAT_QUOTES_RESPONSE_MOCK,
-          success: [{ ...FIAT_QUOTE_MOCK, provider: '/providers/moonpay' }],
-        },
-        transakBuyQuote: { totalFee: 3.3 },
-      });
-
-      const result = await getFiatQuotes(request);
-
-      expect(
-        callMock.mock.calls.filter(
-          (call) => call[0] === 'TransakService:getBuyQuote',
-        ),
-      ).toHaveLength(0);
-      // aggregator fee retained
-      expect(result[0].fees.providerFiat).toStrictEqual({
-        fiat: '0.7',
-        usd: '0.7',
-      });
-    });
-
-    it('falls back to the aggregator fee when the native quote returns an unusable fee', async () => {
-      const { request } = getRequest({
-        transakBuyQuote: { totalFee: -1 },
-      });
-
-      const result = await getFiatQuotes(request);
-
-      // negative native fee is rejected; aggregator fee (0.7) is used
-      expect(result[0].fees.providerFiat).toStrictEqual({
-        fiat: '0.7',
-        usd: '0.7',
       });
     });
 
@@ -560,7 +499,7 @@ describe('getFiatQuotes', () => {
 
       expect(result).toStrictEqual([]);
       expect(callMock).not.toHaveBeenCalledWith(
-        'RampsController:getQuotes',
+        'RampsController:getQuoteWithFees',
         expect.anything(),
       );
     });
@@ -580,7 +519,7 @@ describe('getFiatQuotes', () => {
 
       expect(result).toStrictEqual([]);
       expect(callMock).not.toHaveBeenCalledWith(
-        'RampsController:getQuotes',
+        'RampsController:getQuoteWithFees',
         expect.anything(),
       );
     });
@@ -600,7 +539,7 @@ describe('getFiatQuotes', () => {
 
       expect(result).toStrictEqual([]);
       expect(callMock).not.toHaveBeenCalledWith(
-        'RampsController:getQuotes',
+        'RampsController:getQuoteWithFees',
         expect.anything(),
       );
     });
@@ -650,8 +589,8 @@ describe('getFiatQuotes', () => {
             };
           }
 
-          if (action === 'RampsController:getQuotes') {
-            return FIAT_QUOTES_RESPONSE_MOCK;
+          if (action === 'RampsController:getQuoteWithFees') {
+            return FIAT_QUOTES_RESPONSE_MOCK.success?.[0];
           }
 
           if (action === 'TransactionPayController:updateFiatPayment') {
@@ -713,7 +652,7 @@ describe('getFiatQuotes', () => {
             };
           }
 
-          if (action === 'RampsController:getQuotes') {
+          if (action === 'RampsController:getQuoteWithFees') {
             throw new Error('ramps failed');
           }
 
@@ -855,12 +794,12 @@ describe('getFiatQuotes', () => {
             };
           }
 
-          if (action === 'RampsController:getQuotes') {
+          if (action === 'RampsController:getQuoteWithFees') {
             if (throwsOnRampsQuotes) {
               throw throwsOnRampsQuotes;
             }
 
-            return rampsQuotes;
+            return rampsQuotes.success?.[0];
           }
 
           if (action === 'TransactionPayController:updateFiatPayment') {
@@ -917,15 +856,19 @@ describe('getFiatQuotes', () => {
 
       await getFiatQuotes(request);
 
-      expect(callMock).toHaveBeenCalledWith('RampsController:getQuotes', {
-        amount: 10,
-        assetId: MUSD_CAIP_ID_MOCK,
-        autoSelectProvider: true,
-        fiat: DEFAULT_FIAT_CURRENCY,
-        paymentMethods: ['/payments/debit-credit-card'],
-        restrictToKnownOrNativeProviders: true,
-        walletAddress: MONEY_ACCOUNT_ADDRESS,
-      });
+      expect(callMock).toHaveBeenCalledWith(
+        'RampsController:getQuoteWithFees',
+        {
+          amount: 10,
+          assetId: MUSD_CAIP_ID_MOCK,
+          autoSelectProvider: true,
+          fiat: DEFAULT_FIAT_CURRENCY,
+          isFeeExcludedFromFiat: true,
+          paymentMethods: ['/payments/debit-credit-card'],
+          restrictToKnownOrNativeProviders: true,
+          walletAddress: MONEY_ACCOUNT_ADDRESS,
+        },
+      );
     });
 
     it('builds a direct pure-fiat quote without calling Relay', async () => {
@@ -993,7 +936,7 @@ describe('getFiatQuotes', () => {
       await getFiatQuotes(request);
 
       const rampsCalls = callMock.mock.calls.filter(
-        ([action]: [string]) => action === 'RampsController:getQuotes',
+        ([action]: [string]) => action === 'RampsController:getQuoteWithFees',
       );
       expect(rampsCalls[0]?.[1]).toStrictEqual(
         expect.objectContaining({
@@ -1046,8 +989,8 @@ describe('getFiatQuotes', () => {
             },
           };
         }
-        if (action === 'RampsController:getQuotes') {
-          return PROBE_SUCCESS_RESPONSE;
+        if (action === 'RampsController:getQuoteWithFees') {
+          return PROBE_SUCCESS_RESPONSE.success?.[0];
         }
         if (action === 'RemoteFeatureFlagController:getState') {
           return {

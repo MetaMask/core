@@ -1584,9 +1584,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
     },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    },
     "id-denylist": {
       "count": 2
     },
