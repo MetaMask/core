@@ -1826,6 +1826,8 @@ export class NetworkController extends BaseController<
     const { isInfura, networkStatus, isEIP1559Compatible } =
       await this.#determineNetworkMetadata(selectedNetworkClientId);
 
+    // If the network was switched while we were retrieving metadata, assume
+    // that another `lookupNetwork` call already took care of persisting it.
     if (selectedNetworkClientId === this.state.selectedNetworkClientId) {
       this.#updateMetadataForNetwork(selectedNetworkClientId, {
         networkStatus,
