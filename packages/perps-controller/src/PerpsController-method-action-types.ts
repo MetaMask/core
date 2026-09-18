@@ -907,10 +907,12 @@ export type PerpsControllerCalculateFeesAction = {
 
 /**
  * Approve the dedicated subscription builder outside order submission.
- * Until this succeeds, subscription waivers fall back to the ordinary
- * builder at the standard fee.
  *
- * @returns Whether the subscription builder is approved.
+ * @deprecated ADR 0064 replaced the dedicated subscription builder with cloid
+ * marking on the standard builder, so nothing needs approving and the handler
+ * is a no-op that always resolves `true`. Retained so callers keep building
+ * while they migrate; remove once cloid marking is verified in shadow mode.
+ * @returns Always `true`; no approval is required.
  */
 export type PerpsControllerApproveSubscriptionBuilderFeeAction = {
   type: `PerpsController:approveSubscriptionBuilderFee`;
