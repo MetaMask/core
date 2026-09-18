@@ -553,12 +553,27 @@ export class RewardsIntegrationService {
    * client supplies one. Wiring it to a messenger action is left until that
    * action exists rather than calling a name nothing answers.
    *
+   * **A messenger-only client therefore registers nothing.** Benefits hydration
+   * works over `SubscriptionController:getBenefits`, but a client that adopts
+   * only the messenger and injects no `registerTradingAddress` hook gets no
+   * address registration at all, and its fills cannot be attributed to a
+   * profile. That is a wiring gap rather than a failure, so it is logged rather
+   * than raised; supplying the hook — or a registration action, once one exists
+   * — is what closes it.
+   *
    * @param address - The EVM trading address to register.
    * @returns A promise that resolves once the attempt settles.
    */
   async registerTradingAddress(address: string): Promise<void> {
     const source = this.#deps.subscription;
     if (!source?.registerTradingAddress) {
+      // Visible rather than silent: a client wired only to the messenger has no
+      // way to register, and a missing registration is otherwise indetectable
+      // until fills arrive unattributed.
+      this.#deps.debugLogger.log(
+        'RewardsIntegrationService: No trading-address registration hook wired; fills will be unattributed',
+        { address },
+      );
       return;
     }
 

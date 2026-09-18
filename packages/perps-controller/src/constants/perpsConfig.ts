@@ -433,10 +433,9 @@ export const SUBSCRIPTION_BENEFITS_CACHE = {
  * keeps its own `4d4d5343` marker and its rung index, and only the flag byte is
  * claimed, leaving group recovery and cancel-by-cloid intact.
  *
- * `ProgramId` is a placeholder. The registry value is an open `[TODO]` in ADR
- * 0064 and belongs to the cloid schema owners, so it is deliberately isolated
- * in this one constant: adopting the real value is a one-line change and every
- * marking/decoding path already reads it from here.
+ * `ProgramId` is isolated in this one constant so every marking and decoding
+ * path reads the marker from a single place; see its own documentation below
+ * for the registered value and how it is encoded.
  */
 export const SUBSCRIPTION_CLOID_CONFIG = {
   /**

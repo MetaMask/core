@@ -1211,14 +1211,20 @@ describe('RewardsIntegrationService', () => {
       expect(registerTradingAddress).toHaveBeenCalledTimes(2);
     });
 
-    it('skips address registration when the client cannot perform it', async () => {
-      // No injected registration hook: nothing to call, and nothing raised.
+    it('reports the gap when the client has no registration hook', async () => {
+      // A messenger-only client hydrates benefits but cannot register an
+      // address, so its fills go unattributed. Nothing is raised — it is a
+      // wiring gap, not a failure — but it must not be silent either.
       setupMessengerDefaults();
       wireSubscription(jest.fn().mockResolvedValue(createBenefits()));
 
       await expect(
         service.registerTradingAddress(mockEvmAccount.address),
       ).resolves.toBeUndefined();
+      expect(mockDeps.debugLogger.log).toHaveBeenCalledWith(
+        'RewardsIntegrationService: No trading-address registration hook wired; fills will be unattributed',
+        { address: mockEvmAccount.address },
+      );
     });
 
     it('never throws when address registration is unavailable', async () => {
