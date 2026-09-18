@@ -828,10 +828,11 @@ export class AnalyticsController extends BaseController<
    * method must be called after construction to complete the setup process.
    *
    * When geolocation enrichment is enabled (`isGeolocationEnabled`), geolocation
-   * is resolved only for a user who is already opted in; for undecided or
-   * opted-out users it is deferred until they opt in (see {@link optIn}), so a
-   * user's location is never requested before they consent to analytics. In
-   * either case the `GeolocationController` and its
+   * is resolved only for a user who is already opted in to product or marketing
+   * analytics. For users undecided or opted out of both purposes, it is
+   * deferred until they opt in to either one (see {@link optIn} and
+   * {@link optInToMarketing}), so a user's location is never requested before
+   * they consent to analytics. In either case the `GeolocationController` and its
    * `GeolocationController:getGeolocationData` action must be registered before
    * resolution occurs, or enrichment is skipped for the session (a message is
    * logged, see {@link #resolveLocationContext}).
@@ -896,14 +897,14 @@ export class AnalyticsController extends BaseController<
   /**
    * Start resolving the geolocation context if warranted, and return the
    * in-flight (or settled) resolution so callers can await it. No-op unless
-   * enrichment is enabled, the user is opted in, and a resolution has not
-   * already been started. Deferring resolution until opt-in ensures a user's
-   * location is never requested before they consent to analytics (for example,
-   * during onboarding).
+   * enrichment is enabled, the user is opted in to product or marketing
+   * analytics, and a resolution has not already been started. Deferring
+   * resolution until consent ensures a user's location is never requested before
+   * they consent to analytics (for example, during onboarding).
    *
    * Resolution runs at most once per controller session: the settled promise
-   * is retained, so the outcome — including a failure (see
-   * {@link #resolveLocationContext}) — is not retried, and events are delivered
+   * is retained, so the outcome, including a failure (see
+   * {@link #resolveLocationContext}) is not retried, and events are delivered
    * without location for the rest of the session.
    *
    * @returns The geolocation resolution promise, or `undefined` when no
