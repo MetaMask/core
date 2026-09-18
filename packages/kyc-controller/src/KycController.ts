@@ -473,6 +473,12 @@ export class KycController extends BaseController<
     return { sessionId, finalStatus };
   }
 
+
+  launchProviderFlow({ locale, debug }: { locale?: string; debug?: boolean }): Promise<string, unknown> {
+    // Currently only sumsub is supported and must be used for Iron
+    return this.#startSumSub({ locale, debug });
+  }
+
   /**
    * Runs the SumSub document-verification sub-flow end to end:
    *
@@ -501,7 +507,7 @@ export class KycController extends BaseController<
    * @param params.debug - Enables SDK debug logging.
    * @returns The SDK result.
    */
-  async startSumSub(params?: {
+  async #launchSumsubFlow(params?: {
     locale?: string;
     debug?: boolean;
   }): Promise<Record<string, unknown>> {
