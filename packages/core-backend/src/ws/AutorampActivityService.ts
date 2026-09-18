@@ -324,7 +324,7 @@ export class AutorampActivityService {
       return canonical;
     }
 
-    const profileId = profile.profileId;
+    const { profileId } = profile;
     return typeof profileId === 'string' && profileId.length > 0
       ? profileId
       : undefined;

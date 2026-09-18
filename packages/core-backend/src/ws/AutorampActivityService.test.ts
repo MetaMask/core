@@ -400,7 +400,7 @@ describe('AutorampActivityService', () => {
     const { service, mocks } = setupService();
     mocks.connect.mockRejectedValue(new Error('connect failed'));
 
-    await expect(service.init()).resolves.toBeUndefined();
+    expect(await service.init()).toBeUndefined();
     expect(mocks.subscribe).not.toHaveBeenCalled();
   });
 });

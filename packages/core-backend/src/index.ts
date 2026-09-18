@@ -41,13 +41,11 @@ export type {
   SubscriptionOptions,
   AccountActivityServiceOptions,
   AccountActivityServiceActions,
-  AllowedActions as AccountActivityServiceAllowedActions,
   AccountActivityServiceTransactionUpdatedEvent,
   AccountActivityServiceBalanceUpdatedEvent,
   AccountActivityServiceSubscriptionErrorEvent,
   AccountActivityServiceStatusChangedEvent,
   AccountActivityServiceEvents,
-  AllowedEvents as AccountActivityServiceAllowedEvents,
   AccountActivityServiceMessenger,
 } from './ws/AccountActivityService.js';
 
@@ -81,11 +79,9 @@ export type {
   AutorampActivityEvent,
   AutorampActivityServiceOptions,
   AutorampActivityServiceActions,
-  AutorampActivityServiceAllowedActions,
   AutorampActivityServiceEventReceivedEvent,
   AutorampActivityServiceStatusChangedEvent,
   AutorampActivityServiceEvents,
-  AutorampActivityServiceAllowedEvents,
   AutorampActivityServiceMessenger,
 } from './ws/AutorampActivityService.js';
 
@@ -121,12 +117,10 @@ export type {
   OHLCVSystemNotificationData,
   OHLCVServiceOptions,
   OHLCVServiceActions,
-  OHLCVServiceAllowedActions,
   OHLCVServiceBarUpdatedEvent,
   OHLCVServiceChainStatusChangedEvent,
   OHLCVServiceSubscriptionErrorEvent,
   OHLCVServiceEvents,
-  OHLCVServiceAllowedEvents,
   OHLCVServiceMessenger,
 } from './ws/ohlcv/index.js';
 
