@@ -71,6 +71,7 @@ export type {
   KycServiceFetchVendorDisclaimersAction,
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
+  KycServiceGetSessionStatusForVendorAction,
   KycServiceSetAuthorizationsAction,
   KycServiceSubmitSessionDisclaimersAction,
   KycServiceSubmitVendorDisclaimersAction,

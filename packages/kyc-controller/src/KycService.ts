@@ -63,6 +63,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'setAuthorizations',
   'createJourney',
   'getSessionStatus',
+  'getSessionStatusForVendor',
 ] as const;
 
 /**
@@ -905,6 +906,43 @@ export class KycService extends BaseDataService<
       SessionStatusResponseStruct,
       'session status',
     );
+  }
+
+  /**
+   * Fetches the latest UKYC session status for an identity vendor
+   * (`GET /sessions/latest/status/{vendor}`).
+   *
+   * @param vendor - Identity vendor whose latest session should be queried.
+   * @returns The session status, or `null` when no latest session exists.
+   */
+  async getSessionStatusForVendor(
+    vendor: KycVendor,
+  ): Promise<KycSessionStatus | null> {
+    const url = new URL(
+      `/sessions/latest/status/${encodeURIComponent(vendor)}`,
+      this.#baseUrl,
+    );
+    try {
+      const data = await this.fetchQuery({
+        queryKey: [`${this.name}:getSessionStatusForVendor`, vendor],
+        queryFn: async () => this.#requestJson(url, { method: 'GET' }),
+        staleTime: 0,
+        gcTime: 0,
+      });
+      if (data === null) {
+        return null;
+      }
+      return this.#validateResponse(
+        data,
+        SessionStatusResponseStruct,
+        'latest session status',
+      );
+    } catch (error) {
+      if (error instanceof HttpError && error.httpStatus === 404) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   /**

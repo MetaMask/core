@@ -505,6 +505,62 @@ describe('KycService', () => {
     });
   });
 
+  describe('getSessionStatusForVendor', () => {
+    const response = {
+      finalStatus: 'approved',
+      statusMessage: 'All good',
+      externalUserId: 'ext-1',
+      kycStatus: 'approved',
+      vendor: 'iron',
+      vendorStatus: 'GREEN',
+    };
+
+    it('returns the latest session status for the vendor', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/latest/status/iron')
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(await service.getSessionStatusForVendor('iron')).toStrictEqual(
+        response,
+      );
+    });
+
+    it('returns null when no latest session exists for the vendor', async () => {
+      nock(MOCK_API_URL).get('/sessions/latest/status/moonpay').reply(404);
+      const { service } = getService();
+
+      expect(await service.getSessionStatusForVendor('moonpay')).toBeNull();
+    });
+
+    it('returns null on a 204 response', async () => {
+      nock(MOCK_API_URL).get('/sessions/latest/status/iron').reply(204);
+      const { service } = getService();
+
+      expect(await service.getSessionStatusForVendor('iron')).toBeNull();
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL)
+        .get('/sessions/latest/status/iron')
+        .reply(200, { finalStatus: 'approved' });
+      const { service } = getService();
+
+      await expect(service.getSessionStatusForVendor('iron')).rejects.toThrow(
+        /Malformed response received from latest session status API/u,
+      );
+    });
+
+    it('throws an HttpError on a non-ok response other than 404', async () => {
+      nock(MOCK_API_URL).get('/sessions/latest/status/iron').reply(500);
+      const { service } = getService();
+
+      await expect(service.getSessionStatusForVendor('iron')).rejects.toThrow(
+        /failed with status '500'/u,
+      );
+    });
+  });
+
   describe('createVendorCustomer', () => {
     it('creates an Iron customer and returns the validated subset', async () => {
       nock(MOCK_API_URL)
