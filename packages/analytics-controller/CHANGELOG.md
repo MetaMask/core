@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0]
+
 ### Added
 
 - Add independent marketing consent and purpose-aware event classification ([#10232](https://github.com/MetaMask/core/pull/10232))
@@ -103,7 +105,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/analytics-controller. ([#7017](https://github.com/MetaMask/core/pull/7017), [#7202](https://github.com/MetaMask/core/pull/7202))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@3.1.0...HEAD
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@3.0.0...@metamask/analytics-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@2.1.0...@metamask/analytics-controller@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@2.0.0...@metamask/analytics-controller@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.2.1...@metamask/analytics-controller@2.0.0
