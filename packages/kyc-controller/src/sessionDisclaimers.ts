@@ -1,4 +1,8 @@
-import type { KycConsentDocument, KycConsentRecord } from './types.js';
+import type {
+  KycConsentDocument,
+  KycConsentRecord,
+  KycSessionDisclaimers,
+} from './types.js';
 
 /**
  * Maps accepted disclaimer records onto unconsented catalog documents.
@@ -24,4 +28,21 @@ export function consentRecordsFromAcceptedList(
         acceptedKeys.has(`${document.key}:${document.version}`),
     )
     .map(({ key, version }) => ({ key, version }));
+}
+
+/**
+ * Returns whether every session catalog document is consented and credential
+ * reuse was accepted.
+ *
+ * @param disclaimers - Session-scoped disclaimer catalog.
+ * @returns Whether all documents are consented and reuse consent is given.
+ */
+export function areSessionDisclaimersCompleted(
+  disclaimers: KycSessionDisclaimers,
+): boolean {
+  return (
+    disclaimers.credentialReusabilityConsentGiven &&
+    disclaimers.idOS.every((document) => document.consented) &&
+    disclaimers.kycProvider.every((document) => document.consented)
+  );
 }

@@ -48,7 +48,7 @@ import {
   signStorageAccessToken,
 } from './ukyc/storageAccessToken.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
-import { consentRecordsFromAcceptedList } from './sessionDisclaimers.js';
+import { areSessionDisclaimersCompleted, consentRecordsFromAcceptedList } from './sessionDisclaimers.js';
 
 // === GENERAL ===
 
@@ -615,6 +615,20 @@ export class KycController extends BaseController<
       });
     }
 
+  async hasCompletedSessionDisclaimers(): Promise<boolean> {
+    if (!this.state.sessionStatus) {
+      throw new Error('No session was found');
+    }
+    // TODO, validate if this shorcut check is sufficient
+    // return this.state.sessionStatus.consentStatus === 'given';
+
+    const disclaimers = await this.messenger.call(
+      'KycService:fetchSessionDisclaimersBySessionId',
+      { sessionId: this.state.sessionStatus.id },
+    );
+
+    return areSessionDisclaimersCompleted(disclaimers);
+  }
 
 
   launchProviderFlow({ locale, debug }: { locale?: string; debug?: boolean }): Promise<string, unknown> {
@@ -656,56 +670,22 @@ export class KycController extends BaseController<
   }): Promise<Record<string, unknown>> {
     try {
       if (!this.#sumsubLauncher.isAvailable()) {
-        const error = 'SumSub SDK is not available in this runtime.';
-        this.#applyUpdate((state) => {
-          state.sumsub.status = 'failed';
-          state.sumsub.result = { error };
-        });
-        throw new Error(error);
+        throw new Error('SumSub SDK is not available in this runtime.');
       }
 
       try {
-        if (!this.state.sumsub.sessionId) {
-          this.#applyUpdate((state) => {
-            state.sumsub.status = 'creatingSession';
-            state.sumsub.result = null;
-            state.sumsub.sessionStatus = null;
-          });
-
-          const created = await this.#createUkycSession();
-
-          // A user who already finished the journey can return to a session the
-          // relay has already approved (`kycStatus`) while the vendor is still
-          // finalizing its own decision (`finalStatus`). There is nothing left to
-          // verify, so stop here and surface a message rather than launching the
-          // SDK again.
-          if (created.vendorProcessing) {
-            return {
-              kycStatus: created.kycStatus,
-              finalStatus: created.finalStatus,
-            };
-          }
+        if (!this.state.sessionStatus?.id) {
+          throw new Error('No ukyc session found.');
         }
 
-        // Empty string is a valid "no session id" value used by tests and
-        // must not be coalesced away as missing.
-        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-        const sessionId = this.state.sumsub.sessionId || '';
+        const sessionId = this.state.sessionStatus.id;
 
-        this.#applyUpdate((state) => {
-          state.sumsub.status = 'fetchingToken';
-          state.sumsub.sessionId = sessionId;
-        });
+        // TODO: check if the sumsub and idos disclaimers are accepted
 
         const { applicantAccessToken } = await this.messenger.call(
           'KycService:createJourney',
           sessionId,
         );
-
-        this.#applyUpdate((state) => {
-          state.sumsub.status = 'launching';
-          state.sumsub.applicantAccessToken = applicantAccessToken;
-        });
 
         // Track whether the SDK ever reported a successful completion. A resolved
         // `launch` alone does not imply success — the applicant may have
@@ -715,21 +695,21 @@ export class KycController extends BaseController<
         const result = await this.#sumsubLauncher.launch({
           applicantAccessToken,
           onTokenExpiration: async () => {
-            const refreshed = await this.messenger.call(
+            const journey = await this.messenger.call(
               'KycService:createJourney',
               sessionId,
             );
-            return refreshed.applicantAccessToken;
+            return journey.applicantAccessToken;
           },
           onStatusChange: (_prev, next) => {
             if (isSumSubFlowCompleted(next)) {
               reachedCompletion = true;
             }
-            this.#applyUpdate((state) => {
-              state.sumsub.status = isSumSubFlowCompleted(next)
-                ? 'complete'
-                : 'inProgress';
-            });
+            // this.#applyUpdate((state) => {
+            //   state.sumsub.status = isSumSubFlowCompleted(next)
+            //     ? 'complete'
+            //     : 'inProgress';
+            // });
           },
           locale: params?.locale ?? 'en',
           debug: params?.debug ?? false,
@@ -750,42 +730,41 @@ export class KycController extends BaseController<
         } else if (isSumSubLaunchFailure(result)) {
           settledStatus = 'failed';
         }
-        this.#applyUpdate((state) => {
-          state.sumsub.status = settledStatus;
-          state.sumsub.result = result as Json;
-        });
+
 
         // Once the SDK completes, the authoritative verification decision comes
         // from the UKYC backend, not the SDK result. Fetch session status once.
-        if (reachedCompletion && sessionId) {
-          await this.#resolveSessionStatus(sessionId);
+        if (reachedCompletion && this.state.sessionStatus?.id) {
+          // TODO: Do something here? Optimistically go to pending?..
         }
         return result;
       } catch (error) {
+        //
         // Applicant already finished KYC — treat as completed for Money toast.
-        if (isSessionAlreadyCompletedError(error)) {
-          this.#applyUserStatus({
-            status: 'completed',
-            sumsubSessionId: null,
-            errorCode: null,
-          });
-          this.#applyUpdate((state) => {
-            state.sumsub.status = 'complete';
-            state.sumsub.result = { alreadyCompleted: true };
-            state.statusMessage = 'KYC already completed.';
-            state.phase = 'done';
-            state.error = null;
-          });
-          return { alreadyCompleted: true };
-        }
-        const result = { error: String(error) };
-        this.#applyUpdate((state) => {
-          state.sumsub.status = 'failed';
-          state.sumsub.result = result;
-        });
-        return result;
+        // if (isSessionAlreadyCompletedError(error)) {
+        //   this.#applyUserStatus({
+        //     status: 'completed',
+        //     sumsubSessionId: null,
+        //     errorCode: null,
+        //   });
+        //   this.#applyUpdate((state) => {
+        //     state.sumsub.status = 'complete';
+        //     state.sumsub.result = { alreadyCompleted: true };
+        //     state.statusMessage = 'KYC already completed.';
+        //     state.phase = 'done';
+        //     state.error = null;
+        //   });
+        //   return { alreadyCompleted: true };
+        // }
+        // const result = { error: String(error) };
+        // this.#applyUpdate((state) => {
+        //   state.sumsub.status = 'failed';
+        //   state.sumsub.result = result;
+        // });
+        // return result;
       }
     } finally {
+      // TODO: Figure out this return
       try {
         await this.refreshKycStatus();
       } catch (error) {
