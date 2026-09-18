@@ -370,18 +370,19 @@ export function quantizeBuilderFeeTenthsBps(discountBips: number): number {
  * @param params.fees - The provider's fee quote.
  * @param params.resolution - The unified fee resolution, when one was computed.
  * @param params.amount - Order notional (USD) as a string, when provided.
- * @param params.chargesNoBuilderFee - True when this placement carries no
- * MetaMask builder fee at all (a TWAP, for instance). Distinguishes a genuine
- * zero from the zero a concurrent fully-waived submit leaves in provider state.
+ * @param params.chargesBuilderFee - The provider's policy on whether this
+ * placement carries a MetaMask builder fee at all, or undefined when it does not
+ * report one. Distinguishes a genuine zero (a TWAP, for instance) from the zero
+ * a concurrent fully-waived submit leaves in provider state.
  * @returns The quote with its MetaMask component and totals re-priced.
  */
 export function applyFeeResolution(params: {
   fees: FeeCalculationResult;
   resolution: PerpsFeeResolution | undefined;
   amount?: string;
-  chargesNoBuilderFee?: boolean;
+  chargesBuilderFee?: boolean;
 }): FeeCalculationResult {
-  const { fees, resolution, amount, chargesNoBuilderFee = false } = params;
+  const { fees, resolution, amount, chargesBuilderFee } = params;
 
   if (resolution === undefined || fees.metamaskFeeRate === undefined) {
     return fees;
@@ -391,7 +392,13 @@ export function applyFeeResolution(params: {
   // fee: it is also what a concurrent fully-waived submit leaves behind in
   // provider state. Distinguish the two by asking the policy, not the leftover
   // number — otherwise an ordinary preview inherits someone else's waiver.
-  if (fees.metamaskFeeRate === 0 && chargesNoBuilderFee) {
+  //
+  // Repricing a zero is opt-in: only a provider that explicitly reports it does
+  // charge a builder fee gets its zero overwritten. A provider that reports no
+  // policy at all keeps its zero, because a structural zero is the older and far
+  // likelier meaning, and quoting a fee the order will not pay is the worse of
+  // the two failures.
+  if (fees.metamaskFeeRate === 0 && chargesBuilderFee !== true) {
     return fees;
   }
 

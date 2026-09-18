@@ -1348,7 +1348,7 @@ export class MarketDataService {
         fees,
         resolution: context.feeResolution,
         amount: params.amount,
-        chargesNoBuilderFee: fees.chargesMetamaskBuilderFee === false,
+        chargesBuilderFee: fees.chargesMetamaskBuilderFee,
       });
 
       // Read-only preview of the same cached benefits snapshot the fee resolver

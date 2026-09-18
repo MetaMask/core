@@ -512,9 +512,30 @@ describe('applyFeeResolution', () => {
           subscriptionWaiverKind: 'full',
         },
         amount: '1000',
-        chargesNoBuilderFee: true,
+        chargesBuilderFee: false,
       }),
     ).toStrictEqual(twapFees);
+  });
+
+  it('leaves a zero rate untouched when the provider reports no fee policy', () => {
+    // A provider written before `chargesMetamaskBuilderFee` existed reports a
+    // structural zero and no policy. Repricing that to the default fee would
+    // quote a MetaMask fee the order never pays, so an unknown policy keeps the
+    // provider's own number.
+    const legacyFees = { ...fees, metamaskFeeRate: 0, metamaskFeeAmount: 0 };
+
+    expect(
+      applyFeeResolution({
+        fees: legacyFees,
+        resolution: {
+          feeBips: 10,
+          discountBips: 0,
+          source: 'default',
+          subscription: createStatus({ eligible: false }),
+        },
+        amount: '1000',
+      }),
+    ).toStrictEqual(legacyFees);
   });
 
   it('re-prices a zero provider rate left behind by a concurrent waived submit', () => {
@@ -533,7 +554,7 @@ describe('applyFeeResolution', () => {
         subscription: createStatus({ eligible: false }),
       },
       amount: '1000',
-      chargesNoBuilderFee: false,
+      chargesBuilderFee: true,
     });
 
     expect(priced.metamaskFeeRate).toBe(0.001);
