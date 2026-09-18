@@ -4906,21 +4906,26 @@ describe('HyperLiquidProvider', () => {
       } as OrderParams,
     };
 
-    it('marks the cloid with the subscription program id when subscription wins', async () => {
-      provider.setUserFeeResolution(subscriptionResolution);
+    it('leaves the replacement cloid unmarked because modify charges no builder fee', () => {
+      // `modify` carries no builder field, so no MetaMask fee is charged on the
+      // action. Marking it would report a reduction on an order that paid
+      // nothing; the replacement inherits the resting order's attribution.
+      return (async () => {
+        provider.setUserFeeResolution(subscriptionResolution);
 
-      const result = await provider.editOrder(editParams);
+        const result = await provider.editOrder(editParams);
 
-      expect(result.success).toBe(true);
-      const modifyCalls = (
-        mockClientService.getExchangeClient().modify as jest.Mock
-      ).mock.calls;
-      expect(modifyCalls.length).toBeGreaterThan(0);
-      modifyCalls.forEach(([payload]) => {
-        const cloid = (payload as { order: { c?: string } }).order.c;
-        expect(hasFeeReductionAppliedFlag(cloid)).toBe(true);
-        expect(isSubscriptionProgramCloid(cloid)).toBe(true);
-      });
+        expect(result.success).toBe(true);
+        const modifyCalls = (
+          mockClientService.getExchangeClient().modify as jest.Mock
+        ).mock.calls;
+        expect(modifyCalls.length).toBeGreaterThan(0);
+        modifyCalls.forEach(([payload]) => {
+          const cloid = (payload as { order: { c?: string } }).order.c;
+          expect(hasFeeReductionAppliedFlag(cloid)).toBe(false);
+          expect(isSubscriptionProgramCloid(cloid)).toBe(false);
+        });
+      })();
     });
 
     it('marks the cloid on the batch close path', async () => {

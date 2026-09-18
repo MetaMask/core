@@ -1129,6 +1129,38 @@ describe('RewardsIntegrationService', () => {
       });
     });
 
+    it('drops a cached waiver when the profile is definitively not subscribed', async () => {
+      // `UserNotSubscribed` is an answer, not an outage: the controller clears
+      // its own benefits state on that path. Preserving the cached snapshot
+      // would keep granting the waiver for the rest of the staleness window
+      // after entitlement ended.
+      const messengerBenefits = jest
+        .fn()
+        .mockResolvedValueOnce(
+          createBenefitsResponse({ remainingMicroUsd: 250_000_000 }),
+        );
+      setupMessengerDefaults({
+        'SubscriptionController:getBenefits': messengerBenefits,
+      });
+      (
+        mockDeps.rewards.getPerpsDiscountForAccount as jest.Mock
+      ).mockResolvedValue(0);
+
+      await service.refreshSubscriptionBenefits();
+      expect(service.getSubscriptionFeeWaiverStatus().eligible).toBe(true);
+
+      messengerBenefits.mockRejectedValue(
+        new Error('SubscriptionController - User is not subscribed'),
+      );
+      jest.setSystemTime(NOW + FRESH_MS + 1);
+      await service.refreshSubscriptionBenefits();
+
+      expect(service.getSubscriptionFeeWaiverStatus()).toStrictEqual({
+        eligible: false,
+        reason: 'no-subscription',
+      });
+    });
+
     it('still reports no source when neither wiring is present', async () => {
       setupMessengerDefaults();
       (

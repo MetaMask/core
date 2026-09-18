@@ -5823,8 +5823,6 @@ export class PerpsController extends BaseController<
         });
     }
 
-    const waiverStatus =
-      this.#rewardsIntegrationService.getSubscriptionFeeWaiverStatus();
     // The preview quotes the same blended rate the submit path charges, which
     // is only possible once the order notional reaches the resolver. `amount`
     // is the order notional in USD for the quote being previewed.
@@ -5833,6 +5831,11 @@ export class PerpsController extends BaseController<
       : undefined;
     const feeResolution =
       await this.#rewardsIntegrationService.resolveFee(orderNotionalUsd);
+    // Taken from the resolution rather than read separately: a second read can
+    // observe a different snapshot if the cache is invalidated or the feature
+    // flag flips between the two, which would surface metadata describing a
+    // waiver the quoted rates do not reflect.
+    const waiverStatus = feeResolution.subscription;
     const context = this.#createServiceContext('calculateFees', {
       subscriptionFeeWaiver:
         waiverStatus.reason === 'no-source' ? undefined : waiverStatus,

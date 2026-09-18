@@ -248,6 +248,30 @@ describe('TradingService', () => {
       );
     });
 
+    it('prices a trigger placement from its trigger price', async () => {
+      // A stop/take-profit placement carries no limit price; the level it
+      // activates at is the only price it states, and without it a bounded
+      // waiver is withheld on an order the provider can price later.
+      mockProvider.placeOrder.mockResolvedValue({ success: true });
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.02',
+          orderType: 'stop_market',
+          triggerPrice: '50000',
+        },
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        1000,
+      );
+    });
+
     it('still resolves a fee when the order cannot be priced', async () => {
       mockProvider.placeOrder.mockResolvedValue({ success: true });
 

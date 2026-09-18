@@ -494,6 +494,10 @@ export class RewardsIntegrationService {
       // real failure rather than an unregistered action. Treating it as the
       // latter would fall through to `null` and erase a valid cached snapshot,
       // exactly as an asynchronous rejection would.
+      if (isNotSubscribedRejection(error)) {
+        // Definitive "not entitled", even thrown synchronously.
+        return null;
+      }
       if (this.#messengerBenefitsAnswered && !this.#deps.subscription) {
         throw error;
       }
@@ -507,6 +511,13 @@ export class RewardsIntegrationService {
       try {
         return await pending;
       } catch (error) {
+        if (isNotSubscribedRejection(error)) {
+          // A definitive answer, not a failed read: the profile is not
+          // entitled. Returning `null` replaces the cached snapshot, which is
+          // the point — preserving it would keep granting the waiver for the
+          // rest of the staleness window after entitlement ended.
+          return null;
+        }
         if (!fallback) {
           // Nothing else can answer, so this rejection is the whole result.
           // Returning `null` here would be stored as a successful "no
@@ -719,6 +730,29 @@ export class RewardsIntegrationService {
       return undefined;
     }
   }
+}
+
+/**
+ * Whether a benefits rejection definitively means "this profile is not
+ * entitled", as opposed to "the read failed".
+ *
+ * `SubscriptionController.getBenefits` throws `UserNotSubscribed` when the
+ * subscription is inactive or the response reports ineligibility, and clears
+ * its own benefits state on that path. Treating it as a transport failure would
+ * keep serving a cached waiver for the rest of the staleness window — up to ten
+ * minutes of free trading after entitlement ended — so it is converted to a
+ * real `null` answer instead.
+ *
+ * Matched on the message because the controller throws a plain `Error`; any
+ * other failure stays a failure and preserves the cached snapshot.
+ *
+ * @param error - The rejection from the benefits read.
+ * @returns True when the rejection means the profile is not entitled.
+ */
+function isNotSubscribedRejection(error: unknown): boolean {
+  return (
+    error instanceof Error && error.message.includes('User is not subscribed')
+  );
 }
 
 /**

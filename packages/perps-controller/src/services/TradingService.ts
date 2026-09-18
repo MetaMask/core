@@ -1319,6 +1319,8 @@ export class TradingService {
    * @param params.size - Order size in base units, when known.
    * @param params.usdAmount - Order notional in USD, when the caller supplied it.
    * @param params.price - Limit price, when the placement carries one.
+   * @param params.triggerPrice - Trigger level, for a placement that has no
+   * limit price of its own.
    * @param params.currentPrice - Live market price the order was quoted against.
    * @param params.priceAtCalculation - Price snapshot taken when size was derived.
    * @returns The order notional in USD, or undefined when it cannot be priced.
@@ -1327,6 +1329,7 @@ export class TradingService {
     size?: string;
     usdAmount?: string;
     price?: string;
+    triggerPrice?: string;
     currentPrice?: number;
     priceAtCalculation?: number;
   }): number | undefined {
@@ -1350,7 +1353,18 @@ export class TradingService {
 
     const limitPrice =
       params.price === undefined ? undefined : Number.parseFloat(params.price);
-    const price = [limitPrice, params.priceAtCalculation, params.currentPrice]
+    // A trigger placement carries no limit price; the level it activates at is
+    // the only price it states, so it prices the order.
+    const triggerPrice =
+      params.triggerPrice === undefined
+        ? undefined
+        : Number.parseFloat(params.triggerPrice);
+    const price = [
+      limitPrice,
+      triggerPrice,
+      params.priceAtCalculation,
+      params.currentPrice,
+    ]
       .filter(
         (candidate): candidate is number =>
           candidate !== undefined &&

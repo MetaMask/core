@@ -8976,15 +8976,18 @@ export class HyperLiquidProvider implements PerpsProvider {
       // builder-fee approval.
       await this.#ensureReadyForTrading({ requiresBuilderFee: false });
 
-      // Submit modification via SDK
+      // Submit modification via SDK. The cloid is deliberately left unmarked:
+      // `modify` carries no builder field, as the readiness call above records,
+      // so no MetaMask fee is charged on this action and marking it would tell
+      // the fill fan-out a reduction applied to an order that paid nothing.
+      // The replacement inherits the resting order's own attribution.
       const exchangeClient = this.#clientService.getExchangeClient();
-      const [markedNewOrder] = this.#applySubscriptionCloid([newOrder]);
       const result = await exchangeClient.modify({
         oid:
           typeof params.orderId === 'string'
             ? (params.orderId as Hex)
             : params.orderId,
-        order: markedNewOrder,
+        order: newOrder,
       });
 
       if (result.status !== 'ok') {
