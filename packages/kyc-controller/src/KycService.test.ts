@@ -179,67 +179,6 @@ describe('KycService', () => {
     });
   });
 
-  describe('checkKycRequired', () => {
-    it('returns whether KYC is required (default capabilities)', async () => {
-      nock(MOCK_API_URL)
-        .post('/vendors/moonpay/kyc-required', {
-          accessToken: 'access-1',
-          country: 'USA',
-          capabilities: [{ product: 'ramps' }],
-        })
-        .reply(200, { required: true });
-      const { service } = getService();
-
-      expect(
-        await service.checkKycRequired({
-          accessToken: 'access-1',
-          country: 'USA',
-        }),
-      ).toStrictEqual({ kycRequired: true });
-    });
-
-    it('passes provided capabilities', async () => {
-      nock(MOCK_API_URL)
-        .post('/vendors/moonpay/kyc-required', {
-          accessToken: 'access-1',
-          country: 'USA',
-          capabilities: [{ product: 'card' }],
-        })
-        .reply(200, { required: false });
-      const { service } = getService();
-
-      expect(
-        await service.checkKycRequired({
-          accessToken: 'access-1',
-          country: 'USA',
-          capabilities: [{ product: 'card' }],
-        }),
-      ).toStrictEqual({ kycRequired: false });
-    });
-
-    it('throws on a malformed response', async () => {
-      nock(MOCK_API_URL).post('/vendors/moonpay/kyc-required').reply(200, {});
-      const { service } = getService();
-
-      await expect(
-        service.checkKycRequired({ accessToken: 'access-1', country: 'USA' }),
-      ).rejects.toThrow(/Malformed response received from kyc-required API/u);
-    });
-
-    it('surfaces the specific field mismatch and payload in the error', async () => {
-      nock(MOCK_API_URL)
-        .post('/vendors/moonpay/kyc-required')
-        .reply(200, { required: 'yes' });
-      const { service } = getService();
-
-      await expect(
-        service.checkKycRequired({ accessToken: 'access-1', country: 'USA' }),
-      ).rejects.toThrow(
-        /Malformed response received from kyc-required API:.*required.*received: \{"required":"yes"\}/su,
-      );
-    });
-  });
-
   describe('fetchIdosEnclaveJwks', () => {
     it('fetches the JWKS from the idOS enclave well-known path', async () => {
       const response = {
@@ -719,44 +658,6 @@ describe('KycService', () => {
       await expect(
         service.fetchVendorDisclaimers({ vendor: 'iron', country: 'USA' }),
       ).rejects.toThrow(/Malformed response received from disclaimers API/u);
-    });
-  });
-
-  describe('checkKycRequired for a non-MoonPay vendor', () => {
-    it('returns whether Iron KYC is required', async () => {
-      nock(MOCK_API_URL)
-        .post('/vendors/iron/kyc-required')
-        .reply(200, { required: true });
-      const { service } = getService();
-
-      expect(await service.checkKycRequired({ vendor: 'iron' })).toStrictEqual({
-        kycRequired: true,
-      });
-    });
-
-    it('throws when accessToken is missing for MoonPay vendor', async () => {
-      const { service } = getService();
-
-      await expect(
-        service.checkKycRequired({ vendor: 'moonpay', country: 'USA' }),
-      ).rejects.toThrow('accessToken is required for vendor "moonpay"');
-    });
-
-    it('throws when country is missing for MoonPay vendor', async () => {
-      const { service } = getService();
-
-      await expect(
-        service.checkKycRequired({ vendor: 'moonpay', accessToken: 'tok' }),
-      ).rejects.toThrow('country is required for vendor "moonpay"');
-    });
-
-    it('throws on a malformed response', async () => {
-      nock(MOCK_API_URL).post('/vendors/iron/kyc-required').reply(200, {});
-      const { service } = getService();
-
-      await expect(
-        service.checkKycRequired({ vendor: 'iron' }),
-      ).rejects.toThrow(/Malformed response received from kyc-required API/u);
     });
   });
 

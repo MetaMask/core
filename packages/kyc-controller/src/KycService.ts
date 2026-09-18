@@ -51,7 +51,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'getGeoCountry',
   'fetchVendorDisclaimers',
   'createMoonpaySession',
-  'checkKycRequired',
   'createVendorCustomer',
   'submitVendorDisclaimers',
   'fetchSessionDisclaimersByCountry',
@@ -173,10 +172,6 @@ const VendorSigningsResponseStruct = array(VendorSigningStruct);
 
 const CreateSessionResponseStruct = type({ sessionToken: string() });
 
-// The live KYC API returns the flag under `required`; the service normalizes
-// this to `kycRequired` for consumers (see `checkKycRequired`).
-const KycRequiredResponseStruct = type({ required: boolean() });
-
 // The session server's public key, in JWK-like form, returned inside an
 // encryption schema from `POST /sessions`. `x` is the base64url public key
 // used to wrap a secret for that schema.
@@ -292,23 +287,6 @@ export type CreateMoonpaySessionParams = {
   email: string;
   termsAcceptedAt: string;
   disclaimerIds: string[];
-};
-
-export type CheckKycRequiredParams = {
-  /**
-   * Identity vendor to check. Defaults to `moonpay` for the existing
-   * Check/Auth path.
-   */
-  vendor?: KycVendor;
-  /**
-   * MoonPay access token. Required when `vendor` is `moonpay` (or omitted).
-   */
-  accessToken?: string;
-  /**
-   * ISO 3166-1 alpha-3 country code. Required when `vendor` is `moonpay`.
-   */
-  country?: string;
-  capabilities?: { product: string }[];
 };
 
 export type CreateVendorCustomerParams = {
@@ -568,54 +546,6 @@ export class KycService extends BaseDataService<
       CreateSessionResponseStruct,
       'sessions',
     );
-  }
-
-  /**
-   * Checks whether KYC is required for the given vendor, country, and
-   * capabilities.
-   *
-   * @param params - The check parameters.
-   * @returns Whether KYC is required.
-   */
-  async checkKycRequired(
-    params: CheckKycRequiredParams,
-  ): Promise<{ kycRequired: boolean }> {
-    const vendor = params.vendor ?? 'moonpay';
-    const url = new URL(`/vendors/${vendor}/kyc-required`, this.#baseUrl);
-    const capabilities = params.capabilities ?? [{ product: 'ramps' }];
-    const body =
-      vendor === 'moonpay'
-        ? {
-            accessToken: params.accessToken,
-            country: params.country,
-            capabilities,
-          }
-        : {};
-
-    // MoonPay requires accessToken and country; validate before making the request.
-    if (vendor === 'moonpay') {
-      if (!params.accessToken) {
-        throw new Error(
-          'checkKycRequired: accessToken is required for vendor "moonpay".',
-        );
-      }
-      if (!params.country) {
-        throw new Error(
-          'checkKycRequired: country is required for vendor "moonpay".',
-        );
-      }
-    }
-
-    const data = await this.#requestJson(url, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
-    const { required } = this.#validateResponse(
-      data,
-      KycRequiredResponseStruct,
-      'kyc-required',
-    );
-    return { kycRequired: required };
   }
 
   /**

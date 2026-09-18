@@ -4206,7 +4206,6 @@ const SERVICE_ACTIONS = [
   'KycService:getGeoCountry',
   'KycService:fetchVendorDisclaimers',
   'KycService:createMoonpaySession',
-  'KycService:checkKycRequired',
   'KycService:createVendorCustomer',
   'KycService:submitVendorDisclaimers',
   'KycService:fetchSessionDisclaimersByCountry',
@@ -4361,10 +4360,6 @@ function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'KycService:createMoonpaySession',
     handlers.createMoonpaySession,
-  );
-  rootMessenger.registerActionHandler(
-    'KycService:checkKycRequired',
-    handlers.checkKycRequired,
   );
   rootMessenger.registerActionHandler(
     'KycService:createVendorCustomer',

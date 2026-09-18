@@ -43,18 +43,6 @@ export type KycServiceCreateMoonpaySessionAction = {
 };
 
 /**
- * Checks whether KYC is required for the given vendor, country, and
- * capabilities.
- *
- * @param params - The check parameters.
- * @returns Whether KYC is required.
- */
-export type KycServiceCheckKycRequiredAction = {
-  type: `KycService:checkKycRequired`;
-  handler: KycService['checkKycRequired'];
-};
-
-/**
  * Creates (or resumes) an empty-shell customer for the authenticated
  * canonical user on the given identity vendor. Must run before showing
  * vendor T&C so the customer exists and resume logic can key off vendor
@@ -238,7 +226,6 @@ export type KycServiceMethodActions =
   | KycServiceGetGeoCountryAction
   | KycServiceFetchVendorDisclaimersAction
   | KycServiceCreateMoonpaySessionAction
-  | KycServiceCheckKycRequiredAction
   | KycServiceCreateVendorCustomerAction
   | KycServiceSubmitVendorDisclaimersAction
   | KycServiceFetchSessionDisclaimersByCountryAction

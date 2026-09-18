@@ -37,7 +37,6 @@ export { KycService, serviceName } from './KycService.js';
 export type {
   ApplicantAccessTokenResponse,
   CapabilityAuthorization,
-  CheckKycRequiredParams,
   CreateVendorCustomerParams,
   CreateMoonpaySessionParams,
   CreateUkycSessionParams,
@@ -60,7 +59,6 @@ export type {
   UkycSessionResponse,
 } from './KycService.js';
 export type {
-  KycServiceCheckKycRequiredAction,
   KycServiceCreateVendorCustomerAction,
   KycServiceCreateJourneyAction,
   KycServiceCreateMoonpaySessionAction,
