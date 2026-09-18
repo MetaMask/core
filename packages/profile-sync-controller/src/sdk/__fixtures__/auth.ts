@@ -6,20 +6,38 @@ import {
   MOCK_OIDC_TOKEN_RESPONSE,
   MOCK_OIDC_TOKEN_URL,
   MOCK_PAIR_IDENTIFIERS_URL,
+  MOCK_PAIR_PROFILES_RESPONSE,
+  MOCK_PAIR_PROFILES_URL,
+  MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE,
+  MOCK_PAIR_SOCIAL_IDENTIFIER_URL,
   MOCK_PROFILE_LINEAGE_URL,
   MOCK_SIWE_LOGIN_RESPONSE,
   MOCK_SIWE_LOGIN_URL,
   MOCK_SRP_LOGIN_RESPONSE,
   MOCK_SRP_LOGIN_URL,
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
-} from '../mocks/auth';
+  MOCK_CUSTOMER_SERVICE_TOKEN_URL,
+  MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE,
+  MOCK_PARTNER_IDENTITY_TOKEN_URL,
+  MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE,
+  MOCK_MFA_CREDENTIALS_RESPONSE,
+  MOCK_MFA_CREDENTIALS_URL,
+  MOCK_MFA_ENROLL_COMPLETE_RESPONSE,
+  MOCK_MFA_ENROLL_COMPLETE_URL,
+  MOCK_MFA_ENROLL_PASSKEY_RESPONSE,
+  MOCK_MFA_ENROLL_URL,
+  MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
+  MOCK_MFA_VERIFY_COMPLETE_URL,
+  MOCK_MFA_VERIFY_PASSKEY_RESPONSE,
+  MOCK_MFA_VERIFY_URL,
+} from '../mocks/auth.js';
 
 type MockReply = {
   status: nock.StatusCode;
   body?: nock.Body;
 };
 
-export const handleMockNonce = (mockReply?: MockReply) => {
+export const handleMockNonce = (mockReply?: MockReply): nock.Scope => {
   const reply = mockReply ?? { status: 200, body: MOCK_NONCE_RESPONSE };
 
   const mockNonceEndpoint = nock(MOCK_NONCE_URL)
@@ -31,7 +49,7 @@ export const handleMockNonce = (mockReply?: MockReply) => {
   return mockNonceEndpoint;
 };
 
-export const handleMockSiweLogin = (mockReply?: MockReply) => {
+export const handleMockSiweLogin = (mockReply?: MockReply): nock.Scope => {
   const reply = mockReply ?? { status: 200, body: MOCK_SIWE_LOGIN_RESPONSE };
   const mockLoginEndpoint = nock(MOCK_SIWE_LOGIN_URL)
     .persist()
@@ -41,7 +59,9 @@ export const handleMockSiweLogin = (mockReply?: MockReply) => {
   return mockLoginEndpoint;
 };
 
-export const handleMockPairIdentifiers = (mockReply?: MockReply) => {
+export const handleMockPairIdentifiers = (
+  mockReply?: MockReply,
+): nock.Scope => {
   const reply = mockReply ?? { status: 204 };
   const mockPairIdentifiersEndpoint = nock(MOCK_PAIR_IDENTIFIERS_URL)
     .persist()
@@ -51,17 +71,57 @@ export const handleMockPairIdentifiers = (mockReply?: MockReply) => {
   return mockPairIdentifiersEndpoint;
 };
 
-export const handleMockSrpLogin = (mockReply?: MockReply) => {
+export const handleMockPairProfiles = (
+  mockReply?: MockReply,
+  delayMs?: number,
+): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_PAIR_PROFILES_RESPONSE,
+  };
+  const interceptor = nock(MOCK_PAIR_PROFILES_URL).persist().post('');
+  if (delayMs !== undefined && delayMs > 0) {
+    interceptor.delay(delayMs);
+  }
+  return interceptor.reply(reply.status, reply.body);
+};
+
+export const handleMockPairSocialIdentifier = (
+  mockReply?: MockReply,
+  onBody?: (body: unknown) => void,
+): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE,
+  };
+  const mockPairSocialIdentifierEndpoint = nock(MOCK_PAIR_SOCIAL_IDENTIFIER_URL)
+    .persist()
+    .post('', (body) => {
+      onBody?.(body);
+      return true;
+    })
+    .reply(reply.status, reply.body);
+
+  return mockPairSocialIdentifierEndpoint;
+};
+
+export const handleMockSrpLogin = (
+  mockReply?: MockReply,
+  onBody?: (body: unknown) => void,
+): nock.Scope => {
   const reply = mockReply ?? { status: 200, body: MOCK_SRP_LOGIN_RESPONSE };
   const mockLoginEndpoint = nock(MOCK_SRP_LOGIN_URL)
     .persist()
-    .post('')
+    .post('', (body) => {
+      onBody?.(body);
+      return true;
+    })
     .reply(reply.status, reply.body);
 
   return mockLoginEndpoint;
 };
 
-export const handleMockOAuth2Token = (mockReply?: MockReply) => {
+export const handleMockOAuth2Token = (mockReply?: MockReply): nock.Scope => {
   const reply = mockReply ?? { status: 200, body: MOCK_OIDC_TOKEN_RESPONSE };
   const mockTokenEndpoint = nock(MOCK_OIDC_TOKEN_URL)
     .persist()
@@ -71,7 +131,68 @@ export const handleMockOAuth2Token = (mockReply?: MockReply) => {
   return mockTokenEndpoint;
 };
 
-export const handleMockUserProfileLineage = (mockReply?: MockReply) => {
+export const handleMockMfaEnroll = (mockReply?: MockReply): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_MFA_ENROLL_PASSKEY_RESPONSE,
+  };
+  return nock(MOCK_MFA_ENROLL_URL)
+    .persist()
+    .post('')
+    .reply(reply.status, reply.body);
+};
+
+export const handleMockMfaEnrollComplete = (
+  mockReply?: MockReply,
+): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_MFA_ENROLL_COMPLETE_RESPONSE,
+  };
+  return nock(MOCK_MFA_ENROLL_COMPLETE_URL)
+    .persist()
+    .post('')
+    .reply(reply.status, reply.body);
+};
+
+export const handleMockMfaVerify = (mockReply?: MockReply): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_MFA_VERIFY_PASSKEY_RESPONSE,
+  };
+  return nock(MOCK_MFA_VERIFY_URL)
+    .persist()
+    .post('')
+    .reply(reply.status, reply.body);
+};
+
+export const handleMockMfaVerifyComplete = (
+  mockReply?: MockReply,
+): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
+  };
+  return nock(MOCK_MFA_VERIFY_COMPLETE_URL)
+    .persist()
+    .post('')
+    .reply(reply.status, reply.body);
+};
+
+export const handleMockMfaCredentials = (mockReply?: MockReply): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_MFA_CREDENTIALS_RESPONSE,
+  };
+  return nock(MOCK_MFA_CREDENTIALS_URL)
+    .persist()
+    .get('')
+    .reply(reply.status, reply.body);
+};
+
+export const handleMockUserProfileLineage = (
+  mockReply?: MockReply,
+): nock.Scope => {
   const reply = mockReply ?? {
     status: 200,
     body: MOCK_USER_PROFILE_LINEAGE_RESPONSE,
@@ -85,23 +206,109 @@ export const handleMockUserProfileLineage = (mockReply?: MockReply) => {
   return mockUserProfileLineageEndpoint;
 };
 
+export const handleMockCustomerServiceToken = (
+  mockReply?: MockReply,
+): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE,
+  };
+  const mockCustomerServiceTokenEndpoint = nock(MOCK_CUSTOMER_SERVICE_TOKEN_URL)
+    .persist()
+    .post('')
+    .reply(reply.status, reply.body);
+
+  return mockCustomerServiceTokenEndpoint;
+};
+
+export const handleMockPartnerIdentityToken = (
+  mockReply?: MockReply,
+): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_PARTNER_IDENTITY_TOKEN_RESPONSE,
+  };
+  const mockPartnerIdentityTokenEndpoint = nock(MOCK_PARTNER_IDENTITY_TOKEN_URL)
+    .persist()
+    .post('')
+    .reply(reply.status, reply.body);
+
+  return mockPartnerIdentityTokenEndpoint;
+};
+
 export const arrangeAuthAPIs = (options?: {
   mockNonceUrl?: MockReply;
   mockOAuth2TokenUrl?: MockReply;
   mockSrpLoginUrl?: MockReply;
   mockSiweLoginUrl?: MockReply;
   mockPairIdentifiers?: MockReply;
+  mockPairProfiles?: MockReply;
+  mockPairSocialIdentifier?: MockReply;
   mockUserProfileLineageUrl?: MockReply;
-}) => {
+  mockCustomerServiceTokenUrl?: MockReply;
+  mockPartnerIdentityTokenUrl?: MockReply;
+  mockMfaEnrollUrl?: MockReply;
+  mockMfaEnrollCompleteUrl?: MockReply;
+  mockMfaVerifyUrl?: MockReply;
+  mockMfaVerifyCompleteUrl?: MockReply;
+  mockMfaCredentialsUrl?: MockReply;
+  onSrpLoginBody?: (body: unknown) => void;
+  onPairSocialIdentifierBody?: (body: unknown) => void;
+  mockPairProfilesDelayMs?: number;
+}): {
+  mockNonceUrl: nock.Scope;
+  mockOAuth2TokenUrl: nock.Scope;
+  mockSrpLoginUrl: nock.Scope;
+  mockSiweLoginUrl: nock.Scope;
+  mockPairIdentifiersUrl: nock.Scope;
+  mockPairProfilesUrl: nock.Scope;
+  mockPairSocialIdentifierUrl: nock.Scope;
+  mockUserProfileLineageUrl: nock.Scope;
+  mockCustomerServiceTokenUrl: nock.Scope;
+  mockPartnerIdentityTokenUrl: nock.Scope;
+  mockMfaEnrollUrl: nock.Scope;
+  mockMfaEnrollCompleteUrl: nock.Scope;
+  mockMfaVerifyUrl: nock.Scope;
+  mockMfaVerifyCompleteUrl: nock.Scope;
+  mockMfaCredentialsUrl: nock.Scope;
+} => {
   const mockNonceUrl = handleMockNonce(options?.mockNonceUrl);
   const mockOAuth2TokenUrl = handleMockOAuth2Token(options?.mockOAuth2TokenUrl);
-  const mockSrpLoginUrl = handleMockSrpLogin(options?.mockSrpLoginUrl);
+  const mockSrpLoginUrl = handleMockSrpLogin(
+    options?.mockSrpLoginUrl,
+    options?.onSrpLoginBody,
+  );
   const mockSiweLoginUrl = handleMockSiweLogin(options?.mockSiweLoginUrl);
   const mockPairIdentifiersUrl = handleMockPairIdentifiers(
     options?.mockPairIdentifiers,
   );
+  const mockPairProfilesUrl = handleMockPairProfiles(
+    options?.mockPairProfiles,
+    options?.mockPairProfilesDelayMs,
+  );
+  const mockPairSocialIdentifierUrl = handleMockPairSocialIdentifier(
+    options?.mockPairSocialIdentifier,
+    options?.onPairSocialIdentifierBody,
+  );
   const mockUserProfileLineageUrl = handleMockUserProfileLineage(
     options?.mockUserProfileLineageUrl,
+  );
+  const mockCustomerServiceTokenUrl = handleMockCustomerServiceToken(
+    options?.mockCustomerServiceTokenUrl,
+  );
+  const mockPartnerIdentityTokenUrl = handleMockPartnerIdentityToken(
+    options?.mockPartnerIdentityTokenUrl,
+  );
+  const mockMfaEnrollUrl = handleMockMfaEnroll(options?.mockMfaEnrollUrl);
+  const mockMfaEnrollCompleteUrl = handleMockMfaEnrollComplete(
+    options?.mockMfaEnrollCompleteUrl,
+  );
+  const mockMfaVerifyUrl = handleMockMfaVerify(options?.mockMfaVerifyUrl);
+  const mockMfaVerifyCompleteUrl = handleMockMfaVerifyComplete(
+    options?.mockMfaVerifyCompleteUrl,
+  );
+  const mockMfaCredentialsUrl = handleMockMfaCredentials(
+    options?.mockMfaCredentialsUrl,
   );
 
   return {
@@ -110,6 +317,15 @@ export const arrangeAuthAPIs = (options?: {
     mockSrpLoginUrl,
     mockSiweLoginUrl,
     mockPairIdentifiersUrl,
+    mockPairProfilesUrl,
+    mockPairSocialIdentifierUrl,
     mockUserProfileLineageUrl,
+    mockCustomerServiceTokenUrl,
+    mockPartnerIdentityTokenUrl,
+    mockMfaEnrollUrl,
+    mockMfaEnrollCompleteUrl,
+    mockMfaVerifyUrl,
+    mockMfaVerifyCompleteUrl,
+    mockMfaCredentialsUrl,
   };
 };

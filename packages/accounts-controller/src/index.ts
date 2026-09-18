@@ -2,25 +2,15 @@ export type {
   AccountId,
   AccountsControllerState,
   AccountsControllerGetStateAction,
-  AccountsControllerSetSelectedAccountAction,
-  AccountsControllerSetAccountNameAction,
-  AccountsControllerSetAccountNameAndSelectAccountAction,
-  AccountsControllerListAccountsAction,
-  AccountsControllerListMultichainAccountsAction,
-  AccountsControllerUpdateAccountsAction,
-  AccountsControllerGetSelectedAccountAction,
-  AccountsControllerGetSelectedMultichainAccountAction,
-  AccountsControllerGetAccountByAddressAction,
-  AccountsControllerGetNextAvailableAccountNameAction,
-  AccountsControllerGetAccountAction,
-  AccountsControllerUpdateAccountMetadataAction,
   AllowedActions,
   AccountsControllerActions,
   AccountsControllerChangeEvent,
   AccountsControllerSelectedAccountChangeEvent,
   AccountsControllerSelectedEvmAccountChangeEvent,
   AccountsControllerAccountAddedEvent,
+  AccountsControllerAccountsAddedEvent,
   AccountsControllerAccountRemovedEvent,
+  AccountsControllerAccountsRemovedEvent,
   AccountsControllerAccountRenamedEvent,
   AccountsControllerAccountBalancesUpdatesEvent,
   AccountsControllerAccountTransactionsUpdatedEvent,
@@ -28,11 +18,31 @@ export type {
   AllowedEvents,
   AccountsControllerEvents,
   AccountsControllerMessenger,
-} from './AccountsController';
-export { EMPTY_ACCOUNT, AccountsController } from './AccountsController';
+} from './AccountsController.js';
+export type {
+  AccountsControllerGetAccountAction,
+  AccountsControllerGetAccountsAction,
+  AccountsControllerListAccountsAction,
+  AccountsControllerListMultichainAccountsAction,
+  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerGetSelectedMultichainAccountAction,
+  AccountsControllerGetAccountByAddressAction,
+  AccountsControllerSetSelectedAccountAction,
+  AccountsControllerSetAccountNameAction,
+  AccountsControllerSetAccountNameAndSelectAccountAction,
+  AccountsControllerUpdateAccountMetadataAction,
+  AccountsControllerUpdateAccountsAction,
+  AccountsControllerLoadBackupAction,
+  AccountsControllerClearStateAction,
+} from './AccountsController-method-action-types.js';
+export {
+  EMPTY_ACCOUNT,
+  AccountsController,
+  getDefaultAccountsControllerState,
+} from './AccountsController.js';
 export {
   keyringTypeToName,
   getUUIDOptionsFromAddressOfNormalAccount,
   getUUIDFromAddressOfNormalAccount,
   isNormalKeyringType,
-} from './utils';
+} from './utils.js';

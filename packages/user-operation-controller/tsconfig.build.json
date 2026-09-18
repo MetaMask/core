@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "outDir": "./dist",
     "rootDir": "./src"
   },
@@ -26,6 +25,18 @@
     },
     {
       "path": "../transaction-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../messenger/tsconfig.build.json"
+    },
+    {
+      "path": "../approval-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../eth-block-tracker/tsconfig.build.json"
+    },
+    {
+      "path": "../utils/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

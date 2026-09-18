@@ -3,7 +3,7 @@ import type { Hex } from '@metamask/utils';
 import type {
   GroupedDeFiPositionsPerChain,
   TrackingEventPayload,
-} from './DeFiPositionsController';
+} from './DeFiPositionsController.js';
 
 /**
  * Calculates the total market value and total positions for a given account

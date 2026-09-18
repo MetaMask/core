@@ -4,12 +4,12 @@ import {
   mergeInternalScopes,
   mergeScopeObject,
   normalizeAndMergeScopes,
-} from './transform';
+} from './transform.js';
 import type {
   ExternalScopeObject,
   NormalizedScopeObject,
   InternalScopesObject,
-} from './types';
+} from './types.js';
 
 const externalScopeObject: ExternalScopeObject = {
   methods: [],

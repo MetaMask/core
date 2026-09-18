@@ -1,0 +1,92 @@
+{
+  "name": "@metamask/transaction-pay-controller",
+  "version": "29.0.0",
+  "description": "Manages alternate payment strategies to provide required funds for transactions in MetaMask",
+  "keywords": [
+    "Ethereum",
+    "MetaMask"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/transaction-pay-controller#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/core.git"
+  },
+  "files": [
+    "dist/"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "build:all": "tsc --build tsconfig.build.json --verbose",
+    "build:clean": "yarn build:only-clean && yarn build",
+    "build:docs": "typedoc",
+    "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/transaction-pay-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/transaction-pay-controller",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --generate",
+    "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "dependencies": {
+    "@ethersproject/abi": "^5.7.0",
+    "@ethersproject/contracts": "^5.7.0",
+    "@ethersproject/providers": "^5.7.0",
+    "@metamask/assets-controller": "^16.1.0",
+    "@metamask/assets-controllers": "^112.0.2",
+    "@metamask/base-controller": "^10.0.0",
+    "@metamask/controller-utils": "^13.0.0",
+    "@metamask/gas-fee-controller": "^27.0.0",
+    "@metamask/keyring-controller": "^28.0.0",
+    "@metamask/messenger": "^3.0.0",
+    "@metamask/metamask-eth-abis": "^3.1.1",
+    "@metamask/network-controller": "^37.0.0",
+    "@metamask/ramps-controller": "^23.0.0",
+    "@metamask/remote-feature-flag-controller": "^7.0.0",
+    "@metamask/sentinel-api-service": "^2.0.0",
+    "@metamask/transaction-controller": "^70.1.0",
+    "@metamask/utils": "^12.0.0",
+    "bignumber.js": "^9.1.2",
+    "bn.js": "^5.2.1",
+    "immer": "^9.0.6",
+    "lodash-es": "^4.17.21"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^6.1.0",
+    "@types/jest": "^30.0.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "deepmerge": "^4.2.2",
+    "jest": "^30.4.2",
+    "rimraf": "^5.0.5",
+    "ts-jest": "^29.4.11",
+    "tsx": "^4.20.5",
+    "typedoc": "^0.25.13",
+    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
+  },
+  "engines": {
+    "node": "^22.14.0 || ^24"
+  }
+}

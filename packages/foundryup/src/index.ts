@@ -16,17 +16,17 @@ import { dirname, join, relative } from 'node:path';
 import { cwd, exit } from 'node:process';
 import { parse as parseYaml } from 'yaml';
 
-import { extractFrom } from './extract';
-import { parseArgs, printBanner } from './options';
-import type { Checksums, Architecture, Binary } from './types';
-import { Extension, Platform } from './types';
+import { extractFrom } from './extract.js';
+import { parseArgs, printBanner } from './options.js';
+import type { Checksums, Architecture, Binary } from './types.js';
+import { Extension, Platform } from './types.js';
 import {
   getVersion,
   isCodedError,
   noop,
   say,
   transformChecksums,
-} from './utils';
+} from './utils.js';
 
 /**
  * Determines the cache directory based on the .yarnrc.yml configuration.

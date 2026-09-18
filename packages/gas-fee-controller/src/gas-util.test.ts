@@ -5,8 +5,8 @@ import {
   normalizeGWEIDecimalNumbers,
   fetchGasEstimates,
   calculateTimeEstimate,
-} from './gas-util';
-import type { GasFeeEstimates } from './GasFeeController';
+} from './gas-util.js';
+import type { GasFeeEstimates } from './GasFeeController.js';
 
 const mockEIP1559ApiResponses: GasFeeEstimates[] = [
   {

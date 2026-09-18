@@ -3,10 +3,10 @@ import type { AddressBookEntry } from '@metamask/address-book-controller';
 import {
   updateContactInRemoteStorage,
   deleteContactInRemoteStorage,
-} from './controller-integration';
-import { canPerformContactSyncing } from './sync-utils';
-import type { ContactSyncingOptions } from './types';
-import { isContactBridgedFromAccounts } from './utils';
+} from './controller-integration.js';
+import { canPerformContactSyncing } from './sync-utils.js';
+import type { ContactSyncingOptions } from './types.js';
+import { isContactBridgedFromAccounts } from './utils.js';
 
 /**
  * Initialize and setup events to listen to for contact syncing

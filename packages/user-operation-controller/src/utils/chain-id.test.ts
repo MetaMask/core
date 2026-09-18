@@ -1,4 +1,4 @@
-import { toEip155ChainId } from './chain-id';
+import { toEip155ChainId } from './chain-id.js';
 
 describe('chain-id', () => {
   describe('toEip155ChainId', () => {

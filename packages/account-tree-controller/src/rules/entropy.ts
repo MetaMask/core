@@ -9,13 +9,15 @@ import { isEvmAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { AccountGroupObjectOf } from '../group';
-import { BaseRule, type Rule, type RuleResult } from '../rule';
-import type { AccountWalletObjectOf } from '../wallet';
+import type { AccountGroupObjectOf } from '../group.js';
+import { BaseRule } from '../rule.js';
+import type { Rule, RuleResult } from '../rule.js';
+import type { AccountWalletObjectOf } from '../wallet.js';
 
 export class EntropyRule
   extends BaseRule
-  implements Rule<AccountWalletType.Entropy, AccountGroupType.MultichainAccount>
+  implements
+    Rule<AccountWalletType.Entropy, AccountGroupType.MultichainAccount>
 {
   readonly walletType = AccountWalletType.Entropy;
 
@@ -73,6 +75,7 @@ export class EntropyRule
           },
           pinned: false,
           hidden: false,
+          lastSelected: 0,
         },
       },
     };
@@ -93,24 +96,22 @@ export class EntropyRule
   getComputedAccountGroupName(
     group: AccountGroupObjectOf<AccountGroupType.MultichainAccount>,
   ): string {
-    let candidate = '';
+    // Only use EVM account names for multichain groups to avoid chain-specific names becoming group names.
+    // Non-EVM account names should not be used as group names since groups represent multichain collections.
     for (const id of group.accounts) {
       const account = this.messenger.call('AccountsController:getAccount', id);
 
-      if (account) {
-        candidate = account.metadata.name;
-
-        // EVM account name has a highest priority.
-        if (isEvmAccountType(account.type)) {
-          return account.metadata.name;
-        }
+      if (account && isEvmAccountType(account.type)) {
+        return account.metadata.name;
       }
     }
 
-    return candidate;
+    return '';
   }
 
-  getDefaultAccountGroupName(index: number): string {
-    return `Account ${index + 1}`;
+  getDefaultAccountGroupPrefix(
+    _wallet: AccountWalletObjectOf<AccountWalletType.Entropy>,
+  ): string {
+    return 'Account';
   }
 }

@@ -1,6 +1,6 @@
 import { createProjectLogger, createModuleLogger } from '@metamask/utils';
 
-import { controllerName } from './constants';
+import { controllerName } from './constants.js';
 
 export const projectLogger = createProjectLogger(controllerName);
 

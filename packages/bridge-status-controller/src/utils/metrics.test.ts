@@ -1,4 +1,13 @@
-import { StatusTypes, FeeType, ActionTypes } from '@metamask/bridge-controller';
+import {
+  StatusTypes,
+  FeeType,
+  ActionTypes,
+  FeatureId,
+  getQuotesReceivedProperties,
+  MetaMetricsSwapsEventSource,
+  FailurePhase,
+  SwapBridgeErrorCode,
+} from '@metamask/bridge-controller';
 import {
   MetricsSwapType,
   MetricsActionType,
@@ -10,6 +19,7 @@ import type {
 import { TransactionType } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
+import type { BridgeHistoryItem } from '../types.js';
 import {
   getTxStatusesFromHistory,
   getFinalizedTxProperties,
@@ -17,8 +27,14 @@ import {
   getTradeDataFromHistory,
   getRequestMetadataFromHistory,
   getEVMTxPropertiesFromTransactionMeta,
-} from './metrics';
-import type { BridgeHistoryItem } from '../types';
+  getPreConfirmationPropertiesFromQuote,
+  getHashPresenceProperties,
+  getStatusFailurePhase,
+  getFailurePropertiesFromHistory,
+  getSubmitErrorCode,
+  getBroadcastFailureProperties,
+  promoteFailurePhase,
+} from './metrics.js';
 
 describe('metrics utils', () => {
   const mockHistoryItem: BridgeHistoryItem = {
@@ -249,7 +265,7 @@ describe('metrics utils', () => {
         } as never,
       );
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0.016666666666666666,
           "quote_vs_execution_ratio": 1.1251337476231986,
           "quoted_vs_used_gas_ratio": 2.8325818363563227,
@@ -292,7 +308,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 1,
           "quote_vs_execution_ratio": 0.9801662314040546,
           "quoted_vs_used_gas_ratio": 2.0851258834973363,
@@ -335,7 +351,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 1,
           "quote_vs_execution_ratio": 0.9801662314040546,
           "quoted_vs_used_gas_ratio": 2.0851258834973363,
@@ -397,7 +413,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0.9799999911934969,
           "quoted_vs_used_gas_ratio": 2.6099633492283485,
@@ -458,7 +474,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0,
           "quoted_vs_used_gas_ratio": 2.6099633492283485,
@@ -498,7 +514,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 1,
           "quoted_vs_used_gas_ratio": 2.0851258834973363,
@@ -561,7 +577,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0,
           "quoted_vs_used_gas_ratio": 2.6099633492283485,
@@ -604,7 +620,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0,
           "quoted_vs_used_gas_ratio": 2.6099633492283485,
@@ -640,7 +656,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0,
           "quoted_vs_used_gas_ratio": 0,
@@ -662,7 +678,7 @@ describe('metrics utils', () => {
         },
       });
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0.016666666666666666,
           "quote_vs_execution_ratio": 1.1251337476231986,
           "quoted_vs_used_gas_ratio": 0,
@@ -744,7 +760,16 @@ describe('metrics utils', () => {
         chain_id_destination: 'eip155:10',
         token_symbol_destination: 'ETH',
         token_address_destination: 'eip155:10/slip44:60',
+        token_security_type_destination: null,
       });
+    });
+
+    it('passes through tokenSecurityTypeDestination when present on the history item', () => {
+      const result = getRequestParamFromHistory({
+        ...mockHistoryItem,
+        tokenSecurityTypeDestination: 'Malicious',
+      });
+      expect(result.token_security_type_destination).toBe('Malicious');
     });
 
     it('should handle different token symbols', () => {
@@ -782,7 +807,7 @@ describe('metrics utils', () => {
     it('should return correct trade data', () => {
       const result = getTradeDataFromHistory(mockHistoryItem);
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "gas_included": false,
           "gas_included_7702": false,
           "provider": "across_across",
@@ -864,11 +889,12 @@ describe('metrics utils', () => {
       const result = getRequestMetadataFromHistory(mockHistoryItem);
       expect(result).toStrictEqual({
         slippage_limit: 0.5,
-        custom_slippage: true,
+        custom_slippage: false,
         security_warnings: [],
         usd_amount_source: 2000,
         swap_type: 'crosschain',
         is_hardware_wallet: false,
+        account_hardware_type: null,
         stx_enabled: false,
       });
     });
@@ -894,6 +920,32 @@ describe('metrics utils', () => {
         hardwareWalletAccount,
       );
       expect(result.is_hardware_wallet).toBe(true);
+      expect(result.account_hardware_type).toBe('Ledger');
+    });
+
+    it('should keep Lattice accounts as Lattice', () => {
+      const latticeAccount = {
+        id: 'test-account',
+        type: 'eip155:eoa' as const,
+        address: '0xaccount1',
+        options: {},
+        metadata: {
+          name: 'Test Account',
+          importTime: 1234567890,
+          keyring: {
+            type: 'Lattice Hardware',
+          },
+        },
+        scopes: [],
+        methods: [],
+      };
+
+      const result = getRequestMetadataFromHistory(
+        mockHistoryItem,
+        latticeAccount,
+      );
+      expect(result.is_hardware_wallet).toBe(true);
+      expect(result.account_hardware_type).toBe('Lattice');
     });
 
     it('should handle missing pricing data', () => {
@@ -931,6 +983,52 @@ describe('metrics utils', () => {
       };
       const result = getRequestMetadataFromHistory(defaultSlippageHistoryItem);
       expect(result.slippage_limit).toBe(0.1);
+      expect(result.custom_slippage).toBe(false);
+    });
+
+    it('should use the persisted custom slippage value', () => {
+      expect(
+        getRequestMetadataFromHistory({
+          ...mockHistoryItem,
+          customSlippage: true,
+        }).custom_slippage,
+      ).toBe(true);
+
+      expect(
+        getRequestMetadataFromHistory({
+          ...mockHistoryItem,
+          customSlippage: false,
+        }).custom_slippage,
+      ).toBe(false);
+    });
+
+    it('should preserve an explicit Auto slippage override', () => {
+      const result = getRequestMetadataFromHistory({
+        ...mockHistoryItem,
+        slippagePercentage: 0,
+        customSlippage: true,
+      });
+
+      expect(result.slippage_limit).toBe(0);
+      expect(result.custom_slippage).toBe(true);
+    });
+
+    it('should preserve value-based slippage fallback for batch sell history', () => {
+      const result = getRequestMetadataFromHistory({
+        ...mockHistoryItem,
+        featureId: FeatureId.BATCH_SELL,
+        slippagePercentage: 0,
+      });
+
+      expect(result.custom_slippage).toBe(true);
+    });
+
+    it('should preserve legacy slippage inference for Quick Buy history', () => {
+      const result = getRequestMetadataFromHistory({
+        ...mockHistoryItem,
+        featureId: FeatureId.QUICK_BUY_FOLLOW_TRADING,
+      });
+
       expect(result.custom_slippage).toBe(true);
     });
 
@@ -964,6 +1062,68 @@ describe('metrics utils', () => {
     });
   });
 
+  describe('getPreConfirmationPropertiesFromQuote', () => {
+    it('should include both ab_tests and active_ab_tests when both sets are provided', () => {
+      const abTests = { token_details_layout: 'treatment' };
+      const activeAbTests = [
+        { key: 'bridge_quote_sorting', value: 'variant_b' },
+      ];
+      const result = getPreConfirmationPropertiesFromQuote(
+        {
+          ...{
+            quote: mockHistoryItem.quote,
+            estimatedProcessingTimeInSeconds: 900,
+          },
+          ...{
+            adjustedReturn: { usd: '1980' },
+            sentAmount: { usd: '2000' },
+            gasFee: { effective: { usd: '2.54739' } },
+          },
+        } as never,
+        false,
+        null,
+        MetaMetricsSwapsEventSource.MainView,
+        abTests,
+        activeAbTests,
+      );
+
+      expect(result).toStrictEqual(
+        expect.objectContaining({
+          ab_tests: abTests,
+          active_ab_tests: activeAbTests,
+        }),
+      );
+    });
+
+    it('should use the explicit slippage context when provided', () => {
+      const result = getPreConfirmationPropertiesFromQuote(
+        {
+          quote: mockHistoryItem.quote,
+          estimatedProcessingTimeInSeconds: 900,
+          adjustedReturn: { usd: '1980' },
+          sentAmount: { usd: '2000' },
+          gasFee: { effective: { usd: '2.54739' } },
+        } as never,
+        false,
+        null,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        {
+          ...getQuotesReceivedProperties(null),
+          custom_slippage: true,
+          slippage_limit: 3.5,
+        } as never,
+      );
+
+      expect(result.custom_slippage).toBe(true);
+      expect(result.slippage_limit).toBe(3.5);
+    });
+  });
+
   describe('getEVMSwapTxPropertiesFromTransactionMeta', () => {
     const mockTransactionMeta: TransactionMeta = {
       id: 'test-tx-id',
@@ -986,21 +1146,24 @@ describe('metrics utils', () => {
     it('should return correct properties for a successful swap transaction', () => {
       const result = getEVMTxPropertiesFromTransactionMeta(mockTransactionMeta);
       expect(result).toStrictEqual({
-        error_message: '',
+        error_message: 'Transaction submitted',
         chain_id_source: 'eip155:1',
         chain_id_destination: 'eip155:1',
         token_symbol_source: 'ETH',
         token_symbol_destination: 'USDC',
-        usd_amount_source: 100,
+        usd_amount_source: 0,
         source_transaction: 'COMPLETE',
         stx_enabled: false,
         token_address_source: 'eip155:1/slip44:60',
         token_address_destination:
           'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        token_security_type_destination: null,
         custom_slippage: false,
         is_hardware_wallet: false,
+        account_hardware_type: null,
         swap_type: MetricsSwapType.SINGLE,
         security_warnings: [],
+        slippage_limit: 0,
         price_impact: 0,
         usd_quoted_gas: 0,
         gas_included: false,
@@ -1014,6 +1177,10 @@ describe('metrics utils', () => {
         usd_actual_return: 0,
         usd_actual_gas: 0,
         action_type: MetricsActionType.SWAPBRIDGE_V1,
+        source_hash_present: false,
+        destination_hash_present: false,
+        failure_phase: FailurePhase.Broadcast,
+        error_code: SwapBridgeErrorCode.MissingErrorObject,
       });
     });
 
@@ -1022,15 +1189,33 @@ describe('metrics utils', () => {
         ...mockTransactionMeta,
         status: TransactionStatus.failed,
         error: {
-          message: 'Transaction failed',
+          message: 'Error message',
           name: 'Error',
         } as TransactionError,
       };
       const result = getEVMTxPropertiesFromTransactionMeta(
         failedTransactionMeta,
       );
-      expect(result.error_message).toBe('Transaction failed');
+      expect(result.error_message).toBe('Transaction failed. Error message');
       expect(result.source_transaction).toBe('FAILED');
+      expect(result.failure_phase).toBe(FailurePhase.Broadcast);
+      expect(result.error_code).toBe(SwapBridgeErrorCode.Unknown);
+    });
+
+    it('sets source_execution when the failed tx has a hash', () => {
+      const failedWithHash: TransactionMeta = {
+        ...mockTransactionMeta,
+        status: TransactionStatus.failed,
+        hash: '0xabc',
+        error: {
+          message: 'reverted',
+          name: 'Error',
+        } as TransactionError,
+      };
+      const result = getEVMTxPropertiesFromTransactionMeta(failedWithHash);
+      expect(result.source_hash_present).toBe(true);
+      expect(result.failure_phase).toBe(FailurePhase.SourceExecution);
+      expect(result.error_code).toBe(SwapBridgeErrorCode.Unknown);
     });
 
     it('should handle missing token symbols', () => {
@@ -1081,6 +1266,158 @@ describe('metrics utils', () => {
         crosschainTransactionMeta,
       );
       expect(result.swap_type).toBe(MetricsSwapType.SINGLE);
+    });
+  });
+
+  describe('getSubmitErrorCode', () => {
+    it('maps null to missing_error_object and Error to unknown', () => {
+      expect(getSubmitErrorCode(null)).toBe(
+        SwapBridgeErrorCode.MissingErrorObject,
+      );
+      expect(getSubmitErrorCode(new Error('snap failed'))).toBe(
+        SwapBridgeErrorCode.Unknown,
+      );
+    });
+
+    it('maps non-Error values to non_error_rejection', () => {
+      expect(getSubmitErrorCode('rejected')).toBe(
+        SwapBridgeErrorCode.NonErrorRejection,
+      );
+      expect(getSubmitErrorCode({ code: 4001 })).toBe(
+        SwapBridgeErrorCode.NonErrorRejection,
+      );
+    });
+  });
+
+  describe('getHashPresenceProperties', () => {
+    it('treats empty and missing hashes as absent', () => {
+      expect(getHashPresenceProperties(undefined, null)).toStrictEqual({
+        source_hash_present: false,
+        destination_hash_present: false,
+      });
+      expect(getHashPresenceProperties('', '')).toStrictEqual({
+        source_hash_present: false,
+        destination_hash_present: false,
+      });
+    });
+
+    it('flags hashes independently', () => {
+      expect(getHashPresenceProperties('0xabc', undefined)).toStrictEqual({
+        source_hash_present: true,
+        destination_hash_present: false,
+      });
+      expect(getHashPresenceProperties('0xabc', '0xdef')).toStrictEqual({
+        source_hash_present: true,
+        destination_hash_present: true,
+      });
+    });
+  });
+
+  describe('getStatusFailurePhase', () => {
+    it('prefers destination_execution, then source_execution, then poll', () => {
+      expect(
+        getStatusFailurePhase({
+          source_hash_present: true,
+          destination_hash_present: true,
+        }),
+      ).toBe(FailurePhase.DestinationExecution);
+      expect(
+        getStatusFailurePhase({
+          source_hash_present: true,
+          destination_hash_present: false,
+        }),
+      ).toBe(FailurePhase.SourceExecution);
+      expect(
+        getStatusFailurePhase({
+          source_hash_present: false,
+          destination_hash_present: false,
+        }),
+      ).toBe(FailurePhase.Poll);
+    });
+  });
+
+  describe('promoteFailurePhase', () => {
+    it('keeps broadcast when no hashes are present', () => {
+      expect(
+        promoteFailurePhase(FailurePhase.Broadcast, {
+          source_hash_present: false,
+          destination_hash_present: false,
+        }),
+      ).toBe(FailurePhase.Broadcast);
+    });
+
+    it('promotes broadcast or poll to source_execution when a source hash is present', () => {
+      expect(
+        promoteFailurePhase(FailurePhase.Broadcast, {
+          source_hash_present: true,
+          destination_hash_present: false,
+        }),
+      ).toBe(FailurePhase.SourceExecution);
+      expect(
+        promoteFailurePhase(FailurePhase.Poll, {
+          source_hash_present: true,
+          destination_hash_present: false,
+        }),
+      ).toBe(FailurePhase.SourceExecution);
+      expect(
+        promoteFailurePhase(FailurePhase.Unknown, {
+          source_hash_present: true,
+          destination_hash_present: false,
+        }),
+      ).toBe(FailurePhase.SourceExecution);
+    });
+
+    it('promotes to destination_execution when a dest hash is present', () => {
+      expect(
+        promoteFailurePhase(FailurePhase.SourceExecution, {
+          source_hash_present: true,
+          destination_hash_present: true,
+        }),
+      ).toBe(FailurePhase.DestinationExecution);
+      expect(
+        promoteFailurePhase(FailurePhase.Broadcast, {
+          source_hash_present: false,
+          destination_hash_present: true,
+        }),
+      ).toBe(FailurePhase.DestinationExecution);
+    });
+  });
+
+  describe('getBroadcastFailureProperties', () => {
+    it('uses broadcast for submit failures with no hash', () => {
+      expect(
+        getBroadcastFailureProperties(new Error('snap failed')),
+      ).toStrictEqual({
+        failure_phase: FailurePhase.Broadcast,
+        error_code: SwapBridgeErrorCode.Unknown,
+        source_hash_present: false,
+        destination_hash_present: false,
+      });
+      expect(getBroadcastFailureProperties({ code: 4001 })).toStrictEqual({
+        failure_phase: FailurePhase.Broadcast,
+        error_code: SwapBridgeErrorCode.NonErrorRejection,
+        source_hash_present: false,
+        destination_hash_present: false,
+      });
+    });
+  });
+
+  describe('getFailurePropertiesFromHistory', () => {
+    it('uses status_failed_without_reason and phase from hashes', () => {
+      expect(getFailurePropertiesFromHistory('0xsrc', undefined)).toStrictEqual(
+        {
+          failure_phase: FailurePhase.SourceExecution,
+          error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
+          source_hash_present: true,
+          destination_hash_present: false,
+        },
+      );
+      expect(getFailurePropertiesFromHistory('0xsrc', '0xdest')).toStrictEqual({
+        failure_phase: FailurePhase.DestinationExecution,
+        error_code: SwapBridgeErrorCode.StatusFailedWithoutReason,
+        source_hash_present: true,
+        destination_hash_present: true,
+      });
     });
   });
 });

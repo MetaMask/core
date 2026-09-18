@@ -1,0 +1,45 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "references": [
+    {
+      "path": "../assets-controller"
+    },
+    {
+      "path": "../assets-controllers"
+    },
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../gas-fee-controller"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../ramps-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../transaction-controller"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../sentinel-api-service"
+    },
+    {
+      "path": "../utils"
+    }
+  ],
+  "include": ["../../types", "./src"]
+}

@@ -1,6 +1,6 @@
-import { TRIGGER_TYPES } from '../constants/notification-schema';
-import type { ContentfulResult } from '../services/feature-announcements';
-import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
+import { TRIGGER_TYPES } from '../constants/notification-schema.js';
+import type { ContentfulResult } from '../services/feature-announcements.js';
+import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement.js';
 
 /**
  * Mocking Utility - create a mock normalized feature announcement
@@ -30,8 +30,12 @@ export function createMockFeatureAnnouncementAPIResult(): ContentfulResult {
           },
           id: '1ABRmHaNCgmxROKXXLXsMu',
           type: 'Entry',
-          createdAt: '2024-04-09T13:24:01.872Z',
-          updatedAt: '2024-04-09T13:24:01.872Z',
+          createdAt: new Date(
+            Date.now() - 30 * 24 * 60 * 60 * 1000, // 30 days ago
+          ).toISOString(),
+          updatedAt: new Date(
+            Date.now() - 30 * 24 * 60 * 60 * 1000, // 30 days ago
+          ).toISOString(),
           environment: {
             sys: {
               id: 'master',

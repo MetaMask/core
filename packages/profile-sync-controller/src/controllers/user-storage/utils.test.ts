@@ -1,4 +1,4 @@
-import { setDifference, setIntersection } from './utils';
+import { setDifference, setIntersection } from './utils.js';
 
 describe('utils - setDifference()', () => {
   it('should return the difference between 2 sets', () => {

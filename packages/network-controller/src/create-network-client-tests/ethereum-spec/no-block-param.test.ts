@@ -1,5 +1,5 @@
-import { testsForRpcMethodAssumingNoBlockParam } from '../../../tests/network-client/no-block-param';
-import { NetworkClientType } from '../../types';
+import { testsForRpcMethodAssumingNoBlockParam } from '../../../tests/network-client/no-block-param.js';
+import { NetworkClientType } from '../../types.js';
 
 describe('createNetworkClient - methods included in the Ethereum JSON-RPC spec - methods that assume there is no block param', () => {
   for (const networkClientType of Object.values(NetworkClientType)) {

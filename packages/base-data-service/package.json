@@ -1,0 +1,81 @@
+{
+  "name": "@metamask/base-data-service",
+  "version": "2.0.0",
+  "description": "Provides utilities for building data services",
+  "keywords": [
+    "Ethereum",
+    "MetaMask"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/base-data-service#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
+  "license": "(MIT OR Apache-2.0)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/core.git"
+  },
+  "files": [
+    "dist/"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "build:all": "tsc --build tsconfig.build.json --verbose",
+    "build:clean": "yarn build:only-clean && yarn build",
+    "build:docs": "typedoc",
+    "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/base-data-service",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/base-data-service",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
+    "publish:preview": "yarn npm publish --tag preview",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "dependencies": {
+    "@metamask/messenger": "^3.0.0",
+    "@metamask/storage-service": "^2.0.0",
+    "@metamask/superstruct": "^3.4.1",
+    "@metamask/utils": "^12.0.0",
+    "@tanstack/query-core": "^5.62.16",
+    "cockatiel": "^3.1.2",
+    "fast-deep-equal": "^3.1.3",
+    "lodash-es": "^4.17.21"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^6.1.0",
+    "@types/jest": "^30.0.0",
+    "@types/lodash-es": "^4.17.12",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "deepmerge": "^4.2.2",
+    "jest": "^30.4.2",
+    "nock": "^13.3.1",
+    "rimraf": "^5.0.5",
+    "ts-jest": "^29.4.11",
+    "tsx": "^4.20.5",
+    "typedoc": "^0.25.13",
+    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
+  },
+  "engines": {
+    "node": "^22.14.0 || ^24"
+  }
+}

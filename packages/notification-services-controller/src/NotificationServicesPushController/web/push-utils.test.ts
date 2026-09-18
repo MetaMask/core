@@ -1,17 +1,15 @@
 import * as FirebaseAppModule from 'firebase/app';
 import * as FirebaseMessagingModule from 'firebase/messaging';
 import * as FirebaseMessagingSWModule from 'firebase/messaging/sw';
-import log from 'loglevel';
 
+import { buildPushPlatformNotificationsControllerMessenger } from '../__fixtures__/mockMessenger.js';
+import type { PushAnalyticsPayload } from '../types/index.js';
 import {
   createRegToken,
   deleteRegToken,
   createSubscribeToPushNotifications,
-} from './push-utils';
-import * as PushWebModule from './push-utils';
-import { processNotification } from '../../NotificationServicesController';
-import { createMockNotificationEthSent } from '../../NotificationServicesController/mocks/mock-raw-notifications';
-import { buildPushPlatformNotificationsControllerMessenger } from '../__fixtures__/mockMessenger';
+} from './push-utils.js';
+import * as PushWebModule from './push-utils.js';
 
 jest.mock('firebase/app');
 jest.mock('firebase/messaging');
@@ -28,13 +26,33 @@ const mockEnv = {
   vapidKey: 'test-vapidKey',
 };
 
+const mockFcmData = {
+  notification_id: 'test-notification-id',
+  notification_type: 'wallet_activity',
+  notification_subtype: 'eth_received',
+  profile_id: 'test-profile-id',
+  chain_id: '1',
+  deeplink: 'https://example.com/deeplink',
+};
+
+const expectedAnalyticsPayload: PushAnalyticsPayload = {
+  notification_id: 'test-notification-id',
+  notification_type: 'wallet_activity',
+  notification_subtype: 'eth_received',
+  chain_id: 1,
+  deeplink: 'https://example.com/deeplink',
+};
+
 const firebaseApp: FirebaseAppModule.FirebaseApp = {
   name: '',
   automaticDataCollectionEnabled: false,
   options: mockEnv,
 };
 
-const arrangeFirebaseAppMocks = () => {
+function arrangeFirebaseAppMocks(): {
+  mockGetApp: jest.SpyInstance;
+  mockInitializeApp: jest.SpyInstance;
+} {
   const mockGetApp = jest
     .spyOn(FirebaseAppModule, 'getApp')
     .mockReturnValue(firebaseApp);
@@ -44,9 +62,14 @@ const arrangeFirebaseAppMocks = () => {
     .mockReturnValue(firebaseApp);
 
   return { mockGetApp, mockInitializeApp };
-};
+}
 
-const arrangeFirebaseMessagingSWMocks = () => {
+function arrangeFirebaseMessagingSWMocks(): {
+  mockIsSupported: jest.SpyInstance;
+  mockGetMessaging: jest.SpyInstance;
+  mockOnBackgroundMessage: jest.SpyInstance;
+  mockOnBackgroundMessageUnsub: jest.Mock;
+} {
   const mockIsSupported = jest
     .spyOn(FirebaseMessagingSWModule, 'isSupported')
     .mockResolvedValue(true);
@@ -66,9 +89,12 @@ const arrangeFirebaseMessagingSWMocks = () => {
     mockOnBackgroundMessage,
     mockOnBackgroundMessageUnsub,
   };
-};
+}
 
-const arrangeFirebaseMessagingMocks = () => {
+function arrangeFirebaseMessagingMocks(): {
+  mockGetToken: jest.SpyInstance;
+  mockDeleteToken: jest.SpyInstance;
+} {
   const mockGetToken = jest
     .spyOn(FirebaseMessagingModule, 'getToken')
     .mockResolvedValue('test-token');
@@ -78,12 +104,14 @@ const arrangeFirebaseMessagingMocks = () => {
     .mockResolvedValue(true);
 
   return { mockGetToken, mockDeleteToken };
-};
+}
 
 describe('createRegToken() tests', () => {
   const TEST_TOKEN = 'test-token';
 
-  const arrange = () => {
+  function arrange(): ReturnType<typeof arrangeFirebaseAppMocks> &
+    ReturnType<typeof arrangeFirebaseMessagingSWMocks> &
+    ReturnType<typeof arrangeFirebaseMessagingMocks> {
     const firebaseMocks = {
       ...arrangeFirebaseAppMocks(),
       ...arrangeFirebaseMessagingSWMocks(),
@@ -95,7 +123,7 @@ describe('createRegToken() tests', () => {
     return {
       ...firebaseMocks,
     };
-  };
+  }
 
   afterEach(() => {
     jest.clearAllMocks();
@@ -148,13 +176,15 @@ describe('createRegToken() tests', () => {
 });
 
 describe('deleteRegToken() tests', () => {
-  const arrange = () => {
+  function arrange(): ReturnType<typeof arrangeFirebaseAppMocks> &
+    ReturnType<typeof arrangeFirebaseMessagingSWMocks> &
+    ReturnType<typeof arrangeFirebaseMessagingMocks> {
     return {
       ...arrangeFirebaseAppMocks(),
       ...arrangeFirebaseMessagingSWMocks(),
       ...arrangeFirebaseMessagingMocks(),
     };
-  };
+  }
 
   afterEach(() => {
     jest.clearAllMocks();
@@ -194,7 +224,13 @@ describe('deleteRegToken() tests', () => {
 });
 
 describe('createSubscribeToPushNotifications() tests', () => {
-  const arrangeMessengerMocks = () => {
+  function arrangeMessengerMocks(): {
+    messenger: ReturnType<
+      typeof buildPushPlatformNotificationsControllerMessenger
+    >;
+    onNewNotificationsListener: jest.Mock;
+    pushNotificationClickedListener: jest.Mock;
+  } {
     const messenger = buildPushPlatformNotificationsControllerMessenger();
 
     const onNewNotificationsListener = jest.fn();
@@ -214,19 +250,31 @@ describe('createSubscribeToPushNotifications() tests', () => {
       onNewNotificationsListener,
       pushNotificationClickedListener,
     };
-  };
+  }
 
-  const arrangeClickListenerMocks = () => {
+  function arrangeClickListenerMocks(): {
+    mockAddEventListener: jest.SpyInstance;
+    mockRemoveEventListener: jest.SpyInstance;
+  } {
+    // Testing service worker functionality requires using the 'self' global
+    // eslint-disable-next-line no-restricted-globals
     const mockAddEventListener = jest.spyOn(self, 'addEventListener');
+    // eslint-disable-next-line no-restricted-globals
     const mockRemoveEventListener = jest.spyOn(self, 'removeEventListener');
 
     return {
       mockAddEventListener,
       mockRemoveEventListener,
     };
-  };
+  }
 
-  const arrange = () => {
+  function arrange(): ReturnType<typeof arrangeFirebaseAppMocks> &
+    ReturnType<typeof arrangeFirebaseMessagingSWMocks> &
+    ReturnType<typeof arrangeMessengerMocks> &
+    ReturnType<typeof arrangeClickListenerMocks> & {
+      mockOnReceivedHandler: jest.Mock;
+      mockOnClickHandler: jest.Mock;
+    } {
     const firebaseMocks = {
       ...arrangeFirebaseAppMocks(),
       ...arrangeFirebaseMessagingSWMocks(),
@@ -239,9 +287,11 @@ describe('createSubscribeToPushNotifications() tests', () => {
       mockOnReceivedHandler: jest.fn(),
       mockOnClickHandler: jest.fn(),
     };
-  };
+  }
 
-  const actCreateSubscription = async (mocks: ReturnType<typeof arrange>) => {
+  async function actCreateSubscription(
+    mocks: ReturnType<typeof arrange>,
+  ): Promise<() => void> {
     const unsubscribe = await createSubscribeToPushNotifications({
       messenger: mocks.messenger,
       onReceivedHandler: mocks.mockOnReceivedHandler,
@@ -249,7 +299,7 @@ describe('createSubscribeToPushNotifications() tests', () => {
     })(mockEnv);
 
     return unsubscribe;
-  };
+  }
 
   afterEach(() => {
     jest.clearAllMocks();
@@ -289,59 +339,56 @@ describe('createSubscribeToPushNotifications() tests', () => {
     expect(mocks.mockRemoveEventListener).toHaveBeenCalled();
   });
 
-  const arrangeActNotificationReceived = async (testData: unknown) => {
+  async function arrangeActNotificationReceived(
+    testData: unknown,
+  ): Promise<ReturnType<typeof arrange>> {
     const mocks = arrange();
     await actCreateSubscription(mocks);
 
     const firebaseCallback = mocks.mockOnBackgroundMessage.mock
       .lastCall[1] as FirebaseMessagingModule.NextFn<FirebaseMessagingSWModule.MessagePayload>;
     const payload = {
-      data: {
-        data: testData,
-      },
+      data: testData,
     } as unknown as FirebaseMessagingSWModule.MessagePayload;
 
     firebaseCallback(payload);
 
     return mocks;
-  };
+  }
 
-  it('should invoke handler when notifications are received', async () => {
-    const mocks = await arrangeActNotificationReceived(
-      JSON.stringify(createMockNotificationEthSent()),
+  it('should invoke handler with the parsed analytics payload when notifications are received', async () => {
+    const mocks = await arrangeActNotificationReceived(mockFcmData);
+
+    // Assert New Notification Event & Handler Calls carry the analytics payload
+    expect(mocks.onNewNotificationsListener).toHaveBeenCalledWith(
+      expectedAnalyticsPayload,
     );
-
-    // Assert New Notification Event & Handler Calls
-    expect(mocks.onNewNotificationsListener).toHaveBeenCalled();
-    expect(mocks.mockOnReceivedHandler).toHaveBeenCalled();
+    expect(mocks.mockOnReceivedHandler).toHaveBeenCalledWith(
+      expectedAnalyticsPayload,
+    );
 
     // Assert Click Notification Event & Handler Calls
     expect(mocks.pushNotificationClickedListener).not.toHaveBeenCalled();
     expect(mocks.mockOnClickHandler).not.toHaveBeenCalled();
   });
 
-  it('should fail to invoke handler if notification received has no data', async () => {
-    const mocks = await arrangeActNotificationReceived(undefined);
-    expect(mocks.mockOnReceivedHandler).not.toHaveBeenCalled();
-  });
+  const invalidNotificationDataPayloadsTests = [
+    { data: undefined },
+    { data: null },
+    { data: 'not an object' },
+    // Missing the required `notification_type` field.
+    { data: { notification_id: 'test-id' } },
+    // Missing the required `notification_id` field.
+    { data: { notification_type: 'wallet_activity' } },
+  ];
 
-  it('should throw error if unable to process a received push notification', async () => {
-    jest.spyOn(log, 'error').mockImplementation(jest.fn());
-    const mocks = arrange();
-    await actCreateSubscription(mocks);
-
-    const firebaseCallback = mocks.mockOnBackgroundMessage.mock
-      .lastCall[1] as FirebaseMessagingModule.NextFn<FirebaseMessagingSWModule.MessagePayload>;
-    const payload = {
-      data: {
-        data: JSON.stringify({ badNotification: 'bad' }),
-      },
-    } as unknown as FirebaseMessagingSWModule.MessagePayload;
-
-    await expect(() => firebaseCallback(payload)).rejects.toThrow(
-      expect.any(Error),
-    );
-  });
+  it.each(invalidNotificationDataPayloadsTests)(
+    'should fail to invoke handler if provided invalid push notification data payload - data $data',
+    async ({ data }) => {
+      const mocks = await arrangeActNotificationReceived(data);
+      expect(mocks.mockOnReceivedHandler).not.toHaveBeenCalled();
+    },
+  );
 
   it('should invoke handler when notifications are clicked', async () => {
     const mocks = arrange();
@@ -350,22 +397,25 @@ describe('createSubscribeToPushNotifications() tests', () => {
 
     await actCreateSubscription(mocks);
 
-    const notificationData = processNotification(
-      createMockNotificationEthSent(),
-    );
     const mockNotificationEvent = new Event(
       'notificationclick',
     ) as NotificationEvent;
     Object.assign(mockNotificationEvent, {
-      notification: { data: notificationData },
+      notification: { data: expectedAnalyticsPayload },
     });
 
-    // Act
+    // Act - Testing service worker notification click event
+    // eslint-disable-next-line no-restricted-globals
     self.dispatchEvent(mockNotificationEvent);
 
-    // Assert Click Notification Event & Handler Calls
-    expect(mocks.pushNotificationClickedListener).toHaveBeenCalled();
-    expect(mocks.mockOnClickHandler).toHaveBeenCalled();
+    // Assert Click Notification Event & Handler Calls carry the analytics payload
+    expect(mocks.pushNotificationClickedListener).toHaveBeenCalledWith(
+      expectedAnalyticsPayload,
+    );
+    expect(mocks.mockOnClickHandler).toHaveBeenCalledWith(
+      expect.any(Event),
+      expectedAnalyticsPayload,
+    );
 
     // Assert New Notification Event & Handler Calls
     expect(mocks.onNewNotificationsListener).not.toHaveBeenCalled();

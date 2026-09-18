@@ -44,22 +44,20 @@ expect.extend({
     let rejectionValue: any = UNRESOLVED;
     try {
       await promise;
-    } catch (e) {
-      rejectionValue = e;
+    } catch (error) {
+      rejectionValue = error;
     }
 
     if (rejectionValue !== UNRESOLVED) {
       return {
-        message: () =>
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+        message: (): string =>
           `Expected promise to be fulfilled, but it was rejected with ${rejectionValue}.`,
         pass: false,
       };
     }
 
     return {
-      message: () =>
+      message: (): string =>
         'This message should not be displayed as it is for the negative case, which will never happen.',
       pass: true,
     };
@@ -97,25 +95,22 @@ expect.extend({
         promise,
         treatUnresolvedAfter(TIME_TO_WAIT_UNTIL_UNRESOLVED),
       ]);
-    } catch (e) {
-      rejectionValue = e;
+    } catch (error) {
+      rejectionValue = error;
     }
 
     return resolutionValue === UNRESOLVED
       ? {
-          message: () =>
+          message: (): string =>
             `Expected promise to resolve after ${TIME_TO_WAIT_UNTIL_UNRESOLVED}ms, but it did not`,
           pass: true,
         }
       : {
-          message: () => {
+          message: (): string => {
             return `Expected promise to never resolve after ${TIME_TO_WAIT_UNTIL_UNRESOLVED}ms, but it ${
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              /* eslint-disable @typescript-eslint/restrict-template-expressions */
               rejectionValue
                 ? `was rejected with ${rejectionValue}`
                 : `resolved with ${resolutionValue}`
-              /* eslint-enable @typescript-eslint/restrict-template-expressions */
             }`;
           },
           pass: false,

@@ -2,8 +2,8 @@ import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 import { createSelector } from 'reselect';
 
-import type { NetworkEnablementControllerState } from './NetworkEnablementController';
-import { deriveKeys } from './utils';
+import type { NetworkEnablementControllerState } from './NetworkEnablementController.js';
+import { deriveKeys } from './utils.js';
 
 /**
  * Base selector to get the enabled network map from the controller state.
@@ -65,15 +65,14 @@ export const createSelectorForEnabledNetworksForNamespace = (
 export const selectAllEnabledNetworks = createSelector(
   selectEnabledNetworkMap,
   (enabledNetworkMap) => {
-    return (Object.keys(enabledNetworkMap) as CaipNamespace[]).reduce(
-      (acc, ns) => {
-        acc[ns] = Object.entries(enabledNetworkMap[ns])
-          .filter(([, enabled]) => enabled)
-          .map(([id]) => id);
-        return acc;
-      },
-      {} as Record<CaipNamespace, string[]>,
-    );
+    return Object.keys(enabledNetworkMap).reduce<
+      Record<CaipNamespace, string[]>
+    >((acc, ns) => {
+      acc[ns] = Object.entries(enabledNetworkMap[ns])
+        .filter(([, enabled]) => enabled)
+        .map(([id]) => id);
+      return acc;
+    }, {});
   },
 );
 

@@ -2,12 +2,23 @@ import {
   createEntryPath,
   getFeatureAndKeyFromPath,
   USER_STORAGE_FEATURE_NAMES,
-} from './storage-schema';
+} from './storage-schema.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ErroneousUserStoragePath = any;
 
 describe('user-storage/schema.ts', () => {
+  it('lists supported feature names', () => {
+    expect(USER_STORAGE_FEATURE_NAMES).toMatchInlineSnapshot(`
+      {
+        "accounts": "accounts_v2",
+        "addressBook": "addressBook",
+        "notifications": "notifications",
+        "rampsOrders": "rampsOrders",
+      }
+    `);
+  });
+
   describe('getFeatureAndKeyFromPath', () => {
     it('should correctly construct user storage url', () => {
       expect(

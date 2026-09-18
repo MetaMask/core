@@ -7,18 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+
 ### Changed
 
-- Bump `@metamask/base-controller` from `^8.0.0` to `^8.3.0` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.3.0` ([#8661](https://github.com/MetaMask/core/pull/8661))
+- Bump `@metamask/messenger` from `^1.0.0` to `^3.0.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632), [#9392](https://github.com/MetaMask/core/pull/9392), [#10160](https://github.com/MetaMask/core/pull/10160))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^10.0.0` ([#8457](https://github.com/MetaMask/core/pull/8457), [#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [12.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** Migrate `ComposableController` to new `Messenger` from `@metamask/messenger` ([#6710](https://github.com/MetaMask/core/pull/6710))
+  - Previously, the controller accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6710](https://github.com/MetaMask/core/pull/6710))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+### Fixed
+
+- Resolve incompatibility of `ChildControllerStateChangeEvents` type with `BaseController` (when used in the `Events` type argument of `ComposableControllerMessenger`) by removing unnecessary nested logic from definition ([#6904](https://github.com/MetaMask/core/pull/6904))
+  - Also update generic parameter names `ControllerName` and `ControllerState` to `ChildControllerName`, `ChildControllerState` for reduced ambiguity.
+
+## [11.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [11.1.0]
+
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.0` to `^8.4.1` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
 
 ## [11.0.0]
 
 ### Changed
 
-- **BREAKING:** Re-define `ComposableControllerStateConstraint` type using `StateConstraint` instead of `LegacyControllerStateConstraint` ([#5018](https://github.com/MetaMask/core/pull/5018/))
-- **BREAKING:** Constrain the `ComposableControllerState` generic argument for the `ComposableController` class using `ComposableControllerStateConstraint` instead of `LegacyComposableControllerStateConstraint` ([#5018](https://github.com/MetaMask/core/pull/5018/))
-- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5305](https://github.com/MetaMask/core/pull/5305))
-- Bump `@metamask/json-rpc-engine` from `^10.0.1` to `^10.0.3` ([#5082](https://github.com/MetaMask/core/pull/5082)), ([#5272](https://github.com/MetaMask/core/pull/5272))
+- **BREAKING:** Re-define `ComposableControllerStateConstraint` type using `StateConstraint` instead of `LegacyControllerStateConstraint` ([#5018](https://github.com/MetaMask/core/pull/5018))
+- **BREAKING:** Constrain the `ComposableControllerState` generic argument for the `ComposableController` class using `ComposableControllerStateConstraint` instead of `LegacyComposableControllerStateConstraint` ([#5018](https://github.com/MetaMask/core/pull/5018))
+- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135), [#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/json-rpc-engine` from `^10.0.1` to `^10.0.3` ([#5082](https://github.com/MetaMask/core/pull/5082), [#5272](https://github.com/MetaMask/core/pull/5272))
 
 ## [10.0.0]
 
@@ -45,7 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -104,9 +150,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** The `ComposableController` class is now a generic class that expects one generic argument `ComposableControllerState` ([#3952](https://github.com/MetaMask/core/pull/3952)).
+- **BREAKING:** The `ComposableController` class is now a generic class that expects one generic argument `ComposableControllerState`. ([#3952](https://github.com/MetaMask/core/pull/3952))
   - **BREAKING:** For the `ComposableController` class to be typed correctly, any of its child controllers that extend `BaseControllerV1` must have an overridden `name` property that is defined using the `as const` assertion.
-- **BREAKING:** The types `ComposableControllerStateChangeEvent`, `ComposableControllerEvents`, `ComposableControllerMessenger` are now generic types that expect one generic argument `ComposableControllerState` ([#3952](https://github.com/MetaMask/core/pull/3952)).
+- **BREAKING:** The types `ComposableControllerStateChangeEvent`, `ComposableControllerEvents`, `ComposableControllerMessenger` are now generic types that expect one generic argument `ComposableControllerState`. ([#3952](https://github.com/MetaMask/core/pull/3952))
 - Bump `@metamask/json-rpc-engine` to `^8.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
 - Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
 
@@ -217,15 +263,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - `src/ComposableController.ts`
     - `src/ComposableController.test.ts`
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@12.0.1...@metamask/composable-controller@13.0.0
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@12.0.0...@metamask/composable-controller@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.1.1...@metamask/composable-controller@12.0.0
+[11.1.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.1.0...@metamask/composable-controller@11.1.1
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.0.0...@metamask/composable-controller@11.1.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@10.0.0...@metamask/composable-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.1...@metamask/composable-controller@10.0.0
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.0...@metamask/composable-controller@9.0.1

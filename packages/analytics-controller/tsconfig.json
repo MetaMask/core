@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "references": [
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../geolocation-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../utils"
+    }
+  ],
+  "include": ["../../types", "./src"]
+}

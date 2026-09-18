@@ -2,7 +2,7 @@ import { createSandbox, writeFile, readFile } from '@metamask/utils/node';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-import { readAllFiles, writeFiles } from './fs-utils';
+import { readAllFiles, writeFiles } from './fs-utils.js';
 
 const { withinSandbox } = createSandbox('create-package/fs-utils');
 

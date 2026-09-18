@@ -10,7 +10,7 @@ export class MockErc4337Keyring implements EthKeyring {
     return {};
   }
 
-  async deserialize() {
+  async deserialize(): Promise<void> {
     // Empty
   }
 

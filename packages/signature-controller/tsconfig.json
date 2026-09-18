@@ -1,8 +1,5 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
     {
       "path": "../accounts-controller"
@@ -17,7 +14,7 @@
       "path": "../controller-utils"
     },
     {
-      "path": "../message-manager"
+      "path": "../gator-permissions-controller"
     },
     {
       "path": "../keyring-controller"
@@ -27,6 +24,12 @@
     },
     {
       "path": "../network-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../utils"
     }
   ],
   "include": ["../../types", "./src"]

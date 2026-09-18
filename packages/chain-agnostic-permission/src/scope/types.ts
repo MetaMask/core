@@ -116,10 +116,14 @@ export const parseScopeString = (
 /**
  * CAIP namespaces excluding "wallet" currently supported by/known to the wallet.
  */
-export type NonWalletKnownCaipNamespace = Exclude<
-  KnownCaipNamespace,
-  KnownCaipNamespace.Wallet
->;
+export type NonWalletKnownCaipNamespace =
+  // NOTE: Using explicit enum values to avoid having breaking change when
+  // `KnownCaipNamespace` is updated with new namespaces that we don't yet
+  // support.
+  | KnownCaipNamespace.Eip155
+  | KnownCaipNamespace.Bip122
+  | KnownCaipNamespace.Solana
+  | KnownCaipNamespace.Tron;
 
 /**
  * Checks if a scope string is either a 'wallet' scope or a 'wallet:*' scope.

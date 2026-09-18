@@ -1,9 +1,9 @@
-import * as allExports from '.';
+import * as allExports from './index.js';
 
 describe('@metamask/chain-agnostic-permission', () => {
   it('has expected JavaScript exports', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
-      Array [
+      [
         "getEthAccounts",
         "setEthAccounts",
         "setNonSCACaipAccountIdsInCaip25CaveatValue",
@@ -22,6 +22,7 @@ describe('@metamask/chain-agnostic-permission', () => {
         "getAllScopesFromScopesObjects",
         "getInternalScopesObject",
         "getSessionScopes",
+        "getSessionProperties",
         "getPermittedAccountsForScopes",
         "validateAndNormalizeScopes",
         "bucketScopes",

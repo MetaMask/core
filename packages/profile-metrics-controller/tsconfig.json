@@ -1,0 +1,33 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "references": [
+    {
+      "path": "../accounts-controller"
+    },
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../polling-controller"
+    },
+    {
+      "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../transaction-controller"
+    },
+    {
+      "path": "../utils"
+    }
+  ],
+  "include": ["../../types", "./src"]
+}

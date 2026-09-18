@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "references": [
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../base-data-service"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../utils"
+    }
+  ],
+  "include": ["../../types", "./src", "./tests"]
+}

@@ -1,0 +1,87 @@
+{
+  "name": "@metamask/eth-json-rpc-middleware",
+  "version": "25.0.0",
+  "description": "Ethereum-related json-rpc-engine middleware",
+  "keywords": [
+    "Ethereum",
+    "MetaMask"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/eth-json-rpc-middleware#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/core.git"
+  },
+  "files": [
+    "dist/"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "build:all": "tsc --build tsconfig.build.json --verbose",
+    "build:clean": "yarn build:only-clean && yarn build",
+    "build:docs": "typedoc",
+    "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/eth-json-rpc-middleware --tag-prefix-before-package-rename eth-json-rpc-middleware@ --version-before-package-rename 6.1.0",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eth-json-rpc-middleware --tag-prefix-before-package-rename eth-json-rpc-middleware@ --version-before-package-rename 6.1.0",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "dependencies": {
+    "@metamask/eth-block-tracker": "^16.0.0",
+    "@metamask/eth-json-rpc-provider": "^7.0.0",
+    "@metamask/eth-sig-util": "^9.0.0",
+    "@metamask/json-rpc-engine": "^11.0.0",
+    "@metamask/message-manager": "^15.0.0",
+    "@metamask/rpc-errors": "^7.0.2",
+    "@metamask/superstruct": "^3.4.1",
+    "@metamask/utils": "^12.0.0",
+    "klona": "^2.0.6",
+    "safe-stable-stringify": "^2.4.3"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^6.1.0",
+    "@types/deep-freeze-strict": "^1.1.0",
+    "@types/jest": "^30.0.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "deep-freeze-strict": "^1.1.1",
+    "deepmerge": "^4.2.2",
+    "jest": "^30.4.2",
+    "rimraf": "^5.0.5",
+    "ts-jest": "^29.4.11",
+    "tsx": "^4.20.5",
+    "typedoc": "^0.25.13",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
+  },
+  "engines": {
+    "node": "^22.14.0 || ^24"
+  },
+  "lavamoat": {
+    "allowScripts": {
+      "@lavamoat/preinstall-always-fail": false,
+      "@metamask/eth-sig-util>ethereumjs-util>ethereum-cryptography>keccak": false,
+      "@metamask/eth-sig-util>ethereumjs-util>ethereum-cryptography>secp256k1": false,
+      "eslint-plugin-import-x>unrs-resolver": false
+    }
+  }
+}

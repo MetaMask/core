@@ -1,8 +1,0 @@
-{
-  "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
-  "references": [{ "path": "../../packages/base-controller" }],
-  "include": ["../../types", "./src"]
-}

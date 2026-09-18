@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "references": [
+    {
+      "path": "../eth-block-tracker"
+    },
+    {
+      "path": "../eth-json-rpc-provider"
+    },
+    {
+      "path": "../json-rpc-engine"
+    },
+    {
+      "path": "../message-manager"
+    },
+    {
+      "path": "../utils"
+    }
+  ],
+  "include": ["../../types", "./src", "./test"]
+}

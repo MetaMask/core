@@ -1,4 +1,4 @@
-import { isValidSignature } from './signature';
+import { isValidSignature } from './signature.js';
 
 const VALUE_1_MOCK = '0x12345678';
 const VALUE_2_MOCK = '0xabcabcabcabcabcabcabcabc';

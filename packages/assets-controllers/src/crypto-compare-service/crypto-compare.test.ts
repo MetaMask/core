@@ -1,6 +1,6 @@
 import nock from 'nock';
 
-import { fetchExchangeRate, fetchMultiExchangeRate } from './crypto-compare';
+import { fetchExchangeRate, fetchMultiExchangeRate } from './crypto-compare.js';
 
 const cryptoCompareHost = 'https://min-api.cryptocompare.com';
 

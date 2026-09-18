@@ -1,7 +1,30 @@
-export * from './authentication';
-export * from './user-storage';
-export * from './errors';
-export * from './utils/messaging-signing-snap-requests';
-export * from '../shared/encryption';
-export * from '../shared/env';
-export * from '../shared/storage-schema';
+export * from './authentication.js';
+export { MFA_CREDENTIAL_TYPES } from './authentication-jwt-bearer/mfa/types.js';
+export type {
+  MfaCredentialType,
+  MfaCredentialStatus,
+  MfaErrorCode,
+  EnrolledCredential,
+  TokenReason,
+  EnrollmentChallenge,
+  EnrollmentProof,
+  StepUpChallenge,
+  StepUpProof,
+  ElevatedProfileToken,
+  BeginEnrollmentRequest,
+  CompleteEnrollmentRequest,
+  BeginStepUpRequest,
+  CompleteStepUpRequest,
+  GetElevatedTokenRequest,
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+  RegistrationResponseJSON,
+  AuthenticationResponseJSON,
+} from './authentication-jwt-bearer/mfa/types.js';
+export type { MfaStepUpAssertion } from './authentication-jwt-bearer/mfa/services.js';
+export * from './user-storage.js';
+export * from './errors.js';
+export * from './utils/messaging-signing-snap-requests.js';
+export * from '../shared/encryption/index.js';
+export * from '../shared/env.js';
+export * from '../shared/storage-schema.js';

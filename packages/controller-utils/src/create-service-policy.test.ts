@@ -1,9 +1,4 @@
-// We use conditions exclusively in this file.
-/* eslint-disable jest/no-conditional-in-test */
-
-import { handleWhen } from 'cockatiel';
-import { useFakeTimers } from 'sinon';
-import type { SinonFakeTimers } from 'sinon';
+import { CircuitState, ConstantBackoff, handleWhen } from 'cockatiel';
 
 import {
   createServicePolicy,
@@ -11,2799 +6,877 @@ import {
   DEFAULT_DEGRADED_THRESHOLD,
   DEFAULT_MAX_CONSECUTIVE_FAILURES,
   DEFAULT_MAX_RETRIES,
-} from './create-service-policy';
+  ServicePolicy,
+} from './create-service-policy.js';
 
 describe('createServicePolicy', () => {
-  let clock: SinonFakeTimers;
-
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
   });
 
-  describe('wrapping a service that succeeds on the first try', () => {
-    it('returns a policy that returns what the service returns', async () => {
-      const mockService = jest.fn(() => ({ some: 'data' }));
-      const policy = createServicePolicy();
+  describe('execute', () => {
+    describe('when the service succeeds at least on the first attempt', () => {
+      it('returns what the service returns', async () => {
+        const policy = createServicePolicy();
+        const result = await policy.execute(() => ({ some: 'data' }));
+        expect(result).toStrictEqual({ some: 'data' });
+      });
 
-      const returnValue = await policy.execute(mockService);
+      it('fires onAvailable on the first successful execution and not again on subsequent successful executions', async () => {
+        const mockService = jest.fn();
+        const onAvailableListener = jest.fn();
+        const policy = createServicePolicy();
+        policy.onAvailable(onAvailableListener);
 
-      expect(returnValue).toStrictEqual({ some: 'data' });
-    });
+        await policy.execute(mockService);
+        await policy.execute(mockService);
+        await policy.execute(mockService);
 
-    it('only calls the service once before returning', async () => {
-      const mockService = jest.fn(() => ({ some: 'data' }));
-      const policy = createServicePolicy();
+        expect(onAvailableListener).toHaveBeenCalledTimes(1);
+      });
 
-      await policy.execute(mockService);
-
-      expect(mockService).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not call the listener passed to onBreak, since the circuit never opens', async () => {
-      const mockService = jest.fn(() => ({ some: 'data' }));
-      const onBreakListener = jest.fn();
-      const policy = createServicePolicy();
-      policy.onBreak(onBreakListener);
-
-      await policy.execute(mockService);
-
-      expect(onBreakListener).not.toHaveBeenCalled();
-    });
-
-    describe(`using the default degraded threshold (${DEFAULT_DEGRADED_THRESHOLD})`, () => {
-      it('does not call the listener passed to onDegraded if the service execution time is below the threshold', async () => {
-        const mockService = jest.fn(() => ({ some: 'data' }));
+      it('does not fire onDegraded when the service responds within the degraded threshold', async () => {
         const onDegradedListener = jest.fn();
         const policy = createServicePolicy();
         policy.onDegraded(onDegradedListener);
 
-        await policy.execute(mockService);
+        await policy.execute(jest.fn());
 
         expect(onDegradedListener).not.toHaveBeenCalled();
       });
 
-      it('calls the listener passed to onDegraded once if the service execution time is beyond the threshold', async () => {
-        const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
-        const mockService = jest.fn(() => {
-          return new Promise((resolve) => {
-            setTimeout(() => resolve({ some: 'data' }), delay);
-          });
-        });
-        const onDegradedListener = jest.fn();
-        const policy = createServicePolicy();
-        policy.onDegraded(onDegradedListener);
-
-        const promise = policy.execute(mockService);
-        clock.tick(delay);
-        await promise;
-
-        expect(onDegradedListener).toHaveBeenCalledTimes(1);
-      });
-    });
-
-    describe('using a custom degraded threshold', () => {
-      it('does not call the listener passed to onDegraded if the service execution time below the threshold', async () => {
-        const degradedThreshold = 2000;
-        const mockService = jest.fn(() => ({ some: 'data' }));
-        const onDegradedListener = jest.fn();
-        const policy = createServicePolicy({ degradedThreshold });
-        policy.onDegraded(onDegradedListener);
-
-        await policy.execute(mockService);
-
-        expect(onDegradedListener).not.toHaveBeenCalled();
-      });
-
-      it('calls the listener passed to onDegraded once if the service execution time beyond the threshold', async () => {
-        const degradedThreshold = 2000;
+      it('fires onDegraded when the service takes longer than the degraded threshold', async () => {
+        const degradedThreshold = 2_000;
         const delay = degradedThreshold + 1;
-        const mockService = jest.fn(() => {
-          return new Promise((resolve) => {
-            setTimeout(() => resolve({ some: 'data' }), delay);
-          });
-        });
+        const mockService = jest.fn(
+          () =>
+            new Promise<void>((resolve) => setTimeout(() => resolve(), delay)),
+        );
         const onDegradedListener = jest.fn();
-        const policy = createServicePolicy({ degradedThreshold });
+        const policy = createServicePolicy({
+          degradedThreshold,
+        });
         policy.onDegraded(onDegradedListener);
 
         const promise = policy.execute(mockService);
-        clock.tick(delay);
+        jest.advanceTimersByTime(delay);
         await promise;
 
         expect(onDegradedListener).toHaveBeenCalledTimes(1);
       });
-    });
-  });
 
-  describe('wrapping a service that always fails', () => {
-    describe('if a custom retry filter policy is given and the retry filter policy filters out the thrown error', () => {
-      it('throws what the service throws', async () => {
-        const error = new Error('failure');
-        const mockService = jest.fn(() => {
-          throw error;
-        });
+      it('does not fire onAvailable when the service takes longer than the degraded threshold', async () => {
+        const degradedThreshold = 2_000;
+        const delay = degradedThreshold + 1;
+        const mockService = jest.fn(
+          () =>
+            new Promise<void>((resolve) => setTimeout(() => resolve(), delay)),
+        );
+        const onAvailableListener = jest.fn();
         const policy = createServicePolicy({
-          retryFilterPolicy: handleWhen(
-            (caughtError) => caughtError.message !== 'failure',
-          ),
+          degradedThreshold,
         });
+        policy.onAvailable(onAvailableListener);
 
         const promise = policy.execute(mockService);
+        jest.advanceTimersByTime(delay);
+        await promise;
 
-        await expect(promise).rejects.toThrow(error);
+        expect(onAvailableListener).not.toHaveBeenCalled();
       });
 
-      it('calls the service once and only once', async () => {
+      it('uses the default degraded threshold when none is provided', async () => {
+        const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
+        const mockService = jest.fn(
+          () =>
+            new Promise<void>((resolve) => setTimeout(() => resolve(), delay)),
+        );
+        const onDegradedListener = jest.fn();
+        const policy = createServicePolicy();
+        policy.onDegraded(onDegradedListener);
+
+        const promise = policy.execute(mockService);
+        jest.advanceTimersByTime(delay);
+        await promise;
+
+        expect(onDegradedListener).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not fire onBreak', async () => {
+        const onBreakListener = jest.fn();
+        const policy = createServicePolicy();
+        policy.onBreak(onBreakListener);
+
+        await policy.execute(jest.fn());
+
+        expect(onBreakListener).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('when the service throws an error which has an httpStatus property', () => {
+      it('treats errors with httpStatus >= 500 as service failures, making them circuit-breakable', async () => {
+        const error = Object.assign(new Error('server error'), {
+          httpStatus: 500,
+        });
+        const mockService = createErroringService({ error });
+        const onBreakListener = jest.fn();
+        const policy = createServicePolicyForTestingRetries({
+          breakAfterFirstExecution: true,
+        });
+        policy.onBreak(onBreakListener);
+
+        await ignoreRejection(policy.execute(mockService));
+
+        expect(onBreakListener).toHaveBeenCalledTimes(1);
+      });
+
+      it('treats errors with httpStatus < 500 as non-service failures, making them non-circuit-breakable', async () => {
+        const error = Object.assign(new Error('client error'), {
+          httpStatus: 404,
+        });
+        const mockService = createErroringService({ error });
+        const onBreakListener = jest.fn();
+        const policy = createServicePolicyForTestingRetries({
+          breakAfterFirstExecution: true,
+        });
+        policy.onBreak(onBreakListener);
+
+        await ignoreRejection(policy.execute(mockService));
+
+        expect(onBreakListener).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('when the service always throws', () => {
+      describe.each([
+        {
+          desc: `using a default maxRetries (of ${DEFAULT_MAX_RETRIES})`,
+          maxRetries: DEFAULT_MAX_RETRIES,
+          options: {},
+        },
+        {
+          desc: 'using a custom maxRetries',
+          maxRetries: 5,
+          options: { maxRetries: 5 },
+        },
+      ])('using $desc', ({ maxRetries, options }) => {
+        it(`calls the service maxRetries + 1 times`, async () => {
+          const mockService = createErroringService();
+          const policy = createServicePolicyForTestingRetries({ options });
+
+          await ignoreRejection(policy.execute(mockService));
+
+          expect(mockService).toHaveBeenCalledTimes(maxRetries + 1);
+        });
+
+        it('fires onRetry once per retry', async () => {
+          const mockService = createErroringService();
+          const onRetryListener = jest.fn().mockImplementation(() => {
+            jest.advanceTimersToNextTimer();
+          });
+          const policy = createServicePolicyForTestingRetries({
+            options,
+            onRetryListener,
+          });
+
+          await ignoreRejection(policy.execute(mockService));
+
+          expect(onRetryListener).toHaveBeenCalledTimes(maxRetries);
+        });
+      });
+
+      describe('when a single retry round does not break the circuit', () => {
+        // Setting the number of attempts (maxRetries + 1) less than the
+        // maximum number of consecutive failures causes the circuit to stay
+        // closed even after calling `.execute` once
+        const maxRetries = 2;
+        const maxConsecutiveFailures = 4;
+
+        it('throws the original error', async () => {
+          const error = new Error('failure');
+          const mockService = createErroringService({ error });
+          const policy = createServicePolicyForTestingRetries({
+            options: {
+              maxRetries,
+              maxConsecutiveFailures,
+            },
+          });
+
+          await expect(policy.execute(mockService)).rejects.toThrow(error);
+        });
+
+        it('does not fire onAvailable', async () => {
+          const mockService = createErroringService();
+          const onAvailableListener = jest.fn();
+          const policy = createServicePolicyForTestingRetries({
+            options: {
+              maxRetries,
+              maxConsecutiveFailures,
+            },
+          });
+          policy.onAvailable(onAvailableListener);
+
+          await ignoreRejection(policy.execute(mockService));
+
+          expect(onAvailableListener).not.toHaveBeenCalled();
+        });
+
+        it('fires onDegraded with the error', async () => {
+          const error = new Error('failure');
+          const mockService = createErroringService({ error });
+          const onDegradedListener = jest.fn();
+          const policy = createServicePolicyForTestingRetries({
+            options: {
+              maxRetries,
+              maxConsecutiveFailures,
+            },
+          });
+          policy.onDegraded(onDegradedListener);
+
+          await ignoreRejection(policy.execute(mockService));
+
+          expect(onDegradedListener).toHaveBeenCalledTimes(1);
+          expect(onDegradedListener).toHaveBeenCalledWith({ error });
+        });
+
+        it('does not fire onBreak', async () => {
+          const mockService = createErroringService();
+          const onBreakListener = jest.fn();
+          const policy = createServicePolicyForTestingRetries({
+            options: {
+              maxRetries,
+              maxConsecutiveFailures,
+            },
+          });
+          policy.onBreak(onBreakListener);
+
+          await ignoreRejection(policy.execute(mockService));
+
+          expect(onBreakListener).not.toHaveBeenCalled();
+        });
+      });
+
+      describe('when a single retry round breaks the circuit after the last attempt', () => {
+        // Setting maxConsecutiveFailures equal to maxRetries + 1 causes the
+        // circuit to open after calling `.execute` only once
+        const maxRetries = 2;
+        const maxConsecutiveFailures = 3;
+
+        it('throws the original error', async () => {
+          const error = new Error('failure');
+          const mockService = createErroringService({ error });
+          const policy = createServicePolicyForTestingRetries({
+            options: {
+              maxRetries,
+              maxConsecutiveFailures,
+            },
+          });
+
+          await expect(policy.execute(mockService)).rejects.toThrow(error);
+        });
+
+        it('does not fire onAvailable', async () => {
+          const mockService = createErroringService();
+          const onAvailableListener = jest.fn();
+          const policy = createServicePolicyForTestingRetries({
+            options: {
+              maxRetries,
+              maxConsecutiveFailures,
+            },
+          });
+          policy.onAvailable(onAvailableListener);
+
+          await ignoreRejection(policy.execute(mockService));
+
+          expect(onAvailableListener).not.toHaveBeenCalled();
+        });
+
+        it('does not fire onDegraded', async () => {
+          const mockService = createErroringService();
+          const onDegradedListener = jest.fn();
+          const policy = createServicePolicyForTestingRetries({
+            options: {
+              maxRetries,
+              maxConsecutiveFailures,
+            },
+          });
+          policy.onDegraded(onDegradedListener);
+
+          await ignoreRejection(policy.execute(mockService));
+
+          expect(onDegradedListener).not.toHaveBeenCalled();
+        });
+
+        it('fires onBreak', async () => {
+          const mockService = createErroringService();
+          const onBreakListener = jest.fn();
+          const policy = createServicePolicyForTestingRetries({
+            options: {
+              maxRetries,
+              maxConsecutiveFailures,
+            },
+          });
+          policy.onBreak(onBreakListener);
+
+          await ignoreRejection(policy.execute(mockService));
+
+          expect(onBreakListener).toHaveBeenCalledTimes(1);
+        });
+
+        it('throws BrokenCircuitError on the next service execution', async () => {
+          const mockService = createErroringService();
+          const policy = createServicePolicyForTestingRetries({
+            options: {
+              maxRetries,
+              maxConsecutiveFailures,
+            },
+          });
+
+          await ignoreRejection(policy.execute(mockService));
+
+          await expect(policy.execute(mockService)).rejects.toThrow(
+            'Execution prevented because the circuit breaker is open',
+          );
+        });
+      });
+
+      describe('when a single retry round breaks the circuit before reaching the max number of retries', () => {
+        // Setting the number of attempts (maxRetries + 1) greater than the
+        // maximum number of consecutive failures causes the circuit to break
+        // before the last attempt is reached
+        const maxRetries = 3;
+        const maxConsecutiveFailures = 3;
+
+        it('throws BrokenCircuitError', async () => {
+          const mockService = createErroringService();
+          const policy = createServicePolicyForTestingRetries({
+            options: {
+              maxRetries,
+              maxConsecutiveFailures,
+            },
+          });
+
+          await expect(policy.execute(mockService)).rejects.toThrow(
+            'Execution prevented because the circuit breaker is open',
+          );
+        });
+
+        it('does not fire onAvailable', async () => {
+          const mockService = createErroringService();
+          const onAvailableListener = jest.fn();
+          const policy = createServicePolicyForTestingRetries({
+            options: {
+              maxRetries,
+              maxConsecutiveFailures,
+            },
+          });
+          policy.onAvailable(onAvailableListener);
+
+          await ignoreRejection(policy.execute(mockService));
+
+          expect(onAvailableListener).not.toHaveBeenCalled();
+        });
+
+        it('does not fire onDegraded', async () => {
+          const mockService = createErroringService();
+          const onDegradedListener = jest.fn();
+          const policy = createServicePolicyForTestingRetries({
+            options: {
+              maxRetries,
+              maxConsecutiveFailures,
+            },
+          });
+          policy.onDegraded(onDegradedListener);
+
+          await ignoreRejection(policy.execute(mockService));
+
+          expect(onDegradedListener).not.toHaveBeenCalled();
+        });
+
+        it('fires onBreak', async () => {
+          const mockService = createErroringService();
+          const onBreakListener = jest.fn();
+          const policy = createServicePolicyForTestingRetries({
+            options: {
+              maxRetries,
+              maxConsecutiveFailures,
+            },
+          });
+          policy.onBreak(onBreakListener);
+
+          await ignoreRejection(policy.execute(mockService));
+
+          expect(onBreakListener).toHaveBeenCalledTimes(1);
+        });
+      });
+    });
+
+    describe('when the service throws at first but succeeds on the final attempt', () => {
+      it('returns the eventual successful result from the service', async () => {
+        const mockService = createErroringService({
+          failUntilNthAttempt: DEFAULT_MAX_RETRIES + 1,
+        });
+        const policy = createServicePolicyForTestingRetries();
+
+        const result = await policy.execute(mockService);
+
+        expect(result).toStrictEqual({ some: 'data' });
+      });
+
+      it('fires onAvailable on the first successful (fast) execution and not again on subsequent successful (fast) executions', async () => {
+        const mockService = createErroringService({
+          failUntilNthAttempt: DEFAULT_MAX_RETRIES + 1,
+        });
+        const onAvailableListener = jest.fn();
+        const policy = createServicePolicyForTestingRetries();
+        policy.onAvailable(onAvailableListener);
+
+        await policy.execute(mockService);
+        await policy.execute(() => {
+          // dummy function
+        });
+
+        expect(onAvailableListener).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not fire onDegraded if the final attempt takes less time than the degraded threshold', async () => {
+        const mockService = createErroringService({
+          failUntilNthAttempt: DEFAULT_MAX_RETRIES + 1,
+        });
+        const onDegradedListener = jest.fn();
+        const policy = createServicePolicyForTestingRetries();
+        policy.onDegraded(onDegradedListener);
+
+        await policy.execute(mockService);
+
+        expect(onDegradedListener).not.toHaveBeenCalled();
+      });
+
+      it('fires onDegraded when the final attempt takes longer than the degraded threshold', async () => {
+        const degradedThreshold = 2_000;
+        const delay = degradedThreshold + 1;
+        let attempts = 0;
+        const mockService = jest.fn(
+          () =>
+            new Promise<{ some: string }>((resolve, reject) => {
+              attempts += 1;
+              if (attempts === 1 + DEFAULT_MAX_RETRIES) {
+                setTimeout(() => resolve({ some: 'data' }), delay);
+              } else {
+                reject(new Error('failure'));
+              }
+            }),
+        );
+        const onDegradedListener = jest.fn();
+        const policy = createServicePolicyForTestingRetries({
+          options: {
+            degradedThreshold,
+          },
+        });
+        policy.onDegraded(onDegradedListener);
+
+        const promise = policy.execute(mockService);
+        await jest.runAllTimersAsync();
+        await promise;
+
+        expect(onDegradedListener).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not fire onAvailable when the final attempt takes longer than the degraded threshold', async () => {
+        const degradedThreshold = 2_000;
+        const delay = degradedThreshold + 1;
+        let attempts = 0;
+        const mockService = jest.fn(
+          () =>
+            new Promise<{ some: string }>((resolve, reject) => {
+              attempts += 1;
+              if (attempts === 1 + DEFAULT_MAX_RETRIES) {
+                setTimeout(() => resolve({ some: 'data' }), delay);
+              } else {
+                reject(new Error('failure'));
+              }
+            }),
+        );
+        const onAvailableListener = jest.fn();
+        const policy = createServicePolicyForTestingRetries({
+          options: {
+            degradedThreshold,
+          },
+        });
+        policy.onAvailable(onAvailableListener);
+
+        const promise = policy.execute(mockService);
+        await jest.runAllTimersAsync();
+        await promise;
+
+        expect(onAvailableListener).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('when the service fails enough times to break the circuit, then the circuit break duration elapses', () => {
+      it('returns what the service returns if it then succeeds', async () => {
+        // Setup
+        const circuitBreakDuration = 5_000;
+        let attempts = 0;
+        const mockService = jest.fn(() => {
+          attempts += 1;
+          if (attempts > DEFAULT_MAX_CONSECUTIVE_FAILURES) {
+            return { some: 'data' };
+          }
+          throw new Error('failure');
+        });
+        const policy = createServicePolicyForTestingRetries({
+          options: {
+            circuitBreakDuration,
+          },
+        });
+
+        // Drive the circuit open, then advance past the circuit break duration
+        await ignoreRejection(policy.execute(mockService));
+        await ignoreRejection(policy.execute(mockService));
+        await ignoreRejection(policy.execute(mockService));
+        jest.advanceTimersByTime(circuitBreakDuration);
+
+        const result = await policy.execute(mockService);
+        expect(result).toStrictEqual({ some: 'data' });
+      });
+
+      it('uses the default circuit break duration when none is provided', async () => {
+        // Setup
+        let attempts = 0;
+        const mockService = jest.fn(() => {
+          attempts += 1;
+          if (attempts > DEFAULT_MAX_CONSECUTIVE_FAILURES) {
+            return { some: 'data' };
+          }
+          throw new Error('failure');
+        });
+        const policy = createServicePolicyForTestingRetries();
+
+        // Drive the circuit open, then advance past the circuit break duration
+        await ignoreRejection(policy.execute(mockService));
+        await ignoreRejection(policy.execute(mockService));
+        await ignoreRejection(policy.execute(mockService));
+        jest.advanceTimersByTime(DEFAULT_CIRCUIT_BREAK_DURATION);
+
+        const result = await policy.execute(mockService);
+        expect(result).toStrictEqual({ some: 'data' });
+      });
+
+      it('fires onAvailable again after the circuit recovers', async () => {
+        // Setup
+        const circuitBreakDuration = 5_000;
+        let attempts = 0;
+        const mockService = jest.fn(() => {
+          attempts += 1;
+          if (
+            attempts === 1 ||
+            attempts > DEFAULT_MAX_CONSECUTIVE_FAILURES + 1
+          ) {
+            return { some: 'data' };
+          }
+          throw new Error('failure');
+        });
+        const onAvailableListener = jest.fn();
+        const policy = createServicePolicyForTestingRetries({
+          options: {
+            circuitBreakDuration,
+          },
+        });
+        policy.onAvailable(onAvailableListener);
+
+        // Check that onAvailable fires at first for completeness
+        await policy.execute(mockService);
+        expect(onAvailableListener).toHaveBeenCalledTimes(1);
+
+        // Drive the circuit open
+        await ignoreRejection(policy.execute(mockService));
+        await ignoreRejection(policy.execute(mockService));
+        await ignoreRejection(policy.execute(mockService));
+
+        // Recover
+        jest.advanceTimersByTime(circuitBreakDuration);
+        await policy.execute(mockService);
+        expect(onAvailableListener).toHaveBeenCalledTimes(2);
+      });
+
+      it('does not fire onAvailable again if the circuit recovers but then the service fails', async () => {
+        // Setup
+        const circuitBreakDuration = 5_000;
+        let attempts = 0;
+        const mockService = jest.fn(() => {
+          attempts += 1;
+          if (attempts === 1) {
+            return { some: 'data' };
+          }
+          throw new Error('failure');
+        });
+        const onAvailableListener = jest.fn();
+        const policy = createServicePolicyForTestingRetries({
+          options: {
+            circuitBreakDuration,
+          },
+        });
+        policy.onAvailable(onAvailableListener);
+
+        // Establish baseline
+        await policy.execute(mockService);
+        expect(onAvailableListener).toHaveBeenCalledTimes(1);
+
+        // Drive the circuit open
+        await ignoreRejection(policy.execute(mockService));
+        await ignoreRejection(policy.execute(mockService));
+        await ignoreRejection(policy.execute(mockService));
+
+        // Recover
+        jest.advanceTimersByTime(circuitBreakDuration);
+        await ignoreRejection(policy.execute(mockService));
+        expect(onAvailableListener).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('using a custom retryFilterPolicy', () => {
+      it('throws the error immediately without retrying if retryFilterPolicy filters the error out', async () => {
         const error = new Error('failure');
         const mockService = jest.fn(() => {
           throw error;
         });
-        const policy = createServicePolicy({
-          retryFilterPolicy: handleWhen(
-            (caughtError) => caughtError.message !== 'failure',
-          ),
+        const policy = createServicePolicyForTestingRetries({
+          options: {
+            retryFilterPolicy: handleWhen(
+              (caughtError) => caughtError.message !== 'failure',
+            ),
+          },
         });
 
-        const promise = policy.execute(mockService);
-        await ignoreRejection(promise);
-
+        await expect(policy.execute(mockService)).rejects.toThrow(error);
         expect(mockService).toHaveBeenCalledTimes(1);
       });
 
-      it('does not call the listener passed to onRetry', async () => {
+      it('does not fire onRetry, onBreak, onDegraded, or onAvailable if retryFilterPolicy filters the error out', async () => {
         const error = new Error('failure');
         const mockService = jest.fn(() => {
           throw error;
         });
         const onRetryListener = jest.fn();
-        const policy = createServicePolicy({
-          retryFilterPolicy: handleWhen(
-            (caughtError) => caughtError.message !== 'failure',
-          ),
+        const onBreakListener = jest.fn();
+        const onDegradedListener = jest.fn();
+        const onAvailableListener = jest.fn();
+        const policy = createServicePolicyForTestingRetries({
+          options: {
+            retryFilterPolicy: handleWhen(
+              (caughtError) => caughtError.message !== 'failure',
+            ),
+          },
+        });
+        policy.onRetry(onRetryListener);
+        policy.onBreak(onBreakListener);
+        policy.onDegraded(onDegradedListener);
+        policy.onAvailable(onAvailableListener);
+
+        await ignoreRejection(policy.execute(mockService));
+
+        expect(onRetryListener).not.toHaveBeenCalled();
+        expect(onBreakListener).not.toHaveBeenCalled();
+        expect(onDegradedListener).not.toHaveBeenCalled();
+        expect(onAvailableListener).not.toHaveBeenCalled();
+      });
+
+      it('throws the error after retrying if retryFilterPolicy filters the error in', async () => {
+        const error = new Error('failure');
+        const mockService = jest.fn(() => {
+          throw error;
+        });
+        const policy = createServicePolicyForTestingRetries({
+          options: {
+            retryFilterPolicy: handleWhen(
+              (caughtError) => caughtError.message === 'failure',
+            ),
+          },
+        });
+
+        await expect(policy.execute(mockService)).rejects.toThrow(error);
+        expect(mockService).toHaveBeenCalledTimes(DEFAULT_MAX_RETRIES + 1);
+      });
+
+      it('fires onRetry if retryFilterPolicy filters the error in', async () => {
+        const error = new Error('failure');
+        const mockService = jest.fn(() => {
+          throw error;
+        });
+        const onRetryListener = jest.fn();
+        const policy = createServicePolicyForTestingRetries({
+          options: {
+            retryFilterPolicy: handleWhen(
+              (caughtError) => caughtError.message === 'failure',
+            ),
+          },
         });
         policy.onRetry(onRetryListener);
 
-        const promise = policy.execute(mockService);
-        await ignoreRejection(promise);
-
-        expect(onRetryListener).not.toHaveBeenCalled();
-      });
-
-      it('does not call the listener passed to onBreak', async () => {
-        const error = new Error('failure');
-        const mockService = jest.fn(() => {
-          throw error;
-        });
-        const onBreakListener = jest.fn();
-        const policy = createServicePolicy({
-          retryFilterPolicy: handleWhen(
-            (caughtError) => caughtError.message !== 'failure',
-          ),
-        });
-        policy.onBreak(onBreakListener);
-
-        const promise = policy.execute(mockService);
-        // It's safe not to await this promise; adding it to the promise queue
-        // is enough to prevent this test from running indefinitely.
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.runAllAsync();
-        await ignoreRejection(promise);
-
-        expect(onBreakListener).not.toHaveBeenCalled();
-      });
-
-      it('does not call the listener passed to onDegraded', async () => {
-        const error = new Error('failure');
-        const mockService = jest.fn(() => {
-          throw error;
-        });
-        const onDegradedListener = jest.fn();
-        const policy = createServicePolicy({
-          retryFilterPolicy: handleWhen(
-            (caughtError) => caughtError.message !== 'failure',
-          ),
-        });
-        policy.onDegraded(onDegradedListener);
-
-        const promise = policy.execute(mockService);
-        // It's safe not to await this promise; adding it to the promise queue
-        // is enough to prevent this test from running indefinitely.
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.runAllAsync();
-        await ignoreRejection(promise);
-
-        expect(onDegradedListener).not.toHaveBeenCalled();
+        await ignoreRejection(policy.execute(mockService));
+        expect(onRetryListener).toHaveBeenCalled();
       });
     });
 
-    describe('using the default retry filter policy (which retries all errors)', () => {
-      describe(`using the default max retries (${DEFAULT_MAX_RETRIES})`, () => {
-        it(`calls the service a total of ${
-          1 + DEFAULT_MAX_RETRIES
-        } times, delaying each retry using a backoff formula`, async () => {
-          const error = new Error('failure');
-          const mockService = jest.fn(() => {
-            throw error;
-          });
-          const policy = createServicePolicy();
-          // Each retry delay is randomized using a decorrelated jitter formula,
-          // so we need to prevent that
-          jest.spyOn(Math, 'random').mockReturnValue(0);
-
-          const promise = policy.execute(mockService);
-          // It's safe not to await these promises; adding them to the promise
-          // queue is enough to prevent this test from running indefinitely.
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.tickAsync(0);
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.tickAsync(176.27932892814937);
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.tickAsync(186.8886145345685);
-          await ignoreRejection(promise);
-
-          expect(mockService).toHaveBeenCalledTimes(1 + DEFAULT_MAX_RETRIES);
+    describe('using a custom isServiceFailure predicate', () => {
+      it('opens the circuit when the predicate treats the error as a service failure', async () => {
+        const error = new Error('failure');
+        const mockService = createErroringService({ error });
+        const onBreakListener = jest.fn();
+        const policy = createServicePolicyForTestingRetries({
+          options: {
+            isServiceFailure: () => true,
+          },
+          breakAfterFirstExecution: true,
         });
+        policy.onBreak(onBreakListener);
 
-        it('calls the listener passed to onRetry once per retry', async () => {
-          const error = new Error('failure');
-          const mockService = jest.fn(() => {
-            throw error;
-          });
-          const onRetryListener = jest.fn();
-          const policy = createServicePolicy();
-          policy.onRetry(onRetryListener);
+        await ignoreRejection(policy.execute(mockService));
 
-          const promise = policy.execute(mockService);
-          // It's safe not to await this promise; adding it to the promise queue is
-          // enough to prevent this test from running indefinitely.
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.runAllAsync();
-          await ignoreRejection(promise);
-
-          expect(onRetryListener).toHaveBeenCalledTimes(DEFAULT_MAX_RETRIES);
-        });
-
-        describe(`using the default max number of consecutive failures (${DEFAULT_MAX_CONSECUTIVE_FAILURES})`, () => {
-          it('throws what the service throws', async () => {
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const policy = createServicePolicy();
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-
-            await expect(promise).rejects.toThrow(error);
-          });
-
-          it('does not call the listener passed to onBreak, since the max number of consecutive failures is never reached', async () => {
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onBreakListener = jest.fn();
-            const policy = createServicePolicy();
-            policy.onBreak(onBreakListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await ignoreRejection(promise);
-
-            expect(onBreakListener).not.toHaveBeenCalled();
-          });
-
-          it('calls the listener passed to onDegraded once, since the circuit is still closed', async () => {
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onDegradedListener = jest.fn();
-            const policy = createServicePolicy();
-            policy.onDegraded(onDegradedListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await ignoreRejection(promise);
-
-            expect(onDegradedListener).toHaveBeenCalledTimes(1);
-          });
-        });
-
-        describe('using a custom max number of consecutive failures', () => {
-          describe('if the initial run + retries is less than the max number of consecutive failures', () => {
-            it('throws what the service throws', async () => {
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-              });
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-
-              await expect(promise).rejects.toThrow(error);
-            });
-
-            it('does not call the listener passed to onBreak', async () => {
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onBreakListener = jest.fn();
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-              });
-              policy.onBreak(onBreakListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onBreakListener).not.toHaveBeenCalled();
-            });
-
-            it('calls the listener passed to onDegraded once', async () => {
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onDegradedListener).toHaveBeenCalledTimes(1);
-            });
-          });
-
-          describe('if the initial run + retries is equal to the max number of consecutive failures', () => {
-            it('throws what the service throws', async () => {
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-              });
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-
-              await expect(promise).rejects.toThrow(error);
-            });
-
-            it('calls the listener passed to onBreak once with the error', async () => {
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onBreakListener = jest.fn();
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-              });
-              policy.onBreak(onBreakListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onBreakListener).toHaveBeenCalledTimes(1);
-              expect(onBreakListener).toHaveBeenCalledWith({ error });
-            });
-
-            it('never calls the listener passed to onDegraded, since the circuit is open', async () => {
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-
-            it('throws a BrokenCircuitError instead of whatever error the service produces if the service is executed again', async () => {
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-              });
-
-              const firstExecution = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(firstExecution);
-
-              const secondExecution = policy.execute(mockService);
-              await expect(secondExecution).rejects.toThrow(
-                new Error(
-                  'Execution prevented because the circuit breaker is open',
-                ),
-              );
-            });
-          });
-
-          describe('if the initial run + retries is greater than the max number of consecutive failures', () => {
-            it('throws a BrokenCircuitError instead of whatever error the service produces', async () => {
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-              });
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-
-              await expect(promise).rejects.toThrow(
-                new Error(
-                  'Execution prevented because the circuit breaker is open',
-                ),
-              );
-            });
-
-            it('calls the listener passed to onBreak once with the error', async () => {
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onBreakListener = jest.fn();
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-              });
-              policy.onBreak(onBreakListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onBreakListener).toHaveBeenCalledTimes(1);
-              expect(onBreakListener).toHaveBeenCalledWith({ error });
-            });
-
-            it('never calls the listener passed to onDegraded, since the circuit is open', async () => {
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-          });
-        });
+        expect(onBreakListener).toHaveBeenCalledTimes(1);
+        expect(onBreakListener).toHaveBeenCalledWith({ error });
       });
 
-      describe('using a custom max number of retries', () => {
-        it(`calls the service a total of 1 + <maxRetries> times, delaying each retry using a backoff formula`, async () => {
-          const maxRetries = 5;
-          const error = new Error('failure');
-          const mockService = jest.fn(() => {
-            throw error;
-          });
-          const policy = createServicePolicy({ maxRetries });
-          // Each retry delay is randomized using a decorrelated jitter formula,
-          // so we need to prevent that
-          jest.spyOn(Math, 'random').mockReturnValue(0);
-
-          const promise = policy.execute(mockService);
-          // It's safe not to await these promises; adding them to the promise
-          // queue is enough to prevent this test from running indefinitely.
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.tickAsync(0);
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.tickAsync(176.27932892814937);
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.tickAsync(186.8886145345685);
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.tickAsync(366.8287823691078);
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.tickAsync(731.8792783578953);
-          await ignoreRejection(promise);
-
-          expect(mockService).toHaveBeenCalledTimes(1 + maxRetries);
+      it('never opens the circuit when the predicate does not treat the error as a service failure', async () => {
+        const error = new Error('failure');
+        const mockService = createErroringService({ error });
+        const onBreakListener = jest.fn();
+        const policy = createServicePolicyForTestingRetries({
+          options: {
+            isServiceFailure: () => false,
+          },
+          breakAfterFirstExecution: true,
         });
+        policy.onBreak(onBreakListener);
 
-        it('calls the onRetry callback once per retry', async () => {
-          const maxRetries = 5;
-          const error = new Error('failure');
-          const mockService = jest.fn(() => {
-            throw error;
-          });
-          const onRetryListener = jest.fn();
-          const policy = createServicePolicy({
-            maxRetries,
-          });
-          policy.onRetry(onRetryListener);
+        await ignoreRejection(policy.execute(mockService));
 
-          const promise = policy.execute(mockService);
-          // It's safe not to await this promise; adding it to the promise queue is
-          // enough to prevent this test from running indefinitely.
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.runAllAsync();
-          await ignoreRejection(promise);
-
-          expect(onRetryListener).toHaveBeenCalledTimes(maxRetries);
-        });
-
-        describe(`using the default max number of consecutive failures (${DEFAULT_MAX_CONSECUTIVE_FAILURES})`, () => {
-          describe('if the initial run + retries is less than the max number of consecutive failures', () => {
-            it('throws what the service throws', async () => {
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const policy = createServicePolicy({ maxRetries });
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-
-              await expect(promise).rejects.toThrow(error);
-            });
-
-            it('does not call the onBreak callback', async () => {
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onBreakListener = jest.fn();
-              const policy = createServicePolicy({ maxRetries });
-              policy.onBreak(onBreakListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onBreakListener).not.toHaveBeenCalled();
-            });
-
-            it('calls the onDegraded callback once', async () => {
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({ maxRetries });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onDegradedListener).toHaveBeenCalledTimes(1);
-            });
-          });
-
-          describe('if the initial run + retries is equal to the max number of consecutive failures', () => {
-            it('throws what the service throws', async () => {
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const policy = createServicePolicy({ maxRetries });
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-
-              await expect(promise).rejects.toThrow(error);
-            });
-
-            it('calls the onBreak callback once with the error', async () => {
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onBreakListener = jest.fn();
-              const policy = createServicePolicy({ maxRetries });
-              policy.onBreak(onBreakListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onBreakListener).toHaveBeenCalledTimes(1);
-              expect(onBreakListener).toHaveBeenCalledWith({ error });
-            });
-
-            it('never calls the onDegraded callback, since the circuit is open', async () => {
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({ maxRetries });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-
-            it('throws a BrokenCircuitError instead of whatever error the service produces if the policy is executed again', async () => {
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const policy = createServicePolicy({ maxRetries });
-
-              const firstExecution = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(firstExecution);
-
-              const secondExecution = policy.execute(mockService);
-              await expect(secondExecution).rejects.toThrow(
-                new Error(
-                  'Execution prevented because the circuit breaker is open',
-                ),
-              );
-            });
-          });
-
-          describe('if the initial run + retries is greater than the max number of consecutive failures', () => {
-            it('throws a BrokenCircuitError instead of whatever error the service produces', async () => {
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
-              const mockService = jest.fn(() => {
-                throw new Error('failure');
-              });
-              const policy = createServicePolicy({ maxRetries });
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-
-              await expect(promise).rejects.toThrow(
-                new Error(
-                  'Execution prevented because the circuit breaker is open',
-                ),
-              );
-            });
-
-            it('calls the onBreak callback once with the error', async () => {
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onBreakListener = jest.fn();
-              const policy = createServicePolicy({ maxRetries });
-              policy.onBreak(onBreakListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onBreakListener).toHaveBeenCalledTimes(1);
-              expect(onBreakListener).toHaveBeenCalledWith({ error });
-            });
-
-            it('never calls the onDegraded callback, since the circuit is open', async () => {
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({ maxRetries });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-          });
-        });
-
-        describe('using a custom max number of consecutive failures', () => {
-          describe('if the initial run + retries is less than the max number of consecutive failures', () => {
-            it('throws what the service throws', async () => {
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures - 2;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-              });
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-
-              await expect(promise).rejects.toThrow(error);
-            });
-
-            it('does not call the onBreak callback', async () => {
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures - 2;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onBreakListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-              });
-              policy.onBreak(onBreakListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onBreakListener).not.toHaveBeenCalled();
-            });
-
-            it('calls the onDegraded callback once', async () => {
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures - 2;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onDegradedListener).toHaveBeenCalledTimes(1);
-            });
-          });
-
-          describe('if the initial run + retries is equal to the max number of consecutive failures', () => {
-            it('throws what the service throws', async () => {
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures - 1;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-              });
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-
-              await expect(promise).rejects.toThrow(error);
-            });
-
-            it('calls the onBreak callback once with the error', async () => {
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures - 1;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onBreakListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-              });
-              policy.onBreak(onBreakListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onBreakListener).toHaveBeenCalledTimes(1);
-              expect(onBreakListener).toHaveBeenCalledWith({ error });
-            });
-
-            it('never calls the onDegraded callback, since the circuit is open', async () => {
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures - 1;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-
-            it('throws a BrokenCircuitError instead of whatever error the service produces if the policy is executed again', async () => {
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures - 1;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-              });
-
-              const firstExecution = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(firstExecution);
-
-              const secondExecution = policy.execute(mockService);
-              await expect(secondExecution).rejects.toThrow(
-                new Error(
-                  'Execution prevented because the circuit breaker is open',
-                ),
-              );
-            });
-          });
-
-          describe('if the initial run + retries is greater than the max number of consecutive failures', () => {
-            it('throws a BrokenCircuitError instead of whatever error the service produces', async () => {
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-              });
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-
-              await expect(promise).rejects.toThrow(
-                new Error(
-                  'Execution prevented because the circuit breaker is open',
-                ),
-              );
-            });
-
-            it('calls the onBreak callback once with the error', async () => {
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onBreakListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-              });
-              policy.onBreak(onBreakListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onBreakListener).toHaveBeenCalledTimes(1);
-              expect(onBreakListener).toHaveBeenCalledWith({ error });
-            });
-
-            it('never calls the onDegraded callback, since the circuit is open', async () => {
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures;
-              const error = new Error('failure');
-              const mockService = jest.fn(() => {
-                throw error;
-              });
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(promise);
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-          });
-        });
+        expect(onBreakListener).not.toHaveBeenCalled();
       });
     });
   });
 
-  describe('wrapping a service that fails continuously and then succeeds on the final try', () => {
-    // NOTE: Using a custom retry filter policy is not tested here since the
-    // same thing would happen as above if the error is filtered out
-
-    describe(`using the default max retries (${DEFAULT_MAX_RETRIES})`, () => {
-      it(`calls the service a total of ${
-        1 + DEFAULT_MAX_RETRIES
-      } times, delaying each retry using a backoff formula`, async () => {
-        let invocationCounter = 0;
-        const mockService = jest.fn(() => {
-          invocationCounter += 1;
-          if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-            return { some: 'data' };
-          }
-          throw new Error('failure');
-        });
-        const policy = createServicePolicy();
-        // Each retry delay is randomized using a decorrelated jitter formula,
-        // so we need to prevent that
-        jest.spyOn(Math, 'random').mockReturnValue(0);
-
-        const promise = policy.execute(mockService);
-        // It's safe not to await these promises; adding them to the promise
-        // queue is enough to prevent this test from running indefinitely.
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.tickAsync(0);
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.tickAsync(176.27932892814937);
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.tickAsync(186.8886145345685);
-        await promise;
-
-        expect(mockService).toHaveBeenCalledTimes(1 + DEFAULT_MAX_RETRIES);
-      });
-
-      describe(`using the default max number of consecutive failures (${DEFAULT_MAX_CONSECUTIVE_FAILURES})`, () => {
-        it('returns what the service returns', async () => {
-          let invocationCounter = 0;
-          const mockService = () => {
-            invocationCounter += 1;
-            if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-              return { some: 'data' };
-            }
-            throw new Error('failure');
-          };
-          const onBreakListener = jest.fn();
-          const policy = createServicePolicy();
-          policy.onBreak(onBreakListener);
-
-          const promise = policy.execute(mockService);
-          // It's safe not to await this promise; adding it to the promise queue
-          // is enough to prevent this test from running indefinitely.
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.runAllAsync();
-
-          expect(await promise).toStrictEqual({ some: 'data' });
-        });
-
-        it('does not call the onBreak callback, since the max number of consecutive failures is never reached', async () => {
-          let invocationCounter = 0;
-          const mockService = () => {
-            invocationCounter += 1;
-            if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-              return { some: 'data' };
-            }
-            throw new Error('failure');
-          };
-          const onBreakListener = jest.fn();
-          const policy = createServicePolicy();
-          policy.onBreak(onBreakListener);
-
-          const promise = policy.execute(mockService);
-          // It's safe not to await this promise; adding it to the promise queue
-          // is enough to prevent this test from running indefinitely.
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.runAllAsync();
-          await promise;
-
-          expect(onBreakListener).not.toHaveBeenCalled();
-        });
-
-        describe(`using the default degraded threshold (${DEFAULT_DEGRADED_THRESHOLD})`, () => {
-          it('does not call the onDegraded callback if the service execution time is below the threshold', async () => {
-            let invocationCounter = 0;
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                return { some: 'data' };
-              }
-              throw new Error('failure');
-            };
-            const onDegradedListener = jest.fn();
-            const policy = createServicePolicy();
-            policy.onDegraded(onDegradedListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await promise;
-
-            expect(onDegradedListener).not.toHaveBeenCalled();
-          });
-
-          it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
-            let invocationCounter = 0;
-            const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
-            const mockService = () => {
-              invocationCounter += 1;
-              return new Promise((resolve, reject) => {
-                if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                  setTimeout(() => resolve({ some: 'data' }), delay);
-                } else {
-                  reject(new Error('failure'));
-                }
-              });
-            };
-            const onDegradedListener = jest.fn();
-            const policy = createServicePolicy();
-            policy.onDegraded(onDegradedListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await promise;
-
-            expect(onDegradedListener).toHaveBeenCalledTimes(1);
-          });
-        });
-
-        describe('using a custom degraded threshold', () => {
-          it('does not call the onDegraded callback if the service execution time is below the threshold', async () => {
-            const degradedThreshold = 2000;
-            let invocationCounter = 0;
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                return { some: 'data' };
-              }
-              throw new Error('failure');
-            };
-            const onDegradedListener = jest.fn();
-            const policy = createServicePolicy({
-              degradedThreshold,
-            });
-            policy.onDegraded(onDegradedListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await promise;
-
-            expect(onDegradedListener).not.toHaveBeenCalled();
-          });
-
-          it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
-            const degradedThreshold = 2000;
-            let invocationCounter = 0;
-            const delay = degradedThreshold + 1;
-            const mockService = () => {
-              invocationCounter += 1;
-              return new Promise((resolve, reject) => {
-                if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                  setTimeout(() => resolve({ some: 'data' }), delay);
-                } else {
-                  reject(new Error('failure'));
-                }
-              });
-            };
-            const onDegradedListener = jest.fn();
-            const policy = createServicePolicy({
-              degradedThreshold,
-            });
-            policy.onDegraded(onDegradedListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await promise;
-
-            expect(onDegradedListener).toHaveBeenCalledTimes(1);
-          });
-        });
-      });
-
-      describe('using a custom max number of consecutive failures', () => {
-        describe('if the initial run + retries is less than the max number of consecutive failures', () => {
-          it('returns what the service returns', async () => {
-            const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
-            let invocationCounter = 0;
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                return { some: 'data' };
-              }
-              throw new Error('failure');
-            };
-            const onBreakListener = jest.fn();
-            const policy = createServicePolicy({
-              maxConsecutiveFailures,
-            });
-            policy.onBreak(onBreakListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-
-            expect(await promise).toStrictEqual({ some: 'data' });
-          });
-
-          it('does not call the onBreak callback', async () => {
-            const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
-            let invocationCounter = 0;
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                return { some: 'data' };
-              }
-              throw new Error('failure');
-            };
-            const onBreakListener = jest.fn();
-            const policy = createServicePolicy({
-              maxConsecutiveFailures,
-            });
-            policy.onBreak(onBreakListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await promise;
-
-            expect(onBreakListener).not.toHaveBeenCalled();
-          });
-
-          describe(`using the default degraded threshold (${DEFAULT_DEGRADED_THRESHOLD})`, () => {
-            it('does not call the onDegraded callback if the service execution time is below the threshold', async () => {
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
-              let invocationCounter = 0;
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                  return { some: 'data' };
-                }
-                throw new Error('failure');
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-
-            it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
-              const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
-              let invocationCounter = 0;
-              const mockService = () => {
-                invocationCounter += 1;
-                return new Promise((resolve, reject) => {
-                  if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                    setTimeout(() => resolve({ some: 'data' }), delay);
-                  } else {
-                    reject(new Error('failure'));
-                  }
-                });
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).toHaveBeenCalledTimes(1);
-            });
-          });
-
-          describe('using a custom degraded threshold', () => {
-            it('does not call the onDegraded callback if the service execution time is below the threshold', async () => {
-              const degradedThreshold = 2000;
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
-              let invocationCounter = 0;
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                  return { some: 'data' };
-                }
-                throw new Error('failure');
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-                degradedThreshold,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-
-            it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
-              const degradedThreshold = 2000;
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
-              const delay = degradedThreshold + 1;
-              let invocationCounter = 0;
-              const mockService = () => {
-                invocationCounter += 1;
-                return new Promise((resolve, reject) => {
-                  if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                    setTimeout(() => resolve({ some: 'data' }), delay);
-                  } else {
-                    reject(new Error('failure'));
-                  }
-                });
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-                degradedThreshold,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).toHaveBeenCalledTimes(1);
-            });
-          });
-        });
-
-        describe('if the initial run + retries is equal to the max number of consecutive failures', () => {
-          it('returns what the service returns', async () => {
-            const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-            let invocationCounter = 0;
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                return { some: 'data' };
-              }
-              throw new Error('failure');
-            };
-            const onBreakListener = jest.fn();
-            const policy = createServicePolicy({
-              maxConsecutiveFailures,
-            });
-            policy.onBreak(onBreakListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-
-            expect(await promise).toStrictEqual({ some: 'data' });
-          });
-
-          it('does not call the onBreak callback', async () => {
-            const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const onBreakListener = jest.fn();
-            const policy = createServicePolicy({
-              maxConsecutiveFailures,
-            });
-            policy.onBreak(onBreakListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await promise;
-
-            expect(onBreakListener).not.toHaveBeenCalled();
-          });
-
-          describe(`using the default degraded threshold (${DEFAULT_DEGRADED_THRESHOLD})`, () => {
-            it('does not call the onDegraded callback if the service execution time is below the threshold', async () => {
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-              let invocationCounter = 0;
-              const error = new Error('failure');
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                  return { some: 'data' };
-                }
-                throw error;
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-
-            it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-              const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
-              let invocationCounter = 0;
-              const mockService = () => {
-                invocationCounter += 1;
-                return new Promise((resolve, reject) => {
-                  if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                    setTimeout(() => resolve({ some: 'data' }), delay);
-                  } else {
-                    reject(new Error('failure'));
-                  }
-                });
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).toHaveBeenCalledTimes(1);
-            });
-          });
-
-          describe('using a custom degraded threshold', () => {
-            it('does not call the onDegraded callback if the service execution time is below the threshold', async () => {
-              const degradedThreshold = 2000;
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-              let invocationCounter = 0;
-              const error = new Error('failure');
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                  return { some: 'data' };
-                }
-                throw error;
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-                degradedThreshold,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-
-            it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
-              const degradedThreshold = 2000;
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-              const delay = degradedThreshold + 1;
-              let invocationCounter = 0;
-              const mockService = () => {
-                invocationCounter += 1;
-                return new Promise((resolve, reject) => {
-                  if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                    setTimeout(() => resolve({ some: 'data' }), delay);
-                  } else {
-                    reject(new Error('failure'));
-                  }
-                });
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-                degradedThreshold,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).toHaveBeenCalledTimes(1);
-            });
-          });
-        });
-
-        describe('if the initial run + retries is greater than the max number of consecutive failures', () => {
-          it('throws a BrokenCircuitError before the service can succeed', async () => {
-            const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const onBreakListener = jest.fn();
-            const policy = createServicePolicy({
-              maxConsecutiveFailures,
-            });
-            policy.onBreak(onBreakListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await expect(promise).rejects.toThrow(
-              new Error(
-                'Execution prevented because the circuit breaker is open',
-              ),
-            );
-          });
-
-          it('calls the onBreak callback once with the error', async () => {
-            const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const onBreakListener = jest.fn();
-            const policy = createServicePolicy({
-              maxConsecutiveFailures,
-            });
-            policy.onBreak(onBreakListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await ignoreRejection(promise);
-
-            expect(onBreakListener).toHaveBeenCalledTimes(1);
-            expect(onBreakListener).toHaveBeenCalledWith({ error });
-          });
-
-          it('does not call the onDegraded callback', async () => {
-            const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const onDegradedListener = jest.fn();
-            const policy = createServicePolicy({
-              maxConsecutiveFailures,
-            });
-            policy.onDegraded(onDegradedListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await ignoreRejection(promise);
-
-            expect(onDegradedListener).not.toHaveBeenCalled();
-          });
-
-          describe(`using the default circuit break duration (${DEFAULT_CIRCUIT_BREAK_DURATION})`, () => {
-            it('returns what the service returns if it is successfully called again after the circuit break duration has elapsed', async () => {
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
-              let invocationCounter = 0;
-              const error = new Error('failure');
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                  return { some: 'data' };
-                }
-                throw error;
-              };
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-              });
-
-              const firstExecution = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(firstExecution);
-              clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
-              const result = await policy.execute(mockService);
-
-              expect(result).toStrictEqual({ some: 'data' });
-            });
-          });
-
-          describe('using a custom circuit break duration', () => {
-            it('returns what the service returns if it is successfully called again after the circuit break duration has elapsed', async () => {
-              // This has to be high enough to exceed the exponential backoff
-              const circuitBreakDuration = 5_000;
-              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
-              let invocationCounter = 0;
-              const error = new Error('failure');
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                  return { some: 'data' };
-                }
-                throw error;
-              };
-              const policy = createServicePolicy({
-                maxConsecutiveFailures,
-                circuitBreakDuration,
-              });
-
-              const firstExecution = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(firstExecution);
-              clock.tick(circuitBreakDuration);
-              const result = await policy.execute(mockService);
-
-              expect(result).toStrictEqual({ some: 'data' });
-            });
-          });
-        });
-      });
+  describe('getRemainingCircuitOpenDuration', () => {
+    it('returns null when the circuit is closed', () => {
+      const policy = createServicePolicyForTestingRetries();
+      expect(policy.getRemainingCircuitOpenDuration()).toBeNull();
     });
 
-    describe('using a custom max number of retries', () => {
-      it(`calls the service a total of 1 + <maxRetries> times, delaying each retry using a backoff formula`, async () => {
-        const maxRetries = 5;
-        let invocationCounter = 0;
-        const error = new Error('failure');
-        const mockService = jest.fn(() => {
-          invocationCounter += 1;
-          if (invocationCounter === maxRetries + 1) {
-            return { some: 'data' };
-          }
-          throw error;
-        });
-        const policy = createServicePolicy({ maxRetries });
-        // Each retry delay is randomized using a decorrelated jitter formula,
-        // so we need to prevent that
-        jest.spyOn(Math, 'random').mockReturnValue(0);
+    it('returns the milliseconds remaining before the circuit transitions to half-open', async () => {
+      const policy = createServicePolicyForTestingRetries();
 
-        const promise = policy.execute(mockService);
-        // It's safe not to await these promises; adding them to the promise
-        // queue is enough to prevent this test from running indefinitely.
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.tickAsync(0);
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.tickAsync(176.27932892814937);
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.tickAsync(186.8886145345685);
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.tickAsync(366.8287823691078);
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.tickAsync(731.8792783578953);
-        await promise;
+      // Drive the circuit open
+      await ignoreRejection(policy.execute(createErroringService()));
+      await ignoreRejection(policy.execute(createErroringService()));
+      await ignoreRejection(policy.execute(createErroringService()));
+      jest.advanceTimersByTime(1_000);
 
-        expect(mockService).toHaveBeenCalledTimes(1 + maxRetries);
+      expect(policy.getRemainingCircuitOpenDuration()).toBe(
+        DEFAULT_CIRCUIT_BREAK_DURATION - 1_000,
+      );
+    });
+  });
+
+  describe('getCircuitState', () => {
+    it('tracks circuit state transitions: Closed → Open → HalfOpen → Open', async () => {
+      // Establish initial state
+      const policy = createServicePolicyForTestingRetries();
+      expect(policy.getCircuitState()).toBe(CircuitState.Closed);
+
+      // Drive the circuit open
+      await ignoreRejection(policy.execute(createErroringService()));
+      await ignoreRejection(policy.execute(createErroringService()));
+      await ignoreRejection(policy.execute(createErroringService()));
+      expect(policy.getCircuitState()).toBe(CircuitState.Open);
+
+      // Advance to half-open
+      jest.advanceTimersByTime(DEFAULT_CIRCUIT_BREAK_DURATION);
+      const promise = ignoreRejection(policy.execute(createErroringService()));
+      expect(policy.getCircuitState()).toBe(CircuitState.HalfOpen);
+      await promise;
+      expect(policy.getCircuitState()).toBe(CircuitState.Open);
+    });
+  });
+
+  describe('reset', () => {
+    it('transitions the circuit from Open to Closed', async () => {
+      const policy = createServicePolicyForTestingRetries();
+      // Drive the circuit open
+      await ignoreRejection(policy.execute(createErroringService()));
+      await ignoreRejection(policy.execute(createErroringService()));
+      await ignoreRejection(policy.execute(createErroringService()));
+      expect(policy.getCircuitState()).toBe(CircuitState.Open);
+
+      policy.reset();
+
+      expect(policy.getCircuitState()).toBe(CircuitState.Closed);
+    });
+
+    it('allows the service to succeed after the circuit was open', async () => {
+      let attempts = 0;
+      const mockService = jest.fn(() => {
+        attempts += 1;
+        if (attempts > DEFAULT_MAX_CONSECUTIVE_FAILURES) {
+          return { some: 'data' };
+        }
+        throw new Error('failure');
       });
+      const policy = createServicePolicyForTestingRetries();
+      // Drive the circuit open
+      await ignoreRejection(policy.execute(mockService));
+      await ignoreRejection(policy.execute(mockService));
+      await ignoreRejection(policy.execute(mockService));
 
-      describe(`using the default max number of consecutive failures (${DEFAULT_MAX_CONSECUTIVE_FAILURES})`, () => {
-        describe('if the initial run + retries is less than the max number of consecutive failures', () => {
-          it('returns what the service returns', async () => {
-            const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === maxRetries + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const policy = createServicePolicy({ maxRetries });
+      policy.reset();
 
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+      expect(await policy.execute(mockService)).toStrictEqual({ some: 'data' });
+    });
 
-            expect(await promise).toStrictEqual({ some: 'data' });
-          });
+    it('allows the service to fail again without throwing BrokenCircuitError', async () => {
+      const service = createErroringService();
+      const policy = createServicePolicyForTestingRetries();
+      // Drive the circuit open
+      await ignoreRejection(policy.execute(service));
+      await ignoreRejection(policy.execute(service));
+      await ignoreRejection(policy.execute(service));
 
-          it('does not call the onBreak callback', async () => {
-            const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === maxRetries + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const onBreakListener = jest.fn();
-            const policy = createServicePolicy({ maxRetries });
-            policy.onBreak(onBreakListener);
+      policy.reset();
 
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await promise;
+      await expect(policy.execute(service)).rejects.toThrow('failure');
+    });
 
-            expect(onBreakListener).not.toHaveBeenCalled();
-          });
-
-          describe(`using the default degraded threshold (${DEFAULT_DEGRADED_THRESHOLD})`, () => {
-            it('does not call the onDegraded callback if the service execution time is below the threshold', async () => {
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
-              let invocationCounter = 0;
-              const error = new Error('failure');
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === maxRetries + 1) {
-                  return { some: 'data' };
-                }
-                throw error;
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({ maxRetries });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-
-            it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
-              const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
-              let invocationCounter = 0;
-              const mockService = () => {
-                invocationCounter += 1;
-                return new Promise((resolve, reject) => {
-                  if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                    setTimeout(() => resolve({ some: 'data' }), delay);
-                  } else {
-                    reject(new Error('failure'));
-                  }
-                });
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({ maxRetries });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).toHaveBeenCalledTimes(1);
-            });
-          });
-
-          describe('using a custom degraded threshold', () => {
-            it('does not call the onDegraded callback if the service execution time is below the threshold', async () => {
-              const degradedThreshold = 2000;
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
-              let invocationCounter = 0;
-              const error = new Error('failure');
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === maxRetries + 1) {
-                  return { some: 'data' };
-                }
-                throw error;
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                degradedThreshold,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-
-            it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
-              const degradedThreshold = 2000;
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
-              const delay = degradedThreshold + 1;
-              let invocationCounter = 0;
-              const mockService = () => {
-                invocationCounter += 1;
-                return new Promise((resolve, reject) => {
-                  if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                    setTimeout(() => resolve({ some: 'data' }), delay);
-                  } else {
-                    reject(new Error('failure'));
-                  }
-                });
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                degradedThreshold,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).toHaveBeenCalledTimes(1);
-            });
-          });
-        });
-
-        describe('if the initial run + retries is equal to the max number of consecutive failures', () => {
-          it('returns what the service returns', async () => {
-            const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === maxRetries + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const policy = createServicePolicy({ maxRetries });
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-
-            expect(await promise).toStrictEqual({ some: 'data' });
-          });
-
-          it('does not call the onBreak callback', async () => {
-            const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === maxRetries + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const onBreakListener = jest.fn();
-            const policy = createServicePolicy({ maxRetries });
-            policy.onBreak(onBreakListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await promise;
-
-            expect(onBreakListener).not.toHaveBeenCalled();
-          });
-
-          describe(`using the default degraded threshold (${DEFAULT_DEGRADED_THRESHOLD})`, () => {
-            it('does not call the onDegraded callback if the service execution time is below the threshold', async () => {
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
-              let invocationCounter = 0;
-              const error = new Error('failure');
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === maxRetries + 1) {
-                  return { some: 'data' };
-                }
-                throw error;
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({ maxRetries });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-
-            it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
-              const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
-              let invocationCounter = 0;
-              const mockService = () => {
-                invocationCounter += 1;
-                return new Promise((resolve, reject) => {
-                  if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                    setTimeout(() => resolve({ some: 'data' }), delay);
-                  } else {
-                    reject(new Error('failure'));
-                  }
-                });
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({ maxRetries });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).toHaveBeenCalledTimes(1);
-            });
-          });
-
-          describe('using a custom degraded threshold', () => {
-            it('does not call the onDegraded callback if the service execution time is below the threshold', async () => {
-              const degradedThreshold = 2000;
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
-              let invocationCounter = 0;
-              const error = new Error('failure');
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === maxRetries + 1) {
-                  return { some: 'data' };
-                }
-                throw error;
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                degradedThreshold,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-
-            it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
-              const degradedThreshold = 2000;
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
-              const delay = degradedThreshold + 1;
-              let invocationCounter = 0;
-              const mockService = () => {
-                invocationCounter += 1;
-                return new Promise((resolve, reject) => {
-                  if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                    setTimeout(() => resolve({ some: 'data' }), delay);
-                  } else {
-                    reject(new Error('failure'));
-                  }
-                });
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                degradedThreshold,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).toHaveBeenCalledTimes(1);
-            });
-          });
-        });
-
-        describe('if the initial run + retries is greater than the max number of consecutive failures', () => {
-          it('throws a BrokenCircuitError before the service can succeed', async () => {
-            const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === maxRetries + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const policy = createServicePolicy({ maxRetries });
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-
-            await expect(promise).rejects.toThrow(
-              new Error(
-                'Execution prevented because the circuit breaker is open',
-              ),
-            );
-          });
-
-          it('calls the onBreak callback once with the error', async () => {
-            const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === maxRetries + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const onBreakListener = jest.fn();
-            const policy = createServicePolicy({ maxRetries });
-            policy.onBreak(onBreakListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await ignoreRejection(promise);
-
-            expect(onBreakListener).toHaveBeenCalledTimes(1);
-            expect(onBreakListener).toHaveBeenCalledWith({ error });
-          });
-
-          it('does not call the onDegraded callback', async () => {
-            const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === maxRetries + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const onDegradedListener = jest.fn();
-            const policy = createServicePolicy({ maxRetries });
-            policy.onDegraded(onDegradedListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await ignoreRejection(promise);
-
-            expect(onDegradedListener).not.toHaveBeenCalled();
-          });
-
-          describe(`using the default circuit break duration (${DEFAULT_CIRCUIT_BREAK_DURATION})`, () => {
-            it('returns what the service returns if it is successfully called again after the circuit break duration has elapsed', async () => {
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
-              let invocationCounter = 0;
-              const error = new Error('failure');
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === maxRetries + 1) {
-                  return { some: 'data' };
-                }
-                throw error;
-              };
-              const policy = createServicePolicy({ maxRetries });
-
-              const firstExecution = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(firstExecution);
-              clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
-              const result = await policy.execute(mockService);
-
-              expect(result).toStrictEqual({ some: 'data' });
-            });
-          });
-
-          describe('using a custom circuit break duration', () => {
-            it('returns what the service returns if it is successfully called again after the circuit break duration has elapsed', async () => {
-              // This has to be high enough to exceed the exponential backoff
-              const circuitBreakDuration = 50_000;
-              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
-              let invocationCounter = 0;
-              const error = new Error('failure');
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === maxRetries + 1) {
-                  return { some: 'data' };
-                }
-                throw error;
-              };
-              const policy = createServicePolicy({
-                maxRetries,
-                circuitBreakDuration,
-              });
-
-              const firstExecution = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await expect(firstExecution).rejects.toThrow(
-                new Error(
-                  'Execution prevented because the circuit breaker is open',
-                ),
-              );
-              clock.tick(circuitBreakDuration);
-              const result = await policy.execute(mockService);
-
-              expect(result).toStrictEqual({ some: 'data' });
-            });
-          });
-        });
+    it('fires onAvailable again after reset when the service succeeds', async () => {
+      // Setup
+      let attempts = 0;
+      const mockService = jest.fn(() => {
+        attempts += 1;
+        if (attempts === 1 || attempts > DEFAULT_MAX_CONSECUTIVE_FAILURES + 1) {
+          return { some: 'data' };
+        }
+        throw new Error('failure');
       });
+      const onAvailableListener = jest.fn();
+      const policy = createServicePolicyForTestingRetries();
+      policy.onAvailable(onAvailableListener);
 
-      describe('using a custom max number of consecutive failures', () => {
-        describe('if the initial run + retries is less than the max number of consecutive failures', () => {
-          it('returns what the service returns', async () => {
-            const maxConsecutiveFailures = 5;
-            const maxRetries = maxConsecutiveFailures - 2;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === maxRetries + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const onBreakListener = jest.fn();
-            const policy = createServicePolicy({
-              maxRetries,
-              maxConsecutiveFailures,
-            });
-            policy.onBreak(onBreakListener);
+      // Establish baseline
+      await policy.execute(mockService);
+      expect(onAvailableListener).toHaveBeenCalledTimes(1);
 
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+      // Drive the circuit open
+      await ignoreRejection(policy.execute(mockService));
+      await ignoreRejection(policy.execute(mockService));
+      await ignoreRejection(policy.execute(mockService));
 
-            expect(await promise).toStrictEqual({ some: 'data' });
-          });
-
-          it('does not call the onBreak callback', async () => {
-            const maxConsecutiveFailures = 5;
-            const maxRetries = maxConsecutiveFailures - 2;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === maxRetries + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const onBreakListener = jest.fn();
-            const policy = createServicePolicy({
-              maxRetries,
-              maxConsecutiveFailures,
-            });
-            policy.onBreak(onBreakListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await promise;
-
-            expect(onBreakListener).not.toHaveBeenCalled();
-          });
-
-          describe(`using the default degraded threshold (${DEFAULT_DEGRADED_THRESHOLD})`, () => {
-            it('does not call the onDegraded callback if the service execution time is below the threshold', async () => {
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures - 2;
-              let invocationCounter = 0;
-              const error = new Error('failure');
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === maxRetries + 1) {
-                  return { some: 'data' };
-                }
-                throw error;
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-
-            it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures - 2;
-              const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
-              let invocationCounter = 0;
-              const mockService = () => {
-                invocationCounter += 1;
-                return new Promise((resolve, reject) => {
-                  if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                    setTimeout(() => resolve({ some: 'data' }), delay);
-                  } else {
-                    reject(new Error('failure'));
-                  }
-                });
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).toHaveBeenCalledTimes(1);
-            });
-          });
-
-          describe('using a custom degraded threshold', () => {
-            it('does not call the onDegraded callback if the service execution time is below the threshold', async () => {
-              const degradedThreshold = 2000;
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures - 2;
-              let invocationCounter = 0;
-              const error = new Error('failure');
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === maxRetries + 1) {
-                  return { some: 'data' };
-                }
-                throw error;
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-                degradedThreshold,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-
-            it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
-              const degradedThreshold = 2000;
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures - 2;
-              const delay = degradedThreshold + 1;
-              let invocationCounter = 0;
-              const mockService = () => {
-                invocationCounter += 1;
-                return new Promise((resolve, reject) => {
-                  if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                    setTimeout(() => resolve({ some: 'data' }), delay);
-                  } else {
-                    reject(new Error('failure'));
-                  }
-                });
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-                degradedThreshold,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).toHaveBeenCalledTimes(1);
-            });
-          });
-        });
-
-        describe('if the initial run + retries is equal to the max number of consecutive failures', () => {
-          it('returns what the service returns', async () => {
-            const maxConsecutiveFailures = 5;
-            const maxRetries = maxConsecutiveFailures - 1;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === maxRetries + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const policy = createServicePolicy({
-              maxRetries,
-              maxConsecutiveFailures,
-            });
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-
-            expect(await promise).toStrictEqual({ some: 'data' });
-          });
-
-          it('does not call the onBreak callback', async () => {
-            const maxConsecutiveFailures = 5;
-            const maxRetries = maxConsecutiveFailures - 1;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === maxRetries + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const onBreakListener = jest.fn();
-            const policy = createServicePolicy({
-              maxRetries,
-              maxConsecutiveFailures,
-            });
-            policy.onBreak(onBreakListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await promise;
-
-            expect(onBreakListener).not.toHaveBeenCalled();
-          });
-
-          describe(`using the default degraded threshold (${DEFAULT_DEGRADED_THRESHOLD})`, () => {
-            it('does not call the onDegraded callback if the service execution time is below the threshold', async () => {
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures - 1;
-              let invocationCounter = 0;
-              const error = new Error('failure');
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === maxRetries + 1) {
-                  return { some: 'data' };
-                }
-                throw error;
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-
-            it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures - 1;
-              const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
-              let invocationCounter = 0;
-              const mockService = () => {
-                invocationCounter += 1;
-                return new Promise((resolve, reject) => {
-                  if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                    setTimeout(() => resolve({ some: 'data' }), delay);
-                  } else {
-                    reject(new Error('failure'));
-                  }
-                });
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).toHaveBeenCalledTimes(1);
-            });
-          });
-
-          describe('using a custom degraded threshold', () => {
-            it('does not call the onDegraded callback if the service execution time is below the threshold', async () => {
-              const degradedThreshold = 2000;
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures - 1;
-              let invocationCounter = 0;
-              const error = new Error('failure');
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === maxRetries + 1) {
-                  return { some: 'data' };
-                }
-                throw error;
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-                degradedThreshold,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).not.toHaveBeenCalled();
-            });
-
-            it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
-              const degradedThreshold = 2000;
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures - 1;
-              const delay = degradedThreshold + 1;
-              let invocationCounter = 0;
-              const mockService = () => {
-                invocationCounter += 1;
-                return new Promise((resolve, reject) => {
-                  if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
-                    setTimeout(() => resolve({ some: 'data' }), delay);
-                  } else {
-                    reject(new Error('failure'));
-                  }
-                });
-              };
-              const onDegradedListener = jest.fn();
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-                degradedThreshold,
-              });
-              policy.onDegraded(onDegradedListener);
-
-              const promise = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await promise;
-
-              expect(onDegradedListener).toHaveBeenCalledTimes(1);
-            });
-          });
-        });
-
-        describe('if the initial run + retries is greater than the max number of consecutive failures', () => {
-          it('throws a BrokenCircuitError before the service can succeed', async () => {
-            const maxConsecutiveFailures = 5;
-            const maxRetries = maxConsecutiveFailures;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === maxRetries + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const policy = createServicePolicy({
-              maxRetries,
-              maxConsecutiveFailures,
-            });
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await ignoreRejection(promise);
-
-            await expect(promise).rejects.toThrow(
-              new Error(
-                'Execution prevented because the circuit breaker is open',
-              ),
-            );
-          });
-
-          it('calls the onBreak callback once with the error', async () => {
-            const maxConsecutiveFailures = 5;
-            const maxRetries = maxConsecutiveFailures;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === maxRetries + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const onBreakListener = jest.fn();
-            const policy = createServicePolicy({
-              maxRetries,
-              maxConsecutiveFailures,
-            });
-            policy.onBreak(onBreakListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await ignoreRejection(promise);
-
-            expect(onBreakListener).toHaveBeenCalledTimes(1);
-            expect(onBreakListener).toHaveBeenCalledWith({ error });
-          });
-
-          it('does not call the onDegraded callback', async () => {
-            const maxConsecutiveFailures = 5;
-            const maxRetries = maxConsecutiveFailures;
-            let invocationCounter = 0;
-            const error = new Error('failure');
-            const mockService = () => {
-              invocationCounter += 1;
-              if (invocationCounter === maxRetries + 1) {
-                return { some: 'data' };
-              }
-              throw error;
-            };
-            const onDegradedListener = jest.fn();
-            const policy = createServicePolicy({
-              maxRetries,
-              maxConsecutiveFailures,
-            });
-            policy.onDegraded(onDegradedListener);
-
-            const promise = policy.execute(mockService);
-            // It's safe not to await this promise; adding it to the promise
-            // queue is enough to prevent this test from running indefinitely.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
-            await ignoreRejection(promise);
-
-            expect(onDegradedListener).not.toHaveBeenCalled();
-          });
-
-          describe(`using the default circuit break duration (${DEFAULT_CIRCUIT_BREAK_DURATION})`, () => {
-            it('returns what the service returns if it is successfully called again after the circuit break duration has elapsed', async () => {
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures;
-              let invocationCounter = 0;
-              const error = new Error('failure');
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === maxRetries + 1) {
-                  return { some: 'data' };
-                }
-                throw error;
-              };
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-              });
-
-              const firstExecution = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await ignoreRejection(firstExecution);
-              clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
-              const result = await policy.execute(mockService);
-
-              expect(result).toStrictEqual({ some: 'data' });
-            });
-          });
-
-          describe('using a custom circuit break duration', () => {
-            it('returns what the service returns if it is successfully called again after the circuit break duration has elapsed', async () => {
-              // This has to be high enough to exceed the exponential backoff
-              const circuitBreakDuration = 5_000;
-              const maxConsecutiveFailures = 5;
-              const maxRetries = maxConsecutiveFailures;
-              let invocationCounter = 0;
-              const error = new Error('failure');
-              const mockService = () => {
-                invocationCounter += 1;
-                if (invocationCounter === maxRetries + 1) {
-                  return { some: 'data' };
-                }
-                throw error;
-              };
-              const policy = createServicePolicy({
-                maxRetries,
-                maxConsecutiveFailures,
-                circuitBreakDuration,
-              });
-
-              const firstExecution = policy.execute(mockService);
-              // It's safe not to await this promise; adding it to the promise
-              // queue is enough to prevent this test from running indefinitely.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
-              await expect(firstExecution).rejects.toThrow(
-                new Error(
-                  'Execution prevented because the circuit breaker is open',
-                ),
-              );
-              clock.tick(circuitBreakDuration);
-              const result = await policy.execute(mockService);
-
-              expect(result).toStrictEqual({ some: 'data' });
-            });
-          });
-        });
-      });
+      // Reset
+      policy.reset();
+      await policy.execute(mockService);
+      expect(onAvailableListener).toHaveBeenCalledTimes(2);
     });
   });
 });
@@ -2816,6 +889,76 @@ describe('createServicePolicy', () => {
  *
  * @param promise - A promise that rejects.
  */
-async function ignoreRejection<T>(promise: Promise<T>) {
+async function ignoreRejection<Type>(promise: Promise<Type>): Promise<void> {
   await expect(promise).rejects.toThrow(expect.any(Error));
+}
+
+/**
+ * Builds a service policy that takes care of some boilerplate when testing
+ * retries by:
+ *
+ * - using a zero-delay constant backoff so tests do not need to account for
+ *   jitter when advancing timers
+ * - advancing timers automatically whenever retries occur
+ * - allowing for the service to break on first execution
+ *
+ * @param args - The arguments.
+ * @param args.options - Any additional options to pass to `createServicePolicy`.
+ * @param args.onRetryListener - The onRetry callback to register.
+ * @returns The service policy.
+ * @param args.breakAfterFirstExecution - Assuming that the service always
+ * error, causes the policy's circuit to break the first time the service is
+ * executed.
+ */
+function createServicePolicyForTestingRetries({
+  options,
+  onRetryListener = (): ReturnType<Parameters<ServicePolicy['onRetry']>[0]> =>
+    jest.advanceTimersToNextTimer(),
+  breakAfterFirstExecution = false,
+}: {
+  options?: Parameters<typeof createServicePolicy>[0];
+  onRetryListener?: Parameters<ServicePolicy['onRetry']>[0];
+  breakAfterFirstExecution?: boolean;
+} = {}): ReturnType<typeof createServicePolicy> {
+  const policy = createServicePolicy({
+    backoff: new ConstantBackoff(0),
+    ...(breakAfterFirstExecution
+      ? { maxRetries: 0, maxConsecutiveFailures: 1 }
+      : {}),
+    ...options,
+  });
+  policy.onRetry(onRetryListener);
+  return policy;
+}
+
+/**
+ * Builds a mock service that throws `error` on every call before some number of
+ * attempts, then returns `result`.
+ *
+ * @param options - Options.
+ * @param options.failUntilNthAttempt - The 1-based attempt number at which the
+ * service should start succeeding (default: Infinity — never succeeds).
+ * @param options.error - The error to throw on failure (default: `new
+ * Error('failure')`).
+ * @param options.result - The value to return on success (default: `{ some:
+ * 'data' }`).
+ * @returns A Jest mock function.
+ */
+function createErroringService({
+  failUntilNthAttempt = Infinity,
+  error = new Error('failure'),
+  result = { some: 'data' },
+}: {
+  failUntilNthAttempt?: number;
+  error?: Error;
+  result?: unknown;
+} = {}): jest.Mock {
+  let attempts = 0;
+  return jest.fn(() => {
+    attempts += 1;
+    if (attempts >= failUntilNthAttempt) {
+      return result;
+    }
+    throw error;
+  });
 }

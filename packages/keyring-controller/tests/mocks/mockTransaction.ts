@@ -1,4 +1,5 @@
-import { TransactionFactory, type TypedTxData } from '@ethereumjs/tx';
+import { TransactionFactory } from '@ethereumjs/tx';
+import type { TypedTransaction, TypedTxData } from '@ethereumjs/tx';
 
 /**
  * Build a mock transaction, optionally overriding
@@ -7,7 +8,9 @@ import { TransactionFactory, type TypedTxData } from '@ethereumjs/tx';
  * @param options - The transaction options to override.
  * @returns The mock transaction.
  */
-export const buildMockTransaction = (options: TypedTxData = {}) =>
+export const buildMockTransaction = (
+  options: TypedTxData = {},
+): TypedTransaction =>
   TransactionFactory.fromTxData({
     to: '0xB1A13aBECeB71b2E758c7e0Da404DF0C72Ca3a12',
     value: '0x0',

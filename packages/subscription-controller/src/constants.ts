@@ -1,4 +1,24 @@
+import { SUBSCRIPTION_STATUSES } from './types.js';
+
 export const controllerName = 'SubscriptionController';
+
+/**
+ * API cancellation reason values and their client-facing text.
+ */
+export const CANCELLATION_REASONS = {
+  // Costs more than it's worth
+  TOO_EXPENSIVE: 'too_expensive',
+  // I wasn't using the benefits
+  NOT_USING_BENEFITS: 'not_using_benefits',
+  // The benefits weren't what I expected
+  BENEFITS_NOT_AS_EXPECTED: 'benefits_not_as_expected',
+  // Something didn't work
+  SOMETHING_DID_NOT_WORK: 'something_did_not_work',
+  // Unhappy with support
+  UNHAPPY_WITH_SUPPORT: 'unhappy_with_support',
+  // Other
+  OTHER: 'other',
+} as const;
 
 export enum Env {
   DEV = 'dev',
@@ -12,13 +32,13 @@ type EnvUrlsEntry = {
 
 const ENV_URLS: Record<Env, EnvUrlsEntry> = {
   dev: {
-    subscriptionApiUrl: 'https://subscription-service.dev-api.cx.metamask.io',
+    subscriptionApiUrl: 'https://subscription.dev-api.cx.metamask.io',
   },
   uat: {
-    subscriptionApiUrl: 'https://subscription-service.uat-api.cx.metamask.io',
+    subscriptionApiUrl: 'https://subscription.uat-api.cx.metamask.io',
   },
   prd: {
-    subscriptionApiUrl: 'https://subscription-service.api.cx.metamask.io',
+    subscriptionApiUrl: 'https://subscription.api.cx.metamask.io',
   },
 };
 
@@ -40,4 +60,54 @@ export enum SubscriptionControllerErrorMessage {
   UserAlreadySubscribed = `${controllerName} - User is already subscribed`,
   UserNotSubscribed = `${controllerName} - User is not subscribed`,
   SubscriptionProductsEmpty = `${controllerName} - Subscription products array cannot be empty`,
+  PaymentTokenAddressAndSymbolRequiredForCrypto = `${controllerName} - Payment token address and symbol are required for crypto payment`,
+  PaymentMethodNotCrypto = `${controllerName} - Payment method is not crypto`,
+  ProductPriceNotFound = `${controllerName} - Product price not found`,
+  SubscriptionNotValidForCryptoApproval = `${controllerName} - Subscription is not valid for crypto approval`,
+  CryptoApprovalRequiresShieldApprove = `${controllerName} - Crypto approval is only supported for Shield ERC-20 approve transactions`,
+  LinkRewardsFailed = `${controllerName} - Failed to link rewards`,
 }
+
+export enum SubscriptionServiceErrorMessage {
+  FailedToGetSubscriptions = 'Failed to get subscriptions',
+  FailedToGetBenefits = 'Failed to get benefits',
+  FailedToCancelSubscription = 'Failed to cancel subscription',
+  FailedToUncancelSubscription = 'Failed to uncancel subscription',
+  FailedToStartSubscriptionWithCard = 'Failed to start subscription with card',
+  FailedToStartSubscriptionWithCrypto = 'Failed to start subscription with crypto',
+  InvalidCryptoAuthCombo = 'Crypto subscription requires exactly one of rawTransaction (erc20_approval) or delegationHash (delegation)',
+  FailedToUpdatePaymentMethodCard = 'Failed to update payment method card',
+  FailedToUpdatePaymentMethodCrypto = 'Failed to update payment method crypto',
+  FailedToGetSubscriptionsEligibilities = 'Failed to get subscriptions eligibilities',
+  FailedToSubmitUserEvent = 'Failed to submit user event',
+  FailedToAssignUserToCohort = 'Failed to assign user to cohort',
+  FailedToSubmitSponsorshipIntents = 'Failed to submit sponsorship intents',
+  FailedToLinkRewards = 'Failed to link rewards',
+  FailedToGetPricing = 'Failed to get pricing',
+  FailedToGetBillingPortalUrl = 'Failed to get billing portal url',
+}
+
+export enum SubscriptionDelegationServiceErrorMessage {
+  InvalidAmount = 'Subscription delegation amount must be a non-negative integer',
+  InvalidDecimals = 'Subscription delegation decimals must be a non-negative integer',
+  InvalidTrialPeriodDays = 'Subscription delegation trial period days must be a non-negative integer',
+  InvalidMinimumFundingCycles = 'Subscription delegation minimum funding cycles must be a positive integer',
+  LossyAmountScale = 'Subscription delegation amount cannot be scaled to token decimals without remainder',
+  UnsupportedRecurringInterval = 'Unsupported subscription recurring interval',
+  UnsupportedProduct = 'Subscription delegation is only supported for Money Account',
+  MissingMoneyAccountVaultConfig = 'Money Account vault configuration is missing or invalid',
+  DelegationContractsNotFound = 'Subscription delegation contracts were not found for the configured chain',
+  PricingConfigurationNotFound = 'Subscription delegation pricing configuration was not found',
+  InsufficientBalance = 'Money Account balance is insufficient for the subscription funding requirement',
+  ChompRejectedDelegation = 'CHOMP rejected the subscription delegation',
+  ChompMissingDelegationHash = 'CHOMP verify response did not include a delegation hash',
+  ChompDelegationHashMismatch = 'CHOMP verify response delegation hash does not match the locally computed hash',
+}
+
+export const DEFAULT_POLLING_INTERVAL = 5 * 60 * 1_000; // 5 minutes
+
+export const ACTIVE_SUBSCRIPTION_STATUSES = [
+  SUBSCRIPTION_STATUSES.active,
+  SUBSCRIPTION_STATUSES.trialing,
+  SUBSCRIPTION_STATUSES.provisional,
+] as string[];

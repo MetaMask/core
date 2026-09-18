@@ -1,8 +1,5 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
     {
       "path": "../base-controller"
@@ -12,7 +9,19 @@
     },
     {
       "path": "../accounts-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../multichain-account-service"
+    },
+    {
+      "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../utils"
     }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src", "./tests"]
 }

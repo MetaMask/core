@@ -1,41 +1,38 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { errorCodes } from '@metamask/rpc-errors';
-import {
-  determineTransactionType,
-  TransactionType,
-  type TransactionParams,
-} from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
+import type { TransactionParams } from '@metamask/transaction-controller';
 import { EventEmitter } from 'stream';
 
-import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants';
-import * as BundlerHelper from './helpers/Bundler';
-import * as PendingUserOperationTrackerHelper from './helpers/PendingUserOperationTracker';
-import { SnapSmartContractAccount } from './helpers/SnapSmartContractAccount';
-import type { UserOperationMetadata } from './types';
-import {
-  UserOperationStatus,
-  type PrepareUserOperationResponse,
-  type SignUserOperationResponse,
-  type SmartContractAccount,
-  type UpdateUserOperationResponse,
-} from './types';
+import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants.js';
+import * as BundlerHelper from './helpers/Bundler.js';
+import * as PendingUserOperationTrackerHelper from './helpers/PendingUserOperationTracker.js';
+import { SnapSmartContractAccount } from './helpers/SnapSmartContractAccount.js';
+import { UserOperationStatus } from './types.js';
+import type { UserOperationMetadata } from './types.js';
+import type {
+  PrepareUserOperationResponse,
+  SignUserOperationResponse,
+  SmartContractAccount,
+  UpdateUserOperationResponse,
+} from './types.js';
 import type {
   AddUserOperationOptions,
   AddUserOperationRequest,
   UserOperationControllerMessenger,
-} from './UserOperationController';
-import { UserOperationController } from './UserOperationController';
-import { updateGas } from './utils/gas';
-import { updateGasFees } from './utils/gas-fees';
+} from './UserOperationController.js';
+import { UserOperationController } from './UserOperationController.js';
+import { updateGasFees } from './utils/gas-fees.js';
+import { updateGas } from './utils/gas.js';
 import {
   validateAddUserOperationRequest,
   validateAddUserOperationOptions,
   validatePrepareUserOperationResponse,
   validateSignUserOperationResponse,
   validateUpdateUserOperationResponse,
-} from './utils/validation';
+} from './utils/validation.js';
 
-jest.mock('@metamask/transaction-controller');
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/validation');
@@ -97,6 +94,7 @@ const ADD_USER_OPERATION_OPTIONS_MOCK: AddUserOperationOptions = {
 
 /**
  * Creates a mock user operation messenger.
+ *
  * @returns The mock user operation messenger.
  */
 function createMessengerMock() {
@@ -104,12 +102,14 @@ function createMessengerMock() {
     call: jest.fn(),
     publish: jest.fn(),
     registerActionHandler: jest.fn(),
+    registerMethodActionHandlers: jest.fn(),
     registerInitialEventPayload: jest.fn(),
   } as unknown as jest.Mocked<UserOperationControllerMessenger>;
 }
 
 /**
  * Creates a mock smart contract account.
+ *
  * @returns The mock smart contract account.
  */
 function createSmartContractAccountMock() {
@@ -122,6 +122,7 @@ function createSmartContractAccountMock() {
 
 /**
  * Creates a mock bundler.
+ *
  * @returns The mock bundler.
  */
 function createBundlerMock() {
@@ -133,6 +134,7 @@ function createBundlerMock() {
 
 /**
  * Creates a mock PendingUserOperationTracker.
+ *
  * @returns The mock PendingUserOperationTracker.
  */
 function createPendingUserOperationTrackerMock() {
@@ -160,7 +162,6 @@ describe('UserOperationController', () => {
   const networkControllerGetClientByIdMock = jest.fn();
   const resultCallbackSuccessMock = jest.fn();
   const resultCallbackErrorMock = jest.fn();
-  const determineTransactionTypeMock = jest.mocked(determineTransactionType);
   const getGasFeeEstimates = jest.fn();
   const updateGasMock = jest.mocked(updateGas);
   const updateGasFeesMock = jest.mocked(updateGasFees);
@@ -236,15 +237,9 @@ describe('UserOperationController', () => {
           return approvalControllerAddRequestMock();
         }
 
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         throw new Error(`Unexpected mock messenger action: ${action}`);
       },
     );
-
-    determineTransactionTypeMock.mockResolvedValue({
-      type: TransactionType.simpleSend,
-    });
 
     updateGasMock.mockImplementation(async (metadata) => {
       metadata.userOperation.callGasLimit = PREPARE_USER_OPERATION_RESPONSE_MOCK
@@ -1277,11 +1272,9 @@ describe('UserOperationController', () => {
         expect(controller.state.userOperations[id].transactionType).toBe(
           TransactionType.swap,
         );
-
-        expect(determineTransactionTypeMock).toHaveBeenCalledTimes(0);
       });
 
-      it('determines transaction type if not set', async () => {
+      it('defaults transaction type to contractInteraction if not set', async () => {
         const controller = new UserOperationController(optionsMock);
 
         const { id } = await addUserOperation(
@@ -1296,13 +1289,7 @@ describe('UserOperationController', () => {
         await flushPromises();
 
         expect(controller.state.userOperations[id].transactionType).toBe(
-          TransactionType.simpleSend,
-        );
-
-        expect(determineTransactionTypeMock).toHaveBeenCalledTimes(1);
-        expect(determineTransactionTypeMock).toHaveBeenCalledWith(
-          ADD_USER_OPERATION_REQUEST_MOCK,
-          expect.anything(),
+          TransactionType.contractInteraction,
         );
       });
     }
@@ -1441,6 +1428,68 @@ describe('UserOperationController', () => {
           },
         });
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = new UserOperationController(optionsMock);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = new UserOperationController(optionsMock);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "userOperations": {},
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = new UserOperationController(optionsMock);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "userOperations": {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = new UserOperationController(optionsMock);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "userOperations": {},
+        }
+      `);
     });
   });
 });

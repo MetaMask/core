@@ -11,23 +11,21 @@ import { getKnownPropertyNames } from '@metamask/utils';
  * between each step, this function ensures that both timers and promises are comprehensively processed.
  *
  * @param options - The options object.
- * @param options.clock - The Sinon fake timer instance used to manipulate time in tests.
  * @param options.duration - The total amount of time (in milliseconds) to advance the timer by.
  * @param options.stepSize - The incremental step size (in milliseconds) by which the timer is advanced in each iteration. Default is 1/4 of the duration.
  */
-export async function advanceTime({
-  clock,
+export async function jestAdvanceTime({
   duration,
   stepSize = duration / 4,
 }: {
-  clock: sinon.SinonFakeTimers;
   duration: number;
   stepSize?: number;
 }): Promise<void> {
+  let value = duration;
   do {
-    await clock.tickAsync(stepSize);
-    duration -= stepSize;
-  } while (duration > 0);
+    await jest.advanceTimersByTimeAsync(stepSize);
+    value -= stepSize;
+  } while (value > 0);
 }
 
 /**
@@ -96,8 +94,8 @@ export function buildTestObject<Type extends Record<PropertyKey, unknown>>(
  * @param promiseOrFn - A promise that rejects, or a function that returns a
  * promise that rejects.
  */
-export async function ignoreRejection<T>(
-  promiseOrFn: Promise<T> | (() => T | Promise<T>),
-) {
+export async function ignoreRejection<Type>(
+  promiseOrFn: Promise<Type> | (() => Type | Promise<Type>),
+): Promise<void> {
   await expect(promiseOrFn).rejects.toThrow(expect.any(Error));
 }

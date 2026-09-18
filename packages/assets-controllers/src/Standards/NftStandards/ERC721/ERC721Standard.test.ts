@@ -3,7 +3,7 @@ import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import nock from 'nock';
 
-import { ERC721Standard } from './ERC721Standard';
+import { ERC721Standard } from './ERC721Standard.js';
 
 const MAINNET_PROVIDER_HTTP = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',

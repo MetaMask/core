@@ -1,11 +1,11 @@
-import { projectLogger, createModuleLogger } from '../logger';
+import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   NameProvider,
   NameProviderMetadata,
   NameProviderRequest,
   NameProviderResult,
-} from '../types';
-import { NameType } from '../types';
+} from '../types.js';
+import { NameType } from '../types.js';
 
 export type ReverseLookupCallback = (
   address: string,
@@ -18,9 +18,9 @@ const LABEL = 'Ethereum Name Service (ENS)';
 const log = createModuleLogger(projectLogger, 'ens');
 
 export class ENSNameProvider implements NameProvider {
-  #isEnabled: () => boolean;
+  readonly #isEnabled: () => boolean;
 
-  #reverseLookup: ReverseLookupCallback;
+  readonly #reverseLookup: ReverseLookupCallback;
 
   constructor({
     isEnabled,

@@ -1,0 +1,9 @@
+{
+  /**
+   * This configuration is extended by each package's `tsconfig.lint.json` configuration.
+   */
+  "compilerOptions": {
+    "emitDeclarationOnly": true,
+    "skipLibCheck": true
+  }
+}

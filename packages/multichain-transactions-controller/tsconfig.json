@@ -1,13 +1,24 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
-    { "path": "../accounts-controller" },
-    { "path": "../base-controller" },
-    { "path": "../keyring-controller" },
-    { "path": "../polling-controller" }
+    {
+      "path": "../accounts-controller"
+    },
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../polling-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../utils"
+    }
   ],
   "include": ["../../types", "./src"]
 }

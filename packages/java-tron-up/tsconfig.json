@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "references": [
+    {
+      "path": "../local-node-utils"
+    }
+  ],
+  "include": ["../../types", "./src"]
+}

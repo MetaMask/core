@@ -1,13 +1,13 @@
 import nock from 'nock';
 
-import { MOCK_GET_BALANCES_RESPONSE } from './mocks/mock-get-balances';
-import { MOCK_GET_SUPPORTED_NETWORKS_RESPONSE } from './mocks/mock-get-supported-networks';
+import { MOCK_GET_BALANCES_RESPONSE } from './mocks/mock-get-balances.js';
+import { MOCK_GET_SUPPORTED_NETWORKS_RESPONSE } from './mocks/mock-get-supported-networks.js';
 import {
   MULTICHAIN_ACCOUNTS_DOMAIN,
   fetchMultiChainBalances,
   fetchMultiChainBalancesV4,
   fetchSupportedNetworks,
-} from './multi-chain-accounts';
+} from './multi-chain-accounts.js';
 
 const MOCK_ADDRESS = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
 const MOCK_CAIP_ADDRESSES = [
@@ -113,6 +113,54 @@ describe('fetchMultiChainBalancesV4()', () => {
     const mockAPI = createMockAPI().reply(200, MOCK_GET_BALANCES_RESPONSE);
 
     const result = await fetchMultiChainBalancesV4({}, 'extension');
+    expect(result).toBeDefined();
+    expect(result).toStrictEqual(MOCK_GET_BALANCES_RESPONSE);
+    expect(mockAPI.isDone()).toBe(true);
+  });
+
+  it('should include JWT token in Authorization header when provided', async () => {
+    const mockJwtToken = 'test-jwt-token-v4-456';
+    const mockAPI = createMockAPI()
+      .matchHeader('authorization', `Bearer ${mockJwtToken}`)
+      .reply(200, MOCK_GET_BALANCES_RESPONSE);
+
+    const result = await fetchMultiChainBalancesV4(
+      {},
+      'extension',
+      mockJwtToken,
+    );
+    expect(result).toBeDefined();
+    expect(result).toStrictEqual(MOCK_GET_BALANCES_RESPONSE);
+    expect(mockAPI.isDone()).toBe(true);
+  });
+
+  it('should work without JWT token when not provided', async () => {
+    const mockAPI = createMockAPI().reply(200, MOCK_GET_BALANCES_RESPONSE);
+
+    const result = await fetchMultiChainBalancesV4({}, 'extension');
+    expect(result).toBeDefined();
+    expect(result).toStrictEqual(MOCK_GET_BALANCES_RESPONSE);
+    expect(mockAPI.isDone()).toBe(true);
+  });
+
+  it('should include JWT token with account addresses and networks', async () => {
+    const mockJwtToken = 'test-jwt-token-v4-789';
+    const mockAPI = createMockAPI()
+      .query({
+        networks: '1,137',
+        accountAddresses: MOCK_CAIP_ADDRESSES.join(),
+      })
+      .matchHeader('authorization', `Bearer ${mockJwtToken}`)
+      .reply(200, MOCK_GET_BALANCES_RESPONSE);
+
+    const result = await fetchMultiChainBalancesV4(
+      {
+        accountAddresses: MOCK_CAIP_ADDRESSES,
+        networks: [1, 137],
+      },
+      'extension',
+      mockJwtToken,
+    );
     expect(result).toBeDefined();
     expect(result).toStrictEqual(MOCK_GET_BALANCES_RESPONSE);
     expect(mockAPI.isDone()).toBe(true);

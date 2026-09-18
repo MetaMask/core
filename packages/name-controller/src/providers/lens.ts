@@ -1,12 +1,12 @@
-import { createModuleLogger, projectLogger } from '../logger';
+import { createModuleLogger, projectLogger } from '../logger.js';
 import type {
   NameProvider,
   NameProviderMetadata,
   NameProviderRequest,
   NameProviderResult,
-} from '../types';
-import { NameType } from '../types';
-import { graphQL } from '../util';
+} from '../types.js';
+import { NameType } from '../types.js';
+import { graphQL } from '../util.js';
 
 const ID = 'lens';
 const LABEL = 'Lens Protocol';
@@ -34,7 +34,7 @@ type LensResponse = {
 };
 
 export class LensNameProvider implements NameProvider {
-  #isEnabled: () => boolean;
+  readonly #isEnabled: () => boolean;
 
   constructor({ isEnabled }: { isEnabled?: () => boolean } = {}) {
     this.#isEnabled = isEnabled || (() => true);

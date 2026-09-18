@@ -7,6 +7,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** Drop CommonJS support ([#9536](https://github.com/MetaMask/core/pull/9536))
+  - This package is now ESM-only, but can still be used in CommonJS projects via `require(esm)` in modern Node.js versions (22+), or dynamic imports in older Node.js versions.
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9976](https://github.com/MetaMask/core/pull/9976))
+- **BREAKING:** Bump TypeScript target to ES2022 ([#10019](https://github.com/MetaMask/core/pull/10019))
+  - This package now ships ES2022 code, requiring a compatible modern environment or bundler configuration to consume.
+- Bump `@metamask/utils` from `^11.9.0` to `^11.12.0` ([#9074](https://github.com/MetaMask/core/pull/9074), [#10076](https://github.com/MetaMask/core/pull/10076))
+- Bump `@metamask/messenger` from `^1.1.1` to `^3.0.0` ([#8632](https://github.com/MetaMask/core/pull/8632), [#9392](https://github.com/MetaMask/core/pull/9392), [#10160](https://github.com/MetaMask/core/pull/10160))
+
+## [9.1.0]
+
+### Added
+
+- Add `${ControllerName}:stateChanged` as alternative to `${ControllerName}:stateChange` ([#8187](https://github.com/MetaMask/core/pull/8187))
+  - Add corresponding utility type, `ControllerStateChangedEvent`, as well.
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+
+### Deprecated
+
+- Deprecate `${ControllerName}:stateChange` event in favor of `${ControllerName}:stateChanged` ([#8187](https://github.com/MetaMask/core/pull/8187))
+
+## [9.0.1]
+
+### Changed
+
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+
+## [9.0.0]
+
+### Changed
+
+- **BREAKING:** Update `BaseController` type and constructor to require new `Messenger` from `@metamask/messenger` rather than `RestrictedMessenger` ([#6318](https://github.com/MetaMask/core/pull/6318), [#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Rename `anonymous` metadata property to `includeInDebugSnapshot` ([#6593](https://github.com/MetaMask/core/pull/6593), [#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Make `includeInStateLogs` and `usedInUi` metadata properties required ([#6593](https://github.com/MetaMask/core/pull/6593), [#6926](https://github.com/MetaMask/core/pull/6926))
+  - This applies both to the `BaseController` type and the `StatePropertyMetadataConstraint` type
+- **BREAKING:** Rename `ListenerV2` type export to `StateChangeListener` ([#6339](https://github.com/MetaMask/core/pull/6339), [#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Rename `messagingSystem` protected instance variable to `messenger` ([#6337](https://github.com/MetaMask/core/pull/6337), [#6926](https://github.com/MetaMask/core/pull/6926))
+
+### Removed
+
+- **BREAKING:** Remove `Messenger` and `RestrictedMessenger` ([#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Remove `isBaseController` ([#6341](https://github.com/MetaMask/core/pull/6341), [#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Remove deprecated exports `getPersistentState` and `getAnonymizedState` ([#6611](https://github.com/MetaMask/core/pull/6611), [#6926](https://github.com/MetaMask/core/pull/6926))
+- **BREAKING:** Remove `next` export ([#6926](https://github.com/MetaMask/core/pull/6926))
+
+## [8.4.2]
+
+### Fixed
+
+- Fix TypeScript module resolution for `/next` subpath export with legacy resolution mode ([#6915](https://github.com/MetaMask/core/pull/6915))
+  - Added `next.d.ts` file to enable imports like `import { BaseController } from '@metamask/base-controller/next'` to work with both legacy TypeScript module resolution and Node16/NodeNext resolution modes
+  - Previously, this import pattern only worked with Node16/NodeNext resolution which uses the `exports` field in package.json
+
+## [8.4.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
+## [8.4.0]
+
+### Added
+
+- Add optional `captureException` parameter to `deriveStateFromMetadata`, `getPersistentState`, and `getAnonymizedState` ([#6606](https://github.com/MetaMask/core/pull/6606))
+  - This function will be used to capture any errors encountered during state derivation.
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- In experimental `next` export, rename `anonymous` metadata property to `includeInDebugSnapshot` ([#6593](https://github.com/MetaMask/core/pull/6593))
+- In experimental `next` export, make `includeInStateLogs` and `usedInUi` metadata properties required ([#6593](https://github.com/MetaMask/core/pull/6593))
+- In experimental `next` export, remove deprecated exports `getPersistentState` and `getAnonymizedState` ([#6611](https://github.com/MetaMask/core/pull/6611))
+- Stop re-throwing state derivation errors in a `setTimeout` ([#6606](https://github.com/MetaMask/core/pull/6606))
+  - Instead errors are captured with `captureException`, or logged to the console.
+- Bump `@metamask/messenger` from `^0.2.0` to `^0.3.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+
 ## [8.3.0]
 
 ### Added
@@ -75,14 +162,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Remove `RestrictedControllerMessenger` export which was an alias for `RestrictedMessenger`. Consumers should import `RestrictedMessenger` directly
   - Remove `RestrictedControllerMessengerConstraint` type export which was an alias for `RestrictedMessengerConstraint`. Consumers should use `RestrictedMessengerConstraint` type directly
   - Simplify `RestrictedMessenger` constructor by removing deprecated `controllerMessenger` parameter. The messenger instance should now be passed using only the `messenger` parameter instead of supporting both options
-- Widen input parameter for type guard `isBaseController` from `ControllerInstance` to `unknown` ([#5018](https://github.com/MetaMask/core/pull/5018/))
+- Widen input parameter for type guard `isBaseController` from `ControllerInstance` to `unknown` ([#5018](https://github.com/MetaMask/core/pull/5018))
 - Bump `@metamask/json-rpc-engine` from `^10.0.2` to `^10.0.3` ([#5272](https://github.com/MetaMask/core/pull/5272))
 - Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ### Removed
 
-- **BREAKING:** Remove class `BaseControllerV1` and type guard `isBaseControllerV1` ([#5018](https://github.com/MetaMask/core/pull/5018/))
-- **BREAKING:** Remove types `BaseConfig`, `BaseControllerV1Instance`, `BaseState`, `ConfigConstraintV1`, `Listener`, `StateConstraintV1`, `LegacyControllerStateConstraint`, `ControllerInstance` ([#5018](https://github.com/MetaMask/core/pull/5018/))
+- **BREAKING:** Remove class `BaseControllerV1` and type guard `isBaseControllerV1` ([#5018](https://github.com/MetaMask/core/pull/5018))
+- **BREAKING:** Remove types `BaseConfig`, `BaseControllerV1Instance`, `BaseState`, `ConfigConstraintV1`, `Listener`, `StateConstraintV1`, `LegacyControllerStateConstraint`, `ControllerInstance` ([#5018](https://github.com/MetaMask/core/pull/5018))
 
 ## [7.1.1]
 
@@ -119,7 +206,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -349,9 +436,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - `src/BaseController.ts`
     - `src/BaseController.test.ts`
     - `src/BaseControllerV2.ts`
@@ -363,7 +448,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@9.1.0...@metamask/base-controller@10.0.0
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@9.0.1...@metamask/base-controller@9.1.0
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@9.0.0...@metamask/base-controller@9.0.1
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.2...@metamask/base-controller@9.0.0
+[8.4.2]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.1...@metamask/base-controller@8.4.2
+[8.4.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.4.0...@metamask/base-controller@8.4.1
+[8.4.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.3.0...@metamask/base-controller@8.4.0
 [8.3.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.2.0...@metamask/base-controller@8.3.0
 [8.2.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.1.0...@metamask/base-controller@8.2.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@8.0.1...@metamask/base-controller@8.1.0

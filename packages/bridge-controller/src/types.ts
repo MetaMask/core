@@ -1,20 +1,19 @@
-import type { AccountsControllerGetSelectedMultichainAccountAction } from '@metamask/accounts-controller';
+/* eslint-disable @typescript-eslint/naming-convention */
+import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
+import type { AssetsControllerGetExchangeRatesForBridgeAction } from '@metamask/assets-controller';
+import type { CurrencyRateControllerGetStateAction } from '@metamask/assets-controllers';
 import type {
-  GetCurrencyRateState,
-  MultichainAssetsRatesControllerGetStateAction,
-  TokenRatesControllerGetStateAction,
-} from '@metamask/assets-controllers';
-import type {
+  ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
 } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
-  NetworkControllerGetStateAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
+import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Infer } from '@metamask/superstruct';
 import type {
   CaipAccountId,
@@ -24,33 +23,29 @@ import type {
   Hex,
 } from '@metamask/utils';
 
-import type { BridgeController } from './bridge-controller';
-import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
+import type { BridgeControllerMethodActions } from './bridge-controller-method-action-types.js';
+import type { BridgeController } from './bridge-controller.js';
+import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge.js';
+import type { SimulatedGasFeeLimitsSchema } from './validators/batch-sell.js';
+import type { BatchSellTradesResponseSchema } from './validators/batch-sell.js';
 import type {
-  BridgeAssetSchema,
   ChainConfigurationSchema,
-  FeeDataSchema,
+  ChainRankingSchema,
   PlatformConfigSchema,
-  ProtocolSchema,
-  QuoteResponseSchema,
-  QuoteSchema,
-  StepSchema,
-  TxDataSchema,
-} from './utils/validators';
-
-/**
- * Additional options accepted by the extension's fetchWithCache function
- */
-type FetchWithCacheOptions = {
-  cacheOptions?: {
-    cacheRefreshTime: number;
-  };
-  functionName?: string;
-};
+} from './validators/feature-flags.js';
+import type { IntentSchema } from './validators/intent.js';
+import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
+import type { QuoteResponse } from './validators/quote-response.js';
+import type { QuoteStreamCompleteSchema } from './validators/quote-stream-complete.js';
+import type { TxFeeGasLimitsSchema } from './validators/quote.js';
+import type { FeeDataSchema } from './validators/quote.js';
+import type { GaslessPropertiesSchema } from './validators/quote.js';
+import type { StepSchema } from './validators/step.js';
+import type { TokenFeatureSchema } from './validators/token-feature.js';
 
 export type FetchFunction = (
-  input: RequestInfo | URL,
-  init?: RequestInit & FetchWithCacheOptions,
+  input: RequestInfo | URL | string,
+  init?: RequestInit,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => Promise<any>;
 
@@ -73,82 +68,28 @@ export enum AssetType {
 
 export type ChainConfiguration = Infer<typeof ChainConfigurationSchema>;
 
-export type L1GasFees = {
-  l1GasFeesInHexWei?: string; // l1 fees for approval and trade in hex wei, appended by BridgeController.#appendL1GasFees
-};
+export type ChainRanking = Infer<typeof ChainRankingSchema>;
 
-export type SolanaFees = {
-  solanaFeesInLamports?: string; // solana fees in lamports, appended by BridgeController.#appendSolanaFees
+/**
+ * @deprecated Avoid introducing new usages and use the QuoteResponseV2 feeData.network value instead
+ */
+export type L1GasFees = {
+  l1GasFeesInHexWei?: Hex; // l1 fees for approval and trade in hex wei, appended by BridgeController.#appendL1GasFees
 };
 
 /**
- * The types of values for the token amount and its values when converted to the user's selected currency and USD
+ * @deprecated Avoid introducing new usages and use the QuoteResponseV2 feeData.network value instead
  */
-export type TokenAmountValues = {
-  /**
-   * The amount of the token
-   *
-   * @example "1000000000000000000"
-   */
-  amount: string;
-  /**
-   * The amount of the token in the user's selected currency
-   *
-   * @example "4.55"
-   */
-  valueInCurrency: string | null;
-  /**
-   * The amount of the token in USD
-   *
-   * @example "1.234"
-   */
-  usd: string | null;
+export type NonEvmFees = {
+  nonEvmFeesInNative?: string; // Non-EVM chain fees in native units (SOL for Solana, BTC for Bitcoin)
 };
+
+export type InputPrimaryDenomination = 'token_amount' | 'fiat_value';
 
 /**
  * Asset exchange rate values for a given chain and address
  */
 export type ExchangeRate = { exchangeRate?: string; usdExchangeRate?: string };
-
-/**
- * Values derived from the quote response
- */
-export type QuoteMetadata = {
-  /**
-   * If gas is included, this is the value of the src or dest token that was used to pay for the gas
-   */
-  includedTxFees?: TokenAmountValues | null;
-  /**
-   * The gas fee for the bridge transaction.
-   * effective is the gas fee that is shown to the user. If this value is not
-   * included in the trade, the calculation falls back to the gasLimit (total)
-   * total is the gas fee that is spent by the user, including refunds.
-   * max is the max gas fee that will be used by the transaction.
-   */
-  gasFee: Record<'effective' | 'total' | 'max', TokenAmountValues>;
-  totalNetworkFee: TokenAmountValues; // estimatedGasFees + relayerFees
-  totalMaxNetworkFee: TokenAmountValues; // maxGasFees + relayerFees
-  /**
-   * The amount that the user will receive (destTokenAmount)
-   */
-  toTokenAmount: TokenAmountValues;
-  /**
-   * The minimum amount that the user will receive (minDestTokenAmount)
-   */
-  minToTokenAmount: TokenAmountValues;
-  /**
-   * If gas is included: toTokenAmount
-   * Otherwise: toTokenAmount - totalNetworkFee
-   */
-  adjustedReturn: Omit<TokenAmountValues, 'amount'>;
-  /**
-   * The amount that the user will send, including fees
-   * srcTokenAmount + metabridgeFee + txFee
-   */
-  sentAmount: TokenAmountValues;
-  swapRate: string; // destTokenAmount / sentAmount
-  cost: Omit<TokenAmountValues, 'amount'>; // sentAmount - adjustedReturn
-};
 
 /**
  * Sort order set by the user
@@ -157,12 +98,6 @@ export enum SortOrder {
   COST_ASC = 'cost_ascending',
   ETA_ASC = 'time_descending',
 }
-
-/**
- * This is the interface for the asset object returned by the bridge-api
- * This type is used in the QuoteResponse and in the fetchBridgeTokens response
- */
-export type BridgeAsset = Infer<typeof BridgeAssetSchema>;
 
 /**
  * This is the interface for the token object used in the extension client
@@ -223,10 +158,14 @@ export type QuoteRequest<
    * Whether to request quotes that use EIP-7702 delegated gasless execution
    */
   gasIncluded7702: boolean;
-  noFee?: boolean;
+  /**
+   * The fee that will be charged by MetaMask
+   */
+  fee?: number;
 };
 
 export enum StatusTypes {
+  SUBMITTED = 'SUBMITTED',
   UNKNOWN = 'UNKNOWN',
   FAILED = 'FAILED',
   PENDING = 'PENDING',
@@ -240,11 +179,8 @@ export enum StatusTypes {
 export type GenericQuoteRequest = QuoteRequest<
   Hex | CaipChainId | string | number, // chainIds
   Hex | CaipAssetId | string, // assetIds/addresses
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-arguments
   Hex | CaipAccountId | string // accountIds/addresses
 >;
-
-export type Protocol = Infer<typeof ProtocolSchema>;
 
 export type Step = Infer<typeof StepSchema>;
 
@@ -252,19 +188,41 @@ export type RefuelData = Step;
 
 export type FeeData = Infer<typeof FeeDataSchema>;
 
-export type Quote = Infer<typeof QuoteSchema>;
+export type Intent = Infer<typeof IntentSchema>;
+export type IntentOrderLike = Intent['order'];
 
-export type TxData = Infer<typeof TxDataSchema>;
-/**
- * This is the type for the quote response from the bridge-api
- * TxDataType can be overriden to be a string when the quote is non-evm
- */
-export type QuoteResponse<TxDataType = TxData> = Infer<
-  typeof QuoteResponseSchema
-> & {
-  trade: TxDataType;
-  approval?: TxData;
+export type BatchSellTradesRequest = {
+  quotes: QuoteResponseV1[];
+  stxEnabled: boolean;
 };
+
+/**
+ * This is the bridge-api response for the obtainGaslessBatch method
+ */
+export type BatchSellTradesResponse = Infer<
+  typeof BatchSellTradesResponseSchema
+>;
+
+export type SimulatedGasFeeLimits = Infer<typeof SimulatedGasFeeLimitsSchema>;
+export type TxFeeGasLimits = Infer<typeof TxFeeGasLimitsSchema>;
+
+export type GaslessProperties = Infer<typeof GaslessPropertiesSchema>;
+
+type DeepPartialValue<Type> =
+  NonNullable<Type> extends (infer U)[]
+    ? DeepPartial<U>[]
+    : NonNullable<Type> extends readonly (infer U)[]
+      ? readonly DeepPartial<U>[]
+      : NonNullable<Type> extends object
+        ? DeepPartial<NonNullable<Type>>
+        : Type;
+export type DeepPartial<Type> = Type extends string
+  ? Type
+  : {
+      [K in keyof Type]?: null extends Type[K]
+        ? DeepPartialValue<Type[K]> | null
+        : DeepPartialValue<Type[K]>;
+    };
 
 export enum ChainId {
   ETH = 1,
@@ -278,35 +236,56 @@ export enum ChainId {
   LINEA = 59144,
   SOLANA = 1151111081099710,
   BTC = 20000000000001,
+  /** Internal bridge / token-list id for Stellar pubnet (Token API chain: stellar:pubnet). */
+  STELLAR = 20000000000002,
+  TRON = 728126428,
+  SEI = 1329,
+  MONAD = 143,
+  HYPEREVM = 999,
+  MEGAETH = 4326,
+  ARC = 5042,
+  ROBINHOOD = 4663,
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
 
+export type TokenFeature = Infer<typeof TokenFeatureSchema>;
+
+export type QuoteStreamCompleteData = Infer<typeof QuoteStreamCompleteSchema>;
+
 export enum RequestStatus {
-  LOADING,
-  FETCHED,
-  ERROR,
-}
-export enum BridgeUserAction {
-  SELECT_DEST_NETWORK = 'selectDestNetwork',
-  UPDATE_QUOTE_PARAMS = 'updateBridgeQuoteRequestParams',
-}
-export enum BridgeBackgroundAction {
-  SET_CHAIN_INTERVAL_LENGTH = 'setChainIntervalLength',
-  RESET_STATE = 'resetState',
-  GET_BRIDGE_ERC20_ALLOWANCE = 'getBridgeERC20Allowance',
-  TRACK_METAMETRICS_EVENT = 'trackUnifiedSwapBridgeEvent',
-  STOP_POLLING_FOR_QUOTES = 'stopPollingForQuotes',
-  FETCH_QUOTES = 'fetchQuotes',
+  LOADING = 0,
+  FETCHED = 1,
+  ERROR = 2,
 }
 
 export type BridgeControllerState = {
-  quoteRequest: Partial<GenericQuoteRequest>;
-  quotes: (QuoteResponse & L1GasFees & SolanaFees)[];
+  quoteRequest: Partial<GenericQuoteRequest>[];
+  quotes: QuoteResponse[];
+  /**
+   * The time elapsed between the initial quote fetch and when the first valid quote was received
+   */
   quotesInitialLoadTime: number | null;
+  /**
+   * The timestamp of when the latest quote fetch started
+   */
   quotesLastFetched: number | null;
+  /**
+   * The status of the quote fetch, including fee calculations and validations
+   * This is set to
+   * - LOADING when the quote fetch starts
+   * - FETCHED when the process completes successfully, including when quotes are empty
+   * - ERROR when any errors occur
+   *
+   * When SSE is enabled, this is set to LOADING even when a quote is available. It is only
+   * set to FETCHED when the stream is closed and all quotes have been received
+   */
   quotesLoadingStatus: RequestStatus | null;
   quoteFetchError: string | null;
+  /**
+   * The number of times the quotes have been refreshed, starts at 0 and is
+   * incremented at the end of each quote fetch
+   */
   quotesRefreshCount: number;
   /**
    * Asset exchange rates for EVM and multichain assets that are not indexed by the assets controllers
@@ -317,8 +296,44 @@ export type BridgeControllerState = {
    * the max amount that can be sent.
    */
   minimumBalanceForRentExemptionInLamports: string | null;
+  /**
+   * Security alerts for the destination token in the current quote request,
+   * populated from `token_warning` SSE events.
+   */
+  tokenWarnings: TokenFeature[];
+  /**
+   * Client-supplied security classification for the destination token in the
+   * current quote request, used as the `token_security_type_destination`
+   * analytics property. Set via the `context` arg of
+   * `updateBridgeQuoteRequestParams` and reset whenever the quote request is
+   * reset. `null` when the client has no security data for the token.
+   */
+  tokenSecurityTypeDestination: string | null;
+  /**
+   * The denomination currently shown as the primary source amount input.
+   * This is persisted as a user preference so returning to the flow restores
+   * the last selected fiat/token display mode.
+   */
+  inputPrimaryDenomination: InputPrimaryDenomination;
+  /**
+   * Metadata about the completed quote stream, populated from the `complete` SSE event.
+   * Set to null at the start of each fetch and updated when the complete event is received.
+   */
+  quoteStreamComplete: QuoteStreamCompleteData | null;
+  /**
+   * Contains gasless transaction data and fees for BatchSell quotes, provided by the obtainGaslessBatch API
+   */
+  batchSellTrades: BatchSellTradesResponse | null;
+  /**
+   * The status of the batch sell trades fetch, including fee calculations and validations
+   */
+  batchSellTradesLoadingStatus: RequestStatus | null;
 };
 
+/**
+ * @deprecated Use the separate method action types (e.g.,
+ * `BridgeControllerFetchQuotesAction`) instead.
+ */
 export type BridgeControllerAction<
   FunctionName extends keyof BridgeController,
 > = {
@@ -326,40 +341,38 @@ export type BridgeControllerAction<
   handler: BridgeController[FunctionName];
 };
 
-// Maps to BridgeController function names
-export type BridgeControllerActions =
-  | BridgeControllerAction<BridgeBackgroundAction.SET_CHAIN_INTERVAL_LENGTH>
-  | BridgeControllerAction<BridgeBackgroundAction.RESET_STATE>
-  | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
-  | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
-  | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
-  | BridgeControllerAction<BridgeBackgroundAction.FETCH_QUOTES>
-  | BridgeControllerAction<BridgeUserAction.UPDATE_QUOTE_PARAMS>;
-
-export type BridgeControllerEvents = ControllerStateChangeEvent<
+export type BridgeControllerGetStateAction = ControllerGetStateAction<
   typeof BRIDGE_CONTROLLER_NAME,
   BridgeControllerState
 >;
 
+export type BridgeControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof BRIDGE_CONTROLLER_NAME,
+  BridgeControllerState
+>;
+
+export type BridgeControllerActions =
+  | BridgeControllerGetStateAction
+  | BridgeControllerMethodActions;
+
+export type BridgeControllerEvents = BridgeControllerStateChangeEvent;
+
 export type AllowedActions =
-  | AccountsControllerGetSelectedMultichainAccountAction
-  | GetCurrencyRateState
-  | TokenRatesControllerGetStateAction
-  | MultichainAssetsRatesControllerGetStateAction
-  | HandleSnapRequest
+  | AccountsControllerGetAccountByAddressAction
+  | AuthenticationControllerGetBearerTokenAction
+  | CurrencyRateControllerGetStateAction
+  | SnapControllerHandleRequestAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | AssetsControllerGetExchangeRatesForBridgeAction;
 export type AllowedEvents = never;
 
 /**
  * The messenger for the BridgeController.
  */
-export type BridgeControllerMessenger = RestrictedMessenger<
+export type BridgeControllerMessenger = Messenger<
   typeof BRIDGE_CONTROLLER_NAME,
   BridgeControllerActions | AllowedActions,
-  BridgeControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  BridgeControllerEvents | AllowedEvents
 >;

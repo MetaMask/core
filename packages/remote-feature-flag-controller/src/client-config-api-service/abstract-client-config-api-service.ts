@@ -1,6 +1,6 @@
 import type { ServicePolicy } from '@metamask/controller-utils';
 
-import type { ServiceResponse } from '../remote-feature-flag-controller-types';
+import type { ServiceResponse } from '../remote-feature-flag-controller-types.js';
 
 /**
  * A service object responsible for fetching feature flags.

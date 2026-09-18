@@ -1,22 +1,75 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "rootDir": "../.."
   },
   "references": [
-    { "path": "../account-tree-controller" },
-    { "path": "../accounts-controller" },
-    { "path": "../approval-controller" },
-    { "path": "../base-controller" },
-    { "path": "../controller-utils" },
-    { "path": "../keyring-controller" },
-    { "path": "../network-controller" },
-    { "path": "../preferences-controller" },
-    { "path": "../phishing-controller" },
-    { "path": "../polling-controller" },
-    { "path": "../permission-controller" },
-    { "path": "../transaction-controller" }
+    {
+      "path": "../account-tree-controller"
+    },
+    {
+      "path": "../accounts-controller"
+    },
+    {
+      "path": "../approval-controller"
+    },
+    {
+      "path": "../core-backend"
+    },
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../network-enablement-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../preferences-controller"
+    },
+    {
+      "path": "../phishing-controller"
+    },
+    {
+      "path": "../polling-controller"
+    },
+    {
+      "path": "../permission-controller"
+    },
+    {
+      "path": "../storage-service"
+    },
+    {
+      "path": "../transaction-controller"
+    },
+    {
+      "path": "../multichain-account-service"
+    },
+    {
+      "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../eth-json-rpc-provider"
+    },
+    {
+      "path": "../eth-block-tracker"
+    },
+    {
+      "path": "../utils"
+    }
   ],
   "include": ["../../types", "./src", "../../tests"]
 }

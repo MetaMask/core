@@ -1,11 +1,18 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
   "references": [
-    { "path": "../base-controller" },
-    { "path": "../json-rpc-engine" }
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../json-rpc-engine"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../utils"
+    }
   ],
   "include": ["../../types", "./src", "./tests"]
 }

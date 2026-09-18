@@ -1,8 +1,9 @@
-import { isOnChainRawNotification } from '.';
 import {
   createMockFeatureAnnouncementRaw,
+  createMockPlatformNotification,
   createMockNotificationEthSent,
-} from '../NotificationServicesController/mocks';
+} from '../NotificationServicesController/mocks/index.js';
+import { isOnChainRawNotification } from './index.js';
 
 describe('is-onchain-notification - isOnChainRawNotification()', () => {
   it('returns true if OnChainRawNotification', () => {
@@ -11,8 +12,13 @@ describe('is-onchain-notification - isOnChainRawNotification()', () => {
     expect(result).toBe(true);
   });
   it('returns false if not OnChainRawNotification', () => {
-    const notification = createMockFeatureAnnouncementRaw();
-    const result = isOnChainRawNotification(notification);
-    expect(result).toBe(false);
+    const testNotifications = [
+      createMockFeatureAnnouncementRaw(),
+      createMockPlatformNotification(),
+    ];
+    testNotifications.forEach((notification) => {
+      const result = isOnChainRawNotification(notification);
+      expect(result).toBe(false);
+    });
   });
 });

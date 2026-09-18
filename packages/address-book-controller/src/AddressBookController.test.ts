@@ -1,18 +1,37 @@
-import { Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
 import type {
-  AddressBookControllerActions,
-  AddressBookControllerEvents,
-  AddressBookControllerContactUpdatedEvent,
   AddressBookControllerContactDeletedEvent,
-} from './AddressBookController';
+  AddressBookControllerMessenger,
+} from './AddressBookController.js';
 import {
   AddressBookController,
   AddressType,
   controllerName,
-} from './AddressBookController';
+} from './AddressBookController.js';
+
+type AllActions = MessengerActions<AddressBookControllerMessenger>;
+
+type AllEvents = MessengerEvents<AddressBookControllerMessenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
+
+/**
+ * Creates a new root messenger instance for testing.
+ *
+ * @returns A new Messenger instance.
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+}
 
 /**
  * Helper function to create test fixtures
@@ -20,17 +39,18 @@ import {
  * @returns Test fixtures including messenger, controller, and event listeners
  */
 function arrangeMocks() {
-  const messenger = new Messenger<
-    AddressBookControllerActions,
-    AddressBookControllerEvents
-  >();
-  const restrictedMessenger = messenger.getRestricted({
-    name: controllerName,
-    allowedActions: [],
-    allowedEvents: [],
+  const rootMessenger = getRootMessenger();
+  const addressBookControllerMessenger = new Messenger<
+    typeof controllerName,
+    AllActions,
+    AllEvents,
+    typeof rootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
   });
   const controller = new AddressBookController({
-    messenger: restrictedMessenger,
+    messenger: addressBookControllerMessenger,
   });
 
   // Set up mock event listeners
@@ -38,11 +58,11 @@ function arrangeMocks() {
   const contactDeletedListener = jest.fn();
 
   // Subscribe to events
-  messenger.subscribe(
-    'AddressBookController:contactUpdated' as AddressBookControllerContactUpdatedEvent['type'],
+  rootMessenger.subscribe(
+    'AddressBookController:contactUpdated',
     contactUpdatedListener,
   );
-  messenger.subscribe(
+  rootMessenger.subscribe(
     'AddressBookController:contactDeleted' as AddressBookControllerContactDeletedEvent['type'],
     contactDeletedListener,
   );
@@ -617,5 +637,67 @@ describe('AddressBookController', () => {
     expect(chain1Contacts).toHaveLength(3);
     expect(chain2Contacts).toHaveLength(2);
     expect(chain137Contacts).toHaveLength(1);
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = arrangeMocks();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = arrangeMocks();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "addressBook": {},
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = arrangeMocks();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "addressBook": {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { controller } = arrangeMocks();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "addressBook": {},
+        }
+      `);
+    });
   });
 });

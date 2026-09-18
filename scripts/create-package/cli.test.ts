@@ -1,8 +1,22 @@
-import cli from './cli';
-import { commands, commandMap } from './commands';
-import * as utils from './utils';
+import { jest } from '@jest/globals';
 
-jest.mock('./utils');
+// `jest.mock` does not apply to ES modules, so the module registry is stubbed
+// with `jest.unstable_mockModule` and the modules under test are imported
+// dynamically afterwards.
+jest.unstable_mockModule('./utils.js', () => ({
+  readMonorepoFiles: jest.fn(),
+  finalizeAndWriteData: jest.fn(),
+}));
+
+// yargs' ESM shim captures `process.exit` by reference when it is loaded, so
+// the spy has to be installed before `cli.js` pulls yargs in. Its
+// implementation is re-armed in `beforeEach`, because `resetMocks` clears it
+// between tests.
+const exitSpy = jest.spyOn(process, 'exit');
+
+const { default: cli } = await import('./cli.js');
+const { commands, commandMap } = await import('./commands.js');
+const utils = await import('./utils.js');
 
 /**
  * Returns a mock `process.argv` array with the provided arguments. Includes
@@ -11,7 +25,7 @@ jest.mock('./utils');
  * @param args - The arguments to include in the mock argv array.
  * @returns The mock argv array.
  */
-function getMockArgv(...args: string[]) {
+function getMockArgv(...args: string[]): string[] {
   return ['/mock/path', '/mock/entry/path', ...args];
 }
 
@@ -23,10 +37,16 @@ function getMockArgv(...args: string[]) {
  * @param description - The package description.
  * @returns The parsed argv object.
  */
-function getParsedArgv(name: string, description: string) {
+function getParsedArgv(
+  name: string,
+  description: string,
+): {
+  _: [];
+  $0: 'create-package';
+  name: `@metamask/${string}`;
+  description: string;
+} {
   return {
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     _: [],
     $0: 'create-package',
     name: `@metamask/${name}`,
@@ -38,7 +58,7 @@ describe('create-package/cli', () => {
   beforeEach(() => {
     // yargs calls process.exit() with 1 on failure and sometimes 0 on success.
     // We have to intercept it.
-    jest.spyOn(process, 'exit').mockImplementation((code?: number) => {
+    exitSpy.mockImplementation((code) => {
       if (code === 1) {
         throw new Error('exit: 1');
       } else {
@@ -57,7 +77,9 @@ describe('create-package/cli', () => {
 
   it('should error if a string option contains only whitespace', async () => {
     const defaultCommand = commandMap.$0;
-    jest.spyOn(defaultCommand, 'handler').mockImplementation();
+    jest
+      .spyOn(defaultCommand, 'handler')
+      .mockImplementation(async () => undefined);
 
     await expect(cli(getMockArgv('--name', '  '), commands)).rejects.toThrow(
       'exit: 1',
@@ -73,14 +95,14 @@ describe('create-package/cli', () => {
       const defaultCommand = commandMap.$0;
       jest.spyOn(defaultCommand, 'handler');
 
-      jest.spyOn(utils, 'readMonorepoFiles').mockResolvedValue({
+      jest.mocked(utils.readMonorepoFiles).mockResolvedValue({
         tsConfig: {},
         tsConfigBuild: {},
         nodeVersions: '>=18.0.0',
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
-      jest.spyOn(utils, 'finalizeAndWriteData').mockResolvedValue();
+      jest.mocked(utils.finalizeAndWriteData).mockResolvedValue();
 
       expect(
         await cli(
@@ -99,14 +121,14 @@ describe('create-package/cli', () => {
       const defaultCommand = commandMap.$0;
       jest.spyOn(defaultCommand, 'handler');
 
-      jest.spyOn(utils, 'readMonorepoFiles').mockResolvedValue({
+      jest.mocked(utils.readMonorepoFiles).mockResolvedValue({
         tsConfig: {},
         tsConfigBuild: {},
         nodeVersions: '>=18.0.0',
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
-      jest.spyOn(utils, 'finalizeAndWriteData').mockResolvedValue();
+      jest.mocked(utils.finalizeAndWriteData).mockResolvedValue();
 
       expect(
         await cli(
@@ -123,7 +145,9 @@ describe('create-package/cli', () => {
 
     it('should create a new package', async () => {
       const defaultCommand = commandMap.$0;
-      jest.spyOn(defaultCommand, 'handler').mockImplementation();
+      jest
+        .spyOn(defaultCommand, 'handler')
+        .mockImplementation(async () => undefined);
 
       expect(
         await cli(
@@ -140,7 +164,9 @@ describe('create-package/cli', () => {
 
     it('should error if the package name is missing', async () => {
       const defaultCommand = commandMap.$0;
-      jest.spyOn(defaultCommand, 'handler').mockImplementation();
+      jest
+        .spyOn(defaultCommand, 'handler')
+        .mockImplementation(async () => undefined);
 
       await expect(
         cli(getMockArgv('--description', 'bar'), commands),
@@ -153,7 +179,9 @@ describe('create-package/cli', () => {
 
     it('should error if the package description is missing', async () => {
       const defaultCommand = commandMap.$0;
-      jest.spyOn(defaultCommand, 'handler').mockImplementation();
+      jest
+        .spyOn(defaultCommand, 'handler')
+        .mockImplementation(async () => undefined);
 
       await expect(cli(getMockArgv('--name', 'foo'), commands)).rejects.toThrow(
         'exit: 1',

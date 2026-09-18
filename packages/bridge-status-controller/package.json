@@ -1,45 +1,47 @@
 {
   "name": "@metamask/bridge-status-controller",
-  "version": "41.0.0",
+  "version": "76.3.0",
   "description": "Manages bridge-related status fetching functionality for MetaMask",
   "keywords": [
-    "MetaMask",
-    "Ethereum"
+    "Ethereum",
+    "MetaMask"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/bridge-status-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "MIT",
-  "sideEffects": false,
-  "exports": {
-    ".": {
-      "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.cts",
-        "default": "./dist/index.cjs"
-      }
-    },
-    "./package.json": "./package.json"
-  },
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.cts",
   "files": [
     "dist/"
   ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
-    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build": "tsc --project tsconfig.build.json",
+    "build:all": "tsc --build tsconfig.build.json --verbose",
+    "build:clean": "yarn build:only-clean && yarn build",
     "build:docs": "typedoc",
+    "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/bridge-status-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/bridge-status-controller",
-    "publish:preview": "yarn npm publish --tag preview",
+    "generate-method-action-types": "tsx ../../packages/messenger/src/generate-action-types/cli.ts",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -47,47 +49,40 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.3.0",
-    "@metamask/controller-utils": "^11.12.0",
-    "@metamask/keyring-api": "^20.1.0",
-    "@metamask/polling-controller": "^14.0.0",
-    "@metamask/superstruct": "^3.1.0",
-    "@metamask/utils": "^11.4.2",
+    "@metamask/accounts-controller": "^40.0.0",
+    "@metamask/base-controller": "^10.0.0",
+    "@metamask/bridge-controller": "^81.2.0",
+    "@metamask/controller-utils": "^13.0.0",
+    "@metamask/gas-fee-controller": "^27.0.0",
+    "@metamask/keyring-controller": "^28.0.0",
+    "@metamask/messenger": "^3.0.0",
+    "@metamask/network-controller": "^37.0.0",
+    "@metamask/polling-controller": "^17.0.0",
+    "@metamask/profile-sync-controller": "^32.1.1",
+    "@metamask/snaps-controllers": "^19.0.0",
+    "@metamask/superstruct": "^3.4.1",
+    "@metamask/transaction-controller": "^70.1.0",
+    "@metamask/utils": "^12.0.0",
     "bignumber.js": "^9.1.2",
-    "uuid": "^8.3.2"
+    "uuid": "^11.1.1"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^33.0.0",
-    "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/bridge-controller": "^41.4.0",
-    "@metamask/gas-fee-controller": "^24.0.0",
-    "@metamask/network-controller": "^24.1.0",
-    "@metamask/snaps-controllers": "^14.0.1",
-    "@metamask/transaction-controller": "^60.2.0",
-    "@types/jest": "^27.4.1",
+    "@metamask/auto-changelog": "^6.1.0",
+    "@types/jest": "^30.0.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
-    "jest": "^27.5.1",
-    "jest-environment-jsdom": "^27.5.1",
-    "lodash": "^4.17.21",
+    "jest": "^30.4.2",
+    "jest-environment-jsdom": "^30.4.1",
+    "lodash-es": "^4.17.21",
     "nock": "^13.3.1",
-    "ts-jest": "^27.1.4",
-    "typedoc": "^0.24.8",
+    "rimraf": "^5.0.5",
+    "ts-jest": "^29.4.11",
+    "tsx": "^4.20.5",
+    "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
-  },
-  "peerDependencies": {
-    "@metamask/accounts-controller": "^33.0.0",
-    "@metamask/bridge-controller": "^41.0.0",
-    "@metamask/gas-fee-controller": "^24.0.0",
-    "@metamask/network-controller": "^24.0.0",
-    "@metamask/snaps-controllers": "^14.0.0",
-    "@metamask/transaction-controller": "^60.0.0"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {
-    "node": "^18.18 || >=20"
-  },
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
+    "node": "^22.14.0 || ^24"
   }
 }

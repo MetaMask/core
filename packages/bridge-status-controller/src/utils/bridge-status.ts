@@ -1,21 +1,28 @@
-import { type Quote } from '@metamask/bridge-controller';
+import {
+  getClientHeaders,
+  isNonEvmChainId,
+  StatusTypes,
+} from '@metamask/bridge-controller';
+import type { QuoteResponseV1 } from '@metamask/bridge-controller';
+import type { Provider } from '@metamask/network-controller';
 import { StructError } from '@metamask/superstruct';
 
-import { validateBridgeStatusResponse } from './validators';
-import { REFRESH_INTERVAL_MS } from '../constants';
+import { REFRESH_INTERVAL_MS } from '../constants.js';
+import { QuoteStatusManager } from '../quote-status-manager/quotes-status-manager.js';
 import type {
   StatusResponse,
   StatusRequestWithSrcTxHash,
   StatusRequestDto,
   FetchFunction,
   BridgeHistoryItem,
-} from '../types';
+  StatusRequest,
+  BridgeStatusControllerMessenger,
+} from '../types.js';
+import { isHistoryItemTooOld } from './history.js';
+import { getNetworkClientByChainId } from './network.js';
+import { validateBridgeStatusResponse } from './validators.js';
 
-export const getClientIdHeader = (clientId: string) => ({
-  'X-Client-Id': clientId,
-});
-
-export const getBridgeStatusUrl = (bridgeApiBaseUrl: string) =>
+export const getBridgeStatusUrl = (bridgeApiBaseUrl: string): string =>
   `${bridgeApiBaseUrl}/getTxStatus`;
 
 export const getStatusRequestDto = (
@@ -39,9 +46,28 @@ export const getStatusRequestDto = (
   };
 };
 
+export const fetchBridgeQuoteStatus = async (
+  quoteStatusManager: QuoteStatusManager,
+  quoteId: string,
+): Promise<{ status: StatusResponse; validationFailures: string[] } | null> => {
+  const response = await quoteStatusManager.getStatus(quoteId);
+
+  const status = response?.response?.submittedTx;
+
+  if (!status) {
+    return null;
+  }
+
+  return {
+    status,
+    validationFailures: response.error?.details?.validationFailures ?? [],
+  };
+};
+
 export const fetchBridgeTxStatus = async (
   statusRequest: StatusRequestWithSrcTxHash,
   clientId: string,
+  jwt: string | undefined,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
 ): Promise<{ status: StatusResponse; validationFailures: string[] }> => {
@@ -52,7 +78,7 @@ export const fetchBridgeTxStatus = async (
   const url = `${getBridgeStatusUrl(bridgeApiBaseUrl)}?${params.toString()}`;
 
   const rawTxStatus: unknown = await fetchFn(url, {
-    headers: getClientIdHeader(clientId),
+    headers: getClientHeaders({ clientId, jwt }),
   });
 
   const validationFailures: string[] = [];
@@ -62,14 +88,11 @@ export const fetchBridgeTxStatus = async (
   } catch (error) {
     // Build validation failure event properties
     if (error instanceof StructError) {
-      error.failures().forEach(({ branch, path }) => {
+      error.failures().forEach(({ path }) => {
         const aggregatorId =
-          branch?.[0]?.quote?.bridgeId ||
-          branch?.[0]?.quote?.bridges?.[0] ||
-          (rawTxStatus as StatusResponse)?.bridge ||
-          statusRequest.bridge ||
-          statusRequest.bridgeId ||
-          'unknown';
+          (rawTxStatus as StatusResponse)?.bridge ??
+          (statusRequest.bridge || statusRequest.bridgeId) ??
+          ('unknown' as string);
         const pathString = path?.join('.') || 'unknown';
         validationFailures.push([aggregatorId, pathString].join('|'));
       });
@@ -82,7 +105,7 @@ export const fetchBridgeTxStatus = async (
 };
 
 export const getStatusRequestWithSrcTxHash = (
-  quote: Quote,
+  quote: QuoteResponseV1['quote'],
   srcTxHash: string,
 ): StatusRequestWithSrcTxHash => {
   const { bridgeId, bridges, srcChainId, destChainId, refuel } = quote;
@@ -99,7 +122,7 @@ export const getStatusRequestWithSrcTxHash = (
 
 export const shouldSkipFetchDueToFetchFailures = (
   attempts?: BridgeHistoryItem['attempts'],
-) => {
+): boolean => {
   // If there's an attempt, it means we've failed at least once,
   // so we need to check if we need to wait longer due to exponential backoff
   if (attempts) {
@@ -114,4 +137,82 @@ export const shouldSkipFetchDueToFetchFailures = (
     }
   }
   return false;
+};
+
+/*
+ * Checks if a pending history item is older than 2 days and does not have a valid tx hash
+ *
+ * @param messenger - The messenger to use to get the transaction meta by hash or id
+ * @param historyItem - The history item to check
+ *
+ * @returns true if the src tx hash is valid or we should still wait for it, false otherwise
+ */
+export const shouldWaitForFinalBridgeStatus = async (
+  messenger: BridgeStatusControllerMessenger,
+  historyItem: BridgeHistoryItem,
+): Promise<boolean> => {
+  // Keep waiting for status if the history is not pending or is not old enough yet
+  if (
+    !(
+      isHistoryItemTooOld(messenger, historyItem) &&
+      [StatusTypes.PENDING, StatusTypes.UNKNOWN].includes(
+        historyItem.status.status,
+      )
+    )
+  ) {
+    return true;
+  }
+
+  if (isNonEvmChainId(historyItem.quote.srcChainId)) {
+    return false;
+  }
+
+  let provider: Provider;
+  try {
+    provider = getNetworkClientByChainId(
+      messenger,
+      historyItem.quote.srcChainId,
+    );
+  } catch {
+    // This happens when the network is disabled while the tx is pending
+    return true;
+  }
+
+  if (!historyItem.status.srcChain.txHash) {
+    return false;
+  }
+
+  // Otherwise check if the tx has been mined on chain
+  return provider
+    .request({
+      method: 'eth_getTransactionReceipt',
+      params: [historyItem.status.srcChain.txHash],
+    })
+    .then((txReceipt) => {
+      if (txReceipt) {
+        return true;
+      }
+      return false;
+    })
+    .catch(() => {
+      return false;
+    });
+};
+
+/**
+ * @deprecated Use getStatusRequestWithSrcTxHash instead
+ * @param quoteResponse - The quote response to get the status request parameters from
+ * @returns The status request parameters
+ */
+export const getStatusRequestParams = (
+  quoteResponse: QuoteResponseV1,
+): StatusRequest => {
+  return {
+    bridgeId: quoteResponse.quote.bridgeId,
+    bridge: quoteResponse.quote.bridges[0],
+    srcChainId: quoteResponse.quote.srcChainId,
+    destChainId: quoteResponse.quote.destChainId,
+    quote: quoteResponse.quote,
+    refuel: Boolean(quoteResponse.quote.refuel),
+  };
 };

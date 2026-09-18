@@ -1,4 +1,8 @@
 export type {
+  AnnouncementControllerResetViewedAction,
+  AnnouncementControllerUpdateViewedAction,
+} from './AnnouncementController-method-action-types.js';
+export type {
   AnnouncementMap,
   StateAnnouncementMap,
   AnnouncementControllerState,
@@ -7,5 +11,5 @@ export type {
   AnnouncementControllerGetStateAction,
   AnnouncementControllerStateChangeEvent,
   AnnouncementControllerMessenger,
-} from './AnnouncementController';
-export { AnnouncementController } from './AnnouncementController';
+} from './AnnouncementController.js';
+export { AnnouncementController } from './AnnouncementController.js';

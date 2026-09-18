@@ -3,7 +3,7 @@ import type { LendingMarket } from '@metamask/stake-sdk';
 import type {
   EarnControllerState,
   LendingPositionWithMarket,
-} from './EarnController';
+} from './EarnController.js';
 import {
   selectLendingMarkets,
   selectLendingPositions,
@@ -22,7 +22,9 @@ import {
   selectLendingMarketsByChainIdAndOutputTokenAddress,
   selectLendingMarketsByChainIdAndTokenAddress,
   selectIsLendingEligible,
-} from './selectors';
+  selectTronStaking,
+  selectTronStakingApy,
+} from './selectors.js';
 
 describe('Earn Controller Selectors', () => {
   const mockMarket1: LendingMarket = {
@@ -134,6 +136,10 @@ describe('Earn Controller Selectors', () => {
         },
       },
       isEligible: false,
+    },
+    tron_staking: {
+      apy: '3.35',
+      lastUpdated: 1718000000000,
     },
     lastUpdated: 0,
   };
@@ -411,6 +417,43 @@ describe('Earn Controller Selectors', () => {
       };
       const result = selectIsLendingEligible(stateWithIneligibleLending);
       expect(result).toBe(false);
+    });
+  });
+
+  describe('TRON Staking Selectors', () => {
+    describe('selectTronStaking', () => {
+      it('should return the TRON staking state', () => {
+        const result = selectTronStaking(mockState);
+        expect(result).toStrictEqual({
+          apy: '3.35',
+          lastUpdated: 1718000000000,
+        });
+      });
+
+      it('should return null when no TRON staking data exists', () => {
+        const stateWithoutTronStaking = {
+          ...mockState,
+          tron_staking: null,
+        };
+        const result = selectTronStaking(stateWithoutTronStaking);
+        expect(result).toBeNull();
+      });
+    });
+
+    describe('selectTronStakingApy', () => {
+      it('should return the TRON staking APY', () => {
+        const result = selectTronStakingApy(mockState);
+        expect(result).toBe('3.35');
+      });
+
+      it('should return undefined when TRON staking is null', () => {
+        const stateWithoutTronStaking = {
+          ...mockState,
+          tron_staking: null,
+        };
+        const result = selectTronStakingApy(stateWithoutTronStaking);
+        expect(result).toBeUndefined();
+      });
     });
   });
 });

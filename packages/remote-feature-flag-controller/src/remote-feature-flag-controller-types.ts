@@ -1,5 +1,4 @@
-import type { ControllerGetStateAction } from '@metamask/base-controller';
-import type { Json } from '@metamask/utils';
+import type { Json, SemVerVersion } from '@metamask/utils';
 
 // Define accepted values for client, distribution, and environment
 export enum ClientType {
@@ -25,6 +24,11 @@ export enum EnvironmentType {
   Exp = 'exp',
 }
 
+/** Type representing a feature flag with multiple version entries */
+export type MultiVersionFeatureFlagValue = {
+  versions: Record<SemVerVersion, Json>;
+};
+
 /** Type representing the feature flags collection */
 export type FeatureFlags = {
   [key: string]: Json;
@@ -35,10 +39,31 @@ export type FeatureFlagScope = {
   value: number;
 };
 
+export enum ThresholdVersion {
+  DirectValue = 2,
+}
+
 export type FeatureFlagScopeValue = {
   name: string;
+  /**
+   * Optional label for direct-value threshold entries. This replaces `name` in
+   * v2 configurations and is not emitted in processed controller state.
+   */
+  thresholdName?: string;
+  /**
+   * Selects the threshold entry output shape. Unrecognized versions fall back
+   * to the legacy `{ name, value }` wrapper for backwards compatibility.
+   */
+  thresholdVersion?: ThresholdVersion;
   scope: FeatureFlagScope;
   value: Json;
+  /**
+   * Optional list of MetaMetrics IDs to explicitly target. When the current
+   * user's MetaMetrics ID matches any entry in this list, this threshold group
+   * is selected immediately, bypassing hash-based rollout. Intended for QA and
+   * Product Manager testing only, not general-purpose segmentation.
+   */
+  metaMetricsIds?: string[];
 };
 
 export type ApiDataResponse = FeatureFlags[];
@@ -47,26 +72,3 @@ export type ServiceResponse = {
   remoteFeatureFlags: FeatureFlags;
   cacheTimestamp: number | null;
 };
-
-/**
- * Describes the shape of the state object for the {@link RemoteFeatureFlagController}.
- */
-export type RemoteFeatureFlagControllerState = {
-  /**
-   * The collection of feature flags and their respective values, which can be objects.
-   */
-  remoteFeatureFlags: FeatureFlags;
-  /**
-   * The timestamp of the last successful feature flag cache.
-   */
-  cacheTimestamp: number;
-};
-
-/**
- * The action to retrieve the state of the {@link RemoteFeatureFlagController}.
- */
-export type RemoteFeatureFlagControllerGetStateAction =
-  ControllerGetStateAction<
-    'RemoteFeatureFlagController',
-    RemoteFeatureFlagControllerState
-  >;

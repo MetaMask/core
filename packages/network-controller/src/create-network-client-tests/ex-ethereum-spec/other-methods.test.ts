@@ -1,9 +1,9 @@
-import { TESTNET } from '../../../tests/helpers';
+import { TESTNET } from '../../../tests/helpers.js';
 import {
   withMockedCommunications,
   withNetworkClient,
-} from '../../../tests/network-client/helpers';
-import { NetworkClientType } from '../../types';
+} from '../../../tests/network-client/helpers.js';
+import { NetworkClientType } from '../../types.js';
 
 describe('createNetworkClient - methods not included in the Ethereum JSON-RPC spec - other methods', () => {
   for (const networkClientType of Object.values(NetworkClientType)) {

@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "references": [
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../storage-service"
+    },
+    {
+      "path": "../utils"
+    }
+  ],
+  "include": ["../../types", "./src", "./tests"]
+}

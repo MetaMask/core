@@ -1,7 +1,7 @@
 import type { JsonRpcRequest } from '@metamask/utils';
 import { assertIsJsonRpcSuccess, hasProperty } from '@metamask/utils';
 
-import { JsonRpcEngine, mergeMiddleware } from '.';
+import { JsonRpcEngine, mergeMiddleware } from './index.js';
 
 const jsonrpc = '2.0' as const;
 
@@ -12,7 +12,7 @@ describe('mergeMiddleware', () => {
 
     engine.push(
       mergeMiddleware([
-        function (req, res, _next, end) {
+        function (req, res, _next, end): void {
           originalRequest = req;
           res.result = 'saw merged middleware';
           end();
@@ -39,7 +39,7 @@ describe('mergeMiddleware', () => {
 
     engine.push(
       mergeMiddleware([
-        (_request, response, next, _end) => {
+        (_request, response, next, _end): void => {
           next((callback) => {
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,7 +47,7 @@ describe('mergeMiddleware', () => {
             callback();
           });
         },
-        (_req, res, _next, end) => {
+        (_req, res, _next, end): void => {
           res.result = true;
           end();
         },
@@ -76,7 +76,7 @@ describe('mergeMiddleware', () => {
 
     engine.push(
       mergeMiddleware([
-        function (request, response, _next, end) {
+        function (request, response, _next, end): void {
           originalRequest = request;
           // TODO: Replace `any` with type
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -109,7 +109,7 @@ describe('mergeMiddleware', () => {
 
     engine.push(
       mergeMiddleware([
-        function (request, response, _next, end) {
+        function (request, response, _next, end): void {
           originalRequest = request;
           // TODO: Replace `any` with type
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -139,7 +139,9 @@ describe('mergeMiddleware', () => {
   it('should not error even if end not called', async () => {
     const engine = new JsonRpcEngine();
 
-    engine.push(mergeMiddleware([(_request, _response, next, _end) => next()]));
+    engine.push(
+      mergeMiddleware([(_request, _response, next, _end): void => next()]),
+    );
     engine.push((_request, response, _next, end) => {
       response.result = true;
       end();
@@ -161,7 +163,7 @@ describe('mergeMiddleware', () => {
 
     engine.push(
       mergeMiddleware([
-        (_request, response, next, _end) => {
+        (_request, response, next, _end): void => {
           next((callback) => {
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any

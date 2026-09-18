@@ -1,80 +1,311 @@
-import nock, { cleanAll, isDone } from 'nock';
+import { DEFAULT_MAX_RETRIES } from '@metamask/base-data-service';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
+import { create } from '@metamask/superstruct';
 
 import {
+  CANCELLATION_REASONS,
   Env,
   getEnvUrls,
   SubscriptionControllerErrorMessage,
-} from './constants';
-import { SubscriptionServiceError } from './errors';
-import { SubscriptionService } from './SubscriptionService';
+  SubscriptionServiceErrorMessage,
+} from './constants.js';
+import * as constants from './constants.js';
+import { SubscriptionServiceError } from './errors.js';
+import { SubscriptionBenefitsResponseStruct } from './SubscriptionService-structs.js';
+import {
+  serviceName,
+  SUBSCRIPTION_URL,
+  SubscriptionService,
+} from './SubscriptionService.js';
+import type { SubscriptionServiceMessenger } from './SubscriptionService.js';
 import type {
   StartSubscriptionRequest,
+  StartCryptoSubscriptionRequest,
   Subscription,
+  SubscriptionBenefitsResponse,
   PricingResponse,
-} from './types';
+  UpdatePaymentMethodCardRequest,
+  UpdatePaymentMethodCryptoRequest,
+  SubscriptionEligibility,
+} from './types.js';
 import {
-  PaymentType,
-  ProductType,
-  RecurringInterval,
-  SubscriptionStatus,
-} from './types';
+  CANCEL_TYPES,
+  PAYMENT_TYPES,
+  PRODUCT_TYPES,
+  RECURRING_INTERVALS,
+  SUBSCRIPTION_STATUSES,
+  SubscriptionUserEvent,
+} from './types.js';
 
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {
   id: 'sub_123456789',
   products: [
     {
-      name: ProductType.SHIELD,
-      id: 'prod_shield_basic',
-      currency: 'USD',
-      amount: 9.99,
+      name: PRODUCT_TYPES.SHIELD,
+      currency: 'usd',
+      unitAmount: 900,
+      unitDecimals: 2,
     },
   ],
   currentPeriodStart: '2024-01-01T00:00:00Z',
   currentPeriodEnd: '2024-02-01T00:00:00Z',
-  status: SubscriptionStatus.active,
-  interval: RecurringInterval.month,
+  status: SUBSCRIPTION_STATUSES.active,
+  interval: RECURRING_INTERVALS.month,
   paymentMethod: {
-    type: PaymentType.byCard,
+    type: PAYMENT_TYPES.byCard,
+    card: {
+      brand: 'visa',
+      displayBrand: 'visa',
+      last4: '1234',
+    },
+  },
+  isEligibleForSupport: true,
+  cancelType: CANCEL_TYPES.ALLOWED_AT_PERIOD_END,
+};
+
+const MOCK_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
+  eligible: true,
+  billingPeriodId: 'bp_2026_08_15',
+  products: {
+    swaps: {
+      feeBips: '0',
+      capMicroUsd: 500_000_000,
+      consumedMicroUsd: 100_000_000,
+      remainingMicroUsd: 400_000_000,
+      exhausted: false,
+    },
+    perps: {
+      builderFeeBips: '0',
+      builderCode: '<builder-code>',
+      capMicroUsd: 1_500_000_000,
+      consumedMicroUsd: 500_000_000,
+      remainingMicroUsd: 1_000_000_000,
+      exhausted: false,
+    },
+    predict: {
+      builderCode: '<builder-code>',
+      capTxCount: 3,
+      consumedTxCount: 1,
+      remainingTxCount: 2,
+      exhausted: false,
+    },
+  },
+};
+
+const MOCK_INELIGIBLE_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
+  eligible: false,
+  billingPeriodId: null,
+  products: {
+    swaps: {
+      feeBips: null,
+      remainingMicroUsd: null,
+      exhausted: false,
+    },
+    perps: {
+      builderFeeBips: null,
+      builderCode: null,
+      remainingMicroUsd: null,
+      exhausted: false,
+    },
+    predict: {
+      builderCode: null,
+      remainingTxCount: null,
+      exhausted: false,
+    },
   },
 };
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token-12345';
 
-const MOCK_ERROR_RESPONSE = {
-  message: 'Subscription not found',
-  error: 'NOT_FOUND',
+const MOCK_SESSION_PROFILE = {
+  profileId: 'profile-1',
+  canonicalProfileId: 'canonical-profile-1',
+  metaMetricsId: 'metametrics-1',
 };
 
 const MOCK_START_SUBSCRIPTION_REQUEST: StartSubscriptionRequest = {
-  products: [ProductType.SHIELD],
+  products: [PRODUCT_TYPES.SHIELD],
   isTrialRequested: true,
-  recurringInterval: RecurringInterval.month,
+  recurringInterval: RECURRING_INTERVALS.month,
 };
 
 const MOCK_START_SUBSCRIPTION_RESPONSE = {
   checkoutSessionUrl: 'https://checkout.example.com/session/123',
 };
 
+const MOCK_HEADERS = {
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${MOCK_ACCESS_TOKEN}`,
+};
+
+const MOCK_COHORTS = [
+  {
+    cohort: 'post_tx',
+    eligibilityRate: 0.8,
+    priority: 1,
+    eligible: true,
+  },
+  {
+    cohort: 'wallet_home',
+    eligibilityRate: 0.2,
+    priority: 2,
+    eligible: true,
+  },
+];
+
 /**
- * Creates a mock subscription service config for testing
+ * Creates a mock subscription eligibility response
  *
- * @param params - The parameters object
- * @param [params.env] - The environment to use for the config
- * @param [params.fetchFn] - The fetch function to use for the config
- * @returns The mock configuration object
+ * @param overrides - Optional overrides for the response
+ * @returns Mock eligibility response
  */
-function createMockConfig({
-  env = Env.DEV,
-  fetchFn = fetch,
-}: { env?: Env; fetchFn?: typeof fetch } = {}) {
+function createMockEligibilityResponse(
+  overrides = {},
+): SubscriptionEligibility {
   return {
-    env,
-    auth: {
-      getAccessToken: jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN),
-    },
-    fetchFn,
+    product: PRODUCT_TYPES.SHIELD,
+    canSubscribe: true,
+    canViewEntryModal: true,
+    cohorts: [],
+    assignedCohort: null,
+    hasAssignedCohortExpired: false,
+    ...overrides,
   };
+}
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  MessengerActions<SubscriptionServiceMessenger>,
+  MessengerEvents<SubscriptionServiceMessenger>
+>;
+
+type MockServiceContext = {
+  service: SubscriptionService;
+  fetchMock: jest.Mock;
+  captureExceptionMock: jest.Mock;
+  env: Env;
+  testUrl: string;
+  rootMessenger: RootMessenger;
+  messenger: SubscriptionServiceMessenger;
+  getBearerToken: jest.Mock;
+  getSessionProfile: jest.Mock;
+};
+
+function createRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+}
+
+function createService({
+  env = Env.DEV,
+  fetchMock,
+  captureExceptionMock = jest.fn(),
+  getBearerToken = jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN),
+  getSessionProfile = jest.fn().mockResolvedValue(MOCK_SESSION_PROFILE),
+}: {
+  env?: Env;
+  fetchMock: jest.Mock;
+  captureExceptionMock?: jest.Mock;
+  getBearerToken?: jest.Mock;
+  getSessionProfile?: jest.Mock;
+}): MockServiceContext {
+  const rootMessenger = createRootMessenger();
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    getBearerToken,
+  );
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getSessionProfile',
+    getSessionProfile,
+  );
+  const messenger: SubscriptionServiceMessenger = new Messenger({
+    namespace: serviceName,
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger,
+    actions: [
+      'AuthenticationController:getBearerToken',
+      'AuthenticationController:getSessionProfile',
+    ],
+    events: [],
+  });
+  const service = new SubscriptionService({
+    messenger,
+    env,
+    fetchFunction: fetchMock,
+    captureException: captureExceptionMock,
+  });
+
+  return {
+    service,
+    fetchMock,
+    captureExceptionMock,
+    env,
+    testUrl: ((): string => {
+      try {
+        return getTestUrl(env);
+      } catch {
+        return '';
+      }
+    })(),
+    rootMessenger,
+    messenger,
+    getBearerToken,
+    getSessionProfile,
+  };
+}
+
+function withMockSubscriptionService(
+  fn: (params: MockServiceContext) => Promise<void>,
+  options: {
+    env?: Env;
+    getBearerToken?: jest.Mock;
+    getSessionProfile?: jest.Mock;
+  } = {},
+): Promise<void> {
+  const fetchMock = jest.fn();
+  const captureExceptionMock = jest.fn();
+  const context = createService({
+    env: options.env ?? Env.DEV,
+    fetchMock,
+    captureExceptionMock,
+    getBearerToken: options.getBearerToken,
+    getSessionProfile: options.getSessionProfile,
+  });
+  return fn(context);
+}
+
+type MockResponseOptions = {
+  ok?: boolean;
+  status?: number;
+  jsonData?: unknown;
+  textData?: string;
+  contentType?: string | null;
+};
+
+function createMockResponse({
+  ok = true,
+  status = 200,
+  jsonData,
+  textData = '',
+  contentType = 'application/json',
+}: MockResponseOptions): Response {
+  return {
+    ok,
+    status,
+    headers: {
+      get: (key: string) =>
+        key.toLowerCase() === 'content-type' ? contentType : null,
+    },
+    json: jest.fn().mockResolvedValue(jsonData),
+    text: jest.fn().mockResolvedValue(textData),
+  } as unknown as Response;
 }
 
 /**
@@ -87,61 +318,474 @@ function getTestUrl(env: Env): string {
   return getEnvUrls(env).subscriptionApiUrl;
 }
 
-/**
- * Helper function to create a mock subscription service and call a function with it
- *
- * @param fn - The function to call with the mock subscription service
- * @returns The result of the function call
- */
-function withMockSubscriptionService(
-  fn: (params: {
-    service: SubscriptionService;
-    config: ReturnType<typeof createMockConfig>;
-    testUrl: string;
-  }) => Promise<void>,
-) {
-  const config = createMockConfig();
-  const service = new SubscriptionService(config);
-  const testUrl = getTestUrl(config.env);
-  return fn({ service, config, testUrl });
-}
-
 describe('SubscriptionService', () => {
-  afterEach(() => {
-    cleanAll();
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
   describe('constructor', () => {
     it('should create instance with valid config', () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
+      const { service } = createService({ fetchMock: jest.fn() });
 
       expect(service).toBeInstanceOf(SubscriptionService);
     });
 
     it('should create instance with different environments', () => {
-      const devConfig = createMockConfig({ env: Env.DEV });
-      const uatConfig = createMockConfig({ env: Env.UAT });
-      const prdConfig = createMockConfig({ env: Env.PRD });
+      expect(
+        () => createService({ env: Env.DEV, fetchMock: jest.fn() }).service,
+      ).not.toThrow();
+      expect(
+        () => createService({ env: Env.UAT, fetchMock: jest.fn() }).service,
+      ).not.toThrow();
+      expect(
+        () => createService({ env: Env.PRD, fetchMock: jest.fn() }).service,
+      ).not.toThrow();
+    });
 
-      expect(() => new SubscriptionService(devConfig)).not.toThrow();
-      expect(() => new SubscriptionService(uatConfig)).not.toThrow();
-      expect(() => new SubscriptionService(prdConfig)).not.toThrow();
+    it('defaults fetchFunction to globalThis.fetch when omitted', async () => {
+      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+        createMockResponse({
+          jsonData: {
+            customerId: 'cus_1',
+            subscriptions: [],
+            trialedProducts: [],
+          },
+        }),
+      );
+
+      try {
+        const rootMessenger = createRootMessenger();
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getBearerToken',
+          async () => MOCK_ACCESS_TOKEN,
+        );
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getSessionProfile',
+          async () => MOCK_SESSION_PROFILE,
+        );
+        const messenger: SubscriptionServiceMessenger = new Messenger({
+          namespace: serviceName,
+          parent: rootMessenger,
+        });
+        rootMessenger.delegate({
+          messenger,
+          actions: [
+            'AuthenticationController:getBearerToken',
+            'AuthenticationController:getSessionProfile',
+          ],
+          events: [],
+        });
+        const service = new SubscriptionService({
+          messenger,
+        });
+
+        await service.getSubscriptions();
+
+        expect(fetchSpy).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(Env.PRD, 'subscriptions'),
+          expect.anything(),
+        );
+      } finally {
+        fetchSpy.mockRestore();
+      }
+    });
+
+    it('defaults env to PRD when omitted', async () => {
+      const fetchMock = jest.fn();
+      const rootMessenger = createRootMessenger();
+      rootMessenger.registerActionHandler(
+        'AuthenticationController:getBearerToken',
+        async () => MOCK_ACCESS_TOKEN,
+      );
+      rootMessenger.registerActionHandler(
+        'AuthenticationController:getSessionProfile',
+        async () => MOCK_SESSION_PROFILE,
+      );
+      const messenger: SubscriptionServiceMessenger = new Messenger({
+        namespace: serviceName,
+        parent: rootMessenger,
+      });
+      rootMessenger.delegate({
+        messenger,
+        actions: [
+          'AuthenticationController:getBearerToken',
+          'AuthenticationController:getSessionProfile',
+        ],
+        events: [],
+      });
+      const service = new SubscriptionService({
+        messenger,
+        fetchFunction: fetchMock,
+      });
+
+      fetchMock.mockResolvedValue(
+        createMockResponse({
+          jsonData: {
+            customerId: 'cus_1',
+            subscriptions: [],
+            trialedProducts: [],
+          },
+        }),
+      );
+
+      await service.getSubscriptions();
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        SUBSCRIPTION_URL(Env.PRD, 'subscriptions'),
+        expect.anything(),
+      );
+    });
+  });
+
+  describe('SubscriptionBenefitsResponseStruct', () => {
+    it('accepts an eligible benefits response', () => {
+      expect(
+        create(MOCK_BENEFITS_RESPONSE, SubscriptionBenefitsResponseStruct),
+      ).toStrictEqual(MOCK_BENEFITS_RESPONSE);
+    });
+
+    it('accepts an ineligible benefits response', () => {
+      expect(
+        create(
+          MOCK_INELIGIBLE_BENEFITS_RESPONSE,
+          SubscriptionBenefitsResponseStruct,
+        ),
+      ).toStrictEqual(MOCK_INELIGIBLE_BENEFITS_RESPONSE);
+    });
+
+    it('rejects an eligible response without products', () => {
+      expect(() =>
+        create(
+          { eligible: true, billingPeriodId: 'bp_2026_08_15' },
+          SubscriptionBenefitsResponseStruct,
+        ),
+      ).toThrow(/products/u);
+    });
+
+    it('rejects an ineligible response without products', () => {
+      expect(() =>
+        create(
+          { eligible: false, billingPeriodId: null },
+          SubscriptionBenefitsResponseStruct,
+        ),
+      ).toThrow(/products/u);
+    });
+  });
+
+  describe('getBenefits', () => {
+    it('should fetch eligible benefits successfully', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, getBearerToken, getSessionProfile }) => {
+          fetchMock.mockResolvedValue(
+            createMockResponse({ jsonData: MOCK_BENEFITS_RESPONSE }),
+          );
+
+          const result = await service.getBenefits();
+
+          expect(result).toStrictEqual(MOCK_BENEFITS_RESPONSE);
+          expect(getBearerToken).toHaveBeenCalledTimes(1);
+          expect(getSessionProfile).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should fetch ineligible benefits successfully', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({ jsonData: MOCK_INELIGIBLE_BENEFITS_RESPONSE }),
+        );
+
+        const result = await service.getBenefits();
+
+        expect(result).toStrictEqual(MOCK_INELIGIBLE_BENEFITS_RESPONSE);
+      });
+    });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, captureExceptionMock, testUrl }) => {
+          const networkError = new Error('Network error');
+          fetchMock.mockRejectedValue(networkError);
+
+          const error = await service
+            .getBenefits()
+            .catch((rejection) => rejection);
+
+          expect(error).toBeInstanceOf(SubscriptionServiceError);
+          const serviceError = error as SubscriptionServiceError;
+          expect(serviceError.message).toBe(
+            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetBenefits} (url: ${testUrl}/v1/benefits)`,
+          );
+          expect(serviceError.cause).toBe(networkError);
+          expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should throw SubscriptionServiceError for non-ok responses', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, captureExceptionMock, testUrl }) => {
+          fetchMock.mockResolvedValue(
+            createMockResponse({
+              ok: false,
+              status: 500,
+              jsonData: { message: 'Internal Server Error' },
+            }),
+          );
+
+          const requestPromise = service.getBenefits();
+
+          await expect(requestPromise).rejects.toThrow(
+            SubscriptionServiceError,
+          );
+          await expect(requestPromise).rejects.toThrow(
+            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetBenefits} (url: ${testUrl}/v1/benefits)`,
+          );
+          expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should handle authentication errors', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock }) => {
+          const requestPromise = service.getBenefits();
+
+          await expect(requestPromise).rejects.toThrow(
+            SubscriptionServiceError,
+          );
+          await expect(requestPromise).rejects.toThrow(
+            'Failed to get authorization header. Wallet is locked',
+          );
+          expect(fetchMock).not.toHaveBeenCalled();
+        },
+        {
+          getBearerToken: jest
+            .fn()
+            .mockRejectedValue(new Error('Wallet is locked')),
+        },
+      );
+    });
+
+    it('should reject malformed responses', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: { eligible: true, billingPeriodId: 'bp_2026_08_15' },
+          }),
+        );
+
+        await expect(service.getBenefits()).rejects.toThrow(/products/u);
+      });
     });
   });
 
   describe('getSubscriptions', () => {
+    it('returns product entitlements from the subscriptions response', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        const productEntitlements = {
+          [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+            plan: 'premium',
+            entitlements: {
+              perpsFeeWaiver: false,
+              predictFreeTx: true,
+              premiumApy: true,
+              swapFeeWaiver: true,
+            },
+          },
+          [PRODUCT_TYPES.SHIELD]: {
+            entitlements: {
+              prioritySupport: false,
+              shieldClaim: true,
+            },
+          },
+        };
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements,
+            },
+          }),
+        );
+
+        const result = await service.getSubscriptions();
+
+        expect(result.productEntitlements).toStrictEqual(productEntitlements);
+      });
+    });
+
+    it('rejects malformed product entitlements', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements: {
+                [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+                  plan: 'premium',
+                  entitlements: {
+                    perpsFeeWaiver: false,
+                    predictFreeTx: true,
+                    premiumApy: 'yes',
+                    swapFeeWaiver: true,
+                  },
+                },
+              },
+            },
+          }),
+        );
+
+        await expect(service.getSubscriptions()).rejects.toThrow(
+          'Expected a value of type `boolean`',
+        );
+      });
+    });
+
+    it('accepts Shield product entitlements when Money Account is absent', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        const productEntitlements = {
+          [PRODUCT_TYPES.SHIELD]: {
+            entitlements: {
+              prioritySupport: false,
+              shieldClaim: true,
+            },
+          },
+        };
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements,
+            },
+          }),
+        );
+
+        const result = await service.getSubscriptions();
+
+        expect(result.productEntitlements).toStrictEqual(productEntitlements);
+      });
+    });
+
+    it('accepts Money Account product entitlements when Shield is absent', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        const productEntitlements = {
+          [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+            plan: 'premium',
+            entitlements: {
+              perpsFeeWaiver: false,
+              predictFreeTx: true,
+              premiumApy: true,
+              swapFeeWaiver: true,
+            },
+          },
+        };
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements,
+            },
+          }),
+        );
+
+        const result = await service.getSubscriptions();
+
+        expect(result.productEntitlements).toStrictEqual(productEntitlements);
+      });
+    });
+
+    it('rejects product entitlements with missing required features', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements: {
+                [PRODUCT_TYPES.SHIELD]: {
+                  entitlements: {
+                    shieldClaim: true,
+                  },
+                },
+              },
+            },
+          }),
+        );
+
+        await expect(service.getSubscriptions()).rejects.toThrow(
+          'prioritySupport',
+        );
+      });
+    });
+
+    it('rejects Money Account entitlements with a missing plan', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements: {
+                [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+                  entitlements: {
+                    perpsFeeWaiver: false,
+                    predictFreeTx: true,
+                    premiumApy: true,
+                    swapFeeWaiver: true,
+                  },
+                },
+              },
+            },
+          }),
+        );
+
+        await expect(service.getSubscriptions()).rejects.toThrow('plan');
+      });
+    });
+
+    it('rejects Money Account entitlements with missing required features', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptions: [],
+              trialedProducts: [],
+              productEntitlements: {
+                [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS]: {
+                  plan: 'premium',
+                  entitlements: {
+                    premiumApy: true,
+                    swapFeeWaiver: true,
+                  },
+                },
+              },
+            },
+          }),
+        );
+
+        await expect(service.getSubscriptions()).rejects.toThrow(
+          'perpsFeeWaiver',
+        );
+      });
+    });
+
     it('should fetch subscriptions successfully', async () => {
       await withMockSubscriptionService(
-        async ({ service, testUrl, config }) => {
-          nock(testUrl)
-            .get('/api/v1/subscriptions')
-            .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
-            .reply(200, {
-              customerId: 'cus_1',
-              subscriptions: [MOCK_SUBSCRIPTION],
-              trialedProducts: [],
-            });
+        async ({ service, fetchMock, getBearerToken, getSessionProfile }) => {
+          fetchMock.mockResolvedValue(
+            createMockResponse({
+              jsonData: {
+                customerId: 'cus_1',
+                subscriptions: [MOCK_SUBSCRIPTION],
+                trialedProducts: [],
+              },
+            }),
+          );
 
           const result = await service.getSubscriptions();
 
@@ -150,106 +794,385 @@ describe('SubscriptionService', () => {
             subscriptions: [MOCK_SUBSCRIPTION],
             trialedProducts: [],
           });
-          expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
-          expect(isDone()).toBe(true);
+          expect(getBearerToken).toHaveBeenCalledTimes(1);
+          expect(getSessionProfile).toHaveBeenCalledTimes(1);
         },
       );
     });
 
-    it('should throw SubscriptionServiceError for error responses', async () => {
-      await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl)
-          .get('/api/v1/subscriptions')
-          .reply(404, MOCK_ERROR_RESPONSE);
+    it('should send correct URL and headers', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              customerId: 'cus_1',
+              subscriptions: [],
+              trialedProducts: [],
+            },
+          }),
+        );
 
-        await expect(service.getSubscriptions()).rejects.toThrow(
-          SubscriptionServiceError,
+        await service.getSubscriptions();
+
+        expect(fetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(env, 'subscriptions'),
+          {
+            method: 'GET',
+            headers: MOCK_HEADERS,
+            body: undefined,
+          },
         );
       });
+    });
+
+    it('should throw when URL construction fails', async () => {
+      const fetchMock = jest.fn();
+      const captureExceptionMock = jest.fn();
+      const { service } = createService({
+        env: 'invalid' as Env,
+        fetchMock,
+        captureExceptionMock,
+      });
+
+      await expect(service.getSubscriptions()).rejects.toThrow(
+        'invalid environment configuration',
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+      const capturedError = captureExceptionMock.mock.calls[0][0] as Error & {
+        cause?: Error;
+      };
+      expect(capturedError.message).toBe(
+        'Failed to get subscription API URL. invalid environment configuration',
+      );
+    });
+
+    it('should capture non-Error URL construction failures', async () => {
+      const fetchMock = jest.fn();
+      const captureExceptionMock = jest.fn();
+      const { service } = createService({ fetchMock, captureExceptionMock });
+      const getEnvUrlsSpy = jest
+        .spyOn(constants, 'getEnvUrls')
+        .mockImplementation(() => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error
+          throw 'string error';
+        });
+
+      try {
+        const error = await service
+          .getSubscriptions()
+          .catch((rejection) => rejection);
+        expect(error).toBe('string error');
+      } finally {
+        getEnvUrlsSpy.mockRestore();
+      }
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+      const capturedError = captureExceptionMock.mock.calls[0][0] as Error & {
+        cause?: Error;
+      };
+      expect(capturedError.message).toBe(
+        'Failed to get subscription API URL. Unknown error when getting subscription API URL',
+      );
+      expect(capturedError.cause).toBeInstanceOf(Error);
+      expect(capturedError.cause?.message).toBe(
+        'Unknown error when getting subscription API URL',
+      );
     });
 
     it('should throw SubscriptionServiceError for network errors', async () => {
-      await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl)
-          .get('/api/v1/subscriptions')
-          .replyWithError('Network error');
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, captureExceptionMock }) => {
+          const networkError = new Error('Network error');
+          fetchMock.mockRejectedValue(networkError);
 
-        await expect(service.getSubscriptions()).rejects.toThrow(
-          SubscriptionServiceError,
-        );
-      });
+          const error = await service.getSubscriptions().then(
+            () => {
+              throw new Error('Expected getSubscriptions to throw');
+            },
+            (rejection) => rejection,
+          );
+
+          expect(error).toBeInstanceOf(SubscriptionServiceError);
+          const serviceError = error as SubscriptionServiceError;
+          expect(serviceError.message).toBe(
+            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetSubscriptions} (url: ${getTestUrl(Env.DEV)}/v1/subscriptions)`,
+          );
+          expect(serviceError.cause).toBe(networkError);
+          expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+        },
+      );
+
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, captureExceptionMock }) => {
+          fetchMock.mockRejectedValue('string error');
+
+          const requestPromise = service.getSubscriptions();
+
+          await expect(requestPromise).rejects.toThrow(
+            SubscriptionServiceError,
+          );
+          await expect(requestPromise).rejects.toThrow(
+            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetSubscriptions} (url: ${getTestUrl(Env.DEV)}/v1/subscriptions)`,
+          );
+          const error = await requestPromise.catch((rejection) => rejection);
+          expect(error).toBeInstanceOf(SubscriptionServiceError);
+          const serviceError = error as SubscriptionServiceError;
+          expect(serviceError.cause).toBeInstanceOf(Error);
+          expect(serviceError.cause?.message).toBe(
+            SubscriptionServiceErrorMessage.FailedToGetSubscriptions,
+          );
+          expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should throw SubscriptionServiceError for non-ok responses', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, captureExceptionMock }) => {
+          fetchMock.mockResolvedValue(
+            createMockResponse({
+              ok: false,
+              status: 500,
+              jsonData: { error: 'Internal Server Error' },
+            }),
+          );
+
+          const requestPromise = service.getSubscriptions();
+
+          await expect(requestPromise).rejects.toThrow(
+            SubscriptionServiceError,
+          );
+          await expect(requestPromise).rejects.toThrow(
+            `Failed to make request. ${SubscriptionServiceErrorMessage.FailedToGetSubscriptions} (url: ${getTestUrl(Env.DEV)}/v1/subscriptions)`,
+          );
+          expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+        },
+      );
     });
 
     it('should handle get access token error', async () => {
-      await withMockSubscriptionService(async ({ service, config }) => {
-        // Simulate a non-Error thrown from the auth.getAccessToken mock
-        config.auth.getAccessToken.mockRejectedValue('string error');
+      await withMockSubscriptionService(
+        async ({ service }) => {
+          const requestPromise = service.getSubscriptions();
 
-        await expect(service.getSubscriptions()).rejects.toThrow(
-          SubscriptionServiceError,
-        );
-      });
-    });
+          await expect(requestPromise).rejects.toThrow(
+            SubscriptionServiceError,
+          );
+          await expect(requestPromise).rejects.toThrow(
+            'Failed to get authorization header. Unknown error when getting authorization header',
+          );
+        },
+        {
+          getBearerToken: jest.fn().mockRejectedValue('string error'),
+        },
+      );
 
-    it('should handle null exceptions in catch block', async () => {
-      const fetchMock = jest.fn().mockRejectedValueOnce(null);
-      const config = createMockConfig({ fetchFn: fetchMock });
-      const service = new SubscriptionService(config);
+      await withMockSubscriptionService(
+        async ({ service }) => {
+          const requestPromise = service.getSubscriptions();
 
-      await expect(
-        service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-      ).rejects.toThrow(SubscriptionServiceError);
+          await expect(requestPromise).rejects.toThrow(
+            SubscriptionServiceError,
+          );
+          await expect(requestPromise).rejects.toThrow(
+            'Failed to get authorization header. Wallet is locked',
+          );
+        },
+        {
+          getBearerToken: jest
+            .fn()
+            .mockRejectedValue(new Error('Wallet is locked')),
+        },
+      );
     });
   });
 
   describe('cancelSubscription', () => {
     it('should cancel subscription successfully', async () => {
       await withMockSubscriptionService(
-        async ({ service, testUrl, config }) => {
-          nock(testUrl)
-            .delete('/api/v1/subscriptions/sub_123456789')
-            .matchHeader('Authorization', `Bearer ${MOCK_ACCESS_TOKEN}`)
-            .reply(200, {});
+        async ({ service, fetchMock, getBearerToken, env }) => {
+          fetchMock.mockResolvedValue(
+            createMockResponse({ jsonData: MOCK_SUBSCRIPTION }),
+          );
 
-          await service.cancelSubscription({ subscriptionId: 'sub_123456789' });
+          const result = await service.cancelSubscription({
+            subscriptionId: 'sub_123456789',
+          });
 
-          expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
-          expect(isDone()).toBe(true);
+          expect(result).toStrictEqual(MOCK_SUBSCRIPTION);
+          expect(getBearerToken).toHaveBeenCalledTimes(1);
+          expect(fetchMock).toHaveBeenCalledWith(
+            SUBSCRIPTION_URL(env, 'subscriptions/sub_123456789/cancel'),
+            {
+              method: 'POST',
+              headers: MOCK_HEADERS,
+              body: JSON.stringify({}),
+            },
+          );
         },
       );
     });
 
-    it('should throw SubscriptionServiceError for error responses', async () => {
-      await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl)
-          .delete('/api/v1/subscriptions/sub_123456789')
-          .reply(400, MOCK_ERROR_RESPONSE);
+    it('should serialize cancellation reason and feedback without subscriptionId in the body', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({ jsonData: MOCK_SUBSCRIPTION }),
+        );
 
-        await expect(
-          service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-        ).rejects.toThrow(/Subscription not found/u);
+        await service.cancelSubscription({
+          subscriptionId: 'sub_123456789',
+          cancelAtPeriodEnd: true,
+          cancellationReason: CANCELLATION_REASONS.OTHER,
+          cancellationFeedback: 'Not good for me',
+        });
+
+        expect(fetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(env, 'subscriptions/sub_123456789/cancel'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              cancelAtPeriodEnd: true,
+              cancellationReason: CANCELLATION_REASONS.OTHER,
+              cancellationFeedback: 'Not good for me',
+            }),
+          },
+        );
+      });
+    });
+
+    it.each(Object.values(CANCELLATION_REASONS))(
+      'should serialize cancellation reason %s',
+      async (cancellationReason) => {
+        await withMockSubscriptionService(
+          async ({ service, fetchMock, env }) => {
+            fetchMock.mockResolvedValue(
+              createMockResponse({ jsonData: MOCK_SUBSCRIPTION }),
+            );
+
+            await service.cancelSubscription({
+              subscriptionId: 'sub_123456789',
+              cancellationReason,
+            });
+
+            expect(fetchMock).toHaveBeenCalledWith(
+              SUBSCRIPTION_URL(env, 'subscriptions/sub_123456789/cancel'),
+              expect.objectContaining({
+                body: JSON.stringify({ cancellationReason }),
+              }),
+            );
+          },
+        );
+      },
+    );
+
+    it('should not include cancellation feedback in the query key', async () => {
+      await withMockSubscriptionService(async ({ service }) => {
+        const fetchQuerySpy = jest
+          .spyOn(
+            service as unknown as {
+              fetchQuery: SubscriptionService['fetchQuery'];
+            },
+            'fetchQuery',
+          )
+          .mockResolvedValue(MOCK_SUBSCRIPTION);
+        const feedback = 'private cancellation feedback';
+
+        await service.cancelSubscription({
+          subscriptionId: 'sub_123456789',
+          cancelAtPeriodEnd: true,
+          cancellationReason: CANCELLATION_REASONS.OTHER,
+          cancellationFeedback: feedback,
+        });
+
+        const queryKey = fetchQuerySpy.mock.calls[0]?.[0].queryKey;
+        expect(JSON.stringify(queryKey)).not.toContain(feedback);
+        expect(queryKey).toContainEqual({
+          subscriptionId: 'sub_123456789',
+          cancelAtPeriodEnd: true,
+          cancellationReason: CANCELLATION_REASONS.OTHER,
+        });
       });
     });
 
     it('should throw SubscriptionServiceError for network errors', async () => {
-      await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl)
-          .delete('/api/v1/subscriptions/sub_123456789')
-          .replyWithError('Network error');
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockRejectedValue(new Error('Network error'));
 
         await expect(
           service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
-        ).rejects.toThrow(/Network error/u);
+        ).rejects.toThrow(SubscriptionServiceError);
+      });
+    });
+
+    it('should throw SubscriptionServiceError for non-ok responses', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, captureExceptionMock }) => {
+          fetchMock.mockResolvedValue(
+            createMockResponse({
+              ok: false,
+              status: 404,
+              jsonData: { message: 'Subscription not found' },
+            }),
+          );
+
+          await expect(
+            service.cancelSubscription({ subscriptionId: 'sub_invalid' }),
+          ).rejects.toThrow(SubscriptionServiceError);
+          expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should throw when the cancellation response is invalid', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(createMockResponse({ jsonData: {} }));
+
+        await expect(
+          service.cancelSubscription({ subscriptionId: 'sub_123456789' }),
+        ).rejects.toThrow(
+          'At path: id -- Expected a string, but received: undefined',
+        );
+      });
+    });
+  });
+
+  describe('uncancelSubscription', () => {
+    it('should uncancel subscription successfully', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, getBearerToken }) => {
+          fetchMock.mockResolvedValue(
+            createMockResponse({ jsonData: MOCK_SUBSCRIPTION }),
+          );
+
+          await service.unCancelSubscription({
+            subscriptionId: 'sub_123456789',
+          });
+
+          expect(getBearerToken).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockRejectedValue(new Error('Network error'));
+
+        await expect(
+          service.unCancelSubscription({ subscriptionId: 'sub_123456789' }),
+        ).rejects.toThrow(SubscriptionServiceError);
       });
     });
   });
 
   describe('startSubscription', () => {
     it('should start subscription successfully', async () => {
-      await withMockSubscriptionService(async ({ service, testUrl }) => {
-        nock(testUrl)
-          .post('/api/v1/subscriptions/card', MOCK_START_SUBSCRIPTION_REQUEST)
-          .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({ jsonData: MOCK_START_SUBSCRIPTION_RESPONSE }),
+        );
 
         const result = await service.startSubscriptionWithCard(
           MOCK_START_SUBSCRIPTION_REQUEST,
@@ -260,18 +1183,17 @@ describe('SubscriptionService', () => {
     });
 
     it('should start subscription without trial', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
+      const fetchMock = jest.fn();
+      const { service } = createService({ fetchMock });
       const request: StartSubscriptionRequest = {
-        products: [ProductType.SHIELD],
+        products: [PRODUCT_TYPES.SHIELD],
         isTrialRequested: false,
-        recurringInterval: RecurringInterval.month,
+        recurringInterval: RECURRING_INTERVALS.month,
       };
 
-      nock(testUrl)
-        .post('/api/v1/subscriptions/card', request)
-        .reply(200, MOCK_START_SUBSCRIPTION_RESPONSE);
+      fetchMock.mockResolvedValue(
+        createMockResponse({ jsonData: MOCK_START_SUBSCRIPTION_RESPONSE }),
+      );
 
       const result = await service.startSubscriptionWithCard(request);
 
@@ -279,18 +1201,130 @@ describe('SubscriptionService', () => {
     });
 
     it('throws when products array is empty', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
+      const { service } = createService({ fetchMock: jest.fn() });
       const request: StartSubscriptionRequest = {
         products: [],
         isTrialRequested: true,
-        recurringInterval: RecurringInterval.month,
+        recurringInterval: RECURRING_INTERVALS.month,
       };
 
       await expect(service.startSubscriptionWithCard(request)).rejects.toThrow(
         SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
       );
     });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockRejectedValue(new Error('Network error'));
+
+        await expect(
+          service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST),
+        ).rejects.toThrow(SubscriptionServiceError);
+      });
+    });
+  });
+
+  describe('startCryptoSubscription', () => {
+    const MOCK_CRYPTO_REQUEST: StartCryptoSubscriptionRequest = {
+      products: [PRODUCT_TYPES.SHIELD],
+      isTrialRequested: false,
+      recurringInterval: RECURRING_INTERVALS.month,
+      billingCycles: 3,
+      chainId: '0x1',
+      payerAddress: '0x0000000000000000000000000000000000000001',
+      tokenSymbol: 'USDC',
+      rawTransaction: '0xdeadbeef',
+    };
+
+    it('should start crypto subscription successfully', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        const response = {
+          subscriptionId: 'sub_crypto_123',
+          status: SUBSCRIPTION_STATUSES.active,
+        };
+
+        fetchMock.mockResolvedValue(createMockResponse({ jsonData: response }));
+
+        const result =
+          await service.startSubscriptionWithCrypto(MOCK_CRYPTO_REQUEST);
+
+        expect(result).toStrictEqual(response);
+      });
+    });
+
+    it('throws when products array is empty', async () => {
+      const fetchMock = jest.fn();
+      const { service } = createService({ fetchMock });
+      const request: StartCryptoSubscriptionRequest = {
+        ...MOCK_CRYPTO_REQUEST,
+        products: [],
+      };
+
+      await expect(
+        service.startSubscriptionWithCrypto(request),
+      ).rejects.toThrow(
+        SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      [
+        'delegation without delegationHash',
+        { cryptoAuthMethod: 'delegation' as const },
+      ],
+      [
+        'ERC-20 without rawTransaction',
+        { cryptoAuthMethod: 'erc20_approval' as const },
+      ],
+      ['omitted method without rawTransaction', {}],
+      [
+        'both rawTransaction and delegationHash',
+        { rawTransaction: '0xdeadbeef' as const, delegationHash: '0xabc' },
+      ],
+      [
+        'delegation with both fields',
+        {
+          cryptoAuthMethod: 'delegation' as const,
+          rawTransaction: '0xdeadbeef' as const,
+          delegationHash: '0xabc' as const,
+        },
+      ],
+      [
+        'ERC-20 with only delegationHash',
+        {
+          cryptoAuthMethod: 'erc20_approval' as const,
+          delegationHash: '0xabc' as const,
+        },
+      ],
+    ])(
+      'rejects %s without posting',
+      async (
+        _case: string,
+        overrides: {
+          cryptoAuthMethod?: string;
+          rawTransaction?: string;
+          delegationHash?: string;
+        },
+      ) => {
+        const fetchMock = jest.fn();
+        const { service } = createService({ fetchMock });
+        const { rawTransaction: _rawTransaction, ...base } =
+          MOCK_CRYPTO_REQUEST;
+        // Intentionally invalid combos: runtime still rejects unsound callers.
+        const request = {
+          ...base,
+          ...overrides,
+        } as StartCryptoSubscriptionRequest;
+
+        await expect(
+          service.startSubscriptionWithCrypto(request),
+        ).rejects.toThrow(
+          SubscriptionServiceErrorMessage.InvalidCryptoAuthCombo,
+        );
+        expect(fetchMock).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('getPricing', () => {
@@ -299,16 +1333,797 @@ describe('SubscriptionService', () => {
       paymentMethods: [],
     };
 
-    it('should fetch pricing successfully', async () => {
-      const config = createMockConfig();
-      const service = new SubscriptionService(config);
-      const testUrl = getTestUrl(Env.DEV);
+    const mockSpotToken = {
+      symbol: 'USDC',
+      address: '0xa9f2867708c727fe250fb0d1fbeb4b4c8e1818e8',
+      decimals: 9,
+      conversionRate: { usd: '1.0' },
+    };
 
-      nock(testUrl).get('/api/v1/pricing').reply(200, mockPricingResponse);
+    const mockCryptoChain = {
+      chainId: '0x1',
+      paymentAddress: '0x00000000000000000000000000000000000000a2',
+      tokens: [mockSpotToken],
+    };
+
+    it('should fetch pricing successfully', async () => {
+      const fetchMock = jest.fn();
+      const { service } = createService({ fetchMock });
+
+      fetchMock.mockResolvedValue(
+        createMockResponse({ jsonData: mockPricingResponse }),
+      );
 
       const result = await service.getPricing();
 
       expect(result).toStrictEqual(mockPricingResponse);
+    });
+
+    it('rejects vault share tokens that omit accountantAddress', async () => {
+      const fetchMock = jest.fn();
+      const { service } = createService({ fetchMock });
+
+      fetchMock.mockResolvedValue(
+        createMockResponse({
+          jsonData: {
+            products: [],
+            paymentMethods: [
+              {
+                type: PAYMENT_TYPES.byCrypto,
+                chains: [
+                  {
+                    ...mockCryptoChain,
+                    tokens: [
+                      {
+                        symbol: 'pvmUSD',
+                        address: '0x1C8a336051D2024E318A229d01F9F6CF96efD316',
+                        decimals: 6,
+                        isVaultShare: true,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      );
+
+      await expect(service.getPricing()).rejects.toThrow(/union/u);
+    });
+
+    it('rejects card payment methods that include crypto-only fields', async () => {
+      const fetchMock = jest.fn();
+      const { service } = createService({ fetchMock });
+
+      fetchMock.mockResolvedValue(
+        createMockResponse({
+          jsonData: {
+            products: [],
+            paymentMethods: [
+              {
+                type: PAYMENT_TYPES.byCard,
+                cryptoAuthMethod: 'delegation',
+                chains: [mockCryptoChain],
+              },
+            ],
+          },
+        }),
+      );
+
+      await expect(service.getPricing()).rejects.toThrow(/union/u);
+    });
+  });
+
+  describe('updatePaymentMethodCard', () => {
+    it('should update card payment method successfully', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+        const request: UpdatePaymentMethodCardRequest = {
+          subscriptionId: 'sub_123456789',
+          recurringInterval: RECURRING_INTERVALS.month,
+        };
+
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: { redirectUrl: 'https://example.com' },
+          }),
+        );
+
+        await service.updatePaymentMethodCard(request);
+
+        expect(fetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(
+            env,
+            'subscriptions/sub_123456789/payment-method/card',
+          ),
+          {
+            method: 'PATCH',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              ...request,
+              subscriptionId: undefined,
+            }),
+          },
+        );
+      });
+    });
+
+    it('should update crypto payment method successfully', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+        const request: UpdatePaymentMethodCryptoRequest = {
+          subscriptionId: 'sub_123456789',
+          chainId: '0x1',
+          payerAddress: '0x0000000000000000000000000000000000000001',
+          tokenSymbol: 'USDC',
+          rawTransaction: '0xdeadbeef',
+          recurringInterval: RECURRING_INTERVALS.month,
+          billingCycles: 3,
+        };
+
+        fetchMock.mockResolvedValue(createMockResponse({ jsonData: {} }));
+
+        await service.updatePaymentMethodCrypto(request);
+
+        expect(fetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(
+            env,
+            'subscriptions/sub_123456789/payment-method/crypto',
+          ),
+          {
+            method: 'PATCH',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              ...request,
+              subscriptionId: undefined,
+            }),
+          },
+        );
+      });
+    });
+
+    it('should throw SubscriptionServiceError for crypto payment method errors', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, captureExceptionMock }) => {
+          fetchMock.mockRejectedValue(new Error('Network error'));
+
+          await expect(
+            service.updatePaymentMethodCrypto({
+              subscriptionId: 'sub_123456789',
+              chainId: '0x1',
+              payerAddress: '0x0000000000000000000000000000000000000001',
+              tokenSymbol: 'USDC',
+              rawTransaction: '0xdeadbeef',
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 3,
+            }),
+          ).rejects.toThrow(SubscriptionServiceError);
+          expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+  });
+
+  describe('getBillingPortalUrl', () => {
+    it('should get billing portal url successfully', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              url: 'https://billing-portal.com',
+            },
+          }),
+        );
+
+        const result = await service.getBillingPortalUrl();
+
+        expect(result).toStrictEqual({ url: 'https://billing-portal.com' });
+      });
+    });
+  });
+
+  describe('getShieldSubscriptionEligibility', () => {
+    it('should get shield subscription eligibility successfully', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        const mockResponse = createMockEligibilityResponse();
+        fetchMock.mockResolvedValue(
+          createMockResponse({ jsonData: [mockResponse] }),
+        );
+
+        const results = await service.getSubscriptionsEligibilities();
+
+        expect(results).toStrictEqual([mockResponse]);
+      });
+    });
+
+    it('should get shield subscription eligibility with cohort information', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        const mockResponse = createMockEligibilityResponse({
+          cohorts: MOCK_COHORTS,
+          assignedCohort: 'post_tx',
+          assignedAt: '2024-01-01T00:00:00Z',
+        });
+
+        fetchMock.mockResolvedValue(
+          createMockResponse({ jsonData: [mockResponse] }),
+        );
+
+        const results = await service.getSubscriptionsEligibilities({
+          balanceCategory: '1k-9.9k',
+        });
+
+        expect(results).toStrictEqual([mockResponse]);
+      });
+    });
+
+    it('should get shield subscription eligibility with default values', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: [
+              {
+                product: PRODUCT_TYPES.SHIELD,
+              },
+            ],
+          }),
+        );
+
+        const results = await service.getSubscriptionsEligibilities();
+
+        expect(results).toHaveLength(1);
+        expect(results).toStrictEqual([
+          createMockEligibilityResponse({
+            canSubscribe: false,
+            canViewEntryModal: false,
+          }),
+        ]);
+      });
+    });
+
+    it('should pass balanceCategory as query parameter when provided', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, getBearerToken }) => {
+          const mockResponse = createMockEligibilityResponse();
+          fetchMock.mockResolvedValue(
+            createMockResponse({ jsonData: [mockResponse] }),
+          );
+
+          await service.getSubscriptionsEligibilities({
+            balanceCategory: '100-999',
+          });
+
+          expect(fetchMock).toHaveBeenCalledWith(
+            expect.stringContaining('balanceCategory=100-999'),
+            expect.objectContaining({
+              method: 'GET',
+              headers: MOCK_HEADERS,
+            }),
+          );
+          expect(getBearerToken).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should not pass balanceCategory query parameter when not provided', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, getBearerToken }) => {
+          const mockResponse = createMockEligibilityResponse();
+          fetchMock.mockResolvedValue(
+            createMockResponse({ jsonData: [mockResponse] }),
+          );
+
+          await service.getSubscriptionsEligibilities();
+
+          expect(fetchMock).toHaveBeenCalledWith(
+            expect.not.stringMatching(/balanceCategory/u),
+            expect.objectContaining({
+              method: 'GET',
+              headers: MOCK_HEADERS,
+            }),
+          );
+          expect(getBearerToken).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, captureExceptionMock }) => {
+          fetchMock.mockRejectedValue(new Error('Network error'));
+
+          await expect(service.getSubscriptionsEligibilities()).rejects.toThrow(
+            SubscriptionServiceError,
+          );
+          expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+  });
+
+  describe('submitUserEvent', () => {
+    it('should submit user event successfully', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+        fetchMock.mockResolvedValue(createMockResponse({ jsonData: {} }));
+
+        await service.submitUserEvent({
+          event: SubscriptionUserEvent.ShieldEntryModalViewed,
+        });
+
+        expect(fetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(env, 'user-events'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              event: SubscriptionUserEvent.ShieldEntryModalViewed,
+            }),
+          },
+        );
+      });
+    });
+
+    it('should submit user event with cohort successfully', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+        fetchMock.mockResolvedValue(createMockResponse({ jsonData: {} }));
+
+        await service.submitUserEvent({
+          event: SubscriptionUserEvent.ShieldEntryModalViewed,
+          cohort: 'post_tx',
+        });
+
+        expect(fetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(env, 'user-events'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              event: SubscriptionUserEvent.ShieldEntryModalViewed,
+              cohort: 'post_tx',
+            }),
+          },
+        );
+      });
+    });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, captureExceptionMock }) => {
+          fetchMock.mockRejectedValue(new Error('Network error'));
+
+          await expect(
+            service.submitUserEvent({
+              event: SubscriptionUserEvent.ShieldEntryModalViewed,
+            }),
+          ).rejects.toThrow(SubscriptionServiceError);
+          expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+  });
+
+  describe('assignUserToCohort', () => {
+    it('should assign user to cohort successfully', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, env, getBearerToken }) => {
+          fetchMock.mockResolvedValue(createMockResponse({ jsonData: {} }));
+
+          await service.assignUserToCohort({ cohort: 'post_tx' });
+
+          expect(fetchMock).toHaveBeenCalledWith(
+            SUBSCRIPTION_URL(env, 'cohorts/assign'),
+            {
+              method: 'POST',
+              headers: MOCK_HEADERS,
+              body: JSON.stringify({
+                cohort: 'post_tx',
+              }),
+            },
+          );
+          expect(getBearerToken).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should handle cohort assignment errors', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockRejectedValue(new Error('Network error'));
+
+        await expect(
+          service.assignUserToCohort({ cohort: 'wallet_home' }),
+        ).rejects.toThrow(SubscriptionServiceError);
+      });
+    });
+  });
+
+  describe('submitSponsorshipIntents', () => {
+    it('should submit sponsorship intents successfully', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+        fetchMock.mockResolvedValue(createMockResponse({ jsonData: {} }));
+
+        await service.submitSponsorshipIntents({
+          chainId: '0x1',
+          address: '0x1234567890123456789012345678901234567890',
+          products: [PRODUCT_TYPES.SHIELD],
+          recurringInterval: RECURRING_INTERVALS.month,
+          billingCycles: 12,
+          paymentTokenSymbol: 'USDT',
+        });
+
+        expect(fetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(env, 'transaction-sponsorship/intents'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              chainId: '0x1',
+              address: '0x1234567890123456789012345678901234567890',
+              products: [PRODUCT_TYPES.SHIELD],
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 12,
+              paymentTokenSymbol: 'USDT',
+            }),
+          },
+        );
+      });
+    });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, captureExceptionMock }) => {
+          fetchMock.mockRejectedValue(new Error('Network error'));
+
+          await expect(
+            service.submitSponsorshipIntents({
+              chainId: '0x1',
+              address: '0x1234567890123456789012345678901234567890',
+              products: [PRODUCT_TYPES.SHIELD],
+              recurringInterval: RECURRING_INTERVALS.month,
+              billingCycles: 12,
+              paymentTokenSymbol: 'USDT',
+            }),
+          ).rejects.toThrow(SubscriptionServiceError);
+          expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+  });
+
+  describe('linkRewards', () => {
+    it('should link rewards successfully', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({ jsonData: { success: true } }),
+        );
+
+        await service.linkRewards({
+          rewardAccountId:
+            'eip155:1:0x1234567890123456789012345678901234567890',
+        });
+
+        expect(fetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(env, 'rewards/link'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify({
+              rewardAccountId:
+                'eip155:1:0x1234567890123456789012345678901234567890',
+            }),
+          },
+        );
+      });
+    });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, captureExceptionMock }) => {
+          fetchMock.mockRejectedValue(new Error('Network error'));
+
+          await expect(
+            service.linkRewards({
+              rewardAccountId:
+                'eip155:1:0x1234567890123456789012345678901234567890',
+            }),
+          ).rejects.toThrow(SubscriptionServiceError);
+          expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('should throw SubscriptionServiceError for non-ok responses', async () => {
+      await withMockSubscriptionService(
+        async ({ service, fetchMock, captureExceptionMock }) => {
+          fetchMock.mockResolvedValue(
+            createMockResponse({
+              ok: false,
+              status: 400,
+              jsonData: { message: 'Bad request' },
+            }),
+          );
+
+          await expect(
+            service.linkRewards({
+              rewardAccountId:
+                'eip155:1:0x1234567890123456789012345678901234567890',
+            }),
+          ).rejects.toThrow(SubscriptionServiceError);
+          expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+  });
+
+  describe('retry policy', () => {
+    it('retries 429 responses up to the default retry limit', async () => {
+      const fetchMock = jest.fn();
+      let attempts = 0;
+      fetchMock.mockImplementation(async () => {
+        attempts += 1;
+        return createMockResponse({
+          ok: false,
+          status: 429,
+          jsonData: { error: 'rate limited' },
+        });
+      });
+      const { service } = createService({ fetchMock });
+
+      await expect(service.getSubscriptions()).rejects.toThrow(
+        SubscriptionServiceError,
+      );
+      expect(attempts).toBe(DEFAULT_MAX_RETRIES + 1);
+    });
+
+    it('does not duplicate query parameters on retry', async () => {
+      const fetchMock = jest.fn();
+      let attempts = 0;
+      fetchMock.mockImplementation(async () => {
+        attempts += 1;
+        if (attempts < DEFAULT_MAX_RETRIES + 1) {
+          return createMockResponse({
+            ok: false,
+            status: 429,
+            jsonData: { error: 'rate limited' },
+          });
+        }
+        return createMockResponse({
+          jsonData: [createMockEligibilityResponse()],
+        });
+      });
+      const { service } = createService({ fetchMock });
+
+      await service.getSubscriptionsEligibilities({
+        balanceCategory: '100-999',
+      });
+
+      expect(attempts).toBe(DEFAULT_MAX_RETRIES + 1);
+      for (const [url] of fetchMock.mock.calls) {
+        expect(url).toContain('balanceCategory=100-999');
+        expect(url).not.toMatch(/balanceCategory=100-999&balanceCategory=/u);
+      }
+    });
+  });
+
+  describe('multi-product support', () => {
+    const MOCK_MONEY_ACCOUNT_PRICING_RESPONSE: PricingResponse = {
+      products: [
+        {
+          name: PRODUCT_TYPES.SHIELD,
+          prices: [
+            {
+              interval: RECURRING_INTERVALS.month,
+              unitAmount: 900,
+              unitDecimals: 2,
+              currency: 'usd',
+              trialPeriodDays: 14,
+              minBillingCycles: 12,
+              minBillingCyclesForBalance: 1,
+            },
+          ],
+        },
+        {
+          name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+          prices: [
+            {
+              interval: RECURRING_INTERVALS.month,
+              unitAmount: 499,
+              unitDecimals: 2,
+              currency: 'usd',
+              trialPeriodDays: 0,
+              minBillingCycles: 12,
+              minBillingCyclesForBalance: 1,
+            },
+          ],
+        },
+      ],
+      paymentMethods: [
+        {
+          type: PAYMENT_TYPES.byCard,
+          products: [PRODUCT_TYPES.SHIELD],
+        },
+        {
+          type: PAYMENT_TYPES.byCrypto,
+          cryptoAuthMethod: 'erc20_approval',
+          products: [PRODUCT_TYPES.SHIELD],
+          chains: [
+            {
+              chainId: '0x1',
+              paymentAddress: '0x00000000000000000000000000000000000000a2',
+              tokens: [
+                {
+                  symbol: 'USDC',
+                  address: '0xa9f2867708c727fe250fb0d1fbeb4b4c8e1818e8',
+                  decimals: 9,
+                  conversionRate: { usd: '1.0' },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          type: PAYMENT_TYPES.byCrypto,
+          cryptoAuthMethod: 'delegation',
+          products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+          chains: [
+            {
+              chainId: '0x8f',
+              paymentAddress: '0x00000000000000000000000000000000000000a1',
+              delegateAddress: '0x00000000000000000000000000000000000000c0',
+              tokens: [
+                {
+                  symbol: 'pvmUSD',
+                  address: '0x1C8a336051D2024E318A229d01F9F6CF96efD316',
+                  decimals: 6,
+                  isVaultShare: true,
+                  accountantAddress:
+                    '0x98A45D90E81849a5743241d3ff765F9Fd788206a',
+                  sources: [
+                    {
+                      symbol: 'mUSD',
+                      address: '0xacA92E438df0B2401fF60dA7E4337B687a2435DA',
+                      decimals: 6,
+                      conversionRate: { usd: '1.0' },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    it('should validate Money Account pricing responses', async () => {
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({ jsonData: MOCK_MONEY_ACCOUNT_PRICING_RESPONSE }),
+        );
+
+        const result = await service.getPricing();
+
+        expect(result).toStrictEqual(MOCK_MONEY_ACCOUNT_PRICING_RESPONSE);
+      });
+    });
+
+    it('should forward delegation-based Money Account crypto subscriptions', async () => {
+      const delegationRequest: StartCryptoSubscriptionRequest = {
+        products: [PRODUCT_TYPES.MONEY_ACCOUNT_PLUS],
+        isTrialRequested: false,
+        recurringInterval: RECURRING_INTERVALS.month,
+        billingCycles: 12,
+        chainId: '0x8f',
+        payerAddress: '0x0000000000000000000000000000000000000001',
+        tokenSymbol: 'pvmUSD',
+        cryptoAuthMethod: 'delegation',
+        delegationHash: '0xabc',
+      };
+
+      await withMockSubscriptionService(async ({ service, fetchMock, env }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              subscriptionId: 'sub_money_account',
+              status: SUBSCRIPTION_STATUSES.active,
+            },
+          }),
+        );
+
+        await service.startSubscriptionWithCrypto(delegationRequest);
+
+        expect(fetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(env, 'subscriptions/crypto'),
+          {
+            method: 'POST',
+            headers: MOCK_HEADERS,
+            body: JSON.stringify(delegationRequest),
+          },
+        );
+      });
+    });
+
+    it('should return dual-product subscription responses', async () => {
+      const moneyAccountSubscription: Subscription = {
+        ...MOCK_SUBSCRIPTION,
+        id: 'sub_money_account',
+        products: [
+          {
+            name: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+            currency: 'usd',
+            unitAmount: 499,
+            unitDecimals: 2,
+          },
+        ],
+        paymentMethod: {
+          type: PAYMENT_TYPES.byCrypto,
+          crypto: {
+            payerAddress: '0x0000000000000000000000000000000000000001',
+            chainId: '0x8f',
+            tokenSymbol: 'pvmUSD',
+          },
+        },
+      };
+
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              customerId: 'cus_1',
+              subscriptions: [MOCK_SUBSCRIPTION, moneyAccountSubscription],
+              trialedProducts: [PRODUCT_TYPES.SHIELD],
+            },
+          }),
+        );
+
+        const result = await service.getSubscriptions();
+
+        expect(result.subscriptions).toHaveLength(2);
+        expect(result.trialedProducts).toStrictEqual([PRODUCT_TYPES.SHIELD]);
+      });
+    });
+
+    it('should return Money Account eligibility responses', async () => {
+      const moneyAccountEligibility: SubscriptionEligibility = {
+        product: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+        canSubscribe: true,
+        canViewEntryModal: false,
+        cohorts: [],
+        assignedCohort: null,
+        hasAssignedCohortExpired: false,
+      };
+
+      await withMockSubscriptionService(async ({ service, fetchMock }) => {
+        fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: [
+              createMockEligibilityResponse(),
+              moneyAccountEligibility,
+            ],
+          }),
+        );
+
+        const results = await service.getSubscriptionsEligibilities();
+
+        expect(results).toStrictEqual([
+          createMockEligibilityResponse(),
+          moneyAccountEligibility,
+        ]);
+      });
+    });
+  });
+
+  describe('error handling', () => {
+    it('rethrows SubscriptionServiceError thrown by fetchQuery without wrapping', async () => {
+      const fetchMock = jest.fn();
+      const { service } = createService({ fetchMock });
+      const authError = new SubscriptionServiceError('auth failed');
+      jest
+        .spyOn(
+          service as unknown as {
+            fetchQuery: SubscriptionService['fetchQuery'];
+          },
+          'fetchQuery',
+        )
+        .mockRejectedValue(authError);
+
+      await expect(service.getSubscriptions()).rejects.toBe(authError);
     });
   });
 });

@@ -1,21 +1,22 @@
 import type { Eip1193Provider } from 'ethers';
 
-import { arrangeAuthAPIs } from './__fixtures__/auth';
-import type { MockVariable } from './__fixtures__/test-utils';
-import { arrangeAuth, arrangeMockProvider } from './__fixtures__/test-utils';
-import { JwtBearerAuth } from './authentication';
-import * as AuthServices from './authentication-jwt-bearer/services';
-import type { LoginResponse, Pair } from './authentication-jwt-bearer/types';
+import { Env, Platform } from '../shared/env.js';
+import { arrangeAuthAPIs } from './__fixtures__/auth.js';
+import type { MockVariable } from './__fixtures__/test-utils.js';
+import { arrangeAuth, arrangeMockProvider } from './__fixtures__/test-utils.js';
+import * as AuthServices from './authentication-jwt-bearer/services.js';
+import type { LoginResponse, Pair } from './authentication-jwt-bearer/types.js';
+import { JwtBearerAuth } from './authentication.js';
 import {
   NonceRetrievalError,
+  PairConflictError,
   PairError,
   SignInError,
   UnsupportedAuthTypeError,
   ValidationError,
-} from './errors';
-import { MOCK_ACCESS_JWT, MOCK_SRP_LOGIN_RESPONSE } from './mocks/auth';
-import * as Eip6963MetamaskProvider from './utils/eip-6963-metamask-provider';
-import { Env, Platform } from '../shared/env';
+} from './errors.js';
+import { MOCK_ACCESS_JWT, MOCK_SRP_LOGIN_RESPONSE } from './mocks/auth.js';
+import * as Eip6963MetamaskProvider from './utils/eip-6963-metamask-provider.js';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
 const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
@@ -659,6 +660,56 @@ describe('Authentication - SRP Default Flow - signMessage() & getIdentifier()', 
   });
 });
 
+describe('Authentication - pairSocialIdentifier()', () => {
+  it('pairs a Google identifier', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { mockPairSocialIdentifierUrl } = arrangeAuthAPIs();
+
+    expect(
+      await auth.pairSocialIdentifier(
+        {
+          identifierType: 'GOOGLE',
+          socialJwt: 'social-jwt',
+          email: 'user@example.com',
+        },
+        'primary-srp-token',
+      ),
+    ).toBeUndefined();
+    expect(mockPairSocialIdentifierUrl.isDone()).toBe(true);
+  });
+
+  it('throws PairConflictError when the identifier is already owned', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    arrangeAuthAPIs({
+      mockPairSocialIdentifier: {
+        status: 409,
+        body: {
+          message: 'Identifier already belongs to another profile',
+          error: 'conflict',
+        },
+      },
+    });
+
+    await expect(
+      auth.pairSocialIdentifier(
+        { identifierType: 'APPLE', socialJwt: 'social-jwt' },
+        'primary-srp-token',
+      ),
+    ).rejects.toThrow(PairConflictError);
+  });
+
+  it('rejects when called from the SIWE flow', async () => {
+    const { auth } = arrangeAuth('SiWE', MOCK_ADDRESS);
+
+    await expect(
+      auth.pairSocialIdentifier(
+        { identifierType: 'APPLE', socialJwt: 'social-jwt' },
+        'primary-srp-token',
+      ),
+    ).rejects.toThrow(UnsupportedAuthTypeError);
+  });
+});
+
 describe('Authentication - rejects when calling unrelated methods', () => {
   it('rejects when calling SRP methods in SiWE flow', async () => {
     const { auth } = arrangeAuth('SiWE', MOCK_ADDRESS);
@@ -682,6 +733,66 @@ describe('Authentication - rejects when calling unrelated methods', () => {
   });
 });
 
+describe('MFA authentication facade', () => {
+  it('forwards MFA operations to the SRP implementation', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const endpoints = arrangeAuthAPIs();
+    const registration = {
+      id: 'credential-id',
+      rawId: 'credential-id',
+      type: 'public-key',
+      response: {
+        attestationObject: 'attestation',
+        clientDataJSON: 'client-data',
+      },
+    } as const;
+    const assertion = {
+      id: 'credential-id',
+      rawId: 'credential-id',
+      type: 'public-key',
+      response: {
+        authenticatorData: 'authenticator-data',
+        clientDataJSON: 'client-data',
+        signature: 'signature',
+      },
+    } as const;
+
+    expect(await auth.beginMfaEnrollment('passkey')).toMatchObject({
+      type: 'passkey',
+      flowId: 'enroll-passkey-flow-id',
+    });
+    expect(
+      await auth.completeMfaEnrollment('flow-id', {
+        type: 'passkey',
+        attestation: registration,
+      }),
+    ).toBeUndefined();
+    expect(await auth.beginMfaVerification('passkey')).toMatchObject({
+      type: 'passkey',
+      flowId: 'verify-passkey-flow-id',
+    });
+    expect(
+      await auth.completeMfaVerification('flow-id', {
+        type: 'passkey',
+        assertion,
+      }),
+    ).toMatchObject({
+      token: expect.any(String),
+      expiresIn: 900,
+    });
+    expect(await auth.getMfaCredentials()).toHaveLength(2);
+    expect(await auth.exchangeMfaAssertion('assertion-jwt')).toMatchObject({
+      accessToken: MOCK_ACCESS_JWT,
+    });
+
+    expect(endpoints.mockMfaEnrollUrl.isDone()).toBe(true);
+    expect(endpoints.mockMfaEnrollCompleteUrl.isDone()).toBe(true);
+    expect(endpoints.mockMfaVerifyUrl.isDone()).toBe(true);
+    expect(endpoints.mockMfaVerifyCompleteUrl.isDone()).toBe(true);
+    expect(endpoints.mockMfaCredentialsUrl.isDone()).toBe(true);
+  });
+});
+
 /**
  * Mock Utility to create a mock stored profile
  *
@@ -690,13 +801,14 @@ describe('Authentication - rejects when calling unrelated methods', () => {
 function createMockStoredProfile(): LoginResponse {
   return {
     token: {
-      accessToken: MOCK_SRP_LOGIN_RESPONSE.token,
+      accessToken: MOCK_ACCESS_JWT,
       expiresIn: MOCK_SRP_LOGIN_RESPONSE.expires_in,
       obtainedAt: Date.now(),
     },
     profile: {
       identifierId: MOCK_SRP_LOGIN_RESPONSE.profile.identifier_id,
       profileId: MOCK_SRP_LOGIN_RESPONSE.profile.profile_id,
+      canonicalProfileId: MOCK_SRP_LOGIN_RESPONSE.profile.profile_id,
       metaMetricsId: MOCK_SRP_LOGIN_RESPONSE.profile.metametrics_id,
     },
   };

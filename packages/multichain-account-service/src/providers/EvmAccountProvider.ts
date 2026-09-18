@@ -1,17 +1,43 @@
+import { publicToAddress } from '@ethereumjs/util';
 import type { Bip44Account } from '@metamask/account-api';
-import type { EntropySourceId } from '@metamask/keyring-api';
-import { EthAccountType } from '@metamask/keyring-api';
-import { KeyringTypes } from '@metamask/keyring-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
+import type { HdKeyring } from '@metamask/eth-hd-keyring/v2';
 import type {
-  EthKeyring,
-  InternalAccount,
-} from '@metamask/keyring-internal-api';
+  CreateAccountOptions,
+  EntropySourceId,
+  KeyringAccount,
+} from '@metamask/keyring-api';
+import {
+  AccountCreationType,
+  assertCreateAccountOptionIsSupported,
+  EthAccountType,
+  EthScope,
+} from '@metamask/keyring-api';
+import type { KeyringCapabilities, Keyring } from '@metamask/keyring-api/v2';
+import { KeyringTypes } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { AccountId } from '@metamask/keyring-utils';
+import type { Provider } from '@metamask/network-controller';
+import { add0x, assert, bytesToHex, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import { traceFallback } from '../analytics/index.js';
+import { TraceName } from '../analytics/traces.js';
+import { projectLogger as log, WARNING_PREFIX } from '../logger.js';
+import type { MultichainAccountServiceMessenger } from '../types.js';
+import type {
+  DeleteAccountsFailure,
+  DeleteAccountsResult,
+} from './BaseBip44AccountProvider.js';
 import {
   assertAreBip44Accounts,
+  assertIsBip44Account,
   BaseBip44AccountProvider,
-} from './BaseBip44AccountProvider';
+  toDeleteAccountsResult,
+} from './BaseBip44AccountProvider.js';
+import { withRetry, withTimeout } from './utils.js';
+
+const ETH_MAINNET_CHAIN_ID = '0x1';
 
 /**
  * Asserts an internal account exists.
@@ -27,7 +53,56 @@ function assertInternalAccountExists(
   }
 }
 
+export type EvmAccountProviderConfig = {
+  discovery: {
+    enabled?: boolean;
+    maxAttempts: number;
+    timeoutMs: number;
+    backOffMs: number;
+  };
+};
+
+export const EVM_ACCOUNT_PROVIDER_NAME = 'EVM';
+
+export const EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG = {
+  discovery: {
+    maxAttempts: 3,
+    timeoutMs: 500,
+    backOffMs: 500,
+  },
+};
+
 export class EvmAccountProvider extends BaseBip44AccountProvider {
+  static NAME = EVM_ACCOUNT_PROVIDER_NAME;
+
+  readonly #config: EvmAccountProviderConfig;
+
+  readonly #trace: TraceCallback;
+
+  readonly capabilities: KeyringCapabilities = {
+    scopes: [EthScope.Eoa],
+    bip44: {
+      deriveIndex: true,
+      deriveIndexRange: true,
+    },
+  };
+
+  constructor(
+    messenger: MultichainAccountServiceMessenger,
+    config: EvmAccountProviderConfig = EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+    trace?: TraceCallback,
+  ) {
+    super(messenger);
+    this.#config = {
+      ...config,
+      discovery: {
+        ...config.discovery,
+        enabled: config.discovery.enabled ?? true,
+      },
+    };
+    this.#trace = trace ?? traceFallback;
+  }
+
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
     return (
       account.type === EthAccountType.Eoa &&
@@ -35,36 +110,162 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     );
   }
 
-  async createAccounts({
+  getName(): string {
+    return EvmAccountProvider.NAME;
+  }
+
+  /**
+   * Get the EVM provider.
+   *
+   * @returns The EVM provider.
+   */
+  getEvmProvider(): Provider {
+    const networkClientId = this.messenger.call(
+      'NetworkController:findNetworkClientIdByChainId',
+      ETH_MAINNET_CHAIN_ID,
+    );
+    const { provider } = this.messenger.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    );
+    return provider;
+  }
+
+  /**
+   * Create an EVM account.
+   *
+   * @param opts - The options for the creation of the account.
+   * @param opts.entropySource - The entropy source to use for the creation of the account.
+   * @param opts.groupIndex - The index of the group to create the account for.
+   * @param opts.throwOnGap - Whether to throw an error if the account index is not contiguous.
+   * @returns The created or existing keyring account(s) at the requested group
+   * index. Returns an empty array if the keyring did not create an account.
+   */
+  async #createAccount({
     entropySource,
     groupIndex,
+    throwOnGap,
   }: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }) {
-    const [address] = await this.withKeyring<EthKeyring, Hex[]>(
+    throwOnGap: boolean;
+  }): Promise<KeyringAccount[]> {
+    return await this.withKeyringV2<Keyring, KeyringAccount[]>(
       { id: entropySource },
       async ({ keyring }) => {
-        const accounts = await keyring.getAccounts();
-        if (groupIndex < accounts.length) {
-          // Nothing new to create, we just re-use the existing accounts here,
-          return [accounts[groupIndex]];
+        const existing = await keyring.getAccounts();
+        if (groupIndex < existing.length) {
+          return [existing[groupIndex]];
         }
 
-        // For now, we don't allow for gap, so if we need to create a new
-        // account, this has to be the next one.
-        if (groupIndex !== accounts.length) {
+        // If the throwOnGap flag is set, we throw an error to prevent index gaps.
+        if (throwOnGap && groupIndex !== existing.length) {
           throw new Error('Trying to create too many accounts');
         }
 
-        // Create next account (and returns their addresses).
-        return await keyring.addAccounts(1);
+        return await keyring.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
+          entropySource,
+          groupIndex,
+        });
       },
     );
+  }
+
+  /**
+   * Create accounts for the EVM provider.
+   *
+   * @param options - The options for the creation of the accounts.
+   * @returns The accounts for the EVM provider.
+   */
+  async createAccounts(
+    options: CreateAccountOptions,
+  ): Promise<Bip44Account<KeyringAccount>[]> {
+    assertCreateAccountOptionIsSupported(options, [
+      `${AccountCreationType.Bip44DeriveIndex}`,
+      `${AccountCreationType.Bip44DeriveIndexRange}`,
+    ]);
+
+    const { entropySource } = options;
+
+    if (options.type === AccountCreationType.Bip44DeriveIndexRange) {
+      const { range } = options;
+
+      // Use a single withKeyring call for the entire range.
+      const accountIds = await this.withKeyringV2<Keyring, AccountId[]>(
+        { id: entropySource },
+        async ({ keyring }) => {
+          const existing = await keyring.getAccounts();
+
+          // Validate no gaps: we can only create accounts starting from existing.length.
+          if (range.from > existing.length) {
+            throw new Error(
+              `Bad account creation request, group index range would create gaps (${range.from} (from) > ${existing.length} (next available index))`,
+            );
+          }
+
+          const result: AccountId[] = [];
+
+          // Collect existing accounts within the range.
+          for (
+            let groupIndex = range.from;
+            groupIndex <= range.to;
+            groupIndex++
+          ) {
+            if (groupIndex < existing.length) {
+              // Account already exists.
+              result.push(existing[groupIndex].id);
+            }
+          }
+
+          // Create new accounts one-by-one since HdKeyringV2 only supports
+          // bip44:derive-index (not bip44:derive-index-range).
+          for (
+            let groupIndex = Math.max(range.from, existing.length);
+            groupIndex <= range.to;
+            groupIndex++
+          ) {
+            const [created] = await keyring.createAccounts({
+              type: AccountCreationType.Bip44DeriveIndex,
+              entropySource,
+              groupIndex,
+            });
+            assert(created, 'Account creation failed');
+            result.push(created.id);
+          }
+
+          return result;
+        },
+      );
+
+      const accounts: InternalAccount[] = [];
+      for (const account of this.messenger.call(
+        'AccountsController:getAccounts',
+        accountIds,
+      )) {
+        assertInternalAccountExists(account);
+        this.accounts.add(account.id);
+        accounts.push(account);
+      }
+
+      assertAreBip44Accounts(accounts);
+      return accounts;
+    }
+
+    // Handle Bip44DeriveIndex (single account creation).
+    const { groupIndex } = options;
+
+    const [created] = await this.#createAccount({
+      entropySource,
+      groupIndex,
+      throwOnGap: true,
+    });
+
+    assert(created, 'Account creation failed');
 
     const account = this.messenger.call(
-      'AccountsController:getAccountByAddress',
-      address,
+      'AccountsController:getAccount',
+      created.id,
     );
 
     // We MUST have the associated internal account.
@@ -73,13 +274,291 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     const accountsArray = [account];
     assertAreBip44Accounts(accountsArray);
 
+    this.accounts.add(account.id);
     return accountsArray;
   }
 
-  async discoverAndCreateAccounts(_: {
+  /**
+   * Get the address that would be derived for a given group index without
+   * persisting an account in the keyring.
+   *
+   * Peeks at the next address via the HD `root` so discovery can short-circuit
+   * (and skip the vault write + `stateChange` event) when there is no on-chain
+   * activity at this index.
+   *
+   * @param opts - The options for the address derivation.
+   * @param opts.entropySource - The entropy source to derive from.
+   * @param opts.groupIndex - The group index to derive at.
+   * @returns The derived address for the given group index.
+   */
+  async #getAddressFromGroupIndex({
+    entropySource,
+    groupIndex,
+  }: {
     entropySource: EntropySourceId;
     groupIndex: number;
-  }) {
-    return []; // TODO: Implement account discovery.
+  }): Promise<Hex> {
+    // NOTE: To avoid exposing this function at keyring level, we just re-use its internal state
+    // and compute the derivation here.
+    return await this.withKeyringV2<HdKeyring, Hex>(
+      { id: entropySource },
+      async ({ keyring }) => {
+        // If the account already exist, do not re-derive and just re-use that account.
+        const existing = await keyring.getAccounts();
+        if (groupIndex < existing.length) {
+          return existing[groupIndex].address as Hex;
+        }
+
+        // If not, then we just "peek" the next address to avoid creating the account.
+        assert(keyring.root, 'Expected HD keyring.root to be set');
+        const hdKey = keyring.root.deriveChild(groupIndex);
+        assert(hdKey.publicKey, 'Expected public key to be set');
+
+        return add0x(
+          bytesToHex(publicToAddress(hdKey.publicKey, true)).toLowerCase(),
+        );
+      },
+    );
+  }
+
+  /**
+   * Get the transaction count for an EVM account.
+   * This method uses a retry and timeout mechanism to handle transient failures.
+   *
+   * @param provider - The provider to use for the transaction count.
+   * @param address - The address of the account.
+   * @returns The transaction count.
+   */
+  async #getTransactionCount(
+    provider: Provider,
+    address: string,
+  ): Promise<number> {
+    const method = 'eth_getTransactionCount';
+
+    const response = await withRetry(
+      () =>
+        withTimeout(
+          () =>
+            provider.request({
+              method,
+              params: [address, 'latest'],
+            }),
+          this.#config.discovery.timeoutMs,
+        ),
+      {
+        maxAttempts: this.#config.discovery.maxAttempts,
+        backOffMs: this.#config.discovery.backOffMs,
+      },
+    );
+
+    // Make sure we got the right response format, if not, we fallback to "0x0", to avoid having to deal with `NaN`.
+    if (!isStrictHexString(response)) {
+      const message = `Received invalid hex response from "${method}" request: ${JSON.stringify(response)}`;
+
+      log(`${WARNING_PREFIX} ${message}`);
+      console.warn(message);
+
+      return 0;
+    }
+
+    return parseInt(response, 16);
+  }
+
+  /**
+   * Discover and create accounts for the EVM provider.
+   *
+   * @param opts - The options for the discovery and creation of accounts.
+   * @param opts.entropySource - The entropy source to use for the discovery and creation of accounts.
+   * @param opts.groupIndex - The index of the group to create the accounts for.
+   * @returns The accounts for the EVM provider.
+   */
+  async discoverAccounts(opts: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): Promise<Bip44Account<KeyringAccount>[]> {
+    return this.#trace(
+      {
+        name: TraceName.EvmDiscoverAccounts,
+        data: {
+          provider: this.getName(),
+        },
+      },
+      async () => {
+        if (!this.#config.discovery.enabled) {
+          return [];
+        }
+
+        const provider = this.getEvmProvider();
+        const { entropySource, groupIndex } = opts;
+
+        const addressFromGroupIndex = await this.#getAddressFromGroupIndex({
+          entropySource,
+          groupIndex,
+        });
+
+        const count = await this.#getTransactionCount(
+          provider,
+          addressFromGroupIndex,
+        );
+        if (count === 0) {
+          return [];
+        }
+
+        // We have some activity on this address, we try to create the account.
+        const [created] = await this.#createAccount({
+          entropySource,
+          groupIndex,
+          throwOnGap: false,
+        });
+
+        assert(created, 'Account creation failed');
+        assert(
+          addressFromGroupIndex === created.address,
+          'Created account does not match address from group index.',
+        );
+
+        const account = this.messenger.call(
+          'AccountsController:getAccount',
+          created.id,
+        );
+        assertInternalAccountExists(account);
+        assertIsBip44Account(account);
+        this.accounts.add(account.id);
+        return [account];
+      },
+    );
+  }
+
+  async resyncAccounts(): Promise<void> {
+    // No-op for the EVM account provider, since keyring accounts are already on
+    // the MetaMask side.
+  }
+
+  /**
+   * Delete an EVM account by id.
+   *
+   * Resolves the account's entropy source from the tracked account, then
+   * forwards to the v2 HD keyring's `deleteAccount(id)`. When this is the
+   * last account on a non-primary HD keyring, the keyring controller will
+   * automatically prune the empty keyring (see
+   * `KeyringController.#cleanUpEmptiedKeyringsAfter`).
+   *
+   * @param id - The id of the account to delete.
+   */
+  async deleteAccount(id: Bip44Account<KeyringAccount>['id']): Promise<void> {
+    const account = this.getAccount(id);
+    const entropySource = account.options.entropy.id;
+
+    await this.withKeyringV2<Keyring>(
+      { id: entropySource },
+      async ({ keyring }) => {
+        await keyring.deleteAccount(id);
+      },
+    );
+
+    this.accounts.delete(id);
+  }
+
+  /**
+   * Delete many EVM accounts owned by a single entropy source.
+   *
+   * Deletes from the highest group index down under a single
+   * `withKeyringV2` lock. The v2 HD keyring only accepts deleting its last
+   * account ("Can only delete the last account in the HD keyring due to
+   * derivation index constraints."), so an ascending pass would throw for
+   * every account but the last one.
+   *
+   * @param ids - The ids of the accounts to delete.
+   * @throws If the accounts are not all owned by the same entropy source.
+   * @returns Whether every requested id was deleted.
+   */
+  async deleteAccounts(
+    ids: Bip44Account<KeyringAccount>['id'][],
+  ): Promise<DeleteAccountsResult> {
+    const failures: DeleteAccountsFailure[] = [];
+
+    const allAccounts = this.getAccounts();
+    const deletedIds = new Set(ids);
+    const deletedAccounts: Bip44Account<KeyringAccount>[] = [];
+    for (const account of allAccounts) {
+      if (deletedIds.has(account.id)) {
+        deletedAccounts.push(account);
+        deletedIds.delete(account.id);
+      }
+    }
+
+    // If we have some remaining IDs, that means those accounts could not be found among
+    // the tracked accounts.
+    if (deletedIds.size > 0) {
+      for (const id of deletedIds) {
+        failures.push({
+          id,
+          error: new Error(`Unable to find account: ${id}`),
+        });
+      }
+    }
+
+    // Those are the only accounts that we could fetch from the controller.
+    const accounts = deletedAccounts;
+
+    const [first] = accounts;
+    if (!first) {
+      // Nothing could be resolved, so there is no keyring to lock.
+      return toDeleteAccountsResult(failures);
+    }
+
+    // All IDs must share one entropy source so deletion runs under a single
+    // `withKeyringV2` lock (e.g. scoped to one HD keyring).
+    const entropySource = first.options.entropy.id;
+    assert(
+      accounts.every((account) => account.options.entropy.id === entropySource),
+      'Expected all accounts to be owned by the same entropy source',
+    );
+
+    // We need to sort accounts by descending group index to ensure that the
+    // last account in the HD keyring is deleted first.
+    accounts.sort(
+      (a, b) => b.options.entropy.groupIndex - a.options.entropy.groupIndex,
+    );
+
+    // IDs whose keyring deletion succeeded (or was never attempted).
+    const pending = new Set(accounts.map((account) => account.id));
+
+    try {
+      await this.withKeyringV2<Keyring>(
+        { id: entropySource },
+        async ({ keyring }) => {
+          for (const account of accounts) {
+            try {
+              await keyring.deleteAccount(account.id);
+            } catch (error) {
+              // Remove from the set of pending deletions since this account failed.
+              pending.delete(account.id);
+              // We also add the reason why it failed now.
+              // NOTE: This failure will be reported immediately, rather than waiting
+              // for the overall `withKeyringV2` call to complete. It won't be reported
+              // multiple times for this account.
+              failures.push({ id: account.id, error });
+            }
+          }
+        },
+      );
+
+      // At this point, we have the guarantee that all deletions that could succeed
+      // have been attempted, so we can safely remove the successfully deleted accounts
+      // from local tracking.
+      for (const id of pending) {
+        this.accounts.delete(id);
+      }
+    } catch (error) {
+      // Either the keyring was never reached, or persisting failed and every
+      // keyring got rolled back. Both leave the accounts in place, so report
+      // the ones that were successfully deleted (but got rolled back).
+      for (const id of pending) {
+        failures.push({ id, error });
+      }
+    }
+
+    return toDeleteAccountsResult(failures);
   }
 }

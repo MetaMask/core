@@ -1,5 +1,6 @@
-import { EthMethod, type OriginalRequest } from '../types';
-import { normalizeParam } from './normalize';
+import { EthMethod } from '../types.js';
+import type { OriginalRequest } from '../types.js';
+import { normalizeParam } from './normalize.js';
 
 export const DECODING_API_ERRORS = {
   UNSUPPORTED_SIGNATURE: 'UNSUPPORTED_SIGNATURE',
@@ -48,7 +49,7 @@ export async function decodeSignature(
   } catch (error: unknown) {
     return {
       error: {
-        message: (error as unknown as Error).message,
+        message: (error as Error).message,
         type: DECODING_API_ERRORS.DECODING_FAILED_WITH_ERROR,
       },
     };

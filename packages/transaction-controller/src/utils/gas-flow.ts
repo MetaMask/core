@@ -5,21 +5,20 @@ import type {
   GasFeeEstimates,
   LegacyGasPriceEstimate,
 } from '@metamask/gas-fee-controller';
-import { type GasFeeState } from '@metamask/gas-fee-controller';
+import type { GasFeeState } from '@metamask/gas-fee-controller';
 
-import type { TransactionControllerMessenger } from '../TransactionController';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types.js';
 import type {
   FeeMarketGasFeeEstimates,
   GasPriceGasFeeEstimates,
   LegacyGasFeeEstimates,
-} from '../types';
-import {
-  type GasFeeFlow,
-  type TransactionMeta,
-  type FeeMarketGasFeeEstimateForLevel,
-  GasFeeEstimateLevel,
-  GasFeeEstimateType,
-} from '../types';
+} from '../types.js';
+import type {
+  GasFeeFlow,
+  TransactionMeta,
+  FeeMarketGasFeeEstimateForLevel,
+} from '../types.js';
 
 type MergeGasFeeEstimatesRequest = {
   gasFeeControllerEstimates:

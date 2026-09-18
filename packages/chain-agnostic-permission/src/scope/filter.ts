@@ -1,12 +1,12 @@
 import type { CaipChainId, Hex } from '@metamask/utils';
 
-import { assertIsInternalScopeString, assertScopeSupported } from './assert';
-import { isSupportedMethod, isSupportedNotification } from './supported';
+import { assertIsInternalScopeString, assertScopeSupported } from './assert.js';
+import { isSupportedMethod, isSupportedNotification } from './supported.js';
 import type {
   InternalScopeString,
   NormalizedScopeObject,
   NormalizedScopesObject,
-} from './types';
+} from './types.js';
 
 /**
  * Groups a NormalizedScopesObject into two separate

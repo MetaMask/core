@@ -4,9 +4,9 @@ import {
   EOACodeEIP7702Transaction,
 } from '@ethereumjs/tx';
 
-import { prepareTransaction, serializeTransaction } from './prepare';
-import type { Authorization } from '../types';
-import { TransactionEnvelopeType, type TransactionParams } from '../types';
+import { TransactionEnvelopeType } from '../types.js';
+import type { Authorization, TransactionParams } from '../types.js';
+import { prepareTransaction, serializeTransaction } from './prepare.js';
 
 const CHAIN_ID_MOCK = '0x123';
 
@@ -144,7 +144,7 @@ describe('Prepare Utils', () => {
         TRANSACTION_PARAMS_MOCK,
       );
 
-      const result = serializeTransaction(transaction);
+      const result = serializeTransaction(CHAIN_ID_MOCK, transaction);
       expect(result).toStrictEqual(SERIALIZED_TRANSACTION);
     });
 
@@ -154,7 +154,7 @@ describe('Prepare Utils', () => {
         TRANSACTION_PARAMS_FEE_MARKET_MOCK,
       );
 
-      const result = serializeTransaction(transaction);
+      const result = serializeTransaction(CHAIN_ID_MOCK, transaction);
       expect(result).toStrictEqual(SERIALIZED_TRANSACTION_FEE_MARKET);
     });
   });

@@ -1,0 +1,236 @@
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import { BigNumber } from 'bignumber.js';
+
+import { TransactionPayStrategy } from '../constants.js';
+import type {
+  FiatValue,
+  TransactionPayControllerMessenger,
+  TransactionPayQuote,
+  TransactionPayRequiredToken,
+  TransactionPayTotals,
+} from '../types.js';
+import { sumAmounts } from './amounts.js';
+import { calculateTransactionGasCost } from './gas.js';
+
+/**
+ * Calculate totals for a list of quotes and tokens.
+ *
+ * @param request - Request parameters.
+ * @param request.fiatPaymentAmount - The amount of the transaction in fiat.
+ * @param request.quotes - List of bridge quotes.
+ * @param request.messenger - Controller messenger.
+ * @param request.tokens - List of required tokens.
+ * @param request.transaction - Transaction metadata.
+ * @returns The calculated totals in USD and fiat currency.
+ */
+export function calculateTotals({
+  fiatPaymentAmount,
+  quotes,
+  messenger,
+  tokens,
+  transaction,
+}: {
+  fiatPaymentAmount?: string;
+  quotes: TransactionPayQuote<unknown>[];
+  messenger: TransactionPayControllerMessenger;
+  tokens: TransactionPayRequiredToken[];
+  transaction: TransactionMeta;
+}): TransactionPayTotals {
+  const metaMaskFee = sumFiat(quotes.map((quote) => quote.fees.metaMask));
+  const providerFee = sumFiat(quotes.map((quote) => quote.fees.provider));
+  const providerFiatFee = sumFiat(
+    quotes.map((quote) => quote.fees.providerFiat ?? { fiat: '0', usd: '0' }),
+  );
+  const hasFiatStrategy = quotes.some(
+    (quote) => quote.strategy === TransactionPayStrategy.Fiat,
+  );
+
+  const sourceNetworkFeeMax = sumAmounts(
+    quotes.map((quote) => quote.fees.sourceNetwork.max),
+  );
+
+  const sourceNetworkFeeEstimate = sumAmounts(
+    quotes.map((quote) => quote.fees.sourceNetwork.estimate),
+  );
+
+  const transactionNetworkFee = calculateTransactionGasCost(
+    transaction,
+    messenger,
+  );
+
+  const targetNetworkFee = quotes?.length
+    ? {
+        ...sumFiat(quotes.map((quote) => quote.fees.targetNetwork)),
+        isGasFeeToken: false,
+      }
+    : transactionNetworkFee;
+
+  const sourceAmount = sumAmounts(quotes.map((quote) => quote.sourceAmount));
+  const targetAmount = sumFiat(quotes.map((quote) => quote.targetAmount));
+
+  const quoteTokens = tokens.filter(
+    (singleToken) => !singleToken.skipIfBalance,
+  );
+
+  const amountFiat = sumProperty(quoteTokens, (token) => token.amountFiat);
+  const amountUsd = sumProperty(quoteTokens, (token) => token.amountUsd);
+  const hasQuotes = quotes.length > 0;
+  const isInputBased =
+    hasQuotes && quotes.every((quote) => quote.isInputBased === true);
+
+  const sourceAmountFiat = getSourceAmount({
+    hasFiatStrategy,
+    fiatPaymentAmount,
+    hasQuotes,
+    targetAmount: targetAmount.fiat,
+    tokenAmount: amountFiat,
+    useTargetAmount: isInputBased,
+  });
+
+  const sourceAmountUsd = getSourceAmount({
+    hasFiatStrategy,
+    fiatPaymentAmount,
+    hasQuotes,
+    targetAmount: targetAmount.usd,
+    tokenAmount: amountUsd,
+    useTargetAmount: isInputBased,
+  });
+
+  const includedFees = sumFiat(
+    quotes
+      .filter((quote) => quote.areFeesIncludedInSourceAmount)
+      .map((quote) => ({
+        fiat: getQuoteFeeTotal(quote, 'fiat'),
+        usd: getQuoteFeeTotal(quote, 'usd'),
+      })),
+  );
+
+  const totalFiat = new BigNumber(providerFee.fiat)
+    .plus(metaMaskFee.fiat)
+    .plus(sourceNetworkFeeEstimate.fiat)
+    .plus(targetNetworkFee.fiat)
+    .plus(sourceAmountFiat)
+    .minus(includedFees.fiat)
+    .toString(10);
+
+  const totalUsd = new BigNumber(providerFee.usd)
+    .plus(metaMaskFee.usd)
+    .plus(sourceNetworkFeeEstimate.usd)
+    .plus(targetNetworkFee.usd)
+    .plus(sourceAmountUsd)
+    .minus(includedFees.usd)
+    .toString(10);
+
+  const estimatedDuration = Number(
+    sumProperty(quotes, (quote) => quote.estimatedDuration),
+  );
+
+  const isSourceGasFeeToken = quotes.some(
+    (quote) => quote.fees.isSourceGasFeeToken,
+  );
+
+  const isTargetGasFeeToken =
+    Boolean(targetNetworkFee.isGasFeeToken) ||
+    quotes.some((quote) => quote.fees.isTargetGasFeeToken);
+
+  return {
+    estimatedDuration,
+    fees: {
+      isSourceGasFeeToken,
+      isTargetGasFeeToken,
+      providerFiat: providerFiatFee,
+      metaMask: metaMaskFee,
+      provider: providerFee,
+      sourceNetwork: {
+        estimate: sourceNetworkFeeEstimate,
+        max: sourceNetworkFeeMax,
+      },
+      targetNetwork: targetNetworkFee,
+    },
+    isInputBased,
+    sourceAmount,
+    targetAmount,
+    total: {
+      fiat: totalFiat,
+      usd: totalUsd,
+    },
+  };
+}
+
+function getQuoteFeeTotal(
+  quote: TransactionPayQuote<unknown>,
+  currency: keyof FiatValue,
+): string {
+  return new BigNumber(quote.fees.provider[currency])
+    .plus(quote.fees.metaMask[currency])
+    .plus(quote.fees.sourceNetwork.estimate[currency])
+    .plus(quote.fees.targetNetwork[currency])
+    .toString(10);
+}
+
+/**
+ * Get the source amount to include in totals.
+ *
+ * @param request - Request parameters.
+ * @param request.hasFiatStrategy - Whether a fiat strategy quote is present.
+ * @param request.fiatPaymentAmount - The fiat payment amount, if applicable.
+ * @param request.hasQuotes - Whether any quotes are present.
+ * @param request.targetAmount - The target amount from quotes.
+ * @param request.tokenAmount - The summed token amount.
+ * @param request.useTargetAmount - Whether fees are already included in the source amount.
+ * @returns The payment amount to include in totals.
+ */
+function getSourceAmount({
+  hasFiatStrategy,
+  fiatPaymentAmount,
+  hasQuotes,
+  targetAmount,
+  tokenAmount,
+  useTargetAmount,
+}: {
+  hasFiatStrategy: boolean;
+  fiatPaymentAmount?: string;
+  hasQuotes: boolean;
+  targetAmount: string;
+  tokenAmount: string;
+  useTargetAmount: boolean;
+}): string {
+  if (hasFiatStrategy) {
+    return fiatPaymentAmount ?? '0';
+  }
+
+  if (useTargetAmount && hasQuotes) {
+    return targetAmount;
+  }
+
+  return tokenAmount;
+}
+
+/**
+ * Sum a list of fiat value.
+ *
+ * @param data - List of fiat values.
+ * @returns Total fiat value.
+ */
+function sumFiat(data: FiatValue[]): FiatValue {
+  const fiat = sumProperty(data, (item) => item.fiat);
+  const usd = sumProperty(data, (item) => item.usd);
+  return { fiat, usd };
+}
+
+/**
+ * Sum a specific property from a list of items.
+ *
+ * @param data - List of items.
+ * @param getProperty - Function to extract the property to sum from each item.
+ * @returns The summed value as a string.
+ */
+function sumProperty<DataType>(
+  data: DataType[],
+  getProperty: (item: DataType) => BigNumber.Value,
+): string {
+  return data
+    .map(getProperty)
+    .reduce<BigNumber>((total, value) => total.plus(value), new BigNumber(0))
+    .toString(10);
+}

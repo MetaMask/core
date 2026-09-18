@@ -1,6 +1,6 @@
-import * as Assert from './assert';
-import { bucketScopesBySupport, getSupportedScopeObjects } from './filter';
-import * as Supported from './supported';
+import * as Assert from './assert.js';
+import { bucketScopesBySupport, getSupportedScopeObjects } from './filter.js';
+import * as Supported from './supported.js';
 
 jest.mock('./assert', () => ({
   ...jest.requireActual('./assert'),
@@ -72,8 +72,6 @@ describe('filter', () => {
 
     it('returns supported and unsupported scopes', () => {
       MockAssert.assertScopeSupported.mockImplementation((scopeString) => {
-        // This is okay; we are inside of a mock.
-        // eslint-disable-next-line jest/no-conditional-in-test
         if (scopeString === 'eip155:1') {
           throw new Error('scope not supported');
         }
@@ -174,13 +172,9 @@ describe('filter', () => {
     it('returns only supported methods', () => {
       MockSupported.isSupportedMethod.mockImplementation(
         (scopeString, method) => {
-          // This is okay; we are inside of a mock.
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (scopeString === 'eip155:1' && method === 'method1') {
             return false;
           }
-          // This is okay; we are inside of a mock.
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (scopeString === 'eip155:5' && method === 'methodB') {
             return false;
           }
@@ -261,13 +255,9 @@ describe('filter', () => {
     it('returns only supported notifications', () => {
       MockSupported.isSupportedNotification.mockImplementation(
         (scopeString, notification) => {
-          // This is okay; we are inside of a mock.
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (scopeString === 'eip155:1' && notification === 'notification1') {
             return false;
           }
-          // This is okay; we are inside of a mock.
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (scopeString === 'eip155:5' && notification === 'notificationB') {
             return false;
           }

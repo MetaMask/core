@@ -1,22 +1,28 @@
 {
+  /**
+   * This configuration is extended by the `tsconfig.json` configuration in each package.
+   */
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "composite": true,
-    "esModuleInterop": true,
-    "lib": ["ES2020", "DOM"],
-    "module": "Node16",
-    "moduleResolution": "Node16",
     /**
      * Here we ensure that TypeScript resolves `@metamask/*` imports to the
      * uncompiled source code for packages that live in this repo.
      *
      * NOTE: This must be synchronized with the `moduleNameMapper` option in
-     * `jest.config.packages.js`.
+     * `jest.config.packages.cjs`.
      */
     "paths": {
-      "@metamask/base-controller/next": ["../base-controller/src/next"],
-      "@metamask/*": ["../*/src"]
-    },
-    "strict": true,
-    "target": "ES2020"
+      "@metamask/json-rpc-engine/v2": [
+        "${configDir}/../json-rpc-engine/src/v2/index.ts"
+      ],
+      "@metamask/profile-sync-controller/auth": [
+        "${configDir}/../profile-sync-controller/src/controllers/authentication/index.ts"
+      ],
+      "@metamask/profile-sync-controller/user-storage": [
+        "${configDir}../profile-sync-controller/src/controllers/user-storage/index.ts"
+      ],
+      "@metamask/utils/node": ["${configDir}/../utils/src/node.ts"],
+      "@metamask/*": ["${configDir}/../*/src/index.ts"]
+    }
   }
 }

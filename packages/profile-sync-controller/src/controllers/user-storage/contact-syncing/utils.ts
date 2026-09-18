@@ -3,8 +3,8 @@ import type {
   AddressType,
 } from '@metamask/address-book-controller';
 
-import { USER_STORAGE_VERSION_KEY, USER_STORAGE_VERSION } from './constants';
-import type { UserStorageContactEntry } from './types';
+import { USER_STORAGE_VERSION_KEY, USER_STORAGE_VERSION } from './constants.js';
+import type { UserStorageContactEntry } from './types.js';
 
 /**
  * Extends AddressBookEntry with sync metadata

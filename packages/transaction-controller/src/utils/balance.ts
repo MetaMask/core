@@ -1,0 +1,75 @@
+import type { NetworkClientId } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
+
+import type { TransactionMeta } from '../index.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { rpcRequest } from './provider.js';
+
+/**
+ * Get the native balance for an address.
+ *
+ * @param address - Address to get the balance for.
+ * @param messenger - The TransactionController messenger.
+ * @param networkClientId - The network client ID.
+ * @returns Balance in both human-readable and raw format.
+ */
+export async function getNativeBalance(
+  address: Hex,
+  messenger: TransactionControllerMessenger,
+  networkClientId: NetworkClientId,
+): Promise<{
+  balanceHuman: string;
+  balanceRaw: string;
+}> {
+  const balanceRawHex = (await rpcRequest({
+    messenger,
+    networkClientId,
+    method: 'eth_getBalance',
+    params: [address, 'latest'],
+  })) as Hex;
+
+  const balanceRaw = new BigNumber(balanceRawHex).toString(10);
+  const balanceHuman = new BigNumber(balanceRaw).shiftedBy(-18).toString(10);
+
+  return {
+    balanceHuman,
+    balanceRaw,
+  };
+}
+
+/**
+ * Determine if the native balance is sufficient to cover max gas cost.
+ *
+ * @param transaction - Transaction metadata.
+ * @param messenger - The TransactionController messenger.
+ * @param networkClientId - The network client ID.
+ * @returns True if the native balance is sufficient, false otherwise.
+ */
+export async function isNativeBalanceSufficientForGas(
+  transaction: TransactionMeta,
+  messenger: TransactionControllerMessenger,
+  networkClientId: NetworkClientId,
+): Promise<boolean> {
+  const {
+    txParams: { from, gas, maxFeePerGas, gasPrice },
+  } = transaction;
+  const maxFeePerGasValue = maxFeePerGas ?? gasPrice;
+
+  // Gas estimates can still be in flight (e.g. skipInitialGasEstimate). Treating
+  // missing fee fields as zero makes every balance look sufficient and clears a
+  // selected gas fee token before publish.
+  if (!gas || !maxFeePerGasValue) {
+    return false;
+  }
+
+  const gasCostRawValue = new BigNumber(gas).multipliedBy(maxFeePerGasValue);
+
+  const { balanceRaw } = await getNativeBalance(
+    from as Hex,
+    messenger,
+    networkClientId,
+  );
+
+  return gasCostRawValue.isLessThanOrEqualTo(balanceRaw);
+}
