@@ -8,10 +8,12 @@ import {
   number,
   optional,
   pattern,
+  refine,
   size,
   string,
   type,
 } from '@metamask/superstruct';
+import { CaipAssetTypeStruct } from '@metamask/utils';
 
 import type {
   AgenticCliPreference,
@@ -234,4 +236,110 @@ export function assertAssetsWatchlistBlobForWrite(
   data: unknown,
 ): asserts data is AssetsWatchlistBlob {
   assert(data, AssetsWatchlistBlobWriteSchema);
+}
+
+// ---------------------------------------------------------------------------
+// User assets (custom tokens)
+// ---------------------------------------------------------------------------
+
+/**
+ * The shape we accept on the way **in** from the server. Lenient by design:
+ * a malformed payload throws, but a well-formed payload whose entries are
+ * not valid CAIP-19 asset identifiers is still considered valid so we don't
+ * reject existing server-side data.
+ */
+const UserAssetsBlobSchema = type({
+  version: literal(1),
+  importedAssets: array(string()),
+  hiddenAssets: array(string()),
+});
+
+/** Write-side schema: every entry must be a CAIP-19 asset identifier. */
+const UserAssetsBlobWriteSchema = type({
+  version: literal(1),
+  importedAssets: array(CaipAssetTypeStruct),
+  hiddenAssets: array(CaipAssetTypeStruct),
+});
+
+/**
+ * Normalized write schema: additionally enforces mutual exclusivity — no
+ * identifier may appear in both lists. Applied to the normalized blob only,
+ * so it can never reject user input; normalization resolves conflicts first.
+ */
+const UserAssetsBlobNormalizedWriteSchema = refine(
+  UserAssetsBlobWriteSchema,
+  'MutuallyExclusiveUserAssets',
+  (blob) =>
+    blob.hiddenAssets.every(
+      (assetId) => !blob.importedAssets.includes(assetId),
+    ) || 'An identifier may not appear in both importedAssets and hiddenAssets',
+);
+
+/**
+ * The authenticated user's custom tokens: mutually exclusive lists of
+ * CAIP-19 asset identifiers the user chose to import or hide.
+ */
+export type UserAssetsBlob = Infer<typeof UserAssetsBlobSchema>;
+
+/**
+ * Asserts that the given value is a `UserAssetsBlob` (lenient read side).
+ *
+ * @param data - The value to validate.
+ * @throws If the value does not match the expected schema.
+ */
+export function assertUserAssetsBlob(
+  data: unknown,
+): asserts data is UserAssetsBlob {
+  assert(data, UserAssetsBlobSchema);
+}
+
+/**
+ * Asserts that the given value is a `UserAssetsBlob` safe to write, with
+ * CAIP-19 asset identifiers in both lists.
+ *
+ * @param data - The value to validate.
+ * @throws A `StructError` if the value does not match the expected schema.
+ */
+export function assertUserAssetsBlobForWrite(
+  data: unknown,
+): asserts data is UserAssetsBlob {
+  assert(data, UserAssetsBlobWriteSchema);
+}
+
+/**
+ * Asserts that a normalized `UserAssetsBlob` is safe to send: structurally
+ * valid and mutually exclusive (no identifier in both lists).
+ *
+ * @param blob - The normalized blob to validate.
+ * @throws A `StructError` if the blob is invalid or contains a conflict.
+ */
+export function assertUserAssetsBlobNormalized(blob: UserAssetsBlob): void {
+  assert(blob, UserAssetsBlobNormalizedWriteSchema);
+}
+
+/**
+ * Asserts that every entry is a CAIP-19 asset identifier.
+ *
+ * @param ids - The identifiers to validate.
+ * @throws A `StructError` if any entry is invalid.
+ */
+export function assertUserAssetIds(ids: string[]): void {
+  assert(ids, array(CaipAssetTypeStruct));
+}
+
+/**
+ * Normalizes a `UserAssetsBlob` for persistence: de-duplicates both lists
+ * (order-preserving) and resolves conflicts fail-open — an identifier in
+ * both lists stays in `importedAssets` and is dropped from `hiddenAssets`.
+ *
+ * @param blob - The blob to normalize.
+ * @returns A new, normalized blob; the input is not mutated.
+ */
+export function normalizeUserAssetsBlob(blob: UserAssetsBlob): UserAssetsBlob {
+  const importedAssets = [...new Set(blob.importedAssets)];
+  const importedAssetIds = new Set(importedAssets);
+  const hiddenAssets = [...new Set(blob.hiddenAssets)].filter(
+    (assetId) => !importedAssetIds.has(assetId),
+  );
+  return { version: 1, importedAssets, hiddenAssets };
 }
