@@ -101,12 +101,11 @@ export type KycControllerFetchSessionDisclaimersAction = {
  * from the POST. A 409 is re-checked with a GET: continue only when every
  * accepted document is now consented, otherwise fail closed.
  *
- * @param consents - T&C2 flags mapped onto catalog documents.
- * @param consents.providerDisclaimersAccepted - Accepted Sumsub disclaimer records.
- * @param consents.idosDisclaimersAccepted - Accepted idOS disclaimer records.
- * @param consents.credentialReusabilityConsentGiven - Whether credential
+ * @param params - Accepted session-disclaimer records.
+ * @param params.providerDisclaimersAccepted - Accepted Sumsub disclaimer records.
+ * @param params.idosDisclaimersAccepted - Accepted idOS disclaimer records.
+ * @param params.credentialReusabilityConsentGiven - Whether credential
  * reuse was accepted.
- * @param generation - Flow generation captured by the caller.
  */
 export type KycControllerRecordSessionDisclaimersAction = {
   type: `KycController:recordSessionDisclaimers`;
@@ -171,6 +170,7 @@ export type KycControllerHasCompletedVendorDisclaimersAction = {
  * @param params - Optional SDK presentation options.
  * @param params.locale - BCP-47 locale for the SDK UI.
  * @param params.debug - Enables SDK debug logging.
+ * @returns A promise that settles when the provider flow finishes.
  */
 export type KycControllerLaunchProviderFlowAction = {
   type: `KycController:launchProviderFlow`;

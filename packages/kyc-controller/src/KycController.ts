@@ -470,7 +470,7 @@ export class KycController extends BaseController<
     const token = this.#sessionStatusPollToken;
 
     const tick = async (): Promise<void> => {
-      const shouldStop = await this.#pollSessionStatusOnce(token);
+      const shouldStop = await this.#pollSessionStatusOnce(sessionId, token);
       if (shouldStop) {
         return;
       }
@@ -488,28 +488,23 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Fetches session status for the current `sessionStatus.id` and records it
-   * when it differs from state.
+   * Fetches session status for the polled session and records it when it
+   * differs from state.
    *
+   * @param sessionId - Session the loop started for.
    * @param token - Polling token captured when the loop started.
    * @returns Whether the loop should stop.
    */
-  async #pollSessionStatusOnce(token: number): Promise<boolean> {
-    const sessionId = this.state.sessionStatus?.id;
-    if (!sessionId) {
-      this.#stopSessionStatusPolling();
-      return true;
-    }
-
+  async #pollSessionStatusOnce(
+    sessionId: string,
+    token: number,
+  ): Promise<boolean> {
     try {
       const sessionStatus = await this.messenger.call(
         'KycService:getSessionStatus',
         { sessionId },
       );
       if (this.#sessionStatusPollToken !== token) {
-        return true;
-      }
-      if (this.state.sessionStatus?.id !== sessionId) {
         return true;
       }
 
@@ -922,14 +917,12 @@ export class KycController extends BaseController<
 
         // Once the SDK completes, the authoritative verification decision comes
         // from the UKYC backend, not the SDK result. Fetch session status once.
-        if (reachedCompletion && this.state.sessionStatus) {
+        const currentSessionStatus = this.state.sessionStatus;
+        if (reachedCompletion && currentSessionStatus) {
           // TODO: is this too optimistic?
           this.update((state) => {
-            if (!state.sessionStatus) {
-              return;
-            }
             state.sessionStatus = {
-              ...state.sessionStatus,
+              ...currentSessionStatus,
               finalStatus: 'pending',
             };
           });

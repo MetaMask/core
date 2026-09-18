@@ -181,6 +181,35 @@ describe('KycController', () => {
       );
     });
 
+    it('throws when vendor does not match the initialized session', async () => {
+      await withController(
+        { options: { state: { vendor: 'moonpay' } } },
+        async ({ controller }) => {
+          await expect(
+            controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+          ).rejects.toThrow(
+            'KycController already initialized with a different vendor',
+          );
+        },
+      );
+    });
+
+    it('throws when the resolved country does not match the initialized session', async () => {
+      await withController(
+        { options: { state: { geoCountry: 'USA' } } },
+        async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('DEU');
+
+          await expect(
+            controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+          ).rejects.toThrow(
+            'KycController already initialized with a different geoCountry',
+          );
+          expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('does not create a UKYC session when creating the vendor customer fails', async () => {
       await withController(async ({ controller, handlers }) => {
         handlers.getSessionStatusForVendor.mockResolvedValue(null);
@@ -242,6 +271,21 @@ describe('KycController', () => {
           'No session was found',
         );
       });
+    });
+
+    it('does not start polling once the session is terminal', async () => {
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('approved') } },
+        },
+        async ({ controller, handlers }) => {
+          expect(controller.refreshSessionStatus()).toStrictEqual(
+            sessionStatus('approved'),
+          );
+          await Promise.resolve();
+          expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+        },
+      );
     });
 
     it('returns the current session and starts polling when not terminal', async () => {
@@ -332,6 +376,72 @@ describe('KycController', () => {
       },
     );
 
+    it('keeps polling while finalStatus is not terminal', async () => {
+      jest.useFakeTimers();
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('pending'),
+          );
+
+          controller.startSessionStatusPolling();
+          await flushPoll();
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+
+          await jest.advanceTimersByTimeAsync(15_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+        },
+      );
+    });
+
+    it('polls again after a failed request', async () => {
+      jest.useFakeTimers();
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus
+            .mockRejectedValueOnce(new Error('network down'))
+            .mockResolvedValue(sessionStatus('approved'));
+
+          controller.startSessionStatusPolling();
+          await flushPoll();
+          expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
+
+          await jest.advanceTimersByTimeAsync(15_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
+          expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
+        },
+      );
+    });
+
+    it('cancels a scheduled poll when reset lands between ticks', async () => {
+      jest.useFakeTimers();
+      await withController(
+        {
+          options: { state: { sessionStatus: sessionStatus('pending') } },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('pending'),
+          );
+
+          controller.startSessionStatusPolling();
+          await flushPoll();
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+
+          await controller.reset();
+
+          await jest.advanceTimersByTimeAsync(60_000);
+          expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
     it('discards an in-flight poll after reset', async () => {
       await withController(
         {
@@ -375,6 +485,21 @@ describe('KycController', () => {
         expect(handlers.fetchSessionDisclaimersByCountry).toHaveBeenCalledWith({
           country: 'USA',
         });
+      });
+    });
+
+    it('throws when both sessionId and country are provided', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await expect(
+          controller.fetchSessionDisclaimers({
+            sessionId: 'sid',
+            country: 'USA',
+          } as unknown as { sessionId: string } | { country: string }),
+        ).rejects.toThrow(/provide exactly one of sessionId or country/u);
+        expect(
+          handlers.fetchSessionDisclaimersBySessionId,
+        ).not.toHaveBeenCalled();
+        expect(handlers.fetchSessionDisclaimersByCountry).not.toHaveBeenCalled();
       });
     });
 
@@ -546,6 +671,43 @@ describe('KycController', () => {
       );
     });
 
+    it('throws when geoCountry is missing', async () => {
+      await withController(
+        { options: { state: { vendor: 'iron' } } },
+        async ({ controller, handlers }) => {
+          await expect(
+            controller.hasCompletedVendorDisclaimers(),
+          ).rejects.toThrow('No geoCountry was found');
+          expect(handlers.fetchVendorDisclaimers).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('returns false when the fetched catalog has unaccepted documents', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              vendor: 'iron',
+              geoCountry: 'USA',
+              vendorDisclaimersAccepted: {
+                moonpay: null,
+                iron: { disclaimerIds: ['d1'] },
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.fetchVendorDisclaimers.mockResolvedValue([
+            { id: 'd1', display_name: 'T1', url: 'u1' },
+            { id: 'd2', display_name: 'T2', url: 'u2' },
+          ]);
+
+          expect(await controller.hasCompletedVendorDisclaimers()).toBe(false);
+        },
+      );
+    });
+
     it('returns true when persisted Iron ids cover the fetched catalog', async () => {
       await withController(
         {
@@ -585,6 +747,77 @@ describe('KycController', () => {
           expect(launcher.launch).toHaveBeenCalled();
         },
       );
+    });
+
+    it('marks the session pending and starts polling once the SDK completes', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('retry') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(
+            async (params: {
+              onStatusChange: (previous: string, next: string) => void;
+              onTokenExpiration: () => Promise<string>;
+            }) => {
+              expect(await params.onTokenExpiration()).toBe('aat');
+              params.onStatusChange('Initial', 'Ready');
+              params.onStatusChange('Ready', 'Completed');
+              return { status: 'Initial' };
+            },
+          );
+          handlers.getSessionStatus.mockRejectedValue(new Error('unavailable'));
+
+          await controller.launchProviderFlow({});
+
+          expect(launcher.launch).toHaveBeenCalledWith(
+            expect.objectContaining({ locale: 'en', debug: false }),
+          );
+          expect(handlers.createJourney).toHaveBeenCalledTimes(2);
+          expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
+          expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+        },
+      );
+    });
+
+    it('leaves the session alone when it was cleared while the SDK ran', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockImplementation(async () => {
+            await controller.reset();
+            return { status: 'Completed' };
+          });
+
+          await controller.launchProviderFlow({});
+
+          expect(controller.state.sessionStatus).toBeNull();
+          expect(handlers.getSessionStatus).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does nothing when the SumSub SDK is unavailable', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        async ({ controller, handlers, launcher }) => {
+          launcher.isAvailable.mockReturnValue(false);
+
+          await controller.launchProviderFlow({});
+
+          expect(handlers.createJourney).not.toHaveBeenCalled();
+          expect(launcher.launch).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does nothing when there is no session', async () => {
+      await withController(async ({ controller, handlers, launcher }) => {
+        await controller.launchProviderFlow({});
+
+        expect(handlers.createJourney).not.toHaveBeenCalled();
+        expect(launcher.launch).not.toHaveBeenCalled();
+      });
     });
   });
 

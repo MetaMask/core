@@ -126,10 +126,6 @@ const SUMSUB_COMPLETED_STATUSES: ReadonlySet<string> =
     'TemporarilyDeclined',
   ]);
 
-// The only status meaning the SDK could not run, rather than reporting how far
-// the applicant got before closing it.
-const SUMSUB_FAILED_STATUS: KycSumSubSdkStatus = 'Failed';
-
 /**
  * Checks whether a SumSub status means the applicant submitted the flow.
  *
@@ -138,19 +134,4 @@ const SUMSUB_FAILED_STATUS: KycSumSubSdkStatus = 'Failed';
  */
 export function isSumSubFlowCompleted(status: unknown): boolean {
   return typeof status === 'string' && SUMSUB_COMPLETED_STATUSES.has(status);
-}
-
-/**
- * Checks whether the SDK failed to run, as opposed to the applicant closing it
- * early. Only the former is worth reporting as an error.
- *
- * @param result - The result the launcher resolved with.
- * @returns Whether the SDK failed to run.
- */
-export function isSumSubLaunchFailure(
-  result: Record<string, unknown>,
-): boolean {
-  return (
-    result.status === SUMSUB_FAILED_STATUS || typeof result.error === 'string'
-  );
 }
