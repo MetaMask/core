@@ -37,6 +37,10 @@
       "types": "./dist/types/index.d.ts",
       "default": "./dist/types/index.js"
     },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "default": "./dist/utils/index.js"
+    },
     "./utils/*": {
       "types": "./dist/utils/*.d.ts",
       "default": "./dist/utils/*.js"
@@ -87,6 +91,7 @@
     "@metamask/network-controller": "^37.0.0",
     "@metamask/profile-sync-controller": "^32.1.1",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
+    "@metamask/subscription-controller": "^9.1.0",
     "@metamask/transaction-controller": "^70.1.0",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",

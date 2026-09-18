@@ -27,12 +27,20 @@ import type {
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
+import type { SubscriptionControllerGetBenefitsAction } from '@metamask/subscription-controller';
 import type { TransactionControllerAddTransactionAction } from '@metamask/transaction-controller';
 
 /**
  * Actions from other controllers that PerpsController is allowed to call.
+ *
+ * `SubscriptionController:getBenefits` is the real action this monorepo's
+ * `SubscriptionController` already exposes, imported rather than restated so
+ * its signature cannot drift from the controller that serves it. A client that
+ * does not register it keeps the injected `subscription` dependency, which
+ * {@link RewardsIntegrationService} falls back to.
  */
 export type PerpsControllerAllowedActions =
+  | SubscriptionControllerGetBenefitsAction
   | GeolocationControllerGetGeolocationAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
