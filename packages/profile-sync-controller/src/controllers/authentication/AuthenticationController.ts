@@ -305,7 +305,6 @@ export class AuthenticationController extends BaseController<
       this.messenger.subscribe('KeyringController:lock', () => {
         this.#authSessionEpoch += 1;
         this.#isUnlocked = false;
-        this.#clearEnrolledCredentials();
       });
     },
   };
@@ -946,7 +945,6 @@ export class AuthenticationController extends BaseController<
       type,
       async () =>
         await this.#auth.completeMfaEnrollment(
-          type,
           request.flowId,
           request.proof,
           primaryEntropySourceId,

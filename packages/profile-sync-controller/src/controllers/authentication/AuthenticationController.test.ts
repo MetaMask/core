@@ -2682,15 +2682,8 @@ describe('MFA credential enrollment', () => {
       'wallet reset',
       (controller: AuthenticationController): void => controller.clearState(),
     ],
-    [
-      'lock',
-      (
-        _controller: AuthenticationController,
-        baseMessenger: RootMessenger,
-      ): void => baseMessenger.publish('KeyringController:lock'),
-    ],
   ])('clears cached credentials on %s', (_name, act) => {
-    const { controller, baseMessenger } = createController({
+    const { controller } = createController({
       state: {
         ...mockSignedInState(),
         enrolledCredentials: [
@@ -2704,19 +2697,9 @@ describe('MFA credential enrollment', () => {
       },
     });
 
-    act(controller, baseMessenger);
+    act(controller);
 
     expect(controller.state.enrolledCredentials).toStrictEqual([]);
-  });
-
-  it('does not write state on lock when the cache is already empty', () => {
-    const { baseMessenger } = createController();
-    const listener = jest.fn();
-    baseMessenger.subscribe('AuthenticationController:stateChange', listener);
-
-    baseMessenger.publish('KeyringController:lock');
-
-    expect(listener).not.toHaveBeenCalled();
   });
 
   it('rejects MFA calls while the wallet is locked', async () => {
