@@ -4,11 +4,12 @@ import type { CodeownersSection } from './types.js';
  * Renders a section in the CODEOWNERS file. This can either be a team section,
  * a package section, or an overrides section.
  *
- * A team section is a series of package sections. An override section is like a
- * package section: it's a series of rules, where each rule has a glob pattern
- * followed by the teams or users that own the files or directories which match
- * that pattern. For each rule, there will be four spaces between the pattern
- * and owners.
+ * A team section is a series of package sections (i.e., it has subsections). An
+ * overrides section is like a package section (except it's listed last in the
+ * CODEOWNERS file). A package/overrides section is a series of rules, where
+ * each rule has a glob pattern followed by the teams or users that own the
+ * files or directories which match that pattern. For each rule, there will be
+ * four spaces between the pattern and owners.
  *
  * @param section - The section to render.
  * @param headingLevel - The Markdown heading level to use.
