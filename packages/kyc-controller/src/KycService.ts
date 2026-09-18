@@ -224,6 +224,8 @@ const SessionStatusResponseStruct = type({
   kycStatus: string(),
   vendor: string(),
   vendorStatus: string(),
+  consentStatus: optional(string()),
+  idOSStatus: optional(string()),
 });
 
 // Vendor customer subset — `type` (not `object`) keeps extra vendor fields from
@@ -492,7 +494,7 @@ export class KycService extends BaseDataService<
    * @returns The disclaimers.
    */
   async fetchVendorDisclaimers({
-    vendor,
+    vendor = 'moonpay',
     country,
   }: {
     vendor?: KycVendor;
@@ -774,7 +776,7 @@ export class KycService extends BaseDataService<
     const data = await this.#requestJson(url, {
       method: 'POST',
       body: JSON.stringify({
-        vendorId: params.vendor,
+        vendorId: params.vendor ?? 'moonpay',
         vendorUserId: 'mockedId',
         jwtToken: 'mock-jwt-token', // TODO: Remove this from the kyc-api
         sessionClientPublicKey: params.sessionClientPublicKey,

@@ -80,7 +80,6 @@ export function areVendorDisclaimersCompleted(
  * @param accepted - Existing vendor-disclaimer acceptance map.
  * @param vendor - Identity vendor being accepted.
  * @param params - Acceptance payload for the vendor.
- * @param params.termsAcceptedAt - MoonPay acceptance timestamp.
  * @param params.disclaimerIds - Iron disclaimer ids.
  * @returns The updated acceptance map.
  */

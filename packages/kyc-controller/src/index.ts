@@ -16,19 +16,19 @@ export type {
   FetchSessionDisclaimersParams,
 } from './KycController.js';
 export type {
-  KycControllerAcceptTermsAndStartSessionAction,
-  KycControllerCheckKycRequiredAction,
-  KycControllerClearSavedTermsAction,
   KycControllerClearStateAction,
-  KycControllerCreateVendorCustomerAction,
   KycControllerFetchSessionDisclaimersAction,
-  KycControllerGetCustomerIdentityAction,
-  KycControllerGetKycStatusAction,
-  KycControllerGetSessionStatusAction,
-  KycControllerInitializeAction,
-  KycControllerLoadDisclaimersAction,
+  KycControllerFetchVendorDisclaimersAction,
+  KycControllerGetSessionStatusForVendorAction,
+  KycControllerHasCompletedSessionDisclaimersAction,
+  KycControllerHasCompletedVendorDisclaimersAction,
+  KycControllerLaunchProviderFlowAction,
+  KycControllerRecordSessionDisclaimersAction,
+  KycControllerRecordVendorDisclaimersAction,
+  KycControllerRefreshSessionStatusAction,
   KycControllerResetAction,
-  KycControllerStartSumSubAction,
+  KycControllerStartSessionAction,
+  KycControllerStartSessionStatusPollingAction,
 } from './KycController-method-action-types.js';
 
 export { KycService, serviceName } from './KycService.js';
@@ -74,11 +74,7 @@ export type {
   KycServiceSubmitVendorDisclaimersAction,
 } from './KycService-method-action-types.js';
 
-export {
-  selectIsKycRequiredForProduct,
-  selectKycPhase,
-  selectKycSumSub,
-} from './selectors.js';
+export { selectKycSessionStatus, selectKycVendor } from './selectors.js';
 
 export { alpha2ToAlpha3, ALPHA2_TO_ALPHA3 } from './countryCodes.js';
 export { decryptCredentials, generateKeyPair } from './crypto.js';

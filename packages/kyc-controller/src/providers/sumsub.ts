@@ -147,7 +147,9 @@ export function isSumSubFlowCompleted(status: unknown): boolean {
  * @param result - The result the launcher resolved with.
  * @returns Whether the SDK failed to run.
  */
-export function isSumSubLaunchFailure(result: Record<string, unknown>): boolean {
+export function isSumSubLaunchFailure(
+  result: Record<string, unknown>,
+): boolean {
   return (
     result.status === SUMSUB_FAILED_STATUS || typeof result.error === 'string'
   );

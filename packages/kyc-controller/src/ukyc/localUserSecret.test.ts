@@ -42,9 +42,9 @@ describe('UKYC localUserSecret', () => {
         .mockResolvedValueOnce(undefined);
       const store = new UkycLocalUserSecretStore({ call });
 
-      await expect(
-        store.get(UKYC_LOCAL_USER_SECRET_PATH, 'entropy-1'),
-      ).resolves.toBe('stored');
+      expect(await store.get(UKYC_LOCAL_USER_SECRET_PATH, 'entropy-1')).toBe(
+        'stored',
+      );
       await store.set(UKYC_LOCAL_USER_SECRET_PATH, SECRET_BASE64, 'entropy-1');
 
       expect(call).toHaveBeenNthCalledWith(

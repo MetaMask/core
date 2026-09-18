@@ -50,10 +50,7 @@ export class UkycLocalUserSecretStore {
    * @param entropySourceId - Optional HD keyring entropy source id.
    * @returns The stored value, or `null`.
    */
-  async get(
-    path: string,
-    entropySourceId?: string,
-  ): Promise<string | null> {
+  async get(path: string, entropySourceId?: string): Promise<string | null> {
     return this.#messenger.call(
       'UserStorageController:performGetStorage',
       path as `${string}.${string}`,

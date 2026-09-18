@@ -1,6 +1,6 @@
 import {
   consentRecordsFromAcceptedList,
-  hasCompletedSessionDisclaimers,
+  areSessionDisclaimersCompleted,
 } from './sessionDisclaimers.js';
 import type { KycConsentDocument, KycSessionDisclaimers } from './types.js';
 
@@ -25,10 +25,7 @@ function document(
 describe('consentRecordsFromAcceptedList', () => {
   it('returns an empty list when nothing was accepted', () => {
     expect(
-      consentRecordsFromAcceptedList(
-        [document({ key: 'tos' })],
-        [],
-      ),
+      consentRecordsFromAcceptedList([document({ key: 'tos' })], []),
     ).toStrictEqual([]);
   });
 
@@ -83,11 +80,11 @@ describe('consentRecordsFromAcceptedList', () => {
         [document({ key: 'tos', version: '2' })],
         [{ key: 'tos', version: '1' }],
       ),
-      ).toStrictEqual([]);
+    ).toStrictEqual([]);
   });
 });
 
-describe('hasCompletedSessionDisclaimers', () => {
+describe('areSessionDisclaimersCompleted', () => {
   /**
    * Builds a session disclaimer catalog for tests.
    *
@@ -106,20 +103,18 @@ describe('hasCompletedSessionDisclaimers', () => {
   }
 
   it('returns true when every document is consented and reuse consent is given', () => {
-    expect(hasCompletedSessionDisclaimers(catalog())).toBe(true);
+    expect(areSessionDisclaimersCompleted(catalog())).toBe(true);
   });
 
   it('returns true when both catalogs are empty and reuse consent is given', () => {
     expect(
-      hasCompletedSessionDisclaimers(
-        catalog({ idOS: [], kycProvider: [] }),
-      ),
+      areSessionDisclaimersCompleted(catalog({ idOS: [], kycProvider: [] })),
     ).toBe(true);
   });
 
   it('returns false when credential reuse consent is not given', () => {
     expect(
-      hasCompletedSessionDisclaimers(
+      areSessionDisclaimersCompleted(
         catalog({ credentialReusabilityConsentGiven: false }),
       ),
     ).toBe(false);
@@ -127,7 +122,7 @@ describe('hasCompletedSessionDisclaimers', () => {
 
   it('returns false when an idOS document is not consented', () => {
     expect(
-      hasCompletedSessionDisclaimers(
+      areSessionDisclaimersCompleted(
         catalog({
           idOS: [document({ key: 'idos-tos', consented: false })],
         }),
@@ -137,7 +132,7 @@ describe('hasCompletedSessionDisclaimers', () => {
 
   it('returns false when a KYC-provider document is not consented', () => {
     expect(
-      hasCompletedSessionDisclaimers(
+      areSessionDisclaimersCompleted(
         catalog({
           kycProvider: [document({ key: 'sumsub-tos', consented: false })],
         }),

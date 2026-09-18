@@ -265,7 +265,7 @@ describe('KycService', () => {
         .post(
           '/sessions',
           (body: Record<string, unknown>) =>
-            body.jwtToken === 'jwt' &&
+            body.jwtToken === 'mock-jwt-token' &&
             body.vendorId === 'moonpay' &&
             body.sessionClientPublicKey === SESSION_CLIENT_PUBLIC_KEY &&
             body.residenceCountry === RESIDENCE_COUNTRY &&
@@ -277,7 +277,6 @@ describe('KycService', () => {
 
       expect(
         await service.createUkycSession({
-          jwtToken: 'jwt',
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: { foo: 'bar' },
@@ -291,7 +290,6 @@ describe('KycService', () => {
 
       await expect(
         service.createUkycSession({
-          jwtToken: 'jwt',
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: {},
@@ -1011,7 +1009,6 @@ describe('KycService', () => {
 
       expect(
         await service.createUkycSession({
-          jwtToken: 'jwt',
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendorMetadata: { moonPayAccessToken: 'tok' },
@@ -1039,7 +1036,6 @@ describe('KycService', () => {
 
       expect(
         await service.createUkycSession({
-          jwtToken: 'jwt',
           sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
           residenceCountry: RESIDENCE_COUNTRY,
           vendor: 'iron',

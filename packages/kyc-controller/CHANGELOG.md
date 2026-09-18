@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `KycController.hasCompletedVendorDisclaimers`, which fetches the vendor T&C catalog and returns whether persisted `vendorDisclaimersAccepted` covers every fetched disclaimer.
 - Add `KycController.recordVendorDisclaimers`, which records vendor T&Cs via `KycService.submitVendorDisclaimers` and persists accepted ids on state.
 - Add `KycController.startSessionStatusPolling`, which polls `GET /sessions/{id}/status` for `state.sessionStatus.id` until `finalStatus` is `approved`, `rejected`, or `retry`.
+- Expose current `KycController` methods as messenger actions: `startSession`, `reset`, `clearState`, `getSessionStatusForVendor`, `refreshSessionStatus`, `startSessionStatusPolling`, `fetchSessionDisclaimers`, `recordSessionDisclaimers`, `hasCompletedSessionDisclaimers`, `fetchVendorDisclaimers`, `recordVendorDisclaimers`, `hasCompletedVendorDisclaimers`, and `launchProviderFlow`.
 
 ### Changed
 
@@ -32,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Remove MoonPay Check/Auth frame methods from `KycController`: `handleFrameMessage`, `buildCheckFrameUrl`, `buildAuthFrameUrl`, and `buildResetFrameUrl`. Use `MoonPayFrameHandler` directly for frame protocol, URLs, and message handling.
 - **BREAKING:** Remove `KycService.checkKycRequired`, `CheckKycRequiredParams`, and the `KycService:checkKycRequired` messenger action.
 - **BREAKING:** Remove `KycService.fetchKycStatus`, `KycService:fetchKycStatus`, `KycController.refreshKycStatus`, `KycController:refreshKycStatus`, `KycUserStatus`, `KycUserStatusResponse`, and `KycController:statusChanged` (`KycControllerStatusChangedEvent`).
+- **BREAKING:** Replace the previous `KycController` messenger method actions. Removed: `initialize`, `createVendorCustomer`, `loadDisclaimers`, `acceptTermsAndStartSession`, `clearSavedTerms`, `checkKycRequired`, `getKycStatus`, `getCustomerIdentity`, `startSumSub`, and `getSessionStatus`.
+- **BREAKING:** Replace `selectKycPhase`, `selectKycSumSub`, and `selectIsKycRequiredForProduct` with `selectKycVendor` and `selectKycSessionStatus`.
 
 ## [0.3.0]
 

@@ -140,14 +140,13 @@ describe('vendorDisclaimers', () => {
   });
 
   describe('recordVendorDisclaimerAcceptance', () => {
-    it('records MoonPay acceptance', () => {
+    it('leaves MoonPay acceptance unchanged', () => {
+      const accepted = { moonpay: null, iron: null };
       expect(
-        recordVendorDisclaimerAcceptance(
-          { moonpay: null, iron: null },
-          'moonpay',
-          { termsAcceptedAt: 't', disclaimerIds: [] },
-        ),
-      ).toStrictEqual({ moonpay: { termsAcceptedAt: 't' }, iron: null });
+        recordVendorDisclaimerAcceptance(accepted, 'moonpay', {
+          disclaimerIds: [],
+        }),
+      ).toBe(accepted);
     });
 
     it('records Iron acceptance', () => {
@@ -155,7 +154,7 @@ describe('vendorDisclaimers', () => {
         recordVendorDisclaimerAcceptance(
           { moonpay: null, iron: null },
           'iron',
-          { termsAcceptedAt: 't', disclaimerIds: ['d1'] },
+          { disclaimerIds: ['d1'] },
         ),
       ).toStrictEqual({ moonpay: null, iron: { disclaimerIds: ['d1'] } });
     });
@@ -164,7 +163,6 @@ describe('vendorDisclaimers', () => {
       const accepted = { moonpay: null, iron: null };
       expect(
         recordVendorDisclaimerAcceptance(accepted, 'unknown' as 'moonpay', {
-          termsAcceptedAt: 't',
           disclaimerIds: ['d1'],
         }),
       ).toBe(accepted);
