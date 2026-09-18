@@ -4,6 +4,7 @@ import type {
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
+import { selectHdKeyringEntropySourceIds } from '@metamask/keyring-controller';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
@@ -36,10 +37,7 @@ import {
   PairConflictError,
 } from '../../sdk/index.js';
 import type { MetaMetricsAuth } from '../../shared/types/services.js';
-import {
-  getHdKeyringEntropySourceIds,
-  getPrimaryHdKeyringEntropySourceId,
-} from '../../shared/utils/entropy-source.js';
+import { getPrimaryHdKeyringEntropySourceId } from '../../shared/utils/entropy-source.js';
 import { getHdKeyringSeed } from '../../shared/utils/hd-keyring-seed.js';
 import {
   getMessageSigningPublicKey,
@@ -351,8 +349,8 @@ export class AuthenticationController extends BaseController<
    * @returns The HD keyring metadata IDs, primary first.
    */
   #getHdKeyringEntropySourceIds(): string[] {
-    const { keyrings } = this.messenger.call('KeyringController:getState');
-    return getHdKeyringEntropySourceIds(keyrings);
+    const keyringState = this.messenger.call('KeyringController:getState');
+    return selectHdKeyringEntropySourceIds(keyringState);
   }
 
   /**
@@ -365,8 +363,8 @@ export class AuthenticationController extends BaseController<
    * the wallet is unlocked.
    */
   #getPrimaryEntropySourceId(): string {
-    const { keyrings } = this.messenger.call('KeyringController:getState');
-    return getPrimaryHdKeyringEntropySourceId(keyrings);
+    const keyringState = this.messenger.call('KeyringController:getState');
+    return getPrimaryHdKeyringEntropySourceId(keyringState);
   }
 
   /**
