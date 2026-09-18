@@ -454,6 +454,22 @@ describe('MFA services', () => {
     ).rejects.toMatchObject({ mfaCode: 'invalid_response', status: 200 });
   });
 
+  it('salvages a message from an error body that fails strict validation', async () => {
+    mockFetch.mockResolvedValueOnce(
+      response(
+        { code: 123, message: 'Something broke upstream' },
+        { status: 400 },
+      ),
+    );
+
+    await expect(
+      mfaEnroll(Env.PRD, 'access-token', { credential_type: 'passkey' }),
+    ).rejects.toMatchObject({
+      mfaCode: 'server_error',
+      message: expect.stringContaining('Something broke upstream'),
+    });
+  });
+
   it('rejects malformed embedded JSON and expiration dates', async () => {
     expect(() => parsePasskeyCreateData('{')).toThrow(
       /MFA\[invalid_response\]/u,

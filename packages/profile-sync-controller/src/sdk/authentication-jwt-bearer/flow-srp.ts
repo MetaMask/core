@@ -17,7 +17,7 @@ import {
   mfaVerify,
   mfaVerifyComplete,
 } from './mfa/services.js';
-import type { MfaAssertion } from './mfa/services.js';
+import type { MfaStepUpAssertion } from './mfa/services.js';
 import type {
   EnrolledCredential,
   EnrollmentChallenge,
@@ -346,7 +346,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     flowId: string,
     proof: StepUpProof,
     entropySourceId?: string,
-  ): Promise<MfaAssertion> {
+  ): Promise<MfaStepUpAssertion> {
     const accessToken = await this.getAccessToken(entropySourceId);
     return await mfaVerifyComplete(this.#config.env, accessToken, {
       credential_type: type,

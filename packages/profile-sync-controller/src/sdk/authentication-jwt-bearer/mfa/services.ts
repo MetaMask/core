@@ -17,6 +17,7 @@ import {
   OtpResendCooldownError,
   TooManyAttemptsError,
 } from '../../errors.js';
+import { asRecord } from '../../utils/as-record.js';
 import {
   AuthenticationResponseJSONStruct,
   MfaCredentialsResponseStruct,
@@ -73,7 +74,7 @@ type VerificationServiceResult = {
   publicKey?: PasskeyRequestOptions;
 };
 
-export type MfaAssertion = {
+export type MfaStepUpAssertion = {
   /** AAL2 assertion JWT to exchange at Hydra for an elevated access token. */
   token: string;
   /** Assertion lifetime in seconds. */
@@ -190,15 +191,33 @@ function parseRetryAfter(response: Response): number | undefined {
   return Number.isNaN(date) ? undefined : Math.max(0, date - Date.now());
 }
 
+/**
+ * Reads and validates the JSON error body of a failed MFA request.
+ *
+ * When the body parses as JSON but does not match the documented error
+ * shape, a `message` field is salvaged if present so callers still get a
+ * useful diagnostic instead of a content-free fallback.
+ *
+ * @param response - The failed response.
+ * @returns The validated error body, a best-effort salvage of it, or
+ * undefined when the body could not be parsed as JSON at all.
+ */
 async function readErrorBody(
   response: Response,
 ): Promise<{ code?: string; message: string } | undefined> {
+  let body: unknown;
   try {
-    const body: unknown = await response.json();
+    body = await response.json();
+  } catch {
+    return undefined;
+  }
+
+  try {
     assertValidMfaResponse(body, MfaErrorResponseStruct);
     return body;
   } catch {
-    return undefined;
+    const message = asRecord(body)?.message;
+    return typeof message === 'string' ? { message } : undefined;
   }
 }
 
@@ -406,7 +425,7 @@ export async function mfaVerifyComplete(
   env: Env,
   accessToken: string,
   params: VerificationCompletionParams,
-): Promise<MfaAssertion> {
+): Promise<MfaStepUpAssertion> {
   let body: MfaVerifyCompleteRequest = {
     credential_type: params.credential_type,
     flow_id: params.flow_id,

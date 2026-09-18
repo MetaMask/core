@@ -21,7 +21,7 @@ export type {
   RegistrationResponseJSON,
   AuthenticationResponseJSON,
 } from './authentication-jwt-bearer/mfa/types.js';
-export type { MfaAssertion } from './authentication-jwt-bearer/mfa/services.js';
+export type { MfaStepUpAssertion } from './authentication-jwt-bearer/mfa/services.js';
 export * from './user-storage.js';
 export * from './errors.js';
 export * from './utils/messaging-signing-snap-requests.js';

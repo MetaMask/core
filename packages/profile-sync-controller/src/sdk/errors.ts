@@ -1,15 +1,8 @@
 import type { MfaErrorCode } from './authentication-jwt-bearer/mfa/types.js';
 import { HTTP_STATUS_CODES } from './constants.js';
+import { asRecord } from './utils/as-record.js';
 
 type ExtensibleMfaErrorCode = MfaErrorCode | (string & {});
-
-type ErrorRecord = Record<string, unknown>;
-
-function asRecord(value: unknown): ErrorRecord | undefined {
-  return typeof value === 'object' && value !== null
-    ? (value as ErrorRecord)
-    : undefined;
-}
 
 /**
  * Base error for MFA operations.

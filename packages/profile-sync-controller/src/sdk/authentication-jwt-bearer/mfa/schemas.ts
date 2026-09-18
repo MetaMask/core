@@ -21,6 +21,7 @@ import {
 import type { Struct } from '@metamask/superstruct';
 
 import { ElevatedTokenInvalidError, MfaError } from '../../errors.js';
+import { asRecord } from '../../utils/as-record.js';
 
 export const MFA_CREDENTIAL_TYPES = ['passkey', 'email_otp'] as const;
 
@@ -301,12 +302,6 @@ export function assertValidMfaRequest<Value>(
     /* istanbul ignore next */
     throw error;
   }
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === 'object' && value !== null
-    ? (value as Record<string, unknown>)
-    : undefined;
 }
 
 /**
