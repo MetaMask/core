@@ -37,8 +37,7 @@ import type {
   KycVendorDisclaimersAccepted,
 } from './types.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
-import { verifyJwtChain } from './ukyc/jwtChain.js';
-import type { Jwk } from './ukyc/jwtChain.js';
+import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
 import {
   getOrCreateLocalUserSecret,
   UkycLocalUserSecretStore,
@@ -665,8 +664,8 @@ export class KycController extends BaseController<
         this.messenger.call('KycService:fetchIdosEnclaveJwks'),
         this.messenger.call('KycService:fetchIdosRelayJwks'),
       ]);
-    this.#assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
-    this.#assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+    assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
+    assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
   }
 
   /**
@@ -714,23 +713,5 @@ export class KycController extends BaseController<
     );
 
     return { wrappedEncryptionDataKey, wrappedUkycCapabilityToken };
-  }
-
-  /**
-   * Confirms that an encryption schema's `serverPublicKey.x` matches the
-   * `sessionServerPublicKeyX` attested inside its verified `jwtChain`. Rejects
-   * a key that was swapped out-of-band after the chain was signed.
-   *
-   * @param keys - The issuer JWKS used to verify the chain (idOS enclave for
-   * `encryptionDataKey`, idOS relay for `ukycCapabilityToken`).
-   * @param schema - The encryption schema returned by session creation.
-   */
-  #assertAttestedServerPublicKey(keys: Jwk[], schema: EncryptionSchema): void {
-    const jwtChainPayload = verifyJwtChain(keys, schema.jwtChain);
-    if (jwtChainPayload.sessionServerPublicKeyX !== schema.serverPublicKey.x) {
-      throw new Error(
-        'sessionServerPublicKey does not match the verified jwtChain payload (sessionServerPublicKeyX).',
-      );
-    }
   }
 }
