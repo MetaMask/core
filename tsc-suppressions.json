@@ -501,7 +501,7 @@
   },
   "packages/multichain-account-service/src/providers/EvmAccountProvider.test.ts": {
     "TS2345": {
-      "count": 1
+      "count": 2
     }
   },
   "packages/multichain-account-service/src/providers/SnapAccountProvider.test.ts": {
@@ -610,6 +610,11 @@
       "count": 10
     }
   },
+  "packages/perps-controller/tests/src/PerpsController.configuration.test.ts": {
+    "TS2589": {
+      "count": 1
+    }
+  },
   "packages/perps-controller/tests/src/PerpsController.lifecycle.test.ts": {
     "TS2339": {
       "count": 1
@@ -624,9 +629,6 @@
     },
     "TS2322": {
       "count": 2
-    },
-    "TS2589": {
-      "count": 1
     },
     "TS2769": {
       "count": 6
@@ -670,11 +672,6 @@
     },
     "TS7034": {
       "count": 6
-    }
-  },
-  "packages/perps-controller/tests/src/PerpsController.subscriptions.test.ts": {
-    "TS2589": {
-      "count": 1
     }
   },
   "packages/perps-controller/tests/src/providers/AggregatedPerpsProvider.test.ts": {
