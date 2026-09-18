@@ -380,6 +380,16 @@ export class KycController extends BaseController<
         });
         return sessionStatus;
       }
+
+      // It's assumed that if the session does not exist, the customer does not exist either
+      await this.messenger.call(
+        'KycService:createVendorCustomer',
+        {
+          vendor: params.vendor,
+          email: params.email,
+        },
+      );
+
       return this.#createUkycSession({ vendor: params.vendor, geoCountry });
     }
     // TODO: Should this made a call to check if the session is up-to-date?
@@ -764,15 +774,6 @@ export class KycController extends BaseController<
     }
 
     const { vendor } = this.state;
-
-
-    await this.messenger.call(
-      'KycService:createVendorCustomer',
-      {
-        vendor: this.state.vendor,
-        email: this.state.email,
-      },
-    );
 
 
     const signings = await this.messenger.call(

@@ -100,12 +100,19 @@ describe('KycController', () => {
           email: 'a@b.co',
         });
 
+        expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
+          vendor: 'iron',
+          email: 'a@b.co',
+        });
         expect(handlers.createUkycSession).toHaveBeenCalledWith(
           expect.objectContaining({
             residenceCountry: 'USA',
             vendor: 'iron',
           }),
         );
+        expect(
+          handlers.createVendorCustomer.mock.invocationCallOrder[0],
+        ).toBeLessThan(handlers.createUkycSession.mock.invocationCallOrder[0]);
         expect(handlers.setAuthorizations).toHaveBeenCalled();
         expect(result).toStrictEqual(sessionStatus('approved'));
         expect(controller.state.sessionStatus).toStrictEqual(result);
@@ -127,6 +134,7 @@ describe('KycController', () => {
           email: 'a@b.co',
         });
 
+        expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
         expect(result).toStrictEqual(sessionStatus('pending'));
         expect(controller.state.sessionStatus).toStrictEqual(
@@ -154,6 +162,7 @@ describe('KycController', () => {
             await controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
           ).toStrictEqual(sessionStatus('pending'));
           expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
+          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
           expect(handlers.createUkycSession).not.toHaveBeenCalled();
         },
       );
@@ -170,6 +179,21 @@ describe('KycController', () => {
           );
         },
       );
+    });
+
+    it('does not create a UKYC session when creating the vendor customer fails', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+        handlers.createVendorCustomer.mockRejectedValue(
+          new Error('customer failed'),
+        );
+
+        await expect(
+          controller.startSession({ vendor: 'iron', email: 'a@b.co' }),
+        ).rejects.toThrow('customer failed');
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(controller.state.sessionStatus).toBeNull();
+      });
     });
   });
 
@@ -468,7 +492,6 @@ describe('KycController', () => {
           await expect(
             controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
           ).rejects.toThrow('No vendor was found');
-          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
           expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
         },
       );
@@ -481,13 +504,12 @@ describe('KycController', () => {
           await expect(
             controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
           ).rejects.toThrow('No email was found');
-          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
           expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
         },
       );
     });
 
-    it('creates the vendor customer, submits accepted ids, and persists them', async () => {
+    it('submits accepted ids and persists them', async () => {
       const signings = [
         { id: 'sign-1', customer_id: 'cust-1', content_id: 'd1' },
       ];
@@ -499,39 +521,14 @@ describe('KycController', () => {
           expect(
             await controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
           ).toStrictEqual(signings);
-          expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
-            vendor: 'iron',
-            email: 'a@b.co',
-          });
+          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
           expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith({
             vendor: 'iron',
             disclaimerIds: ['d1'],
           });
           expect(
-            handlers.createVendorCustomer.mock.invocationCallOrder[0],
-          ).toBeLessThan(
-            handlers.submitVendorDisclaimers.mock.invocationCallOrder[0],
-          );
-          expect(
             controller.state.vendorDisclaimersAccepted.iron?.disclaimerIds,
           ).toStrictEqual(['d1']);
-        },
-      );
-    });
-
-    it('does not submit disclaimers when creating the vendor customer fails', async () => {
-      await withController(
-        { options: { state: { vendor: 'iron', email: 'a@b.co' } } },
-        async ({ controller, handlers }) => {
-          handlers.createVendorCustomer.mockRejectedValue(
-            new Error('customer failed'),
-          );
-
-          await expect(
-            controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
-          ).rejects.toThrow('customer failed');
-          expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
-          expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
         },
       );
     });
