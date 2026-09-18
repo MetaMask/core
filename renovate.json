@@ -9,7 +9,11 @@
   "packageRules": [
     {
       "description": "Mirrors npmPreapprovedPackages in .yarnrc.yml, which exempts these from the install-time age gate.",
-      "matchPackageNames": ["@metamask/**", "@metamask-previews/**", "@lavamoat/**"],
+      "matchPackageNames": [
+        "@metamask/**",
+        "@metamask-previews/**",
+        "@lavamoat/**"
+      ],
       "minimumReleaseAge": null
     }
   ]
