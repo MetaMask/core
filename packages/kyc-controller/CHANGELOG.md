@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0]
+
 ### Added
 
 - Export `MoonPayFrameHandler`, `MoonPayFrameHandlerOptions`, and `clearMoonPaySession` so clients can own MoonPay Check/Auth frames after those methods left `KycController` ([#10293](https://github.com/MetaMask/core/pull/10293))
@@ -78,7 +80,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#10145](https://github.com/MetaMask/core/pull/10145))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.4.0...HEAD
+[0.4.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.3.0...@metamask/kyc-controller@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.2.0...@metamask/kyc-controller@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.1.0...@metamask/kyc-controller@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/kyc-controller@0.1.0
