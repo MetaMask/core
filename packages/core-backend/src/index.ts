@@ -65,6 +65,31 @@ export type {
 } from './types.js';
 
 // ============================================================================
+// AUTORAMP ACTIVITY SERVICE
+// ============================================================================
+
+export {
+  AutorampActivityService,
+  AUTORAMP_ACTIVITY_CATEGORIES,
+  AUTORAMP_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
+  AUTORAMP_ACTIVITY_SERVICE_ALLOWED_EVENTS,
+} from './ws/AutorampActivityService.js';
+
+export type {
+  AutorampActivityCategory,
+  AutorampActivityEntity,
+  AutorampActivityEvent,
+  AutorampActivityServiceOptions,
+  AutorampActivityServiceActions,
+  AutorampActivityServiceAllowedActions,
+  AutorampActivityServiceEventReceivedEvent,
+  AutorampActivityServiceStatusChangedEvent,
+  AutorampActivityServiceEvents,
+  AutorampActivityServiceAllowedEvents,
+  AutorampActivityServiceMessenger,
+} from './ws/AutorampActivityService.js';
+
+// ============================================================================
 // API PLATFORM CLIENT SERVICE
 // ============================================================================
 

@@ -38,6 +38,7 @@ Core backend services for MetaMask, serving as the data layer between Backend se
       - [Constructor Options](#constructor-options-1)
       - [Methods](#methods-1)
       - [Events Published](#events-published)
+    - [AutorampActivityService](#autorampactivityservice)
 
 ## Installation
 
@@ -655,3 +656,33 @@ interface AccountActivityServiceOptions {
 - `AccountActivityService:balanceUpdated` - Real-time balance changes
 - `AccountActivityService:transactionUpdated` - Transaction status updates
 - `AccountActivityService:statusChanged` - Chain/service status changes
+
+### AutorampActivityService
+
+Profile-scoped service for receiving Autoramp activity notifications through
+`BackendWebSocketService`. It derives the
+`autoramp-activity.v1.<profileId>` channel from
+`AuthenticationController:getSessionProfile`, preferring
+`canonicalProfileId` (the same identity Ramps uses as MoonPay `external_id`)
+and falling back to the per-SRP `profileId`. It validates every server event at
+runtime, and automatically resubscribes after WebSocket reconnects, profile
+changes, and wallet unlocks.
+
+```typescript
+const autorampActivityService = new AutorampActivityService({
+  messenger: autorampActivityServiceMessenger,
+});
+
+await autorampActivityService.init();
+
+messenger.subscribe('AutorampActivityService:eventReceived', (event) => {
+  if (event.needsFetch) {
+    // Refresh Autoramp data using the owning HTTP service.
+  }
+});
+```
+
+Published events:
+
+- `AutorampActivityService:eventReceived` - A validated profile activity event
+- `AutorampActivityService:statusChanged` - The backend WebSocket connection status
