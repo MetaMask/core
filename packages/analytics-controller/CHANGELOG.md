@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add independent marketing consent and purpose-aware event classification ([#10232](https://github.com/MetaMask/core/pull/10232))
+  - Adds `optedInToMarketing`, `optInToMarketing` / `optOutOfMarketing` / `resetMarketingConsentDecision`, and a persisted `eventsConfig` whose unlisted events default to product-only
+  - Named `track` and `view` payloads are delivered once with their allowed purposes in `context.consent.categoryPreferences` and their capture-time config version in `context.eventsConfigVersion`
+  - Queues and fragments retain capture-time purpose classification so config changes cannot reclassify captured events. Mixed-purpose fragments classify each declared lifecycle event independently
+
 ### Changed
 
 - Bump `uuid` from `^8.3.2` to `^11.1.1` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243))
