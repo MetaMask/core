@@ -36,6 +36,7 @@ import type {
   KycUserStatus,
   KycVendor,
   KycVendorDisclaimersAccepted,
+  KycVendorSigning,
 } from './types.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
 import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
@@ -49,6 +50,10 @@ import {
 } from './ukyc/storageAccessToken.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
 import { areSessionDisclaimersCompleted, consentRecordsFromAcceptedList } from './sessionDisclaimers.js';
+import {
+  areVendorDisclaimersCompleted,
+  recordVendorDisclaimerAcceptance,
+} from './vendorDisclaimers.js';
 
 // === GENERAL ===
 
@@ -630,6 +635,88 @@ export class KycController extends BaseController<
     return areSessionDisclaimersCompleted(disclaimers);
   }
 
+  /**
+   * Fetches the vendor T&Cs the customer must accept before a session is
+   * created (`GET /vendors/{vendor}/disclaimers?country=`).
+   *
+   * @param params - The parameters.
+   * @param params.vendor - Identity vendor. Defaults to `moonpay`.
+   * @param params.country - ISO 3166-1 alpha-3 country code.
+   * @returns The disclaimers.
+   */
+  async fetchVendorDisclaimers(params: {
+    vendor?: KycVendor;
+    country: string;
+  }): Promise<KycDisclaimer[]> {
+    return this.messenger.call('KycService:fetchVendorDisclaimers', params);
+  }
+
+  /**
+   * Records vendor T&C acceptance via {@link KycService.submitVendorDisclaimers}
+   * and persists the accepted ids on state.
+   *
+   * @param params - The parameters.
+   * @param params.disclaimerIds - Accepted vendor T&C ids.
+   * @returns The vendor signing records.
+   * @throws If `vendor` is missing from state.
+   */
+  async recordVendorDisclaimers(params: {
+    disclaimerIds: string[];
+  }): Promise<KycVendorSigning[]> {
+    if (!this.state.vendor) {
+      throw new Error('No vendor was found');
+    }
+
+    const vendor = this.state.vendor;
+    const signings = await this.messenger.call(
+      'KycService:submitVendorDisclaimers',
+      {
+        vendor,
+        disclaimerIds: params.disclaimerIds,
+      },
+    );
+
+    // TODO: this only works for Iron right now
+    this.update((state) => {
+      state.vendorDisclaimersAccepted = recordVendorDisclaimerAcceptance(
+        state.vendorDisclaimersAccepted,
+        vendor,
+        {
+          disclaimerIds: params.disclaimerIds,
+        },
+      );
+    });
+
+    return signings;
+  }
+
+  /**
+   * Fetches the current vendor T&C catalog and returns whether every document
+   * is already recorded in {@link KycControllerState.vendorDisclaimersAccepted}.
+   *
+   * @returns Whether persisted acceptance covers the fetched catalog.
+   * @throws If `vendor` or `geoCountry` is missing from state.
+   */
+  async hasCompletedVendorDisclaimers(): Promise<boolean> {
+    if (!this.state.vendor) {
+      throw new Error('No vendor was found');
+    }
+    if (!this.state.geoCountry) {
+      throw new Error('No geoCountry was found');
+    }
+
+    const fetched = await this.fetchVendorDisclaimers({
+      vendor: this.state.vendor,
+      country: this.state.geoCountry,
+    });
+
+    // TODO: this only works for Iron right now
+    return areVendorDisclaimersCompleted(
+      this.state.vendorDisclaimersAccepted,
+      this.state.vendor,
+      fetched,
+    );
+  }
 
   launchProviderFlow({ locale, debug }: { locale?: string; debug?: boolean }): Promise<string, unknown> {
     // Currently only sumsub is supported and must be used for Iron

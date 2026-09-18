@@ -426,6 +426,141 @@ describe('KycController', () => {
     });
   });
 
+  describe('fetchVendorDisclaimers', () => {
+    it('forwards vendor and country to KycService.fetchVendorDisclaimers', async () => {
+      await withController(async ({ controller, handlers }) => {
+        const disclaimers = [{ id: '1', display_name: 'T', url: 'u' }];
+        handlers.fetchVendorDisclaimers.mockResolvedValue(disclaimers);
+
+        await expect(
+          controller.fetchVendorDisclaimers({
+            vendor: 'iron',
+            country: 'USA',
+          }),
+        ).resolves.toStrictEqual(disclaimers);
+        expect(handlers.fetchVendorDisclaimers).toHaveBeenCalledWith({
+          vendor: 'iron',
+          country: 'USA',
+        });
+      });
+    });
+  });
+
+  describe('recordVendorDisclaimers', () => {
+    it('throws when vendor is missing', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
+        ).rejects.toThrow('No vendor was found');
+      });
+    });
+
+    it('submits accepted ids through KycService.submitVendorDisclaimers and persists them', async () => {
+      const signings = [
+        { id: 'sign-1', customer_id: 'cust-1', content_id: 'd1' },
+      ];
+      await withController(
+        { options: { state: { vendor: 'iron' } } },
+        async ({ controller, handlers }) => {
+          handlers.submitVendorDisclaimers.mockResolvedValue(signings);
+
+          await expect(
+            controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
+          ).resolves.toStrictEqual(signings);
+          expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith({
+            vendor: 'iron',
+            disclaimerIds: ['d1'],
+          });
+          expect(
+            controller.state.vendorDisclaimersAccepted.iron?.disclaimerIds,
+          ).toStrictEqual(['d1']);
+        },
+      );
+    });
+  });
+
+  describe('hasCompletedVendorDisclaimers', () => {
+    it('throws when vendor is missing', async () => {
+      await withController(
+        { options: { state: { geoCountry: 'USA' } } },
+        async ({ controller }) => {
+          await expect(
+            controller.hasCompletedVendorDisclaimers(),
+          ).rejects.toThrow('No vendor was found');
+        },
+      );
+    });
+
+    it('throws when geoCountry is missing', async () => {
+      await withController(
+        { options: { state: { vendor: 'iron' } } },
+        async ({ controller }) => {
+          await expect(
+            controller.hasCompletedVendorDisclaimers(),
+          ).rejects.toThrow('No geoCountry was found');
+        },
+      );
+    });
+
+    it('returns true when persisted Iron ids cover the fetched catalog', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              vendor: 'iron',
+              geoCountry: 'USA',
+              vendorDisclaimersAccepted: {
+                moonpay: null,
+                iron: { disclaimerIds: ['d1', 'd2'] },
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.fetchVendorDisclaimers.mockResolvedValue([
+            { id: 'd1', display_name: 'T1', url: 'u1' },
+            { id: 'd2', display_name: 'T2', url: 'u2' },
+          ]);
+
+          await expect(
+            controller.hasCompletedVendorDisclaimers(),
+          ).resolves.toBe(true);
+          expect(handlers.fetchVendorDisclaimers).toHaveBeenCalledWith({
+            vendor: 'iron',
+            country: 'USA',
+          });
+        },
+      );
+    });
+
+    it('returns false when a fetched Iron disclaimer is not in state', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              vendor: 'iron',
+              geoCountry: 'USA',
+              vendorDisclaimersAccepted: {
+                moonpay: null,
+                iron: { disclaimerIds: ['d1'] },
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.fetchVendorDisclaimers.mockResolvedValue([
+            { id: 'd1', display_name: 'T1', url: 'u1' },
+            { id: 'd2', display_name: 'T2', url: 'u2' },
+          ]);
+
+          await expect(
+            controller.hasCompletedVendorDisclaimers(),
+          ).resolves.toBe(false);
+        },
+      );
+    });
+  });
+
   describe('fetchSessionDisclaimers', () => {
     const globalCatalog = {
       idOS: [

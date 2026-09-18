@@ -1,11 +1,13 @@
 import {
+  acceptedVendorDisclaimerIds,
+  areVendorDisclaimersCompleted,
   clearVendorDisclaimerAcceptance,
   hasVendorDisclaimerAcceptance,
   ironDisclaimerIds,
   recordVendorDisclaimerAcceptance,
-} from './vendorDisclaimerAcceptance.js';
+} from './vendorDisclaimers.js';
 
-describe('vendorDisclaimerAcceptance', () => {
+describe('vendorDisclaimers', () => {
   describe('hasVendorDisclaimerAcceptance', () => {
     it('returns true when MoonPay terms are persisted', () => {
       expect(
@@ -67,6 +69,73 @@ describe('vendorDisclaimerAcceptance', () => {
           iron: null,
         }),
       ).toStrictEqual([]);
+    });
+  });
+
+  describe('acceptedVendorDisclaimerIds', () => {
+    it('returns Iron disclaimer ids', () => {
+      expect(
+        acceptedVendorDisclaimerIds(
+          { moonpay: null, iron: { disclaimerIds: ['d1', 'd2'] } },
+          'iron',
+        ),
+      ).toStrictEqual(['d1', 'd2']);
+    });
+
+    it('returns an empty list for MoonPay', () => {
+      expect(
+        acceptedVendorDisclaimerIds(
+          { moonpay: { termsAcceptedAt: 't' }, iron: null },
+          'moonpay',
+        ),
+      ).toStrictEqual([]);
+    });
+  });
+
+  describe('areVendorDisclaimersCompleted', () => {
+    const catalog = [
+      { id: 'd1', display_name: 'T1', url: 'u1' },
+      { id: 'd2', display_name: 'T2', url: 'u2' },
+    ];
+
+    it('returns true when every fetched Iron disclaimer id is accepted', () => {
+      expect(
+        areVendorDisclaimersCompleted(
+          { moonpay: null, iron: { disclaimerIds: ['d1', 'd2', 'extra'] } },
+          'iron',
+          catalog,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false when a fetched Iron disclaimer id is missing', () => {
+      expect(
+        areVendorDisclaimersCompleted(
+          { moonpay: null, iron: { disclaimerIds: ['d1'] } },
+          'iron',
+          catalog,
+        ),
+      ).toBe(false);
+    });
+
+    it('returns true when the fetched catalog is empty', () => {
+      expect(
+        areVendorDisclaimersCompleted(
+          { moonpay: null, iron: null },
+          'iron',
+          [],
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false for MoonPay when the catalog has documents', () => {
+      expect(
+        areVendorDisclaimersCompleted(
+          { moonpay: { termsAcceptedAt: 't' }, iron: null },
+          'moonpay',
+          catalog,
+        ),
+      ).toBe(false);
     });
   });
 

@@ -166,6 +166,9 @@ export type KycSessionStatus = {
   vendor: string;
   /** The vendor-specific status. */
   vendorStatus: string;
+  /** The consent status of the session. */
+  consentStatus: string;
+  idOSStatus: string;
 };
 
 /**

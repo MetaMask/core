@@ -509,7 +509,7 @@ export class KycService extends BaseDataService<
    * @returns The disclaimers.
    */
   async fetchVendorDisclaimers({
-    vendor = 'moonpay',
+    vendor,
     country,
   }: {
     vendor?: KycVendor;

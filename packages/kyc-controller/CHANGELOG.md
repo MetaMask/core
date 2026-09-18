@@ -10,9 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Export `MoonPayFrameHandler`, `MoonPayFrameHandlerOptions`, and `clearMoonPaySession` so clients can own MoonPay Check/Auth frames after those methods left `KycController`.
+- Add `sessionStatus` (`KycSessionStatus | null`) to `KycControllerState`.
+- Add `KycService.getSessionStatusForVendor`, which fetches `GET /sessions/latest/status/{vendor}` and returns `KycSessionStatus` or `null`.
+- Add `KycController.fetchVendorDisclaimers`, which loads vendor T&Cs via `KycService.fetchVendorDisclaimers`.
+- Add `KycController.hasCompletedVendorDisclaimers`, which fetches the vendor T&C catalog and returns whether persisted `vendorDisclaimersAccepted` covers every fetched disclaimer.
+- Add `KycController.recordVendorDisclaimers`, which records vendor T&Cs via `KycService.submitVendorDisclaimers` and persists accepted ids on state.
 
 ### Changed
 
+- **BREAKING:** Add required `id` to `KycSessionStatus`.
 - **BREAKING:** Rename `CreateSessionParams` to `CreateMoonpaySessionParams`, and `KycService.createSession` / `KycService:createSession` to `createMoonpaySession` / `KycService:createMoonpaySession`.
 - `MoonPayFrameHandler.buildCheckFrameUrl` no longer sets the `skipKyc` query parameter.
 - Bump `@metamask/profile-sync-controller` from `^32.1.0` to `^32.1.1` ([#10220](https://github.com/MetaMask/core/pull/10220))
