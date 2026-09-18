@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.0]
 
-### Uncategorized
-
-- Update lint:tsc to run against all packages & remove it from CI ([#10215](https://github.com/MetaMask/core/pull/10215))
-
 ### Added
 
 - Export `MoonPayFrameHandler`, `MoonPayFrameHandlerOptions`, and `clearMoonPaySession` so clients can own MoonPay Check/Auth frames after those methods left `KycController` ([#10293](https://github.com/MetaMask/core/pull/10293))
