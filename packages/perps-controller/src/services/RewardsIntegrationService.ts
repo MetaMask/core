@@ -167,9 +167,14 @@ export class RewardsIntegrationService {
    * The subscription source contributes an effective rate rather than a flat
    * zero (ADR 0064): the allowance may cover only part of the order, and the
    * blend that results has to be able to lose to a deeper VIP or season
-   * discount. Passing the order notional is what makes that blend possible; a
-   * caller with no notional to quote against (a rate-only preview) gets the
-   * full-waiver rate, which is the pre-ADR behavior.
+   * discount. Passing the order notional is what makes that blend possible.
+   *
+   * Without a notional the outcome depends on whether the backend bounded the
+   * allowance. An unbounded allowance still resolves to the full waiver — there
+   * is no cap to over-consume. A *bounded* one is withheld entirely rather than
+   * quoted as a full waiver, because charging nothing on an order of unknown
+   * size would silently spend the cap; such a caller gets the next-lowest
+   * source instead.
    *
    * @param orderNotionalUsd - Order notional (USD), when the caller knows it.
    * @returns The winning fee, its source, and the subscription gate outcome.
