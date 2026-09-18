@@ -4,8 +4,8 @@ import type {
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
-import { selectHdKeyringEntropySourceIds } from '@metamask/keyring-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
+import { selectHdKeyringEntropySourceIds } from '@metamask/keyring-controller';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
