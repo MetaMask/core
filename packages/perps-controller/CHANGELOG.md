@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Scale-ladder client order IDs keep their own group marker and rung index, so group recovery and cancel-by-client-order-ID are unaffected. A ladder's reserved flag byte is set when the waiver applies, but `hasFeeReductionAppliedFlag` does not report it — see the Fixed entry below. Scale fills and fills on caller-supplied client order IDs therefore receive the discount without a decodable marker; attributing them needs a correlation other than the client order ID.
   - The subscription program marker is the registered id `0x0100`, zero-extended into the 4-byte marker field.
 - Register the current HyperLiquid trading address with the subscription profile during `calculateFees`, and re-register it after the selected account changes.
+  - The CAIP-10 identifier is built from the wallet's currently selected network, not from HyperLiquid's chain. A client whose selected network is not HyperLiquid therefore registers the trading address under the wrong chain, and a fill decoded off the HyperLiquid fan-out will not match it. Attribution is affected; fee resolution and order placement are not.
 
 ### Deprecated
 

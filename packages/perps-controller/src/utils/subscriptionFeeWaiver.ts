@@ -243,8 +243,8 @@ export function isSubscriptionProgramCloid(
   // predicate is what gates the decoder.
   return Boolean(
     normalized &&
-      CLOID_PATTERN.test(normalized) &&
-      normalized.startsWith(`0x${SUBSCRIPTION_CLOID_CONFIG.ProgramId}`),
+    CLOID_PATTERN.test(normalized) &&
+    normalized.startsWith(`0x${SUBSCRIPTION_CLOID_CONFIG.ProgramId}`),
   );
 }
 
