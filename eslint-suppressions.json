@@ -3,9 +3,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 4
     },
-    "@typescript-eslint/naming-convention": {
-      "count": 4
-    },
     "id-length": {
       "count": 2
     }
