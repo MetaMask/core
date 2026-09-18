@@ -19,6 +19,14 @@ import type {
   CapabilityAuthorization,
   EncryptionSchema,
 } from './KycService.js';
+import {
+  isSumSubFlowCompleted,
+  isSumSubLaunchFailure,
+} from './providers/sumsub.js';
+import type {
+  KycSumSubLauncher,
+  KycSumSubStatus,
+} from './providers/sumsub.js';
 import type {
   KycConsentRecord,
   KycDisclaimer,
@@ -26,9 +34,6 @@ import type {
   KycProviderDisclaimersAccepted,
   KycSessionDisclaimers,
   KycSessionStatus,
-  KycSumSubLauncher,
-  KycSumSubSdkStatus,
-  KycSumSubStatus,
   KycVendor,
   KycVendorDisclaimersAccepted,
   KycVendorSigning,
@@ -59,50 +64,6 @@ export const controllerName = 'KycController';
 // cover the KYC session's expected lifetime — including the provider journey —
 // rather than a fixed short window, so this is a session-scoped window.
 const UKYC_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
-
-// SumSub statuses that mean the applicant submitted (see `KycSumSubSdkStatus`
-// for what each one reports). `Completed` covers launchers that normalize the
-// platform status before forwarding it. Review decisions (`Approved`,
-// `FinallyRejected`, `TemporarilyDeclined`) are post-submission outcomes: the
-// applicant finished the SDK, so UKYC is queried for the authoritative
-// decision. Pre-submission statuses (`Ready`, `Initial`, `Incomplete`) must
-// not be recorded as a completed verification.
-const SUMSUB_COMPLETED_STATUSES: ReadonlySet<string> =
-  new Set<KycSumSubSdkStatus>([
-    'Completed',
-    'Pending',
-    'Approved',
-    'ActionCompleted',
-    'FinallyRejected',
-    'TemporarilyDeclined',
-  ]);
-
-// The only status meaning the SDK could not run, rather than reporting how far
-// the applicant got before closing it.
-const SUMSUB_FAILED_STATUS: KycSumSubSdkStatus = 'Failed';
-
-/**
- * Checks whether a SumSub status means the applicant submitted the flow.
- *
- * @param status - Status from a launcher callback or launch result.
- * @returns Whether the applicant submitted, including a review decision.
- */
-function isSumSubFlowCompleted(status: unknown): boolean {
-  return typeof status === 'string' && SUMSUB_COMPLETED_STATUSES.has(status);
-}
-
-/**
- * Checks whether the SDK failed to run, as opposed to the applicant closing it
- * early. Only the former is worth reporting as an error.
- *
- * @param result - The result the launcher resolved with.
- * @returns Whether the SDK failed to run.
- */
-function isSumSubLaunchFailure(result: Record<string, unknown>): boolean {
-  return (
-    result.status === SUMSUB_FAILED_STATUS || typeof result.error === 'string'
-  );
-}
 
 // UKYC status values. `kycStatus` (the relay-side decision) and `finalStatus`
 // (the vendor-side outcome) draw from the same vocabulary, so they are defined

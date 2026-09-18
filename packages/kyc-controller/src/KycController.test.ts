@@ -17,11 +17,11 @@ import type {
   FetchSessionDisclaimersParams,
   KycControllerMessenger,
 } from './KycController.js';
+import type { KycSumSubLauncher } from './providers/sumsub.js';
 import type {
   KycConsentRecord,
   KycDisclaimer,
   KycSessionDisclaimers,
-  KycSumSubLauncher,
 } from './types.js';
 import { verifyJwtChain } from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';

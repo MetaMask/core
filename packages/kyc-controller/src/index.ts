@@ -100,16 +100,18 @@ export type {
   KycProviderDisclaimersAccepted,
   KycSessionDisclaimers,
   KycSessionStatus,
-  KycSumSubLaunchParams,
-  KycSumSubLauncher,
-  KycSumSubSdkStatus,
-  KycSumSubStatus,
   KycVendor,
   KycIronVendorDisclaimersAccepted,
   KycMoonpayVendorDisclaimersAccepted,
   KycVendorDisclaimersAccepted,
   KycVendorSigning,
 } from './types.js';
+export type {
+  KycSumSubLaunchParams,
+  KycSumSubLauncher,
+  KycSumSubSdkStatus,
+  KycSumSubStatus,
+} from './providers/sumsub.js';
 
 // UKYC storage-access-token utilities. Exported so a signed capability token can
 // be minted for testing UKYC Storage (see `mintUkycTestToken`).

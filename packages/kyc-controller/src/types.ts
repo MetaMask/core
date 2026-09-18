@@ -52,57 +52,6 @@ export type KycPhase =
   | 'error';
 
 /**
- * Progress of the SumSub document-verification sub-flow.
- *
- * - `inProgress` — the SumSub SDK is on screen.
- * - `vendorProcessing` — session creation reported that the applicant is
- *   already approved on the relay (`kycStatus`) while the vendor is still
- *   finalizing its own decision (`finalStatus`). There is nothing left for the
- *   applicant to do, so the SDK is not launched; see `statusMessage`.
- * - `abandoned` — the applicant closed the SDK before submitting. Unlike
- *   `failed`, nothing went wrong, so `error` is left unset and consumers should
- *   offer a retry rather than report a problem.
- */
-export type KycSumSubStatus =
-  | 'idle'
-  | 'creatingSession'
-  | 'fetchingToken'
-  | 'launching'
-  | 'inProgress'
-  | 'complete'
-  | 'abandoned'
-  | 'failed'
-  | 'vendorProcessing';
-
-/**
- * Status strings a SumSub SDK reports, through either the status-change
- * callback or the `launch` result. Distinct from {@link KycSumSubStatus},
- * which tracks the controller's own sub-flow.
- *
- * - `Ready` — initialized and presented; no step reported yet.
- * - `Failed` — the SDK itself could not run.
- * - `Initial` — no verification step has been passed.
- * - `Incomplete` — some but not all verification steps have been passed.
- * - `Pending` — the applicant submitted and review is pending.
- * - `TemporarilyDeclined` — the applicant was declined but may resubmit.
- * - `FinallyRejected` — the applicant was rejected for good.
- * - `Approved` — the applicant was approved.
- * - `ActionCompleted` — an applicant action (e.g. a liveness check) finished.
- * - `Completed` — normalized completion reported by non-native launchers.
- */
-export type KycSumSubSdkStatus =
-  | 'Ready'
-  | 'Failed'
-  | 'Initial'
-  | 'Incomplete'
-  | 'Pending'
-  | 'TemporarilyDeclined'
-  | 'FinallyRejected'
-  | 'Approved'
-  | 'ActionCompleted'
-  | 'Completed';
-
-/**
  * The status of a UKYC session, returned by the `GET /sessions/{id}/status`
  * endpoint and polled after the SumSub SDK completes to determine the final
  * verification decision.
@@ -248,57 +197,4 @@ export type KycSessionDisclaimers = {
   kycProvider: KycConsentDocument[];
   /** Whether the user consented to reuse existing idOS credentials. */
   credentialReusabilityConsentGiven: boolean;
-};
-
-/**
- * Parameters passed to a platform SumSub launcher.
- */
-export type KycSumSubLaunchParams = {
-  /**
-   * The applicant access token used to initialize the SumSub SDK.
-   */
-  applicantAccessToken: string;
-
-  /**
-   * Called by the SDK when the access token expires; must resolve with a fresh
-   * applicant access token.
-   */
-  onTokenExpiration: () => Promise<string>;
-
-  /**
-   * Called when the SDK reports a status transition.
-   */
-  onStatusChange?: (prevStatus: string, newStatus: string) => void;
-
-  /**
-   * BCP-47 locale for the SDK UI.
-   */
-  locale?: string;
-
-  /**
-   * Enables SDK debug logging.
-   */
-  debug?: boolean;
-};
-
-/**
- * Platform adapter that launches the native/web SumSub SDK.
- *
- * The KYC controller is platform-agnostic and does not import any SDK; each
- * client (mobile / extension / web) injects an implementation of this
- * interface. The controller owns all orchestration (session creation, token
- * exchange, token refresh, state) and only delegates the actual SDK
- * presentation to `launch`.
- */
-export type KycSumSubLauncher = {
-  /**
-   * Whether the underlying SDK is available in the current runtime (e.g. the
-   * native module is linked). When `false`, `startSumSub` fails fast.
-   */
-  isAvailable(): boolean;
-
-  /**
-   * Presents the SumSub verification flow and resolves with the SDK result.
-   */
-  launch(params: KycSumSubLaunchParams): Promise<Record<string, unknown>>;
 };
