@@ -461,28 +461,76 @@ describe('KycController', () => {
 
   describe('recordVendorDisclaimers', () => {
     it('throws when vendor is missing', async () => {
-      await withController(async ({ controller }) => {
-        await expect(
-          controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
-        ).rejects.toThrow('No vendor was found');
-      });
+      await withController(
+        { options: { state: { email: 'a@b.co' } } },
+        async ({ controller, handlers }) => {
+          await expect(
+            controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
+          ).rejects.toThrow('No vendor was found');
+          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+          expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
+        },
+      );
     });
 
-    it('submits accepted ids and persists them', async () => {
+    it('throws when email is missing', async () => {
+      await withController(
+        { options: { state: { vendor: 'iron' } } },
+        async ({ controller, handlers }) => {
+          await expect(
+            controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
+          ).rejects.toThrow('No email was found');
+          expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+          expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('creates the vendor customer, submits accepted ids, and persists them', async () => {
       const signings = [
         { id: 'sign-1', customer_id: 'cust-1', content_id: 'd1' },
       ];
       await withController(
-        { options: { state: { vendor: 'iron' } } },
+        { options: { state: { vendor: 'iron', email: 'a@b.co' } } },
         async ({ controller, handlers }) => {
           handlers.submitVendorDisclaimers.mockResolvedValue(signings);
 
           expect(
             await controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
           ).toStrictEqual(signings);
+          expect(handlers.createVendorCustomer).toHaveBeenCalledWith({
+            vendor: 'iron',
+            email: 'a@b.co',
+          });
+          expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith({
+            vendor: 'iron',
+            disclaimerIds: ['d1'],
+          });
+          expect(
+            handlers.createVendorCustomer.mock.invocationCallOrder[0],
+          ).toBeLessThan(
+            handlers.submitVendorDisclaimers.mock.invocationCallOrder[0],
+          );
           expect(
             controller.state.vendorDisclaimersAccepted.iron?.disclaimerIds,
           ).toStrictEqual(['d1']);
+        },
+      );
+    });
+
+    it('does not submit disclaimers when creating the vendor customer fails', async () => {
+      await withController(
+        { options: { state: { vendor: 'iron', email: 'a@b.co' } } },
+        async ({ controller, handlers }) => {
+          handlers.createVendorCustomer.mockRejectedValue(
+            new Error('customer failed'),
+          );
+
+          await expect(
+            controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
+          ).rejects.toThrow('customer failed');
+          expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
+          expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
         },
       );
     });

@@ -755,7 +755,22 @@ export class KycController extends BaseController<
       throw new Error('No vendor was found');
     }
 
+    if (!this.state.email) {
+      throw new Error('No email was found');
+    }
+
     const { vendor } = this.state;
+
+
+    await this.messenger.call(
+      'KycService:createVendorCustomer',
+      {
+        vendor: this.state.vendor,
+        email: this.state.email,
+      },
+    );
+
+
     const signings = await this.messenger.call(
       'KycService:submitVendorDisclaimers',
       {
