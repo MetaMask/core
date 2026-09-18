@@ -40,6 +40,5 @@ jobs:
           RENOVATE_TOKEN: ${{ steps.get-token.outputs.token }}
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           RENOVATE_PLATFORM: github
-          # Corepack otherwise blocks on an interactive prompt before downloading the pinned Yarn, so `yarn install` fails and Renovate has nothing to commit.
           COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
           LOG_LEVEL: ${{ inputs.log-level || 'info' }}
