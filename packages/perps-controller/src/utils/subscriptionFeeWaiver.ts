@@ -354,7 +354,6 @@ export function quantizeBuilderFeeTenthsBps(discountBips: number): number {
 }
 
 /**
- * Re-price a fee quote from the unified fee resolution./**
  * Re-price a fee quote from the unified fee resolution.
  *
  * The provider quotes the MetaMask component from whatever discount the last

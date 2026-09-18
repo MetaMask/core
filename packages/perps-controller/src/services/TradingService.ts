@@ -1178,13 +1178,6 @@ export class TradingService {
   }
 
   /**
-   * Calculate fee discount with performance measurement
-   * Uses controller dependencies injected via setControllerDependencies()
-   * Helper method for placeOrder orchestration
-   *
-   * @returns The result of the operation.
-   */
-  /**
    * Resolve the total USD notional a batch close will submit.
    *
    * HyperLiquid takes one builder context for the whole batch, so the fee is
@@ -1280,7 +1273,6 @@ export class TradingService {
   }
 
   /**
-   * The position's USD value per unit of size.  /**
    * The position's USD value per unit of size.
    *
    * Used to price a partial close, which names a size but usually no price.
@@ -1376,6 +1368,20 @@ export class TradingService {
     return price === undefined ? undefined : size * price;
   }
 
+  /**
+   * Resolve the fee discount for a submission, measuring the call.
+   *
+   * Uses controller dependencies injected via `setControllerDependencies()`;
+   * without them there is no resolver to ask and the caller pays the
+   * undiscounted fee. Helper method for the placement orchestration paths.
+   *
+   * @param orderNotionalUsd - The order's notional in USD, when it can be
+   * priced. This is what lets the subscription source resolve to a blended
+   * rate: omitting it resolves every bounded allowance as a full waiver,
+   * charging 0 bips on an order the preview quoted a blend for.
+   * @returns The resolved fee, or undefined when controller dependencies are
+   * unavailable.
+   */
   async #calculateFeeDiscountWithMeasurement(
     orderNotionalUsd?: number,
   ): Promise<PerpsFeeResolution | undefined> {
