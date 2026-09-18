@@ -394,7 +394,7 @@ export class KycController extends BaseController<
   async initialize(params: {
     vendor: KycVendor;
     email: string; // TODO: This will be removed once partnerIdentityTokens are fully ready
-  }): Promise<void> {
+  }): Promise<KycSessionStatus> {
     if (this.state.email !== null || this.state.email !== params.email) {
       throw new Error('KycController already initialized with a different email');
     }
@@ -411,10 +411,22 @@ export class KycController extends BaseController<
     this.update((state) => {
       state.email = params.email;
       state.vendor = params.vendor;
-      state.geoCountry = params.geoCountry;
+      state.geoCountry = geoCountry;
     });
 
-    // TODO: check to see if there is an existing session
+    if (this.state.sessionStatus === null) {
+      const sessionStatus = await this.messenger.call('KycService:getSessionStatusForVendor', this.state.vendor);
+      if (sessionStatus !== null) {
+        this.update((state) => {
+          state.sessionStatus = sessionStatus;
+        });
+        return sessionStatus;
+      }
+      return this.#createUkycSession({ vendor: params.vendor, geoCountry: geoCountry });
+    } else {
+      // TODO: Should this made a call to check if the session is up-to-date?
+      return this.state.sessionStatus
+    }
   }
 
   async reset(): Promise<void> {
@@ -434,6 +446,58 @@ export class KycController extends BaseController<
   getSessionStatusForVendor(vendor: KycVendor): Promise<KycSessionStatus | null> {
     return this.messenger.call('KycService:getSessionStatusForVendor', vendor);
   }
+
+
+    /**
+   * Fetches the idOS + KYC-provider disclaimer catalog. Pass exactly one of
+   * `sessionId` or `country`:
+   *
+   * - `{ sessionId }` → {@link KycService.fetchSessionDisclaimersBySessionId}
+   *   (`GET /sessions/{sessionId}/disclaimers`)
+   * - `{ country }` → {@link KycService.fetchSessionDisclaimersByCountry}
+   *   (`GET /disclaimers?country=`)
+   *
+   * A session-id fetch also writes the catalog to `sessionDisclaimers`.
+   *
+   * @param params - The parameters. Provide exactly one of `sessionId` or
+   * `country`.
+   * @param params.sessionId - The UKYC session id.
+   * @param params.country - ISO 3166-1 alpha-3 country code.
+   * @returns The catalog. Session fetches include consent state; country
+   * fetches do not.
+   */
+    async fetchSessionDisclaimers(
+      params: FetchSessionDisclaimersParams,
+    ): Promise<KycSessionDisclaimers | KycDisclaimersCatalog> {
+      const { sessionId, country } = params as {
+        sessionId?: string;
+        country?: string;
+      };
+      if (sessionId && country) {
+        throw new Error(
+          'KycController.fetchSessionDisclaimers: provide exactly one of sessionId or country.',
+        );
+      }
+
+      if (country) {
+        return this.messenger.call(
+          'KycService:fetchSessionDisclaimersByCountry',
+          { country },
+        );
+      }
+
+      if (!sessionId) {
+        throw new Error(
+          'KycController.fetchSessionDisclaimers: provide exactly one of sessionId or country.',
+        );
+      }
+
+      const catalog = await this.messenger.call(
+        'KycService:fetchSessionDisclaimersBySessionId',
+        { sessionId },
+      );
+      return catalog;
+    }
 
   /**
    * Creates a UKYC session, wraps the `data_encryption_key` and
