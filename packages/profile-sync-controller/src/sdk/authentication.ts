@@ -121,13 +121,12 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
   }
 
   async completeMfaEnrollment(
-    type: MfaCredentialType,
     flowId: string,
     proof: EnrollmentProof,
     entropySourceId?: string,
   ): Promise<void> {
     this.#assertSRP(this.#type, this.#sdk);
-    await this.#sdk.completeMfaEnrollment(type, flowId, proof, entropySourceId);
+    await this.#sdk.completeMfaEnrollment(flowId, proof, entropySourceId);
   }
 
   async beginMfaVerification(
@@ -139,14 +138,12 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
   }
 
   async completeMfaVerification(
-    type: MfaCredentialType,
     flowId: string,
     proof: StepUpProof,
     entropySourceId?: string,
   ): Promise<MfaStepUpAssertion> {
     this.#assertSRP(this.#type, this.#sdk);
     return await this.#sdk.completeMfaVerification(
-      type,
       flowId,
       proof,
       entropySourceId,

@@ -274,20 +274,18 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   /**
    * Completes enrollment of an MFA credential.
    *
-   * @param type - Credential type being enrolled.
    * @param flowId - Identifier returned by the begin call.
    * @param proof - Platform attestation or email code.
    * @param entropySourceId - Entropy source whose profile owns the credential.
    */
   async completeMfaEnrollment(
-    type: MfaCredentialType,
     flowId: string,
     proof: EnrollmentProof,
     entropySourceId?: string,
   ): Promise<void> {
     const accessToken = await this.getAccessToken(entropySourceId);
     await mfaEnrollComplete(this.#config.env, accessToken, {
-      credential_type: type,
+      credential_type: proof.type,
       flow_id: flowId,
       ...(proof.type === 'passkey'
         ? { passkey_attestation: proof.attestation }
@@ -335,21 +333,19 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   /**
    * Completes step-up verification with an enrolled credential.
    *
-   * @param type - Credential type being verified.
    * @param flowId - Identifier returned by the begin call.
    * @param proof - Platform assertion or email code.
    * @param entropySourceId - Entropy source whose profile owns the credential.
    * @returns AAL2 assertion issued after verification.
    */
   async completeMfaVerification(
-    type: MfaCredentialType,
     flowId: string,
     proof: StepUpProof,
     entropySourceId?: string,
   ): Promise<MfaStepUpAssertion> {
     const accessToken = await this.getAccessToken(entropySourceId);
     return await mfaVerifyComplete(this.#config.env, accessToken, {
-      credential_type: type,
+      credential_type: proof.type,
       flow_id: flowId,
       ...(proof.type === 'passkey'
         ? { passkey_assertion: proof.assertion }

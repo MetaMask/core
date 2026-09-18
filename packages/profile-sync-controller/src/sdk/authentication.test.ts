@@ -762,7 +762,7 @@ describe('MFA authentication facade', () => {
       flowId: 'enroll-passkey-flow-id',
     });
     expect(
-      await auth.completeMfaEnrollment('passkey', 'flow-id', {
+      await auth.completeMfaEnrollment('flow-id', {
         type: 'passkey',
         attestation: registration,
       }),
@@ -772,7 +772,7 @@ describe('MFA authentication facade', () => {
       flowId: 'verify-passkey-flow-id',
     });
     expect(
-      await auth.completeMfaVerification('passkey', 'flow-id', {
+      await auth.completeMfaVerification('flow-id', {
         type: 'passkey',
         assertion,
       }),

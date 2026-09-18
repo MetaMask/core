@@ -1,3 +1,4 @@
+import type { Json } from '@metamask/utils';
 import log from 'loglevel';
 
 import type { Env } from '../../../shared/env.js';
@@ -18,6 +19,7 @@ import {
   TooManyAttemptsError,
 } from '../../errors.js';
 import { asRecord } from '../../utils/as-record.js';
+import { toErrorMessage } from '../../utils/to-error-message.js';
 import {
   AuthenticationResponseJSONStruct,
   MfaCredentialsResponseStruct,
@@ -146,7 +148,7 @@ export function parsePasskeyCreateData(value: string): PasskeyCreationOptions {
     if (error instanceof MfaError) {
       throw error;
     }
-    const message = error instanceof Error ? error.message : String(error);
+    const message = toErrorMessage(error);
     throw new MfaError('invalid_response', message);
   }
 }
@@ -166,7 +168,7 @@ export function parsePasskeyRequestData(value: string): PasskeyRequestOptions {
     if (error instanceof MfaError) {
       throw error;
     }
-    const message = error instanceof Error ? error.message : String(error);
+    const message = toErrorMessage(error);
     throw new MfaError('invalid_response', message);
   }
 }
@@ -184,7 +186,7 @@ function parseRetryAfter(response: Response): number | undefined {
     return undefined;
   }
   const seconds = Number(header);
-  if (!Number.isNaN(seconds)) {
+  if (Number.isInteger(seconds)) {
     return Math.max(0, seconds * 1000);
   }
   const date = Date.parse(header);
@@ -289,8 +291,8 @@ async function throwMfaError(
 async function requestJson(
   url: string,
   accessToken: string,
-  init?: { method?: 'GET' | 'POST'; body?: unknown },
-): Promise<unknown> {
+  init?: { method?: 'GET' | 'POST'; body?: Json },
+): Promise<Json> {
   let response: Response;
   try {
     response = await fetch(url, {
@@ -304,7 +306,7 @@ async function requestJson(
       ...(init?.body === undefined ? {} : { body: JSON.stringify(init.body) }),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = toErrorMessage(error);
     throw new MfaUnavailableError(`MFA request failed: ${message}`);
   }
 
@@ -315,7 +317,7 @@ async function requestJson(
   try {
     return await response.json();
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = toErrorMessage(error);
     throw new MfaError('invalid_response', message, {
       status: response.status,
     });

@@ -376,6 +376,25 @@ describe('MFA services', () => {
     ).rejects.toMatchObject({ mfaCode: 'server_error' });
   });
 
+  it('ignores a non-integer Retry-After header', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new globalThis.Response('', {
+        status: 429,
+        headers: { 'Content-Type': 'text/plain', 'Retry-After': '20.5' },
+      }),
+    );
+
+    const throttled = await getMfaCredentials(Env.PRD, 'access-token').catch(
+      (error) => error,
+    );
+    expect(throttled).toBeInstanceOf(MfaRateLimitedError);
+    expect(throttled).toMatchObject({
+      mfaCode: 'rate_limited',
+      status: 429,
+      retryAfterMs: undefined,
+    });
+  });
+
   it('classifies gateway 429 and 502 responses that carry no JSON body', async () => {
     mockFetch
       .mockResolvedValueOnce(

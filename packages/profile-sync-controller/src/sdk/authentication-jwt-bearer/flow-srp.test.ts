@@ -432,11 +432,11 @@ describe('SRP MFA methods', () => {
       },
     } as const;
 
-    await auth.completeMfaEnrollment('passkey', 'flow-id', {
+    await auth.completeMfaEnrollment('flow-id', {
       type: 'passkey',
       attestation,
     });
-    await auth.completeMfaEnrollment('email_otp', 'flow-id', {
+    await auth.completeMfaEnrollment('flow-id', {
       type: 'email_otp',
       code: '123456',
     });
@@ -508,7 +508,7 @@ describe('SRP MFA methods', () => {
     ]);
 
     expect(
-      await auth.completeMfaVerification('email_otp', 'flow-id', {
+      await auth.completeMfaVerification('flow-id', {
         type: 'email_otp',
         code: '123456',
       }),
@@ -537,7 +537,7 @@ describe('SRP MFA methods', () => {
       obtainedAt: 1000,
     });
 
-    await auth.completeMfaVerification('passkey', 'flow-id', {
+    await auth.completeMfaVerification('flow-id', {
       type: 'passkey',
       assertion,
     });
