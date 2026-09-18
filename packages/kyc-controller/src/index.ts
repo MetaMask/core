@@ -2,6 +2,7 @@ export {
   KycController,
   getDefaultKycControllerState,
   getDefaultKycProviderDisclaimersAccepted,
+  getDefaultKycVendorCustomerIds,
   getDefaultKycVendorDisclaimersAccepted,
   controllerName,
 } from './KycController.js';
@@ -30,7 +31,10 @@ export type {
   KycControllerGetKycStatusAction,
   KycControllerGetSessionStatusAction,
   KycControllerHandleFrameMessageAction,
+  KycControllerHasCompletedProviderTermsAction,
+  KycControllerHasCompletedVendorTermsAction,
   KycControllerInitializeAction,
+  KycControllerIsCustomerCreatedAction,
   KycControllerLoadDisclaimersAction,
   KycControllerRefreshKycStatusAction,
   KycControllerResetAction,
@@ -115,12 +119,13 @@ export type {
   KycSumSubStatus,
   KycUserStatus,
   KycUserStatusResponse,
-  KycVendor,
   KycIronVendorDisclaimersAccepted,
   KycMoonpayVendorDisclaimersAccepted,
+  KycVendorCustomerIds,
   KycVendorDisclaimersAccepted,
   KycVendorSigning,
 } from './types.js';
+export { KycProvider, KycStatus, KycVendor } from './types.js';
 
 // UKYC storage-access-token utilities. Exported so a signed capability token can
 // be minted for testing UKYC Storage (see `mintUkycTestToken`).

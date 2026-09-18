@@ -101,6 +101,60 @@ export type KycControllerAcceptTermsAndStartSessionAction = {
 };
 
 /**
+ * Signs the active vendor's currently loaded T&Cs on the customer's account
+ * (`POST /vendors/{vendor}/disclaimers`), then records the acceptance
+ * locally.
+ *
+ * The standalone vendor-terms step for flows (e.g. VBA / Pix onboarding) that
+ * present the vendor disclaimers on their own screen, ahead of the provider /
+ * idOS consents captured later by {@link acceptProviderTerms}. Persists to
+ * the account first so {@link hasCompletedVendorTerms} (and a later hydrate's
+ * `required-signings` refresh) never reports an acceptance the account does
+ * not hold; the local record is written only after the backend call
+ * succeeds. Does not create a UKYC session.
+ *
+ * A no-op when no disclaimers are loaded, so acceptance is never recorded for
+ * terms the user was not shown. Load the disclaimers (see
+ * {@link loadDisclaimers}) before calling.
+ *
+ * @throws When the backend signing call fails; nothing is recorded locally.
+ */
+export type KycControllerAcceptVendorTermsAction = {
+  type: `KycController:acceptVendorTerms`;
+  handler: KycController['acceptVendorTerms'];
+};
+
+/**
+ * Records provider (SumSub) + idOS session-disclaimer consents on the
+ * customer's account, creating the UKYC session first if one does not exist
+ * yet, without launching SumSub.
+ *
+ * The standalone provider-terms step for flows (e.g. VBA / Pix onboarding)
+ * that present the idOS + KYC-provider disclaimers on their own screen and
+ * hand SumSub off to a later screen. Provider/idOS consents are
+ * session-scoped, so the session is created here (vendor terms are already
+ * signed by this point, satisfying MoonPay's "terms before KYC" order) and
+ * the consents are posted to it via `POST /sessions/{id}/disclaimers`; a
+ * later {@link startSumSub} reuses that session instead of creating another.
+ * The local record is written only after the account holds the consents, so
+ * a subsequent hydrate reads the real status. Fails closed and records
+ * nothing when either consent list is malformed, mirroring
+ * {@link acceptTermsAndStartSession}.
+ *
+ * @param params - The parameters.
+ * @param params.providerDisclaimersAccepted - Accepted SumSub disclaimer
+ * records ({@link KycConsentRecord}).
+ * @param params.idosDisclaimersAccepted - Accepted idOS disclaimer records.
+ * @param params.credentialReusabilityConsentGiven - Whether the customer
+ * consented to reuse existing idOS credentials. Defaults to `false`.
+ * @throws When session creation or the backend consent submission fails.
+ */
+export type KycControllerAcceptProviderTermsAction = {
+  type: `KycController:acceptProviderTerms`;
+  handler: KycController['acceptProviderTerms'];
+};
+
+/**
  * Clears the persisted terms acceptance.
  */
 export type KycControllerClearSavedTermsAction = {
@@ -167,15 +221,93 @@ export type KycControllerCheckKycRequiredAction = {
 };
 
 /**
- * Reads the cached "is KYC required" result for a product.
+ * Reads the cached "is KYC required" result for a product, or the
+ * vendor-scoped KYC decision used by VBA onboarding.
  *
- * @param params - The parameters.
- * @param params.product - The consuming feature.
- * @returns The cached value, or `undefined` if not yet checked.
+ * The vendor overload maps persisted {@link KycUserStatus} from
+ * `GET /kyc/status` into {@link KycStatus}. That status is currently
+ * user-keyed rather than filtered by vendor; the vendor argument is kept so
+ * callers can pass {@link KycVendor.Iron} today and a vendor-scoped lookup
+ * can land later without changing the messenger contract.
+ *
+ * @param paramsOrVendor - Either `{ product }` for the cached required flag,
+ * or a {@link KycVendor} for the onboarding decision.
+ * @returns The cached product flag, or a {@link KycStatus} for a vendor.
  */
 export type KycControllerGetKycStatusAction = {
   type: `KycController:getKycStatus`;
   handler: KycController['getKycStatus'];
+};
+
+/**
+ * Whether a customer shell exists for the given identity vendor.
+ *
+ * Reads the persisted id from a successful
+ * `POST /vendors/{vendor}/customers` create-or-resume. Survives
+ * {@link reset}; cleared by {@link clearState}.
+ *
+ * @param vendor - Identity vendor to check.
+ * @returns Whether the customer has been created.
+ */
+export type KycControllerIsCustomerCreatedAction = {
+  type: `KycController:isCustomerCreated`;
+  handler: KycController['isCustomerCreated'];
+};
+
+/**
+ * Refreshes the backend-authoritative VBA onboarding signals the ramps
+ * controller reads during hydration, so each stage reflects the customer's
+ * account rather than only device-local state:
+ *
+ * - vendor terms — {@link KycService.fetchRequiredSignings} outstanding
+ * signings into {@link KycControllerState.vbaRequiredSignings};
+ * - KYC status — {@link refreshKycStatus} (`GET /kyc/status`).
+ *
+ * Provider / idOS terms are deliberately not re-derived here: they are posted
+ * to the account by {@link acceptProviderTerms}, which only records them
+ * locally after that POST succeeds, so the local value is already
+ * backend-confirmed. Re-deriving them from the session catalog is both
+ * redundant and fragile — the session catalog can list documents beyond the
+ * ones consented on the provider-terms screen (built from the country
+ * catalog), which would incorrectly clear a valid acceptance and loop the
+ * flow back to the provider-terms screen.
+ *
+ * A no-op when the active vendor has no customer yet (the flow is still at
+ * the email step). Each signal soft-fails independently: a failed fetch keeps
+ * that signal's last-known value rather than throwing, so hydration can still
+ * resolve a stage from whatever is current.
+ */
+export type KycControllerRefreshVbaOnboardingStatusAction = {
+  type: `KycController:refreshVbaOnboardingStatus`;
+  handler: KycController['refreshVbaOnboardingStatus'];
+};
+
+/**
+ * Whether the user has accepted terms for the given identity vendor.
+ *
+ * Backend-authoritative once {@link refreshVbaOnboardingStatus} has populated
+ * {@link KycControllerState.vbaRequiredSignings} for the active vendor:
+ * complete means the account has no outstanding required signings. Before the
+ * first refresh (e.g. immediately after {@link acceptVendorTerms}) it falls
+ * back to the locally recorded acceptance.
+ *
+ * @param vendor - Identity vendor whose terms to check.
+ * @returns Whether vendor terms are complete.
+ */
+export type KycControllerHasCompletedVendorTermsAction = {
+  type: `KycController:hasCompletedVendorTerms`;
+  handler: KycController['hasCompletedVendorTerms'];
+};
+
+/**
+ * Whether the user has accepted terms for the given KYC provider.
+ *
+ * @param provider - Document / identity provider whose terms to check.
+ * @returns Whether provider terms are complete.
+ */
+export type KycControllerHasCompletedProviderTermsAction = {
+  type: `KycController:hasCompletedProviderTerms`;
+  handler: KycController['hasCompletedProviderTerms'];
 };
 
 /**
@@ -260,7 +392,8 @@ export type KycControllerGetSessionStatusAction = {
 
 /**
  * Resets the flow to idle, clearing session tokens and sub-flow state while
- * preserving persisted terms acceptance and the per-product cache.
+ * preserving persisted terms acceptance, vendor customer ids, and the
+ * per-product cache.
  */
 export type KycControllerResetAction = {
   type: `KycController:reset`;
@@ -270,7 +403,8 @@ export type KycControllerResetAction = {
 /**
  * Restores the controller to its default state, discarding everything
  * {@link reset} deliberately keeps: the session email, the persisted terms
- * acceptance, the per-product KYC-required cache and the user-keyed status.
+ * acceptance, the persisted vendor customer ids, the per-product KYC-required
+ * cache and the user-keyed status.
  *
  * Intended for a full wallet reset, where no trace of the previous
  * customer may survive into the next wallet.
@@ -289,6 +423,8 @@ export type KycControllerMethodActions =
   | KycControllerLoadDisclaimersAction
   | KycControllerFetchSessionDisclaimersAction
   | KycControllerAcceptTermsAndStartSessionAction
+  | KycControllerAcceptVendorTermsAction
+  | KycControllerAcceptProviderTermsAction
   | KycControllerClearSavedTermsAction
   | KycControllerHandleFrameMessageAction
   | KycControllerBuildCheckFrameUrlAction
@@ -296,6 +432,10 @@ export type KycControllerMethodActions =
   | KycControllerBuildResetFrameUrlAction
   | KycControllerCheckKycRequiredAction
   | KycControllerGetKycStatusAction
+  | KycControllerIsCustomerCreatedAction
+  | KycControllerRefreshVbaOnboardingStatusAction
+  | KycControllerHasCompletedVendorTermsAction
+  | KycControllerHasCompletedProviderTermsAction
   | KycControllerGetCustomerIdentityAction
   | KycControllerStartSumSubAction
   | KycControllerRefreshKycStatusAction

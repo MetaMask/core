@@ -23,6 +23,7 @@ import type {
   KycSessionDisclaimers,
   KycSumSubLauncher,
 } from './types.js';
+import { KycProvider, KycStatus, KycVendor } from './types.js';
 import { verifyJwtChain } from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
 import { MoonPayFrameHandler } from './vendors/MoonPayFrameHandler.js';
@@ -929,6 +930,254 @@ describe('KycController', () => {
     });
   });
 
+  describe('acceptVendorTerms', () => {
+    it('signs the loaded disclaimers on the account, then records acceptance and clears required signings', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              vendorDisclaimers: [
+                { id: 'd1', display_name: 'T', url: 'u' },
+                { id: 'd2', display_name: 'T2', url: 'u2' },
+              ],
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          await controller.acceptVendorTerms();
+
+          expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith({
+            vendor: 'iron',
+            disclaimerIds: ['d1', 'd2'],
+          });
+          expect(controller.hasCompletedVendorTerms(KycVendor.Iron)).toBe(true);
+          expect(
+            controller.state.vendorDisclaimersAccepted.iron?.disclaimerIds,
+          ).toStrictEqual(['d1', 'd2']);
+          // Just signed every document, so nothing is outstanding on the account.
+          expect(controller.state.vbaRequiredSignings).toStrictEqual([]);
+          // Vendor terms do not create a UKYC session.
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('records nothing locally when the account signing call fails', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              vendorDisclaimers: [{ id: 'd1', display_name: 'T', url: 'u' }],
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.submitVendorDisclaimers.mockRejectedValue(new Error('down'));
+
+          await expect(controller.acceptVendorTerms()).rejects.toThrow('down');
+
+          expect(controller.hasCompletedVendorTerms(KycVendor.Iron)).toBe(
+            false,
+          );
+          expect(controller.state.vendorDisclaimersAccepted.iron).toBeNull();
+        },
+      );
+    });
+
+    it('is a no-op when no disclaimers are loaded', async () => {
+      await withController(
+        {
+          options: {
+            state: { activeVendor: 'iron', vendorDisclaimers: [] },
+          },
+        },
+        async ({ controller, handlers }) => {
+          await controller.acceptVendorTerms();
+
+          expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
+          expect(controller.hasCompletedVendorTerms(KycVendor.Iron)).toBe(
+            false,
+          );
+          expect(controller.state.vendorDisclaimersAccepted).toStrictEqual(
+            DEFAULT_VENDOR_DISCLAIMERS_ACCEPTED,
+          );
+        },
+      );
+    });
+  });
+
+  describe('acceptProviderTerms', () => {
+    it('creates a session, submits the session disclaimers to the account, then records consents', async () => {
+      await withController(
+        { options: { state: { activeVendor: 'iron' } } },
+        async ({ controller, handlers }) => {
+          await controller.acceptProviderTerms({
+            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            credentialReusabilityConsentGiven: true,
+          });
+
+          expect(handlers.createUkycSession).toHaveBeenCalledTimes(1);
+          expect(handlers.submitSessionDisclaimers).toHaveBeenCalled();
+          expect(controller.hasCompletedProviderTerms(KycProvider.sumsub)).toBe(
+            true,
+          );
+          expect(
+            controller.state.providerDisclaimersAccepted.sumsub,
+          ).toStrictEqual(MOCK_SUMSUB_DISCLAIMERS_ACCEPTED);
+          expect(controller.state.idosDisclaimersAccepted).toStrictEqual(
+            MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+          );
+          expect(controller.state.credentialReusabilityConsentGiven).toBe(true);
+        },
+      );
+    });
+
+    it('reuses an existing session instead of creating another', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              sumsub: {
+                status: 'idle',
+                result: null,
+                sessionId: 'existing-session',
+                applicantAccessToken: null,
+                sessionStatus: null,
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          await controller.acceptProviderTerms({
+            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+          });
+
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+          expect(handlers.submitSessionDisclaimers).toHaveBeenCalled();
+          expect(controller.state.credentialReusabilityConsentGiven).toBe(
+            false,
+          );
+        },
+      );
+    });
+
+    it('fails closed and records nothing when a consent list is malformed', async () => {
+      await withController(
+        { options: { state: { activeVendor: 'iron' } } },
+        async ({ controller, handlers }) => {
+          await controller.acceptProviderTerms({
+            providerDisclaimersAccepted:
+              'nope' as unknown as typeof MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+          });
+
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+          expect(controller.hasCompletedProviderTerms(KycProvider.sumsub)).toBe(
+            false,
+          );
+          expect(
+            controller.state.providerDisclaimersAccepted.sumsub,
+          ).toBeNull();
+        },
+      );
+    });
+  });
+
+  describe('refreshVbaOnboardingStatus', () => {
+    it('is a no-op when the active vendor has no customer yet', async () => {
+      await withController(
+        { options: { state: { activeVendor: 'iron' } } },
+        async ({ controller, handlers }) => {
+          await controller.refreshVbaOnboardingStatus();
+
+          expect(handlers.fetchRequiredSignings).not.toHaveBeenCalled();
+          expect(controller.state.vbaRequiredSignings).toBeNull();
+        },
+      );
+    });
+
+    it('reports vendor terms complete when the account has no outstanding required signings', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              vendorCustomerIds: { moonpay: null, iron: 'iron-1' },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.fetchRequiredSignings.mockResolvedValue([]);
+
+          await controller.refreshVbaOnboardingStatus();
+
+          expect(handlers.fetchRequiredSignings).toHaveBeenCalledWith({
+            vendor: 'iron',
+            customerId: 'iron-1',
+          });
+          expect(controller.state.vbaRequiredSignings).toStrictEqual([]);
+          expect(controller.hasCompletedVendorTerms(KycVendor.Iron)).toBe(true);
+        },
+      );
+    });
+
+    it('reports vendor terms incomplete when the account still has outstanding signings', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              vendorCustomerIds: { moonpay: null, iron: 'iron-1' },
+              // Stale local acceptance must be overridden by the account.
+              vendorDisclaimersAccepted: {
+                moonpay: null,
+                iron: { disclaimerIds: ['d1'] },
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.fetchRequiredSignings.mockResolvedValue([
+            { id: 'sign-2', customer_id: 'iron-1', content_id: 'd2' },
+          ]);
+
+          await controller.refreshVbaOnboardingStatus();
+
+          expect(controller.hasCompletedVendorTerms(KycVendor.Iron)).toBe(
+            false,
+          );
+        },
+      );
+    });
+
+    it('keeps the last-known signal when a refresh fetch fails', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              activeVendor: 'iron',
+              vendorCustomerIds: { moonpay: null, iron: 'iron-1' },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.fetchRequiredSignings.mockRejectedValue(
+            new Error('offline'),
+          );
+
+          expect(await controller.refreshVbaOnboardingStatus()).toBeUndefined();
+
+          expect(controller.state.vbaRequiredSignings).toBeNull();
+        },
+      );
+    });
+  });
+
   describe('acceptTermsAndStartSession (iron)', () => {
     it('persists Iron disclaimer ids for vendor disclaimer submission', async () => {
       await withController(
@@ -1351,6 +1600,147 @@ describe('KycController', () => {
         ({ controller }) => {
           expect(controller.getKycStatus({ product: 'ramps' })).toBe(true);
           expect(controller.getKycStatus({ product: 'card' })).toBeUndefined();
+        },
+      );
+    });
+
+    it.each([
+      { userStatus: null, expected: KycStatus.NOT_STARTED },
+      { userStatus: 'not-started' as const, expected: KycStatus.NOT_STARTED },
+      { userStatus: 'pending' as const, expected: KycStatus.PENDING },
+      {
+        userStatus: 'need-more-information' as const,
+        expected: KycStatus.NEED_INFO,
+      },
+      {
+        userStatus: 'terminal-failure' as const,
+        expected: KycStatus.REJECTED,
+      },
+      { userStatus: 'completed' as const, expected: KycStatus.ACCEPTED },
+    ])(
+      'maps userStatus $userStatus to $expected for a vendor',
+      async ({ userStatus, expected }) => {
+        await withController(
+          // `sumSubSubmitted` so a `pending` status maps straight to PENDING;
+          // the pre-submission gate is covered separately below.
+          { options: { state: { userStatus, sumSubSubmitted: true } } },
+          ({ controller }) => {
+            expect(controller.getKycStatus(KycVendor.Iron)).toBe(expected);
+          },
+        );
+      },
+    );
+
+    it('treats pending as NOT_STARTED until SumSub has been submitted', async () => {
+      await withController(
+        {
+          options: { state: { userStatus: 'pending', sumSubSubmitted: false } },
+        },
+        ({ controller }) => {
+          // Session created (backend `pending`) but no documents captured yet,
+          // so onboarding must route to the SumSub screen, not KYC-pending.
+          expect(controller.getKycStatus(KycVendor.Iron)).toBe(
+            KycStatus.NOT_STARTED,
+          );
+        },
+      );
+    });
+  });
+
+  describe('isCustomerCreated', () => {
+    it('returns false when no vendor customer id is persisted', async () => {
+      await withController(({ controller }) => {
+        expect(controller.isCustomerCreated(KycVendor.Iron)).toBe(false);
+      });
+    });
+
+    it('returns true after createVendorCustomer persists the id', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.createVendorCustomer.mockResolvedValue({
+          id: 'iron-cust-1',
+          email: 'a@b.co',
+          status: 'SigningsRequired',
+        });
+
+        await controller.createVendorCustomer({
+          vendor: KycVendor.Iron,
+          email: 'a@b.co',
+        });
+
+        expect(controller.state.vendorCustomerIds.iron).toBe('iron-cust-1');
+        expect(controller.isCustomerCreated(KycVendor.Iron)).toBe(true);
+        expect(controller.isCustomerCreated(KycVendor.Moonpay)).toBe(false);
+      });
+    });
+
+    it('survives reset but is cleared by clearState', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              vendorCustomerIds: { moonpay: null, iron: 'iron-cust-1' },
+            },
+          },
+        },
+        ({ controller }) => {
+          controller.reset();
+          expect(controller.isCustomerCreated(KycVendor.Iron)).toBe(true);
+
+          controller.clearState();
+          expect(controller.isCustomerCreated(KycVendor.Iron)).toBe(false);
+        },
+      );
+    });
+  });
+
+  describe('hasCompletedVendorTerms', () => {
+    it('returns false when vendor terms are missing', async () => {
+      await withController(({ controller }) => {
+        expect(controller.hasCompletedVendorTerms(KycVendor.Iron)).toBe(false);
+      });
+    });
+
+    it('returns true when Iron disclaimer ids are persisted', async () => {
+      await withController(
+        {
+          options: {
+            state: VENDOR_TERMS_IRON_D1,
+          },
+        },
+        ({ controller }) => {
+          expect(controller.hasCompletedVendorTerms(KycVendor.Iron)).toBe(true);
+          expect(controller.hasCompletedVendorTerms(KycVendor.Moonpay)).toBe(
+            false,
+          );
+        },
+      );
+    });
+  });
+
+  describe('hasCompletedProviderTerms', () => {
+    it('returns false when SumSub provider terms are missing', async () => {
+      await withController(({ controller }) => {
+        expect(controller.hasCompletedProviderTerms(KycProvider.sumsub)).toBe(
+          false,
+        );
+      });
+    });
+
+    it('returns true when SumSub consent records are persisted', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              providerDisclaimersAccepted: {
+                sumsub: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              },
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(controller.hasCompletedProviderTerms(KycProvider.sumsub)).toBe(
+            true,
+          );
         },
       );
     });
@@ -2524,6 +2914,10 @@ describe('KycController', () => {
               vendorDisclaimersAccepted: {
                 moonpay: null,
                 iron: { disclaimerIds: ['1'] },
+              },
+              vendorCustomerIds: {
+                moonpay: null,
+                iron: 'iron-cust-1',
               },
               providerDisclaimersAccepted: {
                 sumsub: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
@@ -4970,6 +5364,7 @@ type ServiceHandlers = {
   checkKycRequired: jest.Mock;
   createVendorCustomer: jest.Mock;
   submitVendorDisclaimers: jest.Mock;
+  fetchRequiredSignings: jest.Mock;
   fetchSessionDisclaimersByCountry: jest.Mock;
   fetchSessionDisclaimersBySessionId: jest.Mock;
   submitSessionDisclaimers: jest.Mock;
@@ -5008,6 +5403,7 @@ const SERVICE_ACTIONS = [
   'KycService:checkKycRequired',
   'KycService:createVendorCustomer',
   'KycService:submitVendorDisclaimers',
+  'KycService:fetchRequiredSignings',
   'KycService:fetchSessionDisclaimersByCountry',
   'KycService:fetchSessionDisclaimersBySessionId',
   'KycService:submitSessionDisclaimers',
@@ -5118,6 +5514,7 @@ function withController<ReturnValue>(
       .mockResolvedValue([
         { id: 'sign-1', customer_id: 'cust-1', content_id: 'd1' },
       ]),
+    fetchRequiredSignings: jest.fn().mockResolvedValue([]),
     fetchSessionDisclaimersByCountry: jest.fn().mockResolvedValue({
       idOS: [],
       kycProvider: [],
@@ -5172,6 +5569,10 @@ function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'KycService:submitVendorDisclaimers',
     handlers.submitVendorDisclaimers,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:fetchRequiredSignings',
+    handlers.fetchRequiredSignings,
   );
   rootMessenger.registerActionHandler(
     'KycService:fetchSessionDisclaimersByCountry',
