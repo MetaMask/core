@@ -28,8 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Scale-ladder client order IDs keep their own group marker and rung index, so group recovery and cancel-by-client-order-ID are unaffected. A ladder's reserved flag byte is set when the waiver applies, but `hasFeeReductionAppliedFlag` does not report it — see the Fixed entry below. Scale fills and fills on caller-supplied client order IDs therefore receive the discount without a decodable marker; attributing them needs a correlation other than the client order ID.
   - The subscription program marker is the registered id `0x0100`, zero-extended into the 4-byte marker field.
 - Register the current HyperLiquid trading address with the subscription profile during `calculateFees`, and re-register it after the selected account changes.
-- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
-- Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
 
 ### Deprecated
 
@@ -61,6 +59,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Price a position close from the loaded position when the close parameters do not carry a notional. A full close commonly passes only a symbol, which previously resolved as an unbounded waiver rather than blending against the position's value; a partial close is now priced from the position's value per unit.
 - Resolve the subscription fee waiver against the order notional on the submit path, not just in previews. Order placement, order edits, position closes, batch closes, take-profit/stop-loss updates, and position flips previously resolved the waiver with no notional, so a bounded allowance always resolved as a full waiver — an order was quoted a blended rate and then charged nothing, over-consuming the allowance and marking its client order ID as fully waived.
 - Register the newly selected trading address immediately on an account switch. Clearing the session's registrations alone only re-registered on the next fee preview, so an order submitted straight after a switch went unattributed.
+
+## [17.2.0]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
+
+### Fixed
+
 - Normalize Lighter order timestamps from seconds to milliseconds for client date displays. ([#10187](https://github.com/MetaMask/core/pull/10187))
 - Accept omitted Lighter fill PnL only when the account's validated pre-trade position is zero; retain strict PnL validation for existing positions and malformed supplied values. ([#10187](https://github.com/MetaMask/core/pull/10187))
 
@@ -977,7 +985,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.2.0...HEAD
+[17.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.1.0...@metamask/perps-controller@17.2.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@17.0.0...@metamask/perps-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.2.0...@metamask/perps-controller@17.0.0
 [16.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@16.1.0...@metamask/perps-controller@16.2.0
