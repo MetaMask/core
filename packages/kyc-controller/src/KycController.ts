@@ -372,7 +372,7 @@ export class KycController extends BaseController<
     if (this.state.sessionStatus === null) {
       const sessionStatus = await this.messenger.call(
         'KycService:getSessionStatusForVendor',
-        this.state.vendor,
+        this.state.vendor!,
       );
       if (sessionStatus !== null) {
         this.update((state) => {
