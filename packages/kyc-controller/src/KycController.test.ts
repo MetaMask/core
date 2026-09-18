@@ -383,9 +383,7 @@ describe('KycController', () => {
           options: { state: { sessionStatus: sessionStatus('pending') } },
         },
         async ({ controller, handlers }) => {
-          handlers.getSessionStatus.mockResolvedValue(
-            sessionStatus('pending'),
-          );
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
 
           controller.startSessionStatusPolling();
           await flushPoll();
@@ -426,9 +424,7 @@ describe('KycController', () => {
           options: { state: { sessionStatus: sessionStatus('pending') } },
         },
         async ({ controller, handlers }) => {
-          handlers.getSessionStatus.mockResolvedValue(
-            sessionStatus('pending'),
-          );
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
 
           controller.startSessionStatusPolling();
           await flushPoll();
@@ -499,7 +495,9 @@ describe('KycController', () => {
         expect(
           handlers.fetchSessionDisclaimersBySessionId,
         ).not.toHaveBeenCalled();
-        expect(handlers.fetchSessionDisclaimersByCountry).not.toHaveBeenCalled();
+        expect(
+          handlers.fetchSessionDisclaimersByCountry,
+        ).not.toHaveBeenCalled();
       });
     });
 
