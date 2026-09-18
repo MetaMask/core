@@ -4403,6 +4403,36 @@ describe('AnalyticsController', () => {
     ): AnalyticsContext =>
       withPurposeConsent(preferences, context, eventsConfigVersion);
 
+    it('discards invalid persisted events config before classifying events', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: true,
+          eventsConfig: {
+            ...eventsConfig,
+            events: {
+              [productEvent]: [],
+            },
+          } as unknown as AnalyticsControllerState['eventsConfig'],
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+      });
+
+      controller.trackEvent(createTestEvent(productEvent));
+
+      expect(controller.state.eventsConfig).toBeUndefined();
+      expect(adapter.track).toHaveBeenCalledWith(
+        productEvent,
+        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
+      );
+    });
+
     it('emits a dual-purpose event once with both allowed purposes', async () => {
       const adapter = createMockAdapter();
       const { controller } = await setupController({

@@ -509,6 +509,18 @@ function isEventPurposesRecord(
   );
 }
 
+function isAnalyticsEventsConfig(
+  value: unknown,
+): value is AnalyticsEventsConfig {
+  return (
+    isRecord(value) &&
+    typeof value.schemaVersion === 'string' &&
+    typeof value.version === 'string' &&
+    typeof value.timestamp === 'number' &&
+    isEventPurposesRecord(value.events)
+  );
+}
+
 /**
  * Returns whether a JSON value is a non-array object.
  *
@@ -758,6 +770,14 @@ export class AnalyticsController extends BaseController<
       ...getDefaultAnalyticsControllerState(),
       ...state,
     };
+    const eventsConfig = isAnalyticsEventsConfig(initialState.eventsConfig)
+      ? initialState.eventsConfig
+      : undefined;
+    if (eventsConfig === undefined) {
+      delete initialState.eventsConfig;
+    } else {
+      initialState.eventsConfig = eventsConfig;
+    }
 
     validateAnalyticsControllerState(
       initialState,
@@ -779,10 +799,8 @@ export class AnalyticsController extends BaseController<
     this.#platformAdapter = platformAdapter;
     this.#initPromise = undefined;
     this.#locationResolvePromise = undefined;
-    this.#eventPurposes = new Map(
-      Object.entries(initialState.eventsConfig?.events ?? {}),
-    );
-    this.#eventsConfigVersion = initialState.eventsConfig?.version;
+    this.#eventPurposes = new Map(Object.entries(eventsConfig?.events ?? {}));
+    this.#eventsConfigVersion = eventsConfig?.version;
 
     this.messenger.registerMethodActionHandlers(
       this,
