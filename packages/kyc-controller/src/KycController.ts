@@ -24,6 +24,7 @@ import { controllerLog } from './logger.js';
 import type {
   KycConsentRecord,
   KycDisclaimer,
+  KycDisclaimersCatalog,
   KycPhase,
   KycProduct,
   KycProviderDisclaimersAccepted,
@@ -47,6 +48,7 @@ import {
   signStorageAccessToken,
 } from './ukyc/storageAccessToken.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
+import { consentRecordsFromAcceptedList } from './sessionDisclaimers.js';
 
 // === GENERAL ===
 
@@ -171,25 +173,25 @@ const kycControllerMetadata = {
   email: {
     includeInDebugSnapshot: false,
     includeInStateLogs: false,
-    persist: false,
+    persist: true,
     usedInUi: false,
   },
   vendor: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
-    persist: false,
+    persist: true,
     usedInUi: true,
   },
   geoCountry: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
-    persist: false,
+    persist: true,
     usedInUi: true,
   },
   sessionStatus: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
-    persist: false,
+    persist: true,
     usedInUi: true,
   },
   vendorDisclaimersAccepted: {
@@ -213,7 +215,7 @@ const kycControllerMetadata = {
   credentialReusabilityConsentGiven: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
-    persist: false,
+    persist: true,
     usedInUi: false,
   },
 } satisfies StateMetadata<KycControllerState>;
@@ -390,8 +392,8 @@ export class KycController extends BaseController<
   }
 
   // Only meant to be called if starting a new KYC flow
-  // Use getSessionStatusForVendor when only checking if a prior session exists for the vendor
-  async initialize(params: {
+  // Use getSessionStatusForVendor when only checking if a prior session exists for the vendor but not ready to onboard
+  async startSession(params: {
     vendor: KycVendor;
     email: string; // TODO: This will be removed once partnerIdentityTokens are fully ready
   }): Promise<KycSessionStatus> {
@@ -406,7 +408,6 @@ export class KycController extends BaseController<
     if (this.state.geoCountry !== null || this.state.geoCountry !== geoCountry) {
       throw new Error('KycController already initialized with a different geoCountry');
     }
-
 
     this.update((state) => {
       state.email = params.email;
@@ -427,6 +428,7 @@ export class KycController extends BaseController<
       // TODO: Should this made a call to check if the session is up-to-date?
       return this.state.sessionStatus
     }
+    // TODO: Should we resume polling here?
   }
 
   async reset(): Promise<void> {
@@ -446,58 +448,6 @@ export class KycController extends BaseController<
   getSessionStatusForVendor(vendor: KycVendor): Promise<KycSessionStatus | null> {
     return this.messenger.call('KycService:getSessionStatusForVendor', vendor);
   }
-
-
-    /**
-   * Fetches the idOS + KYC-provider disclaimer catalog. Pass exactly one of
-   * `sessionId` or `country`:
-   *
-   * - `{ sessionId }` → {@link KycService.fetchSessionDisclaimersBySessionId}
-   *   (`GET /sessions/{sessionId}/disclaimers`)
-   * - `{ country }` → {@link KycService.fetchSessionDisclaimersByCountry}
-   *   (`GET /disclaimers?country=`)
-   *
-   * A session-id fetch also writes the catalog to `sessionDisclaimers`.
-   *
-   * @param params - The parameters. Provide exactly one of `sessionId` or
-   * `country`.
-   * @param params.sessionId - The UKYC session id.
-   * @param params.country - ISO 3166-1 alpha-3 country code.
-   * @returns The catalog. Session fetches include consent state; country
-   * fetches do not.
-   */
-    async fetchSessionDisclaimers(
-      params: FetchSessionDisclaimersParams,
-    ): Promise<KycSessionDisclaimers | KycDisclaimersCatalog> {
-      const { sessionId, country } = params as {
-        sessionId?: string;
-        country?: string;
-      };
-      if (sessionId && country) {
-        throw new Error(
-          'KycController.fetchSessionDisclaimers: provide exactly one of sessionId or country.',
-        );
-      }
-
-      if (country) {
-        return this.messenger.call(
-          'KycService:fetchSessionDisclaimersByCountry',
-          { country },
-        );
-      }
-
-      if (!sessionId) {
-        throw new Error(
-          'KycController.fetchSessionDisclaimers: provide exactly one of sessionId or country.',
-        );
-      }
-
-      const catalog = await this.messenger.call(
-        'KycService:fetchSessionDisclaimersBySessionId',
-        { sessionId },
-      );
-      return catalog;
-    }
 
   /**
    * Creates a UKYC session, wraps the `data_encryption_key` and
@@ -552,6 +502,117 @@ export class KycController extends BaseController<
 
     return sessionStatus;
   }
+
+    /**
+   * Fetches the idOS + KYC-provider disclaimer catalog. Pass exactly one of
+   * `sessionId` or `country`:
+   *
+   * - `{ sessionId }` → {@link KycService.fetchSessionDisclaimersBySessionId}
+   *   (`GET /sessions/{sessionId}/disclaimers`)
+   * - `{ country }` → {@link KycService.fetchSessionDisclaimersByCountry}
+   *   (`GET /disclaimers?country=`)
+   *
+   * A session-id fetch also writes the catalog to `sessionDisclaimers`.
+   *
+   * @param params - The parameters. Provide exactly one of `sessionId` or
+   * `country`.
+   * @param params.sessionId - The UKYC session id.
+   * @param params.country - ISO 3166-1 alpha-3 country code.
+   * @returns The catalog. Session fetches include consent state; country
+   * fetches do not.
+   */
+    async fetchSessionDisclaimers(
+      params: FetchSessionDisclaimersParams,
+    ): Promise<KycSessionDisclaimers | KycDisclaimersCatalog> {
+      const { sessionId, country } = params as {
+        sessionId?: string;
+        country?: string;
+      };
+      if (sessionId && country) {
+        throw new Error(
+          'KycController.fetchSessionDisclaimers: provide exactly one of sessionId or country.',
+        );
+      }
+
+      if (country) {
+        return this.messenger.call(
+          'KycService:fetchSessionDisclaimersByCountry',
+          { country },
+        );
+      }
+
+      if (!sessionId) {
+        throw new Error(
+          'KycController.fetchSessionDisclaimers: provide exactly one of sessionId or country.',
+        );
+      }
+
+      const catalog = await this.messenger.call(
+        'KycService:fetchSessionDisclaimersBySessionId',
+        { sessionId },
+      );
+      return catalog;
+    }
+
+    /**
+   * Fetches the session-scoped disclaimer catalog and records consents
+   * derived from the T&C2 flags. Already-consented catalog rows are omitted
+   * from the POST. A 409 is re-checked with a GET: continue only when every
+   * accepted document is now consented, otherwise fail closed.
+   *
+   * @param consents - T&C2 flags mapped onto catalog documents.
+   * @param consents.providerDisclaimersAccepted - Accepted Sumsub disclaimer records.
+   * @param consents.idosDisclaimersAccepted - Accepted idOS disclaimer records.
+   * @param consents.credentialReusabilityConsentGiven - Whether credential
+   * reuse was accepted.
+   * @param generation - Flow generation captured by the caller.
+   */
+    async #recordSessionDisclaimers(
+      params: {
+        providerDisclaimersAccepted: KycConsentRecord[];
+        idosDisclaimersAccepted: KycConsentRecord[];
+        credentialReusabilityConsentGiven: boolean;
+      },
+    ): Promise<void> {
+      if (!this.state.sessionStatus) {
+        throw new Error('No session was found');
+      }
+      const catalog = await this.messenger.call(
+        'KycService:fetchSessionDisclaimersBySessionId',
+        { sessionId: this.state.sessionStatus.id },
+      );
+
+      const idOS = consentRecordsFromAcceptedList(
+        catalog.idOS,
+        params.idosDisclaimersAccepted,
+      );
+      const kycProvider = consentRecordsFromAcceptedList(
+        catalog.kycProvider,
+        params.providerDisclaimersAccepted,
+      );
+
+      try {
+        await this.messenger.call(
+          'KycService:submitSessionDisclaimers',
+          {
+            sessionId: this.state.sessionStatus.id,
+            idOS,
+            kycProvider,
+            credentialReusabilityConsentGiven:
+              params.credentialReusabilityConsentGiven,
+          },
+        );
+      } catch (error) {
+        // If 409 error, the session is already completed
+      }
+      this.update((state) => {
+        // TODO: This shouldn't be hardcoded to sumsub
+        state.providerDisclaimersAccepted.sumsub = params.providerDisclaimersAccepted;
+        state.idosDisclaimersAccepted = params.idosDisclaimersAccepted;
+        state.credentialReusabilityConsentGiven = params.credentialReusabilityConsentGiven;
+      });
+    }
+
 
 
   launchProviderFlow({ locale, debug }: { locale?: string; debug?: boolean }): Promise<string, unknown> {
