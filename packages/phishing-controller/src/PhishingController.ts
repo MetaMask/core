@@ -1457,6 +1457,7 @@ export class PhishingController extends BaseController<
       return {
         result_type: AddressScanResultType.ErrorResult,
         label: '',
+        address_alert_response_flagged_by: [],
       };
     }
 
@@ -1468,6 +1469,7 @@ export class PhishingController extends BaseController<
       return {
         result_type: AddressScanResultType.ErrorResult,
         label: '',
+        address_alert_response_flagged_by: [],
       };
     }
 
@@ -1477,6 +1479,8 @@ export class PhishingController extends BaseController<
       return {
         result_type: cachedResult.result_type,
         label: cachedResult.label,
+        address_alert_response_flagged_by:
+          cachedResult.address_alert_response_flagged_by ?? [],
       };
     }
 
@@ -1512,18 +1516,22 @@ export class PhishingController extends BaseController<
       return {
         result_type: AddressScanResultType.ErrorResult,
         label: '',
+        address_alert_response_flagged_by: [],
       };
     } else if ((apiResponse as { error?: string }).error) {
       return {
         result_type: AddressScanResultType.ErrorResult,
         label: '',
+        address_alert_response_flagged_by: [],
       };
     }
 
     const scanResult = apiResponse as AddressScanResult;
+    const flaggedBy = scanResult.address_alert_response_flagged_by ?? [];
     const result: AddressScanCacheData = {
       result_type: scanResult.result_type,
       label: scanResult.label,
+      address_alert_response_flagged_by: flaggedBy,
     };
 
     this.#addressScanCache.set(cacheKey, result);
@@ -1531,6 +1539,7 @@ export class PhishingController extends BaseController<
     return {
       result_type: scanResult.result_type,
       label: scanResult.label,
+      address_alert_response_flagged_by: flaggedBy,
     };
   }
 
