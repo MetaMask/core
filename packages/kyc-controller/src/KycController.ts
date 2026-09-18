@@ -372,7 +372,7 @@ export class KycController extends BaseController<
     if (this.state.sessionStatus === null) {
       const sessionStatus = await this.messenger.call(
         'KycService:getSessionStatusForVendor',
-        this.state.vendor!,
+        params.vendor,
       );
       if (sessionStatus !== null) {
         this.update((state) => {
@@ -381,14 +381,12 @@ export class KycController extends BaseController<
         return sessionStatus;
       }
 
+      // TODO: Probably move this into it's own method? Feels like startSession is a little overloaded.
       // It's assumed that if the session does not exist, the customer does not exist either
-      await this.messenger.call(
-        'KycService:createVendorCustomer',
-        {
-          vendor: params.vendor,
-          email: params.email,
-        },
-      );
+      await this.messenger.call('KycService:createVendorCustomer', {
+        vendor: params.vendor,
+        email: params.email,
+      });
 
       return this.#createUkycSession({ vendor: params.vendor, geoCountry });
     }
@@ -774,7 +772,6 @@ export class KycController extends BaseController<
     }
 
     const { vendor } = this.state;
-
 
     const signings = await this.messenger.call(
       'KycService:submitVendorDisclaimers',
