@@ -39,7 +39,7 @@ export type {
   CapabilityAuthorization,
   CheckKycRequiredParams,
   CreateVendorCustomerParams,
-  CreateSessionParams,
+  CreateMoonpaySessionParams,
   CreateUkycSessionParams,
   EncryptionSchema,
   FetchSessionDisclaimersByCountryParams,

@@ -288,7 +288,7 @@ const SessionDisclaimersResponseStruct = type({
 
 // === PARAM TYPES ===
 
-export type CreateSessionParams = {
+export type CreateMoonpaySessionParams = {
   email: string;
   termsAcceptedAt: string;
   disclaimerIds: string[];
@@ -556,7 +556,7 @@ export class KycService extends BaseDataService<
    * @returns The created session token.
    */
   async createSession(
-    params: CreateSessionParams,
+    params: CreateMoonpaySessionParams,
   ): Promise<Infer<typeof CreateSessionResponseStruct>> {
     const url = new URL('/vendors/moonpay/sessions', this.#baseUrl);
     const data = await this.#requestJson(url, {
