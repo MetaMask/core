@@ -348,7 +348,6 @@ export type SubmitSessionDisclaimersParams = {
 };
 
 export type CreateUkycSessionParams = {
-  jwtToken: string;
   /**
    * The client's per-session X25519 public key (unpadded base64url). Generated
    * with the matching private key used later to wrap authorizations, so the
@@ -882,9 +881,9 @@ export class KycService extends BaseDataService<
     const data = await this.#requestJson(url, {
       method: 'POST',
       body: JSON.stringify({
-        vendorId: params.vendor ?? 'moonpay',
+        vendorId: params.vendor,
         vendorUserId: 'mockedId',
-        jwtToken: params.jwtToken,
+        jwtToken: 'mock-jwt-token', // TODO: Remove this from the kyc-api
         sessionClientPublicKey: params.sessionClientPublicKey,
         residenceCountry: params.residenceCountry,
         vendorMetadata: params.vendorMetadata ?? {},

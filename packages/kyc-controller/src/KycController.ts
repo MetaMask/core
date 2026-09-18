@@ -432,8 +432,6 @@ export class KycController extends BaseController<
     kycStatus?: string;
     finalStatus?: string;
   }> {
-    const jwtToken = MOCK_JWT_TOKEN;
-
     // Establish a per-session X25519 keypair used to seal both secrets. The
     // private half stays on the device; the public half is registered on the
     // session so the server can open later authorizations. Each encryption
@@ -450,7 +448,6 @@ export class KycController extends BaseController<
       encryptionDataKey,
       ukycCapabilityToken: capabilityTokenSchema,
     } = await this.messenger.call('KycService:createUkycSession', {
-      jwtToken,
       sessionClientPublicKey,
       residenceCountry: this.state.geoCountry,
       vendor: this.state.vendor,
