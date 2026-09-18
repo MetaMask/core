@@ -23,7 +23,7 @@ jobs:
       # Dependabot runs get a read-only `GITHUB_TOKEN` and no repository secrets, so the push is authorised by an OIDC exchange instead.
       - name: Get access token
         id: get-token
-        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        uses: MetaMask/github-tools/.github/actions/get-token@7e0d74bc7b79ce9601e52f58d5e4d36c19591df9 # v1.19.0
         with:
           token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
           permissions: |
@@ -31,7 +31,7 @@ jobs:
 
       # Explicitly the head branch, because on a `pull_request` event the default checkout is the merge ref and we push this branch back. Full history is for the merge base below.
       - name: Check out the pull request branch
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
@@ -55,13 +55,13 @@ jobs:
 
       # The action installs with an explicit `yarn --immutable`, which Dependabot's lockfile does not always satisfy. Every install in this job has to be free to rewrite it, so do our own.
       - name: Set up environment
-        uses: MetaMask/action-checkout-and-setup@v3
+        uses: MetaMask/action-checkout-and-setup@0543b5929698c71e3ccc6ed24eac87825669b5de # v3.5.0
         with:
           is-high-risk-environment: false
           skip-install: true
 
       - name: Install dependencies
-        uses: MetaMask/action-retry-command@v1
+        uses: MetaMask/action-retry-command@2377689bfd9a03010a956b7c14273a2fc43d20cf # v1.0.1
         with:
           command: yarn install --no-immutable
           max-retries: 5
@@ -72,7 +72,7 @@ jobs:
         run: yarn constraints --fix
 
       - name: Apply dependency range updates
-        uses: MetaMask/action-retry-command@v1
+        uses: MetaMask/action-retry-command@2377689bfd9a03010a956b7c14273a2fc43d20cf # v1.0.1
         with:
           command: yarn install --no-immutable
           max-retries: 5
