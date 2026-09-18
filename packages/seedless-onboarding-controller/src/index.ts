@@ -18,7 +18,7 @@ export type {
   SeedlessOnboardingControllerAddNewSecretDataAction,
   SeedlessOnboardingControllerFetchAllSecretDataAction,
   SeedlessOnboardingControllerChangePasswordAction,
-  SeedlessOnboardingControllerClearPasswordChangePhaseAction,
+  SeedlessOnboardingControllerCompletePasswordChangeAction,
   SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction,
   SeedlessOnboardingControllerUpdateBackupMetadataStateAction,
   SeedlessOnboardingControllerVerifyVaultPasswordAction,
@@ -48,13 +48,15 @@ export type {
   RecoveryErrorData,
   InvalidPrimarySecretDataTypeErrorData,
 } from './types.js';
+export type { SeedlessOperationLifecycle } from './constants.js';
 export {
   Web3AuthNetwork,
   SeedlessOnboardingControllerErrorMessage,
   SeedlessOnboardingMigrationVersion,
+  SeedlessOnboardingOperation,
+  SeedlessOnboardingPhase,
   AuthConnection,
   SecretType,
-  SeedlessPasswordChangePhase,
   PasswordSyncStatus,
 } from './constants.js';
 export { SecretMetadata } from './SecretMetadata.js';

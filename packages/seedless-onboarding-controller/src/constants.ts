@@ -26,24 +26,42 @@ export enum SeedlessOnboardingMigrationVersion {
 }
 
 /**
- * The lifecycle phase of a Seedless password-change operation.
+ * The stateful Seedless Onboarding operation tracked by the lifecycle record.
  *
- * Used as a recovery signal only — it is not proof that a remote or local
- * operation completed. Recovery must always verify actual remote and local
- * state before acting on the phase.
+ * The operation identifies the workflow, while the phase identifies the
+ * recoverable boundary within that workflow.
  */
-export enum SeedlessPasswordChangePhase {
-  /** A password change has started but the remote Seedless result is not yet confirmed. */
-  SeedlessChangePending = 'SEEDLESS_CHANGE_PENDING',
-  /** The remote Seedless password change is confirmed committed. */
-  SeedlessCommitted = 'SEEDLESS_COMMITTED',
-  /** The local Seedless vault has been rewritten with the new password. */
-  LocalKeyringPending = 'LOCAL_KEYRING_PENDING',
-  /** The local Keyring encryption key has been stored; awaiting final verification. */
-  KeySyncPending = 'KEY_SYNC_PENDING',
-  /** The result of one or more steps could not be established. */
-  Unknown = 'UNKNOWN',
+export enum SeedlessOnboardingOperation {
+  PasswordChange = 'PASSWORD_CHANGE',
+  CreateNewAccount = 'CREATE_NEW_ACCOUNT',
+  AddNewSecretData = 'ADD_NEW_SECRET_DATA',
 }
+
+/**
+ * Shared lifecycle phases for stateful Seedless Onboarding TOPRF operations.
+ *
+ * These phases are recovery signals only — they are not proof that a remote or
+ * local operation completed. Recovery must always verify actual remote and
+ * local state before acting on a phase.
+ */
+export enum SeedlessOnboardingPhase {
+  LocalKeyPending = 'LOCAL_KEY_PENDING',
+  RemoteSecretPending = 'REMOTE_SECRET_PENDING',
+  RemoteKeyPending = 'REMOTE_KEY_PENDING',
+  RemotePasswordPending = 'REMOTE_PASSWORD_PENDING',
+  LocalStatePending = 'LOCAL_STATE_PENDING',
+  LocalPasswordPending = 'LOCAL_PASSWORD_PENDING',
+  KeySyncPending = 'KEY_SYNC_PENDING',
+}
+
+/**
+ * The persisted lifecycle record for a stateful Seedless Onboarding
+ * operation.
+ */
+export type SeedlessOperationLifecycle = {
+  operation: SeedlessOnboardingOperation;
+  phase: SeedlessOnboardingPhase;
+};
 
 /**
  * The next step for the client after a password-sync or password-change
@@ -54,7 +72,7 @@ export enum SeedlessPasswordChangePhase {
  * password change. The controller owns Seedless-side sequencing; the client
  * owns the Keyring-side steps (it must call `KeyringController` directly)
  * and UI routing based on this status. See
- * [0002](./docs/0002-password-change-recovery-flow.md).
+ * [the client guide](./docs/0002-seedless-password-change-recovery-client-guide.md).
  */
 export enum PasswordSyncStatus {
   /** The local and remote passwords are synchronized; no recovery action is needed. Unlock normally. */
@@ -63,9 +81,9 @@ export enum PasswordSyncStatus {
   PasswordOutdated = 'password-outdated',
   /** Remote committed (or the local Seedless side still needs the new password). Prompt for the new password, then call `reconcilePassword`. */
   EnterNewPassword = 'enter-new-password',
-  /** The Seedless side is reconciled (phase is `LOCAL_KEYRING_PENDING`). The client must cryptographically classify the local Keyring and run the old/new branch. */
+  /** The Seedless side is reconciled (phase is `LOCAL_PASSWORD_PENDING`). The client must cryptographically classify the local Keyring and run the old/new branch. */
   ReconcileKeyring = 'reconcile-keyring',
-  /** Phase is `KEY_SYNC_PENDING`. The client must export, store, and sync the current Keyring encryption key, then call `clearPasswordChangePhase`. */
+  /** Phase is `KEY_SYNC_PENDING`. The client must export, store, and sync the current Keyring encryption key, then call `completePasswordChange`. */
   SyncKey = 'sync-key',
   /** The remote or local state could not be established. Keep the wallet locked. The last known phase is preserved. */
   Unknown = 'unknown',

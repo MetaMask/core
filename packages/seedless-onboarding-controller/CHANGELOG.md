@@ -9,18 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `SeedlessPasswordChangePhase` enum and an optional `passwordChangePhase` state field that persists a non-sensitive password-change lifecycle phase used as a recovery signal. An unset/`undefined` phase means no password change is in progress ([#10148](https://github.com/MetaMask/core/pull/10148))
+- Add the `seedlessOperationLifecycle` state field to persist the generic non-sensitive lifecycle record defined by the Seedless Onboarding state-machine ADR ([#10148](https://github.com/MetaMask/core/pull/10148))
+  - `operation` identifies the Seedless Onboarding workflow.
+  - `phase` identifies the recoverable boundary within that workflow.
 - Add `PasswordSyncStatus` enum, returned by `resolvePasswordSyncState` and `reconcilePassword` to tell clients which step to run next after either an interrupted local password change or an another-device password change ([#10148](https://github.com/MetaMask/core/pull/10148))
 - Add `resolvePasswordSyncState({ skipCache })` and `SeedlessOnboardingControllerResolvePasswordSyncStateAction` to resolve remote password state at unlock without consuming a password, replacing the removed `checkIsPasswordOutdated` read ([#10148](https://github.com/MetaMask/core/pull/10148))
 - Add `reconcilePassword({ globalPassword })` and `SeedlessOnboardingControllerReconcilePasswordAction` to bring local Seedless state up to date with the remote password after either an interrupted local password change or a password change made on another device ([#10148](https://github.com/MetaMask/core/pull/10148))
-  - It performs the password-chain unlock and local vault rewrite internally, re-encrypts `encryptedKeyringEncryptionKey` under the new wrapping key so `loadKeyringEncryptionKey` keeps working, and advances the lifecycle to `LOCAL_KEYRING_PENDING` so the client reconciles the local Keyring before unlocking normally.
-- Add `clearPasswordChangePhase` and `markPasswordChangeKeySyncPending` lifecycle-advance methods, along with `SeedlessOnboardingControllerClearPasswordChangePhaseAction` and `SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction`. `clearPasswordChangePhase` is the only way back to "no change in progress" and must be called once key synchronization and local persistence are verified ([#10148](https://github.com/MetaMask/core/pull/10148))
+  - It performs the password-chain unlock and local vault rewrite internally, re-encrypts `encryptedKeyringEncryptionKey` under the new wrapping key so `loadKeyringEncryptionKey` keeps working, and advances the lifecycle to `LOCAL_PASSWORD_PENDING` so the client reconciles the local Keyring before unlocking normally.
+- Add `completePasswordChange` and `markPasswordChangeKeySyncPending` lifecycle-advance methods, along with `SeedlessOnboardingControllerCompletePasswordChangeAction` and `SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction`. `completePasswordChange` is the only way back to "no change in progress" and must be called once key synchronization and local persistence are verified ([#10148](https://github.com/MetaMask/core/pull/10148))
 - Add `SeedlessOnboardingControllerErrorMessage.PasswordChangeInProgress`, thrown when a password change is started while another one is unresolved ([#10148](https://github.com/MetaMask/core/pull/10148))
 
 ### Changed
 
-- **BREAKING:** `changePassword` is now lifecycle-aware: it writes the `SEEDLESS_CHANGE_PENDING`, `SEEDLESS_COMMITTED`, and `LOCAL_KEYRING_PENDING` phases and rejects a concurrent change with `PasswordChangeInProgress` ([#10148](https://github.com/MetaMask/core/pull/10148))
-  - Clients must not start a second password change while a lifecycle is unfinished, and must drive the lifecycle to completion by calling `clearPasswordChangePhase`. See [0002](./docs/0002-password-change-recovery-flow.md) for the client integration guide.
+- **BREAKING:** `changePassword` is now lifecycle-aware: it writes `seedlessOperationLifecycle` with the shared `REMOTE_PASSWORD_PENDING`, `LOCAL_STATE_PENDING`, and `LOCAL_PASSWORD_PENDING` phases and rejects a concurrent change with `PasswordChangeInProgress` ([#10148](https://github.com/MetaMask/core/pull/10148))
+  - Clients must not start a second password change while a lifecycle is unfinished, and must drive the lifecycle to completion by calling `completePasswordChange`. See the [client integration guide](./docs/0002-seedless-password-change-recovery-client-guide.md).
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
 ### Removed

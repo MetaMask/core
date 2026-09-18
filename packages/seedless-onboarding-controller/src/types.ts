@@ -8,7 +8,7 @@ import type { MutexInterface } from 'async-mutex';
 import type {
   AuthConnection,
   SecretType,
-  SeedlessPasswordChangePhase,
+  SeedlessOperationLifecycle,
 } from './constants.js';
 
 /**
@@ -197,10 +197,10 @@ export type SeedlessOnboardingControllerState =
       migrationVersion: number;
 
       /**
-       * The persisted last-known phase of an in-progress or unresolved
-       * password-change operation. Missing or `undefined` means `IDLE`.
+       * The persisted lifecycle of the active stateful Seedless Onboarding
+       * operation. Missing or `undefined` means that no operation is active.
        */
-      passwordChangePhase?: SeedlessPasswordChangePhase;
+      seedlessOperationLifecycle?: SeedlessOperationLifecycle;
     };
 
 /**
