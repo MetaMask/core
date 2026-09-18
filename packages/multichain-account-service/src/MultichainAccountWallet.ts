@@ -45,6 +45,29 @@ import {
 } from './utils.js';
 
 /**
+ * Per-account failure detail collected while deleting wallet-owned accounts.
+ *
+ * Produced by {@link MultichainAccountWallet.deleteAllMultichainAccountGroups}
+ * and surfaced in Sentry when {@link MultichainAccountService.removeMultichainAccountWallet}
+ * runs.
+ */
+export type RemoveMultichainAccountWalletFailure = {
+  provider: string;
+  // Omitted for provider-level failures (e.g. enumerating a provider's
+  // accounts threw before any specific account could be targeted).
+  id?: Bip44Account<KeyringAccount>['id'];
+  error: unknown;
+};
+
+/**
+ * Aggregated context payload attached to the Sentry report when one or more
+ * per-account deletions fail during wallet removal.
+ */
+export type RemoveMultichainAccountWalletFailureContext = {
+  failures: RemoveMultichainAccountWalletFailure[];
+};
+
+/**
  * The context for a provider discovery.
  */
 type AccountProviderDiscoveryContext<
@@ -141,6 +164,192 @@ export class MultichainAccountWallet<
     }
 
     this.#log('Finished initializing wallet state...');
+  }
+
+  /**
+   * Deletes every account this wallet owns across all providers.
+   *
+   * EVM deletion is required because every multichain account group must have
+   * an EVM account and EVM keyring state cannot be recovered from a Snap. If
+   * EVM deletion partially fails, only non-EVM accounts whose EVM counterpart
+   * was successfully deleted are removed, empty groups are pruned, and this
+   * method throws. The caller must keep the wallet registered in that case.
+   *
+   * Once every EVM account has been deleted, non-EVM cleanup is best-effort,
+   * every group is pruned from this wallet, failures are reported together,
+   * and this method resolves so the caller can drop the wallet.
+   *
+   * NOTE: This operation WILL lock the wallet's mutex.
+   *
+   * @throws If one or more EVM accounts cannot be deleted.
+   * @returns A promise that resolves once all groups cleanup is complete.
+   */
+  async deleteAllMultichainAccountGroups(): Promise<void> {
+    return await this.#withLock(
+      'in-progress:delete-accounts',
+      async () => await this.#deleteAllMultichainAccountGroups(),
+    );
+  }
+
+  async #deleteAllMultichainAccountGroups(): Promise<void> {
+    const providers = this.#getProviders();
+    const [evmProvider, ...otherProviders] = providers;
+
+    // Snapshot the wallet-owned IDs before deletion. The provider result then
+    // gives us everything needed to identify which groups lost their EVM
+    // account, without re-querying live provider state.
+    const groups = this.getMultichainAccountGroups();
+    const groupsByProvider = new Map(
+      providers.map((provider) => [
+        provider,
+        new Map(
+          groups.map((group) => [
+            group.groupIndex,
+            group.getAccountIds(provider),
+          ]),
+        ),
+      ]),
+    );
+
+    // Failure handling for account deletions:
+    const failures: RemoveMultichainAccountWalletFailure[] = [];
+    const registerFailures = (
+      provider: Bip44AccountProvider<Account>,
+      providerFailures: { id?: Account['id']; error: unknown }[],
+    ): void => {
+      // Register each failure from the provider into the aggregated failures array.
+      const providerName = provider.getName();
+
+      for (const failure of providerFailures) {
+        failures.push({
+          provider: providerName,
+          ...failure,
+        });
+      }
+    };
+    const reportFailures = (message: string, error: Error): void => {
+      // One aggregated report per wallet-removal action: keeps the Sentry
+      // message stable for grouping while still surfacing every per-account
+      // failure in `context`. The shape is pinned by
+      // `RemoveMultichainAccountWalletFailureContext`.
+      const context: RemoveMultichainAccountWalletFailureContext = {
+        failures: failures.map(({ provider, id, error: failureError }) => ({
+          provider,
+          id,
+          error: toErrorMessage(failureError),
+        })),
+      };
+      reportError(this.#messenger, message, error, context);
+    };
+
+    // Best-effort: one provider/account failure does not skip the rest.
+    const deleteNonEvmAccounts = async (
+      groupIndexes: Set<number>,
+    ): Promise<void> => {
+      for (const provider of otherProviders) {
+        // Safe to cast, we know this provider always maps to a group-index-to-account-IDs map.
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        const nonEvmGroups = groupsByProvider.get(provider)!;
+        const nonEvmAccountIds = Array.from(nonEvmGroups.entries()).flatMap(
+          ([groupIndex, accountIds]) =>
+            groupIndexes.has(groupIndex) ? accountIds : [],
+        );
+
+        if (nonEvmAccountIds.length === 0) {
+          continue;
+        }
+
+        try {
+          const result = await provider.deleteAccounts(nonEvmAccountIds);
+          if (!result.ok) {
+            registerFailures(provider, result.failures);
+          }
+        } catch (error) {
+          // SnapKeyring removes from its local registry before contacting the
+          // Snap, and Snap-side errors are swallowed. Rejections here are
+          // exceptional KeyringController lookup/persist failures. Preventing
+          // the controller from locking between providers would require a
+          // larger session API, so non-EVM cleanup remains best-effort.
+          registerFailures(provider, [{ error }]);
+        }
+      }
+    };
+
+    // Keep track of EVM account IDs.
+    // Safe to cast, we know this provider always maps to a group-index-to-account-IDs map.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const evmGroups = groupsByProvider.get(evmProvider)!;
+    const evmAllAccountIds = new Set(
+      evmProvider.getAccounts().map((account) => account.id),
+    );
+    // Pick all accounts from every EVM groups, but also filter out those not present in the
+    // provider's current account list. So the failures only concern accounts that actually
+    // exist in the provider.
+    const evmAccountIds = Array.from(evmGroups.values())
+      .flat() // Flatten, cause 1 group could hold multiple accounts for a given index.
+      .filter((id) => evmAllAccountIds.has(id));
+
+    let evmRemainingAccountIds = new Set(evmAccountIds);
+    try {
+      const result = await evmProvider.deleteAccounts(evmAccountIds);
+      if (result.ok) {
+        evmRemainingAccountIds = new Set();
+      } else {
+        evmRemainingAccountIds = new Set(result.failures.map(({ id }) => id));
+        registerFailures(evmProvider, result.failures);
+      }
+    } catch (error) {
+      // No result means we cannot prove that any EVM account was removed.
+      // That's a hard failure.
+      registerFailures(evmProvider, [{ error }]);
+    }
+
+    if (evmRemainingAccountIds.size > 0) {
+      // EVM failed: we have some EVM accounts left.
+      // Now, we clean non-EVM accounts only from groups whose EVM account
+      // was removed, then stop reserving those now-orphaned group indexes.
+      const evmRemovedGroupIndexes = new Set(
+        [...evmGroups.entries()]
+          .filter(
+            ([_, evmGroupAccountIds]) =>
+              // This group has no remaining EVM accounts, we keep it.
+              !evmGroupAccountIds.some((id) => evmRemainingAccountIds.has(id)),
+          )
+          .map(([groupIndex, _]) => groupIndex),
+      );
+      await deleteNonEvmAccounts(evmRemovedGroupIndexes);
+      for (const groupIndex of evmRemovedGroupIndexes) {
+        this.#accountGroups.delete(groupIndex);
+      }
+
+      // This is a hard failure because every retained multichain group must
+      // have an EVM account, and HD keyring state cannot be rebuilt from a
+      // Snap. The remaining failure IDs identify live groups, so the caller
+      // must keep this wallet registered.
+      const error = new Error(
+        'Failed to delete EVM accounts during wallet removal',
+      );
+      reportFailures(error.message, error);
+
+      throw error; // Hard failure, consumer has to handle it explicitly.
+    } else {
+      // EVM is fully gone, so every non-EVM account is now orphaned. Their
+      // cleanup is best-effort and the caller can safely drop the wallet.
+      const evmRemovedGroupIndexes = new Set(evmGroups.keys());
+      await deleteNonEvmAccounts(evmRemovedGroupIndexes);
+      for (const groupIndex of evmRemovedGroupIndexes) {
+        this.#accountGroups.delete(groupIndex);
+      }
+
+      if (failures.length > 0) {
+        // That's not a hard failure, non-EVM are best effort, but we still report something
+        // went wrong, to further investigate.
+        const error = new Error(
+          `Failed to delete one or more accounts during wallet removal`,
+        );
+        reportFailures(error.message, error);
+      }
+    }
   }
 
   /**
@@ -859,22 +1068,25 @@ export class MultichainAccountWallet<
       return;
     }
 
-    const nextGroupIndex = this.getNextGroupIndex();
+    await this.#withLock('in-progress:alignment', async () => {
+      // Re-check under the lock: a concurrent deletion may have cleared every
+      // group while this call was waiting to acquire the mutex.
+      if (this.isAligned()) {
+        this.#log('Already aligned, skipping...');
+        return;
+      }
 
-    if (nextGroupIndex > 0) {
-      this.#log('Aligning accounts...');
+      const nextGroupIndex = this.getNextGroupIndex();
 
-      const from = 0;
-      const to = nextGroupIndex - 1;
+      if (nextGroupIndex > 0) {
+        const from = 0;
+        const to = nextGroupIndex - 1;
 
-      await this.#withLock(
-        'in-progress:alignment',
-        async () =>
-          await this.#alignAccountsForRange({ from, to }, this.#providers),
-      );
-
-      this.#log('Aligned!');
-    }
+        this.#log('Aligning accounts...');
+        await this.#alignAccountsForRange({ from, to }, this.#providers);
+        this.#log('Aligned!');
+      }
+    });
   }
 
   /**

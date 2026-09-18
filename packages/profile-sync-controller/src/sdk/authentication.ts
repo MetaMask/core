@@ -1,3 +1,4 @@
+import type { PublicInterface } from '@metamask/utils';
 import type { Eip1193Provider } from 'ethers';
 
 import type { Env } from '../shared/env.js';
@@ -21,9 +22,8 @@ import { PairError, UnsupportedAuthTypeError } from './errors.js';
 
 // Computing the Classes, so we only get back the public methods for the interface.
 
-type Compute<T> = T extends infer U ? { [K in keyof U]: U[K] } : never;
-type SIWEInterface = Compute<SIWEJwtBearerAuth>;
-export type SRPInterface = Compute<SRPJwtBearerAuth>;
+type SIWEInterface = PublicInterface<SIWEJwtBearerAuth>;
+export type SRPInterface = PublicInterface<SRPJwtBearerAuth>;
 
 type SiweParams = ConstructorParameters<typeof SIWEJwtBearerAuth>;
 type SRPParams = ConstructorParameters<typeof SRPJwtBearerAuth>;

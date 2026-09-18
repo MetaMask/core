@@ -1,4 +1,5 @@
 import type { LoginResponse } from '../authentication.js';
+import { decodeJwtPayload } from './jwt.js';
 
 /**
  * Validates that the input is a well-formed, non-expired LoginResponse.
@@ -37,13 +38,12 @@ export function validateLoginResponse(input: unknown): input is LoginResponse {
  */
 function isJwtExpired(token: string): boolean {
   try {
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      return true;
-    }
-    const base64 = parts[1].replace(/-/gu, '+').replace(/_/gu, '/');
-    const { exp } = JSON.parse(atob(base64));
-    return !Number.isInteger(exp) || exp * 1000 <= Date.now();
+    const { exp } = decodeJwtPayload(token) as { exp?: unknown };
+    return (
+      typeof exp !== 'number' ||
+      !Number.isInteger(exp) ||
+      exp * 1000 <= Date.now()
+    );
   } catch {
     return true;
   }
