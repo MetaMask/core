@@ -15,14 +15,14 @@ jobs:
       id-token: write
     steps:
       - name: Checkout head
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Fetch tags
         run: git fetch --prune --unshallow --tags
       - name: Get extension token
         id: extension-token
-        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        uses: MetaMask/github-tools/.github/actions/get-token@7e0d74bc7b79ce9601e52f58d5e4d36c19591df9 # v1.19.0
         with:
           token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
           target-repository: 'MetaMask/metamask-extension'
@@ -32,7 +32,7 @@ jobs:
             metadata: read
       - name: Get mobile token
         id: mobile-token
-        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        uses: MetaMask/github-tools/.github/actions/get-token@7e0d74bc7b79ce9601e52f58d5e4d36c19591df9 # v1.19.0
         with:
           token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
           target-repository: 'MetaMask/metamask-mobile'
