@@ -659,7 +659,9 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          await controller.acceptTermsAndStartSession();
+          await expect(
+            controller.acceptTermsAndStartSession(),
+          ).rejects.toThrow(/Missing T&C2 acceptance/u);
 
           expect(controller.state.phase).toBe('error');
           expect(controller.state.error).toMatch(/Missing T&C2 acceptance/u);
@@ -885,10 +887,12 @@ describe('KycController', () => {
           },
         },
         async ({ controller }) => {
-          await controller.acceptTermsAndStartSession({
-            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
-            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-          });
+          await expect(
+            controller.acceptTermsAndStartSession({
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            }),
+          ).rejects.toThrow(/Missing email/u);
 
           expect(controller.state.phase).toBe('error');
           expect(controller.state.error).toMatch(/Missing email/u);
@@ -898,11 +902,13 @@ describe('KycController', () => {
 
     it('fails when no disclaimers were accepted', async () => {
       await withController(async ({ controller }) => {
-        await controller.acceptTermsAndStartSession({
-          email: 'a@b.co',
-          providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
-          idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-        });
+        await expect(
+          controller.acceptTermsAndStartSession({
+            email: 'a@b.co',
+            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+          }),
+        ).rejects.toThrow(/Missing terms acceptance/u);
 
         expect(controller.state.phase).toBe('error');
         expect(controller.state.error).toMatch(/Missing terms acceptance/u);
@@ -1162,7 +1168,9 @@ describe('KycController', () => {
         async ({ controller, handlers, launcher, moonPayFrames }) => {
           handlers.checkKycRequired.mockRejectedValue(new Error('down'));
 
-          await moonPayFrames.options.onAuthenticated();
+          await expect(
+            moonPayFrames.options.onAuthenticated(),
+          ).rejects.toThrow(/KYC check failed/u);
 
           expect(controller.state.phase).toBe('error');
           expect(launcher.launch).not.toHaveBeenCalled();
@@ -1220,7 +1228,9 @@ describe('KycController', () => {
 
     it('records an error when the handler reports a failure', async () => {
       await withController(({ controller, moonPayFrames }) => {
-        moonPayFrames.options.fail('Check frame returned status: failed');
+        expect(() =>
+          moonPayFrames.options.fail('Check frame returned status: failed'),
+        ).toThrow('Check frame returned status: failed');
 
         expect(controller.state.phase).toBe('error');
         expect(controller.state.error).toBe(
@@ -1233,9 +1243,9 @@ describe('KycController', () => {
   describe('checkKycRequired', () => {
     it('fails without an access token', async () => {
       await withController(async ({ controller }) => {
-        expect(await controller.checkKycRequired({ product: 'ramps' })).toBe(
-          false,
-        );
+        await expect(
+          controller.checkKycRequired({ product: 'ramps' }),
+        ).rejects.toThrow(/Missing moonpayAccessToken/u);
         expect(controller.state.error).toMatch(/Missing moonpayAccessToken/u);
       });
     });
@@ -1244,9 +1254,9 @@ describe('KycController', () => {
       await withController(
         { options: { state: { moonpayAccessToken: 'a' } } },
         async ({ controller }) => {
-          expect(await controller.checkKycRequired({ product: 'ramps' })).toBe(
-            false,
-          );
+          await expect(
+            controller.checkKycRequired({ product: 'ramps' }),
+          ).rejects.toThrow(/Missing country/u);
           expect(controller.state.error).toMatch(/Missing country/u);
         },
       );
@@ -1293,9 +1303,9 @@ describe('KycController', () => {
         async ({ controller, handlers }) => {
           handlers.checkKycRequired.mockRejectedValue(new Error('down'));
 
-          expect(await controller.checkKycRequired({ product: 'ramps' })).toBe(
-            false,
-          );
+          await expect(
+            controller.checkKycRequired({ product: 'ramps' }),
+          ).rejects.toThrow(/KYC check failed/u);
           expect(controller.state.error).toMatch(/KYC check failed/u);
         },
       );
@@ -2699,7 +2709,9 @@ describe('KycController', () => {
       await withController(async ({ controller, handlers }) => {
         handlers.createVendorCustomer.mockRejectedValue(new Error('iron down'));
 
-        await controller.initialize({ email: 'a@b.co', vendor: 'iron' });
+        await expect(
+          controller.initialize({ email: 'a@b.co', vendor: 'iron' }),
+        ).rejects.toThrow(/Vendor customer creation failed/u);
 
         expect(controller.state.phase).toBe('error');
         expect(controller.state.error).toMatch(
@@ -2722,7 +2734,9 @@ describe('KycController', () => {
             new Error('iron down'),
           );
 
-          await controller.initialize({ email: 'a@b.co', vendor: 'iron' });
+          await expect(
+            controller.initialize({ email: 'a@b.co', vendor: 'iron' }),
+          ).rejects.toThrow(/Vendor customer creation failed/u);
 
           expect(controller.state.phase).toBe('error');
           expect(
@@ -3041,10 +3055,12 @@ describe('KycController', () => {
       await withController(async ({ controller, handlers }) => {
         handlers.createVendorCustomer.mockRejectedValue(new Error('nope'));
 
-        await controller.createVendorCustomer({
-          vendor: 'iron',
-          email: 'a@b.co',
-        });
+        await expect(
+          controller.createVendorCustomer({
+            vendor: 'iron',
+            email: 'a@b.co',
+          }),
+        ).rejects.toThrow(/Vendor customer creation failed/u);
 
         expect(controller.state.activeVendor).toBe('iron');
         expect(controller.state.email).toBe('a@b.co');
@@ -3064,10 +3080,12 @@ describe('KycController', () => {
         async ({ controller, handlers }) => {
           handlers.createVendorCustomer.mockRejectedValue(new Error('nope'));
 
-          await controller.createVendorCustomer({
-            vendor: 'iron',
-            email: 'a@b.co',
-          });
+          await expect(
+            controller.createVendorCustomer({
+              vendor: 'iron',
+              email: 'a@b.co',
+            }),
+          ).rejects.toThrow(/Vendor customer creation failed/u);
 
           expect(controller.state.phase).toBe('error');
           expect(
@@ -3568,11 +3586,13 @@ describe('KycController', () => {
           },
         },
         async ({ controller }) => {
-          // @ts-expect-error T&C2 flags are required
-          await controller.acceptTermsAndStartSession({
-            email: 'a@b.co',
-            product: 'money',
-          });
+          await expect(
+            // @ts-expect-error T&C2 flags are required
+            controller.acceptTermsAndStartSession({
+              email: 'a@b.co',
+              product: 'money',
+            }),
+          ).rejects.toThrow(/Missing T&C2 acceptance/u);
 
           expect(controller.state.phase).toBe('error');
           expect(controller.state.error).toMatch(/Missing T&C2 acceptance/u);
@@ -3594,11 +3614,13 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          // @ts-expect-error both T&C2 flags are required
-          await controller.acceptTermsAndStartSession({
-            email: 'a@b.co',
-            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
-          });
+          await expect(
+            // @ts-expect-error both T&C2 flags are required
+            controller.acceptTermsAndStartSession({
+              email: 'a@b.co',
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+            }),
+          ).rejects.toThrow(/Missing T&C2 acceptance/u);
 
           expect(controller.state.phase).toBe('error');
           expect(controller.state.error).toMatch(/Missing T&C2 acceptance/u);
@@ -3657,10 +3679,12 @@ describe('KycController', () => {
           },
         },
         async ({ controller }) => {
-          await controller.acceptTermsAndStartSession({
-            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
-            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-          });
+          await expect(
+            controller.acceptTermsAndStartSession({
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            }),
+          ).rejects.toThrow(/Missing email/u);
 
           expect(controller.state.phase).toBe('error');
           expect(controller.state.error).toMatch(/Missing email/u);
@@ -3680,11 +3704,13 @@ describe('KycController', () => {
           },
         },
         async ({ controller }) => {
-          await controller.acceptTermsAndStartSession({
-            email: 'a@b.co',
-            providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
-            idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-          });
+          await expect(
+            controller.acceptTermsAndStartSession({
+              email: 'a@b.co',
+              providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+              idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+            }),
+          ).rejects.toThrow(/Missing disclaimer acceptance/u);
 
           expect(controller.state.phase).toBe('error');
           expect(controller.state.error).toMatch(
