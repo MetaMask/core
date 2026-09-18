@@ -107,7 +107,8 @@ describe('KycController', () => {
           }),
         );
         expect(handlers.setAuthorizations).toHaveBeenCalled();
-        expect(result.finalStatus).toBe('approved');
+        expect(result).toStrictEqual(sessionStatus('approved'));
+        expect(controller.state.sessionStatus).toStrictEqual(result);
         expect(controller.state.email).toBe('a@b.co');
         expect(controller.state.vendor).toBe('iron');
         expect(controller.state.geoCountry).toBe('USA');

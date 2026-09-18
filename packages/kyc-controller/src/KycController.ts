@@ -590,6 +590,10 @@ export class KycController extends BaseController<
       },
     );
 
+    this.update((state) => {
+      state.sessionStatus = sessionStatus;
+    });
+
     return sessionStatus;
   }
 
