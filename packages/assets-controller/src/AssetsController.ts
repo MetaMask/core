@@ -128,6 +128,7 @@ import {
   buildFastFetchSources,
   executeAssetsPipeline,
 } from './pipeline/index.js';
+import { trackAssetsLoading } from './trackAssetsLoading.js';
 import type {
   AccountId,
   AssetPreferences,
@@ -143,6 +144,7 @@ import type {
   FungibleAssetBalance,
   AccountWithSupportedChains,
   AssetType,
+  AssetsLoadingStatus,
   DataType,
   DataRequest,
   DataResponse,
@@ -260,6 +262,8 @@ export type AssetsControllerState = {
   assetPreferences: { [assetId: string]: AssetPreferences };
   /** Currently-active ISO 4217 currency code */
   selectedCurrency: SupportedCurrency;
+  assetsLoadingStatus: Record<AccountId, AssetsLoadingStatus>;
+  assetsLoadingTokens: Record<AccountId, number>;
 };
 
 /**
@@ -282,6 +286,8 @@ export function getDefaultAssetsControllerState(): AssetsControllerState {
     customAssets: {},
     assetPreferences: {},
     selectedCurrency: 'usd',
+    assetsLoadingStatus: {},
+    assetsLoadingTokens: {},
   };
 }
 
@@ -502,6 +508,18 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
+  },
+  assetsLoadingStatus: {
+    persist: false,
+    includeInStateLogs: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  assetsLoadingTokens: {
+    persist: false,
+    includeInStateLogs: false,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
   },
 };
 
@@ -922,13 +940,14 @@ export class AssetsController extends BaseController<
     // TEMPORARY: heal assetsInfo metadata wiped by a prior defect
     // (see extension migration #215 / ASSETS-3346). Remove in a future release.
     if (tempMigrateAssetsInfoMetadataAssets3346) {
-      this.update(() =>
-        tempHealAssetsInfoMetadata({
+      this.update(() => ({
+        ...this.state,
+        ...tempHealAssetsInfoMetadata({
           state: this.state,
           getMigrationState: tempMigrateAssetsInfoMetadataAssets3346,
           captureException,
         }),
-      );
+      }));
     }
 
     this.#initializeNativeAssetsMap(queryApiClient);
@@ -1485,6 +1504,7 @@ export class AssetsController extends BaseController<
   // PUBLIC API: QUERY METHODS
   // ============================================================================
 
+  @trackAssetsLoading
   async getAssets(
     accounts: InternalAccount[],
     options?: {
