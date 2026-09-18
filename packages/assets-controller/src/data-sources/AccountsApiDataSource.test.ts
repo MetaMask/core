@@ -34,6 +34,12 @@ const CHAIN_POLYGON = 'eip155:137' as ChainId;
 const CHAIN_ARBITRUM = 'eip155:42161' as ChainId;
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
 
+function isBalanceV6EnabledFromFlags(
+  remoteFeatureFlags: Record<string, unknown>,
+): boolean {
+  return remoteFeatureFlags.assetsAccountsApiV6 === true;
+}
+
 type MockApiClient = {
   accounts: {
     fetchV2SupportedNetworks: jest.Mock;
@@ -67,6 +73,7 @@ function createMockApiClient(
   balances: V5BalanceItem[] = [],
   unprocessedNetworks: string[] = [],
   v6Balances: V6BalanceItem[] = [],
+  unprocessedIncludeAssetIds: string[] = [],
   partialSupport: (number | string)[] = [],
 ): MockApiClient {
   return {
@@ -82,7 +89,7 @@ function createMockApiClient(
       fetchV6MultiAccountBalances: jest.fn().mockResolvedValue({
         balances: v6Balances,
         unprocessedNetworks,
-        unprocessedIncludeAssetIds: [],
+        unprocessedIncludeAssetIds,
       }),
     },
   };
@@ -160,6 +167,7 @@ async function setupController(
     partialSupport?: (number | string)[];
     balances?: V5BalanceItem[];
     unprocessedNetworks?: string[];
+    unprocessedIncludeAssetIds?: string[];
     fetchTimeoutMs?: number;
     v6Balances?: V6BalanceItem[];
     remoteFeatureFlags?: Record<string, unknown>;
@@ -170,6 +178,7 @@ async function setupController(
     partialSupport = [],
     balances = [],
     unprocessedNetworks = [],
+    unprocessedIncludeAssetIds = [],
     fetchTimeoutMs,
     v6Balances = [],
     remoteFeatureFlags = {},
@@ -213,6 +222,7 @@ async function setupController(
     balances,
     unprocessedNetworks,
     v6Balances,
+    unprocessedIncludeAssetIds,
     partialSupport,
   );
 
@@ -223,6 +233,8 @@ async function setupController(
       apiClient as unknown as AccountsApiDataSourceOptions['queryApiClient'],
     onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
       activeChainsUpdateHandler(dataSourceName, chains, previousChains),
+    isBalanceV6Enabled: (): boolean =>
+      isBalanceV6EnabledFromFlags(remoteFeatureFlags),
     ...(fetchTimeoutMs === undefined ? {} : { fetchTimeoutMs }),
   });
 
@@ -780,6 +792,48 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  describe('claimCustomAssets', () => {
+    const assignedChainAsset =
+      'eip155:1/erc20:0x1111111111111111111111111111111111111111';
+    const unassignedChainAsset =
+      'eip155:137/erc20:0x2222222222222222222222222222222222222222';
+    const nonEvmAsset = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFW';
+
+    it('claims EVM assets on assigned chains when the v6 flag is enabled', async () => {
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+      });
+
+      expect(
+        controller.claimCustomAssets(
+          [
+            assignedChainAsset,
+            unassignedChainAsset,
+            nonEvmAsset,
+            'not-a-caip-asset',
+          ] as Caip19AssetId[],
+          ['eip155:1' as ChainId],
+        ),
+      ).toStrictEqual([assignedChainAsset]);
+
+      controller.destroy();
+    });
+
+    it('claims nothing when the v6 flag is disabled (v5 has no includeAssetIds support)', async () => {
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: false },
+      });
+
+      expect(
+        controller.claimCustomAssets([assignedChainAsset] as Caip19AssetId[], [
+          'eip155:1' as ChainId,
+        ]),
+      ).toStrictEqual([]);
+
+      controller.destroy();
+    });
+  });
+
   describe('assetsAccountsApiV6 feature flag', () => {
     it('uses the v5 endpoint by default', async () => {
       const { controller, apiClient } = await setupController();
@@ -798,7 +852,7 @@ describe('AccountsApiDataSource', () => {
 
     it('uses the v6 endpoint when the assetsAccountsApiV6 remote flag is enabled', async () => {
       const { controller, apiClient } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
       });
 
       await controller.fetch(createDataRequest());
@@ -809,30 +863,25 @@ describe('AccountsApiDataSource', () => {
       expect(
         apiClient.accounts.fetchV5MultiAccountBalances,
       ).not.toHaveBeenCalled();
+
+      controller.destroy();
+    });
+
+    it('sets updateMode to full for v6 fetches', async () => {
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+      });
+
+      const response = await controller.fetch(createDataRequest());
+
+      expect(response.updateMode).toBe('full');
 
       controller.destroy();
     });
 
     it('uses the v5 endpoint when the assetsAccountsApiV6 remote flag is disabled', async () => {
       const { controller, apiClient } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: { value: false } },
-      });
-
-      await controller.fetch(createDataRequest());
-
-      expect(
-        apiClient.accounts.fetchV5MultiAccountBalances,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        apiClient.accounts.fetchV6MultiAccountBalances,
-      ).not.toHaveBeenCalled();
-
-      controller.destroy();
-    });
-
-    it('uses the v5 endpoint when the flag is a plain boolean instead of the JSON value shape', async () => {
-      const { controller, apiClient } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        remoteFeatureFlags: { assetsAccountsApiV6: false },
       });
 
       await controller.fetch(createDataRequest());
@@ -849,7 +898,7 @@ describe('AccountsApiDataSource', () => {
 
     it('calls the v6 endpoint without extra params when enabled', async () => {
       const { controller, apiClient } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
       });
 
       await controller.fetch(createDataRequest());
@@ -870,7 +919,7 @@ describe('AccountsApiDataSource', () => {
 
     it('reads the flag per fetch so it can revert to v5 at runtime', async () => {
       const remoteFeatureFlags = {
-        assetsAccountsApiV6: { value: true },
+        assetsAccountsApiV6: true,
       };
       const { controller, apiClient } = await setupController({
         remoteFeatureFlags,
@@ -881,7 +930,7 @@ describe('AccountsApiDataSource', () => {
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledTimes(1);
 
-      remoteFeatureFlags.assetsAccountsApiV6 = { value: false };
+      remoteFeatureFlags.assetsAccountsApiV6 = false;
       await controller.fetch(createDataRequest());
       expect(
         apiClient.accounts.fetchV5MultiAccountBalances,
@@ -893,7 +942,7 @@ describe('AccountsApiDataSource', () => {
     it('processes v6 token balances grouped by account', async () => {
       const accountId = `eip155:1:${MOCK_ADDRESS}`;
       const { controller } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
         v6Balances: [
           createMockV6BalanceItem(
             accountId,
@@ -937,7 +986,7 @@ describe('AccountsApiDataSource', () => {
       const { controller } = await setupController({
         supportedChains: [1, STELLAR_CHAIN_ID as unknown as number],
         remoteFeatureFlags: {
-          assetsAccountsApiV6: { value: true },
+          assetsAccountsApiV6: true,
           [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
             stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
           },
@@ -998,7 +1047,7 @@ describe('AccountsApiDataSource', () => {
     it('ignores v6 defi positions', async () => {
       const accountId = `eip155:1:${MOCK_ADDRESS}`;
       const { controller } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
         v6Balances: [
           createMockV6BalanceItem(
             accountId,
@@ -1030,7 +1079,7 @@ describe('AccountsApiDataSource', () => {
       const stakingAssetId =
         'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df';
       const { controller } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
         v6Balances: [
           createMockV6BalanceItem(
             accountId,
@@ -1060,7 +1109,7 @@ describe('AccountsApiDataSource', () => {
 
     it('marks v6 unprocessed networks as errors', async () => {
       const { controller } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
         unprocessedNetworks: ['eip155:1'],
       });
 
@@ -1075,7 +1124,7 @@ describe('AccountsApiDataSource', () => {
 
     it('handles v6 API errors', async () => {
       const { controller, apiClient } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
       });
 
       apiClient.accounts.fetchV6MultiAccountBalances.mockRejectedValueOnce(
@@ -1089,9 +1138,9 @@ describe('AccountsApiDataSource', () => {
       controller.destroy();
     });
 
-    it('does not pass includeAssetIds to v6 even when custom assets are present', async () => {
+    it('passes EVM custom assets on requested chains to v6 as includeAssetIds', async () => {
       const { controller, apiClient } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
       });
 
       const customToken =
@@ -1105,7 +1154,252 @@ describe('AccountsApiDataSource', () => {
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledWith(
         [`eip155:1:${MOCK_ADDRESS}`],
+        { includeAssetIds: [customToken] },
         undefined,
+      );
+
+      controller.destroy();
+    });
+
+    it('omits custom assets that are not on a requested chain from includeAssetIds', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+      });
+
+      // Custom asset on Polygon while only Mainnet is being fetched.
+      const polygonToken =
+        'eip155:137/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      await controller.fetch(
+        createDataRequest({
+          chainIds: [CHAIN_MAINNET],
+          customAssets: [polygonToken],
+        }),
+      );
+
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        undefined,
+        undefined,
+      );
+
+      controller.destroy();
+    });
+
+    it('surfaces unprocessed include asset ids on the asset axis (unprocessedCustomAssets) without flagging the chain as errored', async () => {
+      const customToken =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        unprocessedIncludeAssetIds: [customToken],
+      });
+
+      const response = await controller.fetch(
+        createDataRequest({ customAssets: [customToken] }),
+      );
+
+      // The chain itself succeeded — only the specific pinned asset is
+      // outstanding, so it goes on the asset axis, not `errors`.
+      expect(response.errors?.[CHAIN_MAINNET]).toBeUndefined();
+      expect(response.unprocessedCustomAssets).toStrictEqual([customToken]);
+
+      controller.destroy();
+    });
+
+    it('omits unparseable unprocessed include asset ids from unprocessedCustomAssets', async () => {
+      const customToken =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        unprocessedIncludeAssetIds: [
+          customToken,
+          'not-a-caip-asset' as Caip19AssetId,
+        ],
+      });
+
+      const response = await controller.fetch(
+        createDataRequest({ customAssets: [customToken] }),
+      );
+
+      expect(response.unprocessedCustomAssets).toStrictEqual([customToken]);
+
+      controller.destroy();
+    });
+
+    it('skips non-EVM and malformed custom assets when building includeAssetIds', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+      });
+
+      const solanaToken =
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
+      const malformed = 'not-a-caip-asset' as Caip19AssetId;
+
+      await controller.fetch(
+        createDataRequest({ customAssets: [solanaToken, malformed] }),
+      );
+
+      // No EVM custom asset on a requested chain -> includeAssetIds omitted.
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        undefined,
+        undefined,
+      );
+
+      controller.destroy();
+    });
+
+    it('ignores malformed unprocessed include asset ids', async () => {
+      const customToken =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        unprocessedIncludeAssetIds: ['not-a-caip-asset'],
+      });
+
+      const response = await controller.fetch(
+        createDataRequest({ customAssets: [customToken] }),
+      );
+
+      // The malformed unprocessed id cannot be parsed, so it is dropped from
+      // both axes (no error, no asset-axis entry).
+      expect(response.errors).toBeUndefined();
+      expect(response.unprocessedCustomAssets).toBeUndefined();
+
+      controller.destroy();
+    });
+
+    it('passes EVM hidden assets on requested chains to v6 as excludeAssetIds', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+      });
+
+      const hiddenToken =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      await controller.fetch(
+        createDataRequest({ excludeAssetIds: [hiddenToken] }),
+      );
+
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        { excludeAssetIds: [hiddenToken] },
+        undefined,
+      );
+
+      controller.destroy();
+    });
+
+    it('omits hidden assets that are not on a requested chain from excludeAssetIds', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+      });
+
+      // Hidden asset on Polygon while only Mainnet is being fetched.
+      const polygonToken =
+        'eip155:137/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      await controller.fetch(
+        createDataRequest({
+          chainIds: [CHAIN_MAINNET],
+          excludeAssetIds: [polygonToken],
+        }),
+      );
+
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        undefined,
+        undefined,
+      );
+
+      controller.destroy();
+    });
+
+    it('skips non-EVM and malformed hidden assets when building excludeAssetIds', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+      });
+
+      const solanaToken =
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
+      const malformed = 'not-a-caip-asset' as Caip19AssetId;
+
+      await controller.fetch(
+        createDataRequest({ excludeAssetIds: [solanaToken, malformed] }),
+      );
+
+      // No EVM hidden asset on a requested chain -> excludeAssetIds omitted.
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        undefined,
+        undefined,
+      );
+
+      controller.destroy();
+    });
+
+    it('lets a hidden asset win when it also appears in the pinned list', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+      });
+
+      const token =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      await controller.fetch(
+        createDataRequest({
+          customAssets: [token],
+          excludeAssetIds: [token],
+        }),
+      );
+
+      // The asset is hidden, so it is excluded and never included.
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        { excludeAssetIds: [token] },
+        undefined,
+      );
+
+      controller.destroy();
+    });
+
+    it('sends both includeAssetIds and excludeAssetIds when pins and hidden assets differ', async () => {
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+      });
+
+      const pinned =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const hidden =
+        'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7' as Caip19AssetId;
+
+      await controller.fetch(
+        createDataRequest({
+          customAssets: [pinned],
+          excludeAssetIds: [hidden],
+        }),
+      );
+
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        { includeAssetIds: [pinned], excludeAssetIds: [hidden] },
         undefined,
       );
 
@@ -1185,6 +1479,21 @@ describe('AccountsApiDataSource', () => {
     expect(context.response.assetsBalance?.['mock-account-id']).toHaveProperty(
       'eip155:1/slip44:60',
     );
+
+    controller.destroy();
+  });
+
+  it('middleware forwards full updateMode from v6 fetches', async () => {
+    const { controller } = await setupController({
+      remoteFeatureFlags: { assetsAccountsApiV6: true },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext();
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.updateMode).toBe('full');
 
     controller.destroy();
   });

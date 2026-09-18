@@ -15,14 +15,10 @@ const MOCK_ACCOUNT_ID = 'mock-account-id';
 const MOCK_ASSET_MAINNET = 'eip155:1/slip44:60' as Caip19AssetId;
 const MOCK_ASSET_POLYGON = 'eip155:137/slip44:966' as Caip19AssetId;
 const MOCK_ASSET_BSC = 'eip155:56/slip44:714' as Caip19AssetId;
-const MOCK_ERC20_MAINNET =
-  'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
-const MOCK_ERC20_POLYGON =
-  'eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Caip19AssetId;
-const MOCK_STAKING_ASSET_MAINNET =
-  'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df' as Caip19AssetId;
-const MOCK_NON_EVM_ASSET =
-  'bip122:000000000019d6689c085ae165831e93/slip44:0' as Caip19AssetId;
+const MOCK_TOKEN_POLYGON =
+  'eip155:137/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+const MOCK_TOKEN_MAINNET =
+  'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7' as Caip19AssetId;
 
 function createMockAccount(id: string = MOCK_ACCOUNT_ID): InternalAccount {
   return {
@@ -100,7 +96,10 @@ describe('RpcFallbackMiddleware', () => {
 
   it('passes through when there are no errors in the response', async () => {
     const { source, middleware: rpcMw } = createMockRpcSource();
-    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const mw = new RpcFallbackMiddleware({
+      rpcDataSource: source,
+      isBalanceV6Enabled: (): boolean => true,
+    });
     const ctx = createContext(createDataRequest(['eip155:1']), {
       assetsBalance: {
         [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_MAINNET]: { amount: '1' } },
@@ -121,7 +120,10 @@ describe('RpcFallbackMiddleware', () => {
       },
     };
     const { source, middleware: rpcMw } = createMockRpcSource(rpcResponse);
-    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const mw = new RpcFallbackMiddleware({
+      rpcDataSource: source,
+      isBalanceV6Enabled: (): boolean => true,
+    });
     const ctx = createContext(createDataRequest(['eip155:1', 'eip155:137']), {
       assetsBalance: {
         [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_MAINNET]: { amount: '1' } },
@@ -144,7 +146,10 @@ describe('RpcFallbackMiddleware', () => {
       },
     };
     const { source } = createMockRpcSource(rpcResponse);
-    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const mw = new RpcFallbackMiddleware({
+      rpcDataSource: source,
+      isBalanceV6Enabled: (): boolean => true,
+    });
     const ctx = createContext(createDataRequest(['eip155:1', 'eip155:137']), {
       assetsBalance: {
         [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_MAINNET]: { amount: '1' } },
@@ -169,7 +174,10 @@ describe('RpcFallbackMiddleware', () => {
       },
     };
     const { source } = createMockRpcSource(rpcResponse);
-    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const mw = new RpcFallbackMiddleware({
+      rpcDataSource: source,
+      isBalanceV6Enabled: (): boolean => true,
+    });
     const ctx = createContext(createDataRequest(['eip155:137']), {
       errors: { 'eip155:137': 'Fetch failed: oops' },
     });
@@ -183,7 +191,10 @@ describe('RpcFallbackMiddleware', () => {
 
   it('keeps errors for chains RPC could not recover', async () => {
     const { source } = createMockRpcSource({});
-    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const mw = new RpcFallbackMiddleware({
+      rpcDataSource: source,
+      isBalanceV6Enabled: (): boolean => true,
+    });
     const ctx = createContext(createDataRequest(['eip155:137']), {
       errors: { 'eip155:137': 'Fetch failed: oops' },
     });
@@ -203,7 +214,10 @@ describe('RpcFallbackMiddleware', () => {
     // would still have its error cleared. The check must look at what RPC
     // actually returned.
     const { source } = createMockRpcSource({}); // RPC fails — empty response
-    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const mw = new RpcFallbackMiddleware({
+      rpcDataSource: source,
+      isBalanceV6Enabled: (): boolean => true,
+    });
     const ctx = createContext(createDataRequest(['eip155:137']), {
       assetsBalance: {
         [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_POLYGON]: { amount: '7' } },
@@ -222,7 +236,10 @@ describe('RpcFallbackMiddleware', () => {
 
   it('does not run for non-balance data types', async () => {
     const { source, middleware: rpcMw } = createMockRpcSource();
-    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const mw = new RpcFallbackMiddleware({
+      rpcDataSource: source,
+      isBalanceV6Enabled: (): boolean => true,
+    });
     const ctx = createContext(
       {
         ...createDataRequest(['eip155:1']),
@@ -248,7 +265,10 @@ describe('RpcFallbackMiddleware', () => {
       },
     };
     const { source, middleware: rpcMw } = createMockRpcSource(rpcResponse);
-    const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
+    const mw = new RpcFallbackMiddleware({
+      rpcDataSource: source,
+      isBalanceV6Enabled: (): boolean => true,
+    });
     const ctx = createContext(
       createDataRequest(['eip155:1', 'eip155:137', 'eip155:56']),
       {
@@ -270,406 +290,126 @@ describe('RpcFallbackMiddleware', () => {
     expect(finalCtx.response.errors).toStrictEqual({});
   });
 
-  describe('assets tracked in state that the response left empty', () => {
-    it('passes through when tracked assets all have a positive balance in the response', async () => {
-      const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
-      const ctx = createContext(
-        createDataRequest(['eip155:1']),
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_MAINNET]: { amount: '12' } },
-          },
-        },
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_MAINNET]: { amount: '1000' } },
-          },
-        },
-      );
-      const next = jest.fn(async (innerCtx) => innerCtx);
-
-      await mw.assetsMiddleware(ctx, next);
-
-      expect(rpcMw).not.toHaveBeenCalled();
-      expect(next).toHaveBeenCalledWith(ctx);
+  it('recovers unprocessedCustomAssets with an RPC call scoped to just those assets (via customAssets), not a whole-chain fetch', async () => {
+    const rpcResponse: DataResponse = {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: { [MOCK_TOKEN_POLYGON]: { amount: '3' } },
+      },
+    };
+    const { source, middleware: rpcMw } = createMockRpcSource(rpcResponse);
+    const mw = new RpcFallbackMiddleware({
+      rpcDataSource: source,
+      isBalanceV6Enabled: (): boolean => true,
     });
-
-    it('matches response asset IDs case-insensitively', async () => {
-      const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
-      const ctx = createContext(
-        createDataRequest(['eip155:1']),
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_ERC20_MAINNET.toLowerCase()]: { amount: '12' },
-            },
-          },
-        },
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_MAINNET]: { amount: '1000' } },
-          },
-        },
-      );
-      const next = jest.fn(async (innerCtx) => innerCtx);
-
-      await mw.assetsMiddleware(ctx, next);
-
-      expect(rpcMw).not.toHaveBeenCalled();
+    const ctx = createContext(createDataRequest(['eip155:1', 'eip155:137']), {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_MAINNET]: { amount: '1' } },
+      },
+      unprocessedCustomAssets: [MOCK_TOKEN_POLYGON],
     });
+    const next = jest.fn(async (innerCtx) => innerCtx);
 
-    it('fetches tracked assets the response omitted via RPC', async () => {
-      const rpcResponse: DataResponse = {
-        assetsBalance: {
-          [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_MAINNET]: { amount: '42' } },
-        },
-      };
-      const { source, middleware: rpcMw } = createMockRpcSource(rpcResponse);
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
-      const ctx = createContext(
-        createDataRequest(['eip155:1']),
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_MAINNET]: { amount: '1' } },
-          },
-        },
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_ASSET_MAINNET]: { amount: '1' },
-              [MOCK_ERC20_MAINNET]: { amount: '1000' },
-            },
-          },
-        },
-      );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+    await mw.assetsMiddleware(ctx, next);
 
-      await mw.assetsMiddleware(ctx, next);
+    expect(rpcMw).toHaveBeenCalledTimes(1);
+    const [rpcCtx] = rpcMw.mock.calls[0];
+    expect(rpcCtx.request.chainIds).toStrictEqual(['eip155:137']);
+    expect(rpcCtx.request.customAssets).toStrictEqual([MOCK_TOKEN_POLYGON]);
 
-      expect(rpcMw).toHaveBeenCalledTimes(1);
-      const [rpcCtx] = rpcMw.mock.calls[0];
-      expect(rpcCtx.request.chainIds).toStrictEqual(['eip155:1']);
-      expect(rpcCtx.request.customAssets).toStrictEqual([MOCK_ERC20_MAINNET]);
-      expect(
-        next.mock.calls[0][0].response.assetsBalance[MOCK_ACCOUNT_ID],
-      ).toStrictEqual({
-        [MOCK_ASSET_MAINNET]: { amount: '1' },
-        [MOCK_ERC20_MAINNET]: { amount: '42' },
-      });
+    const finalCtx = next.mock.calls[0][0];
+    expect(finalCtx.response.assetsBalance[MOCK_ACCOUNT_ID]).toStrictEqual({
+      [MOCK_ASSET_MAINNET]: { amount: '1' },
+      [MOCK_TOKEN_POLYGON]: { amount: '3' },
     });
+    // Recovered — removed from the asset axis.
+    expect(finalCtx.response.unprocessedCustomAssets).toBeUndefined();
+  });
 
-    it('fetches tracked assets the response reports as zero via RPC', async () => {
-      const rpcResponse: DataResponse = {
-        assetsBalance: {
-          [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_MAINNET]: { amount: '9' } },
-        },
-      };
-      const { source, middleware: rpcMw } = createMockRpcSource(rpcResponse);
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
-      const ctx = createContext(
-        createDataRequest(['eip155:1']),
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_MAINNET]: { amount: '0' } },
-          },
-        },
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_MAINNET]: { amount: '1000' } },
-          },
-        },
-      );
-      const next = jest.fn(async (innerCtx) => innerCtx);
-
-      await mw.assetsMiddleware(ctx, next);
-
-      expect(rpcMw).toHaveBeenCalledTimes(1);
-      expect(
-        next.mock.calls[0][0].response.assetsBalance[MOCK_ACCOUNT_ID][
-          MOCK_ERC20_MAINNET
-        ],
-      ).toStrictEqual({ amount: '9' });
+  it('skips asset-scoped recovery for assets whose chain was already retried on the chain axis', async () => {
+    // The chain-axis fetch (native + custom assets) already covers the token, so
+    // there must be no second, asset-scoped RPC call for the same chain.
+    const rpcResponse: DataResponse = {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: { [MOCK_TOKEN_POLYGON]: { amount: '3' } },
+      },
+    };
+    const { source, middleware: rpcMw } = createMockRpcSource(rpcResponse);
+    const mw = new RpcFallbackMiddleware({
+      rpcDataSource: source,
+      isBalanceV6Enabled: (): boolean => true,
     });
-
-    it('fetches custom assets from state that the response left empty', async () => {
-      const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
-      const ctx = createContext(
-        createDataRequest(['eip155:1']),
-        {},
-        { customAssets: { [MOCK_ACCOUNT_ID]: [MOCK_ERC20_MAINNET] } },
-      );
-      const next = jest.fn(async (innerCtx) => innerCtx);
-
-      await mw.assetsMiddleware(ctx, next);
-
-      expect(rpcMw.mock.calls[0][0].request.customAssets).toStrictEqual([
-        MOCK_ERC20_MAINNET,
-      ]);
+    const ctx = createContext(createDataRequest(['eip155:137']), {
+      errors: { 'eip155:137': 'Unprocessed networks' },
+      unprocessedCustomAssets: [MOCK_TOKEN_POLYGON],
     });
+    const next = jest.fn(async (innerCtx) => innerCtx);
 
-    it('keeps custom assets already on the request', async () => {
-      const otherCustom =
-        'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7' as Caip19AssetId;
-      const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
-      const ctx = createContext(
-        { ...createDataRequest(['eip155:1']), customAssets: [otherCustom] },
-        {},
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_MAINNET]: { amount: '1000' } },
-          },
-        },
-      );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+    await mw.assetsMiddleware(ctx, next);
 
-      await mw.assetsMiddleware(ctx, next);
+    // Only the chain-axis call — it uses the original request (no customAssets
+    // override to the unresolved subset).
+    expect(rpcMw).toHaveBeenCalledTimes(1);
+    const [rpcCtx] = rpcMw.mock.calls[0];
+    expect(rpcCtx.request.chainIds).toStrictEqual(['eip155:137']);
+    expect(rpcCtx.request.customAssets).toBeUndefined();
 
-      expect(rpcMw.mock.calls[0][0].request.customAssets).toStrictEqual([
-        otherCustom,
-        MOCK_ERC20_MAINNET,
-      ]);
+    const finalCtx = next.mock.calls[0][0];
+    expect(finalCtx.response.errors).toStrictEqual({});
+    expect(finalCtx.response.unprocessedCustomAssets).toBeUndefined();
+  });
+
+  it('keeps unprocessedCustomAssets that RPC could not recover', async () => {
+    const { source } = createMockRpcSource({}); // RPC returns nothing
+    const mw = new RpcFallbackMiddleware({
+      rpcDataSource: source,
+      isBalanceV6Enabled: (): boolean => true,
     });
-
-    it('skips staking contract assets', async () => {
-      const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
-      const ctx = createContext(
-        createDataRequest(['eip155:1']),
-        {},
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_STAKING_ASSET_MAINNET]: { amount: '1000' },
-            },
-          },
-        },
-      );
-      const next = jest.fn(async (innerCtx) => innerCtx);
-
-      await mw.assetsMiddleware(ctx, next);
-
-      expect(rpcMw).not.toHaveBeenCalled();
+    const ctx = createContext(createDataRequest(['eip155:137']), {
+      unprocessedCustomAssets: [MOCK_TOKEN_POLYGON],
     });
+    const next = jest.fn(async (innerCtx) => innerCtx);
 
-    it('skips non-EVM tracked assets', async () => {
-      const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
-      const ctx = createContext(
-        createDataRequest(['eip155:1']),
-        {},
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_NON_EVM_ASSET]: { amount: '1000' } },
-          },
+    await mw.assetsMiddleware(ctx, next);
+
+    const finalCtx = next.mock.calls[0][0];
+    expect(finalCtx.response.unprocessedCustomAssets).toStrictEqual([
+      MOCK_TOKEN_POLYGON,
+    ]);
+  });
+
+  it('recovers both errored chains and unprocessed assets in separate RPC calls', async () => {
+    const rpcResponse: DataResponse = {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: {
+          [MOCK_ASSET_BSC]: { amount: '9' },
+          [MOCK_TOKEN_MAINNET]: { amount: '4' },
         },
-      );
-      const next = jest.fn(async (innerCtx) => innerCtx);
-
-      await mw.assetsMiddleware(ctx, next);
-
-      expect(rpcMw).not.toHaveBeenCalled();
+      },
+    };
+    const { source, middleware: rpcMw } = createMockRpcSource(rpcResponse);
+    const mw = new RpcFallbackMiddleware({
+      rpcDataSource: source,
+      isBalanceV6Enabled: (): boolean => true,
     });
-
-    it('skips tracked assets on chains outside the request', async () => {
-      const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
-      const ctx = createContext(
-        createDataRequest(['eip155:1'], ['eip155:1', 'eip155:137']),
-        {},
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_POLYGON]: { amount: '1000' } },
-          },
-        },
-      );
-      const next = jest.fn(async (innerCtx) => innerCtx);
-
-      await mw.assetsMiddleware(ctx, next);
-
-      expect(rpcMw).not.toHaveBeenCalled();
+    const ctx = createContext(createDataRequest(['eip155:1', 'eip155:56']), {
+      errors: { 'eip155:56': 'Fetch failed' },
+      unprocessedCustomAssets: [MOCK_TOKEN_MAINNET],
     });
+    const next = jest.fn(async (innerCtx) => innerCtx);
 
-    it('skips tracked assets on chains the account does not support', async () => {
-      const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
-      const ctx = createContext(
-        createDataRequest(['eip155:1', 'eip155:137'], ['eip155:1']),
-        {},
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_POLYGON]: { amount: '1000' } },
-          },
-        },
-      );
-      const next = jest.fn(async (innerCtx) => innerCtx);
+    await mw.assetsMiddleware(ctx, next);
 
-      await mw.assetsMiddleware(ctx, next);
+    // One call for the errored chain (whole chain), one scoped call for the pin.
+    expect(rpcMw).toHaveBeenCalledTimes(2);
+    const chainCall = rpcMw.mock.calls[0][0];
+    expect(chainCall.request.chainIds).toStrictEqual(['eip155:56']);
+    expect(chainCall.request.customAssets).toBeUndefined();
+    const assetCall = rpcMw.mock.calls[1][0];
+    expect(assetCall.request.chainIds).toStrictEqual(['eip155:1']);
+    expect(assetCall.request.customAssets).toStrictEqual([MOCK_TOKEN_MAINNET]);
 
-      expect(rpcMw).not.toHaveBeenCalled();
-    });
-
-    it('fetches both errored chains and chains of stale tracked assets', async () => {
-      const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
-      const ctx = createContext(
-        createDataRequest(['eip155:1', 'eip155:137']),
-        {
-          errors: { 'eip155:137': 'Unprocessed by Accounts API' },
-        },
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_MAINNET]: { amount: '1000' } },
-          },
-        },
-      );
-      const next = jest.fn(async (innerCtx) => innerCtx);
-
-      await mw.assetsMiddleware(ctx, next);
-
-      expect(new Set(rpcMw.mock.calls[0][0].request.chainIds)).toStrictEqual(
-        new Set(['eip155:137', 'eip155:1']),
-      );
-    });
-
-    it('discards failed RPC results for stale-asset chains so upstream balances survive', async () => {
-      // Regression: RpcDataSource writes a native `0` stub for chains it fails
-      // on. For a chain fetched only because of a stale tracked asset (the
-      // upstream source succeeded on it), merging that stub would overwrite
-      // the correct native amount and, with replaceCoveredChainBalances, wipe
-      // the chain's token slice from state.
-      const rpcFailureResponse: DataResponse = {
-        assetsBalance: {
-          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_MAINNET]: { amount: '0' } },
-        },
-        errors: { 'eip155:1': 'Fetch failed: provider down' },
-      };
-      const { source } = createMockRpcSource(rpcFailureResponse);
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
-      const ctx = createContext(
-        createDataRequest(['eip155:1']),
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_MAINNET]: { amount: '5' } },
-          },
-        },
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: {
-              [MOCK_ASSET_MAINNET]: { amount: '5' },
-              [MOCK_ERC20_MAINNET]: { amount: '1000' },
-            },
-          },
-        },
-      );
-      const next = jest.fn(async (innerCtx) => innerCtx);
-
-      await mw.assetsMiddleware(ctx, next);
-
-      const finalCtx = next.mock.calls[0][0];
-      expect(finalCtx.response.assetsBalance[MOCK_ACCOUNT_ID]).toStrictEqual({
-        [MOCK_ASSET_MAINNET]: { amount: '5' },
-      });
-      expect(finalCtx.response.errors?.['eip155:1']).toBeUndefined();
-    });
-
-    it('drops failure stubs but keeps the error for chains already errored upstream', async () => {
-      // The stub must not count as a "recovered" balance either — the chain
-      // stays errored so the slow pipeline retries it.
-      const rpcFailureResponse: DataResponse = {
-        assetsBalance: {
-          [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_POLYGON]: { amount: '0' } },
-        },
-        errors: { 'eip155:137': 'Fetch failed: provider down' },
-      };
-      const { source } = createMockRpcSource(rpcFailureResponse);
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
-      const ctx = createContext(createDataRequest(['eip155:137']), {
-        errors: { 'eip155:137': 'Unprocessed by Accounts API' },
-      });
-      const next = jest.fn(async (innerCtx) => innerCtx);
-
-      await mw.assetsMiddleware(ctx, next);
-
-      const finalCtx = next.mock.calls[0][0];
-      expect(
-        finalCtx.response.assetsBalance?.[MOCK_ACCOUNT_ID],
-      ).toBeUndefined();
-      expect(finalCtx.response.errors?.['eip155:137']).toBe(
-        'Fetch failed: provider down',
-      );
-    });
-
-    it('merges recovered errored chains while discarding a failed stale-asset chain', async () => {
-      const rpcResponse: DataResponse = {
-        assetsBalance: {
-          [MOCK_ACCOUNT_ID]: {
-            [MOCK_ASSET_POLYGON]: { amount: '7' },
-            [MOCK_ASSET_MAINNET]: { amount: '0' },
-          },
-        },
-        errors: { 'eip155:1': 'Fetch failed: provider down' },
-      };
-      const { source } = createMockRpcSource(rpcResponse);
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
-      const ctx = createContext(
-        createDataRequest(['eip155:1', 'eip155:137']),
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_MAINNET]: { amount: '5' } },
-          },
-          errors: { 'eip155:137': 'Unprocessed by Accounts API' },
-        },
-        {
-          assetsBalance: {
-            [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_MAINNET]: { amount: '1000' } },
-          },
-        },
-      );
-      const next = jest.fn(async (innerCtx) => innerCtx);
-
-      await mw.assetsMiddleware(ctx, next);
-
-      const finalCtx = next.mock.calls[0][0];
-      expect(finalCtx.response.assetsBalance[MOCK_ACCOUNT_ID]).toStrictEqual({
-        [MOCK_ASSET_MAINNET]: { amount: '5' },
-        [MOCK_ASSET_POLYGON]: { amount: '7' },
-      });
-      expect(finalCtx.response.errors).toStrictEqual({});
-    });
-
-    it('deduplicates stale assets shared by several accounts', async () => {
-      const secondAccountId = 'second-account-id';
-      const stateBalances = {
-        [MOCK_ACCOUNT_ID]: { [MOCK_ERC20_MAINNET]: { amount: '1000' } },
-        [secondAccountId]: { [MOCK_ERC20_MAINNET]: { amount: '5' } },
-      };
-      const { source, middleware: rpcMw } = createMockRpcSource();
-      const mw = new RpcFallbackMiddleware({ rpcDataSource: source });
-      const request = {
-        ...createDataRequest(['eip155:1']),
-        accountsWithSupportedChains: [
-          {
-            account: createMockAccount(),
-            supportedChains: ['eip155:1'] as ChainId[],
-          },
-          {
-            account: createMockAccount(secondAccountId),
-            supportedChains: ['eip155:1'] as ChainId[],
-          },
-        ],
-      };
-      const ctx = createContext(request, {}, { assetsBalance: stateBalances });
-      const next = jest.fn(async (innerCtx) => innerCtx);
-
-      await mw.assetsMiddleware(ctx, next);
-
-      expect(rpcMw.mock.calls[0][0].request.customAssets).toStrictEqual([
-        MOCK_ERC20_MAINNET,
-      ]);
-    });
+    const finalCtx = next.mock.calls[0][0];
+    expect(finalCtx.response.errors).toStrictEqual({});
+    expect(finalCtx.response.unprocessedCustomAssets).toBeUndefined();
   });
 });

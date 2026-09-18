@@ -1,4 +1,4 @@
-import type { ChainId } from '../types.js';
+import type { Caip19AssetId, ChainId } from '../types.js';
 import type {
   ActiveSubscription,
   DataSourceState,
@@ -111,6 +111,43 @@ describe('AbstractDataSource', () => {
 
     expect(dataSource.getState().activeChains).toStrictEqual([]);
     expect(dataSource.getSubscriptions().size).toBe(0);
+  });
+
+  describe('claimCustomAssets', () => {
+    it('claims assets on assigned chains by default and skips others', () => {
+      const { dataSource } = setupDataSource();
+
+      const assignedChainAsset =
+        `${CHAIN_MAINNET}/erc20:0x1111111111111111111111111111111111111111` as Caip19AssetId;
+      const unassignedChainAsset =
+        `${CHAIN_POLYGON}/erc20:0x2222222222222222222222222222222222222222` as Caip19AssetId;
+
+      expect(
+        dataSource.claimCustomAssets(
+          [assignedChainAsset, unassignedChainAsset],
+          [CHAIN_MAINNET],
+        ),
+      ).toStrictEqual([assignedChainAsset]);
+    });
+
+    it('skips malformed asset IDs and claims nothing without assigned chains', () => {
+      const { dataSource } = setupDataSource();
+
+      expect(
+        dataSource.claimCustomAssets(
+          ['not-a-caip-asset' as Caip19AssetId],
+          [CHAIN_MAINNET],
+        ),
+      ).toStrictEqual([]);
+      expect(
+        dataSource.claimCustomAssets(
+          [
+            `${CHAIN_MAINNET}/erc20:0x1111111111111111111111111111111111111111` as Caip19AssetId,
+          ],
+          [],
+        ),
+      ).toStrictEqual([]);
+    });
   });
 
   it.each([
