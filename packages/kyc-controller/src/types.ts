@@ -22,46 +22,6 @@ export type KycProduct = 'ramps' | 'card' | 'money';
 export type KycVendor = 'moonpay' | 'iron';
 
 /**
- * Vendor-scoped identity for the currently authenticated KYC customer.
- *
- * Exposed to consumers (e.g. ramps) that must attach the vendor customer id to
- * downstream provider calls without reading the full KYC state, which also
- * holds session/access tokens. The identifier is session-scoped: it is only
- * available once the customer has authenticated through the current flow and
- * is cleared on `reset()`.
- */
-export type KycCustomerIdentity = {
-  /** The identity vendor that issued {@link KycCustomerIdentity.id}. */
-  vendor: KycVendor;
-  /** The vendor customer id (e.g. MoonPay customer UUID). */
-  id: string;
-};
-
-/**
- * User-keyed KYC status returned by `GET /kyc/status` and stored for toast /
- * banner rendering. Collapses vendor + SumSub / relay state into the offsite
- * contract.
- */
-export type KycUserStatus =
-  | 'not-started'
-  | 'pending'
-  | 'need-more-information'
-  | 'terminal-failure'
-  | 'completed';
-
-/**
- * Payload from `GET /kyc/status`, including optional fields that power the
- * 3-state error contract (retryable SumSub vs terminal vs EDD).
- */
-export type KycUserStatusResponse = {
-  status: KycUserStatus;
-  /** Present when the user can reopen a SumSub session (retryable path). */
-  sumsubSessionId?: string;
-  /** Machine-readable error code for terminal / EDD UX. */
-  errorCode?: string;
-};
-
-/**
  * Phases of the end-to-end identity flow.
  *
  * - `idle` — nothing started.

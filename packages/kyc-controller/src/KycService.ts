@@ -14,7 +14,6 @@ import {
   array,
   assert,
   boolean,
-  enums,
   optional,
   string,
   StructError,
@@ -32,7 +31,6 @@ import type {
   KycDisclaimersCatalog,
   KycSessionDisclaimers,
   KycSessionStatus,
-  KycUserStatusResponse,
   KycVendor,
   KycVendorSigning,
 } from './types.js';
@@ -56,7 +54,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchSessionDisclaimersByCountry',
   'fetchSessionDisclaimersBySessionId',
   'submitSessionDisclaimers',
-  'fetchKycStatus',
   'fetchIdosEnclaveJwks',
   'fetchIdosRelayJwks',
   'createUkycSession',
@@ -237,20 +234,6 @@ const VendorCustomerResponseStruct = type({
   status: string(),
 });
 export type VendorCustomerResponse = Infer<typeof VendorCustomerResponseStruct>;
-
-const KYC_USER_STATUSES = [
-  'not-started',
-  'pending',
-  'need-more-information',
-  'terminal-failure',
-  'completed',
-] as const;
-
-const KycUserStatusResponseStruct = type({
-  status: enums([...KYC_USER_STATUSES]),
-  sumsubSessionId: optional(string()),
-  errorCode: optional(string()),
-});
 
 const CatalogDocumentFields = {
   key: string(),
@@ -702,28 +685,6 @@ export class KycService extends BaseDataService<
       data,
       SessionDisclaimersResponseStruct,
       'session disclaimers',
-    );
-  }
-
-  /**
-   * Fetches the user-keyed simplified KYC status used by Money toast / banner
-   * surfaces (`GET /kyc/status`).
-   *
-   * @returns The simplified status payload.
-   */
-  async fetchKycStatus(): Promise<KycUserStatusResponse> {
-    const url = new URL('/kyc/status', this.#baseUrl);
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchKycStatus`],
-      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
-      // Status is polled for toast flips, so it must always be fresh.
-      staleTime: 0,
-      gcTime: 0,
-    });
-    return this.#validateResponse(
-      data,
-      KycUserStatusResponseStruct,
-      'kyc status',
     );
   }
 

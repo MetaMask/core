@@ -9,7 +9,6 @@ import type {
   UserStorageControllerPerformGetStorageAction,
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller/user-storage';
-import type { Json } from '@metamask/utils';
 import { stringToBytes } from '@metamask/utils';
 import { x25519 } from '@noble/curves/ed25519';
 
@@ -20,20 +19,16 @@ import type {
   CapabilityAuthorization,
   EncryptionSchema,
 } from './KycService.js';
-import { controllerLog } from './logger.js';
 import type {
   KycConsentRecord,
   KycDisclaimer,
   KycDisclaimersCatalog,
-  KycPhase,
-  KycProduct,
   KycProviderDisclaimersAccepted,
   KycSessionDisclaimers,
   KycSessionStatus,
   KycSumSubLauncher,
   KycSumSubSdkStatus,
   KycSumSubStatus,
-  KycUserStatus,
   KycVendor,
   KycVendorDisclaimersAccepted,
   KycVendorSigning,
@@ -58,10 +53,6 @@ import {
 // === GENERAL ===
 
 export const controllerName = 'KycController';
-
-// Placeholder credentials for the SumSub sub-flow. These are demo values that
-// must be replaced with real UKYC-issued material before production use.
-const MOCK_JWT_TOKEN = 'mock-jwt-token';
 
 // Lifetime of the read-only `ukyc_capability_token` minted when creating a
 // UKYC session. The storage-and-auth spec requires the token's `expires_at` to
@@ -120,9 +111,7 @@ function isSumSubLaunchFailure(result: Record<string, unknown>): boolean {
 const KYC_STATUSES = {
   approved: 'approved',
   rejected: 'rejected',
-  pending: 'pending',
   retry: 'retry',
-  new: 'new'
 } as const;
 
 // How often to poll UKYC session status until a terminal `finalStatus`.
@@ -153,6 +142,7 @@ export type KycControllerState = {
   /** Latest UKYC session status, or `null` when none has been fetched. */
   sessionStatus: KycSessionStatus | null;
 
+  // TODO: Check if we need truly need to persist these accepted disclaimers
   /**
    * Persisted vendor-disclaimer acceptance (T&C1) with fixed `moonpay` and
    * `iron` keys. MoonPay stores only `termsAcceptedAt`; Iron stores
@@ -266,19 +256,6 @@ export function getDefaultKycControllerState(): KycControllerState {
 }
 
 /**
- * Whether an error indicates the applicant already finished KYC — the UKYC /
- * relay `session_not_in_valid_state` signal — which the controller maps to the
- * simplified `completed` user status.
- *
- * @param error - The caught error.
- * @returns `true` when the error carries the `session_not_in_valid_state`
- * marker.
- */
-function isSessionAlreadyCompletedError(error: unknown): boolean {
-  return String(error).includes(SESSION_NOT_IN_VALID_STATE);
-}
-
-/**
  * Parameters for {@link KycController.fetchSessionDisclaimers}. Provide
  * exactly one of `sessionId` or `country`.
  */
@@ -319,23 +296,7 @@ export type KycControllerStateChangeEvent = ControllerStateChangeEvent<
   KycControllerState
 >;
 
-/**
- * Published when the user-keyed simplified KYC status changes (Money toast).
- */
-export type KycControllerStatusChangedEvent = {
-  type: `${typeof controllerName}:statusChanged`;
-  payload: [
-    {
-      status: KycUserStatus;
-      sumsubSessionId: string | null;
-      errorCode: string | null;
-    },
-  ];
-};
-
-export type KycControllerEvents =
-  | KycControllerStateChangeEvent
-  | KycControllerStatusChangedEvent;
+export type KycControllerEvents = KycControllerStateChangeEvent;
 
 type AllowedEvents = never;
 

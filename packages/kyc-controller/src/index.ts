@@ -13,7 +13,6 @@ export type {
   KycControllerOptions,
   KycControllerState,
   KycControllerStateChangeEvent,
-  KycControllerStatusChangedEvent,
   FetchSessionDisclaimersParams,
 } from './KycController.js';
 export type {
@@ -28,7 +27,6 @@ export type {
   KycControllerGetSessionStatusAction,
   KycControllerInitializeAction,
   KycControllerLoadDisclaimersAction,
-  KycControllerRefreshKycStatusAction,
   KycControllerResetAction,
   KycControllerStartSumSubAction,
 } from './KycController-method-action-types.js';
@@ -65,7 +63,6 @@ export type {
   KycServiceCreateUkycSessionAction,
   KycServiceFetchIdosEnclaveJwksAction,
   KycServiceFetchIdosRelayJwksAction,
-  KycServiceFetchKycStatusAction,
   KycServiceFetchSessionDisclaimersByCountryAction,
   KycServiceFetchSessionDisclaimersBySessionIdAction,
   KycServiceFetchVendorDisclaimersAction,
@@ -96,7 +93,6 @@ export type {
   KycCatalogDocument,
   KycConsentDocument,
   KycConsentRecord,
-  KycCustomerIdentity,
   KycDisclaimer,
   KycDisclaimersCatalog,
   KycPhase,
@@ -108,8 +104,6 @@ export type {
   KycSumSubLauncher,
   KycSumSubSdkStatus,
   KycSumSubStatus,
-  KycUserStatus,
-  KycUserStatusResponse,
   KycVendor,
   KycIronVendorDisclaimersAccepted,
   KycMoonpayVendorDisclaimersAccepted,

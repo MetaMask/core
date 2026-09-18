@@ -983,30 +983,6 @@ describe('KycService', () => {
     });
   });
 
-  describe('fetchKycStatus', () => {
-    it('returns the simplified user-keyed status', async () => {
-      nock(MOCK_API_URL).get('/kyc/status').reply(200, {
-        status: 'pending',
-        sumsubSessionId: 'ss-1',
-      });
-      const { service } = getService();
-
-      expect(await service.fetchKycStatus()).toStrictEqual({
-        status: 'pending',
-        sumsubSessionId: 'ss-1',
-      });
-    });
-
-    it('throws on an unknown status value', async () => {
-      nock(MOCK_API_URL).get('/kyc/status').reply(200, { status: 'weird' });
-      const { service } = getService();
-
-      await expect(service.fetchKycStatus()).rejects.toThrow(
-        /Malformed response received from kyc status API/u,
-      );
-    });
-  });
-
   describe('createUkycSession vendorId', () => {
     const encryptionSchema: EncryptionSchema = {
       serverPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },

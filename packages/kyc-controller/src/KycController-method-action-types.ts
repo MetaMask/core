@@ -185,21 +185,6 @@ export type KycControllerStartSumSubAction = {
 };
 
 /**
- * Refreshes the user-keyed simplified KYC status from `GET /kyc/status`,
- * stores it on state, and publishes {@link KycControllerStatusChangedEvent}.
- *
- * Skipped when `userStatus` is already `completed`: a follow-up
- * `GET /kyc/status` can still read a stale `pending` (for example after
- * `session_not_in_valid_state`) and must not undo that decision.
- *
- * @returns The latest status payload.
- */
-export type KycControllerRefreshKycStatusAction = {
-  type: `KycController:refreshKycStatus`;
-  handler: KycController['refreshKycStatus'];
-};
-
-/**
  * Fetches the current UKYC session status for the active sub-flow and records
  * it on state.
  *
@@ -247,7 +232,6 @@ export type KycControllerMethodActions =
   | KycControllerGetKycStatusAction
   | KycControllerGetCustomerIdentityAction
   | KycControllerStartSumSubAction
-  | KycControllerRefreshKycStatusAction
   | KycControllerGetSessionStatusAction
   | KycControllerResetAction
   | KycControllerClearStateAction;
