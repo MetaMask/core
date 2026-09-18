@@ -134,6 +134,9 @@ export type KycControllerState = {
   /** Resolved ISO 3166-1 alpha-3 country code. */
   geoCountry: string | null;
 
+  /** Active UKYC session id, or `null` when none exists. */
+  sessionId: string | null;
+
   /**
    * Persisted vendor-disclaimer acceptance (T&C1) with fixed `moonpay` and
    * `iron` keys. MoonPay stores only `termsAcceptedAt`; Iron stores
@@ -178,6 +181,12 @@ const kycControllerMetadata = {
     usedInUi: true,
   },
   geoCountry: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    persist: false,
+    usedInUi: true,
+  },
+  sessionId: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     persist: false,
@@ -232,6 +241,7 @@ export function getDefaultKycControllerState(): KycControllerState {
     email: null,
     vendor: null,
     geoCountry: null,
+    sessionId: null,
     vendorDisclaimersAccepted: getDefaultKycVendorDisclaimersAccepted(),
     providerDisclaimersAccepted: getDefaultKycProviderDisclaimersAccepted(),
     idosDisclaimersAccepted: null,
