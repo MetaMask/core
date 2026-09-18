@@ -390,9 +390,8 @@ export class KycController extends BaseController<
   }
 
   async initialize(params: {
-    email: string;
     vendor: KycVendor;
-    geoCountry: string;
+    email: string; // TODO: This will be removed once partnerIdentityTokens are fully ready
   }): Promise<void> {
     if (this.state.email !== null || this.state.email !== params.email) {
       throw new Error('KycController already initialized with a different email');
@@ -400,11 +399,12 @@ export class KycController extends BaseController<
     if (this.state.vendor !== null || this.state.vendor !== params.vendor) {
       throw new Error('KycController already initialized with a different vendor');
     }
-    if (this.state.geoCountry !== null || this.state.geoCountry !== params.geoCountry) {
+
+    const geoCountry = await this.messenger.call('KycService:getGeoCountry');
+    if (this.state.geoCountry !== null || this.state.geoCountry !== geoCountry) {
       throw new Error('KycController already initialized with a different geoCountry');
     }
 
-    // await this.messenger.call('KycService:getGeoCountry')
 
     this.update((state) => {
       state.email = params.email;
@@ -425,6 +425,7 @@ export class KycController extends BaseController<
       state.email = null;
       state.vendor = null;
       state.geoCountry = null;
+      state.sessionId = null;
     });
   }
 
