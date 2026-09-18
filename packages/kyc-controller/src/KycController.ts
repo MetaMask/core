@@ -134,8 +134,8 @@ export type KycControllerState = {
   /** Resolved ISO 3166-1 alpha-3 country code. */
   geoCountry: string | null;
 
-  /** Active UKYC session id, or `null` when none exists. */
-  sessionId: string | null;
+  /** Latest UKYC session status, or `null` when none has been fetched. */
+  sessionStatus: KycSessionStatus | null;
 
   /**
    * Persisted vendor-disclaimer acceptance (T&C1) with fixed `moonpay` and
@@ -186,7 +186,7 @@ const kycControllerMetadata = {
     persist: false,
     usedInUi: true,
   },
-  sessionId: {
+  sessionStatus: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     persist: false,
@@ -241,7 +241,7 @@ export function getDefaultKycControllerState(): KycControllerState {
     email: null,
     vendor: null,
     geoCountry: null,
-    sessionId: null,
+    sessionStatus: null,
     vendorDisclaimersAccepted: getDefaultKycVendorDisclaimersAccepted(),
     providerDisclaimersAccepted: getDefaultKycProviderDisclaimersAccepted(),
     idosDisclaimersAccepted: null,
@@ -389,6 +389,8 @@ export class KycController extends BaseController<
     );
   }
 
+  // Only meant to be called if starting a new KYC flow
+  // Use getSessionStatusForVendor when only checking if a prior session exists for the vendor
   async initialize(params: {
     vendor: KycVendor;
     email: string; // TODO: This will be removed once partnerIdentityTokens are fully ready
@@ -425,10 +427,13 @@ export class KycController extends BaseController<
       state.email = null;
       state.vendor = null;
       state.geoCountry = null;
-      state.sessionId = null;
+      state.sessionStatus = null;
     });
   }
 
+  getSessionStatusForVendor(vendor: KycVendor): Promise<KycSessionStatus | null> {
+    return this.messenger.call('KycService:getSessionStatusForVendor', vendor);
+  }
 
   /**
    * Creates a UKYC session, wraps the `data_encryption_key` and
