@@ -215,17 +215,6 @@ describe('mergeQuoteMetadata', () => {
       quoteMetadata: { b: 2 } as QuoteMetadata,
       mergedQuote: { a: 1, b: 2, ...EMPTY_QUOTE },
     },
-    {
-      title: 'preserves quote-carried native reserve',
-      quoteResponse: quoteResponseV2WithReserve,
-      quoteMetadata: {},
-      mergedQuote: merge(
-        {},
-        EMPTY_QUOTE,
-        quoteResponseV2WithReserve,
-        toNormalizedAmounts(quoteResponseV2WithReserve),
-      ),
-    },
   ])(
     'merged quote $title (Phase 1)',
     ({ quoteResponse, quoteMetadata, mergedQuote }) => {

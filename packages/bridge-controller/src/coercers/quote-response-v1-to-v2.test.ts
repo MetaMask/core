@@ -84,29 +84,6 @@ describe('quote-response-v2 migration', () => {
       expect(extractedMetadata).toStrictEqual(TEST_METADATA);
     });
 
-    it('preserves backend network fees and native reserve from a V1-shaped response', () => {
-      const quoteResponse = structuredClone(quoteResponseV1WithMetadata);
-      const asset = {
-        assetId: quoteResponse.quote.srcAsset.assetId,
-        symbol: quoteResponse.quote.srcAsset.symbol,
-        name: quoteResponse.quote.srcAsset.name,
-        decimals: quoteResponse.quote.srcAsset.decimals,
-      };
-      Object.assign(quoteResponse.quote.feeData, {
-        network: [{ amount: '2000', asset }],
-        reserve: [{ amount: '15000000', asset }],
-      });
-
-      const result = toQuoteResponseV2(quoteResponse);
-
-      expect(result.quote.feeData.network).toStrictEqual([
-        { amount: '2000', asset },
-      ]);
-      expect(result.quote.feeData.reserve).toStrictEqual([
-        { amount: '15000000', asset },
-      ]);
-    });
-
     it('should return QuoteResponse with no normalized amounts and preserve metadata (V1 input)', () => {
       const quoteResponseV2 = mergeQuoteMetadata(
         toQuoteResponseV2(quoteResponseV1WithMetadata),

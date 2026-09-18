@@ -74,12 +74,10 @@ export const calcSentAmount = (
   // already baked in. Adding feeData fees on top would double-count them.
   // For conventional swaps, srcTokenAmount is the net routing amount (fees
   // excluded), so the src-token fees must be added to get the wallet deduction.
-  // `reserve` is not a FeeType; omitting it keeps it out of sent-amount.
-  const { reserve: _reserve, ...spendableFeeData } = feeData;
   const sentAmount =
     intent || isQuoteV2
       ? new BigNumber(srcTokenAmount)
-      : Object.values(spendableFeeData)
+      : Object.values(feeData)
           .filter(
             (fee) =>
               fee?.amount &&

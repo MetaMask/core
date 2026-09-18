@@ -64,12 +64,6 @@ export function mergeQuoteMetadata(
     metabridge: feeData?.metabridge,
   });
 
-  // Native reserve is not a FeeType and is not reconstructed from legacy
-  // QuoteMetadata, so it must survive sanitization.
-  const reserveData = includeIfTruthy(feeData?.reserve?.[0], {
-    reserve: feeData?.reserve,
-  });
-
   const priceImpactData = priceData?.priceImpact?.amount && {
     priceData: {
       priceImpact: {
@@ -84,7 +78,6 @@ export function mergeQuoteMetadata(
       feeData: {
         ...(metabridgeFeeData ?? {}),
         ...(txFeeData ?? {}),
-        ...(reserveData ?? {}),
       },
       ...(priceImpactData ?? {}),
     },

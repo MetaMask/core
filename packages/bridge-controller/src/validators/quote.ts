@@ -96,11 +96,6 @@ export const QuoteSchema = intersection([
       [FeeType.TX_FEE]: optional(
         intersection([FeeDataSchema, TxFeeGasLimitsSchema]),
       ),
-      /**
-       * Native balance that must remain in the source account after execution.
-       * Copied through from V2; not a FeeType.
-       */
-      reserve: optional(array(AmountsAndAssetSchema)),
     }),
     bridgeId: string(),
     bridges: array(string()),

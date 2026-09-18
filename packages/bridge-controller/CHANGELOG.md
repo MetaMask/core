@@ -11,8 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `quote.feeData.reserve` on V2 quotes for native minimum-balance requirements ([#10241](https://github.com/MetaMask/core/pull/10241))
   - Sibling of `feeData.network`, not a `FeeType`, so fee aggregators do not treat it as spendable
-  - Normalized via `toNormalizedAmounts`; preserved when coercing V1 ↔ V2 and when merging quote metadata in `V1Data`
-  - Optional on V1 `QuoteSchema` as well so `toQuoteResponseV1` does not strip it
+  - Normalized via `toNormalizedAmounts` and converted to fiat via `toCurrencyValues`
 - Export `calcNormalizedTokenAmount` and `calcAtomicTokenAmount` conversion utils and `AmountsAndAsset` type ([#10277](https://github.com/MetaMask/core/pull/10277))
 - Add utils to support fee validation when a quote's fees are denominated in multiple assets ([#10277](https://github.com/MetaMask/core/pull/10277))
   - `hasSufficientGasForQuote` returns true if the wallet's balances are greater than or equal to the quote's network fees
