@@ -7,6 +7,7 @@ import type {
   StatusTypes,
 } from '../../types.js';
 import type { FeatureId } from '../../validators/feature-flags.js';
+import { QuoteWarning } from '../quote-warnings/types.js';
 import type {
   UnifiedSwapBridgeEventName,
   BatchSellMetricsEventName,
@@ -122,17 +123,6 @@ export type InputValues = {
   slippage: number;
   token_amount_source: string;
 };
-
-export type QuoteWarning =
-  | 'low_return'
-  | 'no_quotes'
-  | 'insufficient_gas_balance'
-  | 'insufficient_gas_for_selected_quote'
-  | 'insufficient_balance'
-  | 'market_closed'
-  | 'price_impact'
-  | 'quote_expired'
-  | 'tx_alert';
 
 type BatchSellChainProperties = {
   chain_id_source: CaipChainId;

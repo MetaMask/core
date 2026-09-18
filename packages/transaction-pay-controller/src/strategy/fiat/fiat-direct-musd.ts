@@ -22,7 +22,6 @@ import { buildCaipAssetType, getTokenInfo } from '../../utils/token.js';
 import { MUSD_MONAD_FIAT_ASSET } from './constants.js';
 import type { FiatQuote } from './types.js';
 import {
-  getNativeTransakRampsFee,
   getRampsQuote,
   getRawSourceAmountFromOrderCryptoAmount,
   resolveSourceAmountRaw,
@@ -66,6 +65,9 @@ export async function getDirectMusdFiatQuote({
       throw new Error('Invalid fiat amount for direct mUSD quote');
     }
 
+    // `getRampsQuote` requests `getQuoteWithFees`, so a Transak Native quote
+    // already carries the native fee (fee-on-top for direct mUSD) in its
+    // provider/network fee fields.
     const fiatQuote = await getRampsQuote({
       adjustedAmount,
       errorMessage: 'No matching ramps quote found for direct mUSD provider',
@@ -73,19 +75,6 @@ export async function getDirectMusdFiatQuote({
       fiatPaymentMethod,
       messenger,
       walletAddress: moneyAccountAddress,
-    });
-
-    // When Transak Native is the resolved provider, prefer its own quote's fee
-    // so the estimate matches what Transak Native will charge. Direct mUSD is
-    // fee-on-top (the fee is added to the entered amount), so request the native
-    // quote in that mode.
-    const nativeRampsFee = await getNativeTransakRampsFee({
-      adjustedAmount,
-      fiatAsset: MUSD_MONAD_FIAT_ASSET,
-      fiatPaymentMethod,
-      fiatQuote,
-      isFeeExcludedFromFiat: true,
-      messenger,
     });
 
     messenger.call('TransactionPayController:updateFiatPayment', {
@@ -110,7 +99,6 @@ export async function getDirectMusdFiatQuote({
       fiatQuote,
       messenger,
       moneyAccountAddress,
-      nativeRampsFee,
       requiredToken,
     });
   } catch (error) {
@@ -180,14 +168,12 @@ function combineDirectMusdFiatQuote({
   fiatQuote,
   messenger,
   moneyAccountAddress,
-  nativeRampsFee,
   requiredToken,
 }: {
   amountFiat: string;
   fiatQuote: RampsQuote;
   messenger: PayStrategyGetQuotesRequest['messenger'];
   moneyAccountAddress: Hex;
-  nativeRampsFee: BigNumber | null;
   requiredToken: TransactionPayRequiredToken;
 }): TransactionPayQuote<FiatQuote> {
   const tokenInfo = getTokenInfo(
@@ -204,20 +190,16 @@ function combineDirectMusdFiatQuote({
     cryptoAmount: fiatQuote.quote.amountOut,
     decimals: tokenInfo.decimals,
   });
-  // Transak Native returns a single total fee, so the aggregator's separate
-  // provider/network split collapses: the whole native fee sits in the provider
-  // bucket and the source-network fee is zero. The `providerFiat` total stays
-  // correct either way.
-  const rampsProviderFee = (
-    nativeRampsFee ?? getSafeFee(fiatQuote.quote.providerFee)
-  ).toString(10);
-  const rampsNetworkFee = nativeRampsFee
-    ? '0'
-    : getSafeFee(fiatQuote.quote.networkFee).toString(10);
+  // `getQuoteWithFees` already reconciled the fee split to the resolved
+  // provider (for Transak Native, the native total split across provider and
+  // network), so the provider/network fields can be mapped straight into the
+  // fee buckets.
+  const rampsProviderFee = getSafeFee(fiatQuote.quote.providerFee).toString(10);
+  const rampsNetworkFee = getSafeFee(fiatQuote.quote.networkFee).toString(10);
   const rampsTotalFee = new BigNumber(rampsProviderFee)
     .plus(rampsNetworkFee)
     .toString(10);
-  const targetAmountFiat = getDirectMusdTargetAmountFiat(fiatQuote);
+  const targetAmountFiat = getDirectMusdTargetAmountFiat(fiatQuote, amountFiat);
   const sourceAmountHuman = new BigNumber(sourceAmountRaw)
     .shiftedBy(-tokenInfo.decimals)
     .toString(10);
@@ -276,13 +258,27 @@ function combineDirectMusdFiatQuote({
   };
 }
 
-function getDirectMusdTargetAmountFiat(fiatQuote: RampsQuote): string {
+/**
+ * Resolves the fiat value of the received mUSD for a direct deposit quote.
+ *
+ * Prefers the quote's `amountOutInFiat`. When that is missing, it falls back to
+ * the entered fiat amount rather than `amountOut`, which is a crypto amount and
+ * would otherwise put crypto units into a fiat field.
+ *
+ * @param fiatQuote - The resolved ramps quote.
+ * @param amountFiat - The entered fiat amount, used as the fallback.
+ * @returns The target amount in fiat.
+ */
+function getDirectMusdTargetAmountFiat(
+  fiatQuote: RampsQuote,
+  amountFiat: string,
+): string {
   const amountOutInFiat = new BigNumber(fiatQuote.quote.amountOutInFiat ?? NaN);
   if (amountOutInFiat.isFinite() && amountOutInFiat.isGreaterThanOrEqualTo(0)) {
     return amountOutInFiat.toString(10);
   }
 
-  return new BigNumber(fiatQuote.quote.amountOut).toString(10);
+  return amountFiat;
 }
 
 function getSafeFee(value: BigNumber.Value | undefined): BigNumber {

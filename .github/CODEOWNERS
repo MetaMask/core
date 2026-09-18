@@ -26,6 +26,7 @@
 /packages/assets-controllers               @MetaMask/metamask-assets
 /packages/network-enablement-controller    @MetaMask/metamask-assets
 /packages/assets-controller                @MetaMask/metamask-assets
+/packages/core-backend                     @MetaMask/metamask-assets
 
 ## Confirmations Team
 /packages/address-book-controller       @MetaMask/confirmations
@@ -135,7 +136,6 @@
 ## Joint team ownership
 /packages/announcement-controller                 @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
 /packages/client-utils                            @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
-/packages/core-backend                            @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/eth-json-rpc-middleware/src/methods     @MetaMask/confirmations @MetaMask/core-platform
 /packages/eth-json-rpc-middleware/src/wallet.*    @MetaMask/confirmations @MetaMask/core-platform
 /packages/foundryup                               @MetaMask/mobile-platform @MetaMask/extension-platform
@@ -389,10 +389,10 @@
 /packages/subscription-controller/CHANGELOG.md                 @MetaMask/web3auth @MetaMask/core-platform
 /packages/subscription-controller/tsconfig.*                   @MetaMask/web3auth @MetaMask/core-platform
 /packages/subscription-controller/typedoc.json                 @MetaMask/web3auth @MetaMask/core-platform
-/packages/core-backend/package.json                            @MetaMask/core-platform @MetaMask/metamask-assets
-/packages/core-backend/CHANGELOG.md                            @MetaMask/core-platform @MetaMask/metamask-assets
-/packages/core-backend/tsconfig.*                              @MetaMask/core-platform @MetaMask/metamask-assets
-/packages/core-backend/typedoc.json                            @MetaMask/core-platform @MetaMask/metamask-assets
+/packages/core-backend/package.json                            @MetaMask/metamask-assets @MetaMask/core-platform
+/packages/core-backend/CHANGELOG.md                            @MetaMask/metamask-assets @MetaMask/core-platform
+/packages/core-backend/tsconfig.*                              @MetaMask/metamask-assets @MetaMask/core-platform
+/packages/core-backend/typedoc.json                            @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/claims-controller/package.json                       @MetaMask/web3auth @MetaMask/core-platform
 /packages/claims-controller/CHANGELOG.md                       @MetaMask/web3auth @MetaMask/core-platform
 /packages/claims-controller/tsconfig.*                         @MetaMask/web3auth @MetaMask/core-platform
