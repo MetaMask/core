@@ -1,3 +1,9 @@
+/* eslint-disable n/no-unsupported-features/node-builtins --
+   `hashing.ts` reads `globalThis.crypto`, so the fallback tests have to stub
+   that exact global. The rule reports it as experimental below Node 23, but it
+   has been present since Node 19 and these tests only run on the Node version
+   the repo pins. */
+
 import * as nobleHashes256 from '@noble/hashes/sha256';
 import * as nobleHashes512 from '@noble/hashes/sha512';
 
