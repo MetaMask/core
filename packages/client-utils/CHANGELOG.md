@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.2]
+
 ### Uncategorized
 
 - Update lint:tsc to run against all packages & remove it from CI ([#10215](https://github.com/MetaMask/core/pull/10215))
@@ -180,7 +182,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.2...HEAD
+[3.0.2]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.1...@metamask/client-utils@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@3.0.0...@metamask/client-utils@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.1.1...@metamask/client-utils@3.0.0
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/client-utils@2.1.0...@metamask/client-utils@2.1.1
