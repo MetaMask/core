@@ -11,6 +11,7 @@ import { isValidUUIDv4 } from './analyticsControllerStateValidator.js';
 import {
   AnalyticsController,
   AnalyticsPlatformAdapterSetupError,
+  AnalyticsPurpose,
   EVENT_FRAGMENT_MAX_AGE,
   getDefaultAnalyticsControllerState,
   analyticsControllerSelectors,
@@ -225,6 +226,30 @@ function createMockAdapter(): MockAnalyticsPlatformAdapter {
 }
 
 /**
+ * Expected context with allowed analytics purposes and optional config version.
+ *
+ * @param preferences - Allowed purposes for the event.
+ * @param preferences.product - Whether product analytics use is allowed.
+ * @param preferences.marketing - Whether marketing use is allowed.
+ * @param context - Optional caller context to merge.
+ * @param version - Optional events config version.
+ * @returns Context including Segment consent category preferences.
+ */
+function withPurposeConsent(
+  preferences: { product: boolean; marketing: boolean },
+  context: AnalyticsContext = {},
+  version?: string,
+): AnalyticsContext {
+  return {
+    ...context,
+    consent: {
+      categoryPreferences: preferences,
+    },
+    ...(version === undefined ? {} : { eventsConfigVersion: version }),
+  };
+}
+
+/**
  * Gets delivery options from a mock adapter call.
  *
  * @param mock - The mock adapter method.
@@ -246,6 +271,8 @@ describe('AnalyticsController', () => {
       expect(defaults).toStrictEqual({
         optedIn: false,
         consentDecisionMade: false,
+        optedInToMarketing: false,
+        marketingConsentDecisionMade: false,
       });
       expect('analyticsId' in defaults).toBe(false);
     });
@@ -280,7 +307,9 @@ describe('AnalyticsController', () => {
         {
           "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
           "consentDecisionMade": true,
+          "marketingConsentDecisionMade": false,
           "optedIn": true,
+          "optedInToMarketing": false,
         }
       `);
     });
@@ -300,7 +329,9 @@ describe('AnalyticsController', () => {
         {
           "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
           "consentDecisionMade": true,
+          "marketingConsentDecisionMade": false,
           "optedIn": true,
+          "optedInToMarketing": false,
         }
       `);
     });
@@ -320,7 +351,9 @@ describe('AnalyticsController', () => {
         {
           "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
           "consentDecisionMade": true,
+          "marketingConsentDecisionMade": false,
           "optedIn": true,
+          "optedInToMarketing": false,
         }
       `);
     });
@@ -490,7 +523,9 @@ describe('AnalyticsController', () => {
       ).toMatchInlineSnapshot(`
         {
           "consentDecisionMade": true,
+          "marketingConsentDecisionMade": false,
           "optedIn": true,
+          "optedInToMarketing": false,
         }
       `);
     });
@@ -624,7 +659,7 @@ describe('AnalyticsController', () => {
           sensitive_prop: 'sensitive value',
           anonymous: true,
         }),
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
       );
     });
 
@@ -911,7 +946,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         expect.any(Object),
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
       );
     });
 
@@ -1008,7 +1043,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         { prop: 'value' },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
       );
     });
 
@@ -1032,7 +1067,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         { prop: 'value' },
-        context,
+        withPurposeConsent({ product: true, marketing: false }, context),
       );
     });
 
@@ -1056,7 +1091,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         undefined,
-        context,
+        withPurposeConsent({ product: true, marketing: false }, context),
       );
     });
 
@@ -1076,7 +1111,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         undefined,
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
       );
     });
 
@@ -1106,7 +1141,7 @@ describe('AnalyticsController', () => {
           sensitive_prop: 'sensitive value',
           anonymous: true,
         },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
       );
     });
 
@@ -1135,7 +1170,7 @@ describe('AnalyticsController', () => {
           sensitive_prop: 'sensitive value',
           anonymous: true,
         },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
       );
     });
 
@@ -1179,7 +1214,7 @@ describe('AnalyticsController', () => {
           1,
           'test_event',
           { prop: 'value' },
-          undefined,
+          withPurposeConsent({ product: true, marketing: false }),
         );
         expect(mockAdapter.track).toHaveBeenNthCalledWith(
           2,
@@ -1189,7 +1224,7 @@ describe('AnalyticsController', () => {
             sensitive_prop: 'sensitive value',
             anonymous: true,
           },
-          undefined,
+          withPurposeConsent({ product: true, marketing: false }),
         );
       });
 
@@ -1220,7 +1255,7 @@ describe('AnalyticsController', () => {
           1,
           'test_event',
           { prop: 'value' },
-          context,
+          withPurposeConsent({ product: true, marketing: false }, context),
         );
         expect(mockAdapter.track).toHaveBeenNthCalledWith(
           2,
@@ -1230,7 +1265,7 @@ describe('AnalyticsController', () => {
             sensitive_prop: 'sensitive value',
             anonymous: true,
           },
-          context,
+          withPurposeConsent({ product: true, marketing: false }, context),
         );
       });
 
@@ -1257,7 +1292,7 @@ describe('AnalyticsController', () => {
           1,
           'test_event',
           {},
-          undefined,
+          withPurposeConsent({ product: true, marketing: false }),
         );
         expect(mockAdapter.track).toHaveBeenNthCalledWith(
           2,
@@ -1266,7 +1301,7 @@ describe('AnalyticsController', () => {
             sensitive_prop: 'sensitive value',
             anonymous: true,
           },
-          undefined,
+          withPurposeConsent({ product: true, marketing: false }),
         );
       });
 
@@ -1288,7 +1323,7 @@ describe('AnalyticsController', () => {
         expect(mockAdapter.track).toHaveBeenCalledWith(
           'test_event',
           { prop: 'value' },
-          undefined,
+          withPurposeConsent({ product: true, marketing: false }),
         );
       });
 
@@ -1310,7 +1345,7 @@ describe('AnalyticsController', () => {
         expect(mockAdapter.track).toHaveBeenCalledWith(
           'test_event',
           { prop: 'value' },
-          undefined,
+          withPurposeConsent({ product: true, marketing: false }),
         );
       });
     });
@@ -1339,7 +1374,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.identify).toHaveBeenCalledWith(
         analyticsId,
         traits,
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
       );
     });
 
@@ -1359,7 +1394,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.identify).toHaveBeenCalledWith(
         analyticsId,
         undefined,
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
       );
     });
 
@@ -1384,7 +1419,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.identify).toHaveBeenCalledWith(
         analyticsId,
         traits,
-        context,
+        withPurposeConsent({ product: true, marketing: false }, context),
       );
     });
 
@@ -1425,7 +1460,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.view).toHaveBeenCalledWith(
         'home',
         { referrer: 'test' },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
       );
     });
 
@@ -1448,7 +1483,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.view).toHaveBeenCalledWith(
         'settings',
         { section: 'security' },
-        context,
+        withPurposeConsent({ product: true, marketing: false }, context),
       );
     });
 
@@ -1499,7 +1534,10 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         { prop: 'value' },
-        { location: fullLocationContext },
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: fullLocationContext },
+        ),
       );
     });
 
@@ -1513,9 +1551,16 @@ describe('AnalyticsController', () => {
 
       controller.trackEvent(createTestEvent('test_event'));
 
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
-        location: fullLocationContext,
-      });
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        withPurposeConsent(
+          { product: true, marketing: false },
+          {
+            location: fullLocationContext,
+          },
+        ),
+      );
     });
 
     it('adds location to identify events', async () => {
@@ -1531,7 +1576,10 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.identify).toHaveBeenCalledWith(
         analyticsId,
         { trait: 'value' },
-        { location: fullLocationContext },
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: fullLocationContext },
+        ),
       );
     });
 
@@ -1545,9 +1593,16 @@ describe('AnalyticsController', () => {
 
       controller.trackView('home');
 
-      expect(mockAdapter.view).toHaveBeenCalledWith('home', undefined, {
-        location: fullLocationContext,
-      });
+      expect(mockAdapter.view).toHaveBeenCalledWith(
+        'home',
+        undefined,
+        withPurposeConsent(
+          { product: true, marketing: false },
+          {
+            location: fullLocationContext,
+          },
+        ),
+      );
     });
 
     it('preserves unrelated caller context', async () => {
@@ -1562,10 +1617,17 @@ describe('AnalyticsController', () => {
         app: { name: 'MetaMask' },
       });
 
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
-        app: { name: 'MetaMask' },
-        location: fullLocationContext,
-      });
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        withPurposeConsent(
+          { product: true, marketing: false },
+          {
+            app: { name: 'MetaMask' },
+            location: fullLocationContext,
+          },
+        ),
+      );
     });
 
     it('preserves caller location fields the controller does not resolve', async () => {
@@ -1580,9 +1642,16 @@ describe('AnalyticsController', () => {
         location: { city: 'Seattle' },
       });
 
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
-        location: { city: 'Seattle', ...fullLocationContext },
-      });
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        withPurposeConsent(
+          { product: true, marketing: false },
+          {
+            location: { city: 'Seattle', ...fullLocationContext },
+          },
+        ),
+      );
     });
 
     it('overrides caller location fields the controller resolves', async () => {
@@ -1597,9 +1666,16 @@ describe('AnalyticsController', () => {
         location: { country_code: 'FR' },
       });
 
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
-        location: fullLocationContext,
-      });
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        withPurposeConsent(
+          { product: true, marketing: false },
+          {
+            location: fullLocationContext,
+          },
+        ),
+      );
     });
 
     it('replaces a non-record caller location', async () => {
@@ -1614,9 +1690,16 @@ describe('AnalyticsController', () => {
         location: 'Seattle',
       });
 
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
-        location: fullLocationContext,
-      });
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        withPurposeConsent(
+          { product: true, marketing: false },
+          {
+            location: fullLocationContext,
+          },
+        ),
+      );
     });
 
     it('omits fields the geolocation API could not determine', async () => {
@@ -1629,9 +1712,16 @@ describe('AnalyticsController', () => {
 
       controller.trackEvent(createTestEvent('test_event'));
 
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
-        location: { country_code: 'FR' },
-      });
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        withPurposeConsent(
+          { product: true, marketing: false },
+          {
+            location: { country_code: 'FR' },
+          },
+        ),
+      );
     });
 
     it('leaves the context untouched when the geolocation is unknown', async () => {
@@ -1645,9 +1735,14 @@ describe('AnalyticsController', () => {
         app: { name: 'MetaMask' },
       });
 
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
-        app: { name: 'MetaMask' },
-      });
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { app: { name: 'MetaMask' } },
+        ),
+      );
     });
 
     it('leaves the context untouched when the geolocation lookup fails', async () => {
@@ -1664,7 +1759,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         undefined,
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
       );
     });
 
@@ -1686,7 +1781,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         undefined,
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
       );
     });
 
@@ -1703,9 +1798,14 @@ describe('AnalyticsController', () => {
         location: { city: 'Seattle' },
       });
 
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', undefined, {
-        location: { city: 'Seattle' },
-      });
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: { city: 'Seattle' } },
+        ),
+      );
     });
 
     it('omits location from the anonymous payload when the anonymous events feature is enabled', async () => {
@@ -1730,7 +1830,10 @@ describe('AnalyticsController', () => {
         1,
         'test_event',
         { prop: 'value' },
-        { location: fullLocationContext },
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: fullLocationContext },
+        ),
       );
       expect(mockAdapter.track).toHaveBeenNthCalledWith(
         2,
@@ -1740,7 +1843,7 @@ describe('AnalyticsController', () => {
           sensitive_prop: 'sensitive value',
           anonymous: true,
         },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
       );
     });
 
@@ -1767,7 +1870,10 @@ describe('AnalyticsController', () => {
           sensitive_prop: 'sensitive value',
           anonymous: true,
         },
-        { location: fullLocationContext },
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: fullLocationContext },
+        ),
       );
     });
 
@@ -1787,7 +1893,12 @@ describe('AnalyticsController', () => {
       ) as { context?: AnalyticsContext }[];
 
       expect(queuedEvent.context).toStrictEqual({
-        location: fullLocationContext,
+        ...withPurposeConsent(
+          { product: true, marketing: false },
+          {
+            location: fullLocationContext,
+          },
+        ),
       });
     });
 
@@ -1822,7 +1933,10 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'preconsent_event',
         undefined,
-        { location: fullLocationContext },
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: fullLocationContext },
+        ),
         expect.any(Object),
       );
 
@@ -1831,7 +1945,10 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenLastCalledWith(
         'postconsent_event',
         undefined,
-        { location: fullLocationContext },
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: fullLocationContext },
+        ),
       );
     });
 
@@ -1864,7 +1981,10 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         { prop: 'value' },
-        { location: fullLocationContext },
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: fullLocationContext },
+        ),
         expect.any(Object),
       );
       // ...but the anonymous payload carries no location.
@@ -1875,7 +1995,7 @@ describe('AnalyticsController', () => {
           sensitive_prop: 'sensitive value',
           anonymous: true,
         },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
         expect.any(Object),
       );
     });
@@ -1943,6 +2063,53 @@ describe('AnalyticsController', () => {
         Object.values(controller.state.preConsentEventQueue ?? {}),
       ).toHaveLength(1);
     });
+
+    it('still replays pre-consent events if another purpose is opted out while geolocation resolves', async () => {
+      let resolveGeolocation: (data: GeolocationData) => void = () => undefined;
+      const geolocationHandler = jest.fn(
+        () =>
+          new Promise<GeolocationData>((resolve) => {
+            resolveGeolocation = resolve;
+          }),
+      );
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: false,
+          analyticsId,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+        isGeolocationEnabled: true,
+        geolocationHandler,
+      });
+
+      controller.trackEvent(createTestEvent('preconsent_event'));
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+
+      const optInPromise = controller.optIn();
+      expect(geolocationHandler).toHaveBeenCalledTimes(1);
+
+      // Marketing opt-out prunes during the await. Product-eligible pre-consent
+      // events must survive until optIn finishes replaying.
+      controller.optOutOfMarketing();
+
+      resolveGeolocation(buildGeolocationData(fullGeolocation));
+      await optInPromise;
+
+      expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'preconsent_event',
+        undefined,
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { location: fullLocationContext },
+        ),
+        expect.any(Object),
+      );
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+    });
   });
 
   describe('event queue persistence', () => {
@@ -1962,7 +2129,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         { prop: 'value' },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
       );
       expect(mockAdapter.track.mock.calls[0]).toHaveLength(3);
     });
@@ -1993,6 +2160,8 @@ describe('AnalyticsController', () => {
           messageId: deliveryOptions.messageId,
           timestamp: deliveryOptions.timestamp?.toISOString(),
           properties: { prop: 'value' },
+          context: withPurposeConsent({ product: true, marketing: false }),
+          eventPurposes: [AnalyticsPurpose.Product],
         },
       });
 
@@ -2185,21 +2354,30 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.identify).toHaveBeenCalledWith(
         analyticsId,
         { trait: 'value' },
-        identifyContext,
+        withPurposeConsent(
+          { product: true, marketing: false },
+          identifyContext,
+        ),
         expect.objectContaining({ messageId: identifyOptions.messageId }),
       );
       expect(mockAdapter.view).toHaveBeenCalledWith(
         'home',
         { referrer: 'test' },
-        viewContext,
+        withPurposeConsent({ product: true, marketing: false }, viewContext),
         expect.objectContaining({ messageId: viewOptions.messageId }),
       );
       expect(controller.state.eventQueue).toMatchObject({
         [identifyOptions.messageId as string]: {
-          context: identifyContext,
+          context: withPurposeConsent(
+            { product: true, marketing: false },
+            identifyContext,
+          ),
         },
         [viewOptions.messageId as string]: {
-          context: viewContext,
+          context: withPurposeConsent(
+            { product: true, marketing: false },
+            viewContext,
+          ),
         },
       });
       expect(Object.keys(controller.state.eventQueue ?? {})).toHaveLength(2);
@@ -2236,18 +2414,24 @@ describe('AnalyticsController', () => {
           eventName: 'test_event',
           messageId: trackOptions.messageId,
           timestamp: trackOptions.timestamp?.toISOString(),
+          context: withPurposeConsent({ product: true, marketing: false }),
+          eventPurposes: [AnalyticsPurpose.Product],
         },
         [identifyOptions.messageId as string]: {
           type: 'identify',
           userId: analyticsId,
           messageId: identifyOptions.messageId,
           timestamp: identifyOptions.timestamp?.toISOString(),
+          context: withPurposeConsent({ product: true, marketing: false }),
+          eventPurposes: [AnalyticsPurpose.Product],
         },
         [viewOptions.messageId as string]: {
           type: 'view',
           name: 'home',
           messageId: viewOptions.messageId,
           timestamp: viewOptions.timestamp?.toISOString(),
+          context: withPurposeConsent({ product: true, marketing: false }),
+          eventPurposes: [AnalyticsPurpose.Product],
         },
       });
     });
@@ -2294,7 +2478,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         { prop: 'value' },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
         expect.objectContaining({
           messageId: 'track-message-id',
           timestamp: new Date(trackEvent.timestamp),
@@ -2304,7 +2488,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.identify).toHaveBeenCalledWith(
         analyticsId,
         { trait: 'value' },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
         expect.objectContaining({
           messageId: 'identify-message-id',
           timestamp: new Date(identifyEvent.timestamp),
@@ -2314,7 +2498,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.view).toHaveBeenCalledWith(
         'home',
         { referrer: 'test' },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
         expect.objectContaining({
           messageId: 'view-message-id',
           timestamp: new Date(viewEvent.timestamp),
@@ -2746,7 +2930,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'queued_event',
         { foo: 'bar' },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
         expect.objectContaining({ messageId: expect.any(String) }),
       );
     });
@@ -2777,7 +2961,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'queued_event',
         { foo: 'bar' },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
         expect.objectContaining({ messageId: expect.any(String) }),
       );
     });
@@ -2853,7 +3037,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'queued_event',
         { foo: 'bar' },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
         expect.objectContaining({ messageId: expect.any(String) }),
       );
       expect(controller.state.preConsentEventQueue).toStrictEqual({});
@@ -2905,13 +3089,16 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'first_event',
         { a: 1 },
-        { source: 'onboarding' },
+        withPurposeConsent(
+          { product: true, marketing: false },
+          { source: 'onboarding' },
+        ),
         expect.objectContaining({ messageId: expect.any(String) }),
       );
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'second_event',
         { b: 2 },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
         expect.objectContaining({ messageId: expect.any(String) }),
       );
       expect(controller.state.preConsentEventQueue).toStrictEqual({});
@@ -2950,7 +3137,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'queued_event',
         { foo: 'bar' },
-        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
         expect.objectContaining({ messageId: expect.any(String) }),
       );
       expect(controller.state.preConsentEventQueue).toStrictEqual({});
@@ -3019,6 +3206,40 @@ describe('AnalyticsController', () => {
         createdAt: now,
         lastUpdated: now,
         ...overrides,
+      };
+    }
+
+    /**
+     * Geolocation handler that hangs until {@link resolveGeolocation} is called,
+     * and exposes {@link geolocationRequested} so tests can wait until init is
+     * blocked on that call (after the fragment snapshot, before reconcile).
+     *
+     * @returns The handler and coordination promises.
+     */
+    function createBlockingGeolocationHandler(): {
+      geolocationHandler: jest.Mock<Promise<GeolocationData>, []>;
+      geolocationRequested: Promise<void>;
+      resolveGeolocation: (value: GeolocationData) => void;
+    } {
+      let resolveGeolocation!: (value: GeolocationData) => void;
+      let notifyGeolocationRequested!: () => void;
+      const geolocationRequested = new Promise<void>((resolve) => {
+        notifyGeolocationRequested = resolve;
+      });
+
+      const geolocationHandler = jest.fn((): Promise<GeolocationData> => {
+        notifyGeolocationRequested();
+        return new Promise<GeolocationData>((resolve) => {
+          resolveGeolocation = resolve;
+        });
+      });
+
+      return {
+        geolocationHandler,
+        geolocationRequested,
+        resolveGeolocation: (value: GeolocationData): void => {
+          resolveGeolocation(value);
+        },
       };
     }
 
@@ -3108,7 +3329,9 @@ describe('AnalyticsController', () => {
         const fragment = controller.createEventFragment({
           id: 'signature-1',
           properties: { signature_type: 'personal_sign' },
-          context: { referrer: { url: 'https://dapp.test' } },
+          context: {
+            referrer: { url: 'https://dapp.test' },
+          },
         });
         expect(fragment).toBeDefined();
 
@@ -3122,7 +3345,9 @@ describe('AnalyticsController', () => {
         expect(controller.state.eventFragments?.['signature-1']).toStrictEqual(
           expect.objectContaining({
             properties: { signature_type: 'personal_sign' },
-            context: { referrer: { url: 'https://dapp.test' } },
+            context: {
+              referrer: { url: 'https://dapp.test' },
+            },
           }),
         );
       });
@@ -3137,7 +3362,9 @@ describe('AnalyticsController', () => {
           failureEvent: 'Signature Rejected',
           properties: { signature_type: 'personal_sign' },
           sensitiveProperties: { eip712_primary_type: 'Permit' },
-          context: { referrer: { url: 'https://dapp.test' } },
+          context: {
+            referrer: { url: 'https://dapp.test' },
+          },
           persist: true,
         });
 
@@ -3146,9 +3373,16 @@ describe('AnalyticsController', () => {
           initialEvent: 'Signature Requested',
           successEvent: 'Signature Approved',
           failureEvent: 'Signature Rejected',
+          eventPurposes: {
+            'Signature Requested': [AnalyticsPurpose.Product],
+            'Signature Approved': [AnalyticsPurpose.Product],
+            'Signature Rejected': [AnalyticsPurpose.Product],
+          },
           properties: { signature_type: 'personal_sign' },
           sensitiveProperties: { eip712_primary_type: 'Permit' },
-          context: { referrer: { url: 'https://dapp.test' } },
+          context: {
+            referrer: { url: 'https://dapp.test' },
+          },
           persist: true,
           createdAt: expect.any(Number),
           lastUpdated: expect.any(Number),
@@ -3166,14 +3400,21 @@ describe('AnalyticsController', () => {
           initialEvent: 'Signature Requested',
           successEvent: 'Signature Approved',
           properties: { signature_type: 'personal_sign' },
-          context: { referrer: { url: 'https://dapp.test' } },
+          context: {
+            referrer: { url: 'https://dapp.test' },
+          },
         });
 
         expect(mockAdapter.track).toHaveBeenCalledTimes(1);
         expect(mockAdapter.track).toHaveBeenCalledWith(
           'Signature Requested',
           { signature_type: 'personal_sign' },
-          { referrer: { url: 'https://dapp.test' } },
+          withPurposeConsent(
+            { product: true, marketing: false },
+            {
+              referrer: { url: 'https://dapp.test' },
+            },
+          ),
         );
       });
 
@@ -3260,6 +3501,9 @@ describe('AnalyticsController', () => {
         ).toStrictEqual({
           id: 'transaction-ui-1',
           successEvent: 'Transaction Finalized',
+          eventPurposes: {
+            'Transaction Finalized': [AnalyticsPurpose.Product],
+          },
           properties: {
             simulation_response: 'no_changes',
             gas_edit_attempted: 'basic',
@@ -3327,7 +3571,9 @@ describe('AnalyticsController', () => {
         const { controller } = await setupFragmentController();
         controller.createEventFragment({
           id: 'signature-1',
-          context: { referrer: { url: 'https://dapp.test' } },
+          context: {
+            referrer: { url: 'https://dapp.test' },
+          },
         });
 
         controller.updateEventFragment('signature-1', {
@@ -3341,7 +3587,7 @@ describe('AnalyticsController', () => {
         });
       });
 
-      it('leaves the context unset when neither side has one', async () => {
+      it('omits context when create and update both leave it unset', async () => {
         const { controller } = await setupFragmentController();
         controller.createEventFragment({ id: 'signature-1' });
 
@@ -3350,8 +3596,8 @@ describe('AnalyticsController', () => {
         });
 
         expect(
-          controller.state.eventFragments?.['signature-1'],
-        ).not.toHaveProperty('context');
+          controller.state.eventFragments?.['signature-1']?.context,
+        ).toBeUndefined();
       });
 
       it('advances lastUpdated but preserves createdAt', async () => {
@@ -3394,7 +3640,9 @@ describe('AnalyticsController', () => {
           id: 'signature-1',
           properties: { signature_type: 'personal_sign' },
           sensitiveProperties: { eip712_primary_type: 'Permit' },
-          context: { referrer: { url: 'https://dapp.test' } },
+          context: {
+            referrer: { url: 'https://dapp.test' },
+          },
         });
 
         const fragment = controller.getEventFragmentById('signature-1');
@@ -3416,7 +3664,9 @@ describe('AnalyticsController', () => {
           expect.objectContaining({
             properties: { signature_type: 'personal_sign' },
             sensitiveProperties: { eip712_primary_type: 'Permit' },
-            context: { referrer: { url: 'https://dapp.test' } },
+            context: {
+              referrer: { url: 'https://dapp.test' },
+            },
           }),
         );
       });
@@ -3472,7 +3722,7 @@ describe('AnalyticsController', () => {
         expect(mockAdapter.track).toHaveBeenCalledWith(
           'Signature Approved',
           { signature_type: 'personal_sign', alert_triggered_count: 1 },
-          undefined,
+          withPurposeConsent({ product: true, marketing: false }),
         );
         expect(controller.state.eventFragments).toStrictEqual({});
       });
@@ -3490,7 +3740,7 @@ describe('AnalyticsController', () => {
         expect(mockAdapter.track).toHaveBeenCalledWith(
           'Signature Rejected',
           undefined,
-          undefined,
+          withPurposeConsent({ product: true, marketing: false }),
         );
       });
 
@@ -3528,7 +3778,13 @@ describe('AnalyticsController', () => {
         expect(mockAdapter.track).toHaveBeenCalledWith(
           'Signature Approved',
           undefined,
-          { referrer: { url: 'https://other.test' }, keep: 'me' },
+          withPurposeConsent(
+            { product: true, marketing: false },
+            {
+              referrer: { url: 'https://other.test' },
+              keep: 'me',
+            },
+          ),
         );
       });
 
@@ -3550,7 +3806,7 @@ describe('AnalyticsController', () => {
           1,
           'Signature Approved',
           { signature_type: 'personal_sign' },
-          undefined,
+          withPurposeConsent({ product: true, marketing: false }),
         );
         expect(mockAdapter.track).toHaveBeenNthCalledWith(
           2,
@@ -3560,7 +3816,7 @@ describe('AnalyticsController', () => {
             eip712_primary_type: 'Permit',
             anonymous: true,
           },
-          undefined,
+          withPurposeConsent({ product: true, marketing: false }),
         );
       });
 
@@ -3643,7 +3899,7 @@ describe('AnalyticsController', () => {
         expect(mockAdapter.track).toHaveBeenCalledWith(
           'Signature Requested',
           undefined,
-          undefined,
+          withPurposeConsent({ product: true, marketing: false }),
           expect.objectContaining({ messageId: expect.any(String) }),
         );
       });
@@ -3815,13 +4071,8 @@ describe('AnalyticsController', () => {
       });
 
       it('keeps a fragment replaced during init even when the leftover ID was expired', async () => {
-        let resolveGeolocation!: (value: GeolocationData) => void;
-        const geolocationHandler = jest.fn(
-          () =>
-            new Promise<GeolocationData>((resolve) => {
-              resolveGeolocation = resolve;
-            }),
-        );
+        const { geolocationHandler, geolocationRequested, resolveGeolocation } =
+          createBlockingGeolocationHandler();
         const mockAdapter = createMockAdapter();
         const analyticsId = '11111111-2222-4333-8444-555555555555';
         const now = 1_800_000_000_000;
@@ -3850,6 +4101,7 @@ describe('AnalyticsController', () => {
         });
 
         const initPromise = controller.init();
+        await geolocationRequested;
 
         controller.createEventFragment({
           id: 'signature-123',
@@ -3871,13 +4123,8 @@ describe('AnalyticsController', () => {
       });
 
       it('keeps fragments created while init is in flight and still drops stale non-persistent ones', async () => {
-        let resolveGeolocation!: (value: GeolocationData) => void;
-        const geolocationHandler = jest.fn(
-          () =>
-            new Promise<GeolocationData>((resolve) => {
-              resolveGeolocation = resolve;
-            }),
-        );
+        const { geolocationHandler, geolocationRequested, resolveGeolocation } =
+          createBlockingGeolocationHandler();
         const mockAdapter = createMockAdapter();
         const analyticsId = '11111111-2222-4333-8444-555555555555';
 
@@ -3898,6 +4145,7 @@ describe('AnalyticsController', () => {
         });
 
         const initPromise = controller.init();
+        await geolocationRequested;
 
         controller.createEventFragment({
           id: 'signature-1',
@@ -3921,19 +4169,14 @@ describe('AnalyticsController', () => {
         expect(mockAdapter.track).toHaveBeenCalledWith(
           'Signature Approved',
           { signature_type: 'personal_sign' },
-          undefined,
+          withPurposeConsent({ product: true, marketing: false }),
         );
         expect(controller.state.eventFragments).toStrictEqual({});
       });
 
       it('keeps a fragment that reuses an ID from a stale leftover during init', async () => {
-        let resolveGeolocation!: (value: GeolocationData) => void;
-        const geolocationHandler = jest.fn(
-          () =>
-            new Promise<GeolocationData>((resolve) => {
-              resolveGeolocation = resolve;
-            }),
-        );
+        const { geolocationHandler, geolocationRequested, resolveGeolocation } =
+          createBlockingGeolocationHandler();
         const mockAdapter = createMockAdapter();
         const analyticsId = '11111111-2222-4333-8444-555555555555';
         const staleCreatedAt = 1700000000000;
@@ -3959,6 +4202,7 @@ describe('AnalyticsController', () => {
         });
 
         const initPromise = controller.init();
+        await geolocationRequested;
 
         controller.createEventFragment({
           id: 'signature-123',
@@ -3986,7 +4230,7 @@ describe('AnalyticsController', () => {
         expect(mockAdapter.track).toHaveBeenCalledWith(
           'Signature Approved',
           { signature_type: 'personal_sign' },
-          undefined,
+          withPurposeConsent({ product: true, marketing: false }),
         );
         expect(controller.state.eventFragments).toStrictEqual({});
       });
@@ -4127,9 +4371,1453 @@ describe('AnalyticsController', () => {
         expect(mockAdapter.track).toHaveBeenCalledWith(
           'Signature Approved',
           { signature_type: 'personal_sign' },
-          undefined,
+          withPurposeConsent({ product: true, marketing: false }),
         );
       });
+    });
+  });
+
+  describe('marketing consent', () => {
+    const marketingEvent = 'Deep Link Used';
+    const productEvent = 'Button Clicked';
+    const dualPurposeEvent = 'Perp Trade Completed';
+    const eventsConfigVersion = 'a1b2c3d';
+    const eventsConfig = {
+      schemaVersion: '1.0.0',
+      version: eventsConfigVersion,
+      timestamp: 1_740_000_000_000,
+      events: {
+        [marketingEvent]: [AnalyticsPurpose.Marketing],
+        [dualPurposeEvent]: [
+          AnalyticsPurpose.Product,
+          AnalyticsPurpose.Marketing,
+        ],
+      },
+    };
+    const withMarketingList = {
+      eventsConfig,
+    };
+    const withConfiguredPurposeConsent = (
+      preferences: { product: boolean; marketing: boolean },
+      context: AnalyticsContext = {},
+    ): AnalyticsContext =>
+      withPurposeConsent(preferences, context, eventsConfigVersion);
+
+    it('discards invalid persisted events config before classifying events', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: true,
+          eventsConfig: {
+            ...eventsConfig,
+            events: {
+              [productEvent]: [],
+            },
+          } as unknown as AnalyticsControllerState['eventsConfig'],
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+      });
+
+      controller.trackEvent(createTestEvent(productEvent));
+
+      expect(controller.state.eventsConfig).toBeUndefined();
+      expect(adapter.track).toHaveBeenCalledWith(
+        productEvent,
+        undefined,
+        withPurposeConsent({ product: true, marketing: false }),
+      );
+    });
+
+    it('emits a dual-purpose event once with both allowed purposes', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          eventsConfig,
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+      });
+
+      controller.trackEvent(
+        createTestEvent(dualPurposeEvent, { value: 42, amount: '10.0' }),
+      );
+
+      expect(adapter.track).toHaveBeenCalledTimes(1);
+      expect(adapter.track).toHaveBeenCalledWith(
+        dualPurposeEvent,
+        { value: 42, amount: '10.0' },
+        withPurposeConsent(
+          { product: true, marketing: true },
+          {},
+          eventsConfigVersion,
+        ),
+      );
+    });
+
+    it('emits a dual-purpose event once for the only opted-in purpose', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          eventsConfig,
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+      });
+
+      controller.trackEvent(createTestEvent(dualPurposeEvent));
+
+      expect(adapter.track).toHaveBeenCalledTimes(1);
+      expect(adapter.track).toHaveBeenCalledWith(
+        dualPurposeEvent,
+        undefined,
+        withPurposeConsent(
+          { product: false, marketing: true },
+          {},
+          eventsConfigVersion,
+        ),
+      );
+    });
+
+    it('sends immediately when one purpose is opted in and the other is undecided', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: false,
+          eventsConfig,
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+        isPreConsentQueueEnabled: true,
+      });
+
+      controller.trackEvent(createTestEvent(dualPurposeEvent));
+      await controller.optInToMarketing();
+
+      expect(adapter.track).toHaveBeenCalledTimes(1);
+      expect(adapter.track).toHaveBeenCalledWith(
+        dualPurposeEvent,
+        undefined,
+        withPurposeConsent(
+          { product: true, marketing: false },
+          {},
+          eventsConfigVersion,
+        ),
+      );
+    });
+
+    it('updates a queued dual-purpose retry to the remaining allowed purpose', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          eventsConfig,
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      controller.trackEvent(createTestEvent(dualPurposeEvent));
+      const { messageId } = getDeliveryOptions(adapter.track);
+
+      controller.optOutOfMarketing();
+
+      expect(controller.state.eventQueue?.[messageId as string]).toMatchObject({
+        eventPurposes: [AnalyticsPurpose.Product, AnalyticsPurpose.Marketing],
+        eventsConfigVersion,
+        context: withPurposeConsent(
+          { product: true, marketing: false },
+          {},
+          eventsConfigVersion,
+        ),
+      });
+      expect(adapter.track).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps an already-correct consent stamp when pruning the delivery queue', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: true,
+          eventsConfig,
+          eventQueue: {
+            queued: {
+              type: 'track',
+              eventName: productEvent,
+              messageId: 'queued',
+              timestamp: '2026-01-01T00:00:00.000Z',
+              eventPurposes: [AnalyticsPurpose.Product],
+              eventsConfigVersion,
+              context: withPurposeConsent(
+                { product: true, marketing: false },
+                {},
+                eventsConfigVersion,
+              ),
+            },
+          },
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+        isEventQueuePersistenceEnabled: true,
+        skipInit: true,
+      });
+
+      const queuedBefore = controller.state.eventQueue?.queued;
+      controller.optOutOfMarketing();
+
+      expect(controller.state.eventQueue?.queued).toBe(queuedBefore);
+    });
+
+    it('refreshes stale delivery-queue consent stamps on init replay', async () => {
+      const adapter = createMockAdapter();
+      await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          eventsConfig,
+          eventQueue: {
+            stale: {
+              type: 'track',
+              eventName: dualPurposeEvent,
+              messageId: 'stale',
+              timestamp: '2026-01-01T00:00:00.000Z',
+              eventPurposes: [
+                AnalyticsPurpose.Product,
+                AnalyticsPurpose.Marketing,
+              ],
+              eventsConfigVersion,
+              // Stale stamp from before marketing opt-in.
+              context: withPurposeConsent(
+                { product: true, marketing: false },
+                {},
+                eventsConfigVersion,
+              ),
+            },
+          },
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      expect(adapter.track).toHaveBeenCalledWith(
+        dualPurposeEvent,
+        undefined,
+        withPurposeConsent(
+          { product: true, marketing: true },
+          {},
+          eventsConfigVersion,
+        ),
+        expect.objectContaining({ messageId: 'stale' }),
+      );
+    });
+
+    it('replays a queued event using its capture-time purposes and version', async () => {
+      const adapter = createMockAdapter();
+      const capturedVersion = 'previous-config';
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: false,
+          eventsConfig: {
+            ...eventsConfig,
+            events: { [marketingEvent]: [AnalyticsPurpose.Product] },
+          },
+          preConsentEventQueue: {
+            captured: {
+              type: 'track',
+              eventName: marketingEvent,
+              messageId: 'captured',
+              timestamp: '2026-01-01T00:00:00.000Z',
+              eventPurposes: [AnalyticsPurpose.Marketing],
+              eventsConfigVersion: capturedVersion,
+            },
+          },
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+        isPreConsentQueueEnabled: true,
+        skipInit: true,
+      });
+
+      await controller.optInToMarketing();
+
+      expect(adapter.track).toHaveBeenCalledTimes(1);
+      expect(adapter.track).toHaveBeenCalledWith(
+        marketingEvent,
+        undefined,
+        withPurposeConsent(
+          { product: false, marketing: true },
+          {},
+          capturedVersion,
+        ),
+        expect.anything(),
+      );
+    });
+
+    it('stamps each mixed fragment lifecycle event with its own purposes', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          eventsConfig,
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: true,
+      });
+
+      controller.createEventFragment({
+        id: 'mixed-lifecycle',
+        initialEvent: productEvent,
+        successEvent: marketingEvent,
+      });
+      controller.finalizeEventFragment('mixed-lifecycle');
+
+      expect(adapter.track).toHaveBeenCalledTimes(2);
+      expect(adapter.track).toHaveBeenNthCalledWith(
+        1,
+        productEvent,
+        undefined,
+        withConfiguredPurposeConsent({ product: true, marketing: false }),
+      );
+      expect(adapter.track).toHaveBeenNthCalledWith(
+        2,
+        marketingEvent,
+        undefined,
+        withConfiguredPurposeConsent({ product: false, marketing: true }),
+      );
+    });
+
+    it('uses a persisted fragment purpose snapshot after config changes', async () => {
+      const adapter = createMockAdapter();
+      const capturedVersion = 'previous-config';
+      const now = Date.now();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          eventsConfig: {
+            ...eventsConfig,
+            events: { [marketingEvent]: [AnalyticsPurpose.Product] },
+          },
+          eventFragments: {
+            captured: {
+              id: 'captured',
+              successEvent: marketingEvent,
+              properties: {},
+              sensitiveProperties: {},
+              createdAt: now,
+              lastUpdated: now,
+              eventPurposes: { [marketingEvent]: [AnalyticsPurpose.Marketing] },
+              eventsConfigVersion: capturedVersion,
+            },
+          },
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: true,
+        skipInit: true,
+      });
+
+      controller.finalizeEventFragment('captured');
+
+      expect(adapter.track).toHaveBeenCalledWith(
+        marketingEvent,
+        undefined,
+        withPurposeConsent(
+          { product: false, marketing: true },
+          {},
+          capturedVersion,
+        ),
+      );
+    });
+
+    it('classifies trackView names the same way as trackEvent', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          ...withMarketingList,
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+      });
+
+      controller.trackView(marketingEvent);
+      controller.trackView(productEvent);
+
+      expect(adapter.view).toHaveBeenCalledTimes(1);
+      expect(adapter.view).toHaveBeenCalledWith(
+        marketingEvent,
+        undefined,
+        withConfiguredPurposeConsent({ product: false, marketing: true }),
+      );
+    });
+
+    it('emits marketing events when only marketing consent is on', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          ...withMarketingList,
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+      });
+
+      controller.trackEvent(createTestEvent(marketingEvent));
+      controller.trackEvent(createTestEvent(productEvent));
+
+      expect(adapter.track).toHaveBeenCalledTimes(1);
+      expect(adapter.track).toHaveBeenCalledWith(
+        marketingEvent,
+        undefined,
+        withConfiguredPurposeConsent({ product: false, marketing: true }),
+      );
+    });
+
+    it('stamps marketing consent on marketing track and view payloads', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          ...withMarketingList,
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+      });
+
+      controller.trackEvent(createTestEvent(marketingEvent), {
+        page: { path: '/home' },
+      });
+      controller.trackView(marketingEvent, undefined, {
+        page: { path: '/home' },
+      });
+
+      expect(adapter.track).toHaveBeenCalledWith(
+        marketingEvent,
+        undefined,
+        withConfiguredPurposeConsent(
+          { product: false, marketing: true },
+          { page: { path: '/home' } },
+        ),
+      );
+      expect(adapter.view).toHaveBeenCalledWith(
+        marketingEvent,
+        undefined,
+        withConfiguredPurposeConsent(
+          { product: false, marketing: true },
+          { page: { path: '/home' } },
+        ),
+      );
+    });
+
+    it('stamps product consent on product payloads', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          ...withMarketingList,
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+      });
+
+      controller.trackEvent(createTestEvent(productEvent));
+
+      expect(adapter.track).toHaveBeenCalledWith(
+        productEvent,
+        undefined,
+        withConfiguredPurposeConsent({ product: true, marketing: false }),
+      );
+    });
+
+    it('stamps the same consent on identified and anonymous payloads', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          ...withMarketingList,
+        },
+        platformAdapter: adapter,
+        isAnonymousEventsFeatureEnabled: true,
+        geolocation: {
+          country: 'US',
+          region: 'WA',
+          timezone: 'America/Los_Angeles',
+        },
+      });
+
+      controller.trackEvent(
+        createTestEvent(
+          marketingEvent,
+          { prop: 'value' },
+          { sensitive_prop: 'secret' },
+        ),
+        { page: { path: '/home' } },
+      );
+
+      expect(adapter.track).toHaveBeenNthCalledWith(
+        1,
+        marketingEvent,
+        { prop: 'value' },
+        withConfiguredPurposeConsent(
+          { product: false, marketing: true },
+          {
+            page: { path: '/home' },
+            location: {
+              country_code: 'US',
+              region: 'WA',
+              timezone: 'America/Los_Angeles',
+            },
+          },
+        ),
+      );
+      expect(adapter.track).toHaveBeenNthCalledWith(
+        2,
+        marketingEvent,
+        {
+          prop: 'value',
+          sensitive_prop: 'secret',
+          anonymous: true,
+        },
+        withConfiguredPurposeConsent(
+          { product: false, marketing: true },
+          { page: { path: '/home' } },
+        ),
+      );
+    });
+
+    it('emits product events when only product consent is on', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: true,
+          ...withMarketingList,
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+      });
+
+      controller.trackEvent(createTestEvent(marketingEvent));
+      controller.trackEvent(createTestEvent(productEvent));
+
+      expect(adapter.track).toHaveBeenCalledTimes(1);
+      expect(adapter.track).toHaveBeenCalledWith(
+        productEvent,
+        undefined,
+        withConfiguredPurposeConsent({ product: true, marketing: false }),
+      );
+    });
+
+    it('does not emit any event when both consents are off', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: true,
+          ...withMarketingList,
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+      });
+
+      controller.trackEvent(createTestEvent(marketingEvent));
+      controller.trackEvent(createTestEvent(productEvent));
+
+      expect(adapter.track).not.toHaveBeenCalled();
+    });
+
+    it('uses the persisted events config for classification', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          eventsConfig: {
+            ...eventsConfig,
+            events: { 'Campaign Opened': [AnalyticsPurpose.Marketing] },
+          },
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+      });
+
+      controller.trackEvent(createTestEvent('Campaign Opened'));
+      controller.trackEvent(createTestEvent(marketingEvent));
+
+      expect(adapter.track).toHaveBeenCalledTimes(1);
+      expect(adapter.track).toHaveBeenCalledWith(
+        'Campaign Opened',
+        undefined,
+        withConfiguredPurposeConsent({ product: false, marketing: true }),
+      );
+    });
+
+    it('replays only marketing pre-consent events on optInToMarketing', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: false,
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: false,
+          ...withMarketingList,
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+        isPreConsentQueueEnabled: true,
+      });
+
+      controller.trackEvent(createTestEvent(marketingEvent));
+      controller.trackEvent(createTestEvent(productEvent));
+      expect(adapter.track).not.toHaveBeenCalled();
+
+      await controller.optInToMarketing();
+
+      expect(adapter.track).toHaveBeenCalledTimes(1);
+      expect(adapter.track).toHaveBeenCalledWith(
+        marketingEvent,
+        undefined,
+        withConfiguredPurposeConsent({ product: false, marketing: true }),
+        expect.anything(),
+      );
+    });
+
+    it('drops marketing fragments on optOutOfMarketing and keeps product fragments', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          ...withMarketingList,
+        },
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: true,
+      });
+
+      controller.createEventFragment({
+        id: 'marketing-1',
+        successEvent: marketingEvent,
+      });
+      controller.createEventFragment({
+        id: 'product-1',
+        successEvent: productEvent,
+      });
+
+      controller.optOutOfMarketing();
+
+      expect(controller.state.eventFragments).toStrictEqual({
+        'product-1': expect.objectContaining({ id: 'product-1' }),
+      });
+    });
+
+    it('retains a mixed-purpose fragment when one declared purpose is allowed', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          ...withMarketingList,
+        },
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: true,
+      });
+
+      const fragment = controller.createEventFragment({
+        id: 'mixed-1',
+        initialEvent: productEvent,
+        successEvent: marketingEvent,
+      });
+
+      expect(fragment?.eventPurposes).toStrictEqual({
+        [productEvent]: [AnalyticsPurpose.Product],
+        [marketingEvent]: [AnalyticsPurpose.Marketing],
+      });
+      expect(fragment?.context).toBeUndefined();
+      expect(controller.state.eventFragments).toHaveProperty('mixed-1');
+
+      controller.optOutOfMarketing();
+
+      expect(controller.state.eventFragments).toStrictEqual({});
+    });
+
+    it('creates a mixed-purpose fragment and emits only its allowed initial event', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: true,
+          ...withMarketingList,
+        },
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: true,
+        platformAdapter: adapter,
+      });
+
+      const fragment = controller.createEventFragment({
+        id: 'mixed-1',
+        initialEvent: productEvent,
+        successEvent: marketingEvent,
+      });
+
+      expect(fragment?.eventPurposes).toStrictEqual({
+        [productEvent]: [AnalyticsPurpose.Product],
+        [marketingEvent]: [AnalyticsPurpose.Marketing],
+      });
+      expect(controller.state.eventFragments).toHaveProperty('mixed-1');
+      expect(adapter.track).toHaveBeenCalledTimes(1);
+      expect(adapter.track).toHaveBeenCalledWith(
+        productEvent,
+        undefined,
+        withConfiguredPurposeConsent({ product: true, marketing: false }),
+      );
+    });
+
+    it('classifies fragments by event names, not caller consent context', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: true,
+          ...withMarketingList,
+        },
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: true,
+      });
+
+      // Disagreeing caller consent must not affect classification, and must
+      // remain as plain caller metadata on the fragment.
+      const callerContext = {
+        page: { path: '/settings' },
+        consent: {
+          categoryPreferences: { product: false, marketing: true },
+        },
+      };
+      const fragment = controller.createEventFragment({
+        id: 'product-1',
+        successEvent: productEvent,
+        context: callerContext,
+      });
+
+      expect(fragment).toStrictEqual(
+        expect.objectContaining({
+          id: 'product-1',
+          successEvent: productEvent,
+          eventPurposes: {
+            [productEvent]: [AnalyticsPurpose.Product],
+          },
+          context: callerContext,
+        }),
+      );
+      expect(
+        controller.state.eventFragments?.['product-1']?.context,
+      ).toStrictEqual(callerContext);
+    });
+
+    it('keeps a purpose-stamped fragment when config is absent', async () => {
+      const now = Date.now();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          // Config missing: name lookup would otherwise treat this as product.
+          eventFragments: {
+            'marketing-1': {
+              id: 'marketing-1',
+              successEvent: marketingEvent,
+              properties: {},
+              sensitiveProperties: {},
+              createdAt: now,
+              lastUpdated: now,
+              persist: true,
+              eventPurposes: {
+                [marketingEvent]: [AnalyticsPurpose.Marketing],
+              },
+              eventsConfigVersion,
+            },
+          },
+        },
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: true,
+        skipInit: true,
+      });
+
+      controller.optOut();
+
+      expect(controller.state.eventFragments).toStrictEqual({
+        'marketing-1': expect.objectContaining({
+          id: 'marketing-1',
+          eventPurposes: {
+            [marketingEvent]: [AnalyticsPurpose.Marketing],
+          },
+          eventsConfigVersion,
+        }),
+      });
+
+      controller.optOutOfMarketing();
+
+      expect(controller.state.eventFragments).toStrictEqual({});
+    });
+
+    it('classifies a marketing fragment from event names even if caller consent context disagrees', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          ...withMarketingList,
+        },
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: true,
+      });
+
+      const callerContext = {
+        consent: {
+          categoryPreferences: { product: true, marketing: false },
+        },
+      };
+      const fragment = controller.createEventFragment({
+        id: 'marketing-1',
+        successEvent: marketingEvent,
+        context: callerContext,
+      });
+
+      expect(fragment).toStrictEqual(
+        expect.objectContaining({
+          id: 'marketing-1',
+          successEvent: marketingEvent,
+          eventPurposes: {
+            [marketingEvent]: [AnalyticsPurpose.Marketing],
+          },
+          context: callerContext,
+        }),
+      );
+    });
+
+    it('stops emitting marketing events after optOutOfMarketing', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          ...withMarketingList,
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+      });
+
+      controller.optOutOfMarketing();
+      controller.trackEvent(createTestEvent(marketingEvent));
+      controller.trackEvent(createTestEvent(productEvent));
+
+      expect(controller.state.optedInToMarketing).toBe(false);
+      expect(controller.state.marketingConsentDecisionMade).toBe(true);
+      expect(adapter.track).toHaveBeenCalledTimes(1);
+      expect(adapter.track).toHaveBeenCalledWith(
+        productEvent,
+        undefined,
+        withConfiguredPurposeConsent({ product: true, marketing: false }),
+      );
+    });
+
+    it('resets marketing consent without changing product consent', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+        },
+        isGeolocationEnabled: false,
+      });
+
+      controller.resetMarketingConsentDecision();
+
+      expect(controller.state.optedIn).toBe(true);
+      expect(controller.state.optedInToMarketing).toBe(false);
+      expect(controller.state.marketingConsentDecisionMade).toBe(false);
+    });
+
+    it('keeps marketing fragments when marketing consent is reset to undecided with pre-consent enabled', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+        },
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: true,
+        isPreConsentQueueEnabled: true,
+      });
+
+      controller.createEventFragment({
+        id: 'marketing-1',
+        successEvent: marketingEvent,
+      });
+
+      controller.resetMarketingConsentDecision();
+
+      expect(controller.state.eventFragments).toStrictEqual({
+        'marketing-1': expect.objectContaining({ id: 'marketing-1' }),
+      });
+    });
+
+    it('preserves fragment context when an update omits context', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+        },
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: true,
+      });
+
+      controller.createEventFragment({
+        id: 'bag-1',
+        successEvent: productEvent,
+      });
+      controller.updateEventFragment('bag-1', {
+        context: { page: { path: '/settings' } },
+      });
+      controller.updateEventFragment('bag-1', {
+        properties: { step: '1' },
+      });
+
+      expect(controller.getEventFragmentById('bag-1')).toStrictEqual(
+        expect.objectContaining({
+          properties: { step: '1' },
+          context: {
+            page: { path: '/settings' },
+          },
+        }),
+      );
+    });
+
+    it('keeps the persisted events config across init', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          eventsConfig: {
+            ...eventsConfig,
+            events: { 'Campaign Opened': [AnalyticsPurpose.Marketing] },
+          },
+        },
+        isGeolocationEnabled: false,
+      });
+
+      expect(controller.state.eventsConfig).toStrictEqual({
+        ...eventsConfig,
+        events: { 'Campaign Opened': [AnalyticsPurpose.Marketing] },
+      });
+    });
+
+    it('treats every name as product when config is absent', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+      });
+
+      controller.trackEvent(createTestEvent(marketingEvent));
+
+      expect(controller.state.eventsConfig).toBeUndefined();
+      expect(adapter.track).not.toHaveBeenCalled();
+    });
+
+    it('queues marketing views while marketing consent is undecided', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: false,
+          ...withMarketingList,
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+        isPreConsentQueueEnabled: true,
+      });
+
+      controller.trackView(marketingEvent);
+
+      expect(adapter.view).not.toHaveBeenCalled();
+      await controller.optInToMarketing();
+      expect(adapter.view).toHaveBeenCalledWith(
+        marketingEvent,
+        undefined,
+        withConfiguredPurposeConsent({ product: false, marketing: true }),
+        expect.anything(),
+      );
+    });
+
+    it('allows nameless fragment calls when only marketing consent is on', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+        },
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: true,
+      });
+
+      expect(controller.getEventFragmentById('missing')).toBeUndefined();
+    });
+
+    it('drops invalid delivery-queue items when reconciling consent', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          eventsConfig,
+          eventQueue: {
+            invalid: 'not-an-event',
+            'keep-me': {
+              type: 'track',
+              eventName: marketingEvent,
+              messageId: 'keep-me',
+              timestamp: '2026-01-01T00:00:00.000Z',
+            },
+            identify: {
+              type: 'identify',
+              userId: '550e8400-e29b-41d4-a716-446655440000',
+              messageId: 'identify',
+              timestamp: '2026-01-01T00:00:01.000Z',
+            },
+          } as unknown as AnalyticsControllerState['eventQueue'],
+        },
+        isGeolocationEnabled: false,
+        isEventQueuePersistenceEnabled: true,
+        skipInit: true,
+      });
+
+      controller.optOut();
+
+      expect(controller.state.eventQueue).toStrictEqual({
+        'keep-me': expect.objectContaining({
+          eventName: marketingEvent,
+        }),
+      });
+      expect(controller.state.eventQueue).not.toHaveProperty('identify');
+    });
+
+    it('drops queued identify on product opt-out while keeping marketing tracks', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          ...withMarketingList,
+          eventQueue: {
+            identify: {
+              type: 'identify',
+              userId: '550e8400-e29b-41d4-a716-446655440000',
+              messageId: 'identify',
+              timestamp: '2026-01-01T00:00:01.000Z',
+            },
+            marketing: {
+              type: 'track',
+              eventName: marketingEvent,
+              messageId: 'marketing',
+              timestamp: '2026-01-01T00:00:02.000Z',
+            },
+          },
+        },
+        isGeolocationEnabled: false,
+        isEventQueuePersistenceEnabled: true,
+        skipInit: true,
+      });
+
+      controller.optOut();
+
+      expect(controller.state.eventQueue).toStrictEqual({
+        marketing: expect.objectContaining({
+          eventName: marketingEvent,
+        }),
+      });
+      expect(controller.state.eventQueue).not.toHaveProperty('identify');
+    });
+
+    it('filters unstamped queued events by event name', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          eventsConfig,
+          eventQueue: {
+            'legacy-product': {
+              type: 'track',
+              eventName: productEvent,
+              messageId: 'legacy-product',
+              timestamp: '2026-01-01T00:00:00.000Z',
+            },
+            'legacy-marketing': {
+              type: 'track',
+              eventName: marketingEvent,
+              messageId: 'legacy-marketing',
+              timestamp: '2026-01-01T00:00:01.000Z',
+            },
+          },
+        },
+        isGeolocationEnabled: false,
+        isEventQueuePersistenceEnabled: true,
+        skipInit: true,
+      });
+
+      controller.optOut();
+
+      expect(controller.state.eventQueue).toStrictEqual({
+        'legacy-marketing': expect.objectContaining({
+          eventName: marketingEvent,
+        }),
+      });
+    });
+
+    it('filters unstamped queued views by name', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          eventsConfig,
+          eventQueue: {
+            'legacy-view': {
+              type: 'view',
+              name: marketingEvent,
+              messageId: 'legacy-view',
+              timestamp: '2026-01-01T00:00:00.000Z',
+            },
+          },
+        },
+        isGeolocationEnabled: false,
+        isEventQueuePersistenceEnabled: true,
+        skipInit: true,
+      });
+
+      controller.optOut();
+
+      expect(controller.state.eventQueue).toStrictEqual({
+        'legacy-view': expect.objectContaining({
+          name: marketingEvent,
+        }),
+      });
+    });
+
+    it('drops unstamped marketing fragments on optOutOfMarketing', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          eventsConfig,
+          eventFragments: {
+            legacy: {
+              id: 'legacy',
+              successEvent: marketingEvent,
+              properties: {},
+              sensitiveProperties: {},
+              createdAt: 1,
+              lastUpdated: Date.now(),
+            },
+          },
+        },
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: true,
+        skipInit: true,
+      });
+
+      controller.optOutOfMarketing();
+
+      expect(controller.state.eventFragments).toStrictEqual({});
+    });
+
+    it('merges caller context onto a persisted fragment that has none', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          eventFragments: {
+            bag: {
+              id: 'bag',
+              properties: {},
+              sensitiveProperties: {},
+              createdAt: 1,
+              lastUpdated: Date.now(),
+            },
+          },
+        },
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: true,
+        skipInit: true,
+      });
+
+      controller.updateEventFragment('bag', {
+        context: { page: { path: '/home' } },
+      });
+
+      expect(controller.state.eventFragments?.bag?.context).toStrictEqual({
+        page: { path: '/home' },
+      });
+    });
+
+    it('keeps context unset when updating a persisted fragment that has none', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          eventFragments: {
+            bag: {
+              id: 'bag',
+              properties: {},
+              sensitiveProperties: {},
+              createdAt: 1,
+              lastUpdated: Date.now(),
+            },
+          },
+        },
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: true,
+        skipInit: true,
+      });
+
+      controller.updateEventFragment('bag', {
+        properties: { step: '1' },
+      });
+
+      expect(controller.state.eventFragments?.bag).toStrictEqual(
+        expect.objectContaining({
+          properties: { step: '1' },
+        }),
+      );
+      expect(controller.state.eventFragments?.bag).not.toHaveProperty(
+        'context',
+      );
+    });
+
+    it('drops invalid pre-consent items when replaying marketing events', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: false,
+          eventsConfig,
+          preConsentEventQueue: {
+            invalid: 'not-an-event',
+            'keep-me': {
+              type: 'track',
+              eventName: marketingEvent,
+              messageId: 'keep-me',
+              timestamp: '2026-01-01T00:00:00.000Z',
+              eventPurposes: [AnalyticsPurpose.Marketing],
+              eventsConfigVersion,
+            },
+          } as unknown as AnalyticsControllerState['preConsentEventQueue'],
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+        isPreConsentQueueEnabled: true,
+        skipInit: true,
+      });
+
+      await controller.optInToMarketing();
+
+      expect(adapter.track).toHaveBeenCalledWith(
+        marketingEvent,
+        undefined,
+        withConfiguredPurposeConsent({ product: false, marketing: true }),
+        expect.anything(),
+      );
+    });
+
+    it('drops invalid pre-consent items when consent is declined', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: false,
+          consentDecisionMade: true,
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: false,
+          eventsConfig,
+          preConsentEventQueue: {
+            invalid: 'not-an-event',
+          } as unknown as AnalyticsControllerState['preConsentEventQueue'],
+        },
+        isGeolocationEnabled: false,
+        isPreConsentQueueEnabled: true,
+        skipInit: true,
+      });
+
+      controller.optOutOfMarketing();
+
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+    });
+
+    it('clears an empty fragment map when the feature is disabled', async () => {
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          eventFragments: {},
+        },
+        isGeolocationEnabled: false,
+        isEventFragmentsEnabled: false,
+      });
+
+      expect(controller.state.eventFragments).toStrictEqual({});
+    });
+
+    it('does not drop marketing queued events when opting out of product analytics', async () => {
+      const adapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          analyticsId: '550e8400-e29b-41d4-a716-446655440000',
+          optedIn: true,
+          consentDecisionMade: true,
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: false,
+          ...withMarketingList,
+        },
+        platformAdapter: adapter,
+        isGeolocationEnabled: false,
+        isPreConsentQueueEnabled: true,
+      });
+
+      controller.trackEvent(createTestEvent(marketingEvent));
+      controller.optOut();
+      await controller.optInToMarketing();
+
+      expect(adapter.track).toHaveBeenCalledWith(
+        marketingEvent,
+        undefined,
+        withConfiguredPurposeConsent({ product: false, marketing: true }),
+        expect.anything(),
+      );
     });
   });
 });

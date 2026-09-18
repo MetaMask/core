@@ -1,6 +1,7 @@
 // Export controller class and state utilities
 export {
   AnalyticsController,
+  AnalyticsPurpose,
   EVENT_FRAGMENT_MAX_AGE,
   getDefaultAnalyticsControllerState,
 } from './AnalyticsController.js';
@@ -36,6 +37,7 @@ export type {
 export type {
   AnalyticsControllerState,
   AnalyticsEventQueue,
+  AnalyticsEventsConfig,
   AnalyticsQueuedEvent,
   AnalyticsQueuedEventType,
   AnalyticsQueuedTrackEvent,
@@ -63,6 +65,9 @@ export type {
   AnalyticsControllerOptInAction,
   AnalyticsControllerOptOutAction,
   AnalyticsControllerResetConsentDecisionAction,
+  AnalyticsControllerOptInToMarketingAction,
+  AnalyticsControllerOptOutOfMarketingAction,
+  AnalyticsControllerResetMarketingConsentDecisionAction,
   AnalyticsControllerCreateEventFragmentAction,
   AnalyticsControllerUpsertEventFragmentAction,
   AnalyticsControllerUpdateEventFragmentAction,

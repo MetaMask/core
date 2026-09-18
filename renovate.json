@@ -1,0 +1,19 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "dependencyDashboard": true,
+  "dependencyDashboardApproval": true,
+  "minimumReleaseAge": "3 days",
+  "postUpdateOptions": ["yarnDedupeHighest"],
+  "packageRules": [
+    {
+      "description": "Mirrors npmPreapprovedPackages in .yarnrc.yml, which exempts these from the install-time age gate.",
+      "matchPackageNames": [
+        "@metamask/**",
+        "@metamask-previews/**",
+        "@lavamoat/**"
+      ],
+      "minimumReleaseAge": null
+    }
+  ]
+}

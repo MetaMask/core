@@ -2040,11 +2040,6 @@
       "count": 20
     }
   },
-  "packages/utils/src/fs.ts": {
-    "jsdoc/require-returns": {
-      "count": 1
-    }
-  },
   "packages/utils/src/hashing.test.ts": {
     "n/no-unsupported-features/node-builtins": {
       "count": 9
