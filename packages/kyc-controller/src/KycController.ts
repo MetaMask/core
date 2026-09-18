@@ -27,6 +27,9 @@ import type {
   KycSumSubLauncher,
   KycSumSubStatus,
 } from './providers/sumsub.js';
+import {
+  TERMINAL_SESSION_STATUSES,
+} from './types.js';
 import type {
   KycConsentRecord,
   KycDisclaimer,
@@ -65,26 +68,8 @@ export const controllerName = 'KycController';
 // rather than a fixed short window, so this is a session-scoped window.
 const UKYC_CAPABILITY_TOKEN_TTL_MS = 4 * 60 * 60 * 1000;
 
-// UKYC status values. `kycStatus` (the relay-side decision) and `finalStatus`
-// (the vendor-side outcome) draw from the same vocabulary, so they are defined
-// once here and composed into the sets/checks below rather than repeated as
-// literals.
-const KYC_STATUSES = {
-  approved: 'approved',
-  rejected: 'rejected',
-  retry: 'retry',
-} as const;
-
 // How often to poll UKYC session status until a terminal `finalStatus`.
 const SESSION_STATUS_POLL_INTERVAL_MS = 15_000;
-
-// `finalStatus` values that end {@link KycController.startSessionStatusPolling}.
-const TERMINAL_SESSION_STATUSES: ReadonlySet<string> = new Set([
-  KYC_STATUSES.approved,
-  KYC_STATUSES.rejected,
-  KYC_STATUSES.retry,
-]);
-
 
 // === STATE ===
 

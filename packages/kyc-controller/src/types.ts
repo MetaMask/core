@@ -52,6 +52,29 @@ export type KycPhase =
   | 'error';
 
 /**
+ * UKYC status values. `kycStatus` (the relay-side decision) and `finalStatus`
+ * (the vendor-side outcome) draw from the same vocabulary, so they are defined
+ * once here and composed into the sets/checks below rather than repeated as
+ * literals.
+ */
+export const KYC_STATUSES = {
+  approved: 'approved',
+  rejected: 'rejected',
+  retry: 'retry',
+  new: 'new',
+  pending: 'pending',
+} as const;
+
+/**
+ * `finalStatus` values that end session-status polling.
+ */
+export const TERMINAL_SESSION_STATUSES: ReadonlySet<string> = new Set([
+  KYC_STATUSES.approved,
+  KYC_STATUSES.rejected,
+  KYC_STATUSES.retry,
+]);
+
+/**
  * The status of a UKYC session, returned by the `GET /sessions/{id}/status`
  * endpoint and polled after the SumSub SDK completes to determine the final
  * verification decision.
