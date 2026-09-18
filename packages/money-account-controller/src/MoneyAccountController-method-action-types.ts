@@ -15,10 +15,11 @@ export type MoneyAccountControllerInitAction = {
 };
 
 /**
- * Creates a money account for the given entropy source. If an account
- * already exists for that entropy source, it is returned as-is (idempotent).
+ * Creates a money account from a Money Keyring (entropy source) or an
+ * existing MPC Keyring. If an account already exists for that source, it is
+ * returned as-is (idempotent).
  *
- * @param entropySource - The entropy source ID to create the money account for.
+ * @param params - The keyring source to create the money account from.
  * @returns The money account.
  */
 export type MoneyAccountControllerCreateMoneyAccountAction = {
@@ -27,12 +28,37 @@ export type MoneyAccountControllerCreateMoneyAccountAction = {
 };
 
 /**
- * Gets a money account by its associated entropy source ID. If no ID is
- * provided, the primary entropy source will be used.
+ * Registers an already-built money account. If an account with the same id
+ * is already in state, it is returned as-is (idempotent).
+ *
+ * If no default account is set, the added account becomes the default.
+ *
+ * @param account - The account to register.
+ * @returns The registered money account.
+ */
+export type MoneyAccountControllerAddMoneyAccountAction = {
+  type: `MoneyAccountController:addMoneyAccount`;
+  handler: MoneyAccountController['addMoneyAccount'];
+};
+
+/**
+ * Sets the default money account.
+ *
+ * @param id - The id of the money account to use as the default.
+ */
+export type MoneyAccountControllerSetDefaultMoneyAccountAction = {
+  type: `MoneyAccountController:setDefaultMoneyAccount`;
+  handler: MoneyAccountController['setDefaultMoneyAccount'];
+};
+
+/**
+ * Gets a money account. With no selector, returns the default account.
  *
  * @param selector - Selector options for getting the money account.
- * @param selector.entropySource - The entropy source ID to get the money account for. If not provided, the primary entropy source will be used.
- * @returns The money account, or `undefined` if no account exists for the given entropy source.
+ * @param selector.id - The account id to look up.
+ * @param selector.entropySource - The entropy source ID of a Money Keyring
+ * account. Ignored when `id` is provided.
+ * @returns The money account, or `undefined` if none matches.
  */
 export type MoneyAccountControllerGetMoneyAccountAction = {
   type: `MoneyAccountController:getMoneyAccount`;
@@ -57,5 +83,7 @@ export type MoneyAccountControllerClearStateAction = {
 export type MoneyAccountControllerMethodActions =
   | MoneyAccountControllerInitAction
   | MoneyAccountControllerCreateMoneyAccountAction
+  | MoneyAccountControllerAddMoneyAccountAction
+  | MoneyAccountControllerSetDefaultMoneyAccountAction
   | MoneyAccountControllerGetMoneyAccountAction
   | MoneyAccountControllerClearStateAction;

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `addMoneyAccount` to register an already-built `KeyringAccount` (for example from an MPC or Money keyring).
+- Add `setDefaultMoneyAccount` and persisted `defaultMoneyAccountId` state so callers can choose which account `getMoneyAccount()` returns.
+- Support creating a money account from an existing MPC keyring via `createMoneyAccount({ keyringType: 'MPC Keyring', keyringId? })`.
+  - Reuses the keyring's first account when present, otherwise calls `addAccounts(1)`.
+  - Does not construct MPC keyrings; the client must already have registered one.
+- Export `MPC_KEYRING_TYPE`, `isMpcKeyring`, and `CreateMoneyAccountParams`.
+
+### Changed
+
+- **BREAKING:** `MoneyAccount` is now an alias of `KeyringAccount`, so accounts are no longer required to use mnemonic entropy options.
+- **BREAKING:** `createMoneyAccount` now takes a source object instead of an entropy source id:
+  - Money Keyring: `{ keyringType: 'Money Keyring', entropySource }`
+  - MPC Keyring: `{ keyringType: 'MPC Keyring', keyringId? }`
+- **BREAKING:** `getMoneyAccount()` with no selector returns the default account (`defaultMoneyAccountId`), not the account for the primary HD entropy source.
+  - Lookup by `{ entropySource }` still works for mnemonic Money Keyring accounts.
+  - Lookup by `{ id }` is also supported.
+
 ## [2.0.0]
 
 ### Changed
