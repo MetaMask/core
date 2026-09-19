@@ -57,7 +57,7 @@ export {
   SeedlessOnboardingCheckpoint,
   AuthConnection,
   SecretType,
-  PasswordSyncStatus,
+  PasswordSyncInstruction,
 } from './constants.js';
 export { SecretMetadata } from './SecretMetadata.js';
 export {

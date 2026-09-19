@@ -266,7 +266,8 @@ export type SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction =
  *
  * Merges the legacy `checkIsPasswordOutdated` read with password-change
  * recovery routing, so the client makes a single call at unlock (both on
- * page render and on password submit) and routes UI from the returned status.
+ * page render and on password submit) and routes UI from the returned
+ * instruction.
  *
  * Checkpoint handling:
  * - No checkpoint (`undefined`): run the authoritative outdated check. `skipCache`
@@ -277,7 +278,7 @@ export type SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction =
  * `skipCache` is ignored and a remote check is forced. Clears the
  * lifecycle (remote did not commit) or advances to
  * `LOCAL_STATE_PENDING` (remote committed). Returns `InSync` or
- * `EnterNewPassword`.
+ * `PasswordOutdated`.
  * - Other checkpoints: return the next recovery step without mutating state.
  *
  * This method does not consume a password; the client prompts for the
@@ -286,8 +287,9 @@ export type SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction =
  * @param options - The options.
  * @param options.skipCache - Whether to bypass the outdated cache. Ignored
  * for `REMOTE_PASSWORD_PENDING`, which always forces a remote check.
- * @returns The sync/recovery resolution. On any failure the last known
- * checkpoint is preserved and `PasswordSyncStatus.Unknown` is returned.
+ * @returns The sync/recovery instruction.
+ * @throws If another Seedless Onboarding operation is active, the checkpoint
+ * is invalid, or the current password state cannot be established.
  */
 export type SeedlessOnboardingControllerResolvePasswordSyncStateAction = {
   type: `SeedlessOnboardingController:resolvePasswordSyncState`;
@@ -318,8 +320,8 @@ export type SeedlessOnboardingControllerResolvePasswordSyncStateAction = {
  *
  * @param params - The reconciliation parameters.
  * @param params.globalPassword - The current global password.
- * @returns The reconciliation result. On any failure the last known
- * checkpoint is preserved and `PasswordSyncStatus.Unknown` is returned.
+ * @returns The reconciliation instruction.
+ * @throws If recovery cannot establish the current password state.
  */
 export type SeedlessOnboardingControllerReconcilePasswordAction = {
   type: `SeedlessOnboardingController:reconcilePassword`;

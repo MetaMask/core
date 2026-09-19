@@ -78,22 +78,40 @@ export type SeedlessOperationLifecycle = {
  * Covers both an interrupted local password change and an another-device
  * password change. The controller owns Seedless-side sequencing; the client
  * owns the Keyring-side steps (it must call `KeyringController` directly)
- * and UI routing based on this status. See
+ * and UI routing based on this instruction. See
  * [the client guide](./docs/0002-seedless-password-change-recovery-client-guide.md).
  */
-export enum PasswordSyncStatus {
-  /** The local and remote passwords are synchronized; no recovery action is needed. Unlock normally. */
+export enum PasswordSyncInstruction {
+  /**
+   * No password change activities on other devices.
+   * Even if the last password change has failed, no commitment has done on the remote server.
+   * The check point is either empty or `REMOTE_PASSWORD_PENDING`.
+   * The local and remote passwords are synchronized; no recovery action is needed. Unlock normally.
+   */
   InSync = 'in-sync',
-  /** No lifecycle is in flight but the remote password changed (e.g. another device changed it). Prompt for the new password, then call `reconcilePassword`. */
+  /**
+   * The remote password changed due to
+   *    - another device changed it.
+   *    - the last password change has failed, but commitment has done in the server.
+   *
+   * The check point can be empty, `REMOTE_PASSWORD_PENDING` or `LOCAL_STATE_PENDING`.
+   * Prompt for the new password, then call `reconcilePassword`.
+   */
   PasswordOutdated = 'password-outdated',
-  /** Remote committed (or the local Seedless side still needs the new password). Prompt for the new password, then call `reconcilePassword`. */
-  EnterNewPassword = 'enter-new-password',
-  /** The Seedless side is reconciled (checkpoint is `LOCAL_PASSWORD_PENDING`). The client must cryptographically classify the local Keyring and run the old/new branch. */
+  /**
+   * Prompt for the new password.
+   * The Seedless vault is reconciled (checkpoint is `LOCAL_PASSWORD_PENDING`).
+   * The client needs to unlock Seedless vault with new password.
+   * Recover current keyring and call the Keyring:changePassword.
+   */
   ReconcileKeyring = 'reconcile-keyring',
-  /** Checkpoint is `KEY_SYNC_PENDING`. The client must export, store, and sync the current Keyring encryption key, then call `completePasswordChange`. */
+  /**
+   * Prompt for the new password.
+   * Checkpoint is `KEY_SYNC_PENDING`.
+   * The client must enter new password to unlock both Keyring and Seedless vault.
+   * After that, must sync Keyring Encryption Key to seedless vault.
+   */
   SyncKey = 'sync-key',
-  /** The remote or local state could not be established. Keep the wallet locked. The last known checkpoint is preserved. */
-  Unknown = 'unknown',
 }
 
 export enum SeedlessOnboardingControllerErrorMessage {
@@ -123,6 +141,8 @@ export enum SeedlessOnboardingControllerErrorMessage {
   InvalidPrimarySecretDataType = `${controllerName} - Primary secret data must be of type mnemonic.`,
   FailedToChangePassword = `${controllerName} - Failed to change password`,
   PasswordChangeInProgress = `${controllerName} - A password change is already in progress; recovery must finish before starting a new one`,
+  OperationInProgress = `${controllerName} - Another Seedless Onboarding operation is already in progress; recovery must finish before starting a new one`,
+  InvalidPasswordSyncCheckpoint = `${controllerName} - Invalid password sync checkpoint`,
   TooManyLoginAttempts = `${controllerName} - Too many login attempts`,
   IncorrectPassword = `${controllerName} - Incorrect password`,
   OutdatedPassword = `${controllerName} - Outdated password`,
