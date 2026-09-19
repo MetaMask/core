@@ -271,6 +271,7 @@ export type KeyringControllerSignPersonalMessageAction = {
 type KycControllerSessionStatus = {
   finalStatus: string;
   kycStatus: string;
+  vendorStatus: string;
 };
 
 /**
@@ -3862,21 +3863,28 @@ export class RampsController extends BaseController<
       );
     }
 
-    // `finalStatus` draws from the KYC status vocabulary
-    // (new | pending | approved | rejected | retry). `new`/`retry` mean the
-    // applicant still has to run (or re-run) SumSub document verification.
-    const { finalStatus } = session;
-    if (finalStatus === 'new' || finalStatus === 'retry') {
-      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRequired);
-    }
-    if (finalStatus === 'pending') {
-      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycPending);
-    }
-    if (finalStatus === 'rejected') {
+    // Status fields draw from the KYC vocabulary (new | pending | approved |
+    // rejected | retry). Right after the session is created and its consents
+    // are recorded — before the applicant runs SumSub — the backend already
+    // reports `finalStatus: 'pending'` while the applicant/vendor lifecycle is
+    // still `new`. So the "has the user actually submitted documents yet?"
+    // decision must read the vendor/applicant status, not `finalStatus` (which
+    // only distinguishes the terminal decision). `new`/`retry` on the vendor or
+    // applicant means SumSub still has to run (or re-run).
+    const { finalStatus, vendorStatus, kycStatus } = session;
+    const lifecycleStatuses = [finalStatus, vendorStatus, kycStatus];
+
+    if (lifecycleStatuses.includes('rejected')) {
       return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRejected);
     }
-    if (finalStatus !== 'approved') {
-      throw new Error(`Unsupported KYC status: ${finalStatus}`);
+    if (!lifecycleStatuses.includes('approved')) {
+      // Not a terminal decision yet: route to the SumSub launch screen until
+      // the applicant has submitted (vendor/applicant status leaves `new`);
+      // once submitted, show the "verification in progress" screen.
+      if (vendorStatus === 'pending' || kycStatus === 'pending') {
+        return this.#setVbaOnboardingStage(VbaOnboardingStage.KycPending);
+      }
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRequired);
     }
     if (!walletAddress.trim()) {
       throw new Error('walletAddress is required after KYC acceptance.');
