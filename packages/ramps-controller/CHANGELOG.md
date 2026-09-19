@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `NeoBankService:getAutoramps` to load all autoramp accounts for the authenticated customer from `GET /neobank/autoramps` ([#10278](https://github.com/MetaMask/core/pull/10278))
+- Add `RampsController:hydrateVbaOnboarding`, the persisted `vbaOnboardingStage` state, and the `VbaOnboardingStage` enum for Mobile routing ([#10278](https://github.com/MetaMask/core/pull/10278))
+  - Route users to email OTP, vendor terms, provider terms, SumSub, pending KYC, rejected KYC, or their completed account using KYC-owned status getters.
+  - After KYC acceptance, automatically register the Money Account wallet, load the customer's authoritative autoramps, and create one only when needed.
+  - Coalesce overlapping hydration calls to prevent duplicate wallet signatures or autoramp creation during polling.
+
+### Changed
+
+- **BREAKING:** `RampsControllerMessenger` now requires the `KycController:isCustomerCreated`, `KycController:hasCompletedVendorTerms`, `KycController:hasCompletedProviderTerms`, and `KycController:getKycStatus` actions to hydrate VBA onboarding ([#10278](https://github.com/MetaMask/core/pull/10278))
+  - Imports `KycVendor`, `KycProvider`, `KycStatus`, and the matching action types from `@metamask/kyc-controller` (see [#10279](https://github.com/MetaMask/core/pull/10279)).
+- Add `@metamask/kyc-controller` as a dependency ([#10278](https://github.com/MetaMask/core/pull/10278))
+
 ## [23.0.0]
 
 ### Added

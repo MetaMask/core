@@ -428,6 +428,22 @@ export type RampsControllerRegisterMoneyAccountWalletAction = {
 };
 
 /**
+ * Hydrates the Mobile-routable VBA onboarding stage from KYC state and
+ * completes wallet and autoramp setup after KYC acceptance.
+ *
+ * Overlapping calls share one run so polling cannot trigger duplicate wallet
+ * signatures or autoramp creation.
+ *
+ * @param params - VBA onboarding parameters.
+ * @param params.walletAddress - Monad Money Account wallet address.
+ * @returns The hydrated onboarding stage.
+ */
+export type RampsControllerHydrateVbaOnboardingAction = {
+  type: `RampsController:hydrateVbaOnboarding`;
+  handler: RampsController['hydrateVbaOnboarding'];
+};
+
+/**
  * Removes a local autoramp last-seen cursor by id.
  *
  * @param autorampId - MoonPay autoramp id.
@@ -900,6 +916,7 @@ export type RampsControllerMethodActions =
   | RampsControllerAddAutorampAction
   | RampsControllerCreateAutorampAction
   | RampsControllerRegisterMoneyAccountWalletAction
+  | RampsControllerHydrateVbaOnboardingAction
   | RampsControllerRemoveAutorampAction
   | RampsControllerMarkAutorampAsNotifiedAction
   | RampsControllerApplyAutorampStatusFromPushAction

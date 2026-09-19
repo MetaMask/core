@@ -21,6 +21,7 @@ import type {
 } from './RampsController.js';
 import {
   RampsController,
+  VbaOnboardingStage,
   getDefaultRampsControllerState,
   getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
@@ -193,6 +194,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -270,6 +272,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -2642,6 +2645,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -2685,6 +2689,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -2704,6 +2709,7 @@ describe('RampsController', () => {
             "orders": [],
             "providerAutoSelected": false,
             "userRegion": null,
+            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -2771,6 +2777,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "vbaOnboardingStage": null,
           }
         `);
       });
@@ -10175,6 +10182,424 @@ describe('RampsController', () => {
 
         expect(afterBlank.customerId).toBe('cust-1');
         expect(afterBlank.walletAddress).toBe('0xabc');
+      });
+    });
+  });
+
+  describe('hydrateVbaOnboarding', () => {
+    type KycHandlers = {
+      isCustomerCreated: jest.Mock;
+      hasCompletedVendorTerms: jest.Mock;
+      hasCompletedProviderTerms: jest.Mock;
+      getKycStatus: jest.Mock;
+      getAutoramps: jest.Mock;
+    };
+
+    type KycValues = {
+      customerCreated: boolean;
+      vendorTermsCompleted: boolean;
+      providerTermsCompleted: boolean;
+      status: string;
+    };
+
+    const registerKycHandlers = (
+      rootMessenger: RootMessenger,
+      overrides: Partial<KycValues> = {},
+    ): KycHandlers => {
+      const values = {
+        customerCreated: true,
+        vendorTermsCompleted: true,
+        providerTermsCompleted: true,
+        status: 'ACCEPTED',
+        ...overrides,
+      };
+      const handlers = {
+        isCustomerCreated: jest.fn().mockReturnValue(values.customerCreated),
+        hasCompletedVendorTerms: jest
+          .fn()
+          .mockReturnValue(values.vendorTermsCompleted),
+        hasCompletedProviderTerms: jest
+          .fn()
+          .mockReturnValue(values.providerTermsCompleted),
+        getKycStatus: jest.fn().mockReturnValue(values.status),
+        getAutoramps: jest.fn().mockResolvedValue([]),
+      };
+
+      rootMessenger.registerActionHandler(
+        'KycController:isCustomerCreated' as never,
+        handlers.isCustomerCreated as never,
+      );
+      rootMessenger.registerActionHandler(
+        'KycController:hasCompletedVendorTerms' as never,
+        handlers.hasCompletedVendorTerms as never,
+      );
+      rootMessenger.registerActionHandler(
+        'KycController:hasCompletedProviderTerms' as never,
+        handlers.hasCompletedProviderTerms as never,
+      );
+      rootMessenger.registerActionHandler(
+        'KycController:getKycStatus' as never,
+        handlers.getKycStatus as never,
+      );
+      rootMessenger.registerActionHandler(
+        'NeoBankService:getAutoramps' as never,
+        handlers.getAutoramps as never,
+      );
+
+      return handlers;
+    };
+
+    it.each([
+      {
+        name: 'email OTP when the Iron customer does not exist',
+        overrides: { customerCreated: false },
+        expected: VbaOnboardingStage.EmailOtpRequired,
+        expectedCalls: [[['iron']], [], [], []],
+      },
+      {
+        name: 'vendor terms when Iron terms are incomplete',
+        overrides: { vendorTermsCompleted: false },
+        expected: VbaOnboardingStage.VendorTermsRequired,
+        expectedCalls: [[['iron']], [['iron']], [], []],
+      },
+      {
+        name: 'provider terms when SumSub terms are incomplete',
+        overrides: { providerTermsCompleted: false },
+        expected: VbaOnboardingStage.ProviderTermsRequired,
+        expectedCalls: [[['iron']], [['iron']], [['sumsub']], []],
+      },
+      {
+        name: 'the SumSub widget when KYC has not started',
+        overrides: { status: 'NOT_STARTED' },
+        expected: VbaOnboardingStage.KycRequired,
+        expectedCalls: [[['iron']], [['iron']], [['sumsub']], [['iron']]],
+      },
+      {
+        name: 'the SumSub widget when KYC needs more information',
+        overrides: { status: 'NEED_INFO' },
+        expected: VbaOnboardingStage.KycRequired,
+        expectedCalls: [[['iron']], [['iron']], [['sumsub']], [['iron']]],
+      },
+      {
+        name: 'pending KYC',
+        overrides: { status: 'PENDING' },
+        expected: VbaOnboardingStage.KycPending,
+        expectedCalls: [[['iron']], [['iron']], [['sumsub']], [['iron']]],
+      },
+      {
+        name: 'rejected KYC',
+        overrides: { status: 'REJECTED' },
+        expected: VbaOnboardingStage.KycRejected,
+        expectedCalls: [[['iron']], [['iron']], [['sumsub']], [['iron']]],
+      },
+    ])('routes to $name', async ({ overrides, expected, expectedCalls }) => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger, overrides);
+        const registerWallet = jest.spyOn(
+          controller,
+          'registerMoneyAccountWallet',
+        );
+        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toBe(expected);
+
+        expect(controller.state.vbaOnboardingStage).toBe(expected);
+        expect(registerWallet).not.toHaveBeenCalled();
+        expect(createAutoramp).not.toHaveBeenCalled();
+        expect([
+          handlers.isCustomerCreated.mock.calls,
+          handlers.hasCompletedVendorTerms.mock.calls,
+          handlers.hasCompletedProviderTerms.mock.calls,
+          handlers.getKycStatus.mock.calls,
+        ]).toStrictEqual(expectedCalls);
+      });
+    });
+
+    it('registers the wallet, creates the autoramp, and completes onboarding after accepted KYC', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerKycHandlers(rootMessenger);
+        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
+          type: 'registered',
+          registration: {
+            id: 'wallet-1',
+            address: '0xabc',
+            blockchain: 'Monad',
+            disabled: false,
+            isSelf: true,
+          },
+        });
+        const createAutoramp = jest
+          .spyOn(controller, 'createAutoramp')
+          .mockImplementation(async () =>
+            controller.addAutoramp({
+              id: 'autoramp-1',
+              customerId: 'customer-1',
+              walletAddress: '0xabc',
+              status: AutorampStatus.Created,
+            }),
+          );
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toBe(VbaOnboardingStage.Completed);
+
+        expect(createAutoramp).toHaveBeenCalledWith({});
+        expect(controller.state.vbaOnboardingStage).toBe(
+          VbaOnboardingStage.Completed,
+        );
+      });
+    });
+
+    it('loads an existing autoramp from the service instead of creating another', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger);
+        handlers.getAutoramps.mockResolvedValue([
+          {
+            id: 'autoramp-1',
+            customerId: 'customer-1',
+            walletAddress: '0xAbC',
+            status: AutorampStatus.Approved,
+          },
+        ]);
+        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
+          type: 'alreadyRegistered',
+          registration: {
+            id: 'wallet-1',
+            address: '0xabc',
+            blockchain: 'Monad',
+            disabled: false,
+            isSelf: true,
+          },
+        });
+        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+
+        expect(
+          await controller.hydrateVbaOnboarding({
+            walletAddress: '0xabc',
+          }),
+        ).toBe(VbaOnboardingStage.Completed);
+
+        expect(createAutoramp).not.toHaveBeenCalled();
+        expect(
+          controller.state.autoramps.map(
+            ({ updatedAt: _updatedAt, ...account }) => account,
+          ),
+        ).toMatchInlineSnapshot(`
+          [
+            {
+              "customerId": "customer-1",
+              "depositRailsSummary": undefined,
+              "id": "autoramp-1",
+              "lastSeenStatus": "Approved",
+              "status": "Approved",
+              "walletAddress": "0xAbC",
+            },
+          ]
+        `);
+      });
+    });
+
+    it('creates a new autoramp when the existing account is terminal', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const handlers = registerKycHandlers(rootMessenger);
+        handlers.getAutoramps.mockResolvedValue([
+          {
+            id: 'autoramp-rejected',
+            customerId: 'customer-1',
+            walletAddress: '0xabc',
+            status: AutorampStatus.Rejected,
+          },
+        ]);
+        jest.spyOn(controller, 'registerMoneyAccountWallet').mockResolvedValue({
+          type: 'alreadyRegistered',
+          registration: {
+            id: 'wallet-1',
+            address: '0xabc',
+            blockchain: 'Monad',
+            disabled: false,
+            isSelf: true,
+          },
+        });
+        const createAutoramp = jest
+          .spyOn(controller, 'createAutoramp')
+          .mockImplementation(async () =>
+            controller.addAutoramp({
+              id: 'autoramp-new',
+              customerId: 'customer-1',
+              walletAddress: '0xabc',
+            }),
+          );
+
+        await controller.hydrateVbaOnboarding({
+          walletAddress: '0xabc',
+        });
+
+        expect(createAutoramp).toHaveBeenCalledWith({});
+      });
+    });
+
+    it('coalesces overlapping hydration calls', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerKycHandlers(rootMessenger);
+        let resolveRegistration: (
+          result: Awaited<
+            ReturnType<RampsController['registerMoneyAccountWallet']>
+          >,
+        ) => void = () => undefined;
+        const registerWallet = jest
+          .spyOn(controller, 'registerMoneyAccountWallet')
+          .mockReturnValue(
+            new Promise((resolve) => {
+              resolveRegistration = resolve;
+            }),
+          );
+        jest.spyOn(controller, 'createAutoramp').mockImplementation(async () =>
+          controller.addAutoramp({
+            id: 'autoramp-1',
+            customerId: 'customer-1',
+            walletAddress: '0xabc',
+          }),
+        );
+
+        const first = controller.hydrateVbaOnboarding({
+          walletAddress: '0xabc',
+        });
+        const second = controller.hydrateVbaOnboarding({
+          walletAddress: '0xabc',
+        });
+        resolveRegistration({
+          type: 'registered',
+          registration: {
+            id: 'wallet-1',
+            address: '0xabc',
+            blockchain: 'Monad',
+            disabled: false,
+            isSelf: true,
+          },
+        });
+
+        expect(await Promise.all([first, second])).toStrictEqual([
+          VbaOnboardingStage.Completed,
+          VbaOnboardingStage.Completed,
+        ]);
+        expect(registerWallet).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('retains the previous stage when automatic setup fails', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              vbaOnboardingStage: VbaOnboardingStage.KycPending,
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          registerKycHandlers(rootMessenger);
+          const error = new Error('signing rejected');
+          jest
+            .spyOn(controller, 'registerMoneyAccountWallet')
+            .mockRejectedValue(error);
+
+          await expect(
+            controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+          ).rejects.toBe(error);
+          expect(controller.state.vbaOnboardingStage).toBe(
+            VbaOnboardingStage.KycPending,
+          );
+        },
+      );
+    });
+
+    it('treats an unavailable wallet lookup as a setup failure', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              vbaOnboardingStage: VbaOnboardingStage.KycPending,
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          registerKycHandlers(rootMessenger);
+          const error = new WalletRegistrationError('lookupUnavailable', {});
+          jest
+            .spyOn(controller, 'registerMoneyAccountWallet')
+            .mockResolvedValue({
+              type: 'lookupUnavailable',
+              error,
+            });
+
+          await expect(
+            controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+          ).rejects.toBe(error);
+          expect(controller.state.vbaOnboardingStage).toBe(
+            VbaOnboardingStage.KycPending,
+          );
+        },
+      );
+    });
+
+    it('retains the previous stage when loading autoramps fails', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              vbaOnboardingStage: VbaOnboardingStage.KycPending,
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const handlers = registerKycHandlers(rootMessenger);
+          const error = new Error('autoramp lookup failed');
+          handlers.getAutoramps.mockRejectedValue(error);
+          jest
+            .spyOn(controller, 'registerMoneyAccountWallet')
+            .mockResolvedValue({
+              type: 'alreadyRegistered',
+              registration: {
+                id: 'wallet-1',
+                address: '0xabc',
+                blockchain: 'Monad',
+                disabled: false,
+                isSelf: true,
+              },
+            });
+          const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+
+          await expect(
+            controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+          ).rejects.toBe(error);
+          expect(createAutoramp).not.toHaveBeenCalled();
+          expect(controller.state.vbaOnboardingStage).toBe(
+            VbaOnboardingStage.KycPending,
+          );
+        },
+      );
+    });
+
+    it('rejects an unsupported KYC status without changing the stage', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerKycHandlers(rootMessenger, { status: 'UNKNOWN' });
+
+        await expect(
+          controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).rejects.toThrow('Unsupported KYC status: UNKNOWN');
+        expect(controller.state.vbaOnboardingStage).toBeNull();
+      });
+    });
+
+    it('requires a wallet address only after KYC is accepted', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerKycHandlers(rootMessenger);
+
+        await expect(
+          controller.hydrateVbaOnboarding({ walletAddress: ' ' }),
+        ).rejects.toThrow('walletAddress is required after KYC acceptance.');
+        expect(controller.state.vbaOnboardingStage).toBeNull();
       });
     });
   });

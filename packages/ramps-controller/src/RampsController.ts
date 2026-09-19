@@ -6,6 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { BrokenCircuitError } from '@metamask/controller-utils';
+import type { KycVendor } from '@metamask/kyc-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   AuthenticationController,
@@ -23,6 +24,7 @@ import type {
 } from './autorampAccount.js';
 import {
   applyAutorampRemoteStatus,
+  AutorampStatus,
   createAutorampAccount,
   markAutorampNotified,
 } from './autorampAccount.js';
@@ -34,6 +36,7 @@ import {
 import type {
   NeoBankServiceCreateAutorampAction,
   NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetAutorampsAction,
   NeoBankServiceGetCustomerByExternalIdAction,
   NeoBankServiceGetWalletRegistrationStatusAction,
   NeoBankServiceRegisterSelfHostedWalletAction,
@@ -218,6 +221,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
   'TransakService:cancelAllActiveOrders',
   'TransakService:getActiveOrders',
   'NeoBankService:getAutoramp',
+  'NeoBankService:getAutoramps',
   'NeoBankService:createAutoramp',
   'NeoBankService:getCustomerByExternalId',
   'NeoBankService:getWalletRegistrationStatus',
@@ -241,6 +245,9 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'AuthenticationController:getSessionProfile',
   'AuthenticationController:isSignedIn',
   'KeyringController:signPersonalMessage',
+  'KycController:getSessionStatusForVendor',
+  'KycController:hasCompletedVendorDisclaimers',
+  'KycController:hasCompletedSessionDisclaimers',
   'RemoteFeatureFlagController:getState',
   'UserStorageController:getState',
   'UserStorageController:performGetStorageAllFeatureEntries',
@@ -255,6 +262,37 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
 export type KeyringControllerSignPersonalMessageAction = {
   type: 'KeyringController:signPersonalMessage';
   handler: (messageParams: { data: string; from: string }) => Promise<string>;
+};
+
+/**
+ * Minimal structural subset of the KYC controller's session status — only the
+ * status fields the VBA stage machine reads.
+ */
+type KycControllerSessionStatus = {
+  finalStatus: string;
+  kycStatus: string;
+  vendorStatus: string;
+};
+
+/**
+ * Structural types for the KYC controller's VBA onboarding messenger actions.
+ * Declared locally so the ramps package does not require a kyc-controller
+ * version that already exports them — the two changes land as separate PRs,
+ * with KYC merging first.
+ */
+export type KycControllerGetSessionStatusForVendorAction = {
+  type: 'KycController:getSessionStatusForVendor';
+  handler: (vendor: KycVendor) => Promise<KycControllerSessionStatus | null>;
+};
+
+export type KycControllerHasCompletedVendorDisclaimersAction = {
+  type: 'KycController:hasCompletedVendorDisclaimers';
+  handler: () => Promise<boolean>;
+};
+
+export type KycControllerHasCompletedSessionDisclaimersAction = {
+  type: 'KycController:hasCompletedSessionDisclaimers';
+  handler: () => Promise<boolean>;
 };
 
 /**
@@ -282,6 +320,19 @@ type LookupUnavailableResult = Extract<
   MoneyAccountWalletRegistrationResult,
   { type: 'lookupUnavailable' }
 >;
+
+/**
+ * The Mobile route for the current VBA onboarding step.
+ */
+export enum VbaOnboardingStage {
+  EmailOtpRequired = 'EmailOtpRequired',
+  VendorTermsRequired = 'VendorTermsRequired',
+  ProviderTermsRequired = 'ProviderTermsRequired',
+  KycRequired = 'KycRequired',
+  KycPending = 'KycPending',
+  KycRejected = 'KycRejected',
+  Completed = 'Completed',
+}
 
 /**
  * Distinguishes an already-materialized {@link AutorampAccount} from the
@@ -551,6 +602,10 @@ export type RampsControllerState = {
    * token conflict instead of showing the "Token Not Available" modal.
    */
   providerAutoSelected: boolean;
+  /**
+   * The current Mobile-routable VBA onboarding stage.
+   */
+  vbaOnboardingStage: VbaOnboardingStage | null;
 };
 
 /**
@@ -612,6 +667,12 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   providerAutoSelected: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  vbaOnboardingStage: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -679,6 +740,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     orders: [],
     autoramps: [],
     providerAutoSelected: false,
+    vbaOnboardingStage: null,
   };
 }
 
@@ -804,12 +866,16 @@ type AllowedActions =
   | TransakServiceCancelAllActiveOrdersAction
   | TransakServiceGetActiveOrdersAction
   | NeoBankServiceGetAutorampAction
+  | NeoBankServiceGetAutorampsAction
   | NeoBankServiceCreateAutorampAction
   | NeoBankServiceGetCustomerByExternalIdAction
   | NeoBankServiceGetWalletRegistrationStatusAction
   | NeoBankServiceRegisterSelfHostedWalletAction
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
   | KeyringControllerSignPersonalMessageAction
+  | KycControllerGetSessionStatusForVendorAction
+  | KycControllerHasCompletedVendorDisclaimersAction
+  | KycControllerHasCompletedSessionDisclaimersAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
@@ -1023,6 +1089,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'removeOrder',
   'addAutoramp',
   'createAutoramp',
+  'hydrateVbaOnboarding',
   'removeAutoramp',
   'registerMoneyAccountWallet',
   'markAutorampAsNotified',
@@ -1177,6 +1244,8 @@ export class RampsController extends BaseController<
   #isPolling = false;
 
   #initPromise: Promise<void> | null = null;
+
+  #vbaOnboardingHydrationPromise: Promise<VbaOnboardingStage> | null = null;
 
   /**
    * Semaphore that prevents sync feedback loops while applying remote order changes.
@@ -3727,6 +3796,143 @@ export class RampsController extends BaseController<
         }
       }
     }
+  }
+
+  /**
+   * Hydrates the Mobile-routable VBA onboarding stage from KYC state and
+   * completes wallet and autoramp setup after KYC acceptance.
+   *
+   * Overlapping calls share one run so polling cannot trigger duplicate wallet
+   * signatures or autoramp creation.
+   *
+   * @param params - VBA onboarding parameters.
+   * @param params.walletAddress - Monad Money Account wallet address.
+   * @returns The hydrated onboarding stage.
+   */
+  async hydrateVbaOnboarding({
+    walletAddress,
+  }: {
+    walletAddress: string;
+  }): Promise<VbaOnboardingStage> {
+    if (this.#vbaOnboardingHydrationPromise) {
+      return await this.#vbaOnboardingHydrationPromise;
+    }
+
+    const hydrationPromise = this.#hydrateVbaOnboarding(walletAddress);
+    this.#vbaOnboardingHydrationPromise = hydrationPromise;
+
+    try {
+      return await hydrationPromise;
+    } finally {
+      if (this.#vbaOnboardingHydrationPromise === hydrationPromise) {
+        this.#vbaOnboardingHydrationPromise = null;
+      }
+    }
+  }
+
+  async #hydrateVbaOnboarding(
+    walletAddress: string,
+  ): Promise<VbaOnboardingStage> {
+    // Fetch the customer's latest session from the vendor account so each stage
+    // reflects backend truth (e.g. re-verification required after a new
+    // document) rather than only device-local state. A `null` session means no
+    // customer/session exists yet, so onboarding starts at the email step.
+    const session = await this.messenger.call(
+      'KycController:getSessionStatusForVendor',
+      'iron',
+    );
+    if (!session) {
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.EmailOtpRequired);
+    }
+
+    if (
+      !(await this.messenger.call('KycController:hasCompletedVendorDisclaimers'))
+    ) {
+      return this.#setVbaOnboardingStage(
+        VbaOnboardingStage.VendorTermsRequired,
+      );
+    }
+
+    if (
+      !(await this.messenger.call(
+        'KycController:hasCompletedSessionDisclaimers',
+      ))
+    ) {
+      return this.#setVbaOnboardingStage(
+        VbaOnboardingStage.ProviderTermsRequired,
+      );
+    }
+
+    // Status fields draw from the KYC vocabulary (new | pending | approved |
+    // rejected | retry). Right after the session is created and its consents
+    // are recorded — before the applicant runs SumSub — the backend already
+    // reports `finalStatus: 'pending'` while the applicant/vendor lifecycle is
+    // still `new`. So the "has the user actually submitted documents yet?"
+    // decision must read the vendor/applicant status, not `finalStatus` (which
+    // only distinguishes the terminal decision). `new`/`retry` on the vendor or
+    // applicant means SumSub still has to run (or re-run).
+    const { finalStatus, vendorStatus, kycStatus } = session;
+    const lifecycleStatuses = [finalStatus, vendorStatus, kycStatus];
+
+    if (lifecycleStatuses.includes('rejected')) {
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRejected);
+    }
+    if (!lifecycleStatuses.includes('approved')) {
+      // Not a terminal decision yet: route to the SumSub launch screen until
+      // the applicant has submitted (vendor/applicant status leaves `new`);
+      // once submitted, show the "verification in progress" screen.
+      if (vendorStatus === 'pending' || kycStatus === 'pending') {
+        return this.#setVbaOnboardingStage(VbaOnboardingStage.KycPending);
+      }
+      return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRequired);
+    }
+    if (!walletAddress.trim()) {
+      throw new Error('walletAddress is required after KYC acceptance.');
+    }
+
+    const registration = await this.registerMoneyAccountWallet({
+      address: walletAddress,
+    });
+    if (registration.type === 'lookupUnavailable') {
+      throw registration.error;
+    }
+
+    const remoteAutoramps = await this.messenger.call(
+      'NeoBankService:getAutoramps',
+    );
+    const remoteAutorampIds = new Set(
+      remoteAutoramps.map((autoramp) => autoramp.id),
+    );
+    for (const autoramp of remoteAutoramps) {
+      this.#applyAutorampRemoteSnapshot(autoramp);
+    }
+    this.update((state) => {
+      state.autoramps = state.autoramps.filter((autoramp) =>
+        remoteAutorampIds.has(autoramp.id),
+      );
+    });
+
+    const normalizedWalletAddress = walletAddress.toLowerCase();
+    const hasUsableAutoramp = this.state.autoramps.some(
+      (autoramp) =>
+        autoramp.walletAddress.toLowerCase() === normalizedWalletAddress &&
+        autoramp.status !== AutorampStatus.Rejected &&
+        autoramp.status !== AutorampStatus.Cancelled,
+    );
+    if (!hasUsableAutoramp) {
+      await this.createAutoramp({});
+    }
+
+    return this.#setVbaOnboardingStage(VbaOnboardingStage.Completed);
+  }
+
+  #setVbaOnboardingStage(stage: VbaOnboardingStage): VbaOnboardingStage {
+    if (this.state.vbaOnboardingStage !== stage) {
+      this.update((state) => {
+        state.vbaOnboardingStage = stage;
+      });
+    }
+    return stage;
   }
 
   /**
