@@ -164,6 +164,9 @@
       "path": "./packages/messenger/tsconfig.build.json"
     },
     {
+      "path": "./packages/mfa-recovery-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/money-account-api-data-service/tsconfig.build.json"
     },
     {

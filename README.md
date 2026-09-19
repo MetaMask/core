@@ -92,6 +92,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/messenger`](packages/messenger)
 - [`@metamask/messenger-cli`](packages/messenger-cli)
+- [`@metamask/mfa-recovery-controller`](packages/mfa-recovery-controller)
 - [`@metamask/money-account-api-data-service`](packages/money-account-api-data-service)
 - [`@metamask/money-account-balance-service`](packages/money-account-balance-service)
 - [`@metamask/money-account-controller`](packages/money-account-controller)
@@ -200,6 +201,7 @@ linkStyle default opacity:0.5
   message_manager(["@metamask/message-manager"]);
   messenger(["@metamask/messenger"]);
   messenger_cli(["@metamask/messenger-cli"]);
+  mfa_recovery_controller(["@metamask/mfa-recovery-controller"]);
   money_account_api_data_service(["@metamask/money-account-api-data-service"]);
   money_account_balance_service(["@metamask/money-account-balance-service"]);
   money_account_controller(["@metamask/money-account-controller"]);
@@ -475,6 +477,9 @@ linkStyle default opacity:0.5
   message_manager --> messenger;
   message_manager --> utils;
   messenger_cli --> utils;
+  mfa_recovery_controller --> base_controller;
+  mfa_recovery_controller --> messenger;
+  mfa_recovery_controller --> utils;
   money_account_api_data_service --> base_data_service;
   money_account_api_data_service --> controller_utils;
   money_account_api_data_service --> messenger;
