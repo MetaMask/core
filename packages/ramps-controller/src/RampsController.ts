@@ -6,17 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { BrokenCircuitError } from '@metamask/controller-utils';
-import type {
-  KycControllerGetKycStatusAction,
-  KycControllerHasCompletedProviderTermsAction,
-  KycControllerHasCompletedVendorTermsAction,
-  KycControllerIsCustomerCreatedAction,
-} from '@metamask/kyc-controller';
-import {
-  KycProvider,
-  KycStatus,
-  KycVendor,
-} from '@metamask/kyc-controller';
+import type { KycVendor } from '@metamask/kyc-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   AuthenticationController,
@@ -255,11 +245,9 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'AuthenticationController:getSessionProfile',
   'AuthenticationController:isSignedIn',
   'KeyringController:signPersonalMessage',
-  'KycController:getKycStatus',
-  'KycController:hasCompletedProviderTerms',
-  'KycController:hasCompletedVendorTerms',
-  'KycController:isCustomerCreated',
-  'KycController:refreshVbaOnboardingStatus',
+  'KycController:getSessionStatusForVendor',
+  'KycController:hasCompletedVendorDisclaimers',
+  'KycController:hasCompletedSessionDisclaimers',
   'RemoteFeatureFlagController:getState',
   'UserStorageController:getState',
   'UserStorageController:performGetStorageAllFeatureEntries',
@@ -277,14 +265,33 @@ export type KeyringControllerSignPersonalMessageAction = {
 };
 
 /**
- * Structural type for the KYC controller's `refreshVbaOnboardingStatus`
- * messenger action. Declared locally so the ramps package does not require a
- * kyc-controller version that already exports it — the two changes land as
- * separate PRs, with KYC merging first.
+ * Minimal structural subset of the KYC controller's session status — only the
+ * status fields the VBA stage machine reads.
  */
-export type KycControllerRefreshVbaOnboardingStatusAction = {
-  type: 'KycController:refreshVbaOnboardingStatus';
-  handler: () => Promise<void>;
+type KycControllerSessionStatus = {
+  finalStatus: string;
+  kycStatus: string;
+};
+
+/**
+ * Structural types for the KYC controller's VBA onboarding messenger actions.
+ * Declared locally so the ramps package does not require a kyc-controller
+ * version that already exports them — the two changes land as separate PRs,
+ * with KYC merging first.
+ */
+export type KycControllerGetSessionStatusForVendorAction = {
+  type: 'KycController:getSessionStatusForVendor';
+  handler: (vendor: KycVendor) => Promise<KycControllerSessionStatus | null>;
+};
+
+export type KycControllerHasCompletedVendorDisclaimersAction = {
+  type: 'KycController:hasCompletedVendorDisclaimers';
+  handler: () => Promise<boolean>;
+};
+
+export type KycControllerHasCompletedSessionDisclaimersAction = {
+  type: 'KycController:hasCompletedSessionDisclaimers';
+  handler: () => Promise<boolean>;
 };
 
 /**
@@ -865,11 +872,9 @@ type AllowedActions =
   | NeoBankServiceRegisterSelfHostedWalletAction
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
   | KeyringControllerSignPersonalMessageAction
-  | KycControllerIsCustomerCreatedAction
-  | KycControllerHasCompletedVendorTermsAction
-  | KycControllerHasCompletedProviderTermsAction
-  | KycControllerGetKycStatusAction
-  | KycControllerRefreshVbaOnboardingStatusAction
+  | KycControllerGetSessionStatusForVendorAction
+  | KycControllerHasCompletedVendorDisclaimersAction
+  | KycControllerHasCompletedSessionDisclaimersAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
@@ -3827,23 +3832,20 @@ export class RampsController extends BaseController<
   async #hydrateVbaOnboarding(
     walletAddress: string,
   ): Promise<VbaOnboardingStage> {
-    // Pull the customer's up-to-date terms + KYC status from the vendor account
-    // before reading the stage gates, so each stage reflects what the account
-    // holds (e.g. re-signing required after a new document) rather than only
-    // device-local state.
-    await this.messenger.call('KycController:refreshVbaOnboardingStatus');
-
-    if (
-      !this.messenger.call('KycController:isCustomerCreated', KycVendor.Iron)
-    ) {
+    // Fetch the customer's latest session from the vendor account so each stage
+    // reflects backend truth (e.g. re-verification required after a new
+    // document) rather than only device-local state. A `null` session means no
+    // customer/session exists yet, so onboarding starts at the email step.
+    const session = await this.messenger.call(
+      'KycController:getSessionStatusForVendor',
+      'iron',
+    );
+    if (!session) {
       return this.#setVbaOnboardingStage(VbaOnboardingStage.EmailOtpRequired);
     }
 
     if (
-      !this.messenger.call(
-        'KycController:hasCompletedVendorTerms',
-        KycVendor.Iron,
-      )
+      !(await this.messenger.call('KycController:hasCompletedVendorDisclaimers'))
     ) {
       return this.#setVbaOnboardingStage(
         VbaOnboardingStage.VendorTermsRequired,
@@ -3851,34 +3853,30 @@ export class RampsController extends BaseController<
     }
 
     if (
-      !this.messenger.call(
-        'KycController:hasCompletedProviderTerms',
-        KycProvider.sumsub,
-      )
+      !(await this.messenger.call(
+        'KycController:hasCompletedSessionDisclaimers',
+      ))
     ) {
       return this.#setVbaOnboardingStage(
         VbaOnboardingStage.ProviderTermsRequired,
       );
     }
 
-    const kycStatus = this.messenger.call(
-      'KycController:getKycStatus',
-      KycVendor.Iron,
-    );
-    if (
-      kycStatus === KycStatus.NOT_STARTED ||
-      kycStatus === KycStatus.NEED_INFO
-    ) {
+    // `finalStatus` draws from the KYC status vocabulary
+    // (new | pending | approved | rejected | retry). `new`/`retry` mean the
+    // applicant still has to run (or re-run) SumSub document verification.
+    const { finalStatus } = session;
+    if (finalStatus === 'new' || finalStatus === 'retry') {
       return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRequired);
     }
-    if (kycStatus === KycStatus.PENDING) {
+    if (finalStatus === 'pending') {
       return this.#setVbaOnboardingStage(VbaOnboardingStage.KycPending);
     }
-    if (kycStatus === KycStatus.REJECTED) {
+    if (finalStatus === 'rejected') {
       return this.#setVbaOnboardingStage(VbaOnboardingStage.KycRejected);
     }
-    if (kycStatus !== KycStatus.ACCEPTED) {
-      throw new Error(`Unsupported KYC status: ${kycStatus as string}`);
+    if (finalStatus !== 'approved') {
+      throw new Error(`Unsupported KYC status: ${finalStatus}`);
     }
     if (!walletAddress.trim()) {
       throw new Error('walletAddress is required after KYC acceptance.');
