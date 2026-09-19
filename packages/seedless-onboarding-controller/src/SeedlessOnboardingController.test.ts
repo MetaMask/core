@@ -24,6 +24,7 @@ import {
   EncAccountDataType,
   TOPRFError,
   TOPRFErrorCode,
+  ToprfSecureBackup,
 } from '@metamask/toprf-secure-backup';
 import type {
   FetchAuthPubKeyResult,
@@ -31,7 +32,6 @@ import type {
   ChangeEncryptionKeyResult,
   KeyPair,
   RecoverEncryptionKeyResult,
-  ToprfSecureBackup,
 } from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,
@@ -5092,28 +5092,6 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('advances to LOCAL_STATE_PENDING when REMOTE_PASSWORD_PENDING and remote committed', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            authPubKey: MOCK_AUTH_PUB_KEY_OUTDATED,
-            passwordChangePhase:
-              SeedlessPasswordChangePhase.SeedlessChangePending,
-          }),
-        },
-        async ({ toprfClient, controller }) => {
-          // Remote auth pub key differs from the stale local one -> outdated.
-          mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
-          const result = await controller.resolvePasswordSyncState();
-          expect(result).toBe(PasswordSyncInstruction.PasswordOutdated);
-          expect(getLifecyclePhase(controller.state)).toBe(
-            SeedlessPasswordChangePhase.SeedlessCommitted,
-          );
-        },
-      );
-    });
-
     it('re-reads the lifecycle phase after waiting for an in-flight password change', async () => {
       await withController(
         {
@@ -5228,6 +5206,15 @@ describe('SeedlessOnboardingController', () => {
     const OLD_PASSWORD = 'old-mock-password';
     const NEW_PASSWORD = 'new-mock-password';
 
+    beforeEach(() => {
+      jest
+        .spyOn(ToprfSecureBackup.prototype, 'fetchAuthPubKey')
+        .mockResolvedValue({
+          authPubKey: base64ToBytes(MOCK_AUTH_PUB_KEY),
+          keyIndex: 1,
+        });
+    });
+
     it('returns in-sync when no phase is set and the password is in sync', async () => {
       await withController(
         {
@@ -5268,7 +5255,7 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('throws when the phase is REMOTE_PASSWORD_PENDING', async () => {
+    it('clears REMOTE_PASSWORD_PENDING when the remote password is unchanged', async () => {
       await withController(
         {
           state: getMockInitialControllerState({
@@ -5279,16 +5266,11 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller }) => {
-          await expect(
-            controller.reconcilePassword({
-              globalPassword: NEW_PASSWORD,
-            }),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.PasswordChangeInProgress,
-          );
-          expect(getLifecyclePhase(controller.state)).toBe(
-            SeedlessPasswordChangePhase.SeedlessChangePending,
-          );
+          const result = await controller.reconcilePassword({
+            globalPassword: NEW_PASSWORD,
+          });
+          expect(result).toBe(PasswordSyncInstruction.InSync);
+          expect(controller.state.seedlessOperationLifecycle).toBeUndefined();
         },
       );
     });
@@ -5638,6 +5620,7 @@ describe('SeedlessOnboardingController', () => {
               globalPassword: NEW_PASSWORD,
             }),
           ).toBe(PasswordSyncInstruction.ReconcileKeyring);
+          await controller.submitPassword(NEW_PASSWORD);
           expect(await controller.loadKeyringEncryptionKey()).toBe(
             MOCK_KEYRING_ENCRYPTION_KEY,
           );
