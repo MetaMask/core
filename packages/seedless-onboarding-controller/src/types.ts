@@ -5,7 +5,11 @@ import type {
 } from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
-import type { AuthConnection, SecretType } from './constants.js';
+import type {
+  AuthConnection,
+  SecretType,
+  SeedlessOperationLifecycle,
+} from './constants.js';
 
 /**
  * The backup state of the secret data.
@@ -106,6 +110,7 @@ export type InvalidPrimarySecretDataTypeErrorData = (
 )[];
 
 // State
+
 export type SeedlessOnboardingControllerState =
   Partial<AuthenticatedUserDetails> &
     Partial<SRPBackedUpUserDetails> & {
@@ -190,6 +195,12 @@ export type SeedlessOnboardingControllerState =
        * Used to prevent re-running migrations.
        */
       migrationVersion: number;
+
+      /**
+       * The persisted lifecycle of the active stateful Seedless Onboarding
+       * operation. Missing or `undefined` means that no operation is active.
+       */
+      seedlessOperationLifecycle?: SeedlessOperationLifecycle;
     };
 
 /**
