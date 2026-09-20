@@ -50,6 +50,7 @@ import type {
 } from './types.js';
 import {
   CANCEL_TYPES,
+  CRYPTO_AUTH_METHODS,
   MODAL_TYPE,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
@@ -4186,6 +4187,48 @@ describe('SubscriptionController', () => {
             req,
           );
 
+          expect(controller.state.subscriptions).toStrictEqual([
+            MOCK_SUBSCRIPTION,
+          ]);
+        },
+      );
+    });
+
+    it('should update crypto payment method with a delegation hash and refresh state', async () => {
+      await withController(
+        async ({ controller, rootMessenger, mockService }) => {
+          mockService.updatePaymentMethodCrypto.mockResolvedValue(undefined);
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+
+          const opts: UpdatePaymentMethodOpts = {
+            paymentType: PAYMENT_TYPES.byCrypto,
+            subscriptionId: 'sub_123456789',
+            chainId: '0x1',
+            payerAddress: '0x0000000000000000000000000000000000000001',
+            tokenSymbol: 'pvmUSD',
+            recurringInterval: RECURRING_INTERVALS.month,
+            billingCycles: 12,
+            cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
+            delegationHash: '0xabcdef1234567890',
+          };
+
+          await rootMessenger.call(
+            'SubscriptionController:updatePaymentMethod',
+            opts,
+          );
+
+          expect(mockService.updatePaymentMethodCrypto).toHaveBeenCalledWith({
+            subscriptionId: 'sub_123456789',
+            chainId: '0x1',
+            payerAddress: '0x0000000000000000000000000000000000000001',
+            tokenSymbol: 'pvmUSD',
+            recurringInterval: RECURRING_INTERVALS.month,
+            billingCycles: 12,
+            cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
+            delegationHash: '0xabcdef1234567890',
+          });
           expect(controller.state.subscriptions).toStrictEqual([
             MOCK_SUBSCRIPTION,
           ]);

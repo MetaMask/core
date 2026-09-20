@@ -88,6 +88,8 @@ export type {
   BillingPortalResponse,
   CryptoPaymentMethodError,
   CryptoPaymentError,
+  UpdateErc20PaymentMethodCryptoRequest,
+  UpdateDelegationPaymentMethodCryptoRequest,
   UpdatePaymentMethodCryptoRequest,
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCardResponse,
@@ -127,6 +129,10 @@ export {
   selectHasEntitlement,
   selectIsActiveSubscriber,
   selectIsUsageAvailable,
+  selectIsPaymentFailed,
+  selectPaymentFailureReason,
+  selectIsRenewalNeeded,
+  selectIsDelegationExhausted,
 } from './selectors.js';
 export { SubscriptionServiceError } from './errors.js';
 export {

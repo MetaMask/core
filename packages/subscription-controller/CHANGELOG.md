@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add Subscription API crypto payment-execution error types and expose failed
   invoice details, including the execution error code and update timestamp.
+- Add selectors for crypto payment failure, renewal-needed, and delegation
+  exhaustion states by subscription product.
+- Add a typed delegation variant for rotating an active crypto subscription's
+  payment method with a replacement delegation hash.
 
 ## [9.1.0]
 
