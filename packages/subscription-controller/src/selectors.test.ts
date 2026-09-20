@@ -366,7 +366,9 @@ describe('subscription selectors', () => {
             {
               ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
               lastInvoice: {
-                ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION.lastInvoice!,
+                id: 'in_money_account',
+                status: 'FAILED',
+                updatedAt: '2026-09-20T12:00:00.000Z',
                 errorCode,
               },
             },
@@ -389,7 +391,9 @@ describe('subscription selectors', () => {
           {
             ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
             lastInvoice: {
-              ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION.lastInvoice!,
+              id: 'in_money_account',
+              status: 'FAILED',
+              updatedAt: '2026-09-20T12:00:00.000Z',
               errorCode: 'exceeds_delegation_allowance',
             },
           },

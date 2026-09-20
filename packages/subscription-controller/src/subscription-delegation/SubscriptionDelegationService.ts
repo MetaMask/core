@@ -1,4 +1,5 @@
 import type {
+  DelegationResponse,
   AuthenticatedUserStorageServiceCreateDelegationAction,
   AuthenticatedUserStorageServiceListDelegationsAction,
 } from '@metamask/authenticated-user-storage';
@@ -236,11 +237,14 @@ export class SubscriptionDelegationService {
    * that accepts `'cash-subscription'` intent metadata.
    *
    * @param request - Authoritative pricing and payer details for the delegation.
+   * @param forceNew - Whether to create a replacement instead of reusing a
+   * matching stored delegation.
    * @returns The delegation hash (CHOMP-verified unless skipped) and whether it
    * was created or reused.
    */
   async prepareDelegation(
     request: PrepareSubscriptionDelegationRequest,
+    forceNew = false,
   ): Promise<PreparedSubscriptionDelegation> {
     if (request.product !== PRODUCT_TYPES.MONEY_ACCOUNT_PLUS) {
       throw new Error(
@@ -283,22 +287,19 @@ export class SubscriptionDelegationService {
     });
     const isTrialDeferred = startDate > nowSeconds;
 
-    const matches = makeMatchesSubscriptionDelegation({
-      delegatorAddress: request.payerAddress,
-      delegateAddress,
-      chainId,
-      tokenAddress: token.address,
-      periodAmount,
-      periodDuration,
-      nowSeconds,
-      isTrialDeferred,
-      enforcers,
-    });
-
-    const existingDelegations = await this.#messenger.call(
-      'AuthenticatedUserStorageService:listDelegations',
-    );
-    const reusable = existingDelegations.find(matches);
+    const reusable = forceNew
+      ? undefined
+      : await this.#findReusableDelegation({
+          request,
+          chainId,
+          delegateAddress,
+          tokenAddress: token.address,
+          periodAmount,
+          periodDuration,
+          nowSeconds,
+          isTrialDeferred,
+          enforcers,
+        });
     if (reusable) {
       if (!skipChomp) {
         await this.#ensureIntent({
@@ -400,6 +401,46 @@ export class SubscriptionDelegationService {
       delegationHash,
       disposition: 'created',
     };
+  }
+
+  async #findReusableDelegation({
+    request,
+    chainId,
+    delegateAddress,
+    tokenAddress,
+    periodAmount,
+    periodDuration,
+    nowSeconds,
+    isTrialDeferred,
+    enforcers,
+  }: {
+    request: PrepareSubscriptionDelegationRequest;
+    chainId: Hex;
+    delegateAddress: Hex;
+    tokenAddress: Hex;
+    periodAmount: bigint;
+    periodDuration: number;
+    nowSeconds: number;
+    isTrialDeferred: boolean;
+    enforcers: SubscriptionDelegationEnforcers;
+  }): Promise<DelegationResponse | undefined> {
+    const matches = makeMatchesSubscriptionDelegation({
+      delegatorAddress: request.payerAddress,
+      delegateAddress,
+      chainId,
+      tokenAddress,
+      periodAmount,
+      periodDuration,
+      nowSeconds,
+      isTrialDeferred,
+      enforcers,
+    });
+
+    const existingDelegations = await this.#messenger.call(
+      'AuthenticatedUserStorageService:listDelegations',
+    );
+
+    return existingDelegations.find(matches);
   }
 
   async #resolveConfiguration(

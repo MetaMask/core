@@ -60,9 +60,7 @@ const CancelTypeStruct = enums(Object.values(CANCEL_TYPES));
 const CryptoPaymentMethodErrorStruct = enums(
   Object.values(CRYPTO_PAYMENT_METHOD_ERRORS),
 );
-const CryptoPaymentErrorStruct = enums(
-  Object.values(CRYPTO_PAYMENT_ERRORS),
-);
+const CryptoPaymentErrorStruct = enums(Object.values(CRYPTO_PAYMENT_ERRORS));
 
 const ProductStruct = type({
   name: ProductTypeStruct,

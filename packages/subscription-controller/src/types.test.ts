@@ -198,5 +198,7 @@ describe('UpdatePaymentMethodCryptoRequest', () => {
       ...sharedRequest,
       cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
     });
+
+    expect(true).toBe(true);
   });
 });

@@ -681,7 +681,9 @@ describe('SubscriptionService', () => {
           }),
         );
 
-        await expect(service.getSubscriptions()).resolves.toMatchObject({
+        const result = await service.getSubscriptions();
+
+        expect(result).toMatchObject({
           subscriptions: [
             expect.objectContaining({
               paymentMethod: expect.objectContaining({

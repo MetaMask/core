@@ -1100,6 +1100,145 @@ describe('SubscriptionController', () => {
       );
     });
 
+    it.each([
+      {
+        name: 'created',
+        currentSubscriptions: [],
+        nextSubscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+      },
+      {
+        name: 'payment failed while status remains active',
+        currentSubscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+        nextSubscriptions: [
+          {
+            ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+            lastInvoice: {
+              id: 'in_payment_failed',
+              status: 'FAILED',
+              errorCode: 'internal_server_error',
+              updatedAt: '2026-09-20T12:00:00.000Z',
+            },
+          },
+        ],
+      },
+      {
+        name: 'renewal needed',
+        currentSubscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+        nextSubscriptions: [
+          {
+            ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+            lastInvoice: {
+              id: 'in_renewal_needed',
+              status: 'FAILED',
+              errorCode: 'delegation_not_found',
+              updatedAt: '2026-09-20T12:00:00.000Z',
+            },
+          },
+        ],
+      },
+      {
+        name: 'delegation exhausted',
+        currentSubscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+        nextSubscriptions: [
+          {
+            ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+            lastInvoice: {
+              id: 'in_exhausted',
+              status: 'FAILED',
+              errorCode: 'exceeds_delegation_allowance',
+              updatedAt: '2026-09-20T12:00:00.000Z',
+            },
+          },
+        ],
+      },
+      {
+        name: 'cancelled',
+        currentSubscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+        nextSubscriptions: [
+          {
+            ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+            status: SUBSCRIPTION_STATUSES.canceled,
+          },
+        ],
+      },
+      {
+        name: 'expired',
+        currentSubscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+        nextSubscriptions: [
+          {
+            ...MOCK_MONEY_ACCOUNT_SUBSCRIPTION,
+            status: SUBSCRIPTION_STATUSES.incompleteExpired,
+          },
+        ],
+      },
+    ])(
+      'refreshes the access token when a Money Account subscription is $name',
+      async ({ currentSubscriptions, nextSubscriptions }) => {
+        await withController(
+          {
+            state: {
+              subscriptions: currentSubscriptions,
+            },
+          },
+          async ({ rootMessenger, mockService, mockPerformSignOut }) => {
+            mockService.getSubscriptions.mockResolvedValue({
+              subscriptions: nextSubscriptions,
+              trialedProducts: [],
+            });
+
+            await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+            expect(mockPerformSignOut).toHaveBeenCalledTimes(1);
+          },
+        );
+      },
+    );
+
+    it('does not refresh the access token when the Money Account subscription is unchanged', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+          },
+        },
+        async ({ rootMessenger, mockService, mockPerformSignOut }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            subscriptions: [MOCK_MONEY_ACCOUNT_SUBSCRIPTION],
+            trialedProducts: [],
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(mockPerformSignOut).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('preserves Shield refresh behavior when Shield subscription state changes', async () => {
+      const cancelledShieldSubscription = {
+        ...MOCK_SUBSCRIPTION,
+        status: SUBSCRIPTION_STATUSES.canceled,
+      };
+
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+          },
+        },
+        async ({ rootMessenger, mockService, mockPerformSignOut }) => {
+          mockService.getSubscriptions.mockResolvedValue({
+            subscriptions: [cancelledShieldSubscription],
+            trialedProducts: [],
+          });
+
+          await rootMessenger.call('SubscriptionController:getSubscriptions');
+
+          expect(mockPerformSignOut).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
     it('should fetch and store subscription successfully', async () => {
       await withController(
         async ({ controller, rootMessenger, mockService }) => {

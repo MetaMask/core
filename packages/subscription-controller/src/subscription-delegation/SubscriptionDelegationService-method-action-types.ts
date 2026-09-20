@@ -33,6 +33,8 @@ export type SubscriptionDelegationServiceCheckMoneyAccountBalanceAction = {
  * that accepts `'cash-subscription'` intent metadata.
  *
  * @param request - Authoritative pricing and payer details for the delegation.
+ * @param forceNew - Whether to create a replacement instead of reusing a
+ * matching stored delegation.
  * @returns The delegation hash (CHOMP-verified unless skipped) and whether it
  * was created or reused.
  */

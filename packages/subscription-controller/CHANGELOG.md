@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exhaustion states by subscription product.
 - Add a typed delegation variant for rotating an active crypto subscription's
   payment method with a replacement delegation hash.
+- Add force-new delegation preparation for active subscription rotation while
+  preserving normal matching-delegation reuse.
 
 ## [9.1.0]
 

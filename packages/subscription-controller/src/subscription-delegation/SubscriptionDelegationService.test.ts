@@ -488,6 +488,46 @@ describe('SubscriptionDelegationService', () => {
       expect(mocks.createIntents).not.toHaveBeenCalled();
     });
 
+    it('creates and registers a replacement when forceNew is requested', async () => {
+      const stored = buildStoredDelegation();
+      const { service, mocks } = setup({
+        listDelegations: [stored],
+        intents: [
+          {
+            account: PAYER,
+            delegationHash: stored.metadata.delegationHash,
+            chainId: CHAIN_ID,
+            status: 'active',
+            metadata: stored.metadata,
+          },
+        ],
+      });
+
+      const result = await service.prepareDelegation(
+        {
+          ...REQUEST,
+        },
+        true,
+      );
+
+      expect(result.disposition).toBe('created');
+      expect(result.delegationHash).not.toBe(stored.metadata.delegationHash);
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+      expect(mocks.verifyDelegation).toHaveBeenCalledTimes(1);
+      expect(mocks.createDelegation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            delegationHash: result.delegationHash,
+          }),
+        }),
+      );
+      expect(mocks.createIntents).toHaveBeenCalledWith([
+        expect.objectContaining({
+          delegationHash: result.delegationHash,
+        }),
+      ]);
+    });
+
     it('reuses a matching delegation and registers an intent when missing', async () => {
       const stored = buildStoredDelegation();
       const { service, mocks } = setup({
