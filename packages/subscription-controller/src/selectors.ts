@@ -116,7 +116,7 @@ export function selectIsPaymentFailed(
 
   return Boolean(
     subscription?.paymentMethod.type === PAYMENT_TYPES.byCrypto &&
-      subscription.lastInvoice?.status === 'FAILED',
+    subscription.lastInvoice?.status === 'FAILED',
   );
 }
 
