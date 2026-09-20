@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `RampsActivityService` for validated, profile-scoped ramps activity notifications over `BackendWebSocketService` (`ramps-activity.v1.<profileId>`)
+- Add `RampsActivityService` for validated, profile-scoped ramps activity notifications over `BackendWebSocketService` (`ramps-activity.v1.<profileId>`) ([#10304](https://github.com/MetaMask/core/pull/10304))
 
 ### Changed
 
