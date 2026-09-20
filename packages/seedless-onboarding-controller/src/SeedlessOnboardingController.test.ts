@@ -5275,6 +5275,45 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('unlocks the Seedless vault without re-running password sync when LOCAL_PASSWORD_PENDING', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+            passwordChangePhase:
+              SeedlessPasswordChangePhase.LocalKeyringPending,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await newUserSetup(
+            toprfClient,
+            controller,
+            baseMessenger,
+            NEW_PASSWORD,
+          );
+          await controller.setLocked();
+
+          const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
+          const recoverPwEncKeySpy = jest.spyOn(toprfClient, 'recoverPwEncKey');
+
+          const result = await controller.reconcilePassword({
+            globalPassword: NEW_PASSWORD,
+          });
+
+          expect(result).toBe(PasswordSyncInstruction.ReconcileKeyring);
+          expect(recoverEncKeySpy).not.toHaveBeenCalled();
+          expect(recoverPwEncKeySpy).not.toHaveBeenCalled();
+          expect(getLifecyclePhase(controller.state)).toBe(
+            SeedlessPasswordChangePhase.LocalKeyringPending,
+          );
+          expect(await controller.loadKeyringEncryptionKey()).toBe(
+            MOCK_KEYRING_ENCRYPTION_KEY,
+          );
+        },
+      );
+    });
+
     it('returns sync-key when the phase is KEY_SYNC_PENDING', async () => {
       await withController(
         {
@@ -5284,11 +5323,27 @@ describe('SeedlessOnboardingController', () => {
             passwordChangePhase: SeedlessPasswordChangePhase.KeySyncPending,
           }),
         },
-        async ({ controller }) => {
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await newUserSetup(
+            toprfClient,
+            controller,
+            baseMessenger,
+            NEW_PASSWORD,
+          );
+          await controller.setLocked();
+
+          const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
+          const recoverPwEncKeySpy = jest.spyOn(toprfClient, 'recoverPwEncKey');
+
           const result = await controller.reconcilePassword({
             globalPassword: NEW_PASSWORD,
           });
           expect(result).toBe(PasswordSyncInstruction.SyncKey);
+          expect(recoverEncKeySpy).not.toHaveBeenCalled();
+          expect(recoverPwEncKeySpy).not.toHaveBeenCalled();
+          expect(await controller.loadKeyringEncryptionKey()).toBe(
+            MOCK_KEYRING_ENCRYPTION_KEY,
+          );
         },
       );
     });
@@ -5620,7 +5675,6 @@ describe('SeedlessOnboardingController', () => {
               globalPassword: NEW_PASSWORD,
             }),
           ).toBe(PasswordSyncInstruction.ReconcileKeyring);
-          await controller.submitPassword(NEW_PASSWORD);
           expect(await controller.loadKeyringEncryptionKey()).toBe(
             MOCK_KEYRING_ENCRYPTION_KEY,
           );

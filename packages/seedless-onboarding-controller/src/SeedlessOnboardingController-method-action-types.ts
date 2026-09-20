@@ -283,12 +283,16 @@ export type SeedlessOnboardingControllerResolvePasswordSyncStateAction = {
 /**
  * Reconcile the local Seedless password with the remote password.
  *
- * For `LOCAL_STATE_PENDING` or `LOCAL_PASSWORD_PENDING` it re-runs the
- * existing password-sync flow (chain unlock + local vault rewrite) with the
- * new password and advances the checkpoint to `LOCAL_PASSWORD_PENDING`.
- * These operations are idempotent, so re-running them is safe whether or not
- * the local Seedless vault was already rewritten. The controller is left
- * unlocked.
+ * For `LOCAL_STATE_PENDING` it re-runs the existing password-sync flow
+ * (chain unlock + local vault rewrite) with the new password and advances
+ * the checkpoint to `LOCAL_PASSWORD_PENDING`. These operations are
+ * idempotent, so re-running them is safe whether or not the local Seedless
+ * vault was already rewritten. The controller is left unlocked.
+ *
+ * For `LOCAL_PASSWORD_PENDING` or `KEY_SYNC_PENDING` the local Seedless vault
+ * is already rewritten. The method unlocks it with the supplied password so
+ * `loadKeyringEncryptionKey` and `storeKeyringEncryptionKey` work after a
+ * restart, without repeating remote TOPRF recovery or a vault rewrite.
  *
  * For no checkpoint (`undefined`) it re-checks whether the remote password is
  * outdated. If it is, it runs the same password-sync flow, advances to
