@@ -231,7 +231,11 @@ function validateVerifyingContract({
   origin: string | undefined;
 }) {
   const verifyingContract = data?.domain?.verifyingContract;
-  const isExternal = origin && origin !== ORIGIN_METAMASK;
+  // A missing or empty origin must never be treated as internal: only an
+  // explicit MetaMask origin is trusted, everything else (including absent
+  // origins on dApp-routed requests) is external and subject to the stricter
+  // checks below.
+  const isExternal = origin !== ORIGIN_METAMASK;
 
   if (
     verifyingContract &&
@@ -274,7 +278,9 @@ function validateDelegation({
 
   const hasDecodedPermission = decodedPermission !== undefined;
   if (!hasDecodedPermission) {
-    const isOriginExternal = origin && origin !== ORIGIN_METAMASK;
+    // Same fail-closed origin rule as above: only an explicit MetaMask
+    // origin counts as internal.
+    const isOriginExternal = origin !== ORIGIN_METAMASK;
 
     const delegatorAddressLowercase = (
       (data.message as Record<string, Json>)?.[DELEGATOR_FIELD] as Hex
