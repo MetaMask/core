@@ -63,27 +63,27 @@ export type {
 } from './types.js';
 
 // ============================================================================
-// AUTORAMP ACTIVITY SERVICE
+// RAMPS ACTIVITY SERVICE
 // ============================================================================
 
 export {
-  AutorampActivityService,
-  AUTORAMP_ACTIVITY_CATEGORIES,
-  AUTORAMP_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
-  AUTORAMP_ACTIVITY_SERVICE_ALLOWED_EVENTS,
-} from './ws/AutorampActivityService.js';
+  RampsActivityService,
+  RAMPS_ACTIVITY_CATEGORIES,
+  RAMPS_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
+  RAMPS_ACTIVITY_SERVICE_ALLOWED_EVENTS,
+} from './ws/RampsActivityService.js';
 
 export type {
-  AutorampActivityCategory,
-  AutorampActivityEntity,
-  AutorampActivityEvent,
-  AutorampActivityServiceOptions,
-  AutorampActivityServiceActions,
-  AutorampActivityServiceEventReceivedEvent,
-  AutorampActivityServiceStatusChangedEvent,
-  AutorampActivityServiceEvents,
-  AutorampActivityServiceMessenger,
-} from './ws/AutorampActivityService.js';
+  RampsActivityCategory,
+  RampsActivityEntity,
+  RampsActivityEvent,
+  RampsActivityServiceOptions,
+  RampsActivityServiceActions,
+  RampsActivityServiceEventReceivedEvent,
+  RampsActivityServiceStatusChangedEvent,
+  RampsActivityServiceEvents,
+  RampsActivityServiceMessenger,
+} from './ws/RampsActivityService.js';
 
 // ============================================================================
 // API PLATFORM CLIENT SERVICE

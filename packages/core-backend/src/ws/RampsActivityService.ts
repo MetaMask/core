@@ -11,13 +11,13 @@ import type {
 } from './BackendWebSocketService.js';
 import { WebSocketState } from './BackendWebSocketService.js';
 
-const SERVICE_NAME = 'AutorampActivityService';
-const SUBSCRIPTION_NAMESPACE = 'autoramp-activity.v1';
+const SERVICE_NAME = 'RampsActivityService';
+const SUBSCRIPTION_NAMESPACE = 'ramps-activity.v1';
 const MESSENGER_EXPOSED_METHODS = [] as const;
 
 const log = createModuleLogger(projectLogger, SERVICE_NAME);
 
-export const AUTORAMP_ACTIVITY_CATEGORIES = [
+export const RAMPS_ACTIVITY_CATEGORIES = [
   'customer',
   'autoramp',
   'transaction',
@@ -26,10 +26,10 @@ export const AUTORAMP_ACTIVITY_CATEGORIES = [
   'unknown',
 ] as const;
 
-export type AutorampActivityCategory =
-  (typeof AUTORAMP_ACTIVITY_CATEGORIES)[number];
+export type RampsActivityCategory =
+  (typeof RAMPS_ACTIVITY_CATEGORIES)[number];
 
-export type AutorampActivityEntity = {
+export type RampsActivityEntity = {
   id: string;
   kind?: string;
   status?: string;
@@ -37,22 +37,22 @@ export type AutorampActivityEntity = {
   transactionHash?: string;
 };
 
-export type AutorampActivityEvent = {
+export type RampsActivityEvent = {
   eventId: string;
   type: string;
-  category: AutorampActivityCategory;
+  category: RampsActivityCategory;
   occurredAt: string;
-  entity: AutorampActivityEntity | null;
+  entity: RampsActivityEntity | null;
   needsFetch: boolean;
 };
 
-export type AutorampActivityServiceOptions = {
-  messenger: AutorampActivityServiceMessenger;
+export type RampsActivityServiceOptions = {
+  messenger: RampsActivityServiceMessenger;
 };
 
-export type AutorampActivityServiceActions = never;
+export type RampsActivityServiceActions = never;
 
-export const AUTORAMP_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
+export const RAMPS_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'AuthenticationController:getSessionProfile',
   'BackendWebSocketService:connect',
   'BackendWebSocketService:subscribe',
@@ -61,41 +61,41 @@ export const AUTORAMP_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'BackendWebSocketService:findSubscriptionsByChannelPrefix',
 ] as const;
 
-export const AUTORAMP_ACTIVITY_SERVICE_ALLOWED_EVENTS = [
+export const RAMPS_ACTIVITY_SERVICE_ALLOWED_EVENTS = [
   'AuthenticationController:stateChange',
   'AuthenticationController:profileSignIn',
   'BackendWebSocketService:connectionStateChanged',
   'KeyringController:unlock',
 ] as const;
 
-export type AutorampActivityServiceAllowedActions =
+export type RampsActivityServiceAllowedActions =
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
   | BackendWebSocketServiceMethodActions;
 
-export type AutorampActivityServiceEventReceivedEvent = {
-  type: 'AutorampActivityService:eventReceived';
-  payload: [AutorampActivityEvent];
+export type RampsActivityServiceEventReceivedEvent = {
+  type: 'RampsActivityService:eventReceived';
+  payload: [RampsActivityEvent];
 };
 
-export type AutorampActivityServiceStatusChangedEvent = {
-  type: 'AutorampActivityService:statusChanged';
+export type RampsActivityServiceStatusChangedEvent = {
+  type: 'RampsActivityService:statusChanged';
   payload: [{ status: WebSocketState }];
 };
 
-export type AutorampActivityServiceEvents =
-  | AutorampActivityServiceEventReceivedEvent
-  | AutorampActivityServiceStatusChangedEvent;
+export type RampsActivityServiceEvents =
+  | RampsActivityServiceEventReceivedEvent
+  | RampsActivityServiceStatusChangedEvent;
 
-export type AutorampActivityServiceAllowedEvents =
+export type RampsActivityServiceAllowedEvents =
   | AuthenticationController.AuthenticationControllerStateChangeEvent
   | AuthenticationController.AuthenticationControllerProfileSignInEvent
   | BackendWebSocketServiceConnectionStateChangedEvent
   | KeyringControllerUnlockEvent;
 
-export type AutorampActivityServiceMessenger = Messenger<
+export type RampsActivityServiceMessenger = Messenger<
   typeof SERVICE_NAME,
-  AutorampActivityServiceActions | AutorampActivityServiceAllowedActions,
-  AutorampActivityServiceEvents | AutorampActivityServiceAllowedEvents
+  RampsActivityServiceActions | RampsActivityServiceAllowedActions,
+  RampsActivityServiceEvents | RampsActivityServiceAllowedEvents
 >;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -117,7 +117,7 @@ const getOptionalString = (
   return typeof property === 'string' ? property : false;
 };
 
-const parseEntity = (value: unknown): AutorampActivityEntity | null | false => {
+const parseEntity = (value: unknown): RampsActivityEntity | null | false => {
   if (value === null) {
     return null;
   }
@@ -147,15 +147,15 @@ const parseEntity = (value: unknown): AutorampActivityEntity | null | false => {
   };
 };
 
-const parseAutorampActivityEvent = (
+const parseRampsActivityEvent = (
   value: unknown,
-): AutorampActivityEvent | undefined => {
+): RampsActivityEvent | undefined => {
   if (
     !isRecord(value) ||
     typeof value.eventId !== 'string' ||
     typeof value.type !== 'string' ||
-    !AUTORAMP_ACTIVITY_CATEGORIES.includes(
-      value.category as AutorampActivityCategory,
+    !RAMPS_ACTIVITY_CATEGORIES.includes(
+      value.category as RampsActivityCategory,
     ) ||
     typeof value.occurredAt !== 'string' ||
     typeof value.needsFetch !== 'boolean' ||
@@ -174,7 +174,7 @@ const parseAutorampActivityEvent = (
   return {
     eventId: value.eventId,
     type: value.type,
-    category: value.category as AutorampActivityCategory,
+    category: value.category as RampsActivityCategory,
     occurredAt: value.occurredAt,
     entity,
     needsFetch: value.needsFetch,
@@ -182,18 +182,18 @@ const parseAutorampActivityEvent = (
 };
 
 /**
- * Subscribes to profile-scoped Autoramp activity through
+ * Subscribes to profile-scoped ramps activity through
  * {@link BackendWebSocketService}. The service owns no domain state; it only
  * tracks its subscription lifecycle and publishes validated notifications.
  */
-export class AutorampActivityService {
+export class RampsActivityService {
   readonly name = SERVICE_NAME;
 
-  readonly #messenger: AutorampActivityServiceMessenger;
+  readonly #messenger: RampsActivityServiceMessenger;
 
   #isDestroyed = false;
 
-  constructor({ messenger }: AutorampActivityServiceOptions) {
+  constructor({ messenger }: RampsActivityServiceOptions) {
     this.#messenger = messenger;
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -242,7 +242,7 @@ export class AutorampActivityService {
       return;
     }
 
-    this.#messenger.publish('AutorampActivityService:statusChanged', {
+    this.#messenger.publish('RampsActivityService:statusChanged', {
       status: connectionInfo.state,
     });
 
@@ -311,7 +311,7 @@ export class AutorampActivityService {
           this.#handleNotification(notification),
       });
     } catch (error) {
-      log('Unable to subscribe to Autoramp activity', { error });
+      log('Unable to subscribe to ramps activity', { error });
     }
   }
 
@@ -331,15 +331,15 @@ export class AutorampActivityService {
   }
 
   #handleNotification(notification: ServerNotificationMessage): void {
-    const event = parseAutorampActivityEvent(notification.data);
+    const event = parseRampsActivityEvent(notification.data);
     if (!event) {
-      log('Ignoring malformed Autoramp activity event', {
+      log('Ignoring malformed ramps activity event', {
         channel: notification.channel,
       });
       return;
     }
 
-    this.#messenger.publish('AutorampActivityService:eventReceived', event);
+    this.#messenger.publish('RampsActivityService:eventReceived', event);
   }
 
   async #unsubscribeAll(): Promise<void> {
@@ -354,7 +354,7 @@ export class AutorampActivityService {
   }
 
   /**
-   * Stop future subscriptions and remove all active Autoramp subscriptions.
+   * Stop future subscriptions and remove all active ramps subscriptions.
    */
   async destroy(): Promise<void> {
     this.#isDestroyed = true;

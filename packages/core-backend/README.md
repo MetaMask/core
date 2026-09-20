@@ -38,7 +38,7 @@ Core backend services for MetaMask, serving as the data layer between Backend se
       - [Constructor Options](#constructor-options-1)
       - [Methods](#methods-1)
       - [Events Published](#events-published)
-    - [AutorampActivityService](#autorampactivityservice)
+    - [RampsActivityService](#rampsactivityservice)
 
 ## Installation
 
@@ -657,11 +657,11 @@ interface AccountActivityServiceOptions {
 - `AccountActivityService:transactionUpdated` - Transaction status updates
 - `AccountActivityService:statusChanged` - Chain/service status changes
 
-### AutorampActivityService
+### RampsActivityService
 
-Profile-scoped service for receiving Autoramp activity notifications through
+Profile-scoped service for receiving ramps activity notifications through
 `BackendWebSocketService`. It derives the
-`autoramp-activity.v1.<profileId>` channel from
+`ramps-activity.v1.<profileId>` channel from
 `AuthenticationController:getSessionProfile`, preferring
 `canonicalProfileId` (the same identity Ramps uses as MoonPay `external_id`)
 and falling back to the per-SRP `profileId`. It validates every server event at
@@ -669,20 +669,20 @@ runtime, and automatically resubscribes after WebSocket reconnects, profile
 changes, and wallet unlocks.
 
 ```typescript
-const autorampActivityService = new AutorampActivityService({
-  messenger: autorampActivityServiceMessenger,
+const rampsActivityService = new RampsActivityService({
+  messenger: rampsActivityServiceMessenger,
 });
 
-await autorampActivityService.init();
+await rampsActivityService.init();
 
-messenger.subscribe('AutorampActivityService:eventReceived', (event) => {
+messenger.subscribe('RampsActivityService:eventReceived', (event) => {
   if (event.needsFetch) {
-    // Refresh Autoramp data using the owning HTTP service.
+    // Refresh ramps data via RampsController (GET is source of truth).
   }
 });
 ```
 
 Published events:
 
-- `AutorampActivityService:eventReceived` - A validated profile activity event
-- `AutorampActivityService:statusChanged` - The backend WebSocket connection status
+- `RampsActivityService:eventReceived` - A validated profile-scoped ramps activity event
+- `RampsActivityService:statusChanged` - The backend WebSocket connection status

@@ -8,16 +8,16 @@ import type {
 
 import { flushPromises } from '../../../../tests/helpers.js';
 import {
-  AutorampActivityService,
-  AUTORAMP_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
-  AUTORAMP_ACTIVITY_SERVICE_ALLOWED_EVENTS,
-} from './AutorampActivityService.js';
-import type { AutorampActivityServiceMessenger } from './AutorampActivityService.js';
+  RampsActivityService,
+  RAMPS_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
+  RAMPS_ACTIVITY_SERVICE_ALLOWED_EVENTS,
+} from './RampsActivityService.js';
+import type { RampsActivityServiceMessenger } from './RampsActivityService.js';
 import type { ServerNotificationMessage } from './BackendWebSocketService.js';
 import { WebSocketState } from './BackendWebSocketService.js';
 
-type AllActions = MessengerActions<AutorampActivityServiceMessenger>;
-type AllEvents = MessengerEvents<AutorampActivityServiceMessenger>;
+type AllActions = MessengerActions<RampsActivityServiceMessenger>;
+type AllEvents = MessengerEvents<RampsActivityServiceMessenger>;
 type RootMessenger = Messenger<
   MockAnyNamespace,
   AllActions,
@@ -63,8 +63,8 @@ const completeAsyncOperations = async (): Promise<void> => {
 };
 
 type ServiceSetup = {
-  service: AutorampActivityService;
-  messenger: AutorampActivityServiceMessenger;
+  service: RampsActivityService;
+  messenger: RampsActivityServiceMessenger;
   rootMessenger: RootMessenger;
   mocks: {
     getSessionProfile: jest.Mock;
@@ -80,15 +80,15 @@ const setupService = (profile = PROFILE): ServiceSetup => {
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
-  const messenger: AutorampActivityServiceMessenger = new Messenger({
-    namespace: 'AutorampActivityService',
+  const messenger: RampsActivityServiceMessenger = new Messenger({
+    namespace: 'RampsActivityService',
     parent: rootMessenger,
   });
 
   rootMessenger.delegate({
     messenger,
-    actions: [...AUTORAMP_ACTIVITY_SERVICE_ALLOWED_ACTIONS],
-    events: [...AUTORAMP_ACTIVITY_SERVICE_ALLOWED_EVENTS],
+    actions: [...RAMPS_ACTIVITY_SERVICE_ALLOWED_ACTIONS],
+    events: [...RAMPS_ACTIVITY_SERVICE_ALLOWED_EVENTS],
   });
 
   const getSessionProfile = jest.fn().mockResolvedValue(profile);
@@ -123,7 +123,7 @@ const setupService = (profile = PROFILE): ServiceSetup => {
     findSubscriptionsByChannelPrefix,
   );
 
-  const service = new AutorampActivityService({ messenger });
+  const service = new RampsActivityService({ messenger });
 
   return {
     service,
@@ -145,7 +145,7 @@ const getSubscriptionCallback = (
 ): ((notification: ServerNotificationMessage) => void) =>
   subscribe.mock.calls.at(-1)[0].callback;
 
-describe('AutorampActivityService', () => {
+describe('RampsActivityService', () => {
   it('derives the channel from the session profile', async () => {
     const { service, mocks } = setupService();
 
@@ -154,8 +154,8 @@ describe('AutorampActivityService', () => {
     expect(mocks.connect).toHaveBeenCalledTimes(1);
     expect(mocks.getSessionProfile).toHaveBeenCalledTimes(1);
     expect(mocks.subscribe).toHaveBeenCalledWith({
-      channels: ['autoramp-activity.v1.canonical-profile-id'],
-      channelType: 'autoramp-activity.v1',
+      channels: ['ramps-activity.v1.canonical-profile-id'],
+      channelType: 'ramps-activity.v1',
       callback: expect.any(Function),
     });
   });
@@ -172,12 +172,12 @@ describe('AutorampActivityService', () => {
   it('publishes validated events without unsupported fields', async () => {
     const { service, messenger, mocks } = setupService();
     const listener = jest.fn();
-    messenger.subscribe('AutorampActivityService:eventReceived', listener);
+    messenger.subscribe('RampsActivityService:eventReceived', listener);
     await service.init();
 
     getSubscriptionCallback(mocks.subscribe)({
       event: 'notification',
-      channel: 'autoramp-activity.v1.canonical-profile-id',
+      channel: 'ramps-activity.v1.canonical-profile-id',
       data: { ...VALID_EVENT, ignored: 'field' },
       timestamp: Date.now(),
     } as ServerNotificationMessage);
@@ -196,12 +196,12 @@ describe('AutorampActivityService', () => {
   ])('ignores malformed event data %#', async (data) => {
     const { service, messenger, mocks } = setupService();
     const listener = jest.fn();
-    messenger.subscribe('AutorampActivityService:eventReceived', listener);
+    messenger.subscribe('RampsActivityService:eventReceived', listener);
     await service.init();
 
     getSubscriptionCallback(mocks.subscribe)({
       event: 'notification',
-      channel: 'autoramp-activity.v1.canonical-profile-id',
+      channel: 'ramps-activity.v1.canonical-profile-id',
       data,
       timestamp: Date.now(),
     } as unknown as ServerNotificationMessage);
@@ -212,12 +212,12 @@ describe('AutorampActivityService', () => {
   it('accepts a null entity', async () => {
     const { service, messenger, mocks } = setupService();
     const listener = jest.fn();
-    messenger.subscribe('AutorampActivityService:eventReceived', listener);
+    messenger.subscribe('RampsActivityService:eventReceived', listener);
     await service.init();
 
     getSubscriptionCallback(mocks.subscribe)({
       event: 'notification',
-      channel: 'autoramp-activity.v1.canonical-profile-id',
+      channel: 'ramps-activity.v1.canonical-profile-id',
       data: { ...VALID_EVENT, entity: null },
       timestamp: Date.now(),
     } as ServerNotificationMessage);
@@ -238,7 +238,7 @@ describe('AutorampActivityService', () => {
 
     expect(mocks.subscribe).toHaveBeenCalledWith(
       expect.objectContaining({
-        channels: ['autoramp-activity.v1.canonical-profile-id'],
+        channels: ['ramps-activity.v1.canonical-profile-id'],
       }),
     );
   });
@@ -263,7 +263,7 @@ describe('AutorampActivityService', () => {
     expect(unsubscribe).toHaveBeenCalledTimes(1);
     expect(mocks.subscribe).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        channels: ['autoramp-activity.v1.new-canonical-profile-id'],
+        channels: ['ramps-activity.v1.new-canonical-profile-id'],
       }),
     );
   });
@@ -276,7 +276,7 @@ describe('AutorampActivityService', () => {
 
     expect(mocks.subscribe).toHaveBeenCalledWith(
       expect.objectContaining({
-        channels: ['autoramp-activity.v1.canonical-profile-id'],
+        channels: ['ramps-activity.v1.canonical-profile-id'],
       }),
     );
   });
@@ -289,7 +289,7 @@ describe('AutorampActivityService', () => {
     await service.destroy();
 
     expect(mocks.findSubscriptionsByChannelPrefix).toHaveBeenCalledWith(
-      'autoramp-activity.v1',
+      'ramps-activity.v1',
     );
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
@@ -297,7 +297,7 @@ describe('AutorampActivityService', () => {
   it('publishes connection status changes', async () => {
     const { messenger, rootMessenger } = setupService();
     const listener = jest.fn();
-    messenger.subscribe('AutorampActivityService:statusChanged', listener);
+    messenger.subscribe('RampsActivityService:statusChanged', listener);
 
     rootMessenger.publish('BackendWebSocketService:connectionStateChanged', {
       ...CONNECTION_INFO,
@@ -336,7 +336,7 @@ describe('AutorampActivityService', () => {
 
     expect(mocks.subscribe).toHaveBeenCalledWith(
       expect.objectContaining({
-        channels: ['autoramp-activity.v1.profile-id'],
+        channels: ['ramps-activity.v1.profile-id'],
       }),
     );
   });
