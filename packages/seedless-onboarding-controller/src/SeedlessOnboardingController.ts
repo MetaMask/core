@@ -2491,8 +2491,9 @@ export class SeedlessOnboardingController<
       const checkpoint = seedlessOperationLifecycle?.checkpoint;
 
       if (!checkpoint || checkpoint === SeedlessOnboardingCheckpoint.RemotePasswordPending) {
+        const shouldSkipCache = checkpoint === SeedlessOnboardingCheckpoint.RemotePasswordPending ? true : options?.skipCache;
         const outdated = await this.#checkIsPasswordOutdated({
-          skipCache: options?.skipCache,
+          skipCache: shouldSkipCache,
         });
         if (outdated) {
           // The current is not in sync with latest remote password.
