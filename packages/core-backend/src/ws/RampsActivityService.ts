@@ -17,17 +17,6 @@ const MESSENGER_EXPOSED_METHODS = [] as const;
 
 const log = createModuleLogger(projectLogger, SERVICE_NAME);
 
-export const RAMPS_ACTIVITY_CATEGORIES = [
-  'customer',
-  'autoramp',
-  'transaction',
-  'identification',
-  'fiat_address',
-  'unknown',
-] as const;
-
-export type RampsActivityCategory = (typeof RAMPS_ACTIVITY_CATEGORIES)[number];
-
 export type RampsActivityEntity = {
   id: string;
   kind?: string;
@@ -39,7 +28,7 @@ export type RampsActivityEntity = {
 export type RampsActivityEvent = {
   eventId: string;
   type: string;
-  category: RampsActivityCategory;
+  category: string;
   occurredAt: string;
   entity: RampsActivityEntity | null;
   needsFetch: boolean;
@@ -153,9 +142,8 @@ const parseRampsActivityEvent = (
     !isRecord(value) ||
     typeof value.eventId !== 'string' ||
     typeof value.type !== 'string' ||
-    !RAMPS_ACTIVITY_CATEGORIES.includes(
-      value.category as RampsActivityCategory,
-    ) ||
+    typeof value.category !== 'string' ||
+    value.category.length === 0 ||
     typeof value.occurredAt !== 'string' ||
     typeof value.needsFetch !== 'boolean' ||
     getHasOwnProperty(value, 'payload') ||
@@ -173,7 +161,7 @@ const parseRampsActivityEvent = (
   return {
     eventId: value.eventId,
     type: value.type,
-    category: value.category as RampsActivityCategory,
+    category: value.category,
     occurredAt: value.occurredAt,
     entity,
     needsFetch: value.needsFetch,

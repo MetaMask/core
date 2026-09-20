@@ -68,13 +68,11 @@ export type {
 
 export {
   RampsActivityService,
-  RAMPS_ACTIVITY_CATEGORIES,
   RAMPS_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
   RAMPS_ACTIVITY_SERVICE_ALLOWED_EVENTS,
 } from './ws/RampsActivityService.js';
 
 export type {
-  RampsActivityCategory,
   RampsActivityEntity,
   RampsActivityEvent,
   RampsActivityServiceOptions,

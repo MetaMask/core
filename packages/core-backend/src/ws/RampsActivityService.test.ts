@@ -187,7 +187,8 @@ describe('RampsActivityService', () => {
 
   it.each([
     { ...VALID_EVENT, eventId: 1 },
-    { ...VALID_EVENT, category: 'invalid' },
+    { ...VALID_EVENT, category: 1 },
+    { ...VALID_EVENT, category: '' },
     { ...VALID_EVENT, entity: [] },
     { ...VALID_EVENT, entity: { status: 'missing-id' } },
     { ...VALID_EVENT, entity: { id: 'id', kind: 1 } },
@@ -212,6 +213,23 @@ describe('RampsActivityService', () => {
     } as unknown as ServerNotificationMessage);
 
     expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('accepts future ramps categories without a Core release', async () => {
+    const { service, messenger, mocks } = setupService();
+    const listener = jest.fn();
+    messenger.subscribe('RampsActivityService:eventReceived', listener);
+    await service.init();
+    const event = { ...VALID_EVENT, category: 'cex_deposit' };
+
+    getSubscriptionCallback(mocks.subscribe)({
+      event: 'notification',
+      channel: 'ramps-activity.v1.canonical-profile-id',
+      data: event,
+      timestamp: Date.now(),
+    } as ServerNotificationMessage);
+
+    expect(listener).toHaveBeenCalledWith(event);
   });
 
   it('accepts a null entity', async () => {
