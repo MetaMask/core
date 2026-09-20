@@ -188,7 +188,12 @@ describe('RampsActivityService', () => {
   it.each([
     { ...VALID_EVENT, eventId: 1 },
     { ...VALID_EVENT, category: 'invalid' },
+    { ...VALID_EVENT, entity: [] },
     { ...VALID_EVENT, entity: { status: 'missing-id' } },
+    { ...VALID_EVENT, entity: { id: 'id', kind: 1 } },
+    { ...VALID_EVENT, entity: { id: 'id', status: 1 } },
+    { ...VALID_EVENT, entity: { id: 'id', transactionStatus: 1 } },
+    { ...VALID_EVENT, entity: { id: 'id', transactionHash: 1 } },
     { ...VALID_EVENT, needsFetch: 'yes' },
     { ...VALID_EVENT, payload: {} },
     { ...VALID_EVENT, customerId: 'customer-id' },
@@ -223,6 +228,23 @@ describe('RampsActivityService', () => {
     } as ServerNotificationMessage);
 
     expect(listener).toHaveBeenCalledWith({ ...VALID_EVENT, entity: null });
+  });
+
+  it('accepts an entity with only its required id', async () => {
+    const { service, messenger, mocks } = setupService();
+    const listener = jest.fn();
+    messenger.subscribe('RampsActivityService:eventReceived', listener);
+    await service.init();
+    const event = { ...VALID_EVENT, entity: { id: 'entity-id' } };
+
+    getSubscriptionCallback(mocks.subscribe)({
+      event: 'notification',
+      channel: 'ramps-activity.v1.canonical-profile-id',
+      data: event,
+      timestamp: Date.now(),
+    } as ServerNotificationMessage);
+
+    expect(listener).toHaveBeenCalledWith(event);
   });
 
   it('resubscribes after reconnect', async () => {
@@ -381,6 +403,98 @@ describe('RampsActivityService', () => {
     await service.init();
 
     expect(mocks.subscribe).not.toHaveBeenCalled();
+  });
+
+  it('skips subscribe while the WebSocket is disconnected', async () => {
+    const { service, mocks } = setupService();
+    mocks.getConnectionInfo.mockReturnValue({
+      ...CONNECTION_INFO,
+      state: WebSocketState.DISCONNECTED,
+    });
+
+    await service.init();
+
+    expect(mocks.subscribe).not.toHaveBeenCalled();
+  });
+
+  it('skips subscribe when neither profile id is available', async () => {
+    const { service, mocks } = setupService({
+      ...PROFILE,
+      canonicalProfileId: '',
+      profileId: '',
+    });
+
+    await service.init();
+
+    expect(mocks.subscribe).not.toHaveBeenCalled();
+  });
+
+  it('does not subscribe when destroyed while resolving the profile', async () => {
+    const { service, mocks } = setupService();
+    let resolveProfile: ((profile: typeof PROFILE) => void) | undefined;
+    mocks.getSessionProfile.mockReturnValue(
+      new Promise<typeof PROFILE>((resolve) => {
+        resolveProfile = resolve;
+      }),
+    );
+
+    const initPromise = service.init();
+    await completeAsyncOperations();
+    await service.destroy();
+    resolveProfile?.(PROFILE);
+    await initPromise;
+
+    expect(mocks.subscribe).not.toHaveBeenCalled();
+  });
+
+  it('does not subscribe when destroyed while replacing a subscription', async () => {
+    const { service, mocks } = setupService();
+    let resolveFirstUnsubscribe: (() => void) | undefined;
+    const unsubscribe = jest
+      .fn()
+      .mockImplementationOnce(
+        async () =>
+          await new Promise<void>((resolve) => {
+            resolveFirstUnsubscribe = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    mocks.findSubscriptionsByChannelPrefix.mockReturnValue([{ unsubscribe }]);
+
+    const initPromise = service.init();
+    await completeAsyncOperations();
+    const destroyPromise = service.destroy();
+    resolveFirstUnsubscribe?.();
+    await Promise.all([initPromise, destroyPromise]);
+
+    expect(mocks.connect).not.toHaveBeenCalled();
+    expect(mocks.subscribe).not.toHaveBeenCalled();
+  });
+
+  it('does not subscribe when destroyed after checking the channel', async () => {
+    const { service, mocks } = setupService();
+    mocks.channelHasSubscription.mockImplementation(() => {
+      void service.destroy();
+      return false;
+    });
+
+    await service.init();
+
+    expect(mocks.subscribe).not.toHaveBeenCalled();
+  });
+
+  it('does not replace a subscription after destroy', async () => {
+    const { service, rootMessenger, mocks } = setupService();
+    await service.destroy();
+
+    rootMessenger.publish('AuthenticationController:profileSignIn', {
+      profileId: 'new-profile-id',
+      profileAliases: [],
+      profileIdChanged: true,
+    });
+    await completeAsyncOperations();
+
+    expect(mocks.connect).not.toHaveBeenCalled();
   });
 
   it('does not subscribe after destroy on reconnect', async () => {
