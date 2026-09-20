@@ -474,7 +474,7 @@ describe('RampsActivityService', () => {
   it('does not subscribe when destroyed after checking the channel', async () => {
     const { service, mocks } = setupService();
     mocks.channelHasSubscription.mockImplementation(() => {
-      void service.destroy();
+      service.destroy().catch(() => undefined);
       return false;
     });
 
