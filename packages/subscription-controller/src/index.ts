@@ -62,6 +62,7 @@ export type {
   SubscriptionCardPaymentMethod,
   SubscriptionCryptoPaymentMethod,
   SubscriptionPaymentMethod,
+  SubscriptionInvoice,
   SubmitUserEventRequest,
   SubmitSponsorshipIntentsRequest,
   SubscriptionEligibility,
@@ -86,6 +87,7 @@ export type {
   UpdatePaymentMethodOpts,
   BillingPortalResponse,
   CryptoPaymentMethodError,
+  CryptoPaymentError,
   UpdatePaymentMethodCryptoRequest,
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCardResponse,
@@ -107,6 +109,7 @@ export type {
 export {
   CANCEL_TYPES,
   CRYPTO_PAYMENT_METHOD_ERRORS,
+  CRYPTO_PAYMENT_ERRORS,
   SUBSCRIPTION_STATUSES,
   PRODUCT_TYPES,
   RECURRING_INTERVALS,

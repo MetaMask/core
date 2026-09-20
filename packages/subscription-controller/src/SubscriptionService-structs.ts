@@ -18,6 +18,7 @@ import { StrictHexStruct, CaipAccountIdStruct } from '@metamask/utils';
 import {
   CANCEL_TYPES,
   CRYPTO_AUTH_METHODS,
+  CRYPTO_PAYMENT_ERRORS,
   CRYPTO_PAYMENT_METHOD_ERRORS,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
@@ -59,6 +60,9 @@ const CancelTypeStruct = enums(Object.values(CANCEL_TYPES));
 const CryptoPaymentMethodErrorStruct = enums(
   Object.values(CRYPTO_PAYMENT_METHOD_ERRORS),
 );
+const CryptoPaymentErrorStruct = enums(
+  Object.values(CRYPTO_PAYMENT_ERRORS),
+);
 
 const ProductStruct = type({
   name: ProductTypeStruct,
@@ -94,8 +98,8 @@ const SubscriptionPaymentMethodStruct = union([
 export const SubscriptionStruct = type({
   id: string(),
   products: array(ProductStruct),
-  currentPeriodStart: string(),
-  currentPeriodEnd: string(),
+  currentPeriodStart: optional(string()),
+  currentPeriodEnd: optional(string()),
   cancelAtPeriodEnd: optional(boolean()),
   status: SubscriptionStatusStruct,
   interval: RecurringIntervalStruct,
@@ -105,10 +109,18 @@ export const SubscriptionStruct = type({
   trialEnd: optional(string()),
   endDate: optional(string()),
   canceledAt: optional(string()),
-  cancelType: CancelTypeStruct,
+  cancelType: optional(CancelTypeStruct),
   inactiveAt: optional(string()),
-  isEligibleForSupport: boolean(),
+  isEligibleForSupport: optional(boolean()),
   billingCycles: optional(number()),
+  lastInvoice: optional(
+    type({
+      id: string(),
+      status: string(),
+      errorCode: optional(CryptoPaymentErrorStruct),
+      updatedAt: string(),
+    }),
+  ),
 });
 
 export const GetSubscriptionsResponseStruct = type({

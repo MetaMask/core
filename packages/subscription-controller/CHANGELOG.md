@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Subscription API crypto payment-execution error types and expose failed
+  invoice details, including the execution error code and update timestamp.
+
 ## [9.1.0]
 
 ### Added
