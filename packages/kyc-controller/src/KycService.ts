@@ -14,7 +14,6 @@ import {
   array,
   assert,
   boolean,
-  enums,
   optional,
   string,
   StructError,
@@ -32,7 +31,6 @@ import type {
   KycDisclaimersCatalog,
   KycSessionDisclaimers,
   KycSessionStatus,
-  KycUserStatusResponse,
   KycVendor,
   KycVendorSigning,
 } from './types.js';
@@ -50,20 +48,19 @@ export const serviceName = 'KycService';
 const MESSENGER_EXPOSED_METHODS = [
   'getGeoCountry',
   'fetchVendorDisclaimers',
-  'createSession',
-  'checkKycRequired',
+  'createMoonpaySession',
   'createVendorCustomer',
   'submitVendorDisclaimers',
   'fetchSessionDisclaimersByCountry',
   'fetchSessionDisclaimersBySessionId',
   'submitSessionDisclaimers',
-  'fetchKycStatus',
   'fetchIdosEnclaveJwks',
   'fetchIdosRelayJwks',
   'createUkycSession',
   'setAuthorizations',
   'createJourney',
   'getSessionStatus',
+  'getSessionStatusForVendor',
 ] as const;
 
 /**
@@ -173,10 +170,6 @@ const VendorSigningsResponseStruct = array(VendorSigningStruct);
 
 const CreateSessionResponseStruct = type({ sessionToken: string() });
 
-// The live KYC API returns the flag under `required`; the service normalizes
-// this to `kycRequired` for consumers (see `checkKycRequired`).
-const KycRequiredResponseStruct = type({ required: boolean() });
-
 // The session server's public key, in JWK-like form, returned inside an
 // encryption schema from `POST /sessions`. `x` is the base64url public key
 // used to wrap a secret for that schema.
@@ -224,12 +217,15 @@ export type ApplicantAccessTokenResponse = Infer<
 >;
 
 const SessionStatusResponseStruct = type({
+  id: string(),
   finalStatus: string(),
   statusMessage: optional(string()),
   externalUserId: string(),
   kycStatus: string(),
   vendor: string(),
   vendorStatus: string(),
+  consentStatus: optional(string()),
+  idOSStatus: optional(string()),
 });
 
 // Vendor customer subset — `type` (not `object`) keeps extra vendor fields from
@@ -240,20 +236,6 @@ const VendorCustomerResponseStruct = type({
   status: string(),
 });
 export type VendorCustomerResponse = Infer<typeof VendorCustomerResponseStruct>;
-
-const KYC_USER_STATUSES = [
-  'not-started',
-  'pending',
-  'need-more-information',
-  'terminal-failure',
-  'completed',
-] as const;
-
-const KycUserStatusResponseStruct = type({
-  status: enums([...KYC_USER_STATUSES]),
-  sumsubSessionId: optional(string()),
-  errorCode: optional(string()),
-});
 
 const CatalogDocumentFields = {
   key: string(),
@@ -288,27 +270,10 @@ const SessionDisclaimersResponseStruct = type({
 
 // === PARAM TYPES ===
 
-export type CreateSessionParams = {
+export type CreateMoonpaySessionParams = {
   email: string;
   termsAcceptedAt: string;
   disclaimerIds: string[];
-};
-
-export type CheckKycRequiredParams = {
-  /**
-   * Identity vendor to check. Defaults to `moonpay` for the existing
-   * Check/Auth path.
-   */
-  vendor?: KycVendor;
-  /**
-   * MoonPay access token. Required when `vendor` is `moonpay` (or omitted).
-   */
-  accessToken?: string;
-  /**
-   * ISO 3166-1 alpha-3 country code. Required when `vendor` is `moonpay`.
-   */
-  country?: string;
-  capabilities?: { product: string }[];
 };
 
 export type CreateVendorCustomerParams = {
@@ -348,7 +313,6 @@ export type SubmitSessionDisclaimersParams = {
 };
 
 export type CreateUkycSessionParams = {
-  jwtToken: string;
   /**
    * The client's per-session X25519 public key (unpadded base64url). Generated
    * with the matching private key used later to wrap authorizations, so the
@@ -551,13 +515,13 @@ export class KycService extends BaseDataService<
   }
 
   /**
-   * Creates a vendor session via the UKYC backend.
+   * Creates a MoonPay vendor session via the UKYC backend.
    *
    * @param params - The session parameters.
    * @returns The created session token.
    */
-  async createSession(
-    params: CreateSessionParams,
+  async createMoonpaySession(
+    params: CreateMoonpaySessionParams,
   ): Promise<Infer<typeof CreateSessionResponseStruct>> {
     const url = new URL('/vendors/moonpay/sessions', this.#baseUrl);
     const data = await this.#requestJson(url, {
@@ -569,54 +533,6 @@ export class KycService extends BaseDataService<
       CreateSessionResponseStruct,
       'sessions',
     );
-  }
-
-  /**
-   * Checks whether KYC is required for the given vendor, country, and
-   * capabilities.
-   *
-   * @param params - The check parameters.
-   * @returns Whether KYC is required.
-   */
-  async checkKycRequired(
-    params: CheckKycRequiredParams,
-  ): Promise<{ kycRequired: boolean }> {
-    const vendor = params.vendor ?? 'moonpay';
-    const url = new URL(`/vendors/${vendor}/kyc-required`, this.#baseUrl);
-    const capabilities = params.capabilities ?? [{ product: 'ramps' }];
-    const body =
-      vendor === 'moonpay'
-        ? {
-            accessToken: params.accessToken,
-            country: params.country,
-            capabilities,
-          }
-        : {};
-
-    // MoonPay requires accessToken and country; validate before making the request.
-    if (vendor === 'moonpay') {
-      if (!params.accessToken) {
-        throw new Error(
-          'checkKycRequired: accessToken is required for vendor "moonpay".',
-        );
-      }
-      if (!params.country) {
-        throw new Error(
-          'checkKycRequired: country is required for vendor "moonpay".',
-        );
-      }
-    }
-
-    const data = await this.#requestJson(url, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
-    const { required } = this.#validateResponse(
-      data,
-      KycRequiredResponseStruct,
-      'kyc-required',
-    );
-    return { kycRequired: required };
   }
 
   /**
@@ -775,28 +691,6 @@ export class KycService extends BaseDataService<
   }
 
   /**
-   * Fetches the user-keyed simplified KYC status used by Money toast / banner
-   * surfaces (`GET /kyc/status`).
-   *
-   * @returns The simplified status payload.
-   */
-  async fetchKycStatus(): Promise<KycUserStatusResponse> {
-    const url = new URL('/kyc/status', this.#baseUrl);
-    const data = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchKycStatus`],
-      queryFn: async () => this.#requestJson(url, { method: 'GET' }),
-      // Status is polled for toast flips, so it must always be fresh.
-      staleTime: 0,
-      gcTime: 0,
-    });
-    return this.#validateResponse(
-      data,
-      KycUserStatusResponseStruct,
-      'kyc status',
-    );
-  }
-
-  /**
    * Fetches a well-known JWKS from `baseUrl`, caching the result for an hour.
    *
    * @param baseUrl - Host base URL that serves `/.well-known/jwks.json`.
@@ -884,7 +778,7 @@ export class KycService extends BaseDataService<
       body: JSON.stringify({
         vendorId: params.vendor ?? 'moonpay',
         vendorUserId: 'mockedId',
-        jwtToken: params.jwtToken,
+        jwtToken: 'mock-jwt-token', // TODO: Remove this from the kyc-api
         sessionClientPublicKey: params.sessionClientPublicKey,
         residenceCountry: params.residenceCountry,
         vendorMetadata: params.vendorMetadata ?? {},
@@ -976,6 +870,43 @@ export class KycService extends BaseDataService<
       SessionStatusResponseStruct,
       'session status',
     );
+  }
+
+  /**
+   * Fetches the latest UKYC session status for an identity vendor
+   * (`GET /sessions/latest/status/{vendor}`).
+   *
+   * @param vendor - Identity vendor whose latest session should be queried.
+   * @returns The session status, or `null` when no latest session exists.
+   */
+  async getSessionStatusForVendor(
+    vendor: KycVendor,
+  ): Promise<KycSessionStatus | null> {
+    const url = new URL(
+      `/sessions/latest/status/${encodeURIComponent(vendor)}`,
+      this.#baseUrl,
+    );
+    try {
+      const data = await this.fetchQuery({
+        queryKey: [`${this.name}:getSessionStatusForVendor`, vendor],
+        queryFn: async () => this.#requestJson(url, { method: 'GET' }),
+        staleTime: 0,
+        gcTime: 0,
+      });
+      if (data === null) {
+        return null;
+      }
+      return this.#validateResponse(
+        data,
+        SessionStatusResponseStruct,
+        'latest session status',
+      );
+    } catch (error) {
+      if (error instanceof HttpError && error.httpStatus === 404) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   /**

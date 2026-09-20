@@ -1584,9 +1584,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
     },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    },
     "id-denylist": {
       "count": 2
     },
@@ -2043,11 +2040,6 @@
       "count": 20
     }
   },
-  "packages/utils/src/fs.ts": {
-    "jsdoc/require-returns": {
-      "count": 1
-    }
-  },
   "packages/utils/src/hashing.test.ts": {
     "n/no-unsupported-features/node-builtins": {
       "count": 9
@@ -2080,16 +2072,6 @@
   },
   "packages/utils/src/misc.tst.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "packages/utils/src/mnemonic.ts": {
-    "jsdoc/tag-lines": {
-      "count": 1
-    }
-  },
-  "packages/utils/src/promise.ts": {
-    "jsdoc/tag-lines": {
       "count": 1
     }
   },
