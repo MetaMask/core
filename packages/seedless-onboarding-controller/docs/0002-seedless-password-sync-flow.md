@@ -21,12 +21,13 @@ In this document, we are focusing on updating the `Password Sync` flow to use fo
 ## Proposed Design
 
 The existing **Password Sync** flow includes two top level steps;
+
 - verify the current device is sync with the latest global password from remote server
 - if not in sync, perform sync for local Seedless and Keyring vault in the current device
 
 ### Password sync check
 
-The existing public method for this is, `checkIsPasswordOutdated`. 
+The existing public method for this is, `checkIsPasswordOutdated`.
 We will rename this method to `resolvePasswordState` to facilitate the both `Remote Password Check` and `Local Password Recovery`.
 
 Previously, the method returns `boolean` value to indicate if the device is out of sync.
@@ -43,11 +44,11 @@ resolvePasswordState(): Promise<PasswordSyncInstruction>
 
 ```ts
 export enum PasswordSyncInstruction {
-  /** 
+  /**
    * No password change activities on other devices.
    * Even if the last password change has failed, no commitment has done on the remote server.
    * The check point is either empty or `REMOTE_PASSWORD_PENDING`.
-   * The local and remote passwords are synchronized; no recovery action is needed. Unlock normally. 
+   * The local and remote passwords are synchronized; no recovery action is needed. Unlock normally.
    */
   InSync = 'in-sync',
   /**
@@ -58,16 +59,16 @@ export enum PasswordSyncInstruction {
    * Prompt for the new password, then call `reconcilePassword`.
    */
   PasswordOutdated = 'password-outdated',
-  /** 
+  /**
    * Prompt for the new password.
-   * The Seedless vault is reconciled (checkpoint is `LOCAL_PASSWORD_PENDING`). 
+   * The Seedless vault is reconciled (checkpoint is `LOCAL_PASSWORD_PENDING`).
    * The client needs to unlock Seedless vault with new password.
    * Recover current keyring and call the Keyring:changePassword.
    */
   ReconcileKeyring = 'reconcile-keyring',
-  /** 
+  /**
    * Prompt for the new password.
-   * Checkpoint is `KEY_SYNC_PENDING`. 
+   * Checkpoint is `KEY_SYNC_PENDING`.
    * The client must enter new password to unlock both Keyring and Seedless vault.
    * After that, must sync Keyring Encryption Key to seedless vault.
    */
@@ -105,6 +106,7 @@ flowchart LR
 ### Execute password sync
 
 The password sync execution has three sub steps
+
 #### Sync local seedless vault with the remote server. (`ReconcilePassword`)
 
 This method first recovers the encryption key belongs to the current device, so that we can unlock the current Seedless and Keyring vault which allows us to change their respective password (and encryption key).
@@ -218,9 +220,10 @@ flowchart LR
 ### Usage with the password change failure recovery
 
 Refer the below diagram, based on the last checkpoint on the password change failure, we can go to different branches.
-The diagram assumes that user's device is already out of sync. 
+The diagram assumes that user's device is already out of sync.
 
 At this point, the possible checkpoints user can have are ~
+
 - **REMOTE_PASSWORD_PENDING**: remote commitment has done in the last password change failure, but no attempt has started for local yet.
 - **LOCAL_STATE_PENDING**: remote commitment has done, but local state write has failed.
 - **LOCAL_PASSWORD_PENDING**: Seedless vault is already updated/synced, but the `Keyring:changePassword` has failed.
@@ -272,21 +275,24 @@ flowchart LR
 ```
 
 #### REMOTE_PASSWORD_PENDING (or no checkpoint)
+
 In this case, the remote server already has the encrypted shares associated to the new password.
 The client must go through the `reconcilePassword` method to recover the **current device Seedless vault** and sync the last to the device. Please refer to the [`ReconcilePassword` flow above](#sync-local-seedless-vault-with-the-remote-server-reconcilepassword).
 
 #### LOCAL_STATE_PENDING
-This checkpoint means that the client has acknowledged the remote commitment. But the process failed before updating the Seedless vault with new password (and encryption keys). 
-Both vaults are (**must be**) still locked. 
+
+This checkpoint means that the client has acknowledged the remote commitment. But the process failed before updating the Seedless vault with new password (and encryption keys).
+Both vaults are (**must be**) still locked.
 The client will have to start from [`ReconcilePassword` flow](#sync-local-seedless-vault-with-the-remote-server-reconcilepassword) again.
 
 #### LOCAL_PASSWORD_PENDING
+
 From the password change checkpoint, it means Seedless vault is updated and synced.
 The next step would be to recover and update Keyring vault, following this [`ReconcileKeyring` path](#recover-the-current-keyring-vault-and-sync-with-the-latest-password-reconcilekeyring).
 
-
 #### KEY_SYNC_PENDING
-Both Seedless and Keyring were synced. 
+
+Both Seedless and Keyring were synced.
 At this point, user can technically unlock the wallet session with new password.
 The last step of both `Password Change` and `Password Sync` flow.
 The client has just to do the [`SyncKey`](#sync-the-new-keyring-encryption-to-the-seedless-vault-synckey)

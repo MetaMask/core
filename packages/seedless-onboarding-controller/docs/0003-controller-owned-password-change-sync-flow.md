@@ -6,7 +6,7 @@
 ## Context
 
 Seedless onboarding controller features consist of multiple operations across the `SeedlessOnboardingController`, `KeyringController` and `OAuthService`.
-Currently for the password change/sync operation, **client** is responsible for orchestrating the right pieces in the right places. 
+Currently for the password change/sync operation, **client** is responsible for orchestrating the right pieces in the right places.
 The whole operations outcome depends on **the client side orchestration**.
 This exposes mistakes and repetitive codes in the client side. Harder to manage for both platforms.
 
@@ -74,7 +74,6 @@ flowchart LR
     n6@{ shape: rounded}
 ```
 
-
 ### Password Sync flow
 
 ```mermaid
@@ -95,4 +94,3 @@ flowchart LR
     n8@{ shape: rounded}
     n9@{ shape: rounded}
 ```
-

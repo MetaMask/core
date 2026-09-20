@@ -262,34 +262,18 @@ export type SeedlessOnboardingControllerMarkPasswordChangeKeySyncPendingAction =
   };
 
 /**
- * Resolve the current password-sync state without consuming a password.
+ * Resolve the password-sync instruction without consuming a password.
  *
- * Merges the legacy `checkIsPasswordOutdated` read with password-change
- * recovery routing, so the client makes a single call at unlock (both on
- * page render and on password submit) and routes UI from the returned
- * instruction.
- *
- * Checkpoint handling:
- * - No checkpoint (`undefined`): run the authoritative outdated check. `skipCache`
- * is honored, so the client can read from cache on render and force a remote
- * call on submit. Returns `InSync` or `PasswordOutdated` (another device
- * changed the remote password).
- * - `REMOTE_PASSWORD_PENDING`: the remote outcome is ambiguous, so
- * `skipCache` is ignored and a remote check is forced. Clears the
- * lifecycle (remote did not commit) or advances to
- * `LOCAL_STATE_PENDING` (remote committed). Returns `InSync` or
- * `PasswordOutdated`.
- * - Other checkpoints: return the next recovery step without mutating state.
- *
- * This method does not consume a password; the client prompts for the
- * correct password and then calls `reconcilePassword`.
+ * Uses the persisted checkpoint to route recovery. With no checkpoint or
+ * `REMOTE_PASSWORD_PENDING`, it checks the remote password; otherwise, it
+ * returns the instruction for the current checkpoint.
  *
  * @param options - The options.
  * @param options.skipCache - Whether to bypass the outdated cache. Ignored
- * for `REMOTE_PASSWORD_PENDING`, which always forces a remote check.
+ * for `REMOTE_PASSWORD_PENDING`.
  * @returns The sync/recovery instruction.
- * @throws If another Seedless Onboarding operation is active, the checkpoint
- * is invalid, or the current password state cannot be established.
+ * @throws If another operation is active or the password state cannot be
+ * established.
  */
 export type SeedlessOnboardingControllerResolvePasswordSyncStateAction = {
   type: `SeedlessOnboardingController:resolvePasswordSyncState`;

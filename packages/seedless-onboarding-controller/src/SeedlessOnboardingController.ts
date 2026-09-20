@@ -2490,8 +2490,14 @@ export class SeedlessOnboardingController<
       }
       const checkpoint = seedlessOperationLifecycle?.checkpoint;
 
-      if (!checkpoint || checkpoint === SeedlessOnboardingCheckpoint.RemotePasswordPending) {
-        const shouldSkipCache = checkpoint === SeedlessOnboardingCheckpoint.RemotePasswordPending ? true : options?.skipCache;
+      if (
+        !checkpoint ||
+        checkpoint === SeedlessOnboardingCheckpoint.RemotePasswordPending
+      ) {
+        const shouldSkipCache =
+          checkpoint === SeedlessOnboardingCheckpoint.RemotePasswordPending
+            ? true
+            : options?.skipCache;
         const outdated = await this.#checkIsPasswordOutdated({
           skipCache: shouldSkipCache,
         });
@@ -2571,7 +2577,11 @@ export class SeedlessOnboardingController<
       const checkpoint = seedlessOperationLifecycle?.checkpoint;
       let instruction = PasswordSyncInstruction.InSync;
 
-      if (!checkpoint || checkpoint === SeedlessOnboardingCheckpoint.RemotePasswordPending || checkpoint === SeedlessOnboardingCheckpoint.LocalStatePending) {
+      if (
+        !checkpoint ||
+        checkpoint === SeedlessOnboardingCheckpoint.RemotePasswordPending ||
+        checkpoint === SeedlessOnboardingCheckpoint.LocalStatePending
+      ) {
         // check if the current device is in sync with the remote server.
         const outdated = await this.#checkIsPasswordOutdated({
           skipCache: true,
@@ -2579,7 +2589,9 @@ export class SeedlessOnboardingController<
         if (outdated) {
           instruction = PasswordSyncInstruction.PasswordOutdated;
         }
-      } else if (checkpoint === SeedlessOnboardingCheckpoint.LocalPasswordPending) {
+      } else if (
+        checkpoint === SeedlessOnboardingCheckpoint.LocalPasswordPending
+      ) {
         instruction = PasswordSyncInstruction.ReconcileKeyring;
       } else if (checkpoint === SeedlessOnboardingCheckpoint.KeySyncPending) {
         instruction = PasswordSyncInstruction.SyncKey;
