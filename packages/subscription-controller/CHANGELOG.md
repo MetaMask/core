@@ -9,14 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add Subscription API crypto payment-execution error types and expose failed
-  invoice details, including the execution error code and update timestamp.
-- Add selectors for crypto payment failure, renewal-needed, and delegation
-  exhaustion states by subscription product.
-- Add a typed delegation variant for rotating an active crypto subscription's
-  payment method with a replacement delegation hash.
-- Add force-new delegation preparation for active subscription rotation while
-  preserving normal matching-delegation reuse.
+- Add `CRYPTO_PAYMENT_ERRORS` / `CryptoPaymentError` and optional `Subscription.lastInvoice` (`SubscriptionInvoice`) for Subscription API crypto payment-execution failures. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Add `selectIsPaymentFailed`, `selectPaymentFailureReason`, `selectIsRenewalNeeded`, and `selectIsDelegationExhausted` selectors keyed by subscription product. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Add `UpdateDelegationPaymentMethodCryptoRequest` so `updatePaymentMethod` can rotate an active crypto subscription with `cryptoAuthMethod` and `delegationHash`. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Add optional `forceNew` to `SubscriptionDelegationService:prepareDelegation` to create a replacement delegation instead of reusing a matching stored one. ([#10305](https://github.com/MetaMask/core/pull/10305))
+
+### Changed
+
+- **BREAKING:** Make `Subscription.currentPeriodStart`, `currentPeriodEnd`, `cancelType`, and `isEligibleForSupport` optional so paused or failed crypto subscriptions can validate. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Refresh the access token when Money Account Plus subscription snapshots change, including payment-failure state while status remains active. ([#10305](https://github.com/MetaMask/core/pull/10305))
+- Prefer the latest period `startDate` when `prepareDelegation` reuses a matching stored cash-subscription delegation, so a `forceNew` replacement is chosen over an older equivalent record. ([#10305](https://github.com/MetaMask/core/pull/10305))
 
 ## [9.1.0]
 
