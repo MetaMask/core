@@ -701,11 +701,6 @@
       "count": 1
     }
   },
-  "packages/core-backend/src/index.ts": {
-    "no-restricted-syntax": {
-      "count": 4
-    }
-  },
   "packages/core-backend/src/ws/AccountActivityService.ts": {
     "no-restricted-syntax": {
       "count": 1
