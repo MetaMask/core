@@ -7,14 +7,14 @@ import type {
 } from '@metamask/messenger';
 
 import { flushPromises } from '../../../../tests/helpers.js';
+import type { ServerNotificationMessage } from './BackendWebSocketService.js';
+import { WebSocketState } from './BackendWebSocketService.js';
 import {
   RampsActivityService,
   RAMPS_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
   RAMPS_ACTIVITY_SERVICE_ALLOWED_EVENTS,
 } from './RampsActivityService.js';
 import type { RampsActivityServiceMessenger } from './RampsActivityService.js';
-import type { ServerNotificationMessage } from './BackendWebSocketService.js';
-import { WebSocketState } from './BackendWebSocketService.js';
 
 type AllActions = MessengerActions<RampsActivityServiceMessenger>;
 type AllEvents = MessengerEvents<RampsActivityServiceMessenger>;

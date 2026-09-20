@@ -26,8 +26,7 @@ export const RAMPS_ACTIVITY_CATEGORIES = [
   'unknown',
 ] as const;
 
-export type RampsActivityCategory =
-  (typeof RAMPS_ACTIVITY_CATEGORIES)[number];
+export type RampsActivityCategory = (typeof RAMPS_ACTIVITY_CATEGORIES)[number];
 
 export type RampsActivityEntity = {
   id: string;
