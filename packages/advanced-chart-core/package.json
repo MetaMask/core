@@ -32,6 +32,16 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./host": {
+      "import": {
+        "types": "./dist/host-entry.d.mts",
+        "default": "./dist/host-entry.mjs"
+      },
+      "require": {
+        "types": "./dist/host-entry.d.cts",
+        "default": "./dist/host-entry.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {

@@ -7,7 +7,9 @@
 // slice, and so on; the convention is "core state goes here, feature-local
 // state goes in features/<feature>/state.ts or overlays/<feature>/state.ts".
 
+import { getHostTransport } from './host.js';
 import type {
+  ChartConfig,
   ChartTheme,
   ChartType,
   OHLCVBar,
@@ -75,6 +77,11 @@ const emptyPagination = (): OHLCVPaginationConfig => ({
   vsCurrency: null,
 });
 
+// The resolved chart config, seeded once at bootstrap from the host
+// transport. Modules read it via getConfig() instead of naming window.CONFIG,
+// so the config flows through the platform transport layer.
+let seededConfig: ChartConfig | undefined;
+
 const state: CoreState = {
   widget: null,
   isChartReady: false,
@@ -103,6 +110,29 @@ const state: CoreState = {
   slbCenteringPending: false,
   legendOwnsLayoutSettle: false,
 };
+
+// ----- Config -------------------------------------------------------------
+
+/**
+ * Seeds the resolved chart config. Called once by bootstrap after reading it
+ * from the host transport.
+ *
+ * @param config - The resolved chart configuration.
+ */
+export function setConfig(config: ChartConfig): void {
+  seededConfig = config;
+}
+
+/**
+ * Returns the resolved chart config. Prefers the value seeded at bootstrap and
+ * falls back to the host transport (e.g. before bootstrap, or in unit tests
+ * that stub the config directly).
+ *
+ * @returns The chart config, or `undefined` when none is available.
+ */
+export function getConfig(): ChartConfig | undefined {
+  return seededConfig ?? getHostTransport().getConfig();
+}
 
 // ----- Widget lifecycle ---------------------------------------------------
 
@@ -392,6 +422,7 @@ export function setHasExplicitCurrentPriceLine(has: boolean): void {
  * the theme or feature flags change).
  */
 export function _resetStateForTests(): void {
+  seededConfig = undefined;
   state.widget = null;
   state.isChartReady = false;
   state.currentSymbol = 'ASSET';

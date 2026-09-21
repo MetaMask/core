@@ -1,15 +1,18 @@
-// Typed bridge between the WebView IIFE and React Native.
+// Typed bridge between the WebView IIFE and its host.
 //
-// Wraps the same window.ReactNativeWebView.postMessage(...) call shape that
-// legacy chartLogic.js's sendToReactNative() uses, so the RN-side
-// parseWebViewMessage in AdvancedChart.types.ts decodes our messages without
-// any change to its consumers.
+// Owns the platform-agnostic parts of host communication — JSON framing,
+// inbound parsing, and message validation — and delegates the actual
+// transport (outbound delivery, inbound subscription, origin filtering) to
+// the injected host adapter (see core/host.ts). Preserves the same
+// window.ReactNativeWebView.postMessage(...) call shape via the default RN
+// adapter, so the RN-side parseWebViewMessage decodes messages unchanged.
 
 import type {
   InboundMessage,
   OutboundMessageType,
   OutboundPayloads,
 } from '../messages/contract.js';
+import { getHostTransport } from './host.js';
 
 export function safeStringify(value: unknown): string {
   try {
@@ -20,10 +23,10 @@ export function safeStringify(value: unknown): string {
 }
 
 /**
- * Posts a typed message to React Native via window.ReactNativeWebView.
- * Equivalent to legacy `sendToReactNative(type, payload)` at chartLogic.js
- * line ~98. Silently no-ops when window.ReactNativeWebView is absent (e.g.
- * during unit tests in a jsdom environment without the RN bridge stub).
+ * Posts a typed message to the host via the active transport. Equivalent to
+ * legacy `sendToReactNative(type, payload)` at chartLogic.js line ~98.
+ * Silently no-ops when the host transport is unavailable (e.g. during unit
+ * tests in a jsdom environment without the RN bridge stub).
  *
  * @param type - The outbound message type tag.
  * @param payload - The payload associated with the message type.
@@ -32,15 +35,11 @@ export function postToRN<Type extends OutboundMessageType>(
   type: Type,
   payload: OutboundPayloads[Type],
 ): void {
-  const bridge = window.ReactNativeWebView;
-  if (!bridge) {
-    return;
-  }
   try {
-    bridge.postMessage(JSON.stringify({ type, payload }));
+    getHostTransport().postMessage(JSON.stringify({ type, payload }));
   } catch {
     // postMessage / JSON.stringify failure: nothing to do — the WebView
-    // cannot inform RN of its own bridge failure.
+    // cannot inform the host of its own bridge failure.
   }
 }
 
@@ -66,10 +65,10 @@ export function reportErrorToRN(error: unknown): void {
 export type InboundMessageHandler = (message: InboundMessage) => void;
 
 /**
- * Registers a single inbound listener. React Native posts JSON strings via
- * webView.postMessage; the WebView receives them on window 'message' on iOS
- * and document 'message' on Android (see chartLogic.js line ~400). We
- * subscribe to both so consumers don't have to.
+ * Registers a single inbound listener. The host posts JSON strings; the
+ * active transport delivers each raw payload (after any transport-level
+ * origin filtering) and this function parses + validates it before forwarding
+ * a well-formed message to the handler.
  *
  * The returned function unsubscribes — useful for tests; the real bundle
  * subscribes once at bootstrap and never unsubscribes.
@@ -78,18 +77,10 @@ export type InboundMessageHandler = (message: InboundMessage) => void;
  * @returns A function that removes the registered listeners.
  */
 export function onFromRN(handler: InboundMessageHandler): () => void {
-  const dispatch = (event: MessageEvent): void => {
-    // RN WebView inline HTML: native bridge messages arrive with an empty
-    // or "null" origin. Reject messages from real web origins.
-    const { origin } = event;
-    if (origin && origin !== 'null' && !origin.startsWith('file:')) {
-      return;
-    }
-
+  return getHostTransport().subscribe((raw: unknown): void => {
     let parsed: unknown;
     try {
-      parsed =
-        typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
     } catch (parseError) {
       reportErrorToRN(parseError);
       return;
@@ -106,17 +97,7 @@ export function onFromRN(handler: InboundMessageHandler): () => void {
     // typed handler. Phase 1 only routes SET_THEME_COLORS, but the listener
     // forwards every well-formed message so the handler can decide.
     handler(parsed as InboundMessage);
-  };
-
-  // iOS posts arrive on window; Android posts arrive on document. Subscribe
-  // to both to match legacy chartLogic.js handleMessage wiring.
-  window.addEventListener('message', dispatch as EventListener);
-  document.addEventListener('message', dispatch as EventListener);
-
-  return () => {
-    window.removeEventListener('message', dispatch as EventListener);
-    document.removeEventListener('message', dispatch as EventListener);
-  };
+  });
 }
 
 /** Re-export for callers that want the type tag union. */

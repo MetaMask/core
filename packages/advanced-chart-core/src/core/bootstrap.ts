@@ -64,11 +64,13 @@ import {
 } from '../widget/theme.js';
 import { applyVisualOverrides } from '../widget/visualOverrides.js';
 import { onFromRN, postToRN, reportErrorToRN } from './bridge.js';
+import { getHostTransport } from './host.js';
 import { loadTradingViewLibrary } from './loadLibrary.js';
 import {
   getOhlcvData,
   getVisibleFromMs,
   getVisibleToMs,
+  setConfig,
   setSubPaneHeightRatio,
 } from './state.js';
 import { getApproxBarDurationSec } from './timeUtils.js';
@@ -101,7 +103,7 @@ function buildInitialTimeframe():
 }
 
 function readConfig(): ChartConfig {
-  const config = window.CONFIG;
+  const config = getHostTransport().getConfig();
   if (!config) {
     throw new Error(
       'window.CONFIG is missing — AdvancedChartTemplate must inline ' +
@@ -120,6 +122,7 @@ function readConfig(): ChartConfig {
  */
 export function bootstrap(): ChartConfig {
   const config = readConfig();
+  setConfig(config);
 
   initThemeFromConfig(config.theme);
   if (typeof config.subPaneHeightRatio === 'number') {

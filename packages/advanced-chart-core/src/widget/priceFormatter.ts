@@ -9,6 +9,8 @@
 // pill. Without it, TV falls back to a plain `x.xx` format that ignores our
 // `useSubscriptPriceFormat` config.
 
+import { getConfig } from '../core/state.js';
+
 const SUBSCRIPT_DIGITS = [
   '₀',
   '₁',
@@ -57,7 +59,7 @@ export function formatSubscriptNotation(abs: number): string | null {
 }
 
 export function getConfiguredPriceDecimals(): number | null {
-  const decimals = window.CONFIG?.priceDecimals;
+  const decimals = getConfig()?.priceDecimals;
   if (typeof decimals !== 'number' || !Number.isFinite(decimals)) {
     return null;
   }
@@ -148,10 +150,10 @@ export function advancedChartPriceFormatterFactory(
   if (symbolInfo === null || symbolInfo.format === 'volume') {
     return null;
   }
+  const config = getConfig();
   if (
-    !window.CONFIG ||
-    (!window.CONFIG.useSubscriptPriceFormat &&
-      getConfiguredPriceDecimals() === null)
+    !config ||
+    (!config.useSubscriptPriceFormat && getConfiguredPriceDecimals() === null)
   ) {
     return null;
   }

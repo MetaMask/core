@@ -13,6 +13,7 @@
 
 import { reportErrorToRN } from '../core/bridge.js';
 import {
+  getConfig,
   getTheme,
   getWidget,
   isChartReady,
@@ -30,7 +31,7 @@ function buildScaleLayoutOverrides(): Record<string, unknown> {
     return {};
   }
   const gridLineColor = theme.gridLineColor ?? 'transparent';
-  const hidePaneSeparator = window.CONFIG?.features?.hidePaneSeparator === true;
+  const hidePaneSeparator = getConfig()?.features?.hidePaneSeparator === true;
   const separatorColor = hidePaneSeparator
     ? theme.backgroundColor
     : theme.borderColor;
