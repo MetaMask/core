@@ -111,3 +111,33 @@ export function verifyJwtChain(keys: Jwk[], jwtChain: string): JwtChainPayload {
 
   return decodeJsonSegment<JwtChainPayload>(payloadSegment, 'payload');
 }
+
+/**
+ * The encryption-schema fields needed to confirm the attested session server
+ * public key.
+ */
+export type JwtChainEncryptionSchema = {
+  jwtChain: string;
+  serverPublicKey: { x: string };
+};
+
+/**
+ * Confirms that an encryption schema's `serverPublicKey.x` matches the
+ * `sessionServerPublicKeyX` attested inside its verified `jwtChain`. Rejects
+ * a key that was swapped out-of-band after the chain was signed.
+ *
+ * @param keys - The issuer JWKS used to verify the chain (idOS enclave for
+ * `encryptionDataKey`, idOS relay for `ukycCapabilityToken`).
+ * @param schema - The encryption schema returned by session creation.
+ */
+export function assertAttestedServerPublicKey(
+  keys: Jwk[],
+  schema: JwtChainEncryptionSchema,
+): void {
+  const jwtChainPayload = verifyJwtChain(keys, schema.jwtChain);
+  if (jwtChainPayload.sessionServerPublicKeyX !== schema.serverPublicKey.x) {
+    throw new Error(
+      'sessionServerPublicKey does not match the verified jwtChain payload (sessionServerPublicKeyX).',
+    );
+  }
+}

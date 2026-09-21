@@ -3241,6 +3241,220 @@ describe('AssetsController', () => {
         },
       );
     });
+
+    it('does not emit stateChange when a data source re-reports the same balance', async () => {
+      // Seed the native asset too: the controller backfills a zero-balance
+      // native entry for any account missing one, and that first backfill is
+      // itself a real (one-time) state change. Seeding it here isolates what
+      // this test actually checks — a repeated, otherwise-identical response.
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1000000' },
+            [MOCK_NATIVE_ASSET_ID]: { amount: '0' },
+          },
+        },
+      };
+
+      await withController(
+        { state: initialState },
+        async ({ controller, messenger }) => {
+          const stateChangeHandler = jest.fn();
+          messenger.subscribe(
+            'AssetsController:stateChange',
+            stateChangeHandler,
+          );
+
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_ASSET_ID]: { amount: '1000000' },
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(stateChangeHandler).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('emits stateChange when a balance genuinely changes', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1000000' },
+          },
+        },
+      };
+
+      await withController(
+        { state: initialState },
+        async ({ controller, messenger }) => {
+          const stateChangeHandler = jest.fn();
+          messenger.subscribe(
+            'AssetsController:stateChange',
+            stateChangeHandler,
+          );
+
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_ASSET_ID]: { amount: '2000000' },
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(stateChangeHandler).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not emit stateChange when a data source re-reports the same metadata', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: {
+          [MOCK_ASSET_ID]: {
+            type: 'erc20',
+            symbol: 'USDC',
+            name: 'USD Coin',
+            decimals: 6,
+          },
+        },
+      };
+
+      await withController(
+        { state: initialState, isBasicFunctionality: () => false },
+        async ({ controller, messenger }) => {
+          const stateChangeHandler = jest.fn();
+          messenger.subscribe(
+            'AssetsController:stateChange',
+            stateChangeHandler,
+          );
+
+          await controller.handleAssetsUpdate(
+            {
+              assetsInfo: {
+                [MOCK_ASSET_ID]: {
+                  type: 'erc20',
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(stateChangeHandler).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('emits stateChange when metadata genuinely changes', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: {
+          [MOCK_ASSET_ID]: {
+            type: 'erc20',
+            symbol: 'USDC',
+            name: 'USD Coin',
+            decimals: 6,
+          },
+        },
+      };
+
+      await withController(
+        { state: initialState, isBasicFunctionality: () => false },
+        async ({ controller, messenger }) => {
+          const stateChangeHandler = jest.fn();
+          messenger.subscribe(
+            'AssetsController:stateChange',
+            stateChangeHandler,
+          );
+
+          await controller.handleAssetsUpdate(
+            {
+              assetsInfo: {
+                [MOCK_ASSET_ID]: {
+                  type: 'erc20',
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                  image: 'https://example.com/usdc.png',
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(stateChangeHandler).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not emit stateChange when a data source re-reports the same price', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsPrice: {
+          [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 },
+        },
+      };
+
+      await withController(
+        { state: initialState },
+        async ({ controller, messenger }) => {
+          const stateChangeHandler = jest.fn();
+          messenger.subscribe(
+            'AssetsController:stateChange',
+            stateChangeHandler,
+          );
+
+          await controller.handleAssetsUpdate(
+            {
+              assetsPrice: {
+                [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(stateChangeHandler).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('emits stateChange when a price genuinely changes', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsPrice: {
+          [MOCK_ASSET_ID]: { price: 2, lastUpdated: 123 },
+        },
+      };
+
+      await withController(
+        { state: initialState },
+        async ({ controller, messenger }) => {
+          const stateChangeHandler = jest.fn();
+          messenger.subscribe(
+            'AssetsController:stateChange',
+            stateChangeHandler,
+          );
+
+          await controller.handleAssetsUpdate(
+            {
+              assetsPrice: {
+                [MOCK_ASSET_ID]: { price: 3, lastUpdated: 456 },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(stateChangeHandler).toHaveBeenCalled();
+        },
+      );
+    });
   });
 
   describe('keyring lifecycle', () => {

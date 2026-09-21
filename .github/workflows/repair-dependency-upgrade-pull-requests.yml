@@ -1,4 +1,4 @@
-name: Repair Dependabot pull requests
+name: Repair dependency upgrade pull requests
 
 on:
   pull_request:
@@ -13,7 +13,7 @@ permissions:
 jobs:
   repair:
     name: Repair constraints, lockfile and changelogs
-    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' || (github.event.pull_request.user.login == 'metamask-ci[bot]' && startsWith(github.event.pull_request.head.ref, 'renovate/')) }}
     runs-on: ubuntu-latest
     environment: dependabot
     permissions:
@@ -37,10 +37,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # Deliberately not `metamask-ci[bot]`: that is the identity Renovate commits under, and Renovate only leaves a branch alone once it sees a commit from someone else.
       - name: Configure Git
         run: |
-          git config user.name 'metamask-ci[bot]'
-          git config user.email '271559518+metamask-ci[bot]@users.noreply.github.com'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
 
       - name: Get merge base and starting commit
         id: refs
