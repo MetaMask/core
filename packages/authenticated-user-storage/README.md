@@ -174,6 +174,9 @@ await service.setUserAssets(
   },
   'extension',
 );
+
+// Wipe all custom tokens (clean slate: both lists empty)
+await service.clearUserAssets();
 ```
 
 ## Response validation

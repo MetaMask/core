@@ -64,6 +64,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'setUserAssets',
   'importTokens',
   'hideTokens',
+  'clearUserAssets',
 ] as const;
 
 /**
@@ -608,6 +609,19 @@ export class AuthenticatedUserStorageService extends BaseDataService<
 
     await this.setUserAssets(nextBlob, clientType);
     return nextBlob;
+  }
+
+  /**
+   * Wipes the user's custom tokens, restoring a clean slate (empty lists).
+   *
+   * @param clientType - Optional client type header.
+   * @throws An `HttpError` if the API responds with a non-2xx status.
+   */
+  async clearUserAssets(clientType?: ClientType): Promise<void> {
+    await this.setUserAssets(
+      { version: 1, importedAssets: [], hiddenAssets: [] },
+      clientType,
+    );
   }
 
   async #getHeaders(clientType?: ClientType): Promise<Record<string, string>> {

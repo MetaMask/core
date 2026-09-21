@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `getUserAssets`, `setUserAssets`, `importTokens`, and `hideTokens` methods to `AuthenticatedUserStorageService` for managing the authenticated user's custom tokens, along with corresponding messenger actions (`AuthenticatedUserStorageService:getUserAssets`, `AuthenticatedUserStorageService:setUserAssets`, `AuthenticatedUserStorageService:importTokens`, `AuthenticatedUserStorageService:hideTokens`) and the `UserAssetsBlob` type ([#10233](https://github.com/MetaMask/core/pull/10233))
+- Add `getUserAssets`, `setUserAssets`, `importTokens`, `hideTokens`, and `clearUserAssets` methods to `AuthenticatedUserStorageService` for managing the authenticated user's custom tokens, along with corresponding messenger actions (`AuthenticatedUserStorageService:getUserAssets`, `AuthenticatedUserStorageService:setUserAssets`, `AuthenticatedUserStorageService:importTokens`, `AuthenticatedUserStorageService:hideTokens`, `AuthenticatedUserStorageService:clearUserAssets`) and the `UserAssetsBlob` type ([#10233](https://github.com/MetaMask/core/pull/10233))
   - Backed by the new `GET`/`PUT /custom-tokens` API endpoints; `getUserAssets` returns the blob or `null` on 404, mirroring `getAssetsWatchlist`.
   - Every write is normalized: entries are de-duplicated (order-preserving) and conflicts between `importedAssets` and `hiddenAssets` are resolved "fail-open" — an identifier present in both lists stays in `importedAssets` (the user's intent to import wins) and is removed from `hiddenAssets`.
   - `importTokens`/`hideTokens` are high-level wrappers that fetch the current blob, merge with deduplication and mutual exclusivity, persist, and return the resolved blob.
+  - `clearUserAssets` wipes the blob by persisting empty lists, giving users a clean slate.
   - Writes enforce that every entry is a CAIP-19 asset identifier and that each list holds at most `USER_ASSETS_MAX_ASSETS` (100) entries, mirroring the API's server-side cap, throwing a superstruct `StructError` before the request is sent.
 
 ### Changed

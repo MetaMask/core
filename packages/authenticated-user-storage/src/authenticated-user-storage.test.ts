@@ -626,6 +626,28 @@ describe('AuthenticatedUserStorageService', () => {
     });
   });
 
+  describe('AuthenticatedUserStorageService:clearUserAssets', () => {
+    it('wipes the blob via the messenger', async () => {
+      const mock = handleMockSetUserAssets(
+        undefined,
+        async (_, requestBody) => {
+          expect(requestBody).toStrictEqual({
+            version: 1,
+            importedAssets: [],
+            hiddenAssets: [],
+          });
+        },
+      );
+      const { rootMessenger } = createService();
+
+      await rootMessenger.call(
+        'AuthenticatedUserStorageService:clearUserAssets',
+      );
+
+      expect(mock.isDone()).toBe(true);
+    });
+  });
+
   describe('getUserAssets', () => {
     it('returns the user-assets blob from the API', async () => {
       const mock = handleMockGetUserAssets();
@@ -1175,6 +1197,12 @@ describe('AuthenticatedUserStorageService', () => {
           service: AuthenticatedUserStorageService,
         ): Promise<UserAssetsBlob> =>
           service.hideTokens([MOCK_USDC_ETH_ASSET_ID]),
+      },
+      {
+        mutator: 'clearUserAssets',
+        seedGet: false,
+        run: (service: AuthenticatedUserStorageService): Promise<void> =>
+          service.clearUserAssets(),
       },
     ])(
       'invalidates the getUserAssets cache after $mutator',

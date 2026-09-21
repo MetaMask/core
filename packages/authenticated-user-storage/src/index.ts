@@ -28,6 +28,7 @@ export type {
   AuthenticatedUserStorageServiceSetUserAssetsAction,
   AuthenticatedUserStorageServiceImportTokensAction,
   AuthenticatedUserStorageServiceHideTokensAction,
+  AuthenticatedUserStorageServiceClearUserAssetsAction,
 } from './authenticated-user-storage-method-action-types.js';
 export { getUserStorageApiUrl } from './env.js';
 export type { Environment } from './env.js';

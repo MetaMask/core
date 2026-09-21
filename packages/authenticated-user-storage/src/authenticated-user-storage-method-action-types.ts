@@ -143,6 +143,17 @@ export type AuthenticatedUserStorageServiceHideTokensAction = {
 };
 
 /**
+ * Wipes the user's custom tokens, restoring a clean slate (empty lists).
+ *
+ * @param clientType - Optional client type header.
+ * @throws An `HttpError` if the API responds with a non-2xx status.
+ */
+export type AuthenticatedUserStorageServiceClearUserAssetsAction = {
+  type: `AuthenticatedUserStorageService:clearUserAssets`;
+  handler: AuthenticatedUserStorageService['clearUserAssets'];
+};
+
+/**
  * Union of all AuthenticatedUserStorageService action types.
  */
 export type AuthenticatedUserStorageServiceMethodActions =
@@ -156,4 +167,5 @@ export type AuthenticatedUserStorageServiceMethodActions =
   | AuthenticatedUserStorageServiceGetUserAssetsAction
   | AuthenticatedUserStorageServiceSetUserAssetsAction
   | AuthenticatedUserStorageServiceImportTokensAction
-  | AuthenticatedUserStorageServiceHideTokensAction;
+  | AuthenticatedUserStorageServiceHideTokensAction
+  | AuthenticatedUserStorageServiceClearUserAssetsAction;
