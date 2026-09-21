@@ -3160,42 +3160,11 @@ export class TransactionController extends BaseController<
       // eslint-disable-next-line require-atomic-updates
       transactionMeta = await this.#applyBeforeSignHook(transactionMeta);
 
-      const { networkClientId } = transactionMeta;
-
-      let gasFeeTokens = transactionMeta.gasFeeTokens ?? [];
-      const shouldRefreshGasFeeTokens =
-        this.#isSimulationEnabled(transactionMeta) ||
-        (Boolean(transactionMeta.selectedGasFeeToken) &&
-          (transactionMeta.isGasFeeTokenIgnoredIfBalance === true ||
-            transactionMeta.excludeNativeTokenForFee === true));
-
-      if (shouldRefreshGasFeeTokens) {
-        this.#simulationRequestTokens.delete(transactionId);
-        const gasFeeTokensResult = await this.#getGasFeeTokens(transactionMeta);
-        gasFeeTokens = gasFeeTokensResult.gasFeeTokens;
-
-        // eslint-disable-next-line require-atomic-updates
-        transactionMeta = this.#updateTransactionInternal(
-          { transactionId },
-          (draftTxMeta) => {
-            draftTxMeta.gasFeeTokens = gasFeeTokens;
-            draftTxMeta.isGasFeeSponsoredAvailable =
-              gasFeeTokensResult.isGasFeeSponsoredAvailable;
-          },
-        );
-      }
-
-      await checkGasFeeTokenBeforePublish({
-        messenger: this.messenger,
-        networkClientId,
-        fetchGasFeeTokens: async () => gasFeeTokens,
-        transaction: transactionMeta,
-        updateTransaction: (txId, fn) =>
-          this.#updateTransactionInternal({ transactionId: txId }, fn),
-      });
-
       // eslint-disable-next-line require-atomic-updates
-      transactionMeta = this.#getTransactionOrThrow(transactionId);
+      transactionMeta =
+        await this.#prepareTransactionBeforeApproval(transactionMeta);
+
+      const { networkClientId } = transactionMeta;
 
       const { isSponsored } = await this.#isSponsored({ transactionMeta });
       const shouldSign = isSponsored
@@ -3779,6 +3748,45 @@ export class TransactionController extends BaseController<
 
       log('Updated transaction after before sign hook');
     }
+
+    return this.#getTransactionOrThrow(transactionId);
+  }
+
+  async #prepareTransactionBeforeApproval(
+    transactionMeta: TransactionMeta,
+  ): Promise<TransactionMeta> {
+    const { id: transactionId, networkClientId } = transactionMeta;
+    let preparedTransactionMeta = transactionMeta;
+    let gasFeeTokens = transactionMeta.gasFeeTokens ?? [];
+    const shouldRefreshGasFeeTokens =
+      this.#isSimulationEnabled(transactionMeta) ||
+      (Boolean(transactionMeta.selectedGasFeeToken) &&
+        (transactionMeta.isGasFeeTokenIgnoredIfBalance === true ||
+          transactionMeta.excludeNativeTokenForFee === true));
+
+    if (shouldRefreshGasFeeTokens) {
+      this.#simulationRequestTokens.delete(transactionId);
+      const gasFeeTokensResult = await this.#getGasFeeTokens(transactionMeta);
+      gasFeeTokens = gasFeeTokensResult.gasFeeTokens;
+
+      preparedTransactionMeta = this.#updateTransactionInternal(
+        { transactionId },
+        (draftTxMeta) => {
+          draftTxMeta.gasFeeTokens = gasFeeTokens;
+          draftTxMeta.isGasFeeSponsoredAvailable =
+            gasFeeTokensResult.isGasFeeSponsoredAvailable;
+        },
+      );
+    }
+
+    await checkGasFeeTokenBeforePublish({
+      messenger: this.messenger,
+      networkClientId,
+      fetchGasFeeTokens: async () => gasFeeTokens,
+      transaction: preparedTransactionMeta,
+      updateTransaction: (txId, fn) =>
+        this.#updateTransactionInternal({ transactionId: txId }, fn),
+    });
 
     return this.#getTransactionOrThrow(transactionId);
   }
