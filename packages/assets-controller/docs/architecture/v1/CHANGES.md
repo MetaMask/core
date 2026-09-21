@@ -1,4 +1,4 @@
-# AssetsController 15.0.0 - Accounts API v5 and v6 side by side
+# AssetsController - Accounts API v5 and v6 side by side
 
 ## What this change is about
 
@@ -90,6 +90,40 @@ When basic functionality is off, both fast lanes shrink to
 Both paths first hand each chain to the data source with the highest priority
 for it. They differ in how pinned assets on those chains are covered:
 
+```mermaid
+flowchart TB
+  subgraph shared ["Both paths"]
+    H["Assign each chain to the highest-priority source that supports it"]
+  end
+
+  subgraph v5sub ["v5"]
+    direction TB
+    V5A["Subscribe each source with accounts + assigned chains"]
+    V5WS["Account Activity<br/>updateMode merge"]
+    V5API["Accounts API<br/>updateMode merge"]
+    V5RPC["RPC<br/>updateMode merge"]
+    V5R["Extra RPC poll: customAssetsOnly<br/>pins on chains another source already owns<br/>updateMode merge"]
+    V5A --> V5WS
+    V5A --> V5API
+    V5A --> V5RPC
+    V5A --> V5R
+  end
+
+  subgraph v6sub ["v6"]
+    direction TB
+    V6A["Subscribe each source with accounts + assigned chains only"]
+    V6WS["Account Activity<br/>ignores pins/hides<br/>updateMode merge"]
+    V6API["Accounts API<br/>includeAssetIds / excludeAssetIds from state<br/>updateMode full"]
+    V6RPC["RPC<br/>polls customAssets from state on assigned chains<br/>updateMode merge"]
+    V6A --> V6WS
+    V6A --> V6API
+    V6A --> V6RPC
+  end
+
+  shared --> v5sub
+  shared --> v6sub
+```
+
 - **v5** adds a separate RPC poll (`customAssetsOnly`) for pins that sit on a
   chain another source already owns.
 - **v6** subscribe only assigns accounts and chains. The Accounts API reads
@@ -99,6 +133,18 @@ for it. They differ in how pinned assets on those chains are covered:
   are recovered by `RpcFallbackMiddleware` on that update.
 
 ## 3. Handling an incoming update
+
+```mermaid
+flowchart TB
+  subgraph v5upd ["v5 · #handleAssetsUpdateV5"]
+    direction TB
+    V5I["Incoming update"] --> V5G["CustomAssetGraduation<br/>Accounts API + Account Activity"] --> V5D[Detection] --> V5T["Token + Price"] --> V5S["State: merge<br/>replaceCoveredChainBalances"]
+  end
+  subgraph v6upd ["v6 · #handleAssetsUpdateV6"]
+    direction TB
+    V6I["Incoming update"] --> V6F["RpcFallback when basic functionality is on<br/>errored chains + unprocessedCustomAssets"] --> V6D[Detection] --> V6T["Token + Price"] --> V6S["State: full when Accounts API<br/>merge otherwise"]
+  end
+```
 
 - **v5** (`#handleAssetsUpdateV5`): CustomAssetGraduation (for the Accounts API
   and AccountActivity) -> Detection -> Token + Price -> state written with
