@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `RampsControllerMessenger` now requires the `KycController:getSessionStatusForVendor`, `KycController:refreshSessionStatus`, `KycController:hasCompletedVendorDisclaimers`, and `KycController:hasCompletedSessionDisclaimers` actions to hydrate VBA onboarding ([#10278](https://github.com/MetaMask/core/pull/10278))
   - The action types are declared structurally in the ramps package, so no dependency on `@metamask/kyc-controller` is added.
+- Stop sending `crypto` on `RampsService.getPaymentMethods`. Payment methods are provider + region; the param was ignored by `/v2/regions/:region/payments` and split the CDN cache per token. `assetId` remains on the method for caller cache keys. ([#10307](https://github.com/MetaMask/core/pull/10307))
 
 ## [23.0.0]
 
