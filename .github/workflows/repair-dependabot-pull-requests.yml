@@ -15,7 +15,6 @@ jobs:
     name: Repair constraints, lockfile and changelogs
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' || startsWith(github.event.pull_request.head.ref, 'renovate/') }}
     runs-on: ubuntu-latest
-    # Renaming this environment or this file needs a matching change to the token exchange policy, which grants the token below based on both.
     environment: dependabot
     permissions:
       contents: read
