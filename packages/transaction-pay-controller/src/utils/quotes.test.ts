@@ -198,6 +198,8 @@ describe('Quotes Utils', () => {
       usdRate: '1.0',
       fiatRate: '0.85',
     });
+
+    getControllerStateMock.mockReturnValue({ transactionData: {} });
   });
 
   describe('updateQuotes', () => {
@@ -1082,6 +1084,29 @@ describe('Quotes Utils', () => {
         (transactionDataMock.paymentToken as TransactionPaymentToken)
           .balanceRaw,
       ).toBe('9000000');
+    });
+
+    it('requests quotes with the source amounts re-derived by the balance refresh', async () => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_ID_MOCK]: {
+            ...TRANSACTION_DATA_MOCK,
+            sourceAmounts: [
+              { sourceAmountRaw: '5855729' } as TransactionPaySourceAmount,
+            ],
+          },
+        },
+      });
+
+      await run();
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({ sourceTokenAmount: '5855729' }),
+          ],
+        }),
+      );
     });
 
     it('computes correct balanceHuman, balanceUsd, and balanceFiat from live balance', async () => {

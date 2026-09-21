@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^70.0.1` to `^70.1.0` ([#10262](https://github.com/MetaMask/core/pull/10262))
 
+### Fixed
+
+- Re-derive max-amount source amounts when the payment token balance is refreshed, so quotes are no longer requested with the balance the token had when it was selected ([#0](https://github.com/MetaMask/core/pull/0))
+  - Previously a max amount selected before the token balance loaded requested a zero source amount, which returned no quotes.
+
 ## [29.0.0]
 
 ### Added
