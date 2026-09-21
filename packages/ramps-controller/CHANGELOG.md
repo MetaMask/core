@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `RampsControllerMessenger` now also requires the `KycController:clearState` action, used to discard a stale VBA onboarding session during hydration ([#10337](https://github.com/MetaMask/core/pull/10337))
+  - The action type is declared structurally in the ramps package, so no dependency on `@metamask/kyc-controller` is added.
+
+### Fixed
+
+- Recover from a stale/foreign persisted KYC session during `RampsController:hydrateVbaOnboarding` instead of surfacing the recoverable-error stage ([#10337](https://github.com/MetaMask/core/pull/10337))
+  - A session persisted from a previous identity (e.g. a new wallet created over an existing install) makes the backend reject the session-scoped disclaimer calls with an owner mismatch (HTTP 502). Hydration now discards that session via `KycController:clearState` and restarts onboarding at the email step, rather than rejecting and routing the user to the error screen.
+  - Failures on a freshly-fetched (current-user) session still propagate as genuine backend errors.
+
 ## [24.0.0]
 
 ### Added
