@@ -1352,34 +1352,6 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   /**
-   * Claim leftover EVM pins on chains assigned to RPC. Pins on chains owned by
-   * Account Activity or the Accounts API stay with those sources (v6
-   * `includeAssetIds` / websocket). Unresolved pins on those chains are
-   * recovered by `RpcFallbackMiddleware`, not a second RPC subscription.
-   *
-   * @param customAssets - Candidate CAIP-19 asset IDs still unclaimed.
-   * @param assignedChains - Chains assigned to RPC in this handoff.
-   * @returns The claimed subset of `customAssets`.
-   */
-  claimCustomAssets(
-    customAssets: Caip19AssetId[],
-    assignedChains: ChainId[],
-  ): Caip19AssetId[] {
-    const assigned = new Set<ChainId>(assignedChains);
-    return customAssets.filter((assetId) => {
-      try {
-        const parsed = parseCaipAssetType(assetId);
-        return (
-          parsed.chain.namespace === KnownCaipNamespace.Eip155 &&
-          assigned.has(parsed.chainId)
-        );
-      } catch {
-        return false;
-      }
-    });
-  }
-
-  /**
    * Subscribe to updates for the given request.
    * Starts polling through BalanceFetcher and TokenDetector.
    *

@@ -607,8 +607,8 @@ function normalizeResponse(response: DataResponse): DataResponse {
 function mergeAccountBalancesV5(
   previousBalances: Record<string, AssetBalance>,
   accountBalances: Record<string, AssetBalance>,
-  customAssetIds: Caip19AssetId[] = [],
-  replaceCoveredChains = false,
+  customAssetIds: Caip19AssetId[],
+  replaceCoveredChains: boolean,
 ): Record<string, AssetBalance> {
   if (!replaceCoveredChains) {
     return { ...previousBalances, ...accountBalances };
@@ -629,8 +629,8 @@ function mergeAccountBalancesV5(
 
   for (const customId of customAssetIds) {
     if (!Object.prototype.hasOwnProperty.call(next, customId)) {
-      const previous = previousBalances[customId];
-      next[customId] = previous ?? ({ amount: '0' } as AssetBalance);
+      const prev = previousBalances[customId];
+      next[customId] = prev ?? ({ amount: '0' } as AssetBalance);
     }
   }
 
@@ -690,6 +690,21 @@ function mergeAccountBalancesV6(
       !Object.prototype.hasOwnProperty.call(next, assetId)
     ) {
       next[assetId] = balance;
+    }
+  }
+  // Default tracked assets (mUSD) are controller-managed and must render at
+  // zero when the account holds none. The v6 snapshot omits them in that
+  // case, so re-assert them on covered chains — otherwise a force refresh
+  // would drop them from the token list.
+  // TODO: seed defaults as visible pins in `customAssets` instead (skip if
+  // already present or `assetPreferences[assetId].hidden`), then drop this
+  // merge special case.
+  for (const chainId of coveredChains) {
+    for (const assetId of getDefaultTrackedAssetsForChain(chainId as ChainId)) {
+      if (!Object.prototype.hasOwnProperty.call(next, assetId)) {
+        next[assetId] =
+          previousBalances[assetId] ?? ({ amount: '0' } as AssetBalance);
+      }
     }
   }
   return next;
@@ -1024,6 +1039,7 @@ export class AssetsController extends BaseController<
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
       ...accountsApiDataSourceConfig,
       isBalanceV6Enabled: (): boolean => this.#isBalanceV6Enabled(),
+      getAssetsState: (): AssetsControllerStateInternal => this.state,
     });
     this.#snapDataSource = new SnapDataSource({
       messenger: this.messenger,
@@ -1643,7 +1659,7 @@ export class AssetsController extends BaseController<
   ): DataRequest {
     const customAssets: Caip19AssetId[] = [];
     for (const account of accounts) {
-      customAssets.push(...this.#getVisibleCustomAssets(account.id));
+      customAssets.push(...this.getCustomAssets(account.id));
     }
 
     return this.#buildDataRequest(accounts, chainIds, {
@@ -1653,18 +1669,18 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * v6 force-update request: chain-scoped pins (or `customAssets` override)
-   * plus hidden assets as `excludeAssetIds`.
+   * v6 force-update request. Pins and hides are read from state by the
+   * Accounts API unless `customAssetsOverride` scopes this fetch.
    *
    * @param accounts - Accounts in this fetch.
    * @param chainIds - Chains in this fetch.
-   * @param requestOptions - Shared force-update request fields and optional pin override.
+   * @param requestOptions - Shared force-update request fields and optional pin scope.
    * @param requestOptions.assetTypes - Asset types to fetch.
    * @param requestOptions.dataTypes - Data types to fetch.
    * @param requestOptions.forceUpdate - Always `true` to bypass caches.
    * @param requestOptions.bypassServerCache - Also bypass server-side HTTP caches.
    * @param requestOptions.assetsForPriceUpdate - Assets to refresh prices for.
-   * @param requestOptions.customAssetsOverride - Pinned assets to use instead of the stored custom assets.
+   * @param requestOptions.customAssetsOverride - When set, fetch only these pins.
    * @returns The v6 data request.
    */
   #buildForceUpdateRequestV6(
@@ -1680,11 +1696,8 @@ export class AssetsController extends BaseController<
     },
   ): DataRequest {
     const requestedChains = new Set<string>(chainIds);
-    const candidateCustomAssets =
-      requestOptions.customAssetsOverride ??
-      accounts.flatMap((account) => this.getCustomAssets(account.id));
     const customAssetsSet = new Set<Caip19AssetId>();
-    for (const assetId of candidateCustomAssets) {
+    for (const assetId of requestOptions.customAssetsOverride ?? []) {
       try {
         const normalizedAssetId = normalizeAssetId(assetId);
         if (
@@ -1698,7 +1711,6 @@ export class AssetsController extends BaseController<
       }
     }
     const customAssets = [...customAssetsSet];
-    const hiddenAssets = this.#getHiddenAssetIds();
 
     return this.#buildDataRequest(accounts, chainIds, {
       assetTypes: requestOptions.assetTypes,
@@ -1707,7 +1719,6 @@ export class AssetsController extends BaseController<
       bypassServerCache: requestOptions.bypassServerCache,
       assetsForPriceUpdate: requestOptions.assetsForPriceUpdate,
       customAssets: customAssets.length > 0 ? customAssets : undefined,
-      excludeAssetIds: hiddenAssets.length > 0 ? hiddenAssets : undefined,
     });
   }
 
@@ -2474,39 +2485,6 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Collect globally hidden asset IDs (from `assetPreferences`), forwarded on
-   * data requests as `excludeAssetIds`.
-   *
-   * @returns The CAIP-19 asset IDs the user has hidden.
-   */
-  #getHiddenAssetIds(): Caip19AssetId[] {
-    const hidden: Caip19AssetId[] = [];
-    for (const [assetId, prefs] of Object.entries(
-      this.state.assetPreferences,
-    )) {
-      if (prefs.hidden) {
-        hidden.push(assetId as Caip19AssetId);
-      }
-    }
-    return hidden;
-  }
-
-  /**
-   * An account's pins minus the ones the user has hidden. A hide wins over a
-   * pin on requests, so a hidden asset is never fetched; the pin stays in
-   * `customAssets` to record that the token was imported, and unhiding it
-   * restores the pin on the next subscription.
-   *
-   * @param accountId - The account whose pins should be collected.
-   * @returns The account's pinned asset IDs that are not hidden.
-   */
-  #getVisibleCustomAssets(accountId: AccountId): Caip19AssetId[] {
-    return this.getCustomAssets(accountId).filter(
-      (assetId) => !this.state.assetPreferences[assetId]?.hidden,
-    );
-  }
-
-  /**
    * Whether Accounts API v6 (and the v6 custom-asset path) is enabled.
    * Injected into AccountsApiDataSource and RpcFallbackMiddleware.
    *
@@ -2805,25 +2783,6 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Returns the controller-managed default tracked asset IDs (e.g. mUSD) for
-   * the chains this account supports (account scopes ∩ enabled chains).
-   * Non-EVM accounts resolve to an empty list because every chain in the
-   * defaults registry is EVM today.
-   *
-   * @param account - The account (scopes determine which chains apply).
-   * @returns Array of default tracked asset IDs across the supported chains.
-   */
-  #getDefaultTrackedAssetIdsForAccount(
-    account: InternalAccount,
-  ): Caip19AssetId[] {
-    const ids: Caip19AssetId[] = [];
-    for (const chainId of this.#getEnabledChainsForAccount(account)) {
-      ids.push(...getDefaultTrackedAssetsForChain(chainId));
-    }
-    return ids;
-  }
-
-  /**
    * Chains for the post-commit slow pipeline (Snap + RPC). Excludes chains the
    * fast Accounts API path already handled without error so stale RPC data cannot
    * overwrite fresh API zeros (e.g. after max send).
@@ -3106,22 +3065,6 @@ export class AssetsController extends BaseController<
               }
             }
 
-            // Default tracked assets (mUSD) are controller-managed and, like
-            // natives, must render at zero balance. An authoritative
-            // chain-slice replace omits them whenever the account holds none,
-            // so re-assert them here — otherwise a force refresh (e.g. the
-            // "Refresh list" action) would drop mUSD from the token list.
-            const defaultTrackedAssetIdsForAccount = account
-              ? this.#getDefaultTrackedAssetIdsForAccount(account)
-              : [];
-            for (const defaultAssetId of defaultTrackedAssetIdsForAccount) {
-              if (
-                !Object.prototype.hasOwnProperty.call(effective, defaultAssetId)
-              ) {
-                effective[defaultAssetId] = { amount: '0' } as AssetBalance;
-              }
-            }
-
             for (const [assetId, balance] of Object.entries(effective)) {
               const previousBalance = previousBalances[
                 assetId as Caip19AssetId
@@ -3152,9 +3095,8 @@ export class AssetsController extends BaseController<
                 oldAmount === undefined &&
                 newAmount === '0' &&
                 (nativeAssetIdsForAccount.includes(assetId as Caip19AssetId) ||
-                  defaultTrackedAssetIdsForAccount.includes(
-                    assetId as Caip19AssetId,
-                  ));
+                  getDefaultAssetMetadata(assetId as Caip19AssetId) !==
+                    undefined);
               if (oldAmount !== newAmount && !isNewSeededZero) {
                 changedBalances.push({
                   accountId,
@@ -3533,12 +3475,11 @@ export class AssetsController extends BaseController<
    * Strategy to minimize data source calls:
    * 1. Collect all chains to subscribe based on enabled networks
    * 2. Map chains to accounts based on their scopes
-   * 3. Split by data source (priority order) - each source gets ONE
-   *    subscription, claiming chains AND pinned assets (`claimCustomAssets`);
-   *    unclaimed assets fall through to lower-priority sources.
-   *
-   * This ensures we make minimal subscriptions to each data source while covering
-   * all accounts, chains, and pinned assets.
+   * 3. Split by data source (priority order) — each source gets one
+   *    subscription for the chains it was assigned (accounts + chains only).
+   *    v6 sources read pins/hides from state themselves (Accounts API sends
+   *    `includeAssetIds` / `excludeAssetIds`). v5 uses a separate RPC
+   *    `customAssetsOnly` supplement for pins on chains another source owns.
    *
    * @param accounts - Accounts to subscribe balance updates for.
    * @param chainIds - Chain IDs to subscribe for.
@@ -3546,18 +3487,6 @@ export class AssetsController extends BaseController<
    * @param options.skipInitialFetch - Forwarded to AccountsApi subscribe.
    */
   #subscribeAssetsBalance(
-    accounts: InternalAccount[],
-    chainIds: ChainId[],
-    options?: { skipInitialFetch?: boolean },
-  ): void {
-    if (this.#isBalanceV6Enabled()) {
-      this.#subscribeAssetsBalanceV6(accounts, chainIds, options);
-      return;
-    }
-    this.#subscribeAssetsBalanceV5(accounts, chainIds, options);
-  }
-
-  #subscribeAssetsBalanceV5(
     accounts: InternalAccount[],
     chainIds: ChainId[],
     options?: { skipInitialFetch?: boolean },
@@ -3609,104 +3538,12 @@ export class AssetsController extends BaseController<
       }
     }
 
-    this.#subscribeRpcCustomAssetsSupplement(
-      accounts,
-      chainToAccounts,
-      rpcAssignedChains,
-    );
-  }
-
-  #subscribeAssetsBalanceV6(
-    accounts: InternalAccount[],
-    chainIds: ChainId[],
-    options?: { skipInitialFetch?: boolean },
-  ): void {
-    const chainToAccounts = this.#buildChainToAccountsMap(
-      accounts,
-      new Set(chainIds),
-    );
-    const remainingChains = new Set(chainToAccounts.keys());
-    const remainingCustomAssets = new Set<Caip19AssetId>();
-    for (const account of accounts) {
-      for (const assetId of this.#getVisibleCustomAssets(account.id)) {
-        try {
-          if (remainingChains.has(parseCaipAssetType(assetId).chainId)) {
-            remainingCustomAssets.add(assetId);
-          }
-        } catch {
-          // Skip unparseable asset IDs
-        }
-      }
-    }
-    const balanceDataSources = this.#isBasicFunctionality()
-      ? this.#allBalanceDataSources
-      : [this.#rpcDataSource];
-
-    for (const source of balanceDataSources) {
-      const availableChains = new Set(source.getActiveChainsSync());
-      const assignedChains: ChainId[] = [];
-
-      for (const chainId of remainingChains) {
-        if (availableChains.has(chainId)) {
-          assignedChains.push(chainId);
-          remainingChains.delete(chainId);
-        }
-      }
-
-      const claimedAssets = source.claimCustomAssets(
-        [...remainingCustomAssets],
-        assignedChains,
+    if (!this.#isBalanceV6Enabled()) {
+      this.#subscribeRpcCustomAssetsSupplement(
+        accounts,
+        chainToAccounts,
+        rpcAssignedChains,
       );
-      for (const assetId of claimedAssets) {
-        remainingCustomAssets.delete(assetId);
-      }
-      if (assignedChains.length === 0 && claimedAssets.length === 0) {
-        this.#unsubscribeDataSource(source);
-        continue;
-      }
-
-      const claimedAssetsSet = new Set(claimedAssets);
-      const seenIds = new Set<string>();
-      const accountsForSource = assignedChains
-        .flatMap((chainId) => chainToAccounts.get(chainId) ?? [])
-        .filter((account) => {
-          if (seenIds.has(account.id)) {
-            return false;
-          }
-          seenIds.add(account.id);
-          return true;
-        });
-      for (const account of accounts) {
-        if (
-          !seenIds.has(account.id) &&
-          this.getCustomAssets(account.id).some((assetId) =>
-            claimedAssetsSet.has(assetId),
-          )
-        ) {
-          seenIds.add(account.id);
-          accountsForSource.push(account);
-        }
-      }
-
-      if (accountsForSource.length > 0) {
-        const hiddenAssets = this.#getHiddenAssetIds();
-        this.#subscribeDataSource(source, accountsForSource, assignedChains, {
-          customAssets: claimedAssets,
-          excludeAssetIds: hiddenAssets.length > 0 ? hiddenAssets : undefined,
-          ...(options?.skipInitialFetch &&
-          source === this.#accountsApiDataSource
-            ? { skipInitialFetch: true }
-            : {}),
-        });
-      } else {
-        this.#unsubscribeDataSource(source);
-      }
-    }
-
-    if (remainingCustomAssets.size > 0) {
-      log('Custom assets unclaimed by any data source', {
-        assetIds: [...remainingCustomAssets],
-      });
     }
   }
 
@@ -3728,17 +3565,9 @@ export class AssetsController extends BaseController<
     const rpc = this.#rpcDataSource;
     const supplementalKey = `ds:${rpc.getName()}:custom`;
 
-    const visibleCustomAssetsByAccount: Record<string, Caip19AssetId[]> = {};
-    for (const account of accounts) {
-      const visibleCustomAssets = this.#getVisibleCustomAssets(account.id);
-      if (visibleCustomAssets.length > 0) {
-        visibleCustomAssetsByAccount[account.id] = visibleCustomAssets;
-      }
-    }
-
     const decision = pickRpcCustomAssetsSupplement({
       accountIds: accounts.map((account) => account.id),
-      customAssetsByAccount: visibleCustomAssetsByAccount,
+      customAssetsByAccount: this.state.customAssets,
       rpcAssignedChains,
       rpcAvailableChains: new Set(rpc.getActiveChainsSync()),
       enabledChains: new Set(chainToAccounts.keys()),
@@ -3847,12 +3676,8 @@ export class AssetsController extends BaseController<
    * @param chains - Array of chain IDs to subscribe for.
    * @param options - Optional subscription overrides.
    * @param options.subscriptionKey - Custom subscription key (default: `ds:<sourceId>`).
-   * @param options.customAssets - Pinned assets this source claimed
-   * (`claimCustomAssets`), forwarded on the poll request (Accounts API v6).
    * @param options.customAssetsOnly - When true, only poll customAssets for these
    * chains (Accounts API v5 supplemental RPC subscription).
-   * @param options.excludeAssetIds - Hidden assets forwarded on the poll request
-   * (Accounts API v6).
    * @param options.skipInitialFetch - When true, skip the data source's subscribe-time fetch.
    */
   #subscribeDataSource(
@@ -3861,8 +3686,6 @@ export class AssetsController extends BaseController<
     chains: ChainId[],
     options: {
       subscriptionKey?: string;
-      customAssets?: Caip19AssetId[];
-      excludeAssetIds?: Caip19AssetId[];
       customAssetsOnly?: boolean;
       skipInitialFetch?: boolean;
     } = {},
@@ -3871,7 +3694,6 @@ export class AssetsController extends BaseController<
     const subscriptionKey = options.subscriptionKey ?? `ds:${sourceId}`;
     const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);
     const isUpdate = existingSubscription !== undefined;
-    const customAssets = options.customAssets ?? [];
 
     log('Subscribe to data source', {
       sourceId,
@@ -3879,7 +3701,6 @@ export class AssetsController extends BaseController<
       isUpdate,
       accountCount: accounts.length,
       chainCount: chains.length,
-      customAssetCount: customAssets.length,
       customAssetsOnly: options.customAssetsOnly === true,
       skipInitialFetch: options.skipInitialFetch === true,
     });
@@ -3889,11 +3710,6 @@ export class AssetsController extends BaseController<
         assetTypes: ['fungible'],
         dataTypes: ['balance'],
         updateInterval: this.#defaultUpdateInterval,
-        customAssets: customAssets.length > 0 ? customAssets : undefined,
-        excludeAssetIds:
-          options.excludeAssetIds && options.excludeAssetIds.length > 0
-            ? options.excludeAssetIds
-            : undefined,
         ...(options.customAssetsOnly === true
           ? { customAssetsOnly: true }
           : {}),

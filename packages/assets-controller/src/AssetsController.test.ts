@@ -1573,35 +1573,44 @@ describe('AssetsController', () => {
       middlewareGetter.mockRestore();
     });
 
-    it('scopes the custom assets on the request to the requested chains', async () => {
+    it('includes only pins on the requested chains as includeAssetIds', async () => {
       const mainnetToken =
         'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
       const polygonToken =
         'eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Caip19AssetId;
 
-      const capturedCustomAssets: (Caip19AssetId[] | undefined)[] = [];
-      const accountsApiMiddleware = jest.fn(async (ctx, next) => {
-        capturedCustomAssets.push(ctx.request.customAssets);
-        return next(ctx);
+      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+        accounts: [],
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
       });
-      const middlewareGetter = jest
-        .spyOn(
-          AccountsApiDataSource.prototype,
-          'assetsMiddleware',
-          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
-          'get',
-        )
-        .mockReturnValue(accountsApiMiddleware) as unknown as jest.SpyInstance;
+      const queryApiClient = {
+        ...createMockQueryApiClient(),
+        accounts: {
+          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+            fullSupport: [1, 137],
+            partialSupport: [],
+          }),
+          fetchV6MultiAccountBalances,
+          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+            balances: [],
+            unprocessedNetworks: [],
+          }),
+        },
+      } as unknown as ApiPlatformClient;
 
       await withController(
         {
+          queryApiClient,
           remoteFeatureFlags: { assetsAccountsApiV6: true },
         },
         async ({ controller }) => {
+          await flushPromises();
+
           await controller.addCustomAsset(MOCK_ACCOUNT_ID, mainnetToken);
           await controller.addCustomAsset(MOCK_ACCOUNT_ID, polygonToken);
 
-          capturedCustomAssets.length = 0;
+          fetchV6MultiAccountBalances.mockClear();
           await controller.getAssets([createMockInternalAccount()], {
             chainIds: ['eip155:1'],
             forceUpdate: true,
@@ -1609,14 +1618,11 @@ describe('AssetsController', () => {
         },
       );
 
-      // Pins on chains outside the request are dropped when the request is
-      // built — every data source would only ignore them at fetch time.
-      expect(capturedCustomAssets.length).toBeGreaterThan(0);
-      for (const customAssets of capturedCustomAssets) {
-        expect(customAssets).toStrictEqual([mainnetToken]);
+      expect(fetchV6MultiAccountBalances).toHaveBeenCalled();
+      for (const [, params] of fetchV6MultiAccountBalances.mock.calls) {
+        expect(params?.includeAssetIds ?? []).toContain(mainnetToken);
+        expect(params?.includeAssetIds ?? []).not.toContain(polygonToken);
       }
-
-      middlewareGetter.mockRestore();
     });
 
     it('uses the customAssets option instead of state-pinned assets when provided', async () => {
@@ -2806,9 +2812,9 @@ describe('AssetsController', () => {
   });
 
   describe('two-axis subscription handoff (chains + custom assets)', () => {
-    it('claims pinned assets on account-activity-claimed chains instead of letting them fall through', async () => {
-      // Account activity claims eip155:1; its stream covers pins, so they
-      // stay with its subscription instead of falling through to a poller.
+    it('does not attach pinned assets to the account-activity subscription', async () => {
+      // Account activity owns eip155:1. Pins stay in controller state; the
+      // websocket does not take include/exclude lists.
       jest
         .spyOn(AccountActivityDataSource.prototype, 'getActiveChainsSync')
         .mockReturnValue(['eip155:1' as ChainId]);
@@ -2826,17 +2832,15 @@ describe('AssetsController', () => {
 
           const wsRequest = wsSubscribeSpy.mock.calls.at(-1)?.[0].request;
           expect(wsRequest?.chainIds).toStrictEqual(['eip155:1']);
-          expect(wsRequest?.customAssets).toStrictEqual([MOCK_ASSET_ID]);
+          expect(wsRequest?.customAssets).toBeUndefined();
 
-          // Nothing was left for lower-priority sources to claim.
           expect(rpcSubscribeSpy).not.toHaveBeenCalled();
         },
       );
     });
 
-    it('does not create an RPC subscription for pinned assets no source can claim', async () => {
-      // Account activity is not active on the pin's chain, so the pin falls
-      // through the whole handoff...
+    it('does not create an RPC subscription for pinned assets on unassigned chains', async () => {
+      // Account activity is not active on the pin's chain...
       jest
         .spyOn(AccountActivityDataSource.prototype, 'getActiveChainsSync')
         .mockReturnValue([]);
@@ -2849,7 +2853,7 @@ describe('AssetsController', () => {
 
       await withController(async ({ controller }) => {
         // ...and RPC has no provider for the chain (no networks configured in
-        // the mocked NetworkController), so its real claim returns nothing.
+        // the mocked NetworkController), so it is assigned no chains.
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
 
         expect(rpcSubscribeSpy).not.toHaveBeenCalled();
@@ -3269,7 +3273,7 @@ describe('AssetsController', () => {
     it('keeps default tracked assets at zero when a full update omits them', async () => {
       // Regression: a force refresh (e.g. "Refresh list") replaces the chain
       // slice, so mUSD was dropped from the token list for accounts holding
-      // none. Default tracked assets are re-asserted just like natives.
+      // none. mergeAccountBalancesV6 re-asserts default tracked assets.
       const initialState: Partial<AssetsControllerState> = {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: {

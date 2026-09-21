@@ -77,8 +77,10 @@ The requests differ as well:
 
 - **v5** asks for every pinned asset of the requested accounts, without scoping
   them to chains, and does not mention hidden assets.
-- **v6** scopes pinned assets to the requested chains (or uses the explicit
-  `customAssets` override) and sends hidden assets as `excludeAssetIds`.
+- **v6** does not copy pins or hides onto the request. The Accounts API
+  reads them from state (`includeAssetIds` / `excludeAssetIds`). A
+  `customAssets` override still scopes a one-shot fetch (new pin, RPC
+  fallback).
 
 When basic functionality is off, both fast lanes shrink to
 `Staked -> Detection`. The background lane is RPC only in both paths.
@@ -90,12 +92,11 @@ for it. They differ in how pinned assets on those chains are covered:
 
 - **v5** adds a separate RPC poll (`customAssetsOnly`) for pins that sit on a
   chain another source already owns.
-- **v6** asks each source which pins it can take, via `claimCustomAssets()` -
-  the Accounts API claims EVM pins and sends them as `includeAssetIds`. RPC
-  claims leftover EVM pins only on chains assigned to it. Pins the API could
-  not resolve are recovered by `RpcFallbackMiddleware` on that update.
-
-On v5, `AccountsApiDataSource.claimCustomAssets()` simply returns `[]`.
+- **v6** subscribe only assigns accounts and chains. The Accounts API reads
+  pins and hides from state and sends them as `includeAssetIds` /
+  `excludeAssetIds`. RPC polls `customAssets` from state on its assigned
+  chains. Account Activity ignores pins/hides. Pins the API could not resolve
+  are recovered by `RpcFallbackMiddleware` on that update.
 
 ## 3. Handling an incoming update
 
@@ -118,20 +119,21 @@ In other words: v5 never runs `RpcFallbackMiddleware` here, and v6 never runs
 | Covered-chain merge       | Preserve old behavior                       | Replace the covered chain slice                        |
 | Pinned asset preservation | Keep custom + staked pins in the merge path | Keep `unprocessedCustomAssets` until RPC resolves them |
 | Hidden assets             | Not sent to the endpoint                    | Sent as `excludeAssetIds`                              |
+| Token detection filter    | Drop unknown tokens when detection is off   | Not applied; v6 snapshot is kept in full               |
 | RPC token fetch           | Flat `request.customAssets` for the chain   | Same: one EVM account per request                      |
 
 ## Where the code lives
 
-| Concern                  | v5                                        | v6                                        |
-| ------------------------ | ----------------------------------------- | ----------------------------------------- |
-| Force-update request     | `#buildForceUpdateRequestV5`              | `#buildForceUpdateRequestV6`              |
-| Force-update pipeline    | `#forceUpdateAssetsV5`, `#runFastFetchV5` | `#forceUpdateAssetsV6`, `#runFastFetchV6` |
-| Fast lane composition    | `buildFastFetchSources` (graduation on)   | `buildFastFetchSources` (graduation off)  |
-| Subscribe                | `#subscribeAssetsBalanceV5`               | `#subscribeAssetsBalanceV6`               |
-| Update handling          | `#handleAssetsUpdateV5`                   | `#handleAssetsUpdateV6`                   |
-| Balance merge            | `mergeAccountBalancesV5`                  | `mergeAccountBalancesV6`                  |
-| Accounts API fetch       | `#fetchV5Balances`                        | `#fetchV6Balances`                        |
-| RPC fallback             | `#recoverV5`                              | `#recoverV6`                              |
+| Concern               | v5                                         | v6                                                                    |
+| --------------------- | ------------------------------------------ | --------------------------------------------------------------------- |
+| Force-update request  | `#buildForceUpdateRequestV5`               | `#buildForceUpdateRequestV6`                                          |
+| Force-update pipeline | `#forceUpdateAssetsV5`, `#runFastFetchV5`  | `#forceUpdateAssetsV6`, `#runFastFetchV6`                             |
+| Fast lane composition | `buildFastFetchSources` (graduation on)    | `buildFastFetchSources` (graduation off)                              |
+| Subscribe             | `#subscribeAssetsBalance` + RPC supplement | `#subscribeAssetsBalance`; Accounts API v6 include/exclude from state |
+| Update handling       | `#handleAssetsUpdateV5`                    | `#handleAssetsUpdateV6`                                               |
+| Balance merge         | `mergeAccountBalancesV5`                   | `mergeAccountBalancesV6`                                              |
+| Accounts API fetch    | `#fetchV5Balances`                         | `#fetchV6Balances`                                                    |
+| RPC fallback          | `#recoverV5`                               | `#recoverV6`                                                          |
 
 ## Deleting v5 after rollout
 

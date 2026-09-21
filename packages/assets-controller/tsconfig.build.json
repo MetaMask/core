@@ -67,5 +67,5 @@
     }
   ],
   "include": ["../../types", "./src"],
-  "exclude": ["**/*.test.ts", "**/__fixtures__/", "./architecture"]
+  "exclude": ["**/*.test.ts", "**/__fixtures__/"]
 }

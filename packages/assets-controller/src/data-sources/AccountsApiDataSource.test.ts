@@ -144,6 +144,20 @@ function createDataRequest(
   };
 }
 
+function createAssetsState(
+  overrides: Partial<AssetsControllerStateInternal> = {},
+): AssetsControllerStateInternal {
+  return {
+    assetsInfo: {},
+    assetsBalance: {},
+    assetsPrice: {},
+    customAssets: {},
+    assetPreferences: {},
+    selectedCurrency: 'usd',
+    ...overrides,
+  };
+}
+
 function createMiddlewareContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
@@ -171,6 +185,8 @@ async function setupController(
     fetchTimeoutMs?: number;
     v6Balances?: V6BalanceItem[];
     remoteFeatureFlags?: Record<string, unknown>;
+    getAssetsState?: () => AssetsControllerStateInternal;
+    tokenDetectionEnabled?: () => boolean;
   } = {},
 ): Promise<SetupResult> {
   const {
@@ -182,6 +198,8 @@ async function setupController(
     fetchTimeoutMs,
     v6Balances = [],
     remoteFeatureFlags = {},
+    getAssetsState = (): AssetsControllerStateInternal => createAssetsState(),
+    tokenDetectionEnabled,
   } = options;
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -235,7 +253,9 @@ async function setupController(
       activeChainsUpdateHandler(dataSourceName, chains, previousChains),
     isBalanceV6Enabled: (): boolean =>
       isBalanceV6EnabledFromFlags(remoteFeatureFlags),
+    getAssetsState,
     ...(fetchTimeoutMs === undefined ? {} : { fetchTimeoutMs }),
+    ...(tokenDetectionEnabled === undefined ? {} : { tokenDetectionEnabled }),
   });
 
   // Wait for async initialization
@@ -792,48 +812,6 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
-  describe('claimCustomAssets', () => {
-    const assignedChainAsset =
-      'eip155:1/erc20:0x1111111111111111111111111111111111111111';
-    const unassignedChainAsset =
-      'eip155:137/erc20:0x2222222222222222222222222222222222222222';
-    const nonEvmAsset = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFW';
-
-    it('claims EVM assets on assigned chains when the v6 flag is enabled', async () => {
-      const { controller } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: true },
-      });
-
-      expect(
-        controller.claimCustomAssets(
-          [
-            assignedChainAsset,
-            unassignedChainAsset,
-            nonEvmAsset,
-            'not-a-caip-asset',
-          ] as Caip19AssetId[],
-          ['eip155:1' as ChainId],
-        ),
-      ).toStrictEqual([assignedChainAsset]);
-
-      controller.destroy();
-    });
-
-    it('claims nothing when the v6 flag is disabled (v5 has no includeAssetIds support)', async () => {
-      const { controller } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: false },
-      });
-
-      expect(
-        controller.claimCustomAssets([assignedChainAsset] as Caip19AssetId[], [
-          'eip155:1' as ChainId,
-        ]),
-      ).toStrictEqual([]);
-
-      controller.destroy();
-    });
-  });
-
   describe('assetsAccountsApiV6 feature flag', () => {
     it('uses the v5 endpoint by default', async () => {
       const { controller, apiClient } = await setupController();
@@ -1277,16 +1255,17 @@ describe('AccountsApiDataSource', () => {
     });
 
     it('passes EVM hidden assets on requested chains to v6 as excludeAssetIds', async () => {
-      const { controller, apiClient } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: true },
-      });
-
       const hiddenToken =
         'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        getAssetsState: () =>
+          createAssetsState({
+            assetPreferences: { [hiddenToken]: { hidden: true } },
+          }),
+      });
 
-      await controller.fetch(
-        createDataRequest({ excludeAssetIds: [hiddenToken] }),
-      );
+      await controller.fetch(createDataRequest());
 
       expect(
         apiClient.accounts.fetchV6MultiAccountBalances,
@@ -1300,20 +1279,17 @@ describe('AccountsApiDataSource', () => {
     });
 
     it('omits hidden assets that are not on a requested chain from excludeAssetIds', async () => {
-      const { controller, apiClient } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: true },
-      });
-
-      // Hidden asset on Polygon while only Mainnet is being fetched.
       const polygonToken =
         'eip155:137/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        getAssetsState: () =>
+          createAssetsState({
+            assetPreferences: { [polygonToken]: { hidden: true } },
+          }),
+      });
 
-      await controller.fetch(
-        createDataRequest({
-          chainIds: [CHAIN_MAINNET],
-          excludeAssetIds: [polygonToken],
-        }),
-      );
+      await controller.fetch(createDataRequest({ chainIds: [CHAIN_MAINNET] }));
 
       expect(
         apiClient.accounts.fetchV6MultiAccountBalances,
@@ -1327,19 +1303,22 @@ describe('AccountsApiDataSource', () => {
     });
 
     it('skips non-EVM and malformed hidden assets when building excludeAssetIds', async () => {
-      const { controller, apiClient } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: true },
-      });
-
       const solanaToken =
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
       const malformed = 'not-a-caip-asset' as Caip19AssetId;
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        getAssetsState: () =>
+          createAssetsState({
+            assetPreferences: {
+              [solanaToken]: { hidden: true },
+              [malformed]: { hidden: true },
+            },
+          }),
+      });
 
-      await controller.fetch(
-        createDataRequest({ excludeAssetIds: [solanaToken, malformed] }),
-      );
+      await controller.fetch(createDataRequest());
 
-      // No EVM hidden asset on a requested chain -> excludeAssetIds omitted.
       expect(
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledWith(
@@ -1351,22 +1330,44 @@ describe('AccountsApiDataSource', () => {
       controller.destroy();
     });
 
-    it('lets a hidden asset win when it also appears in the pinned list', async () => {
+    it('reads visible pins from controller state as includeAssetIds when the request has none', async () => {
+      const customToken =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
       const { controller, apiClient } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: true },
+        getAssetsState: () =>
+          createAssetsState({
+            customAssets: { 'mock-account-id': [customToken] },
+          }),
       });
 
-      const token =
-        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      await controller.fetch(createDataRequest());
 
-      await controller.fetch(
-        createDataRequest({
-          customAssets: [token],
-          excludeAssetIds: [token],
-        }),
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        { includeAssetIds: [customToken] },
+        undefined,
       );
 
-      // The asset is hidden, so it is excluded and never included.
+      controller.destroy();
+    });
+
+    it('does not include a state pin that is also hidden', async () => {
+      const token =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        getAssetsState: () =>
+          createAssetsState({
+            customAssets: { 'mock-account-id': [token] },
+            assetPreferences: { [token]: { hidden: true } },
+          }),
+      });
+
+      await controller.fetch(createDataRequest());
+
       expect(
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledWith(
@@ -1379,21 +1380,20 @@ describe('AccountsApiDataSource', () => {
     });
 
     it('sends both includeAssetIds and excludeAssetIds when pins and hidden assets differ', async () => {
-      const { controller, apiClient } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: true },
-      });
-
       const pinned =
         'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
       const hidden =
         'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7' as Caip19AssetId;
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        getAssetsState: () =>
+          createAssetsState({
+            customAssets: { 'mock-account-id': [pinned] },
+            assetPreferences: { [hidden]: { hidden: true } },
+          }),
+      });
 
-      await controller.fetch(
-        createDataRequest({
-          customAssets: [pinned],
-          excludeAssetIds: [hidden],
-        }),
-      );
+      await controller.fetch(createDataRequest());
 
       expect(
         apiClient.accounts.fetchV6MultiAccountBalances,
@@ -1679,6 +1679,8 @@ describe('AccountsApiDataSource', () => {
         balances?: V5BalanceItem[];
         unprocessedNetworks?: string[];
         tokenDetectionEnabled?: boolean;
+        getAssetsState?: () => AssetsControllerStateInternal;
+        remoteFeatureFlags?: Record<string, unknown>;
       } = {},
     ): Promise<SetupResult> {
       const {
@@ -1686,6 +1688,9 @@ describe('AccountsApiDataSource', () => {
         balances = [],
         unprocessedNetworks = [],
         tokenDetectionEnabled,
+        getAssetsState = (): AssetsControllerStateInternal =>
+          createAssetsState(),
+        remoteFeatureFlags = {},
       } = options;
 
       const rootMessenger = new Messenger<
@@ -1711,7 +1716,7 @@ describe('AccountsApiDataSource', () => {
           registerActionHandler: (a: string, h: () => unknown) => void;
         }
       ).registerActionHandler('RemoteFeatureFlagController:getState', () => ({
-        remoteFeatureFlags: {},
+        remoteFeatureFlags,
         cacheTimestamp: 0,
       }));
 
@@ -1737,6 +1742,9 @@ describe('AccountsApiDataSource', () => {
           apiClient as unknown as AccountsApiDataSourceOptions['queryApiClient'],
         onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
           activeChainsUpdateHandler(dataSourceName, chains, previousChains),
+        isBalanceV6Enabled: (): boolean =>
+          isBalanceV6EnabledFromFlags(remoteFeatureFlags),
+        getAssetsState,
       };
 
       if (tokenDetectionEnabled !== undefined) {
@@ -1786,17 +1794,6 @@ describe('AccountsApiDataSource', () => {
         request: createDataRequest(),
         isUpdate: false,
         onAssetsUpdate: assetsUpdateHandler,
-        getAssetsState: () => ({
-          assetsInfo: {},
-          assetsBalance: {
-            [ACCOUNT_ID]: {
-              [KNOWN_ASSET]: { amount: '500' },
-            },
-          },
-          assetsPrice: {},
-          customAssets: {},
-          assetPreferences: {},
-        }),
       });
 
       expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
@@ -1825,6 +1822,14 @@ describe('AccountsApiDataSource', () => {
               '2000',
             ),
           ],
+          getAssetsState: () =>
+            createAssetsState({
+              assetsBalance: {
+                [ACCOUNT_ID]: {
+                  [KNOWN_ASSET]: { amount: '500' },
+                },
+              },
+            }),
         });
 
       await controller.subscribe({
@@ -1832,17 +1837,6 @@ describe('AccountsApiDataSource', () => {
         request: createDataRequest(),
         isUpdate: false,
         onAssetsUpdate: assetsUpdateHandler,
-        getAssetsState: () => ({
-          assetsInfo: {},
-          assetsBalance: {
-            [ACCOUNT_ID]: {
-              [KNOWN_ASSET]: { amount: '500' },
-            },
-          },
-          assetsPrice: {},
-          customAssets: {},
-          assetPreferences: {},
-        }),
       });
 
       expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
@@ -1867,6 +1861,7 @@ describe('AccountsApiDataSource', () => {
               '2000',
             ),
           ],
+          getAssetsState: () => createAssetsState(),
         });
 
       await controller.subscribe({
@@ -1874,13 +1869,6 @@ describe('AccountsApiDataSource', () => {
         request: createDataRequest(),
         isUpdate: false,
         onAssetsUpdate: assetsUpdateHandler,
-        getAssetsState: () => ({
-          assetsInfo: {},
-          assetsBalance: {},
-          assetsPrice: {},
-          customAssets: {},
-          assetPreferences: {},
-        }),
       });
 
       expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
@@ -1906,25 +1894,14 @@ describe('AccountsApiDataSource', () => {
             '2000',
           ),
         ],
-      });
-
-      // Set up state accessor via subscribe (middleware uses the stored getAssetsState)
-      await controller.subscribe({
-        subscriptionId: 'sub-setup',
-        request: createDataRequest(),
-        isUpdate: false,
-        onAssetsUpdate: jest.fn(),
-        getAssetsState: () => ({
-          assetsInfo: {},
-          assetsBalance: {
-            [ACCOUNT_ID]: {
-              [KNOWN_ASSET]: { amount: '500' },
+        getAssetsState: () =>
+          createAssetsState({
+            assetsBalance: {
+              [ACCOUNT_ID]: {
+                [KNOWN_ASSET]: { amount: '500' },
+              },
             },
-          },
-          assetsPrice: {},
-          customAssets: {},
-          assetPreferences: {},
-        }),
+          }),
       });
 
       const middleware = controller.assetsMiddleware;
@@ -1955,24 +1932,7 @@ describe('AccountsApiDataSource', () => {
             '1000000000000000000',
           ),
         ],
-      });
-
-      // Simulate new account: subscribe with empty state so #getAssetsState is set.
-      // Filter will then remove all API balance data (no assets in state).
-      await controller.subscribe({
-        subscriptionId: 'sub-setup',
-        request: createDataRequest({
-          chainIds: [CHAIN_MAINNET, CHAIN_POLYGON],
-        }),
-        isUpdate: false,
-        onAssetsUpdate: jest.fn(),
-        getAssetsState: () => ({
-          assetsInfo: {},
-          assetsBalance: {},
-          assetsPrice: {},
-          customAssets: {},
-          assetPreferences: {},
-        }),
+        getAssetsState: () => createAssetsState(),
       });
 
       const nextFn = jest.fn().mockResolvedValue(undefined);
@@ -1989,6 +1949,76 @@ describe('AccountsApiDataSource', () => {
         expect.objectContaining({
           request: expect.objectContaining({
             chainIds: [CHAIN_MAINNET, CHAIN_POLYGON],
+          }),
+        }),
+      );
+
+      controller.destroy();
+    });
+
+    it('does not filter unknown tokens on the v6 path when tokenDetectionEnabled is false', async () => {
+      const known = createMockV6BalanceItem(
+        `eip155:1:${MOCK_ADDRESS}`,
+        KNOWN_ASSET,
+        '1000',
+      );
+      const unknown = createMockV6BalanceItem(
+        `eip155:1:${MOCK_ADDRESS}`,
+        UNKNOWN_ASSET,
+        '2000',
+      );
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        tokenDetectionEnabled: (): boolean => false,
+        v6Balances: [known, unknown],
+        getAssetsState: () =>
+          createAssetsState({
+            assetsBalance: {
+              [ACCOUNT_ID]: {
+                [KNOWN_ASSET]: { amount: '500' },
+              },
+            },
+          }),
+      });
+
+      const response = await controller.fetch(createDataRequest());
+      const accountBalances = response.assetsBalance?.[ACCOUNT_ID] ?? {};
+      expect(Object.keys(accountBalances)).toHaveLength(2);
+      expect(accountBalances[KNOWN_ASSET as Caip19AssetId]).toBeDefined();
+      expect(accountBalances[UNKNOWN_ASSET as Caip19AssetId]).toBeDefined();
+
+      controller.destroy();
+    });
+
+    it('claims handled chains on v6 when tokenDetectionEnabled is false', async () => {
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        tokenDetectionEnabled: (): boolean => false,
+        v6Balances: [
+          createMockV6BalanceItem(
+            `eip155:1:${MOCK_ADDRESS}`,
+            'eip155:1/slip44:60',
+            '1000000000000000000',
+            'token',
+            'native',
+          ),
+        ],
+        getAssetsState: () => createAssetsState(),
+      });
+
+      const nextFn = jest.fn().mockResolvedValue(undefined);
+      const context = createMiddlewareContext({
+        request: createDataRequest({
+          chainIds: [CHAIN_MAINNET],
+        }),
+      });
+
+      await controller.assetsMiddleware(context, nextFn);
+
+      expect(nextFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            chainIds: [],
           }),
         }),
       );
@@ -2012,13 +2042,7 @@ describe('filterResponseToKnownAssets', () => {
   function buildState(
     balances: Record<string, Record<string, { amount: string }>>,
   ): AssetsControllerStateInternal {
-    return {
-      assetsInfo: {},
-      assetsBalance: balances,
-      assetsPrice: {},
-      customAssets: {},
-      assetPreferences: {},
-    };
+    return createAssetsState({ assetsBalance: balances });
   }
 
   it('returns response unchanged when assetsBalance is undefined', () => {

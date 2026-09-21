@@ -1432,44 +1432,6 @@ describe('RpcDataSource', () => {
     });
   });
 
-  describe('claimCustomAssets', () => {
-    const availableChainAsset =
-      `${MOCK_CHAIN_ID_CAIP}/erc20:0x1111111111111111111111111111111111111111` as Caip19AssetId;
-    const unavailableChainAsset =
-      'eip155:999/erc20:0x2222222222222222222222222222222222222222' as Caip19AssetId;
-    const nonEvmAsset =
-      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFW' as Caip19AssetId;
-
-    it('claims EVM assets only on chains assigned to RPC', async () => {
-      await withController(async ({ controller }) => {
-        expect(
-          controller.claimCustomAssets([availableChainAsset], []),
-        ).toStrictEqual([]);
-        expect(
-          controller.claimCustomAssets(
-            [availableChainAsset],
-            [MOCK_CHAIN_ID_CAIP],
-          ),
-        ).toStrictEqual([availableChainAsset]);
-      });
-    });
-
-    it('does not claim assets on unassigned chains, non-EVM assets, or malformed IDs', async () => {
-      await withController(async ({ controller }) => {
-        expect(
-          controller.claimCustomAssets(
-            [
-              unavailableChainAsset,
-              nonEvmAsset,
-              'not-a-caip-asset' as Caip19AssetId,
-            ],
-            [MOCK_CHAIN_ID_CAIP],
-          ),
-        ).toStrictEqual([]);
-      });
-    });
-  });
-
   describe('unsubscribe', () => {
     it('removes subscription', async () => {
       await withController(async ({ controller }) => {

@@ -248,7 +248,12 @@ describe('BalanceFetcher', () => {
       );
     });
 
-    it('includes state.customAssets on the regular poll even without an assetsBalance row', async () => {
+    it('polls custom assets even when they have no entry in assetsBalance yet', async () => {
+      // Regression: custom assets must be polled by RPC because RPC is the
+      // sole balance fetcher for them. Previously #getAssetsToFetch only
+      // looked at state.assetsBalance, so a freshly added custom asset
+      // (no balance row yet, e.g. zero balance or first fetch failed)
+      // would never be polled.
       const mockState: AssetsBalanceState = {
         assetsBalance: {
           [TEST_ACCOUNT_ID]: {
@@ -278,7 +283,12 @@ describe('BalanceFetcher', () => {
               true,
               '1000000000000000000',
             ),
-            createMockBalanceResponse(TEST_TOKEN_1, TEST_ACCOUNT, true, '0'),
+            createMockBalanceResponse(
+              TEST_TOKEN_1.toLowerCase() as Address,
+              TEST_ACCOUNT,
+              true,
+              '500',
+            ),
           ]);
 
           const input: BalancePollingInput = {
@@ -289,6 +299,9 @@ describe('BalanceFetcher', () => {
 
           await controller._executePoll(input);
 
+          // The multicall batch should include both the native asset and
+          // the custom ERC-20 token, even though the custom token has no
+          // entry in assetsBalance.
           const [, batchedRequests] =
             mockMulticallClient.batchBalanceOf.mock.calls[0];
           const requestedTokens = (
@@ -297,17 +310,16 @@ describe('BalanceFetcher', () => {
             .map((req) => req.tokenAddress.toLowerCase())
             .sort();
           expect(requestedTokens).toStrictEqual(
-            [ZERO_ADDRESS, TEST_TOKEN_1]
-              .map((addr) => addr.toLowerCase())
-              .sort(),
+            [ZERO_ADDRESS.toLowerCase(), TEST_TOKEN_1.toLowerCase()].sort(),
           );
         },
       );
     });
 
-    it('with explicit assetIds fetches exactly those assets and ignores tracked state', async () => {
-      // Asset-scoped poll path: RPC claimed the pins on a chain another
-      // source owns — it must NOT also poll the tracked balances.
+    it('in customAssetsOnly mode skips state.assetsBalance and only fetches state.customAssets', async () => {
+      // The supplemental subscription path: another data source covers the
+      // chain for regular balances, but RPC must still poll the user's
+      // customAssets. We must NOT also poll the regular tracked balances.
       const mockState: AssetsBalanceState = {
         assetsBalance: {
           [TEST_ACCOUNT_ID]: {
@@ -342,7 +354,7 @@ describe('BalanceFetcher', () => {
             chainId: MAINNET_CHAIN_ID,
             accountId: TEST_ACCOUNT_ID,
             accountAddress: TEST_ACCOUNT,
-            assetIds: [TOKEN_1_ASSET_ID],
+            customAssetsOnly: true,
           };
 
           await controller._executePoll(input);
@@ -354,8 +366,8 @@ describe('BalanceFetcher', () => {
           )
             .map((req) => req.tokenAddress.toLowerCase())
             .sort();
-          // ONLY the pinned asset — not the native and not TOKEN_2 from
-          // assetsBalance, even though both are tracked in state.
+          // ONLY the custom token — not the native and not TOKEN_2 from
+          // assetsBalance.
           expect(requestedTokens).toStrictEqual([TEST_TOKEN_1.toLowerCase()]);
         },
       );

@@ -342,7 +342,11 @@ export type DataRequest = {
   assetTypes?: AssetType[];
   /** Which data to fetch */
   dataTypes: DataType[];
-  /** Specific CAIP-19 asset IDs */
+  /**
+   * Optional scoped CAIP-19 asset IDs for this fetch (not the full pin list).
+   * Used by `getAssets({ customAssets })`, `addCustomAsset`, and RPC fallback
+   * recovery. When omitted, v6 sources read pins from controller state.
+   */
   customAssets?: Caip19AssetId[];
   /**
    * When true, the data source should poll only the user's `customAssets`
@@ -352,11 +356,6 @@ export type DataRequest = {
    * (Accounts API v5 path). Ignored when Accounts API v6 is enabled.
    */
   customAssetsOnly?: boolean;
-  /**
-   * User-hidden CAIP-19 asset IDs, sent to the Accounts API v6 endpoint as
-   * `excludeAssetIds` so they are dropped from the response.
-   */
-  excludeAssetIds?: Caip19AssetId[];
   /** Force fresh fetch, bypass cache */
   forceUpdate?: boolean;
   /**

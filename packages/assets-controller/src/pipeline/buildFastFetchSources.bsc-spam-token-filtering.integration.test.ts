@@ -104,6 +104,7 @@ async function runPipeline(
     messenger: assetsControllerMessenger,
     queryApiClient,
     onActiveChainsUpdated: jest.fn(),
+    getAssetsState: (): AssetsControllerStateInternal => state,
   });
 
   const stakedBalanceDataSource = new StakedBalanceDataSource({
@@ -171,7 +172,7 @@ async function runPipeline(
   const { response } = await executeAssetsPipeline({
     sources,
     request,
-    getAssetsState: () => state,
+    getAssetsState: (): AssetsControllerStateInternal => state,
   });
 
   accountsApiDataSource.destroy();
