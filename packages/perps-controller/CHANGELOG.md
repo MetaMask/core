@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Use Lighter's reported executed amount for order filled sizes so canceled orders do not appear fully filled.
+
 ## [17.2.0]
 
 ### Changed
