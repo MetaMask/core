@@ -3,9 +3,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 4
     },
-    "@typescript-eslint/naming-convention": {
-      "count": 4
-    },
     "id-length": {
       "count": 2
     }
@@ -2038,11 +2035,6 @@
   "packages/utils/src/fs.test.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 20
-    }
-  },
-  "packages/utils/src/fs.ts": {
-    "jsdoc/require-returns": {
-      "count": 1
     }
   },
   "packages/utils/src/hashing.test.ts": {
