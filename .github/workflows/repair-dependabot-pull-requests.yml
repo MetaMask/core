@@ -1,4 +1,4 @@
-name: Repair Dependabot pull requests
+name: Repair bot pull requests
 
 on:
   pull_request:
@@ -13,8 +13,10 @@ permissions:
 jobs:
   repair:
     name: Repair constraints, lockfile and changelogs
-    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+    # Renovate pull requests are authored by `metamask-ci[bot]`, the identity of its token, so they are matched on the branch prefix instead.
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' || startsWith(github.event.pull_request.head.ref, 'renovate/') }}
     runs-on: ubuntu-latest
+    # The environment name and this file's name are both load bearing: the token exchange policy keys on the `environment` claim and globs on the workflow path.
     environment: dependabot
     permissions:
       contents: read
