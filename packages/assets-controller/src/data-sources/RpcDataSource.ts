@@ -146,7 +146,7 @@ export type RpcDataSourceOptions = {
   /** Returns the asset type ('native' | 'erc20' | 'spl') for the given CAIP-19 asset ID */
   getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
   /**
-   * Whether Accounts API v6 pin filtering and asset-scoped polls are enabled.
+   * Whether Accounts API v6 pin filtering is enabled.
    * Injected by AssetsController; defaults to v5 when omitted.
    */
   isBalanceV6Enabled?: () => boolean;
@@ -1380,29 +1380,26 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   /**
-   * RPC is the terminal claimer on the asset axis: it claims every EVM pin it
-   * has a provider for, even on chains claimed by higher-priority sources.
-   * Pins outside the regular RPC assignment get an asset-scoped poll (see
-   * `subscribe`).
+   * Claim leftover EVM pins on chains assigned to RPC. Pins on chains owned by
+   * Account Activity or the Accounts API stay with those sources (v6
+   * `includeAssetIds` / websocket). Unresolved pins on those chains are
+   * recovered by `RpcFallbackMiddleware`, not a second RPC subscription.
    *
    * @param customAssets - Candidate CAIP-19 asset IDs still unclaimed.
-   * @param assignedChains - Chains assigned to RPC; availability fallback
-   * before network state is applied.
+   * @param assignedChains - Chains assigned to RPC in this handoff.
    * @returns The claimed subset of `customAssets`.
    */
   claimCustomAssets(
     customAssets: Caip19AssetId[],
     assignedChains: ChainId[],
   ): Caip19AssetId[] {
-    const available = new Set<ChainId>(
-      this.#activeChains.length > 0 ? this.#activeChains : assignedChains,
-    );
+    const assigned = new Set<ChainId>(assignedChains);
     return customAssets.filter((assetId) => {
       try {
         const parsed = parseCaipAssetType(assetId);
         return (
           parsed.chain.namespace === KnownCaipNamespace.Eip155 &&
-          available.has(parsed.chainId)
+          assigned.has(parsed.chainId)
         );
       } catch {
         return false;
@@ -1433,23 +1430,15 @@ export class RpcDataSource extends AbstractDataSource<
           )
         : request.chainIds;
 
-    // Pins claimed on chains outside the regular RPC assignment get an
-    // asset-scoped poll below.
-    const supplementalChains = this.#getSupplementalCustomAssetChains(
-      request,
-      chainsToSubscribe,
-    );
-
     log('Subscribe requested', {
       subscriptionId,
       isUpdate,
       accounts: request.accountsWithSupportedChains.map((a) => a.account.id),
       chainsToSubscribe,
-      supplementalChains,
       activeChainsFallback: this.#activeChains.length === 0,
     });
 
-    if (chainsToSubscribe.length === 0 && supplementalChains.length === 0) {
+    if (chainsToSubscribe.length === 0) {
       log('No active chains to subscribe');
       return;
     }
@@ -1518,53 +1507,6 @@ export class RpcDataSource extends AbstractDataSource<
       }
     }
 
-    // Asset-scoped polls on chains another source claimed: poll ONLY the
-    // claimed pins to avoid double-polling tracked balances. Pin changes
-    // re-run the subscription pass, which rebuilds these polls.
-    // Asset-scoped polls on chains another source claimed (v6 only).
-    if (this.#isBalanceV6Enabled() && supplementalChains.length > 0) {
-      const supplemental = new Set<ChainId>(supplementalChains);
-      const claimedAssetsByChain = new Map<ChainId, Caip19AssetId[]>();
-      for (const assetId of request.customAssets ?? []) {
-        try {
-          const { chainId } = parseCaipAssetType(assetId);
-          if (supplemental.has(chainId)) {
-            const chainAssets = claimedAssetsByChain.get(chainId) ?? [];
-            chainAssets.push(assetId);
-            claimedAssetsByChain.set(chainId, chainAssets);
-          }
-        } catch {
-          // Skip unparseable asset IDs
-        }
-      }
-      // request.customAssets is flat; ownership comes from controller state.
-      const customAssetsByAccount = this.#getCustomAssetsByAccount();
-      for (const { account } of request.accountsWithSupportedChains) {
-        const pinned = new Set(customAssetsByAccount[account.id] ?? []);
-        if (pinned.size === 0) {
-          continue;
-        }
-        for (const [chainId, chainAssets] of claimedAssetsByChain) {
-          // Sorted so the polling input (the dedupe key) is deterministic.
-          const assetIds = chainAssets
-            .filter((assetId) => pinned.has(assetId))
-            .sort();
-          if (assetIds.length === 0) {
-            continue;
-          }
-          const balanceInput: BalancePollingInput = {
-            chainId: caipChainIdToHex(chainId),
-            accountId: account.id,
-            accountAddress: account.address as Address,
-            assetIds,
-          };
-          balancePollingTokens.push(
-            this.#balanceFetcher.startPolling(balanceInput),
-          );
-        }
-      }
-    }
-
     // Store subscription data
     const accounts = request.accountsWithSupportedChains.map(
       (entry) => entry.account,
@@ -1606,47 +1548,6 @@ export class RpcDataSource extends AbstractDataSource<
       this.#activeSubscriptions.delete(subscriptionId);
       log('Unsubscribed and stopped polling', { subscriptionId });
     }
-  }
-
-  /**
-   * Chains needing a supplemental asset-scoped poll: chains of pins not
-   * covered by the regular RPC polling. Only EVM chains RPC can serve;
-   * malformed IDs are skipped.
-   *
-   * @param request - The subscription's data request (carries `customAssets`).
-   * @param chainsToSubscribe - Chains covered by the regular polling loop.
-   * @returns Chains requiring an asset-scoped poll.
-   */
-  #getSupplementalCustomAssetChains(
-    request: DataRequest,
-    chainsToSubscribe: ChainId[],
-  ): ChainId[] {
-    if (!request.customAssets || request.customAssets.length === 0) {
-      return [];
-    }
-
-    const covered = new Set<ChainId>(chainsToSubscribe);
-    const chains = new Set<ChainId>();
-
-    for (const assetId of request.customAssets) {
-      let parsed: ReturnType<typeof parseCaipAssetType>;
-      try {
-        parsed = parseCaipAssetType(assetId);
-      } catch {
-        continue;
-      }
-      const { chainId } = parsed;
-      if (
-        parsed.chain.namespace === KnownCaipNamespace.Eip155 &&
-        !covered.has(chainId) &&
-        (this.#activeChains.length === 0 ||
-          this.#activeChains.includes(chainId))
-      ) {
-        chains.add(chainId);
-      }
-    }
-
-    return [...chains];
   }
 
   /**

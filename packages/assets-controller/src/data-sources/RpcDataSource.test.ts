@@ -1495,55 +1495,7 @@ describe('RpcDataSource', () => {
       });
     });
 
-    it('starts an asset-scoped poll (explicit assetIds) for pinned assets on chains not assigned to RPC', async () => {
-      const balanceStartSpy = jest.spyOn(
-        BalanceFetcher.prototype,
-        'startPolling',
-      );
-      const detectionStartSpy = jest.spyOn(
-        TokenDetector.prototype,
-        'startPolling',
-      );
-      const customAssetId =
-        `${MOCK_CHAIN_ID_CAIP}/erc20:0x1111111111111111111111111111111111111111` as Caip19AssetId;
-
-      await withController(
-        {
-          options: { isBalanceV6Enabled: (): boolean => true },
-          actionHandlerOverrides: {
-            'AssetsController:getState': () => ({
-              ...getDefaultAssetsControllerState(),
-              customAssets: { [MOCK_ACCOUNT_ID]: [customAssetId] },
-            }),
-          },
-        },
-        async ({ controller }) => {
-          // The chain axis assigned nothing to RPC (chainIds is empty — e.g.
-          // the websocket claimed the chain), but RPC claimed the pinned asset.
-          await controller.subscribe({
-            request: createDataRequest({
-              chainIds: [],
-              customAssets: [customAssetId],
-            }),
-            subscriptionId: 'test-sub',
-            isUpdate: false,
-            onAssetsUpdate: jest.fn(),
-          });
-
-          expect(balanceStartSpy).toHaveBeenCalledWith({
-            chainId: MOCK_CHAIN_ID_HEX,
-            accountId: MOCK_ACCOUNT_ID,
-            accountAddress: MOCK_ADDRESS,
-            assetIds: [customAssetId],
-          });
-          // No regular chain coverage — detection must not run.
-          expect(detectionStartSpy).not.toHaveBeenCalled();
-          await controller.unsubscribe('test-sub');
-        },
-      );
-    });
-
-    it('does not start an asset-scoped poll for accounts without pinned assets on the supplemental chain', async () => {
+    it('does not poll when no chains are assigned even if customAssets are present', async () => {
       const balanceStartSpy = jest.spyOn(
         BalanceFetcher.prototype,
         'startPolling',
@@ -1551,104 +1503,20 @@ describe('RpcDataSource', () => {
       const customAssetId =
         `${MOCK_CHAIN_ID_CAIP}/erc20:0x1111111111111111111111111111111111111111` as Caip19AssetId;
 
-      await withController(
-        {
-          actionHandlerOverrides: {
-            'AssetsController:getState': () => ({
-              ...getDefaultAssetsControllerState(),
-              customAssets: { 'other-account-id': [customAssetId] },
-            }),
-          },
-        },
-        async ({ controller }) => {
-          await controller.subscribe({
-            request: createDataRequest({
-              chainIds: [],
-              customAssets: [customAssetId],
-            }),
-            subscriptionId: 'test-sub',
-            isUpdate: false,
-            onAssetsUpdate: jest.fn(),
-          });
+      await withController(async ({ controller }) => {
+        await controller.subscribe({
+          request: createDataRequest({
+            chainIds: [],
+            customAssets: [customAssetId],
+          }),
+          subscriptionId: 'test-sub',
+          isUpdate: false,
+          onAssetsUpdate: jest.fn(),
+        });
 
-          expect(balanceStartSpy).not.toHaveBeenCalled();
-          await controller.unsubscribe('test-sub');
-        },
-      );
-    });
-
-    it('does not start an asset-scoped poll for chains already covered by regular polling', async () => {
-      const balanceStartSpy = jest.spyOn(
-        BalanceFetcher.prototype,
-        'startPolling',
-      );
-      const customAssetId =
-        `${MOCK_CHAIN_ID_CAIP}/erc20:0x1111111111111111111111111111111111111111` as Caip19AssetId;
-
-      await withController(
-        {
-          actionHandlerOverrides: {
-            'AssetsController:getState': () => ({
-              ...getDefaultAssetsControllerState(),
-              customAssets: { [MOCK_ACCOUNT_ID]: [customAssetId] },
-            }),
-          },
-        },
-        async ({ controller }) => {
-          // Chain assigned to RPC: the regular poll already includes
-          // state.customAssets, so no supplemental poll must start.
-          await controller.subscribe({
-            request: createDataRequest({
-              customAssets: [customAssetId],
-            }),
-            subscriptionId: 'test-sub',
-            isUpdate: false,
-            onAssetsUpdate: jest.fn(),
-          });
-
-          expect(balanceStartSpy).toHaveBeenCalledTimes(1);
-          expect(balanceStartSpy).toHaveBeenCalledWith({
-            chainId: MOCK_CHAIN_ID_HEX,
-            accountId: MOCK_ACCOUNT_ID,
-            accountAddress: MOCK_ADDRESS,
-          });
-          await controller.unsubscribe('test-sub');
-        },
-      );
-    });
-
-    it('unsubscribe stops asset-scoped polling', async () => {
-      const balanceStopSpy = jest.spyOn(
-        BalanceFetcher.prototype,
-        'stopPollingByPollingToken',
-      );
-      const customAssetId =
-        `${MOCK_CHAIN_ID_CAIP}/erc20:0x1111111111111111111111111111111111111111` as Caip19AssetId;
-
-      await withController(
-        {
-          options: { isBalanceV6Enabled: (): boolean => true },
-          actionHandlerOverrides: {
-            'AssetsController:getState': () => ({
-              ...getDefaultAssetsControllerState(),
-              customAssets: { [MOCK_ACCOUNT_ID]: [customAssetId] },
-            }),
-          },
-        },
-        async ({ controller }) => {
-          await controller.subscribe({
-            request: createDataRequest({
-              chainIds: [],
-              customAssets: [customAssetId],
-            }),
-            subscriptionId: 'test-sub',
-            isUpdate: false,
-            onAssetsUpdate: jest.fn(),
-          });
-          await controller.unsubscribe('test-sub');
-          expect(balanceStopSpy).toHaveBeenCalled();
-        },
-      );
+        expect(balanceStartSpy).not.toHaveBeenCalled();
+        await controller.unsubscribe('test-sub');
+      });
     });
   });
 
@@ -1660,15 +1528,21 @@ describe('RpcDataSource', () => {
     const nonEvmAsset =
       'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFW' as Caip19AssetId;
 
-    it('claims EVM assets on active chains even when the chain was not assigned to RPC', async () => {
+    it('claims EVM assets only on chains assigned to RPC', async () => {
       await withController(async ({ controller }) => {
         expect(
           controller.claimCustomAssets([availableChainAsset], []),
+        ).toStrictEqual([]);
+        expect(
+          controller.claimCustomAssets(
+            [availableChainAsset],
+            [MOCK_CHAIN_ID_CAIP],
+          ),
         ).toStrictEqual([availableChainAsset]);
       });
     });
 
-    it('does not claim assets on chains RPC cannot serve, non-EVM assets, or malformed IDs', async () => {
+    it('does not claim assets on unassigned chains, non-EVM assets, or malformed IDs', async () => {
       await withController(async ({ controller }) => {
         expect(
           controller.claimCustomAssets(
@@ -1677,25 +1551,8 @@ describe('RpcDataSource', () => {
               nonEvmAsset,
               'not-a-caip-asset' as Caip19AssetId,
             ],
-            [],
-          ),
-        ).toStrictEqual([]);
-      });
-    });
-
-    it('falls back to assigned chains when network state has not been applied yet', async () => {
-      const networkState = createMockNetworkState(NetworkStatus.Degraded);
-      await withController({ networkState }, async ({ controller }) => {
-        // eslint-disable-next-line n/no-sync -- testing sync API used by AssetsController
-        expect(controller.getActiveChainsSync()).toStrictEqual([]);
-        expect(
-          controller.claimCustomAssets(
-            [availableChainAsset],
             [MOCK_CHAIN_ID_CAIP],
           ),
-        ).toStrictEqual([availableChainAsset]);
-        expect(
-          controller.claimCustomAssets([availableChainAsset], []),
         ).toStrictEqual([]);
       });
     });

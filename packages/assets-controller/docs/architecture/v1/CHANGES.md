@@ -92,8 +92,9 @@ for it. They differ in how pinned assets on those chains are covered:
 - **v5** adds a separate RPC poll (`customAssetsOnly`) for pins that sit on a
   chain another source already owns.
 - **v6** asks each source which pins it can take, via `claimCustomAssets()` -
-  the Accounts API claims EVM pins and sends them as `includeAssetIds`. RPC then
-  polls only the pins nobody claimed.
+  the Accounts API claims EVM pins and sends them as `includeAssetIds`. RPC
+  claims leftover EVM pins only on chains assigned to it. Pins the API could
+  not resolve are recovered by `RpcFallbackMiddleware` on that update.
 
 On v5, `AccountsApiDataSource.claimCustomAssets()` simply returns `[]`.
 
