@@ -26,21 +26,30 @@ import {
   getTokenMetadataFromKnownToken,
   parseValueTransfers,
 } from './helpers/transactions.js';
+import type { GetKnownTokenDecimals } from './helpers/transactions.js';
 
 /**
  * Maps an indexed API transaction into the shared activity item shape.
  *
+ * Fungible token amounts are only emitted when a decimals scale is known
+ * (transfer enrichment, native defaults, static metadata, or
+ * `getKnownTokenDecimals`). Pass that optional hook so hosts can recover
+ * decimals/symbol from on-device token state when the Accounts API omits them.
+ *
  * @param options - The mapping options.
  * @param options.transaction - The indexed API transaction to map.
  * @param options.subjectAddress - The account the activity is being mapped for.
+ * @param options.getKnownTokenDecimals - Optional host lookup for missing ERC-20 metadata.
  * @returns The normalized activity item.
  */
 export function mapApiTransaction({
   transaction,
   subjectAddress,
+  getKnownTokenDecimals,
 }: {
   transaction: V1TransactionByHashResponse;
   subjectAddress: string;
+  getKnownTokenDecimals?: GetKnownTokenDecimals;
 }): ActivityItem {
   const { hash, transactionCategory, valueTransfers, from, methodId } =
     transaction;
@@ -55,7 +64,12 @@ export function mapApiTransaction({
     transfer: ValueTransfer | undefined,
     direction: TokenAmount['direction'],
   ): TokenAmount | undefined =>
-    getTokenAmountFromTransfer(transfer, direction, chainId);
+    getTokenAmountFromTransfer(
+      transfer,
+      direction,
+      chainId,
+      getKnownTokenDecimals,
+    );
 
   const {
     sentTransfer,

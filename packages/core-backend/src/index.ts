@@ -137,6 +137,7 @@ export {
 export type {
   // Client options
   ApiPlatformClientOptions,
+  ApiUrls,
   FetchOptions,
   // Shared types
   PageInfo,
@@ -151,7 +152,8 @@ export type {
   V6VsCurrency,
   V6DeFiPositionType,
   V6BalanceMetadata,
-  V6TokenMetadata,
+  V6StellarTokenBalanceMetadata,
+  V6TokenBalanceMetadata,
   V6BalanceItem,
   V6BalancesResponse,
   V1SupportedNetworksResponse,
