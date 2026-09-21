@@ -9,7 +9,10 @@
 // `document.referrer` when not set explicitly — the same mechanism the legacy
 // RN-bridge shim used in the POC HTML page.
 
-import type { ChartHostTransport, InboundTransportListener } from '../core/host.js';
+import type {
+  ChartHostTransport,
+  InboundTransportListener,
+} from '../core/host.js';
 import type { ChartConfig } from '../core/types.js';
 
 /** Minimal postMessage target shape (satisfied by `Window`). */

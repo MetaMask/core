@@ -6,7 +6,10 @@
 // document) with the RN inline-HTML origin filter, and config via
 // window.CONFIG (inlined by AdvancedChartTemplate before this IIFE runs).
 
-import type { ChartHostTransport, InboundTransportListener } from '../core/host.js';
+import type {
+  ChartHostTransport,
+  InboundTransportListener,
+} from '../core/host.js';
 import type { ChartConfig } from '../core/types.js';
 
 /**

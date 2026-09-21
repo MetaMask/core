@@ -19,10 +19,7 @@ describe('platform/iframeHost', () => {
       createIframeHost({ target, targetOrigin: 'https://app' }).postMessage(
         'payload',
       );
-      expect(target.postMessage).toHaveBeenCalledWith(
-        'payload',
-        'https://app',
-      );
+      expect(target.postMessage).toHaveBeenCalledWith('payload', 'https://app');
     });
 
     it('resolves targetOrigin from document.referrer when it is in allowedOrigins', () => {
