@@ -42,7 +42,7 @@ import type {
   UnfollowOptions,
   UnfollowResponse,
 } from './social-types.js';
-import { TradeStruct } from './social-types.js';
+import { TRADER_RANKING_TAGS, TradeStruct } from './social-types.js';
 import type { SocialServiceMethodActions } from './SocialService-method-action-types.js';
 
 // ---------------------------------------------------------------------------
@@ -150,6 +150,7 @@ const TraderProfileResponseStruct = structType({
   socialHandles: SocialHandlesStruct,
   followerCount: number(),
   followingCount: number(),
+  rankingTag: optional(nullable(enums(TRADER_RANKING_TAGS))),
 });
 
 const PositionsResponseStruct = structType({

@@ -405,6 +405,7 @@ linkStyle default opacity:0.5
   core_backend --> profile_sync_controller;
   core_backend --> remote_feature_flag_controller;
   core_backend --> utils;
+  cryptography --> utils;
   delegation_controller --> base_controller;
   delegation_controller --> keyring_controller;
   delegation_controller --> messenger;
@@ -618,6 +619,7 @@ linkStyle default opacity:0.5
   profile_metrics_controller --> utils;
   profile_sync_controller --> address_book_controller;
   profile_sync_controller --> base_controller;
+  profile_sync_controller --> controller_utils;
   profile_sync_controller --> keyring_controller;
   profile_sync_controller --> messenger;
   profile_sync_controller --> seedless_onboarding_controller;

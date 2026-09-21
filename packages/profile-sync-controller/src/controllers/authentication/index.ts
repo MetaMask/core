@@ -16,4 +16,7 @@ export type {
   AuthenticationControllerRequestProfilePairingAction,
   AuthenticationControllerGetPartnerIdentityTokenAction,
   AuthenticationControllerClearStateAction,
+  AuthenticationControllerRefreshEnrolledCredentialsAction,
+  AuthenticationControllerBeginCredentialEnrollmentAction,
+  AuthenticationControllerCompleteCredentialEnrollmentAction,
 } from './AuthenticationController-method-action-types.js';
