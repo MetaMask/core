@@ -201,6 +201,11 @@ export type SeedlessOnboardingControllerGetIsUserAuthenticatedAction = {
 
 /**
  * Clears the current state of the SeedlessOnboardingController.
+ *
+ * Waits for any in-flight controller operation before clearing state and
+ * releases the in-memory decrypted vault data.
+ *
+ * @returns A promise that resolves once the state has been cleared.
  */
 export type SeedlessOnboardingControllerClearStateAction = {
   type: `SeedlessOnboardingController:clearState`;

@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `changePassword` is now lifecycle-aware: it writes `seedlessOperationLifecycle` with the shared `REMOTE_PASSWORD_PENDING`, `LOCAL_STATE_PENDING`, and `LOCAL_PASSWORD_PENDING` phases and rejects a concurrent change with `PasswordChangeInProgress` ([#10148](https://github.com/MetaMask/core/pull/10148))
   - Clients must not start a second password change while a lifecycle is unfinished, and must drive the lifecycle to completion by calling `completePasswordChange`. See the [client integration guide](./docs/0002-seedless-password-change-recovery-client-guide.md).
+- **BREAKING:** `clearState` now returns a promise and waits for in-flight controller operations before clearing state. It also clears the in-memory decrypted vault data to prevent a completed operation from restoring cleared state ([#10148](https://github.com/MetaMask/core/pull/10148))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
 ### Removed

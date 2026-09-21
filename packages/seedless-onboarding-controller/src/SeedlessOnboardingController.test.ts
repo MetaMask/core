@@ -6130,7 +6130,7 @@ describe('SeedlessOnboardingController', () => {
           expect(state.userId).toBeDefined();
           expect(state.authConnectionId).toBeDefined();
 
-          baseMessenger.call('SeedlessOnboardingController:clearState');
+          await baseMessenger.call('SeedlessOnboardingController:clearState');
           expect(controller.state).toStrictEqual(
             getInitialSeedlessOnboardingControllerStateWithDefaults(),
           );

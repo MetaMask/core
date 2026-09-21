@@ -1417,12 +1417,21 @@ export class SeedlessOnboardingController<
 
   /**
    * Clears the current state of the SeedlessOnboardingController.
+   *
+   * Waits for any in-flight controller operation before clearing state and
+   * releases the in-memory decrypted vault data.
+   *
+   * @returns A promise that resolves once the state has been cleared.
    */
-  clearState(): void {
-    const defaultState =
-      getInitialSeedlessOnboardingControllerStateWithDefaults();
-    this.update(() => {
-      return defaultState;
+  async clearState(): Promise<void> {
+    await this.#withControllerLock(async () => {
+      const defaultState =
+        getInitialSeedlessOnboardingControllerStateWithDefaults();
+      this.update(() => {
+        return defaultState;
+      });
+      this.#cachedDecryptedVaultData = undefined;
+      this.#isUnlocked = false;
     });
   }
 
