@@ -1,4 +1,4 @@
-name: Repair bot pull requests
+name: Repair dependency update pull requests
 
 on:
   pull_request:
