@@ -25,6 +25,23 @@ const { inspect } = require('util');
 const ALLOWED_INCONSISTENT_DEPENDENCIES = {};
 
 /**
+ * Whether `yarn constraints --fix` may resolve a dependency range disagreement
+ * on its own by aligning every workspace to the highest range.
+ *
+ * Off by default, so `yarn lint:fix` never turns an unrelated change into a
+ * monorepo-wide dependency bump. Dependency upgrades belong in their own pull
+ * requests, so this is set only by the workflow that repairs Dependabot pull
+ * requests. It is deliberately not exposed as a package script: a convenient
+ * front door is precisely what would tempt someone into bundling an upgrade
+ * into unrelated work.
+ *
+ * Note that this cannot be a command line flag: `yarn constraints` is a Yarn
+ * builtin and rejects any option other than `--fix` and `--json`.
+ */
+// eslint-disable-next-line n/no-process-env
+const ALIGN_DEPENDENCY_RANGES = process.env.ALIGN_DEPENDENCY_RANGES === 'true';
+
+/**
  * These packages are allowed as peer dependencies without requiring installation as
  * devDependencies.
  */
@@ -82,6 +99,9 @@ module.exports = defineConfig({
       const isPrivate =
         Object.hasOwn(workspace.manifest, 'private') &&
         workspace.manifest.private === true;
+      const isTemplate =
+        workspace.manifest.name === '@metamask/package-template';
+
       const dependenciesByIdentAndType = getDependenciesByIdentAndType(
         Yarn.dependencies({ workspace }),
       );
@@ -112,11 +132,19 @@ module.exports = defineConfig({
         expectWorkspaceField(workspace, 'keywords', ['Ethereum', 'MetaMask']);
 
         // All non-root packages must have a homepage URL that includes its name.
-        expectWorkspaceField(
-          workspace,
-          'homepage',
-          `${repositoryUri}/tree/main/packages/${workspaceBasename}#readme`,
-        );
+        if (isTemplate) {
+          expectWorkspaceField(
+            workspace,
+            'homepage',
+            `${repositoryUri}/tree/main/packages/PACKAGE_DIRECTORY_NAME#readme`,
+          );
+        } else {
+          expectWorkspaceField(
+            workspace,
+            'homepage',
+            `${repositoryUri}/tree/main/packages/${workspaceBasename}#readme`,
+          );
+        }
 
         // All non-root packages must have a URL for reporting bugs that points
         // to the Issues page for the repository.
@@ -281,7 +309,7 @@ module.exports = defineConfig({
 
       // All non-root public packages should be published to the NPM registry;
       // all non-root private packages should not.
-      if (isPrivate) {
+      if (isPrivate && !isTemplate) {
         workspace.unset('publishConfig');
       } else {
         expectWorkspaceField(workspace, 'publishConfig.access', 'public');
@@ -296,7 +324,9 @@ module.exports = defineConfig({
         // All non-root packages must have a valid README.md file.
         await expectReadme(workspace, workspaceBasename, isPrivate);
 
-        await expectCodeowner(workspace, workspaceBasename);
+        if (!isTemplate) {
+          await expectCodeowner(workspace, workspaceBasename);
+        }
       }
     }
 
@@ -1012,14 +1042,19 @@ function getHighestRange(ranges) {
  * and `devDependencies` for the same dependency are the same (as long as it is
  * not a dependency on a workspace package).
  *
- * Where every conflicting range is plain semver, the one permitting the highest
- * minimum version wins and `yarn constraints --fix` will align the rest. That
- * keeps a partial dependency bump from blocking a pull request on a change
- * nobody has to think about. Dependabot security updates produce exactly this,
- * since they walk manifests one at a time rather than as a workspace.
+ * By default a disagreement is an error for a human to resolve, so that routine
+ * use of `yarn lint:fix` cannot quietly fold a dependency bump into an
+ * unrelated pull request.
  *
- * Ranges that cannot be compared (aliases, protocols, dist tags) still fall
- * through to an error for a human to resolve.
+ * Under `ALIGN_DEPENDENCY_RANGES` (see above) the rule instead becomes
+ * fixable: where every conflicting range is plain semver, the one permitting
+ * the highest minimum version wins and `yarn constraints --fix` aligns the
+ * rest. That is meant for the workflow that repairs Dependabot pull requests,
+ * whose security updates walk manifests one at a time rather than as a
+ * workspace and so routinely leave ranges disagreeing.
+ *
+ * Ranges that cannot be compared (aliases, protocols, dist tags) are always an
+ * error, opted in or not.
  *
  * @param {Yarn} Yarn - The Yarn "global".
  */
@@ -1048,7 +1083,9 @@ function expectConsistentDependenciesAndDevDependencies(Yarn) {
 
     for (const dependencies of dependenciesToConsider.values()) {
       for (const dependency of dependencies) {
-        if (highestRange === null) {
+        if (highestRange !== null && ALIGN_DEPENDENCY_RANGES) {
+          dependency.update(highestRange);
+        } else {
           dependency.error(
             `Expected version range for ${dependencyIdent} (in ${
               dependency.type
@@ -1056,8 +1093,6 @@ function expectConsistentDependenciesAndDevDependencies(Yarn) {
               dependencyRanges,
             )}`,
           );
-        } else {
-          dependency.update(highestRange);
         }
       }
     }

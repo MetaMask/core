@@ -32,10 +32,12 @@ export type {
   RampsControllerGetPaymentMethodsForContextAction,
   RampsControllerSetSelectedPaymentMethodAction,
   RampsControllerGetQuotesAction,
+  RampsControllerGetQuoteWithFeesAction,
   RampsControllerAddOrderAction,
   RampsControllerRemoveOrderAction,
   RampsControllerAddAutorampAction,
   RampsControllerCreateAutorampAction,
+  RampsControllerHydrateVbaOnboardingAction,
   RampsControllerRemoveAutorampAction,
   RampsControllerRegisterMoneyAccountWalletAction,
   RampsControllerMarkAutorampAsNotifiedAction,
@@ -78,6 +80,7 @@ export type {
 } from './RampsController-method-action-types.js';
 export {
   RampsController,
+  VbaOnboardingStage,
   getDefaultRampsControllerState,
   getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
@@ -300,6 +303,7 @@ export type {
 } from './NeoBankService.js';
 export type {
   NeoBankServiceGetAutorampAction,
+  NeoBankServiceGetAutorampsAction,
   NeoBankServiceRegisterPixAddressAction,
   NeoBankServiceGetAutorampQuoteAction,
   NeoBankServiceCreateAutorampAction,
