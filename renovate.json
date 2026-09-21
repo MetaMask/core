@@ -5,6 +5,7 @@
   "dependencyDashboardApproval": true,
   "minimumReleaseAge": "3 days",
   "postUpdateOptions": ["yarnDedupeHighest"],
+  "rangeStrategy": "bump",
   "skipInstalls": false,
   "statusCheckNames": {
     "artifactError": null,
