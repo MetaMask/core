@@ -24,7 +24,9 @@ export type SubscriptionDelegationServiceCheckMoneyAccountBalanceAction = {
  * one exists (ensuring a CHOMP intent is active for its hash, unless
  * `skipChompInteractions` is true). Reuse classifies period `startDate` as
  * trial-deferred (`> now`) vs immediately redeemable, matching creation.
- * When several records match, the latest period `startDate` is reused.
+ * When several records match, the latest period `startDate` is reused
+ * so a `forceNew` replacement is preferred over an older equivalent
+ * permission.
  * If there is no match, builds, signs, optionally verifies with CHOMP,
  * persists, and optionally registers a new delegation.
  *
