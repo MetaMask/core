@@ -34,7 +34,6 @@ describe('SHA-256', () => {
 
 describe('SHA-384', () => {
   it('returns a digest for a byte array', async () => {
-    const res = stringToBytes('foo bar');
     const digest = await sha384(stringToBytes('foo bar'));
     expect(bytesToHex(digest)).toBe(
       '0x6839312f3db343477070d3c0b2becd417b357154d48794d01d78cfb4617ed5ab819a77b6832f6542dd18bb738131ef7e',
