@@ -6622,7 +6622,7 @@ __metadata:
     eslint-plugin-n: "npm:^17.10.3"
     eslint-plugin-prettier: "npm:^5.2.1"
     eslint-plugin-promise: "npm:^7.1.0"
-    execa: "npm:^5.0.0"
+    execa: "npm:^5.1.1"
     isomorphic-fetch: "npm:^3.0.0"
     jest: "npm:^30.4.2"
     jest-silent-reporter: "npm:^0.6.0"
@@ -7758,7 +7758,7 @@ __metadata:
     "@types/yargs": "npm:^17.0.32"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
-    execa: "npm:^5.0.0"
+    execa: "npm:^5.1.1"
     jest: "npm:^30.4.2"
     oxfmt: "npm:^0.44.0"
     prettier: "npm:^3.3.3"
@@ -8532,7 +8532,7 @@ __metadata:
     "@types/yargs": "npm:^17.0.32"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
-    execa: "npm:^5.0.0"
+    execa: "npm:^5.1.1"
     jest: "npm:^30.4.2"
     npm-which: "npm:^3.0.1"
     prism-react-renderer: "npm:^2.4.1"
@@ -17672,7 +17672,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"execa@npm:^5.0.0, execa@npm:^5.1.1":
+"execa@npm:^5.1.1":
   version: 5.1.1
   resolution: "execa@npm:5.1.1"
   dependencies:
