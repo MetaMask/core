@@ -76,7 +76,9 @@ describe('server-support', () => {
 
     it('returns disabled transaction type when the flow is not allowlisted', () => {
       expect(
-        getReason({ enabledTransactionTypes: [TransactionType.predictDeposit] }),
+        getReason({
+          enabledTransactionTypes: [TransactionType.predictDeposit],
+        }),
       ).toBe(ServerUnsupportedReason.DisabledTransactionType);
     });
 
