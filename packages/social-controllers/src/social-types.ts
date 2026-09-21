@@ -114,6 +114,11 @@ export type LeaderboardResponse = {
 // Trader profile
 // ---------------------------------------------------------------------------
 
+/** Values for `TraderProfileResponse.rankingTag` from social-api. */
+export const TRADER_RANKING_TAGS = ['shrimp', 'dolphin', 'whale'] as const;
+
+export type TraderRankingTag = (typeof TRADER_RANKING_TAGS)[number];
+
 export type TraderProfile = {
   profileId: string;
   address: string;
@@ -164,6 +169,11 @@ export type TraderProfileResponse = {
   socialHandles: SocialHandles;
   followerCount: number;
   followingCount: number;
+  /**
+   * Backend-derived tier from the Auth primary account 30d PnL. Omitted on older
+   * social-api builds; `null` when unclaimed or activity is insufficient.
+   */
+  rankingTag?: TraderRankingTag | null;
 };
 
 // ---------------------------------------------------------------------------

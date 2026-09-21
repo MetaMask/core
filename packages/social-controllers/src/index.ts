@@ -43,7 +43,7 @@ export type {
   SocialServiceUnfollowAction,
 } from './SocialService-method-action-types.js';
 
-export { TradeStruct } from './social-types.js';
+export { TRADER_RANKING_TAGS, TradeStruct } from './social-types.js';
 export type {
   FeedItem,
   FeedPagination,
@@ -71,6 +71,7 @@ export type {
   TradeAction,
   TraderProfile,
   TraderProfileResponse,
+  TraderRankingTag,
   TraderStats,
   UnfollowOptions,
   UnfollowResponse,
