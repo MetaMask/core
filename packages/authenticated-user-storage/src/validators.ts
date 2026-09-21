@@ -254,11 +254,17 @@ const UserAssetsBlobSchema = type({
   hiddenAssets: array(string()),
 });
 
-/** Write-side schema: every entry must be a CAIP-19 asset identifier. */
+/**
+ * The maximum number of entries per list (`importedAssets`/`hiddenAssets`)
+ * accepted on writes, mirroring the custom-tokens API's server-side cap.
+ */
+export const USER_ASSETS_MAX_ASSETS = 100;
+
+/** Write-side schema: CAIP-19 entries, capped per list. */
 const UserAssetsBlobWriteSchema = type({
   version: literal(1),
-  importedAssets: array(CaipAssetTypeStruct),
-  hiddenAssets: array(CaipAssetTypeStruct),
+  importedAssets: size(array(CaipAssetTypeStruct), 0, USER_ASSETS_MAX_ASSETS),
+  hiddenAssets: size(array(CaipAssetTypeStruct), 0, USER_ASSETS_MAX_ASSETS),
 });
 
 /**

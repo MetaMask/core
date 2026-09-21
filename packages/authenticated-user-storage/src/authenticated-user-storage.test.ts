@@ -38,6 +38,7 @@ import { getUserStorageApiUrl } from './env.js';
 import type { UserAssetsBlob } from './types.js';
 import {
   ASSETS_WATCHLIST_MAX_ASSETS,
+  USER_ASSETS_MAX_ASSETS,
   assertUserAssetsBlobNormalized,
   normalizeUserAssetsBlob,
 } from './validators.js';
@@ -123,6 +124,13 @@ describe('normalizeUserAssetsBlob()', () => {
     });
   });
 });
+
+const generateAssetIds = (count: number, startIndex = 0): string[] =>
+  Array.from(
+    { length: count },
+    (_, index) =>
+      `eip155:1/erc20:0x${(startIndex + index).toString(16).padStart(40, '0')}`,
+  );
 
 describe('assertUserAssetsBlobNormalized', () => {
   it('accepts a blob with no identifier in both lists', () => {
@@ -781,6 +789,30 @@ describe('AuthenticatedUserStorageService', () => {
         expectedError:
           /At path: hiddenAssets\.0 -- Expected a value of type `CaipAssetType`/u,
       },
+      {
+        name: 'importedAssets exceeds the per-list cap',
+        blob: {
+          version: 1,
+          importedAssets: generateAssetIds(USER_ASSETS_MAX_ASSETS + 1),
+          hiddenAssets: [],
+        },
+        expectedError: new RegExp(
+          `At path: importedAssets -- Expected a array with a length between \`0\` and \`${USER_ASSETS_MAX_ASSETS}\``,
+          'u',
+        ),
+      },
+      {
+        name: 'hiddenAssets exceeds the per-list cap',
+        blob: {
+          version: 1,
+          importedAssets: [],
+          hiddenAssets: generateAssetIds(USER_ASSETS_MAX_ASSETS + 1),
+        },
+        expectedError: new RegExp(
+          `At path: hiddenAssets -- Expected a array with a length between \`0\` and \`${USER_ASSETS_MAX_ASSETS}\``,
+          'u',
+        ),
+      },
     ])(
       'throws a structural error before sending the request when $name',
       async ({ blob, expectedError }) => {
@@ -793,6 +825,22 @@ describe('AuthenticatedUserStorageService', () => {
         ).rejects.toThrow(expectedError);
       },
     );
+
+    it(`accepts a blob with exactly ${USER_ASSETS_MAX_ASSETS} entries per list`, async () => {
+      const mock = handleMockSetUserAssets();
+      const { service } = createService();
+
+      await service.setUserAssets({
+        version: 1 as const,
+        importedAssets: generateAssetIds(USER_ASSETS_MAX_ASSETS),
+        hiddenAssets: generateAssetIds(
+          USER_ASSETS_MAX_ASSETS,
+          USER_ASSETS_MAX_ASSETS,
+        ),
+      });
+
+      expect(mock.isDone()).toBe(true);
+    });
 
     it('de-duplicates entries before sending the request', async () => {
       handleMockSetUserAssets(undefined, async (_, requestBody) => {
@@ -969,6 +1017,36 @@ describe('AuthenticatedUserStorageService', () => {
         );
 
         expect(getScope.isDone()).toBe(false);
+      },
+    );
+
+    it.each([
+      {
+        method: 'importTokens',
+        seed: {
+          importedAssets: generateAssetIds(USER_ASSETS_MAX_ASSETS),
+          hiddenAssets: [],
+        },
+      },
+      {
+        method: 'hideTokens',
+        seed: {
+          importedAssets: [],
+          hiddenAssets: generateAssetIds(USER_ASSETS_MAX_ASSETS),
+        },
+      },
+    ] as const)(
+      '$method throws when the merged blob would exceed the per-list cap',
+      async ({ method, seed }) => {
+        handleMockGetUserAssets({
+          status: 200,
+          body: { version: 1, ...seed },
+        });
+        const { service } = createService();
+
+        await expect(service[method]([MOCK_USDC_ETH_ASSET_ID])).rejects.toThrow(
+          /Expected a array with a length between/u,
+        );
       },
     );
 

@@ -448,7 +448,7 @@ export class AuthenticatedUserStorageService extends BaseDataService<
    * @returns The user-assets blob, or `null` if none has been set (404).
    */
   async getUserAssets(): Promise<UserAssetsBlob | null> {
-    const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/user-assets`;
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/custom-tokens`;
 
     const data = await this.fetchQuery({
       queryKey: [`${this.name}:getUserAssets`],
@@ -498,7 +498,7 @@ export class AuthenticatedUserStorageService extends BaseDataService<
     // Cannot reject user input: normalization already resolved conflicts.
     assertUserAssetsBlobNormalized(normalizedBlob);
 
-    const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/user-assets`;
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/custom-tokens`;
 
     await this.fetchQuery({
       queryKey: [
