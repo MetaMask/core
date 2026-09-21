@@ -13,7 +13,6 @@ permissions:
 jobs:
   repair:
     name: Repair constraints, lockfile and changelogs
-    # Renovate pull requests are authored by `metamask-ci[bot]`, the identity of its token, so they are matched on the branch prefix instead.
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' || startsWith(github.event.pull_request.head.ref, 'renovate/') }}
     runs-on: ubuntu-latest
     # The environment name and this file's name are both load bearing: the token exchange policy keys on the `environment` claim and globs on the workflow path.
@@ -39,10 +38,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # Deliberately not `metamask-ci[bot]`: that is the identity Renovate commits under, and Renovate only leaves a branch alone once it sees a commit from someone else.
       - name: Configure Git
         run: |
-          git config user.name 'metamask-ci[bot]'
-          git config user.email '271559518+metamask-ci[bot]@users.noreply.github.com'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
 
       - name: Get merge base and starting commit
         id: refs
