@@ -360,12 +360,12 @@ export class PasskeyController extends BaseController<
       );
     }
 
-    try {
-      await this.#assertEnrollmentAllowed(params.password);
-      const vaultKey = await this.messenger.call(
-        'KeyringController:exportEncryptionKey',
-      );
+    await this.#assertEnrollmentAllowed(params.password);
+    const vaultKey = await this.messenger.call(
+      'KeyringController:exportEncryptionKey',
+    );
 
+    try {
       const credential = await this.#verifyRegistrationResponse(
         params.registrationResponse,
         registrationCeremony,

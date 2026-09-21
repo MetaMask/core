@@ -1307,6 +1307,15 @@ describe('PasskeyController', () => {
       });
       expect(controller.state.passkeyRecord).toStrictEqual(oldRecord);
       await expectUserHandlePasskeyUsable(controller, userHandle);
+
+      await controller.completePasskeyReplacement({
+        registrationResponse: migration.registrationResponse,
+        authenticationResponse: migration.authenticationResponse,
+        password: 'secret',
+      });
+      expect(controller.state.passkeyRecord?.credential.id).toBe(
+        TEST_REPLACEMENT_CREDENTIAL_ID,
+      );
     });
 
     it('preserves the old record when registration verification fails', async () => {
@@ -1382,7 +1391,8 @@ describe('PasskeyController', () => {
       const exportEncryptionKey = jest
         .fn()
         .mockResolvedValueOnce('old-vault-key')
-        .mockRejectedValueOnce(new Error('export failed'));
+        .mockRejectedValueOnce(new Error('export failed'))
+        .mockResolvedValueOnce('old-vault-key');
       const { messenger } = createMockPasskeyControllerMessenger({
         exportEncryptionKey,
       });
@@ -1400,6 +1410,14 @@ describe('PasskeyController', () => {
         controller,
         migration.userHandle,
         'old-vault-key',
+      );
+
+      await controller.completePasskeyReplacement({
+        registrationResponse: migration.registrationResponse,
+        authenticationResponse: migration.authenticationResponse,
+      });
+      expect(controller.state.passkeyRecord?.credential.id).toBe(
+        TEST_REPLACEMENT_CREDENTIAL_ID,
       );
     });
 

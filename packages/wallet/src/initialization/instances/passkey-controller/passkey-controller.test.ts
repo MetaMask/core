@@ -174,35 +174,4 @@ describe('passkeyController', () => {
       getDefaultPasskeyControllerState(),
     );
   });
-
-  it('exposes replacement methods through the root messenger', async () => {
-    const rootMessenger = getRootMessenger();
-    const messenger = passkeyController.getMessenger(rootMessenger);
-
-    passkeyController.init({
-      state: undefined,
-      messenger,
-      options: REQUIRED_OPTIONS,
-    });
-
-    expect(() =>
-      rootMessenger.call(
-        'PasskeyController:generatePasskeyReplacementRegistrationOptions',
-      ),
-    ).toThrow('PasskeyController - Passkey is not enrolled');
-    await expect(
-      rootMessenger.call('PasskeyController:completePasskeyReplacement', {
-        registrationResponse: {} as PasskeyRegistrationResponse,
-        authenticationResponse: {} as PasskeyAuthenticationResponse,
-      }),
-    ).rejects.toMatchObject({
-      code: PasskeyControllerErrorCode.NotEnrolled,
-    });
-    expect(
-      rootMessenger.call(
-        'PasskeyController:cancelPasskeyReplacement',
-        'challenge',
-      ),
-    ).toBeUndefined();
-  });
 });

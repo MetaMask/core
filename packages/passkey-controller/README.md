@@ -94,14 +94,45 @@ Use the dedicated replacement flow for an enrolled passkey whose
 remains active until the replacement is fully verified and the vault key has
 been wrapped with the new PRF-derived key.
 
+```mermaid
+flowchart LR
+    n1["PasskeyCtrl:migrateToPRF"] --> n2["PasskeyCtrl:register"]
+    n2 --> n3["PRF Supported"]
+    n3 --> n6["YES"] & n7["NO"]
+    n7 --> n4["Do Nothing"]
+    n6 --> n5["PasskeyCtrl:verify"]
+    n5 --> n8["Success"]
+    n8 --> n9["YES"] & n10["NO"]
+    n10 --> n4
+    n9 --> n11["PasskeyCtrl:replaceUserHandleRecord"]
+    n4 --> n12["Continue with current userHandle passkey"]
+
+    n1@{ shape: rounded}
+    n2@{ shape: rounded}
+    n3@{ shape: diam}
+    n6@{ shape: rect}
+    n7@{ shape: rect}
+    n4@{ shape: rect}
+    n5@{ shape: rounded}
+    n8@{ shape: diam}
+    n9@{ shape: rect}
+    n10@{ shape: rect}
+    n11@{ shape: rounded}
+    n12@{ shape: rect}
+```
+
+In the client side,
+
 ```typescript
 // 1. Stage a PRF-only replacement registration.
 const replacementOptions =
   controller.generatePasskeyReplacementRegistrationOptions();
 
+let replacementRegistrationResponse;
+let replacementAuthenticationResponse;
 try {
   // 2. Register the new authenticator. The old credential is excluded.
-  const replacementRegistrationResponse = await navigator.credentials.create({
+  replacementRegistrationResponse = await navigator.credentials.create({
     publicKey: replacementOptions,
   });
 
@@ -110,15 +141,8 @@ try {
     controller.generatePostRegistrationAuthenticationOptions({
       registrationResponse: replacementRegistrationResponse,
     });
-  const replacementAuthenticationResponse = await navigator.credentials.get({
+  replacementAuthenticationResponse = await navigator.credentials.get({
     publicKey: replacementAuthenticationOptions,
-  });
-
-  // 4. Verify both responses and atomically replace the persisted record.
-  await controller.completePasskeyReplacement({
-    registrationResponse: replacementRegistrationResponse,
-    authenticationResponse: replacementAuthenticationResponse,
-    password: settingsEnroll ? walletPassword : undefined,
   });
 } catch (error) {
   // Call this when the browser ceremony is canceled or abandoned before
@@ -126,14 +150,23 @@ try {
   controller.cancelPasskeyReplacement(replacementOptions.challenge);
   throw error;
 }
+
+// 4. Verify both responses and atomically replace the persisted record.
+await controller.completePasskeyReplacement({
+  registrationResponse: replacementRegistrationResponse,
+  authenticationResponse: replacementAuthenticationResponse,
+  password: settingsEnroll ? walletPassword : undefined,
+});
 ```
 
 The replacement authentication response must contain non-empty PRF output;
 there is no `userHandle` fallback. After onboarding, the `password` argument
 is required for the same step-up authorization used by normal enrollment.
-`cancelPasskeyReplacement` removes only the targeted replacement ceremony and
-its linked post-registration authentication ceremony; it does not remove the
-enrolled passkey.
+A missing or wrong password, or a failed vault-key export, leaves the
+replacement ceremony in place so the same `create()`/`get()` responses can be
+retried. `cancelPasskeyReplacement` removes only the targeted replacement
+ceremony and its linked post-registration authentication ceremony; it does
+not remove the enrolled passkey.
 
 The atomicity guarantee applies to the controller state update. If the wallet's
 generic persistence subscriber cannot write the new state, it logs the failure
