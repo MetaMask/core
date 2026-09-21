@@ -14,8 +14,7 @@ runtime by the `assetsAccountsApiV6` remote feature flag:
 - `assetsAccountsApiV6: true`: the new **v6** path
 
 The flag is read in exactly one place, `AssetsController.#isBalanceV6Enabled()`,
-and passed down to `AccountsApiDataSource`, `RpcFallbackMiddleware`, and
-`RpcDataSource`.
+and passed down to `AccountsApiDataSource` and `RpcFallbackMiddleware`.
 
 ## Vocabulary used below
 
@@ -119,7 +118,7 @@ In other words: v5 never runs `RpcFallbackMiddleware` here, and v6 never runs
 | Covered-chain merge       | Preserve old behavior                       | Replace the covered chain slice                        |
 | Pinned asset preservation | Keep custom + staked pins in the merge path | Keep `unprocessedCustomAssets` until RPC resolves them |
 | Hidden assets             | Not sent to the endpoint                    | Sent as `excludeAssetIds`                              |
-| RPC token fetch           | Flat `request.customAssets` for the chain   | Only the pins owned by that account                    |
+| RPC token fetch           | Flat `request.customAssets` for the chain   | Same: one EVM account per request                      |
 
 ## Where the code lives
 
@@ -133,7 +132,6 @@ In other words: v5 never runs `RpcFallbackMiddleware` here, and v6 never runs
 | Balance merge            | `mergeAccountBalancesV5`                  | `mergeAccountBalancesV6`                  |
 | Accounts API fetch       | `#fetchV5Balances`                        | `#fetchV6Balances`                        |
 | RPC fallback             | `#recoverV5`                              | `#recoverV6`                              |
-| RPC custom ERC-20 append | `#appendRequestCustomErc20sV5`            | `#appendRequestCustomErc20sV6`            |
 
 ## Deleting v5 after rollout
 

@@ -145,11 +145,6 @@ export type RpcDataSourceOptions = {
 
   /** Returns the asset type ('native' | 'erc20' | 'spl') for the given CAIP-19 asset ID */
   getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
-  /**
-   * Whether Accounts API v6 pin filtering is enabled.
-   * Injected by AssetsController; defaults to v5 when omitted.
-   */
-  isBalanceV6Enabled?: () => boolean;
 };
 
 /**
@@ -229,8 +224,6 @@ export class RpcDataSource extends AbstractDataSource<
 
   readonly #isOnboarded: () => boolean;
 
-  readonly #isBalanceV6Enabled: () => boolean;
-
   /** Currently active chains */
   #activeChains: ChainId[] = [];
 
@@ -268,8 +261,6 @@ export class RpcDataSource extends AbstractDataSource<
     this.#useExternalService =
       options.useExternalService ?? ((): boolean => true);
     this.#isOnboarded = options.isOnboarded ?? ((): boolean => true);
-    this.#isBalanceV6Enabled =
-      options.isBalanceV6Enabled ?? ((): boolean => false);
 
     const balanceInterval = options.balanceInterval ?? DEFAULT_BALANCE_INTERVAL;
     const detectionInterval =
@@ -1024,12 +1015,6 @@ export class RpcDataSource extends AbstractDataSource<
     const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
     const failedChains: ChainId[] = [];
 
-    // request.customAssets is flat. v6 resolves pin ownership from state so
-    // each account only fetches its own pins; v5 applies the flat list as on main.
-    const customAssetsByAccount = request.customAssets
-      ? this.#getCustomAssetsByAccount()
-      : {};
-
     // Fetch balances for each account and its supported chains (pre-computed in request)
     for (const {
       account,
@@ -1056,25 +1041,12 @@ export class RpcDataSource extends AbstractDataSource<
         }
 
         if (request.customAssets) {
-          const existingMetadata = this.#getExistingAssetsMetadata();
-          if (this.#isBalanceV6Enabled()) {
-            this.#appendRequestCustomErc20sV6(
-              assetsToFetch,
-              request.customAssets,
-              chainId,
-              existingMetadata,
-              new Set(
-                (customAssetsByAccount[accountId] ?? []).map(normalizeAssetId),
-              ),
-            );
-          } else {
-            this.#appendRequestCustomErc20sV5(
-              assetsToFetch,
-              request.customAssets,
-              chainId,
-              existingMetadata,
-            );
-          }
+          this.#appendRequestCustomErc20s(
+            assetsToFetch,
+            request.customAssets,
+            chainId,
+            this.#getExistingAssetsMetadata(),
+          );
         }
 
         try {
@@ -1551,15 +1523,16 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   /**
-   * v5: include every `request.customAssets` ERC-20 on this chain (main behavior).
-   * Delete with the rest of the v5 path when `assetsAccountsApiV6` is the default.
+   * Include every `request.customAssets` ERC-20 on this chain. The selected
+   * group has at most one EVM account, so there is no per-account ownership
+   * filter.
    *
    * @param assetsToFetch - Native/custom entries for this account-chain fetch.
    * @param customAssets - Flat pin list from the data request.
    * @param chainId - Chain being fetched.
    * @param existingMetadata - Metadata already in AssetsController state.
    */
-  #appendRequestCustomErc20sV5(
+  #appendRequestCustomErc20s(
     assetsToFetch: AssetFetchEntry[],
     customAssets: Caip19AssetId[],
     chainId: ChainId,
@@ -1586,63 +1559,6 @@ export class RpcDataSource extends AbstractDataSource<
       } catch {
         // Skip unparseable asset IDs
       }
-    }
-  }
-
-  /**
-   * v6: include only pins owned by this account on this chain.
-   *
-   * @param assetsToFetch - Native/custom entries for this account-chain fetch.
-   * @param customAssets - Flat pin list from the data request.
-   * @param chainId - Chain being fetched.
-   * @param existingMetadata - Metadata already in AssetsController state.
-   * @param pinnedByAccount - This account's pins from controller state.
-   */
-  #appendRequestCustomErc20sV6(
-    assetsToFetch: AssetFetchEntry[],
-    customAssets: Caip19AssetId[],
-    chainId: ChainId,
-    existingMetadata: Record<Caip19AssetId, AssetMetadata>,
-    pinnedByAccount: Set<Caip19AssetId>,
-  ): void {
-    for (const assetId of customAssets) {
-      try {
-        const parsed = parseCaipAssetType(assetId);
-        const assetChainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
-        const normalizedId = normalizeAssetId(assetId);
-        if (
-          assetChainId === chainId &&
-          pinnedByAccount.has(normalizedId) &&
-          this.#getAssetType(assetId) === 'erc20'
-        ) {
-          const tokenAddress = parsed.assetReference.toLowerCase() as Address;
-          const decimals = existingMetadata[normalizedId]?.decimals;
-
-          assetsToFetch.push({
-            assetId,
-            address: tokenAddress,
-            decimals,
-          });
-        }
-      } catch {
-        // Skip unparseable asset IDs
-      }
-    }
-  }
-
-  /**
-   * Get per-account pins from AssetsController state — the request's flat
-   * `customAssets` list carries no account association.
-   *
-   * @returns Record of account ID to pinned CAIP-19 asset IDs.
-   */
-  #getCustomAssetsByAccount(): Record<string, Caip19AssetId[]> {
-    try {
-      const state = this.#messenger.call('AssetsController:getState');
-      return (state.customAssets ?? {}) as Record<string, Caip19AssetId[]>;
-    } catch (error) {
-      log('Failed to get customAssets from state', { error });
-      return {};
     }
   }
 

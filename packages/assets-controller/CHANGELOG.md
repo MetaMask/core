@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add an optional `customAssets` option to `AssetsController.getAssets`, used only when `assetsAccountsApiV6` is enabled. It overrides which pinned assets are attached to the fetch (sent as `includeAssetIds` and to RPC). When the flag is off, `getAssets` still attaches every pin of the requested accounts, unscoped, matching the previous v5 request ([#9651](https://github.com/MetaMask/core/pull/9651))
-- Add an optional `isBalanceV6Enabled` getter to `AccountsApiDataSource` and `RpcDataSource`. `AssetsController` injects it so the `assetsAccountsApiV6` flag is read in one place; both default to v5 when the getter is omitted([#9651](https://github.com/MetaMask/core/pull/9651))
+- Add an optional `isBalanceV6Enabled` getter to `AccountsApiDataSource`. `AssetsController` injects it so the `assetsAccountsApiV6` flag is read in one place; it defaults to v5 when the getter is omitted ([#9651](https://github.com/MetaMask/core/pull/9651))
 
 ### Changed
 

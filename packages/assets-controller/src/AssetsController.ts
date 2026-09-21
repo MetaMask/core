@@ -1046,7 +1046,6 @@ export class AssetsController extends BaseController<
       isOnboarded: rpcConfig.isOnboarded ?? isOnboarded,
       getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
         this.#getAssetType(assetId),
-      isBalanceV6Enabled: (): boolean => this.#isBalanceV6Enabled(),
     });
     this.#stakedBalanceDataSource = new StakedBalanceDataSource({
       messenger: this.messenger,
