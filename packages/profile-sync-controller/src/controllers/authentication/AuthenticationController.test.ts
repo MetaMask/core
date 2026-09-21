@@ -2805,7 +2805,7 @@ describe('metadata', () => {
   });
 
   describe('includeInStateLogs', () => {
-    it('redacts enrolled email addresses', () => {
+    it('keeps only non-PII credential fields', () => {
       const controller = new AuthenticationController({
         messenger: createMockAuthenticationMessenger().messenger,
         metametrics: createMockAuthMetaMetrics(),
@@ -2813,10 +2813,17 @@ describe('metadata', () => {
           ...mockSignedInState(),
           enrolledCredentials: [
             {
-              type: 'email_otp',
+              type: 'passkey',
               status: 'active',
+              enrolledAt: 1_000,
+              displayName: 'My iPhone',
+            },
+            {
+              type: 'email_otp',
+              status: 'pending',
+              enrolledAt: 2_000,
               email: 'jane@example.com',
-              verified: true,
+              verified: false,
             },
           ],
         },
@@ -2829,12 +2836,8 @@ describe('metadata', () => {
           'includeInStateLogs',
         ).enrolledCredentials,
       ).toStrictEqual([
-        {
-          type: 'email_otp',
-          status: 'active',
-          email: 'j••@example.com',
-          verified: true,
-        },
+        { type: 'passkey', status: 'active', enrolledAt: 1_000 },
+        { type: 'email_otp', status: 'pending', enrolledAt: 2_000 },
       ]);
     });
 

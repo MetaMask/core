@@ -148,23 +148,13 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
     usedInUi: true,
   },
   enrolledCredentials: {
-    includeInStateLogs: (credentials) => {
-      if (!credentials) {
-        return null;
-      }
-      return credentials.map((credential) => {
-        if (credential.type !== 'email_otp') {
-          return credential;
-        }
-        const separatorIndex = credential.email.indexOf('@');
-        const domain =
-          separatorIndex >= 0 ? credential.email.slice(separatorIndex) : '';
-        return {
-          ...credential,
-          email: `${credential.email.slice(0, 1)}••${domain}`,
-        };
-      });
-    },
+    // Allow-list so new credential types cannot leak identifiers by default.
+    includeInStateLogs: (credentials) =>
+      credentials?.map(({ type, status, enrolledAt }) => ({
+        type,
+        status,
+        ...(enrolledAt === undefined ? {} : { enrolledAt }),
+      })) ?? null,
     persist: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
@@ -800,7 +790,8 @@ export class AuthenticationController extends BaseController<
 
   /**
    * Runs one MFA network step inside a trace span tagged with the caller's
-   * operation and the credential type, recording the outcome and MFA code.
+   * operation and the credential type, recording the outcome and MFA error
+   * code.
    *
    * @param name - Span name.
    * @param operation - Caller-supplied `reason.operation`.
@@ -830,7 +821,7 @@ export class AuthenticationController extends BaseController<
           data.outcome = 'error';
           const mfaCode = getMfaErrorCode(error);
           if (mfaCode) {
-            data.mfaCode = mfaCode;
+            data.mfaErrorCode = mfaCode;
           }
           throw error;
         }
@@ -860,14 +851,14 @@ export class AuthenticationController extends BaseController<
     // A newer refresh started while this one was in flight; its result is at
     // least as fresh, so defer to it rather than overwrite with older data.
     if (refreshSeq !== this.#credentialsRefreshSeq) {
-      return this.state.enrolledCredentials ?? [];
+      return this.#getEnrolledCredentials();
     }
 
     // Skip the write when nothing changed so subscribers are not woken up by
     // a fresh-but-identical array.
     if (
       JSON.stringify(credentials) !==
-      JSON.stringify(this.state.enrolledCredentials ?? [])
+      JSON.stringify(this.#getEnrolledCredentials())
     ) {
       this.update((state) => {
         state.enrolledCredentials = credentials;
@@ -952,7 +943,7 @@ export class AuthenticationController extends BaseController<
     try {
       return await this.refreshEnrolledCredentials();
     } catch {
-      return this.state.enrolledCredentials ?? [];
+      return this.#getEnrolledCredentials();
     } finally {
       if (type === 'email_otp') {
         this.#invalidateSrpSession(primaryEntropySourceId);
@@ -966,12 +957,16 @@ export class AuthenticationController extends BaseController<
    * that is no longer active.
    */
   #clearEnrolledCredentials(): void {
-    if ((this.state.enrolledCredentials?.length ?? 0) === 0) {
+    if (this.#getEnrolledCredentials().length === 0) {
       return;
     }
     this.update((state) => {
       state.enrolledCredentials = [];
     });
+  }
+
+  #getEnrolledCredentials(): EnrolledCredential[] {
+    return this.state.enrolledCredentials ?? [];
   }
 
   public performSignOut(): void {
