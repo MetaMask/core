@@ -5314,6 +5314,75 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it.each([
+      {
+        phase: SeedlessPasswordChangePhase.LocalKeyringPending,
+        instruction: PasswordSyncInstruction.ReconcileKeyring,
+      },
+      {
+        phase: SeedlessPasswordChangePhase.KeySyncPending,
+        instruction: PasswordSyncInstruction.SyncKey,
+      },
+    ])(
+      'keeps a refreshed accessToken when unlocking from $phase',
+      async ({ phase, instruction }) => {
+        const refreshedAccessToken = createMockJWTToken({
+          exp: Math.floor(Date.now() / 1000) + 7200,
+        });
+
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              withMockAuthPubKey: true,
+              passwordChangePhase: phase,
+            }),
+          },
+          async ({
+            controller,
+            toprfClient,
+            baseMessenger,
+            mockRefreshJWTToken,
+            encryptor,
+          }) => {
+            await newUserSetup(
+              toprfClient,
+              controller,
+              baseMessenger,
+              NEW_PASSWORD,
+            );
+            await controller.setLocked();
+
+            mockRefreshJWTToken.mockResolvedValueOnce({
+              idTokens: ['newIdToken'],
+              accessToken: refreshedAccessToken,
+              metadataAccessToken: 'new-metadata-access-token',
+            });
+            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+            await controller.refreshAuthTokens();
+            expect(controller.state.accessToken).toBe(refreshedAccessToken);
+
+            const result = await controller.reconcilePassword({
+              globalPassword: NEW_PASSWORD,
+            });
+
+            expect(result).toBe(instruction);
+            expect(controller.state.accessToken).toBe(refreshedAccessToken);
+
+            const decryptedVaultData = await encryptor.decrypt(
+              NEW_PASSWORD,
+              controller.state.vault as string,
+            );
+            const parsedVaultData = JSON.parse(decryptedVaultData as string);
+            expect(parsedVaultData.accessToken).toBe(refreshedAccessToken);
+          },
+        );
+      },
+    );
+
     it('returns sync-key when the phase is KEY_SYNC_PENDING', async () => {
       await withController(
         {

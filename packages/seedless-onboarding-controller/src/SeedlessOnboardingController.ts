@@ -1119,37 +1119,7 @@ export class SeedlessOnboardingController<
    */
   async submitPassword(password: string): Promise<void> {
     return await this.#withControllerLock(async () => {
-      // get the access token from the state before unlocking, it might be the new token set from the `refreshAuthTokens` method.
-      const { accessToken: accessTokenBeforeUnlock } = this.state;
-
-      const deserializedVaultData = await this.#unlockVaultAndGetVaultData({
-        password,
-      });
-
-      const accessTokenFromDecryptedVault = deserializedVaultData.accessToken;
-
-      // Pick the latest access token - the token from state might be newer (from refreshAuthTokens)
-      // than the token stored in the vault.
-      const latestAccessToken = this.#pickLatestAccessToken(
-        accessTokenBeforeUnlock,
-        accessTokenFromDecryptedVault,
-      );
-
-      // update the state and vault with the latest access token `ONLY` if it's different from the current access token in the state.
-      if (latestAccessToken !== accessTokenFromDecryptedVault) {
-        const updatedVaultData = {
-          ...deserializedVaultData,
-          accessToken: latestAccessToken,
-        };
-
-        await this.#updateVault({
-          password,
-          vaultData: updatedVaultData,
-          pwEncKey: deserializedVaultData.toprfPwEncryptionKey,
-        });
-      }
-
-      this.#setUnlocked();
+      await this.#unlockVaultAndReconcileAccessToken(password);
     });
   }
 
@@ -1371,6 +1341,45 @@ export class SeedlessOnboardingController<
 
   #setUnlocked(): void {
     this.#isUnlocked = true;
+  }
+
+  /**
+   * Unlock the vault with a password and keep a newer `accessToken` if one was
+   * stored in state by `refreshAuthTokens` before unlock.
+   *
+   * `#unlockVaultAndGetVaultData` writes the vault token over
+   * `state.accessToken`. Snapshot the pre-unlock token, pick the latest, and
+   * persist it into the vault when it differs. Caller must hold the controller
+   * lock.
+   *
+   * @param password - The password to unlock the vault with.
+   */
+  async #unlockVaultAndReconcileAccessToken(password: string): Promise<void> {
+    const { accessToken: accessTokenBeforeUnlock } = this.state;
+
+    const deserializedVaultData = await this.#unlockVaultAndGetVaultData({
+      password,
+    });
+
+    const accessTokenFromDecryptedVault = deserializedVaultData.accessToken;
+
+    const latestAccessToken = this.#pickLatestAccessToken(
+      accessTokenBeforeUnlock,
+      accessTokenFromDecryptedVault,
+    );
+
+    if (latestAccessToken !== accessTokenFromDecryptedVault) {
+      await this.#updateVault({
+        password,
+        vaultData: {
+          ...deserializedVaultData,
+          accessToken: latestAccessToken,
+        },
+        pwEncKey: deserializedVaultData.toprfPwEncryptionKey,
+      });
+    }
+
+    this.#setUnlocked();
   }
 
   /**
@@ -2544,7 +2553,9 @@ export class SeedlessOnboardingController<
    * For `LOCAL_PASSWORD_PENDING` or `KEY_SYNC_PENDING` the local Seedless vault
    * is already rewritten. The method unlocks it with the supplied password so
    * `loadKeyringEncryptionKey` and `storeKeyringEncryptionKey` work after a
-   * restart, without repeating remote TOPRF recovery or a vault rewrite.
+   * restart, without repeating remote TOPRF recovery or a vault rewrite. A
+   * newer `accessToken` from `refreshAuthTokens` is kept instead of being
+   * overwritten by the vault copy.
    *
    * For no checkpoint (`undefined`) it re-checks whether the remote password is
    * outdated. If it is, it runs the same password-sync flow, advances to
@@ -2598,9 +2609,11 @@ export class SeedlessOnboardingController<
         checkpoint === SeedlessOnboardingCheckpoint.KeySyncPending
       ) {
         // Vault is already rewritten; unlock locally so Keyring key load/store
-        // works after a restart without repeating TOPRF recovery.
-        await this.#unlockVaultAndGetVaultData({ password: globalPassword });
-        this.#setUnlocked();
+        // works after a restart without repeating TOPRF recovery. Reconcile
+        // `accessToken` the same way `submitPassword` does: unlocking writes
+        // the vault copy over state, which would discard a token from
+        // `refreshAuthTokens` before unlock.
+        await this.#unlockVaultAndReconcileAccessToken(globalPassword);
         instruction =
           checkpoint === SeedlessOnboardingCheckpoint.KeySyncPending
             ? PasswordSyncInstruction.SyncKey

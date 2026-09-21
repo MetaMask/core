@@ -292,7 +292,9 @@ export type SeedlessOnboardingControllerResolvePasswordSyncStateAction = {
  * For `LOCAL_PASSWORD_PENDING` or `KEY_SYNC_PENDING` the local Seedless vault
  * is already rewritten. The method unlocks it with the supplied password so
  * `loadKeyringEncryptionKey` and `storeKeyringEncryptionKey` work after a
- * restart, without repeating remote TOPRF recovery or a vault rewrite.
+ * restart, without repeating remote TOPRF recovery or a vault rewrite. A
+ * newer `accessToken` from `refreshAuthTokens` is kept instead of being
+ * overwritten by the vault copy.
  *
  * For no checkpoint (`undefined`) it re-checks whether the remote password is
  * outdated. If it is, it runs the same password-sync flow, advances to
