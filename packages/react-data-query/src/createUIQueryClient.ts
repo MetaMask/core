@@ -15,7 +15,6 @@ import {
   MutationOptions,
   MutationState,
   MutationFunction,
-  MutationFunctionContext,
 } from '@tanstack/query-core';
 import { v4 as uuidV4 } from 'uuid';
 
@@ -140,6 +139,53 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
     return service;
   }
 
+  /**
+   * The default `mutationFn` for data-service mutations. It uses the
+   * `mutationKey` to call an action on a data service through the messenger.
+   *
+   * This is a separate function so that we can use it to determine whether a
+   * custom `mutationFn` was used when the mutation was executed.
+   *
+   * @param _variables - The variables with which the mutation is being
+   * executed. Unused.
+   * @param context - The context associated with the mutation. Holds the
+   * `mutationKey`.
+   * @returns The result of the data service action.
+   */
+  const defaultDataServiceMutationFn: MutationFunction = async (
+    _variables,
+    context,
+  ): Promise<unknown> => {
+    const { mutationKey } = context;
+
+    assert(
+      mutationKey !== undefined,
+      "You must pass a `mutationKey` that calls an action on the messenger provided to `createUIQueryClient`, e.g. `mutationKey: ['ExampleDataService:createOrder', ...]`.",
+    );
+
+    const [action, ...params] = mutationKey;
+
+    assert(
+      typeof action === 'string' && isRecognizedDataServiceAction(action),
+      "You must pass a `mutationKey` that calls an action on the messenger provided to `createUIQueryClient`, e.g. `mutationKey: ['ExampleDataService:createOrder', ...]`.",
+    );
+
+    log(`Detected mutation request, calling action: "${action}"`);
+
+    // We assume that this mutation already has a global ID. (It was
+    // added by our `MutationCache.build` override below.)
+    const globalId = readGlobalId(context.meta);
+    // We can't realistically test that it doesn't have a global ID, however,
+    // since `MutationCache.build` always runs first.
+    // istanbul ignore next
+    assert(
+      globalId !== undefined,
+      'Expected mutation to have a `globalId` in its `meta` by the time its `mutationFn` runs, but none was found. This is a bug in `createUIQueryClient`.',
+    );
+
+    return await messenger.call(action, ...(params as Json[]), globalId);
+  };
+
   const client: QueryClient = new QueryClient({
     ...config,
     defaultOptions: {
@@ -163,7 +209,10 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
           return await messenger.call(action, ...params);
         },
       },
-      mutations: config.defaultOptions?.mutations,
+      mutations: {
+        ...config.defaultOptions?.mutations,
+        mutationFn: defaultDataServiceMutationFn,
+      },
     },
   });
 
@@ -258,11 +307,11 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
             payload,
           );
 
-          // Only `updated` events carry a meaningful mutation state to sync. An
-          // `added` event fires when the service first builds a mutation, while
-          // it is still `idle` with no result; hydrating that would clobber a
-          // UI mutation that has already moved to `pending`, `success`, or
-          // `error`. A `removed` event carries no state at all.
+          // Only `updated` events have meaningful mutation state to sync.
+          // When a mutation is first created, an `added` event is fired and the
+          // state is `idle` with no result; hydrating that would clobber a UI
+          // mutation that has already moved to `pending`, `success`, or
+          // `error`. (And a `removed` event has no state at all.)
           if (payload.type !== 'updated') {
             return;
           }
@@ -329,74 +378,6 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
     return originalInvalidate(filters, options);
   };
 
-  // Tracks the `mutationFn`s that we install for data-service mutations, so the
-  // `build` override below can tell them apart from user-provided ones and only
-  // assign a `globalId` to mutations that are actually routed to a data
-  // service.
-  const dataServiceMutationFns = new WeakSet<
-    // We are interoperating with generic `mutationFn`s from @tanstack/query-core.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    MutationFunction<any, any>
-  >();
-
-  // Override `defaultMutationOptions` so that `mutationFn` uses the
-  // `mutationKey` to call an action on a data service through the messenger.
-
-  const originalDefaultMutationOptions =
-    client.defaultMutationOptions.bind(client);
-
-  client.defaultMutationOptions = <
-    // We are overriding a type in @tanstack/query-core.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    Options extends MutationOptions<any, any, any, any>,
-  >(
-    options?: Options,
-  ): Options => {
-    const defaultedOptions = originalDefaultMutationOptions(options);
-
-    if (defaultedOptions.mutationFn === undefined) {
-      const dataServiceMutationFn = async (
-        _variables: unknown,
-        context: MutationFunctionContext,
-      ): Promise<unknown> => {
-        const { mutationKey } = defaultedOptions;
-
-        assert(
-          mutationKey !== undefined,
-          "You must pass a `mutationKey` that calls an action on the messenger provided to `createUIQueryClient`, e.g. `mutationKey: ['ExampleDataService:createOrder', ...]`.",
-        );
-
-        const [action, ...params] = mutationKey;
-
-        assert(
-          typeof action === 'string' && isRecognizedDataServiceAction(action),
-          "You must pass a `mutationKey` that calls an action on the messenger provided to `createUIQueryClient`, e.g. `mutationKey: ['ExampleDataService:createOrder', ...]`.",
-        );
-
-        log(`Detected mutation request, calling action: "${action}"`);
-
-        // Thanks to our `MutationCache.build` override below, by the time this
-        // `mutationFn` runs, our mutation *should* already have a `globalId`
-        // (which is available via `context.meta`).
-        const globalId = readGlobalId(context.meta);
-        // We can't realistically test that it doesn't, since
-        // `MutationCache.build` always runs first.
-        // istanbul ignore next
-        assert(
-          globalId !== undefined,
-          'Expected mutation to have a `globalId` in its `meta` by the time its `mutationFn` runs, but none was found. This is a bug in `createUIQueryClient`.',
-        );
-
-        return await messenger.call(action, ...(params as Json[]), globalId);
-      };
-
-      dataServiceMutationFns.add(dataServiceMutationFn);
-      defaultedOptions.mutationFn = dataServiceMutationFn;
-    }
-
-    return defaultedOptions;
-  };
-
   // Override `build` to ensure that any data-service mutation created via
   // `executeMutation` or manually has a `globalId`.
 
@@ -410,16 +391,11 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
     const mutation = originalBuildMutation(buildClient, options, state);
     const { mutationFn } = mutation.options;
 
-    // Only mutations routed to a data service need a `globalId`, and only if
-    // they don't already have one (e.g., a mutation rebuilt from dehydrated
-    // service state may already have one).
-    // We recognize data-service mutation functions by consulting a WeakSet
-    // (and we use a WeakSet to distinguish mutation functions that *we*
-    // installed via the `defaultMutationOptions` override above, vs. ones that
-    // the engineer has added).
     if (
-      mutationFn === undefined ||
-      !dataServiceMutationFns.has(mutationFn) ||
+      // We know that a custom `mutationFn` was provided because it
+      // is not the default (which is defined above).
+      mutationFn !== defaultDataServiceMutationFn ||
+      // No need to add a global ID if there's already one.
       readGlobalId(mutation.options.meta) !== undefined
     ) {
       return mutation;

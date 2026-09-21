@@ -50,8 +50,8 @@
   "dependencies": {
     "@metamask/base-data-service": "^2.0.0",
     "@metamask/utils": "^12.0.0",
-    "@tanstack/query-core": "^5.62.16",
-    "@tanstack/react-query": "^5.62.16",
+    "@tanstack/query-core": "^5.89.0",
+    "@tanstack/react-query": "^5.89.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

@@ -43,7 +43,7 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^12.0.0",
-    "@tanstack/query-core": "^5.62.16"
+    "@tanstack/query-core": "^5.89.0"
   },
   "devDependencies": {
     "@docusaurus/core": "^3.10.1",
