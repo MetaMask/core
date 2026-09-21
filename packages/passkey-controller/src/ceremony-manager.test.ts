@@ -31,6 +31,26 @@ describe('CeremonyManager', () => {
       });
     });
 
+    it('stores replacement marker and source credential ID', () => {
+      const manager = new CeremonyManager();
+      jest.setSystemTime(1_000_000);
+
+      manager.saveRegistrationCeremony('replacement-challenge', {
+        isReplacement: true,
+        sourceCredentialId: 'old-credential',
+        userHandle: 'new-user-handle',
+        challenge: 'replacement-challenge',
+        createdAt: 1_000_000,
+      });
+
+      expect(
+        manager.getRegistrationCeremony('replacement-challenge'),
+      ).toMatchObject({
+        isReplacement: true,
+        sourceCredentialId: 'old-credential',
+      });
+    });
+
     it('getRegistrationCeremony prunes entries older than CEREMONY_MAX_AGE_MS before lookup', () => {
       const manager = new CeremonyManager();
       const tOld = 100_000;
@@ -107,8 +127,14 @@ describe('CeremonyManager', () => {
         challenge: 'x',
         createdAt: 0,
       });
+      manager.saveAuthenticationCeremony('x-auth', {
+        challenge: 'x-auth',
+        registrationChallenge: 'x',
+        createdAt: 0,
+      });
       expect(manager.deleteRegistrationCeremony('x')).toBe(true);
       expect(manager.getRegistrationCeremony('x')).toBeUndefined();
+      expect(manager.getAuthenticationCeremony('x-auth')).toBeUndefined();
       expect(manager.deleteRegistrationCeremony('missing')).toBe(false);
     });
 

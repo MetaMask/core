@@ -303,6 +303,7 @@ export class PasskeyController extends BaseController<
     // save auth ceremony
     this.#ceremonyManager.saveAuthenticationCeremony(challenge, {
       challenge,
+      registrationChallenge: regChallenge,
       createdAt: Date.now(),
     });
 
